@@ -72,8 +72,8 @@ def test_a_stay_of_several_days_is_declared_so_the_model_can_ask_for_it(ag):
 
 
 def test_finding_a_free_slot_is_declared_a_question_not_a_booking(ag):
-    """Demo passes 2026-09-28 (full12, full13 C2): «find me a free 45 minutes tomorrow afternoon to talk with ethan»
-    booked «Call with Ethan» on his real calendar; the next order («ok book it, call it catch up with ethan») then
+    """Demo passes 2026-09-28 (full12, full13 C2): «find me a free 45 minutes tomorrow afternoon to talk with rowan»
+    booked «Call with Rowan» on his real calendar; the next order («ok book it, call it catch up with rowan») then
     booked a SECOND one at the same hour and C4 had to ask which to move. The only description of `add_meeting`
     the model reads said what it adds, never when it must not."""
     import json
@@ -83,7 +83,7 @@ def test_finding_a_free_slot_is_declared_a_question_not_a_booking(ag):
 
 
 def test_finding_free_time_is_an_action_that_books_nothing(ag, monkeypatch):
-    """Demo passes 2026-09-28 (C2, three running): «find me a free 45 minutes tomorrow afternoon to talk with ethan»
+    """Demo passes 2026-09-28 (C2, three running): «find me a free 45 minutes tomorrow afternoon to talk with rowan»
     booked the meeting — the description said it was a question, but the agenda had no action that FINDS time, so
     the model took the nearest one, which writes. `find_free` answers the question and writes no meeting."""
     ag.apply_action("add_meeting", {"title": "Weekly review", "date": "2026-10-06", "startTime": "09:00",

@@ -2,7 +2,7 @@
 
 `router_guards._PROMISE_RE` is the Spanish table; every consumer of `promises_action` — the act-repair gate,
 the promise backstops, `a_promise_left_hanging` — was blind on the English demo («Yep — putting Madonna on.»,
-«Sending that off to Andrew now.» → False). Measured shapes from demo passes 33-58; negation is honoured by the
+«Sending that off to Quinn now.» → False). Measured shapes from demo passes 33-58; negation is honoured by the
 same `unnegated_match` as the Spanish half («I won't send anything» is not a promise).
 """
 from __future__ import annotations

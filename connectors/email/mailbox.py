@@ -260,9 +260,9 @@ def _other_recipients(msg, from_addr: str) -> list:
 
 def _is_own_address(addr: str) -> bool:
     """A mail FROM the operator's own address is the echo of one he sent — a copy that lands back in INBOX when
-    the recipient is a list or alias he is on. Demo pass 2026-09-28 (full13 E3): the invoice forwarded to Andrew
-    in an earlier run came back as «rjj@proars.com · Hi Andrew, forwarding the Inworld receipt», sat first in
-    his «for you» list, and the model took it for a mail FROM Andrew and asked which thread to send from. What
+    the recipient is a list or alias he is on. Demo pass 2026-09-28 (full13 E3): the invoice forwarded to Quinn
+    in an earlier run came back as «operator@example.com · Hi Quinn, forwarding the Inworld invoice», sat first in
+    his «for you» list, and the model took it for a mail FROM Quinn and asked which thread to send from. What
     he wrote himself is not something to triage for him."""
     try:
         from . import config as _cfg

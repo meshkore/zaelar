@@ -5,7 +5,7 @@
 «Hi Josep, thanks for the note. I'll send the Meet link right after our call.» went to jsola@renta4.es. V2-754 lets a
 valid model call beat a disagreeing verdict because a wrong verdict costs a reversible view; for an act that leaves
 (consent level ≥ sensitive) the costs are reversed. When the two readers disagree, the verdict's action runs with the
-model's content, or he is asked; agreement, or no verdict, changes nothing (C5's Telegram to Ethan still goes)."""
+model's content, or he is asked; agreement, or no verdict, changes nothing (C5's Telegram to Rowan still goes)."""
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]

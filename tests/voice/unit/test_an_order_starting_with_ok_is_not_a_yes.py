@@ -1,12 +1,12 @@
-"""Demo pass 45 (2026-09-29), C2→C3: the model asked «I'll write to Ethan on Telegram: … Shall I send it?» for a message
-nobody had asked for; the next turn — «ok book it, call it catch up with ethan», an order about the CALENDAR —
+"""Demo pass 45 (2026-09-29), C2→C3: the model asked «I'll write to Rowan on Telegram: … Shall I send it?» for a message
+nobody had asked for; the next turn — «ok book it, call it catch up with rowan», an order about the CALENDAR —
 matched `ok` in the yes/no table and the Telegram went out. A bare answer still resolves at once; a reply that
 carries its own words is asked, with the pending question named, whether it answers it."""
 import pytest
 
 from widgets import confirm
 
-_Q = "I'll write to Ethan on Telegram: «you free for a 45-minute call tomorrow?». Shall I send it?"
+_Q = "I'll write to Rowan on Telegram: «you free for a 45-minute call tomorrow?». Shall I send it?"
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +29,7 @@ def _reader(monkeypatch, choice):
 
 def test_a_different_order_that_starts_with_ok_confirms_nothing(monkeypatch):
     asked = _reader(monkeypatch, "other")
-    assert confirm.answers_pending("ok book it, call it catch up with ethan") is None
+    assert confirm.answers_pending("ok book it, call it catch up with rowan") is None
     assert "Shall I send it?" in asked[0], "the reader was not told which question is pending"
 
 
@@ -48,7 +48,7 @@ def test_a_long_yes_the_reader_confirms_is_a_yes(monkeypatch):
 
 def test_without_the_reader_the_word_reading_stands(monkeypatch):
     monkeypatch.setattr(confirm, "_judge", lambda *a, **k: None)
-    assert confirm.answers_pending("ok book it, call it catch up with ethan") == "yes"
+    assert confirm.answers_pending("ok book it, call it catch up with rowan") == "yes"
 
 
 def test_both_voice_sites_and_the_gate_use_it():

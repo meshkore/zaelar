@@ -69,7 +69,7 @@ def test_a_read_of_a_card_this_turn_changed_waits_for_the_change():
 
 def test_a_data_op_that_answers_is_the_answer():
     """Demo pass 2026-09-28 (E block, isolated): «check my email, did inworld send me something?» — the model called
-    search_archive, it found the Inworld receipt, and the turn said «Let me check your inbox»: the voice path
+    search_archive, it found the Inworld invoice, and the turn said «Let me check your inbox»: the voice path
     dispatches detached and only ever read a result that FAILED. A turn that owes words waits for its ops (bounded)
     and answers with what they returned."""
     from nucleo.flash import data_ops as d

@@ -80,7 +80,7 @@ def test_an_empty_password_says_it_is_not_the_normal_one():
 
 # ── the shared door: control.validate_connect ─────────────────────────────────────────────────────────────
 def _connect(**over):
-    payload = {"email_address": "rjj@proars.com", "provider": "gmail", "email_password": GOOD_GMAIL}
+    payload = {"email_address": "operator@example.com", "provider": "gmail", "email_password": GOOD_GMAIL}
     payload.update(over)
     return payload
 
@@ -98,7 +98,7 @@ def test_the_shared_door_accepts_the_real_thing():
 
 
 def test_a_custom_domain_on_gmail_is_judged_by_GOOGLE_rules():
-    # rjj@proars.com with provider=gmail is a Workspace account: same servers, same 16-letter rule.
+    # operator@example.com with provider=gmail is a Workspace account: same servers, same 16-letter rule.
     from connectors.messaging import control
     assert control.validate_connect("email", _connect(email_password="short")) is not None
 
@@ -187,7 +187,7 @@ def test_a_SUCCESSFUL_connect_reports_nothing(monkeypatch):
 def _stored(monkeypatch):
     from connectors.email import config
 
-    def _set(pwd, addr="rjj@proars.com", pid="gmail"):
+    def _set(pwd, addr="operator@example.com", pid="gmail"):
         monkeypatch.setattr(config, "password", lambda: creds.normalize(pwd))
         monkeypatch.setattr(config, "address", lambda: addr)
         monkeypatch.setattr(config, "resolved_provider_id", lambda: pid)
@@ -209,12 +209,12 @@ def test_an_auth_failure_over_a_PLAUSIBLE_password_gives_the_provider_causes(_st
 
 
 def test_a_custom_domain_is_told_its_admin_may_be_the_reason(_stored):
-    # rjj@proars.com is Workspace: app passwords and IMAP can be off account-wide, and no amount of retyping
+    # operator@example.com is Workspace: app passwords and IMAP can be off account-wide, and no amount of retyping
     # the password fixes that.
     from connectors.email import service
-    _stored(GOOD_GMAIL, addr="rjj@proars.com")
+    _stored(GOOD_GMAIL, addr="operator@example.com")
     msg = service._friendly_error("IMAP: b'[AUTHENTICATIONFAILED] Invalid credentials (Failure)'")
-    assert "proars.com" in msg and "administrador" in msg
+    assert "example.com" in msg and "administrador" in msg
 
 
 def test_the_other_failure_kinds_are_untouched(_stored):

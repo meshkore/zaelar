@@ -1,4 +1,4 @@
-"""full41 E3 (demo pass 2026-09-29): «send the invoice to andrew, tell him we're already trying inworld and he should
+"""full41 E3 (demo pass 2026-09-29): «send the invoice to quinn, tell him we're already trying inworld and he should
 book it» over the open receipt → «I can't send it myself — sending mail isn't something I can do on my end», no
 call, the verdict reading `mensajeria:forward`. The promise pass asks «did you promise an act?»; a refusal did not,
 so it rightly called nothing, and the mail never went. A refusal of an action the card DECLARES, for an order the
@@ -13,7 +13,7 @@ from nucleo.flash import act_repair
 ENGINE = pathlib.Path(__file__).resolve().parents[3]
 _REFUSAL = "I can't send it myself — sending mail isn't something I can do on my end."
 _FORWARD = {"widget_id": "mensajeria", "action": "forward",
-            "payload": {"contact": "Andrew", "text": "We're already trying Inworld — please book it."}}
+            "payload": {"contact": "Quinn", "text": "We're already trying Inworld — please book it."}}
 
 
 class _Model:
@@ -41,7 +41,7 @@ def model(monkeypatch):
 
 
 def _run(verdict="forward"):
-    return asyncio.run(act_repair.call_for_promise_or_order("send the invoice to andrew", _REFUSAL, "mensajeria",
+    return asyncio.run(act_repair.call_for_promise_or_order("send the invoice to quinn", _REFUSAL, "mensajeria",
                                                             verdict))
 
 
@@ -71,7 +71,7 @@ def test_both_channels_use_it():
 
 
 def test_an_escalation_to_an_open_card_gets_the_verdicts_call_too():
-    """full44 E3: the model ESCALATED «forward the Inworld invoice to Andrew» with the receipt open and the verdict
+    """full44 E3: the model ESCALATED «forward the Inworld invoice to Quinn» with the receipt open and the verdict
     reading `mensajeria:forward`. The open-card pass asked «did you promise?» of the escalation text, got nothing,
     and a browser worker took the errand — its card sat on screen for the rest of the demo, and the mail went out
     minutes later. Both channels now ask the verdict's call there too."""

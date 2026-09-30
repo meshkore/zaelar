@@ -239,8 +239,8 @@ _PLAIN_ANSWER_WORDS = 3
 def answers_pending(text: str) -> str | None:
     """`classify_reply`, for the confirmation actually pending — 'yes' | 'no' | None.
 
-    Demo pass 45 (2026-09-29), C2→C3: the model asked «I'll write to Ethan on Telegram: … Shall I send it?» for a
-    message nobody had asked for, and the next turn — «ok book it, call it catch up with ethan», an order about the
+    Demo pass 45 (2026-09-29), C2→C3: the model asked «I'll write to Rowan on Telegram: … Shall I send it?» for a
+    message nobody had asked for, and the next turn — «ok book it, call it catch up with rowan», an order about the
     CALENDAR — matched `ok` and sent it. A bare yes/no is an answer and resolves at once, as before. One that
     carries more words may be a different request that happens to start with «ok»: the turn reader is asked
     whether it answers THIS question, with the question named; «something else» is not an answer. If the reader

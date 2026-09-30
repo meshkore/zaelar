@@ -56,7 +56,7 @@ def test_a_sender_mentioned_in_many_forwards_is_still_a_name(tmp_path, monkeypat
         archive.record("telegram", "-1", [{"id": f"x{i}", "body": f"market chatter number {i}", "ts": i}], direction="in")
     for i in range(12):
         archive.record("email", "ago@x.invalid", [{"id": f"fw{i}", "ts": 2000 + i,
-                       "body": "Hi Andrew, forwarding the Inworld receipt"}], direction="out")
+                       "body": "Hi Quinn, forwarding the Inworld invoice"}], direction="out")
     # the question's other words, each in a handful of messages (as in the real archive: 3-10) — so the median
     # word sits below the 13 messages that mention Inworld
     for w, n in (("yes", 8), ("give", 8), ("sender", 4), ("subject", 10), ("date", 7), ("short", 3)):

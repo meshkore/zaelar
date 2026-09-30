@@ -32,7 +32,7 @@ def mutating(widget_id: str):
 
     `load` and `save` are each atomic on their own and that is not enough: a background import that loaded the
     contacts, spent seconds merging 2,692 rows, and saved, erased a contact added in between (demo pass
-    2026-09-28 — «Ethan» vanished and his Telegram message could not be sent). Reentrant, so a caller already
+    2026-09-28 — «Rowan» vanished and his Telegram message could not be sent). Reentrant, so a caller already
     holding it can call helpers that take it again. Every widget action runs inside it (`server_api`)."""
     key = _safe_id(str(widget_id or "").split("::", 1)[0])
     with _mut_guard:

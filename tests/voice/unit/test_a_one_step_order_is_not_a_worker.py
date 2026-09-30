@@ -1,7 +1,7 @@
 """The escalate verdict keeps one-step orders on the spot and sends real errands to a worker — measured live.
 
 Measured 2026-09-27 (demo pass v6): the question told Jev «handle_inline ONLY for what is clearly not an errand …
-when in doubt, escalate». It escalated 11 of 11 one-step orders — «Play something by Madonna», «Message Ethan on
+when in doubt, escalate». It escalated 11 of 11 one-step orders — «Play something by Madonna», «Message Rowan on
 Telegram…», «Show me a chart of Apple stock today» (0.99) — and the promise backstop turned each into a 50-60 s
 Brain Worker. The question now names what the assistant does with its own cards. Old wording: 5/17. New: 16/17.
 
@@ -14,11 +14,11 @@ import os
 import pytest
 
 INLINE = ["Show me a red Ferrari F40.", "Show me the last month instead.", "Play something by Madonna.",
-          "Message Ethan on Telegram and tell him the new meeting time.",
+          "Message Rowan on Telegram and tell him the new meeting time.",
           "Find a five-day period during her vacation when my calendar is clear, and suggest the dates.",
-          "Show me a chart of Apple stock today.", "Schedule it as \"Catch up with Ethan\".",
+          "Show me a chart of Apple stock today.", "Schedule it as \"Catch up with Rowan\".",
           "Show me only the emails from today that need my attention.",
-          "Pon algo de Madonna.", "Mándale un Telegram a Ethan con la nueva hora."]
+          "Pon algo de Madonna.", "Mándale un Telegram a Rowan con la nueva hora."]
 ERRANDS = ["Johnny, find me three 27-inch 4K monitors under 400 dollars — show me when you have them.",
            "Write me a one-page summary of the Declaration of Independence in a document.",
            "Johnny, plan a 5-day warm-weather trip for Anna and me from LAX, December 21st to 25th, under 2000 "

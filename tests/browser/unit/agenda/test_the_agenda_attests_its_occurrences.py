@@ -25,7 +25,7 @@ def ag(tmp_path, monkeypatch):
     db["meetings"] = [
         {"id": "m1", "title": "ZAELAR weekly review", "date": _day(0), "startTime": "09:00", "endTime": "09:30",
          "repeat": {"freq": "weekly", "days": [_dt.date.today().weekday()], "until": ""}},
-        {"id": "m2", "title": "Catch up with Ethan", "date": _day(3), "startTime": "16:30", "endTime": "17:15"}]
+        {"id": "m2", "title": "Catch up with Rowan", "date": _day(3), "startTime": "16:30", "endTime": "17:15"}]
     store.save(data.WIDGET_ID, db)
     return data
 
@@ -41,5 +41,5 @@ def test_a_series_is_one_row_and_several_occurrences(ag):
 def test_a_spec_on_a_day_reads_the_occurrence(ag):
     from nucleo import verify
     assert verify.check({"widget": "agenda", "collection": "occurrences", "where": {"title~": "review", "date": _day(7)}}) is True
-    assert verify.check({"widget": "agenda", "collection": "occurrences", "where": {"title~": "Ethan", "date": _day(3)}}) is True
-    assert verify.check({"widget": "agenda", "collection": "occurrences", "where": {"title~": "Ethan", "date": _day(4)}}) is False
+    assert verify.check({"widget": "agenda", "collection": "occurrences", "where": {"title~": "Rowan", "date": _day(3)}}) is True
+    assert verify.check({"widget": "agenda", "collection": "occurrences", "where": {"title~": "Rowan", "date": _day(4)}}) is False

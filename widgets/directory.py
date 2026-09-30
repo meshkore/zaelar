@@ -145,7 +145,7 @@ def channel_for(contact: dict, platform: str = "") -> dict | None:
 def reachable(question: str) -> str:
     """The people a free-text question names, with how each one is reached — for a card that WRITES to people.
 
-    Demo pass 2026-09-28, C5: asked «is there a contact called Ethan? does he have Telegram?», the messaging card
+    Demo pass 2026-09-28, C5: asked «is there a contact called Rowan? does he have Telegram?», the messaging card
     could only see its inbox and said no, while its own `send_to` resolves through this module. A card that sends
     answers recipient questions from here; this layer asks the directory's own lookup, so no widget imports
     another. "" when nobody is named."""

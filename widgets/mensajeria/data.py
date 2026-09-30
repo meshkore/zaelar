@@ -305,7 +305,7 @@ def _bring_back_found_mail(payload: dict) -> int:
 
     Demo pass 2026-09-28 (full28 E1→E3): «did inworld send me something?» found the receipt in the archive; the card
     holds only the 30 most recent unread, and with newer mail since, the receipt was not among them — «open it» found
-    no chat and «send the invoice to andrew» had nothing to forward. The archive keeps the mailbox UID, so the
+    no chat and «send the invoice to quinn» had nothing to forward. The archive keeps the mailbox UID, so the
     card's own «load previous» order (the connector's `fetch_older`, one message just below UID+1) brings exactly
     that mail into its conversation. Never raises; returns how many orders were queued."""
     try:
@@ -378,7 +378,7 @@ def answer_action(action: str, payload: dict | None = None) -> dict | None:
         # never be queued and then fail out of sight, and the sentence that says what is missing is the only
         # thing that makes the next attempt succeed.
         if action == "forward":
-            # full21 E3: `forward {contact: Andrew}` with no note was refused by `resolve_target` in words that named
+            # full21 E3: `forward {contact: Quinn}` with no note was refused by `resolve_target` in words that named
             # `send_to` — another action — so the same-turn correction retried the wrong one and nothing went out.
             if not str(payload.get("text") or "").strip():
                 return {"ok": False, "error": "falta `text` en forward: la nota para esa persona con lo que el "
@@ -737,8 +737,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         t = _outbound.resolve_target(payload)
         if not t.get("ok"):
             return t
-        # FORWARDING what arrived (the operator's demo, 2026-09-28: «open the Inworld receipt and send the invoice
-        # to Andrew»): `attach_from` points at a message on the card — its `n`, its `messageId`, or `{}` for the
+        # FORWARDING what arrived (the operator's demo, 2026-09-28: «open the Inworld invoice and send the invoice
+        # to Quinn»): `attach_from` points at a message on the card — its `n`, its `messageId`, or `{}` for the
         # one open — and its files travel with this send. Asked for and absent is a refusal, never a mail that
         # announces an attachment it does not carry.
         atts = []
@@ -770,7 +770,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
 
     if action == "forward":
         # FORWARD = a send to a person carrying the files of a message that arrived (the operator's demo: «send the
-        # invoice to Andrew»). One name for what he asks, instead of a parameter the model has to remember — measured
+        # invoice to Quinn»). One name for what he asks, instead of a parameter the model has to remember — measured
         # 2026-09-28: the model reached for `reply` (to the SENDER of the invoice) and the files never travelled.
         src = {k: payload[k] for k in ("n", "messageId", "from") if payload.get(k) not in (None, "")}
         db0 = load_db()
@@ -930,7 +930,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             match = next((c for c in chats if c.get("n") == n), None)
         elif name:
             match = _find_chat_by_name(db, name)
-            # Demo pass 66, E2: «open it» came as open {name: "Inworld receipt"} — the thread is named by its address
+            # Demo pass 66, E2: «open it» came as open {name: "Inworld invoice"} — the thread is named by its address
             # (invoice+statements@inworld.ai), so no chat matched and the turn needed a second try. A name that shares
             # a word with what the archive last found means that mail.
             if match is None and _lf:

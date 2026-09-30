@@ -3,7 +3,7 @@
 S3: «open the one that's the best deal» reached `results:detail` with nothing the sheet could match (its badge
 says «Best value»); C4: «move it half an hour later» reached `move_meeting` with field names it did not read. Both
 refusals were true and both went to a note for the NEXT turn: silence now, an apology stapled to an unrelated
-answer later — and in C4 the next order («send Ethan a telegram») was spent re-sending the move.
+answer later — and in C4 the next order («send Rowan a telegram») was spent re-sending the move.
 
 The bounds are the safety of a second model call: the SAME action on the SAME card (so the same gate the refused
 call already passed), a DIFFERENT payload, nothing when the model still cannot tell — and both channels share it.

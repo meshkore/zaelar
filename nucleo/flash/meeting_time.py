@@ -1,6 +1,6 @@
 """A message that cites a meeting carries the AGENDA's time (V2-776 K1, 2026-09-29).
 
-Demo pass 56: «ok book it» (16:00-16:45) → «move it half an hour later» (16:30) → «send ethan a telegram with the
+Demo pass 56: «ok book it» (16:00-16:45) → «move it half an hour later» (16:30) → «send rowan a telegram with the
 new time» → the model wrote «now at 5:00 PM» from memory, and a real Telegram went out with a false time. The
 model composes the text of a send; the ENGINE knows the meeting. Deterministic and narrow: the last agenda
 mutation of the conversation names the meeting, the text shares a word with that meeting's title, and every

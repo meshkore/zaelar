@@ -3,7 +3,7 @@ worker; and a read the verdict says to SHOW brings its card (V2-773, the demo's 
 
 Two measured turns on the operator's live engine, 2026-09-26, both on the calendar with the agenda CLOSED:
 
-  · «Find me a free 45-minute slot tomorrow afternoon to talk with Ethan» — the catalogue verdict named the
+  · «Find me a free 45-minute slot tomorrow afternoon to talk with Rowan» — the catalogue verdict named the
     agenda (0.79 after its description learnt to say «huecos libres»), the model called `escalate`, and a
     Brain Worker spent three minutes on a question the card answers in one read. The two rungs before it
     (`direct_action.take_rung`, the act-repair pass) only see a card named through `screen_action`, which
@@ -36,7 +36,7 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
 
     The brief asks `screen_action` while cards are open and `catalog_widget` only when nothing is, on purpose
     (V2-726). So an order for a CLOSED card while other cards are open reads as a confident «none» and names
-    nobody: demo v3, C5 — «Message Ethan on Telegram» with the agenda open — read `none` 0.91, the model
+    nobody: demo v3, C5 — «Message Rowan on Telegram» with the agenda open — read `none` 0.91, the model
     answered from the agenda and nothing was sent. When the screen verdict is a sure «none» and nothing was
     called, one bounded catalogue question (the same criteria, the same reader) says which closed card it is.
     Returns "" when unsure or when nothing can be asked; never waits past `wait_s`; never raises."""
@@ -157,7 +157,7 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
         if not card or _danger.is_dangerous(operator_text):
             return ""
         # Any card the verdict names may take the CALL; the read half is offered only to one that can answer.
-        # An order the verdict reads as owing NO words («send ethan a telegram with the new time», wants_words=act)
+        # An order the verdict reads as owing NO words («send rowan a telegram with the new time», wants_words=act)
         # is not answered by a read: offering one made the pass check the directory instead of sending (C5, 2/4).
         from nucleo.flash import turn_brief as _tbw
         _w, _wi = _tbw.read(brief, _tbw.WORDS_KEY, "")

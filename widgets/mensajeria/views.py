@@ -232,8 +232,8 @@ def archive_rows(payload: dict) -> list:
 
 def _named_sender_first(rows, q, sender, chat, platform, since, until, direction, limit) -> list:
     """A `q` that NAMES a sender puts that sender's own messages first. Demo pass 37 (2026-09-29): E1/E2 searched
-    `{"query": "inworld"}` and, newest first, the top rows were our own forwards of the receipt to Andrew from
-    earlier runs — E2 «opened» our mail to Andrew and E3 forwarded the wrong one. The receipt FROM Inworld was
+    `{"query": "inworld"}` and, newest first, the top rows were our own forwards of the receipt to Quinn from
+    earlier runs — E2 «opened» our mail to Quinn and E3 forwarded the wrong one. The receipt FROM Inworld was
     there, below. Which word is a sender is read from the archive (`archive._naming_terms`), in any language."""
     from connectors.messaging import archive
     if not q or sender or chat:
@@ -319,7 +319,7 @@ def read_query_answer(question: str) -> str:
     unknown = _unknown_terms(question)
     filled = bool(unknown and mailbox_fill(unknown))
     # …and the card is asked to bring what was found INTO its conversation (attachments included), through its
-    # one writer: «open it» and «send the invoice to andrew» act on the card, not on the archive. `search_archive`
+    # one writer: «open it» and «send the invoice to quinn» act on the card, not on the archive. `search_archive`
     # on the owner's path is the door that already does exactly that (_bring_back_found_mail). Demo pass 38
     # (2026-09-29, E1→E3): it only asked when the mailbox had just been searched — with «inworld» already in the
     # archive from an earlier session, nothing was brought, «open it» found no chat and the forward had no files.

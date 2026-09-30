@@ -183,7 +183,7 @@ async def _goto_email_step3(pg):
 
 async def _fill_and_submit(pg):
     await _goto_email_step3(pg)
-    await pg.fill(".hb-msg input[type=email]", "rjj@proars.com")
+    await pg.fill(".hb-msg input[type=email]", "operator@example.com")
     await pg.fill(".hb-msg input[type=password]", "abcdefghijklmnop")
     await _click_next(pg)   # submits on the last step
 
@@ -309,12 +309,12 @@ def test_a_REFUSED_connection_comes_back_to_a_form_that_still_has_the_data(playw
     """This is what made «Corregir y reintentar» look dead: the draft was wiped on submit, so the form under
     the error banner was empty and retrying meant retyping the address and sixteen letters."""
     steps = _run([_OFF, _REFUSED], actions=[(0, _fill_and_submit)])
-    assert ["connect", {"platform": "email", "email_address": "rjj@proars.com",
+    assert ["connect", {"platform": "email", "email_address": "operator@example.com",
                         "email_password": "abcdefghijklmnop", "provider": "gmail"}] in steps[0]["acts"]
     after = steps[1]
     assert after["errcard"], "a refusal has to be visible"
     assert after["hasCrumb"] and after["crumb"] == "Email", "still on the connector's own screen, not the list"
-    assert after["addr"] == "rjj@proars.com", after["addr"]
+    assert after["addr"] == "operator@example.com", after["addr"]
     assert after["pw"] == "abcdefghijklmnop", "the password must survive a refusal"
 
 
@@ -329,7 +329,7 @@ def test_correct_and_retry_MOVES_something_instead_of_repainting_the_same_screen
 def test_a_missing_field_says_which_one_and_points_at_it(playwright_available):
     async def only_address(pg):
         await _goto_email_step3(pg)
-        await pg.fill(".hb-msg input[type=email]", "rjj@proars.com")
+        await pg.fill(".hb-msg input[type=email]", "operator@example.com")
         await _click_next(pg)
     out = _run([_OFF], actions=[(0, only_address)])[0]
     assert "contraseña" in out["err_text"].lower(), out["err_text"]

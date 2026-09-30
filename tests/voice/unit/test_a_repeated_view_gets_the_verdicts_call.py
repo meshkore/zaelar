@@ -1,5 +1,5 @@
-"""full20 E3 (demo pass 2026-09-28): «send the invoice to andrew, tell him we're already trying inworld and he should
-book it» over the open Inworld receipt — the model's only call was `open` (what was already on screen), the verdict
+"""full20 E3 (demo pass 2026-09-28): «send the invoice to quinn, tell him we're already trying inworld and he should
+book it» over the open Inworld invoice — the model's only call was `open` (what was already on screen), the verdict
 read `mensajeria:forward`. A forward needs a note only a model can write, so the verdict could not complete it and
 the turn did nothing. One repair pass asks for the verdict's call."""
 import asyncio
@@ -35,16 +35,16 @@ def model(monkeypatch):
 
 
 def _run(**kw):
-    return asyncio.run(act_repair.call_for_repeated_view("send the invoice to andrew", "mensajeria", "open",
+    return asyncio.run(act_repair.call_for_repeated_view("send the invoice to quinn", "mensajeria", "open",
                                                          "forward", **kw))
 
 
 def test_the_verdicts_call_is_taken(model):
     m = model([("widget_data", {"widget_id": "mensajeria", "action": "forward",
-                                "payload": {"contact": "Andrew", "text": "We're trying Inworld — book it."}})])
+                                "payload": {"contact": "Quinn", "text": "We're trying Inworld — book it."}})])
     got = _run()
     assert got == {"widget_id": "mensajeria", "action": "forward",
-                   "payload": {"contact": "Andrew", "text": "We're trying Inworld — book it."}}
+                   "payload": {"contact": "Quinn", "text": "We're trying Inworld — book it."}}
     assert "`forward`" in m.seen[0][0]["content"] and "`open`" in m.seen[0][0]["content"]
 
 
@@ -69,14 +69,14 @@ def test_the_voice_schedules_it_for_a_repeated_view_or_a_lens_over_an_act():
 
 
 def test_a_read_for_an_order_on_another_card_carries_the_order_out(model, monkeypatch):
-    """full20 C5: «send ethan a telegram with the new time» read the agenda for the time, and the read's words-only
+    """full20 C5: «send rowan a telegram with the new time» read the agenda for the time, and the read's words-only
     pass said «I can't send a Telegram — I don't have any messaging tool»."""
     from nucleo.flash import widget_read
-    monkeypatch.setattr(widget_read, "read", lambda wid, *a, **k: "Catch up with Ethan · 16:30" if wid == "agenda" else "")
+    monkeypatch.setattr(widget_read, "read", lambda wid, *a, **k: "Catch up with Rowan · 16:30" if wid == "agenda" else "")
     m = model([("widget_data", {"widget_id": "mensajeria", "action": "send_to",
-                                "payload": {"contact": "Ethan", "text": "Moved to 16:30"}})])
-    got = asyncio.run(act_repair.call_after_read("send ethan a telegram with the new time", "agenda", "mensajeria"))
-    assert got == {"widget_id": "mensajeria", "action": "send_to", "payload": {"contact": "Ethan", "text": "Moved to 16:30"}}
+                                "payload": {"contact": "Rowan", "text": "Moved to 16:30"}})])
+    got = asyncio.run(act_repair.call_after_read("send rowan a telegram with the new time", "agenda", "mensajeria"))
+    assert got == {"widget_id": "mensajeria", "action": "send_to", "payload": {"contact": "Rowan", "text": "Moved to 16:30"}}
     assert "16:30" in m.seen[0][0]["content"], "what was read travels to the pass"
 
 
@@ -84,7 +84,7 @@ def test_the_order_card_is_the_other_card_his_words_name(monkeypatch):
     from nucleo.flash import direct_action as da
     from nucleo.flash import turn_brief as tb
     monkeypatch.setattr(tb, "read", lambda b, k, d="", min_confidence=0.0: ("order", {"used": True}) if k == tb.REQUEST_KEY else (d, None))
-    assert da.order_card_after_read({"x": 1}, "send ethan a telegram with the new time", "agenda") == "mensajeria"
+    assert da.order_card_after_read({"x": 1}, "send rowan a telegram with the new time", "agenda") == "mensajeria"
     assert da.order_card_after_read({"x": 1}, "what time is it tomorrow in my calendar", "agenda") == ""
 
 
@@ -95,7 +95,7 @@ def test_the_voice_read_path_uses_it():
 
 
 def test_an_order_on_a_card_the_turn_never_touched_is_carried_out():
-    """full23 C5: «send ethan a telegram with the new time» re-wrote the meeting on the agenda and the reply said «he's
+    """full23 C5: «send rowan a telegram with the new time» re-wrote the meeting on the agenda and the reply said «he's
     getting the update now» — nothing was sent. The order's card, untouched by the turn's ops, gets its call."""
     src = (ENGINE / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
     assert "_missed = _direct_action.order_card_after_read(_brief, _op_text, next(iter(_ops_cards)))" in src

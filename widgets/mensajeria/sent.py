@@ -1,7 +1,7 @@
 """sent.py — what this card SENT, as rows a verifier can read (V2-776 L2).
 
 `threads[*].msgs` with `dir == "out"` is the record of what left, and `pending_send` what is still leaving.
-Neither was a declared collection (`threads` is a dict), so «a Telegram to Ethan saying 4:30 went out» — the
+Neither was a declared collection (`threads` is a dict), so «a Telegram to Rowan saying 4:30 went out» — the
 postcondition `send_to` declares — could not be attested. This flattens both into `view_data()["sent"]`.
 """
 from __future__ import annotations

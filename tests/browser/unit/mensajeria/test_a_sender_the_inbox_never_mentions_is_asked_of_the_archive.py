@@ -22,7 +22,7 @@ def md(tmp_path, monkeypatch):
 def _asked(monkeypatch):
     calls = []
     from widgets.mensajeria import views
-    monkeypatch.setattr(views, "read_query_answer", lambda q: calls.append(q) or "Del ARCHIVO: Inworld receipt")
+    monkeypatch.setattr(views, "read_query_answer", lambda q: calls.append(q) or "Del ARCHIVO: Inworld invoice")
     from widgets import directory
     monkeypatch.setattr(directory, "reachable", lambda q: "")
     return calls
@@ -33,7 +33,7 @@ def test_a_sender_absent_from_the_inbox_goes_to_the_archive(md, monkeypatch):
     calls = _asked(monkeypatch)
     out = inbox_read.read_query("¿Hay algún email de Inworld (inworld.ai) en la bandeja? remitente, asunto, fecha")
     assert calls, "the archive was never asked"
-    assert "Inworld receipt" in out
+    assert "Inworld invoice" in out
 
 
 def test_a_question_the_inbox_answers_whole_stays_in_the_inbox(md, monkeypatch):

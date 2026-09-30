@@ -264,7 +264,7 @@ def reads_as_order(brief) -> bool:
         if info is not None and str(kind or "") == "order":
             return True
         # …or the sure «he only asks for something to be DONE» of the words question (demo pass 2026-09-28, full11
-        # C5: «send ethan a telegram with the new time» read `order` at 0.46 — unsure — and `act` at 0.92; the reply
+        # C5: «send rowan a telegram with the new time» read `order` at 0.46 — unsure — and `act` at 0.92; the reply
         # said «Sending it now» over nothing, and the repair was never asked).
         words, winfo = _tb.read(brief, _tb.WORDS_KEY, "")
         return winfo is not None and str(words or "") == "act"
@@ -277,7 +277,7 @@ def names_an_order(brief, *, sure: float = 0.0) -> bool:
 
     `sure` — a floor on the ACTION verdict's confidence for the callers that will WRITE on it (V2-773, demo v3
     C2): «Find me a free 45-minute slot» read `agenda:add_meeting` at 0.54, the reply was an ANSWER (the day's
-    gaps), and the promise repair booked «Call with Ethan» — a write nobody ordered. An answer with an unsure
+    gaps), and the promise repair booked «Call with Rowan» — a write nobody ordered. An answer with an unsure
     action behind it is not a promise left hanging; a PROMISE in the reply is judged by its own detector.
 
     The gate for the promise repair (`act_repair`), in both channels (V2-770). That repair used to wait for a
@@ -288,7 +288,7 @@ def names_an_order(brief, *, sure: float = 0.0) -> bool:
     try:
         from nucleo.flash import build_decision as _bd, turn_brief as _tb
         # V2-773 — either twin names the card: `screen_action` while it is open, the CATALOGUE while it is
-        # closed. Read through `screen_action` alone, «Message Ethan on Telegram» (catalogue: messaging 1.0)
+        # closed. Read through `screen_action` alone, «Message Rowan on Telegram» (catalogue: messaging 1.0)
         # and «Show me only today's emails» promised or denied with no call and no repair ever looked.
         if not from_brief(brief)[1] and not _bd.named_card(brief):
             return False
@@ -598,7 +598,7 @@ def person_fill(widget_id: str, action: str, payload: dict, words: str) -> dict:
     """`{"contact": <name>}` when the action declares a `contact`, the call left it empty and his sentence names
     exactly ONE person of the directory; `{}` otherwise — two named, or none, is the model's to ask.
 
-    Demo pass 2026-09-28 (full18 E3): «send the invoice to andrew…» — the model called `reply` (to the invoice's
+    Demo pass 2026-09-28 (full18 E3): «send the invoice to quinn…» — the model called `reply` (to the invoice's
     SENDER), the outward-act gate rightly ran the verdict's `forward` instead, with the reply's payload: no
     recipient, and the forward was refused. The recipient was in his sentence; the directory knows who that is."""
     try:

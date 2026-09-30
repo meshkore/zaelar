@@ -121,7 +121,7 @@ entregada siga citada aquí.
   phantom `results`); a fast listing pass gets a 12 s budget and the turn says the errand is taken instead of
   going mute (A1, a 40 s ads index); an act that LEAVES and the verdict does not back is DROPPED with a note —
   asked instead, the pending question was what «ok book it» answered one turn later, and two Telegrams went to
-  Ethan (C2→C5); a data-op named `close` over a sure close verdict is the card's close (E5, the mail stayed);
+  Rowan (C2→C5); a data-op named `close` over a sure close verdict is the card's close (E5, the mail stayed);
   the show-promise backstop shows the card the verdict names before `identify`'s contextual guess (C1, the monitor
   sheet over the day he asked for). What the audit left as it is: the model-variance turns become bank cases, not
   guards; S1-S3 depend on a 3-15 min Amazon worker (never finished in 5 passes) and B1 on a live image index — a
@@ -2628,7 +2628,7 @@ entregada siga citada aquí.
   tidy against the region's edge, ties top-to-bottom then left-to-right), the ▦ repack is the same engine in
   tight mode, and ⤢ tiles inside `canvas()` with each widget's own minimum. Every card widget declares `size`
   and `min` (clock and timer got theirs). Node 4.224.
-- **Demo setup, not product:** the driver takes the session lock and mutes the microphone; a local contact «Ethan»
+- **Demo setup, not product:** the driver takes the session lock and mutes the microphone; a local contact «Rowan»
   with the demo Telegram handle is recreated after a reset; TTS switched to Cartesia while Inworld has no credit.
 
 ## V2-776 D (27-09) — the Brain Worker's state is durable, supervised and readable

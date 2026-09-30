@@ -62,7 +62,7 @@ def repeated_replies(window: list[dict], look: int = 3) -> int:
     final). ≥2 = el cerebro está en un bucle de repetición."""
     # The engine's own «Done.» after a silent action is not a reply the model repeated (V2-776, 2026-09-27: two
     # silent orders in a row — «Schedule it…», «Move it 30 minutes later» — left «Done.», «Done.», the nudge
-    # fired on the next turn, and «Message Ethan on Telegram» came back as a needless question with no send).
+    # fired on the next turn, and «Message Rowan on Telegram» came back as a needless question with no send).
     replies = [m.get("content", "") for m in window
                if m.get("role") == "assistant" and not _is_silent_ack(m.get("content", ""))][-look:]
     if len(replies) < 2:

@@ -14,7 +14,7 @@ from nucleo import browser_search as bs
 
 _RIGHT = [{"url": f"https://wall.alphacoders.com/{i}.jpg", "title": "Cosmic Eye in the Sky by Tyler Young"}
           for i in range(6)]
-_WRONG = [{"url": f"https://i.pinimg.com/{i}.jpg", "title": "Helix nebula"} for i in range(6)]
+_WRONG = [{"url": f"https://i.pinimg.com/{i}.jpg", "title": "Orion nebula"} for i in range(6)]
 
 
 @pytest.fixture
@@ -42,9 +42,9 @@ def _run(q):
 
 
 def test_while_google_blocks_its_last_answer_is_served(chain):
-    assert _run("cosmic eye in the sky Tyler Young Helix Nebula wallpaper")["source"] == "google"
+    assert _run("cosmic eye in the sky Tyler Young Orion Nebula wallpaper")["source"] == "google"
     chain["google"] = {"items": [], "source": "google", "blocked": True}
-    res = _run("cosmic eye in the sky wallpaper by Tyler Young, Helix Nebula")
+    res = _run("cosmic eye in the sky wallpaper by Tyler Young, Orion Nebula")
     assert res["items"][0]["url"].startswith("https://wall.alphacoders.com"), res
     assert res["degraded_because"] == "blocked" and "remembered_s" in res
 

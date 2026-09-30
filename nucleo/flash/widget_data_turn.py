@@ -77,8 +77,8 @@ async def execute(tool_calls: list, text: str = "") -> dict:
         # (e.g. the one in `imagenes`, which matches by tokens) gets its chance and its refusal can show the menu.
         _ref = str(a.get("item") or "").strip()
         # HIS sentence is the reference of last resort (V2-708) — the voice path has passed it since then and this
-        # one never did: the demo's INIT («when I ask you to contact Ethan, use his Telegram») reached contactos as
-        # `set_channel {platform}` with no contact, and was refused with Ethan on file (demo pass 31).
+        # one never did: the demo's INIT («when I ask you to contact Rowan, use his Telegram») reached contactos as
+        # `set_channel {platform}` with no contact, and was refused with Rowan on file (demo pass 31).
         try:
             from voice import brain_notes as _bn_wd
             _order = _bn_wd.operator_half(text or "")
@@ -86,7 +86,7 @@ async def execute(tool_calls: list, text: str = "") -> dict:
             _order = text or ""
         if not _ref:
             # …and a NAME written straight into the id field is a reference too (INIT of the demo pass,
-            # 2026-09-28: `set_channel {contactId: "Ethan"}` → «no encuentro ese contacto», with Ethan on file).
+            # 2026-09-28: `set_channel {contactId: "Rowan"}` → «no encuentro ese contacto», with Rowan on file).
             # `resolve` already reads what sits in the id field; it just was never called without `item`. An id
             # that exists is kept as is, and a name that resolves to nothing leaves the payload untouched.
             try:

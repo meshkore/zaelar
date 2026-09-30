@@ -1,8 +1,8 @@
 """A data-op with no item is resolved from the operator's own sentence in the TEXT channel too (demo pass 31, INIT).
 
-«From now on, when I ask you to contact Ethan, use his available Telegram contact» reached contactos as
-`set_channel {platform: telegram, preferred: true}` — no contact — and was refused with Ethan on file; the list
-reported «25 of 26 done. I couldn't do: Contact Ethan on Telegram». The voice path has passed his sentence to
+«From now on, when I ask you to contact Rowan, use his available Telegram contact» reached contactos as
+`set_channel {platform: telegram, preferred: true}` — no contact — and was refused with Rowan on file; the list
+reported «25 of 26 done. I couldn't do: Contact Rowan on Telegram». The voice path has passed his sentence to
 `refs.resolve(order=…)` since V2-708; the text channel's executor never did.
 """
 import asyncio
@@ -12,7 +12,7 @@ import pytest
 
 from nucleo.flash import widget_data_turn as WDT
 
-_SAID = ("From now on, when I ask you to contact Ethan, use his available Telegram contact unless I specify "
+_SAID = ("From now on, when I ask you to contact Rowan, use his available Telegram contact unless I specify "
          "another channel.")
 
 
@@ -21,8 +21,8 @@ def rail(monkeypatch):
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", tempfile.mkdtemp())
     from widgets.contactos import data as C
-    C.apply_action("add_contact", {"name": "Ethan", "channels": [{"platform": "telegram", "handle": "@cryptonite_fund"}]})
-    C.apply_action("add_contact", {"name": "Andrew", "email": "ago@proars.com"})
+    C.apply_action("add_contact", {"name": "Rowan", "channels": [{"platform": "telegram", "handle": "@cryptonite_fund"}]})
+    C.apply_action("add_contact", {"name": "Quinn", "email": "contact@example.com"})
     seen = []
 
     async def _brain_action(wid, act, payload):

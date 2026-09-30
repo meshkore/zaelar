@@ -254,11 +254,11 @@ def prompt_digest() -> str:
 def people_named(text: str, limit: int = 4) -> list[dict]:
     """The directory rows the operator's sentence NAMES — the compact public row, platforms only.
 
-    Demo pass 2026-09-28 (full14 E3): «send the invoice to andrew…» was answered «I don't see an Andrew in your
-    contacts» with Andrew saved. The directory reaches the prompt only as the card's digest (first rows of
+    Demo pass 2026-09-28 (full14 E3): «send the invoice to quinn…» was answered «I don't see an Quinn in your
+    contacts» with Quinn saved. The directory reaches the prompt only as the card's digest (first rows of
     ~2,700, and only while the card is open), so a person he names by first name was invisible to the turn that
     had to write to him. A whole name in the sentence wins; otherwise a name whose FIRST word is a word of the
-    sentence (several «Andrew» come back together, and the model asks which). Names under three letters never
+    sentence (several «Quinn» come back together, and the model asks which). Names under three letters never
     match — they are words, not people."""
     import re as _re
     low = (text or "").lower()
@@ -480,7 +480,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             return d
         # A handle that is only his NAME with an «@» in front is the model filling a required-looking slot,
         # not a handle anybody told it (INIT of the demo pass, 2026-09-28: «use his Telegram» came as
-        # `handle: "@Ethan"` over Ethan's real `@cryptonite_fund`, and would have overwritten it). Over a channel
+        # `handle: "@Rowan"` over Rowan's real `@cryptonite_fund`, and would have overwritten it). Over a channel
         # we already have, it is dropped and the call only moves the preference, which is what was asked.
         _has_p = any(ch.get("platform") == p for ch in c.get("channels") or [])
         if handle and _has_p and _norm(handle.lstrip("@")) in {_norm(c.get("name") or ""),

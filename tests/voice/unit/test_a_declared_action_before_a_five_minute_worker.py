@@ -441,10 +441,10 @@ def test_a_commission_naming_a_CLOSED_card_of_ours_is_read_before_the_worker(mon
         "nothing called → the worker keeps the errand")
     # K1: a card that cannot ANSWER (messaging) still takes the CALL — the worker is never the door to a send
     monkeypatch.setattr(build_decision, "named_card", lambda brief: "mensajeria")
-    answer = {"kind": "call", "widget_id": "mensajeria", "action": "send_to", "payload": {"contact": "Ethan", "text": "16:30"}}
-    esc = {"v": "message Ethan", "more": []}
-    assert asyncio.run(card_commission.before_worker(esc, {"v": None}, **dict(kw, operator_text="Message Ethan on Telegram"))) == "call"
-    assert applied[-1] == ("mensajeria", "send_to", {"contact": "Ethan", "text": "16:30"}) and esc["v"] is None
+    answer = {"kind": "call", "widget_id": "mensajeria", "action": "send_to", "payload": {"contact": "Rowan", "text": "16:30"}}
+    esc = {"v": "message Rowan", "more": []}
+    assert asyncio.run(card_commission.before_worker(esc, {"v": None}, **dict(kw, operator_text="Message Rowan on Telegram"))) == "call"
+    assert applied[-1] == ("mensajeria", "send_to", {"contact": "Rowan", "text": "16:30"}) and esc["v"] is None
     monkeypatch.setattr(build_decision, "named_card", lambda brief: "agenda")
     answer = {"kind": "read", "widget_id": "agenda", "question": "?"}
     esc = {"v": "delete everything", "more": []}
@@ -598,7 +598,7 @@ def test_a_spoken_claim_over_a_show_on_an_order_gets_its_pass(monkeypatch):
 
 
 def test_the_commission_pass_sees_the_conversation():
-    """Demo pass 2026-09-28, C5: «send ethan a telegram with the new time» reached a pass that saw his sentence and
+    """Demo pass 2026-09-28, C5: «send rowan a telegram with the new time» reached a pass that saw his sentence and
     the messaging card, not the turns where the time was set — it read the directory instead of sending. Measured
     live with the last turns in front: 7/8 sends with the right time (1/4 before)."""
     from pathlib import Path
@@ -634,7 +634,7 @@ def test_R3_an_unsure_screen_verdict_asks_the_catalogue_too(monkeypatch):
 
 
 def test_finding_is_knowing_and_an_act_order_is_not_offered_a_read():
-    """full11 C2: «find me a free 45 minutes tomorrow afternoon to talk with ethan» — the commission pass booked
+    """full11 C2: «find me a free 45 minutes tomorrow afternoon to talk with rowan» — the commission pass booked
     the meeting (nobody asked). C5: offered a read, the pass checked the directory instead of sending. Live: C2 read
     4/4; C5 with no read offered, send 3/4."""
     from pathlib import Path

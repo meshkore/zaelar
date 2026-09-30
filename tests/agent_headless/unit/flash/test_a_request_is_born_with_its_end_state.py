@@ -45,8 +45,8 @@ def test_the_wallpaper_action_declares_a_changed_desktop_and_takes_its_baseline(
 
 def test_a_required_placeholder_with_no_value_renders_nothing_and_an_optional_one_is_dropped():
     assert spec.render("results", "layout", {}) is None, "a `{layout}` nobody gave is not a spec — never a guess"
-    dw = spec.render("agenda", "add_meeting", {"title": "Catch up with Ethan", "startTime": "16:00"})
-    assert dw == {"widget": "agenda", "collection": "meetings", "where": {"title~": "Catch up with Ethan"}}
+    dw = spec.render("agenda", "add_meeting", {"title": "Catch up with Rowan", "startTime": "16:00"})
+    assert dw == {"widget": "agenda", "collection": "meetings", "where": {"title~": "Catch up with Rowan"}}
 
 
 def test_an_action_without_a_template_has_no_spec():
@@ -66,13 +66,13 @@ def test_a_docked_card_is_not_visible(monkeypatch):
 
 
 def test_a_changed_clause_reads_against_its_baseline(monkeypatch):
-    monkeypatch.setattr(truth, "desktop_wallpaper", lambda: {"url": "https://x/helix.jpg", "title": "Helix"})
+    monkeypatch.setattr(truth, "desktop_wallpaper", lambda: {"url": "https://x/orion.jpg", "title": "Orion"})
     assert verify.check({"desktop": "wallpaper", "expect": "changed", "baseline": {}}) is True
-    assert verify.check({"desktop": "wallpaper", "expect": "changed", "baseline": {"url": "https://x/helix.jpg", "title": "Helix"}}) is False
+    assert verify.check({"desktop": "wallpaper", "expect": "changed", "baseline": {"url": "https://x/orion.jpg", "title": "Orion"}}) is False
     assert verify.check({"desktop": "wallpaper", "expect": "changed"}) is None, "nothing to compare against is unreadable, not false"
-    assert verify.check({"desktop": "wallpaper", "has": "helix"}) is True
+    assert verify.check({"desktop": "wallpaper", "has": "orion"}) is True
     assert "sigue como estaba" in " ".join(verify.missing(
-        {"desktop": "wallpaper", "expect": "changed", "baseline": {"url": "https://x/helix.jpg", "title": "Helix"}}))
+        {"desktop": "wallpaper", "expect": "changed", "baseline": {"url": "https://x/orion.jpg", "title": "Orion"}}))
 
 
 def test_a_field_clause_reads_a_scalar_of_the_view_and_an_error_value_is_unreadable(monkeypatch):
@@ -89,15 +89,15 @@ def test_a_field_clause_reads_a_scalar_of_the_view_and_an_error_value_is_unreada
 def test_the_data_op_door_opens_the_spec_before_the_op_and_attests_it_after(monkeypatch):
     import widgets
     from nucleo.flash import data_ops
-    walls = iter([{}, {"url": "https://x/helix.jpg", "title": "Helix"}])
-    monkeypatch.setattr(truth, "desktop_wallpaper", lambda: next(walls, {"url": "https://x/helix.jpg", "title": "Helix"}))
+    walls = iter([{}, {"url": "https://x/orion.jpg", "title": "Orion"}])
+    monkeypatch.setattr(truth, "desktop_wallpaper", lambda: next(walls, {"url": "https://x/orion.jpg", "title": "Orion"}))
 
     async def _noop(*_a, **_k):
         return False
     monkeypatch.setattr(data_ops, "report_failure", _noop)
 
     async def _fake(_tag, _payload):
-        return {"ok": True, "wallpaper": "https://x/helix.jpg"}
+        return {"ok": True, "wallpaper": "https://x/orion.jpg"}
     monkeypatch.setattr(widgets, "dispatch_tag", _fake)
     asyncio.run(data_ops.dispatch_and_report("imagenes", "wallpaper", {"item": "1"}, text="set the first one as my background"))
     met = [e for e in spec.settled() if e.get("status") == "met"]

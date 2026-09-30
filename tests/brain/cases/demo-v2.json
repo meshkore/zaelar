@@ -323,7 +323,7 @@
   "memory": {
    "agenda": [
     {
-     "title": "Catch up with Ethan",
+     "title": "Catch up with Rowan",
      "day": "+1",
      "start": "16:00",
      "end": "16:45"
@@ -339,7 +339,7 @@
       "widget_id": "agenda",
       "action": "move_meeting",
       "payload": {
-       "title": "Catch up with Ethan",
+       "title": "Catch up with Rowan",
        "startTime": "16:30"
       }
      }
@@ -353,9 +353,9 @@
   ]
  },
  {
-  "id": "demo-c5-message-ethan-on-telegram",
+  "id": "demo-c5-message-rowan-on-telegram",
   "lang": "en",
-  "phrase": "Message Ethan on Telegram and tell him the new meeting time.",
+  "phrase": "Message Rowan on Telegram and tell him the new meeting time.",
   "source": "TMP/demo/02-demo-script-v2.txt C5 · 03-results final pass K1: it went to a 2-minute WORKER; messaging had to reach the catalogue question (1.0)",
   "screen": {
    "open": [
@@ -371,7 +371,7 @@
       "widget_id": "mensajeria",
       "action": "send_to",
       "payload": {
-       "contact": "Ethan",
+       "contact": "Rowan",
        "channel": "telegram",
        "text": "Our catch-up moved to 4:30 PM tomorrow."
       }
@@ -645,7 +645,7 @@
  {
   "id": "demo-b1-wallpaper-is-a-widgets-postcondition-not-a-worker",
   "lang": "en",
-  "phrase": "now let's make it prettier, find me the wallpaper cosmic eye in the sky by tyler young, the helix nebula",
+  "phrase": "now let's make it prettier, find me the wallpaper cosmic eye in the sky by tyler young, the orion nebula",
   "source": "TMP/demo/run-full60 B1 (2026-09-29): the model called escalate_to_slowbrain «Find the wallpaper/artwork…» over a brief that said handle_inline 0.78 / use_existing 0.62; passes 56/58/59 did it inline through imagenes. A valid model call beats a disagreeing verdict (direct_action.py:790), so a 50-60 s worker searched art, and the wallpaper was set 20 minutes later by that worker",
   "screen": {
    "open": [
@@ -653,12 +653,12 @@
    ]
   },
   "model": {
-   "say": "One sec — \"Cosmic Eye in the Sky\" by Tyler Young, the Helix Nebula version. Let me find it and set it.",
+   "say": "One sec — \"Cosmic Eye in the Sky\" by Tyler Young, the Orion Nebula version. Let me find it and set it.",
    "tools": [
     {
      "name": "escalate_to_slowbrain",
      "args": {
-      "request": "Find the wallpaper/artwork titled \"Cosmic Eye in the Sky\" by Tyler Young — the Helix Nebula (NGC 7293) image. Locate a high-resolution version online and set it as the desktop wallpaper."
+      "request": "Find the wallpaper/artwork titled \"Cosmic Eye in the Sky\" by Tyler Young — the Orion Nebula (NGC 7293) image. Locate a high-resolution version online and set it as the desktop wallpaper."
      }
     }
    ]

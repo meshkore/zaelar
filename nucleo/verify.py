@@ -41,7 +41,7 @@ V2-776 L1 added three clause kinds, because the end states the demo asks for wer
     {"widget": "documento", "field": "focus", "has": "proof of work"}  …contains (folded)
     {"widget": "youtube", "field": "videoId", "expect": "changed"}     …differs from `baseline` (taken at birth)
     {"widget": "results", "field": "view", "is": "detail", "absent_is": "list"}   a key the view omits until set
-    {"desktop": "wallpaper", "has": "helix"} / {"desktop": "wallpaper", "expect": "changed"}
+    {"desktop": "wallpaper", "has": "orion"} / {"desktop": "wallpaper", "expect": "changed"}
     {"canvas": "results", "expect": "visible" | "minimized" | "maximized" | "closed"}
 
 `expect` on a field/desktop clause may also be `present` (non-empty) or `absent` (empty). The readers live in

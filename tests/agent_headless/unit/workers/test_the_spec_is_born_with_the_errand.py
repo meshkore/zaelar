@@ -113,5 +113,5 @@ def test_a_relay_does_not_ask_again(fresh, monkeypatch):
 
 def test_the_models_answer_is_parsed_in_the_grammar_or_dropped():
     assert spec.parse("-") is None
-    assert spec.parse("Sure! {\"all\": [{\"widget\": \"agenda\", \"collection\": \"meetings\", \"where\": {\"title~\": \"Ethan\"}}]}")["all"][0]["widget"] == "agenda"
+    assert spec.parse("Sure! {\"all\": [{\"widget\": \"agenda\", \"collection\": \"meetings\", \"where\": {\"title~\": \"Rowan\"}}]}")["all"][0]["widget"] == "agenda"
     assert spec.parse("{\"steps\": [\"open the browser\"]}") is None, "a script of behaviour is not a spec"

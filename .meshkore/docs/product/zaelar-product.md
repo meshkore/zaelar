@@ -184,7 +184,7 @@ auto-modification via a `CodeAgent` interface.
 - Model keys for the brain live in `zaelar/.env` / `.meshkore/credentials/zaelar.env` (AIMLAPI etc.), routed by
   `config/v2.py`.
 - Cloudflare DNS token: `…/meshkore/.meshkore/credentials/cloudflare-token.txt` (DNS only; no Calls/TURN perm).
-- Fly.io account: personal (`rjj@proars.com`), app `zaelar` (region cdg), parked (scale-to-zero).
+- Fly.io account: personal (`operator@example.com`), app `zaelar` (region cdg), parked (scale-to-zero).
 - Email/relay + Picovoice (future): provided by the operator when needed.
 
 ## 10. Libraries & external APIs

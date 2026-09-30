@@ -1,6 +1,6 @@
 """A message he orders by voice is SEEN being sent (the operator's demo note, 2026-09-28).
 
-«que se vea cómo se lo mandamos y cómo se le da el botón»: a Telegram to Ethan went out in the background and,
+«que se vea cómo se lo mandamos y cómo se le da el botón»: a Telegram to Rowan went out in the background and,
 without sound, nobody watching could tell anything had happened. Measured here: `send_to` opens that
 conversation, holds the queued order for as long as typing the text takes, publishes what is being written for
 the card to type, and the queue releases the order only then — once. An email is not typed into a chat."""
@@ -22,15 +22,15 @@ def box(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "_last_hash", {})
     from widgets.contactos import data as cd
     from widgets.mensajeria import data as md
-    cd.apply_action("add_contact", {"name": "Ethan Demo", "email": "ethan@example.com"})
+    cd.apply_action("add_contact", {"name": "Rowan Demo", "email": "rowan@example.com"})
     cid = cd.load_db()["contacts"][0]["id"]
-    cd.apply_action("set_channel", {"contactId": cid, "platform": "telegram", "handle": "@ethan_demo",
+    cd.apply_action("set_channel", {"contactId": cid, "platform": "telegram", "handle": "@rowan_demo",
                                     "chatId": "555001"})
     return md
 
 
 def test_the_chat_opens_and_the_text_is_published_for_the_card_to_type(box):
-    r = box.apply_action("send_to", {"contact": "Ethan", "channel": "telegram", "text": "Moved to 3:15, see you then"})
+    r = box.apply_action("send_to", {"contact": "Rowan", "channel": "telegram", "text": "Moved to 3:15, see you then"})
     assert r["ok"], r
     v = box.view_data()
     assert v["active_chat"] == {"platform": "telegram", "chatId": "555001"}, "his conversation is the one on screen"
@@ -40,7 +40,7 @@ def test_the_chat_opens_and_the_text_is_published_for_the_card_to_type(box):
 
 def test_the_order_waits_while_it_is_typed_and_then_leaves_once(box, monkeypatch):
     from connectors.messaging import store as msgstore
-    box.apply_action("send_to", {"contact": "Ethan", "channel": "telegram", "text": "Moved to 3:15"})
+    box.apply_action("send_to", {"contact": "Rowan", "channel": "telegram", "text": "Moved to 3:15"})
     assert msgstore.take_pending_send() == [], "released before the card pressed send"
     later = time.time() + 30
     monkeypatch.setattr(msgstore.time, "time", lambda: later)
@@ -51,7 +51,7 @@ def test_the_order_waits_while_it_is_typed_and_then_leaves_once(box, monkeypatch
 
 def test_an_email_is_not_typed_into_a_chat(box):
     from connectors.messaging import store as msgstore
-    r = box.apply_action("send_to", {"contact": "ethan@example.com", "channel": "email", "text": "hi"})
+    r = box.apply_action("send_to", {"contact": "rowan@example.com", "channel": "email", "text": "hi"})
     assert r["ok"], r
     assert box.view_data()["composing"] is None
     assert [o["text"] for o in msgstore.take_pending_send()] == ["hi"], "an email leaves at once"

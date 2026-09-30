@@ -826,7 +826,7 @@ def _cron_line() -> str:
             # weekly review (2026-09-29 07:00)» — the meeting's own 2-hours-early alert — was read back to him as
             # the meeting at 7). The datum says what it is; the meeting's time lives on the agenda.
             # Saying so was not enough (full16 C1: «review at 7, product at 9, meshcore at 1» — every alert
-            # time read as its meeting, and C2 then booked Ethan on top of the 3 pm meeting it «ended at 2»).
+            # time read as its meeting, and C2 then booked Rowan on top of the 3 pm meeting it «ended at 2»).
             # A notice that belongs to an appointment names the appointment's own time next to its bell.
             # …and it is NOT the day's agenda (full25 Z1: «what's on my plate tomorrow» was answered from this line —
             # two of the four meetings, because six notices is not a calendar). Soonest first, and it says so.

@@ -30,10 +30,10 @@ def test_the_voice_turn_says_it_right_after_the_second_pass():
 
 
 def test_a_repaired_look_is_not_acknowledged_as_done(monkeypatch):
-    """Demo pass 42 (2026-09-29), C2: «…want me to put it on your calendar as a call with Ethan at 4?» — the repair
+    """Demo pass 42 (2026-09-29), C2: «…want me to put it on your calendar as a call with Rowan at 4?» — the repair
     ran `find_free`, a LOOK, and the ack made it «…at 4?Done.». A look changes nothing there is to acknowledge."""
     monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
-    asked = "Say 4 to 4:45. Want me to put it on your calendar as a call with Ethan at 4?"
+    asked = "Say 4 to 4:45. Want me to put it on your calendar as a call with Rowan at 4?"
     assert act_repair.after_the_repair(asked, False, "agenda", "find_free") == ""
     assert act_repair.after_the_repair("There's no unread toggle.", False, "mensajeria", "unread").strip() == "Done."
     assert '_ar["widget_id"], _ar["action"])' in _NUCLEO.read_text("utf-8"), "the call site passes what was repaired"
@@ -43,7 +43,7 @@ def test_after_a_question_it_says_it_went_ahead(monkeypatch):
     """Demo pass 50 (2026-09-29), E3: «…Want me to write: "Already trying Inworld — go ahead and book it"?» and the
     forward was carried out anyway — the voice said «…attached?Done.», an answer to its own question."""
     monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
-    tail = act_repair.after_the_repair("Want me to write that to Andrew?", False, "mensajeria", "forward")
+    tail = act_repair.after_the_repair("Want me to write that to Quinn?", False, "mensajeria", "forward")
     assert tail.strip() == "I've gone ahead and done it, as you asked."
     assert act_repair.after_the_repair("There's no unread toggle.", False, "mensajeria", "unread").strip() == "Done."
 

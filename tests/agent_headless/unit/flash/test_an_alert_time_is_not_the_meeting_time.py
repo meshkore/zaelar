@@ -17,7 +17,7 @@ def test_a_scheduled_alert_says_its_time_is_when_it_rings(monkeypatch):
 
 def test_an_appointments_alert_names_the_appointments_own_time(monkeypatch):
     """Full16 C1: saying «this is when it rings» was not enough — the model still read 7, 9 and 1, and C2 booked
-    Ethan over the 3 pm meeting it thought ended at 2. The notice now names its appointment's time."""
+    Rowan over the 3 pm meeting it thought ended at 2. The notice now names its appointment's time."""
     from nucleo import scheduler
     monkeypatch.setattr(scheduler, "list_jobs", lambda active_only=True: [
         {"name": "aviso: ZAELAR weekly review", "schedule": "2026-09-29 07:00",

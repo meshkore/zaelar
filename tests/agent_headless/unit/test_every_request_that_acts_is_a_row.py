@@ -35,14 +35,14 @@ def _inline_rows():
 
 def test_the_first_op_opens_the_row_and_the_next_ops_reuse_it():
     def turn():
-        rq.begin("book the dentist tomorrow at nine and tell Ethan")
+        rq.begin("book the dentist tomorrow at nine and tell Rowan")
         a = rq.opened("agenda", "add_meeting")
         b = rq.opened("mensajeria", "send_to")
         return a, b
     a, b = _in_turn(turn)
     assert a and a == b
     rows = _inline_rows()
-    assert len(rows) == 1 and rows[0]["goal"] == "book the dentist tomorrow at nine and tell Ethan"
+    assert len(rows) == 1 and rows[0]["goal"] == "book the dentist tomorrow at nine and tell Rowan"
     assert rows[0]["state"] == "running" and rows[0]["surface"]
 
 

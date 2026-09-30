@@ -66,7 +66,7 @@ def test_a_search_that_found_nothing_remembers_nothing(md):
 
 
 def test_a_name_that_shares_a_word_with_the_found_mail_opens_it(md):
-    """Demo pass 66, E2: open {name: "Inworld receipt"} missed the thread named by its address."""
+    """Demo pass 66, E2: open {name: "Inworld invoice"} missed the thread named by its address."""
     md.apply_action("search_archive", {"query": "inworld"})
-    md.apply_action("open", {"name": "Inworld receipt"})
+    md.apply_action("open", {"name": "Inworld invoice"})
     assert md.load_db()["active_chat"] == {"platform": "email", "chatId": INWORLD}

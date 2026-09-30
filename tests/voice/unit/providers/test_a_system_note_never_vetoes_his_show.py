@@ -15,7 +15,7 @@ SRC = Path(__file__).resolve().parents[4] / "voice" / "engine" / "llm" / "provid
 
 TURN = brain_notes.compose_turn("Show me the monitors.", [
     "[SISTEMA] Has abierto una gestión nueva con la misma persona, así que doy por terminada la anterior: "
-    "«confirm with Ethan that tomorrow catch-up works for him»"])
+    "«confirm with Rowan that tomorrow catch-up works for him»"])
 
 
 def test_his_half_is_not_a_meta_question():

@@ -3,7 +3,7 @@
 #
 # «open it» sent `mensajeria:open {name: Inworld}` 3 s before the mail's history fetch landed on the card, and
 # the card refused it. One turn later the mail WAS there, the model asked for the same open, and the V2-773 guard
-# («the same op cannot succeed where it just failed») ate it — twice. The forward to Andrew never went out and
+# («the same op cannot succeed where it just failed») ate it — twice. The forward to Quinn never went out and
 # E4 said «Done». The guard's premise holds only while the card holds what it held.
 #
 import pytest

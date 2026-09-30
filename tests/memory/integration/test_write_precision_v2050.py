@@ -2,7 +2,7 @@
 
 Reproduces the failures found after booking the vehicle inspection (2026-07-17), where memory was built INCORRECTLY:
   [P0c·A] TYPED slot with malformed VALUE ('mi email es rjj.com' → 'rjj.com' without @) → NOT durable (it contaminated and
-          competed with the valid email rjj@proars.com).
+          competed with the valid email operator@example.com).
   [P0c·B] reified request misassigned to an IDENTITY slot ('quiere que entre en la web y reserve' →
           operator.treatment) → it is NOT that attribute → rejection. A stable attribute is never "quiere que…".
   [P0c·C] VAGUE reified request ('quiere que repitan algo', undefined object) → NOT durable; a CONCRETE task
@@ -28,7 +28,7 @@ from nucleo import mem_processor
 @pytest.mark.parametrize("atom, expect, label", [
     ({"slot": "operator.email", "value": "rjj.com", "text": "Su correo electrónico es rjj.com."},
      True, "A: email sin @"),
-    ({"slot": "operator.email", "value": "rjj@proars.com", "text": "Su correo electrónico es rjj@proars.com."},
+    ({"slot": "operator.email", "value": "operator@example.com", "text": "Su correo electrónico es operator@example.com."},
      False, "A-control: email válido"),
     ({"slot": "operator.phone", "value": "605", "text": "Su teléfono es 605."},
      True, "A: teléfono cortado"),
@@ -133,11 +133,11 @@ def test_malformed_email_not_durable_e2e(fresh_db, monkeypatch):
 
 def test_valid_email_is_durable_e2e(fresh_db, monkeypatch):
     """Control: a WELL-FORMED email IS stored (do not over-reject)."""
-    _run_with_atoms(monkeypatch, "Mi correo es rjj@proars.com.", [
-        {"text": "Su correo electrónico es rjj@proars.com.", "dest": "long", "slot": "operator.email",
-         "kind": "fact", "value": "rjj@proars.com", "change": "none"},
+    _run_with_atoms(monkeypatch, "Mi correo es operator@example.com.", [
+        {"text": "Su correo electrónico es operator@example.com.", "dest": "long", "slot": "operator.email",
+         "kind": "fact", "value": "operator@example.com", "change": "none"},
     ])
-    assert any("proars.com" in t.lower() for t in _durables()), f"el email bueno debe quedar: {_durables()}"
+    assert any("example.com" in t.lower() for t in _durables()), f"el email bueno debe quedar: {_durables()}"
 
 
 def test_namespaced_goal_slot_canonicalizes_e2e(fresh_db, monkeypatch):

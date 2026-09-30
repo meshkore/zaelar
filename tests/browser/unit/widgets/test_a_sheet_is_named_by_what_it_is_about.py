@@ -11,7 +11,7 @@ from widgets import instances, runtime
 
 MONITORS = "Find 27 inch 4K monitors under $400"
 TRIP = "johnny, plan a five day trip somewhere warm for anna and me, from LAX, december 21 to 25, under 2000 total, show me when it's ready"
-FREE = "find me a free 45 minutes tomorrow afternoon to talk with ethan, after my last meeting"
+FREE = "find me a free 45 minutes tomorrow afternoon to talk with rowan, after my last meeting"
 
 
 @pytest.fixture

@@ -1,12 +1,12 @@
-"""full19 C2-C3 (demo pass 2026-09-28): «find me a free 45 minutes tomorrow afternoon to talk with ethan, after my
-last meeting» — the verdict read `agenda:find_free` at 0.91; the model BOOKED the meeting and also sent Ethan a
+"""full19 C2-C3 (demo pass 2026-09-28): «find me a free 45 minutes tomorrow afternoon to talk with rowan, after my
+last meeting» — the verdict read `agenda:find_free` at 0.91; the model BOOKED the meeting and also sent Rowan a
 Telegram. Twice, across two turns. Two rules close it:
 
 · a sure verdict naming an action declared `output.answer`, over a model WRITE on the same card, runs the answer:
   a write lands in his calendar and is the costly mistake;
 · an act that leaves (`external.send`) that the verdict does not back — it surely names another card — is DROPPED
   and the model is told it did not run. It was ASKED until demo pass 45 (2026-09-29): the pending question was what
-  «ok book it» answered one turn later, and two Telegrams went to Ethan he never ordered. Never sent silently,
+  «ok book it» answered one turn later, and two Telegrams went to Rowan he never ordered. Never sent silently,
   never left pending for the next «ok»."""
 import pathlib
 

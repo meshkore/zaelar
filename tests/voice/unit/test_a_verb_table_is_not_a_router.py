@@ -207,7 +207,7 @@ def test_the_question_is_asked_on_every_turn():
 
 
 def test_the_card_is_certain_even_when_the_action_is_not(monkeypatch):
-    """V2-773 final pass (C3): «Schedule it as Catch up with Ethan» over the open agenda read
+    """V2-773 final pass (C3): «Schedule it as Catch up with Rowan» over the open agenda read
     `agenda:update_meeting` 0.51 · `agenda:add_meeting` 0.27 · none 0.18 — unsure as an ACTION, 0.82 as a
     CARD — and the claim «booked» with no call escaped the repair whose only gate is this name."""
     monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: _o == "agenda")
@@ -222,8 +222,8 @@ def test_the_card_is_certain_even_when_the_action_is_not(monkeypatch):
 
 
 def test_an_order_names_a_card_through_either_twin(monkeypatch):
-    """V2-773 (K1, E1 of the demo): «Message Ethan on Telegram» with no card open read catalogue=messaging 1.0,
-    the model promised «I'll send Ethan a Telegram now» and called nothing — and `names_an_order`, reading
+    """V2-773 (K1, E1 of the demo): «Message Rowan on Telegram» with no card open read catalogue=messaging 1.0,
+    the model promised «I'll send Rowan a Telegram now» and called nothing — and `names_an_order`, reading
     `screen_action` alone, said no card was named, so no repair ever looked at the promise."""
     from nucleo.flash import direct_action as _da
     monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: True)
@@ -278,7 +278,7 @@ def test_the_verdict_alone_can_send_an_unkept_order_to_a_worker():
 
 def test_a_repair_that_may_write_needs_a_sure_action_verdict(monkeypatch):
     """V2-773 (demo v3, C2): «Find me a free 45-minute slot» read `agenda:add_meeting` at 0.54, the reply was
-    an ANSWER, and the promise repair booked «Call with Ethan» — a write nobody ordered."""
+    an ANSWER, and the promise repair booked «Call with Rowan» — a write nobody ordered."""
     from nucleo.flash import direct_action as _da
     monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: True)
     unsure = _brief({_tb.TARGET_KEY: ("agenda:add_meeting", 0.54), _tb.REQUEST_KEY: ("order", 0.84)}, open_ids=("agenda",))

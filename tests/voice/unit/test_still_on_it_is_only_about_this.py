@@ -1,4 +1,4 @@
-"""Demo pass 2026-09-28, C2: «find me a free 45 minutes tomorrow afternoon to talk with ethan, after my last meeting»
+"""Demo pass 2026-09-28, C2: «find me a free 45 minutes tomorrow afternoon to talk with rowan, after my last meeting»
 came back MUTE while the monitor search ran, and the mute backstop said «Still on it; I'll let you know as soon as I
 have it» — about a request nothing was doing. Our own canned line was the one lying. It now speaks of live work
 only when that work is about what he just asked (the conservative V2-176 predicate)."""
@@ -17,7 +17,7 @@ def _live(monkeypatch, goals):
 def test_unrelated_live_work_does_not_make_a_mute_turn_still_on_it(monkeypatch):
     _live(monkeypatch, ["Find three 27-inch 4K monitors under 400 dollars each"])
     said = rg.mute_backstop([], LANG, True, operator_text="find me a free 45 minutes tomorrow afternoon to talk "
-                                                          "with ethan, after my last meeting")
+                                                          "with rowan, after my last meeting")
     assert said == "Sorry, I lost that."
 
 

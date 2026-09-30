@@ -1,5 +1,5 @@
 """Demo pass 45 (2026-09-29), E1→E3: «did inworld send me something?» queued the receipt's history fetch, and it left
-two minutes later — E2 «open it» and E3 «send the invoice to andrew» had already failed on a card that did not hold
+two minutes later — E2 «open it» and E3 «send the invoice to quinn» had already failed on a card that did not hold
 it. The owner's loop was parked in `_triage_batch`, whose announcement waits for silence in a conversation that had
 none. The operator's queued orders are flushed every tick, whatever triage is doing."""
 import asyncio

@@ -108,8 +108,8 @@ def test_the_single_funnel_folds_before_it_judges():
 
 def test_the_recipient_said_as_name_lands_on_contact():
     """Demo run (2026-09-26): {"name": "Oscar", "platform": "telegram", "text": …} → «no recipient»."""
-    out = contract.fold_aliases("mensajeria", "send_to", {"name": "Ethan", "platform": "telegram", "text": "hi"})
-    assert out["contact"] == "Ethan" and out["channel"] == "telegram"
+    out = contract.fold_aliases("mensajeria", "send_to", {"name": "Rowan", "platform": "telegram", "text": "hi"})
+    assert out["contact"] == "Rowan" and out["channel"] == "telegram"
 
 
 def test_a_move_said_as_newStartTime_lands_on_newTime():

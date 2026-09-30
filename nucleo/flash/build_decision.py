@@ -127,7 +127,7 @@ def named_card(brief) -> str:
         owner, _action = _da.from_brief(brief)      # screen_action, re-validated against what is open
         if owner:
             return str(owner)
-        # V2-773 — the CARD can be certain while the ACTION is not: «Schedule it as Catch up with Ethan» over
+        # V2-773 — the CARD can be certain while the ACTION is not: «Schedule it as Catch up with Rowan» over
         # the open agenda read `agenda:update_meeting` 0.51 · `agenda:add_meeting` 0.27 · none 0.18 — unsure
         # as an action, 0.82 as a card — and the claim «booked» with no call escaped the repair whose only
         # gate is this name. «Which card» and «which action» are two questions; the second answers the first.

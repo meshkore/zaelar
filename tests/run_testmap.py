@@ -4981,6 +4981,8 @@ DOMAINS: list[dict] = [
         # 2026-08-10: un guarda SOBRE LOS GUARDAS. Aparecieron tests verdes por la MÁQUINA y no por el código (la
         # config del operador —idioma, proveedores, atención, perfil— pisaba el entorno de la suite vía
         # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.
+        {"id": "7.55", "title": "No real identity (the operator's address, the demo's contacts) in a file the public repo tracks",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_no_real_identity_in_a_public_file.py"]},
         {"id": "7.10", "title": "Aislamiento de la suite (la máquina del que corre no decide el resultado; el workspace está fijado y escribir su config falla por nombre)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_suite_isolation.py"]},
         # 2026-08-13: el middleware de routing servía en LAS CUATRO ramas de rechazo (sin cookie, sin

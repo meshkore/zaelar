@@ -397,7 +397,7 @@ def answer_of(res) -> dict:
     """What a data-op RETURNED beyond its ack — the matches a `search_archive` found, a `peek`'s messages —
     or {} when it only acknowledged. Actions that ANSWER put their data in the result (`answer_action`); the
     voice path dispatches detached, so until now that data reached nobody (demo pass 2026-09-28: «check my
-    email, did inworld send me something?» found the Inworld receipt and the turn said «let me check»)."""
+    email, did inworld send me something?» found the Inworld invoice and the turn said «let me check»)."""
     if not isinstance(res, dict) or _receipt.failed(res):
         return {}
     # An action that says what it ANSWERS puts it under `result`; the rest of its return is the card's whole

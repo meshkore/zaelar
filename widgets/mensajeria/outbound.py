@@ -128,7 +128,7 @@ def _one_mailbox(hits: list[dict], want: str, d) -> list[dict]:
     """Several contacts that all reach the SAME place are one recipient — [the first] — else [].
 
     Demo pass 54 (2026-09-29, E3): the same-turn correction retried the forward with the address itself, and the
-    directory held two contacts carrying it («Andrés Garcia · Andrew»). Asking which costs the turn and cannot
+    directory held two contacts carrying it («Andrés Garcia · Quinn»). Asking which costs the turn and cannot
     change where the mail goes. Two contacts with DIFFERENT channels stay an ambiguity, as before."""
     keys = set()
     for c in hits:
@@ -247,7 +247,7 @@ def _message_ref(db: dict, ref: dict) -> dict | None:
                     best = (float(m.get("ts") or 0), {**m, "platform": plat, "chatId": chat, "messageId": m.get("id")})
         if best:
             return best[1]
-        # …and a DESCRIPTION rather than a name (demo pass 52, E3: «Inworld receipt email from September 27, 2026»
+        # …and a DESCRIPTION rather than a name (demo pass 52, E3: «Inworld invoice email from September 27, 2026»
         # matched nothing as one string, and the retry guessed another sender): the message that carries most of its
         # words wins; a tie or no word at all finds nothing, it never picks one at random.
         import re as _re
@@ -303,7 +303,7 @@ def _mailbox_files(chat_id: str, uid: str) -> list[str]:
     """The files of ONE mail, asked of the real mailbox by its UID and saved where the card's assets live.
 
     Demo passes 38-53 (2026-09-29, E3): the receipt reached the card from the archive — a row, no bytes — and
-    «send the invoice to andrew» was refused six times for files that were one IMAP read away. `fetch_older`
+    «send the invoice to quinn» was refused six times for files that were one IMAP read away. `fetch_older`
     with the UID just above it returns exactly that mail (UIDs are monotonic), BODY.PEEK, attachments saved by
     `parse_message`. [] when email is not connected, the UID is not one, or the fetch brings nothing."""
     import os
@@ -382,7 +382,7 @@ def attachments_of(db: dict, ref: dict) -> list[str]:
 def forward_without_files(db: dict, payload: dict) -> dict | None:
     """The refusal a `forward` would get from the owner for pointing at a message with no files — computed
     BEFORE the order is queued. Demo pass 37 (2026-09-29, E3): `forward {n: 1}` pointed at our own mail to
-    Andrew; the owner refused it `no_attachment` out of sight and the turn went on as if the invoice had gone.
+    Quinn; the owner refused it `no_attachment` out of sight and the turn went on as if the invoice had gone.
     Answered here, the refusal reaches the turn and its same-turn correction. None when the message has files."""
     src = {k: payload[k] for k in ("n", "messageId", "from") if payload.get(k) not in (None, "")}
     if attachments_of(db, src):

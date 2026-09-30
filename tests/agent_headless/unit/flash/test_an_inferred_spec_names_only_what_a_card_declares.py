@@ -23,9 +23,9 @@ def test_an_undeclared_collection_on_a_card_that_declares_empty_becomes_not_empt
 def test_a_declared_collection_is_kept_and_an_undeclared_one_on_a_mute_card_is_dropped(monkeypatch):
     from nucleo import truth
     monkeypatch.setattr(truth, "widget_view", _view)
-    got = spec.parse('{"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": "Ethan"}},'
+    got = spec.parse('{"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": "Rowan"}},'
                      ' {"widget": "contactos", "collection": "cards", "where": {"name~": "x"}}]}')
-    assert got == {"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": "Ethan"}}]}
+    assert got == {"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": "Rowan"}}]}
     assert spec.parse('{"all": [{"widget": "contactos", "collection": "cards", "where": {"name~": "x"}}]}') is None
 
 

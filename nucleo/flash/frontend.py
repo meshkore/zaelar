@@ -586,7 +586,7 @@ def at_least_sensitive(widget_id: str, action: str) -> bool:
 
     …or does it declare `external.send`: a message to a person that the operator deliberately runs without a
     question (V2-692) still LEAVES, and the gate this feeds only ever adds friction (demo pass 2026-09-28, full19
-    C2-C3: two Telegrams to Ethan nobody asked for, over a verdict that read the turn as a question to the agenda)."""
+    C2-C3: two Telegrams to Rowan nobody asked for, over a verdict that read the turn as a question to the agenda)."""
     try:
         from widgets import effects as _fx
         if _fx.carries(widget_id, action, _fx.EXTERNAL_SEND):

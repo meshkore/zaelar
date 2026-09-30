@@ -1,6 +1,6 @@
 """An order the verdict is sure of stays on its card, and the reply is the op that ANSWERS (node 2.186).
 
-Demo pass 62, C2 (2026-09-29): «find me a free 45 minutes tomorrow afternoon to talk with ethan, after my last
+Demo pass 62, C2 (2026-09-29): «find me a free 45 minutes tomorrow afternoon to talk with rowan, after my last
 meeting». The verdict said `agenda:find_free` at 0.91 and the model ran it; `find_free` returned the slot
 (16:00-16:45). Then `order_card_after_read` decided the order was about ANOTHER card, a repair pass presented
 the slot on the monitors sheet, and the answer loop kept the LAST op's answer — the sheet's view — so he heard
@@ -28,9 +28,9 @@ def test_a_verdict_sure_of_the_touched_card_leaves_no_other_card(monkeypatch):
 
 def test_the_re_route_still_works_when_the_verdict_names_the_other_card(monkeypatch):
     monkeypatch.setattr(tb, "read", _reads("mensajeria:send_to"))
-    assert da.order_card_after_read({"x": 1}, "send ethan a telegram with the new time", "agenda") == "mensajeria"
+    assert da.order_card_after_read({"x": 1}, "send rowan a telegram with the new time", "agenda") == "mensajeria"
     monkeypatch.setattr(tb, "read", _reads(""))
-    assert da.order_card_after_read({"x": 1}, "send ethan a telegram with the new time", "agenda") == "mensajeria"
+    assert da.order_card_after_read({"x": 1}, "send rowan a telegram with the new time", "agenda") == "mensajeria"
 
 
 def test_the_reply_is_composed_from_the_op_that_declares_an_answer():

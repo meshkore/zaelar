@@ -24,7 +24,7 @@ def test_the_outcome_sentence_is_the_verdicts():
 
 def test_the_spoken_delivery_is_built_on_the_verdict_and_the_voice_rules(monkeypatch):
     monkeypatch.setattr(circuit, "voice_rules_line", lambda: "The person's standing rules for how you speak, which you obey: confirm my orders with a short line")
-    msgs = sd._messages("find the wallpaper", "Set the Helix Nebula as wallpaper.", True, verdict="unverifiable")
+    msgs = sd._messages("find the wallpaper", "Set the Orion Nebula as wallpaper.", True, verdict="unverifiable")
     system = msgs[0]["content"]
     assert "unverified" in system and "It is done." not in system.split("unverified")[0]
     assert "standing rules" in system and "confirm my orders" in system

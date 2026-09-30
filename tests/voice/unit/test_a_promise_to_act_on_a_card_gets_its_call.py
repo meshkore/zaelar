@@ -101,17 +101,17 @@ def test_the_pass_sees_the_card_so_a_relative_order_can_become_a_call(client, mo
     2:45» with NO call. The main turn had the agenda digest (13:30–14:15) and computed the hour; this pass had
     only his words, so it could not, and returned None in silence. Now it reads the same card."""
     from nucleo.flash import widget_read
-    monkeypatch.setattr(widget_read, "read", lambda wid: "citas próximas (1):\n  · 2026-09-27 13:30 «Catch up with Ethan»")
+    monkeypatch.setattr(widget_read, "read", lambda wid: "citas próximas (1):\n  · 2026-09-27 13:30 «Catch up with Rowan»")
     seen = []
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda *a, **k: seen.append((a, k)))
     _Client.answer = [("widget_data", {"widget_id": "agenda", "action": "move_meeting",
-                                       "payload": {"title": "Catch up with Ethan", "newTime": "14:00"}})]
+                                       "payload": {"title": "Catch up with Rowan", "newTime": "14:00"}})]
     got = _run("Move it 30 minutes later.", "It's now at 2:00 PM, running until 2:45.", "agenda")
     assert got == {"widget_id": "agenda", "action": "move_meeting",
-                   "payload": {"title": "Catch up with Ethan", "newTime": "14:00"}}
+                   "payload": {"title": "Catch up with Rowan", "newTime": "14:00"}}
     sys_prompt = _Client.calls[-1]["messages"][0]["content"]
-    assert "13:30 «Catch up with Ethan»" in sys_prompt, "the card's own rows ride the pass"
+    assert "13:30 «Catch up with Rowan»" in sys_prompt, "the card's own rows ride the pass"
     assert "AFIRMASTE" in sys_prompt, "a claim of completion is repaired like a promise"
     # …and a pass that gives no call SAYS so on the timeline
     _Client.answer = []
@@ -129,7 +129,7 @@ def test_a_commission_that_names_a_card_is_read_or_called_before_it_costs_a_work
     from nucleo.flash import widget_read
     monkeypatch.setattr(widget_read, "read", lambda wid: "citas próximas (3): …")
     _Client.answer = [("read_widget", {"widget_id": "agenda", "question": "What is free on 2026-09-27 between 12:00 and 18:00?"})]
-    got = _run_cr("Find me a free 45-minute slot tomorrow afternoon to talk with Ethan.", "Find a free slot…", "agenda")
+    got = _run_cr("Find me a free 45-minute slot tomorrow afternoon to talk with Rowan.", "Find a free slot…", "agenda")
     assert got == {"kind": "read", "widget_id": "agenda", "question": "What is free on 2026-09-27 between 12:00 and 18:00?"}
     offered = [t["function"]["name"] for t in _Client.calls[-1]["tools"]]
     assert offered == ["widget_data", "read_widget"], offered
@@ -148,15 +148,15 @@ def test_a_commission_that_names_a_card_is_read_or_called_before_it_costs_a_work
 
 
 def test_a_card_that_cannot_answer_still_takes_the_call(client, monkeypatch):
-    """Coordination block (K1): «Message Ethan on Telegram» went to a Brain Worker — the messaging card cannot
+    """Coordination block (K1): «Message Rowan on Telegram» went to a Brain Worker — the messaging card cannot
     answer questions, so the pass was never offered to it. Any named card may take the CALL; only one that
     can answer is offered the read."""
     from nucleo.flash import widget_read
     monkeypatch.setattr(widget_read, "read", lambda wid: "")
     monkeypatch.setattr(widget_read, "can_answer", lambda wid: wid == "agenda")
     _Client.answer = [("widget_data", {"widget_id": "mensajeria", "action": "send_to",
-                                       "payload": {"contact": "Ethan", "channel": "telegram", "text": "16:30"}})]
-    got = _run_cr("Message Ethan on Telegram and tell him the new meeting time.", "send Ethan…", "mensajeria")
+                                       "payload": {"contact": "Rowan", "channel": "telegram", "text": "16:30"}})]
+    got = _run_cr("Message Rowan on Telegram and tell him the new meeting time.", "send Rowan…", "mensajeria")
     assert got and got["kind"] == "call" and got["action"] == "send_to", got
     assert [t["function"]["name"] for t in _Client.calls[-1]["tools"]] == ["widget_data"], "no read for a card that cannot answer"
 
@@ -185,7 +185,7 @@ def test_an_order_reading_is_enough_to_ask_the_repair_in_both_channels():
 
 
 def test_a_sure_act_reading_is_an_order_even_when_the_request_type_is_unsure():
-    """full11 C5: «send ethan a telegram with the new time» → request_type order at 0.46 (unsure), wants_words act at
+    """full11 C5: «send rowan a telegram with the new time» → request_type order at 0.46 (unsure), wants_words act at
     0.92; «Sending it now» over nothing and no repair."""
     import threading
     from nucleo.flash import direct_action as da, turn_brief as tb

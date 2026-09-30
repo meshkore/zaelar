@@ -86,7 +86,7 @@ _DURABLE_PREF_MARKER_RE = re.compile(
 # (P0c) FORMAT VALIDITY of a TYPED slot (V2-050): an identity value with canonical format (email, phone)
 # whose VALUE is malformed is NOT a durable fact — it is STT garble ("mi email es rjj.com" → 'rjj.com' without @
 # is not an email). Without this, the broken value was stored in the slot and competed with the good one (ITV bug:
-# rjj.com overwriting rjj@proars.com). Deterministic FORMAT validation, keyed ONLY by the slot already assigned by
+# rjj.com overwriting operator@example.com). Deterministic FORMAT validation, keyed ONLY by the slot already assigned by
 # the processor → does NOT touch preferences ("prefiere el correo por la mañana" has no operator.email slot, so it
 # is not filtered).
 _EMAIL_OK_RE = re.compile(r"[^@\s]+@[^@\s]+\.[a-z]{2,}", re.I)

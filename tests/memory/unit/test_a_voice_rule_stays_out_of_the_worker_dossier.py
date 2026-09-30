@@ -31,7 +31,7 @@ def test_the_fixed_classifier_names_the_scope_of_a_spoken_rule():
                   "confirm my orders", "keep it short, one sentence", "no fillers please", "háblame de usted"):
         assert sp.scope_of(voice) == "voice", voice
     for general in ("nunca compres en Wish", "llámame siempre capitán", "las reuniones siempre de 30 minutos",
-                    "avísame de los correos de Andrew", "always check my calendar before booking"):
+                    "avísame de los correos de Quinn", "always check my calendar before booking"):
         assert sp.scope_of(general) == "general", general
 
 

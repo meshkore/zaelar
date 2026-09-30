@@ -31,7 +31,7 @@ _SYS = ("Eres el cerebro de un asistente de voz. En el turno anterior contestast
         "cita que hay). Si solo CONTESTASTE, PROPUSISTE o PREGUNTASTE — sin prometer ni afirmar un acto —, o si "
         "ninguna acción encaja, no llames a nada. OFRECER hacerlo («¿quieres que lo reserve?», «want me to put it "
         "there?») NO es hacerlo: espera su sí. Pero si AFIRMASTE un acto y además ofreces OTRO («movida a las 2:45; "
-        "¿aviso a Ethan?»), haz la llamada del que afirmaste.\n\n"
+        "¿aviso a Rowan?»), haz la llamada del que afirmaste.\n\n"
         "Acciones de «{wid}»:\n{actions}{card}")
 #: What the card holds, so a relative order («move it 30 minutes later») can be turned into a call. The
 #: demo run (2026-09-26): the model computed «It's now at 2:00 PM, running until 2:45» in the turn — it had the
@@ -41,7 +41,7 @@ _CARD = "\n\nLO QUE HAY EN LA TARJETA «{wid}» AHORA:\n{digest}"
 
 def conversation(window, n: int = 6) -> str:
     """The last turns, as the model that spoke them saw them — so a repair pass knows what «the new time», «that
-    one» or «it» is (demo pass 2026-09-28, C5: «send ethan a telegram with the new time» reached a pass that saw
+    one» or «it» is (demo pass 2026-09-28, C5: «send rowan a telegram with the new time» reached a pass that saw
     only his sentence and the messaging card; the time lived two turns back, on the agenda)."""
     try:
         rows = [m for m in (window or []) if (m or {}).get("role") in ("user", "assistant")][-n:]
@@ -199,7 +199,7 @@ async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: s
                                     window=None) -> dict | None:
     """`call_for_promise`, and when the words promised nothing — they REFUSED — the verdict's call.
 
-    Demo pass 41 (2026-09-29, E3): «send the invoice to andrew…» over the open receipt → «I can't send it myself —
+    Demo pass 41 (2026-09-29, E3): «send the invoice to quinn…» over the open receipt → «I can't send it myself —
     sending mail isn't something I can do on my end», no call, the verdict reading `mensajeria:forward`. The promise
     pass asks «did you promise an act?», and a refusal did not, so it rightly called nothing — and the mail never
     went. A refusal of an action the card DECLARES, for an order the verdict names, is one more question to the
@@ -217,9 +217,9 @@ async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: s
     """The model's only call RE-OPENED what was already on screen, and the verdict names an action on that card
     that needs a payload only a model can write — ask once, for that call. `{widget_id, action, payload}` or None.
 
-    Demo pass 2026-09-28 (full20 E3): «send the invoice to andrew, tell him we're already trying inworld and he
-    should book it» over the open Inworld receipt → the model called `open` (again), the verdict read
-    `mensajeria:forward` at 0.61. The verdict alone cannot complete a forward — the note to Andrew has to be
+    Demo pass 2026-09-28 (full20 E3): «send the invoice to quinn, tell him we're already trying inworld and he
+    should book it» over the open Inworld invoice → the model called `open` (again), the verdict read
+    `mensajeria:forward` at 0.61. The verdict alone cannot complete a forward — the note to Quinn has to be
     written — so the turn ended having done nothing. Bounded like `call_for_promise`: one card, its declared
     action, the caller's usual gate. Never raises."""
     try:
@@ -272,7 +272,7 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
     """The turn READ one card to get what an order on ANOTHER card needed — and the read path ends the turn with
     words only. `{widget_id, action, payload}` for the order, or None. Never raises.
 
-    Demo pass 2026-09-28 (full20 C5): «send ethan a telegram with the new time» — the model read the agenda for the
+    Demo pass 2026-09-28 (full20 C5): «send rowan a telegram with the new time» — the model read the agenda for the
     new time (sensible), and the read's answer pass, which has no tools, said «I can't send a Telegram, I don't have
     any messaging tool available here». The order stood; this pass carries it out with what was read."""
     try:
@@ -318,12 +318,12 @@ _SYS_COMMISSION = (
     "absoluta y la franja que él dijo) — solo si esa herramienta se te ofrece; (3) solo si hace falta el mundo "
     "exterior —la web, reservar en un sitio externo, buscar productos— no llames a nada. Un mensaje a un contacto "
     "es la acción de enviar de la tarjeta, con el texto redactado por ti a partir de lo que él quiere decir, y "
-    "`contact` es el NOMBRE de la persona tal como él lo dijo («Ethan»), nunca su @usuario, teléfono o correo: "
+    "`contact` es el NOMBRE de la persona tal como él lo dijo («Rowan»), nunca su @usuario, teléfono o correo: "
     "la tarjeta lo resuelve en su directorio. Una orden de HACER algo (enviar, escribir, apuntar, mover) se cumple "
     "con su acción aunque dependa de un dato que la tarjeta guarda: la tarjeta lo comprueba al ejecutar y dice si "
     "falta — leer para comprobarlo antes no cumple la orden. Pero ENCONTRAR, buscar o decirle algo (un hueco libre, "
     "una fecha, un dato) es SABERLO: se lee, y no se apunta ni se envía nada que él no haya pedido — «búscame un "
-    "hueco para hablar con Ethan» no es reservar ni escribirle a Ethan. El ENCARGO lo redactó otro paso y puede "
+    "hueco para hablar con Rowan» no es reservar ni escribirle a Rowan. El ENCARGO lo redactó otro paso y puede "
     "traer un dato mal copiado: una hora, una fecha o un nombre que una tarjeta de su pantalla guarda se toma de la "
     "TARJETA, no del encargo."
     "\n\nAcciones de «{wid}»:\n{actions}{card}")
@@ -340,9 +340,9 @@ def _tool_named(name: str) -> dict | None:
 def _other_open_cards(wid: str, *, limit: int = 2, chars: int = 900) -> str:
     """What the OTHER cards on his screen hold — the facts a commission on this card usually refers to.
 
-    Demo pass 43 (2026-09-29), C5: «send ethan a telegram with the new time» — the meeting had just been moved to
+    Demo pass 43 (2026-09-29), C5: «send rowan a telegram with the new time» — the meeting had just been moved to
     4:30 on the open agenda (silently: no words in the window said so), the model's escalation said «17:00», and
-    this pass, which saw only the messaging card and that brief, wrote Ethan «moved to 5:00 PM». The time was on
+    this pass, which saw only the messaging card and that brief, wrote Rowan «moved to 5:00 PM». The time was on
     the screen, in another card."""
     try:
         from memory import api as _memapi
@@ -378,7 +378,7 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}
         # The read option only for a card that can ANSWER (`widget_read.can_answer`): a messaging card gets the
-        # call («message Ethan on Telegram» → send_to) and never a read it cannot serve.
+        # call («message Rowan on Telegram» → send_to) and never a read it cannot serve.
         from nucleo.flash import widget_read as _wr0
         tools = [t for t in (_tool_named("widget_data"),
                              _tool_named("read_widget") if (may_read and _wr0.can_answer(wid)) else None) if t]

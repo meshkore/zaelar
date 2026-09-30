@@ -258,7 +258,7 @@ def _possible_now(widget_id: str, action: str) -> bool:
 #: vídeo» with nothing on screen.
 CATALOG_KEY = "catalog_widget"
 #: V2-773 — the question used to ask which card he NAMES («to open»), and an order a card carries out went
-#: unnamed: «Message Ethan on Telegram» none 0.63, «Find me a free slot tomorrow» none 0.52 — both then spent
+#: unnamed: «Message Rowan on Telegram» none 0.63, «Find me a free slot tomorrow» none 0.52 — both then spent
 #: a Brain Worker. Asked as «which card would carry it out or answer it», measured on ten sentences: messaging
 #: 1.0 / agenda 0.97 / música 1.0 / markets 0.99, and the errands stay none (weekend plan 0.79, a table at a
 #: restaurant 0.86, monitors under $400 0.63).

@@ -370,7 +370,7 @@ _IMAGE_CACHE_MAX = 300
 
 def _query_key(query: str) -> str:
     """Word order, case and punctuation do not change a picture search — the model words the same request a
-    little differently every time («… by Tyler Young, Helix Nebula wallpaper» / «… Tyler Young Helix Nebula»)."""
+    little differently every time («… by Tyler Young, Orion Nebula wallpaper» / «… Tyler Young Orion Nebula»)."""
     import re as _re
     return " ".join(sorted(set(w for w in _re.findall(r"\w+", (query or "").lower()) if len(w) > 2)))
 

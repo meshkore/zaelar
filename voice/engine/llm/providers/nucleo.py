@@ -1235,9 +1235,9 @@ class NucleoLLMStream(llm.LLMStream):
                     mode = _wactions.CONFIRM
                 elif _direct_action.verdict_elsewhere(_brief, wid):
                     # …and an act that leaves which the verdict does not back at all — it surely names an action on
-                    # ANOTHER card (full19 C2: «find me a free 45 minutes… to talk with ethan» → agenda:find_free,
-                    # and the model also wrote to Ethan). DROPPED, and the model told: asked instead, the pending
-                    # question was what «ok book it» answered one turn later — two Telegrams to Ethan he never
+                    # ANOTHER card (full19 C2: «find me a free 45 minutes… to talk with rowan» → agenda:find_free,
+                    # and the model also wrote to Rowan). DROPPED, and the model told: asked instead, the pending
+                    # question was what «ok book it» answered one turn later — two Telegrams to Rowan he never
                     # ordered (demo pass 45, 2026-09-29, C2→C5). An act he did not ask for is not offered either.
                     emit("brain", "🛑 acto que sale fuera sin respaldo del veredicto — no se ejecuta",
                          text=f"{wid}:{action_name} · veredicto en otra tarjeta", role="system",
@@ -1511,7 +1511,7 @@ class NucleoLLMStream(llm.LLMStream):
                         and _fx_q.carries(_cd["card"], action_name, _fx_q.DATA_WRITE)
                         and _direct_action._action_sure(_brief)):
                     # full51 C2: when the verdict cannot be completed alone (`find_free` needs the length and the
-                    # afternoon only a model reads), the WRITE still ran — «Call with Ethan» booked at 15:45 over
+                    # afternoon only a model reads), the WRITE still ran — «Call with Rowan» booked at 15:45 over
                     # the 15:00 meeting, nobody having asked to book. The write never runs; the verdict's call is
                     # asked of the model after the turn (the repeated-view repair pass).
                     if not _direct_action.complete(_brief, operator_text=_bnotes.operator_half(text), emit=emit,
@@ -2780,7 +2780,7 @@ class NucleoLLMStream(llm.LLMStream):
                 if _ar_tail:
                     send(speech.sanitize(_ar_tail, drop_metadata=False))
                     spoken_text = spoken_text + _ar_tail
-        # An order on ONE card while the turn only touched OTHERS (full23 C5: «send ethan a telegram with the new
+        # An order on ONE card while the turn only touched OTHERS (full23 C5: «send rowan a telegram with the new
         # time» re-wrote the meeting on the agenda and the reply said «he's getting the update now» — nothing was
         # sent). The order is carried out on its card, with what the touched card holds.
         _ops_cards = {str(w).split("::")[0] for w, _a in (data_done.get("ops") or [])}
@@ -3084,7 +3084,7 @@ class NucleoLLMStream(llm.LLMStream):
             _pending = [t for w, t in _turn_op_tasks if str(w).split("::")[0] == _rw and not t.done()]
             if _pending:
                 await asyncio.wait(_pending, timeout=6.0)
-            # A read that serves an ORDER on another card (full20 C5: «send ethan a telegram with the new time» read
+            # A read that serves an ORDER on another card (full20 C5: «send rowan a telegram with the new time» read
             # the agenda for the time) — the order is carried out with what was read, instead of a words-only pass
             # that has no tools and says it cannot.
             _after = None

@@ -1,7 +1,7 @@
 """A commission that lands on the picture viewer is the picture TOOL, never a worker (node 2.187).
 
 Demo passes 60-62, B1 (2026-09-29): «now let's make it prettier, find me the wallpaper cosmic eye in the sky by
-tyler young, the helix nebula» was escalated to a Brain Worker; passes 56-59 ran it as `show_images` in 3 s and B2
+tyler young, the orion nebula» was escalated to a Brain Worker; passes 56-59 ran it as `show_images` in 3 s and B2
 set it as the wallpaper. The late catalogue question could not name the viewer (its criterion was cut before the
 word «wallpaper»; now it leads with it), and even named, the viewer's `show` needs pictures a TURN TOOL finds — so
 the commission pass's «show {query}» becomes the `show_images` request instead of a data-op that returns «no
@@ -11,13 +11,13 @@ import asyncio
 
 from nucleo.flash import card_commission as cc
 
-SAID = "now let's make it prettier, find me the wallpaper cosmic eye in the sky by tyler young, the helix nebula"
+SAID = "now let's make it prettier, find me the wallpaper cosmic eye in the sky by tyler young, the orion nebula"
 
 
 def test_a_show_with_a_query_and_no_pictures_is_the_tool_request_and_keeps_the_wallpaper_intent():
     got = cc._as_tool_request({"kind": "call", "widget_id": "imagenes", "action": "show",
-                               "payload": {"query": "cosmic eye in the sky helix nebula tyler young"}}, SAID)
-    assert got["query"] == "cosmic eye in the sky helix nebula tyler young wallpaper" and got["more"] is False
+                               "payload": {"query": "cosmic eye in the sky orion nebula tyler young"}}, SAID)
+    assert got["query"] == "cosmic eye in the sky orion nebula tyler young wallpaper" and got["more"] is False
     assert cc._as_tool_request({"kind": "call", "widget_id": "imagenes", "action": "add",
                                 "payload": {"query": "ferrari f40"}}, "more of those")["more"] is True
 
@@ -36,7 +36,7 @@ def test_before_worker_spends_the_tool_not_the_worker(monkeypatch):
 
     async def _pass(*a, **k):
         return {"kind": "call", "widget_id": "imagenes", "action": "show",
-                "payload": {"query": "cosmic eye in the sky helix nebula"}}
+                "payload": {"query": "cosmic eye in the sky orion nebula"}}
     monkeypatch.setattr(act_repair, "call_or_read_for_commission", _pass)
     esc, read, images, emitted, applied = {"v": "Find the photograph…", "more": []}, {"v": None}, {"v": None}, [], []
     out = asyncio.run(cc.before_worker(esc, read, brief={"x": 1}, operator_text=SAID, spec=None,
@@ -64,8 +64,8 @@ def test_an_order_on_an_EMPTY_viewer_is_first_a_search(monkeypatch):
     got = cc._as_tool_request({"widget_id": "imagenes", "action": "wallpaper", "payload": {"item": 1}}, SAID)
     assert got and "cosmic eye in the sky" in got["query"] and got["more"] is False
     got = cc._as_tool_request({"widget_id": "imagenes", "action": "wallpaper",
-                               "payload": {"item": "cosmic eye in the sky helix nebula"}}, SAID)
-    assert got["query"].startswith("cosmic eye in the sky helix nebula") and "wallpaper" in got["query"]
+                               "payload": {"item": "cosmic eye in the sky orion nebula"}}, SAID)
+    assert got["query"].startswith("cosmic eye in the sky orion nebula") and "wallpaper" in got["query"]
 
 
 def test_a_commission_on_an_empty_viewer_is_the_search_even_when_the_pass_calls_nothing(monkeypatch):
@@ -77,7 +77,7 @@ def test_a_commission_on_an_empty_viewer_is_the_search_even_when_the_pass_calls_
     async def _nothing(*a, **k):
         return None
     monkeypatch.setattr(act_repair, "call_or_read_for_commission", _nothing)
-    esc = {"v": 'Find the wallpaper artwork "Cosmic Eye in the Sky" by Tyler Young, featuring the Helix Nebula. '
+    esc = {"v": 'Find the wallpaper artwork "Cosmic Eye in the Sky" by Tyler Young, featuring the Orion Nebula. '
                 'Download the highest-resolution version available.', "more": []}
     images = {"v": None}
     out = asyncio.run(cc.before_worker(esc, {"v": None}, brief={"x": 1}, operator_text=SAID, spec=None,

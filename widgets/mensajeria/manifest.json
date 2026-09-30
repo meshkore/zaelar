@@ -15,7 +15,7 @@
     "gate": "nucleo"
   },
   "title": "Mensajería",
-  "description": "WhatsApp, Telegram y correo en un sitio: leer, filtrar y ENVIAR o contestar mensajes («message Ethan on Telegram», «escríbele a Anna», «reply to that email»), ya triado a lo que va dirigido a ti. Se vinculan por QR (WhatsApp/Telegram) o correo + contraseña de aplicación; puedes dictar una respuesta y mandarla.",
+  "description": "WhatsApp, Telegram y correo en un sitio: leer, filtrar y ENVIAR o contestar mensajes («message Rowan on Telegram», «escríbele a Anna», «reply to that email»), ya triado a lo que va dirigido a ti. Se vinculan por QR (WhatsApp/Telegram) o correo + contraseña de aplicación; puedes dictar una respuesta y mandarla.",
   "whenToUse": "Cuando pide ver sus mensajes, quién le ha escrito, su WhatsApp/Telegram/correo, responder o mandar un mensaje/email, RESUMIR una conversación o grupo, buscar mensajes PASADOS en el archivo («¿cuándo me escribió X?»), traer mensajes del conector, el AUTORRESPONDEDOR, su firma, o conectar un canal.",
   "keywords": [
     "mensajes",
@@ -219,7 +219,7 @@
     },
     "forward": {
       "ref": "from",
-      "desc": "REENVÍA por correo un mensaje que llegó, con sus ADJUNTOS (factura, PDF…), a una PERSONA: «mándale a Andrew la factura de este correo». Sin `n`, el correo ABIERTO. No es `reply`",
+      "desc": "REENVÍA por correo un mensaje que llegó, con sus ADJUNTOS (factura, PDF…), a una PERSONA: «mándale a Quinn la factura de este correo». Sin `n`, el correo ABIERTO. No es `reply`",
       "payload": {
         "contact": "string (a quién, el nombre tal como lo dijo el operador, o una dirección)",
         "text": "string (la nota corta que acompaña)",

@@ -16,17 +16,17 @@ from nucleo.flash import act_repair as ar
 _live = pytest.mark.skipif(os.getenv("ZAELAR_LIVE_JEV") != "1", reason="live model — set ZAELAR_LIVE_JEV=1")
 
 CASES = [
-    ("agenda", "find me a free 45 minutes tomorrow afternoon to talk with ethan",
+    ("agenda", "find me a free 45 minutes tomorrow afternoon to talk with rowan",
      "Tomorrow afternoon 1:30 to 2:15 is free, or anytime from 4 PM. Want me to set it up?", None),
     ("agenda", "when's the tesla insurance due again?", "Your Tesla insurance renews on 12 March 2027.", None),
     ("mensajeria", "draft a short reply saying i'll send the meet link right after our call",
      "I've got a draft ready saying you'll send the Meet link right after your call.", "draft"),
     ("agenda", "actually move it half an hour later", "Checking… moved it to 2 PM.", "move_meeting"),
     # demo pass 2026-09-28: an OFFER is not the act (C2 booked it once) — but a claimed act followed by an offer
-    # of ANOTHER one still gets its call (C4: «Moved to 2:45. Want me to let Ethan know it's on?», nothing moved)
-    ("agenda", "find me a free 45 minutes tomorrow afternoon to talk with ethan",
-     "4:30 to 5:15 fits nicely with nothing in the way. Want me to put the call with Ethan there?", None),
-    ("agenda", "actually move it half an hour later", "Moved to 2:45.\n\nWant me to let Ethan know it's on?",
+    # of ANOTHER one still gets its call (C4: «Moved to 2:45. Want me to let Rowan know it's on?», nothing moved)
+    ("agenda", "find me a free 45 minutes tomorrow afternoon to talk with rowan",
+     "4:30 to 5:15 fits nicely with nothing in the way. Want me to put the call with Rowan there?", None),
+    ("agenda", "actually move it half an hour later", "Moved to 2:45.\n\nWant me to let Rowan know it's on?",
      "move_meeting"),
 ]
 
@@ -39,7 +39,7 @@ def agenda_with_the_meeting(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     from widgets.agenda import data as ag
     tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
-    ag.apply_action("add_meeting", {"title": "Catch up with Ethan", "date": tomorrow,
+    ag.apply_action("add_meeting", {"title": "Catch up with Rowan", "date": tomorrow,
                                     "startTime": "14:15", "endTime": "15:00"})
 
 

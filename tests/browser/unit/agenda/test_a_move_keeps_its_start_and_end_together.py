@@ -32,11 +32,11 @@ def test_a_move_said_with_start_and_end_moves_both(ag, start_key):
 
 @pytest.mark.parametrize("key", ["duration", "durationMinutes", "duration_minutes", "minutes"])
 def test_a_duration_says_the_end_of_a_new_meeting(ag, key):
-    """V2-773 final pass (C3): «Schedule it as Catch up with Ethan» arrived as {time: 16:00, duration: 45}; the
+    """V2-773 final pass (C3): «Schedule it as Catch up with Rowan» arrived as {time: 16:00, duration: 45}; the
     card wrote 16:00–17:00 and told him it could not keep `duration`. The keys `move_meeting` already reads."""
-    r = ag.apply_action("add_meeting", {"title": "Catch up with Ethan", "date": "2026-09-27", "time": "16:00", key: 45})
+    r = ag.apply_action("add_meeting", {"title": "Catch up with Rowan", "date": "2026-09-27", "time": "16:00", key: 45})
     assert "error" not in r, r
-    row = next(m for m in ag.view_data()["meetings"] if m["title"] == "Catch up with Ethan")
+    row = next(m for m in ag.view_data()["meetings"] if m["title"] == "Catch up with Rowan")
     assert (row["startTime"], row["endTime"]) == ("16:00", "16:45"), row
     r2 = ag.apply_action("add_meeting", {"title": "Long one", "date": "2026-09-27", "time": "23:30", key: "90 min"})
     row2 = next(m for m in ag.view_data()["meetings"] if m["title"] == "Long one")
@@ -48,8 +48,8 @@ def test_a_move_named_like_a_meeting_moves(ag):
     the model gives a meeting — and was refused as «no destination»; the next turn re-sent the move instead of
     the Telegram he asked for. A move is a write, so it reads the same natural names as one."""
     day = _tomorrow()
-    ag.apply_action("add_meeting", {"title": "Catch up with Ethan", "date": day, "start": "13:00", "end": "13:45"})
-    got = ag.apply_action("move_meeting", {"title": "Catch up with Ethan", "date": day,
+    ag.apply_action("add_meeting", {"title": "Catch up with Rowan", "date": day, "start": "13:00", "end": "13:45"})
+    got = ag.apply_action("move_meeting", {"title": "Catch up with Rowan", "date": day,
                                            "start": "13:30", "end": "14:15"})
     assert got.get("ok") is not False, got
     m = got.get("stored") or {}

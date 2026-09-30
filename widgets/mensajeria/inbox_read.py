@@ -111,8 +111,8 @@ _MAX_SENT_ROWS = 3
 def _sent_lately() -> list[str]:
     """What this card SENT in the last half hour, newest first — and what is still waiting to leave.
 
-    Demo pass 2026-09-28 (full18 C5b): the Telegram to Ethan went out, the next turn said «let me just send that
-    to Ethan first»: nothing the model reads said it had been sent (the digest is the inbox, and the inbox is what
+    Demo pass 2026-09-28 (full18 C5b): the Telegram to Rowan went out, the next turn said «let me just send that
+    to Rowan first»: nothing the model reads said it had been sent (the digest is the inbox, and the inbox is what
     came IN). A send is a fact of this card like any message waiting."""
     try:
         from . import data as _data
@@ -181,9 +181,9 @@ def read_query(question: str) -> str:
     """The messages this question is about — and, when it is about a PERSON, how this card would reach him.
 
     The card SENDS through the contact directory (`outbound.py` → `widgets/directory.py`), so a question put to it
-    about a recipient is answered from that same directory. Demo pass 2026-09-28, C5: «send ethan a telegram with
-    the new time» → the model asked this card «is there a contact called Ethan? does he have Telegram?», got only
-    the inbox, answered «I can't find any contact named Ethan», and a worker spent a minute sending what `send_to`
+    about a recipient is answered from that same directory. Demo pass 2026-09-28, C5: «send rowan a telegram with
+    the new time» → the model asked this card «is there a contact called Rowan? does he have Telegram?», got only
+    the inbox, answered «I can't find any contact named Rowan», and a worker spent a minute sending what `send_to`
     would have sent at once. The card's reading and the card's action now see the same people."""
     inbox = _inbox_answer(question)
     try:

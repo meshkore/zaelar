@@ -719,7 +719,7 @@ def live_state() -> str:
 
 def _people_block(turn_text: str) -> str:
     """The people his sentence names who ARE in his contacts (`contactos.people_named`) — so an order to write to
-    «andrew» knows Andrew exists and by which channels, whether or not the directory card is open. Per-turn and
+    «quinn» knows Quinn exists and by which channels, whether or not the directory card is open. Per-turn and
     outside the stable prefix; empty when nobody is named."""
     try:
         from widgets.contactos import data as _cd
