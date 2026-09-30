@@ -25,6 +25,32 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **One record for every request: the inline turn is a row, and the prompt reads the record (V2-776 M,
+  2026-09-30)**: the operator asked what «what is going on» means to the engine. Measured the same day: six
+  registries with six lifetimes (worker session, the just-ended snapshot, the task row quoted only when RAM was
+  silent, third-party errands, lists, scheduled jobs) and the INLINE turn — about 70 % of the demo — left nothing
+  durable: its spec lived 30 minutes in RAM, its harness goal five, and the conversation buffer was the only trace.
+  Decision: the executor stays whatever is fastest; what unifies them is the RECORD. The first op of a turn opens
+  one `tasks` row (`kind=inline`, `nucleo/request_row.py`), later ops reuse it and the circuit's verdict ends it
+  (schema v9 `tasks.verdict`); `task_block.recent_lines` shows the last six requests of six hours from the record,
+  always, facts only — no new instruction in that block, a model failure over a correct fact line is a bank case;
+  a worker's row is closed by `circuit.close`, a list step's by its ops, and an op he ordered that ends unmet is
+  corrected out loud. M4.1 moved the harness goals into the spec ledger and M4.3 retired `record_lines`; **M4.2
+  was not done, with reason**: what the just-ended block carries is an obligation (a death he does not know about
+  is told once), not a fact, and moving it into the facts block is the stacked-rule pattern M ends. Live gate:
+  passes 70-72 clean. CRIT-E9. Commits b7b17899, 8f5e128d, 1e24615f, b25acdb3, 38a2ef96, faf042f9, f9242a0b;
+  nodes 2.194, 2.196, 2.198.
+- **The circuit: a request is born with its end state and ends in a verdict (V2-776 L, 2026-09-29)**: after the
+  B1→B2→U2 cascade of demo pass 60 the operator ordered one mechanism instead of more fragments. L1 `nucleo/spec.py`
+  + `truth.py` + `verify.py`: a request is born with its `done_when` — the manifest's template at the data-op door,
+  the escalate tool's own field, or inferred once (inferred specs are sanitized to what cards declare and are
+  advisory: a guess never relaunches). L2 readable truth: `from: view` collections (sent, sections, the player's
+  lists, occurrences), `empty` on every demo card, «on screen» = open minus minimized for every reader. L3
+  `nucleo/circuit.py`: one ledger the pulse re-verifies, the bound is genesis's, a gave-up ending parks one retry
+  on his answer, and the spoken ending is the verdict. The audit after passes 62-69 found the shape right and its
+  reach partial (14 of 242 actions declared a `done_when`; an unmet inline spec had no consumer; the words were not
+  gated by the verdict) — those are the open items of V2-776 and V2-778, not a reason to add guards. Nodes
+  2.183-2.185, 3.104-3.106, 4.231-4.235.
 - **One intention, four tasks — the parked errand, the negated charge and the late audit (2026-09-29, session
   81095d8d)**: the operator asked for José Luis Cárpatos on YouTube, subscribed (both done by the fast brain in
   17 s), then typed «i want to buy Through the Moon (2020), gime the amazon link». What he got: a second card

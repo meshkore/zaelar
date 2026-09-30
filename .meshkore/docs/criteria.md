@@ -132,6 +132,12 @@ below is the first kind, or it names the mechanism that replaced the second.
   brain repeats the QUESTION, not the work. An audit that comes back after the conversation moved (a turn of
   his, a widget op) may record a finding but never acts or speaks. — since 2026-09-29 · nodes 2.182, 2.180 ·
   `nucleo/dispatch_confirm.py`, `nucleo/susurro/engine.py`.
+- **CRIT-E9 · Every request that acts is ONE row, and it ends in a verdict of four values**: `met` (its end state
+  was attested), `unmet` (attested false after its grace — corrected out loud when he ordered it), `unverifiable`
+  (nothing readable could say) or `undeclared` (the action declares no end
+  state). A later op never improves a failed row; a worker's verdict comes from `circuit.close`, a list step's from
+  its ops; the prompt's recent state reads these rows, facts only. — since 2026-09-30 · nodes 2.194, 2.196, 2.198,
+  3.105, 3.106 · `nucleo/request_row.py`, `nucleo/circuit.py`, `nucleo/spec.py`.
 
 ## 5 · Memory and rules
 
