@@ -170,7 +170,7 @@
         "key_env": "ELEVENLABS_API_KEY"
       },
       "why": "Operator, 2026-09-26: Inworld first, ElevenLabs second. Measured through the engine's own LiveKit plugins (V2-774): inworld-tts-2 first audio 185/168 ms (es/en) vs 194/175 for eleven_turbo_v2_5, at half the price ($25 vs ~$50 per 1M chars). The model is chosen by the builder (`voice/engine/speech/tts/inworld.py`, env ZAELAR_INWORLD_TTS_MODEL) and billed per CHARACTER by `energy_tariffs`, not per token, so it is not named here. Cartesia was ruled out on cost and Kokoro is local.",
-      "failover_why": "ElevenLabs stays selectable in the panel and is the documented second. There is NO automatic TTS failover in the engine today: if Inworld runs out of balance the voice stops, and that has to be VISIBLE in the panel, not guessed — switch the panel to ElevenLabs."
+      "failover_why": "ElevenLabs stays selectable in the panel and is the documented second. Since V2-778 F0-7 the engine fails over on its own: a titular that cannot be built (no key) is replaced by this row at boot, and when both build LiveKit's FallbackAdapter switches to it when a synthesis fails for good (a 402 out of credit). The switch raises an `alert` event; the meter bills the provider that spoke."
     },
     "triage": {
       "label": "Messaging · triage of what arrives",

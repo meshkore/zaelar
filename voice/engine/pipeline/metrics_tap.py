@@ -54,8 +54,10 @@ def on_metrics(ev, emit) -> None:
         from nucleo import energy_meter as _energy
         # The PROVIDER is passed, not looked up inside the meter: the rate has to follow whatever
         # backend actually produced this audio, and this hook is the only place that knows it.
+        # V2-778 F0-7 — the backend that SPOKE: after a failover it is the stand-in, not the selected one.
+        from ..speech import tts as _tts
         _energy.report_tts_usage(characters=getattr(m, "characters_count", None),
-                                 provider=SETTINGS.tts_provider)
+                                 provider=_tts.active_provider())
     elif kind == "STTMetrics" and SETTINGS.stt_provider != "whisper_local":
         dur = getattr(m, "duration", None)
         if dur:
