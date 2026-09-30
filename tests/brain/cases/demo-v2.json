@@ -860,5 +860,45 @@
    "worker"
   ],
   "open": "V2-776: «did X send me something?» with the mail card closed — the model opens the inbox view (show_view) and no verdict names search_archive (screen_action none 0.97); the question is about the ARCHIVE, and nothing in the brief asks which action ANSWERS it"
+ },
+ {
+  "id": "demo-z1-whats-on-my-plate-is-read-from-the-agenda",
+  "lang": "en",
+  "phrase": "what's on my plate tomorrow",
+  "source": "TMP/demo/run-full72 Z1 (2026-09-30): the model answered «tomorrow's wide open — no meetings» without reading the agenda, with four meetings booked; catalog_widget agenda 0.99, request_type question 0.80, wants_words tell 0.99",
+  "screen": {
+   "open": []
+  },
+  "model": {
+   "say": "Tomorrow's wide open so far — the calendar shows no meetings on Thursday. Want me to open your agenda so you can see it laid out?",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "neither",
+    0.98
+   ],
+   "request_type": [
+    "question",
+    0.8
+   ],
+   "screen_action": [
+    "none",
+    0.93
+   ],
+   "catalog_widget": [
+    "agenda",
+    0.99
+   ],
+   "wants_words": [
+    "tell",
+    0.99
+   ]
+  },
+  "expect": "read agenda",
+  "forbid": [
+   "worker"
+  ],
+  "open": "V2-776 P5: a sure QUESTION about a catalog card (question 0.80, tell 0.99, agenda 0.99) answered from nothing — the model streams before the verdicts land, so the fix is a read BEFORE the words, not a repair after them"
  }
 ]

@@ -96,3 +96,25 @@ def test_a_list_step_whose_op_was_unmet_is_a_failed_step(monkeypatch):
     s = asyncio.run(runner.run(uid, turn=turn, ingest=ingest, notify=notify, worker_wait_s=0.1))
     [step] = s["failed"]
     assert step["verdict"] == "unmet" and "refused the date" in step["outcome"]
+
+
+def test_a_refusal_with_only_an_internal_error_is_not_counted_as_told(monkeypatch):
+    """Demo pass 72, S3: «Done.» over a refused detail whose widget gave only an `error` (addressed to the model,
+    never spoken) — `reported` was set, so the circuit stayed silent too and he never heard it had not opened."""
+    import widgets
+    from nucleo.flash import data_ops
+    entry = {"id": "s1", "done_when": {"x": 1}, "status": "open"}
+    monkeypatch.setattr(spec, "open_for_action", lambda *a, **k: entry)
+    monkeypatch.setattr(spec, "attest", lambda e, **k: False)
+
+    async def nothing(*a, **k):
+        return None
+    monkeypatch.setattr(data_ops, "report_failure", nothing)
+    monkeypatch.setattr(data_ops, "corrected_retry", nothing)
+    for res, told in (({"ok": False, "error": "no item matches"}, False),
+                      ({"ok": False, "message": "No encuentro esa fila."}, True)):
+        async def dispatch(tag, body, _r=res):
+            return _r
+        monkeypatch.setattr(widgets, "dispatch_tag", dispatch)
+        asyncio.run(data_ops.dispatch_and_report("results", "detail", {"item": 3}, text="open the best deal"))
+        assert entry["reported"] is told

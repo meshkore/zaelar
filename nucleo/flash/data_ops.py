@@ -277,8 +277,10 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     if _spec_entry is not None:
         try:
             from nucleo import spec as _spec
-            # A refused op is told by `report_failure`; the circuit settles it without a second note.
-            _spec_entry["reported"] = _refused
+            # A refused op whose widget brought a SPEAKABLE reason is told by `report_failure`; the circuit settles
+            # it without a second word. One refused with only an internal `error` is NOT told to him (V2-652: that
+            # key is addressed to the model) — demo pass 72, S3: «Done.» over a refused detail, and silence after.
+            _spec_entry["reported"] = _refused and bool(str((res or {}).get("message") or "").strip())
             _attested = _spec.attest(_spec_entry)
         except Exception:  # noqa: BLE001
             pass
