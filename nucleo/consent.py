@@ -324,8 +324,21 @@ _MORE_FRICTION_RE = re.compile(
     r"always ask|ask (?:me )?(?:first|before)|check with me)\b")
 
 
+# V2-778 F0-2 — «sin preguntar» is LESS friction only when nothing negates it. «nunca envíes un correo sin
+# preguntarme» asks for MORE caution, and read bare it set `ask_at: critical` — the caution rule opened the door.
+# A negation GOVERNS the phrase when both sit in the same clause: a comma, «y», «and», «but» end its reach, so
+# «no me preguntes, hazlo sin preguntar» is still less friction. This reads scope; it adds no vocabulary.
+_GOVERNED_WITHOUT_ASKING_RE = re.compile(
+    r"\b(?:nunca|jamas|never|no|don'?t|do not)\b"
+    r"(?:\s+(?!y\b|e\b|and\b|but\b|pero\b)[^\s,.;:!?]+){0,6}?"
+    r"\s+(?:sin (?:pregunt\w+|consultar\w*|pedir\w* (?:permiso|confirmacion)|avisar\w*)"
+    r"|without (?:asking|checking|telling|confirm\w*))\b")
+
+
 def _flags_for(text: str) -> dict:
     n = _norm(text)
+    if _GOVERNED_WITHOUT_ASKING_RE.search(n):
+        return {"ask_at": "sensitive"}
     if _LESS_FRICTION_RE.search(n):
         return {"ask_at": "critical"}
     if _MORE_FRICTION_RE.search(n):
