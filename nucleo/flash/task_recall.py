@@ -35,8 +35,14 @@ _JEV_NO_MATCH = "no_match"
 
 
 def candidates(query: str, limit: int = MAX_CANDIDATES) -> list[dict]:
-    """The finished commissions this phrase could be about. Lexical only — no model, no network."""
-    return _tasks.search(query, limit=limit)
+    """The finished commissions this phrase could be about. Lexical only — no model, no network.
+
+    V2-776 M5 — never an INLINE request row (an agenda add, a picture search). This resolver exists to reopen a
+    REPORT, and since every acting turn is a row a session writes ~30 of them: in the candidate list they turn
+    «the flat-hunting task» into a question about five agenda adds. What an inline request did is answered by the
+    recent-state block in the prompt (`task_block.recent_lines`), not by reopening anything."""
+    rows = _tasks.search(query, limit=limit * 3)
+    return [r for r in rows if str(r.get("kind") or "") != "inline"][:limit]
 
 
 def _label(row: dict) -> str:

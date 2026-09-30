@@ -86,3 +86,14 @@ def test_a_new_process_reads_what_the_last_one_did():
     memdb.reset_db(); memdb.get_db()        # a fresh connection over the same file, as after a restart
     [line] = tb.recent_lines()
     assert "move the call to four" in line
+
+
+def test_reopening_a_task_never_offers_an_inline_request():
+    """M5 — `reopen_task` reopens REPORTS; a session's thirty agenda adds must not turn it into a question."""
+    from nucleo.flash import task_recall
+    for i in range(4):
+        _inline(f"add the flat viewing number {i} to my calendar", "agenda", "add_meeting", "met")
+    ts.task_put({"id": "w-flat", "title": "Find a flat to rent in Madrid", "goal": "find me a flat in Madrid",
+                 "kind": "web", "state": "done", "finished_at": int(time.time())})
+    got = task_recall.resolve("the flat task")
+    assert got["ok"] and got["task"]["id"] == "w-flat"
