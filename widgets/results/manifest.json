@@ -140,7 +140,8 @@
       "done_when": {
         "widget": "results",
         "field": "view",
-        "is": "detail"
+        "is": "detail",
+        "absent_is": "list"
       }
     },
     "list": {
@@ -157,7 +158,8 @@
       "done_when": {
         "widget": "results",
         "field": "layout",
-        "is": "{layout}"
+        "is": "{layout}",
+        "absent_is": "auto"
       }
     },
     "tab": {

@@ -266,6 +266,8 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     if _spec_entry is not None:
         try:
             from nucleo import spec as _spec
+            # A refused op is told by `report_failure`; the circuit settles it without a second note.
+            _spec_entry["reported"] = bool(_receipt.failed(res)) if isinstance(res, dict) else False
             _spec.attest(_spec_entry)
         except Exception:  # noqa: BLE001
             pass

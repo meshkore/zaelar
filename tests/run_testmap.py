@@ -2461,6 +2461,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_circuit_judges_the_ending.py"]},
         {"id": "3.106", "title": "A forced ending (budget kill, stall) asks the circuit for the end state before it speaks",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_ending_is_spoken_as_its_verdict.py"]},
+        {"id": "3.109", "title": "Every declared end state reads a field its widget's view has (or declares its absence), and "
+                                 "the actions the v1 demo fires declare one",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_every_declared_end_state_reads_a_real_field.py"]},
         {"id": "3.108", "title": "An inline action's end state still unmet after its grace settles as unmet once, and the "
                                  "next reply is told what is missing — never re-read until its TTL, never said twice",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_circuit_judges_the_ending.py"]},

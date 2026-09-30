@@ -71,7 +71,12 @@
       "view": true,
       "effects": [
         "present.mount"
-      ]
+      ],
+      "done_when": {
+        "widget": "markets",
+        "field": "range",
+        "is": "{range}"
+      }
     },
     "refresh": {
       "desc": "updates the chart on screen with the latest price",

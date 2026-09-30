@@ -40,6 +40,7 @@ V2-776 L1 added three clause kinds, because the end states the demo asks for wer
     {"widget": "results", "field": "layout", "is": "compare"}          a scalar of the widget's view_data
     {"widget": "documento", "field": "focus", "has": "proof of work"}  …contains (folded)
     {"widget": "youtube", "field": "videoId", "expect": "changed"}     …differs from `baseline` (taken at birth)
+    {"widget": "results", "field": "view", "is": "detail", "absent_is": "list"}   a key the view omits until set
     {"desktop": "wallpaper", "has": "helix"} / {"desktop": "wallpaper", "expect": "changed"}
     {"canvas": "results", "expect": "visible" | "minimized" | "maximized" | "closed"}
 
@@ -110,7 +111,13 @@ def current_value(clause: dict):
     from nucleo import truth as _truth
     k = kind_of(clause)
     if k == "field":
-        return _truth.widget_field(str(clause.get("widget") or ""), str(clause.get("field") or ""))
+        wid, path = str(clause.get("widget") or ""), str(clause.get("field") or "")
+        cur = _truth.widget_field(wid, path)
+        if cur is None and "absent_is" in clause and _truth.widget_view(wid) is not None:
+            # A key the view only writes once it is set (`results.view`, `results.layout`): absent is a VALUE, and
+            # the manifest says which. Audit 2026-09-30, S3: a refused `detail` read «unverifiable», never «unmet».
+            return clause["absent_is"]
+        return cur
     if k == "desktop":
         if str(clause.get("desktop") or "").strip().lower() != "wallpaper":
             return None

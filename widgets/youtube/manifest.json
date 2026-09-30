@@ -65,6 +65,11 @@
         "videoId": "id de 11 caracteres (opcional)",
         "query": "nombre del vídeo a buscar (opcional)",
         "title": "título a mostrar (opcional)"
+      },
+      "done_when": {
+        "widget": "youtube",
+        "field": "videoId",
+        "expect": "changed"
       }
     },
     "add": {
@@ -82,7 +87,12 @@
         "query": "qué buscar, en lenguaje natural",
         "n": "cuántos candidatos (1-8, def 5) (opcional)"
       },
-      "view": true
+      "view": true,
+      "done_when": {
+        "widget": "youtube",
+        "field": "searched_at",
+        "expect": "changed"
+      }
     },
     "play_item": {
       "desc": "reproduce un vídeo de la lista (por número 1-N o por su título)",
@@ -201,7 +211,12 @@
       "desc": "PARA el vídeo y lo deja cargado: congelado en pantalla, listo para seguir con play. «Vale, para el vídeo», «páralo», «páralo un momento», «detenlo», «pausa» — «para» es el verbo, no la preposición",
       "payload": {},
       "sensitivity": "routine",
-      "activation": true
+      "activation": true,
+      "done_when": {
+        "widget": "youtube",
+        "field": "paused",
+        "is": "true"
+      }
     },
     "mute": {
       "desc": "silencia el audio",

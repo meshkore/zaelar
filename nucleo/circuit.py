@@ -105,6 +105,8 @@ def _settle_unmet_inline(e: dict, now: float) -> None:
         _spec._emit("❌ spec: SIN cumplir tras el plazo — se le dice al modelo", e, missing=missing[:300])
     except Exception:  # noqa: BLE001
         pass
+    if e.get("reported"):
+        return                               # the op was refused and `report_failure` already told the model
     try:
         from voice import brain_notes
         what = f"«{e.get('action')}» sobre «{e.get('widget')}»" if e.get("action") else "la última acción"

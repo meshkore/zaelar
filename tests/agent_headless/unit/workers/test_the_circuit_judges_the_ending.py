@@ -187,3 +187,13 @@ def test_an_errands_unmet_spec_is_left_to_its_ending(world, monkeypatch):
     e = spec.open(GONE, text="x", source="worker", task_id="u1", now=1000.0)
     circuit.tick(now=1100.0)
     assert e["status"] == "open" and notes == [], "a worker's spec is judged by `close`, not by the pulse"
+
+
+def test_a_refused_op_is_settled_without_a_second_note(world, monkeypatch):
+    from voice import brain_notes
+    notes = []
+    monkeypatch.setattr(brain_notes, "push", lambda text, key="", ttl_s=0.0: notes.append(text))
+    e = spec.open(GONE, text="x", source="flash", widget="agenda", action="delete_meeting", now=1000.0)
+    e["reported"] = True
+    circuit.tick(now=1000.0 + circuit.INLINE_GRACE_S)
+    assert e["status"] == "unmet" and notes == [], "report_failure already said it"
