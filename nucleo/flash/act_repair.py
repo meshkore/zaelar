@@ -120,7 +120,7 @@ def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: s
     except Exception:  # noqa: BLE001
         pass
     try:
-        from voice.engine.core import langs as _langs
+        from i18n import langs as _langs   # the voice.engine.core shim is this same module
         L = _langs.current_language()
         if "?" in (spoken or "") and str(getattr(L, "data_ack_went_ahead", "") or "").strip():
             return " " + L.data_ack_went_ahead.strip()

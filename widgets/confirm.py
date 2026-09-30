@@ -282,7 +282,7 @@ def _judge(question: str, reply: str, timeout: float = 4.0) -> str | None:
         import asyncio
         import concurrent.futures as _cf
 
-        from nucleo.errand_title import _spec_for_naming
+        from nucleo.errand_title import spec_for_naming as _spec_for_naming
         from nucleo.flash.fast_client import FastClient
         spec = _spec_for_naming()
         if spec is None:

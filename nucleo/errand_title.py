@@ -125,6 +125,12 @@ def _spec_for_naming():
     return _research_spec()[0]
 
 
+
+def spec_for_naming():
+    """The public door to `_spec_for_naming` for callers outside `nucleo/` (V2-778: `widgets/confirm.py` reached
+    the private name). Resolved per call, so a test that patches the private one still governs this."""
+    return _spec_for_naming()
+
 def _language() -> str:
     """The name of the language the personal agent was set up in — the title is read on HIS screen and spoken
     in HIS voice, so it is written in that language, whatever language the brief happens to be in."""
