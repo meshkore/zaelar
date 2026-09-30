@@ -48,4 +48,7 @@ def test_the_send_to_postcondition_is_met_by_the_message_that_left(md):
     from nucleo import spec, verify
     dw = spec.render("mensajeria", "send_to", {"contact": "Ethan", "text": "catch-up tomorrow is now at 4:30 PM"})
     assert verify.check(dw) is True
-    assert verify.check(spec.render("mensajeria", "send_to", {"contact": "Ethan", "text": "see you at 5"})) is False
+    # Demo pass 68, C5: the clause carried the model's whole draft (`body~`) and the message that left was worded by
+    # the card, so a Telegram Ethan received read «unmet». What is attestable is that it went out to HIM.
+    assert verify.check(spec.render("mensajeria", "send_to", {"contact": "Ethan", "text": "see you at 5"})) is True
+    assert verify.check(spec.render("mensajeria", "send_to", {"contact": "Anna", "text": "see you at 5"})) is False

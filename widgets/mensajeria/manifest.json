@@ -213,8 +213,7 @@
         "widget": "mensajeria",
         "collection": "sent",
         "where": {
-          "name~": "{contact}",
-          "body~": "{text}"
+          "name~": "{contact}"
         }
       }
     },

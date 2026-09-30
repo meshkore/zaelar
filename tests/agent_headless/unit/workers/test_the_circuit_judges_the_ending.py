@@ -165,3 +165,25 @@ def test_the_verdict_reads_the_errands_own_sheet(world, monkeypatch):
     monkeypatch.setattr(truth, "widget_view", lambda wid: {"empty": wid != "results::s1", "items": []})
     rec = _rec(done_when={"all": [{"widget": "results", "field": "empty", "is": "false"}]}, sheet="s1")
     assert circuit.verdict_of(rec) == ("met", "")
+
+
+def test_an_inline_spec_still_unmet_after_its_grace_settles_once_and_tells_the_model(world, monkeypatch):
+    """Audit 2026-09-30: an unmet inline spec was re-read every 5 s until its 30-min TTL (1095 events for one
+    `play_result` in pass 69) and nobody was told. Past the grace it settles as `unmet`, ONCE, with a note."""
+    from voice import brain_notes
+    notes = []
+    monkeypatch.setattr(brain_notes, "push", lambda text, key="", ttl_s=0.0: notes.append((text, key)))
+    e = spec.open(GONE, text="borra la cita", source="flash", widget="agenda", action="delete_meeting", now=1000.0)
+    assert circuit.tick(now=1005.0) == [] and e["status"] == "open", "inside the grace it is still owed"
+    assert circuit.tick(now=1000.0 + circuit.INLINE_GRACE_S) == [e] and e["status"] == "unmet"
+    assert len(notes) == 1 and "delete_meeting" in notes[0][0] and "No digas que está hecho" in notes[0][0]
+    assert circuit.tick(now=1100.0) == [] and len(notes) == 1, "settled: never read again, never said twice"
+
+
+def test_an_errands_unmet_spec_is_left_to_its_ending(world, monkeypatch):
+    from voice import brain_notes
+    notes = []
+    monkeypatch.setattr(brain_notes, "push", lambda text, key="", ttl_s=0.0: notes.append(text))
+    e = spec.open(GONE, text="x", source="worker", task_id="u1", now=1000.0)
+    circuit.tick(now=1100.0)
+    assert e["status"] == "open" and notes == [], "a worker's spec is judged by `close`, not by the pulse"

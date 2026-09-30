@@ -33,6 +33,7 @@ from loguru import logger
 _GENESIS = Path(__file__).resolve().parent / "genesis.json"
 RETRIES_DEFAULT = 2                 # «hemos probado dos o tres veces, no somos capaces» — the operator, 2026-09-29
 CHECK_EVERY_S = 5.0                 # an open spec is read at most this often by the pulse
+INLINE_GRACE_S = 20.0               # an inline action's end state is owed within this; past it, unmet is the verdict
 VERDICTS = ("met", "unmet", "retrying", "gave_up", "unverifiable", "undeclared", "skipped")
 
 
@@ -77,11 +78,42 @@ def tick(now: float | None = None) -> list[dict]:
             continue
         e["checked_at"] = now
         try:
-            if _spec.attest(e, now=now) is True:
+            out = _spec.attest(e, now=now)
+            if out is True:
+                closed.append(e)
+            elif out is False and not e.get("task_id") and now - float(e.get("born") or now) >= INLINE_GRACE_S:
+                _settle_unmet_inline(e, now)
                 closed.append(e)
         except Exception as ex:  # noqa: BLE001
             logger.debug(f"circuit: attest skipped ({ex})")
     return closed
+
+
+def _settle_unmet_inline(e: dict, now: float) -> None:
+    """An inline action whose declared end state never came true: the verdict is `unmet`, said ONCE.
+
+    Audit 2026-09-30 (passes 62-69): `tick` closed only met specs, so an unmet one was re-read every 5 s until its
+    30-min TTL — 1095 «sin cumplir todavía» events for one `play_result` whose video never changed (pass 69, V2) —
+    and nobody retried, asked or spoke. The circuit saw the failure and had no consumer. No automatic retry here:
+    an inline op may have side effects, and the model that fired it is the one that can correct it. The next reply
+    is told what is missing, so it cannot say «done» over it."""
+    from nucleo import verify as _verify
+    missing = "; ".join(_verify.missing(e.get("done_when"), now)) or "el objetivo declarado no se cumple"
+    e["status"], e["met_at"] = "unmet", now
+    try:
+        from nucleo import spec as _spec
+        _spec._emit("❌ spec: SIN cumplir tras el plazo — se le dice al modelo", e, missing=missing[:300])
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from voice import brain_notes
+        what = f"«{e.get('action')}» sobre «{e.get('widget')}»" if e.get("action") else "la última acción"
+        brain_notes.push(
+            f"[SISTEMA] {what} se ejecutó pero su resultado NO se ve en pantalla: {missing}. No digas que está "
+            f"hecho. Si puedes corregirlo con otra llamada, hazla; si no, díselo con naturalidad en su idioma.",
+            key=f"spec-unmet:{e.get('id')}", ttl_s=120.0)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 # ── the ending of a worker ─────────────────────────────────────────────────────────────────────────────────
