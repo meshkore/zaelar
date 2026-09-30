@@ -30,8 +30,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   gets «I've gone ahead»); a claim or a promise in any language needs nothing after it. — since 2026-09-29 ·
   nodes 2.89, 2.154 · `nucleo/flash/act_repair.after_the_repair`.
 - **CRIT-V3 · A «yes» is answered with a START, never with a completion.** The outcome is reported when the work
-  settles (`op_receipt`), witnessed against the widget's own view; a pool timeout is not an outcome. — since
-  2026-09-21 · nodes 2.17, 3.35.
+  settles (`op_receipt`), witnessed against the widget's own view; a pool timeout is not an outcome; an op that
+  could not start or whose dispatch raised is said as not done, never left behind «Done.». — since 2026-09-30 ·
+  nodes 2.17, 3.35, 2.201.
 - **CRIT-V4 · Fillers are «smart».** A wait cover sounds only on a turn that thinks (a question, real work), never
   on a short order; a cover describes motion and never ends the turn; a promise to look with nothing behind it is
   withdrawn. — since 2026-09-17 · nodes 2.50, 2.164, 3.58 · `voice/engine/core/filler_audio.py`,
@@ -53,8 +54,9 @@ below is the first kind, or it names the mechanism that replaced the second.
 
 - **CRIT-C1 · One consent rule.** A missing datum → ask for the DATUM; a doubt between two → ask which; a radius
   → ask; otherwise act. Genesis asks at `critical`; a spoken rule moves it («pregúntame siempre antes» → sensitive,
-  «hazlo directamente» → critical) in both channels. — since 2026-09-17, spoken rule 2026-09-29 · nodes 4.188,
-  4.185, 2.174 · `nucleo/consent.py`.
+  «hazlo directamente» → critical) in both channels; a negation that governs «sin preguntar» / «without asking»
+  in its own clause is MORE friction («nunca envíes un correo sin preguntarme» → sensitive). — since 2026-09-17,
+  spoken rule 2026-09-30 · nodes 4.188, 4.185, 2.174, 2.199 · `nucleo/consent.py`.
 - **CRIT-C2 · A «yes» answers ONE proposal** and spends only that proposal's authority; an order that starts with
   «ok» is not a yes to a different pending action; every pending confirmation can be answered in words. — since
   2026-09-18 · nodes 2.29, 2.156, 2.125.
@@ -72,8 +74,10 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-C7 · A transactional op never enters the task list** (deleting an item, sending a message); the list is
   for work that takes time and that he may come back to. — since 2026-09-21 · nodes 3.82.
 - **CRIT-C8 · A search is never gated as a charge.** A negated act («do not buy») and a first-person wish beside
-  a lookup order («I want to buy X, give me the link») are subtracted before the money verbs are read; the pay
-  click is where money stops. The core guard reads whole words only. — since 2026-09-29 · nodes 2.181, 3.29 ·
+  a lookup order («I want to buy X, give me the link») are subtracted before the money verbs are read — a
+  negation only subtracts the act it governs, inside its own clause («don't forget to pay», «no compres el barato,
+  compra este» still park); the pay click is where money stops. The core guard reads whole words only. — since
+  2026-09-30 · nodes 2.181, 2.200, 3.29 ·
   `nucleo/danger.py`, `nucleo/protected_core.py`.
 
 ## 3 · The canvas — whose card, what runs
@@ -166,6 +170,12 @@ below is the first kind, or it names the mechanism that replaced the second.
   visible. — since 2026-09-23 · nodes 10.52.
 - **CRIT-R4 · No language, no agent**: until the picker locks a language the agent is stopped; after ANY reset it
   comes up listening. — since 2026-09-24 · nodes 4.217, 8.4.
+- **CRIT-R5 · The voice has a stand-in**: the models table's `tts.failover` is built beside the titular; a titular
+  that cannot be built (no key) is replaced at boot, and LiveKit's `FallbackAdapter` switches on a synthesis that
+  fails for good (a 402); the meter bills the provider that spoke. — since 2026-09-30 · nodes 2.202 ·
+  `voice/engine/speech/tts/__init__.py`.
+- **CRIT-R6 · A hosted account runs no torrent client** unless the deployment sets `ZAELAR_TORRENT_IN_CLOUD=1`;
+  self-host keeps the operator's switch. — since 2026-09-30 · nodes 5.61 · `connectors/torrent/service.py`.
 
 ## 7 · Working here
 
@@ -182,10 +192,12 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-W5 · A wide pass runs under `tests/watchdog.py`, never bare `pytest`**; while iterating, the touched
   file and its DISARM; a test is not a test until seen red; a disarm that stays green accuses the TEST; the
   harness clears `__pycache__` on restore. — since 2026-09-20 · nodes 7.53.
-- **CRIT-W6 · A test never touches the operator's real state** (the root `conftest.py` sandbox); a red that does
-  not reproduce alone is contamination, not a bug. — since 2026-09-15 · nodes 3.94.
-- **CRIT-W7 · A test outside the map does not exist**; every mechanism ships with its node. — since 2026-08-21 ·
-  nodes 7.32.
+- **CRIT-W6 · A test never touches the operator's real state** (the root `conftest.py` sandbox, which pins
+  `ZAELAR_WORKSPACE` and fails BY NAME the test after which his consent/style/library config changed); a red that
+  does not reproduce alone is contamination, not a bug; no real identity sits in a tracked file. — since
+  2026-09-30 · nodes 3.94, 7.10, 7.55.
+- **CRIT-W7 · A test outside the map does not exist**; every mechanism ships with its node; a node whose file is
+  gone is red, and a file answers one deterministic node. — since 2026-09-30 · nodes 7.32, 7.56.
 - **CRIT-W8 · Public and private.** `engine/` describes mechanism, never product; neither our past nor our future
   is published (roadmap, module logs, test reports stay local). — since 2026-08-14 · ⚠ sin test.
 - **CRIT-W9 · Closing a batch:** the node in the map, the WHY in the diary, the operator's words in the module

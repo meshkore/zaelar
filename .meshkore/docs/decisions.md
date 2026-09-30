@@ -25,6 +25,24 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Stop the bleeding: the P0s of the post-demo audit (V2-778 F0, 2026-09-30)**: the operator asked for a general
+  self-audit after seven days spent only on the demo; seven read-only audits found eight P0s, re-verified in
+  process. F0 fixes them, each red-first with its disarm: (1) the sandbox pins `ZAELAR_WORKSPACE` and names the test
+  after which the operator's consent/style/library config changed — the audit's own sweep had rewritten his
+  `config/consent.json` through a test that pinned only the widget store; (2) «nunca envíes un correo sin
+  preguntarme» set LESS friction: a negation governing «sin preguntar» now reads as a demand to ask; (3) the money
+  gate's negation window swallowed «don't forget to PAY» and ran past a comma («no compres el barato, compra
+  este»): it now subtracts only the act it governs, inside its clause; (4) a data-op that could not start (or whose
+  dispatch raised) was silent behind «Done.»: `data_ops.start_op` / `_say_it_did_not_run` report it with the
+  language's `op_failed` line and take it out of `data_done`; (5) the operator's address and the demo's contacts
+  left public files (placeholders + a ratchet at zero — history keeps them, it is not rewritten); (6) a hosted
+  account runs no torrent client unless the deployment opts in — the product policy stays the operator's; (7) the
+  table's TTS failover is a mechanism (boot replacement + LiveKit `FallbackAdapter`, the meter follows the speaker);
+  (8) the map: a node with a missing file is red, one deterministic node per file, `N.M` ids; (9) CRIT-E9 and the
+  L/M diary entries. Wide pass after F0 under the watchdog: 13,186 passed / 51 failed / 0 hangs (baseline the same
+  night 13,150 / 52) — every red pre-existing, owned by V2-778 F6-43; the operator's config untouched across every
+  pass (`stat` before/after). Not verified live: the TTS switch on a real 402 and the Files card without its 🧲
+  door. Nodes 2.199-2.202, 4.241, 5.61, 7.10, 7.55, 7.56.
 - **One record for every request: the inline turn is a row, and the prompt reads the record (V2-776 M,
   2026-09-30)**: the operator asked what «what is going on» means to the engine. Measured the same day: six
   registries with six lifetimes (worker session, the just-ended snapshot, the task row quoted only when RAM was
