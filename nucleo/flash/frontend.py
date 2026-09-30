@@ -173,6 +173,34 @@ def repair_action_from_brief(widget_id: str, brief) -> str | None:
 
 #: What the brief's screen verdict must clear to move an order from the card the model named to another
 #: one. It is the module's own gate — a verdict below it is «I do not know», which is the ASK branch.
+def _the_sibling_with_content(base: str, open_ids) -> str:
+    """The one open instance of `base` that has something on it, when the bare `base` card is blank — else "".
+    Reads the open set from the canvas report when none is handed in. Never raises."""
+    try:
+        from widgets import instances as _inst
+        ids = list(open_ids or ())
+        if not ids:
+            from memory import api as _memapi
+            ids = list(((_memapi.state() or {}).get("open_widgets") or []))
+        sibs = [w for w in _inst.instances_of(base, ids) if "::" in str(w)]
+        if not sibs:
+            return ""
+
+        def _blank(w: str) -> bool:
+            if _inst.card_face(w).get("blank"):
+                return True
+            from nucleo import truth as _truth
+            v = _truth.widget_view(w)
+            return isinstance(v, dict) and v.get("empty") is True
+
+        if not _blank(base):
+            return ""                                   # the bare card has content of its own: no evidence
+        live = [w for w in sibs if not _blank(w)]
+        return live[0] if len(live) == 1 else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _takes(card: str, action: str, payload) -> bool:
     """Can this card's declared `action` take the call's payload? False only when the card declares its payload
     keys and shares NONE with a non-empty payload (demo pass 66, M3: `markets:show {symbol}` was asked «imagenes
@@ -231,6 +259,14 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=
     name = (action or "").strip()
     if not wid or not name:
         return ("keep", None)
+    # Demo pass 66, S2-S3: «compare them side by side» and «open the best deal» landed on the BARE `results` card —
+    # open and blank — while the monitors sat on `results::a51e3e-3`; the layout changed nothing and the detail
+    # failed. A data-op on a blank base card, with ONE sibling instance that has something on it, is that
+    # instance's (the same rule `instances.resolve_show` applies to showing).
+    if "::" not in wid:
+        _sib = _the_sibling_with_content(wid, open_ids or ((brief or {}).get("open_ids") if isinstance(brief, dict) else ()))
+        if _sib:
+            return ("card", _sib)
     # The open set defaults to the one the BRIEF enumerated, which is the right one twice over: it is
     # exactly the set Jev was offered candidates from, and reading it here keeps the assembly beside the
     # questions instead of adding a state read to the provider the architecture ratchet already lists.
