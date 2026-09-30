@@ -900,5 +900,60 @@
    "worker"
   ],
   "open": "V2-776 P5: a sure QUESTION about a catalog card (question 0.80, tell 0.99, agenda 0.99) answered from nothing — the model streams before the verdicts land, so the fix is a read BEFORE the words, not a repair after them"
+ },
+ {
+  "id": "demo-e2-open-the-most-important-one-opens-the-mail-not-the-sheet",
+  "lang": "en",
+  "phrase": "Open the most important one.",
+  "source": "TMP/demo/run-v2a E2 (2026-09-30): inbox on screen after «only the emails from today that need my attention», the monitors sheet also open; the model called nothing and said «It's open — that's the invoice from Miguel Ángel»; the verdict mensajeria:open 0.75 was vetoed by end_state results:view 0.94, and the second pass fired mensajeria:show_view — nothing opened",
+  "screen": {
+   "open": [
+    "results",
+    "mensajeria"
+   ]
+  },
+  "model": {
+   "say": "It's open — that's the invoice from Miguel Ángel at Constructo.",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "show",
+    0.96
+   ],
+   "request_type": [
+    "order",
+    0.8
+   ],
+   "build_or_use": [
+    "use_existing",
+    0.66
+   ],
+   "escalate_or_inline": [
+    "handle_inline",
+    0.99
+   ],
+   "wants_words": [
+    "act",
+    0.99
+   ],
+   "errand_surface": [
+    "item",
+    0.78
+   ],
+   "end_state": [
+    "results:view",
+    0.94
+   ],
+   "screen_action": [
+    "mensajeria:open",
+    0.75
+   ]
+  },
+  "expect": "data-op mensajeria:open",
+  "forbid": [
+   "worker"
+  ],
+  "open": "V2-776: the end state read the SHEET (results:view 0.94) while the action named the inbox — two sure verdicts naming different cards; the gate trusted the one that vetoes, and the turn claimed an open that never ran"
  }
 ]
