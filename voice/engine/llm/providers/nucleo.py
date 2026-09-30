@@ -2575,6 +2575,18 @@ class NucleoLLMStream(llm.LLMStream):
                         spoken_text = "Aquí lo tienes."
                     send(speech.sanitize(spoken_text, drop_metadata=False))
 
+        # Demo pass 69, B1 — his words NAME the (empty) picture viewer: the turn is the picture search, whatever tool
+        # the model reached for (a listing search this time; a worker, a promise and a commission before).
+        from nucleo.flash import card_commission as _cardc_pic
+        _pic_named = (None if images_req["v"] is not None
+                      or any(str(_w).split("::")[0] == "imagenes" for _w, _a in (data_done.get("ops") or []))
+                      else _cardc_pic.picture_named_by(operator_text))
+        if _pic_named:
+            images_req["v"], listing_req["v"] = _pic_named, None
+            escalate_req["v"], escalate_req["more"] = None, []
+            emit("brain", "🎯 sus palabras nombran el visor de imágenes — la búsqueda de fotos, nada más",
+                 text=_pic_named["query"][:120], role="system", extra={"cat": "flash", "tool": "show_images"})
+
         # GHOST-WORKER guard, plus the «Sí» that has no directive either — in `escalation_guard`.
         _eguard.drop_if_fragment(escalate_req, operator_text=operator_text, brief=_brief,
                                  last_reply=brain._last_reply or "", emit=emit)

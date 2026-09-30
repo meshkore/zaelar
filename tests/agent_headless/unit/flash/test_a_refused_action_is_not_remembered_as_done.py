@@ -189,10 +189,10 @@ def test_a_widgets_spanish_failure_is_never_spoken_raw_to_an_english_agent(monke
     monkeypatch.setattr(proactive, "notify", _notify)
     monkeypatch.setattr(brain_notes, "push", lambda t, *a, **k: noted.append(t))
     monkeypatch.setattr(langs, "current_code", lambda: "en")
-    res = {"ok": False, "message": "No hay resultados de búsqueda ahora mismo."}
+    res = {"ok": False, "message": "No hay resultados de búsqueda ahora mismo (pass 69)."}
     asyncio.run(data_ops.report_failure("youtube", "play_result", res))
     assert said == [] and noted, "English agent: nothing raw in Spanish, the model is told"
     monkeypatch.setattr(langs, "current_code", lambda: "es")
-    res2 = {"ok": False, "message": "No hay resultados de búsqueda ahora mismo (2)."}
+    res2 = {"ok": False, "message": "No hay resultados de búsqueda ahora mismo (pass 69, es)."}
     asyncio.run(data_ops.report_failure("youtube", "play_result", res2))
-    assert said == ["No hay resultados de búsqueda ahora mismo (2)."]
+    assert said == ["No hay resultados de búsqueda ahora mismo (pass 69, es)."]

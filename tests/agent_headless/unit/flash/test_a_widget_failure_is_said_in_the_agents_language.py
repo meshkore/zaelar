@@ -36,7 +36,11 @@ def test_the_failure_is_said_in_the_agents_language(heard, monkeypatch):
 
 
 def test_without_the_composer_the_widgets_words_are_still_said(heard, monkeypatch):
+    """…to a Spanish-speaking agent: widget copy is Spanish, and since demo pass 69 it is never voiced raw into
+    another language (the [SISTEMA] note makes the model say it)."""
     from nucleo.workers import spoken_delivery as sd
+    from i18n import langs
+    monkeypatch.setattr(langs, "current_code", lambda: "es")
 
     async def line(goal, summary, ok=True):
         return ""

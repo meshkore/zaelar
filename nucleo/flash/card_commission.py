@@ -106,6 +106,18 @@ def picture_search_for(card: str, operator_text: str, commission: str = "") -> d
     return {"query": q, "n": _it.DEFAULT_N, "more": False}
 
 
+def picture_named_by(operator_text: str) -> dict | None:
+    """The picture search his words ask for when they NAME the picture viewer (its name or alias: «wallpaper»,
+    «fondo de pantalla», «fotos») and it is empty — whatever tool the model reached for (demo passes 60-69, B1: a
+    worker, a promise, a commission, a product-listing search, in turn). None otherwise."""
+    try:
+        from widgets import runtime as _rt
+        card = str(_rt.identify_named(operator_text or "") or "")
+    except Exception:  # noqa: BLE001
+        return None
+    return picture_search_for(card, operator_text) if card else None
+
+
 def _as_tool_request(got: dict, operator_text: str) -> dict | None:
     """`{query, n, more}` for the turn tool that fills this card, or None when the call is an ordinary data-op."""
     if TOOL_FILLED.get(str(got.get("widget_id") or "")) != "show_images":
