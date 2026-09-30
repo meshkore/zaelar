@@ -2732,6 +2732,16 @@ class NucleoLLMStream(llm.LLMStream):
             _ar_vo, _ar_va = _direct_action.from_brief(_brief)    # full41 E3: a refusal of the verdict's declared act
             _ar = (await _act_repair.call_for_promise_or_order(_op_text, spoken_text, _ar_wid, _ar_va if _ar_vo == _ar_wid
                                                                else "", spec=spec, window=list(brain._window)) if _ar_wid else None)
+            # Demo pass 67, B1: a promise to find a wallpaper, the catalogue naming the EMPTY picture viewer, and no
+            # call from the pass — the promise backstop then spent a worker. That order is the picture search.
+            _pic = None if (_ar or not _ar_wid) else _cardc_ar.picture_search_for(_ar_wid, _op_text)
+            if _pic and images_req["v"] is None:
+                images_req["v"] = _pic
+                acted["widget"] = True
+                _no_tool = False
+                emit("brain", "🎯 la herramienta del turno en vez de un worker (promesa sobre el visor vacío)",
+                     text=f"{_ar_wid} ← show_images «{_pic['query'][:100]}»", role="system",
+                     extra={"cat": "flash", "widget": _ar_wid, "tool": "show_images"})
             if _ar:
                 _cvis.present(_ar["widget_id"], reason="turn-order", src="flash", emit=emit)
                 _apply_widget_data(_ar["widget_id"], _ar["action"], _ar["payload"])

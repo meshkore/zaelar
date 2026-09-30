@@ -89,6 +89,23 @@ def _viewer_empty() -> bool:
         return False
 
 
+def picture_search_for(card: str, operator_text: str, commission: str = "") -> dict | None:
+    """The `show_images` request an order on the EMPTY picture viewer stands for — whichever path reached the card
+    (a commission, a promise with no tool). None when the card is not the viewer or it already holds pictures.
+    The query is the commission's first sentence, else his own sentence: measured on B1's (pass 67), the full
+    sentence finds «Cosmic Eye in the Sky by Tyler Young», 3000×1694, first."""
+    if TOOL_FILLED.get(str(card or "").split("::", 1)[0]) != "show_images" or not _viewer_empty():
+        return None
+    first = re.split(r"(?<=[.!?])\s", str(commission or "").strip(), maxsplit=1)[0][:160]
+    q = " ".join((first or operator_text or "").split())[:200]
+    if not q:
+        return None
+    from nucleo.flash import image_turn as _it
+    if _it._WALLPAPER_INTENT_RE.search(operator_text or "") and not _it._WALLPAPER_INTENT_RE.search(q):
+        q = f"{q} wallpaper"
+    return {"query": q, "n": _it.DEFAULT_N, "more": False}
+
+
 def _as_tool_request(got: dict, operator_text: str) -> dict | None:
     """`{query, n, more}` for the turn tool that fills this card, or None when the call is an ordinary data-op."""
     if TOOL_FILLED.get(str(got.get("widget_id") or "")) != "show_images":
@@ -135,13 +152,12 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
         may_read = not (_wi is not None and str(_w or "") == "act")
         got = await _repair.call_or_read_for_commission(operator_text, str(escalate_req.get("v") or ""), card,
                                                         spec=spec, window=window, may_read=may_read)
-        if (not got or got.get("kind") != "call") and images_req is not None and TOOL_FILLED.get(card) == "show_images" \
-                and _viewer_empty():
+        if (not got or got.get("kind") != "call") and images_req is not None:
             # Demo pass 66, B1: the catalogue named the viewer and the pass still sent «find me the wallpaper cosmic
-            # eye…» to a worker. An empty viewer's only way to hold anything is the picture search, so a commission
-            # that lands on it IS that search — its first sentence is the query.
-            first = re.split(r"(?<=[.!?])\s", str(escalate_req.get("v") or "").strip(), maxsplit=1)[0][:160]
-            got = {"kind": "call", "widget_id": card, "action": "show", "payload": {"query": first or operator_text}}
+            # eye…» to a worker. An empty viewer's only way to hold anything is the picture search.
+            _pic = picture_search_for(card, operator_text, str(escalate_req.get("v") or ""))
+            if _pic:
+                got = {"kind": "call", "widget_id": card, "action": "show", "payload": {"query": _pic["query"]}}
         if not got:
             return ""
         _tool = _as_tool_request(got, operator_text) if got["kind"] == "call" and images_req is not None else None

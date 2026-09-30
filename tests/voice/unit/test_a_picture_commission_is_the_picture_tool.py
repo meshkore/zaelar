@@ -92,3 +92,20 @@ def test_wallpaper_names_the_viewer():
     from widgets import runtime
     assert runtime.identify_named("set that as my wallpaper") == "imagenes"
     assert runtime.identify_named("ponlo de fondo de pantalla") == "imagenes"
+
+
+def test_a_promise_on_the_empty_viewer_is_the_search_too(monkeypatch):
+    """Demo pass 67, B1: no escalate at all — a promise with no tool, the catalogue naming the empty viewer, and the
+    promise backstop spent a worker. The same helper answers both paths."""
+    monkeypatch.setattr(cc, "_viewer_empty", lambda: True)
+    got = cc.picture_search_for("imagenes", SAID)
+    assert got["query"].startswith("now let's make it prettier, find me the wallpaper cosmic eye")
+    assert cc.picture_search_for("agenda", SAID) is None
+    monkeypatch.setattr(cc, "_viewer_empty", lambda: False)
+    assert cc.picture_search_for("imagenes", SAID) is None, "a viewer with pictures takes ordinary data-ops"
+
+
+def test_the_promise_path_asks_the_helper():
+    import pathlib
+    src = (pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py").read_text(encoding="utf-8")
+    assert "_cardc_ar.picture_search_for(_ar_wid, _op_text)" in src
