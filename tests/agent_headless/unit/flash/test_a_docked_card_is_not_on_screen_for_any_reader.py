@@ -57,7 +57,11 @@ def test_a_full_sheet_still_in_the_dock_is_not_a_false_claim(docked, monkeypatch
     g = {"kind": harness.KIND_WIDGET_CONTENT, "target": "results", "text": "monitors", "checks": 0, "status": "open"}
     monkeypatch.setattr(harness, "open_goals", lambda now=None: [g])
     monkeypatch.setattr(harness, "claims_done", lambda s: True)
+    shown = []
+    from nucleo.flash import canvas_visibility as cv
+    monkeypatch.setattr(cv, "present", lambda wid, **k: shown.append((wid, k.get("reason"))) or True)
     assert asyncio.run(harness.false_claim("Here they are.", data_done=False)) is None
     assert g["last"] is False and g["why"] == "off_screen"
+    assert shown == [("results", "turn-order")], "pass 67, S1: the sheet claimed on screen is brought there, no worker"
     monkeypatch.setattr(truth, "widget_view", lambda wid: {"empty": True, "items": []})
     assert asyncio.run(harness.false_claim("Here they are.", data_done=False)) is g

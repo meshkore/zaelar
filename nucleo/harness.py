@@ -178,6 +178,16 @@ async def false_claim(spoken: str, *, data_done: bool) -> dict | None:
         if ok is False and g.get("why") == "empty":
             _emit("⚠️ arnés: afirmó entrega y la hoja sigue VACÍA", g, extra={"claim": spoken[:160]})
             return g
+        if ok is False and g.get("why") == "off_screen":
+            # Demo pass 67, S1: «Three monitors on your screen…» with the sheet still in the dock and no show this
+            # turn. The words already said it is in front of him; the card goes there through the one door.
+            try:
+                from nucleo.flash import canvas_visibility as _cv
+                if _cv.present(str(g.get("target") or ""), reason="turn-order", src="harness"):
+                    _emit("🪟 arnés: afirmó que estaba en pantalla y seguía en el dock — la presento", g,
+                          extra={"claim": spoken[:160]})
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"harness: could not present {g.get('target')}: {e}")
     return None
 
 
