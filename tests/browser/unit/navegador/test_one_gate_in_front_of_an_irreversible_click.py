@@ -226,3 +226,26 @@ def test_the_vision_route_is_gated_where_the_worker_is_told_to_use_it():
     body = _agent_act_source()
     branch = body[body.index('if action in ("click_at", "type_at")'):]
     assert "_may_act(" in branch.split("_human_click_at(")[0], "click_at reaches the mouse ungated"
+
+
+# ── 4 · the host is who the site is, not what the page does (V2-776) ───────────────────────────────────
+
+@pytest.mark.parametrize("page", [
+    "https://www.booking.com/searchresults.html?ss=Scottsdale&checkin=2026-12-21",
+    "https://www.booking.com/hotel/us/scottsdale-resort.html",
+    "https://secure.pay.example.com/search?q=monitors",
+    "https://www.google.com/travel/search?q=Hotels%20in%20Puerto%20Vallarta&checkin=2026-12-21&checkout=2026-12-25",
+])
+def test_a_site_NAMED_after_a_checkout_word_does_not_ask_on_its_search(page):
+    """The trip worker of the v2 demo stopped for an OK on booking.com's «Search», on its date picker, and on
+    Google Hotels' «View prices»: the checkout pattern was matched against the host and the query — a hotel
+    search carries its departure date as `checkout=` — so every one of those pages looked like a payment."""
+    ask, why = G.decide(_sig(name="Search", signals="ss checkin checkout", pageUrl=page, targetUrl=page))
+    assert ask is False, why
+
+
+def test_a_booking_PATH_on_that_same_site_still_asks():
+    ask, _ = G.decide(_sig(name="Next: Final details", signals="",
+                           pageUrl="https://secure.booking.com/book.html?hotel_id=1",
+                           targetUrl="https://secure.booking.com/booking/confirm"))
+    assert ask is True

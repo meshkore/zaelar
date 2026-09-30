@@ -123,6 +123,21 @@ def label_is_irreversible(name: str) -> bool:
     return bool(_DANGER_RE.search((name or "").lower()))
 
 
+def _path_of(url) -> str:
+    """The part of a URL that says what a page IS: its path — never its host, never its query.
+
+    V2-776 — the checkout words were matched against the whole address, and both other parts lied (the v2
+    demo, 2026-09-29/30): the HOST, because every page of booking.com is named after one of them, and the
+    QUERY, because a hotel search carries its dates as `checkin=…&checkout=2026-12-25` — the trip worker
+    stopped for an OK on «View prices» and on a currency picker on Google Hotels. The host says who the site
+    is and the query what was searched; only the path says the page takes money (`/checkout/`, `/booking/`)."""
+    try:
+        from urllib.parse import urlsplit
+        return urlsplit(str(url or "")).path or ""
+    except ValueError:
+        return str(url or "")
+
+
 def decide(sig: dict | None) -> tuple[bool, str]:
     """(ask the operator?, why). `None` means the page could not be read — which ASKS, by design.
 
@@ -150,7 +165,7 @@ def decide(sig: dict | None) -> tuple[bool, str]:
     #
     # The mechanism it stood in for is `needs_facts()` below: the honest question is not «shall I proceed»
     # but «what is your phone», and it is only worth asking when the engine does not already have it.
-    urls = _text(sig, "targetUrl", "pageUrl")
+    urls = " ".join(_path_of(sig.get(k)) for k in ("targetUrl", "pageUrl"))
     if submitish and _CHECKOUT_URL_RE.search(urls):
         return True, "el destino es una página de compra, pedido o reserva"
     return False, ""
@@ -254,6 +269,17 @@ async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> 
                 pass
         return True, ""
     label = str((sig or {}).get("name") or "").strip() or "esta acción"
+    # The REASON rides on the trace: the operator hears only the label, and on 2026-09-30 a Newegg search box
+    # asked for an OK with nothing anywhere saying which rule fired — the page was behind Cloudflare and could
+    # not be read back afterwards.
+    try:
+        from voice.observer import emit as _emit
+        _emit("widget", "gate_ask", text=f"{label[:60]} — {why}",
+              extra={"id": "navegador", "task": str(task_id), "why": why,
+                     "url": str((sig or {}).get("pageUrl") or "")[:160],
+                     "target": str((sig or {}).get("targetUrl") or "")[:160]})
+    except Exception:  # noqa: BLE001
+        pass
     if confirm is not None and await confirm(f"{label} — {why}" if why else label):
         return True, ""
     return False, f"acción «{label[:40]}» NO confirmada por el operador ({why})"
