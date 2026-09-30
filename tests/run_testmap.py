@@ -3474,6 +3474,9 @@ DOMAINS: list[dict] = [
                                  "second task, and the yes carries the refinements",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_a_parked_errand_is_still_the_errand.py"]},
+        {"id": "2.200", "title": "A negation subtracts only the act it governs, and only inside its own clause",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_negation_governs_only_its_own_act.py"]},
         {"id": "2.181", "title": "A request for a link or a price is not a charge: a negated act and a first-person "
                                  "wish beside a lookup order are subtracted before the money verbs are read",
             "ch": UNIT,

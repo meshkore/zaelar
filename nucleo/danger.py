@@ -270,11 +270,19 @@ def _drop_amount_questions(order: str) -> str:
 # «quiero que compres» never matches (the verb is his agent's, second person, not a wish).
 #
 # Both are SUBTRACTIONS, per the house rule of this module: nothing added to the verb lists.
+#
+# V2-778 F0-3 — the negation must GOVERN the act, and only inside its own clause. Measured by the 2026-09-30
+# audit: «don't forget to pay the invoice» and «without further delay pay the invoice» lost their verb (the
+# words in between re-affirm the act), and «no compres el barato, compra este» lost the order itself (the drop
+# ran past the comma to the end of the sentence). A word in between may not be one that turns the negation
+# around (forget / fail / delay / olvidar / dejar de), and the drop stops at a comma, «y», «and», «but».
+_REAFFIRMS = r"(?!(?:forget|forgot|fail|delay|further|hesitate|olvid|dejes|dejeis|tardes|demores|dudes)\w*\b)"
+_TO_CLAUSE_END = r"[^.!?;,]*?(?=[.!?;,]|\s(?:y|e|and|but|pero|then|luego)\b|$)"
 _NEGATED_ACT_RE = re.compile(
-    r"\b(?:do\s+not|don'?t|never|without|not\s+to|no\s+need\s+to|nothing\s+to)\s+(?:\w+\s+){0,3}?"
-    r"(?:buy\w*|purchas\w*|pay\w*|checkout|charg\w*|subscrib\w*|renew\w*|order\w*)\b[^.!?;]*"
-    r"|\b(?:no|nunca|jamas|sin|ni)\s+(?:\w+\s+){0,2}?"
-    r"(?:compr\w*|pag\w*|abon\w*|contrat\w*|renuev\w*|suscrib\w*|transfier\w*|transfer\w*)\b[^.!?;]*",
+    r"\b(?:do\s+not|don'?t|never|without|not\s+to|no\s+need\s+to|nothing\s+to)\s+(?:" + _REAFFIRMS + r"\w+\s+){0,3}?"
+    r"(?:buy\w*|purchas\w*|pay\w*|checkout|charg\w*|subscrib\w*|renew\w*|order\w*)\b" + _TO_CLAUSE_END +
+    r"|\b(?:no|nunca|jamas|sin|ni)\s+(?:" + _REAFFIRMS + r"\w+\s+){0,2}?"
+    r"(?:compr\w*|pag\w*|abon\w*|contrat\w*|renuev\w*|suscrib\w*|transfier\w*|transfer\w*)\b" + _TO_CLAUSE_END,
     re.I)
 _STATED_WISH_RE = re.compile(
     r"\b(?:i\s+want\s+to|i\s+wanna|i'?d\s+like\s+to|i\s+would\s+like\s+to|i\s+need\s+to|"
