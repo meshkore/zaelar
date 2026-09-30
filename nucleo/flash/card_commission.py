@@ -248,7 +248,7 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
         return False
 
 
-def question_left_to_a_lens(brief, *, ops: list, acted: dict) -> str:
+def question_left_to_a_lens(brief, *, ops: list, acted: dict, operator_text: str = "") -> str:
     """The card to READ when a QUESTION was answered by a lens alone — "" otherwise.
 
     Demo pass 2026-09-28: «johnny what do i have tomorrow» → `agenda:show_day` and silence (C1); «what's on my plate
@@ -262,8 +262,13 @@ def question_left_to_a_lens(brief, *, ops: list, acted: dict) -> str:
         words, winfo = _tb.read(brief, _tb.WORDS_KEY, "")
         # a question, or an order that owes words (R3 «…and tell me the dates», M1 «how's apple doing, show me the
         # chart» — both read as orders, both answered with a view and silence)
+        # …or, with BOTH readings unsure, his own question mark (demo pass 66, R2: «and when does anna's vacation
+        # start? show me in the calendar» → show_day on 20 December and «Done.»; request_type 0.42, words 0.02).
+        # Punctuation, not vocabulary: every language the STT writes marks a question the same way.
+        asked = "?" in (operator_text or "") or "¿" in (operator_text or "")
         if not ((info is not None and str(kind or "") == "question")
-                or (winfo is not None and str(words or "") == "tell")):
+                or (winfo is not None and str(words or "") == "tell")
+                or (info is None and winfo is None and asked)):
             return ""
         ops = [o for o in (ops or []) if isinstance(o, dict)]
         if any(not _do.is_view_op(str(o.get("widget_id") or ""), str(o.get("action") or "")) for o in ops):

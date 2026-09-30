@@ -36,7 +36,7 @@ def test_an_order_or_a_write_is_not_this(monkeypatch):
 
 def test_the_second_pass_can_stay_silent_and_the_provider_wires_it():
     prov = (ROOT / "voice/engine/llm/providers/nucleo.py").read_text("utf-8")
-    assert "_cardc3.question_left_to_a_lens(_brief, ops=list(_data_ops_hechas), acted=acted)" in prov
+    assert "_cardc3.question_left_to_a_lens(_brief, ops=list(_data_ops_hechas), acted=acted," in prov
     body = prov[prov.index("async def speak(sys2: str"):]
     body = body[:body.index("from voice.engine.llm.providers.vault_intercept")]
     assert "responde exactamente SKIP" in body and 'head.startswith("SKIP")' in body

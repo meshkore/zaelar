@@ -2821,7 +2821,8 @@ class NucleoLLMStream(llm.LLMStream):
             spoken_text = "".join(spoken).strip()
         elif read_req["v"] is None and escalate_req["v"] is None and search_req["v"] is None and not clarify["msg"]:
             from nucleo.flash import card_commission as _cardc3
-            _qlens = _cardc3.question_left_to_a_lens(_brief, ops=list(_data_ops_hechas), acted=acted)
+            _qlens = _cardc3.question_left_to_a_lens(_brief, ops=list(_data_ops_hechas), acted=acted,
+                                                     operator_text=_op_text)
             if _qlens:
                 read_req["v"] = {"widget_id": _qlens, "question": _op_text}
                 emit("brain", "📖 una pregunta contestada solo con una vista — leo la tarjeta y contesto",
