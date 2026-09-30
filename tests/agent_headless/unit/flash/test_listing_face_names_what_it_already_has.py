@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-556 — the fast-pass face must NAME the rows it already has, on BOTH verdicts.
 
 Measured on `search-buy-used-car__es` (2026-09-02, run v3). The escalated branch carried the partial count
@@ -58,7 +59,7 @@ def test_both_channels_call_the_SAME_face():
     from nucleo.flash import probe
     from voice.engine.llm.providers import nucleo as voice_provider
     for mod in (probe, voice_provider):
-        src = inspect.getsource(mod)
+        src = _vts.getsource(mod)
         assert "voice_turn(" in src, f"{mod.__name__} no usa el cuerpo compartido"
         assert "anuncios provisionales en su hoja" not in src, f"{mod.__name__} conserva una copia de la cara"
         assert "ANUNCIOS ENCONTRADOS" not in src, f"{mod.__name__} conserva una copia de la cara entregada"

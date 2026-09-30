@@ -24,9 +24,9 @@ from pathlib import Path
 ENGINE = Path(__file__).resolve().parents[3]
 FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 
-# V2-778 F1-10a (2026-10-01): the tool executor MOVED out of `_run_inner` into
-# `nucleo/flash/tool_executor.py`
-# (same closures, same sizes); its entries were renamed, not added — and splitting it under the ceilings is owed.
+# V2-778 F1-10a/b (2026-10-01): the tool executor and the post-stream chain MOVED out of `_run_inner` into
+# `nucleo/flash/tool_executor.py` and `nucleo/flash/post_stream.py` (same code, same sizes); their entries were
+# renamed, not added — and splitting both under the ceilings is owed.
 FILES = {
     'connectors/email/mailbox.py': 945,
     'connectors/meshkore/bridge.py': 891,
@@ -37,6 +37,7 @@ FILES = {
     'nucleo/flash/direct_action.py': 988,
     'nucleo/flash/fast_client.py': 900,
     'nucleo/flash/live_blocks.py': 860,
+    'nucleo/flash/post_stream.py': 983,
     'nucleo/flash/probe.py': 1335,
     'nucleo/flash/prompt.py': 815,
     'nucleo/flash/tool_executor.py': 1271,
@@ -45,7 +46,7 @@ FILES = {
     'nucleo/workers/session.py': 858,
     'server/voice_api.py': 993,
     'voice/attention.py': 1033,
-    'voice/engine/llm/providers/nucleo.py': 2644,
+    'voice/engine/llm/providers/nucleo.py': 1769,
     'voice/engine/pipeline/agent.py': 924,
     'widgets/agenda/data.py': 933,
     'widgets/mensajeria/data.py': 1069,
@@ -72,6 +73,7 @@ FUNCTIONS = {
     'nucleo/flash/fast_client.py::FastClient._stream_inner': 267,
     'nucleo/flash/listing_turn.py::run': 121,
     'nucleo/flash/live_blocks.py::navegador_lines': 382,
+    'nucleo/flash/post_stream.py::run': 951,
     'nucleo/flash/probe.py::run_turn': 1232,
     'nucleo/flash/prompt.py::_flash_layer': 238,
     'nucleo/flash/prompt.py::live_state': 210,
@@ -92,7 +94,7 @@ FUNCTIONS = {
     'nucleo/workers/claude_session.py::ClaudeCodeSession.start': 140,
     'server/__init__.py::_lifespan': 511,
     'server/voice_api.py::status': 335,
-    'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 2305,
+    'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 1428,
     'voice/engine/pipeline/agent.py::entrypoint': 729,
     'voice/engine/pipeline/agent.py::entrypoint._on_data': 142,
     'voice/engine/speech/filler_audio.py::llm_node_with_filler': 143,
@@ -120,11 +122,12 @@ FUNCTIONS = {
 }
 
 BRANCHES = {
+    'nucleo/flash/post_stream.py::run': 337,
     'nucleo/flash/probe.py::run_turn': 413,
     'nucleo/flash/tool_executor.py::build': 427,
     'nucleo/flash/tool_executor.py::build._on_tool_call': 208,
     'nucleo/memory_agent/ingest.py::_ingest_utterance_locked': 101,
-    'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 562,
+    'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 225,
     'voice/engine/pipeline/agent.py::entrypoint': 105,
     'widgets/agenda/data.py::apply_action': 236,
     'widgets/agenda/tasklists.py::apply': 115,

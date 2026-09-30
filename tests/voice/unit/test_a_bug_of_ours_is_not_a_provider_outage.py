@@ -48,7 +48,7 @@ _ROOTS = ("nucleo", "voice", "memory", "server", "widgets", "connectors", "confi
 def _module_alias_shadows(path: pathlib.Path) -> list[tuple[str, str]]:
     """`(scope, name)` for every function whose LOCAL shadows a module-level import alias AND that reads the
     name before assigning it — i.e. every scope where the import is unreachable."""
-    src = path.read_text(encoding="utf-8", errors="replace")
+    src = _vts.read(path)
     try:
         tree = ast.parse(src)
         top = symtable.symtable(src, str(path), "exec")
@@ -256,7 +256,7 @@ def _connect_loop_source() -> str:
     """The STREAMING connect loop only. `complete()` has a retry loop with the same opening comment, and
     anchoring on the first occurrence swallowed half the class — which is how a disarm of this very block came
     back green (the slice still contained an untouched `_extra_body_for` from somewhere else entirely)."""
-    src = (ENGINE / "nucleo/flash/fast_client.py").read_text()
+    src = _vts.read(ENGINE / "nucleo/flash/fast_client.py")
     i = src.index("# V2-758 — AND THE FAILOVER LIVES HERE FOR THE SAME REASON.")
     return src[i:src.index("calls: dict[int, dict] = {}", i)]
 
@@ -280,7 +280,7 @@ def test_the_relay_rebuilds_the_body_for_its_own_provider():
 
 def test_the_stream_never_relays_once_it_has_spoken():
     """A retry after a yielded chunk duplicates speech. The relay lives ONLY in the connect loop."""
-    src = (ENGINE / "nucleo/flash/fast_client.py").read_text()
+    src = _vts.read(ENGINE / "nucleo/flash/fast_client.py")
     after = src[src.index("calls: dict[int, dict] = {}"):]
     assert "relay_spec_for" not in after, \
         "a relay was wired into the streaming half: a mid-stream retry repeats what the operator already heard"
@@ -392,7 +392,7 @@ def test_a_fault_of_ours_gets_its_own_row_and_only_when_there_is_one(monkeypatch
 
 def test_the_panel_draws_the_ladder_for_BOTH_rows():
     """One renderer, two rows. A second copy is how the two halves of a status row drift apart."""
-    js = (ENGINE / "frontend/app/components/StatusPanel.js").read_text()
+    js = _vts.read(ENGINE / "frontend/app/components/StatusPanel.js")
     assert 'it.key === "llm" || it.key === "memory"' in js, "the memory row lost its ladder renderer"
     assert "status.llm_titular_ok" in js, "the healthy primary has no line"
     assert 'h("div", { class: "st-detail" }, it.detail || "")' in js, \
@@ -402,7 +402,7 @@ def test_the_panel_draws_the_ladder_for_BOTH_rows():
 @pytest.mark.parametrize("lang", ["es", "en"])
 def test_every_ladder_line_has_its_string(lang):
     import json
-    b = json.loads((ENGINE / f"i18n/bundles/{lang}.json").read_text())
+    b = json.loads(_vts.read(ENGINE / f"i18n/bundles/{lang}.json"))
     for k in ("status.llm_titular_ok", "status.llm_titular_down", "status.llm_serving", "status.llm_standby"):
         assert b.get(k), f"{lang}: falta «{k}» — the panel would render a raw key"
 
@@ -431,7 +431,7 @@ def test_with_no_relay_the_heart_reports_itself(monkeypatch):
 
 def test_the_heart_records_who_served_after_a_distillation():
     """The wiring: the global is set where the loop decides, not somewhere a refactor can drop it."""
-    src = (ENGINE / "nucleo/mem_processor.py").read_text()
+    src = _vts.read(ENGINE / "nucleo/mem_processor.py")
     assert 'globals()["_served_rung"] = _served' in src, "nothing publishes the rung that served"
     i = src.index('globals()["_served_rung"]')
     assert src.index("if not _served:") < i, "the rung is published before the loop knows there was one"
@@ -511,7 +511,7 @@ def test_the_embeddings_row_still_declares_NO_stand_in():
     operator asked for an embeddings failover in the same breath as the FlashBrain one; this test is the
     answer, and it fails loudly the day someone «fixes» the table."""
     import json
-    tbl = json.loads((ENGINE / "config/models.default.json").read_text())
+    tbl = json.loads(_vts.read(ENGINE / "config/models.default.json"))
     row = tbl["services"]["embeddings"]
     assert row.get("failover") is None, \
         ("a stand-in was added to `embeddings`: unless it serves the EXACT same model, every vector it "

@@ -310,7 +310,7 @@ def test_the_promise_repair_closes_instead_of_writing_when_the_order_is_a_close(
     """S4: «ok close the results» → «Closing it now.» and no call; the promise repair ran `results:clear`."""
     import inspect
     from voice.engine.llm.providers import nucleo as prov
-    src = inspect.getsource(prov)
+    src = _vts.getsource(prov)
     i = src.index("_act_repair.call_for_promise_or_order(")
     assert '_direct_action.sure_canvas(_brief) == "close"' in src[i - 700:i]
 
@@ -340,7 +340,7 @@ def test_V7_the_close_backstop_takes_the_verdicts_card_even_when_it_is_already_c
     assert _da.verdict_card(b) == "youtube"
     import inspect
     from voice.engine.llm.providers import nucleo as prov
-    src = inspect.getsource(prov)
+    src = _vts.getsource(prov)
     assert '_direct_action.verdict_card(_brief) if _direct_action.sure_canvas(_brief) == "close"' in src
 
 

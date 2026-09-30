@@ -20,6 +20,8 @@ our own phrases.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import inspect
 
 from voice.engine.core import langs
@@ -28,7 +30,7 @@ from voice.engine.core import langs
 def _probe_ack_source() -> str:
     from nucleo.flash import probe
 
-    return inspect.getsource(probe.run_turn)
+    return _vts.getsource(probe.run_turn)
 
 
 def test_a_YES_does_not_get_the_done_ack():
@@ -69,7 +71,7 @@ def test_and_the_yes_no_split_happens_where_the_reply_is_classified():
     assert '"confirm_task" if _ans.yes else "confirm_task_no"' in src
     from nucleo.turn import confirm_gates as _g
     import inspect as _i
-    assert "classify_reply" in _i.getsource(_g._task_gate), \
+    assert "classify_reply" in _vts.getsource(_g._task_gate), \
         "la clasificación del sí/no ya no vive en la puerta de tarea: ¿quién decide ahora el veredicto?"
 
 
@@ -88,7 +90,7 @@ def test_the_voice_provider_does_NOT_have_this_bug():
     `acted["widget"]` and not that. This is a bug in the TEXT channel, which is where the harness runs."""
     from voice.engine.llm.providers import nucleo as _provider
 
-    src = inspect.getsource(_provider)
+    src = _vts.getsource(_provider)
     i = src.index('if data_done["v"] and not spoken_text')
     assert "data_acks" in src[i:i + 600]
     assert "confirm" not in src[i:i + 600].lower()

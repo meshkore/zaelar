@@ -488,8 +488,8 @@ def test_the_helper_is_wired_into_BOTH_channels():
     # The probe channel is `probe.py` + `probe_scheduling.py` since the 2026-09-02 ratchet split; the guard is
     # about the CHANNEL carrying the call, not about which file holds the line.
     from nucleo.flash import probe_scheduling as _probe_sched
-    _probe_src = inspect.getsource(_probe.run_turn) + inspect.getsource(_probe_sched)
-    for src in (_probe_src, inspect.getsource(_provider)):
+    _probe_src = _vts.getsource(_probe.run_turn) + _vts.getsource(_probe_sched)
+    for src in (_probe_src, _vts.getsource(_provider)):
         assert "dated_reminder_backstop(" in src and "window=" in src
 
 
@@ -560,7 +560,7 @@ def test_and_the_write_path_actually_consults_it():
     # backstops it delegates to (`probe_scheduling.py`). The guard is about the CHANNEL being wired, not
     # about which file holds the line, so it reads both — otherwise the next extraction turns a wiring
     # guard into a false alarm, and the fix would be to weaken it.
-    src = inspect.getsource(probe.run_turn) + inspect.getsource(probe_scheduling)
+    src = _vts.getsource(probe.run_turn) + _vts.getsource(probe_scheduling)
     assert "already_in_agenda(" in src
 
 

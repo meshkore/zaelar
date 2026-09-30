@@ -18,6 +18,8 @@ drawn by V2-133.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pytest
 
 from nucleo.flash import reminder_guards as _owner
@@ -89,12 +91,12 @@ distinguished the FIRST wait from the others: from the third onward they were al
 
     from nucleo.flash import probe as _probe
     from voice.engine.llm.providers import nucleo as _provider
-    assert "holding_line(" in inspect.getsource(_probe.run_turn)
+    assert "holding_line(" in _vts.getsource(_probe.run_turn)
     # V2-661b: the voice channel calls it through `reminder_guards.holding_line_now`, which resolves the
     # LANGUAGE on the side of the door that may read it (the V2-569 dependency ratchet) — same chooser.
-    assert "holding_line_now(" in inspect.getsource(_provider)
+    assert "holding_line_now(" in _vts.getsource(_provider)
     from nucleo.flash import reminder_guards as _rg
-    assert "holding_line(" in inspect.getsource(_rg.holding_line_now)
+    assert "holding_line(" in _vts.getsource(_rg.holding_line_now)
 
 
 # ── a filler that already SOUNDED burns the opener (2026-09-09, session 2bdc67ee) ──────────────────────────
@@ -124,7 +126,7 @@ def test_the_voice_channel_passes_the_played_filler():
     import inspect
 
     from voice.engine.llm.providers import nucleo as _provider
-    assert "after_filler=_filler_audio.played_recently()" in inspect.getsource(_provider)
+    assert "after_filler=_filler_audio.played_recently()" in _vts.getsource(_provider)
 
 
 # ── demo pass 39 (2026-09-29), T1: a NEW errand is not «still» anything ─────────────────────────────────────────

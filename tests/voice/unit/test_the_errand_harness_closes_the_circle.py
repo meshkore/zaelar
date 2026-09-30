@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-660 — the errand HARNESS closes the circle, and the window measures silence from speech ONSET.
 
 Session 0141a72a (2026-09-11), two defects in one minute:
@@ -29,7 +30,7 @@ def _clean(monkeypatch):
 
 
 def _src(rel: str) -> str:
-    return open(os.path.join(ENG, rel), encoding="utf-8").read()
+    return _vts.read(os.path.join(ENG, rel))
 
 
 # ── the window measures SILENCE, and silence ends at speech onset ───────────────────────────────────────

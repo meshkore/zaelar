@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-658 — a `widget_data` cut by the TOKEN CAP is not a void (measured twice, consecutive sessions
 2026-09-10: the operator asked for the Declaration of Independence, the model opened an EMPTY `documento`,
 promised twice, finally pasted the full text inline into one widget_data — `finish_reason: length`, action
@@ -11,7 +12,7 @@ ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 
 def _src(rel: str) -> str:
-    return open(os.path.join(ENG, rel), encoding="utf-8").read()
+    return _vts.read(os.path.join(ENG, rel))
 
 
 def test_the_helper_names_only_a_token_capped_widget_write():

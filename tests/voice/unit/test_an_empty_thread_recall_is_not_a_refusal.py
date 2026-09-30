@@ -14,6 +14,8 @@ ELSE still composes as before.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 import re
 from pathlib import Path
@@ -170,7 +172,7 @@ def test_recall_answer_on_a_normal_question_still_composes(monkeypatch):
 
 # ── provider seam: the flag becomes the deterministic question ──
 def _code(rel: str) -> str:
-    src = Path(rel).read_text(encoding="utf-8")
+    src = _vts.read(Path(rel))
     return re.sub(r"(?m)^\s*#.*$", "", src)
 
 

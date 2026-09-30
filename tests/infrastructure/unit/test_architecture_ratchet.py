@@ -130,7 +130,13 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # results/sheet_names.py (+ stdlib lazies hoisted); the V2-539 probe mirror → flash/probe_actionmap.py; the
     # whole flow lifecycle (V2-096/113/116/123) → providers/flow_lifecycle.py. Ceilings lowered to the measured
     # sizes — the celebration edit this table's header describes.
-    "voice/engine/llm/providers/nucleo.py": (3043, 116),
+    # 2026-10-01, V2-778 F1-10 — the tool executor and the post-stream chain left `_run_inner`, moved byte for
+    # byte into two nucleo/flash modules (the lazy imports travelled with them: 139 total, as before). The
+    # provider's ceiling drops to what it measures; the two new rows are MOVED code, not new growth, and both
+    # still have to be split by family under the 900 line that bounds an unlisted file.
+    "voice/engine/llm/providers/nucleo.py": (1770, 64),
+    "nucleo/flash/tool_executor.py": (1272, 35),
+    "nucleo/flash/post_stream.py": (984, 40),
     # 2026-08-24 — raised WITH the audit the rule demands, after sitting red for hours with nobody's name on it.
     # dispatch.py 1759→1851: 41355d9 (a relay inherits its sheet, +31), 7e3c144 (live errand absorbs non-errands),
     # 1a98f80 (the tab says which sheet it belongs to), 6e3d4d4 (the last sweep tells the conversation, +11).

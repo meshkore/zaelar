@@ -409,7 +409,7 @@ def test_both_close_backstops_are_wired_to_the_fullscreen_veto():
     files = [root / "voice" / "engine" / "llm" / "providers" / "nucleo.py",
              root / "nucleo" / "flash" / "probe.py"]
     for path in files:
-        src = "\n".join(line.split("#", 1)[0] for line in path.read_text().splitlines())
+        src = "\n".join(line.split("#", 1)[0] for line in _vts.read(path).splitlines())
         spans = [m.start() for m in re.finditer(r"(?:looks_like_close|close_license)\(text[,)]", src)
                  if "looks_like_create_widget" in src[m.start():m.start() + 400]]
         assert spans, f"the close backstop's conditional was not found in {path.name} — re-anchor this guard"

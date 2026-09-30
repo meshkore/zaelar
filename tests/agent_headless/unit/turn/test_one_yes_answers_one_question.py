@@ -12,6 +12,8 @@ authorizes a payment that nobody authorized, so this is not a matter of style.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pytest
 
 from nucleo.turn import confirm_gates as gates
@@ -137,7 +139,7 @@ def test_un_NO_tambien_consume_la_respuesta():
 def _llamadas(path, dentro_de=None):
     """Function names called inside `dentro_de`."""
     import ast
-    árbol = ast.parse(open(path, encoding="utf8").read())
+    árbol = ast.parse(_vts.read(path))   # the voice turn is the provider plus what F1-10 moved out of it
     if dentro_de:
         árbol = next((n for n in ast.walk(árbol)
                       if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == dentro_de), None)

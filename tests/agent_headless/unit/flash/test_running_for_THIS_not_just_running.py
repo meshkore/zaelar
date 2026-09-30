@@ -23,6 +23,8 @@ Measured twice, in two different cases and from both sides:
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pytest
 
 from nucleo.flash import router_guards as g
@@ -86,7 +88,7 @@ def test_both_channels_ask_the_new_question():
     from voice.engine.llm.providers import nucleo as voice_nucleo
 
     for mod, name in ((probe, "probe.py"), (voice_nucleo, "el provider de voz")):
-        src = inspect.getsource(mod)
+        src = _vts.getsource(mod)
         assert "nothing_running_for" in src, f"{name} sigue preguntando solo «¿hay algo corriendo?»"
 
 

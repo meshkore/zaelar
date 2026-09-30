@@ -66,7 +66,7 @@ def test_the_model_can_still_decline(model):
 
 def test_both_channels_use_it():
     for rel in ("voice/engine/llm/providers/nucleo.py", "nucleo/flash/probe.py"):
-        src = (ENGINE / rel).read_text("utf-8")
+        src = _vts.read(ENGINE / rel)
         assert "call_for_promise_or_order(" in src, rel
         assert "_act_repair.call_for_promise(operator_text, spoken, _ar_wid" not in src, rel
 
@@ -79,5 +79,5 @@ def test_an_escalation_to_an_open_card_gets_the_verdicts_call_too():
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     i = voice.index("V2-770 — the rung fills ONE key")
     assert "call_for_promise_or_order(operator_text, str(escalate_req" in voice[i:i + 1200]
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert "_ar_esc.call_for_promise_or_order(operator_text, spoken or text, _owner, _owner_act" in probe
