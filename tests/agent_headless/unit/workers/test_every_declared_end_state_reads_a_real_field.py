@@ -35,7 +35,7 @@ def seeded(tmp_path, monkeypatch):
 def test_the_scripted_actions_declare_their_end_state():
     have = {(w, a) for w, a, _ in _templates()}
     for pair in [("youtube", "search"), ("youtube", "play_result"), ("youtube", "pause"), ("imagenes", "show"),
-                 ("imagenes", "add"), ("imagenes", "wallpaper"), ("markets", "range"), ("documento", "append"),
+                 ("imagenes", "wallpaper"), ("markets", "range"), ("documento", "append"),
                  ("mensajeria", "send_to"), ("agenda", "add_meeting")]:
         assert pair in have, pair
 
@@ -55,3 +55,17 @@ def test_a_key_the_view_omits_until_set_reads_as_its_declared_absence(seeded):
     from nucleo import spec
     dw = spec.render("results", "detail", {"item": 1})
     assert verify.check(dw) is False
+
+
+def test_an_op_on_an_instance_is_judged_on_that_instance(seeded):
+    """Demo pass 70, S2/S3: the ops ran on `results::<errand>` and their end state read the bare `results` card."""
+    from nucleo import spec
+    dw = spec.render("results::abc-ls1", "layout", {"layout": "compare"})
+    assert verify._clauses(dw)[1][0]["widget"] == "results::abc-ls1"
+
+
+def test_an_add_that_found_nothing_new_is_not_declared_a_failure():
+    """Demo pass 70, I2: the picture lane added the new photos, the model's own `add` then merged nothing new, and
+    «items changed» read unmet — the circuit said «I couldn't pull those up» over photos on screen."""
+    from nucleo import spec
+    assert spec.template_of("imagenes", "add") is None

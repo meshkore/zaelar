@@ -142,6 +142,16 @@ def render(wid: str, action: str, payload: dict | None) -> dict | None:
     filled = _fill(tpl, dict(payload or {}))
     if not filled:
         return None
+    # Demo pass 70, S2/S3: «compare them side by side» and «open the best deal» ran on `results::9642d4-ls1` and the
+    # template's clauses — written over the BASE card — read the bare `results` sheet, empty: both read «unmet» over
+    # an op that worked, and the circuit would have said so out loud. The op's own instance is what it changed.
+    base, _, inst = str(wid or "").partition("::")
+    if inst:
+        from nucleo import verify as _verify
+        for c in _verify._clauses(filled)[1]:
+            for key in ("widget", "canvas"):
+                if str(c.get(key) or "").strip().lower() == base.strip().lower():
+                    c[key] = str(wid)
     try:
         _snapshot(filled)
     except Exception as e:  # noqa: BLE001

@@ -52,12 +52,7 @@
       "payload": {
         "items": "lista de {url, thumb, title, site, page, w, h}"
       },
-      "view": true,
-      "done_when": {
-        "widget": "imagenes",
-        "field": "items",
-        "expect": "changed"
-      }
+      "view": true
     },
     "select": {
       "desc": "ABRE en grande una foto concreta del visor («abre la segunda», «open the second one», «enséñame la tercera», «la de Wikipedia») — por número 1-N o por parte de su título/fuente",
