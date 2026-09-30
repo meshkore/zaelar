@@ -42,7 +42,11 @@ _JS_EXTRACT = r"""
   // NO se reconstruye el separador decimal: se colapsa el espacio y se entrega «169 00 €» tal cual. Meter una
   // coma sería adivinar —hay sitios que separan los MILES con espacio («1 234 €»)— y adivinar mal ahí cambia
   // un precio por cien. Lo que se ve es lo que la página puso; el nombre y el enlace acompañan al importe.
-  const priceRe=/(\d[\d.,]{0,12}(?:\s\d{1,2})?\s*€)|(€\s*\d[\d.,]{0,12})|(\d[\d.,]{0,12}\s?(EUR|eur)\b)/;
+  // V2-776 — the pattern knew ONE currency. On a US store («$249.99», eBay's «US $199.00») no node was a price,
+  // so `extract` answered 0 rows on Newegg and a priceless row on eBay, and the monitors worker of the v2 demo
+  // spent eight minutes hunting for a page the tool could read (2026-09-30). Dollar and pound join the euro;
+  // the amount grammar is unchanged.
+  const priceRe=/(\d[\d.,]{0,12}(?:\s\d{1,2})?\s*[€£])|([€£$]\s*\d[\d.,]{0,12})|(\d[\d.,]{0,12}\s?(EUR|eur|USD|usd|GBP|gbp)\b)/;
   const hasLetter=s=>/[a-zA-ZÀ-ÿ\u0100-\u024f\u0370-\u1fff\u3040-\u9fff]/.test(s||'');
   // El NOMBRE de lo que se anuncia cuando el propio enlace no lo lleva dentro. Un listado es una rejilla de
   // TARJETAS y el nombre de cada cosa es el encabezado de su tarjeta: vale para un producto, un piso, un hotel
