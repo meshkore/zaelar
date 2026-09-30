@@ -286,3 +286,16 @@ def describe(done_when) -> str:
         bits.append(f"{c.get('widget', '?')}.{c.get('collection', '')}"
                     f"[{said}]{'' if str(c.get('expect', 'present')).lower() == 'present' else ' AUSENTE'}")
     return (" Y ".join(bits) if mode == "all" else " O ".join(bits))[:200]
+
+
+def only_unchanged(done_when, now: float | None = None) -> bool:
+    """Every clause that fails is a `changed` one, and at least one fails: the op left a value as it was.
+
+    Demo pass 71, V3: «make it bigger, like full screen» — a repair pass fired a spurious `play_result` of the video
+    already playing; `videoId` did not change because it was the SAME video, and the circuit said «I couldn't make it
+    full screen». With the widget having answered `ok`, an unchanged value is a replay of the same thing, not a
+    failure — and a wrong «you did not get it» over something delivered is worse than silence (V2-660)."""
+    _mode, clauses = _clauses(done_when)
+    failing = [c for c in clauses if check_clause(c, now) is False]
+    return bool(failing) and all(str(c.get("expect") or "").lower() == "changed" for c in failing)
+

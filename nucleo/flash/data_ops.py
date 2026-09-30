@@ -291,6 +291,9 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
                 _rq.settle(_row, "undeclared")
             elif _attested is not False:
                 _rq.settle(_row, _rq.verdict_of_attest(_attested))
+            elif _spec_entry is not None and _unchanged(_spec_entry):
+                _spec_entry["status"] = "unverifiable"          # the circuit leaves it: a replay, not a failure
+                _rq.settle(_row, "unverifiable", "sin cambio visible: la tarjeta ya estaba así")
             # False: the widget may still be catching up — the circuit's pulse settles it (met, or unmet after
             # its grace), and the row with it.
         except Exception:  # noqa: BLE001
@@ -314,6 +317,14 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     except Exception:
         pass
     return res          # the RESULT, for a turn that owes words and waits on it (`answer_of`)
+
+
+def _unchanged(e: dict) -> bool:
+    try:
+        from nucleo import verify as _verify
+        return _verify.only_unchanged(e.get("done_when"))
+    except Exception:  # noqa: BLE001
+        return False
 
 
 #: The keys every result carries — an ack, not an answer.

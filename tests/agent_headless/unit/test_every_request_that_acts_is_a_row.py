@@ -159,3 +159,34 @@ def test_the_picture_search_is_a_row_like_any_op(monkeypatch):
     assert parte["ok"]
     row = _inline_rows()[0]
     assert row["goal"] == "show me a red ferrari f40" and row["verdict"] == "met" and "Ferrari" in row["outcome"]
+
+
+def test_an_ok_op_that_left_its_changed_value_as_it_was_is_a_replay_not_a_failure(monkeypatch):
+    """Demo pass 71, V3: a spurious `play_result` of the video already playing read «videoId unchanged» and the
+    circuit said «I couldn't make it full screen». A widget that answered ok over an unchanged value replayed the
+    same thing: unverifiable, never a correction."""
+    import widgets
+    from nucleo import verify
+    from nucleo.flash import data_ops
+
+    async def dispatch(tag, body):
+        return {"ok": True}
+    monkeypatch.setattr(widgets, "dispatch_tag", dispatch)
+    entry = {"id": "s1", "done_when": {"widget": "youtube", "field": "videoId", "expect": "changed", "baseline": "a"},
+             "status": "open"}
+    monkeypatch.setattr(spec, "open_for_action", lambda *a, **k: entry)
+    monkeypatch.setattr(spec, "attest", lambda e, **k: False)
+    monkeypatch.setattr(verify, "check_clause", lambda c, now=None: False)
+
+    async def run():
+        rq.begin("make it bigger")
+        await data_ops.dispatch_and_report("youtube", "play_result", {"item": 2}, text="make it bigger")
+    asyncio.run(run())
+    row = _inline_rows()[0]
+    assert row["verdict"] == "unverifiable" and entry["status"] == "unverifiable"
+
+
+def test_the_spoken_correction_never_names_a_field():
+    import inspect
+    src = inspect.getsource(circuit._say_now)
+    assert "missing" not in src.split("_sd.line(")[1].split(")")[0]

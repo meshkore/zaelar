@@ -118,7 +118,10 @@ def _say_now(e: dict, missing: str) -> bool:
             from nucleo.workers import spoken_delivery as _sd
             from voice import proactive
             goal = str((e.get("turn") or {}).get("text") or e.get("text") or "")
-            line = await _sd.line(goal, f"No ha quedado hecho. Falta: {missing}", ok=False, verdict="unmet")
+            # Not `missing`: it names fields («youtube.videoId»), and demo pass 71 said «the YouTube video ID is still
+            # set the way it was» to the operator. He needs what he asked for and that it did not happen.
+            line = await _sd.line(goal, "Lo que pidió no ha quedado hecho: la pantalla no lo muestra.", ok=False,
+                                  verdict="unmet")
             if line:
                 await proactive.notify("circuito", line, speak=True, kind="notify")
         except Exception as ex:  # noqa: BLE001
