@@ -31,9 +31,7 @@ import unicodedata
 
 from loguru import logger
 
-_GOALS: list[dict] = []
 TTL_S = 300.0          # an errand nobody could deliver in five minutes is history, not a live goal
-_MAX = 8
 
 KIND_WIDGET_CONTENT = "widget_content"
 
@@ -63,38 +61,52 @@ def claims_done(reply: str) -> bool:
 
 
 # ── the ledger ──────────────────────────────────────────────────────────────────────────────────────────
-def _sweep_expired(now: float) -> None:
-    for g in _GOALS:
-        if g["status"] == "open" and now - g["born"] > TTL_S:
+#: V2-776 M4 — the goals are no longer a registry of this module: they are entries of the ONE spec ledger
+#: (`nucleo/spec.py`), marked `source="shown"`. What stays here is what makes them different from an action's
+#: end state — they are verified by this module's readers, they speak only when a reply CLAIMS delivery, and they
+#: expire at `TTL_S` — so `circuit.tick` leaves them alone (`SOURCE`).
+SOURCE = "shown"
+
+
+def _ledger():
+    from nucleo import spec as _spec
+    return _spec
+
+
+def _expire(now: float) -> None:
+    for g in _ledger().open_specs(now):
+        if g.get("source") == SOURCE and now - float(g.get("born") or now) > TTL_S:
             g["status"] = "expired"
+            g["met_at"] = now
             _emit("🕰 arnés: objetivo caducado sin verificar", g)
-    del _GOALS[:-_MAX]
 
 
 def note_goal(kind: str, target: str, text: str, *, trace: str = "", now: float | None = None) -> dict:
     """A turn implied an end state: remember it. Same open (kind, target) → refreshed, never duplicated."""
     now = time.time() if now is None else now
-    _sweep_expired(now)
+    _expire(now)
     target = (target or "").strip().lower()
-    for g in _GOALS:
-        if g["status"] == "open" and g["kind"] == kind and g["target"] == target:
-            g["text"] = (text or g["text"])[:300]
+    for g in open_goals(now):
+        if g.get("kind") == kind and g.get("target") == target:
+            g["text"] = (text or g.get("text") or "")[:300]
             g["born"] = now
             return g
-    g = {"id": f"g{int(now * 1000) % 10_000_000}", "kind": kind, "target": target, "text": (text or "")[:300],
-         "born": now, "trace": trace or "", "status": "open", "met_at": 0.0, "checks": 0}
-    _GOALS.append(g)
+    g = _ledger().open({"widget": target, "field": "empty", "is": "false"}, text=text or "", source=SOURCE,
+                       widget=target, action="show", trace=trace or "", now=now) or {}
+    g.update({"kind": kind, "target": target, "text": (text or "")[:300], "met_at": 0.0, "checks": 0})
     _emit("🎯 arnés: objetivo abierto", g)
     return g
 
 
 def open_goals(now: float | None = None) -> list[dict]:
-    _sweep_expired(time.time() if now is None else now)
-    return [g for g in _GOALS if g["status"] == "open"]
+    now = time.time() if now is None else now
+    _expire(now)
+    return [g for g in _ledger().open_specs(now) if g.get("source") == SOURCE]
 
 
 def reset() -> None:
-    _GOALS.clear()
+    led = _ledger()
+    led._OPEN[:] = [e for e in led._OPEN if e.get("source") != SOURCE]
 
 
 # ── the verifiers (the RESOURCE half: read the product's own truth, never a copy of it) ─────────────────

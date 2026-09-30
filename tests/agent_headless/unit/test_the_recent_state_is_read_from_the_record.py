@@ -97,3 +97,12 @@ def test_reopening_a_task_never_offers_an_inline_request():
                  "kind": "web", "state": "done", "finished_at": int(time.time())})
     got = task_recall.resolve("the flat task")
     assert got["ok"] and got["task"]["id"] == "w-flat"
+
+
+def test_a_live_errand_with_a_third_party_is_left_to_its_own_block():
+    now = time.time()
+    ts.task_put({"id": "e1", "title": "Meeting with Iván", "goal": "arrange a meeting", "kind": "encargo",
+                 "state": "waiting", "created_at": int(now - 60)})
+    assert tb.recent_lines(now=now) == []
+    ts.task_patch("e1", state="done", finished_at=int(now))
+    assert "Meeting with Iván" in tb.recent_lines(now=now)[0]

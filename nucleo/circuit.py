@@ -74,6 +74,8 @@ def tick(now: float | None = None) -> list[dict]:
     now = time.time() if now is None else now
     closed: list[dict] = []
     for e in _spec.open_specs(now):
+        if e.get("source") == "shown":
+            continue                  # the harness's own goals (V2-776 M4): verified and expired by `harness.sweep`
         if now - float(e.get("checked_at") or 0) < CHECK_EVERY_S:
             continue
         e["checked_at"] = now

@@ -264,8 +264,9 @@ def recent_lines(now: float | None = None) -> list[str]:
     replaces — a rule stacked per incident. A model that contradicts a correct line here is a bank CASE.
 
     Not repeated: a worker still running (the live block above says it with its phase), one that ended in the
-    last five minutes (the just-ended block says it, until V2-776 M4 retires that block), and a list's own steps
-    (the list is the request; its steps are how it was done).
+    last five minutes (the just-ended block says it — with the obligation V2-221/224 attach to a death he does not
+    know about yet, which is not a fact and does not belong here), a live third-party errand (the errands pack
+    says who, how it is going and the deadline), and a list's own steps (the list is the request).
     """
     import time as _t
     now = float(now if now is not None else _t.time())
@@ -291,6 +292,8 @@ def recent_lines(now: float | None = None) -> list[str]:
     for r in rows:
         if r.get("parent_id") or str(r.get("id") or "") in said:
             continue
+        if r.get("kind") == "encargo" and r.get("state") in ("pending", "running", "waiting"):
+            continue                  # a live errand with a third party: its own block (errands pack) says it whole
         name = _short_note(str(r.get("title") or r.get("goal") or "una petición"), 70)
         st = str(r.get("state") or "")
         bit = f"«{name}» · {_STATE_WORD.get(st, st)}"
@@ -314,6 +317,3 @@ def recent_lines(now: float | None = None) -> list[str]:
         return []
     return ["LO ÚLTIMO QUE TE HA PEDIDO (registro de peticiones, lo más reciente primero): " + " | ".join(out) + "."]
 
-
-#: Kept as the name `prompt.live_state` and `live_blocks` import; the record now always speaks.
-record_lines = recent_lines
