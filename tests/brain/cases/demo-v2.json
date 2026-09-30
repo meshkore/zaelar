@@ -770,5 +770,95 @@
    "data-op"
   ],
   "open": "V2-776 L2/L3: «on screen» is open minus minimized; a phrase that names a docked card's content brings it back without the model (the canvas clause of the spec: results visible)"
+ },
+ {
+  "id": "demo-v3-make-it-bigger-is-fullscreen-not-a-replay",
+  "lang": "en",
+  "phrase": "can you make it bigger, like full screen",
+  "source": "TMP/demo/run-full71 V3 (2026-09-30): the model went fullscreen and a repair pass («abrió la tarjeta y prometió más — la llamada, en una segunda pasada») fired youtube:play_result of the video already playing",
+  "screen": {
+   "open": [
+    "youtube"
+   ]
+  },
+  "model": {
+   "say": "There you go.",
+   "tools": [
+    {
+     "name": "fullscreen_widget",
+     "args": {
+      "widget_id": "youtube"
+     }
+    }
+   ]
+  },
+  "brief": {
+   "canvas": [
+    "fullscreen",
+    0.95
+   ],
+   "request_type": [
+    "order",
+    0.7
+   ],
+   "screen_action": [
+    "none",
+    0.58
+   ],
+   "wants_words": [
+    "act",
+    0.99
+   ]
+  },
+  "expect": "fullscreen youtube",
+  "forbid": [
+   "data-op",
+   "worker"
+  ]
+ },
+ {
+  "id": "demo-e1-did-inworld-send-me-something-is-a-search",
+  "lang": "en",
+  "phrase": "check my email, did inworld send me something?",
+  "source": "TMP/demo/run-full71 E1 (2026-09-30): the model called mensajeria:show_view and answered «nothing from Inworld» over an archive that held the receipt; pass 70 searched the archive and found it",
+  "screen": {
+   "open": []
+  },
+  "model": {
+   "say": "",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "mensajeria",
+      "action": "show_view",
+      "platform": "all"
+     }
+    }
+   ]
+  },
+  "brief": {
+   "canvas": [
+    "neither",
+    0.99
+   ],
+   "request_type": [
+    "order",
+    0.28
+   ],
+   "screen_action": [
+    "none",
+    0.97
+   ],
+   "wants_words": [
+    "tell",
+    0.86
+   ]
+  },
+  "expect": "data-op mensajeria:search_archive",
+  "forbid": [
+   "worker"
+  ],
+  "open": "V2-776: «did X send me something?» with the mail card closed — the model opens the inbox view (show_view) and no verdict names search_archive (screen_action none 0.97); the question is about the ARCHIVE, and nothing in the brief asks which action ANSWERS it"
  }
 ]

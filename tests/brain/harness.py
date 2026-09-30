@@ -45,7 +45,7 @@ LANGS = ("es", "en")
 # One line per turn. `talk` is the model's own words and nothing else; `ask` is a clarifying question the
 # ENGINE decided to ask (not a question the model happened to write); the rest name a mechanism and its target.
 DECISIONS = re.compile(
-    r"^(talk|ask|escalate|search|listings|close all|minimize|unfullscreen"
+    r"^(talk|ask|escalate|search|listings|close all|minimize|unfullscreen|fullscreen [a-z0-9_-]+"
     r"|show [a-z0-9_-]+|close [a-z0-9_-]+|read [a-z0-9_-]+|panel:[a-z_]+"
     r"|data-op [a-z0-9_-]+:[a-z_]+|music [a-z_]+)$")
 
@@ -182,6 +182,8 @@ def decision_of(res: dict, tool_calls: list) -> str:
         return "minimize"
     if a.startswith("canvas:unfullscreen"):
         return "unfullscreen"
+    if a.startswith("canvas:fullscreen:"):
+        return "fullscreen " + a.split(":", 2)[2]
     if a.startswith("canvas:show:"):
         return "show " + a.split(":", 2)[2]
     if a.startswith("canvas:close:"):
