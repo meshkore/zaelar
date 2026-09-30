@@ -28,7 +28,3 @@ Nervioso** (`bus/`, V2-001, ya construido).
 """
 
 __all__ = ["flash", "agentes"]
-
-# Phase marker: since V2-004 FlashBrain IS wired to voice (provider `nucleo`, opt-in with
-# BRAIN=nucleo, alongside duo/hermes). The startup default remains `duo` until the V2-009 cutover.
-WIRED_TO_VOICE = True

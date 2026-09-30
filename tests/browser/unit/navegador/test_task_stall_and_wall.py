@@ -723,7 +723,7 @@ def test_no_production_path_leaves_an_ACTIVE_task_with_results():
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[4]
-    for rel in ("widgets/navegador/owner.py", "nucleo/dispatch.py", "nucleo/agentes/web_cc.py"):
+    for rel in ("widgets/navegador/owner.py", "nucleo/dispatch.py"):   # web_cc.py: deleted, V2-778 F2-23
         src = (root / rel).read_text(encoding="utf-8", errors="replace")
         for m in re.finditer(r"set_results\(", src):
             after = src[m.end():m.end() + 700]

@@ -665,7 +665,7 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
   que arregla.
 - No commitear `.env`, `.venv/`, `logs/`, `config/settings.json`, `config/connectors.json`, `config/v2.json`
   (todos en `.gitignore`).
-- No commitear `~/.hermes/memories/USER.md` — es perfil personal (la memoria puede sembrarlo, solo-lectura), no va
+- No commitear `~/.hermes/memories/USER.md` — es perfil personal, no va
   en el repo.
 - **Nada que configure el usuario final se pone en `.env`.** Toda activación/credencial de un conector o integración
   se maneja desde la UI (store `config/connectors.json`/`config/v2.json`, escrito por la UI; env solo fallback de

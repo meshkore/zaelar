@@ -144,8 +144,6 @@ voice turn (V2-011): the FlashBrain reads a cached state block and does on-deman
   visualizer** (V2-014); `memory/server_api.py` serves it read-only at **`GET /api/memory/map`** (`no-cache`). Real
   time: the server bridges `memory.updated` onto the `observer` topic (→ GET /events) as `{kind:"memory"}` so the map
   refreshes live without polling — see §Frontend (MemoryMap) + `zaelar-observability.md`.
-- **`memory/seed_from_hermes.py`** — a one-shot, best-effort, READ-ONLY importer that seeds the operator profile from
-  `~/.hermes` if that directory exists on the machine. It never writes to `~/.hermes` and is a no-op when absent.
 
 ## Bus module (`bus/`) — the in-process nervous system
 

@@ -135,9 +135,7 @@ loop** (`nucleo/loop.py` + `nucleo/scheduler.py`, own cron persisted in `memory.
   - `flags.brain` / env `BRAIN` — `active_brain()`, default `nucleo`; `direct`/`local` are plain-model baselines.
 - **Memory** = `memory/` (SQLite `zaelar.db`): persona/context + episodic layer (which absorbed the old `files/`
   inbox) + the message content the messaging widget writes. Single-writer queue, embeddings on insert, vector +
-  keyword retrieval (sqlite-vec + FTS5 → RRF), graph edges, Ebbinghaus-style forgetting. On first boot,
-  `memory/seed_from_hermes.py` does a **one-shot, read-only** import of the operator profile from `~/.hermes` if
-  present (best-effort); `~/.hermes/memories/USER.md` is the operator's personal profile and is **never committed**.
+  keyword retrieval (sqlite-vec + FTS5 → RRF), graph edges, Ebbinghaus-style forgetting.
   The `⚙` panel (`config/settings.py`) still handles only STT/TTS/voice/language.
 
 ## 6. Adding a widget (scales to thousands)
@@ -220,7 +218,7 @@ zaelar/
   voice/         VOICE ENGINE (server-side): engine/ (LiveKit AgentSession + STT/LLM/TTS providers, incl.
                  providers/nucleo.py), tag_protocol.py, observer.py, prompt.py, brain_notes.py, proactive.py, speech/
   nucleo/        BRAIN «Colmena» (BRAIN=nucleo): flash/ (FlashBrain) · dispatch.py + memory_agent.py + agentes/ (SlowBrain) · loop.py · scheduler.py · cron_api.py · sparks.py
-  memory/        CENTRAL MEMORY — SQLite zaelar.db (sqlite-vec + FTS5 + RRF + graph + forgetting); absorbed old files/ as episodic layer; seed_from_hermes.py (one-shot read-only importer)
+  memory/        CENTRAL MEMORY — SQLite zaelar.db (sqlite-vec + FTS5 + RRF + graph + forgetting); absorbed old files/ as episodic layer
   bus/           EVENT BUS — in-process pub/sub (generalizes voice/observer.py) + durable SQLite log + SSE bridge
   connectors/    external I/O: meshkore/ (cluster WS · FlashBrain untrusted profile · per-peer capsule) · architect/ · whatsapp/ · telegram/ · messaging/ (shared)
   widgets/       WIDGETS full-stack per folder (manifest.json + widget.js + data.py) + runtime, store, server_api, brief, supervisor; _data/

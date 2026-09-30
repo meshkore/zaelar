@@ -101,10 +101,8 @@ FTS5 keyword + RRF fusion + a small graph + Ebbinghaus-style forgetting. It abso
 **episodic** layer: `POST /api/files/upload` (`memory/server_api.py`) writes the bytes into the memory data-dir plus
 a searchable summary. Embeddings come from `embeddinggemma` via Ollama (fallback fastembed).
 
-**Operator profile seed (best-effort, read-only).** On boot, `memory/seed_from_hermes.py` does a one-shot,
-read-only import of the operator profile from `~/.hermes` **if that folder exists** — so an existing local setup
-carries name/language/projects into zaelar's memory. It never writes to `~/.hermes`. The file
-`~/.hermes/memories/USER.md` is personal and **must never be committed**.
+**No external profile seed.** The one-shot `~/.hermes` importer was retired in V2-778 (nothing called it). The file
+`~/.hermes/memories/USER.md`, if present on a machine, is personal and **must never be committed**.
 
 ## 4. Architect daemon (MeshKore remote control) — proveedor de código/proyectos por voz
 

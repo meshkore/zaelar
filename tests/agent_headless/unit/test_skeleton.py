@@ -19,12 +19,6 @@ def test_import_tree():
         importlib.import_module(mod)
 
 
-def test_wired_to_voice():
-    # V2-004: FlashBrain is already wired to voice (provider `nucleo`, opt-in BRAIN=nucleo).
-    import nucleo
-    assert nucleo.WIRED_TO_VOICE is True
-
-
 def test_fast_client_model_by_invocation():
     from nucleo.flash.fast_client import ModelSpec, FastClient
     spec = ModelSpec(model="x-ai/grok-4-fast-non-reasoning", provider="aimlapi")

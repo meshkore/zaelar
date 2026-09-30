@@ -4,11 +4,10 @@ identical failure — the worker genuinely fires but never completes, because it
 and flow from scratch every time. `nucleo/flash/site_catalog.py` gives it a short list of known-good defaults
 per category, locale-aware (system genetics — see its own docstring for the memory-priority contract: the
 operator's own stated preference always overrides this catalog). This test only verifies the catalog itself
-and that `web_cc._web_prompt` actually includes it — not that the worker OBEYS it (that needs a live run).
+and that the web worker's prompt (`dispatch_prompts._web_prompt`) actually includes it — not that the worker OBEYS it (that needs a live run).
 """
 from __future__ import annotations
 
-from nucleo.agentes import web_cc
 from nucleo.flash import site_catalog
 
 # V2-158: this set went stale the day `event_tickets` (V2-132) and `local_business` (V2-144) were added to the
@@ -70,8 +69,10 @@ def test_directive_block_tells_the_worker_to_prefer_the_catalog_even_for_a_named
 
 
 def test_web_prompt_embeds_the_directive_block():
-    prompt = web_cc._web_prompt("resérvame mesa en Casa Lucio esta noche", "es")
-    assert site_catalog.directive_block() in prompt
+    # V2-778 F2-23: the parked `web_cc` copy was deleted; the LIVE web worker prompt is `dispatch_prompts`.
+    from nucleo import dispatch_prompts
+    prompt = dispatch_prompts._web_prompt("resérvame mesa en Casa Lucio esta noche", "")
+    assert "SITIOS DE CONFIANZA POR CATEGORÍA" in prompt
     assert "Casa Lucio" in prompt  # the actual goal must still be present, untouched
 
 

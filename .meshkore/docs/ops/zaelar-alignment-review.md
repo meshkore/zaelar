@@ -89,7 +89,7 @@ Un cambio trivial dentro de un solo fichero sin efecto en flujo/contrato NO lo d
 ## 2. Sondas rápidas (copia-pega)
 
 ```bash
-# Legacy/dirty en la doc viva (debe salir solo lo VIGENTE, p.ej. seed_from_hermes.py):
+# Legacy/dirty en la doc viva (debe salir solo lo VIGENTE):
 grep -rinE "pipecat|hermes|BRAIN=duo| duo |razonador" CLAUDE.md .meshkore/docs web/src/pages/technology web/src/lib/diagrams
 # Símbolos retirados por este cambio (rellena) → 0 hits en código vivo:
 grep -rn "<símbolo_retirado>" --include=*.py . | grep -v .venv

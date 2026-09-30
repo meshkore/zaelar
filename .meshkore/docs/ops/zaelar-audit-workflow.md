@@ -65,8 +65,7 @@ Leer, en este orden, para cargar el modelo mental antes de tocar nada:
 
 Referencias de contexto vivo DENTRO del repo (el cerebro es NUESTRO, ya no hay agente externo): `config/v2.json`
 (routing de modelos real `fast`/`code_agent`, gestionado por la UI) y la memoria central `memory/_data/zaelar.db`
-(persona + hechos del operador). Único resto externo: `~/.hermes` es solo la fuente de un **seed one-shot** de solo
-lectura (`memory/seed_from_hermes.py`) — leer si el hallazgo lo requiere, **no** modificar.
+(persona + hechos del operador). No queda ningún resto externo: el importador de `~/.hermes` se retiró en V2-778 (no lo llamaba nadie).
 
 ---
 
@@ -126,8 +125,7 @@ explicación de una línea**, y al final una lista de **Findings ordenados por s
    `memory.updated`, `widget`, `observer`) tienen productor y consumidor, y que nada introduce un broker externo.
 10. **Memoria central** (`memory/`, ver `zaelar-memory.md`): un solo SQLite `zaelar.db` (WAL); **único escritor** =
     `nucleo/memory_agent.py` vía la cola/writer; el retriever lee en la ruta caliente (ms). Verificar que no hay un
-    2º escritor directo, que la capa episódica absorbió el antiguo `files/` (upload en `memory/server_api.py`), y que
-    `seed_from_hermes.py` es solo-lectura best-effort.
+    2º escritor directo, que la capa episódica absorbió el antiguo `files/` (upload en `memory/server_api.py`).
 11. **Layering / imports**: ¿`voice/` importa internals de `nucleo/`/`memory/`/`widgets/`/`connectors/` directo (el
     acoplamiento debe ir por el provider `nucleo.py` + `bus/`, no por rutas internas)? ¿`nucleo/` importa `voice/`?
     ¿algo importa `server/` hacia arriba? Mapear aristas reales y marcar las no documentadas.
