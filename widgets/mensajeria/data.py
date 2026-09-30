@@ -930,6 +930,15 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             match = next((c for c in chats if c.get("n") == n), None)
         elif name:
             match = _find_chat_by_name(db, name)
+            # Demo pass 66, E2: «open it» came as open {name: "Inworld receipt"} — the thread is named by its address
+            # (invoice+statements@inworld.ai), so no chat matched and the turn needed a second try. A name that shares
+            # a word with what the archive last found means that mail.
+            if match is None and _lf:
+                import re as _re
+                said = {w for w in _re.findall(r"[a-z0-9]{4,}", name.lower())}
+                known = set(_re.findall(r"[a-z0-9]{4,}", " ".join(str(_lf.get(k) or "") for k in ("name", "chatId", "subject")).lower()))
+                if said & known:
+                    match = {"platform": _lf["platform"], "chatId": _lf["chatId"]}
         if match is None and (n is not None or name):
             return {"ok": False,
                     "error": "no encuentro ese chat — vuelve a llamar a open con el `n` de la lista o con "
