@@ -70,7 +70,7 @@ def turn_source() -> str:
                             r"|        if _blk\.get\('__return__'\):\n            return\n")
         while (m := rebind.match(prov, b)):     # the outputs the call binds back
             b = m.end()
-        body = re.sub(r"\b_p\.", "", _body_of(path.read_text(encoding="utf-8"), fname))
+        body = re.sub(r"\b(?:_p|_pst)\.", "", _body_of(path.read_text(encoding="utf-8"), fname))
         body = body.replace('return {"__return__": True}', "return")     # the turn's own early return
         prov = prov[:a] + "".join(("    " + ln) if ln.strip() else ln for ln in body.splitlines(True)) + prov[b:]
     # module-level helpers F1 moved out of the provider: read with it, as written there
@@ -96,6 +96,13 @@ _PROVIDER_CALLS = (
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_failure.py", "say_the_turn_failed"),
     ("        # V2-778 F1 — the phrase accumulator (a fragment", "_turn_fragment.hold_a_fragment(",
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_fragment.py", "hold_a_fragment"),
+    # the post-stream chain's own blocks (spliced into it once it is back inside the turn)
+    ("        # V2-778 F1 — holding the model to its words", "_ps_words.hold_the_model_to_its_words(",
+     ENGINE / "nucleo" / "flash" / "post_stream_words.py", "hold_the_model_to_its_words"),
+    ("        # V2-778 F1 — the light lanes the model chose", "_ps_lanes.run_the_light_lanes(",
+     ENGINE / "nucleo" / "flash" / "post_stream_lanes.py", "run_the_light_lanes"),
+    ("        # V2-778 F1 — settling what is pending", "_ps_settle.settle_what_is_pending(",
+     ENGINE / "nucleo" / "flash" / "post_stream_settle.py", "settle_what_is_pending"),
 )
 
 
@@ -107,6 +114,7 @@ _SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py", ENGIN
           (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"],
           (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py"],
           (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"],
+          POST_STREAM.resolve(): [ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py" for x in ("words", "lanes", "settle")],
           (ENGINE / "widgets" / "navegador" / "owner.py").resolve(): [ENGINE / "widgets" / "navegador" / "owner_login.py",
                                                                     ENGINE / "widgets" / "navegador" / "owner_actions.py",
                                                                     ENGINE / "widgets" / "navegador" / "owner_page.py"]}
@@ -145,6 +153,7 @@ def probe_source() -> str:
 
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
 _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
+            **{(ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py").resolve(): "_pst" for x in ("words", "lanes", "settle")},
             (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py").resolve(): "_p",
             (ENGINE / "nucleo" / "dispatch_prepare.py").resolve(): "_d",
             (ENGINE / "widgets" / "navegador" / "owner_login.py").resolve(): "_o",

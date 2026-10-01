@@ -37,7 +37,6 @@ FILES = {
     'nucleo/flash/direct_action.py': 821,
     'nucleo/flash/fast_client.py': 866,
     'nucleo/flash/live_blocks.py': 860,
-    'nucleo/flash/post_stream.py': 983,
     'nucleo/flash/probe.py': 921,
     'nucleo/flash/prompt.py': 815,
     'nucleo/jev.py': 831,
@@ -69,7 +68,10 @@ FUNCTIONS = {
     'nucleo/flash/fast_client.py::FastClient._stream_inner': 267,
     'nucleo/flash/listing_turn.py::run': 121,
     'nucleo/flash/live_blocks.py::navegador_lines': 382,
-    'nucleo/flash/post_stream.py::run': 951,
+    'nucleo/flash/post_stream.py::run': 147,
+    'nucleo/flash/post_stream_lanes.py::run_the_light_lanes': 430,
+    'nucleo/flash/post_stream_settle.py::settle_what_is_pending': 196,
+    'nucleo/flash/post_stream_words.py::hold_the_model_to_its_words': 325,
     'nucleo/flash/probe.py::run_turn': 812,
     'nucleo/flash/probe_after.py::execute_what_was_decided': 165,
     'nucleo/flash/probe_decide.py::name_the_action': 222,
@@ -122,7 +124,8 @@ FUNCTIONS = {
 }
 
 BRANCHES = {
-    'nucleo/flash/post_stream.py::run': 337,
+    'nucleo/flash/post_stream_lanes.py::run_the_light_lanes': 146,
+    'nucleo/flash/post_stream_words.py::hold_the_model_to_its_words': 121,
     'nucleo/flash/probe.py::run_turn': 229,
     'nucleo/flash/probe_decide.py::name_the_action': 108,
     'nucleo/flash/tool_executor.py::build': 208,
