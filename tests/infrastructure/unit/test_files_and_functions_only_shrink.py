@@ -31,7 +31,7 @@ FILES = {
     'connectors/email/mailbox.py': 945,
     'connectors/meshkore/bridge.py': 891,
     'i18n/langs.py': 993,
-    'memory/api.py': 1077,
+    'memory/api.py': 1025,
     'nucleo/dispatch.py': 1586,
     'nucleo/energy_meter.py': 820,
     'nucleo/flash/direct_action.py': 988,

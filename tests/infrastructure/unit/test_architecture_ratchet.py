@@ -190,7 +190,7 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # → `probe_scheduling.py`. A closed unit over five of run_turn's locals; moved byte for byte.
     "nucleo/flash/probe.py": (1138, 73),
     "widgets/results/data.py": (991, 5),
-    "memory/api.py": (1076, 19),
+    "memory/api.py": (1026 17, ),   # 2026-10-01 V2-778 F1: the workflows table → memory/workflows_store.py
     "nucleo/flash/prompt.py": (834, 29),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
     # branch in the worker directive: inject before killing—directive prose, nothing extractable)
     # 26-09-11: V2-675 · −21 — the CRON line moved to `live_blocks.py` (same precedent as the browser and
