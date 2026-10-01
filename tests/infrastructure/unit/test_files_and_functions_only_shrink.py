@@ -38,7 +38,7 @@ FILES = {
     'nucleo/flash/fast_client.py': 900,
     'nucleo/flash/live_blocks.py': 860,
     'nucleo/flash/post_stream.py': 983,
-    'nucleo/flash/probe.py': 1335,
+    'nucleo/flash/probe.py': 1108,
     'nucleo/flash/prompt.py': 815,
     'nucleo/flash/tool_executor.py': 1271,
     'nucleo/jev.py': 831,
@@ -73,7 +73,8 @@ FUNCTIONS = {
     'nucleo/flash/listing_turn.py::run': 121,
     'nucleo/flash/live_blocks.py::navegador_lines': 382,
     'nucleo/flash/post_stream.py::run': 951,
-    'nucleo/flash/probe.py::run_turn': 1232,
+    'nucleo/flash/probe.py::run_turn': 1000,
+    'nucleo/flash/probe_after.py::execute_what_was_decided': 165,
     'nucleo/flash/prompt.py::_flash_layer': 238,
     'nucleo/flash/prompt.py::live_state': 210,
     'nucleo/flash/task_block.py::pending_task_lines': 198,
@@ -122,7 +123,7 @@ FUNCTIONS = {
 
 BRANCHES = {
     'nucleo/flash/post_stream.py::run': 337,
-    'nucleo/flash/probe.py::run_turn': 413,
+    'nucleo/flash/probe.py::run_turn': 326,
     'nucleo/flash/tool_executor.py::build': 427,
     'nucleo/flash/tool_executor.py::build._on_tool_call': 208,
     'nucleo/memory_agent/ingest.py::_ingest_utterance_locked': 101,

@@ -17,6 +17,8 @@ socket a second later — so «one trip» was true of the code under test and fa
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pytest
 
 from nucleo import jev
@@ -469,8 +471,8 @@ def test_the_catalogue_question_carries_the_words_he_CALLS_them(wire):
     # deleted. A disarm that stays green accuses the test.
     import json as _json
     import pathlib as _pathlib
-    man = _json.loads((_pathlib.Path(__file__).resolve().parents[3] / "widgets" / "youtube"
-                       / "manifest.json").read_text(encoding="utf-8"))
+    man = _json.loads(_vts.read(_pathlib.Path(__file__).resolve().parents[3] / "widgets" / "youtube"
+                       / "manifest.json"))
     desc = str(man.get("description") or "").lower()
     only_alias = next((a for a in (man.get("aliases") or []) if a.lower() not in desc), "")
     assert only_alias, "YouTube declares no alias that is absent from its description"

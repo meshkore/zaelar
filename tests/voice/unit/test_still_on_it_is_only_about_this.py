@@ -36,4 +36,4 @@ def test_both_channels_pass_his_words():
     from pathlib import Path
     root = Path(__file__).resolve().parents[3]
     assert "operator_text=_op_text)" in _vts.read(root / "voice/engine/llm/providers/nucleo.py")
-    assert "mute_backstop(sess.window, _lg, _hw, operator_text=text)" in (root / "nucleo/flash/probe.py").read_text("utf-8")
+    assert "mute_backstop(sess.window, _lg, _hw, operator_text=text)" in _vts.read(root / "nucleo/flash/probe.py")

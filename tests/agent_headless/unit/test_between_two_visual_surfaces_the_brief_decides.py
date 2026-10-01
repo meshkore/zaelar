@@ -28,4 +28,4 @@ def test_agreement_and_absence():
 def test_both_channels_pick():
     root = Path(__file__).resolve().parents[3]
     assert "_surfaces_mod.pick(escalate_req[\"surface\"].get(req, \"\")" in _vts.read(root / "voice/engine/llm/providers/nucleo.py")
-    assert ".pick(_surf.get(_r, \"\")" in (root / "nucleo/flash/probe.py").read_text("utf-8")
+    assert ".pick(_surf.get(_r, \"\")" in _vts.read(root / "nucleo/flash/probe.py")

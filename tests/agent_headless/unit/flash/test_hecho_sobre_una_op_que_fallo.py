@@ -20,6 +20,8 @@ OUR canned phrases is the one lying (V2-176, V2-209, V2-377, V2-380, V2-383).
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import asyncio
 from pathlib import Path
 
@@ -64,7 +66,7 @@ def test_se_usa_brain_action_y_NO_dispatch_tag():
     """A source guard because it is the entire defect in one line: switching back to `dispatch_tag` reopens the hole
     without anything failing — it would return None and everything would look “fine”."""
     import ast
-    arbol = ast.parse(Path("nucleo/flash/widget_data_turn.py").read_text(encoding="utf-8"))
+    arbol = ast.parse(_vts.read(Path("nucleo/flash/widget_data_turn.py")))
     # The two forms: `_w.dispatch_tag(...)` is an Attribute and `_brain_action(...)`, imported with an alias, is a
     # Name. Collecting only one leaves the guard looking at half the picture — and it failed for that very reason when written.
     llamadas = {n.func.attr if isinstance(n.func, ast.Attribute) else n.func.id
@@ -163,7 +165,7 @@ def test_un_turno_que_NO_es_data_op_conserva_su_ack():
 
 def test_la_boca_del_fallo_va_ANTES_del_ack_generico():
     """`widget_data` falls into a branch that always says “Hecho.”; if the new one comes afterward, it is never reached."""
-    src = Path("nucleo/flash/probe.py").read_text(encoding="utf-8")
+    src = _vts.read(Path("nucleo/flash/probe.py"))
     i_fallo = src.index('elif action == "widget_data" and isinstance(return_extra_exec, dict)')
     i_ack = src.index('elif action in ("widget_data", "confirm_task_no"):')
     assert i_fallo < i_ack

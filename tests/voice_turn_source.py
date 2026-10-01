@@ -62,6 +62,34 @@ _SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py"],
           (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"]}
 
 
+PROBE = ENGINE / "nucleo" / "flash" / "probe.py"
+PROBE_AFTER = ENGINE / "nucleo" / "flash" / "probe_after.py"
+#: (marker that opens the call in run_turn, last line of the call, the function whose body goes back there)
+_PROBE_CALLS = (
+    ("    # V2-778 F1 — executing the decision lives in", "        return_extra_exec = _blk['return_extra_exec']\n",
+     "execute_what_was_decided"),
+    ("    # V2-778 F1 — answering a web search lives in", "        spoken = _blk['spoken']\n", "answer_a_search"),
+    ("    # V2-778 F1 — the words the turn owes live in", "        spoken = _blk['spoken']\n", "the_words_it_owes"),
+)
+
+
+def _body_of(src: str, fname: str) -> str:
+    i = src.index(f"async def {fname}(")
+    i = src.index(") -> dict:\n", i) + len(") -> dict:\n")
+    return src[i:src.index("    _out = {}\n", i)]
+
+
+def probe_source() -> str:
+    """`probe.py` with what F1 moved to `probe_after.py` put back where it sat in `run_turn` (same indentation)."""
+    prov = PROBE.read_text(encoding="utf-8")
+    after = PROBE_AFTER.read_text(encoding="utf-8")
+    for start, last, fname in _PROBE_CALLS:
+        a = prov.index(start)
+        b = prov.index(last, a) + len(last)
+        prov = prov[:a] + _body_of(after, fname).replace("_probe.", "") + prov[b:]
+    return prov
+
+
 def read(path) -> str:
     """`Path.read_text` for a source guard: the provider path yields the whole turn, a split file its pieces,
     anything else its file."""
@@ -70,6 +98,8 @@ def read(path) -> str:
         p = ENGINE / p
     if p.resolve() == PROVIDER.resolve():
         return turn_source()
+    if p.resolve() == PROBE.resolve():
+        return probe_source()
     if p.resolve() in _SPLIT:
         return "\n".join(x.read_text(encoding="utf-8") for x in [p, *_SPLIT[p.resolve()]])
     return p.read_text(encoding="utf-8")
@@ -84,6 +114,15 @@ def getsource(obj) -> str:
         return turn_source()
     if name == "nucleo.dispatch":
         return read(DISPATCH)
+    if name == "nucleo.flash.probe":
+        return probe_source()
+    if getattr(obj, "__module__", "") == "nucleo.flash.probe" and qual == "run_turn":
+        src = probe_source()
+        i = src.index("async def run_turn(")
+        j = src.find("\ndef ", i)
+        k = src.find("\nasync def ", i + 10)
+        ends = [x for x in (j, k) if x != -1]
+        return src[i:min(ends)] if ends else src[i:]
     mod = getattr(obj, "__module__", "") or ""
     if mod == "nucleo.dispatch" and qual == "run_listener":          # the facade's delegate (V2-778 F1-11)
         from nucleo import dispatch_listener

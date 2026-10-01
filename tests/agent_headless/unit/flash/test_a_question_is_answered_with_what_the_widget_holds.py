@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-469 · a bare «Hecho.» to a QUESTION is a non-answer.
 
 Measured in `build-a-video-playlist-from-links` (2026-08-28 23:05): «¿Y qué hay en la lista?» → the model
@@ -50,5 +51,5 @@ def test_a_failed_op_keeps_its_failure_message():
 def test_the_probe_wires_it():
     """Wiring guard (V2-199): the cases above pass whole with the probe's call deleted."""
     from pathlib import Path
-    src = Path("nucleo/flash/probe.py").read_text(encoding="utf-8")
+    src = _vts.read(Path("nucleo/flash/probe.py"))
     assert "named_ack" in src

@@ -160,7 +160,7 @@ def test_BOTH_channels_compose_through_the_same_home():
     """WIRING GUARD (V2-555 shape): the voice seam and the probe seam were a parallel implementation since
     V2-135, and the missing half was missing in BOTH. One home is what makes that impossible again."""
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     for src, who in ((voice, "voice"), (probe, "probe")):
         assert "search_turn" in src, f"{who} must compose through flash/search_turn"
         assert "compose_system(" in src and "denial_repair(" in src, f"{who} misses half the seam"

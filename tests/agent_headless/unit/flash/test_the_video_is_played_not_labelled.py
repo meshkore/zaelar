@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """The text channel labelled the video instead of playing it (V2-383).
 
 The exact sibling of V2-380 (music), one branch lower in the same `elif`. Measured in
@@ -135,7 +136,7 @@ def test_un_turno_MUDO_de_video_NOMBRA_lo_que_cargo(monkeypatch, tmp_path):
 def test_la_boca_del_video_va_ANTES_del_ack_generico_de_canvas():
     """The order IS the fix: `canvas:show:youtube` starts with `canvas:`, so the generic branch consumes it
     if it comes first."""
-    src = Path("nucleo/flash/probe.py").read_text()
+    src = _vts.read(Path("nucleo/flash/probe.py"))
     i_video = src.index("# V2-383 — se NOMBRA el vídeo que cargó")
     i_canvas = src.index('elif action.startswith("canvas:"):')
     assert i_video < i_canvas
@@ -145,14 +146,14 @@ def test_la_boca_del_video_va_ANTES_del_ack_generico_de_canvas():
 
 def test_el_rail_de_video_ESTA_enchufado_en_este_canal():
     """The guard that would have been enough: the branch existed and executed nothing."""
-    src = Path("nucleo/flash/probe.py").read_text()
+    src = _vts.read(Path("nucleo/flash/probe.py"))
     assert "from nucleo.flash import video_turn as _video_turn" in src
     assert "await _video_turn.execute(video_req[" in src
 
 
 def test_la_rama_de_video_va_DENTRO_del_bloque_de_ejecucion():
     """Outside `if execute:`, it would become a label again—and that is exactly the defect being closed."""
-    src = Path("nucleo/flash/probe.py").read_text()
+    src = _vts.read(Path("nucleo/flash/probe.py"))
     i_exec = src.index("    if execute:")
     i_video = src.index('elif action == "canvas:show:youtube" and video_req:')
     assert i_exec < i_video
@@ -161,7 +162,7 @@ def test_la_rama_de_video_va_DENTRO_del_bloque_de_ejecucion():
 def test_el_rail_es_el_MISMO_que_usa_la_voz():
     """The voice uses `_apply_widget_data("youtube", "load", {"query": …})`. If this channel invented its own
     path, there would be TWO ways to play a video, and the one being measured would not be the one the operator uses."""
-    assert 'brain_action("youtube", "load"' in Path("nucleo/flash/video_turn.py").read_text()
+    assert 'brain_action("youtube", "load"' in _vts.read(Path("nucleo/flash/video_turn.py"))
 
 
 def test_los_argumentos_del_modelo_llegan_al_rail(rail):
@@ -341,8 +342,8 @@ def test_un_nombre_vacio_lo_QUITA_igual_que_el_filtro(monkeypatch, tmp_path):
 def test_la_tarjeta_ENSEÑA_el_nombre_o_no_sirve_de_nada():
     """Un nombre que solo vive en el store no deja al operador verificar que se le hizo caso."""
     import pathlib
-    js = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "youtube"
-          / "widget.js").read_text(encoding="utf-8")
+    js = _vts.read(pathlib.Path(__file__).resolve().parents[4] / "widgets" / "youtube"
+          / "widget.js")
     assert "list_name" in js and "_rot" in js
 
 
@@ -353,8 +354,8 @@ def test_las_acciones_declaradas_siguen_siendo_las_que_hace(monkeypatch, tmp_pat
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path), raising=False)
     from widgets.youtube import data as yt
-    m = json.loads((pathlib.Path(__file__).resolve().parents[4] / "widgets" / "youtube"
-                    / "manifest.json").read_text(encoding="utf-8"))
+    m = json.loads(_vts.read(pathlib.Path(__file__).resolve().parents[4] / "widgets" / "youtube"
+                    / "manifest.json"))
     assert "name_list" in m["actions"]
     assert yt.apply_action("name_list", {}).get("ok") is True
 

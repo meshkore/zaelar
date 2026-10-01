@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-469 · the links the operator PASTED all travel — and the enumeration marks the one playing.
 
 Measured in `build-a-video-playlist-from-links` (23:17): two links pasted in one message, the model called
@@ -53,7 +54,7 @@ def test_the_enumeration_marks_the_one_playing(monkeypatch):
 
 def test_the_probe_wires_the_completion():
     from pathlib import Path
-    src = Path("nucleo/flash/probe.py").read_text(encoding="utf-8")
+    src = _vts.read(Path("nucleo/flash/probe.py"))
     assert "complete_pasted_links" in src
 
 
@@ -91,5 +92,5 @@ def test_dime_counts_as_asking(monkeypatch):
 
 def test_the_probe_wires_the_failure_augmentation():
     from pathlib import Path
-    src = Path("nucleo/flash/probe.py").read_text(encoding="utf-8")
+    src = _vts.read(Path("nucleo/flash/probe.py"))
     assert "ensure_failure_named" in src

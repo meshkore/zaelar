@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """The text channel labelled the music instead of playing it (V2-380).
 
 Measured in the FIRST round that `play-music-and-build-playlist` had ever had (2026-08-27), and it scored **1/5**,
@@ -50,16 +51,16 @@ def rail(monkeypatch):
 def test_el_rail_de_musica_ESTA_enchufado_en_este_canal():
     """The guard that would have been enough: the branch existed and executed nothing."""
     from pathlib import Path
-    src = Path("nucleo/flash/probe.py").read_text()
+    src = _vts.read(Path("nucleo/flash/probe.py"))
     assert "from nucleo.flash import music_turn as _music_turn" in src
     assert "await _music_turn.execute(music_req[" in src
-    assert "from nucleo.flash import music_flow as _mflow" in Path("nucleo/flash/music_turn.py").read_text()
+    assert "from nucleo.flash import music_flow as _mflow" in _vts.read(Path("nucleo/flash/music_turn.py"))
 
 
 def test_la_rama_de_musica_va_DENTRO_del_bloque_de_ejecucion():
     """Outside `if execute:`, it would become a label again — and that is exactly the defect being closed."""
     from pathlib import Path
-    src = Path("nucleo/flash/probe.py").read_text()
+    src = _vts.read(Path("nucleo/flash/probe.py"))
     i_exec, i_music = src.index("    if execute:"), src.index('elif action == "music" and music_req:')
     assert i_exec < i_music
 
@@ -140,7 +141,7 @@ def test_NO_se_paga_un_segundo_pase_de_modelo():
     """`extract` is a 2nd model pass that resolves an ambiguous request, and the caller provides it. Here we
     measure the MECHANISM, not ambiguous-request resolution, and an extra call is paid for in EVERY studio round."""
     from pathlib import Path
-    cuerpo = Path("nucleo/flash/music_turn.py").read_text()
+    cuerpo = _vts.read(Path("nucleo/flash/music_turn.py"))
     # ⚠️ About the CALL, not the comment: the comment itself names «extract=None», so a
     # substring guard passed with a real `extract` in place. It read the explanation, not the code.
     assert "_mflow.run(action, query, extract=None)" in cuerpo
@@ -150,7 +151,7 @@ def test_NO_se_paga_un_segundo_pase_de_modelo():
 def test_una_averia_del_rail_no_tumba_el_turno():
     """Fail-soft like the rest of the block: the turn must complete even if the player is broken."""
     from pathlib import Path
-    cuerpo = Path("nucleo/flash/music_turn.py").read_text()
+    cuerpo = _vts.read(Path("nucleo/flash/music_turn.py"))
     assert "except Exception" in cuerpo and "execute_error" in cuerpo
 
 

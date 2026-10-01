@@ -188,7 +188,7 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # 2026-09-02: 1226 → 1163. `run_turn` alone was 1136 of 1248 lines, so the only honest extraction was a
     # slice of it: the three SCHEDULING backstops (promise→tag, execute the cron tags, write the commitment)
     # → `probe_scheduling.py`. A closed unit over five of run_turn's locals; moved byte for byte.
-    "nucleo/flash/probe.py": (1138, 73),
+    "nucleo/flash/probe.py": (1109, 68),   # 2026-10-01 V2-778 F1: the post-model blocks → probe_after.py
     "widgets/results/data.py": (991, 5),
     "memory/api.py": (1026, 17),   # 2026-10-01 V2-778 F1: the workflows table → memory/workflows_store.py
     "nucleo/flash/prompt.py": (834, 29),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT

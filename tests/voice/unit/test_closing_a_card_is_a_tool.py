@@ -57,14 +57,14 @@ def test_both_channels_route_it():
     from nucleo.flash import probe
     from voice.engine.llm.providers import nucleo as prov
     assert 'name == "close_widget"' in _vts.turn_source()
-    assert '"close_widget" in names' in inspect.getsource(probe)
+    assert '"close_widget" in names' in _vts.getsource(probe)
 
 
 def test_a_close_is_not_acknowledged_as_an_open():
     """S4: «ok close the results» → «I've opened it, though there's nothing in it yet.»"""
     import inspect
     from nucleo.flash import probe
-    src = inspect.getsource(probe)
+    src = _vts.getsource(probe)
     assert 'if _parts[1] == "show" else _lg.data_ack' in src
 
 

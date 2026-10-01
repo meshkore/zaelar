@@ -30,4 +30,4 @@ def test_both_channels_pass_it():
     from nucleo.flash import probe
     from voice.engine.llm.providers import nucleo as prov
     assert "on_screen=_cf_s.this_turn_cards()" in _vts.turn_source()
-    assert "on_screen=_cf_s.this_turn_cards()" in inspect.getsource(probe)
+    assert "on_screen=_cf_s.this_turn_cards()" in _vts.getsource(probe)

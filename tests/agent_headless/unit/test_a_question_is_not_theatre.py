@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-655 — una pregunta del agente no es teatro.
 
 Medido 2026-09-10, sesión 85eec898, 16:32:07. El modelo dijo «Tienes razón, Ricardo… ¿Me pongo a revisar y
@@ -169,5 +170,5 @@ def test_BOTH_channels_hand_over_what_the_turn_said():
     root = Path(__file__).resolve().parents[3]
     for rel, var in (("voice/engine/llm/providers/nucleo.py", "spoken_text"),
                      ("nucleo/flash/probe.py", "text")):
-        src = re.sub(r"(?m)#.*$", "", (root / rel).read_text(encoding="utf-8"))
+        src = re.sub(r"(?m)#.*$", "", _vts.read(root / rel))
         assert f'"asked": {var}' in src, f"{rel} no entrega lo que dijo el turno"
