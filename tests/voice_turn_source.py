@@ -11,6 +11,7 @@ This is a reading aid for source guards, not a runtime: a behavioural test build
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parent.parent
@@ -61,7 +62,21 @@ def turn_source() -> str:
     prov = prov[:k] + executor_body() + prov[k:]
     a = prov.index(_PS_START)
     b = prov.index(_PS_END, a) + len(_PS_END)
-    return prov[:a] + post_stream_body() + prov[b:]
+    prov = prov[:a] + post_stream_body() + prov[b:]
+    for start, call, path, fname in _PROVIDER_CALLS:
+        a = prov.index(start)
+        b = prov.index("\n        )\n", prov.index(call, a)) + len("\n        )\n")
+        body = re.sub(r"\b_p\.", "", _body_of(path.read_text(encoding="utf-8"), fname))
+        prov = prov[:a] + "".join(("    " + ln) if ln.strip() else ln for ln in body.splitlines(True)) + prov[b:]
+    return prov
+
+
+#: Blocks F1 moved out of `_run_inner` into a module of their own, called in place (V2-778 F1): (the comment that
+#: opens the call, the call, the module, the function). Their bodies read the provider's names as `_p.<name>`.
+_PROVIDER_CALLS = (
+    ("        # V2-778 F1 — the end of the turn (dialog window", "_turn_after.close_the_turn(",
+     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_after.py", "close_the_turn"),
+)
 
 
 #: Other files F1 split, and the modules their code moved to. A guard that reads the old file reads them all,

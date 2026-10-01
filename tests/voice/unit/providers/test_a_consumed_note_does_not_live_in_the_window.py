@@ -20,7 +20,6 @@ from __future__ import annotations
 from tests import voice_turn_source as _vts
 
 import re
-from pathlib import Path
 
 from nucleo.flash import dialog as _dialog
 from voice import brain_notes
@@ -31,7 +30,8 @@ _NOTE = ("[SISTEMA] Brain worker · HALLAZGO WEB INTERINO (díselo con tus palab
 
 
 def _code(rel: str) -> str:
-    src = Path(rel).read_text(encoding="utf-8")
+    from tests import voice_turn_source
+    src = voice_turn_source.read(rel)      # V2-778 F1: the provider's turn is read whole, moved blocks included
     return re.sub(r"(?m)^\s*#.*$", "", src)
 
 
