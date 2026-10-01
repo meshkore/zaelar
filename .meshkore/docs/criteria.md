@@ -142,6 +142,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   state). A later op never improves a failed row; a worker's verdict comes from `circuit.close`, a list step's from
   its ops; the prompt's recent state reads these rows, facts only. — since 2026-09-30 · nodes 2.194, 2.196, 2.198,
   3.105, 3.106 · `nucleo/request_row.py`, `nucleo/circuit.py`, `nucleo/spec.py`.
+- **CRIT-E10 · A worker that may write writes only inside its own workdir.** Every trusted worker with `Write` gets
+  the writes-only jail (a PreToolUse hook: Write/Edit outside the workdir denied, reads free); the dev-worker keeps
+  its full jail; a jail that cannot be armed takes the writing tools away, never the jail. — since 2026-10-01 ·
+  nodes 3.112, 2.5 · `nucleo/dev_worker_guard.py`, `nucleo/dispatch_session.py`.
 
 ## 5 · Memory and rules
 

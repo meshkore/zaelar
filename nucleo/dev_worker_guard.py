@@ -36,6 +36,10 @@ _PATH_FIELDS = {
 }
 
 _ROOT_ENV = "ZAELAR_DEV_WORKER_ROOT"
+# WRITES-ONLY mode (V2-778 F4-34): the ordinary trusted worker reads captures and inputs outside its workdir
+# (`read_dirs`), so for it only the tools that WRITE are jailed. The dev-worker never sets this: its reads stay jailed.
+_WRITES_ONLY_ENV = "ZAELAR_JAIL_WRITES_ONLY"
+_WRITE_TOOLS = frozenset({"Write", "Edit", "MultiEdit", "NotebookEdit"})
 
 
 def _allow() -> None:
@@ -65,6 +69,8 @@ def check(payload: dict) -> bool:
         return True    # sin root configurado (p.ej. worker que no es 'dev') → no es este guard quien decide
     root = os.path.realpath(root)
     tool = str(payload.get("tool_name") or "")
+    if os.environ.get(_WRITES_ONLY_ENV) and tool not in _WRITE_TOOLS:
+        return True
     fields = _PATH_FIELDS.get(tool)
     if not fields:
         return True
@@ -114,6 +120,27 @@ def write_settings_file(path: str, *, python_exe: str | None = None) -> str:
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(settings_dict(python_exe=python_exe), fh)
     return path
+
+
+def jail_writes(tools: list, workdir: str, env: dict, *, key: str, settings_dir: str | None = None) -> tuple[list, list]:
+    """Arm the writes-only jail for a trusted worker that may write (V2-778 F4-34): its Write/Edit land only inside
+    `workdir`. Returns `(tools, extra_args)` and sets the jail's env in place. The settings file lives OUTSIDE the
+    workdir, so the worker cannot rewrite the hook that confines it. If the file cannot be written the worker loses
+    its pen — the writing tools — and keeps the rest: fail closed for writing, never an unjailed writer.
+    A worker with no writing tool is returned untouched."""
+    if not workdir or not any(t in _WRITE_TOOLS for t in (tools or [])):
+        return list(tools or []), []
+    import tempfile
+    path = os.path.join(settings_dir or tempfile.gettempdir(), f"zaelar-jail-settings-{key}.json")
+    try:
+        write_settings_file(path)
+    except Exception as e:  # noqa: BLE001 — the pen is gone, and it is said
+        from loguru import logger
+        logger.error(f"dispatch: could not write the writes-only jail for {key} — it starts without Write: {e!r}")
+        return [t for t in tools if t not in _WRITE_TOOLS], []
+    env[_ROOT_ENV] = workdir
+    env[_WRITES_ONLY_ENV] = "1"
+    return list(tools), ["--settings", path]
 
 
 if __name__ == "__main__":

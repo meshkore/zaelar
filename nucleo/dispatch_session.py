@@ -193,19 +193,19 @@ f"dispatch: could not write the confinement jail for {key} — dev worker starts
             # work, ~62k of headroom, and the provider rejected the call 14 steps later. Measured again head-to-head
             # afterwards: 167,242 tokens in the repo root vs 25,352 in a scratch dir (-84.8%). See
             # `workers/workdir.py` for the three faults one directory per task fixes (context, `informe.json`
-            # collision, private CLAUDE.md). `read_dirs` declara the dependencia of lectura of the VISIÓN of the
-            # browser (the captura arrives by path absoluta outside of the cwd, V2-049) — measured that the CLI already the allows
-            # without decirselo, so that es defensa in profundidad, no a requisito.
+            # collision, private CLAUDE.md). `read_dirs` declares the browser's capture directory (it arrives by absolute
+            # path outside the cwd, V2-049); measured that the CLI already allows it, so this is defence in depth.
             _may_write = _d.protected_core.writes_are_confined(kind, req)   # V2-655: el ENCARGO, no el kind
             _wd = None
             if not (_may_write and _d.workdir.needs_repo(kind)):
                 _wd = _d.workdir.for_task(key)
                 env.update(_d.workdir.env_for_task(env))
-            spec = _d.WorkerSpec(kind=kind, model=_d._model_for(kind), tools=_d._tools_for(kind, trusted, _may_write),
+            _tools, _jail_args = _d.dev_worker_guard.jail_writes(_d._tools_for(kind, trusted, _may_write), _wd, env, key=key)
+            spec = _d.WorkerSpec(kind=kind, model=_d._model_for(kind), tools=_tools,   # V2-778 F4-34 — writes-only jail
                               deny_tools=(not trusted), trusted=trusted, task_id=key,
                               token=_d.rec_token(rec), parent_task_id=rec.parent_task_id, depth=rec.depth,
                               env=env, cwd=_wd, resume_sid=resume_sid,
-                              read_dirs=(_d.workdir.extra_dirs() if _wd else []))
+                              read_dirs=(_d.workdir.extra_dirs() if _wd else []), extra_args=_jail_args)
         backend = _d.get_backend(spec)
         session = _d.WorkerSession(backend, spec, rec)
         rec.session = session

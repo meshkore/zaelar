@@ -305,6 +305,15 @@ Money: a search is never gated as a charge (`nucleo/danger.py` subtracts negated
 before reading the money verbs); the pay click is where money stops. Current text and test nodes:
 `criteria.md` §2.
 
+## Workers that write
+
+Every trusted Brain Worker that may write runs with a writes-only jail (V2-778 F4-34): the same PreToolUse hook
+as the dev-worker (`nucleo/dev_worker_guard.py`), in a mode that denies Write/Edit outside the worker's own
+workdir and leaves reads free (these workers read captures and inputs elsewhere). The hook's settings file lives
+outside the workdir, so the worker cannot rewrite its own jail. If the jail cannot be armed, the worker starts
+without its writing tools — never as an unjailed writer. The dev-worker of a cluster keeps its full jail (reads
+included). CRIT-E10.
+
 ## Spoken rules
 
 A rule the operator says («no fillers», «never buy on Wish») is stored with a scope from a fixed classifier
