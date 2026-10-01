@@ -114,7 +114,7 @@ def test_both_channels_apply_the_guard():
     applied in one silently stops existing in the other — the probe carried this very rule IN PROSE while the
     voice channel executed the spurious show. Both must call the shared guard."""
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert "show_contradicts_the_order" in voice, "the voice channel dropped the guard"
     assert "show_contradicts_the_order" in probe, "the probe channel dropped the guard"
 

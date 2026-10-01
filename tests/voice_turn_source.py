@@ -111,6 +111,8 @@ _PROBE_CALLS = (
      "execute_what_was_decided"),
     ("    # V2-778 F1 — answering a web search lives in", "        spoken = _blk['spoken']\n", "answer_a_search"),
     ("    # V2-778 F1 — the words the turn owes live in", "        spoken = _blk['spoken']\n", "the_words_it_owes"),
+    ("    # V2-778 F1 — naming the turn's action from what", "        video_req = _blk['video_req']\n", "name_the_action",
+     ENGINE / "nucleo" / "flash" / "probe_decide.py"),
 )
 
 
@@ -124,10 +126,11 @@ def probe_source() -> str:
     """`probe.py` with what F1 moved to `probe_after.py` put back where it sat in `run_turn` (same indentation)."""
     prov = PROBE.read_text(encoding="utf-8")
     after = PROBE_AFTER.read_text(encoding="utf-8")
-    for start, last, fname in _PROBE_CALLS:
+    for start, last, fname, *where in _PROBE_CALLS:
         a = prov.index(start)
         b = prov.index(last, a) + len(last)
-        prov = prov[:a] + _body_of(after, fname).replace("_probe.", "") + prov[b:]
+        src = where[0].read_text(encoding="utf-8") if where else after
+        prov = prov[:a] + _body_of(src, fname).replace("_probe.", "") + prov[b:]
     return prov
 
 

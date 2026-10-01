@@ -11,6 +11,7 @@ model's temperature.
 import pytest
 
 from nucleo.flash import delivery as RG
+from tests import voice_turn_source as _vts   # V2-778 F1: the turn is read whole
 
 
 @pytest.fixture(autouse=True)
@@ -95,7 +96,7 @@ def test_the_probe_actually_wires_it():
     # V2-340: the wiring moved to `delivery.apply_to_reply`, so the guard checks BOTH places — that
     # the probe calls it, and that the call still carries the errand. Checking only the probe would pass with the
     # function empty; checking only the function, with the probe not calling it.
-    probe = "\n".join(ln for ln in Path("nucleo/flash/probe.py").read_text().splitlines()
+    probe = "\n".join(ln for ln in _vts.read("nucleo/flash/probe.py").splitlines()
                       if not ln.strip().startswith("#"))
     assert "delivery.apply_to_reply(spoken" in probe or "_delivery.apply_to_reply(spoken" in probe
     deliv = "\n".join(ln for ln in Path("nucleo/flash/delivery.py").read_text().splitlines()

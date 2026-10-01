@@ -188,7 +188,7 @@ def test_the_voice_turn_runs_the_completion_before_the_close_backstop_and_marks_
 
 def test_the_text_channel_reads_the_same_decision():
     """V2-252 — one decision, both channels."""
-    src = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert "fullscreen_exit_due as _fullscreen_exit_due" in src
     assert "_fullscreen_exit_due(text, fired=False)" in src
     assert 'action = f"canvas:unfullscreen:{_fx}"' in src

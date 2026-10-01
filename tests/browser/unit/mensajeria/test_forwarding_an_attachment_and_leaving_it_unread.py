@@ -184,7 +184,7 @@ def test_a_message_named_in_the_payload_is_not_a_loose_pronoun(monkeypatch):
     from pathlib import Path
     root = Path(__file__).resolve().parents[4]
     assert "named_widget=_identify(text), payload=payload)" in _vts.read(root / "voice/engine/llm/providers/nucleo.py")
-    assert "payload=_wd[\"args\"].get(\"payload\")" in (root / "nucleo/flash/probe.py").read_text("utf-8")
+    assert "payload=_wd[\"args\"].get(\"payload\")" in _vts.read(root / "nucleo/flash/probe.py")
     m = __import__("json").loads((root / "widgets/mensajeria/manifest.json").read_text("utf-8"))["actions"]
     assert "NO es esto" in m["dismiss"]["desc"], "«leave it unread» belongs to unread, not to dismiss"
 

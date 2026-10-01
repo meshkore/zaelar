@@ -45,7 +45,7 @@ def test_a_card_that_is_not_open_is_not_closed(close_verdict):
 
 def test_both_channels_wire_it():
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert "_direct_action.closes_the_named_card(_brief, _op_text, data_done.get(\"ops\"))" in voice
     assert 'data_done.setdefault("ops", []).append((wid, action_name))' in voice
     assert "closes_the_named_card(_tbrief, operator_text, _ops)" in probe
@@ -72,5 +72,5 @@ def test_tidying_the_screen_is_a_canvas_gesture_the_verdict_can_complete(monkeyp
     assert da.complete_canvas({"x": 1}, tag_emit=lambda a, x: ev.append(("tag", a)),
                               emit=lambda *a, **k: ev.append(a[:2]), operator_text="tidy up the screen") == "arrange"
     assert ("widget", "arrange") in ev and not any(e[0] == "tag" for e in ev)
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert 'if _verb == "arrange":' in probe

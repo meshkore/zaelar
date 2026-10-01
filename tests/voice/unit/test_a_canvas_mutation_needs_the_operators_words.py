@@ -177,7 +177,7 @@ def test_the_voice_provider_gates_model_closes_and_delegates_the_bodies():
 
 
 def test_the_probe_channel_mirrors_all_three_guards():
-    src = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert "close_guards" in src and 'if action == "close":' in src, "probe must drop unlicensed closes"
     # V2-723: the probe passes the previous assistant line too — a bare «yes» licenses media only as the
     # answer to something we asked, and a fact only one channel reads is a mirror that drifts.

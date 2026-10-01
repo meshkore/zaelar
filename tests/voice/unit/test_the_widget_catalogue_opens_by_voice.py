@@ -94,7 +94,7 @@ def test_the_provider_and_its_probe_route_the_surface_to_the_panel():
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "elif _wall_tab_for(_sys, text):" in prov
     assert 'emit("panel", "open", extra={"tab": _wall_tab_for(_sys, text), "src": "flash"})' in prov
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert 'f"panel:{_wall_tab_for(_sys, text)}" if _wall_tab_for(_sys, text) else "clarify"' in probe
 
 
@@ -106,7 +106,7 @@ def test_a_promise_to_open_the_tab_with_no_tool_opens_it():
     seg = prov.split("elif _router.looks_like_show_strict(_op_text):")[1].split("elif _router.promises_music")[0]
     assert "_wall_tab_for(_identify_system(_op_text), _op_text)" in seg
     assert 'emit("panel", "open", extra={"tab": _wtab, "src": "flash"})' in seg
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     pseg = probe.split("elif _routerc.looks_like_show_strict(text):")[1].split("elif _routerc.promises_music")[0]
     assert 'action = f"panel:{_wtab}"' in pseg
 
@@ -226,5 +226,5 @@ def test_the_models_show_panel_apps_lands_on_custom_when_he_asked_for_his():
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     seg = prov.split('elif name == "show_panel":')[1].split("elif name ==")[0]
     assert '_wall_tab_for("apps", _router.operator_words(operator_text, text))' in seg
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert 'action = "panel:" + _wall_tab_for("apps", text)' in probe

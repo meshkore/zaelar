@@ -53,7 +53,7 @@ def test_a_dropped_replay_is_not_an_act():
 
 
 def test_the_text_channel_records_it_too():
-    src = (ROOT / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    src = _vts.read(ROOT / "nucleo/flash/probe.py")
     assert re.search(r"sess\.window\.append\(\{\"role\": \"assistant\", \"content\": spoken\}\)\n\s+elif tags or "
                      r"tool_calls:\n.*\n\s+dialog\.record_silent_action\(sess\.window, ", src), "text channel parity"
 

@@ -19,6 +19,7 @@ import pathlib
 import re
 
 from nucleo.errors import brief
+from tests import voice_turn_source as _vts   # V2-778 F1: the probe's turn is read whole
 
 # parents[4], not [3]: this file lives one level deeper than `test_architecture_ratchet.py`. With [3] the
 # scan pointed to `tests/`, so it reported its own docstring and did not find the engine.
@@ -86,7 +87,7 @@ def test_the_handler_that_decides_the_relay_uses_it():
     a property: V2-309 added a mention higher up, the window moved, and the guard accused correct code
     (2026-08-25). What matters is that the handler's MESSAGE comes from the helper — so it anchors
     on the specific assignment, which is what decides the relay."""
-    src = (ENGINE / "nucleo" / "flash" / "probe.py").read_text()
+    src = _vts.read(ENGINE / "nucleo" / "flash" / "probe.py")
     assert "provider_failure" in src, "desapareció el manejador de fallo de proveedor del probe"
     assert "_err = _brief(" in src, (
         "el manejador del relevo dejó de usar el helper: si su mensaje se construye a mano, un proveedor "

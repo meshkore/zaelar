@@ -69,6 +69,6 @@ def test_both_channels_play_an_english_promise_before_any_worker():
     assert 'emit("brain", "🪟 show por backstop de promesa' in head
     assert "elif (_router.looks_like_create_widget(_op_text) or _router.looks_like_escalate_task(_op_text)" in tail
     assert 'music_req["v"] = {"query": _router.music_query(spoken_text, _op_text), "action": "play"}' in tail
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert 'promises_playback(spoken, text, music_open=' in probe
     assert 'music_req = {"action": "play", "query": _routerc.music_query(spoken, text)}' in probe

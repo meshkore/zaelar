@@ -133,7 +133,7 @@ def test_los_dos_canales_pasan_el_payload():
     """Si solo lo pasa uno, el canal de texto vuelve a reportar una decisión que el producto no toma — que es
     exactamente el falso verde que este guarda ya provocó una vez (V2-545)."""
     voz = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    txt = (ENGINE / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
+    txt = _vts.read(ENGINE / "nucleo" / "flash" / "probe.py")
     assert "show_request_blocks_data_action(text, wid, action_name, payload)" in voz
     assert "show_request_blocks_data_action(text, _wid, _act, _pl)" in txt
 

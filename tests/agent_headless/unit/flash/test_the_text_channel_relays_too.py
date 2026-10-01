@@ -91,7 +91,7 @@ def test_no_añade_una_excepcion_a_la_que_ya_hubo(monkeypatch):
 # A test of the predicate would have passed three times while this was biting us.
 
 def _probe_src() -> str:
-    return pathlib.Path(inspect.getfile(pc)).parent.joinpath("probe.py").read_text(encoding="utf-8")
+    return _vts.read("nucleo/flash/probe.py")
 
 
 def test_el_canal_de_texto_REINTENTA_con_el_relevo():
@@ -214,7 +214,7 @@ def test_a_pinned_model_outside_the_chain_still_matches_by_endpoint(monkeypatch)
 def test_the_turn_STARTS_on_a_healthy_tier_when_the_pinned_titular_is_cooling(cadena, monkeypatch):
     """The other half of V2-307: with the primary in cooldown, every turn burned a 402 before relaying. The
     guard lives in the probe (source without comments) and the seam is public (`tier_available`), not `_store`."""
-    src = "\n".join(ln for ln in pathlib.Path("nucleo/flash/probe.py").read_text().splitlines()
+    src = "\n".join(ln for ln in _vts.read("nucleo/flash/probe.py").splitlines()
                     if not ln.strip().startswith("#"))
     assert "tier_available(_t0)" in src, "el arranque del turno no consulta el cooldown del titular"
     assert "_pc0._store" not in src, "la costura tiene que ser pública, no el _store privado (V2-112)"

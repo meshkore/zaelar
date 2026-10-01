@@ -164,7 +164,7 @@ def test_the_probe_channel_mirrors_the_pure_show_guard():
     """The probe reported `widget_data open {name:'Francisco'}` for the very sentence the voice rail turned
     into a bare show: it mirrors several provider guards but had never mirrored this one, so the test
     channel gave a FALSE GREEN on the defect it was being used to diagnose."""
-    src = (ENGINE / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "nucleo" / "flash" / "probe.py")
     assert "show_request_blocks_data_action" in src, \
         "a guard that only one of the two rails carries makes the probe report a decision the product never takes"
 

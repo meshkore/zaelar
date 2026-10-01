@@ -343,7 +343,7 @@ def test_both_channels_are_wired():
     provider = _vts.read(root / "voice/engine/llm/providers/nucleo.py")
     lane = (root / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
     # Two files since V2-674: the call site in `probe.py`, the lane bodies in `probe_actionmap.py`.
-    probe = ((root / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    probe = (_vts.read(root / "nucleo/flash/probe.py")
              + (root / "nucleo/flash/probe_actionmap.py").read_text(encoding="utf-8"))
     mirror = (root / "nucleo/flash/probe_actionmap.py").read_text(encoding="utf-8")
     assert "_fast_lane.handled" in provider, "voice: the provider no longer calls the fast lane"

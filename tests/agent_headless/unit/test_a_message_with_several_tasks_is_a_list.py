@@ -252,7 +252,7 @@ def test_both_channels_ask_about_a_list_before_any_other_lane():
                                  voice.index("attention.clamp_input("))
     i_handled = voice.index("_fast_lane.handled(")
     assert i_list < i_handled < i_rename < i_clamp
-    probe = (ROOT / "nucleo/flash/probe.py").read_text()
+    probe = _vts.read(ROOT / "nucleo/flash/probe.py")
     assert probe.index("await _task_list(text, sess)") < probe.index("_lane = _fast_lanes(text, sess")
     assert "lists=False" in (ROOT / "nucleo/batch/runner.py").read_text()
 
@@ -404,7 +404,7 @@ def test_a_relayed_worker_is_over_when_its_durable_row_says_so(monkeypatch):
 def test_a_list_step_never_drains_the_operators_notes():
     """Errands case: the step after a refused search swallowed the refusal note meant for him and answered
     about it. `lists=False` (a step) must leave `brain_notes` for his next turn."""
-    src = (ROOT / "nucleo/flash/probe.py").read_text()
+    src = _vts.read(ROOT / "nucleo/flash/probe.py")
     assert "_notes = _bn.drain() if lists else []" in src
 
 

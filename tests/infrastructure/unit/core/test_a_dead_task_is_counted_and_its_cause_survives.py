@@ -169,7 +169,7 @@ def test_los_DOS_canales_llaman_a_la_misma_funcion_y_ninguno_la_copia():
     nunca la tuvo: contestaba «ciérralo» distinto del producto. Se EXTRAE, no se espeja: el propio trinquete
     dice «si dos canales necesitan la misma regla, extrae primero», y copiarla habría costado una marca."""
     voz = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    txt = (ENGINE / "nucleo" / "flash" / "probe.py").read_text(encoding="utf-8")
+    txt = _vts.read(ENGINE / "nucleo" / "flash" / "probe.py")
     assert "is_short_close_order(text)" in voz and "is_short_close_order(text)" in txt
     for canal, src in (("voz", voz), ("texto", txt)):
         assert "len(text.split()) <= 5" not in src, (

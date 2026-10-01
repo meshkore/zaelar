@@ -84,7 +84,7 @@ def test_both_channels_ask_for_the_call_before_the_promise_backstop_spends_a_wor
     backstop = prov.index('emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)"')
     assert repair < backstop, "the worker backstop runs before the repair — the promise becomes minutes of worker"
     assert '_cardc_ar.named_or_catalogue(_brief, _op_text)' in prov, "the card must come from the turn's own verdict"
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     # V2-770: the text channel asks with the operator's OWN words (not the turn text with notes glued on), and
     # first against the card its verdict names — then, with none named, lets the repair find one.
     assert "_act_repair.call_for_promise_or_order(operator_text, spoken, _ar_wid," in probe
@@ -177,7 +177,7 @@ def test_an_order_reading_is_enough_to_ask_the_repair_in_both_channels():
     # full44 M1 widened it: an English «pulling the chart up now» matched no (Spanish) promise form and the verdict
     # was unsure. The door is now any mute-of-tools turn that spoke and names a card; the pass judges the words.
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     i = prov.index("V2-764 — it PROMISED to act on a card")
     gate = prov[i:i + 1400]
     assert "if (_no_tool and spoken_text and not clarify[\"msg\"]" in gate

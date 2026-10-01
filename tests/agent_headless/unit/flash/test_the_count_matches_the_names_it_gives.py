@@ -8,6 +8,7 @@ delivery that lost items; «y 2 más» turns the same truncation into a fact.
 import pytest
 
 from nucleo.flash import video_turn as VT
+from tests import voice_turn_source as _vts   # V2-778 F1: the turn is read whole
 
 
 @pytest.fixture(autouse=True)
@@ -75,5 +76,5 @@ def test_the_probe_actually_wires_the_augmentation():
     """Wiring guard (V2-199's lesson): the four tests above pass whole with the probe's call deleted —
     a decision nobody calls delivers nothing."""
     from pathlib import Path
-    src = Path("nucleo/flash/probe.py").read_text(encoding="utf-8")
+    src = _vts.read("nucleo/flash/probe.py")
     assert "ensure_delivery_named" in src

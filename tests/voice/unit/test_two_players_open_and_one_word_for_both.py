@@ -143,7 +143,7 @@ import pathlib
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[3]
 _VOICE = _vts.read(_ENGINE / "voice/engine/llm/providers/nucleo.py")
-_PROBE = (_ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+_PROBE = _vts.read(_ENGINE / "nucleo/flash/probe.py")
 
 
 def test_the_voice_rail_asks_WHOSE_order_before_dispatching_it():

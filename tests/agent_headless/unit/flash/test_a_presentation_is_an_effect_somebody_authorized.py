@@ -271,7 +271,7 @@ def test_both_channels_hand_over_what_we_said():
     """A fact only one channel reads is a mirror that drifts (V2-539): the provider, the probe and the
     arbiter's tap all pass the previous reply."""
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
+    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     arb = (ENGINE / "nucleo/canvas_arbiter.py").read_text(encoding="utf-8")
     assert "last_reply=brain._last_reply" in prov
     # V2-741 — the call gained the turn's brief so a verdict can overrule the verb table. This
