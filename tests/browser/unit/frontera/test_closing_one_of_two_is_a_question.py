@@ -53,7 +53,8 @@ NUCLEO = ENGINE / "voice/engine/llm/providers/nucleo.py"
 #: The TEXT channel, likewise two files since the V2-605 extraction: the turn in `probe.py` and the shared
 #: show-instance body in `show_target.py`.
 _PROBE_SRC = ("nucleo/flash/probe.py", "nucleo/flash/show_target.py", "nucleo/flash/probe_decide.py",
-              "nucleo/flash/probe_after.py", "nucleo/flash/probe_mirrors.py")
+              "nucleo/flash/probe_after.py", "nucleo/flash/probe_mirrors.py",
+              "nucleo/flash/probe_before.py")
 
 
 class _Voice:

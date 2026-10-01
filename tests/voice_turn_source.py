@@ -142,6 +142,10 @@ _PROBE_CALLS = (
      ENGINE / "nucleo" / "flash" / "probe_decide.py"),
     ("    # V2-778 F1 — the mirrors of the voice backstops", "        spoken = _blk['spoken']\n",
      "mirror_the_voice_backstops", ENGINE / "nucleo" / "flash" / "probe_mirrors.py"),
+    ("    # V2-778 F1 — composing the turn (memory ingest", "        tool_calls = _blk['tool_calls']\n",
+     "compose_the_turn", ENGINE / "nucleo" / "flash" / "probe_before.py"),
+    ("    # V2-778 F1 — preparing the model stream", "        spec = _blk['spec']\n",
+     "prepare_the_stream", ENGINE / "nucleo" / "flash" / "probe_before.py"),
 )
 
 
@@ -168,7 +172,7 @@ _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
             (ENGINE / "nucleo" / "flash" / "tool_executor_calls.py").resolve(): "_tx",
             (ENGINE / "nucleo" / "flash" / "tool_executor_widget_calls.py").resolve(): "_txw",
             (ENGINE / "voice" / "engine" / "pipeline" / "agent_events.py").resolve(): "_ag",
-            **{(ENGINE / "nucleo" / "flash" / f"probe_{x}.py").resolve(): "_probe" for x in ("after", "decide", "mirrors")},
+            **{(ENGINE / "nucleo" / "flash" / f"probe_{x}.py").resolve(): "_probe" for x in ("after", "decide", "mirrors", "before")},
             **{(ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py").resolve(): "_pst" for x in ("words", "lanes", "settle")},
             (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py").resolve(): "_p",
             (ENGINE / "nucleo" / "dispatch_prepare.py").resolve(): "_d",

@@ -70,7 +70,7 @@ FUNCTIONS = {
     'nucleo/flash/post_stream_lanes.py::run_the_light_lanes': 430,
     'nucleo/flash/post_stream_settle.py::settle_what_is_pending': 196,
     'nucleo/flash/post_stream_words.py::hold_the_model_to_its_words': 325,
-    'nucleo/flash/probe.py::run_turn': 582,
+    'nucleo/flash/probe.py::run_turn': 486,
     'nucleo/flash/probe_after.py::execute_what_was_decided': 165,
     'nucleo/flash/probe_decide.py::name_the_action': 222,
     'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 267,
@@ -125,7 +125,7 @@ FUNCTIONS = {
 BRANCHES = {
     'nucleo/flash/post_stream_lanes.py::run_the_light_lanes': 146,
     'nucleo/flash/post_stream_words.py::hold_the_model_to_its_words': 121,
-    'nucleo/flash/probe.py::run_turn': 129,
+    'nucleo/flash/probe.py::run_turn': 124,
     'nucleo/flash/probe_decide.py::name_the_action': 108,
     'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 108,
     'nucleo/flash/tool_executor_calls.py::_on_tool_call': 208,
