@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import Any, AsyncIterator
 
 from loguru import logger
+from nucleo.flash.anthropic_sse import _AnthropicSSE  # noqa: F401 — V2-778 F1: the SSE parser, re-exported
 
 # Browser UA: AIMLAPI is behind Cloudflare and intermittently 403s the OpenAI SDK's default User-Agent (403/1010,
 # observed in production). It is spoofed ONLY on the AIMLAPI endpoint (no effect on Ollama/others).
@@ -194,7 +195,6 @@ def _http_client():
         return None
 
 
-
 # `ModelSpec` moved to model_spec.py (2026-08-17 modularization pass) — re-exported here since many callers
 # import it by name from this module (`from nucleo.flash.fast_client import ModelSpec`, etc.).
 from nucleo.flash.model_spec import (  # noqa: F401 — re-export
@@ -232,40 +232,6 @@ def est_tokens(chars: int) -> int:
 
 #: How much of the model's raw output a turn keeps on record (text and each tool call's arguments).
 _RAW_CAP = 2000
-
-class _AnthropicSSE:
-    """PURE state machine for the Anthropic Messages SSE stream (the protocol spoken by direct Z.AI). Deliberately
-    separate from HTTP transport → testable with synthetic `data:` objects (see tests). `feed(obj)` receives ONE
-    JSON object from a `data:` line and returns a list of events: `("text", str)` for each `text_delta`, and
-    `("tool", name, input_dict)` when a `tool_use` block closes (accumulating `input_json_delta.partial_json`)."""
-
-    def __init__(self) -> None:
-        self._blocks: dict[int, dict] = {}   # index → {"type","name","json"}
-
-    def feed(self, obj: dict) -> list[tuple]:
-        out: list[tuple] = []
-        t = obj.get("type")
-        if t == "content_block_start":
-            cb = obj.get("content_block") or {}
-            self._blocks[obj.get("index")] = {"type": cb.get("type"), "name": cb.get("name", ""), "json": ""}
-        elif t == "content_block_delta":
-            d = obj.get("delta") or {}
-            dt = d.get("type")
-            if dt == "text_delta" and d.get("text"):
-                out.append(("text", d["text"]))
-            elif dt == "input_json_delta":
-                b = self._blocks.get(obj.get("index"))
-                if b is not None:
-                    b["json"] += d.get("partial_json", "") or ""
-        elif t == "content_block_stop":
-            b = self._blocks.get(obj.get("index"))
-            if b and b.get("type") == "tool_use" and b.get("name"):
-                try:
-                    inp = json.loads(b["json"] or "{}")
-                except Exception:
-                    inp = {}
-                out.append(("tool", b["name"], inp))
-        return out
 
 
 def _extra_body_for(spec: ModelSpec) -> dict[str, Any]:
