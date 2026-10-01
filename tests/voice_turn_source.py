@@ -23,12 +23,21 @@ _BODY_START = '    `on_tool_call`, `resolve_confirm`, `start_web_auth`."""\n'
 _BODY_END = "    return SimpleNamespace("
 
 
+#: The executor's widget half (split from it, V2-778 F1): its closures come FIRST, as they did in `_run_inner`.
+EXECUTOR_WIDGET = ENGINE / "nucleo" / "flash" / "tool_executor_widget.py"
+_W_BODY_START = '        _late["on_tool_call"](name, args)\n'
+
+
 def executor_body() -> str:
-    """The closures of `tool_executor.build`, re-indented to where they sat inside `_run_inner`."""
+    """The closures of `tool_executor.build` (its widget half first), re-indented to where they sat inside
+    `_run_inner`."""
+    w = EXECUTOR_WIDGET.read_text(encoding="utf-8")
+    wi = w.index(_W_BODY_START) + len(_W_BODY_START)
     src = EXECUTOR.read_text(encoding="utf-8")
     i = src.index(_BODY_START) + len(_BODY_START)
     j = src.index(_BODY_END, i)
-    return "".join(("    " + ln) if ln.strip() else ln for ln in src[i:j].splitlines(True))
+    body = w[wi:w.index(_BODY_END, wi)] + src[i:j]
+    return "".join(("    " + ln) if ln.strip() else ln for ln in body.splitlines(True))
 
 
 _PS_START = "        # V2-778 F1-10b — the post-stream chain lives in"

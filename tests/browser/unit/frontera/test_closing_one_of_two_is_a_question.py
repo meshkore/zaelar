@@ -42,7 +42,8 @@ ENGINE = Path(__file__).resolve().parents[4]
 #: `widget_intent.py`. These guards ask about the channel, not about a file, so they read both — a source guard
 #: pinned to one path stops guarding the moment the code is extracted, and does it by going GREEN, not red.
 _VOICE_SRC = ("voice/engine/llm/providers/nucleo.py", "voice/engine/llm/providers/widget_intent.py",
-              "nucleo/flash/tool_executor.py", "nucleo/flash/post_stream.py")   # V2-778 F1-10: they left the provider
+              "nucleo/flash/tool_executor_widget.py", "nucleo/flash/tool_executor.py",
+              "nucleo/flash/post_stream.py")   # V2-778 F1-10: they left the provider
 NUCLEO = ENGINE / "voice/engine/llm/providers/nucleo.py"
 #: The TEXT channel, likewise two files since the V2-605 extraction: the turn in `probe.py` and the shared
 #: show-instance body in `show_target.py`.

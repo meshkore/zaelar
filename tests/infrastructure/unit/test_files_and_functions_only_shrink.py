@@ -26,7 +26,8 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 
 # V2-778 F1-10a/b (2026-10-01): the tool executor and the post-stream chain MOVED out of `_run_inner` into
 # `nucleo/flash/tool_executor.py` and `nucleo/flash/post_stream.py` (same code, same sizes); their entries were
-# renamed, not added — and splitting both under the ceilings is owed.
+# renamed, not added — and splitting both under the ceilings is owed. The executor's widget half then moved to
+# `tool_executor_widget.py` (2026-10-01): the file entry went under the ceiling, the function entries were renamed.
 FILES = {
     'connectors/email/mailbox.py': 816,
     'connectors/meshkore/bridge.py': 891,
@@ -39,7 +40,6 @@ FILES = {
     'nucleo/flash/post_stream.py': 983,
     'nucleo/flash/probe.py': 1108,
     'nucleo/flash/prompt.py': 815,
-    'nucleo/flash/tool_executor.py': 1271,
     'nucleo/jev.py': 831,
     'nucleo/mem_processor.py': 831,
     'voice/engine/llm/providers/nucleo.py': 1769,
@@ -75,11 +75,12 @@ FUNCTIONS = {
     'nucleo/flash/prompt.py::_flash_layer': 238,
     'nucleo/flash/prompt.py::live_state': 210,
     'nucleo/flash/task_block.py::pending_task_lines': 198,
-    'nucleo/flash/tool_executor.py::build': 1240,
-    'nucleo/flash/tool_executor.py::build._apply_widget_data': 187,
-    'nucleo/flash/tool_executor.py::build._handle_widget_data_tool': 186,
+    'nucleo/flash/tool_executor.py::build': 554,
     'nucleo/flash/tool_executor.py::build._on_tool_call': 517,
-    'nucleo/flash/tool_executor.py::build._tag_emit': 186,
+    'nucleo/flash/tool_executor_widget.py::build': 706,
+    'nucleo/flash/tool_executor_widget.py::build._apply_widget_data': 187,
+    'nucleo/flash/tool_executor_widget.py::build._handle_widget_data_tool': 186,
+    'nucleo/flash/tool_executor_widget.py::build._tag_emit': 186,
     'nucleo/flash/widget_data_turn.py::execute': 154,
     'nucleo/loop.py::OrchestratorLoop._supervise_workers': 174,
     'nucleo/mem_processor.py::process': 205,
@@ -121,8 +122,9 @@ FUNCTIONS = {
 BRANCHES = {
     'nucleo/flash/post_stream.py::run': 337,
     'nucleo/flash/probe.py::run_turn': 326,
-    'nucleo/flash/tool_executor.py::build': 427,
+    'nucleo/flash/tool_executor.py::build': 208,
     'nucleo/flash/tool_executor.py::build._on_tool_call': 208,
+    'nucleo/flash/tool_executor_widget.py::build': 219,
     'nucleo/memory_agent/ingest.py::_ingest_utterance_locked': 101,
     'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 225,
     'voice/engine/pipeline/agent.py::entrypoint': 105,
