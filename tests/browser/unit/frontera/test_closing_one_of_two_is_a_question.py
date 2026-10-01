@@ -44,7 +44,7 @@ ENGINE = Path(__file__).resolve().parents[4]
 _VOICE_SRC = ("voice/engine/llm/providers/nucleo.py", "voice/engine/llm/providers/widget_intent.py",
               "nucleo/flash/tool_executor_widget.py", "nucleo/flash/tool_executor.py",
               "nucleo/flash/post_stream.py", "voice/engine/llm/providers/turn_prompt.py",
-              "voice/engine/llm/providers/turn_after.py")   # V2-778 F1-10: they left the provider
+              "voice/engine/llm/providers/turn_after.py", "voice/engine/llm/providers/turn_tools.py")   # V2-778 F1-10: they left the provider
 NUCLEO = ENGINE / "voice/engine/llm/providers/nucleo.py"
 #: The TEXT channel, likewise two files since the V2-605 extraction: the turn in `probe.py` and the shared
 #: show-instance body in `show_target.py`.

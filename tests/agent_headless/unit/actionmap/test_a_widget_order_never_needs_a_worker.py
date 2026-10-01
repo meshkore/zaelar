@@ -183,7 +183,8 @@ def _source_without_comments(path: Path) -> str:
     """Comment-stripped, per the V2-573 trap: a guard that matches the COMMENT explaining a call stays
     green after the call itself is deleted."""
     out = []
-    for line in path.read_text(encoding="utf-8").splitlines():
+    from tests import voice_turn_source     # V2-778 F1: the voice turn is read whole, moved blocks included
+    for line in voice_turn_source.read(path).splitlines():
         s = line.split("#", 1)[0]
         out.append(s)
     return "\n".join(out)

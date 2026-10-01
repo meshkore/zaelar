@@ -129,7 +129,8 @@ def test_an_ordinary_turn_falls_through_to_the_model():
 
 # ── 4 · the wiring, read in BOTH channels (V2-555: a guard on one file goes green when the other rots) ─
 def _stripped(p: Path) -> str:
-    return "\n".join(line.split("#", 1)[0] for line in p.read_text(encoding="utf-8").splitlines())
+    from tests import voice_turn_source     # V2-778 F1: the voice turn is read whole, moved blocks included
+    return "\n".join(line.split("#", 1)[0] for line in voice_turn_source.read(p).splitlines())
 
 
 def test_the_voice_channel_runs_the_lane():

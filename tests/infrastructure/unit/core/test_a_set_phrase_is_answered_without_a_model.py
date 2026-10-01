@@ -186,15 +186,16 @@ def _code(path: Path) -> str:
     import io
     import tokenize
     out, prev_end, prev_type = [], (1, 0), None
-    with open(path, "rb") as fh:
-        for tok in tokenize.tokenize(fh.readline):
-            if tok.type == tokenize.COMMENT:
-                continue
-            if tok.type == tokenize.STRING and prev_type in (None, tokenize.INDENT, tokenize.NEWLINE,
-                                                             tokenize.NL):
-                continue
-            out.append(tok.string)
-            prev_end, prev_type = tok.end, tok.type
+    from tests import voice_turn_source     # V2-778 F1: the voice turn is read whole, moved blocks included
+    fh = io.BytesIO(voice_turn_source.read(path).encode("utf-8"))
+    for tok in tokenize.tokenize(fh.readline):
+        if tok.type == tokenize.COMMENT:
+            continue
+        if tok.type == tokenize.STRING and prev_type in (None, tokenize.INDENT, tokenize.NEWLINE,
+                                                         tokenize.NL):
+            continue
+        out.append(tok.string)
+        prev_end, prev_type = tok.end, tok.type
     return " ".join(out)
 
 

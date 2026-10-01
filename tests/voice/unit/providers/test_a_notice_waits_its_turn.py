@@ -10,7 +10,6 @@ A model reads what comes first as the frame of its answer, so the frame has to b
 from __future__ import annotations
 
 import re
-from pathlib import Path
 
 from voice import brain_notes
 
@@ -20,7 +19,8 @@ _NOTES = ["[SISTEMA] Brain worker · Tarea sin completar: No pude crear el widge
 
 
 def _code(rel: str) -> str:
-    src = Path(rel).read_text(encoding="utf-8")
+    from tests import voice_turn_source     # V2-778 F1: the voice turn is read whole, moved blocks included
+    src = voice_turn_source.read(rel)
     return re.sub(r"(?m)^\s*#.*$", "", src)
 
 

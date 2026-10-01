@@ -81,6 +81,8 @@ _PROVIDER_CALLS = (
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_after.py", "close_the_turn"),
     ("        # V2-778 F1 — the turn's prompt (spec, recall", "_turn_prompt.compose_the_prompt(",
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_prompt.py", "compose_the_prompt"),
+    ("        # V2-778 F1 — the turn's tool set (situational tools", "_turn_tools_mod.choose_the_tools(",
+     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_tools.py", "choose_the_tools"),
 )
 
 

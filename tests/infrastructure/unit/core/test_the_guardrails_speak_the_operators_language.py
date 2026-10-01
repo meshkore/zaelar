@@ -129,7 +129,8 @@ def test_the_guard_still_fires_on_what_the_operator_actually_says():
 def test_both_channels_call_the_same_function_and_neither_reads_the_composed_turn():
     """V2-252: this decision existed twice. A copy is how the two halves drift apart."""
     for path in ("voice/engine/llm/providers/nucleo.py", "nucleo/flash/probe.py"):
-        src = open(path, encoding="utf-8").read()
+        from tests import voice_turn_source     # V2-778 F1: the voice turn is read whole, moved blocks included
+        src = voice_turn_source.read(path)
         assert "escalation_guard" in src, f"{path} stopped going through the shared guard"
         assert "looks_like_modify_widget(text)" not in src, (
             f"{path} reads the composed turn again — that is the kickoff bug")
