@@ -64,11 +64,14 @@ def _splice(text: str, calls, aliases: str) -> str:
         close = "\n" + pad + ")\n"
         b = text.index(close, text.index(call, a)) + len(close)
         rebind = re.compile(rf"{pad}if '\w+' in _blk:\n{pad}    \w+ = _blk\['\w+'\]\n"
-                            rf"|{pad}if _blk\.get\('__return__'\):\n{pad}    return\n")
+                            rf"|{pad}if _blk\.get\('__return__'\):\n{pad}    return\n"
+                            rf"|{pad}if isinstance\(_blk, tuple\):\n{pad}    return _blk\[1\] if len\(_blk\) == 2 else _blk\[1:\]\n")
         while (m := rebind.match(text, b)):     # the outputs the call binds back
             b = m.end()
         body = re.sub(rf"\b(?:{aliases})\.", "", _body_of(path.read_text(encoding="utf-8"), fname))
         body = body.replace('return {"__return__": True}', "return")     # the turn's own early return
+        body = re.sub(r"\breturn _R, None\b(?=\s*(?:#.*)?$)", "return", body, flags=re.M)
+        body = re.sub(r"\breturn _R, ", "return ", body)                  # a value the original returned
         extra = pad[4:]                          # the extracted body sits at 4 spaces
         text = text[:a] + "".join((extra + ln) if ln.strip() else ln for ln in body.splitlines(True)) + text[b:]
     return text
@@ -170,6 +173,8 @@ def probe_source() -> str:
 
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
 _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
+            (ENGINE / "server" / "voice_status.py").resolve(): "_va",
+            (ENGINE / "nucleo" / "memory_agent" / "ingest_steps.py").resolve(): "_ing",
             (ENGINE / "nucleo" / "flash" / "live_blocks_nav.py").resolve(): "_lb",
             (ENGINE / "nucleo" / "flash" / "tool_executor_calls.py").resolve(): "_tx",
             (ENGINE / "nucleo" / "flash" / "tool_executor_widget_calls.py").resolve(): "_txw",
@@ -224,6 +229,16 @@ def _unlift(src: str) -> str:
 
 #: Files whose function bodies F1 cut into called blocks: read with each block put back where it sat.
 _SPLICED = {
+    (ENGINE / "server" / "voice_api.py").resolve(): (
+        [("    # V2-778 F1 — the brain, the voice and its providers in the status", "_vstatus.brain_and_voice(",
+          ENGINE / "server" / "voice_status.py", "brain_and_voice"),
+         ("    # V2-778 F1 — the rest of the status and its overall light", "_vstatus.the_rest_and_the_light(",
+          ENGINE / "server" / "voice_status.py", "the_rest_and_the_light")], "_va"),
+    (ENGINE / "nucleo" / "memory_agent" / "ingest.py").resolve(): (
+        [("    # V2-778 F1 — the gates an utterance crosses", "_ing_steps.gate_the_utterance(",
+          ENGINE / "nucleo" / "memory_agent" / "ingest_steps.py", "gate_the_utterance"),
+         ("    # V2-778 F1 — filing the atoms the distiller returned", "_ing_steps.file_the_atoms(",
+          ENGINE / "nucleo" / "memory_agent" / "ingest_steps.py", "file_the_atoms")], "_ing"),
     (ENGINE / "nucleo" / "flash" / "live_blocks.py").resolve(): (
         [("            # V2-778 F1 — reading each live browser task", "_lbn.read_the_browser_tasks(",
           ENGINE / "nucleo" / "flash" / "live_blocks_nav.py", "read_the_browser_tasks"),
@@ -252,7 +267,7 @@ def read(path) -> str:
     if p.resolve() == PROBE.resolve():
         return probe_source()
     if p.resolve() in _SPLIT:
-        return _unlift("\n".join(_as_written(x) for x in [p, *_SPLIT[p.resolve()]]))
+        return _unlift("\n".join(_spliced(x, _as_written(x)) for x in [p, *_SPLIT[p.resolve()]]))
     return _unlift(_spliced(p, p.read_text(encoding="utf-8")))
 
 

@@ -104,6 +104,7 @@ _MOTOR_REACH: set[tuple[str, str]] = {
     ("server/livekit_api.py", "voice.engine.core.config"),
     ("server/voice_api.py", "voice.engine.core.config"),
     ("server/voice_api.py", "voice.engine.speech.voices"),
+    ("server/voice_status.py", "voice.engine.speech.voices"),   # V2-778 F1: moved with the status halves
     ("widgets/agenda/data.py", "voice.engine.core"),
     ("widgets/navegador/launch_env.py", "voice.engine.core"),
 }

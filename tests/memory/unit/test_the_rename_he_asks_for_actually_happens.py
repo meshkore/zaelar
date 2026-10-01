@@ -63,7 +63,8 @@ def test_the_guard_reads_that_set_and_not_the_wider_one():
     import inspect
 
     from nucleo.memory_agent import ingest
-    src = inspect.getsource(ingest)
+    from tests import voice_turn_source as _vts   # V2-778 F1: the moved steps read where they sat
+    src = _vts.getsource(ingest)
     assert "_OPERATOR_IDENTITY_SLOTS and not _talks_about_the_operator" in src
     assert "_IDENTITY_SLOTS and _looks_like_injection" in src, (
         "the injection guard covers EVERY identity slot and must not have been narrowed with it")

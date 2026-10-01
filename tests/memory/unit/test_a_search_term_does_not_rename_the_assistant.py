@@ -123,7 +123,8 @@ def test_the_write_path_asks_before_it_persists():
     spent a week being paid for and read by nobody (V2-750)."""
     import pathlib
     src = pathlib.Path(__file__).resolve().parents[3] / "nucleo/memory_agent/ingest.py"
-    body = src.read_text(encoding="utf-8")
+    from tests import voice_turn_source as _vts   # V2-778 F1: the moved steps read where they sat
+    body = _vts.read(src)
     i = body.index('if a.get("slot") == "assistant.name"')
     guard = body[i:i + 300]
     assert "renames_the_assistant" in guard, "the atom path must consult the verdict"
