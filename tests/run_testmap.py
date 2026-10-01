@@ -4982,6 +4982,8 @@ DOMAINS: list[dict] = [
         # 2026-08-10: un guarda SOBRE LOS GUARDAS. Aparecieron tests verdes por la MÁQUINA y no por el código (la
         # config del operador —idioma, proveedores, atención, perfil— pisaba el entorno de la suite vía
         # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.
+        {"id": "7.60", "title": "The public repo: Castilian comments only shrink, and the roadmap/logs/reports are not tracked",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_the_public_repo_speaks_english_and_keeps_our_diary_private.py"]},
         {"id": "7.59", "title": "Voice turn and text probe import the same brain modules, or the difference is declared (ALERT 5)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_voice_and_probe_import_the_same_brain.py"]},
         {"id": "7.58", "title": "A failure swallowed in silence only gets rarer (except…: pass, per file and in total)",

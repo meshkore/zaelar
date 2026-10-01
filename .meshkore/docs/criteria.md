@@ -183,7 +183,8 @@ below is the first kind, or it names the mechanism that replaced the second.
   removed; a sentence about how to behave is a rail — delete it and find the mechanism it stood for. — since
   2026-09-15 · nodes 7.32 · `.meshkore/context/principles.md`.
 - **CRIT-W2 · English everywhere inside `engine/`** — code, tests, logs, docs, commits; product data in the
-  user's language; the module logs in the operator's. — since 2026-08-29 · ⚠ sin test.
+  user's language; the module logs in the operator's; Castilian comment lines only shrink. — since 2026-10-01 ·
+  nodes 7.60.
 - **CRIT-W3 · Never restart with someone inside or an errand alive** (recent `transcript`/`brain` events, or a
   non-empty `/api/tasks`). — since 2026-09-15 · ⚠ sin test.
 - **CRIT-W4 · Commit with pathspec after `git diff --cached --name-only` is empty; push after every commit;
@@ -199,7 +200,7 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-W7 · A test outside the map does not exist**; every mechanism ships with its node; a node whose file is
   gone is red, and a file answers one deterministic node. — since 2026-09-30 · nodes 7.32, 7.56.
 - **CRIT-W8 · Public and private.** `engine/` describes mechanism, never product; neither our past nor our future
-  is published (roadmap, module logs, test reports stay local). — since 2026-08-14 · ⚠ sin test.
+  is published (roadmap, module logs, test reports stay local and untracked). — since 2026-10-01 · nodes 7.60.
 - **CRIT-W9 · Closing a batch:** the node in the map, the WHY in the diary, the operator's words in the module
   log — and a line HERE only when a rule changed. — since 2026-09-29 · ⚠ sin test.
 
