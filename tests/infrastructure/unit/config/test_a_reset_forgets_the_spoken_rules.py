@@ -33,5 +33,5 @@ def test_a_factory_reset_also_forgets_the_circuit_override():
     """V2-778 F3-29 — `<workspace>/config/circuit.json` overrides genesis's bound on a worker's retries, per
     install, like `library.json`. A factory reset returned everything else to genesis and left this one."""
     i = SCRIPT.index("FACTORY_PATHS=(")
-    block = SCRIPT[i:SCRIPT.index(")", i)]
+    block = SCRIPT[i:SCRIPT.index("\n)", i)]          # the array's closing line, not a «)» inside a comment
     assert '"config/circuit.json"' in block
