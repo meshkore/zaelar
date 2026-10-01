@@ -18,6 +18,8 @@ sitting on is a wall. Both already existed in the world; neither existed in the 
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import time
 
 import pytest
@@ -868,7 +870,7 @@ def test_the_tab_capture_is_the_one_that_reads_the_body():
     predicado nuevo que nadie llama es un arreglo muerto — esta noche ya han aparecido dos."""
     import inspect
     from widgets.navegador import owner
-    src = inspect.getsource(owner.TaskBrowser._capture)
+    src = _vts.getsource(owner.TaskBrowser._capture)
     assert "WALL_BODY_PEEK_CHARS" in src, "la pestaña dejó de leer el cuerpo"
     assert "page_text=" in src, "la pestaña lee el cuerpo pero no lo pasa al registro"
 

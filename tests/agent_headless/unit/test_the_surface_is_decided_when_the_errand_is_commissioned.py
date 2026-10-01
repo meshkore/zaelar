@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-227 scope A — WHERE the operator will look, decided when COMMISSIONED and not when delivered.
 
 Operator, 2026-08-20: «if the worker takes a long time, the user gets bored and the experience is bad. They need to see IN REAL
@@ -134,7 +135,7 @@ def test_a_turn_with_THREE_errands_keeps_three_surfaces():
     import inspect
 
     from nucleo.flash import probe
-    src = inspect.getsource(probe)
+    src = _vts.getsource(probe)
     assert '_surf[_r] = str(_tc["args"].get("surface")' in src
     assert '.pick(_surf.get(_r, "")' in src          # per request, then `surfaces.pick` with the brief (pass 51)
 
@@ -147,14 +148,14 @@ def test_BOTH_channels_carry_it():
     from nucleo.flash import probe
     from voice.engine.llm.providers import nucleo as vp
     for mod in (probe, vp):
-        assert '"surface"' in inspect.getsource(mod), mod.__name__
+        assert '"surface"' in _vts.getsource(mod), mod.__name__
 
 
 def test_the_dispatcher_stamps_it_at_the_ONLY_door_they_all_pass_through():
     import inspect
 
     from nucleo import dispatch
-    src = inspect.getsource(dispatch.run_listener)
+    src = _vts.getsource(dispatch.run_listener)
     assert 'surfaces.set_once(rec, ctx.get("surface"))' in src
 
 
@@ -164,7 +165,7 @@ def test_and_the_live_projection_publishes_it():
     import inspect
 
     from nucleo import dispatch
-    assert '"surface": r.surface,' in inspect.getsource(dispatch.active_sessions)
+    assert '"surface": r.surface,' in _vts.getsource(dispatch.active_sessions)
 
 
 def test_the_module_knows_NOTHING_about_any_domain():
@@ -173,6 +174,6 @@ def test_the_module_knows_NOTHING_about_any_domain():
     import inspect
     # CODE only: the module docstring deliberately cites the operator's examples (hotels, Wallapop,
     # houses in Los Angeles) to say that NONE of them may appear below.
-    body = inspect.getsource(surfaces).split('"""', 2)[-1].lower()
+    body = _vts.getsource(surfaces).split('"""', 2)[-1].lower()
     for domain in ("hotel", "restaurante", "coche", "casa", "vuelo", "wallapop", "booking", "sevilla"):
         assert domain not in body, f"«{domain}» en el código de surfaces.py: una pantalla general convertida en atajo"

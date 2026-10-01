@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-655 — ⏻ parado: no se resucita nada, no se lanza ningún worker, y no se PIERDE nada.
 
 Medido 2026-09-10. El motor arrancó con `{"state":"stopped","src":"operator"}` persistido —el operador había
@@ -151,7 +152,7 @@ def test_the_three_spending_doors_all_ask_the_SAME_question():
     for rel, why in (("nucleo/dispatch.py", "el chokepoint de TODO Brain Worker"),
                      ("nucleo/rehydrate.py", "la resurrección de encargos al arrancar"),
                      ("widgets/server_api.py", "el relanzamiento de generaciones de widget")):
-        text = re.sub(r"(?m)#.*$", "", (root / rel).read_text(encoding="utf-8"))
+        text = re.sub(r"(?m)#.*$", "", _vts.read(root / rel))   # a split file reads with its pieces (F1-11)
         assert "runstate.blocks_new_work(" in text, f"{rel} ({why}) no pasa por la puerta única"
 
 

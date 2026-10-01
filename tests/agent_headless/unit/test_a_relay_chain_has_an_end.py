@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """An automatic relay is relaunched «ONCE» — and the counter lived where it does not count.
 
 MEASURED in the OPERATOR engine, not on a set (`memory/_data/zaelar.db`, 2026-08-17): SIX workers for a
@@ -83,7 +84,7 @@ def test_the_dispatcher_reads_it_back_at_the_only_door(relevos):
     """The other end of the cable. `run_listener` is the ONLY door through which all escalations pass; if it does not
     read it there, the field travels and is thrown away when building the record."""
     from nucleo import dispatch
-    src = inspect.getsource(dispatch.run_listener)
+    src = _vts.getsource(dispatch.run_listener)
     assert 'relay_gen=int(ctx.get("relay_gen", 0) or 0)' in src
 
 

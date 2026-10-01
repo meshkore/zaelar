@@ -55,13 +55,22 @@ def turn_source() -> str:
     return prov[:a] + post_stream_body() + prov[b:]
 
 
+#: Other files F1 split, and the modules their code moved to. A guard that reads the old file reads them all,
+#: concatenated: the moved code stays contiguous, so an «X before Y» assertion inside it keeps its meaning.
+DISPATCH = ENGINE / "nucleo" / "dispatch.py"
+_SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py"]}
+
+
 def read(path) -> str:
-    """`Path.read_text` for a source guard: the provider path yields the whole turn, anything else its file."""
+    """`Path.read_text` for a source guard: the provider path yields the whole turn, a split file its pieces,
+    anything else its file."""
     p = Path(path)
     if not p.is_absolute():
         p = ENGINE / p
     if p.resolve() == PROVIDER.resolve():
         return turn_source()
+    if p.resolve() in _SPLIT:
+        return "\n".join(x.read_text(encoding="utf-8") for x in [p, *_SPLIT[p.resolve()]])
     return p.read_text(encoding="utf-8")
 
 
@@ -72,4 +81,10 @@ def getsource(obj) -> str:
     qual = getattr(obj, "__qualname__", "") or ""
     if name == "voice.engine.llm.providers.nucleo" or qual == "NucleoLLMStream._run_inner":
         return turn_source()
+    if name == "nucleo.dispatch":
+        return read(DISPATCH)
+    mod = getattr(obj, "__module__", "") or ""
+    if mod == "nucleo.dispatch" and qual == "run_listener":          # the facade's delegate (V2-778 F1-11)
+        from nucleo import dispatch_listener
+        return inspect.getsource(dispatch_listener.run_listener)
     return inspect.getsource(obj)

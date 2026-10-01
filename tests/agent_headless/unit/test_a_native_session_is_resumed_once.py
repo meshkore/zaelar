@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """Three workers resuming the SAME CLI session, and all three dying at 400 ms (V2-237).
 
 Measured by the harness on 2026-08-21 in `best-plumber-same-day` (1/5, mechanism 2, **zero rows extracted**), with
@@ -74,8 +75,8 @@ def test_la_entrada_VUELVE_al_cerrar_una_gestion_incompleta():
     lives in `_leave_resume` and `_run_session` has to CALL it—the two halves are asserted because each one alone
     is a loose wire."""
     import inspect
-    assert "_leave_resume(" in inspect.getsource(dispatch._run_session)
-    assert "_WEB_RESUME[gk] = _resume_entry(" in inspect.getsource(dispatch._leave_resume)
+    assert "_leave_resume(" in _vts.getsource(dispatch._run_session)
+    assert "_WEB_RESUME[gk] = _resume_entry(" in _vts.getsource(dispatch._leave_resume)
 
 
 def test_leerla_SIN_tomarla_sigue_siendo_posible():
@@ -101,7 +102,7 @@ def test_el_listener_la_TOMA_y_no_solo_la_lee():
     """The defect was not the predicate but its caller. Without `take=True` in `run_listener`, this remains exactly
     as broken and the tests above pass—the lesson of V2-199."""
     import inspect
-    src = inspect.getsource(dispatch.run_listener)
+    src = _vts.getsource(dispatch.run_listener)
     assert "_find_resume(request, take=True)" in src
 
 
@@ -118,7 +119,7 @@ def test_la_fila_del_final_LLEVA_el_motivo_y_el_estado():
     import inspect
 
     from nucleo.workers import session as _s
-    src = inspect.getsource(_s.WorkerSession._finish)
+    src = _vts.getsource(_s.WorkerSession._finish)
     assert 'extra["status"] = str(rec.status or "")' in src
     assert "if not rec.ok:" in src and "rec.result_summary" in src
 

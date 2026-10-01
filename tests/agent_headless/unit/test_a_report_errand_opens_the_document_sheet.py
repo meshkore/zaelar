@@ -9,6 +9,8 @@ at commission time, closed at finish), but the box it opens is the `documento` w
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pathlib
 import re
 import types
@@ -18,7 +20,7 @@ import pytest
 from nucleo import sheets, surfaces
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[3]
-_DISPATCH_SRC = (_ENGINE / "nucleo" / "dispatch.py").read_text(encoding="utf-8")
+_DISPATCH_SRC = _vts.read(_ENGINE / "nucleo" / "dispatch.py")
 
 
 def _rec(**over):

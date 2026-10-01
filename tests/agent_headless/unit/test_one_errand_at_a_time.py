@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """With a LIVE errand, a turn that is not an errand cannot open another one (2026-08-24).
 
 Operator rule: *“runs have to be linear… if there is a process with a title, a task, and a purpose, you can
@@ -124,8 +125,10 @@ def test_esta_CABLEADO_despues_del_dedup_directo():
     # Inspect CODE lines, not the entire source. The first version of this guard searched for the name and
     # passed with the call DELETED, because the comment above mentions it: a presence guard certified exactly
     # the failure it is meant to prevent. The teardown caught it, not the reading.
-    src = "\n".join(l for l in inspect.getsource(dispatch.run_listener).splitlines()
+    src = "\n".join(l for l in _vts.getsource(dispatch.run_listener).splitlines()
                     if not l.strip().startswith("#"))
+    # V2-778 F1-11: the listener moved out of dispatch.py and reads the dispatcher's names through `_d.`.
+    src = src.replace("_d.", "")
     assert "to_thread(about_a_live_errand" in src, (
         "la decisión no está enchufada al único punto por el que pasan todas las escaladas")
     # V2-507: the cheap check is now called `dedup_scan(` (it returns a verdict + evidence). The guard follows
@@ -139,10 +142,10 @@ def test_las_DOS_mitades_del_dedup_se_distinguen_en_observabilidad():
     """Counting them together hides which of the two fails—and the next measurement is precisely that one."""
     import inspect
     from nucleo import dedup as _dedup
-    src = inspect.getsource(dispatch.run_listener)
+    src = _vts.getsource(dispatch.run_listener)
     assert '"by": _dup_by' in src
     assert '"model"' in src
     # V2-507: `"containment"` is now set by whoever MEASURES it (`dedup.scan`), not by the caller that assumed
     # it — there, a widget hit was recorded as containment even though that path never computes it.
-    assert '"containment"' in inspect.getsource(_dedup.scan)
-    assert '"widget"' in inspect.getsource(_dedup.scan)
+    assert '"containment"' in _vts.getsource(_dedup.scan)
+    assert '"widget"' in _vts.getsource(_dedup.scan)

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 from pathlib import Path
 
 import pytest
@@ -87,7 +89,7 @@ _RELAUNCHES = (("nucleo.workers.relay", '"src": "provider_failover"'),
 def _relaunch_window(modname: str, marca: str, width: int = 600) -> str:
     import importlib
     import inspect
-    src = inspect.getsource(importlib.import_module(modname))
+    src = _vts.getsource(importlib.import_module(modname))
     assert marca in src, f"{modname} ya no relanza con {marca} — ¿se ha movido? apunta el guarda al sitio nuevo"
     i = src.index(marca)
     return src[i:i + width]
@@ -121,7 +123,7 @@ def test_el_relanzamiento_del_ARNES_manda_ademas_la_condicion():
 def test_the_dispatcher_reads_the_surface_from_the_context():
     import inspect
 
-    src = inspect.getsource(D.run_listener)
+    src = _vts.getsource(D.run_listener)
     assert 'ctx.get("surface")' in src, "the relay's record is born without the surface it was sent"
 
 
@@ -129,7 +131,7 @@ def test_el_dispatcher_lee_la_hoja_del_contexto():
     """The other end of the cable: sending it is useless if nobody picks it up when constructing the record."""
     import inspect
 
-    src = inspect.getsource(D.run_listener)
+    src = _vts.getsource(D.run_listener)
     assert 'ctx.get("sheet"' in src, "el record del relevo nace sin la hoja que le mandaron"
 
 

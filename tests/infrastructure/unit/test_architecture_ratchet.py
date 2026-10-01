@@ -154,7 +154,7 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # ENDING as a fact (V2-198/199/222/224/238: the two state enums, `_ENDED_SESSIONS` and its four
     # operations) was a cohesive concern all along → extracted to `nucleo/workers/ended.py`, dispatch
     # 1892→1770. Aliases keep the historical names alive, as `resume.py` did.
-    "nucleo/dispatch.py": (1770, 57),
+    "nucleo/dispatch.py": (1587, 39),   # 2026-10-01 V2-778 F1-11: run_listener → dispatch_listener.py (1790 → 1587)
     # owner.py 1580→1706 · lazy 43→44: 3884cb8 (banner sweep per NAVIGATION, look 11,2 s→0,42 s), f25e2a3
     # (`visit` — read a card in its own tab), a1cb398 (consent per DOMAIN, submit 25 s→3,84 s). Three measured
     # perf/feature fixes from the same tuning day. owner.py remains F6's split candidate (by resource).
