@@ -48,6 +48,7 @@
 # closed vocabulary —text, facts, tags, gallery, meter, table, link, section— that the surface paints with
 # `textContent`. Same composition freedom without handing the surface to a third party.
 #
+import re as _re
 import time as _tm
 import unicodedata as _ud
 
@@ -516,7 +517,6 @@ def _find(items: list[dict], title: str = "", index=None) -> dict | None:
     # Demo pass 63, S3: «open the one that's the best deal» arrived as title «KTC H27P22S — $254.98» — the compare
     # view's own line, title AND price — and neither match above holds. The head before the decoration is the title;
     # and a row whose whole title sits inside the reference is named by it (one such row, never a guess).
-    import re as _re
     head = _re.split(r"\s+[—–|·]\s+|\s+-\s+", t, maxsplit=1)[0].strip()
     if head and head != t:
         for it in items:
