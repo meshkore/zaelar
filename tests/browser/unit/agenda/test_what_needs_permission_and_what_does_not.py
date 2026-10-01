@@ -38,7 +38,11 @@ def _isolate(monkeypatch, tmp_path):
     consent._reset_for_tests()
 
 
-_MEETING = {"title": "Meeting with Ivan Mikushin", "date": "2026-09-17", "startTime": "22:00",
+# V2-778 F6-43 — the meeting was the literal 2026-09-17; once that day passed, `find_meeting` (an unnamed invite
+# means the NEXT meeting still ahead) found nothing and every invitation read as a stranger's. Always ahead.
+import datetime as _dt
+_AHEAD = (_dt.date.today() + _dt.timedelta(days=3)).isoformat()
+_MEETING = {"title": "Meeting with Ivan Mikushin", "date": _AHEAD, "startTime": "22:00",
             "endTime": "23:00", "source": "google", "googleId": "ev1", "googleCalendarId": "primary",
             "meetLink": "https://meet.google.com/ydi-zeaz-tri"}
 _IVAN = {"id": "c1", "kind": "person", "name": "Ivan Mikushin", "email": "", "emails": [],
@@ -78,7 +82,7 @@ def test_moving_an_hour_only_he_is_holding_just_happens(monkeypatch):
     and passed while every move asked, his dentist included: the manifest declared the «ask» class and
     `_policy_key` falls back to the declared class whenever the hook says nothing. A class declared in the
     manifest is a floor the hook cannot lower — so an action that is free by default declares none."""
-    _world(monkeypatch, meeting={"title": "Dentist", "date": "2026-09-17", "startTime": "17:00"})
+    _world(monkeypatch, meeting={"title": "Dentist", "date": _AHEAD, "startTime": "17:00"})
     assert ad.consent_scope("move_meeting", {"title": "Dentist"}) == {}
     assert _verdict({"title": "Dentist", "newTime": "10:00"}, action="move_meeting")["verdict"] == consent.RUN
 

@@ -87,6 +87,18 @@ def _mount(page, data: dict, replies: dict | None = None):
                                 window.__calls.push([name, payload || {}]);
                                 return Promise.resolve((replies || {})[name] || null);
                               },
+                              // V2-700: the card connects through the HOST (`desktop._connectFlow`): the
+                              // window opens inside the click, then the action; `blocked` when no window opened.
+                              connect: async (name, payload, o) => {
+                                let w = null;
+                                try { w = window.open("", "zaelar_connect_x", "width=520,height=760"); } catch (_) {}
+                                const res = await window.__ctx.action(name, payload);
+                                const url = res && res.ok !== false && res.url;
+                                if (!url) { if (w) w.close(); return res || {ok: false, error: "no url"}; }
+                                let fb = null;
+                                if (w) w.location = url; else { try { fb = window.open(url, "zaelar_connect_x"); } catch (_) {} }
+                                return Object.assign({}, res, {blocked: !w && !fb});
+                              },
                               running: true };
              mod.render(document.getElementById('w'), data, window.__ctx);
            }""",

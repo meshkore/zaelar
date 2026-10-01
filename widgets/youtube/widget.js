@@ -675,7 +675,7 @@ function renderConn(E, root, data, ctx){
     // this click (a popup on the desktop, a tab on a narrow screen) and notices when the token lands.
     const r = await ctx.connect("connect_account", {platform: pid}, {family: "video", name: pid});
     if(r && r.ok && r.url){
-      _connErr = ""; _connUrl = "";
+      _connErr = ""; _connUrl = r.blocked ? r.url : "";   // a blocked window gets the link (V2-603)
     } else {
       _connUrl = "";
       _connErr = (r && (r.message || r.error)) || tt("connect_failed", null, "No pude empezar la conexión.");

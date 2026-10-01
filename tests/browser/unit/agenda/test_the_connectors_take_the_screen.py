@@ -113,6 +113,19 @@ def _mount(page, data, *, connect=None):
                  window.__seq.push("resolve");
                  return Promise.resolve({ok: true, url: "https://accounts.google.com/x"});
                },
+               // V2-700 moved the window into the HOST (`desktop._connectFlow`): the card calls `ctx.connect`,
+               // which opens the window inside the click, runs the action and closes the window on a refusal.
+               // Same shape here, so what is measured is the card's own wiring.
+               connect: async (n, p, o) => {
+                 let popup = null;
+                 try { popup = window.open("", "zaelar_connect_" + ((o && o.name) || "x"), "width=520,height=760"); }
+                 catch (_) { popup = null; }
+                 const res = await window.__ctx.action(n, p);
+                 const url = res && res.ok !== false && res.url;
+                 if (!url) { if (popup) popup.close(); return res || {ok: false, error: "no url"}; }
+                 if (popup) popup.location = url;
+                 return res;
+               },
                top: () => {}, running: true };
              mod.render(document.getElementById('w'), data, window.__ctx);
            }""",

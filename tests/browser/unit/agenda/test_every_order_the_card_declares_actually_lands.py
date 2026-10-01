@@ -75,7 +75,10 @@ _SCRIPT = [
     ("move_meeting", {"title": "Reunión con Iván", "date": "TOM", "newDate": "TOM",
                       "newTime": "12:00"}, None),
     ("update_meeting", {"title": "Reunión con Iván", "date": "TOM", "location": "la oficina"}, None),
-    ("invite", {"who": "ivan@example.com", "meeting": "Reunión con Iván", "date": "TOM"}, None),
+    # The sandbox has no calendar and no mail account (V2-778 F0-1 pins the workspace), so the invitation has no
+    # rung to leave by and says which: a real answer. It landed before only because the run read the operator's
+    # own connectors.json, where a mail account is configured.
+    ("invite", {"who": "ivan@example.com", "meeting": "Reunión con Iván", "date": "TOM"}, "cuenta de correo"),
     ("dedupe_meetings", {"title": "Reunión con Iván", "date": "TOM"}, None),
     ("show_day", {"day": "month"}, None),
     ("find_free", {"date": "tomorrow", "duration_min": 45, "from": "12:00"}, None),

@@ -1148,11 +1148,14 @@ export class Desktop {
       if(popup){ try{ popup.close(); }catch(_){} }
       return res || {ok:false, error:"no url"};
     }
-    if(popup){ try{ popup.location = url; }catch(_){ try{ window.open(url, name); }catch(_2){} } }
-    else { try{ window.open(url, name); }catch(_){} }   // blocked: a tab is better than nothing at all
+    let fallback = null;
+    if(popup){ try{ popup.location = url; }catch(_){ try{ fallback = window.open(url, name); }catch(_2){} } }
+    else { try{ fallback = window.open(url, name); }catch(_){} }   // blocked: a tab is better than nothing at all
 
     this._watchConnect(id, popup, o);
-    return res;
+    // V2-778 — `blocked` when neither the popup nor the fallback tab opened (a phone, a strict policy): the card
+    // then offers the URL as a link, the V2-603 degradation that the move into the host had dropped.
+    return Object.assign({}, res, {blocked: !popup && !fallback});
   }
 
   _watchConnect(id, popup, o){

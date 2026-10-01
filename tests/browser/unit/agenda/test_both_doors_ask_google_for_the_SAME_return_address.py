@@ -133,7 +133,8 @@ def test_the_card_actually_sends_its_own_origin():
     import pathlib
     js = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "agenda" / "widget.js").read_text("utf-8")
     body = "\n".join(L for L in js.splitlines() if not L.strip().startswith("//"))
-    assert 'ctx.action("connect", {provider:"google", origin: location.origin, force:true})' in body, (
+    # V2-700: the card connects through the host's `ctx.connect` (which opens the window inside the click).
+    assert 'ctx.connect("connect", {provider:"google", origin: location.origin, force:true}' in body, (
         "the card must send BOTH its origin (V2-687) and `force` (V2-689: only a human pressing this "
         "button may re-open a consent for a calendar that is already connected)")
 
@@ -144,7 +145,7 @@ def test_what_the_operator_PASTES_is_one_list_of_five_that_google_can_accept():
     from connectors.google import app
 
     todo = app.uris_to_register()
-    assert len(todo) == len(app.CALLBACK_PATHS) == 5
+    assert len(todo) == len(app.CALLBACK_PATHS) == 6   # + /api/contacts/callback (V2-699)
     assert len(todo) == len(set(todo)), "a duplicate would be pasted twice into the console"
     assert all(u.startswith(_LOOPBACK + "/") for u in todo), todo
     assert not any(app.LOCAL_TLS_HOST in u for u in todo), "a domain nobody self-hosting can verify"
@@ -174,7 +175,8 @@ def test_every_callback_we_ask_him_to_register_is_a_route_we_serve():
 
     served: set[str] = set()
     for mod in ("connectors.calendar.server_api", "connectors.video.server_api",
-                "connectors.photos.server_api", "connectors.files.server_api"):
+                "connectors.photos.server_api", "connectors.files.server_api",
+                "connectors.contacts.server_api"):
         router = pytest.importorskip(mod).router
         served |= {getattr(r, "path", "") for r in router.routes}
 
