@@ -322,6 +322,12 @@ def test_closing_persists_through_the_REAL_settings_store():
     none of them could see it. This one writes through the real store (the conftest sandboxes the file)."""
     from config import settings
     from nucleo.context_packs import introduction as intro
-    settings.update({"intro_done": None})
-    intro.close("ya sabemos su nombre")
-    assert settings.get("intro_done") is True
+    existed = Path(settings.SETTINGS_FILE).exists()
+    try:
+        settings.update({"intro_done": None})
+        intro.close("ya sabemos su nombre")
+        assert settings.get("intro_done") is True
+    finally:
+        # the suite's settings file starts EMPTY for every later test (test_suite_isolation checks it)
+        if not existed:
+            Path(settings.SETTINGS_FILE).unlink(missing_ok=True)
