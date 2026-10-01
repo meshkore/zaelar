@@ -66,10 +66,12 @@ def turn_source() -> str:
     for start, call, path, fname in _PROVIDER_CALLS:
         a = prov.index(start)
         b = prov.index("\n        )\n", prov.index(call, a)) + len("\n        )\n")
-        rebind = re.compile(r"        if '\w+' in _blk:\n            \w+ = _blk\['\w+'\]\n")
+        rebind = re.compile(r"        if '\w+' in _blk:\n            \w+ = _blk\['\w+'\]\n"
+                            r"|        if _blk\.get\('__return__'\):\n            return\n")
         while (m := rebind.match(prov, b)):     # the outputs the call binds back
             b = m.end()
         body = re.sub(r"\b_p\.", "", _body_of(path.read_text(encoding="utf-8"), fname))
+        body = body.replace('return {"__return__": True}', "return")     # the turn's own early return
         prov = prov[:a] + "".join(("    " + ln) if ln.strip() else ln for ln in body.splitlines(True)) + prov[b:]
     return prov
 
@@ -85,6 +87,8 @@ _PROVIDER_CALLS = (
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_tools.py", "choose_the_tools"),
     ("        # V2-778 F1 — admitting the turn (brief", "_turn_admit.admit_the_turn(",
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_admit.py", "admit_the_turn"),
+    ("        # V2-778 F1 — the turn the model did not answer", "_turn_failure.say_the_turn_failed(",
+     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_failure.py", "say_the_turn_failed"),
 )
 
 

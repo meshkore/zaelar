@@ -13,7 +13,6 @@
 #     saying «Aquí lo tienes».
 # The three mechanisms that close it are fixed here so they cannot come loose again.
 #
-import os
 
 import pytest
 
@@ -291,9 +290,9 @@ def test_the_deadline_measures_stream_progress_not_speech():
     implementation detail (`wait_for` over `__anext__`), which let the bug through: the deadline measured «no voice
     comes out», and a turn whose response is an ACTION emits no speakable characters—the tool-call chunks are
     consumed by `stream()` without yielding. What is measured is that the STREAM advances."""
-    import inspect
     from voice.engine.llm.providers.nucleo import NucleoLLMStream
-    src = inspect.getsource(NucleoLLMStream._run_inner)
+    from tests import voice_turn_source
+    src = voice_turn_source.getsource(NucleoLLMStream._run_inner)   # V2-778 F1: the turn whole
     loop = src[src.index("_quiet_ms = _turn_budget_ms()"):]
     assert "if delta:" in loop and loop.count("_quiet_ms = _turn_budget_ms()") >= 2, \
         "el plazo debe renovarse con cada delta hablable"
@@ -336,9 +335,9 @@ def test_the_stream_is_torn_down_without_cancelling_a_call_in_flight():
     """Cancelling an `__anext__` midway and then calling `aclose()` leaves the generator in an undefined state—it was
     the previous approach and a candidate cause of voice-thread hangs. The TASK that iterates over it is cancelled;
     it is the sole owner of the `async for`."""
-    import inspect
     from voice.engine.llm.providers.nucleo import NucleoLLMStream
-    src = inspect.getsource(NucleoLLMStream._run_inner)
+    from tests import voice_turn_source
+    src = voice_turn_source.getsource(NucleoLLMStream._run_inner)   # V2-778 F1: the turn whole
     loop = src[src.index("_quiet_ms = _turn_budget_ms()"):]
     assert "_agen.aclose()" not in loop and "__anext__" not in loop
     assert "_pump_task.cancel()" in loop
@@ -347,9 +346,9 @@ def test_the_stream_is_torn_down_without_cancelling_a_call_in_flight():
 def test_a_stall_is_treated_as_a_brain_failure_not_as_silence():
     """Getting stuck must produce a short, honest phrase + alert + red health status (`errored` branch), never a minute
     of silence that looks like a hang."""
-    import inspect
     from voice.engine.llm.providers.nucleo import NucleoLLMStream
-    src = inspect.getsource(NucleoLLMStream._run_inner)
+    from tests import voice_turn_source
+    src = voice_turn_source.getsource(NucleoLLMStream._run_inner)   # V2-778 F1: the turn whole
     # the FIRST `except asyncio.TimeoutError` in the function is for recall (something else); we need the one in the
     # streaming loop, which comes after the silence deadline.
     stall = src[src.index("_quiet_ms = _turn_budget_ms()"):]
@@ -400,9 +399,9 @@ def test_a_real_provider_failure_still_goes_red():
 
 def test_the_stall_path_says_stalled_not_dead():
     """The spoken/visible ALERT must not say «down» for a single turn either."""
-    import inspect
     from voice.engine.llm.providers.nucleo import NucleoLLMStream
-    src = inspect.getsource(NucleoLLMStream._run_inner)
+    from tests import voice_turn_source
+    src = voice_turn_source.getsource(NucleoLLMStream._run_inner)   # V2-778 F1: the turn whole
     stall = src[src.index("_quiet_ms = _turn_budget_ms()"):]
     stall = stall[stall.index("except asyncio.TimeoutError:"):]
     assert "stalled = True" in stall[:700]

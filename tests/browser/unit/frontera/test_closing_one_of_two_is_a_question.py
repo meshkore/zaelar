@@ -45,7 +45,7 @@ _VOICE_SRC = ("voice/engine/llm/providers/nucleo.py", "voice/engine/llm/provider
               "nucleo/flash/tool_executor_widget.py", "nucleo/flash/tool_executor.py",
               "nucleo/flash/post_stream.py", "voice/engine/llm/providers/turn_prompt.py",
               "voice/engine/llm/providers/turn_after.py", "voice/engine/llm/providers/turn_tools.py",
-              "voice/engine/llm/providers/turn_admit.py")   # V2-778 F1-10: they left the provider
+              "voice/engine/llm/providers/turn_admit.py", "voice/engine/llm/providers/turn_failure.py")   # V2-778 F1-10: they left the provider
 NUCLEO = ENGINE / "voice/engine/llm/providers/nucleo.py"
 #: The TEXT channel, likewise two files since the V2-605 extraction: the turn in `probe.py` and the shared
 #: show-instance body in `show_target.py`.

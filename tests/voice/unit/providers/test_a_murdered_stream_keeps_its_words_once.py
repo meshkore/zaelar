@@ -24,7 +24,6 @@ next turn answers without the criteria) or flood the log with double scissors.
 """
 from __future__ import annotations
 
-import pytest
 
 from nucleo.flash import dialog as _dialog
 
@@ -108,9 +107,9 @@ def test_the_stream_handler_preserves_flags_and_reports_in_that_order():
     are lost with the raise), then flag (or the wrapper double-reports), then
     report. If someone reorders or drops a step, the test above cannot see it
     (it binds the wrapper, not the handler), so the shape is pinned here."""
-    import inspect
     from voice.engine.llm.providers.nucleo import NucleoLLMStream
-    src = inspect.getsource(NucleoLLMStream._run_inner)
+    from tests import voice_turn_source
+    src = voice_turn_source.getsource(NucleoLLMStream._run_inner)   # V2-778 F1: the turn whole
     # Anchor on the barge-in re-raise and walk BACK to its handler: a forward
     # search for "except asyncio.CancelledError:" lands on an inner pump-task
     # handler instead.
