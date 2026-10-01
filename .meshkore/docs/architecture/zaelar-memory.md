@@ -8,7 +8,25 @@
 > de firma de embedding + fail-open que no ensucia] + **sueño PROFUNDO «fase REM»** (`memory/rem.py`) + **tool
 > `recall`** del FlashBrain + **dossier v2** de `compose_context` + modelos del módulo elegidos POR BENCHMARK
 > (`zaelar-model-benchmarks.md §12`)).
-> Actualizado 2026-07-20. Módulo top-level `memory/` — ver §Módulos.
+> Actualizado 2026-07-20 (current-state block: 2026-09-30). Módulo top-level `memory/` — ver §Módulos.
+> **Current state — 2026-09-30 (V2-778 F7).** This block wins over older text below where they disagree.
+> - **Schema v9, 19 tables** (measured on a fresh `zaelar.db`): `state`, `memories` + `vec_memories` +
+>   `fts_memories`, `edges`, `episodic`, `journal`, `sys_kv`, `tasks` + `task_artifacts` + `fts_tasks`
+>   (v9 adds `tasks.verdict`), `errands` + `errand_threads`, `workflows`, `action_map`, `paraphrase_index` +
+>   `vec_paraphrases`, `vault_meta` + `vault_secrets`.
+> - **Spoken rules have a scope** (`voice` · `widget:<id>` · `general`, from a fixed classifier,
+>   `nucleo/flash/rule_scope.py`) stored beside `state.rules`; each prompt surface asks `memory.api.rules_for(surface)`
+>   for its own, newest last (the newest eight reach the prompt and the worker's dossier). CRIT-M1.
+> - **Genesis is per domain** (`style`, `consent`, `library`, `errands`, `playbooks`, `circuit`), each with its own
+>   override file under `<workspace>/config/`. CRIT-M2.
+> - **Factory reset** (`scripts/reset-memory.sh`) forgets the memory and the spoken rules (their override files are
+>   in `FACTORY_PATHS`) and keeps credentials, settings and connectors; it never deletes under a live server.
+> - **Recall degrades, never vanishes**: a slow or failed embedder drops the recall to lexical (FTS, then LIKE) and
+>   records `memory: degraded` in health; embeddings have no failover row (a mixed space is worse than none).
+> - **The record block**: «what is going on» is read from the `tasks` rows (`task_block.recent_lines`, inline
+>   requests included), not from RAM registries. See `zaelar-architecture.md` §5h.
+> - Embeddings run on OpenAI **direct** (`config/models.default.json`, the one exception to «OpenAI never
+>   titular»); the section «Ningún camino sale por OpenAI directo» below predates it.
 > **Regla de oro de latencia:** **LLM al ESCRIBIR (off-hot-path), queries DIRECTAS al LEER (sin LLM en el camino).**
 > **Diagrama vivo:** `/architecture` → pestaña **Memoria** (el diagrama central v2 solo enlaza aquí; sin duplicar el detalle).
 > **Fuente de verdad** del *cómo se construye*: este documento. Para EMPEZAR a trabajar la memoria, leer sí o sí:

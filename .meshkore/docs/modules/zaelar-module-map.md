@@ -228,6 +228,19 @@ Also declared in `cluster.yaml` (2026-09-30, V2-778 F7): `i18n/` (multilingual r
 `update/` (the user-visible build number and the reload signal), `daemon/` (the LOCAL daemon of V2-575, not the
 shared MeshKore one), `tools/` (developer review aids), `files/` (the compatibility shim above) and `scripts/`.
 
+## A request's life and the spoken rules (V2-776 L/M/H)
+
+- `nucleo/spec.py` — a request is born with its END STATE (manifest `done_when`, the escalate call's `done_when`,
+  the brief's `end_state`); RAM ledger + the task row's `spec` artifact.
+- `nucleo/circuit.py` — the pulse re-verifies every open spec; the bound is the operator's (genesis `circuit.retries`);
+  the verdict is what the mouth says.
+- `nucleo/request_row.py` — every request that acts is ONE `tasks` row (`kind=inline` included); `nucleo/tasks.py`
+  maps a worker session onto that row.
+- `nucleo/flash/rule_scope.py` + `memory.api.rules_for` — a spoken rule carries `voice` / `widget:<id>` / `general`,
+  and each prompt surface reads only its own.
+
+Architecture: `zaelar-architecture.md` §5h (the request) and §5i (the turn's doors, in order).
+
 ## Pieces split out of oversized files (V2-778 F1, 2026-09-30)
 
 Each one is a verbatim move with no behaviour change; the source module imports the names back, so callers and

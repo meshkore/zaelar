@@ -561,6 +561,53 @@ gradations, no scoring, no model in the loop. **THREE checks:**
 deterministic tests; domain 9 of the test map). Full initiative:
 `.meshkore/roadmap/initiatives/V2-070-homeostasis-anti-degeneracion.md`.
 
+## 5h. The request: end state, circuit, verdict, row (V2-776 L/M, 2026-09-29/30)
+
+A request that ACTS has four parts, each owned once:
+
+1. **End state** — `nucleo/spec.py`. The request is born knowing what «done» means. An inline widget action
+   carries it in its manifest (`actions.<a>.done_when`, a template over the payload); an escalation carries the
+   `done_when` the model wrote in the escalate call, or is asked for it once; the turn brief's `end_state` names
+   the attestable end state the phrase implies, and a verdict completion that would attest a different one is
+   refused. Ledger: RAM for 30 minutes, plus the `spec` artifact of the task row for an errand.
+2. **Circuit** — `nucleo/circuit.py`. The pulse re-reads every open spec (at most every 5 s); a worker's ending is
+   judged here, not by its own word; the retry bound is explicit and the operator's (genesis `circuit.retries`,
+   default 2, overridable in `config/circuit.json`); an inline action owes its end state within 20 s.
+3. **Verdict** — one of `met · unmet · retrying · gave_up · unverifiable · undeclared · skipped`. The mouth
+   says the verdict: «done» only over `met`, «what is missing» over `gave_up`. **Unreadable is never failure**:
+   `unverifiable` is said as such and never opens a retry; the cure is a readable widget, never a guess.
+4. **Row** — `nucleo/request_row.py` + `nucleo/tasks.py`. Every request that acts is ONE row of `tasks`, the
+   inline ones included (`kind=inline`, the operator's words as `goal`); later ops of the same turn reuse it, the
+   circuit's verdict ends it (`tasks.verdict`, schema v9), and a later op never improves a failed row. The prompt
+   reads «what is going on» from this record (`task_block.recent_lines`: last six requests of six hours, facts only).
+
+Canonical lines: `criteria.md` CRIT-E9; why: `decisions.md` V2-776 L and M.
+
+## 5i. The turn pipeline — the doors, in order
+
+One turn crosses these doors in this order (voice: `voice/engine/llm/providers/nucleo.py`; the text probe
+mirrors it in `nucleo/flash/probe.py` + `probe_after.py`, and `tests/infrastructure/unit/test_voice_and_probe_import_the_same_brain.py`
+keeps the two from drifting):
+
+1. **Hard interrupt** (`voice/interrupt_grammar.py` via `attention.hard_interrupt`) — «stop», «be quiet».
+2. **Attention judge** (`attention_turn.judge`) — is this turn directed at zaelar?
+3. **Row begin** (`request_row.begin`) — the words this request's row will carry.
+4. **Fast lane** (`fast_lane.py`), first hit wins: several tasks → a list (`nucleo/batch`), a known phrase
+   (`nucleo/actionmap`), presence knock, rename, wall tab, small talk. A hit ends the turn with no model call.
+5. **Phrase accumulator** (V2-096) — a fragment waits for its continuation instead of being acted on.
+6. **Turn brief** (`nucleo/flash/turn_brief.py`, Jev) — ONE call that asks every question the turn needs
+   (screen action, end state, …); the verdict COMPLETES the model, never contradicts it.
+7. **Input clamp, model spec per turn, recall on demand** (`nucleo/turn/recall_budget.py`), break-loop.
+8. **Pending confirmation** answered before any slow work (`confirm_gate.py`, `nucleo/turn/confirm_gates.py`).
+9. **Vault intercept** — a secret is taken before the model ever sees the text.
+10. **Model stream** with the contextual tool set; tools run in `nucleo/flash/tool_executor.py`, consent in
+    `nucleo/consent.py`.
+11. **Post-stream chain** (`nucleo/flash/post_stream.py`) — silent tags, data ops (which open the row and the
+    spec), the promise backstop, then the observability record.
+
+**The rule for adding a door:** a door that reads the operator's words exists only until a verdict that already
+answers the same question exists; then the door is retired, not kept as a second opinion (CRIT-K1, CRIT-K2).
+
 ## 6. The brain seams (model routing, why they matter)
 
 The brain (`nucleo/`) is zaelar's own, but its MODELS are pluggable behind a thin contract — nothing model-specific
