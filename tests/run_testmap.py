@@ -4601,6 +4601,9 @@ DOMAINS: list[dict] = [
         # de como ámbito estrecho. Más las dos trampas de proveedor que se dan por supuestas: la comilla de
         # «Pepe's contract» termina la query de Drive antes de tiempo, y un refresh que no devuelve
         # refresh_token desconecta al operador horas después si se tira el anterior.
+        {"id": "5.62", "title": "Every account connector runs the SAME OAuth flow: the consent returns to the "
+                               "operator's origin, a forged one falls back to loopback, abandoned consents expire",
+            "ch": UNIT, "paths": ["tests/connectors/unit/test_every_account_connector_runs_the_same_oauth_flow.py"]},
         {"id": "5.7", "title": "Archivos en la nube: los TRAMOS de permiso, el flujo PKCE, y un permiso que no "
                                "puede listar no es un disco vacío",
             "ch": UNIT, "paths": [

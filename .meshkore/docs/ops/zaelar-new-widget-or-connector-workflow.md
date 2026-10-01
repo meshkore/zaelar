@@ -64,7 +64,7 @@ Se construye **de abajo arriba**, y cada capa se prueba antes de escribir la de 
 ```
 connectors/<familia>/
 ├─ providers.py    ①  el REGISTRO tipado: un entry por proveedor con endpoints, ámbitos y capacidades
-├─ oauth.py        ②  el flujo (si lleva OAuth) — reutiliza connectors/oauth_pkce.py + secure_json_store.py
+├─ oauth.py        ②  the flow (if it uses OAuth) — a thin module over connectors/oauth_base.py
 ├─ <proveedor>.py  ③  un cliente por proveedor: habla HTTP, devuelve la FORMA NORMALIZADA, nada más
 ├─ service.py      ④  la fachada AGNÓSTICA — lo único que ve el resto del sistema
 ├─ server_api.py   ⑤  el plano de control (`/api/<algo>/*`): status · connect · callback · disconnect
@@ -75,6 +75,19 @@ connectors/<familia>/
   Si un proveedor tiene tramos de permiso con consecuencias distintas, **eso es un campo**, no una constante
   (en V2-557 el tramo decide si el árbol se puede listar siquiera). `public_list()` devuelve la vista
   redactada para el frontend: etiquetas y notas, **jamás endpoints ni credenciales**.
+- **② `oauth.py` is CONFIGURATION over `connectors/oauth_base.py` (V2-778 F1-13).** The flow — PKCE, the pending
+  states and their expiry, the exchange, the refresh, the return address derived from the operator's origin —
+  lives ONCE in the base; six copies of it had drifted into five real defects (three connectors sending the
+  consent back to a hardcoded loopback, one taking a forged origin into the redirect URL, one never expiring a
+  consent). A new connector's `oauth.py` declares `STORE`, `ENV_PREFIX`, `CALLBACK_PATH`, `_DEFAULT_REDIRECT`,
+  `_GOOGLE_PROVIDERS` and `_pv`, and its public functions are one-line calls passing the module itself
+  (`connectors/photos/oauth.py` is the smallest reference; `connectors/email/oauth.py` shows a connector whose
+  providers and accounts are shaped differently — `_auth_spec`, `_oauth_capable`, accounts keyed by address).
+  Each connector keeps its OWN store file, callback route and credential names: nothing is shared but code.
+  The base reads everything through the connector's module at call time, so a connector overrides a piece by
+  defining it. `tests/connectors/unit/test_every_account_connector_runs_the_same_oauth_flow.py` (node 5.62)
+  runs the same flow against every connector — add yours to its `CONNECTORS` list. Not built on it: Spotify
+  (`connectors/spotify/auth.py`, one account, one pending, no provider table — a different shape, kept apart).
 - **② `oauth.py`** — PKCE S256 desde `connectors/oauth_pkce.py`; tokens por `SecureJsonStore` (escritura
   atómica + chmod 600) en `.meshkore/credentials/<x>.json`, **gitignoreado**. Guarda junto al token **qué
   permiso se concedió**: el callback solo trae `code` y `state`, así que lo que elija el operador tiene que
@@ -398,6 +411,7 @@ Un test verde no es un producto que funciona.
 CONECTOR
 [ ] providers.py: los proveedores son DATO; las diferencias, campos
 [ ] oauth.py: PKCE compartido · tokens en el credential store (600, gitignored) · el permiso viaja con el token
+[ ] oauth.py is a thin module over connectors/oauth_base.py, and the connector is in node 5.62's CONNECTORS
 [ ] cliente por proveedor → MISMA forma normalizada (con test)
 [ ] service.py: fail-safe · lo-que-no-es-un-error devuelve ok+reason
 [ ] server_api.py: prefijo /api libre (comprobado con grep)

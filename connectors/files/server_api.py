@@ -17,9 +17,10 @@ never by editing files), and it is the same one Spotify (V2-041) and email (V2-0
 
 Loopback, like the rest of the local API.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from connectors import oauth_base as _b
 from connectors.files import oauth, providers, service
 
 router = APIRouter()
@@ -33,7 +34,7 @@ async def status():
 
 
 @router.post("/api/cloudfiles/connect")
-async def connect(payload: dict | None = None):
+async def connect(request: Request, payload: dict | None = None):
     """Save the OAuth app credentials (if sent) and start the PKCE consent. Returns {ok, url, tier}."""
     payload = payload or {}
     pid = str(payload.get("provider") or "").strip().lower()
@@ -51,7 +52,7 @@ async def connect(payload: dict | None = None):
                 credentials.set_key(f"FILES_{p.id.upper()}_CLIENT_SECRET", secret)
         except Exception as e:  # noqa: BLE001
             return JSONResponse({"ok": False, "error": f"credential_store:{e}"[:120]}, status_code=500)
-    res = oauth.authorize_url(p.id, str(payload.get("tier") or ""))
+    res = oauth.authorize_url(p.id, str(payload.get("tier") or ""), origin=_b.request_origin(request))
     return JSONResponse(res, status_code=200 if res.get("ok") else 400)
 
 

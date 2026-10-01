@@ -25,6 +25,19 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **One OAuth flow, six independent connectors (V2-778 F1-13, 2026-10-01)**: calendar, video, contacts, files,
+  photos and email each carried a copy of the same authorization-code + PKCE flow, and running ONE test against
+  all six (node 5.62) found five defects the copies had drifted into: files, photos and email sent the consent
+  back to a hardcoded `127.0.0.1:43917` and exchanged the code with it (V2-603, fixed in the other three only),
+  contacts put a forged `Origin` with a path and query straight into the redirect URL, email never expired an
+  abandoned consent and crashed on a token answer without `expires_in`. Decision: the flow lives once in
+  `connectors/oauth_base.py`; each connector's `oauth.py` keeps only its own configuration (store file, credential
+  prefix, callback route, which provider rides the shared Google app) and its public functions are one-line calls
+  passing the module, read back through it at call time so overriding or patching one piece still governs the
+  flow. The operator's line for it: each connector stays independent — that is why nothing is shared but code (no
+  shared token store, no shared callback). Spotify's flow (one account, no provider table) stays its own. The
+  origin-derived redirect is identical to the old address on a local engine and is what a remote one needed; not
+  verified live against Google. Gmail OAuth still has no route — the declared gap, unchanged.
 - **Split without changing: no product file over 1,000 lines (V2-778 F1, 2026-10-01)**: the demo week had left the
   de-facto router as one 3,500-line coroutine and five files over 1,000 lines. Decision: every split is the SAME
   code, moved, with each name of the old module it read rewritten as `<alias>.<name>` (`_p.`, `_d.`, `_o.`,
@@ -2317,54 +2330,7 @@ entregada siga citada aquí.
   install was restored in the same pass (`settings.json` emptied, the wizard-written `fast`/`memory`
   sections dropped from `v2.json`) so the table governs again.
 
-- **NOBODY SPEAKS before a language is chosen — the wordless picker, the voice that follows the language,
-  and where the files live (V2-672, 2026-09-11)**: the operator on his fresh install — «me pide los
-  idiomas, pero por detrás está hablando ya en un idioma por defecto… **no quiero que la gente hable hasta
-  que no hayamos seleccionado el idioma**» — and «la voz que viene por defecto en español habla bien
-  español, pero habla mal inglés… si hay alguien que habla chino o alemán o suajili tenemos que ponerle una
-  voz que esté entrenada para esos idiomas». **Both were WRITTEN DECISIONS, not slips**: `agent.py` said
-  the question «HAS to go out now, in English (the product default)» and the kickoff began `[FIRST RUN …
-  SPEAK ENGLISH ONLY]`, so the one sentence a person could not understand was the one asking which language
-  they understand; and `core/config.py` hardcoded `elevenlabs_voice_id` to a Castilian voice chosen by
-  V2-035 when the product spoke one language. **MEASURED against the live API before a line was written**:
-  `/v1/voices` returns the ACCOUNT's voices and **all 21 premade ones are `language: en`**, so that set
-  structurally cannot answer «a voice trained for German»; `/v1/shared-voices?language=<code>` returns real
-  NATIVE voices (es → latin american, peruvian; zh → beijing/taiwan mandarin) and honestly returns ZERO for
-  Swahili; and a shared-library id works DIRECTLY in text-to-speech with no «add to my voices» step
-  (verified with a nine-character synthesis) — without that last one this would have shipped a picker full
-  of ids that 400. Also measured: the `.env` copy of the key on this machine answers **401** while the
-  credential store's answers 200, so the new module asks the store first and says why. Built: **(1)** the
-  first-run branch RETURNS — the session still starts (the mic must be live to hear a spoken answer) and
-  says nothing, and the first thing anyone hears is `onboarding.confirmSpoken` in the language they just
-  chose, which is also the greeting. **(2)** `i18n/catalog.py` + a rewritten picker that carries no word of
-  ours: a speaking mark, then 40 rows of flag + the language's OWN native name, `en`/`es` pinned because
-  those are the two the repo SHIPS; typing FILTERS the rows instead of submitting free text, because
-  submitting needed a prompt telling you to write something in a language you may not read. **(3)**
-  `voice/engine/speech/elevenlabs_voices.py` ranks natives first and KEEPS the multilingual ones last (a
-  language with no native voice must still speak), and the ⚙'s list is per-language like Kokoro's. The
-  realignment on a language change covered KOKORO only — which is why the cloud TTS never followed — and
-  now asks **`voice_is_aligned(provider, voice, lang)`**, a different question from «is it in the list»,
-  and the difference IS the defect: the ElevenLabs list deliberately keeps fallbacks, so a Castilian voice
-  is in the English list and a membership check would have found it and changed nothing. **(4)** the folder
-  step, self-host only and skippable, running DURING the generation (his own sequencing) with its words
-  riding the same SSE event already translated: `library/paths.check_base()` is a SECOND door to
-  `resolve()` with a different provenance — a person, on their own machine, once — so it accepts an
-  absolute path, which `resolve()` never may, and pays for that with a validator that REFUSES instead of
-  repairing (exists · directory · writable · never the filesystem root · never HOME itself · never a system
-  directory · checked on the RESOLVED path). A cloud account is never asked: there the Volume IS the
-  storage. **Two ratchets bit and both were right**: the energy sweep caught the new API calls (exempted —
-  ElevenLabs bills per synthesised character and these two endpoints are metadata), and the dependency
-  ratchet refused `i18n` reaching into the motor's voice catalog, so the alignment came out of `lock()` and
-  lives only in `settings.update()`, the one seam every language writer already goes through. Nodes
-  **8.6**, **8.7** and **4.162** (RENDERED); twenty-four disarms, mutations asserted, all red. ⚠️ **The
-  rendered node caught a defect on its first run that no source read could**: the speaking mark was mounted
-  with `innerHTML`, a prop `dom.js::h()` does not know, so it was set as a plain attribute and painted
-  nothing. ⚠️ **And the path validator over-refused on macOS**: `/var` resolves to `/private/var` and the
-  per-user temp directory lives under it, so the prefix ban refused an ordinary writable folder belonging
-  to the person choosing — `/var` came out, because on Linux it is root-owned and the writability check was
-  doing the work anyway. **NOT verified**: the native folder dialog headless (it cannot be), and the whole
-  ceremony driven end to end by the operator.
-
+- **NOBODY SPEAKS before a language is chosen — the wordless picker, the voice that follows the language, and where the files live (V2-672, 2026-09-11)** — texto íntegro en `decisions-archive.md`
 - **A question about what a widget HOLDS is answered by the widget (V2-668, 2026-09-11)** — texto íntegro en `decisions-archive.md`
 - **An order NAMES its target, and a notice waits its turn (V2-666, 2026-09-11)** — texto íntegro en
   `decisions-archive.md`; cita además V2-584, V2-651, V2-656, V2-661, V2-667

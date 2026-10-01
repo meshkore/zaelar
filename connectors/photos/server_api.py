@@ -19,9 +19,10 @@ prefix.
 
 Loopback, like the rest of the local API.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
+from connectors import oauth_base as _b
 from connectors.photos import oauth, providers, service, store
 
 router = APIRouter()
@@ -35,7 +36,7 @@ async def status():
 
 
 @router.post("/api/photos/connect")
-async def connect(payload: dict | None = None):
+async def connect(request: Request, payload: dict | None = None):
     payload = payload or {}
     cid = str(payload.get("client_id") or "").strip()
     secret = str(payload.get("client_secret") or "").strip()
@@ -48,7 +49,7 @@ async def connect(payload: dict | None = None):
                 credentials.set_key("PHOTOS_GOOGLE_PHOTOS_CLIENT_SECRET", secret)
         except Exception as e:  # noqa: BLE001
             return JSONResponse({"ok": False, "error": f"credential_store:{e}"[:120]}, status_code=500)
-    res = oauth.authorize_url(service.PROVIDER_ID)
+    res = oauth.authorize_url(service.PROVIDER_ID, origin=_b.request_origin(request))
     return JSONResponse(res, status_code=200 if res.get("ok") else 400)
 
 

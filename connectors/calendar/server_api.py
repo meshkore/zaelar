@@ -54,16 +54,8 @@ async def connect(request: Request, payload: dict | None = None):
 
 
 def _origin(request: Request) -> str:
-    try:
-        o = (request.headers.get("origin") or "").strip()
-        if o:
-            return o
-        host = (request.headers.get("host") or "").strip()
-        if host:
-            return f"{request.url.scheme}://{host}"
-    except Exception:
-        pass
-    return ""
+    from connectors import oauth_base
+    return oauth_base.request_origin(request)
 
 
 def _kick_agenda_sync() -> None:

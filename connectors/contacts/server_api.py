@@ -45,7 +45,8 @@ async def connect(request: Request, payload: dict | None = None):
         except Exception as e:  # noqa: BLE001
             return JSONResponse({"ok": False, "error": f"credential_store:{e}"[:120]}, status_code=500)
     # The origin the browser is actually on — the redirect is derived from it, never hardcoded (V2-603).
-    origin = str(request.headers.get("origin") or "").strip()
+    from connectors import oauth_base
+    origin = oauth_base.request_origin(request)
     res = oauth.authorize_url("google-contacts", tier, origin)
     return JSONResponse(res, status_code=200 if res.get("ok") else 400)
 

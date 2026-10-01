@@ -55,19 +55,8 @@ async def connect(request: Request, payload: dict | None = None):
 
 
 def _origin(request: Request) -> str:
-    """The origin the operator is actually on, for the OAuth redirect. `Origin` is the honest header on the
-    POST that starts the flow; `Host` + scheme is the fallback. Whatever comes out is re-validated by
-    `oauth.redirect_uri`, which falls back to loopback rather than trusting a header blindly."""
-    try:
-        o = (request.headers.get("origin") or "").strip()
-        if o:
-            return o
-        host = (request.headers.get("host") or "").strip()
-        if host:
-            return f"{request.url.scheme}://{host}"
-    except Exception:
-        pass
-    return ""
+    from connectors import oauth_base
+    return oauth_base.request_origin(request)
 
 
 def _refresh_card(provider_id: str) -> None:

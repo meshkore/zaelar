@@ -11,61 +11,56 @@
 #
 # All functions are SYNCHRONOUS and FAIL-SAFE (return {ok:False,...} or None; never raise to the caller).
 #
+# V2-778 F1-13 — the flow itself lives in `connectors/oauth_base.py`, shared by the six account connectors; this
+# module keeps what is email's own: SEVERAL accounts per provider (keyed `provider:address`), providers that
+# speak IMAP without OAuth beside the ones that do, the Google offline/consent parameters and the login hint.
+# ⚠️ No route serves `/api/email/callback` yet (`server/email_api.py` does not exist — declared in
+# `test_both_doors_ask_google_for_the_SAME_return_address`), so this half is reachable only once that is built.
+#
 from __future__ import annotations
 
 import logging
-import os
-import time
-import urllib.parse
+import sys
 from pathlib import Path
 
+from connectors import oauth_base as _b
 from connectors.email import providers as _pv
-from connectors.oauth_pkce import make_pkce, make_state
-from connectors.secure_json_store import SecureJsonStore
 
 logger = logging.getLogger("zaelar.email.oauth")
 
 _ROOT = Path(__file__).resolve().parent.parent.parent
 STORE = _ROOT / ".meshkore" / "credentials" / "email_oauth.json"
-_REFRESH_SKEW = 120                      # refresh 2 minutes before expiry
+ENV_PREFIX = "EMAIL"
+CALLBACK_PATH = "/api/email/callback"
 _DEFAULT_REDIRECT = "http://127.0.0.1:43917/api/email/callback"
-
-
-# ── App credentials (credential store; dormant if empty) ────────────────────────────────────────────────────────
-def _cred(name: str) -> str:
-    try:
-        from config import credentials as store
-        v = (store.get(name) or "").strip()
-        if v:
-            return v
-    except Exception:
-        pass
-    return (os.getenv(name) or "").strip()
-
-
-# V2-685 — the ONE Google app. The operator registered Zaelar's OAuth client once (2026-09-12); before
-# this, saying so meant pasting the same client_id into five different env names, one per Google door.
-# The connector's OWN name still wins — a self-hoster who wants a separate app for this service keeps it.
 _GOOGLE_PROVIDERS = {'gmail'}
+_m = sys.modules[__name__]
 
 
-def _shipped_google(provider_id: str, *, secret: bool) -> str:
-    """Zaelar's shared Google client, or "" when this provider is not a Google one (or none is installed)."""
-    if provider_id not in _GOOGLE_PROVIDERS:
-        return ""
-    try:
-        from connectors.google import app as _google
-        return _google.client_secret() if secret else _google.client_id()
-    except Exception:  # noqa: BLE001 — a missing shared app leaves the connector exactly as dormant as before
-        return ""
+def _cred(name: str) -> str:
+    return _b.cred(name)
+
+
+def _shipped_google(provider_id: str, *, secret: bool = False) -> str:
+    return _b.shipped_google(_m, provider_id, secret=secret)
+
+
+def _oauth_capable(p) -> bool:
+    return bool(p and p.oauth)
+
+
+def _auth_spec(p, tier_id: str = ""):
+    # Google: offline + consent force a refresh_token; Microsoft ignores both
+    return p.oauth.authorize_url, p.oauth.token_url, list(p.oauth.scopes), {"access_type": "offline",
+                                                                             "prompt": "consent"}
 
 
 def client_id(provider_id: str) -> str:
-    return _cred(f"EMAIL_{provider_id.upper()}_CLIENT_ID") or _shipped_google(provider_id, secret=False)
+    return _b.client_id(_m, provider_id)
 
 
 def client_secret(provider_id: str) -> str:
-    return _cred(f"EMAIL_{provider_id.upper()}_CLIENT_SECRET") or _shipped_google(provider_id, secret=True)
+    return _b.client_secret(_m, provider_id)
 
 
 def configured(provider_id: str) -> bool:
@@ -76,22 +71,16 @@ def configured(provider_id: str) -> bool:
     return bool(client_id(provider_id))
 
 
-def redirect_uri() -> str:
-    return os.getenv("EMAIL_OAUTH_REDIRECT") or _DEFAULT_REDIRECT
+def redirect_uri(origin: str = "") -> str:
+    return _b.redirect_uri(_m, origin)
 
 
-# ── Token + pending store (per provider:account) ───────────────────────────────────────────────────────────────
-# A fresh SecureJsonStore(STORE) per call, not a module-level singleton: tests monkeypatch `oauth.STORE` to a
-# tmp path, which a cached instance bound to the ORIGINAL path at import time would silently ignore.
 def _load() -> dict:
-    return SecureJsonStore(STORE).load()
+    return _b.load(_m)
 
 
 def _save(data: dict) -> None:
-    try:
-        SecureJsonStore(STORE).save(data)
-    except Exception as e:
-        logger.warning(f"email oauth store no guardado: {e}")
+    _b.save(_m, data)
 
 
 def _acct_key(provider_id: str, address: str) -> str:
@@ -99,112 +88,36 @@ def _acct_key(provider_id: str, address: str) -> str:
 
 
 def tokens_present(provider_id: str, address: str) -> bool:
-    return bool((_load().get("accounts", {}) or {}).get(_acct_key(provider_id, address), {}).get("refresh_token"))
+    return bool(_b.account(_m, _acct_key(provider_id, address)).get("refresh_token"))
 
 
 def forget(provider_id: str, address: str) -> None:
-    data = _load()
-    (data.get("accounts", {}) or {}).pop(_acct_key(provider_id, address), None)
-    _save(data)
+    _b.forget(_m, _acct_key(provider_id, address))
 
 
-# ── authorization-code flow ────────────────────────────────────────────────────────────────────────────────────
-def authorize_url(provider_id: str, address: str = "") -> dict:
-    """Return {ok, url} — the consent URL to send the user to. Stashes the PKCE verifier + provider/account under a
-    random `state` (for the callback)."""
-    p = _pv.get(provider_id)
-    if not p or not p.oauth:
-        return {"ok": False, "error": f"proveedor sin OAuth: {provider_id}"}
-    cid = client_id(provider_id)
-    if not cid:
-        return {"ok": False, "error": f"sin app OAuth registrada para {p.label} (falta EMAIL_{provider_id.upper()}_CLIENT_ID)"}
-    verifier, challenge = make_pkce()
-    state = make_state()
-    data = _load()
-    data.setdefault("pending", {})[state] = {"provider": provider_id, "address": address,
-                                             "verifier": verifier, "ts": int(time.time())}
-    _save(data)
-    params = {
-        "client_id": cid, "response_type": "code", "redirect_uri": redirect_uri(),
-        "scope": " ".join(p.oauth.scopes), "state": state,
-        "code_challenge": challenge, "code_challenge_method": "S256",
-        "access_type": "offline", "prompt": "consent",       # Google: forces refresh_token; Microsoft ignores it
-    }
-    if address:
-        params["login_hint"] = address
-    return {"ok": True, "url": p.oauth.authorize_url + "?" + urllib.parse.urlencode(params)}
+def authorize_url(provider_id: str, address: str = "", origin: str = "") -> dict:
+    """{ok, url} — the consent URL to send the operator to, for one ADDRESS of this provider."""
+    res = _b.authorize_url(_m, provider_id, "", origin, pending={"address": address},
+                           params={"login_hint": address} if address else None)
+    res.pop("tier", None)
+    return res
 
 
 def exchange_code(code: str, state: str) -> dict:
-    """Callback: exchange `code` for tokens using the pending `state`. Saves access/refresh/expiry per account.
+    """Callback: exchange `code` for the tokens of the address the consent was started for.
     Returns {ok, provider, address}."""
-    import httpx
-    data = _load()
-    pend = (data.get("pending", {}) or {}).pop(state, None)
-    _save(data)
-    if not pend:
-        return {"ok": False, "error": "state desconocido o caducado"}
-    provider_id = pend["provider"]
-    p = _pv.get(provider_id)
-    if not p or not p.oauth:
-        return {"ok": False, "error": "proveedor inválido"}
-    body = {
-        "grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri(),
-        "client_id": client_id(provider_id), "code_verifier": pend["verifier"],
-    }
-    sec = client_secret(provider_id)
-    if sec:
-        body["client_secret"] = sec
-    try:
-        r = httpx.post(p.oauth.token_url, data=body, timeout=30)
-        tok = r.json()
-    except Exception as e:
-        return {"ok": False, "error": f"intercambio falló: {e}"}
-    if "access_token" not in tok:
-        return {"ok": False, "error": f"sin access_token: {tok.get('error_description') or tok.get('error') or tok}"}
-    address = pend.get("address") or ""
-    _store_tokens(provider_id, address, tok)
-    return {"ok": True, "provider": provider_id, "address": address}
+    res = _b.exchange_code(_m, code, state,
+                           lambda pend: _acct_key(pend["provider"], pend.get("address") or ""))
+    if not res.get("ok"):
+        return res
+    return {"ok": True, "provider": res["provider"], "address": res["pending"].get("address") or ""}
 
 
 def _store_tokens(provider_id: str, address: str, tok: dict) -> None:
-    data = _load()
-    accts = data.setdefault("accounts", {})
-    cur = accts.get(_acct_key(provider_id, address), {})
-    entry = {
-        "access_token": tok.get("access_token", ""),
-        # refresh_token does not always return on refresh → preserve the previous one
-        "refresh_token": tok.get("refresh_token") or cur.get("refresh_token", ""),
-        "expires_at": int(time.time()) + int(tok.get("expires_in", 3600)),
-    }
-    accts[_acct_key(provider_id, address)] = entry
-    _save(data)
+    _b.store_tokens(_m, _acct_key(provider_id, address), "", tok)
 
 
 def access_token(provider_id: str, address: str) -> str | None:
     """Return a VALID access token (refreshing if expired) or None. Used by the connector for XOAUTH2."""
-    import httpx
-    acct = (_load().get("accounts", {}) or {}).get(_acct_key(provider_id, address))
-    if not acct:
-        return None
-    if acct.get("access_token") and acct.get("expires_at", 0) - _REFRESH_SKEW > time.time():
-        return acct["access_token"]
-    rt = acct.get("refresh_token")
-    p = _pv.get(provider_id)
-    if not rt or not p or not p.oauth:
-        return acct.get("access_token") or None
-    body = {"grant_type": "refresh_token", "refresh_token": rt, "client_id": client_id(provider_id),
-            "scope": " ".join(p.oauth.scopes)}
-    sec = client_secret(provider_id)
-    if sec:
-        body["client_secret"] = sec
-    try:
-        r = httpx.post(p.oauth.token_url, data=body, timeout=30)
-        tok = r.json()
-    except Exception as e:
-        logger.warning(f"email oauth refresh falló ({provider_id}): {e}")
-        return acct.get("access_token") or None
-    if "access_token" in tok:
-        _store_tokens(provider_id, address, tok)
-        return tok["access_token"]
-    return acct.get("access_token") or None
+    key = _acct_key(provider_id, address)
+    return _b.access_token(_m, provider_id, key, _b.account(_m, key))

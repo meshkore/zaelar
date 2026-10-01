@@ -15,8 +15,9 @@ def store(tmp_path, monkeypatch):
 
 
 def test_pkce_deterministic_and_s256():
-    v1, c1 = oauth.make_pkce(seed=b"\x00" * 48)
-    v2, c2 = oauth.make_pkce(seed=b"\x00" * 48)
+    from connectors.oauth_pkce import make_pkce   # V2-778 F1-13: the flow is shared; PKCE lives where it always did
+    v1, c1 = make_pkce(seed=b"\x00" * 48)
+    v2, c2 = make_pkce(seed=b"\x00" * 48)
     assert v1 == v2 and c1 == c2            # same seed → same pair
     assert "=" not in v1 and "=" not in c1  # base64url without padding
     assert v1 != c1                          # the challenge is the verifier's SHA256, not the verifier

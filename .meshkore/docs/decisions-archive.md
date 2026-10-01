@@ -10306,3 +10306,53 @@ one-line index behind in the live log. Nothing below was edited or summarized on
 - **A screen nobody can read is a screen that did not happen — the preparing step gets a floor and a bar (V2-731, 2026-09-20)**: the operator, seconds after choosing a language: *«ha salido como una pequeña pantalla que ha durado un segundo o dos y no sé qué era. Si hay un loader o una pantalla tiene que tener un progress bar o algo, pero como mínimo debe durar dos segundos para que la gente lo vea»*. Two defects, neither of which errors. **(1) No floor.** `lock()` emits `detected` and then `ready` once `prepare()` returns, and for a PRESET language — which is every operator's first run, since en/es are what we ship — `prepare()` reads a bundle already on disk and returns immediately, so both events land in the same breath and the veil fades 550 ms later. **(2) Nothing readable on it**: a bare spinner, which says «something is happening» — exactly the sentence he could not turn into an answer for *what was that*. And there was nothing to build a bar out of: the engine reported NO progress between the two events, though it does up to three distinguishable things (UI bundle, alias pack, phrasebook). Now the floor is `LANG_LOADER_FLOOR_MS = 2200`, armed by `sse.js` when the screen appears rather than when the work started, and the bar is fed by the ENGINE's own step count (1 for a preset, 3 for a language it has to build), sent with the first event so the denominator never grows halfway through; with no count it SWEEPS rather than inventing a percentage. **The load-bearing change is the hold.** V2-672 established that the language being ready is not enough to close the veil and wrote it as one boolean — and a second reason cannot be added to a boolean without the floor's release taking the folder question off the screen mid-answer, which is the exact regression V2-672 exists to prevent; `holdLangOnboard(on, reason)` now keeps a SET and the veil closes only when it is empty. ⚠️ The progress event deliberately carries no `code`: `sse.js` re-applies the language on any `language` event that has one, so a progress report with a `code` refetches the bundle once per step — pinned by a test, because the next person to add a field there will not know. Nodes 4.194 (the real `sse.js` over the real store — a test that armed the floor itself would pass with the wiring cut) and 4.162 (rendered: the bar has ink, 0/3 is a sliver and not an empty track, `ready` is 100 %). Three disarms, three reds. **The rule: a transient surface needs a floor measured from when it APPEARS, and if it is worth showing it is worth saying how far along it is — when the honest answer is «I cannot say», an indeterminate bar says that and a made-up number lies.**
 
 - **A colour that means «chosen» cannot be borrowed to mean «important» — the first screen showed two languages selected at once (V2-730, 2026-09-20)**: the operator, on a fresh install: *«ya cuando esto arranca, si te fijas por primera vez, te quedan seleccionados los dos idiomas. Tienes que seleccionar solo uno y entonces el usuario puede clicar otro, pero no los dos a la vez»*. V2-672 needed English and Spanish «destacados arriba» and drew that prominence with `--hb-accent` — the colour this product uses everywhere to say CHOSEN — so `.lang-onb-row.pinned` put an accent border on **both** shipped rows. The picker had no notion of a current language at all: `.pinned` came straight off the catalog row and nothing ever read `/api/i18n/state`'s `active`, so the first screen of the product asserted a fact about state that was false, and a click on either row changed nothing visible. Split in two: prominence is now `--hb-line-strong` plus the raised surface, and the accent marks the ONE language the engine is actually running in (`aria-pressed` with it), moved by the click rather than by the round-trip. The row's `class` is a function, so the mark repaints two borders instead of re-rendering forty rows, and `:hover:not(.sel)` sits last — which also restores the hover feedback `.pinned` used to swallow, i.e. the half of the request that says the other row is clickable. One fix, both shells: the mobile PWA mounts the same component and links the same stylesheet. Node 4.162; the rendered test resolves the accent through a probe element and asks every row what colour its border ACTUALLY is, because a `classList` check passes with the rule deleted from the stylesheet — the disarm goes red with `got ['en', 'es']`, the operator's sentence in the assertion's own words.
+
+## Moved on 2026-10-01 (V2-778 F1-13 — the living log crossed its ceiling)
+
+- **NOBODY SPEAKS before a language is chosen — the wordless picker, the voice that follows the language,
+  and where the files live (V2-672, 2026-09-11)**: the operator on his fresh install — «me pide los
+  idiomas, pero por detrás está hablando ya en un idioma por defecto… **no quiero que la gente hable hasta
+  que no hayamos seleccionado el idioma**» — and «la voz que viene por defecto en español habla bien
+  español, pero habla mal inglés… si hay alguien que habla chino o alemán o suajili tenemos que ponerle una
+  voz que esté entrenada para esos idiomas». **Both were WRITTEN DECISIONS, not slips**: `agent.py` said
+  the question «HAS to go out now, in English (the product default)» and the kickoff began `[FIRST RUN …
+  SPEAK ENGLISH ONLY]`, so the one sentence a person could not understand was the one asking which language
+  they understand; and `core/config.py` hardcoded `elevenlabs_voice_id` to a Castilian voice chosen by
+  V2-035 when the product spoke one language. **MEASURED against the live API before a line was written**:
+  `/v1/voices` returns the ACCOUNT's voices and **all 21 premade ones are `language: en`**, so that set
+  structurally cannot answer «a voice trained for German»; `/v1/shared-voices?language=<code>` returns real
+  NATIVE voices (es → latin american, peruvian; zh → beijing/taiwan mandarin) and honestly returns ZERO for
+  Swahili; and a shared-library id works DIRECTLY in text-to-speech with no «add to my voices» step
+  (verified with a nine-character synthesis) — without that last one this would have shipped a picker full
+  of ids that 400. Also measured: the `.env` copy of the key on this machine answers **401** while the
+  credential store's answers 200, so the new module asks the store first and says why. Built: **(1)** the
+  first-run branch RETURNS — the session still starts (the mic must be live to hear a spoken answer) and
+  says nothing, and the first thing anyone hears is `onboarding.confirmSpoken` in the language they just
+  chose, which is also the greeting. **(2)** `i18n/catalog.py` + a rewritten picker that carries no word of
+  ours: a speaking mark, then 40 rows of flag + the language's OWN native name, `en`/`es` pinned because
+  those are the two the repo SHIPS; typing FILTERS the rows instead of submitting free text, because
+  submitting needed a prompt telling you to write something in a language you may not read. **(3)**
+  `voice/engine/speech/elevenlabs_voices.py` ranks natives first and KEEPS the multilingual ones last (a
+  language with no native voice must still speak), and the ⚙'s list is per-language like Kokoro's. The
+  realignment on a language change covered KOKORO only — which is why the cloud TTS never followed — and
+  now asks **`voice_is_aligned(provider, voice, lang)`**, a different question from «is it in the list»,
+  and the difference IS the defect: the ElevenLabs list deliberately keeps fallbacks, so a Castilian voice
+  is in the English list and a membership check would have found it and changed nothing. **(4)** the folder
+  step, self-host only and skippable, running DURING the generation (his own sequencing) with its words
+  riding the same SSE event already translated: `library/paths.check_base()` is a SECOND door to
+  `resolve()` with a different provenance — a person, on their own machine, once — so it accepts an
+  absolute path, which `resolve()` never may, and pays for that with a validator that REFUSES instead of
+  repairing (exists · directory · writable · never the filesystem root · never HOME itself · never a system
+  directory · checked on the RESOLVED path). A cloud account is never asked: there the Volume IS the
+  storage. **Two ratchets bit and both were right**: the energy sweep caught the new API calls (exempted —
+  ElevenLabs bills per synthesised character and these two endpoints are metadata), and the dependency
+  ratchet refused `i18n` reaching into the motor's voice catalog, so the alignment came out of `lock()` and
+  lives only in `settings.update()`, the one seam every language writer already goes through. Nodes
+  **8.6**, **8.7** and **4.162** (RENDERED); twenty-four disarms, mutations asserted, all red. ⚠️ **The
+  rendered node caught a defect on its first run that no source read could**: the speaking mark was mounted
+  with `innerHTML`, a prop `dom.js::h()` does not know, so it was set as a plain attribute and painted
+  nothing. ⚠️ **And the path validator over-refused on macOS**: `/var` resolves to `/private/var` and the
+  per-user temp directory lives under it, so the prefix ban refused an ordinary writable folder belonging
+  to the person choosing — `/var` came out, because on Linux it is root-owned and the writability check was
+  doing the work anyway. **NOT verified**: the native folder dialog headless (it cannot be), and the whole
+  ceremony driven end to end by the operator.
