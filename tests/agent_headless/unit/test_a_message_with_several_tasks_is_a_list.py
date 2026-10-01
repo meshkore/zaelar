@@ -471,7 +471,7 @@ def test_five_errands_never_run_more_than_two_at_a_time(monkeypatch):
     asyncio.run(_go())
     monkeypatch.setattr(dispatch, "_sem", None)
     assert inside == {"now": 0, "max": 2, "done": 5}
-    src = (ROOT / "nucleo/dispatch.py").read_text()
+    src = _vts.read(ROOT / "nucleo/dispatch.py")
     assert "async with _pool():" in src            # the gate every worker session passes through
 
 

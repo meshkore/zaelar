@@ -26,6 +26,7 @@ from nucleo import dispatch, surfaces
 from nucleo.workers.session import SessionRecord
 from widgets import store
 from widgets.results import data as sheet
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 @pytest.fixture(autouse=True)
@@ -255,7 +256,7 @@ def test_el_cierre_de_la_hoja_va_despues_de_sacar_la_sesion_del_registro():
     working. This is an ORDER guard on the code: reordering two lines does not fail noisily; it leaves the loader
     spinning forever."""
     import inspect
-    src = inspect.getsource(dispatch._run_session)
+    src = _vts.getsource(dispatch._run_session)
     pop = src.rindex('_SESSIONS.pop(key, None)')
     cierre = src.rindex('_sheet_close(rec)')
     assert pop < cierre, "el `_sheet_close` tiene que ir DESPUÉS de sacar la sesión del registro"

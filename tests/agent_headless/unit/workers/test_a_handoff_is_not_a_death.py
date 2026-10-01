@@ -22,6 +22,7 @@ import asyncio
 import pytest
 
 from nucleo.workers.session import SessionRecord, WorkerSession
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 class _Backend:
@@ -158,7 +159,7 @@ def test_un_relevo_NO_dispara_ADEMAS_el_auto_resume():
     import inspect
 
     from nucleo import dispatch
-    src = inspect.getsource(dispatch._run_session)
+    src = _vts.getsource(dispatch._run_session)
     assert "_handoff = str(getattr(rec, \"handoff\", \"\") or \"\")" in src
     assert "and not _handoff)" in src
     assert "_schedule_auto_resume" in src
@@ -170,7 +171,7 @@ def test_la_hoja_NO_se_cierra_cuando_el_encargo_continua():
     import inspect
 
     from nucleo import dispatch
-    src = inspect.getsource(dispatch._run_session)
+    src = _vts.getsource(dispatch._run_session)
     assert "if not _continues and surfaces.opens_sheet" in src
     assert "_continues = bool(_will_resume or _handoff)" in src
 

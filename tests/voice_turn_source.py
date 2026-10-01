@@ -97,7 +97,7 @@ _PROVIDER_CALLS = (
 #: Other files F1 split, and the modules their code moved to. A guard that reads the old file reads them all,
 #: concatenated: the moved code stays contiguous, so an «X before Y» assertion inside it keeps its meaning.
 DISPATCH = ENGINE / "nucleo" / "dispatch.py"
-_SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py"],
+_SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py", ENGINE / "nucleo" / "dispatch_session.py"],
           (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"],
           (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py"],
           (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"]}
@@ -134,6 +134,16 @@ def probe_source() -> str:
     return prov
 
 
+#: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
+_ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d"}
+
+
+def _as_written(x: Path) -> str:
+    src = x.read_text(encoding="utf-8")
+    alias = _ALIASED.get(x.resolve())
+    return re.sub(rf"\b{alias}\.", "", src) if alias else src
+
+
 def read(path) -> str:
     """`Path.read_text` for a source guard: the provider path yields the whole turn, a split file its pieces,
     anything else its file."""
@@ -145,7 +155,7 @@ def read(path) -> str:
     if p.resolve() == PROBE.resolve():
         return probe_source()
     if p.resolve() in _SPLIT:
-        return "\n".join(x.read_text(encoding="utf-8") for x in [p, *_SPLIT[p.resolve()]])
+        return "\n".join(_as_written(x) for x in [p, *_SPLIT[p.resolve()]])
     return p.read_text(encoding="utf-8")
 
 
@@ -175,4 +185,7 @@ def getsource(obj) -> str:
     if mod == "nucleo.dispatch" and qual == "run_listener":          # the facade's delegate (V2-778 F1-11)
         from nucleo import dispatch_listener
         return inspect.getsource(dispatch_listener.run_listener)
+    if mod == "nucleo.dispatch" and qual == "_run_session":          # the facade's delegate (V2-778 F1)
+        from nucleo import dispatch_session      # read as it was written there: without the `_d.` the move added
+        return re.sub(r"\b_d\.", "", inspect.getsource(dispatch_session._run_session))
     return inspect.getsource(obj)

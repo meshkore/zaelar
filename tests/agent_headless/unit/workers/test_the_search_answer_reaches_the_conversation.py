@@ -29,6 +29,7 @@ import pytest
 from nucleo.workers import findings
 from nucleo.workers.session import SessionRecord, WorkerSession
 from voice import brain_notes
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 RESPUESTA = ('Philips 27E1N1800A/00 — 27" UHD 4K — 159,00 €. '
              'Alurin CoreVision 27" IPS 4K Freesync — 149,99 €.')
@@ -220,5 +221,5 @@ def test_el_dispatcher_lo_olvida_de_verdad():
     import inspect
 
     from nucleo import dispatch
-    src = inspect.getsource(dispatch._run_session)
+    src = _vts.getsource(dispatch._run_session)
     assert "findings.forget(key)" in src

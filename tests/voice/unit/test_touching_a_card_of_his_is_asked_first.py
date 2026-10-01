@@ -104,7 +104,7 @@ def test_the_gate_lives_where_EVERY_door_into_the_generator_passes():
     create-widget backstop, the promise backstop, and a turn promoted from an injection. `_run_session`
     is the only door that actually starts a worker, and `kind` is already classified by the time it
     runs. Every assertion in this section passes with the gate deleted; this one does not."""
-    src = "\n".join(l for l in inspect.getsource(dispatch._run_session).splitlines()
+    src = "\n".join(l for l in _vts.getsource(dispatch._run_session).splitlines()
                     if not l.strip().startswith("#"))
     assert 'kind == "code"' in src and "remember_code_change(key, req, task, sheet=" in src
     # …and the exemption is read from THIS gate's own condition, not from anywhere else in the method:

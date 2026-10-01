@@ -146,4 +146,4 @@ def test_the_probe_mirror_reads_the_same_classifier():
 def test_the_worker_gate_reads_it_too():
     import inspect
     from nucleo import dispatch
-    assert "danger.is_dangerous(req)" in inspect.getsource(dispatch)
+    assert "danger.is_dangerous(req)" in _vts.getsource(dispatch)

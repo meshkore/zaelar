@@ -13,6 +13,7 @@ import json
 import pathlib
 
 import pytest
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
@@ -132,7 +133,7 @@ def test_the_dispatcher_appends_the_block_to_every_trusted_worker():
     i = prompts.index("def trusted_blocks(")
     body = prompts[i:prompts.index("\ndef ", i + 10)]
     assert "library_block()" in body and "DOC_SURFACE_BLOCK" in body
-    src = (_ENGINE / "nucleo" / "dispatch.py").read_text(encoding="utf-8")
+    src = _vts.read(_ENGINE / "nucleo" / "dispatch.py")
     j = src.index("trusted_blocks(")
     assert "if trusted and not _dev:" in src[j - 400:j], "trusted workers only — the dev channel keeps its own prompt"
 

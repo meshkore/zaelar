@@ -14,6 +14,7 @@ negativa es legible en vez de un worker dando vueltas).
 import pytest
 
 from nucleo import protected_core as pc
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 # ── la INTENCIÓN: qué se reconoce como «esto me modifica a mí» ───────────────────────────────────────────
@@ -131,7 +132,7 @@ def test_the_tools_and_the_cwd_follow_the_ERRAND_not_its_kind():
     import re
     from pathlib import Path
     src = Path(__file__).resolve().parents[3] / "nucleo/dispatch.py"
-    text = re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
+    text = re.sub(r"(?m)#.*$", "", _vts.read(src))
     assert "protected_core.writes_are_confined(kind, req)" in text
     assert 'if kind == "code" and may_write:' in text, (
         "Write/Edit los da el encargo, no el nombre del kind")

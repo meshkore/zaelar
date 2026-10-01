@@ -16,6 +16,7 @@ import time
 import pytest
 
 from nucleo.workers import providers
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 @pytest.fixture
@@ -82,7 +83,7 @@ def test_el_dispatcher_LO_CONSULTA():
     import inspect
 
     from nucleo import dispatch
-    src = "\n".join(ln for ln in inspect.getsource(dispatch._run_session).splitlines()
+    src = "\n".join(ln for ln in _vts.getsource(dispatch._run_session).splitlines()
                     if not ln.strip().startswith("#"))
     assert "exhausted_reason()" in src, "el dispatcher dejó de preguntar si la cadena está dormida"
     i_ask = src.find("exhausted_reason()")
@@ -97,5 +98,5 @@ def test_y_lo_cuenta_como_NO_ARRANCADA_no_como_rota():
     import inspect
 
     from nucleo import dispatch
-    src = inspect.getsource(dispatch._run_session)
+    src = _vts.getsource(dispatch._run_session)
     assert '"provider_asleep"' in src

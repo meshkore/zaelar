@@ -21,6 +21,7 @@ from pathlib import Path
 import pytest
 
 from nucleo import dispatch
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -101,7 +102,7 @@ def test_the_REAL_path_records_the_ending_before_dropping_the_record():
     this fixes it without having to run one."""
     import inspect
 
-    src = inspect.getsource(dispatch._run_session)
+    src = _vts.getsource(dispatch._run_session)
     # The LAST pop is the one in `finally`, through which every session that reaches execution exits. The other two are
     # the confirm gate —which has its own state line (V2-126/V2-190), and announcing it as “ENDED” as well
     # would count it twice and incorrectly— and queued cancellation, which does remember.

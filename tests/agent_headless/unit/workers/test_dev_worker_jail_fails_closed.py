@@ -12,13 +12,14 @@ import re
 from pathlib import Path
 
 from nucleo.workers.claude_session import _DEV_ENV_KEEP, _dev_env_allowlist
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 ENGINE = Path(__file__).resolve().parents[4]
 
 
 def _stripped(path: str) -> str:
     """Source with comments removed — a guard that can match its own explanation guards nothing (V2-573)."""
-    src = (ENGINE / path).read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / path)
     return re.sub(r"(?m)#.*$", "", src)
 
 

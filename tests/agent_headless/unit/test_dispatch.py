@@ -18,6 +18,7 @@ from memory import embeddings as mememb
 from nucleo import dispatch
 from nucleo.workers.base import WorkerBackend, WorkerEvent, WorkerSpec
 from tests.waiting import until
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 @pytest.fixture(autouse=True)
@@ -663,7 +664,7 @@ def test_a_dead_composer_costs_direction_never_time(fresh_db, monkeypatch):
 def test_the_fail_open_still_lets_the_task_out():
     """Lo que NO puede pasar por arreglar el presupuesto: que un compositor caído impida salir a la tarea. La
     excepción se captura en `_run_session` y el worker arranca igual — el fail-open sigue siendo fail-open."""
-    src = pathlib.Path(dispatch.__file__).read_text(encoding="utf-8")
+    src = _vts.read(dispatch.__file__)
     assert "except research.ComposerUnavailable:" in src
     assert "raise research.ComposerUnavailable" not in src      # dispatch la ATIENDE, nunca la propaga al operador
 

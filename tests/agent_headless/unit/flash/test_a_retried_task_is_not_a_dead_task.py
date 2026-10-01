@@ -22,6 +22,7 @@ import pytest
 
 from nucleo import dispatch as d
 from voice import brain_notes
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 class _Rec:
@@ -118,7 +119,7 @@ def test_the_resume_decision_is_taken_ONCE_and_shared():
     errand). The guard survives the split by keeping the derivation single: `_continues` is defined from
     `_will_resume`, never re-derived, and the death filing reads it."""
     import inspect
-    src = inspect.getsource(d._run_session)
+    src = _vts.getsource(d._run_session)
     assert src.count("_will_resume = bool(") == 1
     assert src.count("_continues = bool(") == 1
     assert "_continues = bool(_will_resume or _handoff)" in src

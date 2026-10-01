@@ -18,6 +18,7 @@ import pytest
 
 from nucleo import dispatch as D
 from nucleo import research
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 class _Rec:
@@ -125,7 +126,7 @@ def test_the_spawn_path_actually_wires_the_followup():
     """The wiring guard (source WITHOUT comments): the head start and follow-up must be on the real
     `run_listener` path — a test that only exercises the callback passes even with the hook removed."""
     import inspect
-    src = "\n".join(ln for ln in inspect.getsource(D._run_session).splitlines()
+    src = "\n".join(ln for ln in _vts.getsource(D._run_session).splitlines()
                     if not ln.strip().startswith("#"))
     assert "ZAELAR_BRIEF_HEAD_START_S" in src, "el head start desapareció del camino real"
     assert "_attach_brief_followup(_brief_bg" in src, "el brief tardío no llega a nadie sin este enganche"
