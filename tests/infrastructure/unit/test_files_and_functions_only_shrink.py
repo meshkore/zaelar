@@ -46,7 +46,7 @@ FILES = {
     'voice/engine/pipeline/agent.py': 854,
     'widgets/agenda/data.py': 867,
     'widgets/mensajeria/data.py': 883,
-    'widgets/navegador/owner.py': 1047,
+    'widgets/navegador/owner.py': 883,
     'widgets/navegador/tasks.py': 829,
     'widgets/results/data.py': 985,
     'widgets/youtube/data.py': 813,
