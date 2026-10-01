@@ -57,7 +57,7 @@ def test_the_candidate_search_never_calls_a_model(fresh_db, monkeypatch):
     """The rule is not «cheap», it is «no model». A classifier in the narrowing step is what INI-027 §7 bans."""
     import nucleo.jev as jev
     calls = []
-    monkeypatch.setattr(jev, "select_many", lambda *a, **k: calls.append(1) or [])
+    monkeypatch.setattr(jev, "select_many_status", lambda *a, **k: calls.append(1) or ([], jev.NO_MATCH))
     monkeypatch.setattr(jev, "choose_many_sync", lambda *a, **k: calls.append(1) or {})
     _done("t1", "piso en Gràcia", "búscame piso de alquiler en Gracia")
     assert [c["id"] for c in tr.candidates("lo del piso")] == ["t1"]
@@ -76,7 +76,7 @@ def test_one_candidate_is_taken_without_asking_jev(fresh_db, monkeypatch):
     import nucleo.jev as jev
     monkeypatch.setattr(jev, "enabled", lambda: True)
     called = []
-    monkeypatch.setattr(jev, "select_many", lambda *a, **k: called.append(1) or [])
+    monkeypatch.setattr(jev, "select_many_status", lambda *a, **k: called.append(1) or ([], jev.NO_MATCH))
     _done("t1", "piso en Gràcia", "búscame piso de alquiler en Gracia")
     r = tr.resolve("lo del piso que te dije")
     assert r["ok"] and r["task"]["id"] == "t1" and r["how"] == "único"
@@ -101,7 +101,7 @@ def test_jev_picks_the_one_he_means(fresh_db, monkeypatch):
         chosen = next(c for c in cands if c["id"] == "t2")
         return [{"key": key(chosen), "candidate": chosen, "fit": "strong", "confidence": 0.9}]
 
-    monkeypatch.setattr(jev, "select_many", _pick)
+    monkeypatch.setattr(jev, "select_many_status", lambda *a, **k: (lambda r: (r, jev.SELECTED if r else jev.NO_MATCH))(_pick(*a, **k)))
     _done("t1", "piso en Gràcia", "búscame piso de alquiler en Gracia", created=1000)
     _done("t2", "piso en Sants", "búscame piso de alquiler en Sants", "3 opciones", created=2000)
     r = tr.resolve("el piso de Sants")
@@ -116,8 +116,8 @@ def test_two_equally_good_candidates_are_a_QUESTION_not_a_pick(fresh_db, monkeyp
     wrong report looks exactly like opening the right one, and he would read it before noticing."""
     import nucleo.jev as jev
     monkeypatch.setattr(jev, "enabled", lambda: True)
-    monkeypatch.setattr(jev, "select_many", lambda cands, criteria, *, key=None, label=None, **kw: [
-        {"key": key(c), "candidate": c, "fit": "strong", "confidence": 0.9} for c in cands])
+    monkeypatch.setattr(jev, "select_many_status", lambda cands, criteria, *, key=None, label=None, **kw: ([
+        {"key": key(c), "candidate": c, "fit": "strong", "confidence": 0.9} for c in cands], jev.SELECTED))
     _done("t1", "piso en Gràcia", "búscame piso", created=1000)
     _done("t2", "piso en Sants", "búscame piso", created=2000)
     r = tr.resolve("lo del piso")
@@ -129,9 +129,9 @@ def test_a_jev_that_narrows_makes_the_question_SHORTER(fresh_db, monkeypatch):
     """A question listing five reports is not a question. If the chooser ruled some out, ask about the rest."""
     import nucleo.jev as jev
     monkeypatch.setattr(jev, "enabled", lambda: True)
-    monkeypatch.setattr(jev, "select_many", lambda cands, criteria, *, key=None, label=None, **kw: [
+    monkeypatch.setattr(jev, "select_many_status", lambda cands, criteria, *, key=None, label=None, **kw: ([
         {"key": key(c), "candidate": c, "fit": "strong", "confidence": 0.9}
-        for c in cands if c["id"] in ("t1", "t2")])
+        for c in cands if c["id"] in ("t1", "t2")], jev.SELECTED))
     for n in range(1, 5):
         _done(f"t{n}", f"piso {n}", "búscame piso", created=1000 + n)
     r = tr.resolve("lo del piso")
@@ -142,7 +142,7 @@ def test_a_jev_that_is_down_asks_instead_of_guessing(fresh_db, monkeypatch):
     """The chooser is advisory everywhere in `nucleo/jev.py`, and the safe fallback here is the question."""
     import nucleo.jev as jev
     monkeypatch.setattr(jev, "enabled", lambda: True)
-    monkeypatch.setattr(jev, "select_many", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("down")))
+    monkeypatch.setattr(jev, "select_many_status", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("down")))
     _done("t1", "piso en Gràcia", "búscame piso", created=1000)
     _done("t2", "piso en Sants", "búscame piso", created=2000)
     r = tr.resolve("lo del piso")
@@ -187,7 +187,7 @@ def test_a_task_that_kept_nothing_says_so(fresh_db, own_sheets):
 def test_the_ambiguity_reaches_the_caller_as_names_it_can_read_aloud(fresh_db, monkeypatch):
     import nucleo.jev as jev
     monkeypatch.setattr(jev, "enabled", lambda: True)
-    monkeypatch.setattr(jev, "select_many", lambda cands, criteria, *, key=None, label=None, **kw: [])
+    monkeypatch.setattr(jev, "select_many_status", lambda cands, criteria, *, key=None, label=None, **kw: ([], jev.NO_MATCH))
     _done("t1", "piso en Gràcia", "búscame piso", created=1000)
     _done("t2", "piso en Sants", "búscame piso", created=2000)
     out = tr.recall_and_reopen("lo del piso")

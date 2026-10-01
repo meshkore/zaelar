@@ -37,14 +37,15 @@ def test_the_promise_backstop_wakes_on_the_verdict_and_identifies_by_it():
     gate = re.search(r"if \(_no_tool and spoken_text\n.*?and not _router\.asks_for_missing_detail\(spoken_text\)\):",
                      src, re.S)
     assert gate and "_direct_action.verdict_shows(_brief)" in gate.group(0)
-    assert re.search(r"_pw = \(_identify\(_op_text\) if \(_router\.looks_like_show_strict\(_op_text\) or "
-                     r"_direct_action\.verdict_shows\(_brief\)\)", src)
+    # 5a572275 (demo C1): the card the verdict names wins over the contextual guess, then the same gate.
+    assert re.search(r"_pw = \(\(_named_by_verdict or _identify\(_op_text\)\)\s+if \(_router\.looks_like_show_strict"
+                     r"\(_op_text\) or _direct_action\.verdict_shows\(_brief\)\)", src)
 
 
 def test_the_backstop_shows_the_card_not_the_bare_piece():
     """Verification re-run: the backstop opened bare `results` — empty — while the monitors lived on
     `results::94b220-ls1`; «Open the best value option» then failed on the empty base."""
     src = _vts.read(SRC)
-    i = src.index('_pw = (_identify(_op_text) if')
+    i = src.index('_pw = ((_named_by_verdict or _identify(_op_text))')
     j = src.index('🪟 show por backstop de promesa', i)
     assert "_show_target_instance(_pw, _op_text" in src[i:j]
