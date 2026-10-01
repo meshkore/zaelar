@@ -31,6 +31,7 @@ import pathlib
 import pytest
 
 from widgets.navegador import click_gate as G
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
@@ -196,7 +197,7 @@ def test_a_GET_form_reports_nothing():
 # ── 5 · all four routes go through the one gate ─────────────────────────────────────────────────────────
 
 def _agent_act_source() -> str:
-    src = (ENGINE / "widgets" / "navegador" / "owner.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "widgets" / "navegador" / "owner.py")
     tree = ast.parse(src)
     for node in ast.walk(tree):
         if isinstance(node, ast.AsyncFunctionDef) and node.name == "agent_act":

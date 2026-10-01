@@ -10,6 +10,7 @@ browser the worker actually drives kept the pin. Locale and timezone follow the 
 import importlib
 
 from widgets.navegador import owner
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 def _clean(monkeypatch):
@@ -47,7 +48,7 @@ def test_the_env_escape_hatches_win(monkeypatch):
 
 def test_the_launch_reads_it_instead_of_a_pin():
     from pathlib import Path
-    src = Path("widgets/navegador/owner.py").read_text(encoding="utf-8")
+    src = _vts.read("widgets/navegador/owner.py")
     assert '_browser_locale()' in src
     assert 'locale="es-ES"' not in src.replace('("es-ES", "Europe/Madrid")', "")
 

@@ -21,6 +21,7 @@ import re
 from pathlib import Path
 
 import pytest
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 ROOT = Path(__file__).resolve().parents[4]
 _PROD_DIRS = ("widgets", "nucleo", "voice", "server", "connectors")
@@ -100,7 +101,7 @@ def test_an_ACTIVE_task_with_results_is_still_impossible():
     """The specific fact that killed V2-192, recorded here as well because it is why the results face
     reads the worker signal rather than the task field."""
     for rel in ("widgets/navegador/owner.py", "nucleo/dispatch.py"):
-        src = (ROOT / rel).read_text(encoding="utf-8", errors="replace")
+        src = _vts.read(ROOT / rel)     # V2-778 F1: a split file is read with its moved pieces
         for m in re.finditer(r"set_results\(", src):
             after = src[m.end():m.end() + 700]
             assert re.search(r"\.finish\(|set_status\([^)]*\"(done|failed|cancelled)\"", after), (

@@ -30,6 +30,7 @@ import pytest
 from widgets import store
 from widgets.navegador import act_api, data as navdata, tasks
 from widgets.results import data as sheet, intake
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 ENGINE = Path(__file__).resolve().parents[4]
 
@@ -123,7 +124,7 @@ CAMINOS = ["widgets/navegador/act_api.py", "widgets/navegador/owner.py", "nucleo
 def test_every_path_goes_through_the_one_door(rel):
     """The WIRING guardrail (V2-199): a door nobody calls only proves that the code compiles. And there are
     exactly three files because they were three copies of the same rule — the exact shape of V2-256."""
-    src = (ENGINE / rel).read_text(encoding="utf-8", errors="replace")
+    src = _vts.read(ENGINE / rel)     # V2-778 F1: a split file is read with its moved pieces
     assert "results import intake" in src, f"{rel} encuentra cosas y no las entrega a la hoja"
     assert "intake.push" in src or "_intake.push" in src
 

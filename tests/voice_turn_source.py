@@ -100,7 +100,9 @@ DISPATCH = ENGINE / "nucleo" / "dispatch.py"
 _SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py", ENGINE / "nucleo" / "dispatch_session.py"],
           (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"],
           (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py"],
-          (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"]}
+          (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"],
+          (ENGINE / "widgets" / "navegador" / "owner.py").resolve(): [ENGINE / "widgets" / "navegador" / "owner_login.py",
+                                                                    ENGINE / "widgets" / "navegador" / "owner_actions.py"]}
 
 
 PROBE = ENGINE / "nucleo" / "flash" / "probe.py"
@@ -135,7 +137,9 @@ def probe_source() -> str:
 
 
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
-_ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d"}
+_ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
+            (ENGINE / "widgets" / "navegador" / "owner_login.py").resolve(): "_o",
+            (ENGINE / "widgets" / "navegador" / "owner_actions.py").resolve(): "_o"}
 
 
 def _as_written(x: Path) -> str:

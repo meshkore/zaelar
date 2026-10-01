@@ -24,6 +24,7 @@ from nucleo import dispatch, surfaces
 from nucleo.workers.session import SessionRecord
 from widgets import store
 from widgets.results import data as sheet, intake
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 ENGINE = Path(__file__).resolve().parents[4]
 
@@ -130,7 +131,7 @@ def test_a_browser_with_no_errand_behind_it_writes_the_bare_sheet():
 def test_no_writer_pushes_without_naming_its_sheet(rel):
     """The guardrail needed here and not in V2-257: back then, knocking on the door was enough; now they have to
     say WHICH sheet. A `push` without `sheet=` does not fail — it writes into the box nobody is watching."""
-    src = (ENGINE / rel).read_text(encoding="utf-8", errors="replace")
+    src = _vts.read(ENGINE / rel)     # V2-778 F1: a split file is read with its moved pieces
     for i, line in enumerate(src.splitlines()):
         if "intake.push(" in line and "def " not in line:
             bloque = "\n".join(src.splitlines()[i:i + 3])

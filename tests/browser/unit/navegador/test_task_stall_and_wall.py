@@ -1044,7 +1044,7 @@ def test_the_tab_feeds_its_status_and_listens_for_it():
     """WIRING GUARD for the owner half: the classification above is dead code unless the tab (1) keeps
     `last_status` fresh from main-frame document responses and (2) hands it to update_view at capture."""
     import pathlib
-    src = pathlib.Path("widgets/navegador/owner.py").read_text(encoding="utf-8")
+    src = _vts.read("widgets/navegador/owner.py")
     assert 'page.on("response"' in src and "resource_type" in src and "main_frame" in src
     cap = src[src.index("async def _capture"):]
     assert 'status=int(getattr(self, "last_status", 0) or 0)' in cap
