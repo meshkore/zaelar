@@ -541,6 +541,7 @@ export function ConfigPanel() {
     const fams = [["mensajeria", t("config.cx.fam_messaging")], ["musica", t("config.cx.fam_music")],
                   ["archivos", t("config.cx.fam_files")], ["fotos", t("config.cx.fam_photos")],
                   ["video", t("config.cx.fam_video")], ["agenda", t("config.cx.fam_calendar")],
+                  ["contactos", t("config.cx.fam_contacts")],
                   ["infra", t("config.cx.fam_infra")]];
     return fams.map(([f, title]) => {
       const items = cs.filter(c => c.family === f);

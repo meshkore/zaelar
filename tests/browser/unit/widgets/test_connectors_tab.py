@@ -50,7 +50,7 @@ def test_entering_the_tab_refreshes_both_live_and_wishlist_data():
 
 
 def test_families_render_in_a_stable_order_with_unknown_families_after_the_known_ones():
-    assert ('CONN_FAMILY_ORDER = ["mensajeria", "musica", "fotos", "archivos", "video", "agenda", "infra"]'
+    assert ('CONN_FAMILY_ORDER = ["mensajeria", "musica", "fotos", "archivos", "video", "agenda", "contactos", "infra"]'
             in CHATWALL)
 
 
