@@ -107,6 +107,10 @@ widgets/<id>/
 - **`view_data(q)` es la ruta CALIENTE**: corre en cada render Y otra vez en cada push de SSE. Sirve la
   CACHÉ. Nada de red ahí dentro. Toda llamada al mundo exterior vive en `apply_action`, que corre una vez por
   intención del operador.
+- **`apply_action` is a TABLE (V2-778 F1-12).** One `_a_<name>(action, p)` function per action, a
+  module-level `ACTIONS = {"name": fn}` literal in `data.py`, and `apply_action` is the lookup — the gate reads
+  the table's keys, and anything it cannot read fail-opens. The full rule and the reference are in
+  `widgets/AGENTS.md` (`widgets/musica/` is the worked example).
 - **`apply_action` DEVUELVE lo que encuentra.** Una acción que solo repinta deja al turno sin nada que decir:
   «¿tengo un contrato de Axa?» es una PREGUNTA (V2-541). Devuelve `matches` y el turno puede nombrarlos.
 - **Un error de acción ENSEÑA la forma del reintento** — qué campo falta, qué acciones existen — y nombra la
@@ -402,6 +406,7 @@ WIDGET
 [ ] manifest: acciones == apply_action · view en la que CONTESTA · confirm solo si es irreversible
 [ ] whenToUse cabe en 300 (test contra brief._purpose) · usage · alias · keywords sin colisión total
 [ ] view_data barato (sin red) · apply_action devuelve lo que encuentra · errores que enseñan la forma
+[ ] apply_action is an ACTIONS = {name: fn} table, one function per action (V2-778 F1-12)
 [ ] ref_index si hay ids · prompt_digest si procede (acotado y diciendo que lo está)
 [ ] background: decidido y escrito · runtime{} si produce
 [ ] widget.js: sin fetch · sin innerHTML · textContent · clases con prefijo propio · tema por --hb-*

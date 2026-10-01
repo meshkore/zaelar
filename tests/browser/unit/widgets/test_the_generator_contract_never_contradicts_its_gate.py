@@ -80,3 +80,25 @@ def test_the_create_path_repairs_BEFORE_it_discards():
     i_rep = body.index("_repair_once(wid, dst, verr, token)")
     i_dis = body.index("_discard(wid)", i_val)
     assert i_val < i_rep < i_dis, "validate → repair once → only then discard"
+
+
+# ── V2-778 F1-12: the dispatch shape the contract teaches is the one the gate reads ──────────────────────
+def test_the_contract_teaches_the_actions_table():
+    c = generator._CREATE_PROMPT.format(wid="w1", spec="x", folder="/x/w1")
+    assert "ACTIONS = {" in c and "ACTIONS.get(action)" in c and "unknown_action" in c
+
+
+def test_a_widget_written_the_way_the_contract_says_is_read_by_the_gate():
+    """What the contract teaches, written out: the gate must see its actions — a table the gate fail-opened on
+    would switch the contract check off for every generated widget, silently."""
+    src = ('def _a_add(action: str, p: dict) -> dict:\n    return {"ok": True}\n\n\n'
+           'def _a_done(action: str, p: dict) -> dict:\n    return {"ok": True}\n\n\n'
+           'ACTIONS = {"add": _a_add, "done": _a_done}\n\n\n'
+           'def apply_action(action, payload=None):\n    p = payload or {}\n'
+           '    handler = ACTIONS.get(action) if isinstance(action, str) else None\n'
+           '    if handler is None:\n        return {"ok": False, "error": "unknown_action", "action": action}\n'
+           '    return handler(action, p)\n')
+    assert validator._apply_action_names(src) == {"add", "done"}
+    man = {"id": "w1", "actions": {"add": {"desc": "x"}, "done": {"desc": "x"}, "ghost": {"desc": "x"}}}
+    err = validator._validate_actions_sync(man, src)
+    assert err and "ghost" in err, err
