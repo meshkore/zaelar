@@ -1,0 +1,82 @@
+"""Is this the SAME appointment? — title identity and the twin settlement (V2-778 F1, 2026-10-01).
+
+Moved out of `widgets/agenda/data.py` (934 lines, over the 900 a new file may reach): how two rows are judged the
+same commitment (V2-473: the title once articles and the widget's own nouns are gone, a token subset at the same
+instant) and how a second write of one appointment settles a repeat rule on the first (V2-773). Unchanged;
+`data` imports every name back.
+"""
+from __future__ import annotations
+
+import re
+
+from . import edit, gcal
+from .when import _strip_accents
+
+
+# ── THE SAME COMMITMENT WRITTEN TWICE (V2-208) ────────────────────────────────────────────────────────────────
+# Measured on `remember-and-remind-deadline` (2026-08-20 14:39), from the sandbox's own `state.json`:
+#
+#     meetings = [«renovar el seguro del coche» 2026-08-27, «Renovar el seguro del coche» 2026-08-27]
+#
+# Two rows for one obligation, differing by an article and a capital letter. V2-194 fixed this for the BACKSTOP
+# (`router_guards.already_in_agenda`, which checks before dispatching) and the model's OWN data-op has no such
+# guard: two turns, two `add_meeting`, nobody comparing. The guard belongs HERE, next to the write, so every
+# writer present and future gets it — that is the same reasoning that put `already_in_agenda` next to its write
+# rather than inside the pure decision.
+#
+# Why the TIME is part of the key and not just the day: two viewings of the same flat at 10:00 and 17:00 are two
+# meetings, and a duplicate that is silently dropped is worse than a duplicate that is visible. So the rule is
+# narrow ON PURPOSE — same day, same time, same title once articles/case/punctuation are gone. A legitimate
+# repeat carries a different hour or a different title; what it never carries is the same three.
+# …plus the widget's own category nouns (V2-473 round 5): «Cita dentista con los niños» and «Dentista con
+# los niños» are the SAME commitment — the model re-titles on a retry and the dedup let both rows in, each
+# spawning its default reminder. The category noun of the widget itself is title noise, not identity.
+_ARTICLES = {"el", "la", "los", "las", "un", "una", "unos", "unas", "lo", "de", "del", "the", "a", "an",
+             "cita", "reunion", "reunión", "meeting", "appointment", "evento"}
+
+
+def _title_key(title: str) -> str:
+    """Comparable form of a meeting title: no accents, no case, no punctuation, no articles."""
+    words = re.findall(r"\w+", _strip_accents(str(title or "")).lower())
+    return " ".join(w for w in words if w not in _ARTICLES)
+
+
+def _is_same_meeting(a: dict, b: dict) -> bool:
+    """Same day, same start time and the same title once the noise is gone.
+
+    V2-473 round 6: at the SAME instant, one title's meaningful tokens being a SUBSET of the other's is
+    also the same commitment («Llevar a los niños al dentista» vs «Dentista niños» landed as two meetings
+    with two reminders). Disjoint titles at the same hour stay two meetings — a double-booked hour is the
+    user's business, not ours to merge."""
+    if str(a.get("date") or "") != str(b.get("date") or ""):
+        return False
+    if str(a.get("startTime") or "") != str(b.get("startTime") or ""):
+        return False
+    return _titles_overlap(a.get("title"), b.get("title"))
+
+
+def _settle_rule(db: dict, twin: dict, new: dict) -> bool:
+    """A second write of the SAME appointment that carries a repeat rule the row lacks settles the rule on the
+    row (V2-773, 2026-09-27). «Anna vacation, December 20 through January 4» reached the card twice from the
+    demo's INIT list: first as one all-day entry, then — the repair pass, with the end date this time — as a
+    daily span. The twin rule saw the same title on the same day and dropped the richer write, so her
+    vacation was a single day on the calendar. A rule the row already has is never overwritten here: that is
+    `update_meeting`'s call, with the operator's words behind it."""
+    if not isinstance(new.get("repeat"), dict) or twin.get("repeat"):
+        return False
+    twin["repeat"] = dict(new["repeat"])
+    gcal.patch_google(twin)
+    edit.touch(db, twin)
+    return True
+
+
+def _titles_overlap(ta, tb) -> bool:
+    """One title's meaningful tokens equal to or a subset of the other's — the V2-473 round-6 rule,
+    extracted so the hour-less-twin settlement (V2-652) compares titles with the exact same judgment."""
+    ka, kb = _title_key(ta), _title_key(tb)
+    if not ka or not kb:
+        return False
+    if ka == kb:
+        return True
+    sa, sb = set(ka.split()), set(kb.split())
+    return sa <= sb or sb <= sa
