@@ -289,8 +289,9 @@ def test_present_reports_its_presentation_issues_back(monkeypatch, tmp_path):
 def test_both_fill_actions_are_audited(action):
     import inspect
     from widgets.results import data as rd
-    src = inspect.getsource(rd.apply_action)
-    body = src[src.index(f'if action == "{action}"'):]
+    # V2-778 F1-12: each action is its own function in the ACTIONS table; its body is what the branch was
+    src = inspect.getsource(rd.ACTIONS[action])
+    body = src[src.index("\n") + 1:]
     assert "_audit(payload)" in body[:400], f"{action} debe auditar su payload"
 
 

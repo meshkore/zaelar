@@ -44,7 +44,6 @@ FILES = {
     'widgets/mensajeria/data.py': 883,
     'widgets/navegador/owner.py': 883,
     'widgets/navegador/tasks.py': 829,
-    'widgets/results/data.py': 985,
     'widgets/youtube/data.py': 813,
 }
 
@@ -121,7 +120,6 @@ FUNCTIONS = {
     'widgets/navegador/owner.py::TaskBrowser.agent_act': 124,
     'widgets/navegador/owner_actions.py::_automate': 135,
     'widgets/refs.py::resolve': 125,
-    'widgets/results/data.py::apply_action': 297,
     'widgets/youtube/data.py::apply_action': 561,
     'widgets/youtube/library.py::apply': 217,
 }
@@ -138,7 +136,6 @@ BRANCHES = {
     'widgets/agenda/tasklists.py::apply': 115,
     'widgets/contactos/data.py::apply_action': 159,
     'widgets/mensajeria/data.py::apply_action': 221,
-    'widgets/results/data.py::apply_action': 128,
     'widgets/youtube/data.py::apply_action': 239,
     'widgets/youtube/library.py::apply': 123,
 }
