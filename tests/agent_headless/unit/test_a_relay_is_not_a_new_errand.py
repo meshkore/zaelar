@@ -81,7 +81,7 @@ def test_la_hoja_sellada_no_se_reescribe_nunca():
 #: the two below were extracted from `_finish` into `workers/relay.py` in the same batch.
 _RELAUNCHES = (("nucleo.workers.relay", '"src": "provider_failover"'),
                ("nucleo.workers.relay", '"src": "context_handoff"'),
-               ("nucleo.workers.goal", '"src": "goal_unmet"'))
+               ("nucleo.circuit", '"src": "goal_unmet"'))   # V2-776 L3: the relaunch lives in the circuit
 
 
 def _relaunch_window(modname: str, marca: str, width: int = 600) -> str:
@@ -115,7 +115,7 @@ def test_todos_los_relanzamientos_mandan_tambien_la_superficie():
 def test_el_relanzamiento_del_ARNES_manda_ademas_la_condicion():
     """V2-707 F2 — and its own extra piece: a retry that forgot HOW SUCCESS IS MEASURED would be the last one
     nobody checks, which is the half-done delivery the harness exists to stop."""
-    assert '"done_when"' in _relaunch_window("nucleo.workers.goal", '"src": "goal_unmet"')
+    assert '"done_when"' in _relaunch_window("nucleo.circuit", '"src": "goal_unmet"')
 
 
 def test_the_dispatcher_reads_the_surface_from_the_context():

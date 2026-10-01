@@ -135,8 +135,10 @@ def test_the_fast_close_declines_while_live_work_sits_behind_the_widget(monkeypa
     assert _run({"do": "close_widget", "widget": "navegador"}, emits) is False
     assert emits == [], "the fast lane declined AFTER mutating — a half-executed fallthrough"
 
+    # Since 2026-09-27 (V2-776) «live work» behind a results card means an errand delivering into THAT card
+    # (`dispatch.sheets_have_live_work`), never «any worker at all» — a Telegram follow-up blocked every close.
     from nucleo import dispatch
-    monkeypatch.setattr(dispatch, "has_active", lambda: True)
+    monkeypatch.setattr(dispatch, "sheets_have_live_work", lambda ids: True)
     assert _run({"do": "close_widget", "widget": "results"}, emits) is False
     assert emits == []
 

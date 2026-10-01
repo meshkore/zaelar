@@ -679,7 +679,11 @@ def test_an_errand_whose_meeting_EXISTS_closes_itself(env, monkeypatch):
     closed = verify.sweep_met()
     assert [c["id"] for c in closed] == [row["id"]]
     assert env.get(row["id"])["state"] == "closed"
-    assert env.threads(row["id"]) == [], "and it releases the conversation on the way out"
+    # V2-705 (`errands.close`): a closed errand whose meeting is still AHEAD keeps its conversation, so «now
+    # cancel the meeting» from the other side still reaches the gestión that arranged it — and the closed
+    # errand no longer WAKES on it (`for_thread` hides it). The binding is retired once the meeting has passed.
+    assert env.threads(row["id"]), "the conversation remembers the gestión while its meeting is ahead"
+    assert env.for_thread("telegram", "987") is None, "…but a closed errand is never woken by it"
 
 
 def test_a_meeting_he_ALREADY_HAD_closes_nothing(env):
