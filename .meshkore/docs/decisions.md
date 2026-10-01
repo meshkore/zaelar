@@ -187,6 +187,192 @@ entregada siga citada aquí.
   before this batch. Acceptance criterion proposed: per-step ≥ 95 % over 10 passes, none < 90 %, zero unscripted
   side effects — «two consecutive clean passes» over 55 LLM-driven steps has probability ≈ 0 at today's rates.
   Report: workspace `TMP/demo/04-audit-passes-33-54.md`.
+- **The demo pass from zero, said like a person says it (V2-776 F, 2026-09-28)**:
+  The workflow run end to end from a reset, then with a HUMAN script (`steps-human.json` in the workspace's
+  workflow: dictation lower-case, fillers, a typo, vague references, a self-correction). The operator's rule for the
+  batch: understand the request, fewer rails, no tricks. Every item below is a mechanism with its test seen red
+  when disarmed; a model slip with no mechanism behind it stayed a slip (listed at the end).
+
+  **Infrastructure first — none of these failed loudly.**
+  - **A host shell routed the workers.** The engine, restarted from inside a Claude Code session, inherited its
+    `ANTHROPIC_BASE_URL=https://api.anthropic.com`; every Brain Worker skipped the provider chain and asked
+    Anthropic for `glm-5.3` («There's an issue with the selected model»). Workers and `zaelar.py start` drop the
+    host's routing; the CLI's wording also relays now; external tiers spawn with `CLAUDE_CODE_MAX_RETRIES=3`
+    (a spent quota handed over in 7 s instead of ~3 min); a Z.ai `[13xx]` reset stamp is read in UTC+8.
+    Nodes 2.82 and the failover suite.
+  - **One widget action = one read-modify-write** (`store.mutating`): a background Telegram import loaded the empty
+    directory, merged 2,692 rows and saved — erasing a contact added meanwhile. Node 2.92.
+  - **The screen that counts is the voice session's tab**: two tabs reported different canvases and a watching
+    tab «closed» the chart 268 ms into «ok close that». Node 2.91.
+  - **A web errand's worker could not write the payload file its prompt asks for** (`_tools_for` replaced the
+    default that carried `Write`); **a price in a report read as a 429** («list $429.00» → «the provider gave me a
+    problem»); **a delivery spoken to him was announced again** by the next two replies; **a worker's interim
+    `say` rode his answers** when no quiet moment came (`notify(carry=False)`). Nodes 2.86 and the worker suites.
+
+  **Canvas: a gesture is a gesture, never a data write.**
+  - **Closing is a tool, like opening** (`close_widget {widget_id, mode: close|minimize}`): with only the
+    `[[close]]` tag, every model measured (deepseek flash/pro, glm-5.3) reached for `agenda:close_meeting` or
+    `results:clear` — which emptied the sheet. Node 2.88.
+  - **The canvas verdict knows the size gestures** (fullscreen / exit_fullscreen / minimize) and, when the model
+    calls nothing, `complete_canvas` performs the gesture on the turn's card. Closing the piece closes its one open
+    card; the close backstop takes the verdict's card, never a word match («video» tied navegador↔youtube).
+  - **«It» / «that» is the card his last turn acted on** (`canvas_focus`, fed by the event funnel): a sheet that
+    arrived in the background no longer steals «make it fullscreen». Node 2.85.
+
+  **The repair passes judge instead of guessing.**
+  - The promise/claim repair (`act_repair`) now READS its own reply: a promise or a claimed act gets its call; an
+    answer, a proposal, or an OFFER («want me to put it there?») gets none — while a claimed act followed by an
+    offer of another one still gets the claimed call. Its gate lost the confidence floor that stood in for this
+    judgement. Node 2.89 (live).
+  - A silent show of an EMPTY card gets its second pass («show me the chart» → an empty Markets). Node 2.90.
+  - «Checking your agenda…» is a promise to look; unrelated live work no longer covers a promise that names a
+    readable card.
+
+  **Words.**
+  - One closed class of spoken numbers (`refs.number_words`), English included — «put on number five» was no number
+    in an English session; a digit counts only when marked («number 3», «el 6»), «Apolo 11» is a title.
+  - A position in his own sentence is the reference when the model named nothing («open the second one»); a widget
+    that matches its own references gets his words for an empty key (the document's `goto`).
+  - The accumulator's turn judge decides whether he FINISHED, not what is missing: «and the nasdaq, over the whole
+    year» was answered «What would you like to know?» before the brain ever read it.
+  - «Show me a few more of those» ADDS pictures (`show_images more:true`); the document sheet owns its file (a
+    second save updates it); the messaging card answers recipient questions from the directory it sends through.
+  - An errand nobody labelled takes its surface from the turn brief (monitors → the sheet opens at once).
+
+  **Second half of the batch (full pass 6).**
+  - **A refused data-op is corrected while the turn is still his** (`act_repair.call_for_refusal` +
+    `data_ops.corrected_retry`, both channels): the refusal and the card go to one small pass that may re-issue
+    only the SAME action on the SAME card with a different payload — so the same gate. «open the one that's the best
+    deal» (sheet badge «Best value») and a move sent with a meeting's field names used to fail into a note for the
+    next turn: silence, then a misplaced apology. Node 2.95.
+  - **A move is a write**: `move_meeting` reads the same natural field names as add/update (`recur.normalize`).
+  - **A worker still speaking its delivery is not an orphan**: the pulse reconciler read only live statuses and
+    settled the monitors search as «failed» while it waited to speak; the FlashBrain then said it had failed and ran
+    it again. It now reads every session whose run has not reached `tasks.closed()`.
+  - **The client lane only opens.** Closing and moving belong to the engine: the client closed Markets on «ok close
+    that» and the engine's verdict then closed the agenda — two mutations for one order.
+  - A spoken reply over a show, on a turn the verdict reads as an order, gets the after-show pass (the pass judges
+    its own reply; «…so I'm opening that one» matched no verb table).
+  - The forensic turn capture records the model's raw calls (`model_calls`); a repair spoken after the reply is its
+    own sentence («…tomorrow.Tomorrow»).
+
+  **Still open — model slips, no mechanism to fix.** A time read from memory shifted by two hours (C1, once); a
+  goodbye that asserted «nothing on the calendar tomorrow» with the agenda closed (Z3, twice); a sure verdict
+  overruled by a valid but wrong call (`tab` for `detail`). The FlashBrain prompt is still in Spanish with an
+  «answer in English» rule, which is where a Spanish word leaked into one English reply.
+- **The demo pass after the reset: what broke, measured, and why it was not a guard (V2-776 E, 2026-09-27)**:
+  Pass v6/v7 of the demo script on the operator's live engine, after a reset that kept the connectors. Every item
+  is a mechanism fix with its own test seen red when disarmed; where the failure was the MODEL's decision it became
+  a bank case instead (two opened, `tests/brain/cases/sessions.json`, scope B1).
+
+  - **The voice went mute after a list.** The task-list lane awaited its receipt inside the turn's generation;
+    `session.say` queues behind that generation → deadlock, `thinking` forever, every later reply generated and
+    never spoken. The receipt is now fire-and-forget. Node 3.90.
+  - **A tab that lost the voice lock looped** `stalled↔starting` ~140/s: the `ensureVoice` effect re-ran `start()`
+    the moment `starting` dropped, bypassing the 3 s retry. `start()` defers to the armed timer. Node 4.225.
+  - **Remote control is blue** (operator request): a tab whose voice another session holds is its own agent state,
+    `remote`, painted in `--hb-remote` and blinking — not the amber of a fault. Node 4.226.
+  - **Two sheet-less errands shared the bare `results`**, so the Ferrari search replaced the monitors. An errand now
+    gets its own sheet on first delivery (`worker_api._own_sheet`). Node 3.91.
+  - **«Close the results» stepped aside for ANY live worker** (a Telegram follow-up) and the model promised a close
+    it never made. Only an errand delivering into that very sheet blocks it. Node 3.92.
+  - **The escalate question to Jev said «when in doubt, escalate»** and never named what the cards do: 11/11 one-step
+    orders (music, Telegram, calendar, a chart) went to 50-60 s workers. It now names the cards' capabilities.
+    Live: old wording 5/17, new 16/17. Node 3.93 (live, `ZAELAR_LIVE_JEV=1`).
+  - **The reset deleted the DB under a live server** (one SIGTERM, 2 s sleep, the server ignored it). It now waits,
+    forces, and deletes nothing if the port is still held. Node 3.94.
+  - **«Minimise that» over several cards** fell to the model; «that» is now the card on top (highest z, not
+    minimised) from the canvas report. Node 3.95.
+  - **A `[[show:X]]` tag did not record its card**, so the after-show repair never ran and Markets came up empty.
+    Node 3.96.
+  - **Our own «Done.» fired the anti-loop nudge**: two silent actions in a row read as the model repeating itself,
+    and the nudge («admit the limit or ask something else») produced the needless question at C5 and the claim with
+    no call at W2. The detector skips the engine's acks. Node 3.97.
+  - Nine i18n keys the agenda and markets used were missing: an English session showed Spanish labels.
+
+  Found by the live re-verification after the pass (each confirmed on the running engine, not only in tests):
+
+  - **A tag show did not record its card** (Markets came up empty) and **a tag show opened the bare base** beside an
+    open sheet — both now resolve the CARD like the tool path. Nodes 3.96, 3.102.
+  - **A system note vetoed his show**: the «meta question» guard read the composed turn, and a `[SISTEMA]` note
+    about a closed errand dropped «Show me the monitors». Both call sites read `operator_half`. Node 3.99.
+  - **A sure `canvas = show` verdict now wakes the named-card backstop** when the model calls nothing — the promise
+    verb table does not know «bringing it back up». Node 3.100.
+  - **The presentation door cut every id to its base**, so a resolved sheet came up as the empty `results`; and an
+    action on a sheet looked its manifest up by the instance id, read «undeclared» and was ESCALATED to a worker
+    (the engine log had said `widget.data no-declarada (results::…) — escalando` since the morning). Node 3.101.
+  - **An action on a sheet reached the trust boundary as `resultsx`** (`_safe` strips colons): it now goes to the
+    base widget with the instance in `q`, the canvas's own convention. Node 3.102.
+  - **A closed sheet is brought back by the phrase** («Show me the monitors» → the monitor sheet), the latest of two
+    on the same subject, never «the most recent» of unrelated ones. Node 3.98.
+  - **«Open the best value option»** finds the card whose badge says so (open since the morning's v5). Node 3.103.
+
+  Still open, as bank cases: a sure order answered with words and no call (the promise repair gates on a verb
+  table), a completion claimed with no call. Both are the B1 question — who acts when the model does not.
+- **The Brain Worker's state is durable, supervised and readable (V2-776 D, 2026-09-27)**:
+  The operator's local test on 2026-09-27 (session `3a9a082c`): a video that opened only when he named the
+  widget, a custom widget that «never started», a worker he asked about for three hours. Measured causes, and
+  what each became:
+
+  - **The task row cannot lie.** A normal errand read `pending` for its whole run (the worker's `running` lived in
+    RAM only) and every early exit of `_run_session` skipped `tasks.closed()` — the accountancy-widget rows sat
+    `pending` for hours after the widget gate asked and his «Yes» launched a NEW commission. Now: `running` when the
+    worker starts, gated rows are forgotten, provider-asleep/cancelled-in-pool close, and the pulse settles any
+    worker row (`<boot>-<n>`) that no live session carries (`tasks.reconciled`). Node 3.82.
+  - **The worker's live state is a column, not a RAM dict** (schema v8: `phase`, `progress`, `heartbeat_at`,
+    `reported_at`, `error_class`, `attempts`), written by the pulse's 15-second beat — a few writes a minute, never
+    per event. `reported_at` is what the worker said ITSELF (`agent_report`), distinct from «its stream moved».
+    Node 3.83.
+  - **Reporting is an obligation, not advice.** A worker silent about where it is for 90 s
+    (`ZAELAR_WORKER_REPORT_SECS`) gets a report demand in its inbox, once per window; never the widget generator
+    (cannot report) nor a frozen worker. The worker prompt says so. Node 3.84.
+  - **The pulse supervises.** A worker silent for `STUCK_SECS` is SAID to the operator (`worker_stuck`, es/en), not
+    only emitted; a worker the stall/spin watchdog stops is restarted ONCE on the same row with what it learned
+    (`relay.restart_stalled`) — the count lives in `tasks.attempts`, because a per-record flag resets on every
+    relay (the six-workers bug). A second stall fails with `error_class=stalled`. Node 3.85.
+  - **FlashBrain reads the record.** When no worker is live and nothing ended in the five-minute RAM window, the
+    state carries one line from the table (none running + his last commission of the last 12 h and how it ended).
+    Measured: «Have you finished?» → «still being built» three hours after the worker died. Node 3.86.
+  - **A generator that did not run says why.** `_run_agent` treated a CLI exit 1 as «ran»; the gate then said «no
+    manifest.json produced», a repair pass was wasted, and the CLI's error — on STDOUT with `--output-format json`
+    — was never read. Now it is read, classified by `nucleo/failure_class` (network | credit | auth | rate | ours,
+    the A5 vocabulary) and spoken; and the generator rides the SAME provider chain as the workers (it used a
+    single endpoint with no cooldowns while the workers had already relayed from an exhausted z.ai), relaying once
+    on a provider failure. Node 3.87.
+  - **Seen in both places.** The Tasks tab shows silence, restarts and the failure class (rendered in Chromium,
+    node 3.88); the pulse's decisions are observer events of kind `task`, so the Master's «Brain Workers» column
+    shows them with no change on its side.
+  - **A new brain failure is a CASE.** Both routing failures of the session were a guard overriding a correct
+    model call: `video_without_order` dropped `play_video` (open bank case, B3), and the voice provider's «fragment,
+    not an errand» guard annulled the escalation of «Yes. Do it.» (green on the probe channel; B2 must keep it
+    green). The video one had a second cause that is not a guard: the accumulator peeled «So open me a video.» off
+    as «already answered» though its turn died before saying a word — `Accumulator.unanswered` (node 3.89).
+- **The clean-reset pass of the demo (V2-773, 2026-09-27)**:
+  - **A reset reaches a tab that stayed open.** The wipe epoch was read at boot only; the operator's tab re-reported its
+    old cards to the restarted server and every other tab rehydrated them. The SSE re-open runs the boot's takeover
+    again, and the server prunes a `results::` sheet with no data and no live errand on read and on write.
+  - **What the voice is fed is what the wall gets when the voice fails.** With Inworld out of credit the assistant item
+    was never added and the wall stayed blank; `reply_wall.py` tees `tts_node` and surfaces the text on an
+    unrecoverable TTS error, marked `tts_failed`, never twice.
+  - **The verdict judges a show in a closing turn** (`canvas_license.closing_turn`), not a table of verbs; the fast
+    lens door asks it too. Measured: V7 and E5 reopened the card the order had just closed.
+  - **A finished errand's closed sheet is a card he can ask for by what it shows** (`instances.recent_faces`,
+    `runtime.identify` at 0.85, the live block lists up to three), and a «show me X» that names a card we have is
+    shown before any worker. An answered question is not an errand; an undone sure order over a catalogue-named
+    card is.
+  - **A card opens at a readable footprint** (`footprint.js`): the first render is judged against the desk before
+    V2-630 freezes it — never wider than half the desk, never a strip; the operator's saved size is his.
+  - **A new card lands in the EMPTIEST zone, at the size it will have; one placement engine for every automatic
+    gesture** (`placement.js`, operator's rule 2026-09-27). Measured: a card was placed at a 400×340 loading tile
+    and then grew to its manifest size over its neighbours; the ⤢ button tiled against «viewport minus 150» with
+    a private 320×240 floor. Now `_place` reserves the footprint the card will open with (its declared size,
+    proportional to the desk — at most 60 %×85 % of it, never below its `min`), `_settle` re-places a card whose
+    real size still overlaps, the spot is the corner of the largest empty rectangle (a person's «zona más vacía»,
+    tidy against the region's edge, ties top-to-bottom then left-to-right), the ▦ repack is the same engine in
+    tight mode, and ⤢ tiles inside `canvas()` with each widget's own minimum. Every card widget declares `size`
+    and `min` (clock and timer got theirs). Node 4.224.
+  - **Demo setup, not product:** the driver takes the session lock and mutes the microphone; a local contact «Rowan»
+    with the demo Telegram handle is recreated after a reset; TTS switched to Cartesia while Inworld has no credit.
 - **Cartesia had ONE voice for every language — a Castilian one (V2-775, 2026-09-27)**: the operator heard a US
   English demo «like a Spaniard speaking English». It was not Inworld's voice: Inworld had run out of credits
   («You have no credits remaining»), the local TTS had been switched to Cartesia, and Cartesia's only default was
@@ -2661,196 +2847,3 @@ entregada siga citada aquí.
 - **«Sal de pantalla completa» needs no name — the canvas knew which card and never said so (V2-609, 2026-09-07)** (2026-09-07; V2-026, V2-540, V2-600, V2-609)
 - **The video widget OWNS its library; the connector only EXTENDS it (V2-604, 2026-09-07)** (2026-09-07; V2-366, V2-384, V2-603, V2-604)
 
-## V2-773 (27-09) — the clean-reset pass of the demo
-
-- **A reset reaches a tab that stayed open.** The wipe epoch was read at boot only; the operator's tab re-reported its
-  old cards to the restarted server and every other tab rehydrated them. The SSE re-open runs the boot's takeover
-  again, and the server prunes a `results::` sheet with no data and no live errand on read and on write.
-- **What the voice is fed is what the wall gets when the voice fails.** With Inworld out of credit the assistant item
-  was never added and the wall stayed blank; `reply_wall.py` tees `tts_node` and surfaces the text on an
-  unrecoverable TTS error, marked `tts_failed`, never twice.
-- **The verdict judges a show in a closing turn** (`canvas_license.closing_turn`), not a table of verbs; the fast
-  lens door asks it too. Measured: V7 and E5 reopened the card the order had just closed.
-- **A finished errand's closed sheet is a card he can ask for by what it shows** (`instances.recent_faces`,
-  `runtime.identify` at 0.85, the live block lists up to three), and a «show me X» that names a card we have is
-  shown before any worker. An answered question is not an errand; an undone sure order over a catalogue-named
-  card is.
-- **A card opens at a readable footprint** (`footprint.js`): the first render is judged against the desk before
-  V2-630 freezes it — never wider than half the desk, never a strip; the operator's saved size is his.
-- **A new card lands in the EMPTIEST zone, at the size it will have; one placement engine for every automatic
-  gesture** (`placement.js`, operator's rule 2026-09-27). Measured: a card was placed at a 400×340 loading tile
-  and then grew to its manifest size over its neighbours; the ⤢ button tiled against «viewport minus 150» with
-  a private 320×240 floor. Now `_place` reserves the footprint the card will open with (its declared size,
-  proportional to the desk — at most 60 %×85 % of it, never below its `min`), `_settle` re-places a card whose
-  real size still overlaps, the spot is the corner of the largest empty rectangle (a person's «zona más vacía»,
-  tidy against the region's edge, ties top-to-bottom then left-to-right), the ▦ repack is the same engine in
-  tight mode, and ⤢ tiles inside `canvas()` with each widget's own minimum. Every card widget declares `size`
-  and `min` (clock and timer got theirs). Node 4.224.
-- **Demo setup, not product:** the driver takes the session lock and mutes the microphone; a local contact «Rowan»
-  with the demo Telegram handle is recreated after a reset; TTS switched to Cartesia while Inworld has no credit.
-
-## V2-776 D (27-09) — the Brain Worker's state is durable, supervised and readable
-
-The operator's local test on 2026-09-27 (session `3a9a082c`): a video that opened only when he named the
-widget, a custom widget that «never started», a worker he asked about for three hours. Measured causes, and
-what each became:
-
-- **The task row cannot lie.** A normal errand read `pending` for its whole run (the worker's `running` lived in
-  RAM only) and every early exit of `_run_session` skipped `tasks.closed()` — the accountancy-widget rows sat
-  `pending` for hours after the widget gate asked and his «Yes» launched a NEW commission. Now: `running` when the
-  worker starts, gated rows are forgotten, provider-asleep/cancelled-in-pool close, and the pulse settles any
-  worker row (`<boot>-<n>`) that no live session carries (`tasks.reconciled`). Node 3.82.
-- **The worker's live state is a column, not a RAM dict** (schema v8: `phase`, `progress`, `heartbeat_at`,
-  `reported_at`, `error_class`, `attempts`), written by the pulse's 15-second beat — a few writes a minute, never
-  per event. `reported_at` is what the worker said ITSELF (`agent_report`), distinct from «its stream moved».
-  Node 3.83.
-- **Reporting is an obligation, not advice.** A worker silent about where it is for 90 s
-  (`ZAELAR_WORKER_REPORT_SECS`) gets a report demand in its inbox, once per window; never the widget generator
-  (cannot report) nor a frozen worker. The worker prompt says so. Node 3.84.
-- **The pulse supervises.** A worker silent for `STUCK_SECS` is SAID to the operator (`worker_stuck`, es/en), not
-  only emitted; a worker the stall/spin watchdog stops is restarted ONCE on the same row with what it learned
-  (`relay.restart_stalled`) — the count lives in `tasks.attempts`, because a per-record flag resets on every
-  relay (the six-workers bug). A second stall fails with `error_class=stalled`. Node 3.85.
-- **FlashBrain reads the record.** When no worker is live and nothing ended in the five-minute RAM window, the
-  state carries one line from the table (none running + his last commission of the last 12 h and how it ended).
-  Measured: «Have you finished?» → «still being built» three hours after the worker died. Node 3.86.
-- **A generator that did not run says why.** `_run_agent` treated a CLI exit 1 as «ran»; the gate then said «no
-  manifest.json produced», a repair pass was wasted, and the CLI's error — on STDOUT with `--output-format json`
-  — was never read. Now it is read, classified by `nucleo/failure_class` (network | credit | auth | rate | ours,
-  the A5 vocabulary) and spoken; and the generator rides the SAME provider chain as the workers (it used a
-  single endpoint with no cooldowns while the workers had already relayed from an exhausted z.ai), relaying once
-  on a provider failure. Node 3.87.
-- **Seen in both places.** The Tasks tab shows silence, restarts and the failure class (rendered in Chromium,
-  node 3.88); the pulse's decisions are observer events of kind `task`, so the Master's «Brain Workers» column
-  shows them with no change on its side.
-- **A new brain failure is a CASE.** Both routing failures of the session were a guard overriding a correct
-  model call: `video_without_order` dropped `play_video` (open bank case, B3), and the voice provider's «fragment,
-  not an errand» guard annulled the escalation of «Yes. Do it.» (green on the probe channel; B2 must keep it
-  green). The video one had a second cause that is not a guard: the accumulator peeled «So open me a video.» off
-  as «already answered» though its turn died before saying a word — `Accumulator.unanswered` (node 3.89).
-
-## V2-776 E (27-09) — the demo pass after the reset: what broke, measured, and why it was not a guard
-
-Pass v6/v7 of the demo script on the operator's live engine, after a reset that kept the connectors. Every item
-is a mechanism fix with its own test seen red when disarmed; where the failure was the MODEL's decision it became
-a bank case instead (two opened, `tests/brain/cases/sessions.json`, scope B1).
-
-- **The voice went mute after a list.** The task-list lane awaited its receipt inside the turn's generation;
-  `session.say` queues behind that generation → deadlock, `thinking` forever, every later reply generated and
-  never spoken. The receipt is now fire-and-forget. Node 3.90.
-- **A tab that lost the voice lock looped** `stalled↔starting` ~140/s: the `ensureVoice` effect re-ran `start()`
-  the moment `starting` dropped, bypassing the 3 s retry. `start()` defers to the armed timer. Node 4.225.
-- **Remote control is blue** (operator request): a tab whose voice another session holds is its own agent state,
-  `remote`, painted in `--hb-remote` and blinking — not the amber of a fault. Node 4.226.
-- **Two sheet-less errands shared the bare `results`**, so the Ferrari search replaced the monitors. An errand now
-  gets its own sheet on first delivery (`worker_api._own_sheet`). Node 3.91.
-- **«Close the results» stepped aside for ANY live worker** (a Telegram follow-up) and the model promised a close
-  it never made. Only an errand delivering into that very sheet blocks it. Node 3.92.
-- **The escalate question to Jev said «when in doubt, escalate»** and never named what the cards do: 11/11 one-step
-  orders (music, Telegram, calendar, a chart) went to 50-60 s workers. It now names the cards' capabilities.
-  Live: old wording 5/17, new 16/17. Node 3.93 (live, `ZAELAR_LIVE_JEV=1`).
-- **The reset deleted the DB under a live server** (one SIGTERM, 2 s sleep, the server ignored it). It now waits,
-  forces, and deletes nothing if the port is still held. Node 3.94.
-- **«Minimise that» over several cards** fell to the model; «that» is now the card on top (highest z, not
-  minimised) from the canvas report. Node 3.95.
-- **A `[[show:X]]` tag did not record its card**, so the after-show repair never ran and Markets came up empty.
-  Node 3.96.
-- **Our own «Done.» fired the anti-loop nudge**: two silent actions in a row read as the model repeating itself,
-  and the nudge («admit the limit or ask something else») produced the needless question at C5 and the claim with
-  no call at W2. The detector skips the engine's acks. Node 3.97.
-- Nine i18n keys the agenda and markets used were missing: an English session showed Spanish labels.
-
-Found by the live re-verification after the pass (each confirmed on the running engine, not only in tests):
-
-- **A tag show did not record its card** (Markets came up empty) and **a tag show opened the bare base** beside an
-  open sheet — both now resolve the CARD like the tool path. Nodes 3.96, 3.102.
-- **A system note vetoed his show**: the «meta question» guard read the composed turn, and a `[SISTEMA]` note
-  about a closed errand dropped «Show me the monitors». Both call sites read `operator_half`. Node 3.99.
-- **A sure `canvas = show` verdict now wakes the named-card backstop** when the model calls nothing — the promise
-  verb table does not know «bringing it back up». Node 3.100.
-- **The presentation door cut every id to its base**, so a resolved sheet came up as the empty `results`; and an
-  action on a sheet looked its manifest up by the instance id, read «undeclared» and was ESCALATED to a worker
-  (the engine log had said `widget.data no-declarada (results::…) — escalando` since the morning). Node 3.101.
-- **An action on a sheet reached the trust boundary as `resultsx`** (`_safe` strips colons): it now goes to the
-  base widget with the instance in `q`, the canvas's own convention. Node 3.102.
-- **A closed sheet is brought back by the phrase** («Show me the monitors» → the monitor sheet), the latest of two
-  on the same subject, never «the most recent» of unrelated ones. Node 3.98.
-- **«Open the best value option»** finds the card whose badge says so (open since the morning's v5). Node 3.103.
-
-Still open, as bank cases: a sure order answered with words and no call (the promise repair gates on a verb
-table), a completion claimed with no call. Both are the B1 question — who acts when the model does not.
-
-## V2-776 F (28-09) — the demo pass from zero, said like a person says it
-
-The workflow run end to end from a reset, then with a HUMAN script (`steps-human.json` in the workspace's
-workflow: dictation lower-case, fillers, a typo, vague references, a self-correction). The operator's rule for the
-batch: understand the request, fewer rails, no tricks. Every item below is a mechanism with its test seen red
-when disarmed; a model slip with no mechanism behind it stayed a slip (listed at the end).
-
-**Infrastructure first — none of these failed loudly.**
-- **A host shell routed the workers.** The engine, restarted from inside a Claude Code session, inherited its
-  `ANTHROPIC_BASE_URL=https://api.anthropic.com`; every Brain Worker skipped the provider chain and asked
-  Anthropic for `glm-5.3` («There's an issue with the selected model»). Workers and `zaelar.py start` drop the
-  host's routing; the CLI's wording also relays now; external tiers spawn with `CLAUDE_CODE_MAX_RETRIES=3`
-  (a spent quota handed over in 7 s instead of ~3 min); a Z.ai `[13xx]` reset stamp is read in UTC+8.
-  Nodes 2.82 and the failover suite.
-- **One widget action = one read-modify-write** (`store.mutating`): a background Telegram import loaded the empty
-  directory, merged 2,692 rows and saved — erasing a contact added meanwhile. Node 2.92.
-- **The screen that counts is the voice session's tab**: two tabs reported different canvases and a watching
-  tab «closed» the chart 268 ms into «ok close that». Node 2.91.
-- **A web errand's worker could not write the payload file its prompt asks for** (`_tools_for` replaced the
-  default that carried `Write`); **a price in a report read as a 429** («list $429.00» → «the provider gave me a
-  problem»); **a delivery spoken to him was announced again** by the next two replies; **a worker's interim
-  `say` rode his answers** when no quiet moment came (`notify(carry=False)`). Nodes 2.86 and the worker suites.
-
-**Canvas: a gesture is a gesture, never a data write.**
-- **Closing is a tool, like opening** (`close_widget {widget_id, mode: close|minimize}`): with only the
-  `[[close]]` tag, every model measured (deepseek flash/pro, glm-5.3) reached for `agenda:close_meeting` or
-  `results:clear` — which emptied the sheet. Node 2.88.
-- **The canvas verdict knows the size gestures** (fullscreen / exit_fullscreen / minimize) and, when the model
-  calls nothing, `complete_canvas` performs the gesture on the turn's card. Closing the piece closes its one open
-  card; the close backstop takes the verdict's card, never a word match («video» tied navegador↔youtube).
-- **«It» / «that» is the card his last turn acted on** (`canvas_focus`, fed by the event funnel): a sheet that
-  arrived in the background no longer steals «make it fullscreen». Node 2.85.
-
-**The repair passes judge instead of guessing.**
-- The promise/claim repair (`act_repair`) now READS its own reply: a promise or a claimed act gets its call; an
-  answer, a proposal, or an OFFER («want me to put it there?») gets none — while a claimed act followed by an
-  offer of another one still gets the claimed call. Its gate lost the confidence floor that stood in for this
-  judgement. Node 2.89 (live).
-- A silent show of an EMPTY card gets its second pass («show me the chart» → an empty Markets). Node 2.90.
-- «Checking your agenda…» is a promise to look; unrelated live work no longer covers a promise that names a
-  readable card.
-
-**Words.**
-- One closed class of spoken numbers (`refs.number_words`), English included — «put on number five» was no number
-  in an English session; a digit counts only when marked («number 3», «el 6»), «Apolo 11» is a title.
-- A position in his own sentence is the reference when the model named nothing («open the second one»); a widget
-  that matches its own references gets his words for an empty key (the document's `goto`).
-- The accumulator's turn judge decides whether he FINISHED, not what is missing: «and the nasdaq, over the whole
-  year» was answered «What would you like to know?» before the brain ever read it.
-- «Show me a few more of those» ADDS pictures (`show_images more:true`); the document sheet owns its file (a
-  second save updates it); the messaging card answers recipient questions from the directory it sends through.
-- An errand nobody labelled takes its surface from the turn brief (monitors → the sheet opens at once).
-
-**Second half of the batch (full pass 6).**
-- **A refused data-op is corrected while the turn is still his** (`act_repair.call_for_refusal` +
-  `data_ops.corrected_retry`, both channels): the refusal and the card go to one small pass that may re-issue
-  only the SAME action on the SAME card with a different payload — so the same gate. «open the one that's the best
-  deal» (sheet badge «Best value») and a move sent with a meeting's field names used to fail into a note for the
-  next turn: silence, then a misplaced apology. Node 2.95.
-- **A move is a write**: `move_meeting` reads the same natural field names as add/update (`recur.normalize`).
-- **A worker still speaking its delivery is not an orphan**: the pulse reconciler read only live statuses and
-  settled the monitors search as «failed» while it waited to speak; the FlashBrain then said it had failed and ran
-  it again. It now reads every session whose run has not reached `tasks.closed()`.
-- **The client lane only opens.** Closing and moving belong to the engine: the client closed Markets on «ok close
-  that» and the engine's verdict then closed the agenda — two mutations for one order.
-- A spoken reply over a show, on a turn the verdict reads as an order, gets the after-show pass (the pass judges
-  its own reply; «…so I'm opening that one» matched no verb table).
-- The forensic turn capture records the model's raw calls (`model_calls`); a repair spoken after the reply is its
-  own sentence («…tomorrow.Tomorrow»).
-
-**Still open — model slips, no mechanism to fix.** A time read from memory shifted by two hours (C1, once); a
-goodbye that asserted «nothing on the calendar tomorrow» with the agenda closed (Z3, twice); a sure verdict
-overruled by a valid but wrong call (`tab` for `detail`). The FlashBrain prompt is still in Spanish with an
-«answer in English» rule, which is where a Spanish word leaked into one English reply.
