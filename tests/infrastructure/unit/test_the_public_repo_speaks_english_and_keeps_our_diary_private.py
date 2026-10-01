@@ -236,7 +236,7 @@ PER_FILE: dict[str, int] = {
     'widgets/agenda/index.py': 1,
     'widgets/agenda/tasklists.py': 2,
     'widgets/brief.py': 4,
-    'widgets/contactos/data.py': 3,
+    'widgets/contactos/actions.py': 3,
     'widgets/contactos/gcontacts.py': 1,
     'widgets/mensajeria/data.py': 3,
     'widgets/mensajeria/owner.py': 2,
