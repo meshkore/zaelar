@@ -276,7 +276,7 @@ PER_FILE: dict[str, int] = {
     'scripts/zaelar.py': 3,
     'server/__init__.py': 17,
     'server/active.py': 1,
-    'server/boot.py': 2,
+    'server/boot_halves.py': 2,
     'server/canvas_api.py': 10,
     'server/config_api.py': 4,
     'server/daemon_api.py': 1,

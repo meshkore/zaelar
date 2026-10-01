@@ -227,6 +227,15 @@ def _unlift(src: str) -> str:
     return _LIFTED.sub(_back, src)
 
 
+#: `boot.start_the_engine`'s own two halves (spliced into it once it is back in place).
+_BOOT_HALVES = (
+    ("    # V2-778 F1 — the first half of the start (identity", "_boot_halves.identity_bus_memory_and_workers(",
+     ENGINE / "server" / "boot_halves.py", "identity_bus_memory_and_workers"),
+    ("    # V2-778 F1 — the second half of the start (widgets", "_boot_halves.connectors_voice_and_health(",
+     ENGINE / "server" / "boot_halves.py", "connectors_voice_and_health"),
+)
+
+
 #: Files whose function bodies F1 cut into called blocks: read with each block put back where it sat.
 _SPLICED = {
     (ENGINE / "server" / "voice_api.py").resolve(): (
@@ -246,14 +255,20 @@ _SPLICED = {
           ENGINE / "nucleo" / "flash" / "live_blocks_nav.py", "say_the_browser_state")], "_lb"),
     (ENGINE / "server" / "__init__.py").resolve(): (
         [("    # V2-778 F1 — the engine's start (identity", "_boot.start_the_engine(", ENGINE / "server" / "boot.py",
-          "start_the_engine")], "_srv"),
+          "start_the_engine"), *_BOOT_HALVES], "_srv|_bt"),
+    (ENGINE / "server" / "boot.py").resolve(): (list(_BOOT_HALVES), "_bt"),
 }
 
 
 def _spliced(path: Path, text: str) -> str:
     calls, alias = _SPLICED.get(path.resolve(), ([], ""))
-    present = [c for c in calls if c[0] in text]
-    return _splice(text, present, alias) if present else text
+    done: set = set()
+    while True:                     # a spliced body may carry the markers of blocks cut out of IT: repeat
+        present = [c for c in calls if c[0] in text and c[0] not in done]
+        if not present:
+            return text
+        text = _splice(text, present, alias)
+        done |= {c[0] for c in present}
 
 
 def read(path) -> str:
