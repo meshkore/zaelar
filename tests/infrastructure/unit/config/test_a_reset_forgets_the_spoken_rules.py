@@ -27,3 +27,11 @@ def test_credentials_and_settings_are_still_kept():
     block = _memory_files_block()
     for kept in ("config/connectors.json", "config/settings.json", "config/credentials"):
         assert kept not in block, f"{kept} is not memory — the reset must keep it"
+
+
+def test_a_factory_reset_also_forgets_the_circuit_override():
+    """V2-778 F3-29 — `<workspace>/config/circuit.json` overrides genesis's bound on a worker's retries, per
+    install, like `library.json`. A factory reset returned everything else to genesis and left this one."""
+    i = SCRIPT.index("FACTORY_PATHS=(")
+    block = SCRIPT[i:SCRIPT.index(")", i)]
+    assert '"config/circuit.json"' in block
