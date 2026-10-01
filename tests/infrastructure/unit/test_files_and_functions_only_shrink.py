@@ -42,7 +42,7 @@ FILES = {
     'nucleo/flash/prompt.py': 815,
     'nucleo/jev.py': 831,
     'nucleo/mem_processor.py': 831,
-    'voice/engine/llm/providers/nucleo.py': 1049,
+    'voice/engine/llm/providers/nucleo.py': 993,
     'voice/engine/pipeline/agent.py': 854,
     'widgets/agenda/data.py': 867,
     'widgets/mensajeria/data.py': 883,

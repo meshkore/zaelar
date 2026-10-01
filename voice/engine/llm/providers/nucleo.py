@@ -135,73 +135,12 @@ _speak_acc_drop = _accn._speak_acc_drop
 _schedule_acc_nudge = _accn._schedule_acc_nudge
 
 
-
 # ── FLOW LIFECYCLE (V2-096/V2-113/V2-116/V2-123) — extracted to `flow_lifecycle.py` (ratchet, 2026-09-05).
 # Historical names stay as ALIASES; `_PENDING_FLOW_CLOSES` is the same dict object (mutated, never rebound).
 from .flow_lifecycle import (  # noqa: F401 — re-export, not a local use
     _CHAIN_GRACE_S, _PENDING_FLOW_CLOSES, _WORKER_CONTROL_TOOLS, _begin_or_adopt_trace, _close_flow_now,
     _flow_should_close, _maybe_close_flow, _merge_target, _release_acc_trace_if_fresh, _resolve_acc_chain,
     drain_pending_flow_closes)
-
-
-def _resolve_pending_confirm(ok: bool) -> bool:
-    """Resolve the pending confirmation (any widget). If `ok`, EXECUTE what was confirmed: a widget DELETION
-    (deterministic, including memory) or an irreversible DATA-OP (dispatched by `apply_action`, NEVER code).
-    Return True if there was something to resolve.
-
-    MODULE function (not a closure of `_run_inner`, V2-090 addendum 2026-08-15), specifically so it can be called
-    ANTES de que el turno haga ningún trabajo lento — ver el hueco real que arregla en el sitio donde se llama
-    early, inside `_run_inner`: the old deterministic backstop ran only AFTER the model’s COMPLETE streaming, and a
-    turn cancelled by barge-in before reaching it silently lost the “yes” — the confirmation remained pending forever
-    and the widget was never touched (real session: “Yes, empty the whole thing.” was cancelled because the operator
-    kept speaking; the operator saw “confirm” and the agenda did not change)."""
-    try:
-        from voice.observer import emit
-        p = _wconfirm.resolve("", ok)
-        if p is None:
-            return False
-        # Observability (V2-090 addenda): esta respuesta nació en SU PROPIO turno (trace fresco) — antes de
-        # ejecutar/cancelar, adopta el trace de la pregunta para que ask→respuesta→acción sean UN flujo, no dos.
-        try:
-            _ptid = str(p.get("trace_id") or "")
-            if _ptid:
-                from voice import trace as _trace4
-                _trace4.adopt(_ptid)
-        except Exception:
-            pass
-        if not ok:
-            emit("brain", "↩️ acción cancelada", text=p.get("widget_id", ""), role="system")
-        elif p.get("action") == "data" and isinstance(p.get("op"), dict) \
-                and p["op"].get("action") == "connect_cluster":
-            try:
-                from connectors import meshkore as _mk
-                _pl = p["op"].get("payload") or {}
-                _spawn(_mk.dispatch_tag("cluster.connect", {"data": _pl}), "cluster")
-                emit("brain", "🛰 conectando cluster MeshKore (confirmado)", text=_pl.get("name", ""),
-                     role="system")
-            except Exception:
-                pass
-        elif p.get("action") == "data" and isinstance(p.get("op"), dict):
-            try:
-                # V2-743 — `receipt=True`: this is the CONFIRMED path, the one where a false «done» costs
-                # something, so the outcome is witnessed against the widget's own view before anything is said.
-                _spawn(_data_ops.dispatch_and_report(p["widget_id"], str(p["op"].get("action") or ""),
-                                                     p["op"].get("payload") or {}, receipt=True),
-                       "widget-data-confirmed")
-                emit("brain", "✅ acción irreversible confirmada", role="system",
-                     text=f"{p['widget_id']}:{p['op'].get('action')}")
-            except Exception:
-                pass
-        elif p.get("action") == "delete":
-            _spawn(_wlifecycle.delete_widget(p["widget_id"], "flash"), "widget-delete")
-            emit("brain", "🗑️ widget borrado (confirmado)", text=p["widget_id"], role="system")
-        elif p.get("action") == "restore":
-            _spawn(_wlifecycle.restore_widget(p["widget_id"], "flash"), "widget-restore")
-            emit("brain", "⟲ widget restaurado a la versión de sistema (confirmado)", text=p["widget_id"],
-                 role="system")
-        return True
-    except Exception:
-        return False
 
 
 # V2-669: the body moved to `flash/surface_ack.saved_state_is_empty` — the SAME decision was written there too
@@ -1047,3 +986,8 @@ from voice.engine.llm.providers import turn_tools as _turn_tools_mod  # noqa: E4
 from voice.engine.llm.providers import turn_admit as _turn_admit  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_failure as _turn_failure  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_fragment as _turn_fragment  # noqa: E402 — V2-778 F1, imports this module back
+
+
+# V2-778 F1 — moved to `pending_confirm.py`, imported back under their names (that module reads this one).
+from .pending_confirm import (  # noqa: E402,F401
+    _resolve_pending_confirm)

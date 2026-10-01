@@ -73,7 +73,12 @@ def turn_source() -> str:
         body = re.sub(r"\b_p\.", "", _body_of(path.read_text(encoding="utf-8"), fname))
         body = body.replace('return {"__return__": True}', "return")     # the turn's own early return
         prov = prov[:a] + "".join(("    " + ln) if ln.strip() else ln for ln in body.splitlines(True)) + prov[b:]
-    return prov
+    # module-level helpers F1 moved out of the provider: read with it, as written there
+    return prov + "".join("\n" + _as_written(x) for x in _PROVIDER_MODULES)
+
+
+#: Module-level helpers moved out of the provider (V2-778 F1), read as part of it by a source guard.
+_PROVIDER_MODULES = (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py",)
 
 
 #: Blocks F1 moved out of `_run_inner` into a module of their own, called in place (V2-778 F1): (the comment that
@@ -140,6 +145,7 @@ def probe_source() -> str:
 
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
 _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
+            (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py").resolve(): "_p",
             (ENGINE / "nucleo" / "dispatch_prepare.py").resolve(): "_d",
             (ENGINE / "widgets" / "navegador" / "owner_login.py").resolve(): "_o",
             (ENGINE / "widgets" / "navegador" / "owner_actions.py").resolve(): "_o",

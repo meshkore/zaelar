@@ -32,6 +32,7 @@ import os
 import pytest
 
 from nucleo.flash import data_ops, op_receipt
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 PROVIDER = os.path.join(os.path.dirname(__file__), "..", "..", "..",
                         "voice", "engine", "llm", "providers", "nucleo.py")
@@ -211,7 +212,7 @@ def test_report_failure_STAYS_QUIET_on_a_pool_timeout(monkeypatch):
 def _confirm_branch() -> str:
     """The early-confirm branch's source, read from the AST so a rename or a move cannot leave this test
     passing over code that no longer exists — the `_if_guarding` lesson from V2-741."""
-    src = open(PROVIDER, encoding="utf-8").read()
+    src = _vts.read(PROVIDER)     # V2-778 F1: the turn whole, moved blocks included
     tree = ast.parse(src)
     for node in ast.walk(tree):
         if isinstance(node, ast.Call) and getattr(node.func, "id", "") == "_resolve_pending_confirm":
@@ -226,7 +227,7 @@ def test_the_confirm_branch_still_exists_where_this_test_looks():
 def test_a_YES_is_answered_with_work_started_and_never_with_data_ack():
     """Defect A. `data_ack` is «Hecho.» and it fired the instant he agreed — before the dispatch had a
     result, and 7 s before this one had any outcome at all."""
-    src = open(PROVIDER, encoding="utf-8").read()
+    src = _vts.read(PROVIDER)     # V2-778 F1: the turn whole, moved blocks included
     i = src.index("_resolve_pending_confirm(_verdict_early")
     branch = src[i:i + 900]
     assert "_say().work_started" in branch, "the yes is still answered with something other than a START"
@@ -238,7 +239,7 @@ def test_the_confirmed_dispatch_asks_for_a_receipt():
     500 characters before «widget-data-confirmed» — and stayed GREEN when the disarm deleted the keyword
     from the CALL, because the comment three lines above still said `receipt=True`. A prose match is not a
     wiring match."""
-    src = open(PROVIDER, encoding="utf-8").read()
+    src = _vts.read(PROVIDER)     # V2-778 F1: the turn whole, moved blocks included
     calls = [n for n in ast.walk(ast.parse(src))
              if isinstance(n, ast.Call)
              and getattr(n.func, "attr", "") == "dispatch_and_report"
