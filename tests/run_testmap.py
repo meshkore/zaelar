@@ -2450,6 +2450,8 @@ DOMAINS: list[dict] = [
         # V2-776 (2026-09-27): «Open the best value option» abre la tarjeta cuya ETIQUETA dice «Best value» — la hoja
         # solo casaba títulos y ordinales (abierto desde la v5 de la mañana como «S3 falla el detail»).
         # V2-776 L3 (2026-09-29) — one loop, one bound, one report.
+        {"id": "3.111", "title": "A worker with no routed tier in a container fails loud instead of spawning claude unrouted",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_unrouted_worker_in_a_container_fails_loud.py"]},
         {"id": "3.105", "title": "A worker's ending is judged by the circuit: unmet → relaunched carrying what is missing, "
                                  "bounded by genesis, then the truth; a gave-up ending parks ONE retry on his answer; the "
                                  "pulse re-verifies every open spec "

@@ -88,7 +88,7 @@ FUNCTIONS = {
     'nucleo/susurro/apply.py::apply_corrections': 161,
     'nucleo/worker_api.py::_exec_allow': 280,
     'nucleo/workers/claude_session.py::ClaudeCodeSession._map': 145,
-    'nucleo/workers/claude_session.py::ClaudeCodeSession.start': 140,
+    'nucleo/workers/claude_session.py::ClaudeCodeSession.start': 145,
     'server/__init__.py::_lifespan': 511,
     'server/voice_api.py::status': 335,
     'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 1428,

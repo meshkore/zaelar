@@ -218,6 +218,20 @@ def relayed() -> bool:
     return (pick() or {}).get("base_url", "") != head
 
 
+def unrouted_refusal(task_id: str = "") -> str:
+    """Why a worker is not launched in a container with no routed tier (V2-778 F5-40), said as an `alert` the
+    operator's view and the Master read. Returns the sentence the session ends with."""
+    why = ("no hay ningún proveedor de worker disponible en este contenedor (cadena agotada o sin clave): "
+           "el worker no se lanza sin enrutar")
+    try:
+        from voice.observer import emit as _emit
+        _emit("alert", "🧯 worker sin proveedor en contenedor", text=why, role="system",
+              extra={"task": task_id, "cat": "worker", "is_error": True})
+    except Exception:  # noqa: BLE001
+        pass
+    return why
+
+
 def env_for_worker() -> dict:
     """Las env vars con las que lanzar `claude` AHORA. {} = sin redirect (licencia local o nada configurado).
 
