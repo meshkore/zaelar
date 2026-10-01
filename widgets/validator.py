@@ -319,12 +319,32 @@ def _delegated_actions(fn, param: str, tree, wdir: str) -> set[str]:
     return out
 
 
+def _table_actions(fn, tree) -> set[str]:
+    """The keys of a module-level `ACTIONS = {"name": handler, …}` table that `apply_action` consults.
+
+    V2-778 F1-12 turns the widgets' if-chains into this table, and without reading it the gate would have
+    fail-opened on every converted widget — the contract check switched off without a sound. Only a dict
+    literal whose every key is a string, and only when `apply_action` names `ACTIONS`: anything else is not
+    a dispatch this gate knows, and stays not counted."""
+    import ast
+    if not any(isinstance(n, ast.Name) and n.id == "ACTIONS" for n in ast.walk(fn)):
+        return set()
+    for node in getattr(tree, "body", []):
+        if (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "ACTIONS" and isinstance(node.value, ast.Dict)
+                and node.value.keys and all(isinstance(k, ast.Constant) and isinstance(k.value, str)
+                                            for k in node.value.keys)):
+            return {k.value for k in node.value.keys}
+    return set()
+
+
 def _apply_action_names(src: str, wdir: str = "") -> set[str] | None:
     """The action names an `apply_action(action, …)` actually HANDLES: the literals it compares against its
     own first parameter, plus those it delegates to a sibling module of the same widget. Returns the set of
     handled literals, an EMPTY set if apply_action exists but uses a dispatch style we can't parse statically
-    (e.g. a dict table — caller then fail-opens), or None if there is no apply_action at all. Stdlib AST, no
-    execution. This is the enforcement half of "declared actions must match apply_action" (V2-025)."""
+    (a computed dispatch — caller then fail-opens; an `ACTIONS` dict literal IS read), or None if there is no
+    apply_action at all. Stdlib AST, no execution. This is the enforcement half of "declared actions must
+    match apply_action" (V2-025)."""
     import ast
     try:
         tree = ast.parse(src)
@@ -334,7 +354,7 @@ def _apply_action_names(src: str, wdir: str = "") -> set[str] | None:
     if fn is None:
         return None
     param = fn.args.args[0].arg if fn.args.args else "action"
-    names = _literal_actions(fn, param)
+    names = _literal_actions(fn, param) | _table_actions(fn, tree)
     if names:                    # an unparsable dispatch stays empty (fail-open); a parsable one may delegate
         names |= _delegated_actions(fn, param, tree, wdir)
     return names

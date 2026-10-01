@@ -4158,6 +4158,8 @@ DOMAINS: list[dict] = [
         {"id": "4.48", "title": "Un importe dentro de la PROSA del enlace no es un precio (y la tarjeta real no "
                                 "pierde el suyo)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_an_amount_in_the_prose_is_not_a_price.py"]},
+        {"id": "4.243", "title": "The widget contract gate reads an ACTIONS = {name: handler} table instead of fail-opening on it",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_table_dispatch_is_read.py"]},
         {"id": "4.242", "title": "The widget contract gate follows a delegate that renames its action parameter (make test-widgets green)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_delegate_that_renames_the_action_is_read.py"]},
         {"id": "4.241", "title": "A listing priced in dollars or pounds is a listing (the extractor reads $, US $ and cents in <sup>)",
