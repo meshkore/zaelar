@@ -238,6 +238,11 @@ _BOOT_HALVES = (
 
 #: Files whose function bodies F1 cut into called blocks: read with each block put back where it sat.
 _SPLICED = {
+    (ENGINE / "nucleo" / "dispatch_session.py").resolve(): (
+        [("        # V2-778 F1 — building what the session runs with", "_dss.build_what_it_runs_with(",
+          ENGINE / "nucleo" / "dispatch_session_steps.py", "build_what_it_runs_with"),
+         ("        # V2-778 F1 — running the session to its delivery", "_dss.run_it_to_its_delivery(",
+          ENGINE / "nucleo" / "dispatch_session_steps.py", "run_it_to_its_delivery")], "_ds|_d"),
     (ENGINE / "server" / "voice_api.py").resolve(): (
         [("    # V2-778 F1 — the brain, the voice and its providers in the status", "_vstatus.brain_and_voice(",
           ENGINE / "server" / "voice_status.py", "brain_and_voice"),
@@ -316,7 +321,8 @@ def getsource(obj) -> str:
         return inspect.getsource(dispatch_listener.run_listener)
     if mod == "nucleo.dispatch" and qual == "_run_session":          # the facade's delegate (V2-778 F1)
         from nucleo import dispatch_session      # read as it was written there: without the `_d.` the move added
-        return re.sub(r"\b_d\.", "", inspect.getsource(dispatch_session._run_session))
+        src = _spliced(ENGINE / "nucleo" / "dispatch_session.py", inspect.getsource(dispatch_session._run_session))
+        return re.sub(r"\b_d\.", "", src)
     src = inspect.getsource(obj)
     try:                                      # a moved body reads its old module through an alias: read as written
         _file = Path(inspect.getfile(inspect.unwrap(obj)))
