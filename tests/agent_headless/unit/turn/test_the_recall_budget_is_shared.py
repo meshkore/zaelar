@@ -82,7 +82,8 @@ def test_no_channel_composes_the_recall_inside_the_loop():
 
     for mod, name in ((probe, "probe.run_turn"), (probe_api, "probe_api"),
                       (voice_provider, "el provider de voz")):
-        src = inspect.getsource(mod)
+        from tests import voice_turn_source
+        src = voice_turn_source.getsource(mod)     # V2-778 F1: the voice turn is read whole, moved blocks included
         assert "recall_budget" in src, f"{name} no pasa por la guarda con presupuesto"
         # Inspect the CODE, not the text. Searching for the string `recall_query=` also finds it in a
         # comment that EXPLAINS why it is not used — this happened while writing this very guard, and it is the second time

@@ -66,6 +66,9 @@ def turn_source() -> str:
     for start, call, path, fname in _PROVIDER_CALLS:
         a = prov.index(start)
         b = prov.index("\n        )\n", prov.index(call, a)) + len("\n        )\n")
+        rebind = re.compile(r"        if '\w+' in _blk:\n            \w+ = _blk\['\w+'\]\n")
+        while (m := rebind.match(prov, b)):     # the outputs the call binds back
+            b = m.end()
         body = re.sub(r"\b_p\.", "", _body_of(path.read_text(encoding="utf-8"), fname))
         prov = prov[:a] + "".join(("    " + ln) if ln.strip() else ln for ln in body.splitlines(True)) + prov[b:]
     return prov
@@ -76,6 +79,8 @@ def turn_source() -> str:
 _PROVIDER_CALLS = (
     ("        # V2-778 F1 — the end of the turn (dialog window", "_turn_after.close_the_turn(",
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_after.py", "close_the_turn"),
+    ("        # V2-778 F1 — the turn's prompt (spec, recall", "_turn_prompt.compose_the_prompt(",
+     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_prompt.py", "compose_the_prompt"),
 )
 
 
@@ -102,7 +107,7 @@ _PROBE_CALLS = (
 def _body_of(src: str, fname: str) -> str:
     i = src.index(f"async def {fname}(")
     i = src.index(") -> dict:\n", i) + len(") -> dict:\n")
-    return src[i:src.index("    _out = {}\n", i)]
+    return src[i:src.index("    _out = ", i)]
 
 
 def probe_source() -> str:
