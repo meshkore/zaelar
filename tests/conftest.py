@@ -100,7 +100,14 @@ def _cloud_embeddings_never_reach_the_network():
     if os.environ.get("ZAELAR_TEST_EMBED_CLOUD") == "1":
         yield
         return
-    real = emb._cloud_embed
+    # The GENUINE function, captured once. Re-reading `emb._cloud_embed` per test captured whatever the previous
+    # test left there: a test that monkeypatches `_cloud_embed` is undone by monkeypatch AFTER this fixture
+    # restores, so the attribute comes back as this fixture's own stub — and the next test's `_REAL_CLOUD_EMBED`
+    # was a lambda returning None (V2-778 F6-43: the metering test went red only when run after the outage test).
+    real = getattr(emb, "_GENUINE_CLOUD_EMBED", None)
+    if real is None:
+        real = emb._cloud_embed
+        emb._GENUINE_CLOUD_EMBED = real
     # Kept reachable by hand for the one test that DOES have to measure the real function (with `urlopen`
     # patched, no network): without this the original is unreachable while the fixture is installed.
     emb._REAL_CLOUD_EMBED = real

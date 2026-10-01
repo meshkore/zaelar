@@ -59,6 +59,10 @@ _EXENTOS: dict[str, str] = {
         "esta exención deja de valer y hay que reportarlo.",
     "nucleo/energy_meter.py":
         "ES el contador: aquí viven las tarifas, no un llamante que deba usarlas.",
+    "nucleo/workers/claude_session.py":
+        "lanza el CLI del worker y no llama a nadie: la cadena 'api.anthropic.com' está en un COMENTARIO sobre el "
+        "entorno heredado que se le quita al worker. Lo que ese worker consume se factura donde se lee su uso, "
+        "`nucleo/workers/session.py` → `energy_meter.report_worker_usage` (V2-778 F5-41, comprobado).",
     "config/v2.py":
         "guarda los DEFAULTS de routing (base_url como texto de config); no invoca a nadie.",
     "voice/engine/core/config.py":
