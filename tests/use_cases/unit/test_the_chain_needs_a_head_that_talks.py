@@ -106,7 +106,7 @@ def test_a_different_brain_is_allowed_but_SAID_OUT_LOUD(monkeypatch):
     assert "OTRO CEREBRO" in moved and "flash" in moved
 
 
-def test_the_seeded_head_is_the_TABLE_titular_and_carries_no_secret(tmp_path):
+def test_the_seeded_head_is_the_TABLE_titular_and_carries_no_secret(tmp_path, monkeypatch):
     """`config.v2.fast_model_spec()` reads `fast.model`/`fast.base_url`, not `fast.providers[0]`: seeding only
     the ladder left the sandbox on the hardcoded fallback, so the reorder changed nothing the turn used. The
     head travels with it.
@@ -120,6 +120,9 @@ def test_the_seeded_head_is_the_TABLE_titular_and_carries_no_secret(tmp_path):
 
     from config import models as table
 
+    # The liveness probe is a real network call; this case is about what gets SEEDED, so the titular answers.
+    # Without the stub the case went red whenever the shipped titular was out of balance (V2-778 F6-43).
+    monkeypatch.setattr(R, "rung_answers", lambda rung, *a, **k: (True, ""))
     ws = tmp_path / "ws"
     ws.mkdir()
     R.seed_provider_chain(ws)

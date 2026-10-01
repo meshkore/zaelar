@@ -271,10 +271,14 @@ def test_a_file_run_straight_from_a_download_does_not_claim_the_folder_above_it(
     )
 
 
-def test_a_source_checkout_still_keeps_its_state_in_the_repo(tmp_path):
+def test_a_source_checkout_still_keeps_its_state_in_the_repo(tmp_path, monkeypatch):
     """The other counterweight, and the one that would hurt most: a self-hoster runs `python -m daemon` from
     their clone and their token and allowlist live under the repo's `config/`. The install rule must not move
-    them — an "improvement" that silently relocates somebody's existing allowlist reads as it being wiped."""
+    them — an "improvement" that silently relocates somebody's existing allowlist reads as it being wiped.
+
+    It measures the case with NO `ZAELAR_WORKSPACE`, which the root sandbox now always sets (V2-778 F0-1), so the
+    variable is removed for this case only. Only paths are resolved; nothing is written."""
+    monkeypatch.delenv("ZAELAR_WORKSPACE", raising=False)
     from daemon import paths
     root = paths.workspace_root()
     assert root == ENGINE, f"an in-repo daemon resolved its root to {root}"

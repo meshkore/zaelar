@@ -66,5 +66,10 @@ def test_the_default_attention_mode_has_no_wake_word():
 def test_both_shells_obey_the_reset_epoch():
     for shell in ("frontend/app/main.js", "frontend/mobile/app/main.js"):
         src = (ROOT / shell).read_text(encoding="utf-8")
-        assert "firstRun.takeoverOnReset(" in src and "/api/desktop/epoch" in src, shell
+        assert "firstRun.takeoverOnReset(" in src, shell
+        # The epoch URL is either inline (mobile) or built by `first-run.browserTakeoverArgs()` (desktop, since
+        # ab7b8a89 shared it with the SSE re-open) — what matters is that this shell's takeover asks for it.
+        helper = (ROOT / "frontend/app/core/first-run.js").read_text(encoding="utf-8")
+        assert "/api/desktop/epoch" in src or ("firstRun.browserTakeoverArgs(" in src
+                                                and "/api/desktop/epoch" in helper), shell
         assert re.search(r'import \* as firstRun from "[./]*(app/)?core/first-run\.js', src), shell
