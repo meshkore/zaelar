@@ -144,7 +144,13 @@ def test_ninguna_otra_accion_del_catalogo_cambia_de_respuesta():
 
     V2-764 added ONE: `archivos:torrent_download`. A catalogue row is named by its number or its title («la
     segunda», «la de 720p»), so it declares `ref: item` — and a live download keeps `id`, a different field, so
-    «la segunda» of the catalogue can never cancel the second download."""
+    «la segunda» of the catalogue can never cancel the second download.
+
+    The demo week added SEVEN, each in its own batch (V2-778 F6-43 wrote them down): `agenda:open_meeting`
+    (V2-770, a meeting named by its title, like its siblings above); `imagenes:select` and `map:select`
+    (6be74d91, a picture or a place named by its position or title); `documento:goto` (761f5e2a, a passage
+    named by its text); and `mensajeria:open` / `unread` / `forward` (7ba9f2f1, 5f6d2a81, a message named by
+    its sender or subject — «the mail from Inworld»)."""
     from widgets import runtime
 
     def sufijo_solo(wid: str, action: str):
@@ -162,9 +168,13 @@ def test_ninguna_otra_accion_del_catalogo_cambia_de_respuesta():
     assert sorted(cambian) == [
         ("agenda", "cancel_meeting"), ("agenda", "clear_list"), ("agenda", "dedupe_meetings"),
         ("agenda", "delete_list"), ("agenda", "delete_task"), ("agenda", "move_meeting"),
-        ("agenda", "rename_list"), ("agenda", "rsvp_meeting"), ("agenda", "set_reminder"),
-        ("agenda", "update_meeting"), ("agenda", "update_task"),
+        ("agenda", "open_meeting"), ("agenda", "rename_list"), ("agenda", "rsvp_meeting"),
+        ("agenda", "set_reminder"), ("agenda", "update_meeting"), ("agenda", "update_task"),
         ("archivos", "torrent_download"),
+        ("documento", "goto"),
+        ("imagenes", "select"),
+        ("map", "select"),
+        ("mensajeria", "forward"), ("mensajeria", "open"), ("mensajeria", "unread"),
         ("youtube", "move"), ("youtube", "play_item"), ("youtube", "remove"),
     ], cambian
 

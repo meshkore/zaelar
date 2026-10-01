@@ -34,7 +34,9 @@ def test_chat_and_mensajeria_never_collide():
 
 # ── certainty: without a name/alias nothing opens (ask) ─────────────────────────────────────────────────────
 def test_unknown_phrase_returns_none():
-    for q in ("enséñame el conversor de divisas", "muéstrame no sé qué cosa rara", "ábreme el panel de la bolsa"):
+    # «el panel de la bolsa» used to be here: since the markets widget, «bolsa» (the stock market) is its declared
+    # alias, so that phrase is a NAME now. The case wants a phrase no widget answers to.
+    for q in ("enséñame el conversor de divisas", "muéstrame no sé qué cosa rara", "ábreme el panel de la lavadora"):
         r = _m(q)
         assert r["match"] is None and r["system"] is None, f"{q!r} -> {r}"
 
