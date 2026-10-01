@@ -175,7 +175,7 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # V2-713 R1 — 742→666 pagado EXTRAYENDO `show_guard.py`: el guarda del «abre/muéstrame» puro (sus
     # tres clases de verbo, la decisión y su sombra) era un concepto entero dentro de un cajón que
     # mezclaba dinero, login y cierre. Los lazy bajan de 5 a 3 porque los nuevos se fueron con él.
-    "nucleo/flash/router_guards.py": (667, 3),
+    "nucleo/flash/router_guards.py": (561, 3),   # 2026-10-01 V2-778 F1: commission readers → commission_guards.py
     "nucleo/flash/show_guard.py": (165, 4),
     # probe.py 1168→1176 net: V2-300's grace/latency growth minus F1's confirm-gate retirement (−2 mirrors,
     # 2026-08-24); →1214/89 on 25-08 (49a7c81, 25d7ebd, 73daeac — the walk's fixes land in the same god
