@@ -130,6 +130,8 @@ _PROBE_CALLS = (
     ("    # V2-778 F1 — the words the turn owes live in", "        spoken = _blk['spoken']\n", "the_words_it_owes"),
     ("    # V2-778 F1 — naming the turn's action from what", "        video_req = _blk['video_req']\n", "name_the_action",
      ENGINE / "nucleo" / "flash" / "probe_decide.py"),
+    ("    # V2-778 F1 — the mirrors of the voice backstops", "        spoken = _blk['spoken']\n",
+     "mirror_the_voice_backstops", ENGINE / "nucleo" / "flash" / "probe_mirrors.py"),
 )
 
 
@@ -147,12 +149,13 @@ def probe_source() -> str:
         a = prov.index(start)
         b = prov.index(last, a) + len(last)
         src = where[0].read_text(encoding="utf-8") if where else after
-        prov = prov[:a] + _body_of(src, fname).replace("_probe.", "") + prov[b:]
+        prov = prov[:a] + re.sub(r"\b_probe\.", "", _body_of(src, fname)) + prov[b:]
     return prov
 
 
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
 _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
+            **{(ENGINE / "nucleo" / "flash" / f"probe_{x}.py").resolve(): "_probe" for x in ("after", "decide", "mirrors")},
             **{(ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py").resolve(): "_pst" for x in ("words", "lanes", "settle")},
             (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py").resolve(): "_p",
             (ENGINE / "nucleo" / "dispatch_prepare.py").resolve(): "_d",

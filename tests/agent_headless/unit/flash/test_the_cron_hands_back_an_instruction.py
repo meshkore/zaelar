@@ -72,7 +72,7 @@ def test_BOTH_channels_go_through_it():
     # backstops it delegates to (`probe_scheduling.py`). The guard is about the CHANNEL being wired, not
     # about which file holds the line, so it reads both — otherwise the next extraction turns a wiring
     # guard into a false alarm, and the fix would be to weaken it.
-    doors = {"probe": inspect.getsource(probe) + inspect.getsource(probe_scheduling),
+    doors = {"probe": _vts.getsource(probe) + inspect.getsource(probe_scheduling),
              "voice provider": _vts.turn_source()}
     for name, src in doors.items():
         assert "safe_reminder_prompt(" in src, name

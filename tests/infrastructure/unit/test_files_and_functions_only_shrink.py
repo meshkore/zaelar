@@ -37,7 +37,6 @@ FILES = {
     'nucleo/flash/direct_action.py': 821,
     'nucleo/flash/fast_client.py': 866,
     'nucleo/flash/live_blocks.py': 860,
-    'nucleo/flash/probe.py': 921,
     'nucleo/flash/prompt.py': 815,
     'nucleo/jev.py': 831,
     'nucleo/mem_processor.py': 831,
@@ -72,9 +71,10 @@ FUNCTIONS = {
     'nucleo/flash/post_stream_lanes.py::run_the_light_lanes': 430,
     'nucleo/flash/post_stream_settle.py::settle_what_is_pending': 196,
     'nucleo/flash/post_stream_words.py::hold_the_model_to_its_words': 325,
-    'nucleo/flash/probe.py::run_turn': 812,
+    'nucleo/flash/probe.py::run_turn': 582,
     'nucleo/flash/probe_after.py::execute_what_was_decided': 165,
     'nucleo/flash/probe_decide.py::name_the_action': 222,
+    'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 267,
     'nucleo/flash/prompt.py::_flash_layer': 238,
     'nucleo/flash/prompt.py::live_state': 210,
     'nucleo/flash/task_block.py::pending_task_lines': 198,
@@ -126,8 +126,9 @@ FUNCTIONS = {
 BRANCHES = {
     'nucleo/flash/post_stream_lanes.py::run_the_light_lanes': 146,
     'nucleo/flash/post_stream_words.py::hold_the_model_to_its_words': 121,
-    'nucleo/flash/probe.py::run_turn': 229,
+    'nucleo/flash/probe.py::run_turn': 129,
     'nucleo/flash/probe_decide.py::name_the_action': 108,
+    'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 108,
     'nucleo/flash/tool_executor.py::build': 208,
     'nucleo/flash/tool_executor.py::build._on_tool_call': 208,
     'nucleo/flash/tool_executor_widget.py::build': 219,
@@ -220,6 +221,9 @@ def test_no_function_grows_more_branches():
 
 
 def test_the_provider_and_the_probe_are_named():
-    assert "voice/engine/llm/providers/nucleo.py" in FILES and "nucleo/flash/probe.py" in FILES
-    assert "voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner" in FUNCTIONS
-    assert "nucleo/flash/probe.py::run_turn" in FUNCTIONS
+    """The two turns are named while they are over a ceiling, and leave the list only by getting under it."""
+    files, funcs, _ = _measure()
+    for f in ("voice/engine/llm/providers/nucleo.py", "nucleo/flash/probe.py"):
+        assert f in FILES or files.get(f, 0) <= FILE_MAX, f
+    for fn in ("voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner", "nucleo/flash/probe.py::run_turn"):
+        assert fn in FUNCTIONS or funcs.get(fn, 0) <= FUNC_MAX, fn

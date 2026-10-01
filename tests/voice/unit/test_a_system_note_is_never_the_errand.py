@@ -234,7 +234,7 @@ def test_both_promise_gates_consult_it_and_so_does_the_probe():
     assert "asks_for_missing_detail(spoken_text)" in pb.read_text(encoding="utf-8"), \
         "and so does the forced escalation, now that it lives in its own module"
     probe = NUCLEO.parents[4] / "nucleo" / "flash" / "probe.py"
-    assert "asks_for_missing_detail(spoken)" in probe.read_text(encoding="utf-8")
+    assert "asks_for_missing_detail(spoken)" in _vts.read(probe)
 
 
 def test_use_case_the_ghost_errand_of_2026_09_01():

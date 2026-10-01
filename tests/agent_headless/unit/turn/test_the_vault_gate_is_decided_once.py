@@ -14,6 +14,7 @@ import asyncio
 import inspect
 
 from nucleo.turn import vault_gate
+from tests import voice_turn_source as _vts   # V2-778 F1: the probe's turn is read whole
 
 
 class _Detected:
@@ -135,7 +136,7 @@ def test_both_channels_go_through_the_gate_and_neither_keeps_a_copy():
         assert "vault_flow" not in src, f"{name} volvió a resolver el reveal por su cuenta"
 
     # And the edge that truly matters for the reveal: the TEXT channel cannot even mention the value.
-    probe_src = inspect.getsource(probe)
+    probe_src = _vts.getsource(probe)
     assert ".value" not in probe_src.split("reveal_secret")[1][:600], "probe.py alcanza el valor descifrado"
 
 

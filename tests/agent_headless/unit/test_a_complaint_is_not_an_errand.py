@@ -140,7 +140,7 @@ def test_the_probe_mirror_reads_the_same_classifier():
     other is something this codebase has already paid for four times."""
     import inspect
     from nucleo.flash import probe
-    assert "_danger_bk.is_dangerous(operator_text)" in inspect.getsource(probe)
+    assert "_danger_bk.is_dangerous(operator_text)" in _vts.getsource(probe)
 
 
 def test_the_worker_gate_reads_it_too():

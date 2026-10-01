@@ -58,7 +58,8 @@ def test_the_probe_turns_it_into_a_real_search():
     import inspect
 
     from nucleo.flash import probe
-    src = inspect.getsource(probe)
+    from tests import voice_turn_source as _vts   # V2-778 F1: the probe's turn is read whole
+    src = _vts.getsource(probe)
     assert "answer_needs_a_source" in src
     i = src.index("answer_needs_a_source")
     # …and that it actually flips the turn, not just consults the guard.
