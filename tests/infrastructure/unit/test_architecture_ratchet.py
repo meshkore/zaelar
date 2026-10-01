@@ -195,7 +195,7 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # branch in the worker directive: inject before killing—directive prose, nothing extractable)
     # 26-09-11: V2-675 · −21 — the CRON line moved to `live_blocks.py` (same precedent as the browser and
     # background-task blocks), paying for the context-pack seam. Lowering the number IS the celebration.
-    "nucleo/workers/session.py": (825, 19),
+    "nucleo/workers/session.py": (696, 16),   # 2026-10-01 V2-778 F1: its notes → workers/session_notes.py
     "nucleo/flash/router.py": (327, 1),
 }
 

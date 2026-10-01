@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """V2-345 — what the worker NARRATES is the richest signal we have, and it was not appearing on any screen.
 
 Measured in session `7575e81a` (2026-08-26), during the 21.6 min car assignment: **82 narrations, one every
@@ -85,7 +86,7 @@ def test_the_session_actually_pushes_it():
     from pathlib import Path
 
     def _limpio(ruta):
-        return "\n".join(ln for ln in Path(ruta).read_text().splitlines()
+        return "\n".join(ln for ln in _vts.read(ruta).splitlines()   # a split file reads with its pieces
                           if not ln.strip().startswith("#"))
     ses = _limpio("nucleo/workers/session.py")
     i = ses.index("def _emit_note")

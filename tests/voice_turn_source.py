@@ -58,7 +58,8 @@ def turn_source() -> str:
 #: Other files F1 split, and the modules their code moved to. A guard that reads the old file reads them all,
 #: concatenated: the moved code stays contiguous, so an «X before Y» assertion inside it keeps its meaning.
 DISPATCH = ENGINE / "nucleo" / "dispatch.py"
-_SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py"]}
+_SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py"],
+          (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"]}
 
 
 def read(path) -> str:

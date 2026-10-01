@@ -43,7 +43,6 @@ FILES = {
     'nucleo/flash/tool_executor.py': 1271,
     'nucleo/jev.py': 831,
     'nucleo/mem_processor.py': 831,
-    'nucleo/workers/session.py': 858,
     'server/voice_api.py': 993,
     'voice/attention.py': 1033,
     'voice/engine/llm/providers/nucleo.py': 1769,
