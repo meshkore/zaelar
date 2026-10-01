@@ -40,7 +40,6 @@ FILES = {
     'nucleo/jev.py': 831,
     'nucleo/mem_processor.py': 831,
     'voice/engine/llm/providers/nucleo.py': 993,
-    'widgets/agenda/data.py': 867,
     'widgets/navegador/owner.py': 883,
     'widgets/navegador/tasks.py': 829,
 
@@ -104,7 +103,7 @@ FUNCTIONS = {
     'voice/engine/speech/filler_audio.py::llm_node_with_filler': 143,
     'voice/proactive.py::notify': 128,
     'voice/tag_protocol.py::strip_tags': 212,
-    'widgets/agenda/data.py::apply_action': 544,
+    'widgets/agenda/actions.py::_a_add_meeting': 134,
     'widgets/agenda/tasklists.py::apply': 170,
     'widgets/archivos/data.py::apply_action': 136,
     'widgets/brief.py::for_prompt': 157,
@@ -128,7 +127,6 @@ BRANCHES = {
     'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 108,
     'nucleo/flash/tool_executor_calls.py::_on_tool_call': 208,
     'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 108,
-    'widgets/agenda/data.py::apply_action': 236,
     'widgets/agenda/tasklists.py::apply': 115,
     'widgets/youtube/library.py::apply': 123,
 }

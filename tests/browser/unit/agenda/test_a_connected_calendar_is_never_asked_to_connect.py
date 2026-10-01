@@ -200,10 +200,12 @@ def test_the_refusal_is_spoken_in_the_operators_language(monkeypatch):
 def test_it_reads_the_TABLE_and_not_a_two_way_branch():
     """The difference that decides whether «or any language» is true. An `_en` ternary is correct for the two
     languages this repo ships and wrong for the third, and a generated pack can never reach it."""
-    import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "agenda" / "data.py").read_text("utf-8")
+    import inspect
+    from widgets.agenda import data as _ad
+    # V2-778 F1-12: each action is its own function in the ACTIONS table; its body is what the branch was
+    src = inspect.getsource(_ad.ACTIONS["add_meeting"])
     body = "\n".join(L for L in src.splitlines() if not L.strip().startswith("#"))
-    add = body[body.index('elif action == "add_meeting"'):body.index('elif action == "add_meeting"') + 3000]
+    add = body[:3000]
     assert '_spoken("agenda_no_title")' in add and '_spoken("agenda_no_data")' in add
     assert '"message": "No' not in add, "a spoken sentence is written inline again"
 

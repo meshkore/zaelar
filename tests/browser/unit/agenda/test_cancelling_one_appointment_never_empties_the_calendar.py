@@ -111,8 +111,9 @@ def test_a_row_google_refuses_to_delete_stays_and_the_turn_is_told(agenda, monke
 def test_the_handler_no_longer_owns_the_decision():
     """Structural: the branch in `data.py` persists and answers; matching and the one-appointment rule live in
     `sweep.py`, beside `clear_range`, where the erase doctrine is written once."""
-    import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets/agenda/data.py").read_text(encoding="utf-8")
-    branch = src[src.index('elif action == "cancel_meeting":'):src.index('elif action == "set_reminder":')]
+    import inspect
+    from widgets.agenda import data as _ad
+    # V2-778 F1-12: each action is its own function in the ACTIONS table; its body is what the branch was
+    branch = inspect.getsource(_ad.ACTIONS["cancel_meeting"])
     assert "sweep.cancel_meeting(" in branch
     assert 'db["meetings"] =' not in branch, "the branch must not filter the list itself again"

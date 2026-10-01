@@ -253,6 +253,50 @@ def radius(action: str, payload: dict | None = None) -> int | None:
         return None
 
 
+# V2-778 F1-12 — the action handlers live in `actions.py`, imported back under their names (that module
+# reads this one).
+from .actions import (  # noqa: E402,F401
+    _a_drop_project, _a_add_meeting, _a_dedupe_meetings, _a_cancel_meeting, _a_set_reminder, _a_clear_range,
+    _a_clear_all, _a_move_meeting, _a_open_meeting, _a_update_meeting, _a_invite, _a_rsvp_meeting, _a_proposal,
+    _a_show_day, _a_find_free, _a_connection)
+
+
+# V2-778 F1-12 — one function per action (in `actions.py`), and `apply_action` is the table lookup. Each body
+# is the branch it was, moved verbatim; a branch that used to fall through to the shared ending returns
+# `_Continue(_extra)` instead, and the ending runs here as before. The contract gate reads the table's
+# keys (`widgets/validator._table_actions`).
+class _Continue:
+    """An action that ends in the shared epilogue, carrying its `_extra`."""
+    __slots__ = ("value",)
+
+    def __init__(self, value):
+        self.value = value
+
+
+ACTIONS = {
+    "drop_project": _a_drop_project,
+    "add_meeting": _a_add_meeting,
+    "dedupe_meetings": _a_dedupe_meetings,
+    "cancel_meeting": _a_cancel_meeting,
+    "set_reminder": _a_set_reminder,
+    "clear_range": _a_clear_range,
+    "clear_all": _a_clear_all,
+    "move_meeting": _a_move_meeting,
+    "open_meeting": _a_open_meeting,
+    "close_meeting": _a_open_meeting,
+    "update_meeting": _a_update_meeting,
+    "invite": _a_invite,
+    "rsvp_meeting": _a_rsvp_meeting,
+    "accept_proposal": _a_proposal,
+    "decline_proposal": _a_proposal,
+    "show_day": _a_show_day,
+    "find_free": _a_find_free,
+    "connect": _a_connection,
+    "disconnect": _a_connection,
+    "set_default_calendar": _a_connection,
+}
+
+
 def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
     if action == "move_meeting" and (payload or {}).get("day") and not payload.get("newDate"):
@@ -284,514 +328,12 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         store.save(WIDGET_ID, db)
         return {**view_data(), **res}
 
-    if action == "drop_project":
-        pid = payload.get("projectId")
-        for p in db.get("projects", []):
-            if p["id"] == pid:
-                p["status"] = "frozen"
-        for t in db.get("tasks", []):
-            if t.get("projectId") == pid and t.get("status") in (None, "todo", "in_progress"):
-                t["status"] = "dropped"
-    elif action == "add_meeting":
-        # V2-473 — the write does not INVENT. Measured in `dentist-appointment-into-agenda` round 1
-        # (2026-08-29): an empty payload wrote «Cita, today, 17:00» — every field a default wearing the
-        # face of success — and the reply said «Hecho.». A write with none of the real fields is an error
-        # that names the expected keys (so the model retries with the right shape), never a silent row.
-        if not any(str(payload.get(k) or "").strip() for k in ("title", "date", "startTime", "time")):
-            # V2-652 — two audiences: `error` coaches the MODEL's retry and must never be spoken;
-            # `message` is what the operator may hear (data_ops.report_failure only voices `message`).
-            return {"ok": False,
-                    "error": "no me ha llegado ningún dato de la cita — vuelve a llamar a add_meeting "
-                             "con el título, el día (YYYY-MM-DD) y la hora (HH:MM), sin preguntarle nada "
-                             "al operador si ya te los dijo",
-                    "message": _spoken("agenda_no_data")}
-        # ⚠️ …and a missing TITLE is the same kind of fact as a missing hour (V2-689). This line used to
-        # default to «Cita», which is how the operator ended up with two events in his real Google Calendar
-        # for one sentence: the STT delivered «Add me one item to my agenda on» as a fragment, the turn ran
-        # on it, `date` was present so the guard above let it through, and the agenda wrote an all-day «Cita»
-        # on the 17th. The real one («Dentist», 17:00) arrived with the next turn and sat beside it.
-        # A word we chose is not a title he said — and once it reaches Google it is a row in HIS calendar
-        # that only he can delete. Refused with the same two audiences as the guard above: `error` coaches
-        # the model's retry, `message` is the only half that may be spoken.
-        title = str(payload.get("title") or "").strip()
-        if not title:
-            return {"ok": False,
-                    "error": "la cita no lleva título — vuelve a llamar a add_meeting con `title`, además "
-                             "del día (YYYY-MM-DD) y la hora (HH:MM); NO inventes un título genérico",
-                    "message": _spoken("agenda_no_title")}
-        # V2-026: normalize spoken date/time into date=+1d and startTime='17:00' when appropriate, so the meeting
-        # lands correctly even if the model does not calculate the date itself.
-        _rawdate = str(payload.get("date", "") or "")
-        # V2-473 round 3: three probe samples in a row sent `time`, not the manifest's `startTime`, and the
-        # hour fell to the default AGAIN. The unambiguous natural alias must not cost the fact (V2-341).
-        _rawtime = str(payload.get("startTime", "") or payload.get("time", "") or "")
-        # V2-473 — the model's natural datetime shape («2026-09-08 15:00», or with a T) is BOTH fields in
-        # one: the date resolver kept the date and silently dropped the hour, so «a las tres de la tarde»
-        # became the 17:00 default. The glued hour fills startTime only when none was given explicitly.
-        _m = re.match(r"^\s*(\d{4}-\d{2}-\d{2})[T ]+(\d{1,2}:\d{2})\s*$", _rawdate)
-        if _m:
-            _rawdate = _m.group(1)
-            if not _rawtime.strip():
-                _rawtime = _m.group(2)
-        date = _resolve_date(_rawdate)
-        if not _rawtime.strip():
-            # V2-652 — a missing hour is a FACT, never a slot for a default. The old `default="17:00"`
-            # dressed absence up as an afternoon appointment: the promise backstop wrote title+date, the
-            # agenda invented 17:00, and the operator read it as us copying his «hoy tengo reunión a las
-            # cinco» (session 7f77e2cc). No hour given → an all-day entry, which the calendar already
-            # renders honestly («todo el día»); the hour arrives later through the timed twin settlement
-            # below or through update_meeting.
-            _new = {"title": title, "date": date, "allDay": True}
-        else:
-            start = _resolve_time(_rawtime)
-            end = payload.get("endTime", "")
-            if not re.match(r"^\d{1,2}[:h]\d{2}$|^\d{2}:\d{2}$", str(end)):
-                # A DURATION is how he says the end («a 45-minute slot»): the model sent `duration: 45` and
-                # the card answered «no sé guardar duration», wrote a one-hour row and told him so (V2-773
-                # final pass, C3). The same keys `move_meeting` already reads (`edit._DUR_KEYS`).
-                _dur = next((str(payload.get(k) or "") for k in edit._DUR_KEYS if str(payload.get(k) or "").strip()), "")
-                _m = re.search(r"\d{1,3}", _dur)
-                if _m and 0 < int(_m.group()) <= 24 * 60:
-                    _t = int(start[:2]) * 60 + int(start[3:5]) + int(_m.group())
-                    end = f"{(_t // 60) % 24:02d}:{_t % 60:02d}"
-                else:
-                    eh = (int(start[:2]) + 1) % 24         # no explicit end -> +1h
-                    end = f"{eh:02d}:{start[3:5]}"
-            _new = {"title": title, "date": date, "startTime": start, "endTime": end}
-        # V2-639 — the operator asks WHAT an appointment is («qué es ese punto del dentista»); a title is
-        # a label, the substance travels in `notes` (place, who with, what to bring…), shown in the digest.
-        # V2-643 adds the rest of what a calendar entry is: who is coming, where, which category, and
-        # whether the other side has confirmed.
-        _apply_details(_new, payload)
-        # V2-769 — the RULE travels with the row (`recur.py`), and a key nothing reads is reported, not dropped.
-        if (_why := recur.attach(_new, payload, _today())):
-            return {"ok": False, "error": _why}
-        date = str(_new.get("date") or date)
-        _extra = {"ignored": recur.ignored_keys(payload), "stored": dict(_new),
-                  "revert": {"action": "cancel_meeting", "payload": {"title": title, "date": date, "whole": True}}}
-        if "status" not in _new:
-            # An appointment WITH other people starts awaiting their answer; one you simply put in your own
-            # day is settled the moment you say it. Same default every calendar uses for an invitation.
-            _new["status"] = "pending" if _new.get("attendees") else "confirmed"
-        # V2-652 — the HOUR-LESS TWIN. The promise backstop writes title+date with no hour (an all-day
-        # entry since this pass); the operator's explicit «a las once y media» then arrives as a TIMED add
-        # of the same appointment, and standing beside it produced «dos ítems» on his screen (session
-        # 7f77e2cc). A timed write SETTLES the all-day twin in place; an all-day write over an
-        # already-timed twin adds nothing — in both directions the timed row is the richer fact.
-        _meets = db.get("meetings", [])
-
-        def _twin_of(m: dict) -> bool:
-            return (str(m.get("date") or "") == str(_new.get("date") or "")
-                    and _titles_overlap(m.get("title"), _new.get("title")))
-
-        if _new.get("allDay"):
-            _twin = next((m for m in _meets if _twin_of(m)), None)   # timed or all-day — either way it exists
-            if _twin is None:
-                gcal.commit_meeting(db, _new)   # no auto reminder: ~2h before needs an hour
-                edit.touch(db, _new)
-            elif _settle_rule(db, _twin, _new):
-                _extra["stored"] = dict(_twin)
-        else:
-            _ad = next((m for m in _meets if m.get("allDay") and _twin_of(m)), None)
-            if _ad is not None:
-                # settle in place: the dictated title and hour win; what only the old row knew survives.
-                _cancel_reminder(_ad)
-                for k in ("allDay", "reminder_id", "remindAt"):
-                    _ad.pop(k, None)
-                for k, v in _new.items():
-                    _ad[k] = v
-                gcal.patch_google(_ad)   # the twin may already be a Google event (V2-679) — mirror the settle
-                _jid, _at = _schedule_reminder(_ad.get("title", title), date, _ad.get("startTime", ""))
-                if _jid:
-                    _ad["reminder_id"], _ad["remindAt"] = _jid, _at
-            # V2-208: the SAME meeting twice (see `_is_same_meeting`). A duplicate notice is heard once; a
-            # duplicate meeting is SEEN, and remains there until someone deletes it manually.
-            elif (_same := next((m for m in _meets if _is_same_meeting(_new, m)), None)) is not None:
-                if _settle_rule(db, _same, _new):     # V2-773: the twin takes the rule it did not carry
-                    _extra["stored"] = dict(_same)
-            else:
-                # V2-473 — the default reminder is the AGENDA's job, not the model's conduct. Measured in
-                # `dentist-appointment-into-agenda` round 2: asked for a notice, the model escalated to a
-                # WORKER that died on Google's login screen, said «Hecho», and `scheduled_jobs` stayed
-                # empty. Telling the agent an appointment schedules its notice (~2h before) with nobody
-                # asking (INI-026 A2); moving it is `set_reminder`. Best-effort: a scheduler failure must
-                # not lose the WRITE — but it is stored on the meeting, so the state never claims a notice
-                # that does not exist.
-                _rday = recur.next_occurrence(_new, _today()) or date
-                _jid, _at = _schedule_reminder(title, _rday, _new.get("startTime", ""))
-                if _jid:
-                    _new["reminder_id"], _new["remindAt"] = _jid, _at
-                if _new.get("repeat"):
-                    _new["remindFor"] = _rday
-                gcal.commit_meeting(db, _new)
-                edit.touch(db, _new)
-    elif action == "dedupe_meetings":
-        # «Simplify to one» (V2-710): keeps one of each identical group. Same persist/answer shape as
-        # `cancel_meeting`, and the duplicate KEY is shared with it so the two cannot disagree.
-        res, stuck = sweep.dedupe_meetings(db, payload)
-        if not res.get("ok"):
-            return {**view_data(), **res}
-        db["currentPlan"] = compute_plan(db)
-        store.save(WIDGET_ID, db)
-        d = view_data()
-        d.update({"ok": True, "result": res})
-        if stuck:
-            d.update({"ok": False, "error": f"Dejé una de cada, pero Google no me dejó borrar {len(stuck)}."})
-        return d
-    elif action == "cancel_meeting":
-        # ONE appointment, never «all of them» (V2-705): the decision lives in `sweep.py` next to
-        # `clear_range` — an ambiguous title is a question back to him, not a bulk delete. Persist + answer here.
-        res, stuck = sweep.cancel_meeting(db, payload)
-        if not res.get("ok"):
-            if res.get("code") == "series_needs_scope":        # V2-769: he hears a question, the model its fix
-                res = {**res, "message": _spoken("agenda_series_scope")}
-            elif res.get("error") == "ambiguous" and res.get("options"):   # V2-770: never a bare code aloud
-                res = {**res, "message": _spoken("ask_which_item").replace("{cands}", ", ".join(res["options"][:4]))}
-            elif res.get("error") == "not_found":
-                _soon = sorted({str(m.get("title") or "") for m in db.get("meetings", []) if m.get("title")})[:4]
-                res = {**res, "message": (_spoken("widget_selector_missing").replace("{options}", ", ".join(_soon))
-                                          if _soon else _spoken("widget_selector_missing_bare"))}
-            return {**view_data(), **res}
-        db["currentPlan"] = compute_plan(db)
-        store.save(WIDGET_ID, db)
-        d = view_data()
-        if stuck:
-            d.update({"ok": False, "result": res,
-                      "error": f"Borré {res['removed']}, pero Google no me dejó borrar "
-                               f"{len(stuck)}: " + ", ".join(f"«{m.get('title')}»" for m in stuck[:4])})
-            return d
-        d.update({"ok": True, "result": res})
-        return d
-    elif action == "set_reminder":
-        # V2-473 — moving the notice is VOCABULARY (the clear_all lesson: a frequent intention with no
-        # action cannot be gotten right). Finds the meeting like cancel_meeting does, cancels its current
-        # reminder and schedules the new instant; errors NAME what is missing so the model can retry.
-        title = _strip_accents((payload.get("title") or "").strip().lower())
-        raw_date = payload.get("date", "")
-        date = _resolve_date(raw_date) if raw_date else ""
-        _hits = [m for m in db.get("meetings", [])
-                 if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
-                 and (not date or recur.on(m, date))]
-        # V2-639 — «ponme avisos a TODAS las citas del jueves» is one intention, not N turns: a date with
-        # no title means every meeting of that day. `at` is optional in bulk (default ~2h before each).
-        if not title and date and _hits:
-            _done, _fail = 0, []
-            for m in _hits:
-                _cancel_reminder(m)
-                m.pop("reminder_id", None); m.pop("remindAt", None)
-                _jid, _disp = _schedule_reminder(m.get("title", "Cita"), m.get("date", date),
-                                                 m.get("startTime", ""))
-                if _jid:
-                    m["reminder_id"], m["remindAt"] = _jid, _disp
-                    _done += 1
-                else:
-                    _fail.append(f"«{m.get('title', 'Cita')}»: {_disp}")
-            db["currentPlan"] = compute_plan(db)
-            store.save(WIDGET_ID, db)
-            if not _done:
-                return {"ok": False, "error": "no pude programar ningún aviso — " + "; ".join(_fail)}
-            return view_data()
-        if not title or not _hits:
-            return {"ok": False,
-                    "error": "no encuentro esa cita en la agenda — dime el título tal como está "
-                             "apuntada (y la fecha si hay varias)"}
-        _at = str(payload.get("at") or payload.get("time") or payload.get("startTime") or "").strip()
-        _mm = re.match(r"^\s*(?:(\d{4}-\d{2}-\d{2})[T ]+)?(\d{1,2}:\d{2})\s*$", _at)
-        if not _mm:
-            return {"ok": False,
-                    "error": "me falta la hora del aviso — mándala en `at` (HH:MM del día de la cita, "
-                             "o YYYY-MM-DD HH:MM)"}
-        m = _hits[0]
-        _cancel_reminder(m)
-        _occ = date or recur.next_occurrence(m, _today()) or m.get("date")   # V2-769: a series' next day
-        _when_date = _mm.group(1) or _occ or _today()
-        _hhmm = f"{int(_mm.group(2)[:_mm.group(2).index(':')]):02d}:{_mm.group(2)[-2:]}"
-        _jid, _disp = _schedule_reminder(m.get("title", "Cita"), _occ or _when_date,
-                                         m.get("startTime", ""), at=f"{_when_date} {_hhmm}")
-        if not _jid:
-            return {"ok": False, "error": f"no pude programar el aviso: {_disp}"}
-        m["reminder_id"], m["remindAt"] = _jid, _disp
-    elif action == "clear_range":
-        # CLEAR A WINDOW, KEEPING WHAT HE NAMES (V2-693). The decision lives in `sweep.py`; what stays here is
-        # the part that belongs to this branch — persist, recompute the plan, and answer.
-        #
-        # IRREVERSIBLE -> `confirm:true`, and the question this widget hands the gate NAMES the count and the
-        # keepers, so what he is agreeing to is on screen before he agrees to it.
-        res, stuck = sweep.clear_range(db, payload)
-        if res.get("ok") is False:
-            # A keeper that names nothing (V2-720): nothing was touched and nothing is persisted. The turn
-            # reports WHICH one was not there and what the window really holds, so the retry aims at a real
-            # title instead of repeating the sweep that would delete everything.
-            d = view_data()
-            d.update({"ok": False, "result": res, "error": res.get("detail") or res.get("error")})
-            return d
-        db["currentPlan"] = compute_plan(db)
-        store.save(WIDGET_ID, db)
-        # `view_data()` with NO argument, like every other branch here: this widget's `apply_action` has no
-        # `q` in scope (that is the contacts widget's shape) and the first live call died on a NameError —
-        # after the deletion and the Google calls had already gone through, which is the worst place for a
-        # crash: the work was done and the caller was told it failed.
-        d = view_data()
-        if stuck:
-            # An ERROR, so the turn reports it instead of answering «hecho» over a job half done.
-            d.update({"ok": False, "result": res,
-                      "error": f"Borré {res['removed']}, pero Google no me dejó borrar "
-                               f"{len(stuck)}: " + ", ".join(f"«{m.get('title')}»" for m in stuck[:4])})
-            return d
-        d.update({"ok": True, "result": res})
-        return d
-
-    elif action == "clear_all":
-        # EMPTY THE ENTIRE AGENDA in ONE action (2026-08-14, session b70a45d0).
-        #
-        # The operator asked «vacía la agenda por completo, hoy y siempre» SIX times in four minutes and it was not
-        # emptied. It was not a model failure: this API simply **could not express that intention**. There were only
-        # single-item actions (`drop` one task, `cancel_meeting` one meeting, `drop_project` one project), so the
-        # FlashBrain could only remove one thing per turn — and each turn said «hecho», which was true of the action
-        # it had triggered and false of what it had been asked to do. On the 4th attempt it escalated to a worker,
-        # which died holding the authorization because of another, separate failure.
-        #
-        # When a frequent intention does not fit in the declared vocabulary, the model has no way to get it right:
-        # the answer is to expand the vocabulary, not fine-tune the prompt. The two slowest turns of the session
-        # (25.6 s of TTFT each) were precisely the ones spent on this impossible decision.
-        #
-        # IRREVERSIBLE → the manifest marks it `confirm:true`, and the gate in `widgets/confirm.py` asks for yes/no first.
-        # All THREE lists are emptied: without them, «por completo» would still be false. Projects are FROZEN
-        # (`frozen`, the same state as `drop_project`) instead of being deleted: they are the operator's working
-        # memory, and they asked for an empty agenda, not to lose what each project was about.
-        for t in db.get("tasks", []):
-            if t.get("status") in (None, "todo", "in_progress"):
-                t["status"] = "dropped"
-                t["updatedAt"] = _today()
-        for p in db.get("projects", []):
-            p["status"] = "frozen"
-        for m in db.get("meetings", []):
-            _cancel_reminder(m)                        # V2-473: emptied appointments take their alarms along
-        db["meetings"] = []
-        db["blocks"] = []
-        # The day's FRAME (working hours, lunch time) is NOT touched: it comes from its configuration
-        # (`lunchStart`/`lunchEnd`), not from anything the operator scheduled. Deleting it when asking for an empty
-        # agenda would leave the schedule broken tomorrow without explaining why. Changing the frame is «cambia mi horario».
-
-    elif action == "move_meeting":
-        # V2-639 — moving an appointment had NO name: the only path was cancel + re-add, two turns the model
-        # never chains. The reminder MOVES with it (an alarm for the old day fires a ghost, the V2-473 rule).
-        # V2-770 — found tolerantly like cancel; an END can be said; a DATED move of a series moves that day only.
-        _hits = edit.find(db, payload)
-        if not _hits:
-            return {"ok": False, "error": edit.missing(db, payload)}
-        _rawnew = str(payload.get("newDate") or payload.get("new_date") or payload.get("day")
-                      or payload.get("to") or "").strip()
-        # `newStartTime` because its END twin `newEndTime` was already read (`edit._END_KEYS`) and the start
-        # was not: «Move it 30 minutes later» → {newStartTime 16:45, newEndTime 17:30} STRETCHED the meeting to
-        # 16:15-17:30 while the reply said «moved it to 4:45» (demo run, 2026-09-26).
-        _rawtime = str(payload.get("newTime") or payload.get("new_time") or payload.get("newStartTime")
-                       or payload.get("new_start_time") or payload.get("startTime")
-                       or payload.get("time") or "").strip()
-        _mgl = re.match(r"^\s*(\d{4}-\d{2}-\d{2})[T ]+(\d{1,2}:\d{2})\s*$", _rawnew)
-        if _mgl:                                           # glued «YYYY-MM-DD HH:MM» is both fields in one
-            _rawnew = _mgl.group(1)
-            if not _rawtime:
-                _rawtime = _mgl.group(2)
-        _rawend = any(str(payload.get(k) or "").strip() for k in edit.TIME_KEYS[6:])
-        if not _rawnew and not _rawtime and not _rawend:
-            return {"ok": False,
-                    "error": "me falta el destino — mándame `newDate` (mañana, jueves, YYYY-MM-DD), "
-                             "`newTime` (HH:MM) y/o `endTime`"}
-        m = _hits[0]
-        _day = _resolve_date(str(payload["date"])) if str(payload.get("date") or "").strip() else ""
-        if _day and isinstance(m.get("repeat"), dict) and not payload.get("whole"):
-            _one = edit.detach(db, m, _day)                # this day leaves the series; the rest stays put
-            if _one is None:
-                return {"ok": False, "error": f"«{m.get('title')}» no cae el {_day} — dime qué día es"}
-            gcal.patch_google(m)
-            m = gcal.commit_meeting(db, _one)
-        new_date = _resolve_date(_rawnew) if _rawnew else str(m.get("date") or _today())
-        new_start = _resolve_time(_rawtime) if _rawtime else str(m.get("startTime") or "17:00")
-        _end = edit.end_of(m, payload, new_start)
-        _cancel_reminder(m)
-        if _rawnew and (m.get("repeat") or {}).get("freq") == "weekly":   # V2-769: a series moves every week
-            m["repeat"]["days"] = [recur.weekday(new_date)]
-        m["date"], m["startTime"], m["endTime"] = new_date, new_start, _end
-        m.pop("reminder_id", None); m.pop("remindAt", None)
-        gcal.patch_google(m)   # V2-679: a moved Google-origin meeting is rescheduled on Google too
-        _jid, _at = _schedule_reminder(m.get("title", "Cita"), recur.next_occurrence(m, _today()) or new_date,
-                                       new_start)
-        if _jid:
-            m["reminder_id"], m["remindAt"] = _jid, _at
-        _extra = {"stored": dict(m)}
-        edit.touch(db, m)
-    elif action in ("open_meeting", "close_meeting"):
-        # V2-770 — the appointment's CARD, by voice: a view push like `show_day`, nothing else is written.
-        res = edit.open_detail(db, payload) if action == "open_meeting" else edit.close_detail(db)
-        if not res.get("ok"):
-            return res
-        _extra = res
-    elif action == "update_meeting":
-        # V2-643 — the DETAILS of an appointment already in the agenda: «el dentista ya me lo ha
-        # confirmado», «apunta que vienen cuatro», «es en la clínica Ruiz». Date and time are NOT edited
-        # here — moving an appointment reschedules its notice, and that belongs to move_meeting, which
-        # owns the reminder. One door per consequence.
-        _hits = edit.find(db, payload)
-        if not _hits:
-            return {"ok": False, "error": edit.missing(db, payload)}
-        _fields = ("notes", "details", "location", "place", "category", "attendees", "people", "with",
-                   "status", "confirmed", "allDay", "all_day", "newTitle") + recur.ALL_KEYS
-        if not any(k in payload for k in _fields):
-            return {"ok": False,
-                    "error": "no me has dicho qué cambiar — manda alguno de: status (confirmed/pending), "
-                             "attendees, location, category, notes o newTitle"}
-        m = _hits[0]
-        if (_why := recur.update(m, payload, _today())):            # V2-769 — its rule is a detail too
-            return {"ok": False, "error": _why}
-        _extra = {"ignored": recur.ignored_keys(payload), "stored": dict(m)}
-        _apply_details(m, payload)
-        _nt = str(payload.get("newTitle") or "").strip()
-        if _nt:
-            m["title"] = _nt[:160]
-        edit.touch(db, m)
-        gcal.patch_google(m)   # V2-679: an edited Google-origin meeting is patched on Google too
-    elif action == "invite":
-        # V2-718 — «¿me puedes mandar el enlace por mail?» / «mándale la invitación». The verb the agenda
-        # never had: it could create a meeting, edit it, answer somebody else's and delete it, and had no
-        # way to invite anyone to its own. Two rungs (the calendar sends it when the meeting lives there,
-        # an .ics by mail when it does not) live in `invite.py`, which also answers the consent question.
-        from . import invite as _invite
-        _res = _invite.run(db, payload)
-        if not _res.get("ok"):
-            return {"ok": False, "error": str(_res.get("error") or "no pude mandar la invitación")}
-        store.save(WIDGET_ID, db)
-        return {**view_data(), "ok": True, "message": _res.get("message", ""),
-                "invited": _res.get("invited") or [], "how": _res.get("how", "")}
-    elif action == "rsvp_meeting":
-        # V2-697 — ANSWER an invitation somebody else convened. Distinct from `update_meeting`'s `status`,
-        # which is a note the operator takes about the OTHER party («el dentista ya me lo ha confirmado»);
-        # this one travels to Google and tells the organizer. Two facts, two doors.
-        #
-        # Deliberately NOT offering «propose another time»: the operator scoped this to yes/no («yo por
-        # ahora no haría la funcionalidad de proponer otra hora, pero sí diría si sí o si no»).
-        _ans = _strip_accents(str(payload.get("answer") or payload.get("rsvp") or "").strip().lower())
-        _yes = ("accepted", "accept", "yes", "si", "acepto", "aceptar", "voy", "asisto", "confirmo")
-        _no = ("declined", "decline", "no", "rechazo", "rechazar", "no voy", "no asisto")
-        if _ans in _yes:
-            _ans = "accepted"
-        elif _ans in _no:
-            _ans = "declined"
-        elif _ans in ("tentative", "maybe", "quiza", "quizas", "tal vez"):
-            _ans = "tentative"
-        else:
-            return {"ok": False, "error": "dime si aceptas o rechazas la invitación"}
-        title = _strip_accents((payload.get("title") or "").strip().lower())
-        raw_date = payload.get("date", "")
-        date = _resolve_date(raw_date) if raw_date else ""
-        _hits = [m for m in db.get("meetings", [])
-                 if (not title or title in _strip_accents(m.get("title", "").strip().lower()))
-                 and (not date or recur.on(m, date))]
-        if not title or not _hits:
-            return {"ok": False,
-                    "error": "no encuentro esa invitación — dime el título tal como está apuntada "
-                             "(y la fecha si hay varias)"}
-        m = _hits[0]
-        _ok, _why = gcal.rsvp_google(m, _ans)
-        if not _ok:
-            # The local row is left UNTOUCHED on purpose. A response status only means anything because the
-            # organizer can see it; writing it here while Google never heard it would paint an answer the
-            # other side is still waiting for (the `delete_google` lesson, V2-693).
-            return {"ok": False, "error": _why}
-        # Success falls through to the common tail: `rsvp_google` folded Google's echo back into `m`, which
-        # is the same object `db["meetings"]` holds, so the card repaints with the answer Google confirmed.
-    elif action in ("accept_proposal", "decline_proposal"):
-        # V2-697 — the operator's answer to an appointment somebody else asked for. ALWAYS manual, by his own
-        # scoping: a cluster peer's handle is self-declared, so the name attached to a proposal is a label he
-        # reads, never an authorization. Accepting is what grants `schedule` and books it.
-        from nucleo.errands import proposals as _p
-        _eid = str(payload.get("errand_id") or payload.get("id") or "").strip()
-        res = _p.accept(_eid) if action == "accept_proposal" else _p.decline(_eid)
-        if not res.get("ok"):
-            return {"ok": False, "error": str(res.get("error") or "no pude registrar tu respuesta")}
-        return {**view_data(), "ok": True, "result": res}
-    elif action == "show_day":
-        # V2-540 — CHANGE THE VIEW is an action, because otherwise it is a PROMISE.
-        # Measured in the operator's own session (2026-09-01 15:11, events 873/931/995): he asked three times
-        # for tomorrow, the brain replied «Te abro la agenda con la vista de mañana» — and the only thing that
-        # ever fired was a bare `show:agenda`, which opens on TODAY. It answered right and did nothing, because
-        # the day tabs were pure DOM state (`el._agSel`) with no name in the manifest: there was no wrong tool
-        # to pick, there was NO tool. An undeclared capability is not a capability the model can decline; it is
-        # one it will narrate.
-        #
-        # `n` is a monotonic PUSH COUNTER, and it is what makes this work twice. The canvas re-renders on a
-        # store write only when the data's JSON signature CHANGES, and the widget re-applies the view only when
-        # the token moves — so without `n`, asking for tomorrow, clicking back to today and asking again would
-        # write the identical `sel`, change no signature and move nothing, which is the exact failure being
-        # fixed here wearing a different mask.
-        # V2-639 — the model's natural alias must not cost the fact (the V2-341/V2-473 rule). Measured
-        # live 2026-09-09 19:27: «Muéstrame la agenda con vista mensual» arrived as `{view: 'month'}`,
-        # only `day`/`date` were read, and the view silently fell to TODAY four requests in a row.
-        _raw = str(payload.get("day") or payload.get("date") or payload.get("view")
-                   or payload.get("mode") or payload.get("vista") or "").strip()
-        _n = _strip_accents(_raw.lower())
-        if "seman" in _n or "week" in _n:
-            _sel = "week"
-        elif "mes" in _n or "month" in _n:
-            _sel = "month"
-        elif "lista" in _n or "list" in _n or "agenda" in _n or "schedule" in _n or "proximo" in _n:
-            _sel = "list"                              # V2-643: the classic Schedule/Agenda view
-        else:
-            _sel = _resolve_date(_raw)                 # spoken relative date -> YYYY-MM-DD (today if unsaid)
-        import time as _tm
-        db["view"] = {"sel": _sel, "n": int((db.get("view") or {}).get("n", 0)) + 1, "at": _tm.time()}
-        # WHAT the card now shows, as the action's answer (demo pass 31, R2). «when does anna's vacation start?
-        # show me in the calendar» → show_day 2026-12-20, where «Anna vacation» sits; the turn then answered from
-        # the op's return — the generic view, i.e. THIS week — and said «there's nothing in your calendar about
-        # Anna's vacation». A day view answers with that day's rows.
-        if re.match(r"^\d{4}-\d{2}-\d{2}$", str(_sel)):
-            from . import query as _q_sd
-            _extra = {"result": {"day": _sel, "meetings": [
-                {k: m.get(k) for k in ("title", "date", "time", "end", "allDay", "status") if m.get(k) not in (None, "")}
-                for m in (db.get("meetings") or []) if _q_sd._on_day(m, _sel)]}}
-    elif action == "find_free":
-        # A QUESTION about the day, answered without writing (see `free.py`): the day's free stretches, and the
-        # card moves to that day so what he is told is what he sees.
-        from . import free as _free
-        # A DATE under `from`/`to` is the stretch, not a clock window (full21 R3: {from: 2026-12-20, to: 2027-01-04}).
-        _is_date = lambda v: bool(re.match(r"^\d{4}-\d{2}-\d{2}", str(v or "").strip()))  # noqa: E731
-        if _is_date(payload.get("from")) and not payload.get("date"):
-            payload = {**payload, "date": payload["from"], "from": ""}
-        if _is_date(payload.get("to")) and not payload.get("until"):
-            payload = {**payload, "until": payload["to"], "to": ""}
-        _said = str(payload.get("date") or payload.get("day") or payload.get("from_date") or "").strip()
-        if not _said:
-            # full21 R3: «five days in her vacation where i'm free» arrived as find_free {} — the resolver's «today»
-            # default answered about today and «I can't give you five dates». A search with no day is refused and
-            # says what is missing, so the same-turn correction can ask the right thing.
-            return {"ok": False, "error": "find_free needs `date` (the day, or the first day) — and `until` "
-                                          "(the last day) to search a stretch, e.g. a vacation's dates"}
-        _day = _resolve_date(_said)
-        _until = str(payload.get("until") or payload.get("to_date") or payload.get("end_date") or "").strip()
-        import time as _tm
-        db["view"] = {"sel": _day if not _until else "month", "n": int((db.get("view") or {}).get("n", 0)) + 1,
-                      "at": _tm.time()}
-        store.save(WIDGET_ID, db)
-        if _until:
-            return _free.find_span(db.get("meetings") or [], _day, _resolve_date(_until), payload)
-        return _free.find(db.get("meetings") or [], _day, payload)
-    elif action in ("connect", "disconnect", "set_default_calendar"):
-        # V2-679 — Google Calendar connect/disconnect/default-picker; body in `gcal.py` (ratchet extraction).
-        # connect/disconnect return the connector's result directly (never a credential crosses here, V2-520).
-        res = gcal.ui_action(action, payload, db)
-        if action == "connect":
-            # V2-686 — `connect` now MOVES the card (gcal.push_connect_screen), so its mutation has to be
-            # persisted like any other. It is the only visible half of this action from the voice: the turn
-            # report keeps only `{widget, act}` and throws the result away, so nothing the connector answers
-            # here can reach the model or the operator by itself.
-            store.save(WIDGET_ID, db)
-            return res
-        if action != "set_default_calendar":
-            return res
-        if not (res or {}).get("ok"):
-            return res
-        store.save(WIDGET_ID, db)
-        return view_data()
+    handler = ACTIONS.get(action) if isinstance(action, str) else None
+    if handler is not None:
+        _r = handler(action, payload, db, _extra)
+        if not isinstance(_r, _Continue):
+            return _r
+        _extra = _r.value
 
     # 'replan' (and any action) just recomputes below
     db["currentPlan"] = compute_plan(db)  # persist the updated plan too, not just the mutation
