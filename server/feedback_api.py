@@ -133,7 +133,11 @@ def _build_evidence(session_id: str) -> dict | None:
         # The NEWEST events (V2-760): a report is about what just happened, and the capped read used to
         # return the first 200 — the start of the session, never the failure being reported.
         events = _flows.events(session_id=session_id, limit=_MAX_EVIDENCE_EVENTS, tail=True)
-        return _fit_evidence(summary, events)
+        # V2-778 F4-37 — the forensic `system` events carry the whole composed prompt (memory, state, contacts):
+        # they never leave. Everything else is scrubbed of personal secrets and token shapes before it travels.
+        from observability.scrub import scrub_obj
+        events = scrub_obj([e for e in events if (e or {}).get("cat") != "system"])
+        return _fit_evidence(scrub_obj(summary), events)
     except Exception:
         return None
 

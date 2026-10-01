@@ -51,6 +51,7 @@ SUBDIRS = (
     "memory/_data",      # zaelar.db (memory + the durable event log)
     "widgets/_data",     # generated widgets, their state, _jobs.json, _system/hidden.json
     "i18n/generated",    # generated fillers + aliases
+    ".meshkore/logs/prompts",   # the full prompt capture (V2-778 F4-37: scrubbed, capped, off in a hosted account)
     # V2-638 — the agent's OWN filesystem, shared by every widget. The folder NAMES are operator-overridable
     # (`config/library.json`), so these are the genesis defaults: a renamed folder is created on demand by
     # `library.paths.dir_for()`. `downloads/` is the torrent client's sandbox — it writes there and nowhere

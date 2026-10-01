@@ -4985,6 +4985,9 @@ DOMAINS: list[dict] = [
         # 2026-08-10: un guarda SOBRE LOS GUARDAS. Aparecieron tests verdes por la MÁQUINA y no por el código (la
         # config del operador —idioma, proveedores, atención, perfil— pisaba el entorno de la suite vía
         # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.
+        {"id": "7.61", "title": "What leaves the machine is scrubbed: feedback evidence drops system events and masks secrets; "
+                                "the prompt capture is scrubbed, under the workspace, capped, and off in a hosted account",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_what_leaves_the_machine_is_scrubbed.py"]},
         {"id": "7.60", "title": "The public repo: Castilian comments only shrink, and the roadmap/logs/reports are not tracked",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_the_public_repo_speaks_english_and_keeps_our_diary_private.py"]},
         {"id": "7.59", "title": "Voice turn and text probe import the same brain modules, or the difference is declared (ALERT 5)",

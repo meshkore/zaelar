@@ -180,6 +180,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   `voice/engine/speech/tts/__init__.py`.
 - **CRIT-R6 · A hosted account runs no torrent client** unless the deployment sets `ZAELAR_TORRENT_IN_CLOUD=1`;
   self-host keeps the operator's switch. — since 2026-09-30 · nodes 5.61 · `connectors/torrent/service.py`.
+- **CRIT-R7 · What leaves the machine is scrubbed.** The feedback evidence never carries `system` events (the
+  forensic turn holds the whole prompt) and every string goes through one scrubber (vault detector + token
+  shapes; a scrubber failure withholds, never passes); the full prompt capture is scrubbed, under the
+  workspace, capped per session, and OFF in a hosted account unless `ZAELAR_LOG_PROMPTS=1`. — since 2026-10-01 ·
+  nodes 7.61 · `observability/scrub.py`, `server/feedback_api.py`, `voice/observer.py`.
 
 ## 7 · Working here
 

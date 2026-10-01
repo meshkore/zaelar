@@ -193,7 +193,30 @@ def _on_screen_block(middle: str) -> str:
     return block + cut + "\n\n"
 
 
-PROMPTS_DIR = os.path.join(LOG_DIR, "prompts")
+PROMPTS_DIR = ""          # an override (tests); empty = resolved per call by `_prompts_dir()`
+# V2-778 F4-37 — a capture is a diagnosis aid, not an archive: one session's file stops growing at this size.
+PROMPTS_MAX_BYTES = int(os.getenv("ZAELAR_PROMPTS_MAX_BYTES", str(20 * 1024 * 1024)))
+
+
+def _prompts_dir() -> str:
+    """Where the full prompt capture lives: the explicit log dir if one is set, else UNDER THE WORKSPACE (a hosted
+    account's own volume; self-host resolves to the repo, as before)."""
+    if PROMPTS_DIR:
+        return PROMPTS_DIR
+    if os.getenv("ZAELAR_LOG_DIR"):
+        return os.path.join(os.environ["ZAELAR_LOG_DIR"], "prompts")
+    from nucleo import workspace
+    return str(workspace.root() / ".meshkore" / "logs" / "prompts")
+
+
+def prompt_capture_on() -> bool:
+    """`ZAELAR_LOG_PROMPTS`: default ON for self-host, default OFF in a hosted account (V2-778 F4-37) — the
+    deployment may still ask for it explicitly with `ZAELAR_LOG_PROMPTS=1`."""
+    raw = (os.getenv("ZAELAR_LOG_PROMPTS") or "").strip().lower()
+    if raw:
+        return raw not in ("0", "false", "no", "off")
+    from nucleo import cloud_account
+    return not cloud_account.is_cloud_account()
 
 
 def _full_prompt_record(system: str, window: list, user: str, decision: dict) -> None:
@@ -204,16 +227,24 @@ def _full_prompt_record(system: str, window: list, user: str, decision: dict) ->
     block sits («Puede que venga a cuento…»). Demo pass 2026-09-28, R1: «when's the tesla insurance due
     again?» → «I don't have a Tesla insurance renewal date on file», and nothing on disk could say whether
     the fact reached the model. Kept out of the event stream on purpose: ~40 KB a turn is a file's job, not
-    the viewer's. Same `ZAELAR_LOG_PROMPTS` gate as the capture. Never raises."""
+    the viewer's. Scrubbed, under the workspace, capped per session, and OFF by default in a hosted account
+    (`prompt_capture_on`) — V2-778 F4-37. Never raises."""
+    if not prompt_capture_on():        # V2-778 F4-37 — the FILE is off by default in a hosted account
+        return
     try:
         import time
 
+        from observability.scrub import scrub_obj
         from voice import trace as _trace
-        os.makedirs(PROMPTS_DIR, exist_ok=True)
-        rec = {"t": round(time.time(), 3), "trace": _trace.current() or "", "user": user,
-               "system": system, "window": [{"role": m.get("role"), "content": m.get("content")} for m in window],
-               "decision": decision}
-        path = os.path.join(PROMPTS_DIR, f"{_session_file.get('sid') or 'nosid'}.jsonl")
+        pdir = _prompts_dir()
+        os.makedirs(pdir, exist_ok=True)
+        rec = scrub_obj({"t": round(time.time(), 3), "trace": _trace.current() or "", "user": user,
+                         "system": system,
+                         "window": [{"role": m.get("role"), "content": m.get("content")} for m in window],
+                         "decision": decision})
+        path = os.path.join(pdir, f"{_session_file.get('sid') or 'nosid'}.jsonl")
+        if os.path.exists(path) and os.path.getsize(path) >= PROMPTS_MAX_BYTES:
+            return                     # the cap: a session's capture stops growing, the turn does not care
         with open(path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
     except Exception:  # noqa: BLE001

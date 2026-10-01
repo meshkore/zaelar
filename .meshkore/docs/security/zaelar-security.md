@@ -314,6 +314,16 @@ outside the workdir, so the worker cannot rewrite its own jail. If the jail cann
 without its writing tools — never as an unjailed writer. The dev-worker of a cluster keeps its full jail (reads
 included). CRIT-E10.
 
+## What leaves the machine, and the prompt capture
+
+One scrubber (`observability/scrub.py`: the vault's detector + the token shapes the cluster channel masks) runs
+over everything that leaves or lands beside the timeline; if it fails, the text is withheld. The feedback button's
+evidence never carries `system` events — the forensic turn capture holds the whole composed prompt. The full
+prompt capture (`.meshkore/logs/prompts/<session>.jsonl`, one line per turn) is scrubbed, lives under the
+workspace, stops growing at `ZAELAR_PROMPTS_MAX_BYTES` (20 MB) per session, and is governed by
+`ZAELAR_LOG_PROMPTS`: default ON for self-host, default OFF in a hosted account, `ZAELAR_LOG_PROMPTS=1|0` forces it.
+CRIT-R7.
+
 ## Spoken rules
 
 A rule the operator says («no fillers», «never buy on Wish») is stored with a scope from a fixed classifier

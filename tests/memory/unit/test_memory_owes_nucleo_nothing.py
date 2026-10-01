@@ -100,6 +100,8 @@ def test_the_debt_list_matches_reality_so_it_only_shrinks():
 #: (editing both the code and this snapshot in the same commit); it must never change as a side effect.
 DECLARED_SURFACE = {
     "start", "stop",
+    # 2026-10-01 (V2-778 F4-37): the vault's detector over a free text, for the one scrubber of what leaves.
+    "redact_secrets",
     "write", "write_now", "ingest_message", "correction_targets", "reinforce", "reinforce_ids_for", "pin", "unpin", "link",
     # 2026-09-04 (V2-577, a widget event reaches the pills it outdates): the deterministic door that resolves
     # the `[widget:<id>]` text anchor, so widget lifecycle writes can supersede the widget's prior story.
