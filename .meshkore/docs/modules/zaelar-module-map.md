@@ -224,3 +224,31 @@ arranque `make run` → `python -m server`.
 `Makefile`, `requirements.txt` + `.venv/`, `Dockerfile`/`fly.toml`/`.dockerignore`, `scripts/` (tooling de
 instalación por-OS), `CLAUDE.md`. **Logging → `.meshkore/logs/`** (no crear `logs/` en la raíz).
 
+Also declared in `cluster.yaml` (2026-09-30, V2-778 F7): `i18n/` (multilingual runtime + language preparation),
+`update/` (the user-visible build number and the reload signal), `daemon/` (the LOCAL daemon of V2-575, not the
+shared MeshKore one), `tools/` (developer review aids), `files/` (the compatibility shim above) and `scripts/`.
+
+## Pieces split out of oversized files (V2-778 F1, 2026-09-30)
+
+Each one is a verbatim move with no behaviour change; the source module imports the names back, so callers and
+monkeypatches keep working. Look here before grepping for a name that seems to have disappeared.
+
+- `nucleo/flash/tool_executor.py` — the voice turn's tool executor (out of `providers/nucleo.py::_run_inner`).
+- `nucleo/flash/post_stream.py` — the chain that runs after the model's stream ends (same origin).
+- `nucleo/flash/probe_after.py` — the post-model blocks of the text probe's `run_turn` (`probe.py`).
+- `nucleo/flash/commission_guards.py` — the commission readers (out of `router_guards.py`).
+- `nucleo/flash/anthropic_sse.py` — the Anthropic SSE parser (out of `fast_client.py`).
+- `nucleo/flash/payload_fill.py` — the payload fills of a direct widget action (out of `direct_action.py`).
+- `nucleo/dispatch_listener.py` — the escalation listener; `dispatch.py` stays the facade.
+- `nucleo/workers/session_notes.py` — the session's notes as a mixin; `nucleo/workers/tool_steps.py` — tool-step readers.
+- `memory/workflows_store.py` — the `workflows` table (out of the memory facade).
+- `server/canvas_api.py` — the canvas routes, on their own router (out of `voice_api.py`).
+- `voice/interrupt_grammar.py` — the hard-interrupt grammar (out of `attention.py`).
+- `voice/engine/pipeline/prewarm.py` — the worker prewarm (out of `pipeline/agent.py`).
+- `i18n/langspec.py` — the `LangSpec` dataclass (out of `voice/engine/core/langs.py`).
+- `connectors/email/headers.py` — header and sender-authentication readers (out of `mailbox.py`).
+- `widgets/agenda/twins.py`, `widgets/youtube/helpers.py`, `widgets/mensajeria/{answers,timing}.py` — out of
+  each card's `data.py`.
+
+The size ratchet (`tests/infrastructure/unit/test_files_and_functions_only_shrink.py`, node 7.57) stops the split
+files from growing back.
