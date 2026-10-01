@@ -577,67 +577,23 @@ class NucleoLLMStream(llm.LLMStream):
         # HERE because here the sentence is FINAL: past the hard interrupt, past echo suppression,
         # past the accumulator. Not later either — the readers are 2-4 s away and this takes ~800 ms,
         # which is the overlap that makes it free. Assembly, bounds and fail-soft: `turn_brief`.
-        from nucleo.flash import turn_brief as _turn_brief
-        _brief = canvas_h = _turn_brief.ask_for_turn(
-            text, running_goals=_show_target._running_goals(),
-            last_reply=getattr(brain, "_last_reply", "") or "",
-            turn_id=f"{id(brain):x}-{getattr(brain, '_acc_gen', 0)}")
-
-        # V2-013: el "corazón" (agente de memoria) clasifica en background lo que dijo el operador y, si es
-        # perfil (nombre/ubicación/trato/hardware/coche) o deseo durable, lo lleva a `state`/`long` sin
-        # bloquear el turno. Fire-and-forget: regex µs + escritura por la cola async → cero coste en TTFB.
-        try:
-            from nucleo import memory_agent as _mem_agent
-            asyncio.create_task(_mem_agent.ingest_utterance(text, role="operator"))
-        except Exception:
-            pass
-
-        # CIRCUITO DE CORTO PLAZO (B, 2026-07-14): la ventana de diálogo vive en RAM y arranca VACÍA en cada
-        # instancia del brain (reinicio/reconexión) → el FlashBrain perdía "de qué hablábamos". La SEMBRAMOS una
-        # sola vez desde el buffer conversacional persistente (`memory.recent_window`, lectura directa µs, sin LLM
-        # ni retriever) → el PRIMER turno tras reconectar ya está situado. Cero coste de tokens en régimen normal
-        # (la ventana ya está capada a _WINDOW_MAX). Best-effort.
-        if not brain._seeded:
-            brain._seeded = True
-            if not brain._window:
-                try:
-                    from memory import api as _memory
-                    _seed = _memory.recent_window(limit=int(os.getenv("ZAELAR_WINDOW_SEED", "6")))
-                    if _seed:
-                        brain._window[:0] = _seed
-                        emit("brain", "🌱 ventana sembrada desde memoria", role="system",
-                             extra={"turns": len(_seed)})
-                except Exception:
-                    pass
-
-        # LATENCY GUARD + T135: acota lo que ve la capa rápida (turnos-parrafada) PRESERVANDO un comando
-        # explícito — nunca truncar a ciegas los últimos N chars (así se perdía el "cierra los widgets").
-        _max_in = int(os.getenv("ZAELAR_FAST_MAX_INPUT", "1600"))
-        text, _clipped = attention.clamp_input(text, _max_in)
-        if _clipped:
-            emit("brain", "✂️ input recortado (comando preservado)", text=f"→{_max_in} chars")
-        if first_turn:
-            text = _say().kickoff_prompt   # V2-682 — it impersonates HIM, so it is in HIS language
-
-        # V2-1xx: la petición REAL del operador, capturada ANTES de que se le antepongan notas del sistema —
-        # el recall semántico (más abajo) tiene que buscar por ESTO, nunca por el turno completo. Confirmado en
-        # vivo (auditoría 2026-08-17): una nota de Telegram pegada delante ("...Near our tp1 we take out
-        # 20-30%...") dominaba el vector de la query y enterraba los hechos de familia/coche que SÍ existían en
-        # el largo plazo — el modelo respondió sin ningún dato delante y rellenó el hueco inventando uno.
-        operator_text = text
-
-        # Notas del sistema (resultados async, subidas de fichero…) — se anteponen al turno para que el
-        # FlashBrain las vea como CONTEXTO de esta respuesta; NUNCA como parte de lo que el operador pidió.
-        try:
-            from voice import brain_notes
-            notes = brain_notes.drain()
-        except Exception:
-            notes = []
-        if notes:
-            for n in notes:
-                emit("brain", "📩 system note → FlashBrain", text=n, role="system")
-            # V2-666: his words FIRST, the notes AFTER — see `brain_notes.compose_turn` for the measured turn.
-            text = brain_notes.compose_turn(text, notes)
+        # V2-778 F1 — admitting the turn (brief, memory heart, window seed, clamp, his words, notes) lives in
+        # `voice/engine/llm/providers/turn_admit.py`.
+        _blk = await _turn_admit.admit_the_turn(
+            attention=attention,
+            brain=brain,
+            emit=emit,
+            first_turn=first_turn,
+            text=text,
+        )
+        if '_brief' in _blk:
+            _brief = _blk['_brief']
+        if 'canvas_h' in _blk:
+            canvas_h = _blk['canvas_h']
+        if 'operator_text' in _blk:
+            operator_text = _blk['operator_text']
+        if 'text' in _blk:
+            text = _blk['text']
 
         # V2-778 F1 — the turn's prompt (spec, recall, recent, system, loop nudge, messages) lives in
         # `voice/engine/llm/providers/turn_prompt.py`.
@@ -1352,3 +1308,4 @@ from voice.engine.llm.providers.widget_intent import (  # noqa: E402
 from voice.engine.llm.providers import turn_after as _turn_after  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_prompt as _turn_prompt  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_tools as _turn_tools_mod  # noqa: E402 — V2-778 F1, imports this module back
+from voice.engine.llm.providers import turn_admit as _turn_admit  # noqa: E402 — V2-778 F1, imports this module back

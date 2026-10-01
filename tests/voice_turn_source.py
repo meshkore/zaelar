@@ -83,6 +83,8 @@ _PROVIDER_CALLS = (
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_prompt.py", "compose_the_prompt"),
     ("        # V2-778 F1 — the turn's tool set (situational tools", "_turn_tools_mod.choose_the_tools(",
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_tools.py", "choose_the_tools"),
+    ("        # V2-778 F1 — admitting the turn (brief", "_turn_admit.admit_the_turn(",
+     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_admit.py", "admit_the_turn"),
 )
 
 
