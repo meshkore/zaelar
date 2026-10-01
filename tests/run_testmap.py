@@ -4982,6 +4982,8 @@ DOMAINS: list[dict] = [
         # 2026-08-10: un guarda SOBRE LOS GUARDAS. Aparecieron tests verdes por la MÁQUINA y no por el código (la
         # config del operador —idioma, proveedores, atención, perfil— pisaba el entorno de la suite vía
         # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.
+        {"id": "7.59", "title": "Voice turn and text probe import the same brain modules, or the difference is declared (ALERT 5)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_voice_and_probe_import_the_same_brain.py"]},
         {"id": "7.58", "title": "A failure swallowed in silence only gets rarer (except…: pass, per file and in total)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_a_swallowed_failure_only_gets_rarer.py"]},
         {"id": "7.57", "title": "Files and functions only shrink: nothing new over 800 lines / 120 lines / 100 branches, no named offender grows",
