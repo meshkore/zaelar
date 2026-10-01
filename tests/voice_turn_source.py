@@ -59,7 +59,8 @@ def turn_source() -> str:
 #: concatenated: the moved code stays contiguous, so an «X before Y» assertion inside it keeps its meaning.
 DISPATCH = ENGINE / "nucleo" / "dispatch.py"
 _SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py"],
-          (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"]}
+          (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"],
+          (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py"]}
 
 
 PROBE = ENGINE / "nucleo" / "flash" / "probe.py"
@@ -114,6 +115,8 @@ def getsource(obj) -> str:
         return turn_source()
     if name == "nucleo.dispatch":
         return read(DISPATCH)
+    if name == "server.voice_api":
+        return read(ENGINE / "server" / "voice_api.py")
     if name == "nucleo.flash.probe":
         return probe_source()
     if getattr(obj, "__module__", "") == "nucleo.flash.probe" and qual == "run_turn":

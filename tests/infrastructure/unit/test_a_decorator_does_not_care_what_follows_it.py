@@ -88,9 +88,9 @@ def test_no_route_module_has_a_handler_nobody_can_reach():
 def test_the_canvas_report_route_still_points_at_the_handler():
     """The specific route f3052f9 broke. Kept alongside the class guard because it names the CONSEQUENCE:
     this endpoint must take the payload, and a zero-arg getter answering 200 is how the report vanished."""
-    from server import voice_api
+    from server import canvas_api, voice_api   # V2-778 F1: the canvas routes live on canvas_api's router
 
-    hit = [r for r in voice_api.router.routes if getattr(r, "path", "") == "/api/canvas/state"]
+    hit = [r for r in canvas_api.router.routes if getattr(r, "path", "") == "/api/canvas/state"]
     assert hit, "la ruta del informe del canvas desapareció"
     assert hit[0].endpoint.__name__ == "canvas_state"
     assert "payload" in hit[0].endpoint.__annotations__, "el endpoint del canvas tiene que recibir el informe"

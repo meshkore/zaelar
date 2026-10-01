@@ -6,6 +6,8 @@ alongside the session and its flows, as showcase material.
 """
 from __future__ import annotations
 
+from tests import voice_turn_source as _vts
+
 import pathlib
 
 from tests.use_cases.e2e.agent import recorder as R, report as REP
@@ -73,5 +75,5 @@ def test_el_frontend_lleva_el_modo_escaparate_completo():
     assert "_SHOWCASE" in sse, "en showcase cada apertura re-ordena sola"
     chat = (ENGINE / "frontend" / "app" / "components" / "ChatWall.js").read_text(encoding="utf-8")
     assert 'has("showcase")' in chat, "el chat arranca abierto y acoplado para que la conversación se lea"
-    api = (ENGINE / "server" / "voice_api.py").read_text(encoding="utf-8")
+    api = _vts.read(ENGINE / "server" / "voice_api.py")
     assert "/api/canvas/arrange" in api, "el snap es invocable por API, como pidió el operador"

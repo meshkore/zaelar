@@ -1,3 +1,4 @@
+from tests import voice_turn_source as _vts
 """A minimized card is open on the canvas and NOT in front of him (demo pass 2026-09-28, full27 S1: «so how did the
 monitors go, show me» was suppressed as «already open» over the minimized sheet, and «here they are» spoke over
 nothing visible). The canvas report carries which cards are minimized; the one door lets a show through for them."""
@@ -29,5 +30,5 @@ def test_an_open_visible_card_is_still_not_raised_again(state):
 
 
 def test_the_canvas_report_records_the_minimized_cards():
-    src = (pathlib.Path(__file__).resolve().parents[3] / "server/voice_api.py").read_text("utf-8")
+    src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "server/voice_api.py")
     assert '"minimized_widgets": _minw' in src and 'it.get("min")' in src

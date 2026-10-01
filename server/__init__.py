@@ -29,6 +29,7 @@ from . import common  # noqa: F401  (loads .env + sys.path before the rest)
 from .pages import router as pages_router
 from .tasks_api import router as tasks_router      # V2-728: the task board, extracted from voice_api
 from .voice_api import router as voice_router
+from .canvas_api import router as canvas_router  # V2-778 F1: the canvas routes, extracted from voice_api
 from widgets.server_api import router as widgets_router  # isolated widget layer (does not touch the voice core)
 from connectors.meshkore.server_api import router as meshkore_router  # native cluster I/O channel (always on)
 from connectors.messaging.server_api import router as messaging_router  # UI-managed connect/disconnect of connectors
@@ -586,7 +587,8 @@ def create_app() -> FastAPI:
     # the whole point of INI-015 is that a user connects them from the widget, never by editing .env.
     # cron_router = the «Colmena» brain's OWN proactivity (nucleo/cron_api.py over nucleo/scheduler.py) — replaces
     # Hermes' old /api/cron; the same frontend ⏰ panel consumes it.
-    routers = [pages_router, voice_router, widgets_router, meshkore_router, messaging_router, files_router,
+    routers = [pages_router, voice_router, canvas_router, widgets_router, meshkore_router, messaging_router,
+               files_router,
                vault_router, wizard_router, spotify_router, config_router, i18n_router,
                obs_router, feedback_router, update_router, cloudfiles_router, photos_router, contacts_router,
                videoacct_router, calendar_router, torrent_router, library_router, daemon_router,
