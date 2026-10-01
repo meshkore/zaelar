@@ -252,3 +252,30 @@ monkeypatches keep working. Look here before grepping for a name that seems to h
 
 The size ratchet (`tests/infrastructure/unit/test_files_and_functions_only_shrink.py`, node 7.57) stops the split
 files from growing back.
+
+## Reference docs by mechanism (not listed in `CLAUDE.md`)
+
+| Mechanism | Doc |
+|---|---|
+| A known phrase skips the model | `.meshkore/docs/modules/zaelar-action-map.md` |
+| One bounded-choice primitive and where it may sit | `.meshkore/docs/modules/zaelar-decision-model.md` |
+| One canonical home per datum; what memory is not for | `.meshkore/docs/architecture/zaelar-domain-stores.md` |
+| A commission's durable record | `.meshkore/docs/modules/zaelar-jobs.md` |
+| The workflow table (what serves this kind of errand) | `.meshkore/docs/modules/zaelar-workflow-table.md` |
+| A message with several tasks becomes a list | `.meshkore/docs/modules/zaelar-task-lists.md` |
+| The agenda's numbered task lists | `.meshkore/docs/modules/zaelar-agenda-task-lists.md` |
+| The agent's own filesystem (`library/`) | `.meshkore/docs/modules/zaelar-agent-filesystem.md` |
+| Speaker identity | `.meshkore/docs/modules/zaelar-speaker-identity.md` |
+| Directing a research errand | `.meshkore/docs/architecture/zaelar-research-direction.md` |
+| The Google connector (one account, six doors) | `.meshkore/docs/modules/zaelar-google-connector.md` |
+| Cloud files connectors + explorer | `.meshkore/docs/modules/zaelar-cloud-files.md` |
+| Photos picker + gallery | `.meshkore/docs/modules/zaelar-fotos-connector-and-widget.md` |
+| Video widget + video-account connector | `.meshkore/docs/modules/zaelar-video-widget-and-account-connector.md` |
+| Embedded torrent add-on | `.meshkore/docs/modules/zaelar-torrent-addon.md` |
+| Mobile shell (PWA) | `.meshkore/docs/modules/zaelar-mobile-shell.md` |
+| Update channel | `.meshkore/docs/modules/zaelar-update-channel.md` |
+| Local daemon: build/release, threat model | `.meshkore/docs/ops/zaelar-daemon-build.md`, `.meshkore/docs/security/zaelar-daemon-security.md` |
+| Config tabs + connector registry (V2-083), widget naming (V2-082) | `.meshkore/docs/architecture/zaelar-config-connectors-v2083.md`, `.meshkore/docs/architecture/zaelar-widget-naming-v2082.md` |
+| Memory re-verification cycle | `.meshkore/docs/ops/anexos/zaelar-memory-cycle-playbook.md` |
+| Comment-language migration | `.meshkore/docs/ops/comment-language-migration.md` |
+| Past audits (historical, not current state) | `.meshkore/docs/architecture/zaelar-audit.md`, `harbee-audit-2026-07-02.md`, `zaelar-audit-2026-07-26.md`, `zaelar-audit-2026-09-05.md` |

@@ -449,6 +449,7 @@ Instalación y arranque para quien clona: **[`README.md`](README.md)** (multi-pl
 | Ops / Setup | `.meshkore/docs/ops/zaelar-ops.md` |
 | Conventions | `.meshkore/docs/conventions/zaelar-conventions.md` |
 | Modules | `.meshkore/docs/modules/zaelar-modules.md` |
+| **Reference docs by mechanism** (action map, jobs, task lists, decision model, daemon, connectors…) | `.meshkore/docs/modules/zaelar-module-map.md` §«Reference docs by mechanism» |
 | **Conectores — la LISTA (qué conectamos hoy, qué está declarado y dónde se cablea cada pieza)** | `.meshkore/docs/modules/zaelar-connectors-inventory.md` |
 | **Una cita que pide OTRO — el criterio de autorización de las propuestas** | `.meshkore/docs/modules/zaelar-appointment-proposals.md` |
 | **Contactos — importar/sincronizar con Google, y quién gana un conflicto** | `.meshkore/docs/modules/zaelar-contacts-sync.md` |
@@ -508,7 +509,7 @@ arranque `make run` → `python -m server`.
 | Módulo | Qué es |
 |---|---|
 | `voice/` | Motor **LiveKit** (`voice/engine/`): STT/TTS, turnos, VAD, barge-in. Encima, el contrato del cerebro agnóstico del transporte: `attention.py` (qué turno va dirigido a zaelar), `speech.py`, `observer.py` (SSE). |
-| `nucleo/` | El **cerebro «Colmena»**: `flash/` (reflejo sub-segundo, enruta y responde), `workers/` (Brain Workers para lo que no cabe en un turno), `errands/` (un encargo que sobrevive al turno), `loop.py`+`scheduler.py` (pulso, crons, proactividad), `memory_agent.py`+`mem_processor.py` (único escritor de la memoria). |
+| `nucleo/` | El **cerebro «Colmena»**: `flash/` (reflejo sub-segundo, enruta y responde), `workers/` (Brain Workers para lo que no cabe en un turno), `errands/` (un encargo que sobrevive al turno), `loop.py`+`scheduler.py` (pulso, crons, proactividad), `memory_agent.py`+`mem_processor.py` (único escritor de la memoria). A request's life: `spec.py` (born with its end state) → `circuit.py` (one loop, one bound, one report) → `tasks.py` (the durable row); `consent.py` (the one act-or-ask rule), `turn/` (decisions both channels share), `batch/` (several tasks → a list), `actionmap/` (a known phrase skips the model), `jev.py`, `susurro/`, `context_packs/`. |
 | `memory/` | **Memoria central** en un solo SQLite (`zaelar.db`): píldoras con `slot`, retriever (sqlite-vec + FTS5 + reranker), grafo, consolidador y fase REM, capa episódica y la bóveda de secretos. |
 | `observability/` | **QUIÉN · CUÁNDO · en qué FLUJO**: identidad de instalación y de sesión, lectura por `corr_id`. Solo lectura — el único escritor de `events` es el sink del bus. |
 | `bus/` | **Sistema nervioso**: pub/sub in-process + log durable de eventos + puente SSE al frontend. Nada de Kafka. |

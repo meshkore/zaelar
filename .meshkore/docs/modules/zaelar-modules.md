@@ -1,7 +1,7 @@
 ---
 title: Zaelar Modules
 category: modules
-updated: 2026-09-02
+updated: 2026-09-30
 owner: ricart
 status: current
 ---
@@ -9,7 +9,7 @@ status: current
 | Module     | Path           | Description                                                                 |
 |------------|----------------|-----------------------------------------------------------------------------|
 | voice      | voice/         | Voice pipeline core (LiveKit engine in `voice/engine/`): providers, turn control, observer, tag protocol, STT, audio filter, TTS |
-| nucleo     | nucleo/        | **Brain «Colmena»** (default `BRAIN=nucleo`). `flash/` = FlashBrain (sub-second voice, non-reasoning model per-invocation); `websearch.py` = SHARED web search (both brains, layered providers, V2-022); `dispatch.py`+`memory_agent.py`+`agentes/` = SlowBrain (async Claude Code/Codex `CodeAgent`, web search via native WebSearch/WebFetch); `loop.py` (orchestrator ~1 Hz) + `scheduler.py` (own cron) + `cron_api.py` (`/api/cron`) + `sparks.py`. Exposed to voice as `voice/engine/llm/providers/nucleo.py`. |
+| nucleo     | nucleo/        | **Brain «Colmena»** (default `BRAIN=nucleo`). `flash/` = FlashBrain (sub-second voice, non-reasoning model per-invocation); `websearch.py` = SHARED web search (both brains, layered providers, V2-022); `dispatch.py`+`memory_agent.py`+`workers/` = Brain Workers (Claude Code/Codex/Grok sessions for what does not fit in a turn); a request's life: `spec.py` (born with its END STATE) → `circuit.py` (one loop, one bound, one report) → `tasks.py` (the durable row); `consent.py` = the ONE rule that decides act-or-ask; `turn/` = the decisions both channels share; `batch/` = several tasks become a LIST; `jev.py` = the Jev choice client; `context_packs/` = prompt that lives only during a phase; `susurro/` = off-hot-path conversational self-audit; `loop.py` (orchestrator ~1 Hz) + `scheduler.py` (own cron) + `cron_api.py` (`/api/cron`) + `sparks.py`. Exposed to voice as `voice/engine/llm/providers/nucleo.py`. |
 | action map | nucleo/actionmap/ | **A known phrase skips the model** (V2-539/545) — deterministic layer IN FRONT of the FlashBrain: exact whole-utterance lookup in a per-language table (`action_map` in `zaelar.db`, seeded from `seeds/<lang>.json`), executing an allowlisted direct action through the SAME emit funnels the model uses. Wired in both channels (voice provider + probe). Anything that is not a verbatim hit falls through to the model. Doc: `zaelar-action-map.md` |
 | memory     | memory/        | **Central memory** — SQLite `zaelar.db` (sqlite-vec + FTS5 + RRF + graph + forgetting). Absorbed the old `files/` as an episodic layer. `server_api.py` = `/api/files/*` + `/api/memory/map` (memory-map visualizer, V2-014). |
 | bus        | bus/           | **Event bus** — in-process pub/sub (generalizes `voice/observer.py`) + durable SQLite log + SSE bridge. |
@@ -17,6 +17,11 @@ status: current
 | frontend   | frontend/      | Voice interface — self-contained ES-module app (no build), Solid-migration-ready (see §Frontend below). TWO shells over one engine: the desktop app (`frontend/app/`) and the mobile PWA (`frontend/mobile/`, V2-124) |
 | mobile shell | frontend/mobile/ | **Mobile PWA** — installable on a phone home screen, no app store. A SEPARATE shell (own stylesheet, own entry point, own surfaces), not a responsive variant: full-screen widget deck with two-finger paging, every control in a bottom dock, bottom sheets for chat/menu/settings. Shares the store, the services and the whole widget catalog by satisfying the same two contracts the desktop host does. Doc: `zaelar-mobile-shell.md` |
 | update channel | update/ + frontend/app/update/ | **The version number and «there is a new version»** (V2-553) — `GET /api/update` publishes a plain incrementing `build` (the only version a user sees, from `update/BUILD`, because there is no git inside a Machine) AND a `ui_rev` content digest of the bytes the browser runs. Two fields because one cannot tell a frontend release from a backend-only one: the number always climbs, the reload bar appears only when `ui_rev` moves. Two touch points into the engine, kept that way by a test. Doc: `zaelar-update-channel.md` |
+| i18n       | i18n/          | Multilingual subsystem (V2-089): `runtime` serves UI strings for the active language from preset or generated bundles (hot path, no LLM); `init` prepares a new language off the hot path; `langspec.py` = the per-language spec. Doc: `zaelar-i18n.md` |
+| daemon     | daemon/        | The LOCAL daemon (V2-575): a process on the user's own machine for what a container cannot do (a real browser, local files). Not the shared MeshKore daemon. |
+| files      | files/         | Compatibility shim for the old upload inbox; bytes live in memory's episodic layer (§Files below). |
+| tools      | tools/         | Developer review aids outside the running product (`comment_language_audit.py`). |
+| scripts    | scripts/       | Install/run/maintenance scripts: STT/TTS installers per OS, `run-livekit.sh`, `stop.sh`, `doctor.py`, `reset-memory.sh`, git hooks. |
 | server     | server/        | FastAPI app + routers + entrypoint (`python -m server`); HTTP API (voice, ICE, settings, widgets, pages) |
 | widgets    | widgets/       | Full-stack widgets (data.py + widget.js per folder), generator, catalog, runtime. Two roots (V2-515): shipped in the repo, generated/forked in `widgets/_user/` (self-host) or `<workspace>/widgets` — a fork shadows its shipped id; delete hides shipped source (never removes it); `restore_widget` returns to the newest shipped version |
 | config     | config/        | Runtime settings (persisted in settings.json)                               |
