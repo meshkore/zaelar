@@ -69,3 +69,19 @@ def until_sync(cond, what: str, *, timeout_s: float = DEFAULT_TIMEOUT_S, poll_s:
                 f"waited {timeout_s:g}s for {what} and it never happened — the test is not slow, "
                 f"something it depends on stopped working")
         time.sleep(poll_s)
+
+
+def port_listening(port: int, *, host: str = "127.0.0.1", timeout_s: float = 10.0) -> None:
+    """Wait for a local server (a test's own `http.server`) to accept connections — against a CLOCK, naming the
+    port if it never came up. The copy this replaces (`for _ in range(50): connect… sleep(0.1)`) fell through
+    silently after five seconds and let the test fail later on an unrelated-looking page error."""
+    import socket
+
+    def _open() -> bool:
+        try:
+            socket.create_connection((host, int(port)), 0.2).close()
+            return True
+        except OSError:
+            return False
+
+    until_sync(_open, f"the local server on {host}:{port} to accept connections", timeout_s=timeout_s, poll_s=0.1)

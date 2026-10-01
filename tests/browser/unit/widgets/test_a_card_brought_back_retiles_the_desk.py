@@ -49,12 +49,8 @@ def test_a_card_brought_back_over_another_retiles():
     port = _free_port()
     srv = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"],
                            cwd=_ENGINE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(50):
-        try:
-            socket.create_connection(("127.0.0.1", port), 0.2).close()
-            break
-        except OSError:
-            time.sleep(0.1)
+    from tests.waiting import port_listening
+    port_listening(port)
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch()

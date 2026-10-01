@@ -19,12 +19,9 @@ def test_a_timed_out_ask_hands_its_late_answer_over(monkeypatch):
 
     ingest.publish_contacts("telegram", [{"name": "cryptonite", "channels": [{"platform": "telegram",
                                                                              "chatId": "42"}]}], [])
-    late = None
-    for _ in range(20):                      # the bus may deliver on the next tick
-        late = contacts_bus.take_late("telegram")
-        if late is not None:
-            break
-        time.sleep(0.05)
+    from tests.waiting import until_sync     # the bus may deliver on the next tick
+    late = until_sync(lambda: contacts_bus.take_late("telegram"), "the late contacts answer to reach the bus",
+                      timeout_s=2.0, poll_s=0.05)
     assert late and late["ok"] and late["contacts"][0]["name"] == "cryptonite", late
     assert contacts_bus.take_late("telegram") is None, "handed over once, then the listener is gone"
 
