@@ -13,6 +13,7 @@ import asyncio
 import threading
 
 from nucleo.memory_agent import ingest
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 
 def _home_loop():
@@ -85,6 +86,6 @@ def test_the_lifespan_wires_the_home_loop():
     """The marshal is only real if the server registers the loop (V2-199: the wiring is the fix)."""
     import re
     from pathlib import Path
-    src = (Path(__file__).resolve().parents[3] / "server" / "__init__.py").read_text(encoding="utf-8")
+    src = _vts.read(Path(__file__).resolve().parents[3] / "server" / "__init__.py")
     src = re.sub(r"(?m)#.*$", "", src)
     assert "_mem_agent.set_loop(_running_loop)" in src

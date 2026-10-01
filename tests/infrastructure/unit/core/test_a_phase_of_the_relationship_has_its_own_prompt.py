@@ -269,15 +269,17 @@ def test_the_section_declares_itself_TEMPORARY(running):
 def _code(path: Path) -> str:
     import tokenize
     out, prev_type = [], None
-    with open(path, "rb") as fh:
-        for tok in tokenize.tokenize(fh.readline):
-            if tok.type == tokenize.COMMENT:
-                continue
-            if tok.type == tokenize.STRING and prev_type in (None, tokenize.INDENT, tokenize.NEWLINE,
-                                                             tokenize.NL):
-                continue
-            out.append(tok.string)
-            prev_type = tok.type
+    import io
+    from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
+    fh = io.BytesIO(_vts.read(path).encode("utf-8"))
+    for tok in tokenize.tokenize(fh.readline):
+        if tok.type == tokenize.COMMENT:
+            continue
+        if tok.type == tokenize.STRING and prev_type in (None, tokenize.INDENT, tokenize.NEWLINE,
+                                                         tokenize.NL):
+            continue
+        out.append(tok.string)
+        prev_type = tok.type
     return " ".join(out)
 
 

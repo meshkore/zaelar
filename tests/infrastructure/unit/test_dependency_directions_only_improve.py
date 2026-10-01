@@ -99,7 +99,7 @@ _MOTOR_REACH: set[tuple[str, str]] = {
     ("nucleo/sparks.py", "voice.engine.core"),
     ("nucleo/turn/vault_gate.py", "voice.engine.core"),
     ("nucleo/websearch.py", "voice.engine.core"),
-    ("server/__init__.py", "voice.engine.pipeline.agent"),
+    ("server/boot.py", "voice.engine.pipeline.agent"),       # V2-778 F1: moved with the lifespan's start half
     ("server/livekit_api.py", "voice.engine.core"),
     ("server/livekit_api.py", "voice.engine.core.config"),
     ("server/voice_api.py", "voice.engine.core.config"),

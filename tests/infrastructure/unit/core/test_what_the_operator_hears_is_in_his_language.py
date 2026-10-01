@@ -171,7 +171,7 @@ def test_the_boot_tops_up_the_language_after_an_update():
     """`i18n.init.prepare()` has claimed since V2-089 that «the boot sequence and the language-switch path»
     both call it. Only the second one ever did — so a French self-hoster who updated kept every NEW key in
     English for good, which is exactly the mixed-language product the operator reported."""
-    boot = (ENGINE / "server/__init__.py").read_text(encoding="utf-8")
+    boot = _vts.read(ENGINE / "server/__init__.py")
     assert "_i18n_init.prepare(" in boot, "nothing tops the language up at boot"
     assert "active_code()" in boot
 

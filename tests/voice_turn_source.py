@@ -55,6 +55,25 @@ def post_stream_body() -> str:
     return "".join(("    " + ln) if ln.strip() else ln for ln in src[i:j].splitlines(True))
 
 
+def _splice(text: str, calls, aliases: str) -> str:
+    """Put each block F1 extracted back in place of its call: (comment opening the call, the call, module, function).
+    The indentation is the call's own; the outputs it binds back and its early-return sentinel are consumed."""
+    for start, call, path, fname in calls:
+        a = text.index(start)
+        pad = re.match(r"[ \t]*", start).group(0)
+        close = "\n" + pad + ")\n"
+        b = text.index(close, text.index(call, a)) + len(close)
+        rebind = re.compile(rf"{pad}if '\w+' in _blk:\n{pad}    \w+ = _blk\['\w+'\]\n"
+                            rf"|{pad}if _blk\.get\('__return__'\):\n{pad}    return\n")
+        while (m := rebind.match(text, b)):     # the outputs the call binds back
+            b = m.end()
+        body = re.sub(rf"\b(?:{aliases})\.", "", _body_of(path.read_text(encoding="utf-8"), fname))
+        body = body.replace('return {"__return__": True}', "return")     # the turn's own early return
+        extra = pad[4:]                          # the extracted body sits at 4 spaces
+        text = text[:a] + "".join((extra + ln) if ln.strip() else ln for ln in body.splitlines(True)) + text[b:]
+    return text
+
+
 def turn_source() -> str:
     """The voice turn's code: the provider with the executor and the post-stream chain spliced back."""
     prov = PROVIDER.read_text(encoding="utf-8")
@@ -63,16 +82,7 @@ def turn_source() -> str:
     a = prov.index(_PS_START)
     b = prov.index(_PS_END, a) + len(_PS_END)
     prov = prov[:a] + post_stream_body() + prov[b:]
-    for start, call, path, fname in _PROVIDER_CALLS:
-        a = prov.index(start)
-        b = prov.index("\n        )\n", prov.index(call, a)) + len("\n        )\n")
-        rebind = re.compile(r"        if '\w+' in _blk:\n            \w+ = _blk\['\w+'\]\n"
-                            r"|        if _blk\.get\('__return__'\):\n            return\n")
-        while (m := rebind.match(prov, b)):     # the outputs the call binds back
-            b = m.end()
-        body = re.sub(r"\b(?:_p|_pst)\.", "", _body_of(path.read_text(encoding="utf-8"), fname))
-        body = body.replace('return {"__return__": True}', "return")     # the turn's own early return
-        prov = prov[:a] + "".join(("    " + ln) if ln.strip() else ln for ln in body.splitlines(True)) + prov[b:]
+    prov = _splice(prov, _PROVIDER_CALLS, r"_p|_pst")
     # module-level helpers F1 moved out of the provider: read with it, as written there
     return _unlift(prov + "".join("\n" + _as_written(x) for x in _PROVIDER_MODULES))
 
@@ -206,6 +216,20 @@ def _unlift(src: str) -> str:
     return _LIFTED.sub(_back, src)
 
 
+#: Files whose function bodies F1 cut into called blocks: read with each block put back where it sat.
+_SPLICED = {
+    (ENGINE / "server" / "__init__.py").resolve(): (
+        [("    # V2-778 F1 — the engine's start (identity", "_boot.start_the_engine(", ENGINE / "server" / "boot.py",
+          "start_the_engine")], "_srv"),
+}
+
+
+def _spliced(path: Path, text: str) -> str:
+    calls, alias = _SPLICED.get(path.resolve(), ([], ""))
+    present = [c for c in calls if c[0] in text]
+    return _splice(text, present, alias) if present else text
+
+
 def read(path) -> str:
     """`Path.read_text` for a source guard: the provider path yields the whole turn, a split file its pieces,
     anything else its file."""
@@ -218,7 +242,7 @@ def read(path) -> str:
         return probe_source()
     if p.resolve() in _SPLIT:
         return _unlift("\n".join(_as_written(x) for x in [p, *_SPLIT[p.resolve()]]))
-    return _unlift(p.read_text(encoding="utf-8"))
+    return _unlift(_spliced(p, p.read_text(encoding="utf-8")))
 
 
 def getsource(obj) -> str:
@@ -254,7 +278,9 @@ def getsource(obj) -> str:
         return re.sub(r"\b_d\.", "", inspect.getsource(dispatch_session._run_session))
     src = inspect.getsource(obj)
     try:                                      # a moved body reads its old module through an alias: read as written
-        alias = _ALIASED.get(Path(inspect.getfile(obj)).resolve())
+        _file = Path(inspect.getfile(inspect.unwrap(obj)))
+        alias = _ALIASED.get(_file.resolve())
+        src = _spliced(_file, src)
     except TypeError:
         alias = None
     return re.sub(rf"\b{alias}\.", "", src) if alias else src
