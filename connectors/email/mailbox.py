@@ -36,7 +36,9 @@ from email.utils import formatdate
 # for compatibility with callers that imported it from this module (config.py).
 from connectors.email.providers import PRESETS  # noqa: E402,F401  (compatibility re-export)
 from .headers import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
-    _AUTH_METHOD_RE, _AUTH_PROP_RE, _AUTOMATED_HEADERS, _NOREPLY_PATTERNS, _domain_of, _domains_aligned, decode_header_value, display_name, extract_email_address, extract_text_body, is_automated_sender, strip_html, verify_sender_authentication)
+    _AUTH_METHOD_RE, _AUTH_PROP_RE, _AUTOMATED_HEADERS, _NOREPLY_PATTERNS, _domain_of, _domains_aligned,
+    decode_header_value, display_name, extract_email_address, extract_text_body, is_automated_sender, strip_html,
+    verify_sender_authentication)
 
 
 def xoauth2_sasl(user: str, token: str) -> str:
