@@ -79,7 +79,7 @@ _BLOCK = ROOT / "nucleo" / "flash" / "live_blocks.py"
 def test_and_the_block_really_branches_on_all_of_them():
     """The other half: ensuring that the patterns above remain the actual faces. If someone renames one,
     this file would stop monitoring anything without failing."""
-    src = _BLOCK.read_text(encoding="utf-8")
+    src = _vts.read(_BLOCK)     # V2-778 F1: moved blocks read where they sat
     for face, _, _ in FACES:
         assert face in src, f"«{face}» ya no aparece en el bloque — actualiza FACES o la cara desapareció"
 

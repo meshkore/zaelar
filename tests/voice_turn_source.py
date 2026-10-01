@@ -150,7 +150,8 @@ _PROBE_CALLS = (
 
 
 def _body_of(src: str, fname: str) -> str:
-    i = src.index(f"async def {fname}(")
+    i = src.find(f"async def {fname}(")
+    i = i if i >= 0 else src.index(f"\ndef {fname}(") + 1     # a sync block (V2-778 F1)
     i = src.index(") -> dict:\n", i) + len(") -> dict:\n")
     return src[i:src.index("    _out = ", i)]
 
@@ -169,6 +170,7 @@ def probe_source() -> str:
 
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
 _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
+            (ENGINE / "nucleo" / "flash" / "live_blocks_nav.py").resolve(): "_lb",
             (ENGINE / "nucleo" / "flash" / "tool_executor_calls.py").resolve(): "_tx",
             (ENGINE / "nucleo" / "flash" / "tool_executor_widget_calls.py").resolve(): "_txw",
             (ENGINE / "voice" / "engine" / "pipeline" / "agent_events.py").resolve(): "_ag",
@@ -222,6 +224,11 @@ def _unlift(src: str) -> str:
 
 #: Files whose function bodies F1 cut into called blocks: read with each block put back where it sat.
 _SPLICED = {
+    (ENGINE / "nucleo" / "flash" / "live_blocks.py").resolve(): (
+        [("            # V2-778 F1 — reading each live browser task", "_lbn.read_the_browser_tasks(",
+          ENGINE / "nucleo" / "flash" / "live_blocks_nav.py", "read_the_browser_tasks"),
+         ("            # V2-778 F1 — saying what the brain may claim about the browser", "_lbn.say_the_browser_state(",
+          ENGINE / "nucleo" / "flash" / "live_blocks_nav.py", "say_the_browser_state")], "_lb"),
     (ENGINE / "server" / "__init__.py").resolve(): (
         [("    # V2-778 F1 — the engine's start (identity", "_boot.start_the_engine(", ENGINE / "server" / "boot.py",
           "start_the_engine")], "_srv"),

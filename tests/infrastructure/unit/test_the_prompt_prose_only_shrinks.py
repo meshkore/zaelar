@@ -45,7 +45,8 @@ _PROSE_FLOOR = 40
 
 #: The two modules that compose what the fast turn reads. `router_catalog` is measured apart, because it
 #: already has its own ceiling in `test_router` and is counted here only so the TOTAL is honest.
-_PROSE_FILES = ("nucleo/flash/prompt.py", "nucleo/flash/live_blocks.py")
+_PROSE_FILES = ("nucleo/flash/prompt.py", "nucleo/flash/live_blocks.py",
+                "nucleo/flash/live_blocks_nav.py")   # V2-778 F1: live_blocks' browser lines moved there, same sum
 
 #: Measured 2026-09-16. EDIT DOWNWARD ONLY — and the edit is the celebration.
 _MAX_PROSE = 42_376          # prompt.py 23_151 + live_blocks.py 19_225   (V2-713 R5: 42_486 → 42_376)
@@ -109,7 +110,8 @@ def test_the_prose_of_the_turn_prompt_only_shrinks():
 def test_moving_prose_between_the_two_files_does_not_pay_anything():
     """The defect in the LOC ratchet, pinned: the total is what is measured, so an extraction to
     `live_blocks.py` no longer reads as a saving. Both files are in ONE sum, deliberately."""
-    assert len(_PROSE_FILES) == 2 and all((ENGINE / r).exists() for r in _PROSE_FILES)
+    # three since V2-778 F1: live_blocks' browser lines moved to live_blocks_nav.py, and stay in the same sum
+    assert len(_PROSE_FILES) == 3 and all((ENGINE / r).exists() for r in _PROSE_FILES)
     combined = sum(_prose_bytes(r) for r in _PROSE_FILES)
     assert combined == sum({r: _prose_bytes(r) for r in _PROSE_FILES}.values())
 

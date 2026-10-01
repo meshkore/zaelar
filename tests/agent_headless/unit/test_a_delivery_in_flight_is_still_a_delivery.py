@@ -233,7 +233,8 @@ def test_y_el_imperativo_PROHIBE_decir_que_lo_tiene_delante():
     """Naming the phrase being replaced is what lets the model compare itself against it (V2-221)."""
     from nucleo.flash import live_blocks
     import inspect
-    src = inspect.getsource(live_blocks.navegador_lines)
+    from tests import voice_turn_source as _vts   # V2-778 F1: moved blocks read where they sat
+    src = _vts.getsource(live_blocks.navegador_lines)
     assert "NO digas que «lo tiene en pantalla»" in src
     assert "puede tardar unos segundos más en escribirse" in src
 

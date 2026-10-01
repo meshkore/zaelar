@@ -26,6 +26,7 @@ hablar del atasco.
 import pytest
 
 from nucleo.flash import delivery as RG
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 
 @pytest.fixture(autouse=True)
@@ -89,7 +90,7 @@ def test_la_FUENTE_del_atasco_es_la_misma_que_la_de_la_cara():
     los umbrales de `dispatch_thresholds`, igual que `pending_task_lines`. Si un día uno de los dos se copiara
     su propio número, el aviso y el agente dirían cosas distintas del mismo hecho."""
     from pathlib import Path
-    src = "\n".join(ln for ln in Path("nucleo/flash/live_blocks.py").read_text().splitlines()
+    src = "\n".join(ln for ln in _vts.read("nucleo/flash/live_blocks.py").splitlines()
                     if not ln.strip().startswith("#"))
     i = src.index("def any_stalled_task")
     cuerpo = src[i:src.index("\ndef ", i + 10)]

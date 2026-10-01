@@ -20,6 +20,7 @@ import pytest
 from nucleo.flash import live_blocks as LB
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 
 @pytest.fixture(autouse=True)
@@ -202,6 +203,6 @@ def test_la_cara_dice_QUE_HACER_con_una_linea_sin_precio(monkeypatch):
     """The data alone, without the interpretation, is read again as a candidate. The rule goes INSIDE the same
     row block that already orders «di solo lo que RESPONDE a lo que pidió» (V2-348: the branch goes inside)."""
     from pathlib import Path
-    src = Path("nucleo/flash/live_blocks.py").read_text()
+    src = _vts.read("nucleo/flash/live_blocks.py")
     assert "marcada SIN PRECIO no es una opción" in src
     assert "ofrezcas como candidata" in " ".join(src.split())

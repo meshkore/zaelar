@@ -16,6 +16,7 @@ much of what we have we did not show it” is a finding about US, and a valuable
 from __future__ import annotations
 
 from tests.use_cases.e2e.agent import verify as V
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 _HEAD = "LO QUE YA HA ENTREGADO (nombre y precio, de la hoja): "
 
@@ -154,7 +155,7 @@ def test_la_cabecera_que_buscamos_es_la_que_el_MOTOR_escribe():
     has to monitor the phrase.
     """
     from pathlib import Path
-    motor = Path("nucleo/flash/live_blocks.py").read_text(encoding="utf-8")
+    motor = _vts.read("nucleo/flash/live_blocks.py")
     assert V._ROWS_HEAD in motor, (
         "la cabecera de filas del prompt cambió y el arnés sigue buscando la vieja: `shown_candidates` "
         "devolverá vacío en todas las rondas, que se lee como «no se le mostró nada»")
