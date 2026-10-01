@@ -13,6 +13,13 @@ from memory import tasks_store as ts
 from nucleo import scheduler, tasks as T
 
 
+
+# V2-778 F6-43 — these were the literal dates «2026-09-28 / 09-29», a future that expired and turned three cases
+# red the day it passed (the scheduler rightly refuses a one-shot in the past). Always days ahead of the run.
+import datetime as _dt
+_FUTURE = (_dt.datetime.now() + _dt.timedelta(days=3)).strftime("%Y-%m-%d 09:00")
+_FUTURE_2 = (_dt.datetime.now() + _dt.timedelta(days=4)).strftime("%Y-%m-%d 09:00")
+
 @pytest.fixture
 def fresh_db(tmp_path, monkeypatch):
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
@@ -37,7 +44,7 @@ def test_a_weekly_job_lands_in_PERIODICAS(fresh_db):
 
 
 def test_a_one_shot_lands_in_PROGRAMADAS(fresh_db):
-    scheduler.create("llama al dentista", "2026-09-28 09:00", name="llamar al dentista")
+    scheduler.create("llama al dentista", _FUTURE, name="llamar al dentista")
     rows = _rows("scheduled")
     assert [x["title"] for x in rows] == ["llamar al dentista"]
     assert rows[0]["mode"] == "scheduled"
@@ -84,7 +91,7 @@ def test_the_jobs_that_existed_BEFORE_the_board_are_put_on_it(fresh_db, monkeypa
     import nucleo.tasks as _t
     monkeypatch.setattr(_t, "scheduled_mirrored", lambda *_a, **_k: None)   # the board did not exist yet
     scheduler.create("mira los conciertos", "every 7d", name="conciertos")
-    scheduler.create("llama al dentista", "2026-09-28 09:00", name="dentista")
+    scheduler.create("llama al dentista", _FUTURE, name="dentista")
     monkeypatch.undo()
     assert _rows("recurring") == [] and _rows("scheduled") == []
     assert scheduler.reconcile_board() == 2
@@ -127,14 +134,14 @@ def test_an_APPOINTMENTS_OWN_NOTICE_is_not_marked_a_second_time(fresh_db):
     on the flag alone would have marked every one of his appointments twice.
     """
     from widgets.agenda import system_tasks as ST
-    r = scheduler.create("Recuérdale la cita", "2026-09-28 09:00", name="aviso: Dentista", origin="agenda")
+    r = scheduler.create("Recuérdale la cita", _FUTURE, name="aviso: Dentista", origin="agenda")
     scheduler.create("mira el precio del monitor", "every 7d", name="precio del monitor")
 
     # (a) the flag path, for jobs created from today on
     assert [x["title"] for x in ST.system_tasks(db={"meetings": []})] == ["precio del monitor"]
 
     # (b) the JOIN path, which is what covers every job written before the flag existed
-    legacy = scheduler.create("Recuérdale la otra cita", "2026-09-29 09:00", name="aviso: Médico")
+    legacy = scheduler.create("Recuérdale la otra cita", _FUTURE_2, name="aviso: Médico")
     db = {"meetings": [{"title": "Médico", "reminder_id": str(legacy["id"])}]}
     titles = [x["title"] for x in ST.system_tasks(db=db)]
     assert "aviso: Médico" not in titles, (
