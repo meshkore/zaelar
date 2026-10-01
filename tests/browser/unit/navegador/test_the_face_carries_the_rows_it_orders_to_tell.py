@@ -56,7 +56,9 @@ def test_una_fila_sin_precio_DICE_que_no_lo_tiene():
     Saying it costs one word, which is the remedy from V2-127 and V2-133."""
     tid = T.create("Busca una guitarra", sheet="v298-2")
     _sheet_with("v298-2", [{"title": "Guitarra Acústica Crafter FX 550 EQ"}])
-    assert LB._sheet_top_rows(tid) == ["«Guitarra Acústica Crafter FX 550 EQ — SIN PRECIO»"]
+    # The title may be cut to the prompt's row budget (`fila`); what this guards is that the ABSENCE is said.
+    rows = LB._sheet_top_rows(tid)
+    assert len(rows) == 1 and rows[0].startswith("«Guitarra Acústica Crafter") and rows[0].endswith("— SIN PRECIO»"), rows
     # …and what did NOT change: the row is still present. Discarding it would hide a real finding.
 
 

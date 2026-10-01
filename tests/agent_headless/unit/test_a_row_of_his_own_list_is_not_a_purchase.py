@@ -60,6 +60,9 @@ _AGENDA_ORDERS = {
     "set_reminder": "ponme un aviso media hora antes de la reunión del jueves",
     "dedupe_meetings": "quita las reuniones repetidas del jueves",
     "cancel_meeting": "cancela la reunión con Iván del jueves",
+    "open_meeting": "ábreme la cita del dentista del martes",
+    "close_meeting": "cierra la ficha de la cita",
+    "find_free": "búscame un hueco libre de cuarenta y cinco minutos mañana por la tarde",
     "done": "marca como hecha la tarea dos de la compra",
     "drop": "descarta la tarea tres",
     "snooze": "pospón la tarea dos para mañana",
@@ -130,7 +133,17 @@ def test_his_own_turn_does_not_earn_a_browser(turn):
 
 # ── and none of the thirty ways to speak to the agenda ───────────────────────────────────────────────────
 
-@pytest.mark.parametrize("action,order", sorted(_AGENDA_ORDERS.items()))
+#: OPEN defects the corpus found, kept visible instead of rewording the sentence until it passes. Each is a
+#: V2-778 F2 item (mechanisms, not rails): the fix is not a new regex in front of the router.
+_OPEN = {
+    "open_meeting": "site_catalog.category_of reads «la cita del dentista» as booking a LOCAL BUSINESS "
+                    "(transactional → kind=web), so opening an EXISTING appointment would start a browser errand",
+}
+
+
+@pytest.mark.parametrize("action,order", [
+    pytest.param(a, o, marks=pytest.mark.xfail(reason=_OPEN[a], strict=True)) if a in _OPEN else (a, o)
+    for a, o in sorted(_AGENDA_ORDERS.items())])
 def test_no_agenda_order_is_read_as_a_purchase(action, order):
     assert danger.is_dangerous(order) is False, f"{action}: {order}"
     assert danger.moves_money(order) is False, f"{action}: {order}"

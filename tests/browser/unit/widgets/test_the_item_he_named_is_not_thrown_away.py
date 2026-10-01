@@ -324,7 +324,8 @@ def test_the_data_op_event_says_WHAT_ITEM_was_named():
     src = _vts.turn_source()
     assert '"item": ref' in src
     assert "def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str = \"\")" in src
-    assert "_apply_widget_data(wid, action_name, res.payload, ref)" in src
+    # V2-740: the call targets the card the screen verdict decided (`_cd["card"]`); the named item still travels.
+    assert '_apply_widget_data(_cd["card"], action_name, res.payload, ref)' in src
 
 
 def test_the_agenda_manifest_declares_it_for_every_action_on_an_EXISTING_meeting():
