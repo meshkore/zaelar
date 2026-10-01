@@ -89,6 +89,8 @@ _PROVIDER_CALLS = (
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_admit.py", "admit_the_turn"),
     ("        # V2-778 F1 — the turn the model did not answer", "_turn_failure.say_the_turn_failed(",
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_failure.py", "say_the_turn_failed"),
+    ("        # V2-778 F1 — the phrase accumulator (a fragment", "_turn_fragment.hold_a_fragment(",
+     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_fragment.py", "hold_a_fragment"),
 )
 
 

@@ -502,74 +502,22 @@ class NucleoLLMStream(llm.LLMStream):
         # Va AQUÍ, y el sitio es la mitad del arreglo: por delante ya pasaron la interrupción DURA (una orden de
         # parar nunca se retiene) y el gate de atención; por detrás viene `ingest_utterance`, así que un trozo a
         # medias tampoco entra en la MEMORIA. Un fragmento no habla, no actúa y no se recuerda.
-        if not first_turn:
-            from nucleo.flash import accumulator as _acc
-            if getattr(brain, "_acc", None) is None:
-                brain._acc = _acc.Accumulator()
-            _n_before = len(brain._acc.fragments)
-            _ta = time.time()
-            _action, _merged, _why, _dropped = await brain._acc.offer(text)
-            _acc_ms = round((time.time() - _ta) * 1000, 1)
-
-            # BUG FIX (2026-08-15, session d4b2bc35): a stale chain that got silently discarded (gap > MAX_GAP_S)
-            # used to only ever surface — muted, in `extra`, never spoken — when the CALL AFTER the drop happened
-            # to land on "act". The far more common case is that the fragment causing the drop is itself
-            # incomplete and falls to "hold" a few lines below, which carried no drop info at all: the operator's
-            # words vanished with zero trace anywhere, timeline included. `Accumulator.offer()` now reports
-            # `_dropped` on EITHER branch, so this fires every time regardless of what this call goes on to do.
-            _speak_drop, _fresh_chain = _acc_notice_plan(_action, _dropped, _n_before)
-            if _dropped:
-                emit("brain", "🕳️ frase anterior descartada por el hueco", text=_dropped[:200], role="system",
-                     extra={"cat": "flash", "gap_s": _acc.MAX_GAP_S})
-            if _speak_drop:
-                _spawn(_speak_acc_drop(_dropped), "acc_drop_notice")
-
-            if _action == "hold":
-                # Callar es la conducta CORRECTA aquí, no un efecto colateral que haya que compensar con un
-                # temporizador. Norma del operador, con su propio ejemplo: «si digo "oye, ¿qué tal? ahora vamos
-                # a…" y me paro ahí, obviamente esa frase no genera absolutamente nada NI DEBE GENERARLO».
-                # Por eso no hay flush por tiempo: un fragmento abandonado se queda sin respuesta a propósito, y
-                # las válvulas del acumulador (hueco máximo, nº de trozos, tamaño) son solo para que el buffer no
-                # crezca ni contamine una petición posterior que no tiene nada que ver.
-                # Y se VE: el trozo retenido y el motivo salen al timeline (⏸), que es la diferencia entre «está
-                # esperando a que acabes» y «se ha quedado colgado».
-                # 2026-08-15: and if the wait drags on, it's now also HEARD (`_schedule_acc_nudge` below) — the
-                # real session's 64s gap had neither signal.
-                if _fresh_chain:
-                    brain._acc_gen += 1
-                    _schedule_acc_nudge(brain, brain._acc_gen)
-                emit("brain", "⏸ frase a medias — espero a que termines", text=text[:200], role="system",
-                     extra={"cat": "flash", "why": _why, "trozos": len(brain._acc.fragments),
-                            "acumulado": brain._acc.text()[:300]})
-                return
-
-            if _action == "ask":
-                # V2-102: layer 2 (the LLM judge) says this looks actionable but is missing something concrete
-                # enough that a real assistant would ASK rather than guess or wait in silence. `_why` carries the
-                # question text here (repurposed — see `Accumulator.offer`'s docstring). Speaks it exactly like
-                # the drop-notice/nudge do (`voice.proactive.speaker()`, never over the operator mid-sentence)
-                # and RETURNS — the question IS this turn's response, no FlashBrain dispatch, no memory ingest.
-                brain._acc_gen += 1
-                brain._acc_trace_id = ""
-                emit("brain", "❓ pidiendo aclaración", text=_why[:200], role="system",
-                     extra={"cat": "flash", "acumulado": _merged[:300]})
-                try:
-                    from voice import proactive
-                    speak = proactive.speaker()
-                    if speak is not None and not proactive.user_speaking():
-                        r = speak(_why)
-                        if asyncio.iscoroutine(r):
-                            await r
-                except Exception:
-                    pass
-                return
-
-            if _n_before and not _dropped:
-                emit("brain", "🧩 frase completada en varios tiempos", text=_merged[:300], role="user",
-                     extra={"cat": "flash", "trozos": _n_before + 1, "motivo": _why})
-            brain._acc_gen += 1          # cadena resuelta — un aviso pendiente para ella queda obsoleto
-            _resolve_acc_chain(brain)    # el trace pasa a GRACIA, no se tira (V2-116)
-            text = _merged
+        # V2-778 F1 — the phrase accumulator (a fragment waits for the rest) lives in
+        # `voice/engine/llm/providers/turn_fragment.py`.
+        _blk = await _turn_fragment.hold_a_fragment(
+            brain=brain,
+            emit=emit,
+            first_turn=first_turn,
+            text=text,
+        )
+        if _blk.get('__return__'):
+            return
+        if '_acc_ms' in _blk:
+            _acc_ms = _blk['_acc_ms']
+        if 'speak' in _blk:
+            speak = _blk['speak']
+        if 'text' in _blk:
+            text = _blk['text']
 
         # JEV TURN BRIEF (V2-726 F1, moved here by A2): ONE call carrying every question this turn
         # reads AFTER the model — canvas verb, escalate pair, which action of which open card, and
@@ -1223,3 +1171,4 @@ from voice.engine.llm.providers import turn_prompt as _turn_prompt  # noqa: E402
 from voice.engine.llm.providers import turn_tools as _turn_tools_mod  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_admit as _turn_admit  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_failure as _turn_failure  # noqa: E402 — V2-778 F1, imports this module back
+from voice.engine.llm.providers import turn_fragment as _turn_fragment  # noqa: E402 — V2-778 F1, imports this module back
