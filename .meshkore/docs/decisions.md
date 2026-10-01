@@ -25,6 +25,20 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Split without changing: no product file over 1,000 lines (V2-778 F1, 2026-10-01)**: the demo week had left the
+  de-facto router as one 3,500-line coroutine and five files over 1,000 lines. Decision: every split is the SAME
+  code, moved, with each name of the old module it read rewritten as `<alias>.<name>` (`_p.`, `_d.`, `_o.`,
+  `_probe.`) so a monkeypatch on the old module still governs the moved code; the old module imports the names back
+  (or keeps a delegate) so every caller and test keeps working. A moved block of a coroutine returns only what it
+  bound and the caller rebinds it; a bare `return` comes back as a sentinel. A `global` becomes reads and writes of
+  `<alias>.X`, so the state stays where it was. The cost the first split exposed: ~45 source guards opened the files
+  by path and would have read half the code — two looped over occurrences and would have gone quiet, not red. They
+  now read through ONE helper, `tests/voice_turn_source.py`, which splices every moved block back where it sat and
+  strips the alias, so their positional assertions keep their meaning; each re-pointed guard was disarmed red. The
+  size ratchet's entries are renamed with their file, never added; totals do not grow. Result: provider 1,769 → 993
+  (`_run_inner` 1,428 → 701), `dispatch.py` 1,586 → 921, `owner.py` 1,713 → 883, `probe.py` 1,108 → 921,
+  `memory/api.py` 1,025 → 941. Not done: 31 functions still over 200 lines, the probe calling the voice executor
+  (F1-10c). Node 7.57 (size ratchet).
 - **Stop the bleeding: the P0s of the post-demo audit (V2-778 F0, 2026-09-30)**: the operator asked for a general
   self-audit after seven days spent only on the demo; seven read-only audits found eight P0s, re-verified in
   process. F0 fixes them, each red-first with its disarm: (1) the sandbox pins `ZAELAR_WORKSPACE` and names the test
