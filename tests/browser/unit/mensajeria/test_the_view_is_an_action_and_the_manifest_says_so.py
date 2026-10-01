@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import json
 import pathlib
-import re
 
 import pytest
 
@@ -60,10 +59,11 @@ def _seed(msg, monkeypatch=None):
 def test_the_manifest_declares_every_action_apply_action_handles():
     """The incident's root: read/dismiss/clear/open/close/readchat/connect/disconnect were handled and
     invisible. Parse the comparisons in data.py and demand a 1:1 match with the declared vocabulary."""
-    src = (ENGINE / "widgets" / "mensajeria" / "data.py").read_text(encoding="utf-8")
-    handled = set(re.findall(r'action\s*==\s*"([a-z_]+)"', src))
-    for group in re.findall(r'action\s+in\s+\(([^)]*)\)', src):
-        handled |= set(re.findall(r'"([a-z_]+)"', group))
+    # V2-778 F1-12: read the way the contract gate reads it — the ACTIONS table's keys plus what apply_action
+    # still compares inline (read/dismiss/clear) — since the gate itself skips the backed kind
+    from widgets import validator
+    wdir = ENGINE / "widgets" / "mensajeria"
+    handled = validator._apply_action_names((wdir / "data.py").read_text(encoding="utf-8"), str(wdir))
     declared = set(_manifest()["actions"])
     # connect/disconnect stay undeclared ON PURPOSE: they carry credentials, and the door for the voice is
     # open_connectors (V2-520: the voice transports intent, never a credential).

@@ -41,7 +41,6 @@ FILES = {
     'nucleo/mem_processor.py': 831,
     'voice/engine/llm/providers/nucleo.py': 993,
     'widgets/agenda/data.py': 867,
-    'widgets/mensajeria/data.py': 883,
     'widgets/navegador/owner.py': 883,
     'widgets/navegador/tasks.py': 829,
     'widgets/youtube/data.py': 813,
@@ -112,7 +111,6 @@ FUNCTIONS = {
     'widgets/generator.py::_run_agent_once': 125,
     'widgets/imagenes/data.py::apply_action': 136,
     'widgets/mensajeria/answers.py::answer_action': 136,
-    'widgets/mensajeria/data.py::apply_action': 563,
     'widgets/navegador/act_api.py::_hand_over': 151,
     'widgets/navegador/act_api.py::navegador_act': 125,
     'widgets/navegador/agent.py::run_task': 134,
@@ -133,7 +131,6 @@ BRANCHES = {
     'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 108,
     'widgets/agenda/data.py::apply_action': 236,
     'widgets/agenda/tasklists.py::apply': 115,
-    'widgets/mensajeria/data.py::apply_action': 221,
     'widgets/youtube/data.py::apply_action': 239,
     'widgets/youtube/library.py::apply': 123,
 }
