@@ -100,7 +100,7 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
     rules = _rules.for_surface(st, "voice")
     if rules:
         sit.append("REGLAS DEL OPERADOR (te las dio él; síguelas SIEMPRE): "
-                   + " · ".join(r[:90] for r in rules[:8]))
+                   + " · ".join(r[:90] for r in rules[-8:]))   # the NEWEST eight (V2-778 F3-24)
     if st.get("location"):
         sit.append(f"Ubicación: {st['location']}.")
     # HECHOS CRÍTICOS de seguridad (alergias/condiciones médicas): línea PROPIA y PROMINENTE que se surface SIEMPRE,

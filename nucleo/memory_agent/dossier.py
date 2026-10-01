@@ -158,7 +158,7 @@ def _dossier_sync(prompt: str, budget: int) -> tuple[dict, dict, list, list, lis
     agenda = _agenda_lines()
     # 2026-09-29 — the worker carries only the rules of its scope: a manner of speaking («no me confirmes las
     # órdenes», «sin muletillas») means nothing to a browser errand and burned its eight slots.
-    rules = memory.rules_for("worker", st=st)[:8]
+    rules = memory.rules_for("worker", st=st)[-8:]   # the NEWEST eight: stored oldest first (V2-778 F3-24)
     return st, res, critical, by_c, agenda, rules
 
 
