@@ -374,7 +374,8 @@ def open_for_action(wid: str, action: str, payload: dict | None, *, text: str = 
 
 def persist(task_id: str, e: dict) -> None:
     try:
-        from memory import tasks_store as _ts
+        from nucleo import tasks as _tasks
+        _ts = _tasks.store()   # nucleo/tasks is memory.tasks_store's one importer
         _ts.artifact_put(task_id, ARTIFACT_SLOT, {
             "done_when": e.get("done_when"), "target": e.get("target"), "source": e.get("source"),
             "text": e.get("text"), "born": e.get("born"), "status": e.get("status"), "last": e.get("last"),
@@ -385,7 +386,8 @@ def persist(task_id: str, e: dict) -> None:
 
 def of_task(task_id: str) -> dict | None:
     try:
-        from memory import tasks_store as _ts
+        from nucleo import tasks as _tasks
+        _ts = _tasks.store()   # nucleo/tasks is memory.tasks_store's one importer
         got = _ts.artifact_get(task_id, ARTIFACT_SLOT)
         return got if isinstance(got, dict) else None
     except Exception:  # noqa: BLE001

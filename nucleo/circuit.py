@@ -349,8 +349,8 @@ def voice_rules_line() -> str:
     """The operator's standing rules for how the assistant speaks (scope `voice`), so a delivery composed off
     the turn obeys them like a turn does — `proactive.notify` never read them."""
     try:
-        from memory import api as _memapi, rules as _rules
-        rs = _rules.for_surface(_memapi.state() or {}, "voice")
+        from memory import api as _memapi
+        rs = _memapi.rules_for("voice", _memapi.state() or {})   # through the facade (test_memory_boundary)
         if not rs:
             return ""
         return "The person's standing rules for how you speak, which you obey: " + " · ".join(str(r)[:160] for r in rs[:6])
