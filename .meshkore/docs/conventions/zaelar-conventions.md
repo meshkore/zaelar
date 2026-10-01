@@ -165,7 +165,9 @@ Concretely:
 
 ## Commits
 
-- No push to origin without explicit operator (Ricart) approval.
+- Commit with a pathspec (`git commit -- <paths>`) after checking `git diff --cached --name-only` is empty — several
+  sessions share one checkout and one index. Push after every commit (operator policy since 2026-07-16); never
+  `pull`/`merge`/`reset`/`checkout` to bring a remote version in.
 - AI-authored commits end with a `Co-Authored-By: Claude …` trailer (real practice; see the change protocol §5).
 - Never commit: `.env`, `config/settings.json`, `config/connectors.json`, `config/v2.json`, `.venv/`, `logs/`,
   `memory/_data/` (the central memory DB — personal). `~/.hermes/memories/USER.md` (operator profile, if present)

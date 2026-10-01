@@ -1,7 +1,7 @@
 ---
 title: Zaelar Security
 category: security
-updated: 2026-08-13
+updated: 2026-09-30
 owner: ricart
 status: current
 ---
@@ -293,22 +293,45 @@ configuration, not by this repo. A self-hosted install never enters any of it.
 Verified by nodo 7.11 of the test map. This replaced a middleware that served the request in all four refusal
 rows above; each of those was a deliberate fail-open, and together they were a live data-exposure surface.
 
+## Consent — act or ask (`nucleo/consent.py`)
+
+One rule decides, in both channels (voice and the text probe): a missing datum → ask for the DATUM; a doubt
+between two → ask which; a radius (several items, a sweep) → ask; otherwise act. Each action declares a level
+(`standard` / `sensitive` / `critical`); Genesis asks at `critical`, and a spoken rule moves the threshold
+(«ask me first» → sensitive, «just do it» → critical). A negation that governs «without asking» in its own clause
+is MORE friction, never a door («never send an email without asking me» → sensitive). An act that leaves the
+machine (send, forward) runs only when the verdict backs it; unbacked it is dropped, never turned into a question.
+Money: a search is never gated as a charge (`nucleo/danger.py` subtracts negated acts and first-person wishes
+before reading the money verbs); the pay click is where money stops. Current text and test nodes:
+`criteria.md` §2.
+
+## Spoken rules
+
+A rule the operator says («no fillers», «never buy on Wish») is stored with a scope from a fixed classifier
+(`voice`, `widget:<id>`, `general`; `nucleo/flash/rule_scope.py`) and each prompt surface carries only its own —
+a worker never carries voice rules. Rules can loosen consent only through the one rule above; nothing a peer
+says over the cluster channel becomes an operator rule (`remember_external` refuses identity slots and never
+touches `state`). Genesis is per domain with its own override file; a factory reset forgets spoken rules and
+keeps credentials. `criteria.md` §5.
+
 ## Secrets
 
-All secrets live in `.env` (gitignored). See `config/.env.example` for required vars.
-`config/settings.json` is runtime state — also gitignored.
+Keys are entered in the ⚙ panel and kept in the gitignored credential store and `config/` files; `.env` is only a
+power-user fallback (`config/.env.example` lists the names). Operator secrets that the agent must use but never
+read live in the vault (§Operator secrets vault above).
 
 ## Hard rules (from CLAUDE.md)
 
-- `.env` is never committed.
-- The central memory DB (`memory/_data/`) is personal — never committed. `~/.hermes/memories/USER.md` (operator
-  profile, if present) is likewise never committed.
-- No push to origin without explicit operator approval.
+- `.env`, `config/settings.json`, `config/connectors.json`, `config/v2.json` and the central memory DB are never
+  committed.
+- Commit with a pathspec and push after every commit; never pull/merge/reset to bring a remote version in.
+- A test never touches the operator's real state: the root `conftest.py` pins `ZAELAR_WORKSPACE` to a temporary
+  directory and fails by name the test after which his consent/style/library config changed.
 - The FlashBrain (voice) model MUST be non-reasoning.
 
 ## Network
 
 - Local: WebRTC via Google STUN only.
-- Prod: CloudFlare TURN (`CF_TURN_*` vars). Omit locally.
+- Remote browsers: a TURN server (`TURN_URLS/USERNAME/CREDENTIAL`, or Cloudflare TURN via `CF_TURN_*`). Omit locally.
 - MeshKore daemon: NOT shipped by this repo. It is a single shared service (`daemon.meshkore.com`); zaelar
   exposes no local daemon and binds no MeshKore port.

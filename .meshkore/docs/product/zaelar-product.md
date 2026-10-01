@@ -16,13 +16,13 @@ status: current
 ## 1. What zaelar is
 A **voice-first personal-life assistant** (warm, remembers you, helps run your day). It speaks by voice, shows
 **graphical widgets** on a canvas when useful, and runs on its **OWN brain** — the `nucleo/` module («Colmena»):
-a two-speed brain (**FlashBrain** for the sub-second voice turn + **SlowBrain** async agents) with its **own
+a two-speed brain (**FlashBrain** for the sub-second voice turn + **Brain Workers** for what does not fit in a turn) with its **own
 central memory** (`memory/`, SQLite) and cron/proactivity. No external agent. Runs locally at
 **http://localhost:43917** (`cd zaelar && make run`).
 
 Status: voice round-trip works (STT→nucleo→TTS, streaming); memory persists across sessions (`memory/`); widgets
 (agenda coach + weather/search + navegador) work with a drag-and-drop desktop; speaker-gate v1 filters other
-voices; cloud demo parked on fly. Pending: more importers/connectors, wake-word, SpeakerGate v2.
+voices. This repo describes the self-hosted engine; it has no production deploy of its own. Pending: more importers/connectors, wake-word, SpeakerGate v2.
 
 **Voice reliability (current focus).** A recurring "zaelar doesn't hear me" has had several distinct causes;
 each was localized with the **AudioProbe RMS in `/debug`** (don't guess STT vs echo vs brain — read the meter
@@ -41,16 +41,17 @@ picker**, mirrored to `/debug` via `/api/client-log`. Open edge seen in testing:
   **EMBEDDED** in the server process (`AgentServer`, thread job executor), not as a separate process. Turn-taking,
   VAD and barge-in are governed by LiveKit (Silero VAD + the `MultilingualModel` turn-detector +
   `allow_interruptions`) — no custom watchdog on the critical path; proactivity comes from the nucleo loop/cron
-  instead. **STT defaults to local Whisper** (MLX on Apple Silicon via mlx-whisper, faster-whisper on Win/Linux;
-  free·private, `make install-stt`), with cloud STT (Deepgram/AIMLAPI) as explicit opt-ins. **TTS** defaults to
-  Deepgram Aura-2 (es+en); Kokoro local is the free, unlimited, private option. The top level of `voice/` is the
+  instead. **STT and TTS are cloud services by default**, each with a failover so a provider outage is not a
+  silent engine (2026-09-30, `config/models.default.json` is the source of truth): STT = Deepgram → Voxtral, TTS =
+  Inworld → ElevenLabs. Local Whisper (`make install-stt`) and local Kokoro (`make install-tts`) remain the free,
+  private options for a self-hoster. The top level of `voice/` is the
   **brain-agnostic contract** (kept pure): `tag_protocol.py`, `prompt.py`, `brain_notes.py`, `proactive.py`,
   `observer.py` (SSE), plus the STT/TTS backends and the provider registry (`voice/engine/llm/providers/`).
 - **Brain = `nucleo/`** (zaelar's OWN, default `BRAIN=nucleo`; `config/v2.py` `active_brain()`). Two speeds:
   **FlashBrain** (`nucleo/flash/`) is the sub-second voice layer — a **non-reasoning** model chosen per-invocation
-  (Ollama local or AIMLAPI/Grok cloud, `config/v2.py` `fast` section), exposed to the voice engine as provider
+  (the `voice_brain` row of `config/models.default.json`: DeepSeek direct, OpenAI as the failover), exposed to the voice engine as provider
   `voice/engine/llm/providers/nucleo.py`. **SlowBrain** (`nucleo/dispatch.py` + `nucleo/memory_agent.py` +
-  `nucleo/agentes/`) runs async Claude Code / Codex agents (the `CodeAgent` interface) for memory/tools/reasoning
+  `nucleo/workers/`) runs async Brain Workers (Claude Code / Codex / Grok sessions) for memory/tools/reasoning
   off the voice path — reached by the FlashBrain calling `escalate_to_slowbrain`. The orchestrator loop
   (`nucleo/loop.py`, ~1 Hz) + own cron (`nucleo/scheduler.py`, persisted in `memory.journal`) + panel
   (`nucleo/cron_api.py`, the `/api/cron` panel) + `nucleo/sparks.py` own proactivity. **The FlashBrain model MUST
@@ -129,9 +130,9 @@ loop** (`nucleo/loop.py` + `nucleo/scheduler.py`, own cron persisted in `memory.
 ## 5. Brain config + models (nucleo)
 - **Model routing lives in `config/v2.py`** (env-first, hot-applied on reconnect), NOT in an external agent config:
   - `fast` section (`FAST_PROVIDER`/`FAST_MODEL`/`FAST_BASE_URL`/`FAST_API_KEY`) — the FlashBrain voice model,
-    chosen **per invocation**; a **NON-reasoning** model (Ollama local or AIMLAPI/Grok cloud). Do NOT use a
+    chosen **per invocation**; a **NON-reasoning** model (the `voice_brain` row). Do NOT use a
     reasoning model on the voice path (seconds of thinking latency; see §7).
-  - `code_agent` section (`CODE_AGENT_*`) — the SlowBrain CodeAgent tier (Claude Code / Codex, `nucleo/agentes/`).
+  - `code_agent` section (`CODE_AGENT_*`) — the Brain Worker tier (Claude Code / Codex / Grok, `nucleo/workers/`).
   - `flags.brain` / env `BRAIN` — `active_brain()`, default `nucleo`; `direct`/`local` are plain-model baselines.
 - **Memory** = `memory/` (SQLite `zaelar.db`): persona/context + episodic layer (which absorbed the old `files/`
   inbox) + the message content the messaging widget writes. Single-writer queue, embeddings on insert, vector +
@@ -150,23 +151,23 @@ the brain learns it via `brief.for_brain()`; the desktop lazy-loads it. No serve
 - **The brain is zaelar's OWN** (`nucleo/`, «Colmena») — an in-process two-speed brain with its own memory
   (`memory/`) and event bus (`bus/`). No external agent, no per-turn CLI spawn: the FlashBrain is a warm streaming
   provider in the LLM slot; the SlowBrain does async work off the voice path.
-- **Language**: voice-driven. STT multilingual; default Spanish, but a returning user is greeted in their preferred
-  language **from memory**; switches live on request. Voice is always language-aligned.
-- **Voice (TTS)**: default **Deepgram Aura-2** (es+en codeswitching: Selena/Javier/Diana/Carina/Aquila). HONEST
-  cost: Aura-2 is **free-tier** (~$200 credit ≈ 13M chars, then $0.030/1k chars) — not free forever. **Kokoro
-  local** (Spanish, Apache-2.0) is the truly-free, unlimited, private LOCAL TTS (`make install-tts`; enable in the
-  ⚙ panel or `TTS_PROVIDER=kokoro`). Cartesia/ElevenLabs are cloud (paid) alternatives. Tap the orb to cycle voice
-  **within the current provider**. Cost taxonomy used in the UI: "gratis"=local·unlimited · "free-tier"=credit then
-  paid · "pago"=paid from the start.
+- **Language**: voice-driven and multilingual. A first boot starts in **English** and switches to the operator's
+  language as soon as it is detected; a returning user is greeted in their language from memory, and it switches
+  live on request. UI strings come from `i18n/` (en+es shipped, any other generated on first contact).
+- **Voice (TTS)**: Inworld first, ElevenLabs as the failover (both paid cloud); the bill follows the provider
+  that actually spoke. Kokoro local (Apache-2.0, `make install-tts`) is the free, unlimited, private option;
+  Cartesia is also wired. Cost taxonomy used in the UI: "gratis"=local·unlimited · "free-tier"=credit then paid ·
+  "pago"=paid from the start.
 - **Voice (FlashBrain) model = a NON-reasoning model.** A reasoning model on the real-time path adds seconds of
   thinking latency (5s+ TTFT) and risks never closing the voice turn → zaelar goes silent. A non-reasoner answers
   in ~1s. Reasoning belongs OFF the critical path, in the SlowBrain (§5).
 - **Widgets isolated** (own layer, own store, lazy load) — designed for thousands; brain drives them via silent
   tags, not hard-coupling.
 - **Speaker gate v1** = acoustic fingerprint (pitch+centroid+loudness); v2 = Picovoice Eagle (needs AccessKey).
-- **Cost framing**: paid hops = LLM (AIMLAPI fast model, cheap) + TTS (Aura-2, **free-tier** then paid); **STT is
-  free/local by default** (Whisper local via `make install-stt`), and **Kokoro local TTS** (`make install-tts`) is
-  the truly-free unlimited voice. Everything else free/local. Growth path: local model + Kokoro → ~0 per-turn cost.
+- **Cost framing**: paid hops = the brain models (DeepSeek direct for the voice turn, the memory writer and
+  triage; GLM on Z.ai direct for Brain Workers), embeddings (OpenAI), STT and TTS. Each row of
+  `config/models.default.json` names its titular, its failover and why. Local STT + Kokoro + a local model is
+  the ~0 per-turn growth path for a self-hoster.
 
 ## 8. Growth direction (roadmap)
 Next: index `identify()` + show disambiguation candidates (DONE 2026-07-03 — lexical-semantic tier); persist
@@ -175,28 +176,22 @@ v2 (Eagle). Then the JARVIS roadmap: importers WhatsApp→Telegram→Gmail (need
 connectors X/LinkedIn, wake-word (0-token), mobile via Telegram/WhatsApp. Later: local models for cost; widget
 auto-modification via a `CodeAgent` interface.
 
-## 9. Credentials used (NAMES + location only — never commit values)
-- `zaelar/.env` (gitignored): `AIMLAPI_KEY`, `DEEPGRAM_API_KEY`, `CARTESIA_API_KEY`, `ELEVENLABS_API_KEY`,
-  `GEMINI_API_KEY`, `OPENAI_API_KEY`; TURN: `WEBRTC_HOST`, `TURN_URLS/USERNAME/CREDENTIAL` (public Open Relay) —
-  for robust mobile, Cloudflare `CF_TURN_KEY_ID/CF_TURN_API_TOKEN` (lives on the fly app, not local).
-- Model keys for the brain live in `zaelar/.env` / `.meshkore/credentials/zaelar.env` (AIMLAPI etc.), routed by
-  `config/v2.py`.
-- Cloudflare DNS token: `…/meshkore/.meshkore/credentials/cloudflare-token.txt` (DNS only; no Calls/TURN perm).
-- Fly.io account: personal (`operator@example.com`), app `zaelar` (region cdg), parked (scale-to-zero).
-- Email/relay + Picovoice (future): provided by the operator when needed.
+## 9. Credentials (names only — never values, never paths)
+- Keys are entered in the ⚙ panel and kept in the gitignored credential store; `.env` is only a power-user
+  fallback. The variable each service reads is the `key_env` of its row in `config/models.default.json`
+  (`DEEPSEEK_API_KEY`, `OPENAI_API_KEY`, `DEEPGRAM_API_KEY`, `MISTRAL_API_KEY`, `INWORLD_API_KEY`,
+  `ELEVENLABS_API_KEY`, the Z.ai key for workers, …). TURN for remote browsers: `WEBRTC_HOST`,
+  `TURN_URLS/USERNAME/CREDENTIAL`.
 
 ## 10. Libraries & external APIs
 - **livekit-agents** (the AgentSession voice engine: STT/LLM/TTS plugins, Silero VAD, `MultilingualModel`
   turn-detector — runs EMBEDDED in the server process) + the native **livekit-server** binary
   (`make install-livekit`; **no Docker in the core**), **fastapi/uvicorn**, the vendored **LiveKit browser SDK**
   (`frontend/vendor/`), **loguru**, **python-dotenv**.
-- STT default: **Whisper local** (MLX on Apple Silicon / faster-whisper on Win-Linux, on-device, free). TTS local:
-  **Kokoro** (Apache-2.0, Spanish, `make install-tts`). APIs (optional/alt): **Deepgram** (STT nova-3 + Aura-2 TTS),
-  **Cartesia** (Sonic TTS), **AIMLAPI** (OpenAI-compatible LLM router → the FlashBrain fast model, e.g.
-  `x-ai/grok-4-fast-non-reasoning`, routed by `config/v2.py`). SlowBrain agents: **Claude Code / Codex** CLIs
-  (`nucleo/agentes/`). Memory: **SQLite** (sqlite-vec + FTS5) + **Ollama** embeddinggemma (fallback fastembed).
-  Widgets: **open-meteo** + **wttr.in** (weather, keyless), **DuckDuckGo html** (web search, best-effort);
-  `navegador` = **Playwright** Chromium. Cloudflare (DNS/TURN), fly.io (deploy).
+- Models and voice: the rows of `config/models.default.json` (DeepSeek, OpenAI, Z.ai, Deepgram, Voxtral,
+  Inworld, ElevenLabs); local options Whisper (MLX / faster-whisper) and Kokoro. Brain Workers: **Claude Code /
+  Codex / Grok** CLIs (`nucleo/workers/`). Memory: **SQLite** (sqlite-vec + FTS5). Widgets: **open-meteo** +
+  **wttr.in** (weather, keyless); `navegador` = **Playwright** Chromium.
 
 ## 11. Repo layout  (root has NO loose .py/.html; see zaelar-modules.md)
 
@@ -217,7 +212,7 @@ zaelar/
   server/        SERVER — FastAPI app + routers + entrypoint (__main__.py); runs the LiveKit agent worker EMBEDDED
   voice/         VOICE ENGINE (server-side): engine/ (LiveKit AgentSession + STT/LLM/TTS providers, incl.
                  providers/nucleo.py), tag_protocol.py, observer.py, prompt.py, brain_notes.py, proactive.py, speech/
-  nucleo/        BRAIN «Colmena» (BRAIN=nucleo): flash/ (FlashBrain) · dispatch.py + memory_agent.py + agentes/ (SlowBrain) · loop.py · scheduler.py · cron_api.py · sparks.py
+  nucleo/        BRAIN «Colmena» (BRAIN=nucleo): flash/ (FlashBrain) · dispatch.py + memory_agent.py + workers/ (Brain Workers) · spec/circuit/tasks (a request's life) · consent.py · loop.py · scheduler.py · cron_api.py · sparks.py
   memory/        CENTRAL MEMORY — SQLite zaelar.db (sqlite-vec + FTS5 + RRF + graph + forgetting); absorbed old files/ as episodic layer
   bus/           EVENT BUS — in-process pub/sub (generalizes voice/observer.py) + durable SQLite log + SSE bridge
   connectors/    external I/O: meshkore/ (cluster WS · FlashBrain untrusted profile · per-peer capsule) · architect/ · whatsapp/ · telegram/ · messaging/ (shared)
