@@ -238,19 +238,35 @@ _SECRET_RX = [
 ]
 
 
-def _literal_actions(fn, param: str) -> set[str]:
+def _literal_actions(fn, param: str, follow_aliases: bool = False) -> set[str]:
     """Action literals a function body compares its `param` against — `if action == "x"`, `elif action in
     ("a","b")`, `action.strip() == "x"`. The scanning half shared by the two functions below, so a delegate
     module is read by exactly the same rules as apply_action itself."""
     import ast
 
-    def _is_action_ref(node) -> bool:
+    def _refers_to(node, names: set[str]) -> bool:
         # `action`, or a chained call/attr on it: `action.strip()`, `action.lower().strip()`.
         while isinstance(node, ast.Call):
             node = node.func
         while isinstance(node, ast.Attribute):
             node = node.value
-        return isinstance(node, ast.Name) and node.id == param
+        return isinstance(node, ast.Name) and node.id in names
+
+    # V2-778 F1-12 — in a DELEGATE, a local alias of the parameter counts as the parameter: `act = str(action or
+    # "")` is how `widgets/agenda/tasklists.apply` normalizes it, and without following it every task action the
+    # agenda delegates read as a dead manifest entry (`make test-widgets` red since V2-744). Only plain aliases:
+    # a name assigned from an expression whose every Name is the parameter or `str`. Not applied to
+    # `apply_action` itself yet: there it would turn two fail-open widgets (archivos, imagenes) into verdicts
+    # that need a decision first (V2-778 §Log).
+    aliases = {param}
+    for node in (ast.walk(fn) if follow_aliases else ()):
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+            ids = {x.id for x in ast.walk(node.value) if isinstance(x, ast.Name)}
+            if param in ids and ids <= {param, "str"}:
+                aliases.add(node.targets[0].id)
+
+    def _is_action_ref(node) -> bool:
+        return _refers_to(node, aliases)
 
     names: set[str] = set()
     for node in ast.walk(fn):
@@ -299,7 +315,7 @@ def _delegated_actions(fn, param: str, tree, wdir: str) -> set[str]:
                        if isinstance(n, ast.FunctionDef) and n.name == node.func.attr), None)
         if target is None or not target.args.args:
             continue
-        out |= _literal_actions(target, target.args.args[0].arg)
+        out |= _literal_actions(target, target.args.args[0].arg, follow_aliases=True)
     return out
 
 
