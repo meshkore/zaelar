@@ -15,6 +15,7 @@ from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[3]
 VOICE = ["voice/engine/llm/providers/nucleo.py", "nucleo/flash/tool_executor.py", "nucleo/flash/tool_executor_widget.py",
+         "nucleo/flash/tool_executor_calls.py", "nucleo/flash/tool_executor_widget_calls.py",
          "nucleo/flash/post_stream.py", "nucleo/flash/post_stream_words.py", "nucleo/flash/post_stream_lanes.py",
          "nucleo/flash/post_stream_settle.py"]
 
@@ -60,7 +61,8 @@ def _probe_files() -> list[str]:
 def test_no_new_brain_module_is_wired_into_the_voice_turn_only():
     voice_only = _flash_imports(VOICE) - _flash_imports(_probe_files()) - {"probe", "probe_after", "tool_executor", "tool_executor_widget",
                                                                           "post_stream_words", "post_stream_lanes",
-                                                                          "post_stream_settle",
+                                                                          "post_stream_settle", "tool_executor_calls",
+                                                                          "tool_executor_widget_calls",
                                                                           "post_stream"}
     new = sorted(voice_only - set(VOICE_ONLY))
     assert not new, ("these nucleo.flash modules are imported by the voice turn and not by the text probe — the "

@@ -74,7 +74,7 @@ def turn_source() -> str:
         body = body.replace('return {"__return__": True}', "return")     # the turn's own early return
         prov = prov[:a] + "".join(("    " + ln) if ln.strip() else ln for ln in body.splitlines(True)) + prov[b:]
     # module-level helpers F1 moved out of the provider: read with it, as written there
-    return prov + "".join("\n" + _as_written(x) for x in _PROVIDER_MODULES)
+    return _unlift(prov + "".join("\n" + _as_written(x) for x in _PROVIDER_MODULES))
 
 
 #: Module-level helpers moved out of the provider (V2-778 F1), read as part of it by a source guard.
@@ -150,11 +150,13 @@ def probe_source() -> str:
         b = prov.index(last, a) + len(last)
         src = where[0].read_text(encoding="utf-8") if where else after
         prov = prov[:a] + re.sub(r"\b_probe\.", "", _body_of(src, fname)) + prov[b:]
-    return prov
+    return _unlift(prov)
 
 
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
 _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
+            (ENGINE / "nucleo" / "flash" / "tool_executor_calls.py").resolve(): "_tx",
+            (ENGINE / "nucleo" / "flash" / "tool_executor_widget_calls.py").resolve(): "_txw",
             (ENGINE / "voice" / "engine" / "pipeline" / "agent_events.py").resolve(): "_ag",
             **{(ENGINE / "nucleo" / "flash" / f"probe_{x}.py").resolve(): "_probe" for x in ("after", "decide", "mirrors")},
             **{(ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py").resolve(): "_pst" for x in ("words", "lanes", "settle")},

@@ -43,6 +43,7 @@ ENGINE = Path(__file__).resolve().parents[4]
 #: pinned to one path stops guarding the moment the code is extracted, and does it by going GREEN, not red.
 _VOICE_SRC = ("voice/engine/llm/providers/nucleo.py", "voice/engine/llm/providers/widget_intent.py",
               "nucleo/flash/tool_executor_widget.py", "nucleo/flash/tool_executor.py",
+              "nucleo/flash/tool_executor_calls.py", "nucleo/flash/tool_executor_widget_calls.py",
               "nucleo/flash/post_stream.py", "nucleo/flash/post_stream_words.py",
               "nucleo/flash/post_stream_lanes.py", "nucleo/flash/post_stream_settle.py", "voice/engine/llm/providers/turn_prompt.py",
               "voice/engine/llm/providers/turn_after.py", "voice/engine/llm/providers/turn_tools.py",
