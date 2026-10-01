@@ -43,7 +43,7 @@ FILES = {
     'widgets/agenda/data.py': 867,
     'widgets/navegador/owner.py': 883,
     'widgets/navegador/tasks.py': 829,
-    'widgets/youtube/data.py': 813,
+
 }
 
 FUNCTIONS = {
@@ -117,7 +117,6 @@ FUNCTIONS = {
     'widgets/navegador/owner.py::TaskBrowser.agent_act': 124,
     'widgets/navegador/owner_actions.py::_automate': 135,
     'widgets/refs.py::resolve': 125,
-    'widgets/youtube/data.py::apply_action': 561,
     'widgets/youtube/library.py::apply': 217,
 }
 
@@ -131,7 +130,6 @@ BRANCHES = {
     'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 108,
     'widgets/agenda/data.py::apply_action': 236,
     'widgets/agenda/tasklists.py::apply': 115,
-    'widgets/youtube/data.py::apply_action': 239,
     'widgets/youtube/library.py::apply': 123,
 }
 

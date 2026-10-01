@@ -253,7 +253,8 @@ PER_FILE: dict[str, int] = {
     'widgets/results/sheet_names.py': 3,
     'widgets/server_api.py': 5,
     'widgets/youtube/account.py': 1,
-    'widgets/youtube/data.py': 1,
+    'widgets/youtube/actions.py': 1,
+
 }
 
 
