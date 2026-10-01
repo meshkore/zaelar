@@ -12,6 +12,7 @@ not, the assertion is describing the code instead of holding it.
 from pathlib import Path
 
 import pytest
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 ROOT = Path(__file__).resolve().parents[4]
 SSE = ROOT / "frontend" / "app" / "services" / "sse.js"
@@ -22,7 +23,7 @@ EAR = ROOT / "frontend" / "app" / "services" / "wakeword.js"
 
 def _src(p: Path) -> str:
     assert p.exists(), f"{p} is gone — the seam moved and this test has to move with it"
-    return p.read_text(encoding="utf-8")
+    return _vts.read(p)     # V2-778 F1: a split file is read with its moved pieces
 
 
 # ── 1 · the wall asks before it paints ─────────────────────────────────────────────────────────────────

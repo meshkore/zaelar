@@ -14,6 +14,7 @@ import asyncio
 import json
 
 import pytest
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 
 # ── 1) the boot default is the PRODUCT ───────────────────────────────────────────────────────────────────
@@ -46,7 +47,7 @@ def _stripped(path):
     import re
     from pathlib import Path
     src = Path(__file__).resolve().parents[4] / path
-    return re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
+    return re.sub(r"(?m)#.*$", "", _vts.read(src))     # V2-778 F1: a split file is read whole
 
 
 def test_a_dead_session_records_alerts_and_asks_for_the_recycle(monkeypatch):

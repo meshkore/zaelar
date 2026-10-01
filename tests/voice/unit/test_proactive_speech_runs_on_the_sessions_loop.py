@@ -25,12 +25,13 @@ message that names neither the voice nor the delivery.
 import asyncio
 import threading
 from pathlib import Path
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 AGENT = Path(__file__).resolve().parents[3] / "voice" / "engine" / "pipeline" / "agent.py"
 
 
 def _code() -> str:
-    return "\n".join(l for l in AGENT.read_text(encoding="utf-8").splitlines()
+    return "\n".join(l for l in _vts.read(AGENT).splitlines()
                      if not l.strip().startswith("#"))
 
 
@@ -125,7 +126,7 @@ def test_the_hop_is_handed_coroutines_not_speech_handles():
     """`run_coroutine_threadsafe(SpeechHandle)` raises «A coroutine object is required» — the say has already
     been scheduled (wrongly) by then, so the error arrives AFTER the damage. The agent.py callers must wrap the
     call in an `async def` body, never a bare lambda around `session.say`."""
-    src = "\n".join(l for l in AGENT.read_text(encoding="utf-8").splitlines()
+    src = "\n".join(l for l in _vts.read(AGENT).splitlines()
                     if not l.strip().startswith("#"))
     assert "_on_session_loop(lambda" not in src, \
         "a lambda around session.say CALLS it on the caller's loop and hands the hop a SpeechHandle — the " \

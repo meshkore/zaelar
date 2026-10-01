@@ -23,6 +23,7 @@ import pytest
 from livekit.agents.types import FlushSentinel
 
 from voice.engine.speech import filler_audio as fa
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 
 class _Brain:
@@ -185,13 +186,13 @@ def test_the_wiring_uses_llm_node_and_NOT_tts_node():
     from pathlib import Path
     # The overrides moved to their own module (V2-538, the architecture ratchet asked); the guard follows the
     # code, which is exactly what it caught when they moved.
-    body = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/zaelar_agent.py").read_text()
+    body = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/pipeline/zaelar_agent.py")
     assert "llm_node_with_filler" in body and "transcription_node_without_filler" in body, \
         "the filler enters through llm_node and is stripped in transcription_node"
     assert "tts_node_with_filler" not in body, \
         "tts_node cannot observe a late reply — it is only created once text exists"
     # …and the entrypoint still MOUNTS it: a class nobody instantiates is a node nobody overrides.
-    entry = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py").read_text()
+    entry = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py")
     assert "from .zaelar_agent import ZaelarAgent" in entry and "ZaelarAgent(instructions=" in entry
 
 

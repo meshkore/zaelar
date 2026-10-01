@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 SCRIPT = Path(__file__).with_name("test_the_room_is_not_the_operator.mjs")
 
@@ -24,7 +25,7 @@ def test_a_typed_line_reaches_every_wall_and_the_typing_tab_paints_it_once() -> 
     Now the engine announces every typed line the way the STT announces a final transcript, and the tab that
     typed it recognises its own last line instead of painting it twice."""
     root = Path(__file__).resolve().parents[4]
-    agent = (root / "voice/engine/pipeline/agent.py").read_text(encoding="utf-8")
+    agent = _vts.read(root / "voice/engine/pipeline/agent.py")
     i = agent.index('_emit("brain", "📥 chat/paste recibido", text=txt, role="user")')
     assert '_emit("transcript", "text-injected chat", text=txt, role="user")' in agent[i:i + 900], (
         "a typed line must leave the same trace as a spoken one, right after it is received")

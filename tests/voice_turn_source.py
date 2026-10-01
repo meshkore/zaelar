@@ -155,6 +155,7 @@ def probe_source() -> str:
 
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
 _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
+            (ENGINE / "voice" / "engine" / "pipeline" / "agent_events.py").resolve(): "_ag",
             **{(ENGINE / "nucleo" / "flash" / f"probe_{x}.py").resolve(): "_probe" for x in ("after", "decide", "mirrors")},
             **{(ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py").resolve(): "_pst" for x in ("words", "lanes", "settle")},
             (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py").resolve(): "_p",
@@ -167,7 +168,40 @@ _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
 def _as_written(x: Path) -> str:
     src = x.read_text(encoding="utf-8")
     alias = _ALIASED.get(x.resolve())
-    return re.sub(rf"\b{alias}\.", "", src) if alias else src
+    return _unlift(re.sub(rf"\b{alias}\.", "", src) if alias else src)
+
+
+_LIFTED = re.compile(r"(?m)^(?P<ind>[ \t]*)# V2-778 F1 — the body lives in `(?P<path>[\w/]+\.py)`; this closure passes "
+                     r"what it closed over\.\n[ \t]*return (?:await )?\w+\.(?P<name>\w+)\(.*\)\n")
+
+
+def _unlift(src: str) -> str:
+    """Put every closure F1 lifted to a module function back in its thin closure, as it was written there."""
+    import ast as _ast
+
+    def _back(m):
+        mod = ENGINE / m["path"]
+        text = _as_written(mod)
+        tree = _ast.parse(mod.read_text(encoding="utf-8"))
+        fn = next(n for n in tree.body if isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef)) and n.name == m["name"])
+        lines = text.splitlines(True)
+        # the alias was stripped line by line, so line numbers still match the parsed module
+        import io
+        import tokenize
+        depth, start = 0, fn.body[0].lineno - 1
+        head = "".join(lines[fn.lineno - 1:fn.end_lineno])
+        for t in tokenize.generate_tokens(io.StringIO(head).readline):   # the `:` closing the def header
+            if t.type == tokenize.OP and t.string in "([{":
+                depth += 1
+            elif t.type == tokenize.OP and t.string in ")]}":
+                depth -= 1
+            elif t.type == tokenize.OP and t.string == ":" and depth == 0:
+                start = fn.lineno - 1 + t.end[0]
+                break
+        body = lines[start:fn.end_lineno]       # comments between the header and the first statement included
+        ind = m["ind"]
+        return "".join((ind + ln[4:]) if ln.strip() else ln for ln in body)   # module body sits at 4 spaces
+    return _LIFTED.sub(_back, src)
 
 
 def read(path) -> str:
@@ -181,13 +215,15 @@ def read(path) -> str:
     if p.resolve() == PROBE.resolve():
         return probe_source()
     if p.resolve() in _SPLIT:
-        return "\n".join(_as_written(x) for x in [p, *_SPLIT[p.resolve()]])
-    return p.read_text(encoding="utf-8")
+        return _unlift("\n".join(_as_written(x) for x in [p, *_SPLIT[p.resolve()]]))
+    return _unlift(p.read_text(encoding="utf-8"))
 
 
 def getsource(obj) -> str:
     """`inspect.getsource` for a source guard: the provider module (or its `_run_inner`) yields the whole turn."""
     import inspect
+    if inspect.ismodule(obj) and getattr(obj, "__file__", None) and Path(obj.__file__).resolve() in _SPLIT:
+        return read(obj.__file__)             # a split module is read with its moved pieces
     name = getattr(obj, "__name__", "") or ""
     qual = getattr(obj, "__qualname__", "") or ""
     if name == "voice.engine.llm.providers.nucleo" or qual == "NucleoLLMStream._run_inner":

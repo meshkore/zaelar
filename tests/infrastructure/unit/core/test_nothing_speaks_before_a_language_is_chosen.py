@@ -25,6 +25,7 @@ from pathlib import Path
 import pytest
 
 from tests.lang import speaking
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 ROOT = Path(__file__).resolve().parents[4]
 AGENT = ROOT / "voice" / "engine" / "pipeline" / "agent.py"
@@ -48,7 +49,7 @@ def test_the_first_run_branch_returns_before_it_can_generate_a_reply():
     """Structural, because the branch lives inside a per-session closure with no importable unit (the same
     shape the V2-101 module records). What is asserted is the only thing that matters: on the onboarding
     path control leaves the function before `session.generate_reply` is reachable."""
-    src = AGENT.read_text(encoding="utf-8")
+    src = _vts.read(AGENT)
     # V2-745 moved the DECISION to `first_air.silent_first_run()` (with the operator's own words behind it)
     # and left the branch here; the guard follows it, which is what its own message asked for.
     head, _, tail = src.partition("if silent_first_run():")
@@ -463,7 +464,7 @@ def test_a_plugin_that_cannot_be_repointed_degrades_instead_of_raising():
 def test_the_pipeline_hands_over_the_tts_it_just_built():
     """The seam is worthless if nobody registers the live TTS, and that call lives in the one place that
     has it: right where `entrypoint()` acquires it, before the session is constructed."""
-    src = (ROOT / "voice" / "engine" / "pipeline" / "agent.py").read_text(encoding="utf-8")
+    src = _vts.read(ROOT / "voice" / "engine" / "pipeline" / "agent.py")
     i_build = src.index('tts = ctx.proc.userdata.get("tts") or build_tts()')
     i_attach = src.index("live_tts.attach(tts,", i_build)
     i_session = src.index("session = AgentSession(", i_build)
@@ -623,7 +624,7 @@ def test_a_session_re_points_its_prewarmed_tts_to_todays_voice(monkeypatch):
         assert t.got and t.got[0] == "today-voice"
     finally:
         live_tts.detach(t)
-    agent = (ROOT / "voice" / "engine" / "pipeline" / "agent.py").read_text(encoding="utf-8")
+    agent = _vts.read(ROOT / "voice" / "engine" / "pipeline" / "agent.py")
     i_attach = agent.index("_live_tts.attach(tts, SETTINGS.tts_provider)")
     i_apply = agent.index("_live_tts.apply_current()")
     assert i_attach < i_apply < i_attach + 400, "re-point right after attach, in the same place"

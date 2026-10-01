@@ -14,6 +14,7 @@ from types import SimpleNamespace
 import pytest
 
 from voice.engine.pipeline import reply_wall as rw
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 AGENT = Path("voice/engine/pipeline/agent.py")
 ZAGENT = Path("voice/engine/pipeline/zaelar_agent.py")
@@ -67,7 +68,7 @@ def test_the_session_wires_the_tee_and_the_two_hooks():
     and the item hook defers to it."""
     z = ZAGENT.read_text(encoding="utf-8")
     assert "_rw.tee(text)" in z[z.index("def tts_node"):], "what the voice is fed goes through the tee"
-    a = AGENT.read_text(encoding="utf-8")
+    a = _vts.read(AGENT)
     err = a[a.index('@session.on("error")'):]
     nxt = err.find("@session.on(", 1)
     err = err[:nxt if nxt > 0 else len(err)]

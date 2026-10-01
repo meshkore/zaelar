@@ -121,7 +121,7 @@ def test_a_fresh_start_forgets_any_earlier_power_off(workspace):
 
 def test_the_voice_can_never_choose_the_language():
     """The path that chose Spanish from a sentence he said to somebody else is gone, not guarded."""
-    src = (ENGINE / "voice/engine/pipeline/agent.py").read_text(encoding="utf-8")
+    src = _vts.read(ENGINE / "voice/engine/pipeline/agent.py")
     assert "_maybe_detect_language" not in src and ".lock(" not in src, (
         "the voice pipeline locks a language again — the picker must be the only door")
 

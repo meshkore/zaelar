@@ -572,7 +572,7 @@ def test_wakeword_spotting_emits_once_per_burst(monkeypatch):
 
 def test_the_interim_stream_and_the_gate_are_both_wired():
     import re as _re
-    agent_src = _re.sub(r"(?m)#.*$", "", open("voice/engine/pipeline/agent.py", encoding="utf-8").read())
+    agent_src = _re.sub(r"(?m)#.*$", "", _vts.read("voice/engine/pipeline/agent.py"))
     # V2-655: the gate block moved out of the provider into `attention_turn.judge` (the ratchet asked for an
     # extraction, not a bigger ceiling). The guard follows the CODE — the claim is unchanged.
     gate_src = _re.sub(r"(?m)#.*$", "",
@@ -614,7 +614,7 @@ def test_the_text_channel_stamps_it_and_the_provider_reads_it():
     (`deduped`) action must not count as «handled» on a typed turn, or the backstop goes quiet again."""
     import os
     eng = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-    handler = open(os.path.join(eng, "voice/engine/pipeline/agent.py")).read()
+    handler = _vts.read(os.path.join(eng, "voice/engine/pipeline/agent.py"))
     assert "attention.note_typed()" in handler, "the chat/paste handler no longer stamps typed turns"
     prov = _vts.read(os.path.join(eng, "voice/engine/llm/providers/nucleo.py"))
     assert "was_typed()" in prov, "the provider no longer reads whether the turn was typed"

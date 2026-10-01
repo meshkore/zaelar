@@ -16,12 +16,13 @@ temporal window.
 
 These tests establish that boundary so it does not inadvertently blur in a future change."""
 from pathlib import Path
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 SRC = Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py"
 
 
 def _body():
-    return SRC.read_text(encoding="utf-8")
+    return _vts.read(SRC)
 
 
 def test_state_trace_safe_set_excludes_states_that_can_precede_their_own_trace():

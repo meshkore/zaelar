@@ -13,6 +13,7 @@ import re
 import pytest
 
 from voice import attention
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
@@ -28,7 +29,7 @@ def _smart(monkeypatch):
 
 
 def _src(rel: str) -> str:
-    return open(os.path.join(ENG, rel), encoding="utf-8").read()
+    return _vts.read(os.path.join(ENG, rel))     # V2-778 F1: a split file is read with its moved pieces
 
 
 # ── the measured incident, replayed second by second ───────────────────────────────────────────────────────

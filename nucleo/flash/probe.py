@@ -680,13 +680,13 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
 # this runs as `__main__`: runpy loads it as `__main__` AND, transitively, as `nucleo.flash.probe`). The CLI
 # (_post/_fmt/main) needs none of this module's state — it only talks to the running server over HTTP — and
 # lives in probe_cli.py; `python -m nucleo.flash.probe` still works via the __main__ block below.
-if __name__ == "__main__":
-    from nucleo.flash.probe_cli import main as _main
-    _main()
-
 
 # V2-778 F1 — what runs after the model answered lives in `nucleo/flash/probe_after.py`. A module import at the
 # end (that module reads this one's names) keeps the two-way reference safe whichever is imported first.
 from nucleo.flash import probe_after as _probe_after  # noqa: E402
 from nucleo.flash import probe_decide as _probe_decide  # noqa: E402 — V2-778 F1, reads this module back
 from nucleo.flash import probe_mirrors as _probe_mirrors  # noqa: E402 — V2-778 F1, reads this module back
+
+if __name__ == "__main__":
+    from nucleo.flash.probe_cli import main as _main
+    _main()

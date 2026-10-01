@@ -178,10 +178,10 @@ def test_V2529_el_relleno_es_audio_dentro_de_la_locucion_y_el_proveedor_solo_ARM
     # V2-538: las tres sobrescrituras de nodo salieron a su propio módulo (lo pidió el trinquete de
     # arquitectura). El guarda sigue al CÓDIGO —que es justo lo que cazó al mudarse— y comprueba además que
     # el entrypoint la MONTE: una sobrescritura que nadie instancia no es cableado.
-    overrides = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/zaelar_agent.py").read_text()
+    overrides = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/pipeline/zaelar_agent.py")
     assert "llm_node_with_filler" in overrides, \
         "sin el override de llm_node, el relleno no tiene por dónde entrar como PRIMER segmento de la respuesta"
-    agent_body = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py").read_text()
+    agent_body = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py")
     assert "from .zaelar_agent import ZaelarAgent" in agent_body and "ZaelarAgent(instructions=" in agent_body, \
         "la clase con los overrides tiene que estar MONTADA por el entrypoint"
 
@@ -192,7 +192,7 @@ def test_el_hablador_efimero_pasa_add_to_chat_ctx_false():
     from pathlib import Path
 
     src = Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py"
-    body = src.read_text(encoding="utf-8")
+    body = _vts.read(src)     # V2-778 F1: a split file is read whole
     i = body.index("async def _speak_ephemeral")
     j = body.index("register_ephemeral_speaker", i)
     block = body[i:j]
@@ -286,7 +286,7 @@ def test_the_filler_remembers_when_it_last_sounded():
 
 
 def test_the_end_of_the_operators_voice_is_recorded_as_the_edge():
-    src = AGENT.read_text(encoding="utf-8")
+    src = _vts.read(AGENT)
     i = src.index('_emit("vad", "… fin de voz"')
     assert '_onset["voice_ended"] = time.monotonic()' in src[i:i + 400], \
         "the near end of the wait has to be stamped where the voice ends, or there is nothing to measure from"
@@ -296,7 +296,7 @@ def test_the_onset_is_reported_once_and_only_for_a_plausible_wait():
     """Two properties this cannot be right without: the edge is CLEARED (a segmented reply would otherwise
     report its second segment as a second onset) and a stale edge is dropped (a proactive delivery minutes
     later is not an answer to anything)."""
-    src = AGENT.read_text(encoding="utf-8")
+    src = _vts.read(AGENT)
     i = src.index("RESPONSE ONSET")
     block = src[i:i + 1800]
     assert '_onset["voice_ended"] = 0.0' in block, "reported once per wait"

@@ -216,7 +216,7 @@ PER_FILE: dict[str, int] = {
     'voice/engine/llm/providers/turn_prompt.py': 35,
     'voice/engine/llm/providers/turn_tools.py': 20,
     'voice/engine/llm/providers/widget_intent.py': 6,
-    'voice/engine/pipeline/agent.py': 1,
+    'voice/engine/pipeline/agent_events.py': 1,
     'voice/engine/pipeline/first_air.py': 2,
     'voice/engine/speech/elevenlabs_voices.py': 6,
     'voice/engine/speech/filler_audio.py': 5,

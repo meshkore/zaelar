@@ -16,6 +16,7 @@ presences: what must be prevented is someone WIRING the chat back to the speaker
 """
 import re
 from pathlib import Path
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 FRONTEND = Path(__file__).resolve().parents[4] / "frontend" / "app"
 
@@ -29,7 +30,7 @@ def _code(path: Path) -> str:
 CHATWALL = _code(FRONTEND / "components" / "ChatWall.js")
 SESSION_LK = _code(FRONTEND / "services" / "session-lk.js")
 SSE = _code(FRONTEND / "services" / "sse.js")
-AGENT = (Path(__file__).resolve().parents[4] / "voice" / "engine" / "pipeline" / "agent.py").read_text(encoding="utf-8")
+AGENT = _vts.read(Path(__file__).resolve().parents[4] / "voice" / "engine" / "pipeline" / "agent.py")
 
 
 # ── the chat does NOT touch voice ─────────────────────────────────────────────────────────────────────────────

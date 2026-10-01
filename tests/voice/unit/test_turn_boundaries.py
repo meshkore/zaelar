@@ -137,7 +137,8 @@ def test_the_session_declares_its_turn_boundaries_in_one_place():
     forms in the same call again, this catches it."""
     import inspect
     from voice.engine.pipeline import agent
-    src = inspect.getsource(agent)
+    from tests import voice_turn_source as _vts   # V2-778 F1: a split module is read with its moved pieces
+    src = _vts.getsource(agent)
     # Only the session CONSTRUCTION: `allow_interruptions` is also a legitimate `session.say()` argument,
     # which is per-utterance and has nothing to do with turn configuration.
     start = src.index("AgentSession(")

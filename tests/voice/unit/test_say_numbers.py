@@ -16,6 +16,7 @@ import asyncio
 import pytest
 
 from voice.engine.speech import say_numbers as sn
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 
 # ── what it fixes ────────────────────────────────────────────────────────────────────────────────────────
@@ -121,11 +122,11 @@ def test_it_is_wired_into_the_tts_node_and_the_subtitles_are_left_alone():
     a price cannot slip through by taking another road. Subtitles and the chat wall go through
     `transcription_node` and must keep showing «151.008 €», which is what the operator wants to READ."""
     import pathlib
-    src = pathlib.Path("voice/engine/pipeline/zaelar_agent.py").read_text(encoding="utf-8")
+    src = _vts.read("voice/engine/pipeline/zaelar_agent.py")
     assert "def tts_node(self, text, model_settings):" in src
     assert "tts_node_speaking_figures" in src
     tn = src[src.index("def transcription_node("):src.index("def tts_node(")]
     assert "say_numbers" not in tn, "los subtítulos se leen, no se pronuncian: no se tocan"
     # And the class is actually MOUNTED by the entrypoint — an override nobody instantiates is not wiring.
-    entry = pathlib.Path("voice/engine/pipeline/agent.py").read_text(encoding="utf-8")
+    entry = _vts.read("voice/engine/pipeline/agent.py")
     assert "from .zaelar_agent import ZaelarAgent" in entry and "ZaelarAgent(instructions=" in entry

@@ -32,6 +32,7 @@ from pathlib import Path
 import pytest
 
 from voice.engine.pipeline.first_air import READY_MAX_S, FirstAir
+from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 SRC = Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py"
 
@@ -160,7 +161,7 @@ def test_the_bound_is_generous_enough_for_the_cold_handshake_we_measured():
 # ── the wiring: `agent.py` must actually be using it ──────────────────────────────────────────────────
 
 def _body() -> str:
-    return SRC.read_text(encoding="utf-8")
+    return _vts.read(SRC)
 
 
 def test_the_kickoff_is_created_uninterruptible_and_parked():
