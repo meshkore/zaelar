@@ -32,7 +32,7 @@ FILES = {
     'connectors/email/mailbox.py': 816,
     'connectors/meshkore/bridge.py': 891,
     'memory/api.py': 941,
-    'nucleo/dispatch.py': 1203,
+    'nucleo/dispatch.py': 921,
     'nucleo/energy_meter.py': 820,
     'nucleo/flash/direct_action.py': 821,
     'nucleo/flash/fast_client.py': 866,

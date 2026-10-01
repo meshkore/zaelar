@@ -19,6 +19,7 @@ import pytest
 
 from widgets.navegador import act_api
 from widgets.navegador import tasks as T
+from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 @pytest.fixture(autouse=True)
@@ -77,5 +78,5 @@ def test_el_sello_lo_PONE_quien_prepara_la_pestana():
     import inspect
 
     from nucleo import dispatch as D
-    src = inspect.getsource(D._prepare_web)
+    src = _vts.getsource(D._prepare_web)
     assert "sheet=sheet_of(rec)" in src, "la pestaña vuelve a nacer sin saber de qué encargo es"

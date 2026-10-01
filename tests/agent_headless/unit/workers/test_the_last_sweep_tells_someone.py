@@ -92,7 +92,8 @@ def test_finalize_web_llama_a_la_nota_justo_donde_escribe_las_filas():
     """AST wiring guard. The function can be perfect and still be useless if the only path that
     needed it does not call it — which is literally the defect it fixes."""
     import ast
-    src = ast.parse(open("nucleo/dispatch.py", encoding="utf8").read())
+    from tests import voice_turn_source as _vts   # V2-778 F1: the dispatcher is read with its moved pieces
+    src = ast.parse(_vts.read("nucleo/dispatch.py"))
     fn = next(n for n in ast.walk(src)
               if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "_finalize_web")
     llamadas = [getattr(c.func, "attr", getattr(c.func, "id", "")) for c in ast.walk(fn) if isinstance(c, ast.Call)]

@@ -97,7 +97,8 @@ _PROVIDER_CALLS = (
 #: Other files F1 split, and the modules their code moved to. A guard that reads the old file reads them all,
 #: concatenated: the moved code stays contiguous, so an «X before Y» assertion inside it keeps its meaning.
 DISPATCH = ENGINE / "nucleo" / "dispatch.py"
-_SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py", ENGINE / "nucleo" / "dispatch_session.py"],
+_SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py", ENGINE / "nucleo" / "dispatch_session.py",
+                              ENGINE / "nucleo" / "dispatch_prepare.py"],
           (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"],
           (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py"],
           (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"],
@@ -138,6 +139,7 @@ def probe_source() -> str:
 
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
 _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
+            (ENGINE / "nucleo" / "dispatch_prepare.py").resolve(): "_d",
             (ENGINE / "widgets" / "navegador" / "owner_login.py").resolve(): "_o",
             (ENGINE / "widgets" / "navegador" / "owner_actions.py").resolve(): "_o"}
 
@@ -192,4 +194,9 @@ def getsource(obj) -> str:
     if mod == "nucleo.dispatch" and qual == "_run_session":          # the facade's delegate (V2-778 F1)
         from nucleo import dispatch_session      # read as it was written there: without the `_d.` the move added
         return re.sub(r"\b_d\.", "", inspect.getsource(dispatch_session._run_session))
-    return inspect.getsource(obj)
+    src = inspect.getsource(obj)
+    try:                                      # a moved body reads its old module through an alias: read as written
+        alias = _ALIASED.get(Path(inspect.getfile(obj)).resolve())
+    except TypeError:
+        alias = None
+    return re.sub(rf"\b{alias}\.", "", src) if alias else src
