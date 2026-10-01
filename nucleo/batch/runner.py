@@ -201,7 +201,7 @@ _SENTENCE_RE = re.compile(r"(?<=[.;!?])\s+|\n+")
 async def _store_rule(goal: str) -> dict:
     """A rule row, sentence by sentence: the style and consent flags (the engine's mouths and gate), then the
     sentence into memory with the scope the fixed classifier gives it. No model call. Never raises."""
-    stored = []
+    stored, scopes = [], []
     try:
         from memory import api as _mem
         from nucleo import consent as _consent, style_policy as _stylep
@@ -215,9 +215,13 @@ async def _store_rule(goal: str) -> dict:
                 _consent.apply_directive(s)
             except Exception:  # noqa: BLE001
                 pass
-            await asyncio.to_thread(_mem.add_user_rule, s, scope=_rscope.scope_of(s))
+            _scope = _rscope.scope_of(s)
+            await asyncio.to_thread(_mem.add_user_rule, s, scope=_scope)
             stored.append(s)
-        _emit("🧬 user rule guardada (lista)", text=" · ".join(x[:60] for x in stored), n=len(stored))
+            scopes.append(_scope)
+        # V2-778 F3-25: each rule's scope rides on the event, so a misrouted one is visible in the viewer
+        _emit("🧬 user rule guardada (lista)", text=" · ".join(x[:60] for x in stored), n=len(stored),
+              scopes=scopes)
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"rule not stored — {type(e).__name__}: {e}"}
     if not stored:

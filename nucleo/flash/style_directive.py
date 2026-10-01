@@ -29,8 +29,10 @@ def handle(directive: str, text: str, brain, emit, spawn) -> bool:
                 emit("brain", "🧬 user rule retirada" if gone else "🧬 user rule: sin match para retirar",
                      text=(gone or d)[:100], role="system")
             else:
-                await asyncio.to_thread(_mem.add_user_rule, d, scope=_rscope.scope_of(d))
-                emit("brain", "🧬 user rule guardada (persiste)", text=d[:100], role="system")
+                _scope = _rscope.scope_of(d)
+                await asyncio.to_thread(_mem.add_user_rule, d, scope=_scope)
+                # V2-778 F3-25: the scope rides on the event, so a rule filed under the wrong surface is visible
+                emit("brain", "🧬 user rule guardada (persiste)", text=d[:100], role="system", extra={"scope": _scope})
         except Exception as e:  # noqa: BLE001
             logger.warning(f"user rule no persistida (voz sigue): {e}")
 

@@ -58,7 +58,7 @@ def test_the_directive_handler_and_the_dossier_are_wired():
     import pathlib
     root = pathlib.Path(__file__).resolve().parents[3]
     sd = (root / "nucleo/flash/style_directive.py").read_text("utf-8")
-    assert sd.count("scope=_rscope.scope_of(") == 2, "both channels (voice and probe) store the rule with its scope"
+    assert sd.count("_rscope.scope_of(") == 2, "both channels (voice and probe) store the rule with its scope"
     dossier = (root / "nucleo/memory_agent/dossier.py").read_text("utf-8")
     assert 'rules_for("worker"' in dossier, "the worker's dossier asks for its own rules"
 
