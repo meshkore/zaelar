@@ -20,7 +20,10 @@ TESTMAP = ENGINE / "tests/run_testmap.py"
 
 #: CLAUDE.md came out at 688 lines once the eight rule sections and the workflow prose became pointers (from
 #: 1,074; 265 of them are the MeshKore preamble the daemon renders). It only shrinks.
-CLAUDE_LINE_CEILING = 692
+#: V2-778 (2026-10-02) — measured on the OPERATOR_CONTENT block only, the part this repo writes: the daemon re-rendered
+#: its preamble (266 → 279 lines) and the whole-file count went red over text nobody here wrote or can trim. 422 is the
+#: operator block today, unchanged by that render. It only shrinks.
+CLAUDE_LINE_CEILING = 422
 
 
 def _criteria_bullets() -> list[str]:
@@ -73,8 +76,10 @@ def test_claude_md_is_rules_and_pointers_not_a_diary():
     dated = re.findall(r"^## .*\((?:norma|regla) del operador, \d{4}|^## .*\(operator rule, \d{4}", body, re.M)
     assert dated == [], f"a dated rule section grew back into CLAUDE.md — it belongs in criteria.md: {dated}"
     assert "criteria.md" in body, "CLAUDE.md no longer points at the standing criteria"
-    lines = body.count("\n")
-    assert lines <= CLAUDE_LINE_CEILING, f"CLAUDE.md is {lines} lines (> {CLAUDE_LINE_CEILING}); never raise this ceiling"
+    i, j = body.find("<!-- OPERATOR_CONTENT_BEGIN"), body.find("<!-- OPERATOR_CONTENT_END")
+    lines = body[i:j].count("\n") if 0 <= i < j else body.count("\n")
+    assert lines <= CLAUDE_LINE_CEILING, (f"CLAUDE.md's operator block is {lines} lines (> {CLAUDE_LINE_CEILING}); "
+                                          f"never raise this ceiling")
 
 
 def test_the_three_rendered_files_carry_one_operator_block():
