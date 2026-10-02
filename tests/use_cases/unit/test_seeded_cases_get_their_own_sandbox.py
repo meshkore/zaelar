@@ -1,4 +1,4 @@
-"""A memory-SEEDED case never shares a sandbox with another seeded one.
+"""No case shares a sandbox with another — seeded or not (V2-779 F2: conversations write memory too).
 
 `hard_reset()` between cases kills work, tasks and canvas — deliberately not memory, which is durable by
 design. So seeded preferences accumulate, and on 2026-08-20 that manufactured a contradiction no real user
@@ -33,17 +33,28 @@ def test_two_seeded_cases_never_share(monkeypatch):
     assert got == [["barcelona"], ["bilbao"]], got
 
 
-def test_unseeded_cases_still_share_one_boot(monkeypatch):
-    """Sensitivity, and it is what keeps a long walk affordable: boot+prewarm per case for nothing to
-    contaminate would triple the wall clock of a 27-case segment."""
+def test_unseeded_cases_do_NOT_share_a_boot_either(monkeypatch):
+    """V2-779 F2: the memory agent distils every CONVERSATION, so an unseeded case still leaves facts behind for
+    the next one. One clean engine per case; the boot (~16 s) is small next to the conversation."""
     got = _groups(monkeypatch, [_s("a"), _s("b"), _s("c")])
-    assert got == [["a", "b", "c"]], got
+    assert got == [["a"], ["b"], ["c"]], got
 
 
 def test_a_seeded_case_does_not_drag_the_unseeded_ones_with_it(monkeypatch):
     got = _groups(monkeypatch, [_s("a"), _s("seeded", seed=["x"]), _s("b"), _s("c")])
-    assert got == [["a"], ["seeded"], ["b", "c"]], got
+    assert got == [["a"], ["seeded"], ["b"], ["c"]], got
 
 
 def test_one_case_is_still_one_boot(monkeypatch):
     assert _groups(monkeypatch, [_s("solo", seed=["x"])]) == [["solo"]]
+
+
+def test_a_two_locale_batch_goes_through_the_same_door(monkeypatch):
+    """The per-locale branch called `_sandbox_batch` with the whole locale at once: one engine for every ES
+    case, seeded or not, and `--rounds` ignored. It must split per case like a one-locale batch."""
+    seen: list[list[str]] = []
+    monkeypatch.setattr(R, "_sandbox_batch", lambda g, a, **k: seen.append([s.id for s in g]) or 0)
+    us = SC.UseCaseScenario(id="u", locale="us", tier=2, persona_brief="p", opening_line="o", success_checks="s")
+    R._sandbox_groups_by_locale([_s("a"), _s("b"), us],
+                                argparse.Namespace(locale=None, no_file=True, stop_after_failures=0))
+    assert sorted(seen) == [["a"], ["b"], ["u"]], seen

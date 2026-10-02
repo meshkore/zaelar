@@ -1197,6 +1197,11 @@ def run(args: argparse.Namespace) -> int:
     # and the probe consults the same global, so an es case and a us case CANNOT share one engine (CASES.md
     # §"Running ES vs US" already documented this and left it to whoever wired the first batch: this is it).
     # So: one sandbox PER LOCALE, pinned explicitly, run back to back.
+    return _sandbox_groups_by_locale(chosen, args, verify_tasks=verify_tasks)
+
+
+def _sandbox_groups_by_locale(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | None = None) -> int:
+    """One locale at a time (language is process-wide), and inside each, one sandbox per case."""
     locales = sorted({s.locale for s in chosen})
     if len(locales) > 1:
         rc = 0
@@ -1204,14 +1209,15 @@ def run(args: argparse.Namespace) -> int:
             print(f"\n═══ locale {loc}: {sum(1 for s in chosen if s.locale == loc)} scenarios "
                   f"(separate sandbox — language is process-wide) ═══")
             sub = argparse.Namespace(**{**vars(args), "locale": loc})
-            rc |= _sandbox_batch([s for s in chosen if s.locale == loc], sub,
-                                 verify_tasks=verify_tasks)
+            # Through the SAME door as a one-locale batch (V2-779 F2). Calling `_sandbox_batch` here put every
+            # case of a locale — seeded ones included — into one engine and skipped `--rounds` entirely.
+            rc |= _sandbox_groups([s for s in chosen if s.locale == loc], sub, verify_tasks=verify_tasks)
         return rc
     return _sandbox_groups(chosen, args, verify_tasks=verify_tasks)
 
 
 def _sandbox_groups(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | None = None) -> int:
-    """A memory-SEEDED case never shares a sandbox with another seeded one.
+    """No case shares a sandbox — and so its memory — with another.
 
     `hard_reset()` between cases kills work, tasks and canvas — deliberately NOT memory, which is durable by
     design. So seeded preferences accumulate, and on 2026-08-20 that manufactured a contradiction no real user
@@ -1221,23 +1227,14 @@ def _sandbox_groups(chosen: list, args: argparse.Namespace, *, verify_tasks: dic
     two of them the same fact in two languages. The case measured the mechanism honestly and the product not at
     all, which is the worst kind of round: it looks like a finding.
 
-    Cheapest correct fix: one sandbox per seeded case (~16s of boot each), unseeded ones keep sharing. Grouping
-    rather than always-one-per-case, because boot+prewarm per case would triple a long walk for no gain where
-    there is nothing to contaminate.
+    V2-779 F2 (2026-10-02) — EVERY case gets its own sandbox now, seeded or not. «Unseeded cases have nothing to
+    contaminate» was wrong: the memory agent distils facts from every CONVERSATION, so case N inherited what the
+    personas of cases 1..N-1 said about themselves, and a shared batch had no seed and no clean start. A boot is
+    ~16 s against minutes of conversation; a result that depends on which case ran before it is not a result.
     """
-    groups: list[list] = []
-    for s in chosen:
-        if getattr(s, "memory_seed", None):
-            groups.append([s])                        # alone: its seed must not meet anyone else's
-        elif groups and not getattr(groups[-1][0], "memory_seed", None):
-            groups[-1].append(s)
-        else:
-            groups.append([s])
+    groups: list[list] = [[s] for s in chosen]      # one clean engine — memory, DB, workspace — per case
     if len(groups) > 1:
-        seeded = sum(1 for g in groups if len(g) == 1 and getattr(g[0], "memory_seed", None))
-        print(f"▲ {len(groups)} sandboxes for this batch: {seeded} case(s) seed memory and each needs its own "
-              f"(a previous case's seeded preferences survive hard_reset and would be judged as this "
-              f"persona's).")
+        print(f"▲ {len(groups)} sandboxes for this batch: one per case, so no case inherits another's memory.")
     rc = 0
     rounds = max(1, int(getattr(args, "rounds", 1) or 1))
     first_stamp = None
