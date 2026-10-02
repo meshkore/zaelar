@@ -20,7 +20,6 @@ Portuguese, h=Hindi, j=Japanese, z=Chinese.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
 from i18n.langspec import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
     LangSpec)
 

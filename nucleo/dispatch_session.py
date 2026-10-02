@@ -7,7 +7,12 @@ helpers…) is read through the module (`_d.<name>`), so a patch on `nucleo.disp
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from nucleo import dispatch as _d
+
+if TYPE_CHECKING:
+    from nucleo.dispatch import Task
 
 
 async def _run_session(task: "Task") -> None:

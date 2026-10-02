@@ -213,7 +213,7 @@ def check(done_when, now: float | None = None) -> bool | None:
 def _name(c: dict) -> str:
     k = kind_of(c)
     if k == "desktop":
-        return f"el fondo de escritorio"
+        return "el fondo de escritorio"
     if k == "canvas":
         return f"la tarjeta «{c.get('canvas')}»"
     if k == "field":
