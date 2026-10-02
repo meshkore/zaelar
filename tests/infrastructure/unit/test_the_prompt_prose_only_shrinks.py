@@ -49,20 +49,15 @@ _PROSE_FILES = ("nucleo/flash/prompt.py", "nucleo/flash/live_blocks.py",
                 "nucleo/flash/live_blocks_nav.py")   # V2-778 F1: live_blocks' browser lines moved there, same sum
 
 #: Measured 2026-09-16. EDIT DOWNWARD ONLY — and the edit is the celebration.
-_MAX_PROSE = 44_070          # prompt.py 23_543 + live_blocks.py 15_410 + live_blocks_nav.py 5_117
-#: ⚠️ V2-778 F0 (2026-10-02) — RAISED, by the operator's decision, from 42_376. Not a celebration: DEBT, written
-#: down. +1_694 bytes landed in seven V2-776 commits while CI never reached this test (it died at ruff for 60
-#: runs): d145a5fc +622 (durable task record), d5c2a30b +65, 2a5416d8 +394 (a named person reaches the turn),
-#: 4f0619ce +146, 54c6f99b +114, 9b2a9f76 +274, 2a2d2189 +81. Paying it down changes what the model reads,
-#: so it waits until the use cases can MEASURE that change (V2-778 F2). From here on, editable downward only.
-#: V2-728: 66_072 → 66_555. The PROSE ceiling above did not move — this one tracks prose PLUS the tool
-#: catalog, and the catalog grew by exactly the one new tool (`reopen_task`, +479 after compacting),
-#: whose own ceiling and whose reason are in `test_router.MAX_CATALOG_CHARS`. That is precisely the
-#: accounting this number exists for: paying one ceiling by moving text into the other shows up here
-#: as what it is, and here it does not happen — nothing moved, one tool was added.
-_MAX_TOTAL = 67_862          # …plus the tool catalog 23_594, plus the POLICY lines below, 198
-#: V2-778 F0: 66_555 → 67_862, the same +1_694 of prose above, partly offset by the policy line genesis now keeps
-#: OFF (b97815e4, −402) and +15 of catalog. Debt, not growth to celebrate; see `_MAX_PROSE`.
+_MAX_PROSE = 24_929          # prompt.py 16_417 + live_blocks.py 3_395 + live_blocks_nav.py 5_117 — DOCSTRINGS OUT
+#: ⚠️ V2-778 (2026-10-02) — RE-MEASURED, not raised: the count used to include every DOCSTRING of the three modules,
+#: 19_141 of its 44_070 bytes, which the model never reads. A docstring is a comment to the model, and this file's
+#: own last test says a comment costs nothing here — so writing down why a function exists was being charged as
+#: prompt prose (F0 had raised the ceiling 42_376 → 44_070 partly on that). Now only strings the model can read
+#: count, the ceiling is that exact number, and it is STRICTER than before: one new sentence in the prompt fails
+#: this test, where the old ceiling had ~19 k of documentation to hide it in. EDIT DOWNWARD ONLY.
+_MAX_TOTAL = 48_721          # the prose above 24_929 + the tool catalog 23_594 + the POLICY lines below, 198
+#: V2-778 (2026-10-02) — re-measured with the docstrings out, as `_MAX_PROSE` (was 67_862 counting them).
 
 #: ⚠️ V2-713 R5 — A THIRD SOURCE, WHICH WAS ALWAYS THERE AND NEVER COUNTED. `style_policy` composes lines
 #: that ride into the turn beside the prompt (`style_directive.prompt_lines`), and this ratchet could not see
@@ -83,10 +78,23 @@ _MAX_TOTAL = 67_862          # …plus the tool catalog 23_594, plus the POLICY 
 _MAX_POLICY = 600
 
 
+def _docstrings(tree) -> set:
+    """The docstring nodes of a module, its classes and its functions — documentation, never sent to a model."""
+    out = set()
+    for n in ast.walk(tree):
+        if isinstance(n, (ast.Module, ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)) and n.body \
+                and isinstance(n.body[0], ast.Expr) and isinstance(n.body[0].value, ast.Constant) \
+                and isinstance(n.body[0].value.value, str):
+            out.add(id(n.body[0].value))
+    return out
+
+
 def _prose_bytes(rel: str) -> int:
     tree = ast.parse((ENGINE / rel).read_text(encoding="utf-8"))
+    docs = _docstrings(tree)
     return sum(len(n.value) for n in ast.walk(tree)
-               if isinstance(n, ast.Constant) and isinstance(n.value, str) and len(n.value) >= _PROSE_FLOOR)
+               if isinstance(n, ast.Constant) and isinstance(n.value, str) and len(n.value) >= _PROSE_FLOOR
+               and id(n) not in docs)
 
 
 def _catalog_bytes() -> int:
@@ -190,3 +198,14 @@ def test_a_comment_costs_NOTHING_here():
     counted = sum(len(n.value) for n in ast.walk(tree)
                   if isinstance(n, ast.Constant) and isinstance(n.value, str) and len(n.value) >= _PROSE_FLOOR)
     assert counted == 0
+
+
+def test_a_docstring_costs_NOTHING_here_either():
+    """V2-778: a docstring is documentation — the model never reads it — so it is not prompt prose. A string the
+    code RETURNS is, however long it is and wherever it sits."""
+    src = ('def f():\n    """' + "why this exists, measured, " * 10 + '"""\n    return "' + "x" * 50 + '"\n')
+    tree = ast.parse(src)
+    docs = _docstrings(tree)
+    counted = sum(len(n.value) for n in ast.walk(tree) if isinstance(n, ast.Constant)
+                  and isinstance(n.value, str) and len(n.value) >= _PROSE_FLOOR and id(n) not in docs)
+    assert counted == 50
