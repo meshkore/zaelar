@@ -2347,7 +2347,7 @@ entregada siga citada aquí.
   healthy pack SURVIVES a broken neighbour. Ratchet paid by EXTRACTING the cron line to `live_blocks.py`
   (the browser/background-block precedent), and prompt.py's ceiling comes DOWN 854 → 834.
 
-- **A config save is judged by what it LEAVES, and the suite stops writing the operator's routing (V2-673, 2026-09-11)** — texto íntegro en `decisions-archive.md`
+- **A config save is judged by what it LEAVES, and the suite stops writing the operator's routing (V2-673, 2026-09-11)** (V2-657, V2-673, V2-778) — texto íntegro en `decisions-archive.md`
 - **The DEPLOYMENT picks the profile — nobody is asked, and one default replaces two (V2-671, 2026-09-11)** — texto íntegro en `decisions-archive.md`
 - **NOBODY SPEAKS before a language is chosen — the wordless picker, the voice that follows the language, and where the files live (V2-672, 2026-09-11)** — texto íntegro en `decisions-archive.md`
 - **A question about what a widget HOLDS is answered by the widget (V2-668, 2026-09-11)** — texto íntegro en `decisions-archive.md`
