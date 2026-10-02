@@ -35,3 +35,15 @@ def test_a_factory_reset_also_forgets_the_circuit_override():
     i = SCRIPT.index("FACTORY_PATHS=(")
     block = SCRIPT[i:SCRIPT.index("\n)", i)]          # the array's closing line, not a «)» inside a comment
     assert '"config/circuit.json"' in block
+
+
+def test_a_factory_reset_also_forgets_the_errand_playbooks_but_never_a_connectors_credentials():
+    """V2-778 F3-29, the operator's decision (2026-10-02): a factory reset leaves the agent as just installed — his
+    per-kind errand preferences (`config/playbooks.json`) included — and never takes the credentials a connector
+    needs: those die only with the explicit `--wipe-credentials`."""
+    i = SCRIPT.index("FACTORY_PATHS=(")
+    factory = SCRIPT[i:SCRIPT.index(")", SCRIPT.index("\n)", i))]
+    assert '"config/playbooks.json"' in factory
+    for cred in ("config/connectors.json", "connectors/whatsapp/_session", "connectors/telegram/_session",
+                 ".meshkore/credentials"):
+        assert f'"{cred}"' not in factory, f"a factory reset must not take {cred}"

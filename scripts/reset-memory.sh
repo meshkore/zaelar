@@ -106,6 +106,8 @@ FACTORY_PATHS=(
   "config/style.json"      # spoken style rules (V2-633)
   "config/library.json"    # per-install library layout (V2-638)
   "config/circuit.json"    # per-install override of the circuit bound (V2-776 L3; V2-778 F3-29)
+  "config/playbooks.json"  # his per-kind errand preferences over genesis (V2-778 F3-29; the operator, 2026-10-02:
+                           # factory resets as needed, never the connectors' credentials — those stay in CRED_PATHS)
 )
 FACTORY_DIRS_CONTENTS=(
   "i18n/generated"         # alias/filler packs generated at a previous onboarding (V2-101)
