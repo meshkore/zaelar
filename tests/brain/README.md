@@ -95,6 +95,13 @@ the action map off (a lane case consults the model), the close-vs-show guard off
 the brief ignored («Vale, para el vídeo.» becomes `talk`). If one of these stays green the harness is
 measuring itself.
 
+## Today, and every night (V2-778 F3-31)
+
+**2026-10-02 — 53 cases · 15 open · routed right 100 % of the live ones** (false workers 0, wrong card 0, unanswered 0).
+The same four numbers are published every night by `.github/workflows/nightly.yml` — in the run's summary, with
+`brain.json` as an artifact — beside the memory's recall at scale and, when the repo holds an `OPENAI_API_KEY` secret,
+the memory battery on the real model. An `open` case that turns green is listed there by name: remove its mark.
+
 ## Baseline (2026-09-27, the day the bank was built)
 
 42 cases, ES+EN · **35 green** · 7 open, each naming the scope that owns it:

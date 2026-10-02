@@ -1,0 +1,101 @@
+# Nightly — the brain's decision bank and the memory, measured every night (V2-778 F3-31, V2-776 A2).
+#
+# The control runs V2-776 promised existed only as commands someone had to remember to type. This job runs them
+# on a schedule and publishes the numbers where a reader looks: the run's summary, plus the raw reports as an
+# artifact. Three parts, two of them free:
+#
+#   1. the decision bank (`tests.brain.runner`) — the RECORDED model, so no key and no spend: routed-right %,
+#      false workers, wrong card, unanswered, and which `open` cases turned green;
+#   2. memory recall at scale (`--scale 2000`) — hash embeddings, no key: needles found among 2,000 noise memories
+#      and the query latency;
+#   3. the memory battery with the REAL model (`--corpus v4`, 15 cases, ~1 min, cents) — runs only when the repo
+#      has the `OPENAI_API_KEY` secret (the memory heart is gpt-4.1-mini on OpenAI); without it the step says it
+#      was skipped instead of failing.
+#
+# Never a deploy, never a push: read-only on the repo. A red number here is a report, not a gate — the gate is ci.yml.
+
+name: Nightly
+
+on:
+  schedule:
+    - cron: "17 3 * * *"        # 03:17 UTC, every night
+  workflow_dispatch: {}
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      ZAELAR_ATTENTION: always
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: requirements.txt
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -c constraints.txt
+
+      - name: Decision bank (recorded model — no key)
+        continue-on-error: true
+        run: |
+          export ZAELAR_WORKSPACE="$(mktemp -d)"
+          python -m tests.brain.runner --json brain.json | tee brain.txt
+
+      - name: Memory recall at scale (hash embeddings — no key)
+        continue-on-error: true
+        run: |
+          export ZAELAR_WORKSPACE="$(mktemp -d)"
+          python -m tests.memory.e2e.bot.runner --scale 2000 | tee memory-scale.txt
+
+      - name: Memory battery with the real model (v4)
+        if: ${{ env.OPENAI_API_KEY != '' }}
+        continue-on-error: true
+        run: |
+          export ZAELAR_WORKSPACE="$(mktemp -d)"
+          python -m tests.memory.e2e.bot.runner --corpus v4 --fresh --range 0 15 | tee memory-v4.txt
+
+      - name: Summary
+        if: always()
+        run: |
+          python - <<'EOF' >> "$GITHUB_STEP_SUMMARY"
+          import json, os, re
+          print("## Nightly — brain and memory\n")
+          try:
+              d = json.load(open("brain.json"))
+              a = d.get("axes", d)
+              print(f"**Decision bank** — {a.get('cases')} cases, {a.get('open')} open · routed right "
+                    f"**{a.get('routed_right_pct')} %** · false workers {a.get('false_workers')} · wrong card "
+                    f"{a.get('wrong_card')} · unanswered {a.get('unanswered')}")
+              for k, label in (("regressions", "regressions"), ("open_now_green", "open cases now green")):
+                  if a.get(k):
+                      print(f"- {label}: " + ", ".join(a[k]))
+          except Exception as e:  # noqa: BLE001
+              print(f"**Decision bank** — no report ({e})")
+          for name, label in (("memory-scale.txt", "Memory at scale"), ("memory-v4.txt", "Memory battery (real model)")):
+              if not os.path.exists(name):
+                  print(f"\n**{label}** — skipped" + (" (no `OPENAI_API_KEY` secret)" if "v4" in name else ""))
+                  continue
+              keep = [l.strip() for l in open(name, encoding="utf-8") if re.search(r"ESCALA|recall|latencia|TANDA|Progreso", l)]
+              print(f"\n**{label}**\n```\n" + "\n".join(keep[-6:]) + "\n```")
+          EOF
+
+      - name: Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nightly-reports
+          path: |
+            brain.json
+            brain.txt
+            memory-scale.txt
+            memory-v4.txt
+            .meshkore/logs/membot/
+          if-no-files-found: ignore
+          retention-days: 30

@@ -6032,7 +6032,7 @@ DOMAINS: list[dict] = [
     # which the brain is compacted: a guard leaves only when its cases are green, and a new failure of the
     # brain is written here as a CASE, never as a guard. Cases marked `open` run as strict xfail.
     {"id": "11", "name": "CEREBRO (banco de decisiones)", "nodes": [
-        {"id": "11.1", "title": "Cada turno del banco decide lo que su caso espera (44 casos ES+EN, 8 abiertos)",
+        {"id": "11.1", "title": "Each turn of the bank decides what its case expects (53 cases ES+EN, 15 open; published nightly)",
             "ch": UNIT, "paths": ["tests/brain/unit/test_the_bank.py"]},
         {"id": "11.2", "title": "El banco mide el PRODUCTO: tres desarmes (mapa de acciones, cierre, veredicto) "
                                 "ponen su caso en rojo",
