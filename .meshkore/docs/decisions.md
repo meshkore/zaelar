@@ -25,6 +25,16 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **The probe decides with the voice turn's modules, not beside them (V2-778 F2-22, 2026-10-02)**: the import
+  ratchet had eight voice-only modules marked «owed». Three were real drift, and the bank of brain cases (which runs
+  on the probe) was measuring the old behaviour: the probe still sent «vamos a hacer una cosa, ábreme el widget de
+  vídeo» to the widget generator on the bare grammar (`build_decision` is what V2-750 fixed in voice), mapped every
+  hard interrupt to close/silence (so «para eso» with a live worker and «cierra todo y ábreme la agenda» lost the
+  order), and had no branch for `reopen_task`. Now `probe_decide` asks the same `build_decision.decide`, the same
+  `hard_turn.is_worker_stop`/`remainder` (split out of `handle`, which reads them too), and `task_recall.resolve`
+  (dry: names the show or the question, rebuilds nothing). The other five are voice-only for a reason that is now
+  written down, and «owed» cannot come back. Node 2.209.
+
 - **Green means green on a clean clone, not on the operator's Mac (V2-779 F0, 2026-10-02)**: CI had not been
   green in 60 runs — every one died at ruff, so the ratchets behind it never ran — and the wide sweep was only
   ever measured on the operator's checkout. Measured on a clean clone (`zaelar/`, `env -i`, `TZ=UTC`, no keys):

@@ -3731,6 +3731,10 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.209", "title": "The text probe decides build-or-show, a hard interrupt and reopen_task with the voice "
+                                 "turn's own modules, so the bank measures what the voice does (V2-778 F2-22)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_the_probe_asks_the_build_decision_too.py",
+                                  "tests/agent_headless/unit/flash/test_the_probe_names_what_the_voice_turn_does.py"]},
         {"id": "2.106", "title": "An act that LEAVES (≥ sensitive) runs only when the verdict does not name another action — a draft never becomes a sent email",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_act_that_leaves_needs_both_readers.py"]},

@@ -7,22 +7,57 @@ what to execute below. The code is the SAME; every name it read from `probe` is 
 """
 from __future__ import annotations
 
+from nucleo.flash import build_decision as _build_decision
+from nucleo.flash import hard_turn as _hard_turn
 from nucleo.flash import probe as _probe
+from nucleo.flash import task_recall as _task_recall
+
+
+#: The model's calls to a live worker, in the order they win (stop before a message, a message before an answer).
+_WORKER_CALLS = ("stop_worker", "send_to_worker", "answer_worker")
+
+
+def _worker_call(names) -> str:
+    return next((n for n in _WORKER_CALLS if n in names), "")
+
+
+def _hard_that_ends_the_turn(text: str, hard):
+    """V2-778 F2-22 — the voice turn's hard interrupt (`hard_turn.handle`) lets the turn go on when a short stop is
+    aimed at a live worker, and when the close or the stop was not all the sentence ordered. The same two questions
+    here, so «para eso» names `stop_worker` and «cierra todo y ábreme la agenda» names the open."""
+    if hard and (_hard_turn.is_worker_stop(text, hard) or _hard_turn.remainder(text, hard)):
+        return None
+    return hard
+
+
+async def _reopen_action(tool_calls, text: str) -> str:
+    """V2-778 F2-22 — the voice turn answers `reopen_task` with `task_recall` (lexical index → Jev → ask when several
+    fit, V2-728). Same decision here, DRY like `connect_cluster`: it resolves which errand he means and names the show
+    or the question, without rebuilding the sheet a headless channel would never see."""
+    import asyncio
+    q = next((t["args"] for t in tool_calls if t["name"] == "reopen_task"), {}) or {}
+    r = await asyncio.to_thread(_task_recall.resolve, str(q.get("query") or "").strip() or text)
+    return "canvas:show:results" if r.get("ok") else "clarify"
+
+
+def _builds(text: str, router, brief) -> bool:
+    """V2-778 F2-22 — the SAME decision the voice turn asks (V2-750): the grammar proposes, the verdict vetoes a
+    create over a card we already have."""
+    return _build_decision.decide(text, brief=brief, proposed=router.looks_like_create_widget(text))[0]
 
 
 async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names, sess, tags, text, tool_calls) -> dict:
+    _hard = _hard_that_ends_the_turn(text, _hard)
     if _hard == "close":
         action = "canvas:close"
     elif _hard == "stop":
         action = "chat"
-    elif "stop_worker" in names:
-        action = "stop_worker"
-    elif "send_to_worker" in names:
-        action = "send_to_worker"
-    elif "answer_worker" in names:
-        action = "answer_worker"
+    elif _wcall := _worker_call(names):
+        action = _wcall
     elif "escalate_to_slowbrain" in names:
         action = "escalate"
+    elif "reopen_task" in names:
+        action = await _reopen_action(tool_calls, text)
     elif "search_listings" in names:
         # V2-556: the LISTING fast pass. Above web_search for the same reason escalate is: a turn that hunts
         # ads AND asks a fact is a hunt. The heavy side effects (search + possible self-escalation) run only
@@ -75,7 +110,7 @@ async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names
             # ESPURIO en un turno de cerrar SÍ debe corregirse»); now both channels apply it as code. The action
             # string stays out of `_already`, so the close backstop below still closes the NAMED widget.
             action = "guard:show-contradicts-close"
-        elif _router.looks_like_create_widget(text):
+        elif _builds(text, _router, _tbrief):
             action = "escalate"
         else:
             from widgets import runtime as _rt

@@ -130,8 +130,9 @@ def test_the_close_is_still_emitted_BEFORE_the_turn_is_allowed_to_continue():
     """The ordering IS the guarantee. If the remainder were computed first and the close only emitted on the
     way out, a failure in between would lose the one order this whole mechanism exists to never lose."""
     body = _src("nucleo", "flash", "hard_turn.py")
+    body = body[body.index("async def handle("):]       # V2-778 F2-22: `remainder()` is defined above, called here
     close_at = body.index('emit("widget", "close"')
-    rest_at = body.index("close_all_remainder(text)")
+    rest_at = body.index("remainder(text, hard)")
     assert close_at < rest_at, "the deterministic close must be emitted before anything else is decided"
 
 

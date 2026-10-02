@@ -19,18 +19,15 @@ VOICE = ["voice/engine/llm/providers/nucleo.py", "nucleo/flash/tool_executor.py"
          "nucleo/flash/post_stream.py", "nucleo/flash/post_stream_words.py", "nucleo/flash/post_stream_lanes.py",
          "nucleo/flash/post_stream_settle.py"]
 
-#: Voice-only on purpose, or owed. «owed» means it was voice-only when this ratchet was born and nobody has yet
-#: written why — the next person to touch it either wires it into the probe or writes the reason here.
+#: Voice-only on purpose, each with its reason (the «owed» lines this ratchet was born with were paid on 2026-10-02:
+#: three wired into the probe, five explained). A new voice-only module either gets wired or gets its reason here.
 VOICE_ONLY = {
     "accumulator": "the voice turn accumulates STT fragments before it speaks; the text channel gets whole lines",
-    "build_decision": "owed",
-    "canvas_visibility": "owed",
-    "hard_turn": "owed",
-    "music_flow": "owed",
-    "surface_ack": "owed",
-    "task_recall": "owed",
-    "tool_selection": "owed",
-    "widget_read": "owed",
+    "canvas_visibility": ("the ONE door that flips a card's open flag on the live canvas; the probe REPORTS a `canvas:` action and opens nothing, and reads what is open through `_ctx_ids`"),
+    "music_flow": ("the probe runs the SAME rail through `music_turn.execute`, which imports it — this ratchet reads direct imports only"),
+    "surface_ack": ("the probe reaches it through `router_guards.show_ack` (a re-export); the voice turn imports it directly only for the `empty` flag of the canvas event, which the probe never emits"),
+    "tool_selection": ("progressive selection is off by default (V2-726 A5), so both channels offer the full `_router.tools` catalog; the voice keeps the `need_capability` retry and the recent-families memory for when it is on — wire the probe the day it is"),
+    "widget_read": ("the probe reaches the SAME seam through `second_pass.probe_light_routes` (`read_widget`) — this ratchet reads direct imports only"),
 }
 
 
@@ -74,3 +71,10 @@ def test_no_new_brain_module_is_wired_into_the_voice_turn_only():
 def test_a_listed_module_that_the_probe_now_imports_leaves_the_list():
     stale = sorted(m for m in VOICE_ONLY if m in _flash_imports(_probe_files()))
     assert not stale, f"the probe imports these now — delete their VOICE_ONLY line: {stale}"
+
+
+def test_no_voice_only_module_is_left_owed():
+    """V2-778 F2-22 (2026-10-02) paid the eight «owed» lines: three wired into the probe (`build_decision`, `hard_turn`,
+    `task_recall`), five given the reason they really have. A new line carries its reason from day one."""
+    owed = sorted(m for m, why in VOICE_ONLY.items() if why.strip() == "owed")
+    assert not owed, f"write why these are voice-only, or wire them into the probe: {owed}"

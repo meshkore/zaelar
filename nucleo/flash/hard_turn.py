@@ -36,6 +36,29 @@ from __future__ import annotations
 import asyncio
 
 
+def is_worker_stop(text: str, hard: str) -> bool:
+    """Question 1 alone, without effects: is a short stop aimed at a live WORKER? The text probe asks this too
+    (V2-778 F2-22), so the bank of brain cases sees «para eso» reach `stop_worker` the way the voice turn does."""
+    if hard != "stop":
+        return False
+    try:
+        from nucleo import dispatch as _d0
+        from nucleo.flash import router as _router0
+        return bool(_d0.has_active() and _router0.looks_like_stop_work(text))
+    except Exception:                          # noqa: BLE001 — an unreadable ledger is «no workers», as before
+        return False
+
+
+def remainder(text: str, hard: str) -> str:
+    """Question 4 alone: what the sentence ordered besides the close or the stop ("" when that was all)."""
+    try:
+        from voice import attention as _att
+        return (_att.close_all_remainder(text) if hard == "close"
+                else _att.stop_remainder(text) if hard == "stop" else "")
+    except Exception:                          # noqa: BLE001 — unreadable remainder = the old behaviour
+        return ""
+
+
 async def handle(text: str, hard: str, emit) -> str | None:
     """Resolve a hard interrupt. Returns the text the turn should go on with, or None to end the turn.
 
@@ -55,14 +78,8 @@ async def handle(text: str, hard: str, emit) -> str | None:
 
     # 1 · A short STOP with live workers and words about WORK is not silence — it is «stop the errand». The
     #     turn continues so the model can call `stop_worker` (with its deterministic post-stream backstop).
-    worker_stop = False
+    worker_stop = is_worker_stop(text, hard)
     if hard == "stop":
-        try:
-            from nucleo import dispatch as _d0
-            from nucleo.flash import router as _router0
-            worker_stop = _d0.has_active() and _router0.looks_like_stop_work(text)
-        except Exception:                      # noqa: BLE001 — an unreadable ledger is «no workers», as before
-            worker_stop = False
         # 2 · MUSIC. Deterministic and off-loop: the live `music.playing`/`music.search` rail says whether
         #     something is sounding (µs, in RAM). Stopping a WORKER wins; otherwise stop the music.
         if not worker_stop:
@@ -83,27 +100,14 @@ async def handle(text: str, hard: str, emit) -> str | None:
     emit("ambient", "✋ interrupción dura atendida", text=text[:160], role="user",
          extra={"cmd": hard, "reason": "hard_interrupt"})
 
-    rest = ""
     if hard == "close":
         emit("widget", "close", extra={"src": "flash"})     # 3 · close EVERY widget, now, before anything else
-        # 4 · V2-688 — and only THEN ask whether closing was the whole request. The closing clause is removed
-        #     from what the model reads: handed «close all» against an already-empty canvas it re-emits it
-        #     (the context-bleed shape V2-635 catalogued), and that second close would land on whatever this
-        #     same sentence just asked to open.
-        try:
-            from voice import attention as _att
-            rest = _att.close_all_remainder(text)
-        except Exception:                      # noqa: BLE001 — unreadable remainder = the old behaviour
-            rest = ""
-    if hard == "stop":
-        # Session 6d19df41 — the stop twin of V2-688 above: «No. So no. Stop it. Okay. Show me the
-        # WhatsApp messages.» ended here and the WhatsApp order died in silence. A bare stop still ends
-        # the turn; anything else the sentence ordered keeps it.
-        try:
-            from voice import attention as _att1
-            rest = _att1.stop_remainder(text)
-        except Exception:                      # noqa: BLE001 — unreadable remainder = the old behaviour
-            rest = ""
+    # 4 · V2-688 — and only THEN ask whether closing was the whole request. The closing clause is removed from what
+    #     the model reads: handed «close all» against an already-empty canvas it re-emits it (the context-bleed shape
+    #     V2-635 catalogued), and that second close would land on whatever this same sentence just asked to open.
+    #     Session 6d19df41 is the stop twin: «No. So no. Stop it. Okay. Show me the WhatsApp messages.» ended here and
+    #     the WhatsApp order died in silence. A bare stop still ends the turn; anything else ordered keeps it.
+    rest = remainder(text, hard)
     if not rest:
         return None                            # 'stop' → the barge-in already cut the TTS; we do not reply
 
