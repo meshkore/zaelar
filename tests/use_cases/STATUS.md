@@ -95,6 +95,8 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 
 **10 passing · 32 failing · 13 infra** of 55 scenarios we can actually finish.
 
+**Settled (3/3 on the same code): 0 pass · 0 fail · 0 flaky · 55 unsettled.** 55 of 55 rows are STALE (product code changed since the commit they measured); **0 settled passes are on current code.**
+
 Plus **1 🌍 parked** for an environmental wall a user in that country would not hit (the sibling twin proves the capability). Visible, not counted, each with its reason:
 - `cheapest-monitor__us` — Amazon geolocaliza por IP: aun con un perfil en-US limpio sirve «Deliver to Spain» y precios de España. El gemelo ES está verde (4/5), así que la capacidad está probada; desde una IP de EEUU el muro no existe.
 

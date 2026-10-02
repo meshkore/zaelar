@@ -3716,6 +3716,9 @@ DOMAINS: list[dict] = [
         {"id": "2.107", "title": "Forwarding what arrived: send_to carries a message's attachments (a NEW mail, never «Re:»), and a mail goes back to unread in the real mailbox",
             "ch": UNIT,
             "paths": ["tests/browser/unit/mensajeria/test_forwarding_an_attachment_and_leaving_it_unread.py"]},
+        {"id": "2.205", "title": "What a stranger wrote reaches the model as DATA (fenced, unforgeable), and an act that "
+                                 "leaves with it in context and no sure verdict is asked — voice and text alike",
+            "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_strangers_words_are_data.py"]},
         {"id": "2.106", "title": "An act that LEAVES (≥ sensitive) runs only when the verdict does not name another action — a draft never becomes a sent email",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_act_that_leaves_needs_both_readers.py"]},
@@ -5435,6 +5438,9 @@ DOMAINS: list[dict] = [
         {"id": "10.130", "title": "Una expectativa NO le niega al juez una acción que el widget ya declara "
                                   "(la vara de medir también se pudre)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_expectation_does_not_deny_a_shipped_action.py"]},
+        {"id": "10.131", "title": "One round is not a measurement: k/k on the same code, and a verdict on old "
+                                  "code is STALE (V2-779 F2)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_round_is_not_a_measurement.py"]},
         {"id": "10.3", "title": "Segmentos completable/credentials/capability (inventario cerrado)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_segments.py"]},
         # La COLA del bucle continuo. Los dos fallos que guarda no se ponen rojos solos: lanzar casos que no

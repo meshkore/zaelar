@@ -127,7 +127,10 @@ def record(results: list[dict], *, sandboxed: bool, provisional: str = "") -> di
         prior = scen.get(r["scenario"]) or {}
         if prior.get("workspace") and not entry.get("workspace"):
             entry["workspace"] = prior["workspace"]
-        scen[r["scenario"]] = entry
+        # V2-779 F2: the round is APPENDED to the row's history instead of replacing it — `--rounds 3` used to
+        # keep only the last one, so a lucky round read as PASS. `settle.kk` reads the k/k verdict off it.
+        from . import settle
+        scen[r["scenario"]] = settle.fold(prior, entry)
     led["updated"] = stamp
     LEDGER_PATH.write_text(json.dumps(led, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     _render(led)
@@ -363,6 +366,7 @@ def _render(led: dict) -> None:
     # perpetual debt: every batch measured them again and they came back red, with nothing to fix.
     lines += ["", f"**{passed} passing · {failed} failing · {infra} infra** of "
                   f"{len(countable)} scenarios we can actually finish."]
+    lines += _settled_lines(countable)
     if parked:
         lines += ["", "Plus **" + str(len(parked)) + " 🌍 parked** for an environmental wall a user in that "
                       "country would not hit (the sibling twin proves the capability). Visible, not counted, "
@@ -485,6 +489,25 @@ def _render(led: dict) -> None:
         lines.append("")
 
     BOARD_PATH.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _settled_lines(countable: dict) -> list[str]:
+    """V2-779 F2 — the two readings the icon above does not give: is that verdict SETTLED (k/k on the same
+    code), and is the code it measured still the code at HEAD? A PASS that is 1/1 or measured on an old commit
+    is a lead, not a result."""
+    from . import settle
+    kks = {s: settle.kk(e) for s, e in countable.items()}
+    stale = {s for s, e in countable.items() if settle.stale(e)}
+    by = {k: sum(1 for v in kks.values() if v["settled"] == k) for k in ("PASS", "FAIL", "FLAKY", "UNSETTLED")}
+    fresh_pass = sum(1 for s, v in kks.items() if v["settled"] == "PASS" and s not in stale)
+    out = ["", f"**Settled ({settle.K}/{settle.K} on the same code): {by['PASS']} pass · {by['FAIL']} fail · "
+               f"{by['FLAKY']} flaky · {by['UNSETTLED']} unsettled.** {len(stale)} of {len(countable)} rows are "
+               f"STALE (product code changed since the commit they measured); **{fresh_pass} settled passes "
+               f"are on current code.**"]
+    flaky = sorted(s for s, v in kks.items() if v["settled"] == "FLAKY")
+    if flaky:
+        out += ["", "Flaky (same code, disagreeing rounds): " + ", ".join(f"`{s}`" for s in flaky) + "."]
+    return out
 
 
 def summary_line() -> str:
