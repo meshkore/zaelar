@@ -457,6 +457,24 @@ por NOMBRE de proceso, no por puerto.
 """
 
 
+def _incident(scenario, verdict: dict, where: Path, round_no: int) -> None:
+    """V2-780 — the failing case also lands in the ONE incidents inbox a developer drains (operator, 2026-10-02:
+    tests diagnose, a developer fixes). The rounds and the transcript stay in `where`; the task points at it."""
+    try:
+        from tests import incidents
+        rel = where.relative_to(INITIATIVES.parents[2]) if where else "—"
+        incidents.file(
+            f"uc:{scenario.id}", title=f"Use case fails: {scenario.id}", kind="use case", priority="high",
+            symptom=(f"overall {verdict.get('overall')}/5 · round {round_no} · "
+                     f"{(verdict.get('veredicto') or '').strip()[:300]}"),
+            reproduce=_REPRO.format(sid=scenario.id).strip(),
+            evidence=f"Every round, the mechanism report and the transcript: `{rel}`.",
+            done_when=(f"`{scenario.id}` settled PASS (3/3 on the same commit, `settle.kk`) — the fixer leaves "
+                       f"the `-verify` task the harness re-runs."))
+    except Exception:                                      # noqa: BLE001 — bookkeeping never costs a verdict
+        pass
+
+
 def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = False) -> dict:
     """Create (or append a round to) the initiative for this scenario, plus a fix task the first time.
 
@@ -520,6 +538,7 @@ def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = F
                      f"Sigue FALLANDO (overall {verdict.get('overall')}/5). "
                      f"Veredicto: {verdict.get('veredicto', '')}\n\n{evidence}")
             umbrella.write_text(body + "\n", encoding="utf-8")
+            _incident(scenario, verdict, umbrella, rounds)
             return {"initiative": umbrella, "task": None, "round": rounds, "created": False, "grouped": True}
 
         existing = None if force_new else find_initiative(scenario.id)
@@ -531,6 +550,7 @@ def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = F
                      f"Sigue FALLANDO (overall {verdict.get('overall')}/5). "
                      f"Veredicto: {verdict.get('veredicto', '')}\n\n{evidence}")
             existing.write_text(body, encoding="utf-8")
+            _incident(scenario, verdict, existing, rounds)
             return {"initiative": existing, "task": None, "round": rounds, "created": False}
 
         num, path = claim_initiative(_slug(scenario.id))
@@ -596,6 +616,7 @@ def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = F
             f"- No marques la iniciativa `status: delivered` sin citarla en `engine/CLAUDE.md`: hay un test "
             f"(`test_roadmap_closure.py`) que lo exige.\n",
             encoding="utf-8")
+        _incident(scenario, verdict, path, 1)
         return {"initiative": path, "task": task_path, "round": 1, "created": True}
     except Exception as e:  # noqa: BLE001
         return {"error": str(e)}

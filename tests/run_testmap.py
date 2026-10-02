@@ -4912,6 +4912,9 @@ DOMAINS: list[dict] = [
                                 "acusa a un test lento que sigue vivo",
          "ch": UNIT,
          "paths": ["tests/infrastructure/unit/test_the_watchdog_names_what_hangs.py"]},
+        {"id": "7.63", "title": "A red becomes an incident: one task per key in V2-780, repeats append, a red "
+                                "after done is a regression; tests diagnose, never fix",
+         "ch": UNIT, "paths": ["tests/infrastructure/unit/test_a_red_becomes_an_incident.py"]},
         # V2-492 (2026-08-29): los perfiles de `.meshkore/team/` arrancan a cada agente con una lista de
         # documentos, y **12 de esas rutas estaban muertas** en 8 de los 9 perfiles — escritas contra un
         # `.meshkore/context/` y un `.meshkore/workflows/` que ya no existen. No falla nada: el agente
@@ -5447,6 +5450,9 @@ DOMAINS: list[dict] = [
         {"id": "10.132", "title": "One judge, one ruler: Claude Code on the licence with an exact id, no fallback "
                                   "(V2-779 F2)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_judge_one_ruler.py"]},
+        {"id": "10.133", "title": "A failing completable use case lands in the incidents inbox; a blocked one "
+                                  "does not (V2-780)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_failing_case_lands_in_the_inbox.py"]},
         {"id": "10.3", "title": "Segmentos completable/credentials/capability (inventario cerrado)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_segments.py"]},
         # La COLA del bucle continuo. Los dos fallos que guarda no se ponen rojos solos: lanzar casos que no

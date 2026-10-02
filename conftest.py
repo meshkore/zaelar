@@ -128,6 +128,14 @@ from connectors.google import app as _google_app  # noqa: E402 — after the env
 
 _google_app.CREDENTIALS_DIR = _Path(tempfile.mkdtemp(prefix="zaelar-test-google-credentials-"))
 
+# V2-780 — and the INCIDENTS inbox. The use-case harness files a failing case there, and its unit tests drive
+# that filing with fake verdicts: unpinned, every run of the suite would open «Use case fails» tasks in the
+# operator's real `.meshkore/modules/tester/tasks/` for cases that never ran.
+from tests import incidents as _incidents  # noqa: E402
+
+_incidents.MODULES = _Path(tempfile.mkdtemp(prefix="zaelar-test-incidents-"))
+_incidents.TASKS = _incidents.MODULES / "tester" / "tasks"
+
 # 2026-09-15 — THE SAME INVARIANT, one store further: which widgets the operator has DELETED.
 #
 # `widgets/hidden.py` keeps the "deleted" shipped widgets under `<workspace>/widgets/_data/_system/hidden.json`

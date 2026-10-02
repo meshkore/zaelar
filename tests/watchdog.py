@@ -57,6 +57,7 @@ LOCK = TESTS / "runs" / ".watchdog.lock"
 _DUMP = re.compile(r"Timeout \(\d+:\d\d:\d\d\)!")
 _FRAME = re.compile(r'^  File "(?P<file>[^"]+)", line (?P<line>\d+) in (?P<func>\w+)')
 _COUNTS = re.compile(r"(\d+) (passed|failed|error|errors|skipped|xfailed|xpassed)")
+_FAILED = re.compile(r"^(?:FAILED|ERROR) (\S+::\S+|\S+\.py)")
 
 # Suites whose tests want a live service or a browser: excluded from --all on purpose, because a
 # skip-storm is not a green and a live-boundary run is a decision, not a default.
@@ -246,7 +247,23 @@ class Chunk:
             "counts": self._counts(tail),
             "stack": self.stack[:25],
             "tail": tail[-25:],
+            "failures": self._failures(tail),
         }
+
+    @staticmethod
+    def _failures(lines: list[str]) -> list[dict]:
+        """Each red test of the chunk, with the `--tb=line` line that says why (V2-780: the incident's symptom)."""
+        out = []
+        for line in lines:
+            m = _FAILED.match(line)
+            if not m:
+                continue
+            node = m.group(1)
+            path = node.split("::", 1)[0]
+            why = next((x.strip() for x in lines if path in x and re.search(r"\.py:\d+: ", x)), "")
+            if node not in [f["node"] for f in out]:
+                out.append({"node": node, "why": why[-400:]})
+        return out
 
     @staticmethod
     def _counts(lines: list[str]) -> dict:
@@ -301,6 +318,37 @@ def take_lock() -> bool:
     return True
 
 
+def file_incidents(results: list[dict], report: Path) -> list[dict]:
+    """V2-780 — every red test and every hang becomes (or re-occurs on) one task in the incidents inbox. The
+    sweep diagnoses; it never fixes and never closes a task."""
+    if str(ENGINE) not in sys.path:
+        sys.path.insert(0, str(ENGINE))
+    from tests import incidents
+    sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=str(ENGINE), capture_output=True,
+                         text=True).stdout.strip()
+    filed = []
+    for r in results:
+        items = list(r.get("failures") or [])
+        if r["verdict"] == "hung":
+            items = [{"node": r.get("hung_at") or r["target"], "why": "HUNG — " + "\n".join(r.get("stack") or [])[:600],
+                      "hung": True}]
+        elif r["verdict"] not in ("ok",) and not items:
+            items = [{"node": r["target"], "why": "\n".join(r.get("tail") or [])[-600:]}]
+        for f in items:
+            node = f["node"]
+            res = incidents.file(
+                f"test:{node}", title=("Hangs: " if f.get("hung") else "Red: ") + node.split("::")[-1],
+                kind="unknown", priority="high" if f.get("hung") else "medium",
+                symptom=f.get("why") or r["verdict"],
+                reproduce=f"./.venv/bin/python -m pytest -q '{node}'   (alone first — CRIT-W6)",
+                evidence=f"watchdog sweep at {sha} · chunk `{r['target']}` · report `{label_of(report)}`",
+                done_when=f"`{node}` green alone and in `tests/watchdog.py`.")
+            filed.append({"node": node, **res})
+            if res.get("task"):
+                print(f"  ✎ incident {'NEW' if res.get('created') else 'again'}: {label_of(res['task'])}")
+    return filed
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Run tests in chunks and name whatever hangs.")
     ap.add_argument("paths", nargs="*", help="files or directories (default: every deterministic dir)")
@@ -311,6 +359,8 @@ def main() -> int:
     ap.add_argument("--report", default="", help="where to write the JSON report")
     ap.add_argument("--impacted", metavar="REF", help="run only what the diff vs REF can reach (e.g. origin/main)")
     ap.add_argument("--explain", action="store_true", help="with --impacted: print the selection and run nothing")
+    ap.add_argument("--file-incidents", action="store_true",
+                    help="write every red and every hang as a task in the incidents inbox (V2-780)")
     ap.add_argument("--together", action="store_true",
                     help="run the whole selection in ONE pytest (the tier0: startup, not tests, is the cost)")
     args = ap.parse_args()
@@ -395,6 +445,8 @@ def main() -> int:
     report.parent.mkdir(parents=True, exist_ok=True)
     report.write_text(json.dumps({"results": results, "totals": total}, indent=2))
     print(f"\nreport: {label_of(report)}")
+    if args.file_incidents:
+        file_incidents(results, report)
     return 1 if (hung or bad) else 0
 
 

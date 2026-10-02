@@ -39,6 +39,12 @@ nothing failed and nothing hung. A JSON report lands in `tests/runs/watchdog-*.j
 HEAD can reach, in ONE pytest (`--impacted HEAD --together`; measured 2026-10-02: 51 files, 32 s, where one
 pytest per file took 50 s of mostly startup). It is a pre-check; the wide sweep is the net.
 
+**Tests diagnose; they never fix (V2-780, operator 2026-10-02).** `make diagnose` runs the wide sweep with
+`--file-incidents`: every red test and every hang becomes ONE task in the incidents inbox
+(`.meshkore/modules/tester/tasks/`, initiative V2-780) — symptom, reproduce, evidence, kind, done-when. A
+repeat appends an occurrence; a red after the task is `done` opens a new one marked as a regression. A failing
+use case (completable) lands there too, keyed `uc:<case>`. A developer drains the inbox one task at a time.
+
 **CI runs the wide sweep** (`.github/workflows/ci.yml`, V2-779 F0): the same `tests/watchdog.py` over every
 deterministic directory on a clean Linux clone. So a test that is green only on the operator's machine — his
 timezone, his keys, his Google client, the folder being called `engine/` — is red there. The root `conftest.py`

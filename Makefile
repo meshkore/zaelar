@@ -1,7 +1,7 @@
 # zaelar — personal voice assistant, cerebro propio «Colmena» (nucleo/). Docs: README.md (install) + .meshkore/docs/.
 PY=./.venv/bin/python
 
-.PHONY: help start restart status run run-nucleo run-lk lk-server agent-worker daemon stop down sim smoke test tier0 test-list test-all test-ui test-widgets install-livekit install-stt install-tts install-whatsapp install-telegram reset reset-dry reset-restart flash flash-repl flash-serve doctor
+.PHONY: help start restart status run run-nucleo run-lk lk-server agent-worker daemon stop down sim smoke test tier0 diagnose test-list test-all test-ui test-widgets install-livekit install-stt install-tts install-whatsapp install-telegram reset reset-dry reset-restart flash flash-repl flash-serve doctor
 
 help:
 	@echo "zaelar — run it locally:"
@@ -165,6 +165,11 @@ test:
 tier0:
 	ruff check . && $(PY) -m compileall -q nucleo memory voice server widgets bus config connectors observability i18n update \
 	&& $(PY) tests/watchdog.py --impacted HEAD --together
+
+# DIAGNOSE (V2-780) — the wide sweep, and every red or hang written as a task in the incidents inbox
+# (`.meshkore/modules/tester/tasks/`, initiative V2-780). Tests diagnose; a developer drains the inbox.
+diagnose:
+	$(PY) tests/watchdog.py --file-incidents
 
 test-list:
 	$(PY) -m tests list
