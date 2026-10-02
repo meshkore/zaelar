@@ -516,8 +516,16 @@ def done_ops_lines() -> list[str]:
         if not rows:
             return []
         import time as _t
+        # V2-778 F2-19 — an op the request record already shows (`recent_lines`) is not listed twice; what no row
+        # shows (a CLICK on the card opens none) still is, and the two rules below stay whenever they apply.
+        shown = _shown_by_requests()
+        listed = [d for d in rows if not any(w == d["wid"] and a == d["action"]
+                                             and abs(float(d.get("at") or 0) - at) <= 60 for w, a, at in shown)]
+        away = sorted({d["wid"] for d in rows if not _is_open(d["wid"])})
+        if not listed and not any(d.get("destructive") for d in rows) and not away:
+            return []
         bits = []
-        for d in rows:
+        for d in listed or rows:
             ago = max(0, int(_t.time() - float(d.get("at") or _t.time())))
             n = d.get("n")
             bits.append(f"«{d['wid']}:{d['action']}»" + (f" ({n} fila/s)" if isinstance(n, int) else "")
@@ -531,11 +539,26 @@ def done_ops_lines() -> list[str]:
         # Demo pass 59 (S1): «results:present hace 140s» + «cuéntalo como hecho» over a sheet he had put away,
         # and «so how did the monitors go, show me» got «Done.» with the card still in the dock. Done to the
         # DATA is not on the SCREEN: a card that is not open now says so, with the one call that brings it.
-        away = sorted({d["wid"] for d in rows if not _is_open(d["wid"])})
         tail = (f" Ojo: {', '.join(away)} NO está en pantalla ahora — si pide verlo, `show_widget` lo trae; "
                 "decir «hecho» sin traerlo es mentirle.") if away else ""
         return [head + " Si pregunta por ello, cuéntalo como hecho en vez de volver a hacerlo." + tail]
     except Exception:  # noqa: BLE001
+        return []
+
+
+def _shown_by_requests() -> list[tuple[str, str, float]]:
+    """(widget, action, when) of the inline request rows the turn's record block already reports."""
+    try:
+        from nucleo import tasks as _tasks
+        out = []
+        for r in _tasks.store().tasks_where(states=("done", "failed", "running"), modes=("now",), visible_only=False,
+                                            limit=24) or []:
+            wa = str(r.get("outcome") or "")
+            if r.get("kind") == "inline" and ":" in wa and " " not in wa:
+                w, a = wa.split(":", 1)
+                out.append((w.split("::", 1)[0], a, float(r.get("finished_at") or r.get("started_at") or 0)))
+        return out
+    except Exception:  # noqa: BLE001 — nothing readable: list everything, as before
         return []
 
 

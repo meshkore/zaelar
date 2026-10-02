@@ -52,4 +52,4 @@ def test_a_claim_gets_its_call_and_an_answer_does_not(agenda_with_the_meeting, w
 
 
 def test_the_prompt_asks_it_to_judge():
-    assert "PROPUSISTE" in ar._SYS and "AFIRMASTE" in ar._SYS
+    assert "PROPOSED" in ar._SYS and "CLAIMED" in ar._SYS   # V2-778 F2-19: the repair prompts are English

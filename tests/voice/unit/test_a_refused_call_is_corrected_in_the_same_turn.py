@@ -109,7 +109,7 @@ def test_the_correction_follows_what_the_turn_just_said(client):
     asyncio.run(act_repair.call_for_refusal("open the one that's the best deal", "results::x", "detail", {}, "no match",
                                             said="The best deal is the Samsung ViewFinity S7 S70H at $189.99."))
     user = client.calls[0]["messages"][1]["content"]
-    assert "Samsung ViewFinity S7" in user and "la corrección es ESE" in user
+    assert "Samsung ViewFinity S7" in user and "the correction is THAT one" in user
     from pathlib import Path
     prov = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert 'said=lambda: getattr(brain, "_last_spoken", "")' in prov

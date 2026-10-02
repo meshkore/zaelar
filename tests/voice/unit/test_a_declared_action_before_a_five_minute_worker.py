@@ -609,7 +609,7 @@ def test_the_commission_pass_sees_the_conversation():
          {"role": "assistant", "content": "Moved — it's now 4:45 to 5:30 PM tomorrow."},
          {"role": "system", "content": "internal"}]
     ctx = act_repair.conversation(w)
-    assert "4:45 to 5:30" in ctx and "Operador: actually move it" in ctx and "internal" not in ctx
+    assert "4:45 to 5:30" in ctx and "Operator: actually move it" in ctx and "internal" not in ctx
     assert act_repair.conversation([]) == ""
     prov = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert prov.count("window=list(brain._window)") >= 3, "commission, after-show and promise passes all get it"
@@ -641,6 +641,7 @@ def test_finding_is_knowing_and_an_act_order_is_not_offered_a_read():
     4/4; C5 with no read offered, send 3/4."""
     from pathlib import Path
     src = (Path(__file__).resolve().parents[3] / "nucleo/flash/act_repair.py").read_text("utf-8")
-    assert "ENCONTRAR, buscar o decirle algo" in src and "may_read and _wr0.can_answer(wid)" in src
+    from nucleo.flash import act_repair as _arc     # V2-778 F2-19: the prompt is read as the model gets it, not as laid out
+    assert "FINDING, searching or telling him something" in _arc._SYS_COMMISSION and "may_read and _wr0.can_answer(wid)" in src
     cc = (Path(__file__).resolve().parents[3] / "nucleo/flash/card_commission.py").read_text("utf-8")
     assert "may_read = not (_wi is not None and str(_w or \"\") == \"act\")" in cc

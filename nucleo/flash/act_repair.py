@@ -23,20 +23,24 @@ import json
 import re
 
 #: What the repair tells the model. Short on purpose: the ask is «make the call you promised», not a new turn.
-_SYS = ("Eres el cerebro de un asistente de voz. En el turno anterior contestaste SIN llamar a ninguna herramienta. "
-        "Lee lo que dijiste: si PROMETISTE hacer algo sobre la tarjeta «{wid}» o AFIRMASTE haberlo hecho (un "
-        "borrador listo, una cita movida, algo abierto o cambiado), haz AHORA exactamente la llamada `widget_data` "
-        "que lo cumple, con widget_id «{wid}», una de estas acciones declaradas y el payload sacado de las palabras "
-        "del operador y de lo que hay en la tarjeta (una hora relativa —«media hora más tarde»— se calcula sobre la "
-        "cita que hay). Si solo CONTESTASTE, PROPUSISTE o PREGUNTASTE — sin prometer ni afirmar un acto —, o si "
-        "ninguna acción encaja, no llames a nada. OFRECER hacerlo («¿quieres que lo reserve?», «want me to put it "
-        "there?») NO es hacerlo: espera su sí. Pero si AFIRMASTE un acto y además ofreces OTRO («movida a las 2:45; "
-        "¿aviso a Rowan?»), haz la llamada del que afirmaste.\n\n"
-        "Acciones de «{wid}»:\n{actions}{card}")
+_SYS = (
+    "You are the brain of a voice assistant. On the previous turn you answered WITHOUT calling any "
+    "tool. Read what you said: if you PROMISED to do something on the card «{wid}» or CLAIMED to "
+    "have done it (a draft ready, an appointment moved, something opened or changed), make NOW "
+    "exactly the `widget_data` call that fulfils it, with widget_id «{wid}», one of the declared "
+    "actions below, and the payload taken from the operator's words and from what the card holds (a "
+    "relative time — «half an hour later» — is computed from the appointment that is there). If you "
+    "only ANSWERED, PROPOSED or ASKED — without promising or claiming an act — or if no action fits, "
+    "call nothing. OFFERING to do it («want me to book it?», «¿quieres que lo reserve?») is NOT "
+    "doing it: wait for his yes. But if you CLAIMED one act and also offer ANOTHER («moved to 2:45; "
+    "shall I tell Rowan?»), make the call for the one you claimed. Write any text you put in the "
+    "payload (a note, a message, a title) in the OPERATOR's language, as he said it.\n\nActions of "
+    "«{wid}»:\n{actions}{card}"
+)
 #: What the card holds, so a relative order («move it 30 minutes later») can be turned into a call. The
 #: demo run (2026-09-26): the model computed «It's now at 2:00 PM, running until 2:45» in the turn — it had the
 #: digest — and this pass, which had only his words, could not, and returned nothing in silence.
-_CARD = "\n\nLO QUE HAY EN LA TARJETA «{wid}» AHORA:\n{digest}"
+_CARD = "\n\nWHAT THE CARD «{wid}» HOLDS NOW:\n{digest}"
 
 
 def conversation(window, n: int = 6) -> str:
@@ -45,9 +49,9 @@ def conversation(window, n: int = 6) -> str:
     only his sentence and the messaging card; the time lived two turns back, on the agenda)."""
     try:
         rows = [m for m in (window or []) if (m or {}).get("role") in ("user", "assistant")][-n:]
-        lines = [f"{'Operador' if m['role'] == 'user' else 'Tú'}: {str(m.get('content') or '').strip()[:300]}"
+        lines = [f"{'Operator' if m['role'] == 'user' else 'You'}: {str(m.get('content') or '').strip()[:300]}"
                  for m in rows if str(m.get("content") or "").strip()]
-        return ("\n\nLA CONVERSACIÓN HASTA AHORA (lo último abajo):\n" + "\n".join(lines)) if lines else ""
+        return ("\n\nTHE CONVERSATION SO FAR (latest last):\n" + "\n".join(lines)) if lines else ""
     except Exception:  # noqa: BLE001
         return ""
 
@@ -153,8 +157,8 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
         from nucleo.flash.fast_client import FastClient
         await FastClient().complete(
             [{"role": "system", "content": _SYS.format(wid=wid, actions=_actions_block(manifest), card=card)},
-             {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»\n"
-                                         f"Tu respuesta (sin llamada): «{(reply or '').strip()[:300]}»"
+             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»\n"
+                                         f"Your reply (no call): «{(reply or '').strip()[:300]}»"
                                          + conversation(window)}],
             spec=spec, max_tokens=300, tools=[tool], no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
@@ -178,21 +182,28 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
 
 
 _SYS_REPEAT = (
-    "Eres el cerebro de un asistente de voz. El operador dio una orden y tu única llamada fue `{repeated}` sobre la "
-    "tarjeta «{wid}» — solo MIRÓ (una vista o una consulta que ya estaba o que no cambia nada): no cumplió nada. La orden, leída por separado, es "
-    "`{verdict}` sobre «{wid}». Si sus palabras piden eso, haz AHORA exactamente la llamada `widget_data` con "
-    "widget_id «{wid}» y action «{verdict}», con el payload sacado de sus palabras, de la conversación y de lo que hay "
-    "en la tarjeta (una nota que él dicta se redacta tú; a una persona se la nombra como él la dijo). Si sus palabras "
-    "NO piden eso, no llames a nada.\n\nAcciones de «{wid}»:\n{actions}{card}")
+    "You are the brain of a voice assistant. The operator gave an order and your only call was "
+    "`{repeated}` on the card «{wid}» — it only LOOKED (a view or a query that was already there or "
+    "that changes nothing): it fulfilled nothing. The order, read separately, is `{verdict}` on "
+    "«{wid}». If his words ask for that, make NOW exactly the `widget_data` call with widget_id "
+    "«{wid}» and action «{verdict}», with the payload taken from his words, from the conversation "
+    "and from what the card holds (a note he dictates is written by you; a person is named as he "
+    "said it). If his words do NOT ask for that, call nothing. Write any text you put in the payload "
+    "(a note, a message, a title) in the OPERATOR's language, as he said it.\n\nActions of "
+    "«{wid}»:\n{actions}{card}"
+)
 
 
 _SYS_REFUSED = (
-    "Eres el cerebro de un asistente de voz. El operador dio una orden y no llamaste a nada: contestaste «{said}». "
-    "La orden, leída por separado, es `{verdict}` sobre la tarjeta «{wid}» — una acción que esa tarjeta SÍ tiene, "
-    "declarada abajo. Si sus palabras piden eso, haz AHORA exactamente la llamada `widget_data` con widget_id «{wid}» "
-    "y action «{verdict}», con el payload sacado de sus palabras, de la conversación y de lo que hay en la tarjeta "
-    "(una nota que él dicta se redacta tú; a una persona se la nombra como él la dijo). Si sus palabras NO piden "
-    "eso, no llames a nada.\n\nAcciones de «{wid}»:\n{actions}{card}")
+    "You are the brain of a voice assistant. The operator gave an order and you called nothing: you "
+    "answered «{said}». The order, read separately, is `{verdict}` on the card «{wid}» — an action "
+    "that card DOES have, declared below. If his words ask for that, make NOW exactly the "
+    "`widget_data` call with widget_id «{wid}» and action «{verdict}», with the payload taken from "
+    "his words, from the conversation and from what the card holds (a note he dictates is written by "
+    "you; a person is named as he said it). If his words do NOT ask for that, call nothing. Write "
+    "any text you put in the payload (a note, a message, a title) in the OPERATOR's language, as he "
+    "said it.\n\nActions of «{wid}»:\n{actions}{card}"
+)
 
 
 async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: str, verdict: str = "", spec=None, *,
@@ -245,7 +256,7 @@ async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: s
         await FastClient().complete(
             [{"role": "system", "content": (_sys or _SYS_REPEAT).format(wid=wid, repeated=repeated, verdict=verdict,
                                                                      actions=_actions_block(manifest), card=card)},
-             {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»" + conversation(window)}],
+             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»" + conversation(window)}],
             spec=spec, max_tokens=400, tools=[tool], no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
         for name, args in got:
@@ -260,11 +271,14 @@ async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: s
 
 
 _SYS_AFTER_READ = (
-    "Eres el cerebro de un asistente de voz. El operador dio una ORDEN sobre la tarjeta «{wid}». Para cumplirla leíste "
-    "antes la tarjeta «{read}» — esto es lo que guarda:\n{block}\n\nAhora cumple la orden: haz la llamada "
-    "`widget_data` con widget_id «{wid}», una de sus acciones declaradas y el payload sacado de sus palabras y de lo "
-    "que acabas de leer (un mensaje lo redactas tú; a una persona se la nombra como él la dijo). Si su frase no pide "
-    "hacer nada en «{wid}», no llames a nada.\n\nAcciones de «{wid}»:\n{actions}{card}")
+    "You are the brain of a voice assistant. The operator gave an ORDER on the card «{wid}». To "
+    "fulfil it you first read the card «{read}» — this is what it holds:\n{block}\n\nNow fulfil the "
+    "order: make the `widget_data` call with widget_id «{wid}», one of its declared actions and the "
+    "payload taken from his words and from what you just read (a message is written by you; a person "
+    "is named as he said it). If his sentence does not ask for anything on «{wid}», call nothing. "
+    "Write any text you put in the payload (a note, a message, a title) in the OPERATOR's language, "
+    "as he said it.\n\nActions of «{wid}»:\n{actions}{card}"
+)
 
 
 async def call_after_read(operator_text: str, read_widget: str, widget_id: str, spec=None, *,
@@ -295,7 +309,7 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
         await FastClient().complete(
             [{"role": "system", "content": _SYS_AFTER_READ.format(wid=wid, read=rid, block=block,
                                                                   actions=_actions_block(manifest), card=card)},
-             {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»" + conversation(window)}],
+             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»" + conversation(window)}],
             spec=spec, max_tokens=400, tools=[tool], no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
         for name, args in got:
@@ -310,23 +324,26 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
 
 
 _SYS_COMMISSION = (
-    "Eres el cerebro de un asistente de voz. El operador ha dado una ORDEN que nombra la tarjeta «{wid}», y el "
-    "turno iba a mandarla a un proceso de fondo de VARIOS MINUTOS. Antes de gastarlos, decide con lo que hay en la "
-    "tarjeta: (1) si una acción declarada de «{wid}» cumple la orden, llama a `widget_data` con ella; (2) si la "
-    "RESPUESTA está en lo que la tarjeta guarda (sus citas y huecos libres, sus contactos, sus ficheros…), llama a "
-    "`read_widget` con widget_id «{wid}» y la pregunta concreta que hay que resolver contra ella (con la fecha "
-    "absoluta y la franja que él dijo) — solo si esa herramienta se te ofrece; (3) solo si hace falta el mundo "
-    "exterior —la web, reservar en un sitio externo, buscar productos— no llames a nada. Un mensaje a un contacto "
-    "es la acción de enviar de la tarjeta, con el texto redactado por ti a partir de lo que él quiere decir, y "
-    "`contact` es el NOMBRE de la persona tal como él lo dijo («Rowan»), nunca su @usuario, teléfono o correo: "
-    "la tarjeta lo resuelve en su directorio. Una orden de HACER algo (enviar, escribir, apuntar, mover) se cumple "
-    "con su acción aunque dependa de un dato que la tarjeta guarda: la tarjeta lo comprueba al ejecutar y dice si "
-    "falta — leer para comprobarlo antes no cumple la orden. Pero ENCONTRAR, buscar o decirle algo (un hueco libre, "
-    "una fecha, un dato) es SABERLO: se lee, y no se apunta ni se envía nada que él no haya pedido — «búscame un "
-    "hueco para hablar con Rowan» no es reservar ni escribirle a Rowan. El ENCARGO lo redactó otro paso y puede "
-    "traer un dato mal copiado: una hora, una fecha o un nombre que una tarjeta de su pantalla guarda se toma de la "
-    "TARJETA, no del encargo."
-    "\n\nAcciones de «{wid}»:\n{actions}{card}")
+    "You are the brain of a voice assistant. The operator gave an ORDER that names the card «{wid}», "
+    "and the turn was about to send it to a background process of SEVERAL MINUTES. Before spending "
+    "them, decide with what the card holds: (1) if a declared action of «{wid}» fulfils the order, "
+    "call `widget_data` with it; (2) if the ANSWER is in what the card keeps (its appointments and "
+    "free slots, its contacts, its files…), call `read_widget` with widget_id «{wid}» and the "
+    "concrete question to resolve against it (with the absolute date and the time range he said) — "
+    "only if that tool is offered to you; (3) only if the outside world is needed — the web, booking "
+    "on an external site, searching products — call nothing. A message to a contact is the card's "
+    "send action, with the text written by you from what he wants to say, and `contact` is the "
+    "person's NAME as he said it («Rowan»), never their @user, phone or email: the card resolves it "
+    "in its directory. An order to DO something (send, write, note down, move) is fulfilled with its "
+    "action even if it depends on a fact the card keeps: the card checks it when it runs and says if "
+    "it is missing — reading to check first does not fulfil the order. But FINDING, searching or "
+    "telling him something (a free slot, a date, a fact) is KNOWING it: it is read, and nothing he "
+    "did not ask for is noted down or sent — «find me a slot to talk with Rowan» is neither booking "
+    "nor writing to Rowan. The COMMISSION was written by another step and may carry a miscopied "
+    "fact: a time, a date or a name that a card on his screen holds is taken from the CARD, not from "
+    "the commission. Write any text you put in the payload (a note, a message, a title) in the "
+    "OPERATOR's language, as he said it.\n\nActions of «{wid}»:\n{actions}{card}"
+)
 
 
 def _tool_named(name: str) -> dict | None:
@@ -356,10 +373,10 @@ def _other_open_cards(wid: str, *, limit: int = 2, chars: int = 900) -> str:
                 continue
             digest = str(_wr.read(other) or "").strip()[:chars]
             if digest:
-                out.append(f"\n\nLO QUE HAY EN «{other}», TAMBIÉN EN SU PANTALLA (la fuente de un dato que la orden "
-                           f"nombra — una hora, una fecha —, por encima de lo que diga el encargo). Es el estado de "
-                           f"AHORA, con los cambios que él ya pidió en la conversación YA APLICADOS: una hora de aquí "
-                           f"es la final, no se le vuelve a sumar ni restar nada:\n{digest}")
+                out.append(f"\n\nWHAT «{other}» HOLDS, ALSO ON HIS SCREEN (the source of a fact the order names — a time, "
+                           f"a date —, above what the commission says). It is the state NOW, with the changes he "
+                           f"already asked for in the conversation ALREADY APPLIED: a time from here is the final "
+                           f"one, nothing is added to or taken from it again:\n{digest}")
         return "".join(out)
     except Exception:  # noqa: BLE001
         return ""
@@ -395,8 +412,8 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
         from nucleo.flash.fast_client import FastClient
         await FastClient().complete(
             [{"role": "system", "content": _SYS_COMMISSION.format(wid=wid, actions=_actions_block(manifest), card=card)},
-             {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»\n"
-                                         f"El encargo que iba a un worker: «{(commission or '').strip()[:300]}»"
+             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»\n"
+                                         f"The commission that was going to a worker: «{(commission or '').strip()[:300]}»"
                                          + conversation(window)}],
             spec=spec, max_tokens=300, tools=tools, no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
@@ -417,13 +434,15 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
 
 
 _SYS_REFUSAL = (
-    "Eres el cerebro de un asistente de voz. Para cumplir lo que dijo el operador llamaste a `widget_data` con la "
-    "acción «{action}» sobre la tarjeta «{wid}» y el payload {payload}, y la tarjeta la RECHAZÓ: «{why}». Corrige "
-    "esa llamada: la MISMA acción sobre la MISMA tarjeta, con el dato que falta o que no encajaba sacado de sus "
-    "palabras y de lo que hay en la tarjeta. Una referencia por cualidad («la mejor oferta», «el más barato», «la "
-    "de mañana») se resuelve LEYENDO la tarjeta y pasando el título o el número de ese elemento; una hora relativa "
-    "se calcula sobre lo que hay. Si con eso no se puede saber, no llames a nada."
-    "\n\nAcciones de «{wid}»:\n{actions}{card}")
+    "You are the brain of a voice assistant. To do what the operator said you called `widget_data` "
+    "with the action «{action}» on the card «{wid}» and the payload {payload}, and the card REFUSED "
+    "it: «{why}». Correct that call: the SAME action on the SAME card, with the missing or "
+    "mismatched fact taken from his words and from what the card holds. A reference by quality («the "
+    "best deal», «the cheapest», «the one tomorrow») is resolved by READING the card and passing "
+    "that item's title or number; a relative time is computed from what is there. If that still "
+    "cannot tell, call nothing. Write any text you put in the payload (a note, a message, a title) "
+    "in the OPERATOR's language, as he said it.\n\nActions of «{wid}»:\n{actions}{card}"
+)
 
 
 def _same_card(asked: str, wid: str) -> bool:
@@ -465,9 +484,9 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
             [{"role": "system", "content": _SYS_REFUSAL.format(
                 wid=wid, action=action, payload=json.dumps(payload or {}, ensure_ascii=False)[:300],
                 why=str(why or "")[:300], actions=_actions_block(manifest), card=card)},
-             {"role": "user", "content": f"Operador: «{operator_text.strip()[:400]}»"
-                                         + (f"\nLo que le acabas de decir: «{said.strip()[:300]}» — si ahí nombraste "
-                                            f"cuál, la corrección es ESE." if (said or "").strip() else "")}],
+             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»"
+                                         + (f"\nWhat you just told him: «{said.strip()[:300]}» — if you named which one there, "
+                                            f"the correction is THAT one." if (said or "").strip() else "")}],
             spec=spec, max_tokens=300, tools=[tool], no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
         for name, args in got:

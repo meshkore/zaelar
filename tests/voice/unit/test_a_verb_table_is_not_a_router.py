@@ -292,7 +292,8 @@ def test_a_repair_that_may_write_needs_a_sure_action_verdict(monkeypatch):
     # draft → the call), so the provider's gate no longer needs the floor; `sure` stays for callers that WRITE
     # on the verdict alone. Measured live in `act_repair`'s own test.
     from nucleo.flash import act_repair as _ar
-    assert "PROPUSISTE" in _ar._SYS and "AFIRMASTE" in _ar._SYS, "the promise repair's gate must carry the floor"
+    # V2-778 F2-19: the repair prompts are English
+    assert "PROPOSED" in _ar._SYS and "CLAIMED" in _ar._SYS, "the promise repair's gate must carry the floor"
 
 
 def test_a_show_that_names_a_card_we_have_beats_the_worker_and_an_undone_order_over_a_card_escalates():

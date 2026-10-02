@@ -114,7 +114,7 @@ def test_the_pass_sees_the_card_so_a_relative_order_can_become_a_call(client, mo
                    "payload": {"title": "Catch up with Rowan", "newTime": "14:00"}}
     sys_prompt = _Client.calls[-1]["messages"][0]["content"]
     assert "13:30 «Catch up with Rowan»" in sys_prompt, "the card's own rows ride the pass"
-    assert "AFIRMASTE" in sys_prompt, "a claim of completion is repaired like a promise"
+    assert "CLAIMED" in sys_prompt, "a claim of completion is repaired like a promise"   # V2-778 F2-19: English
     # …and a pass that gives no call SAYS so on the timeline
     _Client.answer = []
     assert _run("Move it 30 minutes later.", "Done.", "agenda") is None
@@ -138,7 +138,7 @@ def test_a_commission_that_names_a_card_is_read_or_called_before_it_costs_a_work
     assert "citas próximas (3)" in _Client.calls[-1]["messages"][0]["content"], "the card rides the pass"
     # demo v4, C5: the pass sent `contact: "@cryptonitefund"` — a handle from memory, misspelt — and the card
     # answered «no tengo a @cryptonitefund en el directorio»; the contact is the NAME he said.
-    assert "NOMBRE de la persona" in _Client.calls[-1]["messages"][0]["content"]
+    assert "person's NAME" in _Client.calls[-1]["messages"][0]["content"]
     _Client.answer = [("widget_data", {"widget_id": "agenda", "action": "add_meeting", "payload": {"title": "x", "date": "2026-09-27"}})]
     got = _run_cr("Put a meeting tomorrow", "…", "agenda")
     assert got and got["kind"] == "call" and got["action"] == "add_meeting"
