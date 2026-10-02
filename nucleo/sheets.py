@@ -106,6 +106,25 @@ def sheet_for_nav_task(nav_task: str, sessions=()) -> str:
     return ""
 
 
+def errand_goal_for_nav_task(nav_task: str, sessions=()) -> str:
+    """WHAT the errand behind this browser tab was asked to do ("" when no errand owns it).
+
+    Demo pass 75 (2026-10-03): the monitor errand (a research worker, not `kind=web`) drove the browser through
+    `nav_cli`, so its tab was named after the TASK and carried no goal of its own. Every extraction then reached the
+    voice turn as «a tab found this and does NOT say which errand it belongs to» — twelve times in one pass — and the
+    model narrated stray tabs in turns about the calendar («tidy up the screen» answered with «I'd close the extra
+    tabs»). The owner was one lookup away, by the SAME rule `sheet_for_nav_task` already uses to deliver its rows.
+    """
+    tid = str(nav_task or "").strip()
+    if not tid:
+        return ""
+    for attr in ("nav_task", "task_id"):
+        for r in list(sessions):
+            if str(getattr(r, attr, "") or "") == tid:
+                return str(getattr(r, "title", "") or getattr(r, "goal", "") or "").strip()
+    return ""
+
+
 def sheet_for_delivery(nav_task: str, sessions=(), live_states=()) -> str:
     """The sheet where this tab should DELIVER what it just found, OPENING IT if its errand does not yet have one.
 

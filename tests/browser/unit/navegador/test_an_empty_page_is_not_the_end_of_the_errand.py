@@ -122,15 +122,48 @@ def test_una_fila_SIN_NOMBRE_no_cuenta_como_entrega(task, monkeypatch):
     assert act_api._sheet_already_named(task) is False
 
 
-def test_una_pagina_QUE_SI_DA_sigue_por_su_rama(task):
-    """The third branch is untouched: with named rows, the V2-223 finding note takes precedence."""
+def test_a_page_with_named_rows_lands_in_its_sheet_and_not_in_the_voice(task):
+    """Demo pass 75 (2026-10-03): named rows of an errand that HAS its own sheet go to the sheet, live, and the
+    errand's end report speaks for them. Pushing each page as «name it this turn» made a background errand narrate
+    monitors in the middle of the calendar — twelve notes in one pass. The rows are not lost: they are in the sheet."""
     _sembrar_hoja(ENTREGADO)
     act_api._HANDED.pop(task, None)
     brain_notes.drain()
     act_api._hand_over(task, ENTREGADO)
+    assert brain_notes.drain() == []
+    assert act_api._sheet_already_named(task), "the rows reached the errand's own sheet"
+
+
+@pytest.fixture
+def own_tabs(monkeypatch):
+    """These cases add tabs to the browser's process-wide registry; they leave it as they found it."""
+    monkeypatch.setattr(tasks, "_tasks", dict(tasks._tasks))
+
+
+def test_named_rows_with_NO_sheet_to_land_in_still_reach_the_voice(monkeypatch, own_tabs):
+    """The V2-223 branch is kept where the voice is the only channel left."""
+    tid = tasks.create("Busca una bicicleta de montaña de segunda mano en buen estado, talla M")
+    monkeypatch.setattr(act_api, "_sheet_of", lambda t: "")
+    act_api._HANDED.pop(tid, None)
+    brain_notes.drain()
+    act_api._hand_over(tid, ENTREGADO)
     n = " ".join(brain_notes.drain())
-    assert "ha SACADO esto de la página" in n
-    assert "NO el final de la búsqueda" not in n
+    assert "ha SACADO esto de la página" in n and "Trek 6500" in n
+
+
+def test_a_tab_named_after_its_TASK_inherits_the_errands_goal(monkeypatch, own_tabs):
+    """A research errand drives the browser through `nav_cli`, so its tab is named after the task and carries no
+    goal; it must not reach the turn as «a tab of an unknown errand» (pass 75: twelve times)."""
+    from nucleo import dispatch
+    tid = tasks.ensure("777")                         # the tab nav_cli opens: id = ZAELAR_TASK_ID, no goal
+    monkeypatch.setattr(act_api, "_sheet_of", lambda t: "")
+    monkeypatch.setattr(dispatch, "errand_goal_for_nav_task",
+                        lambda t: "Find three 27-inch 4K monitors under $400" if t == "777" else "")
+    act_api._HANDED.pop(tid, None)
+    brain_notes.drain()
+    act_api._hand_over(tid, ENTREGADO)
+    n = " ".join(brain_notes.drain())
+    assert "trabajando en «Find three 27-inch" in n and "NO dice a qué encargo pertenece" not in n
 
 
 # ── el lector ──────────────────────────────────────────────────────────────────────────────────────────────

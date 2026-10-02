@@ -101,3 +101,15 @@ def test_finalize_web_llama_a_la_nota_justo_donde_escribe_las_filas():
     assert "hand_sheet_finding" in llamadas, \
         "`_finalize_web` escribe las filas en la hoja y no se lo cuenta a nadie: el operador las tiene delante " \
         "y el agente sigue diciendo que no hay nada"
+
+
+def test_the_errand_behind_a_tab_is_found_by_its_tab_or_by_its_task():
+    """Demo pass 75: a research errand's tab is named after its TASK (nav_cli falls back to ZAELAR_TASK_ID); its goal
+    is found by the same rule `sheet_for_nav_task` uses to deliver its rows."""
+    from types import SimpleNamespace as NS
+    from nucleo import sheets
+    sessions = [NS(nav_task="n-1", task_id="5", title="", goal="a hotel in Seville"),
+                NS(nav_task="", task_id="7", title="Monitors under $400", goal="find three 27-inch 4K monitors")]
+    assert sheets.errand_goal_for_nav_task("n-1", sessions) == "a hotel in Seville"
+    assert sheets.errand_goal_for_nav_task("7", sessions) == "Monitors under $400"
+    assert sheets.errand_goal_for_nav_task("9", sessions) == ""

@@ -510,9 +510,10 @@ def _hand_over(task_id: str, items: list) -> None:
         _t.set_results(task_id, {"conclusion": (prev or {}).get("conclusion") or "", "items": ordered[:5]})
         # …y los HALLAZGOS van a la hoja, que es donde el operador los está esperando desde que se abrió sola al
         # encargar. Una sola puerta para los tres caminos (V2-257).
+        own_sheet = _sheet_of(task_id)
         try:
             from widgets.results import intake as _intake
-            _intake.push(ordered, sheet=_sheet_of(task_id),
+            _intake.push(ordered, sheet=own_sheet,
                          source_url=str((_t.get(task_id) or {}).get("url") or ""))
         except Exception:  # noqa: BLE001
             pass
@@ -528,7 +529,24 @@ def _hand_over(task_id: str, items: list) -> None:
         # nuestro afirmando una pertenencia que nadie comprobó. Es la tercera vez en la tanda que una frase
         # enlatada nuestra es la que miente (V2-176 «Hecho.», V2-209 «Aquí lo tienes»).
         goal = str((_t.get(task_id) or {}).get("goal") or "").strip()[:70]
+        if not goal:
+            # A tab opened through `nav_cli` by an errand that is not `kind=web` is named after the TASK and has no
+            # goal of its own; its errand does (demo pass 75: 12 «tab of unknown errand» notes in one pass).
+            try:
+                from nucleo import dispatch as _disp
+                goal = _disp.errand_goal_for_nav_task(task_id)[:70]
+            except Exception:  # noqa: BLE001 — no dispatcher = a tab with no errand, which is the branch below
+                goal = ""
         _sin_encargo = not goal
+        if goal and own_sheet and named:
+            # THE SHEET IS THE SURFACE (demo pass 75, 2026-10-03). V2-223 pushed every page to the voice turn
+            # because back then the rows reached NOBODY; since V2-257 they land in the errand's own sheet, live,
+            # and the errand's end report speaks for it. Pushing each page as «NAME IT THIS TURN» on top of that
+            # made a background errand narrate monitors in the middle of the calendar (twelve notes in one pass;
+            # «tidy up the screen» answered with «I'd close the extra tabs»). NAMED rows only: an empty page is news
+            # about the errand being stuck (V2-370) and still reaches the voice; so do rows with no sheet to land in,
+            # and a tab no errand owns.
+            return
 
         def _one(i: dict) -> str:
             # V2-240 — el TELÉFONO viaja con la fila. Extraerlo y dejarlo caer aquí sería el defecto de V2-236 otra

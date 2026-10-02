@@ -370,6 +370,10 @@ def sheet_for_nav_task(nav_task: str) -> str:
     return _sheets.sheet_for_delivery(nav_task, _SESSIONS.values(), LIVE_SESSION_STATES)
 
 
+def errand_goal_for_nav_task(nav_task: str) -> str:
+    return _sheets.errand_goal_for_nav_task(nav_task, _SESSIONS.values())
+
+
 def sheet_progress(sheet: str = "") -> dict:
     return _sheets.sheet_progress(sheet, _SESSIONS.values(), LIVE_SESSION_STATES)
 
