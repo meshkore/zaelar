@@ -22,6 +22,7 @@ State lives in Archivos' own store under `db["torrents"]` and `db["section"]`; t
 caller does, once, like every other action of the widget.
 """
 from __future__ import annotations
+from widgets import hint_lang as _hl   # V2-778 F3-30: hints are read back aloud, in the agent's language
 
 import re
 import time
@@ -135,10 +136,11 @@ def refs(db: dict) -> list[dict]:
     download by `id` — «la segunda» of the catalogue must never cancel the second download."""
     out = []
     for i, r in enumerate((state(db).get("catalog") or {}).get("releases") or []):
-        out.append({"id": str(i + 1), "label": str(r.get("title") or ""), "field": "item", "hint": "catálogo"})
+        out.append({"id": str(i + 1), "label": str(r.get("title") or ""), "field": "item",
+                    "hint": _hl.pick("catálogo", "catalogue")})
     for r in live_rows(db):
         out.append({"id": r["id"], "label": r["title"], "field": "id",
-                    "hint": "semilla" if r["group"] == "seed" else "descarga"})
+                    "hint": _hl.pick("semilla", "seeding") if r["group"] == "seed" else _hl.pick("descarga", "download")})
     return out
 
 

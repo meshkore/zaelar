@@ -22,6 +22,7 @@ import urllib.parse
 import urllib.request
 
 from .. import store
+from widgets import hint_lang as _hl   # V2-778 F3-30: hints are read back aloud, in the agent's language
 from . import local_audio as _local   # V2-638: a track that is a FILE in the agent's own library
 
 WID = "musica"
@@ -512,7 +513,8 @@ def ref_index() -> list:
     for pl in db.get("playlists") or []:
         n = len(pl.get("tracks") or [])
         out.append({"id": pl.get("id"), "label": pl.get("name") or pl.get("id"),
-                    "field": "playlist", "hint": f"{n} canción{'es' if n != 1 else ''}"})
+                    "field": "playlist",
+                    "hint": _hl.pick(f"{n} canción{'es' if n != 1 else ''}", f"{n} song{'s' if n != 1 else ''}")})
     return out
 
 

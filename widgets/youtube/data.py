@@ -11,6 +11,7 @@ import urllib.parse
 import urllib.request
 
 from .. import store
+from widgets import hint_lang as _hl   # V2-778 F3-30: hints are read back aloud, in the agent's language
 from . import account, channels, library     # channels: the followed channels as cards and pages
 from .helpers import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
     _RESULTS_RE, _SEED, _YT_RE, _bump, _drop_blocked, _extract_id, _goto, _index_list, _is_blocked, _norm,
@@ -241,8 +242,9 @@ def ref_index() -> list:
             continue
         _estado = ""
         if i == cur:
-            _estado = ("no se puede reproducir aquí (el sitio bloquea la inserción); ofrécele otra o el enlace"
-                       if roto else "la que suena")
+            _estado = (_hl.pick("no se puede reproducir aquí (el sitio bloquea la inserción); ofrécele otra o el "
+                                "enlace", "cannot play here (the site blocks embedding); offer another or the link")
+                       if roto else _hl.pick("la que suena", "the one playing"))
         pistas = [p for p in (str(it.get("channel") or "").strip(), _estado) if p]
         out.append({"id": str(i + 1), "label": titulo[:80], "field": "item",
                     "hint": " · ".join(pistas)})

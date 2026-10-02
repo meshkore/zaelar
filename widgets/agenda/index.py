@@ -70,12 +70,8 @@ _WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "d
 
 
 def _en() -> bool:
-    """Does the agent speak English now? (the catalog's own language; Spanish when it cannot be read)."""
-    try:
-        from i18n.langs import current_language
-        return str(getattr(current_language(), "code", "") or "es")[:2] == "en"
-    except Exception:  # noqa: BLE001
-        return False
+    from widgets import hint_lang as _hl
+    return _hl.en()
 
 
 def _day_words():

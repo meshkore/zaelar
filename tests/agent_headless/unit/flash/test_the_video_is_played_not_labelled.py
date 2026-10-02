@@ -299,7 +299,9 @@ def test_el_reproductor_publica_sus_items_para_que_el_cerebro_los_nombre(monkeyp
     assert [i["id"] for i in idx] == ["1", "2"], "se nombra por NÚMERO, como se dice en voz"
     assert all(i["field"] == "item" for i in idx), "`item` es la clave que usa play_item/remove/move"
     assert "Paella" in idx[0]["label"]
-    assert "la que suena" in idx[1]["hint"], "cuál de doce está sonando es una referencia real del operador"
+    from widgets import hint_lang as _hl  # V2-778 F3-30: the hint is in the agent's language (the suite runs an English agent)
+    assert _hl.pick("la que suena", "the one playing") in idx[1]["hint"], \
+        "cuál de doce está sonando es una referencia real del operador"
 
     from widgets import refs
     linea = refs.items_line("youtube")
@@ -376,8 +378,9 @@ def test_con_player_error_la_pista_dice_que_NO_suena_y_por_que(monkeypatch, tmp_
     store.save(yt.WID, db)
 
     idx = yt.ref_index()
-    assert "la que suena" not in (idx[0]["hint"] or "")
-    assert "no se puede reproducir" in idx[0]["hint"]
+    from widgets import hint_lang as _hl  # V2-778 F3-30: the hint is in the agent's language (the suite runs an English agent)
+    assert _hl.pick("la que suena", "the one playing") not in (idx[0]["hint"] or "")
+    assert _hl.pick("no se puede reproducir", "cannot play here") in idx[0]["hint"]
 
 
 def test_sin_player_error_la_pista_de_la_que_suena_se_conserva(monkeypatch, tmp_path):
@@ -390,4 +393,5 @@ def test_sin_player_error_la_pista_de_la_que_suena_se_conserva(monkeypatch, tmp_
     db["pos"] = 0
     db["player_error"] = ""
     store.save(yt.WID, db)
-    assert "la que suena" in yt.ref_index()[0]["hint"]
+    from widgets import hint_lang as _hl  # V2-778 F3-30: the hint is in the agent's language (the suite runs an English agent)
+    assert _hl.pick("la que suena", "the one playing") in yt.ref_index()[0]["hint"]

@@ -36,6 +36,7 @@ from __future__ import annotations
 import time
 
 from .. import store
+from widgets import hint_lang as _hl   # V2-778 F3-30: hints are read back aloud, in the agent's language
 
 WIDGET_ID = "fotos"
 DB_VERSION = 1
@@ -125,7 +126,7 @@ def ref_index() -> list[dict]:
     for it in (_load().get("items") or [])[:200]:
         iid = str(it.get("id") or "")
         if iid:
-            out.append({"id": iid, "label": it.get("filename") or iid, "field": "id", "hint": "foto"})
+            out.append({"id": iid, "label": it.get("filename") or iid, "field": "id", "hint": _hl.pick("foto", "photo")})
     return out
 
 

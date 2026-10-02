@@ -53,6 +53,7 @@ import time as _tm
 import unicodedata as _ud
 
 from .. import store
+from widgets import hint_lang as _hl   # V2-778 F3-30: hints are read back aloud, in the agent's language
 from .sheet_names import (  # noqa: F401 — re-export: this module IS the sheet contract
     WIDGET_ID, _INSTANCE_SEP, _MAX_SHEETS, _safe_sheet, card_face, instance_id, prune_sheets, recent_faces,  # noqa: F401
     sheet_key, sheets)
@@ -582,7 +583,7 @@ def ref_index(sheet=None) -> list[dict]:
         for n, it in enumerate(data.get("items", []), 1):
             bits = [f"#{n}"]
             if varias and titulo:
-                bits.append(f"de «{titulo}»")
+                bits.append(_hl.pick(f"de «{titulo}»", f"from «{titulo}»"))
             if it.get("price"):
                 bits.append(it["price"])
             if it.get("parts"):

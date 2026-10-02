@@ -39,3 +39,33 @@ def test_a_spanish_agent_keeps_its_own(monkeypatch):
     rows = _index(monkeypatch, "es")
     hints = " ".join(str(r.get("hint") or "") for r in rows)
     assert "cita" in hints and "todos los" in hints, hints
+
+
+# ── the same class in every widget whose hints are read back (one helper: `widgets/hint_lang.py`) ──────────
+
+@pytest.fixture
+def english(monkeypatch):
+    from i18n import langs
+    monkeypatch.setattr(langs, "current_language", lambda: langs.LANGUAGES["en"])
+
+
+def test_a_playlist_counts_songs_in_english(english, monkeypatch):
+    from widgets.musica import data as MD
+    monkeypatch.setattr(MD, "_load_db", lambda: {"playlists": [{"id": "p", "name": "Gym", "tracks": [{}, {}]}]})
+    assert MD.ref_index()[0]["hint"] == "2 songs"
+
+
+def test_a_download_and_the_catalogue_say_so_in_english(english, monkeypatch):
+    from widgets.archivos import torrents as T
+    monkeypatch.setattr(T, "state", lambda db: {"catalog": {"releases": [{"title": "A film"}]}})
+    monkeypatch.setattr(T, "live_rows", lambda db: [{"id": "t1", "title": "A song", "group": "seed"}])
+    hints = [r["hint"] for r in T.refs({})]
+    assert hints == ["catalogue", "seeding"], hints
+
+
+def test_a_contact_group_counts_members_in_english(english, monkeypatch):
+    from widgets.contactos import data as CD
+    monkeypatch.setattr(CD, "load_db", lambda: {})
+    monkeypatch.setattr(CD, "visible", lambda db: [{"id": "g", "name": "Family", "kind": "group",
+                                                    "platform": "whatsapp", "members": [1, 2, 3]}])
+    assert CD.ref_index()[0]["hint"] == "whatsapp · 3 members"

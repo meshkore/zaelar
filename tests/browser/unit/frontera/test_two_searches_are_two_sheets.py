@@ -156,7 +156,8 @@ def test_the_brain_sees_every_open_sheet_and_says_which_is_which():
 
     refs = sheet.ref_index()
     assert {r["id"] for r in refs} == {"Relatores", "Ibiza 2019"}
-    assert all("de «" in r["hint"] for r in refs), "cada referencia dice de qué hoja es"
+    from widgets import hint_lang as _hl  # V2-778 F3-30: the hint is in the agent's language (the suite runs an English agent)
+    assert all(_hl.pick("de «", "from «") in r["hint"] for r in refs), "cada referencia dice de qué hoja es"
 
     dig = sheet.prompt_digest()
     assert "Fontaneros" in dig and "Coches" in dig
@@ -171,7 +172,8 @@ def test_with_one_sheet_the_digest_says_nothing_about_sheets():
     every prompt of every turn."""
     sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t1"), "title": "Fontaneros", "items": [{"title": "Relatores"}]})
     assert "── HOJA" not in sheet.prompt_digest()
-    assert all("de «" not in r["hint"] for r in sheet.ref_index())
+    from widgets import hint_lang as _hl
+    assert all(_hl.pick("de «", "from «") not in r["hint"] for r in sheet.ref_index())
 
 
 # ── 5) the sheet persists, so N sheets need a ceiling ──────────────────────────────────────────────────────────
