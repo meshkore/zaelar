@@ -69,6 +69,11 @@ def _actions_brief() -> str:
         for name, spec in acts.items():
             spec = spec if isinstance(spec, dict) else {}
             desc = spec.get("desc", "")
+            # V2-778 — `how` is the payload's rules (repeat, ranges, what a field means): the model's alone, after
+            # `desc`. `desc` is also what the screen question reads, cut at `turn_brief.MAX_DESC_CHARS` — so it says
+            # what the action IS, and `how` carries what would otherwise be beheaded there.
+            if spec.get("how"):
+                desc = f"{desc} {spec['how']}".strip()
             payload = spec.get("payload")
             shape = (" " + json.dumps(payload, ensure_ascii=False)) if isinstance(payload, dict) else ""
             tag = wactions.label(wactions.classify(spec, name))

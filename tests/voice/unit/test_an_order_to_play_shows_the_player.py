@@ -158,11 +158,11 @@ def test_the_declarations_this_incident_touched_FIT_the_question(name):
 #: They reach the screen question BEHEADED and nothing says so. This may only go DOWN — the ratchet
 #: exists because the same defect has now been paid for three times (V2-742, V2-753, V2-755) and a
 #: silent cut is invisible until a live session hits it.
-BEHEADED_DESCRIPTORS = 49
-#: ⚠️ V2-778 F0 (2026-10-02) — RAISED from 45 by the operator's decision, as declared debt: four declarations went
-#: over the cut while CI never reached this test — agenda:add_meeting (751), agenda:cancel_meeting (308),
-#: agenda:move_meeting (235), youtube:open_channel (220). Their FULL text still reaches the model through
-#: `widgets/brief.py`, so trimming them is a behaviour change that waits for a measurable use case (V2-778 F2).
+BEHEADED_DESCRIPTORS = 45
+#: V2-778 (2026-10-02) — 49 → 45, PAID: the four F0 raised it for (agenda:add_meeting 751, cancel_meeting 308,
+#: move_meeting 235, youtube:open_channel 220) now say what the action IS in `desc` (≤ 200) and carry the payload's
+#: rules in `how`, which only the model reads (`widgets/brief.py` joins the two). The model reads the same words;
+#: the screen question stops reading a sentence cut in half. Edit DOWNWARD only.
 
 
 def test_the_beheaded_declarations_are_declared_debt_and_only_shrink():

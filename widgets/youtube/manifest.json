@@ -290,7 +290,7 @@
       }
     },
     "open_channel": {
-      "desc": "ABRE la página de un canal que sigue (sus vídeos, directos, shorts y listas, navegable) y busca sus vídeos nuevos. «ábreme el canal de X», «enséñame lo de X». No suscribe a nada en YouTube: las suscripciones son NUESTRAS",
+      "desc": "ABRE la página de un canal que sigue (sus vídeos, directos, shorts y listas, navegable) y busca sus vídeos nuevos. «ábreme el canal de X», «enséñame lo de X».", "how": "No suscribe a nada en YouTube: las suscripciones son NUESTRAS",
       "payload": {
         "channel": "nombre del canal que sigue",
         "tab": "videos | streams | shorts | playlists (opcional)"

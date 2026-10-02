@@ -62,7 +62,8 @@ def test_a_stay_of_several_days_is_declared_so_the_model_can_ask_for_it(ag):
     import json
     from pathlib import Path
     add = json.loads((Path(ag.__file__).parent / "manifest.json").read_text("utf-8"))["actions"]["add_meeting"]
-    assert "VARIOS DÍAS" in add["desc"] and "tramo" in add["payload"]["until"], "the span is not declared"
+    told = f"{add['desc']} {add.get('how', '')}"     # V2-778: what the model reads is desc + how (widgets/brief.py)
+    assert "VARIOS DÍAS" in told and "tramo" in add["payload"]["until"], "the span is not declared"
     r = ag.apply_action("add_meeting", {"title": "Anna vacation", "date": "2026-12-20", "until": "2027-01-04",
                                         "allDay": True})
     assert r.get("ok") is not False, r

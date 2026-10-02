@@ -155,7 +155,8 @@ def test_the_action_is_DECLARED_with_its_gate():
     spec = acts["dedupe_meetings"]
     assert spec.get("confirm") is True and spec.get("confirm_q"), "it removes rows — it asks first"
     assert spec.get("ref") == "title"
-    assert "dedupe_meetings" in acts["cancel_meeting"]["desc"], \
+    cancel = acts["cancel_meeting"]                 # V2-778: the model reads desc + how (widgets/brief.py)
+    assert "dedupe_meetings" in f"{cancel['desc']} {cancel.get('how', '')}", \
         "cancel_meeting has to point at it, or the model keeps reaching for the only verb it knows"
 
 
