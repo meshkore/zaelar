@@ -10356,3 +10356,36 @@ one-line index behind in the live log. Nothing below was edited or summarized on
   to the person choosing — `/var` came out, because on Linux it is root-owned and the writability check was
   doing the work anyway. **NOT verified**: the native folder dialog headless (it cannot be), and the whole
   ceremony driven end to end by the operator.
+
+## Moved on 2026-10-02 (V2-778 F4-36 — the living log crossed its ceiling)
+
+- **The DEPLOYMENT picks the profile — nobody is asked, and one default replaces two (V2-671,
+  2026-09-11)**: the operator, shown the first-run wizard again after a factory reset — «el paso de si
+  quiero una instalación local o remota es absurdo porque tú ya sabes si estás corriendo en el ordenador
+  del cliente o la versión de la nube. Entonces esa pregunta va fuera» — and, about the damage it had
+  already done, «ni siquiera es una opción en el reset que se altere la configuración del sistema».
+  **MEASURED on his own install**: his engine came back on `qwen2.5:14b-instruct` over Ollama with
+  `whisper_local` + `kokoro_local`, against the canonical table's `deepseek-v4-pro` + `deepgram` +
+  `elevenlabs`. The reset did NOT do that, and the chain is the finding: V2-670 put `wizard_done` in
+  `AGENT_KEYS` → the reset dropped it → `_first_run()` went True → `main.js` opened the wizard → it
+  recommended `local` (correctly, by its own rules, on Apple Silicon with Ollama running) →
+  `profiles.apply()` writes `settings.json` **and** `config/v2.json` as one coordinated lever. **The four
+  install keys V2-670 deliberately preserved were preserved, and overwritten twenty seconds later**, along
+  with the model routing the Reset dialog promises in writing is never touched — a hint that was therefore
+  false, and is true again. Fixes: `_first_run()` returns False in BOTH deployments (a cloud account was
+  already exempt, so the question only ever reached a self-hosted human — and asked them, in English,
+  before they had chosen a language, to arbitrate between two provider stacks BY NAME; the panel stays
+  reachable from 🧭, because wanting local models is legitimate and having it decided FOR you is not);
+  `config/profiles.DEFAULT` becomes the canonical table's stack, ending the older fault underneath — **two
+  defaults for one concept**, `profiles.py` saying `local` while `voice/engine/core/profile.py` said
+  `remote`, whose `remote` row also named `voxtral` + `cartesia` against the table's `deepgram` +
+  `elevenlabs` while NOTHING compared the two (that row is what a bare boot uses: every fresh install and
+  every factory reset, so the drift shipped a voice stack nobody chose); `profiles.deployment()` reads
+  WHERE the process runs from the provisioner's env var and is deliberately independent of WHICH providers
+  the profile names — they share a word and are not the same question, and conflating them is what made the
+  wizard's answer damaging rather than merely redundant; and `wizard_done` moves to `INSTALL_KEYS`, since
+  it records something about the INSTALLATION and having it on the agent side is what let a reset arm the
+  wizard. Node **8.5**, whose engine-row assertion is measured AGAINST `config/models.default.json` so a
+  table change goes red instead of drifting; five disarms, mutations asserted, all red. The operator's own
+  install was restored in the same pass (`settings.json` emptied, the wizard-written `fast`/`memory`
+  sections dropped from `v2.json`) so the table governs again.

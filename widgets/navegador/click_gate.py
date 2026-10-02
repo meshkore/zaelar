@@ -53,7 +53,11 @@ import re
 _CHECKOUT_URL_RE = re.compile(
     r"(?:^|[/.?&=_-])(?:checkout|payment|payments|pay|billing|order|orders|purchase|cart|basket|"
     r"booking|bookings|reserva|reservas|reservation|reservations|pedido|pedidos|compra|pago|pagos|"
-    r"suscripcion|subscribe|subscription|donate|donacion|transfer|transferencia)(?:$|[/.?&=_-])", re.I)
+    r"suscripcion|subscribe|subscription|donate|donacion|transfer|transferencia|"
+    # V2-778 F4-36 — the shops the list did not speak: German, French, and the Spanish cart words. NOT «comprar»
+    # nor «caja», though the audit listed them: Spanish sites name their BROWSE sections that way (idealista
+    # `/comprar-viviendas/`, fotocasa `/es/comprar/viviendas/`), and every button of a flat search would ask.
+    r"kasse|zahlung|warenkorb|panier|paiement|tramitar|cesta|carrito)(?:$|[/.?&=_-])", re.I)
 
 #: A field whose presence means the form is about MONEY. `autocomplete` is the reliable half (the spec's own
 #: token list), `name`/`id` the pragmatic one for sites that never filled it in.
@@ -166,7 +170,10 @@ def decide(sig: dict | None) -> tuple[bool, str]:
     # The mechanism it stood in for is `needs_facts()` below: the honest question is not «shall I proceed»
     # but «what is your phone», and it is only worth asking when the engine does not already have it.
     urls = " ".join(_path_of(sig.get(k)) for k in ("targetUrl", "pageUrl"))
-    if submitish and _CHECKOUT_URL_RE.search(urls):
+    # V2-778 F4-36 — a BUTTON counts here even outside a form: most single-page shops pay through a
+    # `<div role="button">` their script wires up, and requiring a submit let exactly that walk through.
+    buttonish = submitish or str(sig.get("role") or "").lower() == "button"
+    if buttonish and _CHECKOUT_URL_RE.search(urls):
         return True, "el destino es una página de compra, pedido o reserva"
     return False, ""
 

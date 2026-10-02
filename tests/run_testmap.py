@@ -4161,6 +4161,9 @@ DOMAINS: list[dict] = [
         {"id": "4.48", "title": "Un importe dentro de la PROSA del enlace no es un precio (y la tarjeta real no "
                                 "pierde el suyo)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_an_amount_in_the_prose_is_not_a_price.py"]},
+        {"id": "4.244", "title": "A pay button outside a form still asks: a role=button on a checkout path, in German, "
+                                "French and Spanish cart words; a Spanish BROWSE section («comprar») is not a checkout",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_pay_button_outside_a_form_still_asks.py"]},
         {"id": "4.243", "title": "The widget contract gate reads an ACTIONS = {name: handler} table instead of fail-opening on it",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_table_dispatch_is_read.py"]},
         {"id": "4.242", "title": "The widget contract gate follows a delegate that renames its action parameter (make test-widgets green)",

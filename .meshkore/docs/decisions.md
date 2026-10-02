@@ -39,6 +39,16 @@ entregada siga citada aquí.
   Three ratchets (prompt prose +1,694 B, total, 4 beheaded descriptors) were RAISED by the operator's decision
   as declared debt — paying them changes what the model reads, and that waits for F2 to measure it.
 
+- **A pay button outside a form still asks; the engine-noun list is not extended (V2-778 F4-36/F4-38,
+  2026-10-02)**: `click_gate.decide` read the checkout path only for a submit-ish control, and most single-page
+  shops pay through a `<div role="button">` their script wires up — it walked through the last rail before a real
+  purchase. Now a button counts outside a form too, and the path words gain kasse/zahlung/warenkorb/panier/
+  paiement/tramitar/cesta/carrito. Two words the audit listed were left OUT on measurement: Spanish sites name
+  their BROWSE sections «comprar» (idealista `/comprar-viviendas/`, fotocasa `/es/comprar/viviendas/`) and «caja»
+  is a product word — every button of a flat search would have asked, the V2-776 false alarm again; a test pins
+  both. F4-38 (more nouns for `protected_core.touches_the_engine`) is NOT done: that detector only makes the refusal
+  legible — the protection is mechanical (`writes_are_confined`, and every writing worker jailed since F4-34) — and
+  more nouns («code», «server») would refuse legitimate English errands; a text gate is repaired by subtracting.
 - **A web page cannot drive the engine (V2-778 F4-35, 2026-10-02)**: the audit measured `POST /api/lists` and
   `/api/torrent/add` callable by anything that reached the port — and on a self-hosted engine that includes any web
   page open in the operator's browser (a cross-site simple POST needs no preflight; DNS rebinding also reads). The
@@ -2330,37 +2340,7 @@ entregada siga citada aquí.
   asserted, all red. ⚠️ **A rule every test has to remember is not a rule**, and an unisolated test does not
   fail: it leaves something behind.
 
-- **The DEPLOYMENT picks the profile — nobody is asked, and one default replaces two (V2-671,
-  2026-09-11)**: the operator, shown the first-run wizard again after a factory reset — «el paso de si
-  quiero una instalación local o remota es absurdo porque tú ya sabes si estás corriendo en el ordenador
-  del cliente o la versión de la nube. Entonces esa pregunta va fuera» — and, about the damage it had
-  already done, «ni siquiera es una opción en el reset que se altere la configuración del sistema».
-  **MEASURED on his own install**: his engine came back on `qwen2.5:14b-instruct` over Ollama with
-  `whisper_local` + `kokoro_local`, against the canonical table's `deepseek-v4-pro` + `deepgram` +
-  `elevenlabs`. The reset did NOT do that, and the chain is the finding: V2-670 put `wizard_done` in
-  `AGENT_KEYS` → the reset dropped it → `_first_run()` went True → `main.js` opened the wizard → it
-  recommended `local` (correctly, by its own rules, on Apple Silicon with Ollama running) →
-  `profiles.apply()` writes `settings.json` **and** `config/v2.json` as one coordinated lever. **The four
-  install keys V2-670 deliberately preserved were preserved, and overwritten twenty seconds later**, along
-  with the model routing the Reset dialog promises in writing is never touched — a hint that was therefore
-  false, and is true again. Fixes: `_first_run()` returns False in BOTH deployments (a cloud account was
-  already exempt, so the question only ever reached a self-hosted human — and asked them, in English,
-  before they had chosen a language, to arbitrate between two provider stacks BY NAME; the panel stays
-  reachable from 🧭, because wanting local models is legitimate and having it decided FOR you is not);
-  `config/profiles.DEFAULT` becomes the canonical table's stack, ending the older fault underneath — **two
-  defaults for one concept**, `profiles.py` saying `local` while `voice/engine/core/profile.py` said
-  `remote`, whose `remote` row also named `voxtral` + `cartesia` against the table's `deepgram` +
-  `elevenlabs` while NOTHING compared the two (that row is what a bare boot uses: every fresh install and
-  every factory reset, so the drift shipped a voice stack nobody chose); `profiles.deployment()` reads
-  WHERE the process runs from the provisioner's env var and is deliberately independent of WHICH providers
-  the profile names — they share a word and are not the same question, and conflating them is what made the
-  wizard's answer damaging rather than merely redundant; and `wizard_done` moves to `INSTALL_KEYS`, since
-  it records something about the INSTALLATION and having it on the agent side is what let a reset arm the
-  wizard. Node **8.5**, whose engine-row assertion is measured AGAINST `config/models.default.json` so a
-  table change goes red instead of drifting; five disarms, mutations asserted, all red. The operator's own
-  install was restored in the same pass (`settings.json` emptied, the wizard-written `fast`/`memory`
-  sections dropped from `v2.json`) so the table governs again.
-
+- **The DEPLOYMENT picks the profile — nobody is asked, and one default replaces two (V2-671, 2026-09-11)** — texto íntegro en `decisions-archive.md`
 - **NOBODY SPEAKS before a language is chosen — the wordless picker, the voice that follows the language, and where the files live (V2-672, 2026-09-11)** — texto íntegro en `decisions-archive.md`
 - **A question about what a widget HOLDS is answered by the widget (V2-668, 2026-09-11)** — texto íntegro en `decisions-archive.md`
 - **An order NAMES its target, and a notice waits its turn (V2-666, 2026-09-11)** — texto íntegro en
