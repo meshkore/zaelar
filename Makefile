@@ -1,7 +1,7 @@
 # zaelar — personal voice assistant, cerebro propio «Colmena» (nucleo/). Docs: README.md (install) + .meshkore/docs/.
 PY=./.venv/bin/python
 
-.PHONY: help start restart status run run-nucleo run-lk lk-server agent-worker daemon stop down sim smoke test test-list test-all test-ui test-widgets install-livekit install-stt install-tts install-whatsapp install-telegram reset reset-dry reset-restart flash flash-repl flash-serve doctor
+.PHONY: help start restart status run run-nucleo run-lk lk-server agent-worker daemon stop down sim smoke test tier0 test-list test-all test-ui test-widgets install-livekit install-stt install-tts install-whatsapp install-telegram reset reset-dry reset-restart flash flash-repl flash-serve doctor
 
 help:
 	@echo "zaelar — run it locally:"
@@ -159,6 +159,13 @@ test:
 	assert server.app.title=='zaelar'; assert 'zaelar' in build_system_prompt().lower(); print('OK zaelar imports + prompt')"
 
 # Unified test observatory. The CLI keeps the normal exit code for agents/CI and serves a durable local replay.
+# TIER0 (V2-779 F0) — the < 60 s gate before a commit: ruff F/E9 + the syntax sweep + every test the diff vs HEAD
+# can reach, in ONE pytest (startup is the cost, not the tests). It is a pre-check: the wide sweep
+# (`tests/watchdog.py`, and CI) stays the safety net.
+tier0:
+	ruff check . && $(PY) -m compileall -q nucleo memory voice server widgets bus config connectors observability i18n update \
+	&& $(PY) tests/watchdog.py --impacted HEAD --together
+
 test-list:
 	$(PY) -m tests list
 

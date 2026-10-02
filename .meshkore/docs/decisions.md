@@ -25,6 +25,20 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Green means green on a clean clone, not on the operator's Mac (V2-779 F0, 2026-10-02)**: CI had not been
+  green in 60 runs — every one died at ruff, so the ratchets behind it never ran — and the wide sweep was only
+  ever measured on the operator's checkout. Measured on a clean clone (`zaelar/`, `env -i`, `TZ=UTC`, no keys):
+  17 reds the Mac never shows. 14 were the suite borrowing the machine: TZ, a real Deepgram key, the folder's
+  name, the private roadmap, `node_modules/`, a Claude CLI on PATH, and — the one worth remembering — the
+  operator's real Google OAuth client, read from `<repo>/.meshkore/credentials/` (a path `ZAELAR_WORKSPACE` does
+  not move), on which three agenda tests passed and eleven more skipped everywhere else. The rule is the suite's,
+  not each test's: the root conftest pins TZ and the Google client dir; a test that needs a credential DECLARES a
+  placeholder. One red was the PRODUCT: `bridge_python()` dictates `sys.executable` to the worker while its
+  allowlist only knew the checkout venv, so outside one every bridge call waited for an approval nobody gives.
+  CI now runs `tests/watchdog.py` over everything deterministic; `make tier0` is the < 60 s pre-commit gate.
+  Three ratchets (prompt prose +1,694 B, total, 4 beheaded descriptors) were RAISED by the operator's decision
+  as declared debt — paying them changes what the model reads, and that waits for F2 to measure it.
+
 - **A web page cannot drive the engine (V2-778 F4-35, 2026-10-02)**: the audit measured `POST /api/lists` and
   `/api/torrent/add` callable by anything that reached the port — and on a self-hosted engine that includes any web
   page open in the operator's browser (a cross-site simple POST needs no preflight; DNS rebinding also reads). The

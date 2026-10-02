@@ -35,6 +35,17 @@ With that one line fixed, **the whole deterministic suite is ~7 minutes and hang
 It runs chunk by chunk, serially, and prints a line per chunk as it goes. Exit code is 0 only when
 nothing failed and nothing hung. A JSON report lands in `tests/runs/watchdog-*.json`.
 
+**Tier0, before a commit (< 60 s): `make tier0`** — ruff F/E9, the syntax sweep, and every test the diff vs
+HEAD can reach, in ONE pytest (`--impacted HEAD --together`; measured 2026-10-02: 51 files, 32 s, where one
+pytest per file took 50 s of mostly startup). It is a pre-check; the wide sweep is the net.
+
+**CI runs the wide sweep** (`.github/workflows/ci.yml`, V2-779 F0): the same `tests/watchdog.py` over every
+deterministic directory on a clean Linux clone. So a test that is green only on the operator's machine — his
+timezone, his keys, his Google client, the folder being called `engine/` — is red there. The root `conftest.py`
+pins TZ, language, workspace, settings and the Google client dir; a test that needs a credential DECLARES a
+placeholder (`monkeypatch.setenv`), never borrows the machine's. To reproduce CI locally: clone into a folder
+named `zaelar/` and run the watchdog under `env -i PATH=… HOME=$(mktemp -d) TZ=UTC`.
+
 ### What catches a hang
 
 1. **`faulthandler_timeout`** (already inside pytest — no new dependency). A test over

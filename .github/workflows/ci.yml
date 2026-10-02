@@ -8,9 +8,12 @@
 # packages the image ships and the ruff F/E9 rules (the NameError-swallowed-by-fail-open class, paid twice:
 # V2-348, V2-555).
 #
-# EXTEND, don't replace: adding a suite is one line in the matrix below. The full model-free testmap
-# (`tests/run_testmap.py::deterministic_paths`) is the destination; infrastructure-first is the audit's own
-# staging so the first run is green and stays green.
+# V2-778 F0 (2026-10-02): the destination reached — the gate now runs EVERY deterministic test, through the same
+# hang-aware runner the operator uses (`tests/watchdog.py`: chunked, names a hung test, kills the process group,
+# exits 1 on any red). Staging on `tests/infrastructure` had a cost nobody saw: the job never got past ruff in 60
+# runs, and what the wide sweep caught (a non-hermetic suite, three real ratchets) never reached CI at all.
+# What it needs from the runner is what a fresh clone lacks: Chromium for the browser contracts, node for the
+# `.mjs` ones. The suite itself pins TZ, language, workspace and credentials (root `conftest.py`).
 
 name: CI
 
@@ -22,7 +25,7 @@ on:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,8 +51,23 @@ jobs:
           pip install "ruff==0.14.0"
           ruff check .
 
-      - name: Deterministic suite — tests/infrastructure (every ratchet lives here)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Chromium for the browser contracts (the version the pinned playwright asks for)
+        run: python -m playwright install --with-deps chromium
+
+      - name: Deterministic sweep — every model-free test, hang-aware (tests/watchdog.py)
         env:
           # The suite is deterministic and network-free by contract; belt and braces for CI.
           ZAELAR_ATTENTION: always
-        run: python -m pytest tests/infrastructure -q --maxfail=5
+        run: python tests/watchdog.py --report watchdog-report.json
+
+      - name: Keep the sweep's report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: watchdog-report
+          path: watchdog-report.json
+          if-no-files-found: ignore

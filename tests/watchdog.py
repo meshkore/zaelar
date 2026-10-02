@@ -63,7 +63,9 @@ _COUNTS = re.compile(r"(\d+) (passed|failed|error|errors|skipped|xfailed|xpassed
 _LIVE = ("/e2e/", "/integration/", "/benchmarks/", "/lab/")
 
 
-def label_of(path: Path) -> str:
+def label_of(path) -> str:
+    if isinstance(path, list):                     # `--together`: one chunk holding a whole selection
+        return f"{len(path)} files together"
     try:
         return str(path.relative_to(ENGINE))
     except ValueError:
@@ -190,8 +192,12 @@ class Chunk:
         # A directory is run NON-recursively. pytest would otherwise descend into the child
         # directories that are chunks in their own right, running them twice and double-counting
         # every `passed` in the report — measured here on the first sweep, 2026-09-20.
-        cmd = [str(ENGINE / ".venv/bin/python"), "-m", "pytest"]
-        if self.target.is_dir():
+        # The checkout's venv when there is one; otherwise the interpreter running this (CI has no `.venv/`).
+        venv = ENGINE / ".venv/bin/python"
+        cmd = [str(venv) if venv.exists() else sys.executable, "-m", "pytest"]
+        if isinstance(self.target, list):
+            cmd += [str(p) for p in self.target]
+        elif self.target.is_dir():
             cmd += [str(child) for child in sorted(self.target.glob("test_*.py"))]
         else:
             cmd.append(str(self.target))
@@ -305,6 +311,8 @@ def main() -> int:
     ap.add_argument("--report", default="", help="where to write the JSON report")
     ap.add_argument("--impacted", metavar="REF", help="run only what the diff vs REF can reach (e.g. origin/main)")
     ap.add_argument("--explain", action="store_true", help="with --impacted: print the selection and run nothing")
+    ap.add_argument("--together", action="store_true",
+                    help="run the whole selection in ONE pytest (the tier0: startup, not tests, is the cost)")
     args = ap.parse_args()
 
     if args.impacted:
@@ -329,6 +337,14 @@ def main() -> int:
     if not targets:
         print("nothing to run")
         return 0
+    # V2-779 F0 — the tier0. Measured 2026-10-02: 51 impacted files took 50 s one pytest each, and nearly all of it
+    # was interpreter + conftest startup (577 tests). One process pays that once; a hang still names its test,
+    # because the faulthandler dump does not depend on the chunk's size.
+    if args.together:
+        files: list[Path] = []
+        for target in targets:
+            files.extend(sorted(target.glob("test_*.py")) if target.is_dir() else [target])
+        targets = [files]
     # The lock guards against two WIDE sweeps sharing this checkout — that is the contention that
     # turned 9-minute runs into 20-minute ones on 2026-09-15. An explicit narrow target is cheap and
     # must stay nestable: the watchdog's own tests run the watchdog.
