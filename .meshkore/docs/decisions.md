@@ -25,6 +25,14 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **An inline row outlives a restart honestly (V2-778 F3-26, 2026-10-01)**: every request that acts opens a
+  durable row, but its end state lived only in RAM, and the reconciler that closes orphaned rows matched worker ids
+  (`<boot>-<n>`) while an inline row is `<boot>-i<n>` — so a restart between the op and the pulse's verdict left the
+  row `running` forever, and «what is still going on» listed a request no process watched. Decision: the inline spec
+  is persisted on its row (NOT as `task_id`, which is how the circuit tells a worker's spec from its own), and the
+  reconciler judges a previous boot's live inline row once from that copy — `met` if the screen shows it, otherwise
+  failed as interrupted by the restart. Silent on purpose: the operator is in another moment, and a spoken
+  correction would be about nothing. This boot's inline rows stay the pulse's. Node 3.113.
 - **One OAuth flow, six independent connectors (V2-778 F1-13, 2026-10-01)**: calendar, video, contacts, files,
   photos and email each carried a copy of the same authorization-code + PKCE flow, and running ONE test against
   all six (node 5.62) found five defects the copies had drifted into: files, photos and email sent the consent

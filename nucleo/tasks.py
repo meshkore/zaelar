@@ -22,6 +22,8 @@ from __future__ import annotations
 import re
 import time
 
+from loguru import logger
+
 from memory import tasks_store as _ts
 from nucleo.runtime_ids import boot_id as _boot_id
 
@@ -169,6 +171,8 @@ def ended_early(rec, *, state: str, outcome: str = "") -> None:
 #: A worker commission's durable id: `<boot_id>-<seq>` (see `task_uid`). Lists, errands and scheduled jobs
 #: have their own namespaced ids and their own owners, so the reconciler never touches them.
 _WORKER_UID = re.compile(r"^([0-9a-f]{6})-\d+$")
+#: An inline request's row (`nucleo/request_row.py`): `<boot_id>-i<seq>`.
+_INLINE_UID = re.compile(r"^([0-9a-f]{6})-i\d+$")
 
 
 def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) -> int:
@@ -184,6 +188,11 @@ def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) ->
     n = 0
     for row in _ts.tasks_where(states=_ts.LIVE_STATES, modes=("now",), visible_only=False, limit=500):
         uid = str(row.get("id") or "")
+        mi = _INLINE_UID.match(uid)
+        if mi:
+            if mi.group(1) != _boot_id():
+                n += _settle_inline_after_restart(uid, now)
+            continue                # this boot's inline rows are the circuit's: its pulse holds their spec
         m = _WORKER_UID.match(uid)
         if not m or uid in live:
             continue
@@ -196,6 +205,23 @@ def reconciled(live_uids, *, now: float | None = None, grace_s: float = 60.0) ->
         _ts.task_patch(uid, state="failed", finished_at=int(now), outcome=outcome)
         n += 1
     return n
+
+
+def _settle_inline_after_restart(uid: str, now: float) -> int:
+    """A previous boot's inline row (V2-778 F3-26): its spec died with that process, so it is judged ONCE from the
+    copy on the row — met if the screen shows it now, otherwise closed as interrupted. No voice: whatever this
+    was about, the operator is in a different moment now, and a spoken correction would be about nothing."""
+    try:
+        from nucleo import spec as _spec
+        e = _spec.of_task(uid)
+        if e and _spec.attest(dict(e), now=now) is True:
+            from nucleo import request_row as _rq
+            _rq.settle(uid, "met")
+            return 1
+    except Exception as ex:  # noqa: BLE001 — an unreadable spec is just an interrupted request
+        logger.debug(f"tasks: inline spec of {uid} not readable after restart ({ex})")
+    _ts.task_patch(uid, state="failed", finished_at=int(now), outcome="interrumpido por un reinicio del motor")
+    return 1
 
 
 def retitled(rec) -> None:

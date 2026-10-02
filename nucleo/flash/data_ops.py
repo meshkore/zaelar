@@ -311,6 +311,10 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     if _spec_entry is not None and _row:
         _spec_entry["row"] = _row
         _spec_entry["turn"] = _rq.current()      # his words, for the correction the circuit may have to say
+        # V2-778 F3-26 — the end state is written on the row too: a restart before the pulse's verdict would
+        # otherwise leave a row nobody can judge (`tasks.reconciled` reads it back). Not as `task_id`: that
+        # key is what tells the circuit a worker owns the spec, and an inline one is the circuit's own.
+        _spec.persist(_row, _spec_entry)
     # V2-769 — this create's sentence COMPLETES an earlier create's: that one came from a piece of it, and its
     # row goes back out with the call its own widget named. See `write_outcome.py` for the measured case.
     if (_prev := _outcome.superseded(wid, action_name, text)):
