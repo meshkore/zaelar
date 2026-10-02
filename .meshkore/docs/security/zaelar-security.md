@@ -293,6 +293,23 @@ configuration, not by this repo. A self-hosted install never enters any of it.
 Verified by nodo 7.11 of the test map. This replaced a middleware that served the request in all four refusal
 rows above; each of those was a deliberate fail-open, and together they were a live data-exposure surface.
 
+## Who may call `/api/*` (`server/api_guard.py`, V2-778 F4-35, 2026-10-02)
+
+A self-hosted engine listens on the operator's own machine, and before this guard its ~87 mutating routes trusted
+whoever reached them — including any web page open in his browser. A cross-site `POST /api/lists` needs no CORS
+preflight (a «simple» request), so another site could mint an order with his authority (CSRF); a page that rebinds
+its DNS name to 127.0.0.1 could also read the answers. One middleware now decides, from the request's facts:
+
+| Deployment | Rule |
+|---|---|
+| Self-hosted | `Host` must name this engine (localhost · 127.0.0.1 · ::1 · local.zaelar.com) on every `/api/*`; the peer must be loopback; a mutating request whose `Origin` is another site, or whose `Sec-Fetch-Site` is `cross-site`, is refused. |
+| Self-hosted, opened to a network | Set `ZAELAR_API_TOKEN`; a caller presenting it in `X-Zaelar-Token` passes the rules above (constant-time compare). Unset = closed. A browser on another device does not send that header — opening the UI itself to a LAN is not covered yet. |
+| Cloud account process | The session gate (`server/ingress.py`) already admitted the request; a mutation must also come from the account's own site: `Origin` equal to `Host` (or `X-Forwarded-Host`), never `cross-site`. Not verified live against the platform proxy. |
+
+A request without `Origin` (a CLI, the daemon, the WhatsApp bridge, the engine calling itself) is not a browser on
+another site and passes the origin rule; the host and peer rules still apply. Starlette's in-process `TestClient`
+pair (peer «testclient», Host «testserver») is accepted: a real socket always has an IP for a peer. Node 7.62.
+
 ## Consent — act or ask (`nucleo/consent.py`)
 
 One rule decides, in both channels (voice and the text probe): a missing datum → ask for the DATUM; a doubt

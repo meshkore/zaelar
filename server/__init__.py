@@ -228,6 +228,11 @@ def create_app() -> FastAPI:
     # a single-process install.
     from . import ingress as _ingress
     _ingress.install(app)
+    # WHO MAY CALL /api/* (V2-778 F4-35): on a self-hosted engine, only this machine and never a page from another
+    # site (CSRF, DNS rebinding); on a cloud account, a mutation only from the account's own site. Added after
+    # ingress, so it is the OUTER middleware and refuses before any session lookup. Contract: server/api_guard.py.
+    from . import api_guard as _api_guard
+    _api_guard.install(app)
 
     # meshkore_router is NATIVE (a channel like voice/chat), so it is always mounted regardless of BRAIN.
     # messaging_router is the UI-managed connect/disconnect API for the messaging connectors (WhatsApp/Telegram):

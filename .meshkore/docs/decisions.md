@@ -25,6 +25,15 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **A web page cannot drive the engine (V2-778 F4-35, 2026-10-02)**: the audit measured `POST /api/lists` and
+  `/api/torrent/add` callable by anything that reached the port — and on a self-hosted engine that includes any web
+  page open in the operator's browser (a cross-site simple POST needs no preflight; DNS rebinding also reads). The
+  operator chose the scope himself: the WHOLE `/api/*` surface through one middleware, loopback + a token
+  (`ZAELAR_API_TOKEN`) as the only door to a network, and in the cloud an `Origin == Host` check on mutations because
+  the session there is a cookie a browser attaches to another site's request. A route added tomorrow is covered
+  without anyone remembering. Known edge, said rather than hidden: a browser on another device cannot present the
+  token header, so opening the UI itself to a LAN is not covered; and the cloud rule is not verified live against
+  the platform's proxy (`X-Forwarded-Host` is accepted beside `Host` for that reason). Node 7.62, CRIT-E11.
 - **An inline row outlives a restart honestly (V2-778 F3-26, 2026-10-01)**: every request that acts opens a
   durable row, but its end state lived only in RAM, and the reconciler that closes orphaned rows matched worker ids
   (`<boot>-<n>`) while an inline row is `<boot>-i<n>` — so a restart between the op and the pulse's verdict left the

@@ -4993,6 +4993,9 @@ DOMAINS: list[dict] = [
         # 2026-08-10: un guarda SOBRE LOS GUARDAS. Aparecieron tests verdes por la MÁQUINA y no por el código (la
         # config del operador —idioma, proveedores, atención, perfil— pisaba el entorno de la suite vía
         # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.
+        {"id": "7.62", "title": "A web page the operator has open cannot drive his engine: /api/* only from this machine, "
+                                 "never cross-site (CSRF, DNS rebinding); in the cloud a mutation only from its own site",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_a_web_page_cannot_drive_the_engine.py"]},
         {"id": "7.61", "title": "What leaves the machine is scrubbed: feedback evidence drops system events and masks secrets; "
                                 "the prompt capture is scrubbed, under the workspace, capped, and off in a hosted account",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_what_leaves_the_machine_is_scrubbed.py"]},

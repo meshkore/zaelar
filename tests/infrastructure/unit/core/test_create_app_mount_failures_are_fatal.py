@@ -20,7 +20,7 @@ def _status(app, method: str, path: str) -> int:
     over perfectly mounted routes once already (V2-557: this FastAPI keeps them wrapped). ASGITransport runs no
     lifespan, so the engine itself never starts here."""
     async def go():
-        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://t") as c:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://127.0.0.1:43917") as c:
             return (await c.request(method, path)).status_code
     return asyncio.run(go())
 
