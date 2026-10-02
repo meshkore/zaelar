@@ -5441,6 +5441,9 @@ DOMAINS: list[dict] = [
         {"id": "10.131", "title": "One round is not a measurement: k/k on the same code, and a verdict on old "
                                   "code is STALE (V2-779 F2)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_round_is_not_a_measurement.py"]},
+        {"id": "10.132", "title": "One judge, one ruler: Claude Code on the licence with an exact id, no fallback "
+                                  "(V2-779 F2)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_judge_one_ruler.py"]},
         {"id": "10.3", "title": "Segmentos completable/credentials/capability (inventario cerrado)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_segments.py"]},
         # La COLA del bucle continuo. Los dos fallos que guarda no se ponen rojos solos: lanzar casos que no

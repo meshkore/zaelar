@@ -353,6 +353,12 @@ plainly saying it can't reach anyone (narrating a message it never sent is the g
 `status: blocked` case is admitted only where its tier has a horizon; one blocked for any other reason
 (it would move real money) stays out, because running it wouldn't be a test. Table in `CASES.md`.
 
+**How a verdict is made trustworthy (V2-779 F2).** ONE judge: Claude Code on the local licence with an exact
+model id (`llm.JUDGE_MODEL`, never an alias); there is no fallback chain — a judge that cannot answer makes the
+round INFRA. ONE round is not a result: the ledger keeps each row's recent rounds and a case is *settled* only
+when the last 3 counted rounds on the same commit agree (`settle.kk`: PASS / FAIL / FLAKY / UNSETTLED). A row
+measured on a commit whose product code has since changed is STALE (`settle.stale`). `STATUS.md` prints both.
+
 **Outputs, and which is which:**
 - `tests/runs/use_cases/report_<stamp>.{md,json}` — the per-run DIARY: transcript, judge scores, mechanism
   report (which observability families actually fired vs. what the scenario expected — the source of truth

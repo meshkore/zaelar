@@ -16,7 +16,6 @@ import urllib.request
 from . import config
 from tests.voice.e2e.agent.llm import call as _call
 from tests.voice.e2e.agent.llm import glm_call, parse_json
-from tests.voice.e2e.agent.llm import judge_call as _voice_judge_call
 
 
 def _as_text(content) -> str:
@@ -214,31 +213,40 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
     raise RuntimeError("DRIVE sin escalón disponible")
 
 
+#: THE ruler (V2-779 F2, operator decision 2026-10-02): every use case is judged by Claude Code on the local
+#: licence, with THIS exact id — never an alias (`sonnet` moves when a new Sonnet ships, and that would be a
+#: ruler change nobody committed). Measured the same day: the CLI knows `claude-sonnet-5`, the alias resolves
+#: to it, and `claude-sonnet-5-5` is outside this CLI's catalog. Changing it is a commit, never an env var.
+JUDGE_MODEL = "claude-sonnet-5"
+JUDGE_LABEL = f"licencia-claude/{JUDGE_MODEL}"
+
+
 def judge_call(messages: list[dict], max_tokens: int = 2000, out: dict | None = None) -> tuple[str, str]:
-    """The JUDGE, with the local license at the bottom of the chain.
+    """The JUDGE: ONE ruler, no fallback chain (V2-779 F2).
 
-    Losing the judge means losing the ENTIRE ROUND: the conversation has already been paid for and occurred, and without a verdict it does not
-    it enters the scoreboard. The voice harness chain (GLM → direct DeepSeek → broker) already retries transient
-    failures; what it does not cover is all three being unavailable at once, which is exactly what happened on
-    2026-08-21 (Z.AI without quota until the 25th + a network outage affecting direct).
+    Until 2026-10-02 this fell down GLM → Z.AI credits → DeepSeek → broker → the licence, by quota. The ledger
+    then held rows graded by four different models (glm-4.6 ×40, deepseek-v4-pro ×21, v4-flash ×5, the licence
+    ×1), whose notes are not comparable — a case going from 3 to 2 could be a ruler change, not a regression.
+    The operator's rule: the judge is Claude Code on the licence, always. If it cannot answer, the round is
+    INFRA («judge unavailable») — the caller parks it — instead of being graded by someone else.
 
-    It returns the model that scored, as before, because a round judged by another instrument must be distinguishable
-    distinguirse en el tablero: la licencia es un modelo distinto y sus notas no son comparables sin decirlo.
+    `max_tokens` is accepted for the caller's signature; the CLI has no output cap flag, and `out` gets «I do
+    not know» about truncation rather than a stale reading from another leg.
     """
-    import sys
-    try:
-        return _voice_judge_call(messages, max_tokens=max_tokens, out=out)
-    except Exception as e:
-        print(f"[judge] cadena de pago sin escalón ({str(e)[:100]}) → licencia local de Claude Code",
-              file=sys.stderr)
-    txt = _claude_licence(messages, max_tokens=max_tokens)
-    # The local license does NOT say whether it cut off: record «I don't know» instead of leaving the reading from the leg that
-    # that just failed. Anyone inspecting this must be able to distinguish «it fit» from «not known to me».
     if out is not None:
         out["finish_reason"], out["cortada"] = "", False
-    if not (txt or "").strip():
-        raise RuntimeError("licencia-claude devolvió una respuesta VACÍA al JUEZ")
-    return (txt, "licencia-claude")
+    last: Exception | None = None
+    for attempt in range(2):                    # one retry: a transient CLI hiccup must not cost a measured round
+        try:
+            txt = _claude_licence(messages, max_tokens=max_tokens, model=JUDGE_MODEL)
+            if (txt or "").strip():
+                return txt, JUDGE_LABEL
+            last = RuntimeError(f"{JUDGE_LABEL} devolvió una respuesta VACÍA al JUEZ")
+        except Exception as e:                  # noqa: BLE001 — re-raised below, with the last cause
+            last = e
+        if attempt == 0:
+            time.sleep(5)
+    raise RuntimeError(f"juez no disponible ({JUDGE_LABEL}): {last}")
 
 
 __all__ = ["call", "glm_call", "judge_call", "parse_json", "drive_model"]

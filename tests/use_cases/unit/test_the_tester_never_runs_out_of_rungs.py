@@ -158,35 +158,7 @@ def test_a_nonzero_exit_is_an_error_and_not_an_answer(monkeypatch):
 # the scoreboard. It cost two eight-minute rounds on 2026-08-20 with a 429 and a 503.
 
 
-def test_the_judge_falls_back_to_the_licence(monkeypatch):
-    monkeypatch.setattr(llm, "_voice_judge_call", lambda m, max_tokens=2000: (_ for _ in ()).throw(
-        RuntimeError("429 sin cuota")))
-    monkeypatch.setattr(llm, "_claude_licence", lambda m, **k: '{"verdict":"PASS"}')
-    txt, model = llm.judge_call([{"role": "user", "content": "puntúa"}])
-    assert txt == '{"verdict":"PASS"}' and model == "licencia-claude"
-
-
-def test_the_judge_prefers_the_paid_chain(monkeypatch):
-    """Sensitivity: the judge deliberately lives outside the driver's provider, to be independent.
-
-    The double accepts `out` because the chain passes it (V2-382). It is worth knowing why this matters: if one leg
-    does NOT accept the kwarg, the `TypeError` falls into the same `except Exception` as provider failures and the
-    chain drops to the local licence — a programming error disguised as a provider outage. It appears in the log
-    (“paid chain without a rung (… unexpected keyword argument …)”), but does not fail: it degrades.
-    """
-    monkeypatch.setattr(llm, "_voice_judge_call", lambda m, max_tokens=2000, out=None: ("ok", "glm-4.6"))
-    monkeypatch.setattr(llm, "_claude_licence", lambda m, **k: pytest.fail("la licencia no debía correr"))
-    assert llm.judge_call([{"role": "user", "content": "x"}]) == ("ok", "glm-4.6")
-
-
-def test_an_EMPTY_licence_answer_is_not_a_verdict(monkeypatch):
-    """A judge that returns `""` does not fail: the parser finds no JSON, retries against the same silent rung,
-    and the round dies without a score. It already happened with the direct DeepSeek leg on 2026-08-20."""
-    monkeypatch.setattr(llm, "_voice_judge_call", lambda m, max_tokens=2000: (_ for _ in ()).throw(
-        RuntimeError("fuera")))
-    monkeypatch.setattr(llm, "_claude_licence", lambda m, **k: "   ")
-    with pytest.raises(RuntimeError, match="VAC"):
-        llm.judge_call([{"role": "user", "content": "x"}])
+# The JUDGE no longer has rungs (V2-779 F2): one ruler, the licence — see `test_one_judge_one_ruler.py`.
 
 
 def test_the_licence_is_the_LAST_rung_and_not_the_first():
