@@ -20,6 +20,16 @@ from pathlib import Path
 from widgets import generator
 
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _a_cli_on_path(monkeypatch):
+    """V2-778 F0: `Popen` is faked, so the binary is never run — but `_run_agent` looks it up first and refused
+    on any host without Claude Code installed (CI), before reaching a single line under test."""
+    monkeypatch.setattr(generator, "_find_claude", lambda: "/usr/local/bin/claude")
+
+
 class _FakeProc:
     returncode = 0
 

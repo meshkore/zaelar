@@ -15,7 +15,12 @@ from voice.engine.speech.stt import gazetteer as gz
 
 
 @pytest.fixture(autouse=True)
-def _sin_cache():
+def _sin_cache(monkeypatch):
+    # V2-778 F0: `dg.build()` constructs the plugin, which refuses to exist without a key — and `build()` passes
+    # the key explicitly (`None` when unset), so the plugin never falls back to the env. It never dials out here,
+    # so a placeholder is enough; without it this file was green only on a machine holding a REAL key.
+    import dataclasses
+    monkeypatch.setattr(dg, "SETTINGS", dataclasses.replace(dg.SETTINGS, deepgram_api_key="test-placeholder"))
     gz._load.cache_clear()
     yield
     gz._load.cache_clear()
@@ -89,13 +94,12 @@ while the session is being built — meaning a `ZAELAR_STT_MODEL_DG=nova-2` woul
 This checks that it builds, not that the condition is written."""
     import dataclasses
 
-    from voice.engine.core.config import SETTINGS
     monkeypatch.setattr(langs, "first_run_auto", lambda: False)
     monkeypatch.setattr(langs, "current_code", lambda: "es")
     # `SETTINGS` is a FROZEN dataclass, so its field cannot be assigned: the object seen by the module is replaced.
     # It is worth documenting this because the first version of this test failed for that reason, not because of
     # the code under test.
-    monkeypatch.setattr(dg, "SETTINGS", dataclasses.replace(SETTINGS, stt_model_deepgram="nova-2"))
+    monkeypatch.setattr(dg, "SETTINGS", dataclasses.replace(dg.SETTINGS, stt_model_deepgram="nova-2"))
     stt = dg.build()                       # without the safeguard, this is a ValueError, not an assertion failure
     assert not stt._opts.keyterm
 

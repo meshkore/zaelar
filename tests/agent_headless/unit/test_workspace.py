@@ -19,8 +19,9 @@ def test_root_set_blank_falls_back_to_repo_root(monkeypatch):
 
 
 def test_repo_root_is_engine_dir():
-    # engine/nucleo/workspace.py -> parent (nucleo) -> parent (engine)
-    assert workspace._REPO_ROOT.name == "engine"
+    # engine/nucleo/workspace.py -> parent (nucleo) -> parent (engine). Compared by PATH, not by the folder's
+    # NAME: the public repo is cloned as `zaelar/` (CI included), and «engine» is only what this checkout is called.
+    assert workspace._REPO_ROOT == Path(__file__).resolve().parents[3]
     assert (workspace._REPO_ROOT / "nucleo").is_dir()
 
 

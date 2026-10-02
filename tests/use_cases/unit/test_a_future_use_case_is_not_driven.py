@@ -17,6 +17,8 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+import pytest
+
 from tests.use_cases.e2e.agent import run as R, scenarios as SC, segments as G
 
 INITIATIVES = Path(__file__).resolve().parents[3] / ".meshkore" / "roadmap" / "initiatives"
@@ -88,6 +90,10 @@ def test_every_gate_points_at_an_initiative_that_EXISTS():
     The PREFIX (`V2-259`) is checked, not the phase, because the phase lives inside the document; what has
     to exist is the document.
     """
+    # V2-778 F0: the initiatives are PRIVATE — `.meshkore/roadmap/` is gitignored on purpose, so a public clone
+    # (CI included) has nothing to check this against. The guard runs where the roadmap lives.
+    if not INITIATIVES.is_dir():
+        pytest.skip("the roadmap is not published with the repo (.meshkore/roadmap/ is gitignored by design)")
     for scn in SC.all_scenarios():
         for ref in G.blocked_by(scn.id):
             num = ref.split()[0]

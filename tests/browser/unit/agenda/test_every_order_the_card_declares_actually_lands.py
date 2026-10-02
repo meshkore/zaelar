@@ -41,6 +41,8 @@ def ag(tmp_path, monkeypatch):
     autouse — see `test_the_credential_store_is_moved_too`, which fails if that ever stops being true."""
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    # V2-778 F0: «connect» needs an OAuth client. It is DECLARED here — the suite no longer reads the operator's.
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client.apps.googleusercontent.com")
     from widgets.agenda import data as _d
     return _d
 

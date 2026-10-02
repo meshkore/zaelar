@@ -190,12 +190,15 @@ def test_a_case_that_is_BOTH_blocked_and_grouped_files_in_its_OWN_umbrella(monke
 
     sid = "find-theatre-tickets__es"
     assert not SG.is_completable(sid), "el caso de prueba tiene que estar BLOQUEADO"
-    assert I.grouped_for(sid) is not None, "y AGRUPADO"
 
+    # V2-778 F0: the umbrellas are written into the fixture BEFORE asking whether the case is grouped. The real
+    # `.meshkore/roadmap/` is gitignored on purpose, so on a fresh clone the question read a folder that is not
+    # there and answered «not grouped» — the case's precondition, not its subject, was what failed.
     monkeypatch.setattr(I, "INITIATIVES", tmp_path)
     own = tmp_path / I.GROUPED["find-theatre-tickets"]
     own.write_text("---\nstatus: open\n---\n\n# propio\n", encoding="utf-8")
     (tmp_path / I.BLOCKED_UMBRELLA).write_text("---\nstatus: open\n---\n\n# bloqueados\n", encoding="utf-8")
+    assert I.grouped_for(sid) is not None, "y AGRUPADO"
 
     res = I.file_failure(
         {"scenario": sid, "tier": 1,

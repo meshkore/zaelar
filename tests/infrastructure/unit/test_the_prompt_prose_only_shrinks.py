@@ -49,13 +49,20 @@ _PROSE_FILES = ("nucleo/flash/prompt.py", "nucleo/flash/live_blocks.py",
                 "nucleo/flash/live_blocks_nav.py")   # V2-778 F1: live_blocks' browser lines moved there, same sum
 
 #: Measured 2026-09-16. EDIT DOWNWARD ONLY — and the edit is the celebration.
-_MAX_PROSE = 42_376          # prompt.py 23_151 + live_blocks.py 19_225   (V2-713 R5: 42_486 → 42_376)
+_MAX_PROSE = 44_070          # prompt.py 23_543 + live_blocks.py 15_410 + live_blocks_nav.py 5_117
+#: ⚠️ V2-778 F0 (2026-10-02) — RAISED, by the operator's decision, from 42_376. Not a celebration: DEBT, written
+#: down. +1_694 bytes landed in seven V2-776 commits while CI never reached this test (it died at ruff for 60
+#: runs): d145a5fc +622 (durable task record), d5c2a30b +65, 2a5416d8 +394 (a named person reaches the turn),
+#: 4f0619ce +146, 54c6f99b +114, 9b2a9f76 +274, 2a2d2189 +81. Paying it down changes what the model reads,
+#: so it waits until the use cases can MEASURE that change (V2-778 F2). From here on, editable downward only.
 #: V2-728: 66_072 → 66_555. The PROSE ceiling above did not move — this one tracks prose PLUS the tool
 #: catalog, and the catalog grew by exactly the one new tool (`reopen_task`, +479 after compacting),
 #: whose own ceiling and whose reason are in `test_router.MAX_CATALOG_CHARS`. That is precisely the
 #: accounting this number exists for: paying one ceiling by moving text into the other shows up here
 #: as what it is, and here it does not happen — nothing moved, one tool was added.
-_MAX_TOTAL = 66_555          # …plus the tool catalog 23_579, plus the POLICY lines below, 600
+_MAX_TOTAL = 67_862          # …plus the tool catalog 23_594, plus the POLICY lines below, 198
+#: V2-778 F0: 66_555 → 67_862, the same +1_694 of prose above, partly offset by the policy line genesis now keeps
+#: OFF (b97815e4, −402) and +15 of catalog. Debt, not growth to celebrate; see `_MAX_PROSE`.
 
 #: ⚠️ V2-713 R5 — A THIRD SOURCE, WHICH WAS ALWAYS THERE AND NEVER COUNTED. `style_policy` composes lines
 #: that ride into the turn beside the prompt (`style_directive.prompt_lines`), and this ratchet could not see
@@ -128,9 +135,24 @@ def test_the_policy_lines_are_counted_too_because_the_model_reads_them():
     # verde, porque solo comprobaba cotas y 1 cabe entre 0 y el techo. Un trinquete que pasa con la medición
     # falsificada no mide nada — es la misma trampa que «un arnés puede FABRICAR un pass». El suelo solo lo
     # cumple una lectura real de las dos líneas; si baja de aquí es que la política dejó de llegar al turno.
-    assert n >= 400, (
-        f"la política solo aporta {n} bytes al turno: o dejó de componerse, o alguien la vació. Las dos "
-        f"líneas juntas rondan los 600 desde V2-713.")
+    #
+    # V2-778 F0: the floor is now per LINE, because genesis legitimately turns one of them off. Since b97815e4
+    # (2026-09-29) `confirm_short_actions` is ON by default, so `prompt_line()` composes nothing on purpose and
+    # the sum fell to ~200 — a deliberate product change that this floor read as «the policy was emptied». So:
+    # the line genesis keeps ON must arrive, and the line it keeps OFF must still arrive the moment the operator
+    # turns it on. A falsified `_policy_bytes()` still fails the first floor.
+    from nucleo import style_policy as sp
+    sp._reset_for_tests()
+    assert len(sp.shape_line()) >= 150, (
+        f"`shape_line()` only composes {len(sp.shape_line())} bytes: the shape of the turn stopped reaching it.")
+    real = sp.confirm_short_actions
+    sp.confirm_short_actions = lambda: False
+    try:
+        assert len(sp.prompt_line()) >= 300, "silent-orders on must put its line into the turn"
+    finally:
+        sp.confirm_short_actions = real
+        sp._reset_for_tests()
+    assert n >= len(sp.shape_line()), f"the policy measures {n} bytes, less than the line it always emits"
 
 
 def test_a_preference_that_is_turned_OFF_stops_costing_bytes():

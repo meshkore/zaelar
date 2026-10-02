@@ -25,10 +25,16 @@ class _Spawned(Exception):
 
 
 @pytest.fixture
-def no_spawn(monkeypatch):
+def no_spawn(monkeypatch, tmp_path):
     """A spawn is the thing under test: make it loud, and make `node` look present so the check is reached."""
     import shutil
     monkeypatch.setattr(shutil, "which", lambda name: "/usr/bin/node")
+    # …and the bridge's deps installed (V2-778 F0). On a fresh clone `node_modules/` does not exist, the first
+    # spawn is the self-healing `npm install`, and the case read «npm» where it meant to see «node».
+    from connectors.whatsapp import config
+    (tmp_path / "node_modules").mkdir()
+    monkeypatch.setattr(config, "bridge_dir", lambda: tmp_path)
+    monkeypatch.setattr(config, "session_dir", lambda: tmp_path / "session")
 
     async def _boom(*a, **k):
         raise _Spawned(a[:2])

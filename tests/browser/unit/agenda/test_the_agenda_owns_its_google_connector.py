@@ -195,13 +195,13 @@ def test_the_screen_moves_even_when_the_connector_REFUSES(agenda, monkeypatch):
 
 # -- 4. and the connector itself still opens a usable door ----------------------------------------------
 
-def test_the_consent_door_is_real_without_printing_what_is_behind_it():
+def test_the_consent_door_is_real_without_printing_what_is_behind_it(monkeypatch):
     """What the operator will use tomorrow with his own account. The SHAPE is asserted — this repo is public
     and one of its reports leaked personal data once: no client_id, no state, no tokens."""
     from widgets.agenda import gcal
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client.apps.googleusercontent.com")   # V2-778 F0: declared
     r = gcal.ui_action("connect", {}, {})
-    if not (r or {}).get("ok"):
-        pytest.skip("no Google OAuth client on this machine: " + str((r or {}).get("error")))
+    assert (r or {}).get("ok"), f"a declared client must open the door: {(r or {}).get('error')}"
     url = str(r["url"])
     assert url.startswith("https://accounts.google.com/")
     for must in ("code_challenge_method=S256", "access_type=offline", "%2Fapi%2Fcalendar%2Fcallback"):

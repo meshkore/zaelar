@@ -35,6 +35,16 @@ os.environ.setdefault("ZAELAR_RESEARCH", "0")
 # with a changed environment.
 os.environ["ZAELAR_LANGUAGE"] = "en"
 
+# V2-778 F0 — THE CLOCK'S ZONE IS PINNED TOO (2026-10-02). Same class as the language above: the calendar and
+# agenda tests were written on a Madrid machine and checked wall-clock strings, so on a UTC runner (Linux, CI)
+# «09:30» came back «11:30» and the suite went red for the HOST, not the code. Pinned for the whole session, the
+# same zone the product's operators live in; a test about another zone declares it itself.
+os.environ["TZ"] = "Europe/Madrid"
+import time as _time
+
+if hasattr(_time, "tzset"):                        # Windows has none; nothing runs the suite there today
+    _time.tzset()
+
 # V2-778 F0-1 — THE WORKSPACE ITSELF IS PINNED (2026-09-30).
 #
 # Every block below pins ONE path onto ONE already imported module. The files that resolve their path PER CALL
@@ -108,6 +118,15 @@ try:
     _wstore.DATA_DIR = _Path(tempfile.mkdtemp(prefix="zaelar-test-widgets-"))
 except Exception:                                  # if `widgets` is not importable, the suite continues as before
     pass
+
+# V2-778 F0 — THE SAME INVARIANT, for the Google OAuth CLIENT (2026-10-02). `connectors/google/app.py` reads the
+# console's `client_secret_*.json` from `<repo>/.meshkore/credentials/`, a fixed path that `ZAELAR_WORKSPACE` does
+# not move — so every Google connector in the suite ran on the OPERATOR's real client. Measured on a clean clone:
+# three agenda tests that «connect» the calendar were green only because that file sat on his disk. The client
+# a test needs, it declares (`GOOGLE_CLIENT_ID` via monkeypatch); the one on his machine is never read.
+from connectors.google import app as _google_app  # noqa: E402 — after the env pins above, like every block here
+
+_google_app.CREDENTIALS_DIR = _Path(tempfile.mkdtemp(prefix="zaelar-test-google-credentials-"))
 
 # 2026-09-15 — THE SAME INVARIANT, one store further: which widgets the operator has DELETED.
 #

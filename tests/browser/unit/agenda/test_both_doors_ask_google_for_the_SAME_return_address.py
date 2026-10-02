@@ -56,10 +56,12 @@ _LOOPBACK = "http://127.0.0.1:43917"
 
 
 @pytest.fixture
-def calendar():
+def calendar(monkeypatch):
+    # V2-778 F0: the client is DECLARED, not borrowed from the machine. The skip below used to fire on every
+    # host but the operator's — a skip-storm read as green — and these cases only ever ran on HIS real client.
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client.apps.googleusercontent.com")
     svc = pytest.importorskip("connectors.calendar.service")
-    if not (svc.connect_url("google", "") or {}).get("ok"):
-        pytest.skip("no Google OAuth client on this machine")
+    assert (svc.connect_url("google", "") or {}).get("ok"), "a declared client must open the consent door"
     return svc
 
 

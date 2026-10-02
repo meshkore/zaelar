@@ -52,6 +52,8 @@ from widgets.agenda import gcal
 def _isolated_store(tmp_path, monkeypatch):
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", tmp_path, raising=False)
+    # V2-778 F0: «connect» needs an OAuth client. It is DECLARED here — the suite no longer reads the operator's.
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "test-client.apps.googleusercontent.com")
     return tmp_path
 
 
