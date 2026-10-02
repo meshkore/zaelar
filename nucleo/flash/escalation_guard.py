@@ -280,7 +280,8 @@ def reply_promises(reply: str, *, acted: bool = False, anything_running: bool = 
         return False                    # the promise is covered by real work: nothing is owed
     try:
         from nucleo.flash import router_guards as _rg
-        if _rg.promises_action(r) or _rg.promises_music(r):
+        from nucleo.flash import reply_promise as _rp      # V2-778 F2-16: the verdict first
+        if _rp.promises_action(r) or _rp.promises_music(r):
             return True
         from nucleo.flash import answer_guards as _ag
         return bool(_rg.unnegated_match(_ag._PROMISE_TO_LOOK_RE, r.lower())) and "?" not in r

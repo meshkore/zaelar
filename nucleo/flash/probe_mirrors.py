@@ -11,6 +11,10 @@ from nucleo.flash import probe as _probe
 
 
 async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbrief, action, canvas_h, dialog, names, operator_text, sess, spec, speech, spoken, tags, text, tool_calls) -> dict:
+    # V2-778 F2-16 — the voice turn's question, asked the same way here: did the reply promise something?
+    from nucleo.flash import reply_promise as _reply_promise
+    await _reply_promise.prefetch("".join(spoken).strip() if isinstance(spoken, list) else str(spoken or ""),
+                                  operator_text)
     if action in ("escalate", "search"):
         wid = _probe._show_target(text, sess.window, sess.last_action)
         if not wid:

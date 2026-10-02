@@ -31,7 +31,12 @@ _PLAYBACK_PRONOUN_RE = re.compile(r"^(?:it|that|this|one|him|her|them|the (?:son
 
 
 def promises_playback(reply: str, operator_text: str = "", *, music_open: bool = False) -> bool:
-    """The REPLY promises to put something on (English), over the music card or with a music word in the turn."""
+    """The REPLY promises to put something on (English), over the music card or with a music word in the turn.
+    Since V2-778 F2-16 a SURE verdict on the reply decides, in any language; this grammar answers when there is none."""
+    from nucleo.flash import reply_promise as _rp
+    v = _rp.verdict(reply)
+    if v is not None:
+        return v == "music"
     r = " ".join(str(reply or "").split())
     if not r:
         return False

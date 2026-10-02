@@ -3725,6 +3725,9 @@ DOMAINS: list[dict] = [
         {"id": "2.206", "title": "The system prompt the fast turn SENDS has a down-only ceiling on a clean install, and the "
                                  "everyday screen stays under the audit's 30k",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_turn_prompt_has_a_ceiling.py"]},
+        {"id": "2.207", "title": "Whether the reply PROMISED an act or music is read by a verdict in any language; the "
+                                 "phrase tables decide only when the verdict cannot (V2-778 F2-16)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_promise_is_read_in_any_language.py"]},
         {"id": "2.106", "title": "An act that LEAVES (≥ sensitive) runs only when the verdict does not name another action — a draft never becomes a sent email",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_act_that_leaves_needs_both_readers.py"]},

@@ -39,6 +39,15 @@ entregada siga citada aquí.
   Three ratchets (prompt prose +1,694 B, total, 4 beheaded descriptors) were RAISED by the operator's decision
   as declared debt — paying them changes what the model reads, and that waits for F2 to measure it.
 
+- **Whether the reply promised something is read by a verdict, in any language (V2-778 F2-16, 2026-10-02)**: the
+  promise backstops and the act repair opened on phrase tables in Spanish and English only. The operator chose to ask
+  the verdict on EVERY spoken reply: one Jev question through the non-blocking door (`ask_many`), once the reply is
+  final, waited for without blocking the loop (~290 ms, after the words were streamed). Sure verdicts decide; unsure
+  or absent ones leave the tables, which stay as the proposal. Measured LIVE: a 5-language probe 23/24 (tables 13),
+  a FRESH set the question had never seen 18/21 (tables 10) — what ships is never below the tables on any set. The
+  first wording was worse than the tables on promises it was sure about («Sending that off» → none); the shipped
+  one names refusals and already-done reports as none, with examples in several languages. `router_guards` is a god
+  file, so the verdict sits in `reply_promise` wrappers that `router` re-exports under the old names.
 - **A reference hint is spoken, so it is in the agent's language (V2-778 F3-30, 2026-10-02)**: measured live on
   `agenda-everyday-edits__us` (sandbox, English agent): «Done. Right now it holds: … (cita … · todos los miércoles
   hasta el …)». `widget_data_turn.named_ack` reads the `ref_index` hints aloud, and every widget wrote them in

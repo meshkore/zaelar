@@ -293,6 +293,9 @@ from nucleo.flash.router_guards import (  # noqa: F401 — re-export, not a loca
     looks_like_marketplace_nav, looks_like_modify_widget, looks_like_rule_removal, looks_like_bare_ref,
     is_messaging_service, looks_like_stop_work, login_site, nothing_running_for, too_thin_to_commission,
 )
+# V2-778 F2-16 — the two promise questions read the reply's VERDICT first (any language); the tables propose.
+from nucleo.flash.reply_promise import promises_action, promises_music  # noqa: E402,F401,F811
+
 
 
 def operator_words(operator_text: str, turn_text: str) -> str:
