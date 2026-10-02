@@ -69,9 +69,10 @@ def _items() -> list[dict]:
 
 
 def _who(it: dict) -> str:
-    who = str(it.get("from") or it.get("senderName") or it.get("senderId") or "alguien")
+    from nucleo import untrusted as _u          # V2-778 F4-32: a sender's name and a group's are a stranger's strings
+    who = _u.neutralize(str(it.get("from") or it.get("senderName") or it.get("senderId") or "alguien"))
     if it.get("isGroup") and it.get("group"):
-        who += f" (grupo «{str(it['group'])[:40]}»)"
+        who += f" (grupo «{_u.neutralize(str(it['group'])[:40])}»)"
     return who
 
 
@@ -101,7 +102,10 @@ def _row(it: dict, body_cap: int) -> str:
         bits.append(str(it["mediaType"]))
     head = " · ".join(bits)
     body = re.sub(r"\s+", " ", str(it.get("body") or "")).strip()[:body_cap]
-    return f"· {head}: «{body}»" if body else f"· {head}"
+    if not body:
+        return f"· {head}"
+    from nucleo import untrusted as _u          # V2-778 F4-32: what a stranger wrote is fenced as DATA
+    return f"· {head}: {_u.inline(body)}"
 
 
 _SENT_WINDOW_S = 30 * 60
@@ -167,9 +171,11 @@ def prompt_digest() -> str:
     plats: dict = {}
     for it in items:
         plats[str(it.get("platform") or "?")] = plats.get(str(it.get("platform") or "?"), 0) + 1
+    from nucleo import untrusted as _u
     head = (f"BANDEJA: {len(items)} mensaje{'s' if len(items) != 1 else ''} sin atender ("
             + ", ".join(f"{n} de {p}" for p, n in sorted(plats.items(), key=lambda t: -t[1])) + "). "
-            "Es un RESUMEN de los más recientes: si preguntan por uno que no esté aquí, búscalo, no lo niegues.")
+            "Es un RESUMEN de los más recientes: si preguntan por uno que no esté aquí, búscalo, no lo niegues. "
+            + _u.NOTE)
     rows = [_row(it, _MAX_BODY_DIGEST) for it in items[:_MAX_DIGEST_ROWS]]
     if len(items) > _MAX_DIGEST_ROWS:
         rows.append(f"· … y {len(items) - _MAX_DIGEST_ROWS} más (la tarjeta los enseña todos).")
@@ -229,7 +235,8 @@ def _inbox_answer(question: str) -> str:
     head = ("El mensaje por el que se pregunta (esto SÍ es el registro):" if len(scored) == 1 else
             f"{len(scored)} mensajes de la bandeja encajan con lo que se pregunta"
             + (f" — los {len(rows)} más recientes:" if len(scored) > len(rows) else ":"))
-    return "\n".join([head] + rows)
+    from nucleo import untrusted as _u
+    return "\n".join([head + " " + _u.NOTE] + rows)
 
 
 def _unexplained(question: str) -> list[str]:

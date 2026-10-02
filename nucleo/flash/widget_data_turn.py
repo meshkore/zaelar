@@ -13,6 +13,8 @@ through here—it is the `cluster_send` tool, not a widget data-op.)
 """
 from __future__ import annotations
 
+from nucleo.flash import leave_gate as _leave_gate
+
 
 def _primera_clave(widget_id: str, action: str) -> str:
     """The FIRST key in this action's declared payload, or ""—read from the manifest, not assumed.
@@ -34,7 +36,7 @@ def _primera_clave(widget_id: str, action: str) -> str:
     return ""
 
 
-async def execute(tool_calls: list, text: str = "") -> dict:
+async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     """Dispatch the turn's data-ops and return the report, or say which was skipped and WHY.
 
     V2-391—SEVERAL, not one. Which ones enter is decided by `data_ops.admite_data_op`, shared with voice
@@ -59,13 +61,7 @@ async def execute(tool_calls: list, text: str = "") -> dict:
     from widgets.server_api import brain_action as _brain_action
     hechas, saltadas, fallidas = [], [], []
     for a in admitidas:
-        wid = str(a.get("widget_id") or "").strip().lower()
-        try:                                              # V2-773 — mirror of the voice rail: the one open instance
-            from server.voice_api import open_instances as _open_inst
-            from widgets import instances as _inst_dt
-            wid = _inst_dt.data_target(wid, _open_inst()) or wid
-        except Exception:  # noqa: BLE001
-            pass
+        wid = _rg.one_open_instance(str(a.get("widget_id") or "").strip().lower())   # V2-773: as the voice rail
         act = str(a.get("action") or "").strip()
         pl = a.get("payload") if isinstance(a.get("payload"), dict) else {}
         # THE ITEM REFERENCE TRAVELS (V2-463). The tool declares `item` as its own argument («natural-language
@@ -121,6 +117,7 @@ async def execute(tool_calls: list, text: str = "") -> dict:
             except Exception:  # noqa: BLE001
                 pl = {**pl, "item": _ref}
         mode = _fe.action_mode(wid, act)
+        mode = _leave_gate.asked_if_leaving(mode, brief, wid, act)   # V2-778 F4-33: the voice rail's rule
         if mode != _wa.FAST:
             saltadas.append({"widget": wid, "act": act, "mode": str(mode)})
             continue

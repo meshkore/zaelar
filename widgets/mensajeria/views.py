@@ -335,13 +335,16 @@ def read_query_answer(question: str) -> str:
     rows = archive.ranked(words, limit=8)
     if not rows:
         return ""
+    from nucleo import untrusted as _u          # V2-778 F4-32: what others wrote is fenced as DATA; ours is not
     lines = ["Del ARCHIVO permanente de comunicaciones (y del buzón real para lo que no estaba indexado), lo más "
-             "relevante primero:"]
+             "relevante primero. " + _u.NOTE]
     for r in rows:
         when = datetime.fromtimestamp(float(r.get("ts") or 0)).strftime("%Y-%m-%d %H:%M")
-        who = "yo" if r.get("direction") == "out" else (r.get("sender") or r.get("chat_name") or "?")
+        ours = r.get("direction") == "out"
+        who = "yo" if ours else _u.neutralize(r.get("sender") or r.get("chat_name") or "?")
         body = " ".join(str(r.get("body") or "").split())[:240]
-        lines.append(f"· {when} · {r.get('platform')} · {who} <{r.get('chat_id')}> · {body}")
+        lines.append(f"· {when} · {r.get('platform')} · {who} <{r.get('chat_id')}> · "
+                     f"{body if ours else _u.inline(body)}")
     return "\n".join(lines)
 
 

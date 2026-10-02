@@ -144,6 +144,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   left by a previous boot is judged once from it (`met`) or closed as interrupted, silently (2026-10-01). — since
   2026-09-30 · nodes 2.194, 2.196, 2.198, 3.105, 3.106, 3.113 · `nucleo/request_row.py`, `nucleo/circuit.py`,
   `nucleo/spec.py`, `nucleo/tasks.py`.
+- **CRIT-E12 · What a stranger wrote is data, and it cannot send on its own.** Every body of a mail, a chat or an
+  agent's answer reaches the model fenced (⟦ ⟧, unforgeable); with such text in the context, an act that leaves runs
+  without a question only when the verdict surely names that send — both channels. — since 2026-10-02 · nodes 2.205 ·
+  `nucleo/untrusted.py`, `nucleo/flash/leave_gate.py`.
 - **CRIT-E11 · A web page cannot drive the engine.** On a self-hosted engine every `/api/*` call names this engine in
   `Host` and comes from this machine, and a mutation from another site (`Origin`, `Sec-Fetch-Site: cross-site`) is
   refused; `ZAELAR_API_TOKEN` is the only door for a caller elsewhere. On a cloud account a mutation comes from the

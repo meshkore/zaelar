@@ -98,6 +98,12 @@ def main(argv: list[str] | None = None) -> int:
         # supone nada del dominio: es la forma del valor, no su significado.
         campos[clave.strip()] = int(valor) if valor.lstrip("-").isdigit() else valor
     res = mesh_agents.serve(a.errand, a.prompt or a.errand, campos or None)
+    # V2-778 F4-32 — an agent's answer is a stranger's text: every string neutralised (it cannot forge a fence or a
+    # [SECURITY] header), and the shape kept, with one label saying what it is, for the worker that reads it
+    from nucleo import untrusted as _u
+    if isinstance(res, dict):
+        res = {**_u.neutralize_tree(res), "untrusted": _u.NOTE}
+        _u.seen()
     print(json.dumps(res, ensure_ascii=False, default=str))
     return 0
 

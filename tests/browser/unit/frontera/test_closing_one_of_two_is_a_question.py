@@ -287,8 +287,11 @@ def test_a_data_op_on_the_base_id_lands_on_the_one_open_instance():
     assert instances.data_target("map", ["results::a"]) == "map"
     src_v = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
     src_t = (Path(__file__).resolve().parents[4] / "nucleo/flash/widget_data_turn.py").read_text("utf-8")
+    # V2-778 F4-33: both channels now call ONE helper, which is where the instance is resolved
     for src, ch in ((src_v, "voice"), (src_t, "text")):
-        assert "_inst_dt.data_target(wid, _open_inst())" in src, f"{ch}: the data-op must land on the instance"
+        assert "one_open_instance(" in src, f"{ch}: the data-op must land on the instance"
+    src_d = (Path(__file__).resolve().parents[4] / "nucleo/flash/data_ops.py").read_text("utf-8")
+    assert "_inst_dt.data_target(wid, _open_inst())" in src_d
 
 
 def test_a_close_takes_every_card_the_sentence_names():

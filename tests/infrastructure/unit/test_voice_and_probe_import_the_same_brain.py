@@ -25,7 +25,6 @@ VOICE_ONLY = {
     "accumulator": "the voice turn accumulates STT fragments before it speaks; the text channel gets whole lines",
     "build_decision": "owed",
     "canvas_visibility": "owed",
-    "data_ops": "owed",
     "hard_turn": "owed",
     "music_flow": "owed",
     "surface_ack": "owed",
@@ -55,7 +54,9 @@ def _flash_imports(paths) -> set[str]:
 
 def _probe_files() -> list[str]:
     return sorted({"nucleo/flash/probe.py", *(str(Path(p).relative_to(ENGINE))
-                                             for p in glob.glob(str(ENGINE / "nucleo/flash/probe_*.py")))})
+                                             for p in glob.glob(str(ENGINE / "nucleo/flash/probe_*.py")))}
+                  # the text channel's own data-op executor (V2-778 F4-33), as the voice list holds its executors
+                  | {"nucleo/flash/widget_data_turn.py"})
 
 
 def test_no_new_brain_module_is_wired_into_the_voice_turn_only():

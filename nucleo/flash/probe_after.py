@@ -161,7 +161,7 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                 # V2-469 — the links the operator pasted all travel: two links in one message, the model's
                 # single add carried one. His own words verbatim, so completing invents nothing.
                 return_extra_exec = await _probe._widget_data_turn.execute(
-                    _probe._widget_data_turn.complete_pasted_links(tool_calls, text), text=text)
+                    _probe._widget_data_turn.complete_pasted_links(tool_calls, text), text=text, brief=_tbrief)
             else:
                 return_extra_exec = {}
         except Exception as e:  # noqa: BLE001

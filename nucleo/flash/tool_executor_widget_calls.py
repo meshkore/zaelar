@@ -203,15 +203,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
     CONFIRM → abre confirmación con la mutación guardada (se ejecuta al decir "sí"); ESCALATE/None (acción
     no declarada o vía de escape) → escala al SlowBrain. Punto de convergencia de la tool y el tag."""
     from widgets import actions as _wactions
-    wid = (wid or "").strip().lower()
-    # V2-773 — a data-op on a BASE id lands on its one open instance (a worker's sheet `results::9194df-1`
-    # is the only «results» the model can name); several instances keep today's path.
-    try:
-        from server.voice_api import open_instances as _open_inst
-        from widgets import instances as _inst_dt
-        wid = _inst_dt.data_target(wid, _open_inst()) or wid
-    except Exception:  # noqa: BLE001
-        pass
+    wid = _txw._data_ops.one_open_instance((wid or "").strip().lower())   # V2-773: a base id → its one open instance
     action_name = (action_name or "").strip()
     # E5 (demo passes 36/42, 2026-09-29): «close my mail» → the model called the card's own `close` VIEW
     # action (back to the chat list) over a SURE close verdict, and the card stayed. The card's close, once.
@@ -296,6 +288,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
              extra={"id": wid, "action": action_name, "mode": m, "src": "flash", "item": ref,
                     "payload": payload if isinstance(payload, dict) else {}})   # V2-653: the order's content
 
+    mode = _txw._leave_gate.asked_if_leaving(mode, _brief, wid, action_name, emit=emit)   # V2-778 F4-33
     if mode == _wactions.FAST:
         # GUARD anti context-bleed (round headless V2-038 #1): el modelo a veces RE-emite la data-op del
         # turno ANTERIOR junto a la acción de ESTE ("borra el reloj" arrastró el add_meeting del dentista

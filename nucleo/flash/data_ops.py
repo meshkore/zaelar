@@ -250,6 +250,18 @@ async def _say_it_did_not_run(wid: str, action_name: str, exc: BaseException, *,
     return res
 
 
+def one_open_instance(wid: str) -> str:
+    """V2-773 — a data-op on a BASE id lands on its one open instance (a worker's sheet `results::9194df-1` is the
+    only «results» the model can name); several instances keep today's path. One home for both channels (the voice
+    rail and the text channel's executor carried the same seven lines — V2-778 F4-33 paid its growth here)."""
+    try:
+        from server.voice_api import open_instances as _open_inst
+        from widgets import instances as _inst_dt
+        return _inst_dt.data_target(wid, _open_inst()) or wid
+    except Exception:  # noqa: BLE001
+        return wid
+
+
 def start_op(wid: str, action_name: str, payload: dict, *, seal, text, said, spawn):
     """Start a fast data-op detached, or SAY that it could not start (V2-778 F0-4). Returns the task, or None.
 
