@@ -667,12 +667,15 @@ def test_an_errand_whose_meeting_EXISTS_closes_itself(env, monkeypatch):
     row = _order(env)
     env.bind("telegram", "987", row["id"], "c1")
     import time
-    day = time.strftime("%Y-%m-%d", time.localtime(time.time() + 3600))
+    # Always AHEAD, whatever the hour the suite runs at: a fixed «today at 19:00» was in the past every evening,
+    # and «while its meeting is ahead» failed after seven (seen 2026-10-01 20:12 and 2026-10-02 at night).
+    ahead = time.localtime(time.time() + 3 * 3600)
+    start = time.strftime("%Y-%m-%d %H:00", ahead)
     # ⚠️ `in_person` on purpose: a VIDEO call with no calendar connected leaves a link DEBT, and an errand
     # that still owes what it promised is deliberately NOT done (see above). This case is about the other
     # half — an errand with nothing outstanding closes on the product's own truth.
     _answer(monkeypatch, '{"say": "Hecho.", "state": "agreed", '
-                         '"agreed": {"start": "' + day + ' 19:00", "medium": "in_person"}}')
+                         '"agreed": {"start": "' + start + '", "medium": "in_person"}}')
     asyncio.run(_wake(row))
 
     assert verify.check(env.get(row["id"])) is True, "the product's own truth, not the model's word"
