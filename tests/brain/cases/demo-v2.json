@@ -955,5 +955,47 @@
    "worker"
   ],
   "open": "V2-776: the end state read the SHEET (results:view 0.94) while the action named the inbox — two sure verdicts naming different cards; the gate trusted the one that vetoes, and the turn claimed an open that never ran"
+ },
+ {
+  "id": "demo-s3-the-best-deal-is-the-top-ranked-pick",
+  "lang": "en",
+  "phrase": "open the one that's the best deal",
+  "source": "TMP/demo/run-v1-p76 S3 (2026-10-03): the monitors sheet held three RANKED picks (1. Dell $268.99); the model called nothing and asked «I need to know which of the three you mean — Dell's the cheapest, but you decide»; the verdict results:detail 0.97 completed it without an item, was rejected («pasa el title o index»), corrected in the same turn and opened — so the screen did it while the words asked",
+  "screen": {
+   "open": [
+    "results"
+   ]
+  },
+  "model": {
+   "say": "I need to know which of the three you mean — Dell's the cheapest of the three, but you decide the one to open.",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "show",
+    0.91
+   ],
+   "request_type": [
+    "order",
+    0.94
+   ],
+   "screen_action": [
+    "results:detail",
+    0.97
+   ],
+   "end_state": [
+    "results:view",
+    0.96
+   ],
+   "wants_words": [
+    "act",
+    0.91
+   ]
+  },
+  "expect": "data-op results:detail",
+  "forbid": [
+   "worker"
+  ],
+  "note": "The DECISION is right (the verdict completes the model: data-op results:detail). What the bank cannot see is the WORDS, which handed the choice back while the act ran — filed as a V2-780 incident."
  }
 ]

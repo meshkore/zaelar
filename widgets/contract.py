@@ -215,15 +215,53 @@ def _declared(widget_id: str, action: str) -> dict:
     return payload if isinstance(payload, dict) else {}
 
 
+def _declares_a_list(described) -> bool:
+    """Does the manifest describe this field as a LIST? (`"places": "list of {name, address, note, url}"`)"""
+    if isinstance(described, list):
+        return True
+    d = str(described or "").strip().lower()
+    return d.startswith(("list", "array", "[")) or " list of " in f" {d}"
+
+
+def _unstring_lists(declared: dict, pl: dict) -> dict:
+    """A field the manifest declares as a LIST that arrived as the TEXT of a JSON list, decoded.
+
+    Demo pass 76 (2026-10-03), W1: «put griffith observatory, mount baldy and the getty on a map» sent
+    `places` as the string '[{"name": "Griffith Observatory"…}, …]'. The map took the whole string as ONE place,
+    pinned one marker, and «highlight the second one» failed with «say its number on the map (1-1)» — while the
+    model said «Highlighted Mount Baldy». Passes 73 and 75 sent a real list; the model chooses the encoding per
+    call, so the door accepts both. Only a declared list field, and only text that parses as a JSON list."""
+    import json as _json
+    out = {}
+    for key, described in declared.items():
+        val = pl.get(key)
+        if not isinstance(val, str) or not _declares_a_list(described):
+            continue
+        txt = val.strip()
+        if not (txt.startswith("[") and txt.endswith("]")):
+            continue
+        try:
+            parsed = _json.loads(txt)
+        except ValueError:
+            continue
+        if isinstance(parsed, list):
+            out[key] = parsed
+    return out
+
+
 def fold_aliases(widget_id: str, action: str, payload: dict | None) -> dict:
-    """The same call with the model's synonyms renamed to the keys the manifest declares. Never raises,
-    never invents a field, never overwrites one that arrived filled. Returns the payload unchanged when
-    there is nothing to fold (the overwhelming majority of calls)."""
+    """The same call with the model's synonyms renamed to the keys the manifest declares — and a declared list
+    that arrived as JSON text, decoded (`_unstring_lists`). Never raises, never invents a field, never overwrites
+    one that arrived filled. Returns the payload unchanged when there is nothing to fold (the overwhelming
+    majority of calls)."""
     pl = payload if isinstance(payload, dict) else {}
     try:
         declared = _declared(str(widget_id or "").strip().lower(), str(action or "").strip())
         if not declared:
             return pl
+        decoded = _unstring_lists(declared, pl)
+        if decoded:
+            pl = {**pl, **decoded}
         folded: dict = {}
         for key in declared:
             if str(pl.get(key) if pl.get(key) is not None else "").strip():

@@ -160,3 +160,20 @@ def test_a_composed_description_that_finds_nothing_falls_back_to_the_places_own_
     got = mp.apply_action("show", {"places": ["Mount Baldy, San Gabriel Mountains, CA"]})
     assert got["ok"] and got["not_found"] == [], (got, asked)
     assert asked[0] == "Mount Baldy, San Gabriel Mountains, CA", "the most specific phrasing is still asked"
+
+
+def test_places_sent_as_the_TEXT_of_a_json_list_are_still_three_places():
+    """Demo pass 76 (2026-10-03), W1: the model sent `places` as the string '[{"name": …}, …]'; the map pinned ONE
+    place and «highlight the second one» failed («(1-1)»). The payload door decodes a declared list sent as JSON."""
+    from widgets import contract
+    text = '[{"name": "Griffith Observatory"}, {"name": "Mount Baldy"}, {"name": "The Getty"}]'
+    got = contract.fold_aliases("map", "show", {"places": text, "near": "Los Angeles"})
+    assert [p["name"] for p in got["places"]] == ["Griffith Observatory", "Mount Baldy", "The Getty"]
+    assert got["near"] == "Los Angeles", "a plain text field is never touched"
+
+
+def test_a_text_field_that_merely_looks_like_a_list_is_left_alone():
+    from widgets import contract
+    got = contract.fold_aliases("map", "show", {"places": [{"name": "x"}], "title": "[draft] my places"})
+    assert got["title"] == "[draft] my places"
+    assert contract.fold_aliases("map", "show", {"places": "[not json"})["places"] == "[not json"
