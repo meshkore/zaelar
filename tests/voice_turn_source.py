@@ -188,14 +188,19 @@ _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
             (ENGINE / "widgets" / "navegador" / "owner_page.py").resolve(): "_o"}
 
 
-def _as_written(x: Path) -> str:
+def _without_alias(x: Path) -> str:
     src = x.read_text(encoding="utf-8")
     alias = _ALIASED.get(x.resolve())
-    return _unlift(re.sub(rf"\b{alias}\.", "", src) if alias else src)
+    return re.sub(rf"\b{alias}\.", "", src) if alias else src
 
 
-_LIFTED = re.compile(r"(?m)^(?P<ind>[ \t]*)# V2-778 F1 — the body lives in `(?P<path>[\w/]+\.py)`; this closure passes "
-                     r"what it closed over\.\n[ \t]*return (?:await )?\w+\.(?P<name>\w+)\(.*\)\n")
+def _as_written(x: Path) -> str:
+    return _unlift(_without_alias(x))
+
+
+_LIFTED = re.compile(r"(?m)^(?P<ind>[ \t]*)# V2-778 F1 — the body lives in `(?P<path>[\w/]+\.py)`; this (?:closure|branch) "
+                     r"passes what it (?:closed over|reads)\.\n[ \t]*return (?:await )?(?:\w+\.)?(?P<name>\w+)"
+                     r"(?:\([^()]*\)|\(.*\))\n")
 
 
 def _unlift(src: str) -> str:
@@ -204,7 +209,7 @@ def _unlift(src: str) -> str:
 
     def _back(m):
         mod = ENGINE / m["path"]
-        text = _as_written(mod)
+        text = _without_alias(mod)        # the body is unlifted on its own below: a module may point into itself
         tree = _ast.parse(mod.read_text(encoding="utf-8"))
         fn = next(n for n in tree.body if isinstance(n, (_ast.FunctionDef, _ast.AsyncFunctionDef)) and n.name == m["name"])
         lines = text.splitlines(True)
@@ -223,7 +228,7 @@ def _unlift(src: str) -> str:
                 break
         body = lines[start:fn.end_lineno]       # comments between the header and the first statement included
         ind = m["ind"]
-        return "".join((ind + ln[4:]) if ln.strip() else ln for ln in body)   # module body sits at 4 spaces
+        return _unlift("".join((ind + ln[4:]) if ln.strip() else ln for ln in body))   # module body at 4 spaces
     return _LIFTED.sub(_back, src)
 
 
