@@ -273,8 +273,12 @@ def remember_what_was_said(sess, text: str, cap: int) -> None:
 
 # ── 1c) WHAT WE SAID ON OUR OWN IS PART OF THE CONVERSATION ─────────────────────────────────────────────────
 #: Proactive lines spoken since the last prompt (a list finishing, an errand reporting back), oldest first.
-_SPOKEN: list[str] = []
+_SPOKEN: list[tuple[int, str]] = []
 _SPOKEN_MAX = 4
+#: V2-778 F2-21 — what was said out loud belongs to BOTH channels (the operator, 2026-10-02): each one reads the
+#: list from its own cursor instead of the first one to prompt emptying it for everybody.
+_SPOKEN_SEQ = [0]
+_CURSORS: dict[str, int] = {}
 
 
 def note_spoken(text: str) -> None:
@@ -288,11 +292,18 @@ def note_spoken(text: str) -> None:
     happened; the window is where the model reads what happened."""
     t = sanitize_reply((text or "").strip()) if (text or "").strip() else ""
     if t:
-        _SPOKEN.append(t)
+        _SPOKEN_SEQ[0] += 1
+        _SPOKEN.append((_SPOKEN_SEQ[0], t))
         del _SPOKEN[:-_SPOKEN_MAX]
 
 
-def drain_spoken(window: list[dict]) -> None:
-    """Move the pending proactive lines into `window` as our own turns, in the order they were said."""
-    while _SPOKEN:
-        window.append({"role": "assistant", "content": _SPOKEN.pop(0)})
+def drain_spoken(window: list[dict], channel: str = "voice") -> None:
+    """Move the proactive lines this CHANNEL has not seen into `window` as our own turns, in the order they were
+    said. The voice reads everything still held (as it always did); a chat session starts at its first turn, so a
+    line said before that conversation existed is not part of it."""
+    if channel not in _CURSORS:
+        _CURSORS[channel] = 0 if channel == "voice" else _SPOKEN_SEQ[0]
+    for seq, text in list(_SPOKEN):
+        if seq > _CURSORS[channel]:
+            window.append({"role": "assistant", "content": text})
+            _CURSORS[channel] = seq

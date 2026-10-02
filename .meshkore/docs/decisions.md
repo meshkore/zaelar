@@ -39,6 +39,14 @@ entregada siga citada aquí.
   Three ratchets (prompt prose +1,694 B, total, 4 beheaded descriptors) were RAISED by the operator's decision
   as declared debt — paying them changes what the model reads, and that waits for F2 to measure it.
 
+- **What was said out loud belongs to both channels; the operator's open decisions (V2-778 F2-21, 2026-10-02)**:
+  a proactive line (a list's end, an errand's report) entered the brain's window through ONE list that the first
+  channel to prompt emptied — and only the voice turn read it, so the chat never knew what had been said. The
+  operator: both channels. Each channel now reads from its own cursor (the voice sees everything still held, as
+  before; a chat session starts at its first turn, so it never inherits a line said before it existed). Node
+  3.110 extended. The audit's open decisions, answered the same day: the size ceilings are guidance, not a target
+  — «lo mínimo posible dentro de lo más profesional», a split that would be counterproductive is not forced and
+  the ratchet stays down-only; torrents stay as they are.
 - **A pay button outside a form still asks; the engine-noun list is not extended (V2-778 F4-36/F4-38,
   2026-10-02)**: `click_gate.decide` read the checkout path only for a submit-ish control, and most single-page
   shops pay through a `<div role="button">` their script wires up — it walked through the last rail before a real

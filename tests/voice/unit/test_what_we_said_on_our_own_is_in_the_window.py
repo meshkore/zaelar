@@ -51,3 +51,34 @@ def test_the_prompt_is_built_after_the_drain():
     src = _vts.turn_source()
     assert src.index("_dialog.drain_spoken(brain._window)") < src.index(
         "messages += _dialog.prune_window(brain._window)")
+
+
+# ── V2-778 F2-21: both channels hear it (the operator's decision, 2026-10-02) ──────────────────────────────
+
+def test_the_voice_and_a_chat_session_each_get_the_line_once():
+    """What was said out loud belongs to the conversation on BOTH channels: draining it into one must not take
+    it from the other (before, the first consumer emptied the list)."""
+    chat = []
+    dialog.drain_spoken(chat, channel="text:a")          # the chat session exists before the line is said
+    dialog.note_spoken("I've finished your list: 26 of 26 done.")
+    voice = []
+    dialog.drain_spoken(voice)
+    dialog.drain_spoken(chat, channel="text:a")
+    assert voice[-1]["content"] == chat[-1]["content"] == "I've finished your list: 26 of 26 done."
+    dialog.drain_spoken(voice)
+    dialog.drain_spoken(chat, channel="text:a")
+    assert len(voice) == 1 and len(chat) == 1, "each channel once, never twice"
+
+
+def test_a_chat_session_opened_after_the_line_does_not_inherit_it():
+    dialog.note_spoken("Your errand is done.")
+    late = []
+    dialog.drain_spoken(late, channel="text:late")
+    assert late == [], "a line said before this conversation existed is not part of it"
+
+
+def test_the_text_channel_drains_before_it_builds_the_prompt():
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[3] / "nucleo" / "flash" / "probe_before.py").read_text("utf-8")
+    assert "dialog.drain_spoken(sess.window" in src and src.index("dialog.drain_spoken(sess.window") < src.index(
+        "messages += dialog.prune_window(sess.window)")
