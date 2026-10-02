@@ -79,6 +79,19 @@ def test_la_regla_pide_las_DOS_mitades():
     assert V.no_quota_infra(None, None) == ""
 
 
+def test_a_worker_relayed_onto_another_provider_and_still_alive_measured_the_product():
+    """The operator, 2026-10-02: «cualquier brain worker debería seguir automáticamente usando deepseek». It did —
+    z.ai had no quota, the worker was relaunched on DeepSeek and was alive (waiting on the operator) when the round
+    was judged — and the round was still declared INFRA because nobody had FINISHED. A worker the relay brought to
+    life is the product running; only a round where no worker survived the quota measured nothing."""
+    murio = {"deaths": 1, "asleep": 0, "providers": ["z.ai"], "reset_at": 0.0}
+    assert V.no_quota_infra(murio, {"spawned": 2, "ok": 0, "relayed": 1, "still_running": 1}) == ""
+    assert V.no_quota_infra(murio, {"spawned": 2, "ok": 0, "relayed": 1, "still_running": 0,
+                                    "cancelled_by_shutdown": 1}) == "", "alive until the harness tore it down"
+    assert V.no_quota_infra(murio, {"spawned": 1, "ok": 0, "errored": 1, "still_running": 0}), \
+        "the only worker died and none came after it: INFRA"
+
+
 def test_la_frase_NOMBRA_al_proveedor_y_la_hora():
     """The actionable information in quota-related INFRA is what to replenish and when it returns; without that it only says «no midió»."""
     import time

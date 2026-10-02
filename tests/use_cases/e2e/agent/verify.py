@@ -2869,6 +2869,11 @@ def no_quota_infra(exhausted: dict | None, health: dict | None) -> str:
         return ""
     if he.get("ok"):
         return ""                                   # somebody finished: the round measured something real
+    # …or the relay brought a worker to life that was still working when the round was judged (or until the harness
+    # tore the sandbox down): the product ran on the next provider, which is what the relay is for (the operator,
+    # 2026-10-02: a brain worker goes on by itself on DeepSeek when the first tier has no quota).
+    if he.get("still_running") or he.get("cancelled_by_shutdown"):
+        return ""
     hasta = ""
     if ex.get("reset_at"):
         try:
