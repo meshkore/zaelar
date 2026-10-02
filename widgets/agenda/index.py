@@ -38,7 +38,8 @@ def ref_index() -> list[dict]:
     for p in db.get("projects", []):
         if p.get("status") == "frozen":
             continue
-        out.append({"id": p["id"], "label": p.get("name") or p["id"], "field": "projectId", "hint": "proyecto"})
+        out.append({"id": p["id"], "label": p.get("name") or p["id"], "field": "projectId",
+                    "hint": "project" if _en() else "proyecto"})
     # V2-639 — meetings are referenceable too («la cita del dentista» -> payload.title), so set_reminder /
     # cancel_meeting / move_meeting resolve a spoken reference without the model re-typing the title. Only
     # today-or-future ones: a past appointment is history, not a target.
@@ -56,13 +57,25 @@ def ref_index() -> list[dict]:
     _future = [(recur.next_occurrence(m, today), m) for m in db.get("meetings", [])]
     for nxt, m in sorted(((n, m) for n, m in _future if n), key=lambda t: (t[0], str(t[1].get("startTime") or ""))):
         label = m.get("title") or "Cita"
-        _rule = f" · {recur.describe(m['repeat'])}" if isinstance(m.get("repeat"), dict) else ""
+        # V2-778 F3-30 — the hints are SPOKEN (`widget_data_turn.named_ack` reads them back after an edit), so they
+        # are in the agent's language: an English agent said «(cita … · todos los miércoles hasta el …)» live.
+        _rule = (f" · {recur.describe(m['repeat'], 'en' if _en() else 'es')}"
+                 if isinstance(m.get("repeat"), dict) else "")
         out.append({"id": label, "label": label, "field": "title",
-                    "hint": f"cita {nxt} {m.get('startTime', '')}".strip() + _rule})
+                    "hint": f"{'appointment' if _en() else 'cita'} {nxt} {m.get('startTime', '')}".strip() + _rule})
     return out
 
 
 _WEEKDAYS = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
+
+
+def _en() -> bool:
+    """Does the agent speak English now? (the catalog's own language; Spanish when it cannot be read)."""
+    try:
+        from i18n.langs import current_language
+        return str(getattr(current_language(), "code", "") or "es")[:2] == "en"
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _day_words():

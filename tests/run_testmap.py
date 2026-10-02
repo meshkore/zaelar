@@ -4170,6 +4170,9 @@ DOMAINS: list[dict] = [
         {"id": "4.244", "title": "A pay button outside a form still asks: a role=button on a checkout path, in German, "
                                 "French and Spanish cart words; a Spanish BROWSE section («comprar») is not a checkout",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_pay_button_outside_a_form_still_asks.py"]},
+        {"id": "4.245", "title": "The agenda's reference hints (read back after an edit) speak the agent's language — an "
+                                "English agent said «(cita … · todos los miércoles hasta el …)» live",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_index_speaks_the_agents_language.py"]},
         {"id": "4.243", "title": "The widget contract gate reads an ACTIONS = {name: handler} table instead of fail-opening on it",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_table_dispatch_is_read.py"]},
         {"id": "4.242", "title": "The widget contract gate follows a delegate that renames its action parameter (make test-widgets green)",
