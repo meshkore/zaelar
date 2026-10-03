@@ -4931,6 +4931,9 @@ DOMAINS: list[dict] = [
         {"id": "7.63", "title": "A red becomes an incident: one task per key in V2-780, repeats append, a red "
                                 "after done is a regression; tests diagnose, never fix",
          "ch": UNIT, "paths": ["tests/infrastructure/unit/test_a_red_becomes_an_incident.py"]},
+        {"id": "7.64", "title": "A report errand mints its results sheet on first write without covering its "
+                                "document (demo pass 79)",
+         "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_report_errand_does_not_cover_its_document.py"]},
         # V2-492 (2026-08-29): los perfiles de `.meshkore/team/` arrancan a cada agente con una lista de
         # documentos, y **12 de esas rutas estaban muertas** en 8 de los 9 perfiles — escritas contra un
         # `.meshkore/context/` y un `.meshkore/workflows/` que ya no existen. No falla nada: el agente

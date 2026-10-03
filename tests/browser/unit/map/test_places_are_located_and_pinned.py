@@ -177,3 +177,12 @@ def test_a_text_field_that_merely_looks_like_a_list_is_left_alone():
     got = contract.fold_aliases("map", "show", {"places": [{"name": "x"}], "title": "[draft] my places"})
     assert got["title"] == "[draft] my places"
     assert contract.fold_aliases("map", "show", {"places": "[not json"})["places"] == "[not json"
+
+
+def test_one_text_that_may_be_several_places_is_sent_back_for_a_list():
+    """Demo pass 79 (2026-10-03), W1: `places` = «Griffith Observatory, Mount Baldy, The Getty» was pinned as ONE
+    place. A comma can also be a place's own city, so the call is refused with what to send instead."""
+    from widgets.map import data as M
+    for txt in ("Griffith Observatory, Mount Baldy, The Getty", "the Getty and Mount Baldy"):
+        r = M.apply_action("show", {"places": txt, "near": "Los Angeles"})
+        assert r["ok"] is False and "LIST" in r["error"], txt

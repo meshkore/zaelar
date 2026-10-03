@@ -54,7 +54,11 @@ def _own_sheet(rec) -> str:
     sid = _sh.sheet_of(rec)
     if not sid:
         try:
-            _sh._sheet_open(rec)
+            # A REPORT errand's deliverable is the document (V2-644): its first write to `results` — the worker
+            # registering its `sources` — mints the box so nothing is lost, but does not put a results sheet over
+            # the document it is writing (demo pass 79, F1/F2: the sheet sat on top of the Bitcoin summary).
+            from nucleo import surfaces as _surf
+            _sh._sheet_open(rec, show=not _surf.opens_doc(getattr(rec, "surface", "")))
         except Exception:  # noqa: BLE001 — fail-soft: the base sheet is still a place to deliver
             logger.debug("worker_api: could not open the errand's sheet", exc_info=True)
         sid = _sh.sheet_of(rec)

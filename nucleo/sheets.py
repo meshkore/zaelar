@@ -321,7 +321,7 @@ def retitle(rec) -> None:
         pass
 
 
-def _sheet_open(rec) -> None:
+def _sheet_open(rec, *, show: bool = True) -> None:
     """OPEN the sheet when COMMISSIONED, which is the entire gesture of scope C: without this the operator sees nothing
     until there is a response, leaving the screen contract fulfilled in a test and absent in the product.
 
@@ -369,6 +369,8 @@ def _sheet_open(rec) -> None:
         _sheet.prune_sheets()          # the sheet persists deliberately; N instances cannot grow without a ceiling
     except Exception:  # noqa: BLE001
         pass
+    if not show:
+        return
     try:
         from voice.observer import emit
         from widgets.results import data as _sheet2

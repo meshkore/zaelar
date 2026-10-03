@@ -9,6 +9,7 @@ cache. Stdlib only. The card draws the tiles itself as plain images (widgets/map
 from __future__ import annotations
 
 import json
+import re
 import time
 import urllib.parse
 import urllib.request
@@ -192,6 +193,16 @@ def apply_action(action: str, payload: dict = None) -> dict:
     db = _load()
     deadline = time.time() + 6.5
     if action in ("show", "add"):
+        raw = p.get("places") if p.get("places") is not None else (p.get("items") or p.get("points"))
+        if isinstance(raw, str) and ("," in raw or re.search(r"\s(and|y|&)\s", raw, re.I)):
+            # ONE text that may be SEVERAL places (demo pass 79, 2026-10-03, W1): «Griffith Observatory, Mount
+            # Baldy, The Getty» was pinned as one place, and «highlight the second one» failed with «(1-1)» while
+            # the model said it highlighted Mount Baldy. Splitting on commas is no answer — «Griffith Observatory,
+            # Los Angeles» is ONE place with its city — so the call is sent back for a list, and the data-op loop
+            # corrects it in the same turn. A JSON list sent as text is decoded at the payload door (contract).
+            return {"ok": False, "error": "'places' must be a LIST with one entry per place — e.g. "
+                                          "[{\"name\": \"Griffith Observatory\"}, {\"name\": \"Mount Baldy\"}] — "
+                                          "a single text could be one place or several"}
         incoming = _places_in(p)
         if not incoming:
             return {"ok": False, "error": "no places arrived — send 'places' as a list of {name, address} "
