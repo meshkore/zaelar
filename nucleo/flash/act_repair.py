@@ -400,6 +400,16 @@ def _other_open_cards(wid: str, *, limit: int = 2, chars: int = 900) -> str:
         return ""
 
 
+def _ignored_the_verdict(got: list, wid: str, verdict_action: str, declared: dict) -> bool:
+    """The pass called a DIFFERENT declared action on the card the verdict names an action of."""
+    a = str(verdict_action or "").strip()
+    if not a or a not in declared:
+        return False
+    calls = [str(x.get("action") or "").strip() for n, x in got
+             if n == "widget_data" and str(x.get("widget_id") or "").strip().lower() == wid]
+    return bool(calls) and a not in calls
+
+
 def _verdict_hint(action: str, manifest: dict) -> str:
     """One line naming the action the engine's own reading of the order chose on this card, when it declares it.
 
@@ -442,15 +452,26 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
         card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _other_open_cards(wid)
         got: list[tuple[str, dict]] = []
         from nucleo.flash.fast_client import FastClient
+        _msgs = [{"role": "system", "content": _SYS_COMMISSION.format(wid=wid, actions=_actions_block(manifest), card=card)},
+                 {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»\n"
+                                             f"The commission that was going to a worker: «{(commission or '').strip()[:300]}»"
+                                             + _verdict_hint(verdict_action, manifest)
+                                             + conversation(window)}]
         await FastClient().complete(
-            [{"role": "system", "content": _SYS_COMMISSION.format(wid=wid, actions=_actions_block(manifest), card=card)},
-             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»\n"
-                                         f"The commission that was going to a worker: «{(commission or '').strip()[:300]}»"
-                                         + _verdict_hint(verdict_action, manifest)
-                                         + conversation(window)}],
-            spec=spec, max_tokens=300, tools=tools, no_thinking=True,
+            _msgs, spec=spec, max_tokens=300, tools=tools, no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
         declared = manifest.get("actions") or {}
+        if _ignored_the_verdict(got, wid, verdict_action, declared):
+            # Demo pass 92, R3: the hint was there (agenda:find_free, 0.75) and the pass called show_day again — one
+            # day, «I can only see the start of it». ONE more ask, naming the action as the one to call; whatever it
+            # answers then is taken (the verdict completes the pass, it never runs blind).
+            got.clear()
+            await FastClient().complete(
+                _msgs + [{"role": "user", "content": f"Call «{verdict_action}» on «{wid}» — that is the action this "
+                                                     f"order needs; fill its payload from the operator's words and the "
+                                                     f"conversation."}],
+                spec=spec, max_tokens=300, tools=tools, no_thinking=True,
+                on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
         for name, args in got:
             if str(args.get("widget_id") or "").strip().lower() != wid:
                 continue

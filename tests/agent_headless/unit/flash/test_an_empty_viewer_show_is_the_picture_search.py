@@ -30,3 +30,16 @@ def test_the_commission_pass_is_told_the_verdicts_action_on_its_card():
     assert "«find_free»" in AR._verdict_hint("find_free", manifest)
     assert AR._verdict_hint("book_it", manifest) == "", "an undeclared action is never suggested"
     assert AR._verdict_hint("", manifest) == ""
+
+
+def test_a_pass_that_called_another_action_than_the_verdicts_is_asked_once_more():
+    """Demo pass 92, R3: the hint named find_free and the pass called show_day — one day."""
+    from nucleo.flash import act_repair as AR
+    declared = {"find_free": {}, "show_day": {}}
+    assert AR._ignored_the_verdict([("widget_data", {"widget_id": "agenda", "action": "show_day"})], "agenda",
+                                   "find_free", declared)
+    assert not AR._ignored_the_verdict([("widget_data", {"widget_id": "agenda", "action": "find_free"})], "agenda",
+                                       "find_free", declared)
+    assert not AR._ignored_the_verdict([], "agenda", "find_free", declared), "no call is the worker's path"
+    assert not AR._ignored_the_verdict([("widget_data", {"widget_id": "agenda", "action": "show_day"})], "agenda",
+                                       "", declared), "no verdict, nothing to follow"

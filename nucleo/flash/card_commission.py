@@ -325,9 +325,15 @@ def question_left_to_a_lens(brief, *, ops: list, acted: dict, operator_text: str
         # start? show me in the calendar» → show_day on 20 December and «Done.»; request_type 0.42, words 0.02).
         # Punctuation, not vocabulary: every language the STT writes marks a question the same way.
         asked = "?" in (operator_text or "") or "¿" in (operator_text or "")
-        if not ((info is not None and str(kind or "") == "question")
-                or (winfo is not None and str(words or "") == "tell")
-                or (info is None and winfo is None and asked)):
+        # ⚠️ An UNSURE reading is `(fallback, {…, "used": False})` — not `(fallback, None)` (`jev.read`). The pass-66
+        # version tested `info is None`, which only an ABSENT verdict gives, so with both readings unsure it never
+        # fired and R2 came back as «Done.» again in pass 92 (2026-10-03). Its test stubbed `read` with None: a test
+        # that re-implemented the reader, not one that read it. «Not used» is what unsure means.
+        sure_kind = bool((info or {}).get("used"))
+        sure_words = bool((winfo or {}).get("used"))
+        if not ((sure_kind and str(kind or "") == "question")
+                or (sure_words and str(words or "") == "tell")
+                or (not sure_kind and not sure_words and asked)):
             return ""
         ops = [o for o in (ops or []) if isinstance(o, dict)]
         if any(not _do.is_view_op(str(o.get("widget_id") or ""), str(o.get("action") or "")) for o in ops):
