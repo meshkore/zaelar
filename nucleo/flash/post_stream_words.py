@@ -183,20 +183,17 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
 
     # EVERY tool the model can answer with counts — demo pass 2026-09-28, I1: «show me a red ferari f40» called
     # show_images, the pictures came up, and the verdict «completed» the «empty» turn with a YouTube search too.
+    _completed = ""                     # the action the verdict's completion ran, if it ran one (pass 90, S2)
     _no_tool = (not acted["widget"] and not data_done["v"] and not music_req["v"] and not worker_acted["v"]
                 and escalate_req["v"] is None and search_req["v"] is None
                 and all(r["v"] is None for r in (images_req, listing_req, recall_req, read_req, reopen_req,
                                                  reveal_req)))
     _op_text = _router.operator_words(operator_text, text)   # a note is CONTEXT, never the errand
-    # V2-754 — sin tool del modelo y con una ORDEN sobre una tarjeta abierta en el brief («Sí, el catálogo» →
-    # `show_tab` 0,88 y «te dejo el catálogo» sobre nada): el veredicto completa el turno por la misma puerta.
-    _completed = ""
+    # V2-754 — no tool, an ORDER on an open card (`show_tab` 0.88 over nothing): the verdict completes the turn.
     if _no_tool and not clarify["msg"] and (
             _pst._direct_action.complete_canvas(_brief, tag_emit=_tag_emit, emit=emit, operator_text=_op_text)
-            or (_completed := _pst._direct_action.complete(_brief, operator_text=_op_text, emit=emit,
-                                                           present=_pst._cvis.present,
-                                                           apply_widget_data=_apply_widget_data,
-                                                           model_words=spoken_text))):
+            or (_completed := _pst._direct_action.complete(_brief, operator_text=_op_text, emit=emit, present=_pst._cvis.present,
+                                       apply_widget_data=_apply_widget_data, model_words=spoken_text))):
         acted["widget"] = True
         _no_tool = False
         if _completed:
