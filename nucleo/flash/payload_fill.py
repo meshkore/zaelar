@@ -140,6 +140,59 @@ def number_fill(widget_id: str, action: str, words: str) -> dict:
         return {}
 
 
+def _row_labels(card: str) -> list[tuple[str, str]]:
+    """`(title, price)` of every row the card shows now, in its own order (1-based index = position + 1)."""
+    try:
+        from nucleo import truth as _truth
+        view = _truth.widget_view(card) or {}
+    except Exception:  # noqa: BLE001
+        return []
+    rows = view.get("items") if isinstance(view, dict) else None
+    out = []
+    for r in rows if isinstance(rows, list) else []:
+        if isinstance(r, dict):
+            out.append((str(r.get("title") or r.get("name") or "").strip(), str(r.get("price") or "").strip()))
+    return out
+
+
+def row_named_fill(widget_id: str, action: str, card: str, model_words: str) -> dict:
+    """`{key: n}` when the MODEL's own words name exactly one row of the card, and the action's one fillable key is a
+    1-based INDEX.
+
+    Demo pass 80 (2026-10-03), S3 «open the one that's the best deal»: the model called nothing and SAID «the Samsung
+    ViewFinity S7's ficha is open … at $189.99»; the verdict completed `results:detail`, but the only words it had
+    to fill `index` with were the operator's sentence — rejected, and the screen never moved under a reply saying it
+    had. The model had already read the sheet and named the row: that is a reading, not an invention, the same rule
+    as `number_fill` (a number he SAID). A row counts as named when its PRICE appears in the words, or when at least
+    two of its distinctive title words do; two rows tied is a question, never a pick."""
+    import re as _re
+    try:
+        key = fillable_key(widget_id, action)
+        if not key or not (model_words or "").strip():
+            return {}
+        spec = str(_payload_spec(widget_id, action).get(key) or "").lower()
+        if not (any(m in spec for m in ("1-based", "1-n", "número del resultado", "numero del resultado"))
+                or _re.fullmatch(r"\d+", spec.strip())):
+            return {}
+        said = (model_words or "").lower()
+        said_toks = set(_re.findall(r"[a-z0-9]+", said))
+        scores = []
+        for title, price in _row_labels(card):
+            toks = [t for t in _re.findall(r"[a-z0-9]+", title.lower()) if len(t) > 2 and not t.isdigit()]
+            hits = sum(1 for t in dict.fromkeys(toks) if t in said_toks)
+            digits = _re.sub(r"[^0-9.]", "", price)
+            priced = bool(digits) and digits.rstrip(".") in _re.sub(r"[^0-9. ]", " ", said).split()
+            scores.append((2 if priced else 0) + hits)
+        if not scores:
+            return {}
+        best = max(scores)
+        if best < 2 or scores.count(best) != 1:
+            return {}
+        return {key: scores.index(best) + 1}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def person_fill(widget_id: str, action: str, payload: dict, words: str) -> dict:
     """`{"contact": <name>}` when the action declares a `contact`, the call left it empty and his sentence names
     exactly ONE person of the directory; `{}` otherwise — two named, or none, is the model's to ask.

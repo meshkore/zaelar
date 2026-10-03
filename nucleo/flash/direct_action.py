@@ -258,7 +258,7 @@ def names_an_order(brief, *, sure: float = 0.0) -> bool:
         return False
 
 
-def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str = "") -> dict:
+def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str = "", model_words: str = "") -> dict:
     """The whole rung in one call. `{}` when there is none — every caller's fallback is today's path.
 
     `swallowed` is the arguments of a tool the model DID emit and a guard then ate. When it carries a
@@ -297,6 +297,18 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
             return {"widget": wid, "action": action, "payload": payload, "key": key,
                     "source": "swallowed-tool",
                     "label": f"{wid}:{action} ← la tool que el guarda se comió"}
+
+    # 1b · no tool, but the MODEL NAMED the row in its own words (demo pass 80, S3: «the Samsung ViewFinity S7 …
+    #      $189.99»). Read off the card it is about — see `payload_fill.row_named_fill`.
+    if key and model_words:
+        try:
+            from nucleo.flash import payload_fill as _pf
+            named = _pf.row_named_fill(wid, action, card_to_present(wid, operator_text), model_words)
+        except Exception:  # noqa: BLE001
+            named = {}
+        if named:
+            return {"widget": wid, "action": action, "payload": named, "key": key, "source": "model-named-row",
+                    "label": f"{wid}:{action} ← la fila que el modelo nombró"}
 
     # 2 · no tool at all. The words are the operator's, and only if they are short enough to BE the
     #     thing the payload key asks for.
@@ -636,7 +648,7 @@ def subject_card(widget_id: str, action: str, operator_text: str) -> str:
 
 
 def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
-             widget_id: str = "", instead_of: str = "", require_order: bool = True) -> str:
+             widget_id: str = "", instead_of: str = "", require_order: bool = True, model_words: str = "") -> str:
     """THE ARBITER'S ONE RULE, spent (V2-754): the verdict COMPLETES the model, it never overrules it.
 
     Live session 3afe34a8 (2026-09-23), four orders to get back to the video catalogue. The brief
@@ -679,7 +691,7 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
         # card was shown again, and the reply said «calendar's closed»). The completion is the card's own close.
         if sure_canvas(brief):
             return ""                         # a canvas gesture is never a data action — `complete_canvas` owns it
-        rung = resolve(operator_text, brief=brief, operator_text=operator_text)
+        rung = resolve(operator_text, brief=brief, operator_text=operator_text, model_words=model_words)
     except Exception:  # noqa: BLE001
         return ""
     if not rung:

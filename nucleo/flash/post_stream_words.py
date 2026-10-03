@@ -193,7 +193,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
     if _no_tool and not clarify["msg"] and (
             _pst._direct_action.complete_canvas(_brief, tag_emit=_tag_emit, emit=emit, operator_text=_op_text)
             or _pst._direct_action.complete(_brief, operator_text=_op_text, emit=emit, present=_pst._cvis.present,
-                                       apply_widget_data=_apply_widget_data)):
+                                       apply_widget_data=_apply_widget_data, model_words=spoken_text)):
         acted["widget"] = True
         _no_tool = False
     # …and a data-op INSIDE a card he also told to close by its name («stop the video and close youtube»): the

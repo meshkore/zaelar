@@ -182,8 +182,8 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
         try:
             from . import direct_action as _da_bs
             if (_da_bs.names_an_order(_tbrief) and not _da_bs.sure_canvas(_tbrief)   # a canvas gesture is never data
-                    and (_rung := _da_bs.resolve(operator_text, brief=_tbrief,
-                                                                           operator_text=operator_text))):
+                    and (_rung := _da_bs.resolve(operator_text, brief=_tbrief, operator_text=operator_text,
+                                                 model_words=spoken if isinstance(spoken, str) else ""))):
                 tool_calls.append({"name": "widget_data", "args": {"widget_id": _rung["widget"],
                                    "action": _rung["action"], "payload": _rung["payload"], "_verdict": True}})
                 action, _already, spoken = "widget_data", True, ""
