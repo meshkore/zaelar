@@ -4950,6 +4950,9 @@ DOMAINS: list[dict] = [
         {"id": "7.70", "title": "No errand found: the results sheet the phrase names by its title is shown (demo pass "
                                 "89, S1)",
          "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_sheet_named_by_what_it_shows_is_reopened.py"]},
+        {"id": "7.71", "title": "A verdict-completed act the words only asked about is followed by the went-ahead "
+                                "line (passes 76/90, T509)",
+         "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_question_followed_by_the_act_says_it_went_ahead.py"]},
         # V2-492 (2026-08-29): los perfiles de `.meshkore/team/` arrancan a cada agente con una lista de
         # documentos, y **12 de esas rutas estaban muertas** en 8 de los 9 perfiles — escritas contra un
         # `.meshkore/context/` y un `.meshkore/workflows/` que ya no existen. No falla nada: el agente

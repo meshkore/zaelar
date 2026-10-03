@@ -98,6 +98,24 @@ def denies_the_act(spoken: str) -> bool:
     return bool(_DENIED_RE.search(spoken or ""))
 
 
+def after_the_completion(spoken: str, widget_id: str = "", action: str = "") -> str:
+    """What the VOICE adds when the VERDICT carried out an order the model's words only ASKED about.
+
+    Demo passes 76 S3 and 90 S2 (2026-10-03): «Compare them visually.» — the model called nothing and asked «Which
+    view do you want them in, side by side?»; the verdict set `layout: compare` and the sheet changed, and the last
+    thing heard was the question (incident T509). Unlike a repaired LOOK (`after_the_repair` stays silent: its answer
+    comes from the op's data), a completed view changes the screen and has no answer of its own — so a question is
+    followed by the went-ahead line. Words that did not ask need nothing."""
+    if "?" not in (spoken or ""):
+        return ""
+    from widgets import effects as _fx
+    if widget_id and action and _fx.carries(widget_id, action, _fx.OUTPUT_ANSWER):
+        return ""                           # its answer is composed from the data — see `after_the_repair`
+    from i18n import langs as _langs
+    line = str(getattr(_langs.current_language(), "data_ack_went_ahead", "") or "").strip()
+    return " " + line if line else ""
+
+
 def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: str = "") -> str:
     """What the VOICE adds once the second pass has carried out an order the model's words DENIED.
 

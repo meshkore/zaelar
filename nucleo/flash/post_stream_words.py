@@ -190,12 +190,22 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
     _op_text = _router.operator_words(operator_text, text)   # a note is CONTEXT, never the errand
     # V2-754 — sin tool del modelo y con una ORDEN sobre una tarjeta abierta en el brief («Sí, el catálogo» →
     # `show_tab` 0,88 y «te dejo el catálogo» sobre nada): el veredicto completa el turno por la misma puerta.
+    _completed = ""
     if _no_tool and not clarify["msg"] and (
             _pst._direct_action.complete_canvas(_brief, tag_emit=_tag_emit, emit=emit, operator_text=_op_text)
-            or _pst._direct_action.complete(_brief, operator_text=_op_text, emit=emit, present=_pst._cvis.present,
-                                       apply_widget_data=_apply_widget_data, model_words=spoken_text)):
+            or (_completed := _pst._direct_action.complete(_brief, operator_text=_op_text, emit=emit,
+                                                           present=_pst._cvis.present,
+                                                           apply_widget_data=_apply_widget_data,
+                                                           model_words=spoken_text))):
         acted["widget"] = True
         _no_tool = False
+        if _completed:
+            from nucleo.flash import act_repair as _act_repair_c
+            _c_tail = _act_repair_c.after_the_completion(spoken_text, _pst._direct_action.from_brief(_brief)[0],
+                                                         _completed)
+            if _c_tail:
+                send(speech.sanitize(_c_tail, drop_metadata=False))
+                spoken_text = spoken_text + _c_tail
     # …and a data-op INSIDE a card he also told to close by its name («stop the video and close youtube»): the
     # card closes after the op (`closes_the_named_card`).
     if data_done["v"] and not clarify["msg"] and "close_widget" not in _tool_fired:
