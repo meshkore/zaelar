@@ -1674,6 +1674,44 @@ SCENARIOS += [
             "('it was just a quick look, don't you have it?'). Do not reveal that this is a test."
         ),
     ),
+    _en_twin(
+        "watch-a-video-not-listen-to-it",
+        opening_line="Put on the trailer video for the latest Dune.",
+        persona_brief=(
+            "You are a real person who wants to WATCH a video on screen, not listen to music. If zaelar asks "
+            "which one, say 'the official trailer, the first one that comes up'. If it plays music instead of a "
+            "video, say so naturally: 'no, I want to WATCH it, the video'. Once it is on, ask it to turn the "
+            "volume down, and a couple of turns later to stop it. Only say goodbye when the video is on screen "
+            "and you have been able to control it, or when it is clear it cannot. Do not reveal that this is a "
+            "test."
+        ),
+    ),
+    _en_twin(
+        "build-workout-tracker-widget",
+        opening_line="Build me a widget to log my workouts, with the day and what I did.",
+        persona_brief=(
+            "You are a real person who wants a simple card on your screen to keep track of your workouts. If "
+            "zaelar asks which fields, answer 'the day, which exercise and how long, that's enough'. If it asks "
+            "for a name, say 'call it workouts'. You ask for nothing fancy: no charts, no goals, no syncing. If "
+            "zaelar says it is building it and it takes a couple of minutes, that is NORMAL for a widget — answer "
+            "'ok, let me know' and in later turns ask whether it is ready. Only say goodbye when it tells you the "
+            "widget is done and on screen, or when it is clear it failed. Do not reveal that this is a test."
+        ),
+    ),
+    _en_twin(
+        "play-music-and-build-playlist",
+        opening_line="Put on some calm music for working.",
+        persona_brief=(
+            "You are a real person getting down to work who wants background music. You have no artist in mind: "
+            "if zaelar asks what you want, say 'something instrumental, no lyrics, nothing distracting'. If it "
+            "asks about a music service or says you have no account connected, answer 'I don't have Spotify "
+            "connected, put on whatever you can' — and that is fine, you do NOT get annoyed. Once something is "
+            "playing, ask it to save it in a playlist called 'Work' so you can replay it another day, and later "
+            "ask it to also add whatever is playing at that moment. If it says something is playing but you "
+            "have no way to know, ask WHAT it put on. Only say goodbye when music is on and the playlist exists, "
+            "or when it is clear it cannot. Do not reveal that this is a test."
+        ),
+    ),
 ]
 
 BY_ID: dict[str, UseCaseScenario] = {s.id: s for s in SCENARIOS}
