@@ -539,10 +539,27 @@ def _sanitize(done_when: dict) -> dict | None:
     mode, clauses = _verify._clauses(done_when)
     kept: list[dict] = []
     for c in clauses:
-        if _verify.kind_of(c) != "rows":
+        kind = _verify.kind_of(c)
+        wid = str(c.get("widget") or "").strip().lower().split("::", 1)[0]
+        if kind == "field" and wid:
+            # The same rule for a FIELD the card does not have (demo pass 78, 2026-10-03, F1): the errand's spec
+            # named `documento.content` — the card's view carries `body`, `chars`, `focus` and `empty` — so the
+            # ending could not be read and went out as «…but I couldn't verify it myself» with the summary on
+            # screen. A field that IS in the view, or a card whose view cannot be read now, is kept as written.
+            try:
+                from nucleo import truth as _truth
+                fview = _truth.widget_view(wid)
+            except Exception:  # noqa: BLE001
+                fview = None
+            head = str(c.get("field") or "").split(".", 1)[0].strip()
+            if isinstance(fview, dict) and fview and head and head not in fview and "empty" in fview:
+                repl = {"widget": c.get("widget"), "field": "empty", "is": "false"}
+                if repl not in kept:
+                    kept.append(repl)
+                continue
+        if kind != "rows":
             kept.append(c)
             continue
-        wid = str(c.get("widget") or "").strip().lower().split("::", 1)[0]
         coll = str(c.get("collection") or "").strip()
         if coll and coll in _rows.declared(wid):
             kept.append(c)

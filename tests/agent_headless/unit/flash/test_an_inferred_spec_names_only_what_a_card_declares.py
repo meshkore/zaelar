@@ -77,3 +77,16 @@ def test_an_invented_collection_from_the_model_is_sanitised_or_inferred(monkeypa
     assert opened[0] == {"all": [{"widget": "documento", "field": "empty", "is": "false"}]}
     rec, opened, asked = _born(monkeypatch, {"all": [{"widget": "contactos", "collection": "cards"}]})
     assert opened == [] and asked, "nothing readable left → asked once, as if it had come without one"
+
+
+def test_an_undeclared_FIELD_on_a_card_that_declares_empty_becomes_not_empty(monkeypatch):
+    """Demo pass 78 (2026-10-03), F1: the errand's spec named `documento.content`; the card's view carries `body`,
+    `chars`, `focus` and `empty`. Unreadable at birth, the delivery went out as «…but I couldn't verify it myself»
+    with the summary on screen. Same rule as an undeclared collection: «something landed on the card»."""
+    from nucleo import truth
+    monkeypatch.setattr(truth, "widget_view",
+                        lambda wid: {"empty": False, "body": "# Bitcoin", "chars": 9, "focus": ""} if wid == "documento" else {})
+    got = spec.parse('{"all": [{"widget": "documento", "field": "content", "expect": "changed"}]}')
+    assert got == {"all": [{"widget": "documento", "field": "empty", "is": "false"}]}
+    kept = spec.parse('{"all": [{"widget": "documento", "field": "body", "has": "Bitcoin"}]}')
+    assert kept == {"all": [{"widget": "documento", "field": "body", "has": "Bitcoin"}]}, "a real field is kept"
