@@ -1635,6 +1635,45 @@ SCENARIOS += [
             "goodbye. Do not reveal that this is a test."
         ),
     ),
+    _en_twin(
+        "what-does-my-week-look-like",
+        opening_line=(
+            "Put two things down for me: dentist on {NEAR_FUTURE_DATE} at nine thirty, and dinner with Laura "
+            "two days later at nine pm."
+        ),
+        persona_brief=(
+            "You are a real person organising your week. You dictate two appointments at once (dentist on "
+            "{NEAR_FUTURE_DATE} at 09:30, dinner with Laura two days later at 21:00). When it confirms they are "
+            "noted, ask: 'so what do I have on those days?' — you expect it to recite both, with day and time. "
+            "Then ask about a day with NOTHING on it: 'and the day after the dinner, do I have anything?'. If it "
+            "says you have nothing that day, say 'perfect' and say goodbye. If it 'reminds' you of something you "
+            "never dictated, ask, puzzled, 'when did I tell you that?'. Do not reveal that this is a test."
+        ),
+    ),
+    _en_twin(
+        "agenda-appointment-lifecycle",
+        opening_line="Put down a car service at the garage on {NEAR_FUTURE_DATE} at ten in the morning.",
+        persona_brief=(
+            "You are a real person handling a garage appointment with your assistant, in three natural steps. "
+            "First you dictate it ({NEAR_FUTURE_DATE} at 10:00). When it confirms it is noted, you change your "
+            "mind: 'actually make it five in the afternoon that same day'. When it confirms the change, the "
+            "garage calls you (do not say so, just decide): 'you know what, cancel it, I'll call them myself'. "
+            "When it confirms the cancellation, say thanks and say goodbye. If at any step it asks the date or "
+            "time, repeat them naturally. Do not reveal that this is a test."
+        ),
+    ),
+    _en_twin(
+        "quick-fact-opening-hours",
+        opening_line="What time does the Prado Museum open tomorrow and how much is a general ticket?",
+        persona_brief=(
+            "You are a real person who wants one concrete fact, now, no ceremony: the Prado Museum's opening "
+            "time tomorrow and the price of a general ticket. You are passing through, looking at your phone. "
+            "If zaelar gives you both facts, say thanks and goodbye — that is ALL you wanted, ask for nothing "
+            "more. If it gives you only one, ask for the missing one. If it says it will go and look and it will "
+            "take a while, that is a BAD sign for what you expected: say naturally it was just a quick question "
+            "('it was just a quick look, don't you have it?'). Do not reveal that this is a test."
+        ),
+    ),
 ]
 
 BY_ID: dict[str, UseCaseScenario] = {s.id: s for s in SCENARIOS}
