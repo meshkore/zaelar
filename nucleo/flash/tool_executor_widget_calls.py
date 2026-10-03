@@ -380,6 +380,22 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
             escalate_req["v"] = text
 
 
+def a_question_the_verdict_keeps_unwritten(wid: str, action: str, operator_text: str, brief) -> bool:
+    """A WRITE the model made on a QUESTION (his own «?») while the verdict read, surely, that the turn asks no action
+    on the screen. Never raises; anything unreadable runs the model's call as before (CRIT-K2)."""
+    try:
+        if "?" not in (operator_text or "") and "¿" not in (operator_text or ""):
+            return False
+        from widgets import effects as _fx
+        if not _fx.carries(wid, action, _fx.DATA_WRITE):
+            return False
+        from nucleo.flash import turn_brief as _tb
+        choice, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.8)
+        return bool((info or {}).get("used")) and str(choice or "") == "none"
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _frontend, _identify, _repeat_repair, _say, _tag_emit, acted, brain, clarify, deduped, emit, escalate_req, text) -> None:
     """Tool `widget_data` (V2-026, camino PRINCIPAL de las data-ops): resuelve el widget y la REFERENCIA a
     item en lenguaje natural a un id REAL (nunca inventado), y despacha por `_apply_widget_data`. Si la
@@ -460,6 +476,15 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
             if escalate_req["v"] is None:
                 escalate_req["v"] = text
             return
+    if a_question_the_verdict_keeps_unwritten(wid, action_name, _txw._bnotes.operator_half(text), _brief):
+        # Demo pass 93, R2: «When does Anna's vacation start? Show it to me on the calendar.» — screen_action
+        # «none» (0.83), a question, and the model WROTE a second «Anna vacation» over the one the INIT made. A
+        # write is the costly reading of a question: it is not run, and the card he asked to see is shown.
+        emit("brain", "❓ una pregunta no escribe — el veredicto no pedía acción", role="system",
+             text=f"{wid}:{action_name}", extra={"cat": "flash", "id": wid, "action": action_name})
+        acted["widget"] = True
+        _tag_emit("show", {"id": wid})
+        return
     res = refs.resolve(wid, action_name, ref, payload, order=_txw._bnotes.operator_half(text))
     # El mis-ruteo por PRONOMBRE SUELTO (o una referencia que no resuelve) sobre un widget que ni
     # está en pantalla ni se nombra: el incidente, la trampa de las acciones de CREAR y la razón de
