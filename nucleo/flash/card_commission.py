@@ -365,6 +365,11 @@ def question_left_to_a_lens(brief, *, ops: list, acted: dict, operator_text: str
         if any(not _do.is_view_op(str(o.get("widget_id") or ""), str(o.get("action") or "")) for o in ops):
             return ""
         wid = str((ops[-1].get("widget_id") if ops else acted.get("widget_id")) or "").strip()
+        if not wid and not ops and not acted.get("widget"):
+            # NO call at all — the model answered from memory (demo pass 94, Z1: «what's on my plate tomorrow» →
+            # «three things» without the 3 pm meeting, no read). The card the catalogue names is read, and the
+            # read's second pass corrects what was said against the data (the data wins, pass 84).
+            wid = named_or_catalogue(brief, operator_text)
         if not wid:
             return ""
         from nucleo.flash import widget_read as _wr

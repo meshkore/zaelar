@@ -51,3 +51,16 @@ def test_the_real_reader_shape_for_unsure_is_what_the_rule_reads(monkeypatch):
     monkeypatch.setattr(jev, "_emit_read", lambda *a, **k: None)
     choice, info = jev.read(handle, tb.REQUEST_KEY, "")
     assert choice == "" and info is not None and info.get("used") is False
+
+
+def test_a_question_answered_with_no_call_reads_the_card_the_catalogue_names(monkeypatch):
+    """Demo pass 94, Z1: «what's on my plate tomorrow» answered from memory («three things», one missing), no call."""
+    _unsure(monkeypatch)
+    monkeypatch.setattr(cc, "named_or_catalogue", lambda brief, text, **k: "agenda")
+    assert cc.question_left_to_a_lens({"x": 1}, ops=[], acted={}, operator_text="What's on my plate tomorrow?") == "agenda"
+
+
+def test_with_no_call_and_no_card_named_nothing_is_read(monkeypatch):
+    _unsure(monkeypatch)
+    monkeypatch.setattr(cc, "named_or_catalogue", lambda brief, text, **k: "")
+    assert cc.question_left_to_a_lens({"x": 1}, ops=[], acted={}, operator_text="What's on my plate tomorrow?") == ""
