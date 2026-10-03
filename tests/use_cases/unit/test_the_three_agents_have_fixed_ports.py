@@ -172,3 +172,15 @@ def test_ya_no_queda_forma_de_DESLIZARSE_a_otro_puerto():
     codigo = "\n".join(l for l in boot.splitlines() if not l.strip().startswith("#"))
     assert "free_port" not in codigo and "preferred_port(" not in codigo
     assert "ports.sandbox_port(" in codigo, "el puerto tiene que salir de la tabla, no de un número aquí"
+
+
+def test_a_second_pair_is_asked_for_by_name_and_never_slides(monkeypatch):
+    """V2-781 (2026-10-03): the diagnosing agent holds 43921/43922 with its theatres, and the fixing agent has to
+    re-measure its fix meanwhile. The override is an explicit env var per locale; anything that is not a valid
+    port leaves the table's number, so a typo can never make an agent wander."""
+    monkeypatch.setenv("ZAELAR_SANDBOX_PORT_ES", "43931")
+    monkeypatch.setenv("ZAELAR_SANDBOX_PORT_US", "43932")
+    assert PORTS.sandbox_port("es") == 43931 and PORTS.sandbox_port("us") == 43932
+    monkeypatch.setenv("ZAELAR_SANDBOX_PORT_ES", "nope")
+    monkeypatch.delenv("ZAELAR_SANDBOX_PORT_US")
+    assert PORTS.sandbox_port("es") == PORTS.SANDBOX_ES and PORTS.sandbox_port("en") == PORTS.SANDBOX_US

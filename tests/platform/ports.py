@@ -45,7 +45,15 @@ def sandbox_port(locale: str) -> int:
     (`ZAELAR_LANGUAGE`: `es` / `en`), because the two travel together through this harness and a mapping
     that only understood one of them would send half the rounds to the other country's agent.
     """
-    return SANDBOX_ES if str(locale or "").strip().lower().startswith("es") else SANDBOX_US
+    es = str(locale or "").strip().lower().startswith("es")
+    # A SECOND pair, asked for by name (V2-781, 2026-10-03): the diagnosing agent keeps its theatres on
+    # 43921/43922 while a fixing agent re-measures its fix on fresh sandboxes. An explicit env var is not a
+    # slide — the refusal and the round's report print the port it ran on, so the agent is still findable.
+    import os
+    raw = os.environ.get("ZAELAR_SANDBOX_PORT_ES" if es else "ZAELAR_SANDBOX_PORT_US", "").strip()
+    if raw.isdigit() and 1024 < int(raw) < 65536:
+        return int(raw)
+    return SANDBOX_ES if es else SANDBOX_US
 
 
 def is_free(port: int) -> bool:

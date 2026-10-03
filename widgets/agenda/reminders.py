@@ -20,6 +20,9 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
     whose instant already passed is not scheduled: an alarm for the past is a fabrication with a bell.
     """
     import time as _t
+    # An all-day item has no hour, and its notice is only ever an asked one (V2-781 T513): the item lasts the
+    # whole day, so the «already over» check measures against its last minute.
+    start = start or ("23:59" if at else "")
     try:
         target = _t.mktime((int(date[:4]), int(date[5:7]), int(date[8:10]),
                             int(start[:2]), int(start[3:5]), 0, 0, 1, -1))
@@ -59,6 +62,56 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
     if not (r or {}).get("ok"):
         return "", str((r or {}).get("error") or "scheduler")
     return str(r.get("id") or ""), stamp
+
+
+#: The keys a write uses to say WHEN its notice rings («apúntalo el jueves y avísame el miércoles»). Measured in
+#: the pair `remember-and-remind-deadline` (V2-781 T513): EN sent `reminder` (dropped as unknown) and ES, with
+#: no field to put it in, wrote a second all-day entry named «Aviso» — a calendar line, never an alert.
+ASK_KEYS = ("remind", "reminder", "remindAt", "remind_at", "remindOn", "notice", "aviso")
+_DAY_BEFORE = ("day before", "dia antes", "dia anterior", "vispera", "the eve")
+
+
+def asked_instant(raw, date: str, start: str, resolve_date) -> str:
+    """The instant («YYYY-MM-DD HH:MM») of the notice he asked for, "" when the value names none.
+
+    A bare DAY rings at the item's own hour — or 09:00 for an all-day item, which has none; a bare HOUR rings
+    on the item's day; «the day before» is counted from the item, not from today."""
+    import re
+    import time as _t
+    s = str(raw if isinstance(raw, str) else "").strip()
+    m = re.match(r"^\s*(?:(.+?)[T ,]+(?:a las |at )?)?(\d{1,2})[:h](\d{2})\s*$", s)
+    day, hour = (m.group(1) or "", f"{int(m.group(2)):02d}:{m.group(3)}") if m else (s, "")
+    if not (day or hour):
+        return ""
+    folded = day.lower().translate(str.maketrans("áéíóú", "aeiou"))
+    if any(w in folded for w in _DAY_BEFORE):
+        try:
+            noon = _t.mktime((int(date[:4]), int(date[5:7]), int(date[8:10]), 12, 0, 0, 0, 1, -1))
+        except Exception:  # noqa: BLE001
+            return ""
+        day = _t.strftime("%Y-%m-%d", _t.localtime(noon - 86400))
+    elif day:
+        day = resolve_date(day)
+    day = day or date
+    if not re.match(r"^\d{4}-\d{2}-\d{2}$", str(day)):
+        return ""
+    return f"{day} {hour or start or '09:00'}"
+
+
+def ring_as_asked(m: dict, raw, resolve_date) -> str:
+    """Move `m`'s notice to the instant he asked for. Returns "" when it rings there, else why it does not."""
+    at = asked_instant(raw, str(m.get("date") or ""), str(m.get("startTime") or ""), resolve_date)
+    if not at:
+        return "no entiendo cuándo quiere el aviso — `remind` es YYYY-MM-DD, YYYY-MM-DD HH:MM o HH:MM"
+    _cancel_reminder(m)
+    m.pop("reminder_id", None)
+    m.pop("remindAt", None)
+    jid, disp = _schedule_reminder(m.get("title", "Cita"), str(m.get("date") or ""), str(m.get("startTime") or ""),
+                                   at=at)
+    if not jid:
+        return disp
+    m["reminder_id"], m["remindAt"] = jid, disp
+    return ""
 
 
 def _cancel_reminder(meeting: dict) -> None:

@@ -205,7 +205,10 @@ def test_it_reads_the_TABLE_and_not_a_two_way_branch():
     import inspect
     from widgets.agenda import data as _ad
     # V2-778 F1-12: each action is its own function in the ACTIONS table; its body is what the branch was
-    src = inspect.getsource(_ad.ACTIONS["add_meeting"])
+    # V2-781 T513: the table entry is `_a_add_meeting_noticed`, which wraps the write with the asked notice; the
+    # write's body (where the sentences are) is still `_a_add_meeting`.
+    assert _ad.ACTIONS["add_meeting"].__name__ == "_a_add_meeting_noticed"
+    src = inspect.getsource(_ad._a_add_meeting)
     body = "\n".join(L for L in src.splitlines() if not L.strip().startswith("#"))
     add = body[:3000]
     assert '_spoken("agenda_no_title")' in add and '_spoken("agenda_no_data")' in add

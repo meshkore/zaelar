@@ -601,11 +601,11 @@ def _cron_line() -> str:
             '(YYYY-MM-DD HH:MM, para un aviso de una sola vez en un día concreto — la fecha la sacas de la lista '
             'de días de tu ESTADO, no la calcules a ojo) o un cron de 5 campos si es RECURRENTE. '
             'Una ORDEN con plazo NO es pedir un recordatorio: «paga la factura antes del día 5» es HACERLO (y si es irreversible, preguntar antes) — apuntarlo en su lugar es no atenderle. REGLA DURA: si el operador pide que le AVISES/RECUERDES algo en un momento dado, emite la tag EN '
-            'ESE TURNO — decir «te lo recuerdo» sin ella no programa nada y es mentirle. Y si el compromiso '
-            'tiene fecha, apúntalo en su agenda (widget_data add_meeting) — la cita CREA SOLA su aviso por '
-            'defecto, así que NO emitas además un cron para la misma cita; para cambiarle la hora al aviso es '
-            'widget_data set_reminder. La tag es para avisos SUELTOS sin cita detrás. Si te falta la hora o el '
-            'día exacto, PREGUNTA antes de programar.')
+            'ESE TURNO — decir «te lo recuerdo» sin ella no programa nada y es mentirle. Si el compromiso tiene '
+            'fecha, apúntalo (widget_data add_meeting): la cita CREA SOLA su aviso; si lo quiere otro día u '
+            'hora, va en `remind` de ESE add_meeting, nunca en un cron ni en otra cita; '
+            'moverlo después es set_reminder. La tag es para avisos SUELTOS sin cita detrás. Si te falta la '
+            'hora o el día exacto, PREGUNTA antes de programar.')
     try:
         from nucleo import scheduler
         jobs = scheduler.list_jobs(active_only=True)

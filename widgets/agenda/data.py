@@ -258,7 +258,8 @@ def radius(action: str, payload: dict | None = None) -> int | None:
 from .actions import (  # noqa: E402,F401
     _a_drop_project, _a_add_meeting, _a_dedupe_meetings, _a_cancel_meeting, _a_set_reminder, _a_clear_range,
     _a_clear_all, _a_move_meeting, _a_open_meeting, _a_update_meeting, _a_invite, _a_rsvp_meeting, _a_proposal,
-    _a_show_day, _a_find_free, _a_connection)
+    _a_show_day, _a_find_free, _a_connection, _a_add_meeting_noticed)
+from . import reminders  # noqa: E402  (the asked notice, V2-781 T513)
 
 
 # V2-778 F1-12 — one function per action (in `actions.py`), and `apply_action` is the table lookup. Each body
@@ -275,7 +276,7 @@ class _Continue:
 
 ACTIONS = {
     "drop_project": _a_drop_project,
-    "add_meeting": _a_add_meeting,
+    "add_meeting": _a_add_meeting_noticed,
     "dedupe_meetings": _a_dedupe_meetings,
     "cancel_meeting": _a_cancel_meeting,
     "set_reminder": _a_set_reminder,
