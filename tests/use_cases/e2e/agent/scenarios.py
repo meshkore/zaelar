@@ -430,6 +430,48 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=6,
         channel="probe",
     ),
+    # The English twin — the same property measured in the other language, so "it remembers who you are" is a
+    # claim about the product and not about Spanish.
+    UseCaseScenario(
+        id="knows-who-i-am-without-being-told-again__us",
+        locale="us",
+        tier=1,
+        memory_seed=[
+            "Hey, note something about me: I'm celiac, I can't have anything with gluten.",
+            "And another one: I don't drink alcohol, not even non-alcoholic beer.",
+        ],
+        seed_probe_query="celiac gluten",
+        opening_line="Hey, give me some ideas for dinner tonight, something simple I can make at home.",
+        persona_brief=(
+            "You are a real person asking your assistant for dinner ideas. You ALREADY told it — in another "
+            "conversation — that you are celiac and that you don't drink alcohol. So you do NOT say it again: "
+            "you assume it remembers, as you would with a person. If the assistant suggests something with "
+            "gluten (regular pasta, bread, beer), react the way someone whose condition was forgotten would: "
+            "surprised, not with a full explanation ('wait, doesn't that have gluten?'). If it ASKS whether you "
+            "have any restrictions, answer naturally but make clear you had already told it ('yeah, the gluten "
+            "thing, I told you'). When it gives you one or two ideas that work, say thanks and say goodbye. "
+            "Do not reveal that this is a test."
+        ),
+        success_checks=(
+            "ONE property, the one the operator put at the center of the production version: **that it remembers "
+            "who the user is without being told again**.\n"
+            "(a) IT APPLIES IT UNASKED: the dinner ideas must respect gluten-free from the FIRST turn in which it "
+            "proposes something, without the user mentioning it in this conversation. Proposing pasta or bread "
+            "and correcting afterwards does NOT count as remembering: it counts as having forgotten and been "
+            "corrected.\n"
+            "(b) IT DOES NOT ASK: asking «do you have any restrictions?» is ACCEPTABLE behaviour for an assistant "
+            "that knows nothing, and here it is a MILD failure — it had been told. Score adaptation down, not "
+            "outcome, if it ends up applying it correctly after asking.\n\n"
+            "NOT PENALISED: if the report says the seed did NOT land in memory (see the seed block), the failure "
+            "belongs to the distiller and not the agent — do not lower the grade for not remembering something "
+            "that was never stored. And if the report says recall did NOT arrive in those turns (there is a "
+            "signal for that), not either: that is our plumbing, not its behaviour. Efficiency: this is a short "
+            "chat, no errand or search."
+        ),
+        expected_signals=[],
+        turns=6,
+        channel="probe",
+    ),
     # INI-026 A8bis · part A — "find out when it comes out and remind me". The operator requested it with
     # their own example (a series premiering a season) on 2026-08-29. It measures something the engine has
     # NEVER measured together, although all three pieces exist separately: find a FUTURE FACT externally
@@ -1545,6 +1587,53 @@ SCENARIOS: list[UseCaseScenario] = [
         forbidden_signals=["worker"],
         turns=8,
         channel="probe",
+    ),
+]
+
+
+
+# ── ENGLISH TWINS (V2-781, 2026-10-03) ─────────────────────────────────────────────────────────────────────
+# The operator walks the catalog in PAIRS, one ES and one EN at a time, so every case also proves it is
+# multi-language. A hand-written ES case with no EN twin gets one here: same checks (the judge reads them
+# whatever the conversation's language), only what the USER says is translated. `replace` keeps everything
+# else — signals, turns, channel — identical, so the pair measures the language and nothing else.
+def _en_twin(base_id: str, *, opening_line: str, persona_brief: str) -> UseCaseScenario:
+    from dataclasses import replace
+    base = next(s for s in SCENARIOS if s.id == base_id)
+    return replace(base, id=f"{base_id}__us", locale="us", opening_line=opening_line, persona_brief=persona_brief)
+
+
+SCENARIOS += [
+    _en_twin(
+        "remember-and-remind-deadline",
+        opening_line="Make a note that on Thursday I have to renew the car insurance, and remind me on Wednesday.",
+        persona_brief=(
+            "You are a real person leaving an errand with your assistant: on Thursday the car insurance is up for "
+            "renewal and you want a reminder the day before. If zaelar asks which Thursday or what time, answer "
+            "naturally ('this Thursday', 'the morning works'). If it asks which insurance or which car, say 'the "
+            "car one, the car I have'. As soon as it confirms it has it written down AND that it will remind you "
+            "on Wednesday, say thanks and say goodbye. If it only confirms one of the two (it notes it but says "
+            "nothing about the reminder, or says it will remind you but does not seem to have noted it), ASK "
+            "explicitly about the missing one ('and you'll remind me on Wednesday?'). Do not reveal that this is "
+            "a test."
+        ),
+    ),
+    _en_twin(
+        "find-a-future-release-and-remind-me",
+        opening_line=(
+            "Hey, I really like the show Dexter and I think a new season comes out this fall. "
+            "Can you find out when it premieres and let me know?"
+        ),
+        persona_brief=(
+            "You are a real person who follows a show (Dexter) and wants your assistant to find out when the "
+            "next season premieres and remind you when it arrives. You do not know the date — that is why you "
+            "ask. If zaelar asks which platform or which season, answer naturally and without inventing "
+            "precision ('the new one, the one coming out now', 'no idea about the platform, you check'). If it "
+            "asks when you want the reminder, say 'the premiere day works' without giving an hour. If it takes "
+            "a while, you may ask how it's going, but NEVER give it the date yourself: what is being measured "
+            "is that it finds it. When it gives you a date and confirms it will remind you, say thanks and say "
+            "goodbye. Do not reveal that this is a test."
+        ),
     ),
 ]
 

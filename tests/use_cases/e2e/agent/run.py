@@ -1794,7 +1794,10 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
     if refusal:
         print(refusal)
         raise SystemExit(3)
-    ws = config.RUNS_DIR / "sandbox" / time.strftime("%Y%m%d-%H%M%S", time.localtime())
+    # The locale is part of the name: an ES and an EN batch launched in the same second used to get the SAME
+    # directory — one DB, one memory, one language file — and the EN agent answered in Spanish with the ES
+    # tester's name in its memory (measured 2026-10-03, both rounds judged green).
+    ws = config.RUNS_DIR / "sandbox" / f'{time.strftime("%Y%m%d-%H%M%S", time.localtime())}-{lang}'
     _chain = seed_provider_chain(ws)
     seed_language(ws, lang)
     if _chain:
