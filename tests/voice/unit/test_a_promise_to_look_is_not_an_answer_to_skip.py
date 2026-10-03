@@ -16,3 +16,13 @@ def test_a_look_announced_is_not_an_answer():
 
 def test_a_skip_is_visible():
     assert "🤐 segundo pase: SKIP — lo ya dicho contestaba" in SRC
+
+
+def test_what_was_just_read_wins_over_what_was_said_before_reading():
+    """Demo pass 84, Z1: «tomorrow's … calendar's clear — nothing booked» was said BEFORE the agenda was read; the
+    read returned four meetings and the second pass, told «don't contradict it», answered SKIP. The words said before
+    the read are corrected, never protected."""
+    i = SRC.index("responde exactamente SKIP y nada más.")
+    block = SRC[i - 500:i]
+    assert "los datos mandan" in block and "corrígelo" in block
+    assert "no lo repitas ni lo contradigas" not in SRC

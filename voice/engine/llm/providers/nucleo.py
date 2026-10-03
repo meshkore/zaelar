@@ -672,10 +672,15 @@ class NucleoLLMStream(llm.LLMStream):
             # («…your day.Tomorrow, Tuesday»).
             _said = "".join(spoken).strip()
             if _said:
+                # Demo pass 84, Z1: «tomorrow's … calendar's clear — nothing booked» was said BEFORE the agenda was
+                # read; the read brought four meetings, and «don't contradict it» made this pass answer SKIP. What was
+                # just READ is the truth; words said before it are not — they are corrected, never protected.
                 user_text = (f"{user_text}\n\n(En este turno ya le has dicho: «{_said[:400]}». Continúa desde ahí, "
-                             f"en SU idioma: no lo repitas ni lo contradigas. Si eso YA contesta lo que preguntó, "
-                             f"responde exactamente SKIP y nada más. Anunciar que vas a mirar o que lo estás "
-                             f"mirando NO es contestar: entonces da la respuesta.)")   # full53 R3: «let me look…» + SKIP
+                             f"en SU idioma, sin repetirlo. Si lo dicho choca con los DATOS de arriba, corrígelo en "
+                             f"una frase — los datos mandan, lo dicho antes de leerlos no. Si YA contesta lo que "
+                             f"preguntó y coincide con los datos, responde exactamente SKIP y nada más. "
+                             f"Anunciar que vas a mirar o que lo estás mirando NO es contestar: entonces da la "
+                             f"respuesta.)")
             _lead = [" " if _said else ""]
             # SKIP is held back until it can be told apart from an answer — a model asked for an EMPTY reply
             # says «you're all set» instead, so the silence is a word we recognise and never speak.
