@@ -1,0 +1,85 @@
+{
+ "transcript": [
+  {
+   "who": "tester",
+   "text": "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles.",
+   "at": 1791019232.67
+  },
+  {
+   "who": "zaelar",
+   "text": "Voy con las dos cosas: la cita del jueves y el aviso del miércoles.",
+   "at": 1791019251.53
+  },
+  {
+   "who": "tester",
+   "text": "Perfecto, gracias. Con eso me vale.",
+   "at": 1791019262.39
+  },
+  {
+   "who": "zaelar",
+   "text": "Hecho: te queda apuntado el jueves 8 para renovar el seguro del coche, con el aviso el miércoles 7.",
+   "at": 1791019264.22
+  }
+ ],
+ "mechanism_report": {
+  "scheduled_jobs": {
+   "readable": true,
+   "n_before": 0,
+   "n_after": 0,
+   "created": []
+  },
+  "agenda_meetings": [
+   {
+    "title": "Renovar el seguro del coche",
+    "date": "2026-10-08",
+    "allDay": true,
+    "status": "confirmed",
+    "created": "2026-10-03"
+   },
+   {
+    "title": "Aviso: renovar el seguro del coche (es el jueves)",
+    "date": "2026-10-07",
+    "allDay": true,
+    "status": "confirmed",
+    "created": "2026-10-03"
+   }
+  ],
+  "locale": "es"
+ },
+ "verdict": {
+  "scores": {
+   "naturalidad": 5,
+   "adaptacion": 5,
+   "resultado": 5,
+   "mecanismo": 5,
+   "eficiencia": 5
+  },
+  "overall": 5,
+  "findings": [
+   {
+    "turno": "zaelar@turn1",
+    "problema": "El aviso del miércoles se implementó como una entrada pasiva más en la agenda (agenda.add_task, título 'Aviso: renovar el seguro del coche (es el jueves)', 2026-10-07), sin ningún disparador durable (scheduled_jobs.n_after: 0). Cumple la letra del criterio de éxito del caso, pero no hay ninguna pieza que empuje una notificación activa ese día: si el usuario no abre la agenda el miércoles, no se entera.",
+    "gravedad": "baja"
+   },
+   {
+    "turno": "zaelar@turn1",
+    "problema": "Hubo una escritura en el widget 'contactos' (data×1) que nunca se abrió y no tiene relación visible con el encargo de seguro/agenda. No afecta el resultado pedido pero es ruido sin explicación en el mecanismo.",
+    "gravedad": "baja"
+   }
+  ],
+  "improvements": [
+   {
+    "area": "recordatorios",
+    "cambio": "Cuando el usuario pide que se le 'recuerde' algo, respaldar la entrada de agenda del día de aviso con un disparador real (cron/push), no solo con un ítem visual en la agenda.",
+    "porque": "Una entrada de agenda es pasiva: si el usuario no la consulta ese día, el aviso no cumple su función aunque el registro exista."
+   },
+   {
+    "area": "higiene de widgets",
+    "cambio": "Evitar o justificar escrituras a widgets sin relación con el encargo en curso (aquí 'contactos').",
+    "porque": "Genera ruido en el informe de mecanismo y dificulta auditar qué widgets intervinieron realmente en la tarea."
+   }
+  ],
+  "veredicto": "Listo para producción en este caso: el informe de mecanismo confirma las dos mitades (cita del jueves 2026-10-08 y aviso del miércoles 2026-10-07, en orden correcto, sin duplicados), cerrando el fallo abierto de rondas previas; el único matiz es que el aviso es una entrada pasiva de agenda y no un disparador activo, lo que sería el bloqueador si se exige notificación proactiva.",
+  "_judge_model": "licencia-claude/claude-sonnet-5"
+ }
+}

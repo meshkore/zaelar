@@ -17,7 +17,7 @@ import time
 import uuid
 
 from . import bus as busmod
-from . import config, driver as drivermod, judge as judgemod, probe_client, report as reportmod, scenarios as SC
+from . import config, driver as drivermod, gates as gatesmod, judge as judgemod, probe_client, report as reportmod, scenarios as SC
 from . import initiative as initiativemod
 from . import scripted as scriptedmod
 from . import llm as llmmod
@@ -690,7 +690,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     busmod.step_started(scenario, "judge")
     print("  judging…")
     try:
-        verdict = judgemod.judge(scenario, run_data)
+        # V2-781 T514: what a line of code can check is not left to the judge — a gate only ever lowers a score
+        verdict = gatesmod.apply(scenario, run_data, judgemod.judge(scenario, run_data))
     except Exception:
         # THE CONVERSATION IS ALREADY MEASURED; only the verdict is missing. Losing an eight-minute round
         # because a provider is down is a harness bug, and this one bit three times on the same case:
@@ -758,7 +759,7 @@ def _judge_pending() -> int:
             failed.append(f.name)
             continue
         try:
-            verdict = judgemod.judge(scn, saved["run"])
+            verdict = gatesmod.apply(scn, saved["run"], judgemod.judge(scn, saved["run"]))
         except Exception as e:
             print(f"  ✗ {scn.id}: el juez sigue caído ({str(e)[:80]}) — la ronda SIGUE guardada")
             failed.append(f.name)

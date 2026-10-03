@@ -22,6 +22,7 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
     import time as _t
     # An all-day item has no hour, and its notice is only ever an asked one (V2-781 T513): the item lasts the
     # whole day, so the «already over» check measures against its last minute.
+    said = start
     start = start or ("23:59" if at else "")
     try:
         target = _t.mktime((int(date[:4]), int(date[5:7]), int(date[8:10]),
@@ -49,8 +50,9 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
         _en = (_langs.current_code() or "es").lower() == "en"
     except Exception:  # noqa: BLE001
         _en = False
-    prompt = (f"Remind the operator: «{title}» on {date} at {start}."
-              if _en else f"Recuérdale al operador: «{title}» el {date} a las {start}.")
+    # an all-day item has no hour to say (the 23:59 above is only the «already over» line)
+    prompt = (f"Remind the operator: «{title}» on {date}" + (f" at {said}." if said else ".")
+              if _en else f"Recuérdale al operador: «{title}» el {date}" + (f" a las {said}." if said else "."))
     try:
         from nucleo import scheduler as _sched
         # `origin="agenda"` keeps this notice OUT of the calendar's system-task band (V2-728): it already

@@ -1045,7 +1045,13 @@ def derive(case: CD.UseCase) -> UseCaseScenario:
         expected_signals=list(prof.signals),
         turns=prof.turns,
         channel="probe",
+        notice_on=NOTICE_ON.get(case.id, ""),
     )
+
+
+#: V2-781 T514 — the weekday each case's promised notice must ring on, for the twins derived here; the
+#: hand-written ES case carries the same value in `scenarios.py`, so both rounds of a pair meet the same gate.
+NOTICE_ON = {"remember-and-remind-deadline": "wednesday"}
 
 
 def derivable() -> list[CD.UseCase]:

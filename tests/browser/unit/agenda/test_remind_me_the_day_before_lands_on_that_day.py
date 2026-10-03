@@ -58,6 +58,7 @@ def test_an_all_day_item_reminded_the_day_before_rings_that_day(fake_sched):
     assert m.get("allDay") and m.get("reminder_id"), m
     assert [s[:10] for s in _live_stamps(fake_sched)] == [WED]
     assert str(m.get("remindAt", "")).startswith(WED)
+    assert "23:59" not in fake_sched["created"][0][0], "an all-day item has no hour to say when it rings"
 
 
 def test_a_timed_item_reminded_the_day_before_rings_at_its_own_hour_and_only_once(fake_sched):
@@ -82,6 +83,15 @@ def test_set_reminder_reaches_an_all_day_item(fake_sched):
     r = agenda.apply_action("set_reminder", {"title": "seguro", "at": f"{WED} 20:00"})
     assert r.get("ok") is not False, r
     assert _live_stamps(fake_sched) == [f"{WED} 20:00"]
+
+
+def test_a_date_that_is_the_notice_day_moves_the_notice_not_the_search(fake_sched):
+    """Measured live (ES round, 2026-10-03 20:19): set_reminder {title, date: WED, time: 09:00} for Thursday's item
+    answered «no encuentro esa cita» — the date filtered the item out instead of naming when it rings."""
+    agenda.apply_action("add_meeting", {"title": "Renovar el seguro del coche", "date": THU, "startTime": "09:00"})
+    r = agenda.apply_action("set_reminder", {"title": "Renovar el seguro del coche", "date": WED, "time": "09:00"})
+    assert r.get("ok") is not False, r
+    assert _live_stamps(fake_sched) == [f"{WED} 09:00"]
 
 
 def test_the_card_declares_the_field_and_says_it_is_never_a_second_entry():

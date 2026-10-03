@@ -3731,6 +3731,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.211", "title": "A promised notice and the reply's language are gated by code over the judge's verdict — the ES round "
+                                 "the judge passed 5/5 with no job on Wednesday is a FAIL on the same evidence (V2-781 T514)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_promised_notice_is_checked_by_code_not_the_judge.py"]},
         {"id": "2.210", "title": "«Note it for Thursday, remind me on Wednesday» rings on Wednesday — add_meeting reads `remind`, "
                                  "an all-day item carries a notice, set_reminder takes a bare day (V2-781 T513)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_remind_me_the_day_before_lands_on_that_day.py"]},

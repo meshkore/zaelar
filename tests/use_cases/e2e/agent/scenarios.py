@@ -76,6 +76,9 @@ class UseCaseScenario:
     # (`scripted.Step(say, check, open_card)`). Set, it replaces the persona driver and any red step FAILS
     # the case whatever the judge scored. For a catalogue of operations a persona would wander through.
     script: tuple = ()
+    # V2-781 T514 — the weekday a promised notice must ring on («recuérdamelo el miércoles»). Set, `gates.py`
+    # FAILS the round when no scheduled job falls on that date, whatever the judge scored.
+    notice_on: str = ""
 
 
 SCENARIOS: list[UseCaseScenario] = [
@@ -522,6 +525,7 @@ SCENARIOS: list[UseCaseScenario] = [
         id="remember-and-remind-deadline",
         locale="es",
         tier=1,
+        notice_on="wednesday",
         opening_line=(
             "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles."
         ),

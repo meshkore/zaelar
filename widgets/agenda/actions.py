@@ -208,6 +208,12 @@ def _a_set_reminder(action, payload, db, _extra) -> dict:
     _hits = [m for m in db.get("meetings", [])
              if (not title or title in _d._strip_accents(m.get("title", "").strip().lower()))
              and (not date or _d.recur.on(m, date))]
+    if title and date and not _hits and not payload.get("at"):
+        # V2-781 T513 — the `date` was the NOTICE's day («avísame el miércoles» of Thursday's item, measured
+        # live): the title alone names the item, so the day goes to `at` instead of filtering the item out.
+        _hits = [m for m in db.get("meetings", []) if title in _d._strip_accents(m.get("title", "").strip().lower())]
+        payload = {**payload, "at": f"{date} {payload.get('time') or ''}".strip()}
+        date = ""
     # V2-639 — «ponme avisos a TODAS las citas del jueves» is one intention, not N turns: a date with
     # no title means every meeting of that day. `at` is optional in bulk (default ~2h before each).
     if not title and date and _hits:
