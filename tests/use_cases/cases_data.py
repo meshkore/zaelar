@@ -961,6 +961,18 @@ CASES: list[UseCase] = [
             "The report is delivered on the document surface with its live process visible — never "
             "narrated as done with nothing on screen.",
             notes="V2-644 (a report is delivered as a document, surface «informe»)."),
+    # English twins (V2-781, 2026-10-03): the same three cases in the other language, so each runs as a pair.
+    UseCase("video-search-lands-in-player", "us", 1, "A video search ends up playing in the widget",
+            "Find me videos of paella recipes.",
+            "Results land in the video widget's own search band, not in a results sheet and never via a "
+            "Brain Worker rediscovering the widget's search data-op."),
+    UseCase("docs-single-recipe-not-a-list", "us", 1, "Something to read arrives as ONE document, not a list",
+            "Give me the carbonara recipe.",
+            "ONE readable document opens (the blank-sheet widget), not a results list of links."),
+    UseCase("docs-report-lands-as-document", "us", 2, "A commissioned report arrives as a document",
+            "Make me a report on electric cars for the city and put it on screen.",
+            "The report is delivered on the document surface with its live process visible — never "
+            "narrated as done with nothing on screen."),
 ]
 
 

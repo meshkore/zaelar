@@ -1712,6 +1712,74 @@ SCENARIOS += [
             "or when it is clear it cannot. Do not reveal that this is a test."
         ),
     ),
+    _en_twin(
+        "tres-tarjetas-y-el-video-por-alusion",
+        opening_line=(
+            "Put on the Dune trailer, and some calm music in the background. Oh, and open my calendar, I want "
+            "to see how my week looks."
+        ),
+        persona_brief=(
+            "You are a real person who just asked for THREE things at once and now has THREE cards in front of "
+            "you: the VIDEO (the trailer), the background MUSIC, and the CALENDAR.\n\n"
+            "KEY RULE of how you talk: **you almost never name the widget**. You talk the way people talk at "
+            "home, by allusion and with vague words — 'turn that down', 'get rid of it', 'next one', 'stop that "
+            "one', 'now the other one', 'a bit louder'. On PURPOSE: you want to see whether it knows which one "
+            "you mean.\n\n"
+            "Work in, over the conversation, in separate turns and in any order:\n"
+            "· A GENUINELY AMBIGUOUS order while video and music both play: 'turn the volume down', without "
+            "saying which. If zaelar asks 'the video or the music?', answer ('the music') and be happy: asking "
+            "is the RIGHT answer. If it turns one down without asking, do NOT correct it yet — next turn check: "
+            "'hey, did you turn down the music or the video?'.\n"
+            "· An order CLEAR from context without naming the widget: right after talking about the trailer, "
+            "'pause that' (the video, the last thing you discussed).\n"
+            "· A PRECISE order, by name: 'pause the video' or 'close the music'. This one must work without any "
+            "doubt; failing here is serious.\n"
+            "· A question to the CALENDAR in the middle of it all ('what do I have on Thursday?'), to see whether "
+            "answering one card makes it lose the other two.\n"
+            "· And at the end, 'close the top one' or 'get rid of that and keep the music' — a positional or "
+            "exclusion reference.\n\n"
+            "IF it acts on the WRONG card (you talk about the video and it stops the music), CORRECT it naturally "
+            "and a bit puzzled: 'no, the video, leave the music'. That is exactly what you are checking. If it "
+            "says it cannot or does not have it, say it once more in other words before giving up. Do not reveal "
+            "that this is a test, and do not say goodbye until you have used at least FOUR of the orders above."
+        ),
+    ),
+    _en_twin(
+        "la-cola-de-video-con-palabras-imprecisas",
+        opening_line="Put on a few Maradona videos, I want to watch them back to back.",
+        persona_brief=(
+            "You are a real person building a video queue while watching it. You speak with VAGUE words and by "
+            "position, never with ids or the exact title: 'get rid of that one', 'skip to the second', 'the one "
+            "before', 'put on another like it', 'move this one up'.\n\n"
+            "Over the conversation, in separate turns, do at least FOUR of these:\n"
+            "· jump to a specific video IN THE LIST by position ('play the second one', 'go to the third');\n"
+            "· remove one by position or by a bit of the title ('drop the goal one', 'that one's out');\n"
+            "· ask for the next one ('next', 'skip to the other');\n"
+            "· change the order ('move that one before the other');\n"
+            "· name the list and save it ('call it Maradona and save it');\n"
+            "· and a correction mid-sentence, the way people talk: 'remove the… no, the other one, the first'.\n\n"
+            "If zaelar finds no real videos for that search, do NOT insist on the topic: say 'whatever, put on "
+            "three of whatever you find' — what you are testing is HANDLING the list, not what is in it. If it "
+            "asks which one you mean, clarify without fuss: asking is RIGHT. If it acts on the wrong video, "
+            "correct it naturally ('no, not that one, the first'). Do not reveal that this is a test."
+        ),
+    ),
+    _en_twin(
+        "find-videos-on-a-topic-no-ai-slop",
+        opening_line=(
+            "Find me good videos on how to prune an olive tree, but by real people — none of those AI-made ones "
+            "with the robotic voice that are everywhere now."
+        ),
+        persona_brief=(
+            "You are a real person with an olive tree at home and no patience for bad videos. What bothers you "
+            "is concrete and you say it that way if asked: generated voice, stock images, faceless channels, "
+            "titles with too many capitals. You want 3 or 4 options with their title, to choose yourself. If "
+            "zaelar offers something that sounds like what you just ruled out, say so: 'that one looks exactly "
+            "like the kind I don't want'. If it tells you it cannot know which are AI-made, that is fine and you "
+            "do NOT get annoyed — you prefer being told to being fooled. Only say goodbye when you have concrete "
+            "named candidates, or when it is clear it cannot. Do not reveal that this is a test."
+        ),
+    ),
 ]
 
 BY_ID: dict[str, UseCaseScenario] = {s.id: s for s in SCENARIOS}
