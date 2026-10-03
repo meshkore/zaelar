@@ -81,6 +81,10 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
 TOOL_FILLED = {"imagenes": "show_images"}
 
 
+def _base_card(card: str) -> str:
+    return str(card or "").split("::", 1)[0].strip().lower()
+
+
 def _viewer_empty() -> bool:
     try:
         from widgets import store as _st
@@ -185,8 +189,12 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
         from nucleo.flash import turn_brief as _tbw
         _w, _wi = _tbw.read(brief, _tbw.WORDS_KEY, "")
         may_read = not (_wi is not None and str(_w or "") == "act")
+        from nucleo.flash import direct_action as _da_cc
+        _v_card, _v_act = _da_cc.from_brief(brief)
         got = await _repair.call_or_read_for_commission(operator_text, str(escalate_req.get("v") or ""), card,
-                                                        spec=spec, window=window, may_read=may_read)
+                                                        spec=spec, window=window, may_read=may_read,
+                                                        verdict_action=_v_act if _base_card(_v_card) == _base_card(card)
+                                                        else "")
         if (not got or got.get("kind") != "call") and images_req is not None:
             # Demo pass 66, B1: the catalogue named the viewer and the pass still sent «find me the wallpaper cosmic
             # eye…» to a worker. An empty viewer's only way to hold anything is the picture search.

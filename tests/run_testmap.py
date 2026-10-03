@@ -4944,6 +4944,12 @@ DOMAINS: list[dict] = [
          "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_empty_viewer_show_is_the_picture_search.py"]},
         {"id": "7.68", "title": "A free-days search reads its last day from the call's own text (demo pass 88, R3)",
          "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_stretch_written_in_the_call_is_searched.py"]},
+        {"id": "7.69", "title": "A web search that shares no word with his turn, on a sure card order, is dropped "
+                                "(demo pass 89, F2)",
+         "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_search_that_shares_no_word_is_not_his.py"]},
+        {"id": "7.70", "title": "No errand found: the results sheet the phrase names by its title is shown (demo pass "
+                                "89, S1)",
+         "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_sheet_named_by_what_it_shows_is_reopened.py"]},
         # V2-492 (2026-08-29): los perfiles de `.meshkore/team/` arrancan a cada agente con una lista de
         # documentos, y **12 de esas rutas estaban muertas** en 8 de los 9 perfiles — escritas contra un
         # `.meshkore/context/` y un `.meshkore/workflows/` que ya no existen. No falla nada: el agente

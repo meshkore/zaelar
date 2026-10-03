@@ -10,6 +10,13 @@ from __future__ import annotations
 from nucleo.flash import tool_executor as _tx
 
 
+def a_search_is_his(query: str, operator_text: str, brief, overlap) -> bool:
+    """False for a web search that shares NO word with his turn while the verdict reads the turn, surely, as an
+    order on a card (demo pass 89, F2 — see the `web_search` branch). Anything else is his search."""
+    from nucleo.flash import direct_action as _da_ws
+    return not (overlap(query, operator_text) == 0 and _da_ws._action_sure(brief, floor=0.9))
+
+
 def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_by_tool, _data_ops_hechas, _finish_web_auth, _handle_widget_data_tool, _norm_nfkd, _request_cluster_confirm, _request_delete_confirm, _request_restore_confirm, _resolve_confirm, _router, _say, _says_stop, _show_guard_target, _show_target_instance, _spawn, _start_web_auth, _tag_emit, _tool_fired, _word_overlap, acted, brain, clarify, confirm_state, deduped, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, self, style_fired, text, worker_acted) -> None:
     # NINGUNA tool se ejecuta desde un fragmento superado: mientras el modelo generaba, el operador siguió
     # hablando, así que esta decisión se tomó sobre media frase. Abrir un widget o lanzar un worker con
@@ -72,6 +79,15 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
         return _t_escalate_to_slowbrain(args=args, escalate_req=escalate_req, text=text)
     elif name == "web_search":
         q = (args.get("query") or "").strip() or text
+        # Demo pass 89, F2 «show me the part about proof of work»: beside the right documento:goto, the model emitted
+        # web_search «proveedores de internet fibra óptica Los Angeles» — not one word of his turn, in another
+        # language — and the reply was composed from those results («the document is about internet providers»).
+        # A search that shares NOTHING with his words, on a turn the verdict reads surely as an order on a card,
+        # is not his: it is dropped, and said on the timeline.
+        if not a_search_is_his(q, operator_text or text, _brief, _word_overlap):
+            emit("brain", "🔎 búsqueda descartada: no comparte ni una palabra con su frase (orden sobre una tarjeta)",
+                 text=q[:120], role="system", extra={"cat": "flash", "query": q[:200]})
+            return
         # TURN-BLEED: el modelo a veces re-emite la búsqueda del turno ANTERIOR junto a la de este (visto:
         # "precio bitcoin" colado en el turno "¿cuándo es el eclipse?"). Nos quedamos con la query que MÁS
         # se parece al turno ACTUAL, no con la primera (que puede ser la vieja) → no buscamos lo que no es.

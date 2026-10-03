@@ -21,3 +21,12 @@ def test_a_show_that_carries_pictures_or_another_action_or_card_is_left_alone():
     assert CC.picture_search_for_empty_show("imagenes", "show", {"items": [{"url": "x"}]}, "x") is None
     assert CC.picture_search_for_empty_show("imagenes", "next", {}, "next one") is None
     assert CC.picture_search_for_empty_show("results", "show", {}, "show me") is None
+
+
+def test_the_commission_pass_is_told_the_verdicts_action_on_its_card():
+    """Demo passes 88/89, R3: the verdict read agenda:find_free and the commission pass, not told, called show_day."""
+    from nucleo.flash import act_repair as AR
+    manifest = {"actions": {"find_free": {}, "show_day": {}}}
+    assert "«find_free»" in AR._verdict_hint("find_free", manifest)
+    assert AR._verdict_hint("book_it", manifest) == "", "an undeclared action is never suggested"
+    assert AR._verdict_hint("", manifest) == ""

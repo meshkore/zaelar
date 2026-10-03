@@ -120,6 +120,22 @@ def recall_and_reopen(query: str) -> dict:
     return out
 
 
+def sheet_named_by(query: str) -> dict | None:
+    """The one results sheet whose title shares at least two words with the phrase, or None (a tie is none)."""
+    import re as _re
+    try:
+        from widgets.results import sheet_names as _sn
+        faces = _sn.recent_faces(limit=8)
+    except Exception:  # noqa: BLE001
+        return None
+    words = {w for w in _re.findall(r"[a-z0-9]+", (query or "").lower()) if len(w) > 2}
+    scored = [(len(words & {w for w in _re.findall(r"[a-z0-9]+", f["label"].lower()) if len(w) > 2}), f)
+              for f in faces]
+    best = max((n for n, _ in scored), default=0)
+    hits = [f for n, f in scored if n == best]
+    return hits[0] if best >= 2 and len(hits) == 1 else None
+
+
 def voice_turn(query: str) -> dict:
     """The whole gesture as ONE verdict the voice turn can act on without deciding anything itself.
 
@@ -131,6 +147,13 @@ def voice_turn(query: str) -> dict:
     that are its own: emitting the canvas tag and phrasing the question in the operator's language.
     """
     out = recall_and_reopen(query)
+    if not out.get("ok") and not out.get("ask"):
+        # Demo pass 89, S1 «show me the monitors»: the index had no candidate at that instant (the errand's row was
+        # still settling) and the turn said «bringing back those monitors» over an empty screen. The SHEET was
+        # there all along — the cards a phrase may name by what they show (`recent_faces`, V2-773).
+        sheet = sheet_named_by(query)
+        if sheet:
+            out = {"ok": True, "instance": sheet["id"], "rebuilt": False, "task": {"title": sheet["label"]}}
     if out.get("ok") and out.get("instance"):
         v = {"show": out["instance"], "ask": None, "rebuilt": bool(out.get("rebuilt")),
              "title": str((out.get("task") or {}).get("title") or "")}

@@ -382,8 +382,22 @@ def _other_open_cards(wid: str, *, limit: int = 2, chars: int = 900) -> str:
         return ""
 
 
+def _verdict_hint(action: str, manifest: dict) -> str:
+    """One line naming the action the engine's own reading of the order chose on this card, when it declares it.
+
+    Demo passes 88/89 (2026-10-03), R3 «find a five-day period during her vacation when my calendar is clear»: the
+    verdict read `agenda:find_free` (0.73-0.80) and this pass, not told, called `show_day` — a view of ONE day — and
+    the answer was «I can't map out five days from just this». The verdict completes the pass; it never overrules a
+    call that fits better."""
+    a = str(action or "").strip()
+    if not a or a not in (manifest.get("actions") or {}):
+        return ""
+    return (f"\nThe engine's reading of this order names the action «{a}» on this card — use it, with every value "
+            f"the conversation already gave (dates, names), unless it clearly cannot do what he asked.")
+
+
 async def call_or_read_for_commission(operator_text: str, commission: str, widget_id: str, spec=None, *,
-                                      window=None, may_read: bool = True) -> dict | None:
+                                      window=None, may_read: bool = True, verdict_action: str = "") -> dict | None:
     """A commission that names one of our cards, before it costs a worker (V2-773 final pass, C1): «Find me a
     free 45-minute slot tomorrow afternoon» was delegated to a Brain Worker (three minutes) when the agenda was
     the whole answer. One pass with the card in front decides: `{"kind": "call", widget_id, action, payload}`,
@@ -414,6 +428,7 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
             [{"role": "system", "content": _SYS_COMMISSION.format(wid=wid, actions=_actions_block(manifest), card=card)},
              {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»\n"
                                          f"The commission that was going to a worker: «{(commission or '').strip()[:300]}»"
+                                         + _verdict_hint(verdict_action, manifest)
                                          + conversation(window)}],
             spec=spec, max_tokens=300, tools=tools, no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))

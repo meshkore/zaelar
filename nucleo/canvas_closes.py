@@ -21,16 +21,13 @@ def _base(card: str) -> str:
 
 
 def note(extra: dict | None) -> None:
-    """Record one close event. Never raises."""
-    try:
-        e = extra or {}
-        if str(e.get("src") or "").startswith("worker"):
-            return
-        base = _base(e.get("id") or "")
-        if base:
-            _CLOSED[base] = time.time()
-    except Exception:  # noqa: BLE001
-        pass
+    """Record one close event. Never raises: only str() and a dict write on whatever arrived."""
+    e = extra if isinstance(extra, dict) else {}
+    if str(e.get("src") or "").startswith("worker"):
+        return
+    base = _base(str(e.get("id") or ""))
+    if base:
+        _CLOSED[base] = time.time()
 
 
 def closed_after(card: str, since: float) -> float:
