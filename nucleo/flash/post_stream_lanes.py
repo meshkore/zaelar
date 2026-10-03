@@ -63,6 +63,13 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
             _pst._cvis.present(_pw, reason="turn-order", src="flash", emit=emit)
             emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
+            from nucleo.flash import card_commission as _cc_fill
+            _fill = _cc_fill.search_to_fill(_pw, _op_text)    # demo pass 93, V1: an empty catalogue is its search
+            if _fill:
+                _apply_widget_data(_fill["widget_id"], _fill["action"], _fill["payload"])
+                data_done["v"] = True
+                emit("brain", "🔎 la tarjeta estaba vacía — su búsqueda, con su frase", role="system",
+                     text=f"{_fill['widget_id']}:{_fill['action']} ← {_op_text[:80]}", extra={"cat": "flash"})
         elif _playback:
             # BEFORE any worker or show: the song is on the player, not on the web. The query is the title the
             # words carry, never his sentence whole («no, put like a prayer» is not a song).

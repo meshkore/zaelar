@@ -81,6 +81,32 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
 TOOL_FILLED = {"imagenes": "show_images"}
 
 
+#: A card whose catalogue only a SEARCH fills, and the declared action+key that runs it (demo pass 93, V1).
+SEARCH_FILLED = {"youtube": ("search", "query")}
+
+
+def search_to_fill(card: str, operator_text: str) -> dict | None:
+    """The search a card that has never been filled stands for, when a promise put it on screen empty.
+
+    Demo pass 93 (2026-10-03), V1 «Show me a catalog of SpaceX Starship test videos.»: the model called nothing and
+    promised; the promise backstop showed the YouTube card — EMPTY — and «Play video number 2» then had nothing to
+    play («no search results available»), and the whole V block failed behind it. The picture viewer already has this
+    rule (`picture_search_for`); the video catalogue is the same shape: the card's only way to hold anything is its
+    search, and his sentence is what to search for."""
+    base = _base_card(card)
+    if base not in SEARCH_FILLED or not (operator_text or "").strip():
+        return None
+    try:
+        from nucleo import truth as _truth
+        view = _truth.widget_view(base) or {}
+    except Exception:  # noqa: BLE001
+        return None
+    if view.get("searched_at"):
+        return None                      # it already holds a catalogue: showing it is the whole order
+    action, key = SEARCH_FILLED[base]
+    return {"widget_id": base, "action": action, "payload": {key: " ".join(operator_text.split())[:160]}}
+
+
 def _base_card(card: str) -> str:
     return str(card or "").split("::", 1)[0].strip().lower()
 

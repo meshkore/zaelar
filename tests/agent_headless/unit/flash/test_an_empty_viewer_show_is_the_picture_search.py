@@ -43,3 +43,19 @@ def test_a_pass_that_called_another_action_than_the_verdicts_is_asked_once_more(
     assert not AR._ignored_the_verdict([], "agenda", "find_free", declared), "no call is the worker's path"
     assert not AR._ignored_the_verdict([("widget_data", {"widget_id": "agenda", "action": "show_day"})], "agenda",
                                        "", declared), "no verdict, nothing to follow"
+
+
+def test_an_empty_video_catalogue_shown_by_a_promise_is_searched(monkeypatch):
+    """Demo pass 93, V1: the promise backstop showed YouTube EMPTY; «play video number 2» had nothing to play."""
+    from nucleo import truth
+    monkeypatch.setattr(truth, "widget_view", lambda wid: {"searched_at": 0, "empty": True})
+    got = CC.search_to_fill("youtube", "Show me a catalog of SpaceX Starship test videos.")
+    assert got == {"widget_id": "youtube", "action": "search",
+                   "payload": {"query": "Show me a catalog of SpaceX Starship test videos."}}
+
+
+def test_a_catalogue_already_searched_or_another_card_is_left_alone(monkeypatch):
+    from nucleo import truth
+    monkeypatch.setattr(truth, "widget_view", lambda wid: {"searched_at": 1790000000})
+    assert CC.search_to_fill("youtube", "show me the videos") is None
+    assert CC.search_to_fill("agenda", "show me tomorrow") is None
