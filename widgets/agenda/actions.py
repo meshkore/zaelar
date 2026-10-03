@@ -529,6 +529,14 @@ def _a_find_free(action, payload, db, _extra) -> dict:
                                       "(the last day) to search a stretch, e.g. a vacation's dates"}
     _day = _d._resolve_date(_said)
     _until = str(payload.get("until") or payload.get("to_date") or payload.get("end_date") or "").strip()
+    if not _until and _is_date(_day):
+        # The stretch written where the action does not read it (demo pass 88, R3): the repair pass sent
+        # {date: 2026-12-20, notes: «… vacaciones de Anna (2026-12-20 a 2027-01-04)»}, searched ONE day, and the
+        # answer asked him for dates he had just been told. A later ISO date in the call's own text is the last day.
+        _later = sorted(x for v in payload.values() if isinstance(v, str)
+                        for x in _d.re.findall(r"\b\d{4}-\d{2}-\d{2}\b", v) if x > str(_day)[:10])
+        if _later:
+            _until = _later[-1]
     import time as _tm
     db["view"] = {"sel": _day if not _until else "month", "n": int((db.get("view") or {}).get("n", 0)) + 1,
                   "at": _tm.time()}
