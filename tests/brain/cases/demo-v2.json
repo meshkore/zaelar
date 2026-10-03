@@ -1035,5 +1035,55 @@
    "worker"
   ],
   "open": "V2-776 · C4: «move it» right after a booking names the meeting just booked; the words already said which and to when — the verdict should complete with them, not ask"
+ },
+ {
+  "id": "demo-i3-the-second-one-is-the-picture-he-was-looking-at",
+  "lang": "en",
+  "phrase": "open the second one",
+  "source": "TMP/demo/run-v1-p85 I3 (2026-10-03): the previous turn added F40 photos to the viewer; the monitors sheet was also on screen (A1 had just delivered). Verdict imagenes:select 0.97 and the canvas focus (last turn's card) both named the viewer; the model called results:detail index 2 and said «opening the Acer Nitro XV275K V3». A valid call on ANOTHER card runs (CRIT-K2 compares same-card only), so the monitor opened",
+  "screen": {
+   "open": [
+    "results",
+    "imagenes"
+   ]
+  },
+  "model": {
+   "say": "Right away — opening the Acer Nitro XV275K V3 in detail for you.",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "results",
+      "action": "detail",
+      "payload": {
+       "index": 2
+      }
+     }
+    }
+   ]
+  },
+  "brief": {
+   "canvas": [
+    "show",
+    0.99
+   ],
+   "request_type": [
+    "order",
+    0.9
+   ],
+   "screen_action": [
+    "imagenes:select",
+    0.97
+   ],
+   "end_state": [
+    "results:view",
+    0.5
+   ]
+  },
+  "expect": "data-op imagenes:select",
+  "forbid": [
+   "worker"
+  ],
+  "open": "V2-776 · I3: a positional reference follows the conversation's card (CRIT-K3) — when a sure verdict and the canvas focus agree on one card, a model call on another card is the misreading"
  }
 ]
