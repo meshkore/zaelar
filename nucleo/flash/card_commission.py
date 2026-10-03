@@ -118,6 +118,29 @@ def picture_named_by(operator_text: str) -> dict | None:
     return picture_search_for(card, operator_text) if card else None
 
 
+def picture_search_for_empty_show(widget_id: str, action: str, payload: dict | None, operator_text: str) -> dict | None:
+    """The `show_images` request a model's own `show`/`add` on the viewer WITHOUT pictures stands for.
+
+    Demo pass 82 (2026-10-03), I1 «show me a red ferari f40»: the model called `imagenes:show` with no items. The
+    viewer still held B1's nebula photos, so neither the empty-viewer rule nor the commission pass caught it, the
+    card answered «no llegó ninguna imagen», the in-turn correction repeated the same call, and the whole I block
+    went wrong after it. A `show` with nothing to show is asking to FIND them — whatever the viewer holds now."""
+    if TOOL_FILLED.get(str(widget_id or "").split("::", 1)[0].strip().lower()) != "show_images":
+        return None
+    if str(action or "") not in ("show", "add"):
+        return None
+    pl = payload if isinstance(payload, dict) else {}
+    if pl.get("items"):
+        return None
+    q = " ".join(str(pl.get("query") or pl.get("title") or operator_text or "").split())[:160]
+    if not q:
+        return None
+    from nucleo.flash import image_turn as _it
+    if _it._WALLPAPER_INTENT_RE.search(operator_text or "") and not _it._WALLPAPER_INTENT_RE.search(q):
+        q = f"{q} wallpaper"
+    return {"query": q, "n": _it.DEFAULT_N, "more": str(action) == "add"}
+
+
 def _as_tool_request(got: dict, operator_text: str) -> dict | None:
     """`{query, n, more}` for the turn tool that fills this card, or None when the call is an ordinary data-op."""
     if TOOL_FILLED.get(str(got.get("widget_id") or "")) != "show_images":

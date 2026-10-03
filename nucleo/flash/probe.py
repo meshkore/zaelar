@@ -293,6 +293,16 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
 
     # (e) acción derivada. V2-658/V2-660: lo que el turno DEBE lo decide la costura compartida y se sintetiza
     await _ht_p.mirror_probe(tool_calls, tags, spoken, text, llm_metrics)
+    # Demo pass 82, I1 — mirror of the voice executor: `imagenes:show` with no pictures is the picture SEARCH.
+    if "show_images" not in [t.get("name") for t in tool_calls]:
+        from nucleo.flash import card_commission as _cc_pic
+        for _i, _t in enumerate(tool_calls):
+            _a = _t.get("args") or {}
+            if _t.get("name") == "widget_data" and (_pic := _cc_pic.picture_search_for_empty_show(
+                    str(_a.get("widget_id") or ""), str(_a.get("action") or ""), _a.get("payload"),
+                    str(_blk.get("operator_text") or "") or text)):
+                tool_calls[_i] = {"name": "show_images", "args": {"query": _pic["query"]}}
+                break
     names = [t["name"] for t in tool_calls]
     reveal_out = None                       # V2-060: desenlace de reveal_secret (sin el valor — lo sirve la API)
     music_req = None                        # V2-380: lo que pidió `play_music`, para EJECUTARLO abajo

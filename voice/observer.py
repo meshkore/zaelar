@@ -429,6 +429,9 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
     EVERYTHING that matters for debugging a voice turn flows through here — VAD/turn edges, transcripts,
     brain prompts/replies, latencies (ttft/ttfa), silences, TTS, errors. Query it all at GET /debug."""
     ts = now_ms()
+    if kind == "widget" and label == "close":
+        from nucleo import canvas_closes as _closes   # who closed what, and when — read by a worker's `show`
+        _closes.note(extra)                           # never raises
     # EPHEMERAL: live partial transcript (interim). UI-only (subtitles/chat while speaking) — it is NOT persisted
     # or put in the ring (it would flood the log with every word). It only goes to SSE. Previously `DebugBus.partial`
     # (vl2 topic) kept this separately; with the observer unified, it is marked ephemeral here.

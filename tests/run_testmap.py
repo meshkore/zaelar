@@ -4936,6 +4936,12 @@ DOMAINS: list[dict] = [
          "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_report_errand_does_not_cover_its_document.py"]},
         {"id": "7.65", "title": "The verdict completes a call-less turn on the row the MODEL named (demo pass 80, S3)",
          "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_row_the_model_named_is_the_row.py"]},
+        {"id": "7.66", "title": "A card the operator closed after an errand began is not reopened by its worker "
+                                "(demo pass 82)",
+         "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_card_he_closed_stays_closed.py"]},
+        {"id": "7.67", "title": "An empty show on the picture viewer is the picture search, whatever it holds (demo "
+                                "pass 82, I1)",
+         "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_empty_viewer_show_is_the_picture_search.py"]},
         # V2-492 (2026-08-29): los perfiles de `.meshkore/team/` arrancan a cada agente con una lista de
         # documentos, y **12 de esas rutas estaban muertas** en 8 de los 9 perfiles — escritas contra un
         # `.meshkore/context/` y un `.meshkore/workflows/` que ya no existen. No falla nada: el agente

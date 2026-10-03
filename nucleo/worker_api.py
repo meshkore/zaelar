@@ -341,6 +341,12 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             if _ids and _base not in _ids:
                 return {"ok": False, "error": f"no widget «{wid}» exists — the ones there are: "
                                               + ", ".join(_ids)}
+            # The operator closed this card AFTER this errand began: his decision about his screen (pass 82).
+            from nucleo import canvas_closes as _closes
+            if _closes.closed_after(wid, float(getattr(rec, "started", 0) or 0)):
+                return {"ok": False, "error": f"the operator CLOSED «{_base}» after this errand began — do not "
+                                              f"reopen it. Your result stays in the card for when he asks; "
+                                              f"say in one line that it is ready."}
         try:
             from voice.observer import emit
             _src = f"worker:{getattr(rec, 'task_id', '')}"        # V2-039: provenance — Brain Worker command

@@ -50,6 +50,18 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
     except Exception:
         pass
     if name == "widget_data":
+        # Demo pass 82, I1: `imagenes:show` with no pictures is the picture SEARCH (card_commission), not a data-op.
+        if images_req["v"] is None:
+            from nucleo.flash import card_commission as _cc
+            _pic = _cc.picture_search_for_empty_show(str(args.get("widget_id") or ""), str(args.get("action") or ""),
+                                                     args.get("payload"), operator_text or text)
+            if _pic:
+                _tool_fired.add("show_images")
+                images_req["v"] = _pic
+                _tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=emit)
+                emit("brain", "🖼️ fotos → visor imagenes (un show vacío del visor es la búsqueda)",
+                     text=_pic["query"][:80], role="system")
+                return
         # V2-391 — VARIAS, no una: lo decide `data_ops` (ahí está el porqué y qué sigue bloqueado).
         if not _tx._data_ops.admite_data_op(args, _data_ops_hechas):
             return
