@@ -66,6 +66,10 @@ export function ConfigPanel() {
   let activeTab = "settings";
   // The Conectores tab shows ONE connector at a time behind a breadcrumb (`cxFocus`), on its guide's `cxStep`.
   let cxFocus = null, cxStep = 0, cxPolling = false, cxService = "";   // cxService: the Google service picked out
+  // The consent URL the browser REFUSED to open in a window (pop-up blocker). 2026-10-04: the operator pressed
+  // «Connect» on Google Calendar, Chrome blocked the window without a word, the panel sat on «connecting…» for
+  // three minutes and he read it as «se ha quedado ahí». Kept per connector so its form can offer the way in.
+  let cxConsent = null;   // null | { id, url }
   // V2-694 — the language picker's rows and the code in force, read from GET /api/i18n/state (the SAME source
   // the first-run veil uses, so the two screens can never offer different languages). `langArmed` is the
   // first half of the two-click consent: see `applyLanguage`.
@@ -315,8 +319,8 @@ export function ConfigPanel() {
     if (thFont) thFont.onchange = () => { themeSvc.setThemeCustom({ font: thFont.value === "system" ? "" : thFont.value }); msg(t("config.theme.applied")); };
     // controles of the pestaña Conectores
     bodyEl.querySelectorAll(".cf-cx-act").forEach(b => b.onclick = () => cxAct(b.dataset.act, b.dataset.id, b));
-    bodyEl.querySelectorAll("[data-cx]").forEach(b => b.onclick = () => { ({ focus: cxFocus, service: cxService } = focusOf(b.dataset.cx)); cxStep = 0; render(); });
-    bodyEl.querySelectorAll("[data-cx-back]").forEach(b => b.onclick = () => { cxFocus = null; cxService = ""; cxStep = 0; render(); });
+    bodyEl.querySelectorAll("[data-cx]").forEach(b => b.onclick = () => { ({ focus: cxFocus, service: cxService } = focusOf(b.dataset.cx)); cxStep = 0; cxConsent = null; render(); });
+    bodyEl.querySelectorAll("[data-cx-back]").forEach(b => b.onclick = () => { cxFocus = null; cxService = ""; cxStep = 0; cxConsent = null; render(); });
     bodyEl.querySelectorAll("[data-cx-step]").forEach(b => b.onclick = () => { cxStep = Number(b.dataset.cxStep) || 0; render(); });
     bodyEl.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
       try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = t("config.cxw.copied"); } catch (_) {}
@@ -518,6 +522,13 @@ export function ConfigPanel() {
     return app + `<div class="cf-gsvcs">${rows}</div>`;
   }
 
+  // The blocked consent, offered where the operator is looking: under the connector (or Google service) he pressed.
+  const consentLink = c => {
+    if (!cxConsent || !(cxConsent.id === c.id || (c.services || []).some(x => x.id === cxConsent.id))) return "";
+    return `<div class="cf-wiz-blocked" role="status"><p class="cf-wiz-text">${esc(t("config.cx.popup_blocked"))}</p>` +
+      `<a class="hb-btn hb-btn--primary cf-consent-link" href="${esc(cxConsent.url)}" target="_blank" rel="noopener">${esc(t("config.cx.open_consent"))} ↗</a></div>`;
+  };
+
   function connectorForm(c, famTitle) {
     const id = esc(c.id), fam = esc(c.family || "");
     let box = "";
@@ -578,7 +589,7 @@ export function ConfigPanel() {
         ${row(t("config.cx.mk_handle"), `<input id="cx_mk_handle" type="text" placeholder="zaelar"/>`)}
         <button class="cf-btn cf-cx-act" data-act="mesh-add" data-id="meshkore">${t("config.cx.add_cluster")}</button>`;
     }
-    return box;
+    return box + consentLink(c);
   }
 
   function sec_connectors() {
@@ -636,8 +647,12 @@ export function ConfigPanel() {
   };
   function landConsent(popup, r, id) {
     if (!(r && r.ok && r.url)) { try { popup && popup.close(); } catch (_) {} msg("✗ " + ((r && r.error) || t("config.msg.error"))); return; }
-    try { if (popup) popup.location = r.url; else window.open(r.url, "_blank"); } catch (_) { window.open(r.url, "_blank"); }
-    msg(t("config.msg.connecting", { id }));
+    // A window the browser refuses is not an error of ours — but it IS something the operator has to be told,
+    // with a link he can click himself: a click of his own is never blocked.
+    let opened = false;
+    try { if (popup) { popup.location = r.url; opened = true; } else opened = !!window.open(r.url, "_blank"); } catch (_) { opened = false; }
+    if (opened) { cxConsent = null; msg(t("config.msg.connecting", { id })); }
+    else { cxConsent = { id, url: r.url }; msg(t("config.cx.popup_blocked_short")); if (activeTab === "conectores") render(); }
     waitConnected(id);
   }
   // The consent happens in Google's window, at the operator's pace: watch THAT connector until it lands (3 min).
@@ -645,7 +660,7 @@ export function ConfigPanel() {
     for (let i = 0; i < 90 && store.configOpen(); i++) {
       await sleep(2000);
       try { cfg.connectors = (await api.getConnectors()).connectors || []; } catch (_) { continue; }
-      if (((cfg.connectors || []).find(x => x.id === id) || {}).connected) { msg(t("config.msg.connected", { id })); break; }
+      if (((cfg.connectors || []).find(x => x.id === id) || {}).connected) { cxConsent = null; msg(t("config.msg.connected", { id })); break; }
     }
     if (activeTab === "conectores") render();
   }
