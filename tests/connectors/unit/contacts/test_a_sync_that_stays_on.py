@@ -441,7 +441,8 @@ def test_the_card_is_told_how_often_it_runs(ct):
     """A label with a hardcoded «cada minuto» is one nobody keeps in step with the scheduler."""
     s = gcontacts.sync_state({})
     assert s["every"] == int(gcontacts.PERIOD)
-    assert s["auto"] is True, "connected and syncing is the default — he asked for permanent"
+    # 2026-10-04 — off until he asks («no debemos forzar nada en background»); permanent once he says yes.
+    assert s["auto"] is False, "an import nobody asked for must not start on its own"
 
 
 def test_the_widget_declares_the_cycle_or_nothing_ever_calls_tick():

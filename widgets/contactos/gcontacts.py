@@ -112,7 +112,7 @@ def sync_state(db: dict) -> dict:
         "tier": (o.account("google-contacts").get("tier") if o and connected else "") or "",
         "last": float(s.get("last") or 0.0),
         "lastResult": s.get("lastResult") or {},
-        "auto": bool(s.get("auto", True)),
+        "auto": bool(s.get("auto", False)),   # off until he asks — an import nobody asked for is not ours to start
         # Said out loud so the card can promise the interval it actually runs at instead of a number
         # somebody typed into a label and nobody kept in step with the scheduler.
         "every": int(PERIOD),
@@ -205,7 +205,7 @@ def tick(ctx) -> None:
     with _d.store.mutating(_d.WIDGET_ID):         # load → Google pass → save is ONE step (see store.mutating)
         db = _d.load_db()
         s = db.get("sync") or {}
-        if not bool(s.get("auto", True)):
+        if not bool(s.get("auto", False)):
             return
         if (_time.time() - float(s.get("last") or 0.0)) < PERIOD:
             return
