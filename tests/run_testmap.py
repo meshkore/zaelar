@@ -4282,10 +4282,7 @@ DOMAINS: list[dict] = [
         {"id": "4.116", "title": "El widget de vídeo es DUEÑO de su biblioteca: canales seguidos, historial (grabado al reproducir, que es el dato que la API de YouTube nunca da), preferencias que se aplican solas o se etiquetan como nota, listas guardadas — todo SIN conector, y la calidad mínima avisa pero nunca salta el vídeo que él pidió",
          "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_library_is_ours_and_owes_nothing_to_a_connector.py"]},
         {"id": "4.53", "title": "La lista de YouTube RENDERIZA: filas de texto, click reproduce, el ended del player avanza SOLO desde nuestro player (cross-talk con musica) y un agente parado no avanza",
-         "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_list_renders_and_the_player_drives_it.py",
-                               # V2-597: the account screens RENDER — icons row, one wizard step at a time,
-                               # the consent window opened synchronously, the voice door, the home band.
-                               "tests/browser/unit/youtube/test_the_account_screens_render.py"]},
+         "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_the_list_renders_and_the_player_drives_it.py"]},
         # V2-457: cámara DESACTIVADA a petición del operador (mic-only) — el código queda comentado, no borrado.
         # La trampa que fija: la URL de session.js sirve session-lk.js bajo LiveKit, hay que vigilar LOS DOS.
         {"id": "4.81", "title": "La sesión NUNCA pide la cámara (mic-only, V2-457): ningún getUserMedia de vídeo activo en app/ ni mobile/, y el micro sobrevive al apagado",

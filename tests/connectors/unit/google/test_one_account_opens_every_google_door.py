@@ -379,8 +379,9 @@ def test_the_offer_names_the_surface_that_actually_consents_each_door(monkeypatc
     monkeypatch.setattr(gapp, "configured", lambda: True)
     monkeypatch.setattr(gb, "connected_services", lambda: [])
     line = gb.brain_state()
-    assert "agenda:connect" in line, "the calendar's door is not named, which is the one that failed"
-    assert "mensajeria:open_connectors" in line, "gmail's door is not named either"
+    # 2026-10-04: the door is the ⚙ Conectores section, named by the CONNECTOR id the model has to pass
+    assert "connector='google'" in line, "the calendar's door is not named, which is the one that failed"
+    assert "connector='email'" in line, "gmail's door is not named either"
     for door in ("drive", "photos", "youtube"):
         assert door in line, door
 
@@ -394,7 +395,7 @@ def test_one_app_is_not_one_consent(monkeypatch):
     monkeypatch.setattr(gb, "connected_services", lambda: [])
     line = gb.brain_state().lower()
     assert "una sola vez sirve" not in line
-    assert "cada puerta pide su permiso" in line
+    assert "cada servicio pide su permiso" in line
 
 
 def test_a_door_already_open_is_not_offered_again(monkeypatch):
@@ -404,7 +405,7 @@ def test_a_door_already_open_is_not_offered_again(monkeypatch):
     monkeypatch.setattr(gapp, "configured", lambda: True)
     monkeypatch.setattr(gb, "connected_services", lambda: ["calendar", "meet"])
     line = gb.brain_state()
-    assert "agenda:connect" not in line, "it is still explaining how to connect what is already connected"
+    assert "connector='google'" not in line, "it is still explaining how to connect what is already connected"
     assert "gmail" in line, "the doors that are still shut have to stay named"
     assert "meet:" not in line.lower().split("cómo se conecta")[-1], "Meet is not a door to consent"
 
@@ -424,5 +425,5 @@ def test_with_no_client_at_all_nobody_is_told_to_go_pressing_buttons(monkeypatch
     from connectors.google import app as gapp, brain as gb
     monkeypatch.setattr(gapp, "configured", lambda: False)
     line = gb.brain_state()
-    assert "CÓMO SE CONECTA" not in line and "agenda:connect" not in line
+    assert "CÓMO SE CONECTA" not in line and "connector='google'" not in line
     assert "NO se pueden conectar" in line

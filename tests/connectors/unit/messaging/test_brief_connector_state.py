@@ -107,6 +107,8 @@ def test_the_brief_points_the_other_families_at_their_own_widgets():
     the model exactly where it was. `connectors/google/brain.py` names each door's surface; this line only
     has to stop swallowing them."""
     low = _states_with_email("connected").lower()
-    assert "desde su widget" in low or "su propio widget" in low
-    for other in ("calendario", "archivos", "fotos"):
-        assert other in low, other
+    # 2026-10-04: «them» is the ONE door now — the ⚙ Conectores section — for every other service too
+    assert "misma puerta" in low and "show_panel(panel='conectores'" in low
+    # No per-family surface is named any more: naming «calendario»/«archivos»/«fotos» here would send the model
+    # back to widgets that no longer carry a connect screen.
+    assert "desde su widget" not in low and "su propio widget" not in low

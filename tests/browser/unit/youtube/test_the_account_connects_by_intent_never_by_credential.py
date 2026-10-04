@@ -1,8 +1,9 @@
 """The ACCOUNT layer of the video widget (V2-597): intent travels, credentials never do.
 
-The wizard/status screens are driven by declared actions — `open_connectors` (the voice door),
-`connect_account` (returns the consent URL for an app registered ONCE in the settings panel),
-`disconnect_account`, `suggest` and the card's own `sync_platforms`. The boundary under test is V2-520's:
+Since 2026-10-04 the account is connected in ONE place — the ⚙ Conectores section — so the widget's own
+`open_connectors` / `connect_account` / `disconnect_account` actions and their five tests left with the
+in-card screens (that door is covered by `tests/agent_headless/unit/flash/test_one_door_to_connect_a_service.py`).
+What stays is the card's own layer: `suggest` and `sync_platforms`, the boundary under test being V2-520's —
 no declared payload may carry a credential, and the suggestions band honors the operator's blocked-channels
 filter at the same door as every other name search.
 """
@@ -73,16 +74,6 @@ def _manifest() -> dict:
     return json.loads(_MANIFEST.read_text(encoding="utf-8"))
 
 
-# ── the manifest boundary ─────────────────────────────────────────────────────────────────────────────────
-def test_the_account_actions_are_declared_and_the_view_ones_say_so():
-    acts = _manifest()["actions"]
-    for name in ("sync_platforms", "open_connectors", "connect_account", "disconnect_account", "suggest"):
-        assert name in acts, name
-    assert acts["open_connectors"].get("view") is True
-    assert acts["suggest"].get("view") is True
-    assert acts["disconnect_account"].get("confirm") is True
-
-
 def test_no_declared_payload_carries_a_credential():
     # V2-520: voice carries INTENT, never a credential. The scan covers what an action ACCEPTS (its payload
     # keys and their docs) — prose in a desc may honestly say "forgets its tokens" without accepting one.
@@ -96,16 +87,6 @@ def test_the_routing_line_still_fits_its_budget():
     assert len(_manifest()["whenToUse"]) <= brief._PURPOSE_CAP
 
 
-# ── the data half ─────────────────────────────────────────────────────────────────────────────────────────
-def test_open_connectors_writes_a_timestamped_focus_and_falls_back_to_youtube(sandbox):
-    r = yt.apply_action("open_connectors", {"platform": "vimeo"})
-    assert r["ok"] and r["platform"] == "youtube"        # unknown platform → the one that exists
-    db = yt._load()
-    assert db["connect_focus"]["platform"] == "youtube"
-    assert int(db["connect_focus"]["ts"]) > 0
-    assert db["platforms"] and db["platforms"][0]["id"] == "youtube"
-
-
 def test_sync_platforms_caches_rows_and_view_data_computes_staleness(sandbox):
     r = yt.apply_action("sync_platforms", {})
     assert r["ok"] and r["platforms"][0]["connected"] is True
@@ -116,14 +97,6 @@ def test_sync_platforms_caches_rows_and_view_data_computes_staleness(sandbox):
     db["platforms_at"] = int(time.time()) - 3600
     store.save(yt.WID, db)
     assert yt.view_data()["platforms_stale"] is True     # computed from age, never stored
-
-
-def test_connect_account_returns_the_url_and_nothing_stores_a_credential(sandbox):
-    r = yt.apply_action("connect_account", {"platform": "youtube", "client_secret": "sneaky"})
-    assert r["ok"] and r["url"].startswith("https://accounts.google.com/")
-    # The stray credential in the payload is IGNORED — nothing in the widget's store may hold it.
-    raw = json.dumps(yt._load())
-    assert "sneaky" not in raw
 
 
 def test_suggest_fills_the_band_filtered_by_blocked_channels_and_says_the_count(sandbox):
@@ -157,21 +130,3 @@ def test_block_channel_sweeps_the_suggestions_band_too(sandbox):
     r = yt.apply_action("block_channel", {"channel": "Lucid AI Cars"})
     assert r["ok"] and r["removed_from_list"] == 1
     assert [it["channel"] for it in yt._load()["suggested"]] == ["Motor Clasico"]
-
-
-def test_disconnect_account_empties_the_band_a_disconnected_account_no_longer_backs(sandbox):
-    yt.apply_action("suggest", {})
-    assert yt._load()["suggested"]
-    r = yt.apply_action("disconnect_account", {"platform": "youtube"})
-    assert r["ok"]
-    db = yt._load()
-    assert db["suggested"] == [] and db["suggested_at"] == 0
-    assert db["platforms"][0]["connected"] is False      # the cache re-synced on the way out
-
-
-def test_a_missing_connector_package_degrades_to_words_never_a_traceback(sandbox, monkeypatch):
-    from widgets.youtube import account as ytacc3
-    monkeypatch.setattr(ytacc3, "_svc", lambda: None)
-    for action in ("connect_account", "disconnect_account", "suggest"):
-        r = yt.apply_action(action, {})
-        assert r["ok"] is False and "conector" in r["error"]

@@ -235,25 +235,9 @@ def test_the_same_failure_is_not_announced_twice_in_a_row(rails):
     assert first is True and second is False
 
 
-def test_dispatch_tag_returns_the_REAL_widgets_answer_not_just_its_own_guard_clauses(sandbox, monkeypatch):
-    """The seam itself: without a return value there is nothing for `report_failure` to look at.
-
-    Driven through the REAL path — a genuine widget and a genuine action that genuinely fails — because a
-    first version of this test only ever hit the `bad dispatch envelope` guard, and stayed GREEN with the fix
-    reverted. Enabled on purpose so the failure comes from the OAuth layer (the real path) and not from the
-    availability gate, which would short-circuit before `apply_action` ever calls the connector."""
-    import widgets
-
-    _with_builtin(monkeypatch, client_id="")             # layer ON via a registered id…
-    monkeypatch.setattr(service, "available", lambda: True)
-    monkeypatch.setattr("widgets.youtube.data._accounts_enabled", lambda: True)
-
-    out = asyncio.run(widgets.dispatch_tag(
-        "widget.data", {"id": "youtube", "data": {"action": "connect_account", "payload": {}}}))
-    assert isinstance(out, dict), out
-    assert out.get("ok") is False
-    # the WIDGET's own words must survive the trip, or the correction has nothing to say
-    assert "OAuth" in str(out.get("error") or "")
+# `test_dispatch_tag_returns_the_REAL_widgets_answer…` left on 2026-10-04 with the widget's `connect_account` action: a
+# YouTube account is connected in the ⚙ Conectores section now (one door for every service), so the OAuth layer is
+# no longer reachable through a widget data-op — the seam it drove no longer exists.
 
 
 # ── the mute backstop stops blaming the operator ──────────────────────────────────────────────────────────
@@ -388,7 +372,9 @@ def test_the_brain_is_TOLD_the_capability_does_not_exist_yet_rather_than_left_si
     assert "reproductor" in txt.lower() and "no depende" in txt.lower()
 
 
-@pytest.mark.parametrize("action", ["open_connectors", "connect_account", "suggest"])
+# `open_connectors` / `connect_account` left with the in-card screens (one door, 2026-10-04): `suggest` is the one
+# account door the card still has.
+@pytest.mark.parametrize("action", ["suggest"])
 def test_every_account_door_declines_with_the_same_words(sandbox, action):
     """Three doors, one sentence — they cannot drift apart into three different explanations of one fact."""
     from widgets.youtube import data as ydata

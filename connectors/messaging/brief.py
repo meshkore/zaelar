@@ -11,7 +11,7 @@
 _LABEL = {"whatsapp": "WhatsApp", "telegram": "Telegram", "email": "Email"}
 
 PROTOCOL = """[MENSAJERÍA] Buzón personal UNIFICADO del operador (WhatsApp + Telegram + Email), YA TRIADO por zaelar (modelo local) y agrupado POR CHAT: una línea por conversación, no por mensaje. Es lectura + marcar leído + RESPONDER (email; la respuesta se ENVÍA con la tool `reply_message`, que PIDE confirmación antes de mandarla — no la escribas como tag). Tags SILENCIOSAS (nunca se hablan):
-  [[show:mensajeria]] — abre/enfoca el widget de mensajería en el canvas (ahí están los QR de conexión de cada app).
+  [[show:mensajeria]] — abre/enfoca el widget de mensajería en el canvas (conectar un canal NO es aquí: ⚙ Conectores).
   [[msg.open:N]] — abre el chat N de la lista de abajo: pasa a mostrar sus mensajes uno a uno (en el widget y en el siguiente brief).
   [[msg.close]] — si hay un chat abierto, vuelve a la lista de chats.
   [[msg.readchat:N]] — marca TODO el chat N como leído (en su app de origen) SIN necesidad de abrirlo.
