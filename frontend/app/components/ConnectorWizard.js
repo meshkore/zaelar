@@ -25,6 +25,26 @@ const GOOGLE_API = {
   google: "Google Calendar API", "google-contacts": "People API",
 };
 
+/** Google is ONE connector: one OAuth app, one account, several services (each with its OWN consent, because
+ * each runs its own flow and token store — linking the calendar grants nothing to Drive). The section shows a
+ * single «Google» entry; any of these ids — from a card's plug, the catalog or the voice — opens it with that
+ * service picked out. Email is not here on purpose: Gmail is IMAP with an app password, its own connector. */
+export const GOOGLE_SERVICES = ["google", "google-contacts", "gdrive", "google-photos", "youtube"];
+export const GOOGLE = "google-account";
+/** The id the section focuses for a requested one, and the service to pick out inside it. */
+export const focusOf = id => GOOGLE_SERVICES.includes(id) ? { focus: GOOGLE, service: id } : { focus: id || null, service: "" };
+
+/** The connector list with the Google services folded into the account: one row, `services` inside. */
+export function groupGoogle(cs) {
+  const acct = cs.find(c => c.id === GOOGLE);
+  const services = GOOGLE_SERVICES.map(id => cs.find(c => c.id === id)).filter(Boolean);
+  if (!acct && !services.length) return cs;
+  const base = acct || { id: GOOGLE, config: {} };
+  const group = { ...base, label: "Google", family: "google", services,
+                  connected: services.some(s => s.connected), app: !!(base.config || {}).app_configured };
+  return [group, ...cs.filter(c => c.id !== GOOGLE && !GOOGLE_SERVICES.includes(c.id))];
+}
+
 const LINKS = {
   telegram: "https://my.telegram.org/apps",
   email: "https://myaccount.google.com/apppasswords",
@@ -35,7 +55,7 @@ const LINKS = {
 };
 
 /** The steps BEFORE the form, for one connector: [{key, link?, code?, params?}]. Empty = the form is step one.
- * A Google connector whose app is already registered skips the Cloud Console half: only consent is left. */
+ * The Google account whose app is already registered skips the Cloud Console half: only the consents are left. */
 export function guideSteps(c) {
   const id = String((c && c.id) || ""), cc = (c && c.config) || {};
   const uri = CALLBACKS[id] ? (location.origin + CALLBACKS[id]) : "";
@@ -43,13 +63,14 @@ export function guideSteps(c) {
   if (id === "telegram") return [{ key: "telegram.1", link: LINKS.telegram }];
   if (id === "email") return [{ key: "email.1", link: LINKS.email }];
   if (id === "spotify") return [{ key: "spotify.1", link: LINKS.spotify }];
-  if (GOOGLE_API[id]) {
-    if (cc.app_configured) return [];
-    return [{ key: "google.1", link: LINKS.gcloud_lib, params: { api: GOOGLE_API[id] } },
-            { key: "google.2", link: LINKS.gcloud_cred, code: uri }];
-  }
   if (id === "onedrive") return cc.app_configured ? [] : [{ key: "onedrive.1", link: LINKS.entra, code: uri }, { key: "onedrive.2" }];
-  if (id === "google-account") return [{ key: "google_account.1", link: LINKS.gcloud_cred }];
+  if (id === GOOGLE) {
+    // The shipped (or already registered) app leaves only the consents: the services step is the first.
+    if (c.app || cc.app_configured) return [];
+    const apis = [...new Set((c.services || []).map(x => GOOGLE_API[x.id]).filter(Boolean))].join(", ");
+    return [{ key: "google.1", link: LINKS.gcloud_lib, params: { api: apis } },
+            { key: "google.2", link: LINKS.gcloud_cred, code: (cc.redirect_uris || []).join("\n") }];
+  }
   if (id === "architect") return [{ key: "architect.1" }];
   if (id === "meshkore") return [{ key: "meshkore.1" }];
   return [];
@@ -70,14 +91,16 @@ export function connectorList(cs, fams, { t, esc, badge }) {
 /** ONE connector: breadcrumb, stepper, the current step, and a way back at every step. `form` is the
  * connector's own form (ConfigPanel's), shown on the last step; `step` past the guide clamps to it. */
 export function connectorWizard(c, step, form, famTitle, { t, esc, badge }) {
-  const guide = c.connected ? [] : guideSteps(c);
+  // Google's last step is its SERVICES, so its guide is shown whenever the app is missing, connected or not.
+  const guide = c.connected && c.id !== GOOGLE ? [] : guideSteps(c);
   const total = guide.length + 1;
   const at = Math.max(0, Math.min(step | 0, total - 1));
   const crumb = `<nav class="cf-crumb" aria-label="breadcrumb"><button type="button" class="cf-crumb-back" data-cx-back="1">← ${esc(t("config.cxw.back"))}</button>` +
     `<span class="cf-crumb-sep">›</span><span>${esc(famTitle)}</span><span class="cf-crumb-sep">›</span><b>${esc(c.label)}</b></nav>`;
   const head = `<header class="cf-panel-head"><h4>${esc(c.label)} ${badge(c)}</h4>${c.detail ? `<p>${esc(c.detail)}</p>` : ""}</header>`;
   const titles = guide.map(g => t(`config.cxw.${g.key}.title`, g.params))
-    .concat([c.connected ? t("config.cxw.connected_title") : t("config.cxw.final_title")]);
+    .concat([c.id === GOOGLE ? t("config.cxw.services_title")
+              : c.connected ? t("config.cxw.connected_title") : t("config.cxw.final_title")]);
   const stepper = total > 1 ? `<ol class="cf-wiz-steps">${titles.map((ti, i) =>
     `<li class="cf-wiz-step${i === at ? " on" : ""}${i < at ? " done" : ""}"><button type="button" data-cx-step="${i}">` +
     `<span class="cf-wiz-n">${i < at ? "✓" : i + 1}</span>${esc(ti)}</button></li>`).join("")}</ol>` : "";
@@ -88,8 +111,7 @@ export function connectorWizard(c, step, form, famTitle, { t, esc, badge }) {
       (g.code ? `<div class="cf-wiz-code"><code>${esc(g.code)}</code><button type="button" class="cf-btn cf-wiz-copy" data-copy="${esc(g.code)}">${esc(t("config.cxw.copy"))}</button></div>` : "") +
       (g.link ? `<p><a class="cf-wiz-link" href="${esc(g.link)}" target="_blank" rel="noopener">${esc(t("config.cxw.open_link", { site: new URL(g.link).host }))} ↗</a></p>` : "");
   } else {
-    const cc = c.config || {};
-    const ready = !c.connected && GOOGLE_API[c.id] && cc.app_configured ? `<p class="cf-wiz-text">${esc(t("config.cxw.app_ready"))}</p>` : "";
+    const ready = c.id === GOOGLE ? `<p class="cf-wiz-text">${esc(t("config.cxw.google_services"))}</p>` : "";
     body = ready + `<div class="cf-group">${form}</div>` + liveState(c, { t, esc });
   }
   const nav = `<div class="cf-wiz-nav">${at > 0 ? `<button type="button" class="cf-btn cf-btn-ghost" data-cx-step="${at - 1}">${esc(t("config.cxw.prev"))}</button>` : "<span></span>"}` +

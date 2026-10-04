@@ -581,16 +581,9 @@ def _a_find_free(action, payload, db, _extra) -> dict:
 
 
 def _a_connection(action, payload, db, _extra) -> dict:
-    # V2-679 — Google Calendar connect/disconnect/default-picker; body in `gcal.py` (ratchet extraction).
-    # connect/disconnect return the connector's result directly (never a credential crosses here, V2-520).
+    # V2-679 — the default-calendar picker; body in `gcal.py`. Connecting and disconnecting Google Calendar
+    # left the card on 2026-10-04: they live in the ⚙ Conectores section, the one door for every service.
     res = _d.gcal.ui_action(action, payload, db)
-    if action == "connect":
-        # V2-686 — `connect` now MOVES the card (gcal.push_connect_screen), so its mutation has to be
-        # persisted like any other. It is the only visible half of this action from the voice: the turn
-        # report keeps only `{widget, act}` and throws the result away, so nothing the connector answers
-        # here can reach the model or the operator by itself.
-        _d.store.save(_d.WIDGET_ID, db)
-        return res
     if action != "set_default_calendar":
         return res
     if not (res or {}).get("ok"):

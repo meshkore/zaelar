@@ -10,35 +10,6 @@ from __future__ import annotations
 from . import data as _d
 
 
-# Spotify connection, unchanged from V2-041.
-def _a_connect(action: str, p: dict) -> dict:
-    cid = (p.get("client_id") or "").strip()
-    if cid:
-        try:
-            from config import credentials
-            credentials.set_key("SPOTIFY_CLIENT_ID", cid)
-        except Exception as e:  # noqa: BLE001
-            return {"ok": False, "error": f"credential_store:{e}"[:120]}
-    try:
-        from connectors.spotify import auth
-        res = auth.begin_login()          # {ok, url} or {ok:False, error:'no_client_id'}
-    except Exception as e:  # noqa: BLE001
-        return {"ok": False, "error": str(e)[:120]}
-    if not res.get("ok") and res.get("error") == "no_client_id":
-        res["need_client_id"] = True      # widget shows the advanced field
-    return res
-
-
-def _a_disconnect(action: str, p: dict) -> dict:
-    try:
-        from connectors.spotify import auth
-        auth.disconnect()
-    except Exception as e:  # noqa: BLE001
-        return {"ok": False, "error": str(e)[:120]}
-    _d._save_view()
-    return {"ok": True}
-
-
 def _a_refresh(action: str, p: dict) -> dict:
     _d._save_view()
     return {"ok": True}

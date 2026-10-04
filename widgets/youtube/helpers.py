@@ -75,7 +75,6 @@ _SEED = {
     # standing rule is absolute control, so there is no background refresh (decision written in V2-597).
     "platforms": [],
     "platforms_at": 0,
-    "connect_focus": None,   # {platform, ts} — the voice door into a platform's connect screen (V2-520 shape)
     "suggested": [],         # [{videoId, title, channel, published, url}] — normalized, newest first
     "suggested_at": 0,
     "suggested_channels": 0,

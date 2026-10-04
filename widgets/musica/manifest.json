@@ -38,7 +38,7 @@
     "enséñame la canción"
   ],
   "entry": "widget.js",
-  "usage": "CARA + LISTAS del conector de música (connectors/music + connectors/spotify). Conexión desde la tarjeta (la pastilla de fuente arriba a la derecha → Conectar Spotify; avanzado: pega tu propio client_id). REPRODUCCIÓN: poner una canción/artista suelto sigue yendo por la tool play_music del FlashBrain; para LISTAS propias usa data-ops de este widget: crear una lista → create_playlist{name}; añadir una canción → add_to_playlist{playlist,query,title,artist} (playlist = nombre de la lista en lenguaje natural; si conoces el artista, pásalo en `artist` SEPARADO de `title` — nunca los dos juntos en un solo campo, la tarjeta los enseña por separado); quitar una canción → remove_from_playlist{playlist,item} (item = título o nº); reproducir una lista entera → play_playlist{playlist}; guardar la canción que suena AHORA en favoritos → favorite_current{} (sin payload; crea 'Favoritos' si no existe). MOVER LA CANCIÓN: «ponla en el minuto dos» → seek{to:120}; «adelanta medio minuto» → seek{by:30}; «vuelve atrás diez segundos» → seek{by:-10}. Navegar la tarjeta: open_view{kind,id} — kind=now enseña la canción a pantalla completa, kind=library la biblioteca, kind=playlist con id el detalle de una lista, kind=connect las fuentes — y back (volver). connect/disconnect gestionan la cuenta de Spotify. Curar una lista con muchas canciones ('hazme una lista random de disco') es una escalada a worker (Fase posterior), no una data-op. Guardar en LISTAS con nombre: una sola llamada — add_to_playlist con {playlist} crea la lista si no existe y sin canción explícita guarda la que suena ahora; create_playlist solo hace falta para estrenar una lista vacía.",
+  "usage": "CARA + LISTAS del conector de música (connectors/music + connectors/spotify). Conectar Spotify NO es de esta tarjeta: show_panel(panel='conectores', connector='spotify'). REPRODUCCIÓN: poner una canción/artista suelto sigue yendo por la tool play_music del FlashBrain; para LISTAS propias usa data-ops de este widget: crear una lista → create_playlist{name}; añadir una canción → add_to_playlist{playlist,query,title,artist} (playlist = nombre de la lista en lenguaje natural; si conoces el artista, pásalo en `artist` SEPARADO de `title` — nunca los dos juntos en un solo campo, la tarjeta los enseña por separado); quitar una canción → remove_from_playlist{playlist,item} (item = título o nº); reproducir una lista entera → play_playlist{playlist}; guardar la canción que suena AHORA en favoritos → favorite_current{} (sin payload; crea 'Favoritos' si no existe). MOVER LA CANCIÓN: «ponla en el minuto dos» → seek{to:120}; «adelanta medio minuto» → seek{by:30}; «vuelve atrás diez segundos» → seek{by:-10}. Navegar la tarjeta: open_view{kind,id} — kind=now enseña la canción a pantalla completa, kind=library la biblioteca, kind=playlist con id el detalle de una lista, kind=connect las fuentes — y back (volver). connect/disconnect gestionan la cuenta de Spotify. Curar una lista con muchas canciones ('hazme una lista random de disco') es una escalada a worker (Fase posterior), no una data-op. Guardar en LISTAS con nombre: una sola llamada — add_to_playlist con {playlist} crea la lista si no existe y sin canción explícita guarda la que suena ahora; create_playlist solo hace falta para estrenar una lista vacía.",
   "actions": {
     "create_playlist": {
       "desc": "crea una lista de reproducción vacía y la abre",
@@ -88,20 +88,6 @@
       "desc": "vuelve a la vista Home",
       "payload": {},
       "view": true
-    },
-    "connect": {
-      "desc": "inicia la conexión de Spotify (devuelve la URL de login para abrir en una ventana)",
-      "payload": {
-        "client_id": "opcional: tu propio client_id de developer.spotify.com"
-      }
-    },
-    "disconnect": {
-      "desc": "desconecta la cuenta de Spotify (borra los tokens locales)",
-      "payload": {},
-      "confirm": true,
-      "confirm_q": "¿Desconecto tu cuenta de Spotify? Tendrás que volver a enlazarla desde el widget.",
-      "consent_class": "account.disconnect",
-      "singleton": true
     },
     "play": {
       "desc": "reproduce/reanuda la reproducción actual, o busca y reproduce si se da 'query'",

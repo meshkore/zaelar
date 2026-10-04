@@ -57,7 +57,7 @@ def _prepared(provider_id: str = _DEFAULT_PROVIDER):
         return None, None, {"ok": False, "error": f"sin app OAuth registrada para {p.label} "
                                                   f"(el client_id se pone una vez en Configuración → Conectores)"}
     if not oauth.tokens_present(p.id):
-        return None, None, {"ok": False, "error": f"{p.label} no está conectado — conéctalo desde la tarjeta"}
+        return None, None, {"ok": False, "error": f"{p.label} no está conectado — conéctalo en Configuración → Conectores"}
     tok = oauth.access_token(p.id)
     if not tok:
         return None, None, {"ok": False, "error": f"la sesión con {p.label} caducó — reconecta la cuenta"}

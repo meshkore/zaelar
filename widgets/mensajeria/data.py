@@ -202,11 +202,6 @@ def view_data(q: str = "") -> dict:
         # HOW each channel is allowed to interrupt. Normalized through the policy module: the store may hold
         # partial or legacy shapes and the reader must always see the effective values.
         "notify_policy": _notify_policy_view(db),
-        # V2-520 — the brain asking to CONNECT a channel. The channels panel is local widget.js state that only
-        # the header button could ever flip, so "conéctame el correo" opened the card on the MESSAGES view and
-        # the operator saw no form at all (measured 2026-08-31). Carried with a timestamp, not consumed on read:
-        # view_data runs on every render, and clearing it here would lose the request on the first repaint.
-        "connect_focus": db.get("connect_focus") or None,
         # V2-543 — the requested VIEW (platform lens / main list), witness-countered + server-expired.
         "view": _fresh_view(db),
         # V2-546 — where our copy of the open conversation begins, and whether there is any point asking for
@@ -312,8 +307,8 @@ def last_found(db: dict) -> dict | None:
 # V2-778 F1-12 — the action handlers live in `actions.py`, imported back under their names (that module
 # reads this one).
 from .actions import (  # noqa: E402,F401
-    _a_open_connectors, _a_show_view, _a_fetch_now, _a_set_autoresponder, _a_clear_autoresponder,
-    _a_search_archive, _a_peek, _a_connection, _a_reply, _a_draft, _a_send_draft, _a_send_to, _a_forward,
+    _a_show_view, _a_fetch_now, _a_set_autoresponder, _a_clear_autoresponder,
+    _a_search_archive, _a_peek, _a_reply, _a_draft, _a_send_draft, _a_send_to, _a_forward,
     _a_unread, _a_set_signature, _a_set_signature_line, _a_clear_signature, _a_hide, _a_set_notify, _a_unhide,
     _a_open, _a_close, _a_load_more, _a_readchat, _a_archive)
 
@@ -324,7 +319,6 @@ from .actions import (  # noqa: E402,F401
 
 
 ACTIONS = {
-    "open_connectors": _a_open_connectors,
     "show_view": _a_show_view,
     "fetch_now": _a_fetch_now,
     "set_autoresponder": _a_set_autoresponder,
@@ -332,8 +326,6 @@ ACTIONS = {
     "search_archive": _a_search_archive,
     "peek": _a_peek,
     "chat_digest": _a_peek,
-    "connect": _a_connection,
-    "disconnect": _a_connection,
     "reply": _a_reply,
     "draft": _a_draft,
     "send_draft": _a_send_draft,

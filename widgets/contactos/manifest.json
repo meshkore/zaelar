@@ -55,7 +55,7 @@
     "w": 420,
     "h": 360
   },
-  "usage": "El directorio ÚNICO de contactos del operador: personas, empresas, sitios, grupos y agentes, con etiquetas libres («amigos del trabajo», «restaurantes»), ciudad y favoritos — un restaurante favorito ES una entrada de este directorio, nunca una lista aparte. Una entrada puede llevar VARIOS teléfonos y correos (add_phone/add_email), y las personas cuelgan de su empresa o de su sitio con link_contact. Añade con add_contact (mismo nombre y ciudad ACTUALIZA, no duplica), cambia con update_contact, borra con remove_contact (pide confirmación) u oculta con hide_contact, y marca con set_favorite. Para VER o CONSULTAR («mi restaurante favorito en Barcelona», «las empresas de Madrid», «mis contactos de Telegram») usa show_view: filtra por tipo, plataforma, grupo o ciudad Y devuelve los que casan en `result.matches`. La ficha de uno concreto es show_contact; las fuentes y su sincronización, show_connectors. POR DÓNDE se le escribe a alguien vive aquí: set_channel guarda su WhatsApp, Telegram o correo y cuál es el preferido — eso es lo que luego usa `send_to` de mensajería para escribirle sin preguntar.",
+  "usage": "El directorio ÚNICO de contactos del operador: personas, empresas, sitios, grupos y agentes, con etiquetas libres («amigos del trabajo», «restaurantes»), ciudad y favoritos — un restaurante favorito ES una entrada de este directorio, nunca una lista aparte. Una entrada puede llevar VARIOS teléfonos y correos (add_phone/add_email), y las personas cuelgan de su empresa o de su sitio con link_contact. Añade con add_contact (mismo nombre y ciudad ACTUALIZA, no duplica), cambia con update_contact, borra con remove_contact (pide confirmación) u oculta con hide_contact, y marca con set_favorite. Para VER o CONSULTAR («mi restaurante favorito en Barcelona», «las empresas de Madrid», «mis contactos de Telegram») usa show_view: filtra por tipo, plataforma, grupo o ciudad Y devuelve los que casan en `result.matches`. La ficha de uno concreto es show_contact; las fuentes y su sincronización, show_sources (conectar una cuenta no es de esta tarjeta: show_panel conectores). POR DÓNDE se le escribe a alguien vive aquí: set_channel guarda su WhatsApp, Telegram o correo y cuál es el preferido — eso es lo que luego usa `send_to` de mensajería para escribirle sin preguntar.",
   "actions": {
     "add_contact": {
       "desc": "guarda un contacto nuevo (persona, sitio o empresa: un amigo, un restaurante, un fontanero…) — con el mismo nombre y ciudad ACTUALIZA el existente en vez de duplicar",
@@ -182,23 +182,6 @@
         "auto": "true para mantenerla encendida, false para apagarla"
       }
     },
-    "connect": {
-      "desc": "devuelve la URL de consentimiento para enlazar una fuente de contactos (hoy solo Google). El operador tiene que PULSAR: la ventana solo sobrevive dentro del gesto que la abre, así que por voz NO se puede completar — deja la tarjeta en Conectores y dile que pulse «Conectar Google Contacts».",
-      "payload": {
-        "tier": "opcional: saved | saved+other | sync",
-        "origin": "opcional, lo pone el navegador"
-      }
-    },
-    "disconnect": {
-      "desc": "olvida la conexión con una fuente de contactos. Los contactos ya importados se quedan en el directorio: esto corta el enlace, no borra nada.",
-      "payload": {
-        "provider": "opcional: google (el único hoy)"
-      },
-      "confirm": true,
-      "confirm_q": "¿Desconecto Google Contacts? Los contactos ya importados se quedan.",
-      "consent_class": "account.disconnect",
-      "singleton": true
-    },
     "add_phone": {
       "desc": "añade OTRO teléfono a un contacto sin tocar los que ya tiene («el fijo de la oficina de Telefónica es el 915550000») — `label` dice de cuál es («centralita», «móvil»); con `remove:true` quita ese número",
       "payload": {
@@ -217,8 +200,8 @@
         "remove": "true para quitarlo (opcional)"
       }
     },
-    "show_connectors": {
-      "desc": "ABRE la pantalla de Conectores del directorio («ábreme los conectores de contactos», «¿qué fuentes de contactos tengo conectadas?»): qué fuentes existen, cuáles están enlazadas y el interruptor de sincronización de cada una. Devuelve el estado de todas para que contestes sin inventarte ninguna",
+    "show_sources": {
+      "desc": "ABRE la pantalla de FUENTES Y SINCRONIZACIÓN del directorio («¿de dónde vienen mis contactos?», «enséñame la sincronización de contactos»): qué fuentes existen, cuáles están enlazadas y el interruptor de sincronización de cada una. Devuelve el estado de todas para que contestes sin inventarte ninguna. CONECTAR una fuente NO es esto: es show_panel(panel='conectores', connector=…)",
       "payload": {},
       "view": true
     }

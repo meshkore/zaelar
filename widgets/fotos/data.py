@@ -136,7 +136,7 @@ def prompt_digest() -> str:
         return "FOTOS: Google Photos no está conectado todavía."
     total = int(db.get("total") or 0)
     if not total:
-        return "FOTOS: sin ninguna foto importada todavía (usa connect para elegir una tanda)."
+        return "FOTOS: sin ninguna foto importada todavía (usa pick para elegir una tanda)."
     years = db.get("years") or []
     by_year = ", ".join(f"{y['year']}: {y['count']}" for y in years[:6])
     return f"FOTOS: {total} importadas — {by_year}"
@@ -166,7 +166,7 @@ def apply_action(action: str, payload: dict | None = None):
         _save(db)
         return {"ok": True, "total": db["total"], "pending": db.get("session_pending")}
 
-    if act == "connect":
+    if act == "pick":
         res = svc.start_session()
         if not res.get("ok"):
             return _err(res.get("error") or "no pude abrir el selector de Google Photos",
@@ -216,14 +216,8 @@ def apply_action(action: str, payload: dict | None = None):
             return _err(res.get("error") or "no pude etiquetar la última tanda")
         return {"ok": True, "label": label}
 
-    if act == "disconnect":
-        svc.disconnect()
-        db = _sync_status(db, svc)
-        _save(db)
-        return {"ok": True}
-
-    return _err(f"acción desconocida: «{act}». Las que hay: refresh, connect, more, search, clear_search, "
-                f"label_batch, disconnect")
+    return _err(f"acción desconocida: «{act}». Las que hay: refresh, pick, more, search, clear_search, "
+                f"label_batch")
 
 
 # ── background (V2-034) ───────────────────────────────────────────────────────────────────────────────────

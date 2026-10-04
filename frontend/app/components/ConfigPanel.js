@@ -19,7 +19,7 @@ import { theme as themeSignal, setTheme } from "../core/store.js?v=2";
 // configuración»): same signals `update/UpdateSurface.js` already read, so the number keeps updating live
 // while Settings is open instead of freezing at whatever it was on open.
 import { build as updBuild, info as updInfo, check as updCheck } from "../update/watch.js?v=1";
-import { connectorList, connectorWizard, isSettling } from "./ConnectorWizard.js?v=1";
+import { connectorList, connectorWizard, isSettling, groupGoogle, focusOf, GOOGLE } from "./ConnectorWizard.js?v=2";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const opt = (list, sel) => (list || []).map(o => `<option value="${esc(o.value != null ? o.value : o)}"${(o.value != null ? o.value : o) === sel ? " selected" : ""}>${esc(o.label != null ? o.label : o)}</option>`).join("");
@@ -65,7 +65,7 @@ export function ConfigPanel() {
   let activeSec = SECTIONS[0].id;
   let activeTab = "settings";
   // The Conectores tab shows ONE connector at a time behind a breadcrumb (`cxFocus`), on its guide's `cxStep`.
-  let cxFocus = null, cxStep = 0, cxPolling = false;
+  let cxFocus = null, cxStep = 0, cxPolling = false, cxService = "";   // cxService: the Google service picked out
   // V2-694 — the language picker's rows and the code in force, read from GET /api/i18n/state (the SAME source
   // the first-run veil uses, so the two screens can never offer different languages). `langArmed` is the
   // first half of the two-click consent: see `applyLanguage`.
@@ -315,13 +315,18 @@ export function ConfigPanel() {
     if (thFont) thFont.onchange = () => { themeSvc.setThemeCustom({ font: thFont.value === "system" ? "" : thFont.value }); msg(t("config.theme.applied")); };
     // controles of the pestaña Conectores
     bodyEl.querySelectorAll(".cf-cx-act").forEach(b => b.onclick = () => cxAct(b.dataset.act, b.dataset.id, b));
-    bodyEl.querySelectorAll("[data-cx]").forEach(b => b.onclick = () => { cxFocus = b.dataset.cx; cxStep = 0; render(); });
-    bodyEl.querySelectorAll("[data-cx-back]").forEach(b => b.onclick = () => { cxFocus = null; cxStep = 0; render(); });
+    bodyEl.querySelectorAll("[data-cx]").forEach(b => b.onclick = () => { ({ focus: cxFocus, service: cxService } = focusOf(b.dataset.cx)); cxStep = 0; render(); });
+    bodyEl.querySelectorAll("[data-cx-back]").forEach(b => b.onclick = () => { cxFocus = null; cxService = ""; cxStep = 0; render(); });
     bodyEl.querySelectorAll("[data-cx-step]").forEach(b => b.onclick = () => { cxStep = Number(b.dataset.cxStep) || 0; render(); });
     bodyEl.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
       try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = t("config.cxw.copied"); } catch (_) {}
     });
     const cxr = bodyEl.querySelector(".cf-cx-refresh"); if (cxr) cxr.onclick = () => reloadConnectors();
+    const emp = document.getElementById("cx_em_provider");
+    if (emp) emp.onchange = () => {
+      bodyEl.querySelectorAll(".cf-em-link").forEach(a => { a.hidden = a.dataset.em !== emp.value; });
+      const o = bodyEl.querySelector(".cf-em-other"); if (o) o.hidden = emp.value !== "other";
+    };
     bodyEl.querySelectorAll(".cf-nav-item").forEach(b => b.onclick = () => { if (b.dataset.sec !== activeSec) { activeSec = b.dataset.sec; render(); } });
 
     // proveedor of the FlashBrain → repuebla SUS modelos and su row of key
@@ -462,13 +467,19 @@ export function ConfigPanel() {
     if (tb) tb.innerHTML = apisRows();
   }
 
+  // The login window opens INSIDE the click and is pointed at Spotify when the endpoint answers (a window
+  // opened after an await is blocked in silence). Your own app's Client ID is optional: the shipped one is
+  // used when it is there.
   async function connectSpotify(btn) {
     btn.disabled = true; msg(t("config.msg.opening_spotify"));
+    const popup = openConsent();
     try {
-      const r = await fetch("/api/spotify/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(x => x.json());
-      if (r.url) { window.open(r.url, "_blank", "width=520,height=680"); msg(t("config.msg.spotify_authorize")); }
-      else msg("✗ " + (r.error || t("config.msg.couldnt_start")));
-    } catch (_) { msg(t("config.msg.error_generic")); } finally { btn.disabled = false; }
+      const cid = (val("cx_sp_cid") || "").trim();
+      const r = await fetch("/api/spotify/connect", { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(cid ? { client_id: cid } : {}) }).then(x => x.json());
+      if (r.url) { landConsent(popup, { ok: true, url: r.url }, "spotify"); msg(t("config.msg.spotify_authorize")); }
+      else { try { popup && popup.close(); } catch (_) {} msg("✗ " + (r.error === "no_client_id" ? t("config.cx.sp_need_id") : (r.error || t("config.msg.couldnt_start")))); }
+    } catch (_) { try { popup && popup.close(); } catch (_2) {} msg(t("config.msg.error_generic")); } finally { btn.disabled = false; }
   }
   async function disconnectSpotify(btn) {
     btn.disabled = true;
@@ -478,16 +489,41 @@ export function ConfigPanel() {
   // ═══ PESTAÑA CONECTORES (V2-083) ═══════════════════════════════════════════════════════════════════════
   // Etiqueta traducida directa (without depender of the texto renderizado by badge): connected/error/off.
   const cxBadge = c => {
+    if (c.services) {   // the Google group: how many of its services are linked, never a blanket «connected»
+      const n = c.services.filter(x => x.connected).length;
+      return `<span class="cf-badge cf-${n ? "ok" : "off"}">${esc(t("config.cx.of_services", { n, total: c.services.length }))}</span>`;
+    }
     const st = c.connected ? "ok" : (c.status === "error" ? "error" : "off");
     const label = c.connected ? t("config.cx.connected")
       : (c.status === "error" ? t("config.badge.error") : t("config.cx.disconnected"));
     return `<span class="cf-badge cf-${esc(st)}">${label}</span>`;
   };
 
-  function connectorForm(c) {
+  // ONE Google account, one consent per service: each row says which card it feeds and connects on its own.
+  const G_ACT = { google: "calendar-connect", "google-contacts": "contacts-connect", gdrive: "cloudfiles-connect",
+                  "google-photos": "photos-connect", youtube: "video-connect" };
+  function googleForm(c, famTitle) {
+    const app = c.app ? "" : `${row("client_id", `<input id="cx_g_id" type="text" placeholder="${t("config.cx.paste_client_id")}"/>`)}
+      ${row("client_secret", `<input id="cx_g_sec" type="password" placeholder="${t("config.cx.only_if_asked")}"/>`)}`;
+    const rows = (c.services || []).map(sv => {
+      const id = esc(sv.id), cc = sv.config || {};
+      const tiers = !sv.connected && sv.id === "gdrive" && (cc.tiers || []).length > 1
+        ? `<select id="cx_cf_tier_${id}">${cc.tiers.map(x => `<option value="${esc(x.id)}"${x.id === cc.default_tier ? " selected" : ""}>${esc(x.label)}</option>`).join("")}</select>` : "";
+      const btn = sv.connected
+        ? `<button class="cf-btn cf-btn-ghost cf-cx-act" data-act="disconnect" data-id="${id}" data-fam="${esc(sv.family || "")}">${t("config.cx.disconnect_btn")}</button>`
+        : `<button class="cf-btn cf-cx-act" data-act="${G_ACT[sv.id]}" data-id="${id}">${t("config.cx.connect")}</button>`;
+      return `<div class="cf-gsvc${sv.id === cxService ? " on" : ""}"><span class="cf-gsvc-name">${esc(sv.label)}` +
+        `<small>${esc(famTitle(sv.family))}</small></span>${cxBadge(sv)}${tiers}${btn}</div>`;
+    }).join("");
+    return app + `<div class="cf-gsvcs">${rows}</div>`;
+  }
+
+  function connectorForm(c, famTitle) {
     const id = esc(c.id), fam = esc(c.family || "");
     let box = "";
-    if (c.connected) {
+    if (c.id === GOOGLE) {
+      box = googleForm(c, famTitle);
+    } else if (c.connected) {
       // ya conectado → button of desconectar/revocar
       const revoke = c.family === "infra" ? t("config.cx.revoke") : t("config.cx.disconnect_btn");
       box = `<button class="cf-btn cf-cx-act" data-act="disconnect" data-id="${id}" data-fam="${fam}">${revoke}</button>`;
@@ -498,42 +534,35 @@ export function ConfigPanel() {
         ${row("api_hash", `<input id="cx_tg_api_hash" type="password" placeholder="${t("config.cx.tg_placeholder")}"/>`)}
         <button class="cf-btn cf-cx-act" data-act="connect" data-id="telegram">${t("config.cx.connect_qr")}</button>`;
     } else if (id === "email") {
-      box = `${row(t("config.row.provider"), `<select id="cx_em_provider">${opt(["gmail", "outlook", "other"], "gmail")}</select>`)}
+      // The messaging card's per-provider guide, moved here with the connection (2026-10-04): WHERE to get the
+      // app password, and the servers when the provider is not a known one.
+      const P = { gmail: "https://myaccount.google.com/apppasswords", outlook: "https://account.live.com/proofs/AppPassword",
+                  icloud: "https://appleid.apple.com/account/manage", other: "" };
+      const links = Object.entries(P).filter(([, u]) => u).map(([k, u]) =>
+        `<a class="cf-wiz-link cf-em-link" data-em="${k}" href="${u}" target="_blank" rel="noopener"${k === "gmail" ? "" : " hidden"}>${esc(t("config.cx.em_link_" + k))} ↗</a>`).join("");
+      box = `${row(t("config.row.provider"), `<select id="cx_em_provider">${opt([{ value: "gmail", label: "Gmail" }, { value: "outlook", label: "Outlook" }, { value: "icloud", label: "iCloud" }, { value: "other", label: t("config.cx.em_other") }], "gmail")}</select>`)}
+        <p class="cf-em-links">${links}</p>
         ${row(t("config.cx.email_label"), `<input id="cx_em_address" type="email" placeholder="${t("config.cx.email_placeholder")}"/>`)}
         ${row(t("config.cx.app_password"), `<input id="cx_em_pass" type="password" placeholder="${t("config.cx.app_password_ph")}"/>`)}
+        <div class="cf-em-other" hidden>${row("IMAP", `<input id="cx_em_imap" type="text" placeholder="imap.tudominio.com"/>`)}
+        ${row("SMTP", `<input id="cx_em_smtp" type="text" placeholder="smtp.tudominio.com"/>`)}</div>
         <button class="cf-btn cf-cx-act" data-act="connect" data-id="email">${t("config.cx.connect")}</button>`;
     } else if (id === "spotify") {
-      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="spotify">${t("config.cx.connect_spotify")}</button>`;
-    } else if (fam === "archivos") {
-      // The cloud-file providers share one form because they share one flow (V2-557): register your own OAuth
-      // app once, paste its client_id, pick which permission to grant. The TIER selector is the part that is
-      // not cosmetic — a token granted the narrow Google scope cannot list folders at all, and the operator has
-      // to be able to see that before consenting, not after wondering why the drive looks empty.
+      // The music card's own «use my Spotify app» steps, moved here with the connection (2026-10-04).
+      const cc = c.config || {};
+      const own = `<details class="cf-adv"${cc.can_connect ? "" : " open"}><summary>${t("config.cx.sp_own")}</summary>
+        <p class="cf-wiz-text">${esc(t("config.cx.sp_own_steps"))}</p>
+        <div class="cf-wiz-code"><code>${esc(cc.redirect_uri || (location.origin + "/api/spotify/callback"))}</code></div>
+        ${row("Client ID", `<input id="cx_sp_cid" type="text" placeholder="${cc.own_client_id_set ? t("config.key.ph_saved") : t("config.cx.sp_id_ph")}"/>`)}</details>`;
+      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="spotify">${t("config.cx.connect_spotify")}</button>${own}`;
+    } else if (id === "onedrive") {
+      // OneDrive keeps the cloud-files form (V2-557): its own Microsoft app, then which permission to grant.
       const cc = c.config || {};
       const tiers = (cc.tiers || []).map(x => `<option value="${esc(x.id)}"${x.id === cc.default_tier ? " selected" : ""}>${esc(x.label)}</option>`).join("");
       box = `${row("client_id", `<input id="cx_cf_id_${id}" type="text" placeholder="${cc.app_configured ? t("config.key.ph_saved") : t("config.cx.paste_client_id")}"/>`)}
         ${row("client_secret", `<input id="cx_cf_sec_${id}" type="password" placeholder="${t("config.cx.only_if_asked")}"/>`)}
         ${tiers ? row(t("config.cx.permission"), `<select id="cx_cf_tier_${id}">${tiers}</select>`) : ""}
         <button class="cf-btn cf-cx-act" data-act="cloudfiles-connect" data-id="${id}">${t("config.cx.connect")}</button>`;
-    } else if (fam === "fotos" || fam === "video" || fam === "agenda") {
-      // Photos (V2-564), video accounts (V2-597) and calendar accounts (V2-679) share the cloud-files card
-      // shape: register your own OAuth app once, paste its client_id, connect. Photos had NO ⚙ card at all
-      // until V2-597 touched this seam (trap T3 lived: the registry rows existed and nobody rendered them,
-      // so there was nowhere to paste the client_id) — a new OAuth family must not repeat that.
-      const cc = c.config || {};
-      const act2 = fam === "fotos" ? "photos-connect" : (fam === "video" ? "video-connect" : "calendar-connect");
-      box = `${row("client_id", `<input id="cx_oa_id_${id}" type="text" placeholder="${cc.app_configured ? t("config.key.ph_saved") : t("config.cx.paste_client_id")}"/>`)}
-        ${row("client_secret", `<input id="cx_oa_sec_${id}" type="password" placeholder="${t("config.cx.only_if_asked")}"/>`)}
-        <button class="cf-btn cf-cx-act" data-act="${act2}" data-id="${id}">${t("config.cx.connect")}</button>`;
-    } else if (fam === "contactos") {
-      // Google Contacts had NO form here at all — the same trap T3 V2-597 named for photos: a row nobody renders.
-      const cc = c.config || {};
-      box = `${cc.app_configured ? "" : row("client_id", `<input id="cx_oa_id_${id}" type="text" placeholder="${t("config.cx.paste_client_id")}"/>`)}
-        ${cc.app_configured ? "" : row("client_secret", `<input id="cx_oa_sec_${id}" type="password" placeholder="${t("config.cx.only_if_asked")}"/>`)}
-        <button class="cf-btn cf-cx-act" data-act="contacts-connect" data-id="${id}">${t("config.cx.connect")}</button>`;
-    } else if (id === "google-account") {
-      const uris = ((c.config || {}).redirect_uris || []).map(u => `<div class="cf-wiz-code"><code>${esc(u)}</code></div>`).join("");
-      box = `${uris}<button class="cf-btn cf-cx-refresh">${t("config.cx.refresh_status")}</button>`;
     } else if (id === "architect") {
       const set = (c.config || {}).token_set;
       box = `${row(t("config.cx.daemon_token"), `<input id="cx_arch_token" type="password" placeholder="${set ? t("config.key.ph_saved") : t("config.cx.paste_token")}"/>`)}
@@ -555,19 +584,20 @@ export function ConfigPanel() {
   function sec_connectors() {
     const cs = cfg.connectors || [];
     if (!cs.length) return `<p class="cf-loading">${t("config.cx.load_error")}</p>`;
-    const fams = [["mensajeria", t("config.cx.fam_messaging")], ["musica", t("config.cx.fam_music")],
+    const fams = [["google", "Google"], ["mensajeria", t("config.cx.fam_messaging")], ["musica", t("config.cx.fam_music")],
                   ["archivos", t("config.cx.fam_files")], ["fotos", t("config.cx.fam_photos")],
                   ["video", t("config.cx.fam_video")], ["agenda", t("config.cx.fam_calendar")],
                   ["contactos", t("config.cx.fam_contacts")],
                   ["infra", t("config.cx.fam_infra")]];
     const ui = { t, esc, badge: cxBadge };
-    const c = cxFocus && cs.find(x => x.id === cxFocus);
+    const famTitle = f => (fams.find(([x]) => x === f) || [f, f])[1];
+    const view = groupGoogle(cs);
+    const c = cxFocus && view.find(x => x.id === cxFocus);
     if (c) {
-      const fam = (fams.find(([f]) => f === c.family) || [c.family, c.family])[1];
       if (isSettling(c)) settle();
-      return connectorWizard(c, cxStep, connectorForm(c), fam, ui);
+      return connectorWizard(c, cxStep, connectorForm(c, famTitle), famTitle(c.family), ui);
     }
-    return connectorList(cs, fams, ui) +
+    return connectorList(view, fams, ui) +
       `<div class="cf-foot"><button class="cf-btn cf-cx-refresh">${t("config.cx.refresh_status")}</button></div>`;
   }
   // A QR to appear, a scan to land: while the chosen connector is still settling, its state is re-read (2 min max).
@@ -596,8 +626,33 @@ export function ConfigPanel() {
     for (let i = 0; i < 6; i++) { await sleep(1500); await reloadConnectors(); }
   }
 
+  // An OAuth consent window has to be opened INSIDE the click: one opened after an `await` is blocked by every
+  // mainstream browser without a word (the canvas learned it in V2-679, `desktop._connectFlow`). So it opens
+  // blank now and is pointed at Google's URL when the endpoint answers — or closed if it refuses.
+  const OAUTH_ACTS = new Set(["calendar-connect", "contacts-connect", "cloudfiles-connect", "photos-connect", "video-connect"]);
+  const openConsent = () => {
+    try { return (window.innerWidth || 0) < 700 ? window.open("", "zaelar_connect") : window.open("", "zaelar_connect", "width=520,height=760"); }
+    catch (_) { return null; }
+  };
+  function landConsent(popup, r, id) {
+    if (!(r && r.ok && r.url)) { try { popup && popup.close(); } catch (_) {} msg("✗ " + ((r && r.error) || t("config.msg.error"))); return; }
+    try { if (popup) popup.location = r.url; else window.open(r.url, "_blank"); } catch (_) { window.open(r.url, "_blank"); }
+    msg(t("config.msg.connecting", { id }));
+    waitConnected(id);
+  }
+  // The consent happens in Google's window, at the operator's pace: watch THAT connector until it lands (3 min).
+  async function waitConnected(id) {
+    for (let i = 0; i < 90 && store.configOpen(); i++) {
+      await sleep(2000);
+      try { cfg.connectors = (await api.getConnectors()).connectors || []; } catch (_) { continue; }
+      if (((cfg.connectors || []).find(x => x.id === id) || {}).connected) { msg(t("config.msg.connected", { id })); break; }
+    }
+    if (activeTab === "conectores") render();
+  }
+
   async function cxAct(act, id, btn) {
     btn.disabled = true;
+    const popup = OAUTH_ACTS.has(act) ? openConsent() : null;
     try {
       if (act === "disconnect") {
         if (id === "gdrive" || id === "onedrive") { await api.cloudFilesDisconnect(id); msg(t("config.msg.disconnected", { id })); }
@@ -613,28 +668,30 @@ export function ConfigPanel() {
         if (id === "spotify") { await connectSpotify(btn); return; }
         let payload = {};
         if (id === "telegram") payload = { api_id: val("cx_tg_api_id"), api_hash: val("cx_tg_api_hash") };
-        if (id === "email") payload = { email_address: val("cx_em_address"), email_password: val("cx_em_pass"), provider: val("cx_em_provider") };
+        if (id === "email") {
+          // The provider PRINTS the password in groups; IMAP AUTH does not want the spaces.
+          payload = { email_address: val("cx_em_address"), email_password: String(val("cx_em_pass") || "").replace(/\s+/g, ""),
+                      provider: val("cx_em_provider") };
+          if (payload.provider === "other") { payload.imap_host = val("cx_em_imap"); payload.smtp_host = val("cx_em_smtp"); }
+        }
         const r = await api.connectMessaging(id, payload);
         msg(r.ok ? t("config.msg.connecting", { id }) : ("✗ " + (r.error || t("config.msg.error"))));
         pollConnectors();
       } else if (act === "contacts-connect") {
-        const r = await api.contactsConnect({ client_id: val(`cx_oa_id_${id}`), client_secret: val(`cx_oa_sec_${id}`) });
-        if (r && r.ok && r.url) { window.open(r.url, "_blank", "noopener"); msg(t("config.msg.connecting", { id })); pollConnectors(); }
-        else msg("✗ " + ((r && r.error) || t("config.msg.error")));
+        const r = await api.contactsConnect({ client_id: val("cx_g_id"), client_secret: val("cx_g_sec") });
+        landConsent(popup, r, id);
       } else if (act === "photos-connect" || act === "video-connect" || act === "calendar-connect") {
-        const payload = { client_id: val(`cx_oa_id_${id}`), client_secret: val(`cx_oa_sec_${id}`) };
+        const payload = { client_id: val("cx_g_id"), client_secret: val("cx_g_sec") };
         if (act === "video-connect" || act === "calendar-connect") payload.provider = id;
         const r = act === "photos-connect" ? await api.photosConnect(payload)
           : (act === "video-connect" ? await api.videoConnect(payload) : await api.calendarConnect(payload));
-        if (r && r.ok && r.url) { window.open(r.url, "_blank", "noopener"); msg(t("config.msg.connecting", { id })); pollConnectors(); }
-        else msg("✗ " + ((r && r.error) || t("config.msg.error")));
+        landConsent(popup, r, id);
       } else if (act === "cloudfiles-connect") {
         const r = await api.cloudFilesConnect({
-          provider: id, client_id: val(`cx_cf_id_${id}`), client_secret: val(`cx_cf_sec_${id}`),
+          provider: id, client_id: val(`cx_cf_id_${id}`) ?? val("cx_g_id"), client_secret: val(`cx_cf_sec_${id}`) ?? val("cx_g_sec"),
           tier: val(`cx_cf_tier_${id}`),
         });
-        if (r && r.ok && r.url) { window.open(r.url, "_blank", "noopener"); msg(t("config.msg.connecting", { id })); pollConnectors(); }
-        else msg("✗ " + ((r && r.error) || t("config.msg.error")));
+        landConsent(popup, r, id);
       } else if (act === "architect-save") {
         const token = val("cx_arch_token"), url = val("cx_arch_url");
         const r = await api.architectConnect({ token, url });
@@ -645,7 +702,7 @@ export function ConfigPanel() {
       } else if (act === "mesh-remove") {
         await api.meshkoreRemove(btn.dataset.name); msg(t("config.msg.cluster_revoked")); await reloadConnectors();
       }
-    } catch (e) { msg(t("config.msg.error_generic")); } finally { btn.disabled = false; }
+    } catch (e) { try { popup && popup.close(); } catch (_) {} msg(t("config.msg.error_generic")); } finally { btn.disabled = false; }
   }
 
   // ═══ PESTAÑA APARIENCIA (V2-617) — design profiles + custom knobs. Everything applies INSTANTLY (the
@@ -809,8 +866,8 @@ export function ConfigPanel() {
       const want = store.configInitialTab(), cxWant = store.configConnector();
       if (want && TABS.some(t => t.id === want)) { activeTab = want; store.setConfigInitialTab(null); }
       // …and the catalog row it was clicked on: that connector opens alone, on its first step (consumed once too).
-      if (cxWant) { activeTab = "conectores"; cxFocus = cxWant; cxStep = 0; store.setConfigConnector(null); }
-      else if (want) { cxFocus = null; cxStep = 0; }
+      if (cxWant) { activeTab = "conectores"; ({ focus: cxFocus, service: cxService } = focusOf(cxWant)); cxStep = 0; store.setConfigConnector(null); }
+      else if (want) { cxFocus = null; cxService = ""; cxStep = 0; }
       load();
     }
     wasOpen = o;

@@ -60,47 +60,11 @@ const BRAND_SVG = {
   },
 };
 
-// Credential draft that survives re-renders, so user input is not wiped while typing.
-const _draft = {telegram: {api_id: "", api_hash: ""},
-                email: {email_address: "", email_password: "", provider: "gmail", imap_host: "", smtp_host: ""}};
-// Email providers with server-side host presets; "otro" asks for IMAP/SMTP manually.
-const EMAIL_PROVIDERS = ["gmail", "outlook", "icloud", "otro"];
-function providerLabel(v){
-  switch(v){
-    case "gmail":   return "Gmail";                                   // brand names: never translated
-    case "outlook": return "Outlook / Hotmail";
-    case "icloud":  return "iCloud";
-    default:        return tt("provider_other", null, "Otro (IMAP/SMTP)");
-  }
-}
-const _busy = {};   // platform -> true while a connection is in progress, for button feedback
-// Which field of a connect form to land on after a refusal (V2-559). Module-lived like _busy: the card is
-// rebuilt on every render, so the intent has to outlive the DOM node it applies to.
-const _focusField = {};
-// An error banner is TRANSIENT (operator's rule): it belongs to a connect attempt made in THIS page
-// session, never to a failure stored days ago. The store keeps status "error" durably (the brain reads it
-// as "not connected"), but a fresh open starts clean — only a platform in `_attempted` may show the banner.
-const _attempted = {};
-
 // LOCAL presentation state (cosmetic, does not touch the store): selected profile, settings panel open, expanded
 // messages. Survives re-renders because the module loads once.
 let _profile = "simple";
 try { _profile = localStorage.getItem("hb-msg-profile") || "simple"; } catch { /* storage blocked: use "simple" */ }
 let _settingsOpen = false;
-// V2-570 — the CHANNELS AREA has TWO screens (the operator's redesign): a LIST of every connector (icon
-// grid) and, one level in, a WIZARD scoped to a single connector. `_screen` is null when the area is closed
-// (messages view showing); {view:"list"} or {view:"wizard", platform} otherwise. Replaces the old flat
-// `_connectorsOpen`/`_expandConnect` pair — there was never a third state, just two screens that used to be
-// drawn on top of each other.
-let _screen = null;
-// Per-platform wizard progress (module-lived like _busy/_draft): which step is showing right now. Reset to 1
-// implicitly whenever a platform's wizard is entered fresh (see `_enterWizard`).
-const _wizStep = {};
-// V2-520 — the last `connect_focus` request already honoured. The brain asking to connect a channel is the
-// ONLY way into this panel from outside (it is local state the header button owns), and the request travels
-// in the DATA with a timestamp. Remembering which one we acted on is what lets the operator close the panel
-// again: without it, the next repaint — a new message arriving — would re-open it forever.
-let _focusDone = 0;
 // V2-521 — the visual formula: ONE inbox by default ("everything, no filters" is the deliberate start),
 // and a per-platform lens on demand. null = todo. V2-543: the lens is no longer voice-deaf — the server
 // pushes the requested view (`data.view = {platform, n, at}`) via the declared `show_view` action, and this
@@ -108,8 +72,7 @@ let _focusDone = 0;
 // re-show moves nothing and yanks nothing). Header icon clicks call the SAME action, so UI and voice share
 // one state instead of diverging.
 let _platFilter = null;
-let _viewN = 0;                      // last applied view token (module-lived, like _focusDone)
-let _confirmDisconnect = null;       // platform with a pending disconnect confirmation
+let _viewN = 0;                      // last applied view token (module-lived)
 let _openMail = null;   // mailKey() of the single EMAIL item shown in the detail screen (V2-610), or null = list
 const _expanded = new Set();   // message keys with the body expanded
 
@@ -123,9 +86,7 @@ const _expanded = new Set();   // message keys with the body expanded
 // 2026-09-09). A rule every caller has to remember is not a rule — it is a bug waiting for the next caller.
 function selectPlatform(pl){
   _platFilter = (pl && PLAT[pl]) ? pl : null;   // unknown/absent = the unified main list
-  _screen = null;             // Conectores/wizard is a SETUP screen; naming a channel leaves it
   _openMail = null;           // a mail detail is a screen too: a lens change lands on that lens's LIST
-  _confirmDisconnect = null;  // a pending confirmation never outlives the screen that asked for it
 }
 
 function injectStyles(){
@@ -631,7 +592,6 @@ function iconGrid(items){
 
 // No brand icon exists for a specific email PROVIDER (Gmail/Outlook/iCloud/Yahoo) the way one does for the
 // whole email channel — an avatar with the provider's initial is honest about that instead of pretending.
-function providerAvatar(label){ return el("span","iavatar", (label||"?")[0]); }
 
 // Split a short message title from the rest of the body when they are joined by a blank line, a common pattern in
 // triaged messages. If the pattern does not fit, everything is body text with no title.
@@ -829,192 +789,6 @@ function linkify(container, text){
 // the real connect. QR/status appear by themselves on the canvas: store.py emits the SSE notice as soon as the
 // supervisor saves the new state, and desktop.js repaints this same card once (never polling, never a separate
 // window).
-
-// One numbered box shell, reused for whichever step is CURRENTLY showing (V2-570: only one step renders at a
-// time, so this used to wrap three stacked boxes and now wraps exactly one).
-function stepBox(n, title, done){
-  const box=el("div","wstep"+(done?" done":""));
-  const head=el("div","whead"); head.append(el("span","wnum",String(n)), el("span","wtitle",title));
-  box.appendChild(head);
-  return box;
-}
-
-// Per-provider guidance (V2-521): the generic app-password sentence never said WHERE to get one. One line + the
-// exact page, switching with the dropdown — the operator asked to be told the process, the token, whatever the
-// provider needs, right here.
-function EMAIL_GUIDE(){ return {
-  gmail:   {steps:tt("gm_steps", null, "Activa la verificación en 2 pasos y entra en la página de contraseñas de aplicación."),
-            url:"https://myaccount.google.com/apppasswords", lbl:tt("gm_link", null, "Abrir contraseñas de aplicación de Google"),
-            tip:tt("gm_tip_1", null, "Google te la enseña en 4 bloques de 4 letras. Cópiala entera — da igual si trae espacios, ")
-               +tt("gm_tip_2", null, "los quito yo. Lo que NO va aquí es el enlace de la página.")},
-  outlook: {steps:tt("ol_steps", null, "Con la verificación en 2 pasos activada, crea una contraseña de aplicación."),
-            url:"https://account.live.com/proofs/AppPassword", lbl:tt("ol_link", null, "Abrir contraseñas de aplicación de Microsoft"),
-            tip:tt("ol_tip", null, "Cópiala tal cual te la muestre. Es una contraseña, no el enlace de la página.")},
-  icloud:  {steps:tt("ic_steps", null, "Genera una contraseña específica de app desde tu cuenta de Apple."),
-            url:"https://appleid.apple.com/account/manage", lbl:tt("ic_link", null, "Abrir appleid.apple.com"),
-            tip:tt("ic_tip", null, "Apple la muestra como xxxx-xxxx-xxxx-xxxx. Cópiala con los guiones.")},
-  otro:    {steps:tt("ot_steps", null, "Usa la contraseña (o contraseña de app) que te dé tu proveedor de correo."),
-            url:"", lbl:"", tip:tt("ot_tip", null, "Necesitaré además sus servidores IMAP y SMTP, abajo.")},
-}; }
-
-// ── Email wizard steps (V2-570) ──────────────────────────────────────────────────────────────────────────
-// THREE steps, one visible at a time. Step 1 is the box the operator asked for literally: "put the mail
-// providers in a box with an icon in the middle so the user sees all those available" — an icon grid instead
-// of a <select>, since a dropdown hides the other options until opened.
-function emailStep1Body(d, rerender){
-  const wrap=el("div");
-  wrap.appendChild(el("div","wbody",tt("pick_provider", null, "Elige el proveedor de tu cuenta de correo.")));
-  wrap.appendChild(iconGrid(EMAIL_PROVIDERS.map((v)=>{
-    const lab = providerLabel(v);
-    return {key:v, icon:providerAvatar(lab), label:lab, cls:(d.provider===v?"sel":""),
-            onClick:()=>{ d.provider=v; rerender(); }};
-  })));
-  return wrap;
-}
-
-function emailStep2Body(d){
-  const wrap=el("div");
-  const _eg=EMAIL_GUIDE(); const g=_eg[d.provider]||_eg.otro;
-  wrap.appendChild(el("div","wbody", g.steps));
-  if(g.url){
-    const link=document.createElement("a"); link.className="wlink"; link.href=g.url;
-    link.target="_blank"; link.rel="noopener"; link.textContent=g.lbl+" ↗";
-    wrap.appendChild(link);
-  }
-  if(g.tip) wrap.appendChild(el("div","wtip", g.tip));
-  return wrap;
-}
-
-// What this step does NOT do: judge the shape of the password. That rule lives in ONE place
-// (`connectors/email/credentials.py`) and reaches here as the connection's own error, so the wizard and the
-// connector can never drift apart on what a valid app password looks like. Here we only check what is
-// unambiguous locally (empty fields, an address that is not one) and strip the spaces the provider prints.
-function emailStep3Body(d, refs){
-  const wrap=el("div");
-  const addrL=el("label","f",tt("email_label", null, "Correo")); const addr=document.createElement("input");
-  addr.className="f"; addr.type="email"; addr.placeholder=tt("ph_email", null, "tucuenta@gmail.com"); addr.autocomplete="off";
-  addr.value=d.email_address||""; addr.oninput=()=>{d.email_address=addr.value; addr.classList.remove("errfield");};
-  const pwL=el("label","f",tt("app_password", null, "Contraseña de aplicación")); const pw=document.createElement("input");
-  pw.className="f"; pw.type="password"; pw.placeholder=tt("app_password_ph", null, "pega aquí la contraseña, no el enlace"); pw.autocomplete="off";
-  // The provider PRINTS the password in groups; those spaces are presentation and IMAP AUTH does not want them.
-  pw.value=d.email_password||"";
-  pw.oninput=()=>{ const clean=pw.value.replace(/\s+/g,""); if(clean!==pw.value) pw.value=clean;
-                   d.email_password=clean; pw.classList.remove("errfield"); };
-  wrap.append(addrL, addr, pwL, pw);
-  refs.addr=addr; refs.pw=pw;
-
-  if(d.provider==="otro"){
-    const imapL=el("label","f",tt("imap_host", null, "Servidor IMAP")); const imap=document.createElement("input");
-    imap.className="f"; imap.type="text"; imap.placeholder=tt("ph_imap", null, "imap.tudominio.com");
-    imap.value=d.imap_host||""; imap.oninput=()=>{d.imap_host=imap.value;};
-    const smtpL=el("label","f",tt("smtp_host", null, "Servidor SMTP")); const smtp=document.createElement("input");
-    smtp.className="f"; smtp.type="text"; smtp.placeholder=tt("ph_smtp", null, "smtp.tudominio.com");
-    smtp.value=d.smtp_host||""; smtp.oninput=()=>{d.smtp_host=smtp.value;};
-    wrap.append(imapL, imap, smtpL, smtp);
-    refs.imap=imap; refs.smtp=smtp;
-  }
-  return wrap;
-}
-
-// ── Telegram wizard steps (same shape as email, three steps → one at a time) ────────────────────────────
-function telegramStep1Body(){
-  const wrap=el("div");
-  wrap.appendChild(el("div","wbody",tt("tg_intro", null, "Inicia sesión con tu número: te llega un código dentro de la propia app de Telegram.")));
-  const link=document.createElement("a"); link.className="wlink"; link.href=PLAT.telegram.credLink;
-  link.target="_blank"; link.rel="noopener"; link.textContent=tt("tg_link", null, "Abrir my.telegram.org ↗");
-  wrap.appendChild(link);
-  return wrap;
-}
-
-function telegramStep2Body(){
-  const wrap=el("div");
-  const b=el("div","wbody");
-  b.append(document.createTextNode(tt("tg_go_1", null, "Entra en ")), el("b",null,"API development tools"),
-           document.createTextNode(tt("tg_go_2", null, " y rellena el formulario (")), el("b",null,"App title: Zaelar"),
-           document.createTextNode(", "), el("b",null,"Short name: Zaelar"),
-           document.createTextNode(tt("tg_go_3", null, ", el resto en blanco). Pulsa ")), el("b",null,"Create application"),
-           document.createTextNode("."));
-  wrap.appendChild(b);
-  return wrap;
-}
-
-function telegramStep3Body(refs){
-  const wrap=el("div");
-  wrap.appendChild(el("div","wtip",tt("tg_tip", null, "El api_id es un número corto y el api_hash una cadena larga de letras y números.")));
-  const d=_draft.telegram;
-  const idL=el("label","f","api_id"); const idI=document.createElement("input");
-  idI.className="f"; idI.type="text"; idI.inputMode="numeric"; idI.placeholder=tt("ph_api_id", null, "p.ej. 12345678");
-  idI.value=d.api_id||""; idI.oninput=()=>{d.api_id=idI.value;};
-  const hL=el("label","f","api_hash"); const hI=document.createElement("input");
-  hI.className="f"; hI.type="text"; hI.placeholder=tt("tg_hash_ph", null, "cadena larga de letras y números");
-  hI.value=d.api_hash||""; hI.oninput=()=>{d.api_hash=hI.value;};
-  wrap.append(idL, idI, hL, hI);
-  refs.id=idI; refs.hash=hI;
-  return wrap;
-}
-
-// WhatsApp needs no credentials — a single step; the QR that follows is a LIVE STATE layered on the wizard
-// screen (see renderWizardScreen's `status==="connecting"` branch), not something the user fills in.
-function whatsappStepBody(platform){
-  const wrap=el("div");
-  wrap.appendChild(el("div","wbody",tt("qr_press_1", null, "Pulsa Conectar para vincular tu ")+PLAT[platform].label+tt("qr_press_2", null, " con un código QR (como WhatsApp Web).")));
-  return wrap;
-}
-
-function WIZARD_STEPS(){ return {
-  telegram: [{title:tt("wiz_tg_1", null, "Entra en my.telegram.org")}, {title:tt("wiz_tg_2", null, "Crea la aplicación"), next:tt("wiz_tg_2_next", null, "Ya la he creado — continuar")},
-             {title:tt("wiz_tg_3", null, "Pega aquí los dos datos")}],
-  email:    [{title:tt("wiz_em_1", null, "Elige tu proveedor de correo")},
-             {title:tt("wiz_em_2", null, "Crea la contraseña de aplicación"), next:tt("wiz_em_2_next", null, "Ya la tengo — continuar")},
-             {title:tt("wiz_em_3", null, "Pega aquí tus datos")}],
-}; }
-
-// Card: credentials form (Telegram), guided for a non-technical user. Kept as the settings/muted-channels
-// path does not need it; message list rows never render a connector form inline any more (V2-570 moved every
-// connect flow to the wizard screen).
-
-// Card: QR to scan, with device-linking guide.
-// The caption alternates plain text and BOLD fragments (odd indexes are the menu entries to tap), so it is five
-// strings and not one — kept that way, one key each, rather than collapsing it into a sentence a translator
-// could not bold correctly.
-function qrSteps(key){
-  if(key === "qr_whatsapp") return [
-    tt("qr_wa_1", null, "Abre WhatsApp en tu móvil → "),
-    tt("qr_wa_2", null, "Ajustes → Dispositivos vinculados"),
-    " → ",
-    tt("qr_wa_3", null, "Vincular un dispositivo"),
-    tt("qr_scan", null, " y escanea este código."),
-  ];
-  if(key === "qr_telegram") return [
-    tt("qr_tg_1", null, "Abre Telegram en tu móvil → "),
-    tt("qr_tg_2", null, "Ajustes → Dispositivos"),
-    " → ",
-    tt("qr_tg_3", null, "Vincular dispositivo de escritorio"),
-    tt("qr_scan", null, " y escanea este código."),
-  ];
-  return [];
-}
-
-function qrCard(platform, pd){
-  const p=PLAT[platform];
-  const card=el("div","linkcard");
-  const ch=el("div","ch"); ch.append(badge(platform), el("b",null,tt("link_", null, "Vincular ")+p.label)); card.appendChild(ch);
-  const qr=(pd&&typeof pd.qr==="string"&&pd.qr.startsWith("data:image/"))?pd.qr:null;
-  if(qr){
-    const w=el("div","qr-wrap");
-    const img=document.createElement("img"); img.alt=tt("qr_of_", null, "Código QR de ")+p.label; img.src=qr; w.appendChild(img);
-    const qsteps = qrSteps(p.qrKey);
-    if(qsteps.length){
-      const cap=el("div","cap");
-      qsteps.forEach((t,i)=> cap.append(i%2 ? el("b",null,t) : document.createTextNode(t)));
-      w.appendChild(cap);
-    }
-    card.appendChild(w);
-  } else {
-    card.appendChild(el("div","waiting",tt("qr_generating_", null, "Generando el código QR de ")+p.label+"…"));
-  }
-  return card;
-}
 
 // Settings panel: simple/complete profile + connected platforms + muted channels. Replaces the old fixed footer
 // (always-visible "connected"/"unlink" chips) with something that does not distract unless the user asks for it.
@@ -1645,198 +1419,14 @@ function threadView(active, items, data, ctx, rerender, meta){
 }
 
 // Loader + human-readable connection state.
-const _ST_LABEL = {off:tt("st_off", null, "Sin conectar"), no_creds:tt("st_off", null, "Sin conectar"), starting:tt("st_connecting", null, "Conectando…"),
-                   connecting:tt("st_waiting_qr", null, "Esperando escaneo del QR…"), connected:tt("st_on", null, "Conectado"), error:tt("st_failed", null, "No se pudo conectar")};
-
-function statusLabel(pd){ return _ST_LABEL[(pd&&pd.status)||"off"] || (pd&&pd.status) || ""; }
-
-function spinner(){ const s=document.createElement("span"); s.className="spin"; return s; }
-
-function waitBox(label, detail){
-  const w=el("div","waitbox");
-  const l=el("div","lbl"); l.append(spinner(), document.createTextNode(label||tt("st_connecting", null, "Conectando…"))); w.appendChild(l);
-  if(detail) w.appendChild(el("div","det", detail));
-  return w;
-}
-
-function errorCard(pl, detail, ctx, rerender){
-  const c=el("div","errcard");
-  const t=el("div","et"); t.append(el("b",null,tt("failed_", null, "No se pudo conectar. ")), document.createTextNode(detail||tt("failed_hint", null, "Revisa los datos e inténtalo otra vez."))); c.appendChild(t);
-  const b=el("button","bt bt-ghost",tt("fix_retry", null, "Corregir y reintentar"));
-  // V2-559/V2-570: the wizard screen is already showing the LAST step (that is where a submit happens from),
-  // so there is nothing to "expand" any more — retry only needs to clear the busy flag and put the cursor
-  // back on the field to fix.
-  b.onclick=()=>{ _busy[pl]=false; _focusField[pl]="pw"; rerender(); };
-  c.appendChild(b);
-  return c;
-}
-
-// ── LIST screen: every connector as an icon box (V2-570) ────────────────────────────────────────────────
-function renderListScreen(platforms, ctx, rerender, connectedCount){
-  const wrap=el("div");
-  const head=el("div","chanhead");
-  head.appendChild(el("b",null, connectedCount ? tt("connectors", null, "Conectores") : tt("channels_available", null, "Canales disponibles")));
-  head.appendChild(el("span","hint", connectedCount ? "" : tt("connect_hint", null, "Conecta un canal para empezar — por voz o con un toque.")));
-  if(connectedCount){
-    const back=el("span","back",tt("back_messages", null, "← Mensajes"));
-    back.onclick=()=>{ _screen=null; ctx.top(); rerender(); };
-    head.appendChild(back);
-  }
-  wrap.appendChild(head);
-
-  wrap.appendChild(iconGrid(ORDER.filter(pl=>PLAT[pl]).map(pl=>{
-    const p=PLAT[pl];
-    const pd=platforms[pl]||{status:"off"};
-    const st=pd.status||"off";
-    const connected = st==="connected";
-    // A stale failure from a past session is not this list's news: without an attempt in this page
-    // session, an errored platform simply reads as not connected (the wizard opens clean too).
-    const sub = (st==="error" && !_attempted[pl]) ? _ST_LABEL.off : statusLabel(pd);
-    return {
-      key:pl, icon:brandIcon(pl, connected), label:p.label, sub, cls:(connected?"conn":""),
-      onClick:()=>{ _screen={view:"wizard", platform:pl}; if(!_wizStep[pl]) _wizStep[pl]=1; rerender(); },
-    };
-  })));
-  return wrap;
-}
-
-// ── WIZARD screen: a single connector, one step at a time (V2-570) ──────────────────────────────────────
-function renderWizardScreen(platform, platforms, ctx, rerender){
-  const wrap=el("div");
-  const p=PLAT[platform];
-  const pd=platforms[platform]||{status:"off"};
-  const st=pd.status||"off";
-  // The engine answered: any state past the local "connecting" clears busy — INCLUDING "error" (a refusal
-  // ENDS the attempt; leaving busy up kept the primary button disabled on «Conectando…» while the banner
-  // asked the operator to retry, seen rendering V2-582's screens).
-  if(st!=="off"&&st!=="no_creds") _busy[platform]=false;
-
-  const crumb=el("div","crumb");
-  const back=el("span","back",tt("back_connectors", null, "‹ Conectores"));
-  back.onclick=()=>{ _screen={view:"list"}; ctx.top(); rerender(); };
-  crumb.append(back, el("span","sep","/"), el("span","cur", p.label));
-  wrap.appendChild(crumb);
-
-  // CONNECTED: a status screen, not a wizard. The draft is NOT cleared on entry into this screen — only once
-  // the platform actually reports connected, so a refused connection never loses what the user typed.
-  if(st==="connected"){
-    _focusField[platform]=null;
-    _attempted[platform]=false;
-    if(platform==="email") _draft.email={email_address:"", email_password:"", provider:_draft.email.provider, imap_host:"", smtp_host:""};
-    if(platform==="telegram") _draft.telegram={api_id:"", api_hash:""};
-    const card=el("div","linkcard");
-    const ch=el("div","ch"); ch.append(brandIcon(platform,true), el("b",null,p.label)); card.appendChild(ch);
-    card.appendChild(el("div","wbody",tt("connected_note", null, "Conectado. Tus mensajes llegan aquí automáticamente.")));
-    if(_confirmDisconnect===platform){
-      const cfm=el("div","cfm");
-      cfm.appendChild(document.createTextNode(tt("confirm_disconnect", {p:p.label},
-        `¿Eliminar las credenciales de ${p.label}? Tendrás que volver a conectarlo.`)));
-      const row=el("div","row");
-      const y=el("button","bt bt-danger",tt("yes_disconnect", null, "Sí, desconectar"));
-      y.onclick=()=>{ _confirmDisconnect=null; _busy[platform]=false; _attempted[platform]=false;
-                      ctx.action("disconnect",{platform, forget:true}); };
-      const n=el("button","bt bt-ghost",tt("cancel", null, "Cancelar")); n.onclick=()=>{ _confirmDisconnect=null; rerender(); };
-      row.append(y,n); cfm.appendChild(row); card.appendChild(cfm);
-    } else {
-      const d=el("button","bt bt-ghost",tt("disconnect", null, "Desconectar"));
-      d.onclick=()=>{ _confirmDisconnect=platform; rerender(); };
-      card.appendChild(d);
-    }
-    wrap.appendChild(card);
-    return wrap;
-  }
-
-  // Live states pre-empt the step form entirely — there is nothing to fill in while these are showing.
-  if(_busy[platform] && (st==="off"||st==="no_creds")){
-    wrap.appendChild(waitBox(tt("st_connecting", null, "Conectando…"), tt("contacting", null, "Un momento, contactando con el servicio…")));
-    return wrap;
-  }
-  if(st==="starting"){ wrap.appendChild(waitBox(tt("st_connecting", null, "Conectando…"), pd.detail||"")); return wrap; }
-  if(st==="connecting"){ wrap.appendChild(qrCard(platform, pd)); return wrap; }
-  // The banner only accompanies an attempt made in THIS page session (operator's rule): a stored "error"
-  // from another day opens as a clean wizard — the failure already expired with its attempt.
-  if(st==="error" && _attempted[platform]){ wrap.appendChild(errorCard(platform, pd.detail, ctx, rerender)); }
-
-  const steps = WIZARD_STEPS()[platform] || [{title:tt("connect_", null, "Conectar ")+p.label}];
-  const total = steps.length;
-  let step = Math.min(Math.max(_wizStep[platform]||1, 1), total);
-  _wizStep[platform] = step;
-
-  const refs = {};
-  const box = stepBox(step, steps[step-1].title, false);
-  // «Paso N de 3» lives IN the header row, right-aligned: under the title it read as body text and pushed
-  // the real content down; next to it, it is the wayfinding it was meant to be.
-  if(total>1) box.querySelector(".whead").appendChild(el("span","wcount", `Paso ${step} de ${total}`));
-
-  let content;
-  if(platform==="email"){
-    const d=_draft.email;
-    content = step===1 ? emailStep1Body(d, rerender) : step===2 ? emailStep2Body(d) : emailStep3Body(d, refs);
-  } else if(platform==="telegram"){
-    content = step===1 ? telegramStep1Body() : step===2 ? telegramStep2Body() : telegramStep3Body(refs);
-  } else {
-    content = whatsappStepBody(platform);
-  }
-  box.appendChild(content);
-  wrap.appendChild(box);
-
-  const err = el("div","err"); err.style.display="none";
-  const fail=(msg, field)=>{ err.textContent=msg; err.style.display="block";
-    if(field){ field.classList.add("errfield"); try{ field.focus(); }catch{ /* detached */ } } };
-
-  // Coming back from a failure: land ON the field to fix (only ever set on the LAST step, where submission
-  // happens), not at the top of the screen.
-  if(_focusField[platform]){
-    const target = refs[_focusField[platform]];
-    _focusField[platform]=null;
-    if(target){ setTimeout(()=>{ try{ target.focus(); target.scrollIntoView({block:"center"}); }catch{ /* detached */ } }, 0); }
-  }
-
-  const foot = el("div","wfoot");
-  const backBtn = el("button","bt bt-ghost", tt("back_step", null, "Atrás"));
-  backBtn.onclick=()=>{
-    ctx.top();
-    if(step>1){ _wizStep[platform]=step-1; rerender(); }
-    else { _screen={view:"list"}; rerender(); }
-  };
-  foot.appendChild(backBtn);
-
-  const isLast = step===total;
-  // A step whose work happens OUTSIDE (create the password at the provider) labels its own advance
-  // («Ya la tengo — continuar»): a bare "Continuar" reads as skippable, and skipping it is the incident.
-  const nextBtn = el("button","bt bt-primary", isLast ? (_busy[platform]?tt("st_connecting", null, "Conectando…"):"Conectar "+p.label)
-                                                      : (steps[step-1].next || tt("continue", null, "Continuar")));
-  nextBtn.disabled = isLast && !!_busy[platform];
-  nextBtn.onclick=()=>{
-    if(!isLast){ _wizStep[platform]=step+1; ctx.top(); rerender(); return; }
-    if(platform==="email"){
-      const d=_draft.email;
-      const email_address=(refs.addr.value||"").trim();
-      const email_password=(refs.pw.value||"").replace(/\s+/g,"");
-      if(!/.+@.+\..+/.test(email_address)) return fail(tt("err_email", null, "Necesito tu dirección de correo completa."), refs.addr);
-      if(!email_password) return fail(tt("err_password", null, "Falta la contraseña de aplicación del paso 2."), refs.pw);
-      const payload={platform, email_address, email_password, provider:d.provider};
-      if(d.provider==="otro"){
-        if(!refs.imap.value.trim()) return fail(tt("err_imap", null, "Para «Otro» necesito el servidor IMAP."), refs.imap);
-        if(!refs.smtp.value.trim()) return fail(tt("err_smtp", null, "Para «Otro» necesito el servidor SMTP."), refs.smtp);
-        payload.imap_host=refs.imap.value.trim(); payload.smtp_host=refs.smtp.value.trim();
-      }
-      _busy[platform]=true; _attempted[platform]=true; ctx.action("connect", payload); rerender();
-      // The draft is NOT cleared here (V2-559/V2-570): a refused connection comes back to this same step, and
-      // wiping it meant retyping the address and the 16 letters from scratch. It is cleared once CONNECTED.
-    } else if(platform==="telegram"){
-      const api_id=(refs.id.value||"").trim(), api_hash=(refs.hash.value||"").trim();
-      if(!/^\d+$/.test(api_id) || !api_hash){ fail(tt("err_tg", null, "Necesito el api_id (solo números) y el api_hash.")); return; }
-      _busy[platform]=true; _attempted[platform]=true; ctx.action("connect", {platform, api_id, api_hash}); rerender();
-    } else {
-      _busy[platform]=true; _attempted[platform]=true; ctx.action("connect", {platform}); rerender();
-    }
-  };
-  foot.appendChild(nextBtn);
-
-  wrap.appendChild(err);
-  wrap.appendChild(foot);
-  return wrap;
+// Nothing connected yet: the card says so and offers each channel — linking one is the ⚙ Conectores
+// section's job (2026-10-04), the same place «conecta mi WhatsApp» opens by voice.
+function connectPrompt(platforms, ctx){
+  const box=el("div","wiz");
+  box.appendChild(el("div","wbody",tt("connect_prompt", null, "Conecta un canal para ver aquí tus mensajes.")));
+  box.appendChild(iconGrid(ORDER.map(pl=>({key:pl, icon:brandIcon(pl, false), label:(PLAT[pl]||{}).label||pl,
+    onClick:()=>ctx.openConnector(pl)}))));
+  return box;
 }
 
 // ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
@@ -1875,26 +1465,12 @@ export function render(root, data, ctx){
     selectPlatform(pushed.platform);
   }
 
-  // The brain was asked to connect a channel (V2-520, redesigned V2-570): jump straight into that
-  // connector's OWN screen — never the list — so "connect my email" lands on the Gmail/Outlook/… wizard
-  // directly instead of a panel the operator still has to click through. Honoured once per request.
-  const focus = data.connect_focus || null;
-  if(focus && Number(focus.ts||0) > _focusDone){
-    _focusDone = Number(focus.ts||0);
-    if(focus.platform && PLAT[focus.platform]){
-      _screen = {view:"wizard", platform:focus.platform};
-      if(!_wizStep[focus.platform]) _wizStep[focus.platform]=1;
-    } else {
-      _screen = {view:"list"};
-    }
-  }
-
   // V2-622 — an open thread/mail already carries its OWN header (platform + contact/subject + "← Volver");
   // the dashboard header below (inbox count, every platform dot, connectors/settings/clear) stacked ABOVE
   // that is not a second control surface, it is dead weight — on a hard refresh, with nothing to scroll past
   // to hide it, it read as two headers glued together (operator screenshot, 2026-09-08). Checked here, before
   // the dashboard header is even built, so it never gets appended for these two screens.
-  const showChannels = !!_screen || connectedCount===0;
+  const showChannels = connectedCount===0;
   const fItems = _platFilter ? items.filter(it=>it.platform===_platFilter) : items.filter(it=>it.highlight);
   const activeChat = !showChannels ? (data.active_chat || null) : null;
   if(activeChat){
@@ -1946,7 +1522,7 @@ export function render(root, data, ctx){
         ctx.top(); ctx.action("show_view",{platform:next}); rerender(); };
     } else {
       ic.title=(PLAT[pl]||{}).label+tt("dot_connect", null, ": sin conectar — toca para conectarlo");
-      ic.onclick=()=>{ _screen={view:"wizard", platform:pl}; if(!_wizStep[pl]) _wizStep[pl]=1; ctx.top(); rerender(); };
+      ic.onclick=()=>ctx.openConnector(pl);     // ⚙ Conectores, on that channel
     }
     dots.appendChild(ic);
   });
@@ -1955,13 +1531,13 @@ export function render(root, data, ctx){
   // nivel ni pegados a lo que son secciones o diferentes plataformas". `.hdactions` is a second cluster with
   // its own divider, so it reads as a DIFFERENT kind of control from the row of channel icons beside it.
   const actions=el("div","hdactions");
-  const connBtn=el("button","connbtn"+(_screen?" active":""),"🔌"); connBtn.title=tt("channels_btn", null, "Canales / conectores");
-  connBtn.onclick=()=>{ _screen = _screen ? null : {view:"list"}; if(!_screen) _confirmDisconnect=null; ctx.top(); rerender(); };
+  const connBtn=el("button","connbtn","🔌"); connBtn.title=tt("channels_btn", null, "Canales / conectores");
+  connBtn.onclick=()=>ctx.openConnector(_platFilter || "");
   actions.appendChild(connBtn);
   const gear=el("button","gear"+(_settingsOpen?" active":""),"⚙"); gear.title=tt("settings", null, "Ajustes");
   gear.onclick=()=>{ _settingsOpen=!_settingsOpen; rerender(); };
   actions.appendChild(gear);
-  if(items.length && !_screen){
+  if(items.length){
     const clr=el("button","clr",tt("clear", null, "Limpiar")); clr.title=tt("mark_all_read", null, "Marcar todo como leído");
     clr.onclick=()=>ctx.action("clear"); actions.appendChild(clr);
   }
@@ -1974,12 +1550,7 @@ export function render(root, data, ctx){
   // button, or when the brain pushed a `connect_focus`. Messaging starts EMPTY; do not dump every connection
   // form by default (V2-051 product decision, unchanged).
   if(showChannels){
-    const scr = _screen || {view:"list"};
-    if(scr.view==="wizard" && scr.platform && PLAT[scr.platform]){
-      root.appendChild(renderWizardScreen(scr.platform, platforms, ctx, rerender));
-    } else {
-      root.appendChild(renderListScreen(platforms, ctx, rerender, connectedCount));
-    }
+    root.appendChild(connectPrompt(platforms, ctx));
     return;
   }
 

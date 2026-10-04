@@ -202,14 +202,14 @@ def _a_add_channel(action, payload, q, db, contacts, now) -> dict:
     return d
 
 
-def _a_show_connectors(action, payload, q, db, contacts, now) -> dict:
+def _a_show_sources(action, payload, q, db, contacts, now) -> dict:
     # The plug button, by voice (V2-715). Every control on this card has to be reachable both ways —
     # «ábreme los conectores de contactos» used to have no action at all, so the model's only move was
     # to show the widget and describe a button the operator was already looking at.
-    _d._push_view(db, {"screen": "connectors"})
+    _d._push_view(db, {"screen": "sources"})
     _d.store.save(_d.WIDGET_ID, db)
     d = _d.view_data(q)
-    d.update({"ok": True, "result": {"screen": "connectors",
+    d.update({"ok": True, "result": {"screen": "sources",
                                      "sources": [{"id": p_["id"], "label": p_.get("label"),
                                                   "status": p_.get("status")}
                                                  for p_ in (d.get("providers") or [])]}})
@@ -361,15 +361,6 @@ def _a_show_contact(action, payload, q, db, contacts, now) -> dict:
     kids = [_d._public(x) for x in db.get("contacts", []) if x.get("parentId") == c["id"]]
     d = _d.view_data(q)
     d.update({"ok": True, "result": {"contact": _d._public(c), "linked": kids}})
-    return d
-
-
-def _a_connection(action, payload, q, db, contacts, now) -> dict:
-    if action == "connect":
-        return _d.gcontacts.connect(str(payload.get("tier") or ""), str(payload.get("origin") or ""))
-    res = _d.gcontacts.disconnect()
-    d = _d.view_data(q)
-    d.update({"ok": bool(res.get("ok")), "result": res})
     return d
 
 

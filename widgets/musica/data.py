@@ -521,7 +521,7 @@ def ref_index() -> list:
 # V2-778 F1-12 — the action handlers live in `actions.py`, imported back under their names (that module
 # reads this one).
 from .actions import (  # noqa: E402,F401
-    _a_connect, _a_disconnect, _a_refresh, _a_enrich_art, _a_create_playlist, _a_add_to_playlist,
+    _a_refresh, _a_enrich_art, _a_create_playlist, _a_add_to_playlist,
     _a_remove_from_playlist, _a_favorite_current, _a_play_playlist, _a_open_view, _a_back, _a_play_local, _a_seek,
     _a_playback)
 
@@ -532,8 +532,6 @@ from .actions import (  # noqa: E402,F401
 
 
 ACTIONS = {
-    "connect": _a_connect,
-    "disconnect": _a_disconnect,
     "refresh": _a_refresh,
     "enrich_art": _a_enrich_art,
     "create_playlist": _a_create_playlist,

@@ -580,49 +580,6 @@ function syncYtPlayer(el, data, ctx){
   setTimeout(wake, 1200); setTimeout(wake, 2600);
 }
 
-// Spotify connection, intact from V2-041.
-async function doConnect(ctx, client_id, btn, adv){
-  if(btn){ btn.disabled = true; btn.textContent = tt("opening_spotify", null, "Abriendo Spotify…"); }
-  // V2-700 — the popup was already right here; what was missing is the NOTICING. `ctx.connect` watches
-  // for the connection landing and re-reads state, so the card stops asking to connect on its own.
-  const res = await ctx.connect("connect", client_id ? {client_id} : {}, {family: "musica", name: "spotify"});
-  if(res && res.url){
-    if(btn) btn.textContent = tt("finish_login", null, "Termina el login en la ventana…");
-  } else {
-    if(btn){ btn.disabled = false; btn.textContent = client_id ? tt("connect_own_id", null, "Conectar con mi Client ID") : tt("connect_spotify", null, "Conectar Spotify"); }
-    if(res && res.need_client_id && adv) adv.open = true;
-  }
-}
-
-function connectBlock(data, ctx, {compact=false} = {}){
-  const frag = document.createDocumentFragment();
-  let adv;
-  if(data.can_connect){
-    const b = h("button", compact ? "hb-mus2-link" : "hb-mus2-btn",
-      compact ? tt("connect_spotify_lib", null, "Conectar Spotify (tu biblioteca)") : tt("connect_spotify", null, "Conectar Spotify"));
-    b.onclick = () => doConnect(ctx, "", compact ? null : b, adv);
-    frag.appendChild(b);
-  }
-  adv = h("details", "hb-mus2-adv");
-  if(!data.can_connect) adv.open = true;
-  adv.appendChild(h("summary", null, data.can_connect ? tt("own_app", null, "Usar mi propia app de Spotify (avanzado)")
-                                                      : tt("own_app_title", null, "Conectar con tu app de Spotify")));
-  const ol = h("ol", "hb-mus2-steps");
-  ol.appendChild(h("li", null, tt("own_app_1", null, "Entra en developer.spotify.com → Dashboard → Create app.")));
-  const li2 = h("li", null, tt("own_app_2", null, "En «Redirect URIs» añade exactamente:"));
-  li2.appendChild(h("div", "hb-mus2-code", data.redirect_uri || "http://127.0.0.1:43917/api/spotify/callback"));
-  ol.appendChild(li2);
-  ol.appendChild(h("li", null, tt("own_app_3", null, "Copia el «Client ID» y pégalo aquí:")));
-  adv.appendChild(ol);
-  const inp = h("input", "hb-mus2-inp"); inp.placeholder = tt("own_app_ph", null, "Tu Client ID de Spotify");
-  adv.appendChild(inp);
-  const b2 = h("button", "hb-mus2-btn ghost", tt("connect_own_id", null, "Conectar con mi Client ID"));
-  b2.onclick = () => { const v = (inp.value||"").trim(); if(v) doConnect(ctx, v, b2, adv); };
-  adv.appendChild(b2);
-  frag.appendChild(adv);
-  return frag;
-}
-
 // Playback bar (Spotify or YouTube).
 function nowPlaying(data){
   if(data.now_playing && data.now_playing.title) return data.now_playing;
@@ -1029,7 +986,7 @@ function newListCard(lists, ctx){
   return card;
 }
 
-// ── FUENTES: the connectors screen ───────────────────────────────────────────────────────────────────────
+// ── FUENTES: where the music comes from ───────────────────────────────────────────────────────────────────────
 // The Spotify block used to sit in the middle of the library, where it was the first thing the eye met on a
 // card that had not been asked anything yet. It is a screen of its own now, behind the source chip — the
 // same shape the contacts card took in V2-715, and the same reason: the connector is not the content.
@@ -1044,13 +1001,16 @@ function connectView(host, data, ctx){
   if(data.connected){
     sec.appendChild(h("div", "hb-mus2-sub", tt("spotify_on", null,
       "Spotify está conectado: tu biblioteca y tus dispositivos ya están disponibles.")));
-    const d = h("button", "hb-mus2-btn ghost", tt("disconnect", null, "Desconectar Spotify"));
-    d.onclick = () => ctx.action("disconnect");
+    const d = h("button", "hb-mus2-btn ghost", tt("manage_spotify", null, "Gestionar Spotify"));
+    d.onclick = () => ctx.openConnector("spotify");
     sec.appendChild(d);
   } else {
     sec.appendChild(h("div", "hb-mus2-sub", tt("connect_hint", null,
       "Dime «pon música» o «ponme a Frank Sinatra» y suena gratis. Conecta tu Spotify (Premium) para tu biblioteca.")));
-    sec.appendChild(connectBlock(data, ctx, {compact: false}));
+    // The connection itself lives in ⚙ Conectores (2026-10-04) — the one door the voice also opens.
+    const b = h("button", "hb-mus2-btn", tt("connect_spotify", null, "Conectar Spotify"));
+    b.onclick = () => ctx.openConnector("spotify");
+    sec.appendChild(b);
   }
   scroll.appendChild(sec);
   wrap.appendChild(scroll);

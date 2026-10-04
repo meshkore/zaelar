@@ -988,7 +988,14 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-wiz-text{margin:0;font-size:0.875rem;line-height:1.6;color:var(--hb-ink)}
 .cf-wiz-link{color:var(--hb-accent);font-weight:600;font-size:0.8125rem}
 .cf-wiz-code{display:flex;align-items:center;gap:10px;margin:6px 0;padding:8px 10px;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:8px}
-.cf-wiz-code code{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;font-size:0.75rem}
+.cf-wiz-code code{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;font-size:0.75rem;white-space:pre-wrap}
+/* Google — one account, one row per service (its card, its state, its own consent). */
+.cf-gsvcs{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.cf-gsvc{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--hb-line);border-radius:8px;background:var(--hb-bg)}
+.cf-gsvc.on{border-color:var(--hb-accent);box-shadow:0 0 0 1px var(--hb-accent)}
+.cf-gsvc-name{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;font-weight:600}
+.cf-gsvc-name small{font-weight:400;color:var(--hb-muted);font-size:0.75rem}
+.cf-gsvc select{max-width:180px}
 .cf-wiz-qr{text-align:center;padding:6px 0}
 .cf-wiz-qr img{width:220px;max-width:70vw;border-radius:12px;background:#fff;padding:8px}
 .cf-wiz-qr p,.cf-wiz-wait{margin:8px 0 0;font-size:0.8125rem;color:var(--hb-muted-2);line-height:1.5}

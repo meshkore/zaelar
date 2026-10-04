@@ -7,7 +7,6 @@
     "channel": "str",
     "channels": "list",
     "cmd_seq": "int",
-    "connect_focus": "NoneType",
     "connector_shelf": "list",
     "history": "list",
     "last_cmd": "str",

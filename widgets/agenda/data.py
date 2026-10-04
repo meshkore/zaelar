@@ -164,9 +164,6 @@ def view_data(q: str = "") -> dict:
         # The pushed VIEW (show_day). The widget honours it when its token moves and otherwise leaves the
         # operator's own tab alone — a refresh must never yank the day he is reading out from under him.
         "view": _fresh_view(db),
-        # V2-686 — the pushed CONNECT screen: a voice order to link Google Calendar leaves the card on the
-        # step that holds the button, because the consent itself needs the operator's own click.
-        "connect": gcal.fresh_connect(db),
         "calendars": calendars(),        # header strip: which calendar providers are linked
         # V2-679 — the default-calendar picker reads this tick-refreshed cache; view_data stays a pure read.
         "googleCalendars": (db.get("google") or {}).get("calendars", []),
@@ -292,8 +289,6 @@ ACTIONS = {
     "decline_proposal": _a_proposal,
     "show_day": _a_show_day,
     "find_free": _a_find_free,
-    "connect": _a_connection,
-    "disconnect": _a_connection,
     "set_default_calendar": _a_connection,
 }
 

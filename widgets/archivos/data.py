@@ -73,7 +73,7 @@ _SHELF_OF_FMT = {"video": "video", "audio": "audio", "document": "documents", "i
 def _seed() -> dict:
     return {
         "provider": "local", "folder_id": "", "trail": [], "entries": [], "next": "",
-        "query": "", "selected": None, "mode": "list", "panel": "",
+        "query": "", "selected": None, "mode": "list",
         "error": "", "reason": "", "updated": 0, "connected": False, "providers": [], "providers_updated": 0,
     }
 
@@ -145,7 +145,6 @@ def view_data(q: str = ""):
         "query": db.get("query") or "",
         "selected": db.get("selected"),
         "mode": db.get("mode") if db.get("mode") in _MODES else "list",
-        "panel": db.get("panel") or "",
         "error": db.get("error") or "",
         "reason": db.get("reason") or "",
         "count": len(db.get("entries") or []),
@@ -574,58 +573,6 @@ def apply_action(action: str, payload: dict | None = None):
         _save(db)
         return {"ok": True, "providers": db["providers"]}
 
-    if act == "open_connectors":
-        svc = _svc()
-        if svc is None:
-            return _err("el conector de archivos no está disponible en esta instalación")
-        db = _sync_status(db, svc)
-        db["panel"] = "connect"
-        want = _text(payload.get("provider"), 40).lower()
-        _save(db)
-        return {"ok": True, "panel": "connect", "provider": want, "providers": svc.providers_public()}
-
-    if act == "connect_provider":
-        want = _text(payload.get("provider"), 40).lower() or (db.get("provider") or "")
-        if not want or want == "local":
-            return _err("dime qué servicio conecto: gdrive u onedrive")
-        try:
-            from connectors.files import oauth as _oauth
-        except Exception:
-            return _err("el conector de archivos no está disponible en esta instalación")
-        if not _oauth.configured(want):
-            return _err(f"«{want}» todavía no tiene su aplicación registrada. Entra en Configuración → "
-                        f"Conectores y pega ahí su client_id (una sola vez).", needs_app=True)
-        res = _oauth.authorize_url(want, _text(payload.get("tier"), 40))
-        if not res.get("ok"):
-            return _err(res.get("error") or "no pude preparar la conexión")
-        db["panel"] = "connect"
-        _save(db)
-        return {"ok": True, "provider": want, "url": res.get("url"), "tier": res.get("tier") or ""}
-
-    if act == "disconnect_provider":
-        want = _text(payload.get("provider"), 40).lower()
-        if not want:
-            return _err("dime qué servicio desconecto")
-        try:
-            from connectors.files import oauth as _oauth
-        except Exception:
-            return _err("el conector de archivos no está disponible en esta instalación")
-        _oauth.forget(want)
-        svc = _svc()
-        if svc is not None:
-            db = _sync_status(db, svc)
-        if db.get("provider") == want:
-            db["provider"] = "local"
-            db = _relist_local(db, "")
-        db["panel"] = "connect"
-        _save(db)
-        return {"ok": True, "provider": want}
-
-    if act == "close_connectors":
-        db["panel"] = ""
-        _save(db)
-        return {"ok": True, "panel": ""}
-
     if act == "set_view":
         mode = _text(payload.get("mode"), 12).lower()
         if mode not in _MODES:
@@ -676,14 +623,13 @@ def apply_action(action: str, payload: dict | None = None):
             return _err("el conector de archivos no está disponible en esta instalación")
         db = _sync_status(db, svc)
         if not db.get("connected"):
-            return _err("no hay ningún servicio de archivos conectado. Dime que quieras conectarlo y te "
-                        "abro el asistente (o entra en Configuración → Conectores)", panel_hint="connect")
+            return _err("no hay ningún servicio de archivos conectado: se conecta en la sección Conectores "
+                        "(show_panel panel='conectores', connector='gdrive' u 'onedrive')")
         return _handle_cloud_nav(db, svc, act, payload)
 
     return _err(f"acción desconocida: «{act}». Las que hay: refresh, open_folder, go_up, go_home, "
                 f"search_files, clear_search, open_file, save_document, rename_file, copy_file, delete_file, "
-                f"reveal_local_file, set_view, set_provider, open_connectors, close_connectors, "
-                f"connect_provider, disconnect_provider")
+                f"reveal_local_file, set_view, set_provider")
 
 
 def _save_document(db: dict, payload: dict) -> dict:
@@ -704,7 +650,6 @@ def _save_document(db: dict, payload: dict) -> dict:
         return _err(res.get("error") or "no pude guardar el fichero")
     db["provider"] = "local"
     db["query"] = ""
-    db["panel"] = ""
     db = _relist_local(db, f"shelf:{kind}")
     rec = res.get("entry") or {}
     db["selected"] = _local_row(rec) if rec else None

@@ -101,34 +101,23 @@ export function render(root, data, ctx) {
     return;
   }
 
-  wrap.appendChild(toolbar(d, act));
+  wrap.appendChild(toolbar(d, act, ctx));
   wrap.appendChild(gallery(d, act));
 }
 
+// Not linked yet: the account is connected in the ⚙ Conectores section (the one door, 2026-10-04) — this
+// card only says so and takes him there, on Google with Photos picked out.
 function connectPanel(d, act, ctx) {
   const box = el("div", "fts-cx");
-  box.appendChild(el("p", "", d.app_configured
-    ? tt("not_connected", null, "Google Photos no está conectado. Al pulsar se abrirá el consentimiento de Google.")
-    : tt("needs_app", null, "Google Photos necesita una app OAuth registrada una vez en Configuración → Conectores.")));
+  box.appendChild(el("p", "", tt("not_connected", null, "Google Photos no está conectado todavía.")));
   const b = el("button", "fts-btn", tt("connect", null, "Conectar Google Photos"));
-  b.onclick = async () => {
-    b.disabled = true;
-    // ⚠️ V2-700 — this used to call window.open AFTER the await, under a comment claiming it did the
-    // opposite. That is outside the user gesture and every mainstream browser blocks it in SILENCE.
-    // `ctx.connect` opens it inside the click and then watches for the connection landing, so the card
-    // stops offering «Conectar» on its own.
-    const res = await ctx.connect("connect", {}, {family: "fotos", onDone: () => { b.disabled = false; }});
-    if (!(res && res.ok && res.url)) {
-      box.appendChild(el("p", "fts-note bad", (res && res.error) || tt("picker_failed", null, "No se pudo abrir el selector.")));
-    }
-    b.disabled = false;
-  };
+  b.onclick = () => ctx.openConnector("google-photos");
   box.appendChild(b);
   if (d.error) box.appendChild(el("p", "fts-note bad", d.error));
   return box;
 }
 
-function toolbar(d, act) {
+function toolbar(d, act, ctx) {
   const bar = el("div", "fts-bar");
   const find = el("div", "fts-find");
   const input = document.createElement("input");
@@ -157,10 +146,11 @@ function toolbar(d, act) {
   bar.appendChild(labelBtn);
 
   const addBtn = el("button", "fts-btn", tt("pick_more", null, "Elegir más fotos"));
+  // `ctx.connect` opens Google's picker window INSIDE the click (one opened after an await is blocked in
+  // silence) and watches the card for the batch landing.
   addBtn.onclick = async () => {
     addBtn.disabled = true;
-    const res = await act("connect", {});
-    if (res && res.ok && res.url) window.open(res.url, "_blank", "noopener");
+    await ctx.connect("pick", {}, {family: "fotos", onDone: () => { addBtn.disabled = false; }});
     addBtn.disabled = false;
   };
   bar.appendChild(addBtn);

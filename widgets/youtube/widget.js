@@ -279,27 +279,9 @@ function injectStyles(){
   .hb-yt-conn{display:flex;flex-direction:column;gap:10px}
   .hb-ytw-crumb{font-size:12px;color:var(--hb-accent,#3D6FE0);cursor:pointer;font-weight:600;
                 align-self:flex-start}
-  .hb-ytw-step{border:1px solid var(--hb-line,#eef1f6);border-radius:12px;padding:12px;
-               display:flex;flex-direction:column;gap:8px;background:var(--hb-bg-soft,#fbfdff)}
-  .hb-ytw-head{display:flex;align-items:center;gap:8px}
-  .hb-ytw-num{width:22px;height:22px;border-radius:50%;background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);
-              display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
-              flex:0 0 auto}
-  .hb-ytw-title{font-size:13.5px;font-weight:700;color:var(--hb-ink,#0d1622)}
-  .hb-ytw-count{margin-left:auto;font-size:11px;color:var(--hb-muted-2,#9aa7b8)}
-  .hb-ytw-body{font-size:12.5px;color:var(--hb-muted,#5b6b82);line-height:1.45;
-               display:flex;flex-direction:column;gap:7px}
-  .hb-ytw-body a{color:var(--hb-accent,#3D6FE0)}
-  .hb-ytw-foot{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  .hb-ytw-err{font-size:12px;color:var(--hb-risk,#e5484d);line-height:1.4}
-  .hb-ytw-ok{font-size:12.5px;color:var(--hb-accent,#3D6FE0);font-weight:600}
   /* V2-603 — secondary actions under the primary button: the manual check (now a fallback, not the way the
      flow completes) and the escape hatch to one's own OAuth app. Links, not buttons: a second button next to
      «Conectar» reads as an equal choice, and neither of these is one. */
-  .hb-ytw-alt{display:flex;gap:14px;flex-wrap:wrap;margin-top:2px}
-  .hb-ytw-link{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);cursor:pointer;text-decoration:underline;
-    text-underline-offset:2px;min-height:44px;display:inline-flex;align-items:center}
-  .hb-ytw-link:hover{color:var(--hb-accent,#3D6FE0)}
   /* HOME suggestions band (V2-597): section header spanning the grid; tiles reuse .hb-yt-tile. */
   .hb-yt-sughead{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
                  color:var(--hb-ink,#0d1622);margin-top:2px}
@@ -455,7 +437,7 @@ function post(target, func, args){
 
 // ── ACCOUNT layer (V2-597) ────────────────────────────────────────────────────────────────────────────────
 // Module-lived screen state (the module loads once, so it survives re-renders — the messaging pattern):
-// null = normal faces · {view:"wizard"|"status", platform} = a platform's connect/status screen.
+// null = normal faces · {view:"shelf"} = the video SOURCES. Connecting one is the ⚙ Conectores section's job.
 let _screen = null;
 // V2-632 — the active TAB. Module-lived like _screen; "" = derive from data at build (video → player,
 // none → inicio). selectTab is the ONLY writer and also clears _screen (the V2-626 rule: choosing a surface
@@ -480,12 +462,8 @@ function tabLabel(id){
 function applyTabClass(root){
   _TABS.forEach((id) => root.classList.toggle("hb-yt-t-" + id, _tab === id));
 }
-const _wizStep = {};        // platform -> current wizard step (1..2)
-let _connUrl = "";          // consent URL to offer as a link when the pop-up was blocked
-let _focusDone = 0;         // last honoured connect_focus ts (consumed once per timestamp)
 let _syncAsked = 0;         // last time this card asked for a platform re-sync (guards against loops)
-let _connBusy = false;      // a connect/check round-trip is running (buttons disabled meanwhile)
-let _connErr = "";          // an error of THIS screen's own attempt — never a stale stored one (V2-582)
+let _connErr = "";          // why a source on the shelf cannot open — never a stale stored one (V2-582)
 
 // Brand mark, inline SVG (simple-icons outline path, CC0) — never a CDN: widget.js touches no network.
 const _BRAND = {
@@ -516,19 +494,8 @@ function fmtAge(ts){
   return tt("age_hour", {n: Math.round(m / 60)}, "hace " + Math.round(m / 60) + " h");
 }
 
-function stepBox(n, total, title){
-  const box = el("div", "hb-ytw-step");
-  const head = el("div", "hb-ytw-head");
-  head.appendChild(el("span", "hb-ytw-num", String(n)));
-  head.appendChild(el("span", "hb-ytw-title", title));
-  if(total > 1) head.appendChild(el("span", "hb-ytw-count", tt("wiz_step_n", {n, total}, "Paso " + n + " de " + total)));
-  box.appendChild(head);
-  return box;
-}
-
-// The connect screens (V2-597): a step WIZARD for a platform that is not connected — one step visible at a
-// time, the middle one being work done elsewhere (the ⚙ panel holds the credentials; V2-520: nothing here
-// carries one) — and a STATUS screen with disconnect for one that is. Rebuilt on every render, like the list.
+// The SOURCES shelf (V2-632): every video source with its honest state. A usable one opens the ⚙ Conectores
+// section on it (2026-10-04) — the card no longer carries its own connect wizard or status screen.
 function renderConn(E, root, data, ctx){
   const box = E.conn;
   if(!box) return;
@@ -538,19 +505,13 @@ function renderConn(E, root, data, ctx){
   if(root._hbYtPaintTabs) root._hbYtPaintTabs();
   box.textContent = "";
   if(!_screen) return;
-  const pid = _screen.platform || "youtube";
-  const rows = Array.isArray(data.platforms) ? data.platforms : [];
-  const row = rows.find((r) => r.id === pid)
-              || {id: pid, label: "YouTube", connected: false, app_configured: false};
   const repaint = () => renderConn(E, root, data, ctx);
 
   const back = () => {
-    if(_screen && _screen.view !== "shelf"){ _screen = {view: "shelf"}; _connErr = ""; repaint(); return; }
     if(root._hbYtSelectTab) root._hbYtSelectTab(_tab || "inicio");
     else { _screen = null; repaint(); }
   };
-  const crumb = el("div", "hb-ytw-crumb",
-                   (_screen && _screen.view !== "shelf") ? tt("back_sources", null, "‹ Fuentes de vídeo") : tt("back", null, "‹ Volver"));
+  const crumb = el("div", "hb-ytw-crumb", tt("back", null, "‹ Volver"));
   crumb.addEventListener("click", back);
   box.appendChild(crumb);
 
@@ -585,11 +546,7 @@ function renderConn(E, root, data, ctx){
           : rw.state === "not-possible" ? tt("st_impossible", null, "No es posible")
           : tt("st_soon", null, "No disponible aún")));
       bx.addEventListener("click", () => {
-        if(usable){
-          _screen = {view: rw.connected ? "status" : "wizard", platform: rw.id};
-          if(!_wizStep[rw.id]) _wizStep[rw.id] = 1;
-          _connErr = ""; repaint(); return;
-        }
+        if(usable){ ctx.openConnector(rw.id); return; }
         _connErr = (rw.label || rw.id) + ": " + (rw.note ||
           (rw.id === "youtube"
             ? tt("why_impossible", null, "de momento no es posible conectar la cuenta — falta registrar el cliente OAuth.")
@@ -600,173 +557,9 @@ function renderConn(E, root, data, ctx){
     });
     box.appendChild(grid);
     if(_connErr) box.appendChild(el("div", "hb-yt-shnote", _connErr));
-    return;
   }
-
-  const act = async (name, payload) => {
-    if(!ctx || !ctx.action) return null;
-    _connBusy = true; repaint();
-    let r = null;
-    try { r = await ctx.action(name, payload || {}); } catch(_e){ r = null; }
-    _connBusy = false;
-    return r;
-  };
-  const btn = (label, cls) => {
-    const b = el("button", "hb-yt-btn", label);
-    if(cls) b.classList.add(cls);
-    b.disabled = _connBusy;
-    return b;
-  };
-
-  if(row.connected && _screen.view !== "wizard"){
-    const st = stepBox("✓", 1, tt("connected_title", {label: row.label || "YouTube"}, "{label} conectado"));
-    const body = el("div", "hb-ytw-body");
-    body.appendChild(el("div", "", tt("readonly", null,
-      "Cuenta conectada en modo solo lectura: las sugerencias del inicio salen de tus suscripciones. Tu cuenta no se toca.")));
-    st.appendChild(body);
-    const foot = el("div", "hb-ytw-foot");
-    const sug = btn(tt("fetch_suggestions", null, "↻ Traer sugerencias"));
-    sug.addEventListener("click", async () => {
-      const r = await act("suggest", {platform: pid});
-      if(r && r.ok){
-        _connErr = "";
-        if(root._hbYtSelectTab) root._hbYtSelectTab("inicio");   // the band lives on the dashboard — go look
-        else { _screen = null; repaint(); }
-      } else { _connErr = (r && (r.message || r.error)) || tt("suggestions_failed", null, "No pude traer sugerencias."); repaint(); }
-    });
-    foot.appendChild(sug);
-    const dis = btn(tt("disconnect", null, "Desconectar"));
-    dis.addEventListener("click", async () => { await act("disconnect_account", {platform: pid}); repaint(); });
-    foot.appendChild(dis);
-    st.appendChild(foot);
-    if(_connErr) st.appendChild(el("div", "hb-ytw-err", _connErr));
-    box.appendChild(st);
-    return;
-  }
-
-  // WIZARD (V2-603). Its SHAPE depends on whose OAuth app this install uses, because that is the whole
-  // difference between one click and an afternoon:
-  //
-  //   builtin_app: true  → ONE step. The operator gives consent and nothing else.
-  //   builtin_app: false → the bring-your-own-app road, still two steps, but the first one now OPENS the
-  //                        settings panel on the right tab instead of telling him to go find it.
-  //
-  // What is deliberately NOT here: a client_id field. Two invariants forbid it — `widget.js` never touches
-  // the network (V2-557) and a widget data-op never carries a credential (V2-520) — so the credential is
-  // typed in ⚙ → Conectores, which is the one surface allowed to hold it. The fix for the old dead-end was
-  // never to move the field; it was to stop making the operator navigate there on his own.
-  //
-  // And there is no mandatory «comprobar» any more: the OAuth callback lands on our own server, refreshes
-  // this widget's store and the card repaints over SSE. The manual check survives only as a quiet fallback
-  // for the case where that push never arrives.
-  const builtin = !!row.builtin_app;
-  const total = builtin ? 1 : 2;
-  let step = Math.min(Math.max(_wizStep[pid] || 1, 1), total);
-  if(builtin) step = 1;
-  _wizStep[pid] = step;
-
-  // Opening the consent. The window is opened SYNCHRONOUSLY on the click or the browser blocks it (the
-  // archivos pattern) — and when it IS blocked (a phone, a strict desktop policy) the URL is shown as a
-  // link the operator can tap instead of the flow dying with no explanation. That degradation is why this
-  // needs no environment detection: one path that works on a self-hosted desktop, in the cloud and on the
-  // PWA beats three that each need their own testing.
-  const startConsent = async () => {
-    // V2-700 — one window, one watcher, for every widget with a connector: `ctx.connect` opens it inside
-    // this click (a popup on the desktop, a tab on a narrow screen) and notices when the token lands.
-    const r = await ctx.connect("connect_account", {platform: pid}, {family: "video", name: pid});
-    if(r && r.ok && r.url){
-      _connErr = ""; _connUrl = r.blocked ? r.url : "";   // a blocked window gets the link (V2-603)
-    } else {
-      _connUrl = "";
-      _connErr = (r && (r.message || r.error)) || tt("connect_failed", null, "No pude empezar la conexión.");
-    }
-    repaint();
-  };
-
-  let sb;
-  if(!builtin && step === 1){
-    sb = stepBox(1, total, tt("wiz1_title", null, "Registra una app OAuth de Google"));
-    const body = el("div", "hb-ytw-body");
-    body.appendChild(el("div", "", tt("wiz1_body", null,
-      "Esta instalación todavía no trae una app de Google propia, así que hace falta la tuya: se registra UNA vez y sirve también para Drive y Fotos.")));
-    body.appendChild(row.app_configured
-      ? el("div", "hb-ytw-ok", tt("wiz1_ok", null, "✓ App registrada — puedes continuar."))
-      : el("div", "", tt("wiz1_note", null, "Las credenciales se guardan en Configuración; por esta tarjeta nunca viajan.")));
-    sb.appendChild(body);
-    const foot = el("div", "hb-ytw-foot");
-    const go = btn(tt("open_settings", null, "Abrir Configuración → Conectores"));
-    go.addEventListener("click", () => {
-      // The card cannot import the app's store, so it asks for the panel the way every widget talks to the
-      // host: a DOM event (the `hb:` convention desktop.js and the rail already use).
-      try{ document.dispatchEvent(new CustomEvent("hb:open-config", {detail: {tab: "conectores"}})); }catch(_e){}
-    });
-    foot.appendChild(go);
-    const next = btn(tt("done_continue", null, "Ya está — continuar"));
-    next.addEventListener("click", async () => {
-      const r = await act("sync_platforms", {});
-      const fresh = r && Array.isArray(r.platforms) ? r.platforms.find((x) => x.id === pid) : null;
-      if(fresh && fresh.app_configured){ _wizStep[pid] = 2; _connErr = ""; }
-      else { _connErr = tt("no_client_id", null, "Aún no veo el client_id — guárdalo en ⚙ → Conectores y vuelve a intentarlo."); }
-      repaint();
-    });
-    foot.appendChild(next);
-    sb.appendChild(foot);
-  } else {
-    sb = stepBox(builtin ? 1 : 2, total, tt("wiz2_title", null, "Autoriza tu cuenta de YouTube"));
-    const body = el("div", "hb-ytw-body");
-    body.appendChild(el("div", "", tt("wiz2_body", null,
-      "Se abrirá la ventana de Google para que des permiso de SOLO LECTURA a tus suscripciones. Zaelar no puede tocar tu cuenta.")));
-    body.appendChild(el("div", "", tt("wiz2_note", null, "En cuanto termines, esta tarjeta se actualiza sola.")));
-    sb.appendChild(body);
-    const foot = el("div", "hb-ytw-foot");
-    if(!builtin){
-      const back = btn(tt("prev_step", null, "‹ Anterior"));
-      back.addEventListener("click", () => { _wizStep[pid] = 1; _connErr = ""; _connUrl = ""; repaint(); });
-      foot.appendChild(back);
-    }
-    const go = btn(_connBusy ? tt("connecting", null, "Conectando…") : tt("connect_label", {label: row.label || "YouTube"}, "Conectar {label}"), "bt-primary");
-    go.addEventListener("click", startConsent);
-    foot.appendChild(go);
-    sb.appendChild(foot);
-    if(_connUrl){
-      // The pop-up never opened. Say so plainly and hand over the link — silence here reads as a dead button.
-      const blocked = el("div", "hb-ytw-body");
-      blocked.appendChild(el("div", "", tt("popup_blocked", null, "Tu navegador bloqueó la ventana. Abre este enlace para autorizar:")));
-      const a = document.createElement("a");
-      a.href = _connUrl; a.target = "_blank"; a.rel = "noopener";
-      a.textContent = tt("open_google_auth", null, "Abrir la autorización de Google");
-      blocked.appendChild(a);
-      sb.appendChild(blocked);
-    }
-    const alt = el("div", "hb-ytw-alt");
-    const chk = el("span", "hb-ytw-link", tt("check_now", null, "¿No se ha actualizado? Comprobar ahora"));
-    chk.addEventListener("click", async () => {
-      const r = await act("sync_platforms", {});
-      const fresh = r && Array.isArray(r.platforms) ? r.platforms.find((x) => x.id === pid) : null;
-      if(fresh && fresh.connected){ _screen = {view: "status", platform: pid}; _connErr = ""; _connUrl = ""; }
-      else { _connErr = tt("not_yet_connected", null, "Todavía no veo la cuenta conectada — termina la ventana de Google."); }
-      repaint();
-    });
-    alt.appendChild(chk);
-    if(builtin){
-      const own = el("span", "hb-ytw-link", tt("use_own_app", null, "Usar mi propia app OAuth"));
-      own.addEventListener("click", () => {
-        try{ document.dispatchEvent(new CustomEvent("hb:open-config", {detail: {tab: "conectores"}})); }catch(_e){}
-      });
-      alt.appendChild(own);
-    }
-    sb.appendChild(alt);
-  }
-  if(_connErr) sb.appendChild(el("div", "hb-ytw-err", _connErr));
-  box.appendChild(sb);
 }
 
-// Is the agent STOPPED? (V2-092) — with ⏻ off, this widget must NOT play anything. The case that made this necessary
-// is MOUNT: the operator stopped the agent, RELOADED the page, and the video started again by itself, because the
-// <iframe> is born with `autoplay=1` and nobody had told it the agent was stopped. `ctx.running` is a live canvas
-// getter (widgets/desktop.js) reflecting server truth (nucleo/runstate.py).
-// Read as "stopped ONLY if explicitly stated": an old ctx without the field (undefined) must not leave the player
-// muted forever.
 function halted(ctx){ return !!(ctx && ctx.running === false); }
 
 // Reassert desired state in the player (idempotent) — used when loading a new video.
@@ -1402,8 +1195,8 @@ export function render(root, data, ctx){
   }
 
   // ACCOUNT layer (V2-597) — the card asks for ONE platform re-sync when the cache is stale (the archivos
-  // needs_refresh pattern; local file reads server-side, no provider network), consumes the voice door's
-  // connect_focus once per timestamp, paints the platform icons and the connect screens.
+  // needs_refresh pattern; local file reads server-side, no provider network) and paints the platform icons
+  // and the sources shelf.
   // V2-603 F2 — the account layer is HIDDEN whole while no OAuth client exists anywhere (operator's
   // directive, 2026-09-06: «until that is done I do not want the connector active, leave it deactivated and
   // hidden»). Not a disabled button and not a wizard that dead-ends: no platform row, no connect screen, and
@@ -1413,23 +1206,13 @@ export function render(root, data, ctx){
   if(!data.accounts_enabled){
     if(E.dots){ E.dots.textContent = ""; E.dots.style.display = "none"; }
     // V2-632: the SHELF survives the gate — the operator asked to SEE the sources, disabled and honest
-    // (INI-032's note included). Only the wizard/status views die with the flip: a door that cannot open.
-    if(_screen && _screen.view !== "shelf") _screen = null;
+    // (INI-032's note included).
     renderConn(E, root, data, ctx);
   } else {
   if(E.dots) E.dots.style.display = "";
   if(data.platforms_stale && ctx && ctx.action && Date.now() - _syncAsked > 60000){
     _syncAsked = Date.now();
     try{ ctx.action("sync_platforms", {}); }catch(_e){}
-  }
-  const _focus = data.connect_focus || null;
-  if(_focus && Number(_focus.ts || 0) > _focusDone){
-    _focusDone = Number(_focus.ts || 0);
-    const pid = _focus.platform || "youtube";
-    const row = (Array.isArray(data.platforms) ? data.platforms : []).find((r) => r.id === pid);
-    _screen = {view: (row && row.connected) ? "status" : "wizard", platform: pid};
-    if(!_wizStep[pid]) _wizStep[pid] = 1;
-    _connErr = "";
   }
   if(E.dots){
     E.dots.textContent = "";
@@ -1440,12 +1223,7 @@ export function render(root, data, ctx){
       ic.title = r.connected ? tt("dot_connected", {label: r.label || r.id}, "{label}: cuenta conectada")
                              : tt("dot_disconnected", {label: r.label || r.id}, "{label}: sin conectar — toca para conectarla");
       ic.setAttribute("aria-label", ic.title);
-      ic.addEventListener("click", () => {
-        _screen = {view: r.connected ? "status" : "wizard", platform: r.id};
-        if(!_wizStep[r.id]) _wizStep[r.id] = 1;
-        _connErr = "";
-        renderConn(E, root, data, ctx);
-      });
+      ic.addEventListener("click", () => ctx.openConnector(r.id));   // ⚙ Conectores, the one door
       E.dots.appendChild(ic);
     });
   }

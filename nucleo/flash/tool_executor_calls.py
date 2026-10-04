@@ -347,7 +347,9 @@ def _t_show_panel(*, args, _router, _tool_fired, acted, emit, operator_text, tex
         # 2026-08-10: también CIERRA. Antes solo abría, así que «cierra el chat» no tenía a dónde ir y
         # el turno acababa en un «vale, cerrado» que era falso.
         _act = _router._canon_panel_action(args.get("action"))
-        emit("panel", _act, extra={"tab": _tab, "src": "flash"})
+        # The ONE door to connect a service: the ⚙ Conectores section opened on that connector alone.
+        _cx = _router._canon_connector(args.get("connector")) if _tab == "conectores" and _act == "open" else ""
+        emit("panel", _act, extra={"tab": _tab, "src": "flash", **({"connector": _cx} if _cx else {})})
         emit("brain", f"🗂️ show_panel → panel nativo ({_act})", text=_tab, role="system")
         acted["widget"] = True     # cuenta como acción de UI (ack "nunca mudo" + no escala espurio)
 
@@ -438,18 +440,15 @@ def _t_authenticate_web(*, args, _start_web_auth, emit, escalate_req, text):
     from nucleo.flash import web_auth as _wa_v
     _site = (args.get("site") or "").strip()
     _kind_v, _site_resolved = _wa_v.decide(_site, text)
-    if _kind_v == _wa_v.KIND_MUSIC:
-        # INVARIANTE (2026-07-16): un servicio de MÚSICA (Spotify) se conecta en el widget `musica`
-        # (su tarjeta OAuth), NUNCA por el navegador. El routing del titular anterior insistía en authenticate_web
-        # para "conéctame a mi cuenta de Spotify" pese a la descripción → el guard lo redirige aquí.
-        _tx._cvis.present("musica", reason="turn-order", src="flash", emit=emit)
-        emit("brain", "🎵 conectar música → tarjeta del widget musica (no navegador)", text=_site or text[:60], role="system")
-    elif _kind_v == _wa_v.KIND_MESSAGING:
-        # INVARIANTE (V2-045, espejo del guard de música): WhatsApp/Telegram se VINCULAN por QR DENTRO
-        # del widget `mensajeria`, NUNCA por login de navegador. 'conéctame/abre WhatsApp' → mostrar el
-        # widget (ahí está el QR), no abrir un Chromium en whatsapp.com.
-        _tx._cvis.present("mensajeria", reason="turn-order", src="flash", emit=emit)
-        emit("brain", "💬 conectar mensajería → QR del widget mensajeria (no navegador)", text=_site or text[:60], role="system")
+    if _kind_v in (_wa_v.KIND_MUSIC, _wa_v.KIND_MESSAGING):
+        # INVARIANT (2026-07-16, V2-045): Spotify, WhatsApp, Telegram and email are never logged into through
+        # the browser. Since 2026-10-04 they are connected in ONE place, the ⚙ Conectores section opened on
+        # that connector (its guide, its QR) — the widgets no longer carry connect screens of their own.
+        from nucleo.flash.connector_canon import canon_connector as _cc
+        _cx = _cc(_site) or _cc(text) or ("spotify" if _kind_v == _wa_v.KIND_MUSIC else "")
+        emit("panel", "open", extra={"tab": "conectores", "src": "flash", **({"connector": _cx} if _cx else {})})
+        emit("brain", f"🔌 connect → Conectores section ({_cx or 'list'}), not the browser", text=_site or text[:60],
+             role="system")
     elif _kind_v == _wa_v.KIND_TASK:
         if escalate_req["v"] is None:
             escalate_req["v"] = text

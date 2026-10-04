@@ -337,9 +337,9 @@ def _clear_in(payload: dict) -> list[str]:
 # V2-778 F1-12 — the action handlers live in `actions.py`, imported back under their names (that module
 # reads this one).
 from .actions import (  # noqa: E402,F401
-    _a_add_contact, _a_update_contact, _a_set_channel, _a_add_channel, _a_show_connectors, _a_remove_contact,
+    _a_add_contact, _a_update_contact, _a_set_channel, _a_add_channel, _a_show_sources, _a_remove_contact,
     _a_set_favorite, _a_hide_contact, _a_sync_source, _a_link_contact, _a_show_contact_members, _a_show_view,
-    _a_show_contact, _a_connection, _a_set_auto, _a_sync_contacts)
+    _a_show_contact, _a_set_auto, _a_sync_contacts)
 
 
 # V2-778 F1-12 — one function per action (in `actions.py`), and `apply_action` is the table lookup. Each body
@@ -353,7 +353,7 @@ ACTIONS = {
     "set_channel": _a_set_channel,
     "add_phone": _a_add_channel,
     "add_email": _a_add_channel,
-    "show_connectors": _a_show_connectors,
+    "show_sources": _a_show_sources,
     "remove_contact": _a_remove_contact,
     "set_favorite": _a_set_favorite,
     "hide_contact": _a_hide_contact,
@@ -362,8 +362,6 @@ ACTIONS = {
     "show_contact_members": _a_show_contact_members,
     "show_view": _a_show_view,
     "show_contact": _a_show_contact,
-    "connect": _a_connection,
-    "disconnect": _a_connection,
     "set_auto": _a_set_auto,
     "sync_contacts": _a_sync_contacts,
     "import_google": _a_sync_contacts,

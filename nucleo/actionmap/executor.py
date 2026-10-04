@@ -180,7 +180,7 @@ def describe(action: dict) -> str:
     if do == "show_widget":
         return f"canvas:show:{action.get('widget')}"
     if do == "show_panel":
-        return f"panel:{action.get('tab')}"
+        return f"panel:{action.get('tab')}" + (f":{action['connector']}" if action.get("connector") else "")
     if do == "widget_data":
         return f"widget_data:{action.get('widget')}:{action.get('action')}"
     return f"canvas:{do}:{action.get('widget')}"
@@ -207,7 +207,9 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         emit("widget", "arrange", text=said, extra=dict(src))
         return True
     if do == "show_panel":
-        emit("panel", action.get("action", "open"), text=said, extra={"tab": action["tab"], **src})
+        _cx = str(action.get("connector") or "").strip() if action["tab"] == "conectores" else ""
+        emit("panel", action.get("action", "open"), text=said,
+             extra={"tab": action["tab"], **({"connector": _cx} if _cx else {}), **src})
         return True
     if do == "minimize_all":
         # V2-773 — the demo's kickoff launches three errands whose sheets and browser tabs sit on the canvas;

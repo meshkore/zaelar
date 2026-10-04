@@ -732,7 +732,7 @@ function renderProviderIcons(providers, el, data, ctx){
                                                    : sel ? tt("src_filter_off", null, "quitar el filtro")
                                                          : tt("src_filter_on", null, "ver solo estos contactos"));
     if(!live){ btn.disabled = true; }
-    else if(!on){ btn.onclick = ()=>{ el._ctScreen = "conn"; el._ctDetail = null; render(el,data,ctx); }; }
+    else if(!on){ btn.onclick = ()=>ctx.openConnector(p.id); }   // linking is the ⚙ Conectores section's job
     else { btn.onclick = ()=>{
       el._ctSource = sel ? "" : p.id;
       el._ctDetail = null; el._ctScreen = null; el._ctShown = 0; render(el,data,ctx); }; }
@@ -741,14 +741,16 @@ function renderProviderIcons(providers, el, data, ctx){
   return wrap;
 }
 
-// ── THE CONNECTORS SCREEN — sources, and the sync box for the one that is linked ────────────────────────
+// ── THE SOURCES SCREEN — which address books feed the directory, and the sync switch of each ─────────────
+// Linking a source is NOT done here (2026-10-04): every account is connected in the ⚙ Conectores section, the
+// one door the voice and the buttons share. What stays is this card's own business — whether a linked
+// source keeps bringing contacts in — and, for one that is not linked, the way to that section.
 function renderConnectors(el, host, data, ctx){
   const wrap = el2("div","ctconnscreen");
   const redraw = nd=>render(el,(nd&&nd.contacts)?nd:data,ctx);
-  const act = async(n,p)=>redraw(await ctx.action(n,p||{}));
 
   const head = el2("div","ctconnhead");
-  head.appendChild(el2("div","ctconntitle", tt("connectors", null, "Conectores")));
+  head.appendChild(el2("div","ctconntitle", tt("sources_title", null, "Fuentes y sincronización")));
   const back = el2("button","ctconnback", "‹ " + tt("title", null, "Contactos"));
   back.onclick = ()=>{ el._ctScreen = null; render(el,data,ctx); };
   head.appendChild(back);
@@ -758,9 +760,6 @@ function renderConnectors(el, host, data, ctx){
   (data.providers||[]).forEach(p=>{
     const live = !!LIVE_SOURCES[p.id];
     const on = p.status === "connected";
-    // The CARD is the source; the row is only its first line. Everything that belongs to this account —
-    // today the sync panel — goes inside this same box, so it reads as «what Google does here» instead of
-    // as a loose feature sitting next to it.
     const box = el2("div","ctsrcbox" + (live?"":" dim") + (on?" on":""));
     const row = el2("div","ctsrc");
     const ic = el2("div","ctsrcic");
@@ -778,63 +777,17 @@ function renderConnectors(el, host, data, ctx){
                  : tt("src_off", null, "sin conectar")));
     tx.appendChild(st);
     row.appendChild(tx);
-    if(live && IMPORT_SOURCES[p.id]){
-      // V2-714 — an IMPORT source. It is not connected from here (Telegram and WhatsApp are linked in
-      // Mensajería, MeshKore in its own tab), so this box carries the one thing that IS this card's
-      // business: whether its address book keeps coming in. The row says where to go when it is not.
-      if(!on){
-        const hint = el2("div","ctsrcst", tt("src_link_in_messages", null,
-          "Conéctalo en la tarjeta de Mensajes y vuelve aquí"));
-        row.appendChild(hint);
-      }
-    } else if(live){
-      // A CONNECT is the operator's click and nothing else: the consent window only survives inside the
-      // gesture that opened it, so the window is opened SYNCHRONOUSLY here and its location filled in
-      // afterwards. Awaiting the action first and opening then is what a popup blocker eats (V2-603).
-      if(!on){
-        const busy = el._ctConnecting === p.id;
-        const b = el2("button","ctbtn primary", busy ? tt("src_connecting", null, "Abriendo Google…")
-                                                     : tt("src_connect", null, "Conectar"));
-        b.disabled = busy;
-        // `ctx.connect` owns the window AND the noticing (V2-700): it opens the popup inside this click,
-        // then watches for the callback page's message, for the window closing, and polls as a backstop —
-        // so the card stops offering «Conectar» the moment the token lands, without the operator touching
-        // anything. Doing it here by hand is what left two widgets with two different behaviours.
-        b.onclick = async ()=>{
-          el._ctConnecting = p.id; redraw(null);
-          const r = await ctx.connect("connect", {origin: location.origin},
-                                      {family: "contactos", onDone: ()=>{ el._ctConnecting = null; }});
-          if(!(r && r.ok)){
-            el._ctConnecting = null;
-            el._ctConnErr = (r && r.error) || tt("src_connect_failed", null,
-              "No pude abrir la ventana de Google. Revisa el conector en Configuración.");
-            redraw(null);
-          }
-        };
-        row.appendChild(b);
-      } else {
-        const b = el2("button","ctbtn danger", tt("src_disconnect", null, "Desconectar"));
-        b.onclick = ()=>act("disconnect", {provider: p.id});
-        row.appendChild(b);
-      }
+    if(live){
+      const b = el2("button","ctbtn" + (on ? "" : " primary"),
+                    on ? tt("src_manage", null, "Gestionar") : tt("src_connect", null, "Conectar"));
+      b.onclick = ()=>ctx.openConnector(p.id);
+      row.appendChild(b);
     }
     box.appendChild(row);
-    if(live && on && IMPORT_SOURCES[p.id]){
-      box.appendChild(renderImportBox(el, data, ctx, p, redraw));
-    } else if(live && on){
-      // A connection that just landed clears the «connecting» state with it — otherwise the button would
-      // come back as «Abriendo Google…» on the very render that proves it worked.
-      el._ctConnecting = null; el._ctConnErr = "";
-      box.appendChild(renderSyncBox(el, data, ctx, sync, redraw));
-    }
+    if(live && on) box.appendChild(IMPORT_SOURCES[p.id] ? renderImportBox(el, data, ctx, p, redraw)
+                                                        : renderSyncBox(el, data, ctx, sync, redraw));
     wrap.appendChild(box);
   });
-  if(el._ctConnErr){
-    const e = el2("div","ctwarn", String(el._ctConnErr));
-    e.style.color = "var(--hb-danger,#D9534F)";
-    e.style.borderLeftColor = "var(--hb-danger,#D9534F)";
-    wrap.appendChild(e);
-  }
   host.appendChild(wrap);
 }
 
@@ -1164,14 +1117,14 @@ export function render(el, data, ctx){
   _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   injectStyles();
 
-  // A VIEW PUSHED FROM VOICE (`show_view` / `show_contact` / `show_connectors`). Applied only when its
+  // A VIEW PUSHED FROM VOICE (`show_view` / `show_contact` / `show_sources`). Applied only when its
   // token MOVES — a plain data refresh never yanks what the operator is reading, but asking twice for the
   // same filter still lands, because the token is a counter and not the filter itself (V2-540).
   const pushed=data.view;
   if(pushed && pushed.n!==el._ctViewN){
     el._ctViewN=pushed.n;
     const sel=pushed.sel||{};
-    if(sel.screen==="connectors"){ el._ctScreen="conn"; el._ctDetail=null; }
+    if(sel.screen==="sources"){ el._ctScreen="conn"; el._ctDetail=null; }
     else if(sel.contactId){ el._ctDetail=sel.contactId; el._ctScreen=null; }
     else{
       // ⚠️ `kind` and `source` were pushed by `show_view` and DROPPED here until V2-715: «enséñame mis
@@ -1213,8 +1166,8 @@ export function render(el, data, ctx){
   right.appendChild(renderProviderIcons(data.providers||[], el, data, ctx));
   const connBtn=el2("button","ctplug"+(el._ctScreen?" on":""));
   connBtn.appendChild(svgEl(ICO_PLUG));
-  connBtn.title=tt("connectors_hint", null, "Qué fuentes de contactos están conectadas");
-  connBtn.setAttribute("aria-label", tt("connectors", null, "Conectores"));
+  connBtn.title=tt("sources_hint", null, "De dónde vienen tus contactos y su sincronización");
+  connBtn.setAttribute("aria-label", tt("sources_title", null, "Fuentes y sincronización"));
   connBtn.onclick=()=>{ el._ctScreen = el._ctScreen ? null : "conn"; el._ctDetail=null; render(el,data,ctx); };
   right.appendChild(connBtn);
   bar.appendChild(right);

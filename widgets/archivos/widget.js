@@ -157,25 +157,6 @@ const CSS = `
 .arx-note.bad{border-color:var(--hb-risk,#d64545);color:var(--hb-risk,#d64545)}
 .arx-foot{flex:0 0 auto;border-top:1px solid var(--hb-line,#eef1f6);padding:8px 10px;display:flex;gap:10px;align-items:center}
 .arx-foot .arx-nm{font-weight:600}
-/* The connect wizard, as its OWN screen with a persistent close/back — the operator's own report was
-   "I got in here and had no way out". A gear-icon ⚙ opens this; the ✕ up top always gets back out. */
-.arx-cxwrap{display:flex;flex-direction:column;height:100%;min-height:0}
-.arx-cxtop{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;
-  border-bottom:1px solid var(--hb-line,#eef1f6);flex:0 0 auto}
-.arx-cxtop b{font-size:13.5px}
-.arx-cxclose{background:none;border:0;color:var(--hb-muted,#67707d);font-size:19px;cursor:pointer;
-  padding:2px 8px;line-height:1;border-radius:8px}
-.arx-cxclose:hover{background:var(--hb-bg-soft,#f5f7fb);color:var(--hb-ink,#0d1622)}
-.arx-cx{flex:1 1 auto;overflow:auto;padding:12px}
-.arx-cx p{margin:0 0 10px;color:var(--hb-muted,#67707d);font-size:12px}
-.arx-prov{border:1px solid var(--hb-line,#eef1f6);border-radius:12px;padding:10px;margin-bottom:10px;background:var(--hb-bg,#fff)}
-.arx-prov b{font-size:13px}
-.arx-field{display:flex;align-items:center;gap:8px;margin:6px 0}
-.arx-field label{flex:0 0 96px;color:var(--hb-muted,#67707d);font-size:12px}
-.arx-field input,.arx-field select{flex:1 1 auto;min-width:0;border:1px solid var(--hb-line,#eef1f6);border-radius:7px;padding:4px 7px;font:inherit;background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622)}
-.arx-tiernote{color:var(--hb-muted-2,#9aa4b2);font-size:11.5px;margin:2px 0 8px}
-.arx-badge{font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--hb-line,#eef1f6);color:var(--hb-muted,#67707d)}
-.arx-badge.ok{border-color:var(--hb-accent2,#12a594);color:var(--hb-accent2,#12a594)}
 .arx-lb{position:absolute;inset:0;background:rgba(10,12,16,.86);display:flex;flex-direction:column;z-index:5;border-radius:14px}
 .arx-lb-top{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;color:#fff;flex:0 0 auto}
 .arx-lb-top b{font-size:.85rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -288,8 +269,12 @@ function shelfLabel(kind){
   }
 }
 
+// The ⚙ Conectores section on a cloud service (2026-10-04): linking one is that section's job, not this card's.
+let _openCx = () => {};
+
 export function render(root, data, ctx) {
   _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
+  _openCx = id => { try { ctx.openConnector(id || ""); } catch (_) {} };
   if (!document.getElementById(STYLE_ID)) {
     const s = document.createElement("style");
     s.id = STYLE_ID;
@@ -311,11 +296,6 @@ export function render(root, data, ctx) {
   root.textContent = "";
   root.className = "arx";
   ensureTierObserver(root);
-
-  if (d.panel === "connect") {
-    root.appendChild(connectPanel(d, act, ctx));
-    return;
-  }
 
   const layout = el("div", "arx-layout");
   layout.appendChild(sidebar(d, act));
@@ -390,7 +370,7 @@ function sidebar(d, act) {
       item.title = p.connected ? (p.label || p.id) : `${p.label || p.id} — sin conectar`;
       item.onclick = () => {
         if (p.connected) act("set_provider", { provider: p.id });
-        else act("open_connectors", { provider: p.id });
+        else _openCx(p.id);
       };
       side.appendChild(item);
     });
@@ -416,7 +396,7 @@ function sidebar(d, act) {
   gear.appendChild(el("span", "arx-ic", "⚙"));
   gear.appendChild(el("span", "arx-side-nm", tt("cloud_services", null, "Servicios en la nube")));
   gear.title = tt("cloud_manage", null, "Conectar o gestionar servicios en la nube");
-  gear.onclick = () => act("open_connectors", {});
+  gear.onclick = () => _openCx("");
   side.appendChild(gear);
 
   return side;
@@ -457,7 +437,7 @@ function header(d, act, ui) {
     chip.onclick = () => {
       ui.preview = null;
       if (p.connected) act("set_provider", { provider: p.id });
-      else act("open_connectors", { provider: p.id });
+      else _openCx(p.id);
     };
     chips.appendChild(chip);
   });
@@ -566,7 +546,7 @@ function toolsRow(d, act) {
 
   const cx = el("button", "arx-btn", "⚙");
   cx.title = tt("cloud_services", null, "Servicios en la nube");
-  cx.onclick = () => act("open_connectors", {});
+  cx.onclick = () => _openCx("");
   tools.appendChild(cx);
 
   return tools;
@@ -885,108 +865,6 @@ function footer(sel, act) {
     f.appendChild(a);
   }
   return f;
-}
-
-// The connect wizard, INSIDE the card — house rule: a widget's sub-flow never becomes a separate window. It
-// is its OWN screen with a persistent close (✕, top-right, reachable without scrolling) AND the original
-// "← Volver" at the bottom — the operator's own report was landing here with no way back out.
-function connectPanel(d, act, ctx) {
-  const wrap = el("div", "arx-cxwrap");
-
-  const top = el("div", "arx-cxtop");
-  top.appendChild(el("b", null, tt("cloud_title", null, "Servicios de archivos en la nube")));
-  const close = el("button", "arx-cxclose", "✕");
-  close.title = tt("close_back", null, "Cerrar y volver al explorador");
-  close.onclick = () => act("close_connectors", {});
-  top.appendChild(close);
-  wrap.appendChild(top);
-
-  const box = el("div", "arx-cx");
-  box.appendChild(el("p", null,
-    tt("cloud_note_1", null, "zaelar entra en tu nube con TU permiso y solo para leer. La aplicación se registra una sola vez en ")
-    + tt("cloud_note_2", null, "Configuración → Conectores; desde aquí eliges el permiso y das el consentimiento. Tu biblioteca en ")
-    + tt("cloud_note_3", null, "este dispositivo no necesita nada de esto — ya funciona.")));
-
-  const provs = (d.providers || []);
-  if (!provs.length) {
-    box.appendChild(el("div", "arx-note", tt("catalog_failed", null, "No pude leer el catálogo de servicios. Prueba a actualizar.")));
-  }
-  provs.forEach(p => {
-    const card = el("div", "arx-prov");
-    const head = el("div", "arx-field");
-    head.appendChild(el("b", null, p.label || p.id));
-    head.appendChild(el("span", "arx-badge" + (p.connected ? " ok" : ""),
-      p.connected ? tt("st_connected", null, "conectado") : (p.app_configured ? tt("st_ready", null, "lista para conectar") : tt("st_unregistered", null, "sin registrar"))));
-    card.appendChild(head);
-    if (p.note) card.appendChild(el("div", "arx-tiernote", p.note));
-
-    if (p.connected) {
-      if (p.tier_label) card.appendChild(el("div", "arx-tiernote", tt("granted", null, "Permiso concedido: ") + p.tier_label));
-      const off = el("button", "arx-btn", tt("disconnect", null, "Desconectar"));
-      off.onclick = () => act("disconnect_provider", { provider: p.id });
-      card.appendChild(off);
-    } else if (!p.app_configured) {
-      card.appendChild(el("div", "arx-note",
-        tt("unreg_1", null, "Todavía no has registrado su aplicación. Entra en Configuración → Conectores y pega ahí su ")
-        + tt("unreg_2", null, "client_id (una sola vez); después vuelve aquí y dale a Conectar.")));
-    } else {
-      let tierId = p.default_tier || "";
-      const tiers = p.tiers || [];
-      if (tiers.length > 1) {
-        const tierRow = el("div", "arx-field");
-        tierRow.appendChild(el("label", null, tt("scope", null, "Permiso")));
-        const sel = document.createElement("select");
-        tiers.forEach(t => {
-          const o = document.createElement("option");
-          o.value = t.id;
-          o.textContent = t.label;
-          if (t.id === tierId) o.selected = true;
-          sel.appendChild(o);
-        });
-        tierRow.appendChild(sel);
-        card.appendChild(tierRow);
-        const tnote = el("div", "arx-tiernote", "");
-        const paint = () => {
-          tierId = sel.value;
-          const t = tiers.find(x => x.id === sel.value);
-          tnote.textContent = t ? (t.note || "") : "";
-        };
-        sel.onchange = paint;
-        paint();
-        card.appendChild(tnote);
-      }
-      const go = el("button", "arx-btn", tt("connect_", null, "Conectar ") + (p.label || p.id));
-      go.onclick = () => beginConsent(p.id, tierId, go, act, ctx);
-      card.appendChild(go);
-    }
-    box.appendChild(card);
-  });
-
-  const back = el("button", "arx-btn", tt("back_explorer", null, "← Volver al explorador"));
-  back.onclick = () => act("close_connectors", {});
-  box.appendChild(back);
-  wrap.appendChild(box);
-  return wrap;
-}
-
-async function beginConsent(provider, tier, btn, act, ctx) {
-  btn.disabled = true;
-  const prev = btn.textContent;
-  btn.textContent = tt("opening", null, "Abriendo…");
-  try {
-    // V2-700 — the window AND the noticing belong to the canvas: a popup on the desktop, a tab when the
-    // screen is narrow, and a watcher that re-reads state so the card stops offering «Conectar» by itself.
-    const r = await ctx.connect("connect_provider", { provider, tier }, { family: "archivos", name: provider });
-    if (!(r && r.ok && r.url)) {
-      btn.textContent = (r && r.error) ? String(r.error).slice(0, 110) : tt("open_failed", null, "No se pudo abrir");
-      return;
-    }
-  } catch (_) {
-    btn.textContent = tt("open_failed", null, "No se pudo abrir");
-    return;
-  } finally {
-    setTimeout(() => { btn.disabled = false; if (btn.textContent === tt("opening", null, "Abriendo…")) btn.textContent = prev; }, 1500);
-  }
 }
 
 // ── V2-764 · TORRENTS ─────────────────────────────────────────────────────────────────────────────────────

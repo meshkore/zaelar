@@ -120,20 +120,6 @@ def sync_state(db: dict) -> dict:
     }
 
 
-def connect(tier_id: str = "", origin: str = "") -> dict:
-    """The consent URL. The operator's click opens it — the popup only survives inside the gesture that
-    opened it, which is why `widget.js` opens the window synchronously and fills its `location` after."""
-    o = _oauth()
-    if not o:
-        return {"ok": False, "error": "el conector de contactos no está disponible"}
-    return o.authorize_url("google-contacts", tier_id, origin)
-
-
-def disconnect() -> dict:
-    o = _oauth()
-    return o.forget("google-contacts") if o else {"ok": False, "error": "el conector no está disponible"}
-
-
 def sync(db: dict, *, merge, since: float = 0.0, remove=None) -> dict:
     """ONE pass, both directions. `merge` is `data.py`'s own merger — this module never writes the store.
 

@@ -354,93 +354,9 @@ function injectStyles(){
   .hb-agenda .agpacts button.ok{border-color:color-mix(in srgb,var(--hb-ok,#5FD3A2) 55%,transparent);
     color:var(--hb-ok,#5FD3A2)}
   .hb-agenda .agpacts button.ok:hover{border-color:var(--hb-ok,#5FD3A2)}
-  /* V2-690 — ONE block per provider: the row, and whatever acts on it, indented to the row's own name
-     column so the pair reads as attached instead of floating between two rows. */
-  .hb-agenda .agcalgrp{margin-bottom:var(--sp-4,16px)}
-  .hb-agenda .agcalgrp .agcalbtn2{margin:var(--sp-2,8px) 0 0 50px}
-  .hb-agenda .agcalgrp .agcaldef{padding-left:50px}
-  .hb-agenda .agcalrow{display:flex;align-items:center;gap:10px;padding:10px 12px;
-    background:var(--hb-bubble,#1D222A);border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));
-    border-radius:var(--hb-r-m,10px)}
-  .hb-agenda .agcalico{width:28px;height:28px;border-radius:8px;background:var(--hb-bg,#12151A);
-    display:flex;align-items:center;justify-content:center;flex:0 0 auto}
-  .hb-agenda .agcalico svg{width:15px;height:15px;display:block}
-  .hb-agenda .agcalname{font-size:13px;font-weight:600;flex:1 1 auto;min-width:0;white-space:nowrap;
-    overflow:hidden;text-overflow:ellipsis}
-  /* V2-691 — the ink was picked for the WIDGET's ground and this pill sits on a lighter rung, where the
-     tertiary step loses a point of contrast (5.38:1, the tightest thing left on the screen). A status a
-     provider row is ABOUT is not tertiary text anyway. */
-  .hb-agenda .agcalst{font-size:13px;font-weight:600;border-radius:999px;padding:3px 9px;flex:0 0 auto;
-    background:var(--hb-bg,#f4f7fb);color:var(--hb-muted,#5b6b82)}
-  .hb-agenda .agcalst.on{background:color-mix(in srgb,var(--hb-ok,#5FD3A2) 15%,transparent);
-    color:var(--hb-ok,#5FD3A2)}
   .hb-agenda .agnote{font-size:13px;color:var(--hb-muted-2,#7d8a9c);line-height:1.4}
-  .hb-agenda .agcalst.unconf{background:color-mix(in srgb,var(--hb-warn,#EFC75E) 15%,transparent);
-    color:var(--hb-warn,#EFC75E)}
-  .hb-agenda .agcalbtn2{margin:6px 4px 2px;align-self:flex-start}
-  .hb-agenda .agcaldef{display:flex;flex-direction:column;gap:5px;padding:4px 4px 2px}
-  .hb-agenda .agcaldeflabel{font-size:13px;font-weight:600;color:var(--hb-muted,#5b6b82)}
-  .hb-agenda .agcaldefrow{display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer}
-  .hb-agenda .agcaldot{width:9px;height:9px;border-radius:50%;background:var(--hb-neutral,#c2ccda);flex:0 0 auto}
-
-  /* ── CONNECTORS SCREEN — takes over the WHOLE content area (V2-679 follow-up), like the messaging
-     widget's own connectors screen, instead of a small floating overlay. .agconnscreen overrides
-     .agpanel's modal width (source-order wins at equal specificity) while keeping ".agpanel .agnote"
-     reachable for anything that still queries the old selector. ─────────────────────────────────────── */
-  /* TOP-LEFT, never centred. «margin:0 auto» floated this column in the middle of a card that is often
-     1400px wide: the breadcrumb read as centred, the step box looked «metido ahí en el medio, suelto», and
-     the widget wasted the screen it had been given. Centring is also wrong for a GUIDE specifically —
-     every step is a different height, so a centred column jumps under the reader between steps. The
-     content anchors at the same x as the view tabs above it and stays there. */
-  .hb-agenda .agconnscreen{width:100%;max-width:720px;margin:0;box-shadow:none;border:0;padding:2px 0}
-  .hb-agenda .agconnhead{display:flex;align-items:center;gap:10px;margin-bottom:4px}
-  .hb-agenda .agconnback{cursor:pointer;color:var(--hb-accent,#9B7CFF);font-weight:600;font-size:13px;
-    margin-left:auto;flex:0 0 auto;border:0;background:transparent;padding:0;font-family:var(--sans,system-ui)}
-  .hb-agenda .agconnback:hover{text-decoration:underline}
-  .hb-agenda .agconnback:focus-visible{outline:none;
-    box-shadow:var(--hb-focus-ring,0 0 0 2px var(--hb-accent,#9B7CFF));border-radius:4px}
-  /* Breadcrumb inside the wizard — same shape as messaging's .crumb (V2-570), so a step-by-step guide
-     always tells you where "back" goes: to the connectors list, never out of the widget entirely. */
-  /* V2-690 — the breadcrumb needs room of its own: at 14px below it the step card read as hanging off it. */
-  .hb-agenda .agwcrumb{display:flex;align-items:center;gap:var(--sp-2,8px);margin:0 0 var(--sp-5,24px);
-    font-size:13px}
-  .hb-agenda .agwcrumb .agconnback{margin-left:0}
-  .hb-agenda .agwsep{color:var(--hb-muted-2,#9aa7b8)}
-  .hb-agenda .agwcur{color:var(--hb-ink,#0d1622);font-weight:700}
-  .hb-agenda .agwstep{border:1px solid var(--hb-line,rgba(255,255,255,.10));border-radius:var(--hb-r-l,12px);
-    padding:var(--sp-4,16px);background:var(--hb-bg-soft,#171B21);margin:2px 0 var(--sp-4,16px)}
-  /* V2-690 — the numeral and the title share ONE line box (24px, the badge's own height), so the «1» is
-     aligned with the title by construction rather than by whatever the two line heights happened to do. */
-  .hb-agenda .agwhead{display:flex;align-items:center;gap:var(--sp-3,12px);margin-bottom:var(--sp-3,12px)}
-  .hb-agenda .agwnum{width:24px;height:24px;flex:0 0 auto;border-radius:50%;display:inline-flex;
-    align-items:center;justify-content:center;font:700 13px/24px var(--sans,system-ui);
-    color:var(--hb-accent,#9B7CFF);
-    background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 18%,transparent)}
-  .hb-agenda .agwtitle{font:600 15px/24px var(--sans,system-ui);color:var(--hb-ink,#0d1622);min-width:0}
-  .hb-agenda .agwcount{margin-left:auto;flex:0 0 auto;font-size:13px;color:var(--hb-muted-2,#9aa7b8)}
-  .hb-agenda .agwbody{font-size:14px;color:var(--hb-muted,#4a5a70);line-height:1.6}
-  .hb-agenda .agwlink{display:inline-flex;align-items:center;gap:6px;margin:9px 9px 0 0;
-    border:1px solid var(--hb-line,rgba(255,255,255,.10));color:var(--hb-ink,#F2F4F7);
-    background:var(--hb-bubble,#1D222A);border-radius:var(--hb-r-m,10px);
-    padding:9px 14px;font-size:13px;font-weight:600;text-decoration:none}
-  .hb-agenda .agwlink:hover{border-color:var(--hb-line-strong,rgba(255,255,255,.18));
-    background:var(--hb-hover,#242A34)}
-  .hb-agenda .agwtip{margin-top:10px;font-size:13px;color:var(--hb-muted,#A7AFBC);
-    background:var(--hb-bubble,#1D222A);border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06));
-    border-radius:var(--hb-r-m,10px);padding:9px 11px;line-height:1.55}
-  .hb-agenda .agwerr{margin-top:10px;font-size:13px;color:var(--hb-risk,#e5484d);line-height:1.5}
-  /* A button is the size of its label. «flex:1 1 auto» made the primary swallow every spare pixel of the
-     row — «un botón gigante» — which also destroyed the one thing a wizard's footer is for: the same
-     control in the same place on every step. Natural width, a comfortable floor, and the pair sits under
-     the step box where the reader's eye already is. */
-  /* V2-690 — THE STEP'S ACTION ZONE. «Atrás» and «Conectar Google Calendar» used to sit outside the step
-     box entirely, floating on the card's ground with nothing tying them to the thing they act on. They are
-     inside it now, under a hairline: the panel says what the step is, the band under it says what you can do
-     about it, and the pair still lands in the same place on every step. */
-  .hb-agenda .agwfoot{display:flex;gap:var(--sp-2,8px);align-items:center;
-    margin:var(--sp-4,16px) 0 0;padding-top:var(--sp-4,16px);
-    border-top:1px solid var(--hb-line-subtle,rgba(255,255,255,.06))}
-  .hb-agenda .agwfoot .agcalbtn2{flex:0 0 auto;margin:0;min-width:104px}
+  .hb-agenda .agcaldefsel{height:var(--hb-icon-h,28px);max-width:180px;font-size:13px;border-radius:var(--hb-r-s,8px);
+    border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);padding:0 6px}
 
   /* ── V2-744/V2-746 · THE SUBHEADER ────────────────────────────────────────────────────────────────
      One card, two things: the calendar and the operator's own numbered task lists.
@@ -1348,7 +1264,7 @@ function renderDetail(root, ev, ctx, state, redraw){
 // provider visible at a glance, the ones we have not built dimmed and inert, the live one a door into its
 // screen. Deliberately NOT the cramped 15px strip V2-643 removed: these are 26px targets with a tooltip each,
 // sitting beside the Conectores button instead of competing with the range title. ───────────────────────────
-function renderProviderIcons(cals, S, redraw){
+function renderProviderIcons(cals, ctx){
   const wrap = el2("div","agconnicons");
   (cals||[]).forEach(c=>{
     const live = c.id === "google";            // the only provider with a connector behind it today
@@ -1361,231 +1277,26 @@ function renderProviderIcons(cals, S, redraw){
                                                    : on ? tt("cal_connected", null, "conectado")
                                                         : tt("cal_off", null, "sin conectar"));
     if(!live){ btn.disabled = true; }
-    else {
-      btn.onclick = ()=>{
-        // Connected → the list screen (where the default calendar and «Desconectar» live); not connected →
-        // straight into its wizard, the same shortcut messaging's dimmed icons take.
-        S.screen = on ? "list" : "wizard";
-        if(!on){ S.wizStep = 1; S.connectErr = ""; }
-        redraw();
-      };
-    }
+    else btn.onclick = ()=>ctx.openConnector("google");   // the ⚙ Conectores section, the one door
     wrap.appendChild(btn);
   });
   return wrap;
 }
 
-// ── CONNECTORS SCREEN (list) — the whole content area, not an overlay ────────────────────────────────────
-function renderConnectorScreen(data, ctx, S, redraw){
-  const cals = data.calendars || [];
-  const wrap = el2("div","agconnscreen agpanel");
-  const head = el2("div","agconnhead");
-  head.appendChild(el2("div","agptitle", tt("connectors", null, "Conectores")));
-  const back = el2("button","agconnback", "← " + tt("back_to_agenda", null, "Agenda"));
-  back.onclick = ()=>{ S.screen = null; redraw(); };
-  head.appendChild(back);
-  wrap.appendChild(head);
-
-  cals.forEach(c=>{
-    // V2-690 — a provider is ONE block: its row and whatever acts on it. «Conectar Google Calendar» used to
-    // be a sibling of the list, so it rendered in the gap between the Google row and the iCloud row with the
-    // same distance to each — reading, at a glance, as iCloud's button. Everything a provider owns now hangs
-    // off its own group, and the group is what the spacing separates.
-    const grp = el2("div","agcalgrp");
-    const row = el2("div","agcalrow");
-    const ico = el2("div","agcalico"); const spec = CAL_SVG[c.id];
-    if(spec){ ico.style.color = spec.color; ico.appendChild(svgEl(spec.path, {fill:true})); }
-    else { ico.appendChild(svgEl(ICO_CAL)); }
-    row.appendChild(ico);
-    row.appendChild(el2("div","agcalname", c.label || c.id));
-    const on = c.status === "connected";
-    row.appendChild(el2("div","agcalst" + (on?" on":"") + (c.status==="unconfigured"?" unconf":""),
-      on ? tt("cal_connected", null, "conectado")
-         : (c.status === "unavailable" ? tt("cal_soon", null, "aún no disponible")
-                                       : (c.status === "unconfigured" ? tt("cal_unconf", null, "sin configurar")
-                                                                      : tt("cal_off", null, "sin conectar")))));
-    grp.appendChild(row);
-    wrap.appendChild(grp);
-    // Only Google is wired to a real connector today (V2-679); iCloud/CalDAV stay VISIBLE but INERT — no
-    // button, no click handler — until a second provider lands in `connectors/calendar/providers.py`.
-    if(c.id !== "google") return;
-    if(on){
-      const cald = el2("div","agcaldef");
-      const gcals = data.googleCalendars || [];
-      if(gcals.length){
-        cald.appendChild(el2("div","agcaldeflabel", tt("cal_default_label", null,
-          "Calendario donde crear las citas nuevas:")));
-        gcals.forEach(gc=>{
-          const line = el2("label","agcaldefrow");
-          const radio = document.createElement("input"); radio.type = "radio"; radio.name = "hb-ag-defcal";
-          radio.checked = gc.id === data.defaultCalendarId;
-          radio.onchange = ()=>{ ctx.action("set_default_calendar", {calendarId: gc.id}); };
-          line.appendChild(radio);
-          const dot = el2("span","agcaldot"); if(gc.backgroundColor) dot.style.background = gc.backgroundColor;
-          line.appendChild(dot);
-          line.appendChild(el2("span",null, gc.summary || gc.id));
-          cald.appendChild(line);
-        });
-      }
-      grp.appendChild(cald);
-      const disc = el2("button","agcalbtn2 hb-btn hb-btn--danger", tt("cal_disconnect", null, "Desconectar Google Calendar"));
-      disc.onclick = ()=>{ ctx.action("disconnect", {provider:"google"}); };
-      grp.appendChild(disc);
-    } else {
-      // The operator's rule: this button STARTS THE GUIDE, it does not fire an OAuth handshake that cannot
-      // succeed yet — «lo que hace es iniciar un wizard con las instrucciones en la zona central del widget».
-      const btn = el2("button","agcalbtn2 hb-btn hb-btn--primary", tt("cal_connect", null, "Conectar Google Calendar"));
-      btn.onclick = ()=>{ S.screen = "wizard"; S.wizStep = 1; S.connectErr = ""; redraw(); };
-      grp.appendChild(btn);
-    }
+// The calendar new appointments are written into, when Google has more than one. A calendar PREFERENCE,
+// not a connection, so it stays on the card; connecting and disconnecting live in ⚙ Conectores.
+function renderDefaultCalendar(data, ctx){
+  const gcals = data.googleCalendars || [];
+  const on = (data.calendars||[]).some(c => c.id === "google" && c.status === "connected");
+  if(!on || gcals.length < 2) return null;
+  const sel = document.createElement("select"); sel.className = "agcaldefsel";
+  sel.title = tt("cal_default_label", null, "Calendario donde crear las citas nuevas:");
+  gcals.forEach(gc=>{
+    const o = document.createElement("option"); o.value = gc.id; o.textContent = gc.summary || gc.id;
+    o.selected = gc.id === data.defaultCalendarId; sel.appendChild(o);
   });
-  wrap.appendChild(el2("div","agnote", tt("cal_footer", null,
-    "Conecta Google Calendar y esta agenda pasa a sincronizarse con él: tus citas de ahí se ven aquí y lo que " +
-    "dictes por voz aparece allí. Mientras no haya nada conectado, esta agenda es la de Zaelar.")));
-  return wrap;
-}
-
-// ── GOOGLE CALENDAR WIZARD — one step at a time, in the content area, with a way back at every step ──────
-// Steps 1-3 are the work that happens OUTSIDE (a Google Cloud project, an OAuth client, pasting its id into
-// ⚙ → Conectores); the last one is the only one that talks to anybody, and it is the real handshake.
-function agWizardSteps(){
-  return [
-    {title: tt("wiz1_title", null, "Crea el proyecto en Google y activa Calendar")},
-    {title: tt("wiz2_title", null, "Crea el ID de cliente OAuth"),
-     next:  tt("wiz_have_it", null, "Ya lo tengo — continuar")},
-    {title: tt("wiz3_title", null, "Pega el ID en Configuración → Conectores")},
-  ];
-}
-function agLink(href, label){
-  const a = document.createElement("a"); a.className = "agwlink"; a.href = href;
-  a.target = "_blank"; a.rel = "noopener"; a.textContent = label + " \u2197";
-  return a;
-}
-function agStepBody(step){
-  const wrap = el2("div");
-  if(step === 1){
-    wrap.appendChild(el2("div","agwbody", tt("wiz1_body", null,
-      "En Google Cloud crea un proyecto (o reutiliza uno que ya tengas) y activa en él la API de Google "
-      + "Calendar. Es gratis y solo se hace una vez.")));
-    wrap.appendChild(agLink("https://console.cloud.google.com/projectcreate",
-      tt("wiz1_link1", null, "Crear un proyecto de Google Cloud")));
-    wrap.appendChild(agLink("https://console.cloud.google.com/apis/library/calendar-json.googleapis.com",
-      tt("wiz1_link2", null, "Activar la API de Calendar")));
-  } else if(step === 2){
-    wrap.appendChild(el2("div","agwbody", tt("wiz2_body", null,
-      "En «Credenciales» crea un ID de cliente de OAuth de tipo «Aplicación de escritorio»: ese tipo no "
-      + "necesita secreto ni dominio. Copia el ID de cliente que te da Google.")));
-    wrap.appendChild(agLink("https://console.cloud.google.com/apis/credentials",
-      tt("wiz2_link", null, "Abrir Credenciales de Google Cloud")));
-    wrap.appendChild(el2("div","agwtip", tt("wiz2_tip", null,
-      "El ID de cliente termina en .apps.googleusercontent.com. No es un secreto: lo que protege la conexión "
-      + "es el propio permiso que das en la ventana de Google.")));
-  } else {
-    wrap.appendChild(el2("div","agwbody", tt("wiz3_body", null,
-      "Abre Configuración (⚙) → Conectores → Calendario y pega ahí el ID de cliente. Al guardarlo, este "
-      + "asistente ya puede pedirle permiso a Google.")));
-    wrap.appendChild(el2("div","agwtip", tt("wiz3_tip", null,
-      "Si tu cliente OAuth es de tipo «Web» en vez de escritorio, pega también su secreto en esa misma "
-      + "tarjeta y añade la URL de retorno que ahí se indica.")));
-  }
-  return wrap;
-}
-function renderGoogleWizard(data, ctx, S, redraw){
-  const wrap = el2("div","agconnscreen agpanel");
-  const crumb = el2("div","agwcrumb");
-  const back = el2("button","agconnback", "‹ " + tt("connectors", null, "Conectores"));
-  back.onclick = ()=>{ S.screen = "list"; S.connectErr = ""; redraw(); };
-  crumb.appendChild(back);
-  crumb.appendChild(el2("span","agwsep","/"));
-  crumb.appendChild(el2("span","agwcur", "Google Calendar"));
-  wrap.appendChild(crumb);
-
-  // HOW MANY STEPS is decided by the ACCOUNT, not by a constant. Until V2-685 this was always a four-step
-  // tutorial — create a Google Cloud project, create an OAuth client, paste it into ⚙ — teaching the
-  // operator to register an app FOR THE CALENDAR. That app is now the Google ACCOUNT's, and registering it
-  // once lights Gmail, Calendar, Meet, Drive, Photos and YouTube together (`registry._google`). So when it
-  // is already registered — which is every operator who connected any other Google surface first — those
-  // three steps are somebody else's job already done, and showing them reads as the previous generation's
-  // flow. They stay for the operator who has NO account yet, because today nothing else teaches it.
-  const gcal = (data.calendars || []).find(c => c.id === "google") || {};
-  const steps = gcal.status === "unconfigured" ? agWizardSteps() : [];
-  const total = steps.length + 1;                        // +1 = the step that actually connects
-  const step = Math.min(Math.max(Number(S.wizStep) || 1, 1), total);
-  S.wizStep = step;
-  const last = step === total;
-
-  const box = el2("div","agwstep");
-  const head = el2("div","agwhead");
-  head.appendChild(el2("span","agwnum", String(step)));
-  head.appendChild(el2("span","agwtitle", last ? tt("wiz4_title", null, "Autoriza tu cuenta de Google")
-                                               : steps[step-1].title));
-  if(total > 1) head.appendChild(el2("span","agwcount", tt("wiz_step_n", {n:step, total}, "Paso {n} de {total}")));
-  box.appendChild(head);
-  if(last){
-    box.appendChild(el2("div","agwbody", tt("wiz4_body", null,
-      "Se abrirá una ventana de Google para que autorices el acceso a tu calendario. Al aceptar, tus citas "
-      + "aparecen aquí y lo que dictes por voz se crea allí.")));
-    if(S.connectErr) box.appendChild(el2("div","agwerr", S.connectErr));
-  } else {
-    box.appendChild(agStepBody(step));
-  }
-  const foot = el2("div","agwfoot");
-  const backBtn = el2("button","agcalbtn2 hb-btn hb-btn--secondary", tt("wiz_back", null, "Atrás"));
-  backBtn.onclick = ()=>{
-    if(step > 1){ S.wizStep = step - 1; S.connectErr = ""; } else { S.screen = "list"; }
-    redraw();
-  };
-  foot.appendChild(backBtn);
-
-  if(!last){
-    const nextBtn = el2("button","agcalbtn2 hb-btn hb-btn--primary", steps[step-1].next || tt("wiz_next", null, "Continuar"));
-    nextBtn.onclick = ()=>{ S.wizStep = step + 1; redraw(); };
-    foot.appendChild(nextBtn);
-  } else {
-
-    const go = el2("button","agcalbtn2 hb-btn hb-btn--primary", S.connectBusy ? tt("cal_connecting", null, "Abriendo Google…")
-                                                       : tt("cal_connect", null, "Conectar Google Calendar"));
-    go.disabled = !!S.connectBusy;
-    go.onclick = async ()=>{
-      S.connectBusy = true; S.connectErr = ""; redraw();
-      // V2-687 — the ORIGIN travels. Two doors open this same consent and they were sending DIFFERENT
-      // redirect_uris: the settings panel derives it from the request headers (V2-603), and this one sent
-      // nothing, so it always fell back to the loopback default. Which URI Google saw depended on which
-      // button was pressed, so registering one of them left the other failing with redirect_uri_mismatch —
-      // measured on the operator's first real connect, 2026-09-14. An origin is not a credential (V2-520),
-      // and the engine validates it before it ever reaches a URL.
-      let res;
-      // V2-700 — `ctx.connect` owns the window AND the noticing. It opens the popup SYNCHRONOUSLY inside
-      // this click (a window.open() after an `await` is outside the user gesture and every mainstream
-      // browser blocks it in SILENCE — the reason this button once «ni siquiera funciona»), and then
-      // watches: the callback page's message, the window closing, and a bounded poll. The card therefore
-      // stops offering «Conectar» the moment the token lands, which it did not do before: the operator had
-      // to make something else happen before the screen caught up.
-      //
-      // `force` is a HUMAN pressing this button, and it is the only thing that sends it: re-linking a
-      // different Google account has to stay possible, while a voice turn or a Brain Worker asking to
-      // "connect" a calendar that is already connected gets told so instead of getting a wizard (V2-689).
-      try{ res = await ctx.connect("connect", {provider:"google", origin: location.origin, force:true},
-                                   {family:"agenda", name:"gcal",
-                                    onDone: ()=>{ S.connectBusy = false; }}); }
-      catch(_){ res = null; }
-      S.connectBusy = false;
-      if(!(res && res.url)){
-        // A refusal SAYS what went wrong — the connector's own sentence when it has one («sin app OAuth
-        // registrada…»), which is the step above this one still pending.
-        S.connectErr = (res && res.error) || tt("cal_connect_failed", null,
-          "No pude abrir la ventana de Google. Revisa que el ID de cliente esté guardado en Configuración → "
-          + "Conectores → Calendario.");
-      }
-      redraw();
-    };
-    foot.appendChild(go);
-  }
-  // V2-690 — the actions belong to the STEP, so they hang off the step box and not off the screen: they used
-  // to float on the card's ground with nothing tying them to the panel they act on.
-  box.appendChild(foot);
-  wrap.appendChild(box);
-  return wrap;
+  sel.onchange = ()=>{ ctx.action("set_default_calendar", {calendarId: sel.value}); };
+  return sel;
 }
 
 // ── V2-744 · TAREAS — the operator's own lists, numbered as he reads them ─────────────────────────────
@@ -1845,14 +1556,10 @@ export function render(el, data, ctx){
   _LANG = (ctx && ctx.lang) || "es";
 
   const today = data.date || ymd(new Date());
-  // `screen` is the CONNECTORS area (null = the calendar itself, "list" = every provider, "wizard" = the
-  // guided Google connect). It is a SCREEN and not an overlay: the operator asked for the whole content area,
-  // «igual que en mensajería», where the same three-state machine has lived since V2-570.
   // V2-744 — `sec` is WHICH OF THE TWO THINGS this card is showing (the calendar or his task lists), and
   // it is a different axis from `view` (day/week/month/list), which is a lens over the calendar alone.
   // `tl` is the list being read; `tlN` is the push counter of the last voice order that moved it.
-  if(!el._ag) el._ag = {view:"week", anchor:today, sel:null, screen:null, wizStep:1, connectBusy:false,
-                        connectErr:"", confirmDel:false, viewN:null, connN:null, add:null,
+  if(!el._ag) el._ag = {view:"week", anchor:today, sel:null, confirmDel:false, viewN:null, add:null,
                         sec:"agenda", tl:"", tlN:null, tlNew:false, tlEdit:false, tlItem:"", tlAsk:""};
   const S = el._ag;
 
@@ -1873,11 +1580,8 @@ export function render(el, data, ctx){
     else if(/^\d{4}-\d{2}-\d{2}$/.test(want)){ S.view = "day"; S.anchor = want; }
     S.sel = null; S.confirmDel = false;
     S.openWant = pushed.open || null;
-    // A pushed view is a NAVIGATION order: it has to leave the connectors screen, or the day it asked for
-    // renders underneath a setup screen and the order looks ignored (V2-626's lesson, one widget over).
-    // V2-744 — …and it has to leave the TASKS section for the same reason: «enséñame el jueves» answered
-    // while the card sits on the shopping list would be a day nobody can see.
-    S.screen = null;
+    // V2-744 — a pushed view leaves the TASKS section: «enséñame el jueves» answered while the card sits on
+    // the shopping list would be a day nobody can see.
     S.sec = "agenda";
   }
 
@@ -1888,37 +1592,10 @@ export function render(el, data, ctx){
   if(pushedT && pushedT.n !== S.tlN){
     S.tlN = pushedT.n;
     S.sec = "tasks";
-    S.screen = null;
     if(pushedT.list) S.tl = String(pushedT.list);
     S.sel = null; S.tlEdit = false; S.tlItem = ""; S.tlAsk = "";
   }
 
-  // A CONNECT PUSHED FROM VOICE (V2-686). «Conecta mi Google Calendar» cannot finish here — the consent
-  // popup only survives inside the operator's own click — so the voice does the half it can: it leaves the
-  // card ON the step that holds the button. Same token rule as the view above: it lands when the counter
-  // MOVES, never on a plain repaint.
-  // ⚠️ …and NEVER over a calendar that is already linked (V2-689). `S.connN` starts at null on a fresh
-  // element, so within the push's 3-minute life ANY repaint that rebuilt the card re-applied it — which is
-  // how the button came back the instant Google finished authorizing, and how a Brain Worker calling this
-  // action threw a setup wizard over the week he was reading. The backend no longer pushes when connected;
-  // this is the second half, because a token already in the store must not fire on the next mount either.
-  const gcalOn = (data.calendars||[]).some(c => c.id === "google" && c.status === "connected");
-  // ⚠️ A WIZARD OVER A CONNECTED ACCOUNT IS A LIE (V2-693). The consent happens in Google's own popup, which
-  // closes itself — so the card stayed on «Authorize your Google account», with a Connect button, for an
-  // account that was already linked. The operator reported exactly that: «la ventana se ha abierto, se ha
-  // cerrado el pop-up, y en la agenda sigo viendo autoriza tu Google Account… si vuelvo atrás sí que se ve
-  // perfectamente conectado». Nothing was broken underneath; the screen simply never heard the news.
-  // It goes to the connectors LIST and not to the calendar on purpose: that screen is where the state he
-  // just changed is actually shown («connected», and the calendar to write into), so the step he completed
-  // gets an answer instead of just vanishing.
-  if(S.screen === "wizard" && gcalOn){ S.screen = "list"; S.connectBusy = false; S.connectErr = ""; S.wizStep = 1; }
-  const pushedConn = gcalOn ? null : data.connect;
-  if(pushedConn && pushedConn.n !== S.connN){
-    S.connN = pushedConn.n;
-    S.screen = "wizard";
-    S.wizStep = 99;            // the LAST step, whatever the count is — the wizard clamps it, and the count
-    S.connectErr = "";         // is no longer a constant (it depends on whether the Google account exists)
-  }
   if(!S.anchor) S.anchor = today;
 
   const all = eventsOf(data);
@@ -1941,7 +1618,7 @@ export function render(el, data, ctx){
   [["agenda", tt("sec_agenda", null, "Agenda")], ["tasks", tt("sec_tasks", null, "Tareas")]].forEach(([id,label])=>{
     const b = el2("button","agsecb" + (S.sec === id ? " on" : ""), label);
     b.dataset.sec = id;
-    b.onclick = ()=>{ S.sec = id; S.sel = null; S.screen = null; S.tlAsk = ""; render(el, data, ctx); };
+    b.onclick = ()=>{ S.sec = id; S.sel = null; S.tlAsk = ""; render(el, data, ctx); };
     secs.appendChild(b);
   });
   sub.appendChild(secs);
@@ -2017,26 +1694,21 @@ export function render(el, data, ctx){
   const views = el2("div","agviews");
   [["day", tt("day", null, "Día")], ["week", tt("week", null, "Semana")],
    ["month", tt("month", null, "Mes")], ["list", tt("list", null, "Lista")]].forEach(([id,label])=>{
-    // While the connectors screen owns the content, NO view is the one on screen — so none of them is lit and
-    // none of them is clickable (the operator: «se desactiva el foco o el botón activo de día, semana, mes y
-    // lista»). The chosen view survives underneath and comes back when the screen closes.
-    const t = el2("button","agtab" + (!S.screen && S.view===id ? " on" : ""), label);
+    const t = el2("button","agtab" + (S.view===id ? " on" : ""), label);
     t.dataset.view = id;
-    t.disabled = !!S.screen;
     t.onclick = ()=>{ S.view = id; S.sel = null; render(el, data, ctx); };
     views.appendChild(t);
   });
   const right = el2("div","agviewsright");
-  right.appendChild(renderProviderIcons(data.calendars || [], S, ()=>render(el, data, ctx)));
-  const calBtn = el2("button","agcalbtn" + (S.screen?" on":""));
+  const defCal = renderDefaultCalendar(data, ctx);
+  if(defCal) right.appendChild(defCal);
+  right.appendChild(renderProviderIcons(data.calendars || [], ctx));
+  // V2-699's plug, kept: it is the card's door to ITS connector, which lives in ⚙ Conectores (2026-10-04).
+  const calBtn = el2("button","agcalbtn");
   calBtn.appendChild(svgEl(ICO_PLUG));
   calBtn.appendChild(el2("span",null, tt("connectors", null, "Conectores")));
   calBtn.title = tt("calendars_hint", null, "Qué calendarios están conectados");
-  calBtn.onclick = ()=>{
-    S.screen = S.screen ? null : "list";
-    if(S.screen === "list"){ S.sel = null; S.connectErr = ""; }
-    render(el, data, ctx);
-  };
+  calBtn.onclick = ()=>ctx.openConnector("google");
   right.appendChild(calBtn);
   views.appendChild(right);
   el.appendChild(views);
@@ -2044,7 +1716,7 @@ export function render(el, data, ctx){
   // ── proposals ──────────────────────────────────────────────────────────────────────────────────────
   // V2-697 — appointments somebody ELSE asked for. Above the calendar and visually apart from it, because
   // NONE of this is on his calendar yet: the whole point is that it is a question, not an entry.
-  if(!S.screen) renderProposals(el, data, ctx, redraw);
+  renderProposals(el, data, ctx, redraw);
 
   // ── body ───────────────────────────────────────────────────────────────────────────────────────────
   const body = el2("div","agbody");
@@ -2059,11 +1731,7 @@ export function render(el, data, ctx){
   };
 
   let active = null;
-  if(S.screen === "list"){
-    body.appendChild(renderConnectorScreen(data, ctx, S, ()=>render(el, data, ctx)));
-  } else if(S.screen === "wizard"){
-    body.appendChild(renderGoogleWizard(data, ctx, S, ()=>render(el, data, ctx)));
-  } else if(S.view === "week"){
+  if(S.view === "week"){
     renderGrid(body, dates, all, data, pick, pickDay, pickSlot, overflow);
   } else if(S.view === "month"){
     renderMonth(body, S.anchor, all, data, pick, pickDay);
@@ -2146,7 +1814,7 @@ export function render(el, data, ctx){
   });
 
   // Open the grid on the working hours instead of at midnight-ish, once per paint.
-  if(!S.screen && (S.view === "day" || S.view === "week")){
+  if(S.view === "day" || S.view === "week"){
     const scroller = el.querySelector(".agday-grid") || el.querySelector(".agbody");
     if(scroller){
       const [lo] = hourRange(dates.flatMap(d=>eventsOn(all, d)));

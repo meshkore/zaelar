@@ -95,11 +95,12 @@ def _platform_states() -> str:
     # widget — the Google connector is right there with the login steps», which is this line, obeyed
     # exactly. Meanwhile the calendar's connector lives in the AGENDA and Google Drive's in ARCHIVOS.
     # A brief may claim its OWN family and no more; `connectors/google/brain.py` names each door's surface.
-    tail = (" Para los canales de MENSAJERÍA (WhatsApp, Telegram, correo) el operador no toca ficheros: si "
-            "quiere conectar o ver UNO DE ESTOS, emite [[show:mensajeria]] y el widget le GUÍA paso a paso "
-            "(credenciales si hacen falta → QR). Guíale tú también de palabra ('te abro Mensajería, ahí "
-            "tienes los pasos'). Otros conectores —calendario, archivos, fotos, vídeo— se conectan cada uno "
-            "DESDE SU WIDGET, no desde aquí.")
+    # 2026-10-04: one door for every connection — the ⚙ Conectores section, opened on the connector by
+    # `show_panel`. The widget no longer has a wizard of its own, so naming it here would send the model there.
+    tail = (" Para CONECTAR o desconectar un canal (WhatsApp, Telegram, correo) el operador no toca ficheros: "
+            "show_panel(panel='conectores', connector='whatsapp'|'telegram'|'email') le abre el asistente de "
+            "ESE conector paso a paso (credenciales si hacen falta → QR). Guíale tú también de palabra. "
+            "Cualquier otro servicio se conecta por la misma puerta.")
     # Prefix with "CONNECTORS" (not just "Messaging"): the operator asks "which connectors are active?" and the
     # model must map THAT question to THIS data (which it already has) instead of going to web_search.
     # And it OUTRANKS the conversation (V2-582, measured live): the operator connected email mid-dialogue and

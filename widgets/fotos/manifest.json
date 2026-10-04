@@ -32,8 +32,8 @@
       "payload": {},
       "view": true
     },
-    "connect": {
-      "desc": "abre el selector de fotos de Google en una pestaña nueva para elegir una tanda",
+    "pick": {
+      "desc": "abre el selector de fotos de Google para elegir una tanda («elige más fotos», «quiero añadir las del viaje»). Conectar la cuenta NO es esto: es show_panel(panel='conectores', connector='google-photos')",
       "payload": {}
     },
     "more": {
@@ -58,14 +58,6 @@
       "payload": {
         "label": "el nombre del viaje o la ocasión"
       }
-    },
-    "disconnect": {
-      "desc": "olvida la conexión con Google Photos",
-      "payload": {},
-      "confirm": true,
-      "confirm_q": "¿Desconecto Google Photos? Las fotos ya importadas se quedan, pero tendrás que volver a dar permiso para elegir más.",
-      "consent_class": "account.disconnect",
-      "singleton": true
     }
   },
   "name": "Fotos",

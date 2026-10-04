@@ -214,6 +214,11 @@ export function routeEvent(desktop, d) {
       // and the turn ended with a false «okay, closed» — the operator asked five times in a row and had to close
       // it with the ✕. The chat is NATIVE UI, not a card: [[close]] does not touch it.
       if (d.label === "close") { store.setChatOpen(false); }
+      // The ONE door to connect a service: «conecta mi Drive» opens the ⚙ Conectores section on that
+      // connector alone, with its guide — the same place the catalog's «Conectar» button lands.
+      else if (d.tab === "conectores" && d.connector) {
+        store.setConfigInitialTab("conectores"); store.setConfigConnector(String(d.connector)); store.setConfigOpen(true);
+      }
       else {
         // V2-728 — the whitelist LIVED HERE and it is why `clusters` was silently dropped at birth (V2-086):
         // the backend routed it correctly and this line turned it into «Chat». It now belongs to

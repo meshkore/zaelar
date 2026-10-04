@@ -57,6 +57,10 @@ def _sync_platforms(db: dict) -> dict:
                      "app_configured": bool(r.get("app_configured")),
                      "note": str(r.get("note") or "")})
     db["platforms"] = rows
+    # Disconnecting happens in the ⚙ Conectores section now, so the band a gone account no longer backs is
+    # emptied here, on the next re-read, instead of by the card's old disconnect action.
+    if not any(r["connected"] for r in rows):
+        db["suggested"], db["suggested_at"], db["suggested_channels"] = [], 0, 0
     return {"ok": bool(st.get("ok")), "platforms": rows}
 
 
@@ -68,52 +72,6 @@ def apply(action: str, p: dict, db: dict) -> "dict | None":
         r = _sync_platforms(db)
         store.save(WID, db)
         return r
-
-    if action == "open_connectors":
-        if not _accounts_enabled():
-            return {"ok": False, "error": _NOT_YET, "message": _NOT_YET}
-        # V2-597 — the VOICE door into a platform's connect screen (V2-520 shape: intent only, never a
-        # credential). The card consumes `connect_focus` once per timestamp and opens that platform's
-        # wizard — or its status screen if it is already connected.
-        platform = str(p.get("platform") or "").strip().lower()
-        _sync_platforms(db)
-        known = {r.get("id") for r in db.get("platforms") or []}
-        if platform not in known:
-            platform = "youtube" if "youtube" in known else ""
-        db["connect_focus"] = {"platform": platform, "ts": int(time.time() * 1000)}
-        store.save(WID, db)
-        row = next((r for r in db.get("platforms") or [] if r.get("id") == platform), {})
-        return {"ok": True, "platform": platform, "connected": bool(row.get("connected")),
-                "app_configured": bool(row.get("app_configured"))}
-
-    if action == "connect_account":
-        if not _accounts_enabled():
-            return {"ok": False, "error": _NOT_YET, "message": _NOT_YET}
-        # Starts the OAuth consent for a platform whose app is ALREADY registered (client_id typed once in
-        # ⚙ → Conectores, never through a widget payload — V2-520). Returns the URL; the card opens the
-        # window synchronously on the click and fills its location after.
-        platform = str(p.get("platform") or "youtube").strip().lower()
-        svc = _svc()
-        if svc is None:
-            return {"ok": False, "error": "conector de vídeo no disponible"}
-        r = svc.connect_url(platform)
-        if not r.get("ok"):
-            return {"ok": False, "error": str(r.get("error") or "no pude empezar la conexión")[:200]}
-        return {"ok": True, "url": r.get("url"), "platform": platform}
-
-    if action == "disconnect_account":
-        platform = str(p.get("platform") or "youtube").strip().lower()
-        svc = _svc()
-        if svc is None:
-            return {"ok": False, "error": "conector de vídeo no disponible"}
-        r = svc.disconnect(platform)
-        _sync_platforms(db)
-        # A disconnected account's suggestions are stale by definition — keeping them would show a band the
-        # data no longer backs.
-        db["suggested"], db["suggested_at"], db["suggested_channels"] = [], 0, 0
-        store.save(WID, db)
-        return {"ok": bool(r.get("ok")), "platform": platform,
-                **({} if r.get("ok") else {"error": str(r.get("error") or "")[:200]})}
 
     if action == "suggest":
         if not _accounts_enabled():

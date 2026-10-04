@@ -17,7 +17,8 @@ Three facts are declared here and nowhere else:
 2. **How a Meet link is actually asked for** — as a field of `add_meeting`, not as a tool of its own.
    The model has the appointment tool already; what it lacks is the knowledge that one argument turns an
    appointment into a video meeting. A capability that is reachable but undeclared gets narrated.
-3. **Through WHICH door each service is consented** (V2-686). Added after the same failure arrived a
+3. **Through WHICH door each service is consented** (V2-686; since 2026-10-04 that door is always the
+   ⚙ Conectores section, opened on the connector by `show_panel`). Added after the same failure arrived a
    fourth time: told it could offer to connect Google and not told where, the model offered MESSAGING's
    wizard for the calendar. And the sentence it replaced was wrong on its own terms — one app, six
    consents, not one consent for six services.
@@ -39,11 +40,11 @@ from __future__ import annotations
 #: Gmail. Left as it was, a model that had just connected one door would answer «ya tienes el correo
 #: conectado» about the other five.
 _DOORS = {
-    "calendar": "AGENDA (widget_data agenda:connect)",
-    "gmail": "MENSAJERÍA (mensajeria:open_connectors, platform=email)",
-    "drive": "ARCHIVOS",
-    "photos": "FOTOS",
-    "youtube": "VÍDEO",
+    "calendar": "google",
+    "gmail": "email",
+    "drive": "gdrive",
+    "photos": "google-photos",
+    "youtube": "youtube",
 }
 _ALL_DOORS = set(_DOORS) | {"meet"}
 
@@ -59,10 +60,13 @@ def _how_to_connect(missing: set[str] | None = None) -> str:
     doors = sorted(d for d in _DOORS if missing is None or d in missing)
     if not doors:
         return ""
-    rows = " · ".join(f"{d} → {_DOORS[d]}" for d in doors)
-    return ("CÓMO SE CONECTA: una cuenta, pero cada puerta pide SU permiso desde SU widget — " + rows +
-            ". Meet no se conecta: viene con calendar. El permiso lo da el operador PULSANDO en la "
-            "tarjeta: llama a la acción y dile que pulse el botón, nunca le dictes la URL.")
+    # One door for every service since the widgets lost their connect screens: the ⚙ Conectores section,
+    # opened on that connector by `show_panel` — so the table names the CONNECTOR id it takes.
+    rows = " · ".join(f"{d} → connector='{_DOORS[d]}'" for d in doors)
+    return ("CÓMO SE CONECTA: una cuenta, pero cada servicio pide SU permiso, y TODOS se conectan en la "
+            "sección Conectores — show_panel(panel='conectores', connector=…): " + rows +
+            ". Meet no se conecta: viene con calendar. El permiso lo da el operador PULSANDO en esa "
+            "sección: ábrela y dile qué paso le toca, nunca le dictes la URL.")
 
 
 def connected_services() -> list[str]:
@@ -98,7 +102,8 @@ def brain_state() -> str:
     if not _app.configured():
         return ("GOOGLE: no hay cliente OAuth instalado, así que Gmail, Calendar, Meet, Drive, Fotos y "
                 "YouTube NO se pueden conectar ahora mismo. NO digas que los conectas ni que los has "
-                "vinculado, y no abras ninguna tarjeta de conexión: dilo tal cual y sigue con lo demás.")
+                "vinculado: dilo tal cual. Registrar la app es el asistente de la cuenta de Google — "
+                "show_panel(panel='conectores', connector='google-account') si lo pide.")
 
     if not live:
         return ("GOOGLE: la app está instalada pero el operador NO ha dado su consentimiento todavía, así "

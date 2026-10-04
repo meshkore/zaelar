@@ -167,7 +167,9 @@ TOOLS: list[dict] = [
                 "[[show]]. `panel`: 'procesos' (TU trabajo en marcha; sus TAREAS van en el widget agenda) | "
                 "'crons' (periódicos) | 'programadas' (una vez, luego) | "
                 "'chat' (muro de texto) | 'clusters' (red MeshKore) | 'conectores' (cuentas) | "
-                "'apps' (catálogo de apps/widgets). "
+                "'apps' (catálogo de apps/widgets). CONECTAR/configurar/desconectar CUALQUIER servicio "
+                "(Drive, calendario, Gmail, WhatsApp, Spotify…) es SIEMPRE esta, `panel:'conectores'` + "
+                "`connector` = cuál: abre su asistente paso a paso; ningún widget conecta nada. "
                 "Solo si quiere VER la lista; un dato suelto se dice hablando. Con `action:'close'` lo "
                 "CIERRA. El chat NO es un widget: [[close]] no lo cierra — es ESTA."
             ),
@@ -176,6 +178,8 @@ TOOLS: list[dict] = [
                 "properties": {
                     "panel": {"type": "string",
                               "description": "cuál (clusters…)"},
+                    "connector": {"type": "string",
+                                  "description": "con panel 'conectores': el servicio (gdrive, google, email…)"},
                     "action": {"type": "string",
                                "description": "'open' (por defecto) o 'close' si pide cerrarlo/quitarlo"},
                 },

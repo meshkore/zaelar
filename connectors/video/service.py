@@ -64,7 +64,7 @@ def _prepared(provider_id: str):
         return None, None, {"ok": False, "error": f"sin app OAuth registrada para {p.label} "
                                                   f"(el client_id se pone una vez en Configuración → Conectores)"}
     if not oauth.tokens_present(p.id):
-        return None, None, {"ok": False, "error": f"{p.label} no está conectado — conéctalo desde la tarjeta"}
+        return None, None, {"ok": False, "error": f"{p.label} no está conectado — conéctalo en Configuración → Conectores"}
     tok = oauth.access_token(p.id)
     if not tok:
         return None, None, {"ok": False, "error": f"la sesión con {p.label} caducó — reconecta la cuenta"}
@@ -145,7 +145,7 @@ def brain_state() -> str:
         # declining possible.
         return ("VÍDEO (cuentas): conectar una cuenta de YouTube TODAVÍA NO ESTÁ DISPONIBLE en esta versión "
                 "— la puerta no existe aún, no es que esté desconectada. NO lo ofrezcas, NO digas que puedes "
-                "conectarla ni vincularla, y NO abras ninguna tarjeta de conexión. Si te lo piden, dilo con "
+                "conectarla ni vincularla, y NO abras su asistente de conexión. Si te lo piden, dilo con "
                 "naturalidad: todavía no está listo. El reproductor de vídeo funciona con normalidad "
                 "(buscar, poner, listas): eso NO depende de ninguna cuenta.")
     try:
@@ -161,15 +161,15 @@ def brain_state() -> str:
             state = f"CONECTADO ({r.get('tier_label') or r.get('tier') or 'solo lectura'})"
         elif r.get("app_configured"):
             state = ("SIN conectar — la app OAuth ya está registrada, solo falta que el operador AUTORICE "
-                     "su cuenta desde la tarjeta")
+                     "su cuenta en la sección Conectores")
         else:
             state = ("SIN conectar y SIN app OAuth registrada — no se puede conectar todavía; el operador "
-                     "tiene que completar el alta desde la tarjeta")
+                     "tiene que completar el alta en la sección Conectores")
         lines.append(f"{label}: {state}.")
     lines.append(
         "NUNCA digas que has conectado, vinculado o autorizado una cuenta: tú no puedes: el consentimiento lo "
-        "da el operador en la ventana del proveedor. Lo ÚNICO que haces es abrirle la tarjeta con "
-        "`widget_data(youtube, open_connectors)` y decirle qué paso le toca. Si arriba pone SIN conectar, "
+        "da el operador en la ventana del proveedor. Lo ÚNICO que haces es abrirle la sección con "
+        "`show_panel(panel='conectores', connector='youtube')` y decirle qué paso le toca. Si arriba pone SIN conectar, "
         "sigue SIN conectar por mucho que se haya abierto un navegador o iniciado sesión en Google: entrar en "
         "Google NO conecta este conector.")
     return "VÍDEO (cuentas):\n" + "\n".join(lines)

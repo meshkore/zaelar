@@ -890,6 +890,12 @@ export class Desktop {
         // whole tab in contacts). `widget.js` never touches the network, and this does not change that —
         // the widget still only names an action.
         connect:(action, payload, opts)=>desk._connectFlow(id, action, payload, opts),
+        // 2026-10-04 — THE door a card uses to reach ITS connector: the ⚙ Conectores section opened on that
+        // connector alone, with its guide. Cards no longer carry connect screens of their own — the voice
+        // would not know which of the two to open — so a plug button, a dimmed provider icon or a «connect»
+        // link all land here. Same `hb:` event the host already listens to (main.js).
+        openConnector:(cx)=>{ try{ document.dispatchEvent(new CustomEvent("hb:open-config",
+          {detail: {tab: "conectores", connector: String(cx || "")}})); }catch(_e){} },
         // V2-092 — is the agent running? DELIBERATELY A GETTER: `ctx` is created once at mount and saved
         // (`w._ctx`) for re-renders, so a copied value would become stale. A widget that PLAYS something must check
         // it before starting on its own (see widgets/AGENTS.md, “produce”).

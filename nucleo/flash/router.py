@@ -211,6 +211,7 @@ def _canon_panel_action(v) -> str:
 # V2-728 — the panel canon moved to its own module (see `panel_canon.py`); re-imported under the same
 # private name so every call site in this file, and its tests, keep working unchanged.
 from nucleo.flash.panel_canon import canon_panel as _canon_panel
+from nucleo.flash.connector_canon import canon_connector as _canon_connector  # noqa: E402,F401
 
 
 # Tools whose WHOLE decision is «these string arguments, stripped» — six branches of one shape, folded when the

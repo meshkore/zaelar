@@ -10,19 +10,6 @@ from __future__ import annotations
 from . import data as _d
 
 
-# OPEN the channels panel (V2-520). Intent only — it stores no credential and starts no connection: the
-# form does that, because a password or an OAuth round-trip is never something to conduct by voice.
-def _a_open_connectors(action, payload) -> dict:
-    import time as _time
-    platform = (payload.get("platform") or "").lower()
-    if platform not in _d._PLATFORMS:
-        platform = ""                       # unknown/absent → open the panel, expand nothing
-    db = _d.load_db()
-    db["connect_focus"] = {"platform": platform, "ts": int(_time.time() * 1000)}
-    _d.store.save(_d.WIDGET_ID, db)
-    return _d.view_data()
-
-
 # CHANGE WHAT IS SHOWN and ANSWER (V2-543). «Vuelve a la lista principal» / «muéstrame solo el WhatsApp»
 # are THIS action — re-showing the widget changes nothing (measured live 2026-09-01: two such orders got a
 # bare show_widget and «Aquí lo tienes» over an unmoved screen). Returns the matching chats so the turn can
@@ -140,28 +127,6 @@ def _a_search_archive(action, payload) -> dict:
 
 
 def _a_peek(action, payload) -> dict:
-    return _d.view_data()
-
-
-# Connection control, executed by the supervisor, not the widget.
-def _a_connection(action, payload) -> dict:
-    platform = (payload.get("platform") or "").lower()
-    if platform in _d._PLATFORMS:
-        db = _d.load_db()
-        cmd = {"platform": platform, "cmd": action}
-        if action == "connect" and platform == "telegram":
-            cmd["api_id"] = str(payload.get("api_id") or "").strip()
-            cmd["api_hash"] = str(payload.get("api_hash") or "").strip()
-        if action == "connect" and platform == "email":
-            # Credentials from the widget form (V2-051). supervisor->control.py persists them redacted.
-            for k in ("email_address", "email_password", "provider",
-                      "imap_host", "imap_port", "smtp_host", "smtp_port"):
-                if payload.get(k) not in (None, ""):
-                    cmd[k] = payload.get(k)
-        if action == "disconnect" and payload.get("forget"):
-            cmd["forget"] = True
-        db.setdefault("pending_control", []).append(cmd)
-        _d.store.save(_d.WIDGET_ID, db)
     return _d.view_data()
 
 
