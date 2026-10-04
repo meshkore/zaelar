@@ -108,3 +108,12 @@ def test_a_dated_task_that_asks_for_a_notice_is_an_item_that_rings(fake_sched):
     (m,) = agenda.load_db()["meetings"]
     assert m["title"] == "Estreno de Dexter" and m.get("reminder_id")
     assert _live_stamps(fake_sched) == [f"{THU} 09:00"]
+
+
+def test_set_reminder_reads_the_same_keys_add_meeting_does(fake_sched):
+    """V2-781 T519 (EN live): set_reminder {title, remind: "… 12:00"} was refused four times — «me falta cuándo
+    suena el aviso» — while add_meeting reads `remind` since T513. One vocabulary for «when it rings»."""
+    agenda.apply_action("add_meeting", {"title": "Kids dentist appointment", "date": THU, "startTime": "15:00"})
+    r = agenda.apply_action("set_reminder", {"title": "Kids dentist appointment", "remind": f"{THU} 12:00"})
+    assert r.get("ok") is not False, r
+    assert _live_stamps(fake_sched) == [f"{THU} 12:00"]

@@ -237,7 +237,9 @@ def _a_set_reminder(action, payload, db, _extra) -> dict:
         return {"ok": False,
                 "error": "no encuentro esa cita en la agenda — dime el título tal como está "
                          "apuntada (y la fecha si hay varias)"}
-    _at = str(payload.get("at") or payload.get("time") or payload.get("startTime") or "").strip()
+    # V2-781 T519 (EN live): `set_reminder {remind: "…12:00"}` — the key add_meeting reads — was refused four times
+    _asked = next((payload[k] for k in _d.reminders.ASK_KEYS if payload.get(k) not in (None, "", False, True)), "")
+    _at = str(payload.get("at") or _asked or payload.get("time") or payload.get("startTime") or "").strip()
     if not _at:
         return {"ok": False,
                 "error": "me falta cuándo suena el aviso — mándalo en `at` (HH:MM del día de la cita, "
