@@ -68,7 +68,7 @@ def _data(**over):
     return d
 
 
-def _meet(title, *, day=0, start="10:00", end="11:00", **extra, coming: bool = False):
+def _meet(title, *, day=0, start="10:00", end="11:00", coming: bool = False, **extra):
     # `coming`: the LIST view shows what is ahead, so its fixtures are future days, not days of the shown week.
     m = {"title": title, "date": _d(day) if coming else _wd(day), "startTime": start, "endTime": end}
     m.update(extra)
