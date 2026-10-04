@@ -146,7 +146,8 @@ def _lang_lock() -> str:
         native, name = "español", "Spanish"
     return (
         "── IDIOMA (REGLA ABSOLUTA, POR ENCIMA DE TODO) ──\n"
-        f"Responde SIEMPRE y ÚNICAMENTE en {native} ({name}). Es el idioma configurado del sistema.\n"
+        # Demo pass 105, C5: «Oye Ethan…» — a Telegram written in Spanish in an English session.
+        f"Responde, y redacta mensajes y notas, SIEMPRE y ÚNICAMENTE en {native} ({name}).\n"
         f"COMPRENDES cualquier idioma (inglés, catalán, francés…): si el turno viene en OTRO idioma pero se entiende, "
         f"ATIÉNDELO con total normalidad (responde/actúa igual) y SIEMPRE en {native} — venir en otro idioma NO es "
         f"motivo para pedir que lo repitan. Solo pide en {native} que te lo repitan si el turno es de verdad "
