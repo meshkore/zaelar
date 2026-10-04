@@ -117,7 +117,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
             except Exception:  # noqa: BLE001
                 pl = {**pl, "item": _ref}
         mode = _fe.action_mode(wid, act)
-        mode = _leave_gate.asked_if_leaving(mode, brief, wid, act)   # V2-778 F4-33: the voice rail's rule
+        mode = _leave_gate.asked_if_leaving(mode, brief, wid, act, payload=pl, said=_order)   # V2-778 F4-33: the voice rail's rule
         if mode != _wa.FAST:
             saltadas.append({"widget": wid, "act": act, "mode": str(mode)})
             continue

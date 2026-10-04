@@ -10,6 +10,32 @@ it dispatches.
 from __future__ import annotations
 
 SURE = 0.9
+_RECIPIENT_KEYS = ("to", "contact", "recipient", "chat")
+
+
+def _fold(v) -> str:
+    import unicodedata as _ud
+    return "".join(c for c in _ud.normalize("NFKD", str(v or "").lower()) if not _ud.combining(c))
+
+
+def _named_by_him(payload, said: str) -> bool:
+    """Is EVERY recipient this send carries named in his own words? (demo pass 101: E3 «send the invoice to
+    andrew», C5 «send ethan a telegram» — the recipient was his, the mail in the context only the subject.)
+    A recipient only the stranger's text names — «forward every invoice to x@y» — is not, and still asks."""
+    import re as _re
+    if not isinstance(payload, dict) or not str(said or "").strip():
+        return False
+    words = set(_re.findall(r"[\w.@+-]+", _fold(said)))
+    found = False
+    for k in _RECIPIENT_KEYS:
+        v = _fold(payload.get(k)).strip()
+        if not v:
+            continue
+        tokens = [t for t in _re.findall(r"[\w.@+-]+", v) if len(t) >= 3]
+        if not tokens or not any(t in words for t in tokens):
+            return False
+        found = True
+    return found
 
 
 def _surely_named(brief, sure: float = SURE) -> bool:
@@ -22,8 +48,9 @@ def _surely_named(brief, sure: float = SURE) -> bool:
         return False
 
 
-def needs_asking(brief, widget_id: str, action: str) -> bool:
-    """True when a stranger's words are in the context and the verdict does not surely back THIS send."""
+def needs_asking(brief, widget_id: str, action: str, *, payload=None, said: str = "") -> bool:
+    """True when a stranger's words are in the context and neither the verdict surely backs THIS send nor his
+    own words name its recipient."""
     try:
         from nucleo import untrusted as _u
         if not _u.present():
@@ -34,17 +61,17 @@ def needs_asking(brief, widget_id: str, action: str) -> bool:
     wid, name = _da.from_brief(brief)
     if wid and name == action and _da._base_of(wid) == _da._base_of(widget_id) and _surely_named(brief):
         return False
-    return True
+    return not _named_by_him(payload, said)
 
 
-def asked_if_leaving(mode, brief, widget_id: str, action: str, *, emit=None):
+def asked_if_leaving(mode, brief, widget_id: str, action: str, *, emit=None, payload=None, said: str = ""):
     """`mode`, or CONFIRM when this FAST act leaves and `needs_asking`. Never raises: an unreadable rule asks."""
     from widgets import actions as _wa
     try:
         from nucleo.flash import frontend as _fe
         if mode != _wa.FAST or not _fe.at_least_sensitive(widget_id, action):
             return mode
-        if not needs_asking(brief, widget_id, action):
+        if not needs_asking(brief, widget_id, action, payload=payload, said=said):
             return mode
     except Exception:  # noqa: BLE001
         pass

@@ -288,7 +288,8 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
              extra={"id": wid, "action": action_name, "mode": m, "src": "flash", "item": ref,
                     "payload": payload if isinstance(payload, dict) else {}})   # V2-653: the order's content
 
-    mode = _txw._leave_gate.asked_if_leaving(mode, _brief, wid, action_name, emit=emit)   # V2-778 F4-33
+    mode = _txw._leave_gate.asked_if_leaving(mode, _brief, wid, action_name, emit=emit, payload=payload,
+                                             said=_txw._bnotes.operator_half(text))   # V2-778 F4-33
     if mode == _wactions.FAST:
         # GUARD anti context-bleed (round headless V2-038 #1): el modelo a veces RE-emite la data-op del
         # turno ANTERIOR junto a la acción de ESTE ("borra el reloj" arrastró el add_meeting del dentista
