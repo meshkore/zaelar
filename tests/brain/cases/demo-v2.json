@@ -1085,5 +1085,47 @@
    "worker"
   ],
   "open": "V2-776 · I3: a positional reference follows the conversation's card (CRIT-K3) — when a sure verdict and the canvas focus agree on one card, a model call on another card is the misreading"
+ },
+ {
+  "id": "demo-c1-tomorrow-after-the-mail",
+  "lang": "en",
+  "phrase": "johnny show me what i've got tomorrow",
+  "source": "demo pass 100 (2026-10-04) C1, right after the mail block E: the model searched the web for the previous block's mail",
+  "screen": {
+   "open": [
+    "results"
+   ]
+  },
+  "model": {
+   "say": "Right away — let me pull up your day.",
+   "tools": [
+    {
+     "name": "web_search",
+     "args": {
+      "query": "Inworld AI invoice September 2026 account"
+     }
+    }
+   ]
+  },
+  "brief": {
+   "canvas": [
+    "show",
+    0.63
+   ],
+   "request_type": [
+    "order",
+    0.57
+   ],
+   "screen_action": [
+    "none",
+    0.66
+   ]
+  },
+  "expect": "show agenda",
+  "forbid": [
+   "search",
+   "worker"
+  ],
+  "open": "V2-776 · a stale query carried from an earlier block (the Inworld mail) became a results sheet; his words name tomorrow's day — the agenda"
  }
 ]

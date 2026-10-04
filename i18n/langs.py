@@ -215,6 +215,9 @@ LANGUAGES: dict[str, LangSpec] = {
         reply_confirm="I'll reply{dest}: \u201c{draft}\u201d. Shall I send it?",
         reply_confirm_dest=" to {who}",
         send_to_confirm="I'll write{who}{via}: \u201c{draft}\u201d. Shall I send it?",
+        forward_confirm="I'll forward{what} to {who}{note}. Shall I send it?",
+        forward_confirm_what=" the {what} email",
+        forward_confirm_note=" with the note: \u201c{note}\u201d",
         send_to_confirm_mandate=("I'll write{who}{via}: \u201c{draft}\u201d. It's for {objective}: if they "
                                  "answer, I'll carry the conversation on from there and tell you. Shall I "
                                  "write?"),

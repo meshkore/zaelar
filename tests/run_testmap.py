@@ -3737,6 +3737,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
         # 2026-10-04 — a consent window the browser blocks is SAID and offered as a link under the connector pressed:
         # the panel used to sit on «connecting…» for three minutes with nothing open. Rendered (ConfigPanel + bundle).
+        {"id": "2.224", "title": "A forward that must be confirmed is asked in his words — what goes, to whom, the note — never the "
+                                 "manifest's model-facing description (demo pass 100 E3, 2026-10-04)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_forward_is_asked_in_the_operators_words.py"]},
         {"id": "2.223", "title": "A contacts import waits to be asked — Google's sync reads OFF on a fresh directory and the tick "
                                  "imports nothing until he turns it on; once on it stays permanent (operator 2026-10-04)",
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_a_contacts_import_waits_to_be_asked.py"]},

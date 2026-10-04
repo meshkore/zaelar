@@ -172,6 +172,9 @@ class LangSpec:
     reply_confirm: str = "Voy a responder{dest}: «{draft}». ¿Lo envío?"
     reply_confirm_dest: str = " a {who}"
     send_to_confirm: str = "Voy a escribir{who}{via}: «{draft}». ¿Se lo mando?"
+    forward_confirm: str = "Voy a reenviar{what} a {who}{note}. ¿Lo envío?"
+    forward_confirm_what: str = " el correo de {what}"
+    forward_confirm_note: str = " con la nota: «{note}»"
     send_to_confirm_mandate: str = ("Voy a escribir{who}{via}: «{draft}». Es para {objective}: si contesta, "
                                      "sigo yo la conversación por ahí y te aviso. ¿Le escribo?")
     send_to_who: str = " a {who}"

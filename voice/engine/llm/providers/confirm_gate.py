@@ -232,6 +232,16 @@ def _human_confirm_question(wid: str, action: str, payload: dict) -> str:
         return (sp.send_to_confirm_mandate.format(objective=obj, **parts) if obj
                 else sp.send_to_confirm.format(**parts))
 
+    # A FORWARD says what goes, to whom, and the note — the manifest's `desc` is written for the model (pass 100).
+    if wid == "mensajeria" and action == "forward":
+        p = payload or {}
+        what = str(p.get("from") or p.get("subject") or "").strip()
+        note = str(p.get("text") or "").strip()
+        return sp.forward_confirm.format(
+            what=sp.forward_confirm_what.format(what=what) if what else "",
+            who=str(p.get("contact") or p.get("to") or "").strip() or "?",
+            note=sp.forward_confirm_note.format(note=(note[:180] + "…") if len(note) > 180 else note) if note else "")
+
     desc = ""
     human = ""
     label = ""
