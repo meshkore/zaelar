@@ -8,6 +8,7 @@ still governs every call.
 from __future__ import annotations
 
 from . import data as _d
+from . import twins as _twins
 
 
 def _a_drop_project(action, payload, db, _extra) -> dict:
@@ -102,11 +103,9 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
         # An appointment WITH other people starts awaiting their answer; one you simply put in your own
         # day is settled the moment you say it. Same default every calendar uses for an invitation.
         _new["status"] = "pending" if _new.get("attendees") else "confirmed"
-    # V2-652 — the HOUR-LESS TWIN. The promise backstop writes title+date with no hour (an all-day
-    # entry since this pass); the operator's explicit «a las once y media» then arrives as a TIMED add
-    # of the same appointment, and standing beside it produced «dos ítems» on his screen (session
-    # 7f77e2cc). A timed write SETTLES the all-day twin in place; an all-day write over an
-    # already-timed twin adds nothing — in both directions the timed row is the richer fact.
+    # V2-652 — the HOUR-LESS TWIN: the backstop's all-day entry, then «a las once y media» as a TIMED add, stood
+    # side by side («dos ítems», session 7f77e2cc). A timed write SETTLES the all-day twin in place; an all-day
+    # write over a timed twin adds nothing — either way the timed row is the richer fact.
     _meets = db.get("meetings", [])
 
     def _twin_of(m: dict) -> bool:
@@ -135,6 +134,8 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
                 _ad["reminder_id"], _ad["remindAt"] = _jid, _at
         # V2-208: the SAME meeting twice (see `_is_same_meeting`). A duplicate notice is heard once; a
         # duplicate meeting is SEEN, and remains there until someone deletes it manually.
+        elif (_refused := _twins.series_refusal(_new, _meets)) is not None:      # V2-781 T520
+            return _refused
         elif (_same := next((m for m in _meets if _d._is_same_meeting(_new, m)), None)) is not None:
             if _d._settle_rule(db, _same, _new):     # V2-773: the twin takes the rule it did not carry
                 _extra["stored"] = dict(_same)

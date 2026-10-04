@@ -80,3 +80,33 @@ def _titles_overlap(ta, tb) -> bool:
         return True
     sa, sb = set(ka.split()), set(kb.split())
     return sa <= sb or sb <= sa
+
+
+def same_series(new: dict, meetings: list) -> dict | None:
+    """The live SERIES a new series re-adds, or None: same title and start hour, and its first day is already one
+    of that series' sessions (V2-781 T520, 2026-10-04).
+
+    Measured on `weekly-appointment-until-june__us`: «there's no class next Tuesday, take off just that day» →
+    the model wrote the whole series again from the FOLLOWING Tuesday (`add_meeting {date: 2026-10-13, repeat:
+    weekly, …}`) and said «Done»: 77 rows where there were 38, every Tuesday doubled, and the class he removed
+    still there with its notice. A series that starts on one of its twin's own sessions adds nothing he asked
+    for. A second series on OTHER days (piano on Thursdays too) does not start on one, and is left alone."""
+    if not isinstance(new.get("repeat"), dict) or not new.get("date"):
+        return None
+    from .query import _on_day
+    for m in meetings or []:
+        if (isinstance(m.get("repeat"), dict) and str(m.get("startTime") or "") == str(new.get("startTime") or "")
+                and _titles_overlap(m.get("title"), new.get("title")) and _on_day(m, str(new["date"]))):
+            return m
+    return None
+
+
+def series_refusal(new: dict, meetings: list) -> dict | None:
+    """`add_meeting`'s answer when the new series re-adds a live one (see `same_series`), or None."""
+    m = same_series(new, meetings)
+    if m is None:
+        return None
+    return {"ok": False, "code": "series_exists",
+            "error": f"«{m.get('title')}» already repeats on these days from {m.get('date')} — this would write it "
+                     f"twice. To drop ONE day: cancel_meeting {{title, date: that day}}; to end it from a day: "
+                     f"cancel_meeting {{title, from}}; to change it: update_meeting."}
