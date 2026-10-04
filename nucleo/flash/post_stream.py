@@ -141,10 +141,10 @@ async def run(*, FastClient, _apply_widget_data, _ask_waiting, _auth_pending, _b
     if 'spoken_text' in _blk:
         spoken_text = _blk['spoken_text']
 
-    # RED DETERMINISTA de confirmación (V2-017): si había un borrado pendiente y el modelo NO lo resolvió por
-    # tool, pero el operador dijo claramente sí/no → resuélvelo igual (no depende del LLM, como hard_interrupt).
-    # V2-778 F1 — settling what is pending (confirmations, a waiting worker, a stop, the question owed) lives in
-    # `nucleo/flash/post_stream_settle.py`.
+    # RED DETERMINISTA de confirmación (V2-017): si había un borrado pendiente y el modelo NO lo resolvió por tool, pero el operador dijo claramente sí/no → resuélvelo igual (no depende del LLM, como hard_interrupt).
+    # V2-778 F1 — settling what is pending (confirmations, a waiting worker, a stop, the question owed): `post_stream_settle.py`.
+    if data_done["v"] and not spoken_text and _turn_op_tasks:   # demo pass 104 C5: no «Done.» over a refusal
+        spoken_text = await _data_ops.say_refusal_instead(_turn_op_tasks, data_done, send, speech) or spoken_text
     _blk = await _ps_settle.settle_what_is_pending(
         _ans=locals().get('_ans'),
         _ask_waiting=_ask_waiting,

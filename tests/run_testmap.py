@@ -3737,6 +3737,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
         # 2026-10-04 — a consent window the browser blocks is SAID and offered as a link under the connector pressed:
         # the panel used to sit on «connecting…» for three minutes with nothing open. Rendered (ConfigPanel + bundle).
+        {"id": "2.229", "title": "«Done.» never stands over a turn whose every op was refused with an internal reason — the ack "
+                                 "waits for the ops and says why instead (demo pass 104 C5, 2026-10-04)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_done_never_stands_over_a_refused_send.py"]},
         {"id": "2.228", "title": "A corrected call writes its text in the SESSION's language, named in the repair prompt — a "
                                  "Spanish refusal no longer turns an English note Spanish (demo pass 102 E3, 2026-10-04)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_corrected_call_writes_in_the_session_language.py"]},

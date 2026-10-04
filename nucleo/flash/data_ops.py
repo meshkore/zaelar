@@ -25,6 +25,8 @@ in su cap, and the trinquete pide extraer, no subirlo.
 """
 from __future__ import annotations
 
+import asyncio
+
 import json as _json
 
 from nucleo.flash import op_receipt as _receipt
@@ -212,6 +214,50 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
         return fix["payload"], res2
     except Exception:  # noqa: BLE001
         return None
+
+
+async def refused_unsaid(tasks, timeout: float = 4.0):
+    """`(widget, error)` when EVERY op of this turn was refused with only an internal reason, else None.
+
+    Demo pass 104, C5: `send_to` was refused («no tengo el Telegram de Ethan» — an `error`, so `report_failure`
+    leaves it for the next turn) and the canned ack said «Done.» 10 ms later. An op still running past `timeout`
+    keeps today's path; one refusal the widget SPEAKS (`message`) is already told."""
+    try:
+        pend = [t for _w, t in tasks if not t.done()]
+        if pend:
+            await asyncio.wait(pend, timeout=timeout)
+        out = None
+        for w, t in tasks:
+            if not t.done() or t.cancelled():
+                return None
+            res = t.result()
+            if not (isinstance(res, dict) and _receipt.failed(res)) or str(res.get("message") or "").strip():
+                return None
+            out = out or (str(w), str(res.get("error") or "").strip())
+        return out
+    except Exception:  # noqa: BLE001
+        return None
+
+
+async def say_refusal_instead(tasks, data_done: dict, send, speech) -> str:
+    """Before the canned success ack: when `refused_unsaid`, the turn is NOT done and the reason is SAID, in the
+    agent's language. Returns what was said ("" = today's path)."""
+    why = await refused_unsaid(tasks)
+    if not why:
+        return ""
+    data_done["v"] = False
+    try:
+        from nucleo.workers import spoken_delivery as _sd
+        from voice.observer import emit
+        said = await _sd.line(why[0], why[1], ok=False) or _failed_line()
+        emit("brain", "🚫 «hecho» retirado: todas las ops del turno se rechazaron — se dice el motivo", role="system",
+             text=f"{why[0]}: {why[1][:140]}", extra={"cat": "flash", "id": why[0], "is_error": True})
+    except Exception:  # noqa: BLE001
+        said = _failed_line()
+    if not said:
+        return ""
+    send(speech.sanitize(said, drop_metadata=False))
+    return said
 
 
 def _failed_line() -> str:
