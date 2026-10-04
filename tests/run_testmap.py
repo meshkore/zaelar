@@ -3731,6 +3731,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.214", "title": "An inline web-search result («🔎 resultados web» + evidence.items) is counted as a RETURN, so a "
+                                 "sourced fact is never judged an invention (V2-781 T516)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_inline_search_result_is_a_return.py"]},
         {"id": "2.213", "title": "Two use-case rounds that end in the same second never share a report file (V2-781)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_two_rounds_never_share_a_report.py"]},
         {"id": "2.212", "title": "An ORDER beside a searched fact is carried out in both channels — the search's tool-less answer "

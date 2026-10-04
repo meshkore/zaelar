@@ -3315,12 +3315,21 @@ def search_returns(db_path, *, since: float = 0.0, last_turn_ms: float | None = 
             (int(since * 1000), "%búsqueda web%")).fetchone()[0]
         for label, raw, ts_ms in rows:
             try:
-                txt = str((json.loads(raw) or {}).get("text") or "")
+                pl = json.loads(raw) or {}
+                txt = str(pl.get("text") or "")
             except Exception:
                 continue
-            if "↩" not in str(label or ""):
+            # V2-781 T516 — the inline probe search is ONE row: the query in `text`, what came back in
+            # `evidence.items`, labelled «🔎 resultados web». Read as a bare query, every sourced inline fact
+            # looked like an invention to the judge.
+            items = ((pl.get("evidence") or {}).get("items") or []) if isinstance(pl, dict) else []
+            if "↩" not in str(label or "") and not items:
                 out["queries"] += 1
                 continue
+            if items:
+                out["queries"] += 1
+                txt = " ".join(f"{it.get('t', '')} — {it.get('s', '')} ({it.get('u', '')})" for it in items
+                               if isinstance(it, dict))
             out["returns"] += 1
             if last_turn_ms and ts_ms and float(ts_ms) > float(last_turn_ms):
                 out["returns_after_last_turn"] += 1
