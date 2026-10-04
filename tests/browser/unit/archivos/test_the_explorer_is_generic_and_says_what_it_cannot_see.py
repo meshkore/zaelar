@@ -143,10 +143,10 @@ def test_the_write_actions_are_NOT_view_actions():
         assert not wactions.is_view(acts[name], name), f"«{name}» mutates a real file — never a view action"
 
 
-def test_disconnecting_and_deleting_ask_first_navigating_never_does():
+def test_deleting_asks_first_navigating_never_does():
     from widgets import actions as wactions
     acts = _manifest()["actions"]
-    assert wactions.classify(acts["disconnect_provider"], "disconnect_provider") == wactions.CONFIRM
+    assert "disconnect_provider" not in acts, "disconnecting a provider lives in ⚙ Conectores since 2026-10-04"
     assert wactions.classify(acts["delete_file"], "delete_file") == wactions.CONFIRM
     for name in ("open_folder", "search_files", "refresh", "set_view", "rename_file", "copy_file"):
         assert wactions.classify(acts[name], name) == wactions.FAST, f"«{name}» is reversible; do not gate it"

@@ -30,10 +30,14 @@ const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;
 const ui = { t: (k, p) => k + (p ? JSON.stringify(p) : ""), esc, badge: c => `[${c.connected ? "on" : "off"}]` };
 const cs = JSON.parse(process.argv[2]);
 const out = {
-  list: W.connectorList(cs, [["mensajeria", "Mensajería"], ["agenda", "Calendario"]], ui),
+  list: W.connectorList(W.groupGoogle(cs), [["mensajeria", "Mensajería"], ["google", "Google"], ["agenda", "Calendario"]], ui),
   wa0: W.connectorWizard(cs[0], 0, "<FORM-wa>", "Mensajería", ui),
   wa1: W.connectorWizard(cs[0], 1, "<FORM-wa>", "Mensajería", ui),
-  gcal: W.guideSteps(cs[2]), gcalReady: W.guideSteps({ ...cs[2], config: { app_configured: true } }),
+  // Google is ONE connector (2026-10-04): the calendar row is a SERVICE inside the `google-account` group, and
+  // the guide is the group's — its API step names every service's API, its credentials step the redirect URIs.
+  gcal: W.guideSteps(W.groupGoogle(cs)[0]),
+  gcalReady: W.guideSteps({ ...W.groupGoogle(cs)[0], app: true }),
+  focus: [W.focusOf("google"), W.focusOf("gdrive"), W.focusOf("whatsapp")],
   keys: ["whatsapp", "telegram", "email", "spotify", "gdrive", "onedrive", "google-photos", "youtube", "google",
          "google-contacts", "google-account", "architect", "meshkore"]
         .flatMap(id => W.guideSteps({ id, config: {} }).map(g => g.key)),
@@ -44,6 +48,8 @@ console.log(JSON.stringify(out));
 CS = [{"id": "whatsapp", "label": "WhatsApp", "family": "mensajeria", "connected": False, "status": "connecting",
        "qr": "data:image/png;base64,AAAA"},
       {"id": "telegram", "label": "Telegram", "family": "mensajeria", "connected": False, "status": "off"},
+      {"id": "google-account", "label": "Google", "family": "google", "connected": False, "status": "off",
+       "config": {"app_configured": False, "redirect_uris": ["https://local.zaelar.com:44317/api/calendar/callback"]}},
       {"id": "google", "label": "Google Calendar", "family": "agenda", "connected": False, "status": "off",
        "config": {"app_configured": False}}]
 
@@ -59,7 +65,7 @@ def run():
 
 
 def test_the_list_opens_nothing_and_offers_one_row_per_connector(run):
-    assert run["list"].count('class="cf-cx-row"') == 3
+    assert run["list"].count('class="cf-cx-row"') == 3, "WhatsApp, Telegram and the Google services folded into ONE row"
     assert "<FORM" not in run["list"] and "cx_tg_api_id" not in run["list"]
 
 
@@ -79,6 +85,14 @@ def test_a_google_guide_names_its_api_and_the_redirect_to_register(run):
     assert run["gcalReady"] == [], "a registered app skips the Cloud Console half"
 
 
+def test_any_google_service_opens_the_one_google_connector_with_that_service_picked_out(run):
+    """A card's plug says `google` or `gdrive`; the section opens the single Google entry and highlights that
+    service's consent row. A non-Google id opens itself."""
+    assert run["focus"][0] == {"focus": "google-account", "service": "google"}
+    assert run["focus"][1] == {"focus": "google-account", "service": "gdrive"}
+    assert run["focus"][2] == {"focus": "whatsapp", "service": ""}
+
+
 @pytest.mark.parametrize("bundle", ["es", "en"])
 def test_every_step_has_its_words_in_both_bundles(run, bundle):
     b = json.loads((ENGINE / "i18n" / "bundles" / f"{bundle}.json").read_text(encoding="utf-8"))
@@ -92,11 +106,13 @@ def test_the_catalog_names_the_connector_and_the_panel_consumes_it_once():
     assert "openConnectorConfig(c.id)" in CHATWALL and "store.setConfigConnector(id || null)" in CHATWALL
     assert re.search(r"export const \[configConnector, setConfigConnector\]", STORE)
     assert "store.configConnector()" in PANEL and "store.setConfigConnector(null)" in PANEL
-    assert "connectorList(cs, fams, ui)" in PANEL and "connectorWizard(c, cxStep, connectorForm(c)" in PANEL
+    assert "connectorList(view, fams, ui)" in PANEL and "connectorWizard(c, cxStep, connectorForm(c, famTitle)" in PANEL
+    assert "const view = groupGoogle(cs);" in PANEL, "the panel renders the Google services as ONE connector"
 
 
 def test_contacts_finally_has_a_form_and_a_route_behind_it():
-    assert 'data-act="contacts-connect"' in PANEL and "api.contactsConnect(" in PANEL
+    # The consent row of each Google service carries its own act; contacts' is `contacts-connect`.
+    assert '"google-contacts": "contacts-connect"' in PANEL and "api.contactsConnect(" in PANEL
     api = (APP / "services" / "api.js").read_text(encoding="utf-8")
     assert '"/api/contacts/connect"' in api
     assert '@router.post("/api/contacts/connect")' in (ENGINE / "connectors/contacts/server_api.py").read_text(encoding="utf-8")

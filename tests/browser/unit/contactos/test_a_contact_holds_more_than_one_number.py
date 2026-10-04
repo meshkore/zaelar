@@ -162,10 +162,12 @@ def test_the_hidden_shelf_has_a_spoken_door_too(ct):
 
 
 def test_the_plug_button_has_an_action_behind_it(ct):
-    """A button with no name is a button the voice cannot press — «ábreme los conectores de contactos»."""
-    r = ct.apply_action("show_connectors", {})
-    assert r["ok"] and r["result"]["screen"] == "connectors"
-    assert r["view"]["sel"] == {"screen": "connectors"}, r["view"]
+    """A button with no name is a button the voice cannot press — «enséñame de dónde vienen mis contactos».
+    Since 2026-10-04 the screen behind the plug is the card's SOURCES AND SYNC screen (`show_sources`);
+    connecting a source is the ⚙ Conectores section's job, so no connect action is declared here."""
+    r = ct.apply_action("show_sources", {})
+    assert r["ok"] and r["result"]["screen"] == "sources"
+    assert r["view"]["sel"] == {"screen": "sources"}, r["view"]
     assert r["result"]["sources"], "it answers with the state of every source, so nothing is invented"
 
 

@@ -37,19 +37,11 @@ def test_view_data_spotify_mode_when_connected(monkeypatch):
     assert vd["mode"] == "spotify" and vd["now_playing"]["title"] == "Song"
 
 
-def test_connect_with_client_id_saves_and_returns_url(monkeypatch):
-    saved = {}
-    monkeypatch.setattr("config.credentials.set_key", lambda k, v: saved.setdefault(k, v))
-    monkeypatch.setattr(auth, "begin_login", lambda: {"ok": True, "url": "https://accounts.spotify.com/authorize?x"})
+def test_connect_is_not_an_action_of_the_card_any_more():
+    """Spotify is linked in the ⚙ Conectores section since 2026-10-04 (the one door, with the own-app client id
+    field moved there); the card answers an unknown action, never a consent URL."""
     res = md.apply_action("connect", {"client_id": "MYCID"})
-    assert res["ok"] and res["url"].startswith("https://accounts.spotify.com")
-    assert saved["SPOTIFY_CLIENT_ID"] == "MYCID"
-
-
-def test_connect_without_client_id_flags_need(monkeypatch):
-    monkeypatch.setattr(auth, "begin_login", lambda: {"ok": False, "error": "no_client_id"})
-    res = md.apply_action("connect", {})
-    assert res["ok"] is False and res.get("need_client_id") is True
+    assert res["ok"] is False and res["error"] == "unknown_action"
 
 
 def test_control_routes_to_music_facade(monkeypatch):

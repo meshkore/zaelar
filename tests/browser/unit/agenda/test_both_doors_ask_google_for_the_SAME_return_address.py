@@ -65,22 +65,19 @@ def calendar(monkeypatch):
     return svc
 
 
-def _both_doors(calendar, origin: str) -> tuple[str, str]:
+# 2026-10-04 — the second door is GONE. The agenda card's own connect button (and its `connect` action) were
+# removed with every widget's connect screen: the ⚙ Conectores section's `/api/calendar/connect` →
+# `service.connect_url(origin=…)` is the ONE door, so «the same return address» is now a property of one
+# caller — and the file keeps pinning the half that still bites: where that address points for each origin.
+def _door(calendar, origin: str) -> str:
+    return _redirect_of(calendar.connect_url("google", "", origin=origin)["url"])
+
+
+def test_there_is_one_door_and_the_card_is_not_it():
+    """The class the file opens with — a fix copied into one of two callers — cannot recur with one caller.
+    The card's `ui_action` answers nothing for `connect` any more."""
     from widgets.agenda import gcal
-
-    panel = _redirect_of(calendar.connect_url("google", "", origin=origin)["url"])
-    card = _redirect_of(gcal.ui_action("connect", {"provider": "google", "origin": origin, "force": True}, {})["url"])
-    return panel, card
-
-
-@pytest.mark.parametrize("origin", ["https://local.zaelar.com:44317", "http://127.0.0.1:43917",
-                                    "http://localhost:43917", "https://zaelar.example.com"])
-def test_the_two_doors_send_the_SAME_return_address(calendar, origin):
-    """The first defect, stated as the property that was missing. Both callers are exercised through the seam
-    each one really uses: the panel hands its origin straight to `authorize_url`, the card hands it in the
-    action payload — and the two have to come out identical, or one of them is unregistrable."""
-    panel, card = _both_doors(calendar, origin)
-    assert panel == card, f"{origin}: the panel and the card ask Google for different addresses"
+    assert gcal.ui_action("connect", {"provider": "google", "origin": "https://zaelar.example.com", "force": True}, {}) is None
 
 
 @pytest.mark.parametrize("origin", ["https://local.zaelar.com:44317", "http://127.0.0.1:43917"])
@@ -88,16 +85,14 @@ def test_a_local_listener_returns_to_the_LOOPBACK_whichever_one_he_opened(calend
     """The second defect. Both listeners are the same process, the same token store and the same
     self-contained callback page, so returning to loopback changes nothing he can observe — and it is the
     only one of the two that Google lets a self-hoster register at all."""
-    panel, card = _both_doors(calendar, origin)
-    assert panel == card == _LOOPBACK + "/api/calendar/callback"
+    assert _door(calendar, origin) == _LOOPBACK + "/api/calendar/callback"
 
 
 def test_a_deployment_on_its_OWN_domain_still_gets_its_own_address(calendar):
     """The counterweight, and the whole of V2-603: collapsing the local pair must not re-hardcode loopback.
     A managed deployment is a different machine with a domain of its own — one it can verify, unlike ours —
     and sending that consent to 127.0.0.1 lands it on the operator's laptop, where no pending state exists."""
-    panel, card = _both_doors(calendar, "https://zaelar.example.com")
-    assert panel == card == "https://zaelar.example.com/api/calendar/callback"
+    assert _door(calendar, "https://zaelar.example.com") == "https://zaelar.example.com/api/calendar/callback"
 
 
 def test_the_same_collapse_applies_to_the_video_door(calendar):
@@ -109,36 +104,29 @@ def test_the_same_collapse_applies_to_the_video_door(calendar):
 
 
 def test_without_a_browser_it_still_answers_the_loopback(calendar):
-    """A voice-driven connect and a worker have no page and therefore no origin. The loopback default is the
-    only honest answer there — and it must not change, because it is what a self-hoster registers."""
-    from widgets.agenda import gcal
-
-    for payload in ({"provider": "google"}, {"provider": "google", "origin": ""}):
-        url = gcal.ui_action("connect", {**payload, "force": True}, {})["url"]
-        assert _redirect_of(url) == _LOOPBACK + "/api/calendar/callback"
+    """A caller with no page has no origin. The loopback default is the only honest answer there — and it
+    must not change, because it is what a self-hoster registers."""
+    for origin in ("", None):
+        assert _door(calendar, origin or "") == _LOOPBACK + "/api/calendar/callback"
 
 
 def test_a_shape_that_is_not_an_origin_falls_back_instead_of_travelling(calendar):
-    """The payload is not a trusted field. It cannot leak a code — Google only ever redirects to a URI the
+    """The origin is not a trusted field. It cannot leak a code — Google only ever redirects to a URI the
     client has REGISTERED, which is the control that actually holds here, and the same one this whole batch
     tripped over — but a `javascript:` or a fragment has no business reaching a URL we hand to a browser."""
-    from widgets.agenda import gcal
-
     for junk in ("javascript:alert(1)", "not a url", "http://x y", "//evil", "http://a#f", ""):
-        url = gcal.ui_action("connect", {"provider": "google", "origin": junk, "force": True}, {})["url"]
-        assert _redirect_of(url) == _LOOPBACK + "/api/calendar/callback", junk
+        assert _door(calendar, junk) == _LOOPBACK + "/api/calendar/callback", junk
 
 
-def test_the_card_actually_sends_its_own_origin():
-    """The wiring, read from the widget itself: a passthrough nobody calls is worth nothing, and this one is
-    invisible from Python — the value comes from the browser."""
+def test_the_card_no_longer_connects_and_sends_no_origin_of_its_own():
+    """The wiring, read from the widget itself: the card used to pass `location.origin` through `ctx.connect`
+    (V2-687/V2-700). It connects nothing now — its plug and Google icon open the ⚙ Conectores section
+    (`ctx.openConnector`), whose request carries the browser's origin in its own headers."""
     import pathlib
     js = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "agenda" / "widget.js").read_text("utf-8")
     body = "\n".join(L for L in js.splitlines() if not L.strip().startswith("//"))
-    # V2-700: the card connects through the host's `ctx.connect` (which opens the window inside the click).
-    assert 'ctx.connect("connect", {provider:"google", origin: location.origin, force:true}' in body, (
-        "the card must send BOTH its origin (V2-687) and `force` (V2-689: only a human pressing this "
-        "button may re-open a consent for a calendar that is already connected)")
+    assert "ctx.connect(" not in body and "location.origin" not in body
+    assert 'ctx.openConnector("google")' in body
 
 
 def test_what_the_operator_PASTES_is_one_list_of_five_that_google_can_accept():

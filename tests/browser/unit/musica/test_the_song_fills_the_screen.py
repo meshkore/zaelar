@@ -111,6 +111,8 @@ def _mount(page, data, *, card_w=468, card_h=540):
              window.__mod = mod; window.__data = data;
              window.__ctx = { action: (n, p) => { window.__calls.push([n, p || {}]);
                                                   return Promise.resolve({ok: true}); },
+                              // the host's door to the ⚙ Conectores section (2026-10-04), recorded like an action
+                              openConnector: (cx) => { window.__calls.push(["openConnector", cx]); },
                               running: true };
              window.__el = document.getElementById('w');
              mod.render(window.__el, data, window.__ctx);
@@ -327,14 +329,18 @@ def test_the_switch_is_drawn_only_when_there_is_somewhere_to_switch_to(_page):
 
 def test_the_source_chip_is_the_door_to_the_sources_screen(_page):
     """The Spotify block used to sit in the middle of the library, first thing the eye met on a card nobody
-    had asked anything yet."""
+    had asked anything yet. The sources screen is behind the chip; since 2026-10-04 the connection itself is
+    not drawn there either — its button opens the ⚙ Conectores section on Spotify, the one door."""
     _mount(_page, _data())
-    assert _page.query_selector(".hb-mus2-adv") is None, "the connect flow is not the library's content"
+    assert _page.query_selector(".hb-mus2-sech") is None, "the sources screen is not the library's content"
     _page.query_selector(".hb-mus2-prov").click()
     assert _calls(_page, "open_view") == [{"kind": "connect"}]
     _mount(_page, _data(view={"kind": "connect", "id": ""}))
-    assert _page.query_selector(".hb-mus2-adv") is not None, "and it IS the sources screen's content"
+    assert _page.query_selector(".hb-mus2-sech") is not None, "and it IS the sources screen's content"
     assert _page.query_selector(".hb-mus2-back") is not None
+    assert _page.query_selector(".hb-mus2-adv") is None, "no client-id form on the card: that moved to the section"
+    _page.query_selector(".hb-mus2-sec .hb-mus2-btn").click()
+    assert ["openConnector", "spotify"] in _page.evaluate("() => window.__calls")
 
 
 def test_an_empty_library_has_something_to_say_and_something_to_press(_page):

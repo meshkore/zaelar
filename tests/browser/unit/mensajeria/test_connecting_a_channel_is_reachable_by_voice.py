@@ -1,19 +1,15 @@
-"""Asking to connect a channel must LAND on the form (V2-520).
+"""Asking to connect a channel must LAND somewhere (V2-520, re-anchored 2026-10-04).
 
 Reported live by the operator 2026-08-31: "conéctame el correo" opened the messaging card and nothing
-else — no dialog, no question about which mail provider. Everything they asked for already existed
-(`connectors/email/providers.py` ships Gmail and Outlook/Hotmail with OAuth, and the connect form has a
-provider picker); it was simply UNREACHABLE:
+else — no dialog, no question about which mail provider. V2-520 answered with a declared widget intent
+(`open_connectors` + a `connect_focus` the card honoured once). On 2026-10-04 the widgets' own connect
+screens were removed: there is ONE door to connect a service, the ⚙ «Conectores» section opened on that
+connector with its step-by-step guide (`show_panel(panel='conectores', connector=…)`, canon in
+`nucleo/flash/connector_canon.py`; by hand, `ctx.openConnector` from the card's plug or a channel icon).
 
-  · the channels panel is local `widget.js` state (`_connectorsOpen`) that only the header button could
-    flip, and `showChannels = _connectorsOpen || connectedCount===0` — with WhatsApp/Telegram already
-    connected the card renders the MESSAGE list, forever;
-  · `apply_action` had handled `connect` for a long time, but the manifest never DECLARED it, and an
-    action that is not declared is invisible to the brain (the widget contract says so in as many words).
-
-So the fix is a declared intent, `open_connectors`, that carries a timestamped `connect_focus` in the
-widget's own data — never a credential, because a password or an OAuth round-trip is not something to
-conduct by voice.
+What this file pins is the same intent on the new door: the phrase names a connector the section knows,
+the manifest tells the brain WHERE connecting lives instead of declaring a connect action of its own, and
+the voice still transports an intention, never a credential.
 """
 from __future__ import annotations
 
@@ -22,61 +18,45 @@ from pathlib import Path
 
 import pytest
 
+from nucleo.flash.connector_canon import canon_connector
+
 MANIFEST = Path(__file__).resolve().parents[4] / "widgets" / "mensajeria" / "manifest.json"
 WIDGET_JS = MANIFEST.with_name("widget.js")
 
 
-@pytest.fixture
-def data(tmp_path, monkeypatch):
-    """Point the widget store at a temp dir — a unit test never touches the operator's real messages."""
-    from widgets import store
-    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
-    from widgets.mensajeria import data as mod
-    return mod
+def _manifest() -> dict:
+    return json.loads(MANIFEST.read_text(encoding="utf-8"))
 
 
-def test_the_brain_can_SEE_the_action(data):
-    """A data-op the manifest does not declare is invisible to the brain — the whole reason this failed."""
-    man = json.loads(MANIFEST.read_text(encoding="utf-8"))
-    assert "open_connectors" in (man.get("actions") or {})
-    assert man.get("usage"), "the brain needs to be told WHEN to use it, not just that it exists"
-    assert "conect" in man["usage"].lower()
+def test_the_card_declares_no_connect_action_and_says_where_connecting_lives():
+    """A connect action on the card would give «conéctame el correo» two plausible destinations again."""
+    man = _manifest()
+    acts = man.get("actions") or {}
+    assert not {"connect", "disconnect", "open_connectors"} & set(acts)
+    assert "show_panel(panel='conectores'" in man["whenToUse"], "the routing line has to say where it IS"
 
 
-def test_asking_to_connect_email_focuses_the_email_form(data):
-    out = data.apply_action("open_connectors", {"platform": "email"})
-    focus = out.get("connect_focus")
-    assert focus and focus["platform"] == "email" and focus["ts"] > 0
+@pytest.mark.parametrize("phrase,cx", [("conéctame el correo", "email"), ("connect my email", "email"),
+                                       ("conecta whatsapp", "whatsapp"), ("vincula telegram", "telegram")])
+def test_asking_to_connect_a_channel_names_its_connector(phrase, cx):
+    assert canon_connector(phrase) == cx
 
 
-def test_the_request_SURVIVES_a_repaint(data):
-    """`view_data` runs on every render; consuming the request on read would lose it on the first repaint."""
-    data.apply_action("open_connectors", {"platform": "email"})
-    assert (data.view_data().get("connect_focus") or {}).get("platform") == "email"
-    assert (data.view_data().get("connect_focus") or {}).get("platform") == "email"
+def test_an_unknown_platform_still_opens_the_section():
+    """«conéctame una cosa» → the section opens on its LIST rather than refusing: the catalogue IS the answer."""
+    assert canon_connector("señales de humo") == ""
+    assert canon_connector("") == ""
 
 
-def test_an_unknown_platform_still_opens_the_panel(data):
-    """«conéctame una cosa» → show the catalogue rather than refusing: the panel IS the answer."""
-    out = data.apply_action("open_connectors", {"platform": "señales de humo"})
-    assert out["connect_focus"]["platform"] == ""
+def test_the_intent_never_carries_a_credential():
+    """Opening a guide is not connecting. A password or an OAuth round-trip is never done by voice: the door
+    takes a connector NAME and nothing else, so a secret spoken into the argument never travels past it."""
+    out = canon_connector("email password hunter2")
+    assert out == "email" and "hunter2" not in out
 
 
-def test_the_intent_never_carries_a_credential(data):
-    """Opening a form is not connecting. A password or an OAuth round-trip is never done by voice."""
-    out = data.apply_action("open_connectors", {"platform": "email", "email_password": "hunter2"})
-    assert "hunter2" not in json.dumps(out)
-    db = data.load_db()
-    assert not db.get("pending_control"), "opening the panel must not enqueue a connection"
-
-
-def test_the_widget_honours_a_request_ONCE():
-    """Honouring it on every repaint would re-open the panel the operator just closed — a new message
-    arriving would be enough. The guard is the remembered timestamp.
-
-    Source-level only, and deliberately paired with the RENDER check (`render_connect_panel.py`, a live
-    node): grepping this file proves the guard was written, never that it runs — an earlier version of
-    this test passed happily against `if(false && focus …)`, because the string was still there. What
-    proves the behaviour is the render."""
+def test_the_card_has_no_connect_screen_of_its_own_and_its_plugs_open_the_one_door():
+    """The V2-520 wizard (`connect_focus` → `_screen = wizard`) is gone from the card; what is left is the door."""
     src = WIDGET_JS.read_text(encoding="utf-8")
-    assert "_focusDone" in src and '_screen = {view:"wizard", platform:focus.platform}' in src
+    assert "_focusDone" not in src and 'view:"wizard"' not in src
+    assert "ctx.openConnector(" in src, "the channel icons and the plug reach the ⚙ Conectores section"

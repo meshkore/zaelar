@@ -26,6 +26,14 @@
 # operator finished authorizing Google and was immediately handed the «Connect Google Calendar» button back,
 # over a calendar that was by then fully synced.
 #
+# ── 2026-10-04 — the action itself is gone ───────────────────────────────────────────────────────────
+#
+# The agenda's `connect`/`disconnect` actions and its in-card setup screen were removed with every other
+# widget's connect screen: connecting lives in the ⚙ Conectores section alone, so neither a worker nor the
+# voice can push a setup wizard over the week he is reading — there is no action to call. What this file
+# still pins from that incident: the connected hook retires a pushed screen a pre-2026-10-04 store may still
+# hold, the card reads no pushed screen at all, and `connected()` reads the REAL facade shape.
+#
 # ── And the two events for one sentence ──────────────────────────────────────────────────────────────
 #
 #   «cuando le he pedido que añadiéramos una cita para el dentista … inmediatamente ha añadido una cita sin
@@ -42,6 +50,9 @@
 # title he said. Once it reaches Google it is a row in HIS calendar that only he can delete.
 from __future__ import annotations
 
+import json
+import pathlib
+
 import pytest
 
 from widgets.agenda import data as agenda
@@ -57,88 +68,42 @@ def _isolated_store(tmp_path, monkeypatch):
     return tmp_path
 
 
-@pytest.fixture
-def linked(monkeypatch):
-    """A calendar that IS connected — the state every case here is about, and the one the suite had never
-    been able to stand in until the operator actually linked his account."""
-    monkeypatch.setattr(gcal, "connected", lambda: True)
-
-
-@pytest.fixture
-def unlinked(monkeypatch):
-    monkeypatch.setattr(gcal, "connected", lambda: False)
-
-
 # ── A connected calendar is never asked to connect ───────────────────────────────────────────────────
 
-def test_a_worker_asking_to_connect_a_LINKED_calendar_moves_no_screen(linked):
-    """The `worker:3` case, verbatim. It is not enough that the answer be harmless: the screen must not
-    move, because what the operator saw was a setup wizard landing on top of the week he was reading."""
-    db: dict = {}
-    res = gcal.ui_action("connect", {"provider": "google"}, db)
-    assert res and res.get("ok") and res.get("already") is True, res
-    assert "connect" not in db, "a linked calendar must leave NO pushed setup screen behind"
-    assert "url" not in res, "and no consent URL: there is nothing left to consent to"
-
-
-def test_and_it_SAYS_so_rather_than_answering_nothing(linked):
-    """A silent success reads, to whoever asked, exactly like a failure. The sentence is the deliverable."""
-    res = gcal.ui_action("connect", {"provider": "google"}, {})
-    assert "conectado" in str(res.get("message") or "").lower(), res
-
-
-def test_the_OPERATORS_own_button_can_still_relink_a_different_account(linked):
-    """The counterweight, and the reason this is gated on `force` instead of on «is it connected». Somebody
-    who wants to link a different Google account must not be locked out by a state we are protecting them
-    from — and only a human pressing that button ever sends this flag."""
-    db: dict = {}
-    res = gcal.ui_action("connect", {"provider": "google", "force": True}, db)
-    assert res.get("ok") and res.get("url"), res
-    assert db.get("connect"), "pressing the button must still put the card on its connect step"
-
-
-def test_an_UNLINKED_calendar_behaves_exactly_as_it_did(unlinked):
-    """Nothing about the case this whole mechanism exists for may change: with no account linked, asking to
-    connect still pushes the screen and still hands back a consent URL."""
-    db: dict = {}
-    res = gcal.ui_action("connect", {"provider": "google"}, db)
-    assert res.get("ok") and res.get("url"), res
-    assert (db.get("connect") or {}).get("n") == 1
+def test_there_is_no_connect_action_a_worker_could_call():
+    """The `worker:3` case, closed at the root: an action that asks for something already granted had no
+    reason to exist, and since 2026-10-04 it does not — not on a linked calendar, not on an unlinked one."""
+    man = json.loads((pathlib.Path(__file__).resolve().parents[4] / "widgets" / "agenda" / "manifest.json")
+                     .read_text("utf-8"))
+    assert not {"connect", "disconnect"} & set(man["actions"])
+    assert gcal.ui_action("connect", {"provider": "google"}, {}) is None, "not one of the card's actions"
+    assert gcal.ui_action("connect", {"provider": "google", "force": True}, {}) is None
 
 
 # ── The consent SUCCEEDS, so the setup screen is over ────────────────────────────────────────────────
 
-def test_a_finished_consent_retires_the_pushed_screen():
-    """His first report. `clear_connect_screen` is what turns «the button came back over a synced calendar»
-    into «the calendar is there». It is called at the TOP of the connected hook, before the sync, so even a
-    sync that fails leaves him looking at his calendar instead of at the button he just pressed."""
-    db = {"connect": {"n": 3, "at": 1e12}}
-    gcal.clear_connect_screen(db)
-    assert "connect" not in db
-
-
-def test_the_connected_hook_clears_it_BEFORE_it_risks_anything_else():
-    """Read from the source, because the ORDER is the whole property and it is invisible from the outside:
-    a sync that raises or returns not-ok must not be able to leave the setup screen standing."""
-    import pathlib
+def test_the_connected_hook_retires_a_pushed_screen_BEFORE_it_risks_anything_else():
+    """His first report: he finished authorizing Google and was handed the «Connect» button back over a synced
+    calendar. A store written before 2026-10-04 may still hold that pushed screen, and the hook retires it at
+    the TOP, before the sync — so even a sync that fails leaves him looking at his calendar. Read from the
+    source, because the ORDER is the whole property and it is invisible from the outside."""
     src = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "agenda" / "gcal.py").read_text("utf-8")
     body = "\n".join(L for L in src.splitlines() if not L.strip().startswith("#"))
     hook = body[body.index("def on_calendar_connected"):]
-    assert "clear_connect_screen(db)" in hook, "the hook never retires the screen"
-    assert hook.index("clear_connect_screen(db)") < hook.index("s.sync(db)"), (
+    assert 'db.pop("connect", None)' in hook, "the hook never retires the screen"
+    assert hook.index('db.pop("connect", None)') < hook.index("s.sync(db)"), (
         "the screen must be retired before the sync, or a failed sync leaves it standing")
 
 
-def test_the_card_does_not_honour_a_stale_push_over_a_linked_calendar():
-    """The second half, and the one the backend alone cannot fix: a token ALREADY in the store fires again on
-    the next fresh mount, because the element's `connN` starts at null. Read from the widget, because this is
-    invisible from Python — it is the browser that rebuilds the element."""
-    import pathlib
+def test_the_card_reads_no_pushed_connect_screen_at_all():
+    """The second half, and the one the backend alone could not fix: a stale token in the store re-fired on
+    every fresh mount because the element's counter started at null. The card no longer has a connect screen
+    to push: its plug and its Google icon open the ⚙ Conectores section through the host (`ctx.openConnector`)."""
     js = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "agenda" / "widget.js").read_text("utf-8")
     body = "\n".join(L for L in js.splitlines() if not L.strip().startswith("//"))
-    assert 'c.id === "google" && c.status === "connected"' in body, "the card never asks whether it is linked"
-    assert "const pushedConn = gcalOn ? null : data.connect;" in body, (
-        "a linked calendar must ignore the pushed screen entirely, stale token or not")
+    assert "data.connect" not in body and "pushedConn" not in body
+    assert 'ctx.openConnector("google")' in body
+    assert 'c.id === "google" && c.status === "connected"' in body, "the card still knows whether it is linked"
 
 
 # ── The agenda does not name an appointment for him ──────────────────────────────────────────────────

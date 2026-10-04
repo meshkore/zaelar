@@ -49,13 +49,17 @@ def test_every_capability_EXISTS_in_the_manifest_or_the_model_cannot_choose_it(c
                                  # V2-714 — the import-only sources, the hidden shelf and who is in a group.
                                  "sync_source", "hide_contact", "show_contact_members",
                                  # V2-715 — several phones / e-mails per entry («varios teléfonos
-                                 # vinculados a la misma empresa»), and the plug button by voice.
-                                 "add_phone", "add_email", "show_connectors",
-                                 # V2-699 — the Google Contacts link. Declared rather than left as HTTP
+                                 # vinculados a la misma empresa»), and the plug button by voice — since
+                                 # 2026-10-04 it opens the card's SOURCES AND SYNC screen (`show_sources`);
+                                 # connecting/disconnecting a source moved to the ⚙ Conectores section
+                                 # (`show_panel(panel='conectores', connector=…)`), so `connect`,
+                                 # `disconnect` and `show_connectors` are no longer actions of this card.
+                                 "add_phone", "add_email", "show_sources",
+                                 # V2-699 — the Google Contacts sync. Declared rather than left as HTTP
                                  # endpoints, because an endpoint is a door the VOICE cannot open.
                                  # `import_google` is the retired name of `sync_contacts`, kept as an alias
                                  # so a model that learned it does not start getting «acción desconocida».
-                                 "sync_contacts", "import_google", "connect", "disconnect",
+                                 "sync_contacts", "import_google",
                                  # V2-701 — the permanent half. «Mantén los contactos sincronizados» is a
                                  # state he can set BY VOICE; without it the switch would be reachable
                                  # only by someone looking at the card.

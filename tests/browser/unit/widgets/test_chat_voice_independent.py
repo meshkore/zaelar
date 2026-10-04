@@ -100,7 +100,9 @@ def test_panel_routing_whitelist_covers_every_tab():
         canon = router._canon_panel(word)
         assert f'"{canon}"' in tabs or f"{canon}:" in alias, f"el frontend no acepta la pestaña «{canon}»"
     # …and the door is what normalises, so `sse.js` must NOT have grown a second list of its own again
-    branch = SSE.split('d.kind === "panel"')[1].split("else if")[0]
+    # The branch runs to the next `d.kind` arm: since 2026-10-04 it holds an inner `else if` of its own — the
+    # Conectores door (`d.tab === "conectores" && d.connector`) — which is not a second whitelist either.
+    branch = SSE.split('d.kind === "panel"')[1].split('d.kind === ')[0]
     assert "includes(d.tab)" not in branch, "la lista blanca ha vuelto a sse.js: vuelve a haber dos"
     assert "setChatTab(d.tab)" in branch
     assert "_TAB_ALIAS" in door or "alias" in door

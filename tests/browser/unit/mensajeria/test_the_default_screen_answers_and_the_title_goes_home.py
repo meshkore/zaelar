@@ -6,7 +6,8 @@
 #   1. Clicking a platform dot while the Conectores screen was open did NOTHING VISIBLE — it changed
 #      `_platFilter` and asked the server for that lens, but never cleared `_screen`, so the connectors
 #      screen kept covering the messages underneath. Measured live: «cada vez que clico, debo ir a la
-#      sección que sea [...] y no se va la vista de conectores».
+#      sección que sea [...] y no se va la vista de conectores». (Since 2026-10-04 the card has no connectors
+#      screen at all: the plug is a door to the ⚙ Conectores section, and that is what is pinned now.)
 #   2. The «Mensajería» title had no way BACK to the unified dashboard — the operator's own words: it is
 #      «la única que voy a querer mirar en principio», so the name that labels it is the shortest path to it.
 #   3. Email defaulted to the SAME expanded/inline-clamp shape as a WhatsApp thread. The operator asked, by
@@ -105,6 +106,8 @@ def _mount(page, data: dict, replies: dict | None = None):
                                 window.__calls.push([name, payload || {}]);
                                 return Promise.resolve((replies || {})[name] || null);
                               },
+                              // the host's door to the ⚙ Conectores section (2026-10-04), recorded like an action
+                              openConnector: (cx) => { window.__calls.push(["openConnector", cx]); },
                               top: () => {}, running: true };
              window.__mod = mod;
              window.__data = data;
@@ -122,15 +125,18 @@ def _base_data(**extra):
     return d
 
 
-def test_a_platform_click_leaves_the_connectors_screen_it_was_stuck_in(_page):
-    """The exact bug: open Conectores, then click a CONNECTED platform dot. Before the fix, `_screen` never
-    cleared and `.chanhead` (the Conectores header) kept covering the click's own effect."""
+def test_the_connectors_button_is_the_door_to_the_section_not_a_screen_of_its_own(_page):
+    """Defect 1 was a connectors SCREEN that kept covering the click's own effect. Since 2026-10-04 the card
+    has no such screen: the plug opens the ⚙ Conectores section — on the channel being looked at, or on the
+    list — and the messages underneath never go anywhere."""
     _mount(_page, _base_data())
     _page.locator(".connbtn").click()
-    assert _page.locator(".chanhead").count() == 1               # stuck here before the fix
+    assert _page.locator(".chanhead").count() == 0, "no connectors screen inside the card any more"
+    assert _page.get_by_text("Marta", exact=True).count() == 1, "the inbox stays where it was"
+    assert ["openConnector", ""] in _page.evaluate("() => window.__calls")
     _page.locator(".dots .picon.on").nth(2).click()               # ORDER=[whatsapp,telegram,email] → email
-    assert _page.locator(".chanhead").count() == 0, "el clic en un canal no salió de Conectores"
-    assert _page.locator(".mrow").count() >= 1, "debería estar viendo la bandeja de email, no Conectores"
+    _page.locator(".connbtn").click()
+    assert ["openConnector", "email"] in _page.evaluate("() => window.__calls"), "the lens names the channel"
 
 
 def test_the_title_returns_to_the_unified_dashboard_from_any_screen(_page):
@@ -147,14 +153,6 @@ def test_the_title_returns_to_the_unified_dashboard_from_any_screen(_page):
     assert _page.get_by_text("Banco Ejemplo", exact=True).count() == 0
     calls = _page.evaluate("() => window.__calls")
     assert ["show_view", {"platform": "all"}] in calls
-
-
-def test_the_title_also_exits_the_connectors_screen(_page):
-    _mount(_page, _base_data())
-    _page.locator(".connbtn").click()
-    assert _page.locator(".chanhead").count() == 1
-    _page.locator(".hdtitle").click()
-    assert _page.locator(".chanhead").count() == 0
 
 
 # ── the Gmail-style default (V2-610) ─────────────────────────────────────────────────────────────────────

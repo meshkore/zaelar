@@ -110,6 +110,8 @@ def _mount(page, data):
              window.__mod = mod;
              window.__ctx = { action: (n, p) => { window.__calls.push([n, p || {}]);
                                                   return Promise.resolve({ok: true}); },
+                              // the host's door to the ⚙ Conectores section (2026-10-04), recorded like an action
+                              openConnector: (cx) => { window.__calls.push(["openConnector", cx]); },
                               top: () => {}, running: true };
              mod.render(document.getElementById('w'), data, window.__ctx);
            }""",
@@ -375,13 +377,22 @@ def test_the_connectors_screen_lists_the_sources_with_their_state(_page):
     assert _page.locator(".ctsrc .ctdot.ok").count() == 1
 
 
-def test_a_connected_source_offers_DISCONNECT_and_an_unlinked_one_offers_CONNECT(_page):
+def test_a_connected_source_offers_MANAGE_and_an_unlinked_one_offers_CONNECT_both_through_the_one_door(_page):
+    """Linking and unlinking are not done on the card any more (2026-10-04): both buttons open the ⚙
+    Conectores section on Google Contacts, where connect/disconnect live. What the card keeps is its own
+    business — whether a linked source keeps bringing contacts in."""
     _mount(_page, _data())
     _page.locator(".ctplug").click()
-    assert _page.locator(".ctsrc .ctbtn", has_text="Desconectar").count() == 1
+    assert _page.locator(".ctsrc .ctbtn", has_text="Desconectar").count() == 0, "disconnecting is the section's job"
+    assert _page.locator(".ctsrc .ctbtn", has_text="Gestionar").count() == 1
+    _page.locator(".ctsrc .ctbtn", has_text="Gestionar").click()
+    assert ["openConnector", "google-contacts"] in _page.evaluate("() => window.__calls")
     _mount(_page, _data(providers=_providers(google="off")))
     _page.locator(".ctplug").click()
     assert _page.locator(".ctsrc .ctbtn", has_text="Conectar").count() == 1
+    _page.locator(".ctsrc .ctbtn", has_text="Conectar").click()
+    assert ["openConnector", "google-contacts"] in _page.evaluate("() => window.__calls")
+    assert not [c for c in _page.evaluate("() => window.__calls") if c[0] != "openConnector"], "the card connects nothing itself"
 
 
 def test_a_source_we_have_not_built_offers_no_button_at_all(_page):

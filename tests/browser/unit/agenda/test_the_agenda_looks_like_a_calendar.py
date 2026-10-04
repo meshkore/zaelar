@@ -238,23 +238,6 @@ def test_cancelling_an_appointment_asks_first(_page):
 
 # ── the operator's two visible complaints ───────────────────────────────────────────────────────────────
 
-def test_the_calendars_are_named_rows_behind_a_button_not_cramped_icons(_page):
-    _mount(_page, _data(calendars=[
-        {"id": "google", "label": "Google Calendar", "status": "unavailable"},
-        {"id": "icloud", "label": "iCloud (Apple)", "status": "unavailable"},
-        {"id": "caldav", "label": "CalDAV (Outlook, Fastmail…)", "status": "unavailable"}]))
-    assert _page.locator(".agcalrow").count() == 0, "the panel is closed until asked for"
-    body = _page.locator(".agbody").inner_text()
-    assert "no está construido" not in body, "the explanatory paragraph is gone from the calendar itself"
-    _page.click(".agcalbtn")
-    rows = _page.locator(".agcalrow")
-    assert rows.count() == 3
-    assert "Google Calendar" in rows.nth(0).inner_text()
-    size = _page.evaluate(
-        "() => { const r = document.querySelector('.agcalico').getBoundingClientRect(); return [r.width, r.height]; }")
-    assert size[0] >= 24 and size[1] >= 24, f"an icon you cannot read is not an icon: {size}"
-
-
 def test_a_grown_card_is_filled_and_nothing_is_clipped(_page):
     """His first screenshot: the card was small and the words at the bottom were cut. The widget fills its
     frame now and the grid scrolls INSIDE it, so no row can fall under the card's edge."""

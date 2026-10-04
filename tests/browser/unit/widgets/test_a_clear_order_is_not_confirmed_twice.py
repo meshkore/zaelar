@@ -40,8 +40,9 @@ _RUNS = [
     ("mensajeria", "trash", {"n": 3}, "tira ese correo"),
     ("youtube", "delete_list", {"name": "Rock"}, "borra la lista Rock"),
     ("archivos", "torrent_remove", {"id": "t3"}, "cancela esa descarga"),   # V2-764: was torrent:remove
-    ("musica", "disconnect", {}, "desconecta Spotify"),
-    ("agenda", "disconnect", {}, "desconecta el calendario"),
+    # «desconecta Spotify» / «desconecta el calendario» used to be rows here: since 2026-10-04 no widget
+    # carries a connect/disconnect action — accounts are managed in the ⚙ Conectores section, outside the
+    # widget consent path this file measures.
     ("mensajeria", "send_draft", {}, "envía el borrador"),
 ]
 
@@ -111,11 +112,12 @@ def test_no_verb_is_matched_anywhere_in_the_consent_path():
 
 
 def test_a_singleton_and_a_sweep_are_told_apart_by_the_manifest_not_by_the_missing_selector():
-    """Both declare no selector and they are opposite acts: `musica:disconnect` touches the one linked
-    account, `agenda:clear_all` touches every appointment. Reading «no selector» as «unbounded» charged a
-    sweep's friction to a singleton, which is the shape of the complaint."""
-    man = json.loads((ENGINE / "widgets" / "musica" / "manifest.json").read_text(encoding="utf-8"))
-    assert man["actions"]["disconnect"].get("singleton") is True
+    """Both declare no selector and they are opposite acts: `mensajeria:send_draft` touches the one draft on
+    screen, `agenda:clear_all` touches every appointment. Reading «no selector» as «unbounded» charged a
+    sweep's friction to a singleton, which is the shape of the complaint. (`musica:disconnect` was the first
+    singleton measured here; the widgets' connect/disconnect actions moved to ⚙ Conectores on 2026-10-04.)"""
+    man = json.loads((ENGINE / "widgets" / "mensajeria" / "manifest.json").read_text(encoding="utf-8"))
+    assert man["actions"]["send_draft"].get("singleton") is True
     agenda = json.loads((ENGINE / "widgets" / "agenda" / "manifest.json").read_text(encoding="utf-8"))
     assert agenda["actions"]["clear_all"].get("singleton") is not True
     assert agenda["actions"]["drop_project"].get("fans_out") is True, "one selector, many tasks discarded"

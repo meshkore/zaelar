@@ -3,7 +3,8 @@
 #
 #   · "search" is the action that ANSWERS the phrase this widget exists for ("do I have photos of Morocco?")
 #     and has to hand its matches BACK (V2-541) — a data-op that only repaints leaves the turn mute.
-#   · NO ACTION PAYLOAD MAY CARRY A CREDENTIAL (V2-520) — `connect` returns a `url` to open, never a secret.
+#   · NO ACTION PAYLOAD MAY CARRY A CREDENTIAL (V2-520). Connecting and disconnecting Google Photos are not
+#     actions of this card since 2026-10-04: they live in the ⚙ Conectores section, the one door.
 #   · `view_data` must stay CHEAP: no network, no connector import — it runs on every render and SSE push.
 #   · The connector import is deferred, so the widget catalog (built on every prompt) never pays `httpx`.
 #
@@ -116,17 +117,17 @@ def test_the_actions_that_ANSWER_A_LOOK_are_view_actions():
         assert wactions.is_view(acts[name], name), f"«{name}» answers a look order and must be a view action"
 
 
-def test_disconnecting_asks_first_and_looking_never_does():
+def test_looking_never_asks_first():
     from widgets import actions as wactions
     acts = _manifest()["actions"]
-    assert wactions.classify(acts["disconnect"], "disconnect") == wactions.CONFIRM
+    assert not {"connect", "disconnect"} & set(acts), "connecting lives in ⚙ Conectores, not on the card"
     for name in ("refresh", "more", "search", "clear_search"):
         assert wactions.classify(acts[name], name) == wactions.FAST, f"«{name}» is reversible; do not gate it"
 
 
 def test_NO_action_payload_carries_a_credential():
-    """V2-520's boundary: `connect` starts an OAuth/Picker round trip and hands back a `url` to open — the
-    app itself is registered ONCE in ⚙ → Conectores, never through a voice-reachable payload field."""
+    """V2-520's boundary: the OAuth/Picker round trip and the app registration happen ONCE in ⚙ → Conectores,
+    never through a voice-reachable payload field."""
     blob = json.dumps(_manifest()["actions"]).lower()
     for word in ("client_secret", "client_id", "token", "password", "secret", "refresh_token"):
         assert word not in blob, f"«{word}» must never be an action payload field"
@@ -161,13 +162,6 @@ def test_a_search_with_no_words_is_refused_with_a_sentence(data, monkeypatch):
     assert out["ok"] is False and "busco" in out["error"]
 
 
-def test_connect_returns_a_url_and_never_a_credential(data, monkeypatch):
-    svc = _wire(data, _Svc(connected=False), monkeypatch)
-    out = data.apply_action("connect", {})
-    assert out["ok"] and out["url"].startswith("https://")
-    assert ("start_session",) in svc.calls
-
-
 def test_label_batch_without_a_name_teaches_the_shape_instead_of_guessing(data, monkeypatch):
     _wire(data, _Svc(items=_ITEMS), monkeypatch)
     out = data.apply_action("label_batch", {})
@@ -178,14 +172,6 @@ def test_an_unknown_action_lists_the_ones_that_exist(data, monkeypatch):
     _wire(data, _Svc(), monkeypatch)
     out = data.apply_action("teleport", {})
     assert out["ok"] is False and "search" in out["error"]
-
-
-def test_disconnect_forgets_the_connection(data, monkeypatch):
-    svc = _wire(data, _Svc(items=_ITEMS), monkeypatch)
-    out = data.apply_action("disconnect", {})
-    assert out["ok"]
-    assert ("disconnect",) in svc.calls
-    assert data.view_data()["connected"] is False
 
 
 # ── the references the model resolves against ────────────────────────────────────────────────────────────
