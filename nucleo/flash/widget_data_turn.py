@@ -59,7 +59,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     # it the turn CANNOT know whether the operation happened, and the mouth says «Hecho.» regardless. It is
     # exactly the same reason already written in `video_turn.execute`, here in the general case.
     from widgets.server_api import brain_action as _brain_action
-    hechas, saltadas, fallidas = [], [], []
+    hechas, saltadas, fallidas, answers = [], [], [], []
     for a in admitidas:
         wid = _rg.one_open_instance(str(a.get("widget_id") or "").strip().lower())   # V2-773: as the voice rail
         act = str(a.get("action") or "").strip()
@@ -143,8 +143,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
                          extra={"cat": "flash", "id": wid, "action": act})
             except Exception:  # noqa: BLE001
                 pass
-        res = await _brain_action(wid, act, pl)
-        res = res if isinstance(res, dict) else {}
+        res = _r if isinstance(_r := await _brain_action(wid, act, pl), dict) else {}
         if (_fixed := await _rg.corrected_retry(wid, act, pl, res, text, _brain_action)):
             pl, res = _fixed
         _wo.remember(wid, act, text, res)
@@ -154,6 +153,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
                              "message": str(res.get("message") or res.get("error") or "")[:160]})
             continue
         hechas.append({"widget": wid, "act": act})
+        answers += [(wid, _ans)] if (_ans := _rg.answer_of(res)) else []   # V2-781 T518: what it answered
         # THE CARD OPENS WHERE THE DATA LANDS (V2-463, now also in the generic case). Measured
         # in `build-a-video-playlist-from-links`: the model executed `name_list` and the report marked «WRITTEN
         # BUT NEVER OPENED»—the operator saw nothing, so «hecho» was invisible. A data-op that WRITES is
@@ -174,7 +174,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     # Singular `widget`/`act` are preserved: this is how the report and previous guards already read them,
     # and changing them to a list would break reading without warning. The new data goes alongside them.
     parte = {"executed": "widget_data", "widget": hechas[0]["widget"], "act": hechas[0]["act"],
-             "ops": hechas}
+             "ops": hechas, "answers": answers}
     # What was NOT done is STATED, rather than leaving the report to count only what went well.
     if len(todas) > len(hechas):
         parte["descartadas"] = len(todas) - len(hechas)
@@ -315,6 +315,30 @@ def named_ack(parte: dict, ack: str, operator_text: str = "") -> str:
     if resto > 0:
         vista += (f" and {resto} more" if en else f" y {resto} más")
     return (f"Done. Right now it holds: {vista}." if en else f"Hecho. Ahora mismo hay: {vista}.")
+
+
+async def answer_in_words(parte: dict, operator_text: str, spec=None) -> str:
+    """A QUESTION the turn answered with a data-op, told in words from what the op RETURNED — or "".
+
+    V2-781 T518 (EN `agenda-everyday-edits`, step 12): «What do I have next Thursday?» → a mute `show_day`, and the
+    text channel answered «Done. Right now it holds: …» with every row on the card (`named_ack`'s list). The voice
+    already composes from the op's answer (`post_stream_words`: «op answer compose»); this is that, for the probe."""
+    answers = parte.get("answers") if isinstance(parte, dict) else None
+    if not answers or not _asked_something(operator_text):
+        return ""
+    try:
+        import json as _json
+        from nucleo.flash import data_ops as _do, direct_action as _da, prompt as _prompt
+        from nucleo.flash import second_pass as _sp, widget_read as _wr
+        pick = _do.answer_to_speak(answers, [(o.get("widget"), o.get("act")) for o in parte.get("ops") or []])
+        if not pick:
+            return ""
+        sys2 = _wr.compose_system(_prompt._lang_lock(), operator_text, pick[0], operator_text,
+                                  _json.dumps(pick[1], ensure_ascii=False, default=str)[:3500], answered=True,
+                                  on_screen=_da.on_screen_now(pick[0]))
+        return (await _sp.collect(sys2, operator_text, spec, max_tokens=220) or "").strip()
+    except Exception:  # noqa: BLE001 — the plain ack still answers
+        return ""
 
 
 def spoken_for(parte: dict, ack: str) -> str:

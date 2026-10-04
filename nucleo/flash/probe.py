@@ -484,7 +484,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # cablear en ambos, siempre.
     # V2-778 F1 — the words the turn owes live in `nucleo/flash/probe_after.py`.
     _blk = await _probe_after.the_words_it_owes(
-        _hw=_hw,
+        _hw=_hw, spec=spec,
         _parts=locals().get('_parts'),
         _show_chose=_show_chose,
         action=action,
