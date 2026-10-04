@@ -541,13 +541,13 @@ export function ConfigPanel() {
     } else if (id === "whatsapp") {
       box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="whatsapp">${t("config.cx.connect_qr")}</button>`;
     } else if (id === "telegram") {
-      // Zaelar's own app shipped: one button and the QR; his own app is the advanced fold (Spotify's shape).
+      // Zaelar's own app shipped: one button and the QR, nothing else. The api_id form exists only where there is
+      // no app at all (a public clone without our credentials), because there it is the only way in.
       const own = `<p class="cf-wiz-text">${esc(t("config.cxw.telegram.form_tip"))}</p>
         ${row("api_id", `<input id="cx_tg_api_id" type="text" inputmode="numeric" placeholder="12345678"/>`)}
         ${row("api_hash", `<input id="cx_tg_api_hash" type="text" placeholder="${t("config.cx.tg_placeholder")}"/>`)}`;
       const shipped = !!(c.config || {}).app_shipped;
-      box = shipped ? `<p class="cf-wiz-text">${esc(t("config.cxw.telegram.shipped"))}</p>
-        <details class="cf-adv"><summary>${t("config.cx.tg_own")}</summary>${own}</details>` : own;
+      box = shipped ? `<p class="cf-wiz-text">${esc(t("config.cxw.telegram.shipped"))}</p>` : own;
       box += `
         <button class="cf-btn cf-cx-act" data-act="connect" data-id="telegram">${t("config.cx.connect_qr")}</button>`;
     } else if (id === "email") {
@@ -692,7 +692,7 @@ export function ConfigPanel() {
           payload = { api_id: String(val("cx_tg_api_id") || "").trim(), api_hash: String(val("cx_tg_api_hash") || "").trim() };
           // Said HERE, beside the two boxes, before any round-trip — not as a server sentence in the top bar.
           const shipped = !!((cfg.connectors || []).find(x => x.id === "telegram") || { config: {} }).config.app_shipped;
-          if (shipped && !payload.api_id && !payload.api_hash) payload = {};          // the install's app: QR only
+          if (shipped) payload = {};                                                  // the install's app: QR only
           else if (!/^\d+$/.test(payload.api_id) || !payload.api_hash) { msg("✗ " + t("config.cxw.telegram.missing")); return; }
         }
         if (id === "email") {
