@@ -291,6 +291,7 @@
  "config.cxw.telegram.form_tip": "Pega aquí los dos datos. El api_id es un número corto; el api_hash, una cadena larga de letras y números.",
  "config.cxw.telegram.missing": "Faltan datos: el api_id son solo números y el api_hash no puede ir vacío.",
  "config.cxw.telegram.shipped": "Pulsa Conectar y escanea el código QR con tu móvil: Telegram → Ajustes → Dispositivos → Vincular dispositivo de escritorio. No hace falta nada más.",
+ "config.cxw.qr_rotates": "El código se renueva solo cada pocos segundos: si el móvil no lo acepta, espera al siguiente.",
  "config.msg.connecting": "{id}: conectando…",
  "config.msg.couldnt_query": "✗ no se pudo consultar",
  "config.msg.couldnt_start": "no se pudo iniciar",

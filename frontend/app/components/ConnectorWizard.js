@@ -146,7 +146,7 @@ function liveState(c, { t, esc }) {
   const qr = typeof c.qr === "string" && c.qr.startsWith("data:image/") ? c.qr : "";
   if (qr) {
     const cap = c.id === "telegram" ? "config.cxw.qr_scan_telegram" : "config.cxw.qr_scan_whatsapp";
-    return `<div class="cf-wiz-qr"><img alt="QR" src="${esc(qr)}"/><p>${esc(t(cap))}</p></div>`;
+    return `<div class="cf-wiz-qr"><img alt="QR" src="${esc(qr)}"/><p>${esc(t(cap))}</p><p>${esc(t("config.cxw.qr_rotates"))}</p></div>`;
   }
   if (c.status === "connecting" || c.status === "starting") return `<p class="cf-wiz-wait">${esc(t("config.cxw.qr_wait"))}</p>`;
   return "";

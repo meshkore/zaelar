@@ -617,12 +617,15 @@ export function ConfigPanel() {
     return connectorList(view, fams, ui) +
       `<div class="cf-foot"><button class="cf-btn cf-cx-refresh">${t("config.cx.refresh_status")}</button></div>`;
   }
-  // A QR to appear, a scan to land: while the chosen connector is still settling, its state is re-read (2 min max).
+  // A QR to appear, a scan to land: while the chosen connector is still settling AND on screen, its state is
+  // re-read. No time cap: Telegram rotates its QR every 30 s, and a cap (it was 2 min) left a dead code on the
+  // screen that the phone then refused — finding the phone's «link device» menu takes longer than that.
   async function settle() {
     if (cxPolling) return;
     cxPolling = true;
+    const focus = cxFocus;
     try {
-      for (let i = 0; i < 60 && activeTab === "conectores" && cxFocus && store.configOpen(); i++) {
+      while (activeTab === "conectores" && cxFocus === focus && store.configOpen()) {
         await sleep(2000);
         const before = JSON.stringify((cfg.connectors || []).find(x => x.id === cxFocus) || {});
         try { cfg.connectors = (await api.getConnectors()).connectors || []; } catch (_) {}
