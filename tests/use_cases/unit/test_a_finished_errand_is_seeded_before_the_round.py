@@ -9,6 +9,7 @@ sandbox DB, and reports which seeded row the round reached.
 from __future__ import annotations
 
 import json
+import pathlib
 import sqlite3
 
 import pytest
@@ -62,3 +63,12 @@ def test_the_report_names_which_row_the_round_reached(tmp_path):
                           "titles": ["Pisos de alquiler en Gràcia", "Pisos de alquiler en Sant Antoni"]})
     assert "seed-flat-gracia" in note and "Gràcia" in note
     assert "FALLÓ" in ES.judge_note({"seeded": [], "error": "boom"})
+
+
+def test_the_markdown_report_prints_the_row_it_reached(tmp_path):
+    from tests.use_cases.e2e.agent import report
+    res = [{"scenario": "flat-hunt-recall-the-report__es", "tier": 3, "verdict": {"overall": 1, "findings": []},
+            "run": {"transcript": [], "mechanism_report": {},
+                    "errand_seed": {"seeded": ["seed-flat-gracia", "seed-flat-santantoni"], "opened": []}}}]
+    text = pathlib.Path(report.build(res, "20261004-000000", tmp_path)).read_text(encoding="utf-8")
+    assert "encargos sembrados: seed-flat-gracia, seed-flat-santantoni · la ronda tocó: ninguno" in text

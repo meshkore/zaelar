@@ -57,6 +57,10 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
         lines.append(f"informe de mecanismo: familias observadas = {mech.get('families_observed', [])}, "
                      f"esperadas = {mech.get('expected_signals', [])}, "
                      f"faltantes = {mech.get('missing_signals', []) or '(ninguna)'}")
+        if run.get("errand_seed"):   # V2-781 T517 — which seeded report the round reopened, by its row
+            es = run["errand_seed"]
+            lines.append(f"encargos sembrados: {', '.join(es.get('seeded') or []) or 'NINGUNO (falló)'} · la ronda "
+                         f"tocó: {', '.join(es.get('opened') or []) or 'ninguno'}")
         if mech.get("navegador_task_id"):
             nt = mech.get("navegador_task", {})
             lines.append(f"tarea de navegador {mech['navegador_task_id']}: status={nt.get('status','?')}, "
