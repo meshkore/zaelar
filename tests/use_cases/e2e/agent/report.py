@@ -119,8 +119,19 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
             lines.append(f"    {t['who']:7} {(t.get('text') or '(sin respuesta)')[:100]}")
         lines.append("")
 
-    md = out_dir / f"report_{stamp}.md"
-    md.write_text("\n".join(lines), encoding="utf-8")
+    # V2-781 (2026-10-04): an ES and an EN round that end in the same second wrote ONE `report_<stamp>` — the second
+    # overwrote the first, and the EN round's evidence was gone. The name is claimed atomically ("x"), and a taken
+    # one gets a suffix, so two rounds can never share a file.
+    for n in range(1, 100):
+        name = stamp if n == 1 else f"{stamp}-{n}"
+        md = out_dir / f"report_{name}.md"
+        try:
+            with open(md, "x", encoding="utf-8") as fh:
+                fh.write("\n".join(lines))
+            break
+        except FileExistsError:
+            continue
+    stamp = name
     js = out_dir / f"report_{stamp}.json"
     js.write_text(json.dumps({"stamp": stamp, "results": results, "improvements": improvements},
                              ensure_ascii=False, indent=2), encoding="utf-8")

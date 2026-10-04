@@ -13,6 +13,16 @@ from __future__ import annotations
 from nucleo.flash import probe as _probe
 
 
+async def _escalated_with_its_data_ops(task_ids: list, tool_calls: list, text: str, brief) -> dict:
+    """The escalation's report — and a data-op of the SAME turn runs too, as in the voice channel, where each tool
+    call runs as it streams (V2-781 T515). Measured: «prográmame el recordatorio… ¿y de dónde sacaste la fecha?» →
+    escalate + an agenda add; this channel ran only the escalation, and the notice was never written."""
+    out = {"executed": "escalate", "task_id": task_ids[0], "task_ids": task_ids}
+    if any(t.get("name") == "widget_data" for t in tool_calls):
+        out["widget_data"] = await _probe._widget_data_turn.execute(tool_calls, text=text, brief=brief)
+    return out
+
+
 async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _window_goal, action, execute, images_req, music_req, operator_text, sess, spoken, tags, text, tool_calls, video_req) -> dict:
     if execute:
         # CONFIRMACIÓN de una TAREA irreversible parada por el confirm-gate (V2-126) y del navegador parado en
@@ -85,7 +95,7 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                     str(_r), context={"src": "probe", "trace": _trace_id, "surface": __import__("nucleo.surfaces", fromlist=["x"]).pick(_surf.get(_r, ""), __import__("nucleo.surfaces", fromlist=["x"]).from_brief(_tbrief)),
                                       "asked": text})   # V2-655: la DECISIÓN vive en el portal; aquí solo el dato
                     for _r in _reqs]
-                return_extra_exec = {"executed": "escalate", "task_id": _tids[0], "task_ids": _tids}
+                return_extra_exec = await _escalated_with_its_data_ops(_tids, tool_calls, text, _tbrief)
             elif action == "send_to_worker":
                 _msg = next((t["args"].get("message") for t in tool_calls
                              if t["name"] == "send_to_worker" and t["args"].get("message")), "") or text
@@ -280,7 +290,8 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
     return _out
 
 
-async def answer_a_search(*, FastClient, _forced_search, _res, action, dialog, operator_text, spec, speech, text, tool_calls) -> dict:
+async def answer_a_search(*, FastClient, _forced_search, _res, action, dialog, operator_text, spec, speech, text, tool_calls,
+                          _tbrief=None) -> dict:
     if action == "search":
         _sq = next((t["args"].get("query") for t in tool_calls if t["name"] == "web_search"), "") or text
         try:
@@ -317,6 +328,16 @@ async def answer_a_search(*, FastClient, _forced_search, _res, action, dialog, o
                 _parts.append(_delta)
             spoken = _st.denial_repair(
                 dialog.sanitize_reply(speech.sanitize("".join(_parts), drop_metadata=False)), _res)
+            # V2-781 T515 — an ORDER beside the fact («set a reminder for the premiere day»): the answer pass has no
+            # tools and refused it. The call goes to the execute block below like any other (same `execute` gate).
+            from . import act_repair as _ar_s
+            _after = await _ar_s.call_after_search(operator_text or text, spoken, _tbrief, spec)
+            if _after:
+                tool_calls.append({"name": "widget_data", "args": {"widget_id": _after["widget_id"],
+                                   "action": _after["action"], "payload": _after["payload"], "_repair": True}})
+                action = "widget_data"
+                spoken = (_ar_s.without_the_denial(spoken)
+                          + _ar_s.after_the_repair(spoken, False, _after["widget_id"], _after["action"])).strip()
         except Exception:
             # Con la búsqueda CAÍDA, dejar la respuesta original sería quedarnos justo con el dato improvisado
             # que este backstop existe para no dar. Un «no lo he podido comprobar» es peor respuesta y mejor
@@ -329,7 +350,7 @@ async def answer_a_search(*, FastClient, _forced_search, _res, action, dialog, o
                 except Exception:  # noqa: BLE001 — V2-682: the last resort is the PRODUCT default (English),
                     from i18n.langs import LANGUAGES  # never a Spanish literal an English operator cannot read
                     spoken = LANGUAGES["en"].unverified_fact
-    _out = {}
+    _out = {'action': action}
     try:
         _out['spoken'] = spoken
     except NameError:

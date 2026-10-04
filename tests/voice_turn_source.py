@@ -139,7 +139,8 @@ PROBE_AFTER = ENGINE / "nucleo" / "flash" / "probe_after.py"
 _PROBE_CALLS = (
     ("    # V2-778 F1 — executing the decision lives in", "        return_extra_exec = _blk['return_extra_exec']\n",
      "execute_what_was_decided"),
-    ("    # V2-778 F1 — answering a web search lives in", "        spoken = _blk['spoken']\n", "answer_a_search"),
+    # V2-781 T515: the search block now hands back `action` too (an order beside the fact), read in one line
+    ("    # V2-778 F1 — answering a web search lives in", "_blk.get('action', action)", "answer_a_search"),
     ("    # V2-778 F1 — the words the turn owes live in", "        spoken = _blk['spoken']\n", "the_words_it_owes"),
     ("    # V2-778 F1 — naming the turn's action from what", "        video_req = _blk['video_req']\n", "name_the_action",
      ENGINE / "nucleo" / "flash" / "probe_decide.py"),

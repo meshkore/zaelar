@@ -400,10 +400,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         spec=spec,
         speech=speech,
         text=text,
-        tool_calls=tool_calls,
+        tool_calls=tool_calls, _tbrief=_tbrief,
     )
-    if 'spoken' in _blk:
-        spoken = _blk['spoken']
+    spoken, action = _blk.get('spoken', spoken), _blk.get('action', action)   # V2-781 T515: a search may carry an order
 
     # BÚSQUEDA DE ANUNCIOS (V2-556) — espejo del provider (impl PARALELA, cablear en AMBOS). El cuerpo es
     # COMPARTIDO (`listing_turn.run`: pasada rápida → hoja → auto-escalación con la hoja heredada, y él mismo

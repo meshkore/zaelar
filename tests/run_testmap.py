@@ -3731,6 +3731,11 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.213", "title": "Two use-case rounds that end in the same second never share a report file (V2-781)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_two_rounds_never_share_a_report.py"]},
+        {"id": "2.212", "title": "An ORDER beside a searched fact is carried out in both channels — the search's tool-less answer "
+                                 "pass no longer ends «I can't set reminders» (V2-781 T515)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_an_order_beside_a_search_is_carried_out.py"]},
         {"id": "2.211", "title": "A promised notice and the reply's language are gated by code over the judge's verdict — the ES round "
                                  "the judge passed 5/5 with no job on Wednesday is a FAIL on the same evidence (V2-781 T514)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_promised_notice_is_checked_by_code_not_the_judge.py"]},

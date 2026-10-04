@@ -99,3 +99,12 @@ def test_the_card_declares_the_field_and_says_it_is_never_a_second_entry():
     assert "remind" in acts["add_meeting"]["payload"]
     assert "YYYY-MM-DD" in acts["set_reminder"]["payload"]["at"]
     assert "remind" in acts["add_meeting"]["how"]
+
+
+def test_a_dated_task_that_asks_for_a_notice_is_an_item_that_rings(fake_sched):
+    """V2-781 T515 (live ES round): add_task {title, date, remind} wrote a task and dropped the notice."""
+    r = agenda.apply_action("add_task", {"title": "Estreno de Dexter", "date": THU, "remind": f"{THU} 09:00"})
+    assert r.get("ok") is not False, r
+    (m,) = agenda.load_db()["meetings"]
+    assert m["title"] == "Estreno de Dexter" and m.get("reminder_id")
+    assert _live_stamps(fake_sched) == [f"{THU} 09:00"]

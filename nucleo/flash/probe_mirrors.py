@@ -10,12 +10,19 @@ from __future__ import annotations
 from nucleo.flash import probe as _probe
 
 
+def _a_show_may_replace(action: str, names) -> bool:
+    """An escalate/search turn the show backstop may turn into a show — never one that also wrote a card, the voice
+    guard's `not acted["widget"]` (V2-781 T515: «¿de dónde has sacado esa fecha?» read «saca» + «fecha» as «show the
+    clock» and threw the turn's agenda write away)."""
+    return action in ("escalate", "search") and "widget_data" not in names
+
+
 async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbrief, action, canvas_h, dialog, names, operator_text, sess, spec, speech, spoken, tags, text, tool_calls) -> dict:
     # V2-778 F2-16 — the voice turn's question, asked the same way here: did the reply promise something?
     from nucleo.flash import reply_promise as _reply_promise
     await _reply_promise.prefetch("".join(spoken).strip() if isinstance(spoken, list) else str(spoken or ""),
                                   operator_text)
-    if action in ("escalate", "search"):
+    if _a_show_may_replace(action, names):
         wid = _probe._show_target(text, sess.window, sess.last_action)
         if not wid:
             # Jev show license (T-jev-show-close, lector COMPARTIDO `show_target.show_from_verb`,

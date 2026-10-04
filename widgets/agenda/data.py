@@ -308,6 +308,12 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     # turn re-sent the move instead of the Telegram he asked for).
     payload = recur.normalize(payload) if action in ("add_meeting", "update_meeting", "move_meeting") \
         else (payload or {})
+    if action == "add_task" and payload.get("date") and any(payload.get(k) not in (None, "", False, True)
+                                                             for k in reminders.ASK_KEYS):
+        # V2-781 T515 — a dated task that asks for a NOTICE («estreno de Dexter, el 30, avísame») is an agenda
+        # item: only an item carries a notice that is cancelled with it. Measured live: add_task {date, remind}
+        # wrote a task, dropped the notice, and the reply promised it.
+        return apply_action("add_meeting", payload)
     if action == "update_meeting" and any(str(payload.get(k) or "").strip() for k in edit.TIME_KEYS):
         # V2-770 — WHEN inside an edit («que dure hasta las cinco») is a reschedule: the door that owns the
         # notice takes it, then whatever else the edit said lands below. It was dropped here before.

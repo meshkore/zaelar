@@ -341,6 +341,105 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
         return None
 
 
+_SYS_AFTER_SEARCH = (
+    "You are the brain of a voice assistant. The operator's turn asked for a FACT and an ORDER on the card "
+    "«{wid}». You searched the web for the fact and answered:\n«{answer}»\n\nNow fulfil the order: make the "
+    "`widget_data` call with widget_id «{wid}», one of its declared actions and the payload taken from his "
+    "words and from what you found (a date you found is written as YYYY-MM-DD). If his sentence does not ask "
+    "for anything on «{wid}», call nothing. Write any text you put in the payload (a note, a title) in the "
+    "OPERATOR's language, as he said it.\n\nActions of «{wid}»:\n{actions}{card}"
+)
+
+
+def order_card_after_search(brief, answer: str = "") -> str:
+    """The card an ORDER is on when the turn SEARCHED the web for the fact it needed, or "".
+
+    V2-781 T515 (2026-10-03): «Can you set a reminder for the premiere day?» — the model searched again for the
+    date, and the search's answer pass, which has no tools, said «I can't actually set reminders myself»; the
+    brief had read `request_type=order` and `catalog_widget=agenda` (0.91). The ES twin read `wants_words=tell` on
+    the same order and `request_type=question` on «¿te enteras de cuándo se estrena y me avisas?» — answered «avisarte
+    no puedo». So: a card the brief names, and either a SURE order or an answer that refuses an act. A question
+    answered with its fact never reaches here."""
+    try:
+        from nucleo.flash import build_decision as _bd, turn_brief as _tb
+        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8)
+        if not ((str(kind or "") == "order" and info) or denies_the_act(answer)):
+            return ""
+        return str(_bd.named_card(brief) or "").split("::")[0]
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+async def call_after_search(operator_text: str, answer: str, brief, spec=None, *, window=None) -> dict | None:
+    """The order half of a turn that searched for its fact — `{widget_id, action, payload}` or None. Never raises.
+
+    The sibling of `call_after_read`: the search's answer pass has no tools, so an order beside the question
+    («find out when it premieres and remind me») was answered with the fact and then refused. One bounded pass:
+    the card the brief names, its declared actions, the caller's usual gate."""
+    try:
+        wid = order_card_after_search(brief, answer)
+        if not wid or not (operator_text or "").strip() or not (answer or "").strip():
+            return None
+        from widgets import runtime as _rt
+        manifest = _rt.get(wid) or {}
+        declared = manifest.get("actions") or {}
+        tool = _widget_data_tool()
+        if not declared or not tool:
+            return None
+        from nucleo.flash import widget_read as _wr
+        digest = str(_wr.read(wid) or "").strip()[:800]
+        card = _CARD.format(wid=wid, digest=digest) if digest else ""
+        said = " ".join(str(answer).split())[:600].replace("{", "(").replace("}", ")")
+        got: list[tuple[str, dict]] = []
+        from nucleo.flash.fast_client import FastClient
+        await FastClient().complete(
+            [{"role": "system", "content": _SYS_AFTER_SEARCH.format(wid=wid, answer=said, actions=_actions_block(manifest),
+                                                                    card=card)},
+             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»" + conversation(window)}],
+            spec=spec, max_tokens=400, tools=[tool], no_thinking=True,
+            on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
+        for name, args in got:
+            action = str(args.get("action") or "").strip()
+            if name == "widget_data" and str(args.get("widget_id") or "").strip().lower() == wid and action in declared:
+                payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
+                return {"widget_id": wid, "action": action, "payload": payload}
+        _note(wid, "tras buscar, el modelo no hizo la llamada de la orden")
+        return None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+async def voice_after_search(operator_text: str, spoken_text: str, brief, spec, *, window, apply, send, emit,
+                             acted: dict, done: dict) -> bool:
+    """The VOICE channel's half of `call_after_search`: run the order, mark the turn as having acted, say what
+    happened after a refusal that already streamed (`after_the_repair`), and leave one timeline line."""
+    got = await call_after_search(operator_text, spoken_text, brief, spec, window=window)
+    if not got:
+        return False
+    apply(got["widget_id"], got["action"], got["payload"])
+    acted["widget"] = done["v"] = True
+    line = after_the_repair(spoken_text, False, got["widget_id"], got["action"]).strip()
+    if line:
+        send(line)
+    emit("brain", "🔁 buscó para una orden — la llamada, con lo encontrado", role="system",
+         text=f"{got['widget_id']}:{got['action']}", extra={"cat": "flash", "widget": got["widget_id"],
+                                                          "action": got["action"]})
+    return True
+
+
+def without_the_denial(spoken: str) -> str:
+    """`spoken` minus the sentences that deny an act the turn then carried out (the text channel can unsay)."""
+    kept = []
+    for p in re.split(r"(?<=[.!?])\s+", str(spoken or "").strip()):
+        if p and denies_the_act(p):
+            # «I can't set reminders myself, but I've got the date: …» — the half after «but» is the answer
+            m = re.search(r"[,;—-]\s*(?:but|pero|aunque)\s+(.*)$", p, re.I)
+            p = (m.group(1)[:1].upper() + m.group(1)[1:]) if m and not denies_the_act(m.group(1)) else ""
+        if p:
+            kept.append(p)
+    return " ".join(kept).strip()
+
+
 _SYS_COMMISSION = (
     "You are the brain of a voice assistant. The operator gave an ORDER that names the card «{wid}», "
     "and the turn was about to send it to a background process of SEVERAL MINUTES. Before spending "

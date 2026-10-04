@@ -7,7 +7,7 @@ bound.
 """
 from __future__ import annotations
 
-from nucleo.flash import post_stream as _pst
+from nucleo.flash import act_repair as _act_repair, post_stream as _pst
 
 
 async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_add, _buf_reset, _cardc, _close_target, _cover_work, _identify, _identify_system, _named_by_verdict, _no_tool, _op_text, _prompt_mod, _router, _rv, _say, _show_target_instance, _shown_ids, _t, _tag_emit, _tool_fired, _turn_op_tasks, acted, attention, brain, clarify, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, spoken_text, take, text, with_also_named) -> dict:
@@ -245,9 +245,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         _after = None
         _order_card = _pst._direct_action.order_card_after_read(_brief, _op_text, _rw)
         if _order_card:
-            from nucleo.flash import act_repair as _act_repair_rd
-            _after = await _act_repair_rd.call_after_read(_op_text, _rw, _order_card, spec=spec,
-                                                          window=list(brain._window))
+            _after = await _act_repair.call_after_read(_op_text, _rw, _order_card, spec=spec, window=list(brain._window))
         if _after:
             _pst._cvis.present(_after["widget_id"], reason="turn-order", src="flash", emit=emit)
             _apply_widget_data(_after["widget_id"], _after["action"], _after["payload"])
@@ -349,6 +347,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
                  extra={"cat": "flash", "guard": "denies_the_world", "failure": res.get("failure")})
             send(_fixed)
             spoken_text = _fixed
+        await _act_repair.voice_after_search(_op_text, spoken_text, _brief, spec, window=list(brain._window),   # V2-781 T515
+                                             apply=_apply_widget_data, send=send, emit=emit, acted=acted, done=data_done)
         brain._last_action = "search"
 
     # BÚSQUEDA DE ANUNCIOS (V2-556): ruta LIGERA hermana de web_search. La pasada rápida corre FUERA del
