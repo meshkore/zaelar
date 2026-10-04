@@ -19,6 +19,7 @@ import { theme as themeSignal, setTheme } from "../core/store.js?v=2";
 // configuración»): same signals `update/UpdateSurface.js` already read, so the number keeps updating live
 // while Settings is open instead of freezing at whatever it was on open.
 import { build as updBuild, info as updInfo, check as updCheck } from "../update/watch.js?v=1";
+import { connectorList, connectorWizard, isSettling } from "./ConnectorWizard.js?v=1";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const opt = (list, sel) => (list || []).map(o => `<option value="${esc(o.value != null ? o.value : o)}"${(o.value != null ? o.value : o) === sel ? " selected" : ""}>${esc(o.label != null ? o.label : o)}</option>`).join("");
@@ -63,6 +64,8 @@ export function ConfigPanel() {
   let cfg = null, bodyEl, msgEl, ovl;
   let activeSec = SECTIONS[0].id;
   let activeTab = "settings";
+  // The Conectores tab shows ONE connector at a time behind a breadcrumb (`cxFocus`), on its guide's `cxStep`.
+  let cxFocus = null, cxStep = 0, cxPolling = false;
   // V2-694 — the language picker's rows and the code in force, read from GET /api/i18n/state (the SAME source
   // the first-run veil uses, so the two screens can never offer different languages). `langArmed` is the
   // first half of the two-click consent: see `applyLanguage`.
@@ -312,6 +315,12 @@ export function ConfigPanel() {
     if (thFont) thFont.onchange = () => { themeSvc.setThemeCustom({ font: thFont.value === "system" ? "" : thFont.value }); msg(t("config.theme.applied")); };
     // controles of the pestaña Conectores
     bodyEl.querySelectorAll(".cf-cx-act").forEach(b => b.onclick = () => cxAct(b.dataset.act, b.dataset.id, b));
+    bodyEl.querySelectorAll("[data-cx]").forEach(b => b.onclick = () => { cxFocus = b.dataset.cx; cxStep = 0; render(); });
+    bodyEl.querySelectorAll("[data-cx-back]").forEach(b => b.onclick = () => { cxFocus = null; cxStep = 0; render(); });
+    bodyEl.querySelectorAll("[data-cx-step]").forEach(b => b.onclick = () => { cxStep = Number(b.dataset.cxStep) || 0; render(); });
+    bodyEl.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
+      try { await navigator.clipboard.writeText(b.dataset.copy); b.textContent = t("config.cxw.copied"); } catch (_) {}
+    });
     const cxr = bodyEl.querySelector(".cf-cx-refresh"); if (cxr) cxr.onclick = () => reloadConnectors();
     bodyEl.querySelectorAll(".cf-nav-item").forEach(b => b.onclick = () => { if (b.dataset.sec !== activeSec) { activeSec = b.dataset.sec; render(); } });
 
@@ -475,7 +484,7 @@ export function ConfigPanel() {
     return `<span class="cf-badge cf-${esc(st)}">${label}</span>`;
   };
 
-  function connectorCard(c) {
+  function connectorForm(c) {
     const id = esc(c.id), fam = esc(c.family || "");
     let box = "";
     if (c.connected) {
@@ -516,6 +525,15 @@ export function ConfigPanel() {
       box = `${row("client_id", `<input id="cx_oa_id_${id}" type="text" placeholder="${cc.app_configured ? t("config.key.ph_saved") : t("config.cx.paste_client_id")}"/>`)}
         ${row("client_secret", `<input id="cx_oa_sec_${id}" type="password" placeholder="${t("config.cx.only_if_asked")}"/>`)}
         <button class="cf-btn cf-cx-act" data-act="${act2}" data-id="${id}">${t("config.cx.connect")}</button>`;
+    } else if (fam === "contactos") {
+      // Google Contacts had NO form here at all — the same trap T3 V2-597 named for photos: a row nobody renders.
+      const cc = c.config || {};
+      box = `${cc.app_configured ? "" : row("client_id", `<input id="cx_oa_id_${id}" type="text" placeholder="${t("config.cx.paste_client_id")}"/>`)}
+        ${cc.app_configured ? "" : row("client_secret", `<input id="cx_oa_sec_${id}" type="password" placeholder="${t("config.cx.only_if_asked")}"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="contacts-connect" data-id="${id}">${t("config.cx.connect")}</button>`;
+    } else if (id === "google-account") {
+      const uris = ((c.config || {}).redirect_uris || []).map(u => `<div class="cf-wiz-code"><code>${esc(u)}</code></div>`).join("");
+      box = `${uris}<button class="cf-btn cf-cx-refresh">${t("config.cx.refresh_status")}</button>`;
     } else if (id === "architect") {
       const set = (c.config || {}).token_set;
       box = `${row(t("config.cx.daemon_token"), `<input id="cx_arch_token" type="password" placeholder="${set ? t("config.key.ph_saved") : t("config.cx.paste_token")}"/>`)}
@@ -531,8 +549,7 @@ export function ConfigPanel() {
         ${row(t("config.cx.mk_handle"), `<input id="cx_mk_handle" type="text" placeholder="zaelar"/>`)}
         <button class="cf-btn cf-cx-act" data-act="mesh-add" data-id="meshkore">${t("config.cx.add_cluster")}</button>`;
     }
-    return `<section class="cf-panel-sec"><header class="cf-panel-head"><h4>${esc(c.label)} ${cxBadge(c)}</h4>
-      <p>${esc(c.detail || "")}</p></header><div class="cf-group">${box}</div></section>`;
+    return box;
   }
 
   function sec_connectors() {
@@ -543,11 +560,31 @@ export function ConfigPanel() {
                   ["video", t("config.cx.fam_video")], ["agenda", t("config.cx.fam_calendar")],
                   ["contactos", t("config.cx.fam_contacts")],
                   ["infra", t("config.cx.fam_infra")]];
-    return fams.map(([f, title]) => {
-      const items = cs.filter(c => c.family === f);
-      if (!items.length) return "";
-      return `<h3 class="cf-fam">${esc(title)}</h3>${items.map(connectorCard).join("")}`;
-    }).join("") + `<div class="cf-foot"><button class="cf-btn cf-cx-refresh">${t("config.cx.refresh_status")}</button></div>`;
+    const ui = { t, esc, badge: cxBadge };
+    const c = cxFocus && cs.find(x => x.id === cxFocus);
+    if (c) {
+      const fam = (fams.find(([f]) => f === c.family) || [c.family, c.family])[1];
+      if (isSettling(c)) settle();
+      return connectorWizard(c, cxStep, connectorForm(c), fam, ui);
+    }
+    return connectorList(cs, fams, ui) +
+      `<div class="cf-foot"><button class="cf-btn cf-cx-refresh">${t("config.cx.refresh_status")}</button></div>`;
+  }
+  // A QR to appear, a scan to land: while the chosen connector is still settling, its state is re-read (2 min max).
+  async function settle() {
+    if (cxPolling) return;
+    cxPolling = true;
+    try {
+      for (let i = 0; i < 60 && activeTab === "conectores" && cxFocus && store.configOpen(); i++) {
+        await sleep(2000);
+        const before = JSON.stringify((cfg.connectors || []).find(x => x.id === cxFocus) || {});
+        try { cfg.connectors = (await api.getConnectors()).connectors || []; } catch (_) {}
+        const now = (cfg.connectors || []).find(x => x.id === cxFocus);
+        const typing = bodyEl.contains(document.activeElement) && /^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName);
+        if (JSON.stringify(now || {}) !== before && !typing) render();
+        if (!isSettling(now)) { render(); break; }
+      }
+    } finally { cxPolling = false; }
   }
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -567,6 +604,7 @@ export function ConfigPanel() {
         else if (id === "google-photos") { await api.photosDisconnect(); msg(t("config.msg.disconnected", { id })); }
         else if (id === "youtube") { await api.videoDisconnect(id); msg(t("config.msg.disconnected", { id })); }
         else if (btn.dataset.fam === "agenda") { await api.calendarDisconnect(id); msg(t("config.msg.disconnected", { id })); }
+        else if (btn.dataset.fam === "contactos") { await api.contactsDisconnect(); msg(t("config.msg.disconnected", { id })); }
         else if (id === "spotify") { await disconnectSpotify(btn); }
         else if (id === "architect") { await api.architectDisconnect(); msg(t("config.msg.architect_revoked")); }
         else { await api.disconnectMessaging(id, {}); msg(t("config.msg.disconnected", { id })); }
@@ -579,6 +617,10 @@ export function ConfigPanel() {
         const r = await api.connectMessaging(id, payload);
         msg(r.ok ? t("config.msg.connecting", { id }) : ("✗ " + (r.error || t("config.msg.error"))));
         pollConnectors();
+      } else if (act === "contacts-connect") {
+        const r = await api.contactsConnect({ client_id: val(`cx_oa_id_${id}`), client_secret: val(`cx_oa_sec_${id}`) });
+        if (r && r.ok && r.url) { window.open(r.url, "_blank", "noopener"); msg(t("config.msg.connecting", { id })); pollConnectors(); }
+        else msg("✗ " + ((r && r.error) || t("config.msg.error")));
       } else if (act === "photos-connect" || act === "video-connect" || act === "calendar-connect") {
         const payload = { client_id: val(`cx_oa_id_${id}`), client_secret: val(`cx_oa_sec_${id}`) };
         if (act === "video-connect" || act === "calendar-connect") payload.provider = id;
@@ -764,6 +806,10 @@ export function ConfigPanel() {
       // later plain ⚙ click is not forced onto the same tab forever.
       const want = store.configInitialTab();
       if (want && TABS.some(t => t.id === want)) { activeTab = want; store.setConfigInitialTab(null); }
+      // …and the catalog row it was clicked on: that connector opens alone, on its first step (consumed once too).
+      const cxWant = store.configConnector();
+      cxFocus = cxWant || (want ? null : cxFocus); cxStep = 0;
+      if (cxWant) { activeTab = "conectores"; store.setConfigConnector(null); }
       load();
     }
     wasOpen = o;

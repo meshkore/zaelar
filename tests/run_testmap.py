@@ -3731,6 +3731,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.219", "title": "A connector opens ALONE behind a breadcrumb with its step-by-step guide — the list opens nothing, the "
+                                 "last step is the form plus the live QR, the catalog names the connector (operator 2026-10-04)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_connector_opens_alone_with_its_guide.py"]},
         {"id": "2.218", "title": "A series is never written twice over itself — a series that starts on one of its twin's sessions is "
                                  "refused with the op that drops one day (V2-781 T520)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_series_is_never_written_twice.py"]},

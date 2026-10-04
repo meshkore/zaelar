@@ -385,6 +385,7 @@ window.addEventListener("drop", (e) => {
 document.addEventListener("hb:open-config", (e) => {
   const tab = String(((e && e.detail) || {}).tab || "").trim();
   store.setConfigInitialTab(tab || null);
+  store.setConfigConnector(String(((e && e.detail) || {}).connector || "").trim() || null);   // one connector, alone
   store.setConfigOpen(true);
 });
 

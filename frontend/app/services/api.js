@@ -177,6 +177,8 @@ export const videoConnect = (payload) => postJSON("/api/video/connect", payload 
 export const videoDisconnect = (provider) => postJSON("/api/video/disconnect", { provider }).then(json);
 export const calendarConnect = (payload) => postJSON("/api/calendar/connect", payload || {}).then(json);
 export const calendarDisconnect = (provider) => postJSON("/api/calendar/disconnect", { provider }).then(json);
+export const contactsConnect = (payload) => postJSON("/api/contacts/connect", payload || {}).then(json);
+export const contactsDisconnect = () => postJSON("/api/contacts/disconnect", {}).then(json);
 
 export const architectDisconnect = () => postJSON("/api/connectors/architect/disconnect", {}).then(json);
 // MeshKore: stage (credenciales fuera del LLM) + connect; y disconnect por nombre.

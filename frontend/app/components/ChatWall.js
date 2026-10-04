@@ -381,7 +381,7 @@ export function ChatWall() {
   // "Conectar" on a built-but-disconnected row hands off to the CREDENTIAL surface (V2-083's ConfigPanel
   // "conectores" tab) rather than connecting from here — the same voice/hands boundary V2-520 already pins:
   // this tab is for browsing and asking, never for holding a form.
-  const openConnectorConfig = () => { store.setConfigInitialTab("conectores"); store.setConfigOpen(true); };
+  const openConnectorConfig = (id) => { store.setConfigInitialTab("conectores"); store.setConfigConnector(id || null); store.setConfigOpen(true); };
   // "Lo quiero" on a PLANNED entry: a request the receiving side can COUNT, so it carries the manifest `id`
   // as a fixed, machine-written prefix rather than anything the operator typed — free text cannot be
   // grouped. Once per session per id (the row itself shows it was sent instead of inviting a second click).
@@ -401,7 +401,7 @@ export function ChatWall() {
       h("div", { class: "cl-meta" }, c.connected ? t("chat.connected") : t("chat.disconnected")),
     ),
     h("div", { class: "cl-btns" },
-      c.connected ? null : h("button", { class: "cl-b on", onClick: openConnectorConfig }, () => t("chat.connectBtn")),
+      c.connected ? null : h("button", { class: "cl-b on", onClick: () => openConnectorConfig(c.id) }, () => t("chat.connectBtn")),
     ),
   );
 

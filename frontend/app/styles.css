@@ -963,6 +963,38 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-warn{background:var(--hb-warn-bg);color:var(--hb-warn-ink)}
 .cf-error{background:var(--hb-risk-soft);color:var(--hb-risk)}
 .cf-off,.cf-unknown{background:var(--hb-bubble);color:var(--hb-muted-2)}
+/* Conectores: a list, then ONE connector behind a breadcrumb with its step-by-step guide (ConnectorWizard.js) */
+.cf-cx-intro{margin:0 0 4px;font-size:0.8125rem;color:var(--hb-muted-2)}
+.cf-cx-list{display:flex;flex-direction:column;background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);overflow:hidden}
+.cf-cx-row{display:flex;align-items:center;gap:10px;padding:13px 18px;background:none;border:none;border-bottom:1px solid var(--hb-line);
+  color:var(--hb-ink);font:inherit;text-align:left;cursor:pointer}
+.cf-cx-row:last-child{border-bottom:none}
+.cf-cx-row:hover{background:color-mix(in srgb,var(--hb-accent) 8%,transparent)}
+.cf-cx-row:focus-visible{outline:2px solid var(--hb-accent);outline-offset:-2px}
+.cf-cx-name{font-size:0.875rem;font-weight:600}
+.cf-cx-go{margin-left:auto;font-size:0.8125rem;color:var(--hb-accent);font-weight:600;white-space:nowrap}
+.cf-crumb{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 14px;font-size:0.8125rem;color:var(--hb-muted-2)}
+.cf-crumb b{color:var(--hb-ink)}
+.cf-crumb-back{background:none;border:none;padding:0;font:inherit;font-weight:600;color:var(--hb-accent);cursor:pointer}
+.cf-crumb-sep{opacity:.6}
+.cf-wiz-steps{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.cf-wiz-step button{display:flex;align-items:center;gap:8px;background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:999px;
+  padding:6px 12px 6px 6px;font:inherit;font-size:0.75rem;color:var(--hb-muted-2);cursor:pointer}
+.cf-wiz-step.on button{border-color:var(--hb-accent);color:var(--hb-ink)}
+.cf-wiz-n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--hb-bubble);font-weight:700;font-size:0.6875rem}
+.cf-wiz-step.on .cf-wiz-n{background:var(--hb-accent);color:var(--canvas)}
+.cf-wiz-step.done .cf-wiz-n{background:color-mix(in srgb,var(--hb-ok) 22%,transparent);color:var(--hb-ok)}
+.cf-wiz-body{display:flex;flex-direction:column;gap:12px}
+.cf-wiz-text{margin:0;font-size:0.875rem;line-height:1.6;color:var(--hb-ink)}
+.cf-wiz-link{color:var(--hb-accent);font-weight:600;font-size:0.8125rem}
+.cf-wiz-code{display:flex;align-items:center;gap:10px;margin:6px 0;padding:8px 10px;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:8px}
+.cf-wiz-code code{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;font-size:0.75rem}
+.cf-wiz-qr{text-align:center;padding:6px 0}
+.cf-wiz-qr img{width:220px;max-width:70vw;border-radius:12px;background:#fff;padding:8px}
+.cf-wiz-qr p,.cf-wiz-wait{margin:8px 0 0;font-size:0.8125rem;color:var(--hb-muted-2);line-height:1.5}
+.cf-wiz-nav{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cf-wiz-count{margin-left:auto;font-size:var(--fs-micro);color:var(--hb-muted-2)}
+.cf-btn-ghost{background:none;color:var(--hb-ink);border:1px solid var(--hb-line)}
 .cf-apis{width:100%;border-collapse:collapse;font-size:0.75rem}
 .cf-apis td{padding:8px 6px;border-bottom:1px solid var(--hb-line);vertical-align:middle}
 .cf-api-name{color:var(--hb-ink);font-weight:600}
