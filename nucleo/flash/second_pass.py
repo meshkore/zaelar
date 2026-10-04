@@ -39,26 +39,33 @@ async def collect(sys2: str, user_text: str, spec, max_tokens: int = 240) -> str
 
 
 async def probe_light_routes(action: str, names: list, tool_calls: list, text: str, operator_text: str,
-                             spec, sanitize) -> tuple[str, str]:
+                             spec, sanitize, *, brief=None, reply: str = "") -> tuple[str, str]:
     """The TEXT channel's LIGHT two-pass routes — `recall` and `read_widget` — in one place.
 
     Both have the same shape (pick the tool's args → compose a spoken answer from a block → sanitize → become
     the turn's reply), and the probe had them written out twice, the second one being this session's own
     addition. Extracted 2026-09-11 paying the architecture ratchet on `probe.py`. Returns `(spoken, action)`;
-    `("", action)` when neither route ran, so the caller keeps exactly what it had.
+    `(reply, action)` when neither route ran, so the caller keeps exactly what it had.
 
     `sanitize` is injected: this module must not import `voice.engine.*` (V2-569's direction ratchet)."""
     if "recall" in names and action == "chat":
         q = next((t["args"].get("query") for t in tool_calls if t["name"] == "recall"), "") or text
         out = await recall_answer(text, q, spec, sanitize=sanitize)
-        return (out, "recall") if out else ("", action)
+        return (out, "recall") if out else (reply, action)
     if action == "read_widget":
         from voice.observer import emit as _emit
         from nucleo.flash import prompt as _prompt, widget_read as _wread
         args = next((t["args"] for t in tool_calls if t["name"] == "read_widget"), {}) or {}
+        # V2-781 T518 — the voice read lane's «read for an order», mirrored: the read served an order, so the
+        # order is carried out (its call joins the turn's tool calls) instead of a tool-less words-only answer.
+        from nucleo.flash import act_repair as _ar
+        _after = await _ar.after_a_read(brief, operator_text, str(args.get("widget_id") or ""), reply, spec) if brief else None
+        if _after:
+            tool_calls.append({"name": "widget_data", "args": {**_after, "_repair": True}})
+            return "", "widget_data"
         out = await _wread.probe_answer(args, operator_text, _prompt._lang_lock(), _emit, spec, collect, sanitize)
-        return (out, action) if out else ("", action)
-    return "", action
+        return (out, action) if out else (reply, action)
+    return reply, action
 
 
 async def recall_spoken(text: str, query: str, spec, emit, speak) -> str | None:

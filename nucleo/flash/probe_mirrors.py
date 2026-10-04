@@ -263,11 +263,10 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
     # PARIDAD con el canal vivo: recall y web_search are two-pass LIGHT routes. Historically the probe only
     # reported the tool and returned an empty reply, so a chronological headless conversation lost the assistant
     # turn and every following pronoun was tested against a state that can never occur in production.
-    _sp, action = await _probe._second.probe_light_routes(      # recall · read_widget — see second_pass's docstring
+    # recall · read_widget — see second_pass's docstring; a read that served an order returns "" (V2-781 T518)
+    spoken, action = await _probe._second.probe_light_routes(
         action, names, tool_calls, text, operator_text, spec,
-        lambda s: dialog.sanitize_reply(speech.sanitize(s, drop_metadata=False)))
-    if _sp:
-        spoken = _sp
+        lambda s: dialog.sanitize_reply(speech.sanitize(s, drop_metadata=False)), brief=_tbrief, reply=spoken)
     # V2-210 — UN DATO DEL MUNDO NO SE IMPROVISA (espejo del provider — cablear en AMBOS). Medido en
     # `quick-fact-opening-hours`: «abre a las 10:00 y cuesta 15 €» con CERO herramientas. Las cifras eran
     # aproximadamente correctas, que es justo lo que lo hace peligroso — el modelo va seguro y no pide la tool.

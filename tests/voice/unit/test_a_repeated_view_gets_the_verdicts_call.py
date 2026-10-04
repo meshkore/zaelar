@@ -91,8 +91,12 @@ def test_the_order_card_is_the_other_card_his_words_name(monkeypatch):
 
 def test_the_voice_read_path_uses_it():
     src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert "_order_card = _direct_action.order_card_after_read(_brief, _op_text, _rw)" in src
-    assert "call_after_read(_op_text, _rw, _order_card" in src
+    # V2-781 T518: one door for both channels — `after_a_read` runs `order_card_after_read` → `call_after_read`
+    assert "_act_repair.after_a_read(_brief, _op_text, _rw" in src
+    import inspect
+    from nucleo.flash import act_repair
+    door = inspect.getsource(act_repair.after_a_read)
+    assert "order_card_after_read(brief, operator_text, read_widget)" in door and "call_after_read(" in door
 
 
 def test_an_order_on_a_card_the_turn_never_touched_is_carried_out():

@@ -242,10 +242,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         # A read that serves an ORDER on another card (full20 C5: «send rowan a telegram with the new time» read
         # the agenda for the time) — the order is carried out with what was read, instead of a words-only pass
         # that has no tools and says it cannot.
-        _after = None
-        _order_card = _pst._direct_action.order_card_after_read(_brief, _op_text, _rw)
-        if _order_card:
-            _after = await _act_repair.call_after_read(_op_text, _rw, _order_card, spec=spec, window=list(brain._window))
+        _after = await _act_repair.after_a_read(_brief, _op_text, _rw, "".join(spoken).strip(), spec=spec,
+                                                window=list(brain._window))    # V2-781 T518: or this same card
         if _after:
             _pst._cvis.present(_after["widget_id"], reason="turn-order", src="flash", emit=emit)
             _apply_widget_data(_after["widget_id"], _after["action"], _after["payload"])

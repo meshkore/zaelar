@@ -3731,6 +3731,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.216", "title": "An everyday agenda edit follows the verdict in both channels — a view the promise repair picks yields "
+                                 "to the verdict's op, and a read of the card a sure verdict names carries the op out (V2-781 T518)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_an_agenda_edit_follows_the_verdict.py"]},
         {"id": "2.215", "title": "A finished errand (row + task_artifacts, no sheet) is seeded into the sandbox after the reset, "
                                  "so the flat-hunt recall pair measures recall and the report names the row it reached (V2-781 T517)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_finished_errand_is_seeded_before_the_round.py"]},

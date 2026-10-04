@@ -234,6 +234,13 @@ async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: s
     went. A refusal of an action the card DECLARES, for an order the verdict names, is one more question to the
     model, with the action named. Bounded like the others: one card, its declared action, the caller's gate."""
     got = await call_for_promise(operator_text, reply, widget_id, spec, window=window)
+    # V2-781 T518: «make it last until one» — the promise pass read «I'll open it so you can see it» and picked
+    # `open_meeting` with the verdict at `agenda:move_meeting` 0.98. The verdict completes the model (CRIT-K2): a
+    # view the pass chose over a real op the verdict names is asked once more, for that op.
+    if got and verdict and got["action"] != verdict and _is_view(got["widget_id"], got["action"]) \
+            and not _is_view(got["widget_id"], verdict):
+        return await call_for_repeated_view(operator_text, widget_id, got["action"], verdict, spec,
+                                            window=window) or got
     if got or not verdict:
         return got
     said = " ".join(str(reply or "").split())[:300]
@@ -338,6 +345,60 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
         _note(wid, "tras leer, el modelo no hizo la llamada de la orden", read=rid)
         return None
     except Exception:  # noqa: BLE001
+        return None
+
+
+def _is_view(wid: str, action: str) -> bool:
+    try:
+        from nucleo.flash import data_ops as _dops
+        return bool(_dops.is_view_op(wid, action))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def same_card_order_after_read(brief, read_widget: str, reply: str = "") -> str:
+    """The verdict's action when the turn READ the very card the order is on and stopped there, or "".
+
+    V2-781 T518 (EN `agenda-everyday-edits`): «There's no piano on Tuesday October 13» — the verdict read
+    `agenda:cancel_meeting` at 1.00, the model said «let me check» (reply_promise=act), read the agenda and the
+    read's answer pass, which has no tools, said «Got it — no piano on the 13th» over a series that still held it.
+    The brief called the sentence a `comment`, so the order gate stayed shut. A statement about his own card IS an
+    order on it when a SURE verdict names a real op there and the model itself promised to act — never for a
+    question, which a read answers."""
+    try:
+        from nucleo.flash import reply_promise as _rp, turn_brief as _tb
+        target, t_info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.85)
+        owner, _sep, act = str(target or "").rpartition(":")
+        rid = str(read_widget or "").split("::")[0].strip().lower()
+        if not (t_info and owner and act) or owner.split("::")[0].lower() != rid or _is_view(rid, act):
+            return ""
+        kind, k_info = _tb.read(brief, _tb.REQUEST_KEY, "")
+        if str(kind or "") == "question":
+            return ""
+        sure_order = str(kind or "") == "order" and bool(k_info)
+        return act if (sure_order or _rp.verdict(reply) == "act") else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+async def after_a_read(brief, operator_text: str, read_widget: str, reply: str = "", spec=None, *,
+                       window=None) -> dict | None:
+    """The order a READ was serving, carried out — `{widget_id, action, payload}` or None. ONE door for both
+    channels: the voice read lane and the probe's light route used to differ (only the voice had it).
+
+    Another card («send rowan a telegram with the new time», full20 C5) → `call_after_read`; the same card the
+    verdict names (T518) → the verdict's call, asked once like a repeated view."""
+    try:
+        from nucleo.flash import direct_action as _da
+        other = _da.order_card_after_read(brief, operator_text, read_widget)
+        if other:
+            return await call_after_read(operator_text, read_widget, other, spec, window=window)
+        act = same_card_order_after_read(brief, read_widget, reply)
+        if act:
+            rid = str(read_widget or "").split("::")[0]
+            return await call_for_repeated_view(operator_text, rid, "read_widget", act, spec, window=window)
+        return None
+    except Exception:  # noqa: BLE001 — a repair must never take down a live turn
         return None
 
 
