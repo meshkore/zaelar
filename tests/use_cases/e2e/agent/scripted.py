@@ -65,9 +65,14 @@ def _dentist_new(d):
 
 def _piano_series(d):
     from .dates import end_of_month_ahead
+    import datetime as _dt
     s = _series(d, "piano")
+    # «until the end of January» ends on its last Tuesday or any day after it in January: the same lessons
+    # (V2-781, 2026-10-04 — ES sent 2027-01-26, the last Tuesday, and this read a correct series as red).
+    end = end_of_month_ahead(3)
+    last_tuesday = end - _dt.timedelta(days=(end.weekday() - 1) % 7)
     return bool(s and s["repeat"].get("days") == [1] and s.get("startTime") == "17:00"
-                and s["repeat"].get("until") == end_of_month_ahead(3).isoformat())
+                and last_tuesday.isoformat() <= str(s["repeat"].get("until") or "") <= end.isoformat())
 
 
 def _card_open_dentist(d):

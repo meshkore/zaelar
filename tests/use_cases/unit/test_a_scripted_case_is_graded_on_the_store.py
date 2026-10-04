@@ -151,3 +151,21 @@ def test_the_demo_is_re_anchored_with_the_spacing_he_wrote_it_with():
     later = dates.demo_dates(dt.date(2027, 2, 3))
     assert later["mon"].weekday() == 0 and (later["mon"] - dt.date(2027, 2, 3)).days >= 2
     assert "{" not in dates.resolve(scenarios._fixture("demo-initialization"))
+
+
+def test_until_the_end_of_a_month_is_its_last_tuesday_or_later_in_it():
+    """V2-781 (2026-10-04): «hasta finales de enero» arrived as the last Tuesday, 2027-01-26 — the same lessons as
+    the 31st — and the check, which wanted the 31st exactly, read a correct series as red."""
+    import datetime as dt
+    from tests.use_cases.e2e.agent import scripted
+    from tests.use_cases.e2e.agent.dates import end_of_month_ahead
+    end = end_of_month_ahead(3)
+    last_tue = end - dt.timedelta(days=(end.weekday() - 1) % 7)
+
+    def db(until):
+        return {"meetings": [{"title": "Clase de piano de Abril", "startTime": "17:00",
+                              "repeat": {"days": [1], "until": until}}]}
+    check = scripted.CHECKS["agenda.piano_every_tuesday_17_for_three_months"]
+    assert check(db(end.isoformat())) and check(db(last_tue.isoformat()))
+    assert not check(db((last_tue - dt.timedelta(days=1)).isoformat())), "that drops the last lesson"
+    assert not check(db((end + dt.timedelta(days=1)).isoformat())), "that runs into the next month"

@@ -3731,6 +3731,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.217", "title": "One asked notice rings ONCE — the appointment's notice retires the prose backstop's loose «aviso» "
+                                 "scheduled at the same instant in the same turn (V2-781 T519)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_one_asked_notice_rings_once.py"]},
         {"id": "2.216", "title": "An everyday agenda edit follows the verdict in both channels — a view the promise repair picks yields "
                                  "to the verdict's op, and a read of the card a sure verdict names carries the op out (V2-781 T518)",
             "ch": UNIT, "paths": ["tests/voice/unit/test_an_agenda_edit_follows_the_verdict.py"]},

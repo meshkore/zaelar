@@ -63,6 +63,10 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
         return "", str(e)
     if not (r or {}).get("ok"):
         return "", str((r or {}).get("error") or "scheduler")
+    try:
+        _sched.supersede_loose_notices(r.get("display") or stamp)   # V2-781 T519: one alert, the one with a name
+    except Exception:  # noqa: BLE001
+        pass
     return str(r.get("id") or ""), stamp
 
 

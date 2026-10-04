@@ -409,3 +409,28 @@ def cancel(ref: str) -> bool:
             _board(e["id"])
             hit = True
     return hit
+
+
+def supersede_loose_notices(display: str, *, within_s: float = 180.0, now: float | None = None) -> list:
+    """Retire the prose backstop's loose «aviso» at the SAME instant an appointment's notice was just scheduled.
+
+    V2-781 T519 (`dentist-appointment-into-agenda`, ES): «Mejor avísame ese día a mediodía» → the agenda's
+    `set_reminder` moved the appointment's notice to 12:00, and 8 ms EARLIER the prose backstop (no `cron.create`
+    tag in the turn) had scheduled its own «aviso» at 12:00 — two alerts, one saying only «Mejor». The backstop
+    already skips a moment a live job covers; this is the other order. Bounded: only a job the backstop names
+    `aviso` (origin cron), at exactly that instant, created in the last `within_s` seconds. Returns the ids."""
+    import time as _t
+    now = _t.time() if now is None else now
+    gone = []
+    try:
+        for e in _scheduled(_journal.list_entries(status="pending")):
+            d = e["detail"]
+            if ((d.get("name") or "").strip() == "aviso" and (d.get("origin") or "cron") == "cron"
+                    and (d.get("schedule") or {}).get("display") == display
+                    and now - float(e.get("created") or 0) <= within_s):
+                _journal.update(e["id"], status="done", detail=d)
+                _board(e["id"])
+                gone.append(e["id"])
+    except Exception:  # noqa: BLE001 — a notice too many is better than a lost one
+        return gone
+    return gone
