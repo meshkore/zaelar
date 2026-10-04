@@ -3247,6 +3247,15 @@ DOMAINS: list[dict] = [
         # operador lo vivió como «la he oído por voz y el texto llegó un minuto después». La respuesta se pinta
         # ahora al generarse y el transcript posterior se funde por PREFIJO (que es también lo que hace bien el
         # caso del barge-in, donde el transcript llega truncado).
+        # 2026-08-18 (V2-116): el muro de chat solo se alimentaba del `transcript` de LiveKit, que no llega hasta
+        # que el TTS ha terminado de hablar la respuesta ENTERA — 5,4 s y 12,2 s medidos en una sesión real, y el
+        # operador lo vivió como «la he oído por voz y el texto llegó un minuto después». La respuesta se pinta
+        # ahora al generarse y el transcript posterior se funde por PREFIJO (que es también lo que hace bien el
+        # caso del barge-in, donde el transcript llega truncado).
+        # 2026-10-04 — WHO opens the wall decides its first shape: from the left bar it nests to the left (a column),
+        # from the orb it floats unless it is already docked, which is respected. Rendered: wall + rail + store.
+        {"id": "4.246", "title": "The left bar opens the chat wall docked to the left; the orb floats it unless it is already docked",
+            "ch": UNIT, "paths": ["tests/browser/unit/chat/test_the_bar_opens_the_wall_docked_and_the_orb_floats_it.py"]},
         {"id": "4.17", "title": "El muro de chat no espera a la voz (y el transcript posterior no duplica)",
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_chat_wall_promptness.py"]},
         # V2-647 — LA HABITACIÓN NO ES EL OPERADOR. El micro está siempre abierto y el guarda de atención
@@ -3731,6 +3740,14 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        # 2026-10-04 — a consent window the browser blocks is SAID and offered as a link under the connector pressed:
+        # the panel used to sit on «connecting…» for three minutes with nothing open. Rendered (ConfigPanel + bundle).
+        {"id": "2.221", "title": "A blocked OAuth consent window is said and offered as a link the operator can click himself",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_blocked_consent_window_leaves_a_way_in.py"]},
+        {"id": "2.220", "title": "ONE door to connect a service — voice, text and the action map name the same `panel:conectores:<id>` "
+                                 "from an id, a product name or a word in ES/EN; no widget keeps a connect action (ratchet); a browser "
+                                 "«login» to Spotify/WhatsApp/Telegram/email opens the section, never the browser (operator 2026-10-04)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_one_door_to_connect_a_service.py"]},
         {"id": "2.219", "title": "A connector opens ALONE behind a breadcrumb with its step-by-step guide — the list opens nothing, the "
                                  "last step is the form plus the live QR, the catalog names the connector (operator 2026-10-04)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_connector_opens_alone_with_its_guide.py"]},
