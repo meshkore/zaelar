@@ -3737,6 +3737,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
         # 2026-10-04 — a consent window the browser blocks is SAID and offered as a link under the connector pressed:
         # the panel used to sit on «connecting…» for three minutes with nothing open. Rendered (ConfigPanel + bundle).
+        {"id": "2.235", "title": "A language switch re-points EVERY voice of the failover TTS, each in its own provider — the "
+                                 "adapter has no update_options, so a new account spoke Spanish in an English voice (2026-10-04)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_language_switch_reaches_every_voice_of_the_failover.py"]},
         {"id": "2.234", "title": "«Open the best deal» lands on the sheet that HOLDS the item when the call names no sheet — "
                                  "exactly one other sheet with that title (demo pass 107 S3, 2026-10-04)",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_detail_finds_the_sheet_that_holds_the_item.py"]},

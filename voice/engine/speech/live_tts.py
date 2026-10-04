@@ -73,10 +73,28 @@ def apply_voice(voice_id: str, lang: str | None = None) -> bool:
     voice_id = (voice_id or "").strip()
     if tts is None or not voice_id:
         return False
+    inner = getattr(tts, "_tts_instances", None)
+    names = getattr(tts, "_zaelar_providers", None)
+    if inner and names and len(inner) == len(names):
+        # The failover TTS (V2-778 F0-7) has no update_options of its own: «a Briton speaking Spanish» on a new
+        # cloud account (2026-10-04). Each voice inside is re-pointed — the titular to `voice_id`, a stand-in to
+        # its own provider's voice for the language (an Inworld name means nothing to ElevenLabs).
+        from . import voices as _v
+        took = False
+        for i, (t, name) in enumerate(zip(inner, names)):
+            want = voice_id if i == 0 else (_v.selected_voice(name) or _v.default_voice_for(name, lang))
+            ok = bool(want) and _point(t, want, lang, name)
+            took = took or (i == 0 and ok)
+        return took
+    return _point(tts, voice_id, lang, _live["provider"])
+
+
+def _point(tts: object, voice_id: str, lang: str | None, provider: str) -> bool:
+    """Re-point ONE plugin instance to `voice_id` (and its language where it takes one). Never raises."""
     fn = getattr(tts, "update_options", None)
     if not callable(fn):
         logger.info("live_tts: {} cannot be re-pointed (no update_options) — the voice applies on reconnect",
-                    _live["provider"] or "the live TTS")
+                    provider or "the live TTS")
         return False
     try:
         params = inspect.signature(fn).parameters
@@ -89,7 +107,7 @@ def apply_voice(voice_id: str, lang: str | None = None) -> bool:
             break
     if not kw:
         logger.warning("live_tts: {} names its voice something we do not know — the voice applies on reconnect",
-                       _live["provider"] or "the live TTS")
+                       provider or "the live TTS")
         return False
     # The language lock matters as much as the voice on a multilingual model: ElevenLabs' flash/turbo v2.5
     # drift in accent on short text when it is not told which language it is speaking (V2-035).
@@ -100,7 +118,7 @@ def apply_voice(voice_id: str, lang: str | None = None) -> bool:
     except Exception as e:  # noqa: BLE001
         logger.warning("live_tts: could not re-point the live voice ({}) — it applies on reconnect", e)
         return False
-    logger.info("live_tts: live voice → {} (lang={}) on {}", voice_id, lang or "—", _live["provider"] or "?")
+    logger.info("live_tts: live voice → {} (lang={}) on {}", voice_id, lang or "—", provider or "?")
     return True
 
 

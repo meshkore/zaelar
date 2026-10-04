@@ -102,6 +102,7 @@ def _with_failover(pairs):
             _ACTIVE["name"] = names[0]
 
     adapter.on("tts_availability_changed", _changed)
+    adapter._zaelar_providers = names   # live_tts re-points each voice in its own provider (2026-10-04)
     return adapter
 
 
