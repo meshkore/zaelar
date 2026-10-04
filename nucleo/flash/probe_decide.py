@@ -8,6 +8,7 @@ what to execute below. The code is the SAME; every name it read from `probe` is 
 from __future__ import annotations
 
 from nucleo.flash import build_decision as _build_decision
+from nucleo.flash.connector_canon import canon_connector as _canon_connector  # the probe sees the same door the voice opens
 from nucleo.flash import hard_turn as _hard_turn
 from nucleo.flash import probe as _probe
 from nucleo.flash import task_recall as _task_recall
@@ -95,7 +96,7 @@ async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names
         action = "panel:" + _router._canon_panel(_sp["args"].get("panel"))
         if action == "panel:apps":   # V2-761 — mirror: his words pick the Custom sub-tab
             action = "panel:" + _probe._wall_tab_for("apps", text)
-        elif action == "panel:conectores" and (_cx := _router._canon_connector(_sp["args"].get("connector"))):
+        elif action == "panel:conectores" and (_cx := _canon_connector(_sp["args"].get("connector"))):
             action = f"panel:conectores:{_cx}"   # mirror of the provider: the section opens on that connector
     elif "manage_widget_alias" in names:
         # V2-082 — classification only (the provider writes manifests); body lives with its siblings in

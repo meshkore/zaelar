@@ -79,3 +79,19 @@ def test_no_citation_is_lost_to_the_archive():
         f"archived entries cite {lost} but the live log no longer does — an archive pass dropped index "
         "lines; restore them (the closure trinquete needs delivered initiatives cited somewhere findable)"
     )
+
+
+# The archive is append-only history. On 2026-10-02 an archive pass WROTE the file instead of appending to it
+# (`b0aab8d5`: 22 lines in, 10 389 lines out) and the next pass overwrote the stub again (`c0407eec`); the index
+# in decisions.md kept pointing at full text that no longer existed. Restored from git on 2026-10-04 at 10 456
+# lines. This floor is the line count of that restore: an archive pass can only make the file longer.
+ARCHIVE_FLOOR_LINES = 10_456
+
+
+def test_the_archive_only_grows():
+    n = ARCHIVE.read_text(encoding="utf-8").count("\n")
+    assert n >= ARCHIVE_FLOOR_LINES, (
+        f"decisions-archive.md has {n} lines (< {ARCHIVE_FLOOR_LINES}). The archive is append-only: an archive pass "
+        "adds a dated «## Moved on …» section and never rewrites what is below it. If it shrank, restore it from git "
+        "(`git log -- .meshkore/docs/decisions-archive.md`) before anything else. Never lower this floor."
+    )
