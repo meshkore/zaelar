@@ -19,6 +19,8 @@ def _a_add_contact(action, payload, q, db, contacts, now) -> dict:
                 "error": "no me ha llegado el nombre — vuelve a llamar a add_contact con `name` (y si los "
                          "tienes: kind person/place/company, group, city, phone), sin preguntarle nada al "
                          "operador si ya te los dijo"}
+    if _d._norm(payload.get("channel")) == "email" and not payload.get("email") and payload.get("value"):
+        payload = {**payload, "email": payload.get("value")}   # demo pass 104: `{channel: email, value}`
     city = str(payload.get("city") or "").strip()
     groups = _d._groups_in(payload)
     incoming = _d._channels_in(payload)

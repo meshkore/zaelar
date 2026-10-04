@@ -339,8 +339,8 @@ def channels_in(payload: dict) -> list[dict]:
     if raw is None:
         # The FLAT shapes a model reaches for (demo pass 101: `channel: telegram, handle: @x` saved Ethan with
         # no Telegram): one `{channel|platform, handle|chatId}`, or the platform as its own key.
-        flat = [{"platform": payload.get("channel") or payload.get("platform"),
-                 "handle": payload.get("handle"), "chatId": payload.get("chatId")}]
+        flat = [{"platform": payload.get("channel") or payload.get("platform"),   # pass 104: or `value`
+                 "handle": payload.get("handle") or payload.get("value"), "chatId": payload.get("chatId")}]
         flat += [{"platform": p, "handle": payload.get(p)} for p in ("telegram", "whatsapp")
                  if isinstance(payload.get(p), str) and payload.get(p).strip()]
         raw = flat
