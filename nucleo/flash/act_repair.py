@@ -655,8 +655,18 @@ _SYS_REFUSAL = (
     "best deal», «the cheapest», «the one tomorrow») is resolved by READING the card and passing "
     "that item's title or number; a relative time is computed from what is there. If that still "
     "cannot tell, call nothing. Write any text you put in the payload (a note, a message, a title) "
-    "in the OPERATOR's language, as he said it.\n\nActions of «{wid}»:\n{actions}{card}"
+    "in {lang}, as he said it — whatever language the refusal or the actions are written in."
+    "\n\nActions of «{wid}»:\n{actions}{card}"
 )
+
+
+def _session_lang() -> str:
+    """The session's language by name (demo pass 102: «the operator's language» let a Spanish refusal win)."""
+    try:
+        from i18n import langs as _lg
+        return str(_lg.current_language().name or "the operator's language")
+    except Exception:  # noqa: BLE001
+        return "the operator's language"
 
 
 def _same_card(asked: str, wid: str) -> bool:
@@ -697,7 +707,7 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
         await FastClient().complete(
             [{"role": "system", "content": _SYS_REFUSAL.format(
                 wid=wid, action=action, payload=json.dumps(payload or {}, ensure_ascii=False)[:300],
-                why=str(why or "")[:300], actions=_actions_block(manifest), card=card)},
+                why=str(why or "")[:300], actions=_actions_block(manifest), card=card, lang=_session_lang())},
              {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»"
                                          + (f"\nWhat you just told him: «{said.strip()[:300]}» — if you named which one there, "
                                             f"the correction is THAT one." if (said or "").strip() else "")}],

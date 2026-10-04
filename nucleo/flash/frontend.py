@@ -313,6 +313,22 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=
     return ("ask", [_tb._card_label(c) for c in cards])
 
 
+def payload_ref(widget_id: str, action: str, payload, *, named_only: bool = False) -> str:
+    """The row a call names in its PAYLOAD: the action's declared id field, else a `name`/`contact` given in
+    its place (demo pass 102: `add_phone {name: "Ethan", …}` with `contactId` declared). "" for an action with
+    no id field — a creation's name is the new row, not a reference. `named_only`: "" when the id field is set."""
+    from widgets import refs as _refs
+    if not isinstance(payload, dict):
+        return ""
+    field = _refs.id_field_for_action((widget_id or "").strip().lower(), (action or "").strip())
+    if not field or (named_only and str(payload.get(field) or "").strip()):
+        return ""
+    for k in (field, "name", "contact"):
+        if str(payload.get(k) or "").strip():
+            return str(payload.get(k)).strip()
+    return ""
+
+
 def absent_widget_misroute(widget_id: str, action: str, item: str, *,
                            resolved: bool = True, named_widget: str = "", payload: dict | None = None) -> bool:
     """A LOOSE PRONOUN as the item, on a card that is neither open nor named → the verb mis-routed.
@@ -339,10 +355,8 @@ def absent_widget_misroute(widget_id: str, action: str, item: str, *,
     # The row may be named in the PAYLOAD, under the key the action declares — not only in `item` (demo pass
     # 2026-09-28, full16 E2: «open it» → `open {name: "Inworld AI"}` with the mail just talked about; an empty
     # `item` read as a loose pronoun and the open was escalated instead of run).
-    if not str(item or "").strip() and isinstance(payload, dict):
-        _field = _refs.id_field_for_action(wid, (action or "").strip())
-        if _field and str(payload.get(_field) or "").strip():
-            item = str(payload.get(_field))
+    if not str(item or "").strip():
+        item = payload_ref(wid, action, payload)
     # `resolved=False` is the voice rail's other half: a reference that did not resolve AT ALL reaches the
     # same question. The probe never resolves one, so it passes the default and only the pronoun path runs.
     bare = (bool(_refs.id_field_for_action(wid, (action or "").strip()))

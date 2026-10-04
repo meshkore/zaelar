@@ -288,8 +288,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
              extra={"id": wid, "action": action_name, "mode": m, "src": "flash", "item": ref,
                     "payload": payload if isinstance(payload, dict) else {}})   # V2-653: the order's content
 
-    mode = _txw._leave_gate.asked_if_leaving(mode, _brief, wid, action_name, emit=emit, payload=payload,
-                                             said=_txw._bnotes.operator_half(text))   # V2-778 F4-33
+    mode = _txw._leave_gate.asked_if_leaving(mode, _brief, wid, action_name, emit=emit, payload=payload, said=_txw._bnotes.operator_half(text))
     if mode == _wactions.FAST:
         # GUARD anti context-bleed (round headless V2-038 #1): el modelo a veces RE-emite la data-op del
         # turno ANTERIOR junto a la acción de ESTE ("borra el reloj" arrastró el add_meeting del dentista
@@ -410,9 +409,9 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
         wid = _identify(wid) or _identify(ref) or _identify(text) or wid
     if not wid or not action_name:
         return
+    ref = ref or _frontend.payload_ref(wid, action_name, payload, named_only=True)   # demo pass 102 (V2-708)
     # GUARD (2026-07-16): un "abre/muéstrame el widget X" PURO (sin verbo de cambio) NUNCA debe ejecutar un
-    # data-op — el modelo cuela una acción inventada ('unhide') o incluso ALUCINA un add_meeting ("abre la
-    # agenda" → añadía "Reunión con Axa Seguros"). Se redirige a MOSTRAR la tarjeta (misma ruta que [[show]]).
+    # data-op — el modelo cuela una acción inventada ('unhide') o incluso ALUCINA un add_meeting ("abre la agenda" → añadía "Reunión con Axa Seguros"). Se redirige a MOSTRAR la tarjeta (misma ruta que [[show]]).
     from nucleo.flash import router as _router
     # V2-545 — what a pure show order may run is decided by the ACTION, not by the words. The widget
     # declares which of its actions are display-only (`"view": true`); one of those IS the right answer

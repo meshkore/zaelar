@@ -3737,6 +3737,12 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
         # 2026-10-04 — a consent window the browser blocks is SAID and offered as a link under the connector pressed:
         # the panel used to sit on «connecting…» for three minutes with nothing open. Rendered (ConfigPanel + bundle).
+        {"id": "2.228", "title": "A corrected call writes its text in the SESSION's language, named in the repair prompt — a "
+                                 "Spanish refusal no longer turns an English note Spanish (demo pass 102 E3, 2026-10-04)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_corrected_call_writes_in_the_session_language.py"]},
+        {"id": "2.227", "title": "A Telegram said for a contact on file lands as his CHANNEL — a name in the payload is the "
+                                 "reference on a closed card, and add_phone with a messaging handle is set_channel (demo pass 102)",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_a_telegram_said_to_an_existing_contact_is_a_channel.py"]},
         {"id": "2.226", "title": "A send to someone HE named is his order — with a stranger's mail in the context the leave gate "
                                  "asks only when a recipient comes from that text, not from his words (demo pass 101 E3/C5, 2026-10-04)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_send_to_someone_he_named_is_his_order.py"]},

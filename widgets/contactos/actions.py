@@ -180,6 +180,11 @@ def _a_add_channel(action, payload, q, db, contacts, now) -> dict:
     # a second action whose only job is to undo the first is a second thing to remember.
     key = "phones" if action == "add_phone" else "emails"
     field = "phone" if action == "add_phone" else "email"
+    # Demo pass 102: «Ethan's Telegram is @cryptonite_fund» came as `add_phone {channel: telegram, handle: @…}`
+    # — a messaging handle with no number is his CHANNEL, never a phone.
+    _plat = _d._platform(payload.get("platform") or payload.get("channel"))
+    if action == "add_phone" and _plat in ("telegram", "whatsapp") and not str(payload.get("phone") or "").strip():
+        return _a_set_channel("set_channel", {**payload, "platform": _plat}, q, db, contacts, now)
     c = _d._find(db, payload.get("contactId"))
     if not c:
         return {"ok": False, "error": f"no encuentro ese contacto — {action} necesita su `contactId` "
