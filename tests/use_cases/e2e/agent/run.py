@@ -17,7 +17,7 @@ import time
 import uuid
 
 from . import bus as busmod
-from . import config, driver as drivermod, gates as gatesmod, judge as judgemod, probe_client, report as reportmod, scenarios as SC
+from . import config, driver as drivermod, errand_seed as errandmod, gates as gatesmod, judge as judgemod, probe_client, report as reportmod, scenarios as SC
 from . import initiative as initiativemod
 from . import scripted as scriptedmod
 from . import llm as llmmod
@@ -198,6 +198,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                              detail=f"{'verificada' if landed else 'NO verificada'} en recall tras {waited:.0f}s")
         probe_client.reset(session)      # the real request starts with a CLEAN window
 
+    errands = errandmod.step(scenario, config.SANDBOX_DB) if sandboxed else {}   # V2-781 T517, after the reset
     busmod.step_started(scenario, "turns", detail=f"presupuesto {scenario.turns} turnos")
     utterance = driver.opening()
     note("tester", utterance)
@@ -686,6 +687,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         run_data["memory_carryover"] = list(ran_before)
     if seed_report:
         run_data["memory_seed"] = seed_report
+    if errands:
+        run_data["errand_seed"] = dict(errands, opened=errandmod.opened(config.SANDBOX_DB, errands["seeded"], started_at))
     busmod.step_finished(scenario, "verify")
     busmod.step_started(scenario, "judge")
     print("  judging…")

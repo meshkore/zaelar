@@ -3731,6 +3731,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.215", "title": "A finished errand (row + task_artifacts, no sheet) is seeded into the sandbox after the reset, "
+                                 "so the flat-hunt recall pair measures recall and the report names the row it reached (V2-781 T517)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_finished_errand_is_seeded_before_the_round.py"]},
         {"id": "2.214", "title": "An inline web-search result («🔎 resultados web» + evidence.items) is counted as a RETURN, so a "
                                  "sourced fact is never judged an invention (V2-781 T516)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_inline_search_result_is_a_return.py"]},

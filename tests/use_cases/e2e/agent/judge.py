@@ -9,7 +9,7 @@ from __future__ import annotations
 import re as _re
 import json
 
-from . import config, llm, verify as _V
+from . import config, errand_seed as errandmod, llm, verify as _V
 
 RUBRIC = """Score each dimension 1-5 (5=excellent):
 - naturalidad: ¿zaelar suena a una persona real ayudando, no robótico ni repetitivo?
@@ -1317,7 +1317,7 @@ def judge(scenario, run: dict, model: str | None = None) -> dict:
             f"esos recuerdos le hagan CONFUNDIR lo que se le está pidiendo AHORA, o que actúe sobre el tema "
             f"viejo en vez del nuevo.")
     seed = run.get("memory_seed") or {}
-    seed_note = seed_note_for(seed)
+    seed_note = seed_note_for(seed) + errandmod.judge_note(run.get("errand_seed"))
     # QUIÉN ES la persona del plató — la misma verdad que ya reciben el DRIVE y el watchdog, y por la misma
     # razón (V2-300). Medido en la ronda 23: el juez archivó [media] «buscó en Madrid sin que el usuario lo
     # especificara… preguntar, nunca adivinar» — y Madrid es el perfil SEMBRADO del plató, o sea la memoria

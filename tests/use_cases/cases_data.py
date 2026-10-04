@@ -969,6 +969,12 @@ CASES: list[UseCase] = [
     UseCase("docs-single-recipe-not-a-list", "us", 1, "Something to read arrives as ONE document, not a list",
             "Give me the carbonara recipe.",
             "ONE readable document opens (the blank-sheet widget), not a results list of links."),
+    UseCase("flat-hunt-recall-the-report", "us", 3, "Reopen the report of an old errand",
+            "Show me the apartment thing I told you about.",
+            "The apartment-hunting errand from days ago is identified WITHOUT a new search, and its results "
+            "sheet comes back with the kept candidates, the discarded ones AND their reasons — rebuilt from "
+            "`task_artifacts`. With two equally plausible errands it must ASK, naming them.",
+            depends_on=("a finished commission with a results sheet (seeded by the harness, V2-781 T517)",)),
     UseCase("docs-report-lands-as-document", "us", 2, "A commissioned report arrives as a document",
             "Make me a report on electric cars for the city and put it on screen.",
             "The report is delivered on the document surface with its live process visible — never "

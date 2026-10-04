@@ -168,6 +168,8 @@ PROFILES: dict[str, Profile] = {
         clarifications=(("de qué piso, cuál de las búsquedas", "el de Gràcia, el que te pedí hace unos días"),),
         persona_extra="No quieres que vuelva a buscar: quieres VER lo que ya encontró aquella vez, incluido "
                       "por qué descartó lo que descartó.",
+        clarifications_us=(("which apartment, which of the searches",
+                             "the Williamsburg one, the one I asked you for a few days ago"),),
         success_extra="NO es una búsqueda nueva. Reabrir el informe de aquel encargo cuenta como éxito; "
                       "volver a buscar en internet es FALLO aunque el resultado se parezca — y preguntar "
                       "cuál de dos encargos parecidos es la conducta CORRECTA, no un defecto.",
