@@ -123,20 +123,24 @@ export function connectorWizard(c, step, form, famTitle, { t, esc, badge }) {
       (g.code ? `<div class="cf-wiz-code"><code>${esc(g.code)}</code><button type="button" class="cf-btn cf-btn-ghost cf-wiz-copy" data-copy="${esc(g.code)}">${esc(t("config.cxw.copy"))}</button></div>` : "") +
       (g.link ? `<p class="cf-wiz-go"><a class="cf-btn cf-btn-ghost cf-wiz-link" href="${esc(g.link)}" target="_blank" rel="noopener">${esc(t("config.cxw.open_link", { site: new URL(g.link).host }))} ↗</a></p>` : "");
   } else {
-    // Connected (and not Google): say so in one card, then the form — which is the quiet way out (Disconnect).
-    const done = c.connected && c.id !== GOOGLE
-      ? `<div class="cf-wiz-done" role="status"><span class="cf-wiz-done-mark" aria-hidden="true">✓</span><div><b>${esc(t("config.cxw.connected_title"))}</b>` +
-        `<p>${esc(t("config.cxw.connected_body", { label: c.label }))}</p></div></div>` : "";
-    body = done + `<div class="cf-wiz-form${c.connected && c.id !== GOOGLE ? " cf-wiz-form--quiet" : ""}">${form}</div>` + liveState(c, { t, esc });
+    // Connected (and not Google): ONE status card that carries its own action (Disconnect) inside it — the
+    // operator: «los botones de disconnect van dentro de los box de estado». The way out is «Volver», below.
+    body = c.connected && c.id !== GOOGLE
+      ? `<div class="cf-wiz-done" role="status"><span class="cf-wiz-done-mark" aria-hidden="true">✓</span><div class="cf-wiz-done-text"><b>${esc(t("config.cxw.connected_title"))}</b>` +
+        `<p>${esc(t("config.cxw.connected_body", { label: c.label }))}</p></div><div class="cf-wiz-done-act">${form}</div></div>`
+      : `<div class="cf-wiz-form">${form}</div>` + liveState(c, { t, esc });
   }
-  const nav = total > 1 ? `<div class="cf-wiz-nav">${at > 0 ? `<button type="button" class="cf-btn cf-btn-ghost" data-cx-step="${at - 1}">${esc(t("config.cxw.prev"))}</button>` : "<span></span>"}` +
-    (at < total - 1 ? `<span class="cf-wiz-count">${esc(t("config.cxw.step", { n: at + 1, total }))}</span><button type="button" class="cf-btn" data-cx-step="${at + 1}">${esc(t("config.cxw.next"))}</button>` : "") + `</div>` : "";
+  // The last step of a connector that is set up (connected, or Google's services) ends on the way back.
+  const back = at === total - 1 && (c.connected || c.id === GOOGLE)
+    ? `<div class="cf-wiz-nav"><span></span><button type="button" class="cf-btn cf-btn-ghost" data-cx-back="1">${esc(t("config.cxw.done_back"))}</button></div>` : "";
+  const nav = back || (total > 1 ? `<div class="cf-wiz-nav">${at > 0 ? `<button type="button" class="cf-btn cf-btn-ghost" data-cx-step="${at - 1}">${esc(t("config.cxw.prev"))}</button>` : "<span></span>"}` +
+    (at < total - 1 ? `<span class="cf-wiz-count">${esc(t("config.cxw.step", { n: at + 1, total }))}</span><button type="button" class="cf-btn" data-cx-step="${at + 1}">${esc(t("config.cxw.next"))}</button>` : "") + `</div>` : "");
   // The vertical stepper: every title is a step; the current one carries the body and the nav underneath it.
   const steps = total > 1 ? `<ol class="cf-wiz-steps">${titles.map((ti, i) =>
     `<li class="cf-wiz-step${i === at ? " on" : ""}${i < at ? " done" : ""}"><button type="button" class="cf-wiz-step-h" data-cx-step="${i}">` +
     `<span class="cf-wiz-n">${i < at ? "✓" : i + 1}</span><span class="cf-wiz-t">${esc(ti)}</span></button>` +
     (i === at ? `<div class="cf-wiz-body">${body}${nav}</div>` : "") + `</li>`).join("")}</ol>`
-    : `<div class="cf-wiz-body">${body}</div>`;
+    : `<div class="cf-wiz-body">${body}${nav}</div>`;
   return `${crumb}<section class="cf-panel-sec cf-wiz">${head}${steps}</section>`;
 }
 

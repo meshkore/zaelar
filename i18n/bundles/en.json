@@ -292,6 +292,7 @@
  "config.cxw.telegram.missing": "Something is missing: the api_id is digits only and the api_hash cannot be empty.",
  "config.cxw.telegram.shipped": "Press Connect and scan the QR code with your phone: Telegram → Settings → Devices → Link desktop device. Nothing else is needed.",
  "config.cxw.qr_rotates": "The code renews itself every few seconds: if the phone does not take it, wait for the next one.",
+ "config.cxw.done_back": "← Back",
  "config.msg.connecting": "{id}: connecting…",
  "config.msg.couldnt_query": "✗ couldn't query",
  "config.msg.couldnt_start": "couldn't start",

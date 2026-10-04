@@ -1027,7 +1027,6 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-wiz-form .cf-row2:first-child{padding-top:0}
 .cf-wiz-form>.cf-btn,.cf-wiz-form>details+.cf-btn{align-self:flex-end;margin-top:6px}
 .cf-wiz-form>.cf-row2:last-of-type{border-bottom:none}
-.cf-wiz-form--quiet{align-items:flex-end}
 .cf-wiz .cf-cx-act[data-act="disconnect"]{background:var(--hb-bg-soft);color:var(--hb-ink);border:1px solid var(--hb-line)}
 .cf-wiz .cf-cx-act[data-act="disconnect"]:hover{background:var(--hb-hover);border-color:var(--hb-line-strong);filter:none}
 .cf-wiz-done{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid color-mix(in srgb,var(--hb-ok) 35%,transparent);
@@ -1035,6 +1034,9 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-wiz-done-mark{flex:none;display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--hb-ok);color:var(--canvas);font-weight:700;font-size:0.8125rem}
 .cf-wiz-done b{display:block;font-size:0.9375rem;color:var(--hb-ink)}
 .cf-wiz-done p{margin:4px 0 0;font-size:0.8125rem;color:var(--hb-muted-2);line-height:1.55}
+.cf-wiz-done-text{flex:1 1 auto;min-width:0}
+.cf-wiz-done-act{flex:none;align-self:center}
+.cf-wiz-done-act .cf-btn{margin:0}
 /* Google — one account, one row per service (its card, its state, its own consent): a divided list, no frame. */
 .cf-gsvcs{display:flex;flex-direction:column}
 .cf-gsvc{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--hb-line)}
