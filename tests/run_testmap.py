@@ -3242,20 +3242,15 @@ DOMAINS: list[dict] = [
         {"id": "4.16", "title": "Widgets que PRODUCEN: parada global · un solo dueño del altavoz · nada arranca con "
                                 "el agente parado", "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_producers.py"]},
-        # 2026-08-18 (V2-116): el muro de chat solo se alimentaba del `transcript` de LiveKit, que no llega hasta
-        # que el TTS ha terminado de hablar la respuesta ENTERA — 5,4 s y 12,2 s medidos en una sesión real, y el
-        # operador lo vivió como «la he oído por voz y el texto llegó un minuto después». La respuesta se pinta
-        # ahora al generarse y el transcript posterior se funde por PREFIJO (que es también lo que hace bien el
-        # caso del barge-in, donde el transcript llega truncado).
-        # 2026-08-18 (V2-116): el muro de chat solo se alimentaba del `transcript` de LiveKit, que no llega hasta
-        # que el TTS ha terminado de hablar la respuesta ENTERA — 5,4 s y 12,2 s medidos en una sesión real, y el
-        # operador lo vivió como «la he oído por voz y el texto llegó un minuto después». La respuesta se pinta
-        # ahora al generarse y el transcript posterior se funde por PREFIJO (que es también lo que hace bien el
-        # caso del barge-in, donde el transcript llega truncado).
         # 2026-10-04 — WHO opens the wall decides its first shape: from the left bar it nests to the left (a column),
         # from the orb it floats unless it is already docked, which is respected. Rendered: wall + rail + store.
         {"id": "4.246", "title": "The left bar opens the chat wall docked to the left; the orb floats it unless it is already docked",
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_the_bar_opens_the_wall_docked_and_the_orb_floats_it.py"]},
+        # 2026-08-18 (V2-116): el muro de chat solo se alimentaba del `transcript` de LiveKit, que no llega hasta
+        # que el TTS ha terminado de hablar la respuesta ENTERA — 5,4 s y 12,2 s medidos en una sesión real, y el
+        # operador lo vivió como «la he oído por voz y el texto llegó un minuto después». La respuesta se pinta
+        # ahora al generarse y el transcript posterior se funde por PREFIJO (que es también lo que hace bien el
+        # caso del barge-in, donde el transcript llega truncado).
         {"id": "4.17", "title": "El muro de chat no espera a la voz (y el transcript posterior no duplica)",
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_chat_wall_promptness.py"]},
         # V2-647 — LA HABITACIÓN NO ES EL OPERADOR. El micro está siempre abierto y el guarda de atención
@@ -4532,23 +4527,14 @@ DOMAINS: list[dict] = [
         # en apply_action SIN declarar en el manifest (una acción no declarada es invisible para el cerebro).
         # Todo lo que el operador pedía ya existía —Gmail y Outlook con OAuth, y el formulario con su
         # selector de proveedor—: era inalcanzable.
-        {"id": "4.88", "title": "Conectar un canal se puede pedir por voz: la data-op declarada abre el panel "
-                                "y despliega su formulario",
+        {"id": "4.88", "title": "Connecting a channel can be asked by voice: the words open the ⚙ Conectores section on "
+                                "THAT connector (2026-10-04: the in-card connect panel is gone)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/mensajeria/test_connecting_a_channel_is_reachable_by_voice.py",
                       # V2-521 — a dictated reply reaches EVERY platform: msg.reply existed since V2-051 and
                       # only email subscribed; WhatsApp's bridge had POST /send all along, Telethon sends in
                       # one line, and nobody drained the topic.
                       "tests/browser/unit/mensajeria/test_a_dictated_reply_reaches_every_platform.py"]},
-        # RENDERIZA a propósito, por lo mismo que el 4.34: el 4.35 prueba el dato y el cableado, y seguiría
-        # verde con la rama del render desactivada — medido mientras se construía (`if(false && focus …)`
-        # dejó todas las aserciones de fuente en verde). Esto mira los píxeles: se entra DIRECTO en la
-        # pantalla del conector nombrado (nunca la lista), con su paso 1 pintado como una rejilla de iconos
-        # (Gmail/Outlook/…) y no un <select> (rediseño V2-570).
-        {"id": "4.89", "title": "El conector nombrado se abre en SU PROPIA pantalla, RENDERIZADA: rejilla de "
-                                "iconos con Gmail y Outlook, nunca la lista",
-            "ch": UNIT, "live": True,
-            "cmd": "./.venv/bin/python tests/browser/e2e/mensajeria/render_connect_panel.py"},
         # V2-521 — la fórmula visual del widget principal: una sola bandeja por defecto, lente por
         # plataforma a demanda, y TODOS los canales visibles en cabecera (apagado = sin conectar, y tocarlo
         # es la misma puerta que la voz). Tolerante al estado vivo de conexiones.
@@ -4556,17 +4542,6 @@ DOMAINS: list[dict] = [
                                 "plataforma, y el icono apagado abre su conexión",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mensajeria/render_visual_formula.py"},
-        # V2-559/V2-570 — RENDERIZA, y es la única mitad que puede contestar lo que reportó el operador: UN
-        # solo paso visible a la vez con Atrás/Continuar reales, el paso 1 de email como rejilla de iconos
-        # (nunca un <select>), la lista de conectores como rejilla y no filas apiladas, la miga de pan
-        # separando lista de asistente, que «Corregir y reintentar» MUEVA algo (era `_expandConnect.add` sobre
-        # un set que ya lo tenía: un repintado idéntico, o sea un botón muerto visto desde fuera), y que el
-        # formulario vuelva CON los datos tras un rechazo. Trae además el trinquete de móvil, y dice que NO
-        # prueba que esta tanda arreglara el layout: medido antes, las seis pantallas ya cabían a 375px.
-        {"id": "4.106", "title": "El asistente de conexión RENDERIZADO: un paso a la vez, rejillas de iconos, "
-                                 "lista/asistente separados, un reintento que mueve, y los tres a 375px",
-            "ch": UNIT,
-            "paths": ["tests/browser/e2e/mensajeria/test_connect_wizard_render.py"]},
         # V2-564 — la galería FOTOS: contrato (acciones de vista == quien pinta la respuesta, `search` DEVUELVE
         # sus coincidencias V2-541, ningún payload lleva credencial V2-520, `view_data`/tick solo llaman al
         # conector cuando hace falta) + RENDERIZADO. La mitad renderizada es la que contesta la preocupación

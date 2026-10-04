@@ -45,6 +45,15 @@ def _d(n: int = 0) -> str:
     return time.strftime("%Y-%m-%d", time.localtime(time.time() + n * 86400))
 
 
+def _wd(n: int = 1) -> str:
+    """A day INSIDE the week the grid shows. The grid is Monday-anchored (`widgets/agenda/widget.js::startOfWeek`),
+    so «tomorrow» is next week on a Sunday and these fixtures were red every weekend (measured 2026-10-04, a Sunday:
+    six rendered tests failing on a null `.agev`). Monday + n (n = 1…6) is always on screen."""
+    now = time.localtime()
+    monday = time.time() - (now.tm_wday % 7) * 86400
+    return time.strftime("%Y-%m-%d", time.localtime(monday + n * 86400))
+
+
 def _days(n: int = 7):
     return [{"date": _d(i), "label": "X", "weekday": "X",
              "plan": {"blocks": [], "focus": [], "summary": "", "coaching": [], "warnings": []}}
@@ -59,8 +68,9 @@ def _data(**over):
     return d
 
 
-def _meet(title, *, day=0, start="10:00", end="11:00", **extra):
-    m = {"title": title, "date": _d(day), "startTime": start, "endTime": end}
+def _meet(title, *, day=0, start="10:00", end="11:00", **extra, coming: bool = False):
+    # `coming`: the LIST view shows what is ahead, so its fixtures are future days, not days of the shown week.
+    m = {"title": title, "date": _d(day) if coming else _wd(day), "startTime": start, "endTime": end}
     m.update(extra)
     return m
 
@@ -294,8 +304,8 @@ def test_the_month_is_a_calendar_grid_and_a_day_click_opens_that_day(_page):
 
 def test_the_list_view_groups_what_is_coming_by_day(_page):
     _mount(_page, _data(meetings=[
-        _meet("Dentista", day=1, start="10:00", end="11:00", attendees=["Ana"], location="Clínica"),
-        _meet("Notario", day=3, start="12:00", end="13:00")]))
+        _meet("Dentista", day=1, start="10:00", end="11:00", attendees=["Ana"], location="Clínica", coming=True),
+        _meet("Notario", day=3, start="12:00", end="13:00", coming=True)]))
     _page.click(".agtab[data-view=list]")
     assert _page.locator(".agday").count() == 2, "one block per day with something in it"
     rows = _page.locator(".agrow").all_inner_texts()
@@ -309,7 +319,7 @@ def test_an_empty_list_says_so_plainly(_page):
 
 
 def test_an_all_day_event_gets_its_own_band(_page):
-    _mount(_page, _data(meetings=[{"title": "Viaje a Madrid", "date": _d(1), "allDay": True}]))
+    _mount(_page, _data(meetings=[{"title": "Viaje a Madrid", "date": _wd(1), "allDay": True}]))
     assert _page.locator(".agallday").count() == 1
     assert "Viaje a Madrid" in _page.locator(".agallday").inner_text()
     assert _page.locator(".agallday .agev").count() == 1, "an all-day event never sits in the hour grid"

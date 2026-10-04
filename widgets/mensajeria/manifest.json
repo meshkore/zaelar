@@ -16,7 +16,7 @@
   },
   "title": "Mensajería",
   "description": "WhatsApp, Telegram y correo en un sitio: leer, filtrar y ENVIAR o contestar mensajes («message Rowan on Telegram», «escríbele a Anna», «reply to that email»), ya triado a lo que va dirigido a ti. Se vinculan por QR (WhatsApp/Telegram) o correo + contraseña de aplicación; puedes dictar una respuesta y mandarla.",
-  "whenToUse": "Cuando pide ver sus mensajes, quién le ha escrito, su WhatsApp/Telegram/correo, responder o mandar un mensaje/email, RESUMIR una conversación o grupo, buscar mensajes PASADOS en el archivo («¿cuándo me escribió X?»), traer mensajes del conector, el AUTORRESPONDEDOR, o su firma. CONECTAR un canal no es de esta tarjeta: es show_panel(panel='conectores', connector=…).",
+  "whenToUse": "Cuando pide ver sus mensajes, quién le ha escrito, su WhatsApp/Telegram/correo, responder o mandar un mensaje, RESUMIR un chat, buscar mensajes PASADOS en el archivo («¿cuándo me escribió X?»), el AUTORRESPONDEDOR o su firma. CONECTAR un canal NO es aquí: show_panel(panel='conectores', connector=…)",
   "keywords": [
     "mensajes",
     "mensajeria",
