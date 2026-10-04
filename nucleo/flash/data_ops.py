@@ -475,11 +475,16 @@ def answer_to_speak(answers: list, ops) -> tuple | None:
     (`effects.OUTPUT_ANSWER`), else the last. `answers` = [(widget_id, answer)] in dispatch order; `ops` = the
     turn's (widget_id, action) pairs. Demo pass 62, C2: `agenda:find_free` answered the slot, a repair pass then
     presented it on the results sheet, and the LAST answer — the sheet's view — was the one spoken."""
-    answers = [(w, a) for w, a in (answers or []) if a]
+    pairs, ops = list(answers or []), list(ops or [])
+    answers = [(w, a) for w, a in pairs if a]
     if not answers:
         return None
     try:
         from widgets import effects as _fx
+        if len(pairs) == len(ops):   # demo pass 105, R3: two ops on ONE card — matched by the action, in order
+            hit = next(((w, a) for (w, a), (ow, oa) in zip(pairs, ops) if a and _fx.carries(ow, oa, _fx.OUTPUT_ANSWER)), None)
+            if hit:
+                return hit
         declares = {str(w).split("::", 1)[0] for w, a in (ops or []) if _fx.carries(w, a, _fx.OUTPUT_ANSWER)}
     except Exception:  # noqa: BLE001
         declares = set()

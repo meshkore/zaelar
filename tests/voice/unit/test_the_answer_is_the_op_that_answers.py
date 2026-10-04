@@ -53,3 +53,14 @@ def test_the_voice_path_uses_the_selector():
     import pathlib
     src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert "_op_answer = _data_ops.answer_to_speak(_got, data_done.get(\"ops\"))" in src
+
+
+def test_two_ops_on_one_card_answer_from_the_one_that_answers():
+    """Demo pass 105, R3: «find me five days in her vacation…» ran agenda:show_day (Dec 20) and then, in the
+    repair pass, agenda:find_free across the vacation. Matched by WIDGET, the day view came first and he was told
+    «her vacation is just a single day». The answer is matched by the action, in dispatch order."""
+    day = {"meetings": [{"title": "Anna vacation", "date": "2026-12-20"}]}
+    span = {"free_days": ["2026-12-20", "2026-12-21", "2026-12-22", "2026-12-23", "2026-12-24"]}
+    got = data_ops.answer_to_speak([("agenda", day), ("agenda", span)],
+                                   [("agenda", "show_day"), ("agenda", "find_free")])
+    assert got == ("agenda", span)
