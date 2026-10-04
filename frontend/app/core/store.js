@@ -593,6 +593,16 @@ export const [debugWidth, setDebugWidth] = createSignal(Math.max(300, parseInt(l
 
 // ---- chat wall (text channel to the agent) ----
 export const [chatOpen, setChatOpen]   = createSignal(false);  // chat wall panel visible?
+// WHO is opening it (operator, 2026-10-04): from the LEFT BAR the wall nests to the left — a column, not a
+// floating box; from the ORB it floats, unless the wall is already docked, in which case the docked shape is
+// respected and it opens there. The shape is still the wall's own (hb_chat_dock / hb_chat_float); this is only
+// the hint the opener leaves for the wall to read ONCE, on the open it belongs to. Nobody else reads it.
+export const [chatOpenFrom, setChatOpenFrom] = createSignal(null);   // null | "bar" | "orb"
+export function openChatFrom(from, tab) {
+  if (tab) setChatTab(tab);
+  setChatOpenFrom(from || null);
+  setChatOpen(true);
+}
 // V2-728 — FOUR tabs, down from five: "chat" | "procesos" | "clusters" | "conectores". «Procesos» and
 // «Crons» were the same object seen twice (a commission the brain is carrying out, and a commission with a
 // clock on it), split across two tabs because they were built at different times and stored in different

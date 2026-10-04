@@ -812,6 +812,21 @@ export function ChatWall() {
   window.addEventListener("resize", () => { if (dockSide) applyDock(dockSide, wallEl.offsetWidth); });
   setReserve();
 
+  // WHO OPENED IT decides the shape of a wall that has none yet (operator, 2026-10-04): «al inicializar un agente,
+  // cuando abro la barra izquierda se abre anidada a la izquierda, no en ventana flotante. Solo en ventana
+  // flotante desde el orbe central, siempre que no se haya abierto ya y pegado a la izquierda. En ese caso
+  // respetamos el estado actual de UI y abrimos ahí». So: from the BAR, a floating (or never-placed) wall docks
+  // to the left column; from the ORB, a docked wall stays docked and anything else floats, which is what the
+  // saved float already does. The hint is consumed here so a later open by the agent or a push reads nothing.
+  // `dockSide` is a plain variable read inside the effect on every run — not a one-shot binding (V2-608).
+  createEffect(() => {
+    if (!store.chatOpen()) return;
+    const from = store.chatOpenFrom();
+    if (!from) return;
+    if (from === "bar" && !dockSide) applyDock("left", (loadDock() || {}).w || DOCK_DEF_W);
+    store.setChatOpenFrom(null);
+  });
+
   // reactive CHAT message list: rebuild on every change, then pin to the latest message.
   // V2-681 T-1 — where the RESTORED part of the history ends. The wall now survives a refresh, and a
   // conversation from before that refresh must not read as something just said: this marks the boundary

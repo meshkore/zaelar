@@ -44,7 +44,7 @@
 import { t } from "../core/i18n.js?v=1";
 import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
-import { chatOpen, setChatOpen, setChatTab, orbDock, setOrbDock, agentState, agentLive, tasks } from "../core/store.js?v=2";
+import { chatOpen, setChatOpen, setChatTab, openChatFrom, orbDock, setOrbDock, agentState, agentLive, tasks } from "../core/store.js?v=2";
 
 function injectStyles(){
   if(document.getElementById("wrail-css")) return;
@@ -366,7 +366,7 @@ export function WidgetRail(){
   proc.append(procN,procBar);
   // V2-728 — one click lands on «Procesos ▸ En curso», which is what the number counts. `setChatTab` picks
   // the sub-tab itself (it is the one door that knows the vocabulary), so this does not name it twice.
-  proc.onclick=(e)=>{ e.stopPropagation(); setChatTab("procesos"); setChatOpen(true); };
+  proc.onclick=(e)=>{ e.stopPropagation(); openChatFrom("bar", "procesos"); };
   const chips=document.createElement("div"); chips.className="wr-chips";
   const tools=document.createElement("div"); tools.className="wr-tools";
   // V2-623 — the bar's CENTRE: the swap button + the slot the ONE #orb canvas is reparented into (Orb.js owns
@@ -404,7 +404,9 @@ export function WidgetRail(){
     fold.innerHTML=open?ICONS.foldL:ICONS.foldR;
     fold.title=open?t("rail.hideChat"):t("rail.showChat");
   };
-  fold.onclick=(e)=>{ e.stopPropagation(); setChatOpen(!chatOpen()); };
+  // From the bar the wall opens NESTED to the left (operator, 2026-10-04): the arrow is on the left edge, so what
+  // it opens is a column on that edge, not a floating box over the desk. Closing is the same toggle as before.
+  fold.onclick=(e)=>{ e.stopPropagation(); if (chatOpen()) setChatOpen(false); else openChatFrom("bar"); };
   createEffect(paintFold);
   // V2-666 — hidden at zero (an idle "0" is dead chrome, and this is a gauge of REAL background work, not
   // a decoration that is always there). Clicking it opens the chat straight onto Procesos, not just chat.

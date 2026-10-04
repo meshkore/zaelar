@@ -261,7 +261,8 @@ export function Orb() {
         "data-ctl": "chat",
         class: () => lidClass(store.chatOpen()),
         title: () => t("camera.chat_title"),
-        onClick: () => { const v = !store.chatOpen(); store.setChatOpen(v); api.uiEvent("orb:chat", { state: v ? "open" : "close" }); },
+        // From the orb the wall FLOATS — unless it is already docked, which the wall respects (operator, 2026-10-04).
+        onClick: () => { const v = !store.chatOpen(); if (v) store.openChatFrom("orb"); else store.setChatOpen(false); api.uiEvent("orb:chat", { state: v ? "open" : "close" }); },
       }, raw(CHAT_ICON)),
       h("button", { "data-ctl": "bot",
         class: () => lidClass(wakeOn()),
