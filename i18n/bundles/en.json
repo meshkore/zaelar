@@ -196,6 +196,7 @@
  "config.cxw.step": "Step {n} of {total}",
  "config.cxw.final_title": "Connect",
  "config.cxw.connected_title": "Connected",
+ "config.cxw.connected_body": "Zaelar is linked to {label}. Unlinking removes its access; you can connect again whenever you want.",
  "config.cxw.copy": "Copy",
  "config.cxw.copied": "Copied",
  "config.cxw.open_link": "Open {site}",

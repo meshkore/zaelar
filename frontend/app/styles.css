@@ -963,47 +963,94 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-warn{background:var(--hb-warn-bg);color:var(--hb-warn-ink)}
 .cf-error{background:var(--hb-risk-soft);color:var(--hb-risk)}
 .cf-off,.cf-unknown{background:var(--hb-bubble);color:var(--hb-muted-2)}
-/* Conectores: a list, then ONE connector behind a breadcrumb with its step-by-step guide (ConnectorWizard.js) */
+/* Conectores: a list, then ONE connector behind a breadcrumb with its step-by-step guide (ConnectorWizard.js).
+   2026-10-04 — one column, one thing at a time, no box inside a box: a hero (mark · name · state · one line), a
+   VERTICAL stepper whose open step carries its text and its Back/Next, and the form flat on the last step. Every
+   size and colour is a house token so a profile swap repaints this too. */
 .cf-cx-intro{margin:0 0 4px;font-size:0.8125rem;color:var(--hb-muted-2)}
 .cf-cx-list{display:flex;flex-direction:column;background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);overflow:hidden}
-.cf-cx-row{display:flex;align-items:center;gap:10px;padding:13px 18px;background:none;border:none;border-bottom:1px solid var(--hb-line);
+.cf-cx-row{display:flex;align-items:center;gap:12px;padding:11px 16px;background:none;border:none;border-bottom:1px solid var(--hb-line);
   color:var(--hb-ink);font:inherit;text-align:left;cursor:pointer}
 .cf-cx-row:last-child{border-bottom:none}
-.cf-cx-row:hover{background:color-mix(in srgb,var(--hb-accent) 8%,transparent)}
-.cf-cx-row:focus-visible{outline:2px solid var(--hb-accent);outline-offset:-2px}
+.cf-cx-row:hover{background:var(--hb-hover)}
+.cf-cx-row:focus-visible{outline:none;box-shadow:inset var(--hb-focus-ring)}
 .cf-cx-name{font-size:0.875rem;font-weight:600}
 .cf-cx-go{margin-left:auto;font-size:0.8125rem;color:var(--hb-accent);font-weight:600;white-space:nowrap}
-.cf-crumb{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 14px;font-size:0.8125rem;color:var(--hb-muted-2)}
+.cf-cx-avatar{flex:none;display:inline-grid;place-items:center;width:44px;height:44px;border-radius:var(--hb-r-m);
+  background:color-mix(in srgb,var(--hb-accent) 14%,transparent);color:var(--hb-accent);font-weight:700;font-size:1.125rem;letter-spacing:.02em}
+.cf-cx-avatar--sm{width:30px;height:30px;font-size:0.875rem;border-radius:var(--hb-r-s)}
+.cf-crumb{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:0 0 18px;font-size:0.8125rem;color:var(--hb-muted-2)}
 .cf-crumb b{color:var(--hb-ink)}
 .cf-crumb-back{background:none;border:none;padding:0;font:inherit;font-weight:600;color:var(--hb-accent);cursor:pointer}
+.cf-crumb-back:hover{text-decoration:underline}
 .cf-crumb-sep{opacity:.6}
-.cf-wiz-steps{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
-.cf-wiz-step button{display:flex;align-items:center;gap:8px;background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:999px;
-  padding:6px 12px 6px 6px;font:inherit;font-size:0.75rem;color:var(--hb-muted-2);cursor:pointer}
-.cf-wiz-step.on button{border-color:var(--hb-accent);color:var(--hb-ink)}
-.cf-wiz-n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--hb-bubble);font-weight:700;font-size:0.6875rem}
-.cf-wiz-step.on .cf-wiz-n{background:var(--hb-accent);color:var(--canvas)}
-.cf-wiz-step.done .cf-wiz-n{background:color-mix(in srgb,var(--hb-ok) 22%,transparent);color:var(--hb-ok)}
-.cf-wiz-body{display:flex;flex-direction:column;gap:12px}
-.cf-wiz-text{margin:0;font-size:0.875rem;line-height:1.6;color:var(--hb-ink)}
-.cf-wiz-link{color:var(--hb-accent);font-weight:600;font-size:0.8125rem}
-.cf-wiz-code{display:flex;align-items:center;gap:10px;margin:6px 0;padding:8px 10px;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:8px}
-.cf-wiz-code code{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;font-size:0.75rem;white-space:pre-wrap}
-/* Google — one account, one row per service (its card, its state, its own consent). */
-.cf-gsvcs{display:flex;flex-direction:column;gap:6px;margin-top:8px}
-.cf-gsvc{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--hb-line);border-radius:8px;background:var(--hb-bg)}
-.cf-gsvc.on{border-color:var(--hb-accent);box-shadow:0 0 0 1px var(--hb-accent)}
-.cf-gsvc-name{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;font-weight:600}
+/* hero */
+.cf-wiz{gap:22px}
+.cf-cx-hero{display:flex;align-items:flex-start;gap:14px;padding-bottom:18px;border-bottom:1px solid var(--hb-line-subtle)}
+.cf-cx-hero-text{min-width:0;flex:1 1 auto;display:flex;flex-direction:column;gap:4px}
+.cf-cx-hero h4{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0;font-size:1.25rem;font-weight:700;color:var(--hb-ink);line-height:1.25}
+.cf-cx-hero p{margin:0;font-size:0.875rem;color:var(--hb-muted-2);line-height:1.55;max-width:56ch}
+/* vertical stepper */
+.cf-wiz-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.cf-wiz-step{position:relative;padding:0 0 0 40px}
+.cf-wiz-step::before{content:"";position:absolute;left:13px;top:30px;bottom:-2px;width:2px;background:var(--hb-line-subtle)}
+.cf-wiz-step:last-child::before{display:none}
+.cf-wiz-step-h{display:flex;align-items:center;gap:12px;width:100%;min-height:44px;padding:0;margin:0 0 2px;background:none;border:none;
+  font:inherit;text-align:left;color:var(--hb-muted-2);cursor:pointer}
+.cf-wiz-step-h:hover .cf-wiz-t{color:var(--hb-ink)}
+.cf-wiz-step-h:focus-visible{outline:none}
+.cf-wiz-step-h:focus-visible .cf-wiz-n{box-shadow:var(--hb-focus-ring)}
+.cf-wiz-t{font-size:0.9375rem;font-weight:600}
+.cf-wiz-step.on .cf-wiz-t{color:var(--hb-ink)}
+.cf-wiz-step.done .cf-wiz-t{color:var(--hb-muted)}
+.cf-wiz-n{position:absolute;left:0;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;
+  background:var(--hb-bubble);border:1px solid var(--hb-line);color:var(--hb-muted);font-weight:700;font-size:0.75rem}
+.cf-wiz-step.on .cf-wiz-n{background:var(--hb-accent);border-color:var(--hb-accent);color:var(--canvas)}
+.cf-wiz-step.done .cf-wiz-n{background:color-mix(in srgb,var(--hb-ok) 16%,transparent);border-color:color-mix(in srgb,var(--hb-ok) 40%,transparent);color:var(--hb-ok)}
+.cf-wiz-body{display:flex;flex-direction:column;gap:14px;padding:4px 0 26px}
+.cf-wiz-step:last-child .cf-wiz-body{padding-bottom:8px}
+.cf-wiz-text{margin:0;font-size:0.875rem;line-height:1.6;color:var(--hb-ink);max-width:62ch}
+.cf-wiz-go{margin:0}
+.cf-wiz-link{text-decoration:none}
+.cf-em-links{margin:0;font-size:0.8125rem}
+.cf-em-links a{color:var(--hb-accent);font-weight:600;text-decoration:none}
+.cf-em-links a:hover{text-decoration:underline}
+.cf-wiz-code{display:flex;align-items:center;gap:10px;margin:0;padding:8px 8px 8px 12px;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-m)}
+.cf-wiz-code code{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;font-family:var(--mono);font-size:0.75rem;white-space:pre-wrap;color:var(--hb-ink)}
+/* the form, flat: rows divided by lines, the one affirmative button at the end on the right */
+.cf-wiz-form{display:flex;flex-direction:column}
+.cf-wiz-form .cf-row2{padding:12px 0}
+.cf-wiz-form .cf-row2:first-child{padding-top:0}
+.cf-wiz-form>.cf-btn,.cf-wiz-form>details+.cf-btn{align-self:flex-end;margin-top:6px}
+.cf-wiz-form>.cf-row2:last-of-type{border-bottom:none}
+.cf-wiz-form--quiet{align-items:flex-end}
+.cf-wiz .cf-cx-act[data-act="disconnect"]{background:var(--hb-bg-soft);color:var(--hb-ink);border:1px solid var(--hb-line)}
+.cf-wiz .cf-cx-act[data-act="disconnect"]:hover{background:var(--hb-hover);border-color:var(--hb-line-strong);filter:none}
+.cf-wiz-done{display:flex;align-items:flex-start;gap:12px;padding:14px 16px;border:1px solid color-mix(in srgb,var(--hb-ok) 35%,transparent);
+  border-radius:var(--hb-r-m);background:color-mix(in srgb,var(--hb-ok) 8%,transparent)}
+.cf-wiz-done-mark{flex:none;display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--hb-ok);color:var(--canvas);font-weight:700;font-size:0.8125rem}
+.cf-wiz-done b{display:block;font-size:0.9375rem;color:var(--hb-ink)}
+.cf-wiz-done p{margin:4px 0 0;font-size:0.8125rem;color:var(--hb-muted-2);line-height:1.55}
+/* Google — one account, one row per service (its card, its state, its own consent): a divided list, no frame. */
+.cf-gsvcs{display:flex;flex-direction:column}
+.cf-gsvc{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--hb-line)}
+.cf-gsvc:last-child{border-bottom:none}
+.cf-gsvc.on{box-shadow:inset 3px 0 0 var(--hb-accent);padding-left:12px}
+.cf-gsvc-name{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;font-weight:600;color:var(--hb-ink)}
 .cf-gsvc-name small{font-weight:400;color:var(--hb-muted);font-size:0.75rem}
-.cf-gsvc select{max-width:180px}
+.cf-gsvc select{max-width:180px;background:var(--hb-bg);color:var(--hb-ink);border:1px solid var(--hb-line);border-radius:var(--hb-r-s);padding:6px 8px;font-size:0.75rem}
+.cf-gsvc .cf-btn{min-width:108px}
 .cf-wiz-qr{text-align:center;padding:6px 0}
 .cf-wiz-qr img{width:220px;max-width:70vw;border-radius:12px;background:#fff;padding:8px}
 .cf-wiz-qr p,.cf-wiz-wait{margin:8px 0 0;font-size:0.8125rem;color:var(--hb-muted-2);line-height:1.5}
-.cf-wiz-nav{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cf-wiz-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:4px}
 .cf-wiz-blocked{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin-top:10px;padding:10px 12px;border:1px solid var(--hb-line);border-radius:var(--hb-r-m);background:var(--hb-warn-bg)}
 .cf-wiz-blocked .cf-wiz-text{color:var(--hb-warn-ink)}
 .cf-wiz-count{margin-left:auto;font-size:var(--fs-micro);color:var(--hb-muted-2)}
+/* buttons inside the wizard take the house metrics */
+.cf-wiz .cf-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:var(--hb-ctl-h);padding:0 16px;border-radius:var(--hb-r-m);font-size:0.8125rem}
 .cf-btn-ghost{background:none;color:var(--hb-ink);border:1px solid var(--hb-line)}
+.cf-btn-ghost:hover{background:var(--hb-hover);filter:none}
 .cf-apis{width:100%;border-collapse:collapse;font-size:0.75rem}
 .cf-apis td{padding:8px 6px;border-bottom:1px solid var(--hb-line);vertical-align:middle}
 .cf-api-name{color:var(--hb-ink);font-weight:600}

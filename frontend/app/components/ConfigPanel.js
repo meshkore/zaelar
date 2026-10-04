@@ -19,7 +19,7 @@ import { theme as themeSignal, setTheme } from "../core/store.js?v=2";
 // configuración»): same signals `update/UpdateSurface.js` already read, so the number keeps updating live
 // while Settings is open instead of freezing at whatever it was on open.
 import { build as updBuild, info as updInfo, check as updCheck } from "../update/watch.js?v=1";
-import { connectorList, connectorWizard, isSettling, groupGoogle, focusOf, GOOGLE } from "./ConnectorWizard.js?v=2";
+import { connectorList, connectorWizard, isSettling, groupGoogle, focusOf, GOOGLE } from "./ConnectorWizard.js?v=3";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const opt = (list, sel) => (list || []).map(o => `<option value="${esc(o.value != null ? o.value : o)}"${(o.value != null ? o.value : o) === sel ? " selected" : ""}>${esc(o.label != null ? o.label : o)}</option>`).join("");

@@ -196,6 +196,7 @@
  "config.cxw.step": "Paso {n} de {total}",
  "config.cxw.final_title": "Conecta",
  "config.cxw.connected_title": "Conectado",
+ "config.cxw.connected_body": "Zaelar está vinculado a {label}. Al desvincular pierde el acceso; puedes volver a conectar cuando quieras.",
  "config.cxw.copy": "Copiar",
  "config.cxw.copied": "Copiado",
  "config.cxw.open_link": "Abrir {site}",

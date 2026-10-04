@@ -76,47 +76,66 @@ export function guideSteps(c) {
   return [];
 }
 
+/** The first letter of the service as its mark. The catalog ships no logos (and third-party marks carry their
+ * own usage terms), so the tile is ours: one letter, the accent at low alpha, the same shape in the list and
+ * on the connector's page — what makes a row and its page read as the same thing. */
+const avatar = (label, esc, small) =>
+  `<span class="cf-cx-avatar${small ? " cf-cx-avatar--sm" : ""}" aria-hidden="true">${esc(String(label || "?").trim().charAt(0).toUpperCase())}</span>`;
+
 /** The tab with nothing chosen: one compact row per connector, grouped by family. Nothing is open yet. */
 export function connectorList(cs, fams, { t, esc, badge }) {
   const rows = fams.map(([f, title]) => {
     const items = cs.filter(c => c.family === f);
     if (!items.length) return "";
     return `<h3 class="cf-fam">${esc(title)}</h3><div class="cf-cx-list">${items.map(c =>
-      `<button type="button" class="cf-cx-row" data-cx="${esc(c.id)}"><span class="cf-cx-name">${esc(c.label)}</span>${badge(c)}` +
+      `<button type="button" class="cf-cx-row" data-cx="${esc(c.id)}">${avatar(c.label, esc, true)}<span class="cf-cx-name">${esc(c.label)}</span>${badge(c)}` +
       `<span class="cf-cx-go">${esc(c.connected ? t("config.cxw.manage") : t("config.cxw.configure"))} ›</span></button>`).join("")}</div>`;
   }).join("");
   return `<p class="cf-cx-intro">${esc(t("config.cxw.choose"))}</p>${rows}`;
 }
 
-/** ONE connector: breadcrumb, stepper, the current step, and a way back at every step. `form` is the
- * connector's own form (ConfigPanel's), shown on the last step; `step` past the guide clamps to it. */
+/** ONE connector: breadcrumb, a hero (mark, name, state, one line), then the guide as a VERTICAL stepper whose
+ * current step carries its own text, link, code and Back/Next — the shape of a first-rate setup page (one column,
+ * one thing at a time, no box inside a box). `form` is the connector's own form (ConfigPanel's), shown flat on the
+ * last step; `step` past the guide clamps to it. The 2026-10-04 redesign (operator: «el marco exterior, la
+ * ubicación del botón…») kept every hook the panel wires: data-cx-back, data-cx-step, data-copy, .cf-cx-act. */
 export function connectorWizard(c, step, form, famTitle, { t, esc, badge }) {
   // Google's last step is its SERVICES, so its guide is shown whenever the app is missing, connected or not.
   const guide = c.connected && c.id !== GOOGLE ? [] : guideSteps(c);
   const total = guide.length + 1;
   const at = Math.max(0, Math.min(step | 0, total - 1));
+  // «Google › Google» said nothing twice: the family crumb is shown only when it adds a word.
+  const fam = famTitle && famTitle !== c.label ? `<span class="cf-crumb-sep">›</span><span>${esc(famTitle)}</span>` : "";
   const crumb = `<nav class="cf-crumb" aria-label="breadcrumb"><button type="button" class="cf-crumb-back" data-cx-back="1">← ${esc(t("config.cxw.back"))}</button>` +
-    `<span class="cf-crumb-sep">›</span><span>${esc(famTitle)}</span><span class="cf-crumb-sep">›</span><b>${esc(c.label)}</b></nav>`;
-  const head = `<header class="cf-panel-head"><h4>${esc(c.label)} ${badge(c)}</h4>${c.detail ? `<p>${esc(c.detail)}</p>` : ""}</header>`;
+    `${fam}<span class="cf-crumb-sep">›</span><b>${esc(c.label)}</b></nav>`;
+  const line = c.detail || (c.id === GOOGLE ? t("config.cxw.google_services") : "");
+  const head = `<header class="cf-panel-head cf-cx-hero">${avatar(c.label, esc, false)}<div class="cf-cx-hero-text"><h4>${esc(c.label)} ${badge(c)}</h4>` +
+    `${line ? `<p>${esc(line)}</p>` : ""}</div></header>`;
   const titles = guide.map(g => t(`config.cxw.${g.key}.title`, g.params))
     .concat([c.id === GOOGLE ? t("config.cxw.services_title")
               : c.connected ? t("config.cxw.connected_title") : t("config.cxw.final_title")]);
-  const stepper = total > 1 ? `<ol class="cf-wiz-steps">${titles.map((ti, i) =>
-    `<li class="cf-wiz-step${i === at ? " on" : ""}${i < at ? " done" : ""}"><button type="button" data-cx-step="${i}">` +
-    `<span class="cf-wiz-n">${i < at ? "✓" : i + 1}</span>${esc(ti)}</button></li>`).join("")}</ol>` : "";
   let body;
   if (at < guide.length) {
     const g = guide[at];
     body = `<p class="cf-wiz-text">${esc(t(`config.cxw.${g.key}.body`, g.params))}</p>` +
-      (g.code ? `<div class="cf-wiz-code"><code>${esc(g.code)}</code><button type="button" class="cf-btn cf-wiz-copy" data-copy="${esc(g.code)}">${esc(t("config.cxw.copy"))}</button></div>` : "") +
-      (g.link ? `<p><a class="cf-wiz-link" href="${esc(g.link)}" target="_blank" rel="noopener">${esc(t("config.cxw.open_link", { site: new URL(g.link).host }))} ↗</a></p>` : "");
+      (g.code ? `<div class="cf-wiz-code"><code>${esc(g.code)}</code><button type="button" class="cf-btn cf-btn-ghost cf-wiz-copy" data-copy="${esc(g.code)}">${esc(t("config.cxw.copy"))}</button></div>` : "") +
+      (g.link ? `<p class="cf-wiz-go"><a class="cf-btn cf-btn-ghost cf-wiz-link" href="${esc(g.link)}" target="_blank" rel="noopener">${esc(t("config.cxw.open_link", { site: new URL(g.link).host }))} ↗</a></p>` : "");
   } else {
-    const ready = c.id === GOOGLE ? `<p class="cf-wiz-text">${esc(t("config.cxw.google_services"))}</p>` : "";
-    body = ready + `<div class="cf-group">${form}</div>` + liveState(c, { t, esc });
+    // Connected (and not Google): say so in one card, then the form — which is the quiet way out (Disconnect).
+    const done = c.connected && c.id !== GOOGLE
+      ? `<div class="cf-wiz-done" role="status"><span class="cf-wiz-done-mark" aria-hidden="true">✓</span><div><b>${esc(t("config.cxw.connected_title"))}</b>` +
+        `<p>${esc(t("config.cxw.connected_body", { label: c.label }))}</p></div></div>` : "";
+    body = done + `<div class="cf-wiz-form${c.connected && c.id !== GOOGLE ? " cf-wiz-form--quiet" : ""}">${form}</div>` + liveState(c, { t, esc });
   }
-  const nav = `<div class="cf-wiz-nav">${at > 0 ? `<button type="button" class="cf-btn cf-btn-ghost" data-cx-step="${at - 1}">${esc(t("config.cxw.prev"))}</button>` : "<span></span>"}` +
-    (at < total - 1 ? `<span class="cf-wiz-count">${esc(t("config.cxw.step", { n: at + 1, total }))}</span><button type="button" class="cf-btn" data-cx-step="${at + 1}">${esc(t("config.cxw.next"))}</button>` : "") + `</div>`;
-  return `${crumb}<section class="cf-panel-sec cf-wiz">${head}${stepper}<div class="cf-wiz-body">${body}</div>${nav}</section>`;
+  const nav = total > 1 ? `<div class="cf-wiz-nav">${at > 0 ? `<button type="button" class="cf-btn cf-btn-ghost" data-cx-step="${at - 1}">${esc(t("config.cxw.prev"))}</button>` : "<span></span>"}` +
+    (at < total - 1 ? `<span class="cf-wiz-count">${esc(t("config.cxw.step", { n: at + 1, total }))}</span><button type="button" class="cf-btn" data-cx-step="${at + 1}">${esc(t("config.cxw.next"))}</button>` : "") + `</div>` : "";
+  // The vertical stepper: every title is a step; the current one carries the body and the nav underneath it.
+  const steps = total > 1 ? `<ol class="cf-wiz-steps">${titles.map((ti, i) =>
+    `<li class="cf-wiz-step${i === at ? " on" : ""}${i < at ? " done" : ""}"><button type="button" class="cf-wiz-step-h" data-cx-step="${i}">` +
+    `<span class="cf-wiz-n">${i < at ? "✓" : i + 1}</span><span class="cf-wiz-t">${esc(ti)}</span></button>` +
+    (i === at ? `<div class="cf-wiz-body">${body}${nav}</div>` : "") + `</li>`).join("")}</ol>`
+    : `<div class="cf-wiz-body">${body}</div>`;
+  return `${crumb}<section class="cf-panel-sec cf-wiz">${head}${steps}</section>`;
 }
 
 /** What is happening NOW on the last step: the QR to scan (WhatsApp/Telegram), a wait, or the error. */
