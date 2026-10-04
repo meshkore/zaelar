@@ -28,6 +28,11 @@ def validate_connect(platform: str, payload: dict) -> str | None:
     if platform == "telegram":
         api_id = str((payload or {}).get("api_id") or "").strip()
         api_hash = str((payload or {}).get("api_hash") or "").strip()
+        # No app of his own typed: the install's app (TG_API_ID/TG_API_HASH in its credentials) is enough —
+        # then connecting is the QR alone, like WhatsApp.
+        from connectors.telegram import config as _tg
+        if not (api_id or api_hash) and _tg.has_credentials():
+            return None
         if not api_id.isdigit() or not api_hash:
             return ("Necesito el api_id (solo números) y el api_hash. Los sacas en my.telegram.org → "
                     "API development tools.")
@@ -81,7 +86,8 @@ async def apply_connect(platform: str, payload: dict | None = None) -> dict:
         return {"ok": False, "error": err}
 
     patch = {"enabled": True}
-    if platform == "telegram":
+    if platform == "telegram" and str(payload.get("api_id") or "").strip():
+        # Only his OWN app is stored; without one the install's app is used and nothing is written.
         patch.update({"api_id": str(payload.get("api_id")).strip(),
                       "api_hash": str(payload.get("api_hash")).strip()})
     if platform == "email":

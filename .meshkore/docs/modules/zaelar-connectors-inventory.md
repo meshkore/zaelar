@@ -57,7 +57,7 @@ an edit or a deletion in zaelar never travels back, and the card says so.
 | family | id | label | auth | widget | doc |
 |---|---|---|---|---|---|
 | mensajeria **+ contactos** | `whatsapp` | WhatsApp | QR (Baileys bridge) | mensajeria, contactos | — |
-| mensajeria **+ contactos** | `telegram` | Telegram | app password (Telethon) | mensajeria, contactos | — |
+| mensajeria **+ contactos** | `telegram` | Telegram | QR (Telethon) with the install's own app (`TG_API_ID`/`TG_API_HASH` env); own api_id/api_hash optional | mensajeria, contactos | — |
 | mensajeria | `email` | Email (IMAP/SMTP) | app password / **Gmail OAuth** | mensajeria | — |
 | musica | `spotify` | Spotify | OAuth | musica | — |
 | musica | `youtube-audio` | YouTube (free audio) | none | musica | — |

@@ -61,7 +61,8 @@ export function guideSteps(c) {
   const uri = CALLBACKS[id] ? (location.origin + CALLBACKS[id]) : "";
   if (id === "whatsapp") return [{ key: "whatsapp.1" }];
   // The messaging card's own three steps (sign in → create the app with these exact values → paste), moved here.
-  if (id === "telegram") return [{ key: "telegram.1", link: LINKS.telegram }, { key: "telegram.2", link: LINKS.telegram }];
+  // With Zaelar's own Telegram app on this install, Telegram is WhatsApp's flow: the form step is the QR.
+  if (id === "telegram") return cc.app_shipped ? [] : [{ key: "telegram.1", link: LINKS.telegram }, { key: "telegram.2", link: LINKS.telegram }];
   if (id === "email") return [{ key: "email.1", link: LINKS.email }];
   if (id === "spotify") return [{ key: "spotify.1", link: LINKS.spotify }];
   if (id === "onedrive") return cc.app_configured ? [] : [{ key: "onedrive.1", link: LINKS.entra, code: uri }, { key: "onedrive.2" }];

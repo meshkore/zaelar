@@ -33,6 +33,14 @@ def _messaging() -> list[dict]:
             lv = live.get(p) or {}
             status = str(lv.get("status") or ("off" if not pub.get("enabled") else "starting"))
             label, auth = meta.get(p, (p.title(), "app-password"))
+            if p == "telegram":
+                # The install ships Zaelar's own Telegram app (credentials env, never the repo): then the operator
+                # only scans a QR. `own_app` = he typed his own, which wins (`connectors/telegram/config.py`).
+                import os as _os
+                pub = {**pub, "app_shipped": bool(_os.getenv("TG_API_ID") and _os.getenv("TG_API_HASH")),
+                       "own_app": bool(pub.get("api_id"))}
+                if pub["app_shipped"] and not pub["own_app"]:
+                    auth = "qr"
             out.append({"id": p, "label": label, "family": "mensajeria", "auth": auth,
                         "connected": status == "connected", "status": status,
                         "detail": str(lv.get("detail") or ""), "qr": lv.get("qr"), "config": pub})

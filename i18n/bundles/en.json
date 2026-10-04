@@ -290,6 +290,8 @@
  "config.cxw.telegram.2.body": "Open «API development tools» and fill in the form: App title «Zaelar», Short name «Zaelar», leave the rest blank. Press «Create application». You will see two values: the api_id (a short number) and the api_hash (a long string of letters and digits).",
  "config.cxw.telegram.form_tip": "Paste both values here. The api_id is a short number; the api_hash a long string of letters and digits.",
  "config.cxw.telegram.missing": "Something is missing: the api_id is digits only and the api_hash cannot be empty.",
+ "config.cxw.telegram.shipped": "Press Connect and scan the QR code with your phone: Telegram → Settings → Devices → Link desktop device. Nothing else is needed.",
+ "config.cx.tg_own": "Use my own Telegram app (advanced)",
  "config.msg.connecting": "{id}: connecting…",
  "config.msg.couldnt_query": "✗ couldn't query",
  "config.msg.couldnt_start": "couldn't start",
