@@ -104,6 +104,13 @@ def _a_choose(action, payload, sheet) -> dict:
 def _a_detail(action, payload, sheet) -> dict:
     data = _d.view_data(sheet)
     it = _d._find(data.get("items") or [], _d._named(payload), payload.get("index"))
+    if not it and _d._named(payload) and not (payload.get("sheet") or payload.get("q")):
+        # Demo pass 107, S3: the call named no sheet, the base had no such row and the errand's instance did.
+        hits = [(s, f) for s in _d.sheets() if s != sheet
+                for f in [_d._find(_d.view_data(s).get("items") or [], _d._named(payload), None)] if f]
+        if len(hits) == 1:
+            sheet, it = hits[0]
+            data = _d.view_data(sheet)
     if not it:
         return {"ok": False, "error": "no encuentro ese resultado en la hoja (pasa el title o index 1-based)"}
     data["view"] = "detail"

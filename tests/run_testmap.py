@@ -3737,6 +3737,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
         # 2026-10-04 — a consent window the browser blocks is SAID and offered as a link under the connector pressed:
         # the panel used to sit on «connecting…» for three minutes with nothing open. Rendered (ConfigPanel + bundle).
+        {"id": "2.234", "title": "«Open the best deal» lands on the sheet that HOLDS the item when the call names no sheet — "
+                                 "exactly one other sheet with that title (demo pass 107 S3, 2026-10-04)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_detail_finds_the_sheet_that_holds_the_item.py"]},
         {"id": "2.233", "title": "A forward names its mail with decoration («Vendor AI (recibo #N)») and still finds it — the core "
                                  "of what he named is asked of the archive too (demo pass 107 E3, 2026-10-04)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_decorated_sender_still_finds_the_mail.py"]},
