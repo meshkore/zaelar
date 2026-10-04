@@ -25,6 +25,7 @@ entregada siga citada aquí.
 > full entries to the archive and leave their index line, exactly as this pass did. Never delete a citation:
 > the closure trinquete requires every delivered initiative to stay cited in this file.
 
+- **Demo V1, passes 102-107: an order is his when he names the recipient, a refused send never says «Done.», and what leaves goes in his language (2026-10-04)**: seven fixes from re-running the mail and calendar blocks of the demo after the connectors became one door. (1) The leave gate (F4-33) held «send the invoice to <name>» and «send <name> a telegram» for a yes with the vendor's mail in the context — the verdict read the act at 0.51; the recipient named in his own words is now the second reader, and one only the stranger's text names still asks (2.226). (2) «<name>'s Telegram is @x» reached `add_phone {name, channel, handle}` on a closed card: the text channel read the empty `item` as a loose pronoun and dropped it (the voice rail already took a payload name as the reference — `frontend.payload_ref`, shared), and `add_phone` would have stored the @handle as a phone; a messaging handle is `set_channel` (2.227). A third flat shape, `{channel, value}`, followed in the next pass (2.225). (3) The one-pass repair wrote the note in Spanish after a Spanish refusal; its prompt names the session language (2.228). (4) A turn whose every op was refused with an internal reason said the canned «Done.» 10 ms after the refusal; the ack now waits (bounded) and says the reason (2.229). (5) The model wrote the outgoing Telegram in Spanish: the language lock names messages and notes (2.230), and since the note to the accountant stayed Spanish three passes running, the send door (`dispatch_and_report`) translates an `external.send` text in the other product language once (`nucleo/flash/outgoing_lang.py`, 2.232). (6) «five free days in her vacation» answered from the day view: two ops on one card are matched to their answers by action, in dispatch order (2.186). Calendar events the passes created on the operator's real calendar were cancelled after each pass.
 - **Telegram ships Zaelar's own app, so connecting it is the QR alone (2026-10-04)**: the operator asked why Telegram needed an api_id/api_hash when WhatsApp is one scan. MTProto (the user API we use, not the Bot API) requires an app identity, and every install had been asking each user to register one — the messaging card did too, in three steps. The install now carries ONE app (`TG_API_ID`/`TG_API_HASH` in the credentials env, the same place as the shipped Google client, never the public repo — Telegram wants each client and fork on its own app), `validate_connect` accepts an empty connect when it is there, nothing empty is written over it, and the registry tells the tab (`app_shipped`). With the install's app there is no own-app option at all (operator: simpler); the api_id form appears only where no app exists — a public clone without our credentials — because there it is the only way in. OpenClaw and Hermes were checked: both use a BotFather bot token, which only sees messages sent to the bot — a different product, left as a possible extra channel. Node 2.222.
 - **The connector page is one column, one thing at a time; a blocked consent window is said; the bar docks the wall (V2-778, 2026-10-04)**: three operator reports from the same morning, one session after the connectors became ONE door. (1) «el diseño mejorable, la ubicación del botón, quitar el marco exterior»: the ⚙ Conectores page was a box inside a box (the settings `cf-group` around a lone Disconnect button, Google's service cards inside another frame) with a horizontal pill stepper and a detached Back/Next row. It is now the shape of a first-rate setup page: a hero (one-letter mark, name, state, one line), a VERTICAL stepper whose open step carries its own text, link button, code and Back/Next, the form flat on the last step with the one affirmative button at the end on the right, a «Connected» card plus a quiet Disconnect when linked, and Google's services as a divided list. No logos on purpose (third-party marks carry their own terms): the mark is ours and identical in the list and on the page. Every size and colour is a palette token. The hooks the panel wires (`data-cx`, `data-cx-step`, `data-cx-back`, `data-copy`, `.cf-cx-act[data-act]`) are unchanged, which is what kept the one-door tests (2.219-2.221) green through the redesign. (2) «he intentado conectar google, y se ha quedado ahí»: the token exchange had landed; Chrome's pop-up blocker had refused the consent window and the panel sat on «connecting…» for three minutes. Detected now (`window.open` → null), said, and offered as a link under the connector pressed — a click of his own is never blocked (`test_a_blocked_consent_window_leaves_a_way_in`, 2.221). (3) «al inicializar un agente, cuando abro la barra izquierda se abre anidada a la izquierda; solo flotante desde el orbe, salvo si ya está pegada»: the wall's shape was its own memory, blind to the opener; `openChatFrom("bar"|"orb")` is the hint the wall reads once (4.246).
 - **The decisions archive is append-only, and the probe imports the connector door directly (V2-778, 2026-10-04)**: a quick audit of the 48 hours after the demo week found the archive of this diary truncated — the 2026-10-02 archive pass WROTE `decisions-archive.md` instead of appending (`b0aab8d5`: 22 lines in, 10 389 out) and the next pass overwrote the stub again (`c0407eec`), so the index below pointed at full text that no longer existed. Restored from git at 10 456 lines with the two 2026-10-02 sections on top, and `test_the_archive_only_grows` (node 7.x in `test_claude_md_ratchet.py`) now holds that line count as a floor: a pass can only make the file longer. Same audit, same commit: the new `connector_canon` (one door for every connector, 2026-10-04) was reached by the probe only through the router's re-export, so the import ratchet (ALERT 5) flagged it — `probe_decide` imports it directly now, and `widget_read` left `VOICE_ONLY` because the probe imports it; the tool catalog was 8 chars over its 23 600 ceiling after the show_panel trim and lost 17 (`sus TAREAS = widget agenda`, `si pide cerrarlo`); the demo persona's name left the public brain case `demo-v2.json` (the identity ratchet). CI on main had been red on every push since the connectors landed; these were the non-connector reds.
@@ -2238,113 +2239,18 @@ entregada siga citada aquí.
     errand against a real agreement — the party turn holds no tools, so nothing turns «agreed» into an
     agenda row yet (V2-683 row 6, blocked on `connectors/calendar/`).
 
-- **An errand with a THIRD PARTY outlives the turn — and it ships in SHADOW (V2-683, 2026-09-13)**: the
-  operator's errand — «contacta con Iván Musikin y mantén una conversación con él para organizar una
-  reunión esta tarde… y cuando él conteste, ahora o dentro de diez horas, sigue esa conversación» — plus
-  the architectural half that outlives it: «que el sistema pueda soportar workflows de este tipo o de
-  cualquier otra índole SIN necesidad de que lo tengamos que programar». **Measured before building
-  anything: four kinds of «ongoing» existed and not one could hold it** — the TURN (seconds), the WORKER
-  SESSION (`workers/session.py`: minutes, RAM, buried by `rehydrate.py` past `STALE_S`), the CRON (a prompt
-  at a time, no state) and the HARNESS GOAL (`harness.py`: TTL 300 s, cap 8, RAM, verifies only whether a
-  widget is empty). And three capabilities were missing outright: a contact had **no channels** (phone and
-  email, no Telegram handle, no preferred one), **every outbound path required a conversation that already
-  existed** (`_resolve_target` → `pending_reply` → each connector's drain), and nothing linked an inbound
-  message to an errand WE started. So the work is a missing NOUN plus its resources, and deliberately NOT a
-  workflow engine: no steps, no branches, no retries — that is the script the brain-worker doctrine
-  forbids, and it is what would make «reservar una mesa» need a second engine next month.
-  - **`nucleo/errands/` is a ROW, not a process**: it survives a restart because that is what a row does,
-    and it is woken by the world instead of sitting in memory waiting. It is born from HIS OWN YES —
-    `mensajeria.send_to` is confirm-gated and its question IS the mandate («Voy a escribir a Iván Musikin
-    por Telegram: "…". Es para organizar una reunión esta tarde: si contesta, sigo yo la conversación por
-    ahí y te aviso») — and, his own rule, **it closes itself**: the objective verifies, the deadline passes
-    («en las próximas cuatro horas» is a GRAMMAR; a vague «esta tarde» falls back to a DECLARED default
-    rather than a guessed date, the call `scheduler.parse_when` already makes), or he says so. A closed
-    errand RELEASES its conversations, and `errand_threads`' primary key `(platform, chat_id)` makes «one
-    errand per conversation» structural rather than remembered.
-  - **The party turn holds NO TOOLS.** A stranger's words reach a model — that is what following a
-    conversation means — and the model returns ONE JSON object the ENGINE executes. There is nothing for an
-    injected instruction to call, structurally rather than by prompt wording. The profile is `cluster.py`'s
-    UNTRUSTED one (V2-069) with exactly two differences, both written down: identity is disclosed BY MANDATE
-    and only that much (the assistant's name, the operator's first name, that it writes on his behalf —
-    that IS the errand), and the language follows the PARTY. `compose_state` is never read. The reply can
-    only reach the conversation the errand already owns, held by two independent guards (a whitelist on the
-    parse, and a send BUILT from the binding).
-  - **SHADOW is what ships** (`errands.shadow`, genesis, default true): it decides and LOGS what it would
-    say, and sends nothing. Autonomy that writes to real people in his name is handed over after he has read
-    a few of those rows, not on the strength of a green suite. Fails closed, as do ⏻ (postponed, never lost)
-    and an unreadable answer (half an action out of unparseable prose is worse than none: it reaches a
-    person). Outbound text passes `memory/secrets.py` at the owner's flush and FAILS CLOSED — unlike a reply
-    he dictated, this text was written by a model for a third party.
-  - **Playbooks are DATA and a briefing** (`genesis.json`, overridable in `config/playbooks.json` — his
-    «otro usuario podría querer Zoom», one file away): what «done» means, what must be known first, how the
-    thing is done well, what ends it. Three properties keep it a shortcut and not a fence, each a test: an
-    errand with NO playbook still runs, the operator's file wins, and nothing in it names a person, a company
-    or a site — swap reunión→cena→taller and it stands.
-  - **It closes on the product's own truth**: `verify.py` asks the agenda, ignores a meeting he ALREADY had
-    (or last week's dentist closes today's errand), and answers None when it cannot read — which closes
-    nothing, because a wrong «ya está» is the exact lie the V2-660 harness was built against.
-  - ⚠️ **The ratchet caught a DESIGN mistake, not just a size**: the errand rows were being merged inside
-    `dispatch.active_sessions()`, which feeds the stall detector, the susurro's dedup and the worker ledger
-    — all three reasoning about a PROCESS, to which «waiting three hours for somebody to answer» reads as a
-    stuck worker. Moved to the `/api/tasks` route (the operator's board); the brain has its own seam, the
-    context pack. `dispatch.py` ended UNCHANGED and `memory/api.py` too (the facade went to
-    `memory/errands_store.py`), both paid by extraction and never by a higher ceiling.
-  - ⚠️ **Twenty green disarms across the batch, and they split three ways**: a guard that guarded NOTHING
-    (deleted, V2-655's rule), tests that measured with values where the mutation changed nothing (a window
-    equal to the default, a ceiling the grammar rejected, a numeric id where the point was a non-numeric
-    one), and — three times — a property genuinely held by TWO independent guards, re-anchored on the
-    load-bearing one, with the one that cannot be disarmed alone SAYING SO in the test instead of pretending.
-    Sixty-three disarms in total, every mutation asserted, all red.
-  - Nodes **4.96**, **4.166**, **5.24**, **3.41** and **3.42** (105 cases). ⚠️ **NOT verified live**: no
-    real message has been sent by this path and no real person has answered one — which is what shadow mode
-    is for. **NOT built**: the Meet link (`conferenceData.createRequest`, one small gap) waits on
-    `connectors/calendar/` being committed by the session that owns it; and the messaging widget's prompt
-    debt (a legacy 2 090-char `[[msg.*]]` protocol duplicating its 26 declared actions, and no
-    `prompt_digest`) is named in the initiative and deliberately left alone: retiring the protocol and
-    adding the digest are two halves of ONE swap on a live path, and that deserves its own batch.
-
-- **A SET PHRASE is answered from a table, in any language — the phrasebook (V2-674, 2026-09-11)**: the
-  operator, after starting a session in ENGLISH to check the product is language agnostic — «le digo hola y
-  me dice un segundo o check-in, o sea, ¿qué vas a chequear si te acabo de decir hola?… ya lo pedí, una serie
-  de frases hechas que estuvieran ya preseteadas en el idioma, en una hash table de saludos». **MEASURED in
-  that session's own observability (sid fdd096a3 / daa7a385) before writing a line**: «Hello and good
-  morning. How are you?» cost a **3 440 ms** model call covered by «Let me explain…»; «You were saying?» got
-  «One sec, checking…» and then an **INVENTED errand** («there's a WhatsApp message from Jo that came in as
-  an image»), assembled out of a memory pill; «Hey, mate. You there?» got «Let me check that for you…». None
-  of the three is a request. **The mechanism already existed for a narrower case**: `presence.py` answers
-  «¿sigues ahí?» from a pool, with no model and no tool. This is the same idea widened to the phrases that
-  open, close and cushion a conversation — greeting, «¿qué tal?», «gracias», «adiós» — and one more that only
-  exists as a pair («bien» means «I'm fine» ONLY when our own previous reply handed the question back;
-  otherwise it is the answer to something WE asked, which is V2-665's defect with the roles reversed).
-  **It is DATA and not a regex, and that is the whole reason it earns the words «language agnostic»**:
-  `presence.py`'s regex is Spanish + English and structurally cannot grow to forty languages, so cues and
-  replies hang off `LangSpec.smalltalk` (es/en, verified native) and `i18n/init/smalltalk.py` GENERATES a pack
-  for any other language at onboarding, beside the alias pack that has been doing exactly this since V2-101.
-  A language with neither answers `{}` — the lane declines and the model answers, as before. **Matching is
-  deliberately strict**: the whole utterance must decompose into cues, generic forms of address and the
-  language's own coordinating words («hello AND good morning» is two phrases with no punctuation between
-  them, which is how he actually said it), and ONE unknown word hands the turn back untouched. The asymmetry
-  is the point — answering «hola» with a model costs three seconds, and answering a real request with «¡Hola!
-  Dime.» is a broken product — so the refusing cases carry most of the test weight. Replies come from a pool
-  avoiding the last one used, per his «una especie de diálogo heurístico, un poco random»; and the
-  `bounces`/`after_bounce` flags are OURS and never the translator's, because they encode a rule about the
-  CONVERSATION and a pack that could set them would quietly change how the lane behaves. Two smaller findings
-  from the same three sentences shipped with it: the presence knock now strips generic forms of address
-  **wherever they appear** (the only word standing between «Hey, mate. You there?» and the lane that answers
-  it was «mate»), and «you were saying» joins the social filler class so a question about the conversation
-  stops arming a cover that promises to go and look at something. Node **3.37**; ten disarms, mutations
-  asserted, all red. Ratchet paid by EXTRACTING: the probe's three deterministic lanes are one call now
-  (`probe_actionmap.try_fast_lanes`, 1147 → 1138), and the three wiring guards that named `probe.py` name the
-  CHANNEL instead, per V2-555.
-
-- **A PHASE of the relationship has its own prompt, and it archives itself — context packs (V2-675, 2026-09-11)** (V2-536, V2-594, V2-603, V2-674, V2-675) — texto íntegro en `decisions-archive.md`
-- **A config save is judged by what it LEAVES, and the suite stops writing the operator's routing (V2-673, 2026-09-11)** (V2-657, V2-673, V2-778) — texto íntegro en `decisions-archive.md`
-- **The DEPLOYMENT picks the profile — nobody is asked, and one default replaces two (V2-671, 2026-09-11)** — texto íntegro en `decisions-archive.md`
-- **NOBODY SPEAKS before a language is chosen — the wordless picker, the voice that follows the language, and where the files live (V2-672, 2026-09-11)** — texto íntegro en `decisions-archive.md`
-- **A question about what a widget HOLDS is answered by the widget (V2-668, 2026-09-11)** — texto íntegro en `decisions-archive.md`
-- **An order NAMES its target, and a notice waits its turn (V2-666, 2026-09-11)** — texto íntegro en
-  `decisions-archive.md`; cita además V2-584, V2-651, V2-656, V2-661, V2-667
 ### Archived decisions — index (full text: `.meshkore/docs/decisions-archive.md`)
+
+#### Movidas el 2026-10-04 (demo V1 close)
+
+- **An errand with a THIRD PARTY outlives the turn — and it ships in SHADOW (V2-683, 2026-09-13)** — texto íntegro en `decisions-archive.md` («Moved on 2026-10-04») — V2-069, V2-655, V2-660, V2-683
+- **A SET PHRASE is answered from a table, in any language — the phrasebook (V2-674, 2026-09-11)** — texto íntegro en `decisions-archive.md` («Moved on 2026-10-04») — V2-101, V2-555, V2-665, V2-674
+- **A PHASE of the relationship has its own prompt, and it archives itself — context packs (V2-675, 2026-09-11)** — texto íntegro en `decisions-archive.md` («Moved on 2026-10-04») — V2-536, V2-594, V2-603, V2-674, V2-675
+- **A config save is judged by what it LEAVES, and the suite stops writing the operator's routing (V2-673, 2026-09-11)** — texto íntegro en `decisions-archive.md` («Moved on 2026-10-04») — V2-657, V2-673, V2-778
+- **The DEPLOYMENT picks the profile — nobody is asked, and one default replaces two (V2-671, 2026-09-11)** — texto íntegro en `decisions-archive.md` («Moved on 2026-10-04») — V2-671
+- **NOBODY SPEAKS before a language is chosen — the wordless picker, the voice that follows the language, and where the files live (V2-672, 2026-09-11)** — texto íntegro en `decisions-archive.md` («Moved on 2026-10-04») — V2-672
+- **A question about what a widget HOLDS is answered by the widget (V2-668, 2026-09-11)** — texto íntegro en `decisions-archive.md` («Moved on 2026-10-04») — V2-668
+- **An order NAMES its target, and a notice waits its turn (V2-666, 2026-09-11)** — texto íntegro en `decisions-archive.md` («Moved on 2026-10-04») — V2-584, V2-651, V2-656, V2-661, V2-666, V2-667
 
 #### Movidas el 2026-09-29 (V2-776 J)
 
