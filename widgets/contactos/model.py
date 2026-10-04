@@ -337,7 +337,13 @@ def channels_in(payload: dict) -> list[dict]:
     """`channels` as a list of rows, or a single `{platform, handle}` — deduped by platform, last one wins."""
     raw = payload.get("channels")
     if raw is None:
-        return []
+        # The FLAT shapes a model reaches for (demo pass 101: `channel: telegram, handle: @x` saved Ethan with
+        # no Telegram): one `{channel|platform, handle|chatId}`, or the platform as its own key.
+        flat = [{"platform": payload.get("channel") or payload.get("platform"),
+                 "handle": payload.get("handle"), "chatId": payload.get("chatId")}]
+        flat += [{"platform": p, "handle": payload.get(p)} for p in ("telegram", "whatsapp")
+                 if isinstance(payload.get(p), str) and payload.get(p).strip()]
+        raw = flat
     rows = raw if isinstance(raw, (list, tuple)) else [raw]
     out: dict[str, dict] = {}
     for r in rows:

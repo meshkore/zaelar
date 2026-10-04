@@ -3737,6 +3737,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
         # 2026-10-04 — a consent window the browser blocks is SAID and offered as a link under the connector pressed:
         # the panel used to sit on «connecting…» for three minutes with nothing open. Rendered (ConfigPanel + bundle).
+        {"id": "2.225", "title": "A contact keeps the channel said FLAT — `channel`+`handle` or `telegram: @x` land as the same "
+                                 "channel row; the list shape still wins (demo pass 101 INIT, 2026-10-04)",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_a_contact_keeps_the_channel_said_flat.py"]},
         {"id": "2.224", "title": "A forward that must be confirmed is asked in his words — what goes, to whom, the note — never the "
                                  "manifest's model-facing description (demo pass 100 E3, 2026-10-04)",
             "ch": UNIT, "paths": ["tests/voice/unit/test_a_forward_is_asked_in_the_operators_words.py"]},
