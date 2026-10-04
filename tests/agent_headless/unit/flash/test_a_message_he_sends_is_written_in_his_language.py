@@ -1,6 +1,6 @@
 """A message written FOR someone else goes in the session's language too (demo pass 105, 2026-10-04).
 
-C5 «send ethan a telegram with the new time» in an English session: the model wrote «Oye Ethan, al final lo
+C5 «send rowan a telegram with the new time» in an English session: the model wrote «Oye Rowan, al final lo
 movemos media hora más tarde…». The language lock spoke of the REPLY only; every tool description it reads is
 Spanish, and the text it puts in a payload copied that. The lock now names those texts.
 """

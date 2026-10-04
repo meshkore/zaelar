@@ -1,6 +1,6 @@
 """A forward that has to be confirmed is asked in HIS words — what, to whom, with which note (2026-10-04).
 
-Demo pass 100, E3: «send the invoice to andrew, tell him we're already trying inworld…». The verdict was unsure,
+Demo pass 100, E3: «send the invoice to orion, tell him we're already trying inworld…». The verdict was unsure,
 so the stranger's-text gate (leave_gate) rightly asked first — and the question recited the manifest's own
 description, in Spanish, in an English session: «Careful, this is permanent: “REENVÍA por correo un mensaje que
 llegó… mándale a Quinn la factura…”». That text is written for the MODEL. `reply` and `send_to` already compose
@@ -21,12 +21,12 @@ def _ask(payload, lang="en"):
 
 
 def test_the_question_names_what_who_and_the_note():
-    q = _ask({"contact": "Andrew", "from": "Inworld", "text": "We're already trying Inworld, please book it."})
-    assert "Andrew" in q and "Inworld" in q and "already trying" in q, q
+    q = _ask({"contact": "Orion", "from": "Inworld", "text": "We're already trying Inworld, please book it."})
+    assert "Orion" in q and "Inworld" in q and "already trying" in q, q
     assert "REENVÍA" not in q and "Quinn" not in q, "the model's tool description was read to the operator"
     assert q.rstrip().endswith("?")
 
 
 def test_without_a_note_it_still_asks_cleanly():
-    q = _ask({"contact": "Andrew", "from": "Inworld"})
-    assert "Andrew" in q and "“”" not in q and "«»" not in q, q
+    q = _ask({"contact": "Orion", "from": "Inworld"})
+    assert "Orion" in q and "“”" not in q and "«»" not in q, q

@@ -1,7 +1,7 @@
 """A corrected call writes its text in the SESSION's language, named — never the refusal's (demo pass 102, 2026-10-04).
 
-E3 «send the invoice to andrew, tell him we're already trying inworld…» in an English session: `forward` was
-refused for a missing `text` with a Spanish reason, and the one-pass repair wrote the note to Andrew as «Ya
+E3 «send the invoice to quinn, tell him we're already trying inworld…» in an English session: `forward` was
+refused for a missing `text` with a Spanish reason, and the one-pass repair wrote the note to Quinn as «Ya
 estamos probando Inworld, resérvalo.» — the prompt only said «the operator's language», and the refusal and the
 manifest it read were both Spanish. The repair now names the language.
 """
@@ -20,8 +20,8 @@ def _system_prompt(monkeypatch, lang: str) -> str:
         async def complete(self, messages, **_kw):
             seen.append(messages[0]["content"])
     monkeypatch.setattr(fast_client, "FastClient", _FC)
-    asyncio.run(act_repair.call_for_refusal("send the invoice to andrew, tell him we're already trying inworld",
-                                            "mensajeria", "forward", {"contact": "Andrew"},
+    asyncio.run(act_repair.call_for_refusal("send the invoice to quinn, tell him we're already trying inworld",
+                                            "mensajeria", "forward", {"contact": "Quinn"},
                                             "falta `text` en forward: la nota para esa persona"))
     assert seen, "the repair pass never ran"
     return seen[0]

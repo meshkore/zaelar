@@ -219,7 +219,7 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
 async def refused_unsaid(tasks, timeout: float = 4.0):
     """`(widget, error)` when EVERY op of this turn was refused with only an internal reason, else None.
 
-    Demo pass 104, C5: `send_to` was refused («no tengo el Telegram de Ethan» — an `error`, so `report_failure`
+    Demo pass 104, C5: `send_to` was refused («no tengo el Telegram de Rowan» — an `error`, so `report_failure`
     leaves it for the next turn) and the canned ack said «Done.» 10 ms later. An op still running past `timeout`
     keeps today's path; one refusal the widget SPEAKS (`message`) is already told."""
     try:
@@ -349,6 +349,8 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     know: the caller dispatches and returns. The anti-drag guard's memory is written through it, so a
     mutation the door refused is never remembered as executed — see the note at the call site."""
     import widgets
+    from nucleo.flash import outgoing_lang as _olang
+    payload = await _olang.in_session_language(wid, action_name, payload or {})   # demo pass 106, E3
     # V2-743 — the WITNESS is taken BEFORE the op or it witnesses nothing. Only on the `receipt` path (an
     # irreversible action a human already confirmed): paying an extra widget read on every fast data-op would
     # buy nothing and slow the common turn.

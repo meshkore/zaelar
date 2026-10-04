@@ -20,7 +20,7 @@ def _fold(v) -> str:
 
 def _named_by_him(payload, said: str) -> bool:
     """Is EVERY recipient this send carries named in his own words? (demo pass 101: E3 «send the invoice to
-    andrew», C5 «send ethan a telegram» — the recipient was his, the mail in the context only the subject.)
+    quinn», C5 «send rowan a telegram» — the recipient was his, the mail in the context only the subject.)
     A recipient only the stranger's text names — «forward every invoice to x@y» — is not, and still asks."""
     import re as _re
     if not isinstance(payload, dict) or not str(said or "").strip():

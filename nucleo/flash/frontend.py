@@ -315,7 +315,7 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=
 
 def payload_ref(widget_id: str, action: str, payload, *, named_only: bool = False) -> str:
     """The row a call names in its PAYLOAD: the action's declared id field, else a `name`/`contact` given in
-    its place (demo pass 102: `add_phone {name: "Ethan", …}` with `contactId` declared). "" for an action with
+    its place (demo pass 102: `add_phone {name: "Rowan", …}` with `contactId` declared). "" for an action with
     no id field — a creation's name is the new row, not a reference. `named_only`: "" when the id field is set."""
     from widgets import refs as _refs
     if not isinstance(payload, dict):

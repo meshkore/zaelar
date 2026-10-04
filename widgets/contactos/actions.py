@@ -152,7 +152,7 @@ def _a_set_channel(action, payload, q, db, contacts, now) -> dict:
         return d
     # A handle that is only his NAME with an «@» in front is the model filling a required-looking slot,
     # not a handle anybody told it (INIT of the demo pass, 2026-09-28: «use his Telegram» came as
-    # `handle: "@Rowan"` over Rowan's real `@cryptonite_fund`, and would have overwritten it). Over a channel
+    # `handle: "@Rowan"` over Rowan's real `@rowan_example`, and would have overwritten it). Over a channel
     # we already have, it is dropped and the call only moves the preference, which is what was asked.
     _has_p = any(ch.get("platform") == p for ch in c.get("channels") or [])
     if handle and _has_p and _d._norm(handle.lstrip("@")) in {_d._norm(c.get("name") or ""),
@@ -182,7 +182,7 @@ def _a_add_channel(action, payload, q, db, contacts, now) -> dict:
     # a second action whose only job is to undo the first is a second thing to remember.
     key = "phones" if action == "add_phone" else "emails"
     field = "phone" if action == "add_phone" else "email"
-    # Demo pass 102: «Ethan's Telegram is @cryptonite_fund» came as `add_phone {channel: telegram, handle: @…}`
+    # Demo pass 102: «Rowan's Telegram is @rowan_example» came as `add_phone {channel: telegram, handle: @…}`
     # — a messaging handle with no number is his CHANNEL, never a phone.
     _plat = _d._platform(payload.get("platform") or payload.get("channel"))
     if action == "add_phone" and _plat in ("telegram", "whatsapp") and not str(payload.get("phone") or "").strip():

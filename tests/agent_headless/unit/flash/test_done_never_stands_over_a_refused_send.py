@@ -1,6 +1,6 @@
 """«Done.» never stands over a turn whose every op was refused with a reason nobody says (demo pass 104, 2026-10-04).
 
-C5 «send ethan a telegram with the new time»: `send_to` was refused («no tengo el Telegram de Ethan» — an internal
+C5 «send rowan a telegram with the new time»: `send_to` was refused («no tengo el Telegram de Rowan» — an internal
 `error`, addressed to the model, so `report_failure` only leaves it as a note for the NEXT turn) and, the model
 having said nothing, the canned success ack spoke «Done.» ten milliseconds later. The operator was told a message
 went out that never did. The ack now waits for this turn's ops; when all of them were refused unsaid, the reason
@@ -24,7 +24,7 @@ def _run(results, delay=0.0):
 
 
 def test_an_internal_refusal_is_returned_to_be_said():
-    why = _run([{"ok": False, "error": "no tengo el Telegram de Ethan"}], delay=0.2)
+    why = _run([{"ok": False, "error": "no tengo el Telegram de Rowan"}], delay=0.2)
     assert why and "Telegram" in why[1], why
 
 
@@ -45,7 +45,7 @@ def test_the_turn_says_the_reason_and_is_no_longer_done(monkeypatch):
     from nucleo.flash import data_ops
     from nucleo.workers import spoken_delivery
     async def _line(goal, summary, ok=True, **_k):
-        return "I couldn't send it — I don't have Ethan's Telegram."
+        return "I couldn't send it — I don't have Rowan's Telegram."
     monkeypatch.setattr(spoken_delivery, "line", _line)
     sent, done = [], {"v": True}
 
@@ -55,7 +55,7 @@ def test_the_turn_says_the_reason_and_is_no_longer_done(monkeypatch):
 
     async def go():
         async def op():
-            return {"ok": False, "error": "no tengo el Telegram de Ethan"}
+            return {"ok": False, "error": "no tengo el Telegram de Rowan"}
         return await data_ops.say_refusal_instead([("mensajeria", asyncio.ensure_future(op()))], done, sent.append, _Sp)
     said = asyncio.run(go())
     assert said and sent == [said] and done["v"] is False
