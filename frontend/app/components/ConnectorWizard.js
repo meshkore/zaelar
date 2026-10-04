@@ -60,7 +60,8 @@ export function guideSteps(c) {
   const id = String((c && c.id) || ""), cc = (c && c.config) || {};
   const uri = CALLBACKS[id] ? (location.origin + CALLBACKS[id]) : "";
   if (id === "whatsapp") return [{ key: "whatsapp.1" }];
-  if (id === "telegram") return [{ key: "telegram.1", link: LINKS.telegram }];
+  // The messaging card's own three steps (sign in → create the app with these exact values → paste), moved here.
+  if (id === "telegram") return [{ key: "telegram.1", link: LINKS.telegram }, { key: "telegram.2", link: LINKS.telegram }];
   if (id === "email") return [{ key: "email.1", link: LINKS.email }];
   if (id === "spotify") return [{ key: "spotify.1", link: LINKS.spotify }];
   if (id === "onedrive") return cc.app_configured ? [] : [{ key: "onedrive.1", link: LINKS.entra, code: uri }, { key: "onedrive.2" }];

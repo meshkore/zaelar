@@ -541,8 +541,9 @@ export function ConfigPanel() {
     } else if (id === "whatsapp") {
       box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="whatsapp">${t("config.cx.connect_qr")}</button>`;
     } else if (id === "telegram") {
-      box = `${row("api_id", `<input id="cx_tg_api_id" type="text" placeholder="${t("config.cx.tg_placeholder")}"/>`)}
-        ${row("api_hash", `<input id="cx_tg_api_hash" type="password" placeholder="${t("config.cx.tg_placeholder")}"/>`)}
+      box = `<p class="cf-wiz-text">${esc(t("config.cxw.telegram.form_tip"))}</p>
+        ${row("api_id", `<input id="cx_tg_api_id" type="text" inputmode="numeric" placeholder="12345678"/>`)}
+        ${row("api_hash", `<input id="cx_tg_api_hash" type="text" placeholder="${t("config.cx.tg_placeholder")}"/>`)}
         <button class="cf-btn cf-cx-act" data-act="connect" data-id="telegram">${t("config.cx.connect_qr")}</button>`;
     } else if (id === "email") {
       // The messaging card's per-provider guide, moved here with the connection (2026-10-04): WHERE to get the
@@ -682,7 +683,11 @@ export function ConfigPanel() {
       } else if (act === "connect") {
         if (id === "spotify") { await connectSpotify(btn); return; }
         let payload = {};
-        if (id === "telegram") payload = { api_id: val("cx_tg_api_id"), api_hash: val("cx_tg_api_hash") };
+        if (id === "telegram") {
+          payload = { api_id: String(val("cx_tg_api_id") || "").trim(), api_hash: String(val("cx_tg_api_hash") || "").trim() };
+          // Said HERE, beside the two boxes, before any round-trip — not as a server sentence in the top bar.
+          if (!/^\d+$/.test(payload.api_id) || !payload.api_hash) { msg("✗ " + t("config.cxw.telegram.missing")); return; }
+        }
         if (id === "email") {
           // The provider PRINTS the password in groups; IMAP AUTH does not want the spaces.
           payload = { email_address: val("cx_em_address"), email_password: String(val("cx_em_pass") || "").replace(/\s+/g, ""),

@@ -352,6 +352,10 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cn-fam{font-size:var(--fs-micro);font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--hb-muted-2);margin:10px 2px 2px}
 .cn-fam:first-child{margin-top:0}
 .cl-row.cn-imposs{opacity:.55}
+.cn-soon{margin-top:14px}
+.cn-soon>summary{cursor:pointer;list-style:none}
+.cn-soon>summary::before{content:'▸ '}
+.cn-soon[open]>summary::before{content:'▾ '}
 /* Processes tab: live + history */
 .cw-proc-sec{font-size:var(--fs-micro);font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--hb-muted-2);margin:6px 2px 2px}
 .cw-proc-sec:first-child{margin-top:0}
