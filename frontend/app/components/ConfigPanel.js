@@ -804,12 +804,13 @@ export function ConfigPanel() {
       // V2-561 — a caller (the ChatWall connector catalog) can ask to land on a specific tab, e.g.
       // "conectores", instead of always reopening on whatever `activeTab` was left at. Consumed once so a
       // later plain ⚙ click is not forced onto the same tab forever.
-      const want = store.configInitialTab();
+      // Both requests are READ before either is cleared: clearing one re-runs this effect synchronously, and a
+      // re-run that consumed the connector first left this run reading null (the chosen connector never opened).
+      const want = store.configInitialTab(), cxWant = store.configConnector();
       if (want && TABS.some(t => t.id === want)) { activeTab = want; store.setConfigInitialTab(null); }
       // …and the catalog row it was clicked on: that connector opens alone, on its first step (consumed once too).
-      const cxWant = store.configConnector();
-      cxFocus = cxWant || (want ? null : cxFocus); cxStep = 0;
-      if (cxWant) { activeTab = "conectores"; store.setConfigConnector(null); }
+      if (cxWant) { activeTab = "conectores"; cxFocus = cxWant; cxStep = 0; store.setConfigConnector(null); }
+      else if (want) { cxFocus = null; cxStep = 0; }
       load();
     }
     wasOpen = o;

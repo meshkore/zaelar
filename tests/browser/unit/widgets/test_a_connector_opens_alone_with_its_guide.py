@@ -100,3 +100,10 @@ def test_contacts_finally_has_a_form_and_a_route_behind_it():
     api = (APP / "services" / "api.js").read_text(encoding="utf-8")
     assert '"/api/contacts/connect"' in api
     assert '@router.post("/api/contacts/connect")' in (ENGINE / "connectors/contacts/server_api.py").read_text(encoding="utf-8")
+
+
+def test_both_requests_are_read_before_either_is_cleared():
+    """Clearing `configInitialTab` re-runs the open effect synchronously; a re-run that consumed the connector first
+    left the outer run reading null, and the catalog's connector never opened (measured live, 2026-10-04)."""
+    i = PANEL.index("const want = store.configInitialTab(), cxWant = store.configConnector();")
+    assert i < PANEL.index("store.setConfigInitialTab(null)", i) < PANEL.index("store.setConfigConnector(null)", i)
