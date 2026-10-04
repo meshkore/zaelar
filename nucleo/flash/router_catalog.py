@@ -163,14 +163,12 @@ TOOLS: list[dict] = [
         "function": {
             "name": "show_panel",
             "description": (
-                "Abre o CIERRA el PANEL lateral NATIVO del operador — es UI fija, NUNCA show_widget ni "
-                "[[show]]. `panel`: 'procesos' (TU trabajo en marcha; sus TAREAS van en el widget agenda) | "
+                "Abre o CIERRA el PANEL lateral NATIVO — UI fija, NUNCA show_widget ni [[show]]. "
+                "`panel`: 'procesos' (TU trabajo en marcha; sus TAREAS van en el widget agenda) | "
                 "'crons' (periódicos) | 'programadas' (una vez, luego) | "
-                "'chat' (muro de texto) | 'clusters' (red MeshKore) | 'conectores' (cuentas) | "
-                "'apps' (catálogo de apps/widgets). CONECTAR/configurar/desconectar CUALQUIER servicio "
-                "(Drive, calendario, Gmail, WhatsApp, Spotify…) es SIEMPRE esta, `panel:'conectores'` + "
-                "`connector` = cuál: abre su asistente paso a paso; ningún widget conecta nada. "
-                "Solo si quiere VER la lista; un dato suelto se dice hablando. Con `action:'close'` lo "
+                "'chat' (muro) | 'clusters' (red MeshKore) | 'conectores' (cuentas) | "
+                "'apps' (widgets). Conectar un servicio: + `connector`. "
+                "Solo para VER la lista; un dato suelto se dice. Con `action:'close'` lo "
                 "CIERRA. El chat NO es un widget: [[close]] no lo cierra — es ESTA."
             ),
             "parameters": {
@@ -178,8 +176,7 @@ TOOLS: list[dict] = [
                 "properties": {
                     "panel": {"type": "string",
                               "description": "cuál (clusters…)"},
-                    "connector": {"type": "string",
-                                  "description": "con panel 'conectores': el servicio (gdrive, google, email…)"},
+                    "connector": {"type": "string"},
                     "action": {"type": "string",
                                "description": "'open' (por defecto) o 'close' si pide cerrarlo/quitarlo"},
                 },
