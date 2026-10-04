@@ -343,6 +343,9 @@ def _mail_identities(m: dict | None, ref: dict) -> list[tuple[str, str]]:
             rows = archive.search(None, sender=who, platform="email", direction="in", limit=2)
             if not rows:
                 rows = archive.search(who, platform="email", direction="in", limit=2)
+            core = " ".join(re.sub(r"\([^)]*\)|#\S+", " ", who).split())   # demo pass 107: «X (recibo #N)»
+            if not rows and core and core != who:
+                rows = archive.search(None, sender=core, platform="email", direction="in", limit=2)
             for r in rows:
                 out.append((str(r.get("chat_id") or ""), str(r.get("msg_id") or "")))
         except Exception:  # noqa: BLE001

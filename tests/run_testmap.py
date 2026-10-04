@@ -3737,6 +3737,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
         # 2026-10-04 — a consent window the browser blocks is SAID and offered as a link under the connector pressed:
         # the panel used to sit on «connecting…» for three minutes with nothing open. Rendered (ConfigPanel + bundle).
+        {"id": "2.233", "title": "A forward names its mail with decoration («Vendor AI (recibo #N)») and still finds it — the core "
+                                 "of what he named is asked of the archive too (demo pass 107 E3, 2026-10-04)",
+            "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_decorated_sender_still_finds_the_mail.py"]},
         {"id": "2.232", "title": "What LEAVES goes in the session's language — an external.send text in the other product "
                                  "language is translated once at the send door (demo pass 106 E3, 2026-10-04)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_what_leaves_goes_in_the_session_language.py"]},
