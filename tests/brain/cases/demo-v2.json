@@ -1165,5 +1165,48 @@
    "worker"
   ],
   "open": "pass 111 C5: an explicit «send» became a draft because the repair followed the model's own words; pass 110 sent it — model variance, no broken mechanism found"
+ },
+ {
+  "id": "demo-v7-close-youtube-is-not-left-open-in-words",
+  "lang": "en",
+  "phrase": "ok stop the video and close youtube",
+  "source": "TMP/demo/run-p112 V7 (2026-10-05): «Two things: stopping the video, but I'll leave the YouTube card on your screen — just say the word and I take it down.» — the model called youtube:close (in-card) and the verdict closed the card (closes_the_named_card) with no line after it",
+  "screen": {
+   "open": [
+    "youtube"
+   ]
+  },
+  "model": {
+   "say": "Two things: stopping the video, but I'll leave the YouTube card on your screen — just say the word and I take it down.",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "youtube",
+      "action": "close",
+      "payload": {}
+     }
+    }
+   ]
+  },
+  "brief": {
+   "request_type": [
+    "order",
+    0.57
+   ],
+   "canvas": [
+    "close",
+    0.83
+   ],
+   "screen_action": [
+    "youtube:close",
+    0.89
+   ]
+  },
+  "expect": "close youtube",
+  "forbid": [
+   "worker"
+  ],
+  "open": "pass 112 V7: the screen was right (the card closed) and the words said it would stay; passes 110-111 said «closed» — model variance, and no tail follows a close the verdict completed"
  }
 ]
