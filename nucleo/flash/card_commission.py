@@ -258,6 +258,49 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
     return ""
 
 
+async def instead_of_a_search(query: str, *, brief, operator_text: str, spec, window=None) -> dict | None:
+    """The card that ANSWERS a search the model sent to the web — `{"kind": "call"|"read", …}`, or None (it searches).
+
+    Demo pass 109, C2: «find me a free 45 minutes tomorrow afternoon… after my last meeting», the verdict at
+    `agenda:find_free` 1.00, and the model called `web_search`: timer websites, «those results were just time and
+    timer tools», and the find_free a repair ran afterwards was never heard. Only when the verdict SURELY names an
+    action whose result IS the reply (`output.answer`); the card's own pass then fills the call. Never raises."""
+    try:
+        from nucleo.flash import act_repair as _repair, turn_brief as _tb
+        from widgets import effects as _fx
+        choice, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.9)
+        owner, _, action = str(choice or "").rpartition(":")
+        wid = _base_card(owner)
+        if not (info and wid and action and _fx.carries(wid, action, _fx.OUTPUT_ANSWER)):
+            return None
+        return await _repair.call_or_read_for_commission(operator_text, query, wid, spec=spec, window=window,
+                                                         verdict_action=action)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+async def voice_instead_of_a_search(search_req: dict, read_req: dict, *, brief, operator_text: str, spec, window,
+                                    emit, present: Callable, apply_widget_data: Callable, acted: dict, done: dict) -> str:
+    """The VOICE half of `instead_of_a_search`: the call runs (its answer is then composed from its data, like any
+    `output.answer` op), or the read is queued — and the search is dropped. Returns "call", "read" or ""."""
+    if search_req.get("v") is None:
+        return ""
+    got = await instead_of_a_search(search_req["v"], brief=brief, operator_text=operator_text, spec=spec, window=window)
+    if not got:
+        return ""
+    emit("brain", "🎯 la tarjeta responde lo que el modelo iba a buscar en la web", role="system",
+         text=f"{got['widget_id']}:{got.get('action') or 'read'} ← {str(search_req['v'])[:100]}",
+         extra={"cat": "flash", "widget": got["widget_id"]})
+    search_req["v"] = None
+    if got["kind"] == "call":
+        present(got["widget_id"], reason="turn-order", src="flash", emit=emit)
+        apply_widget_data(got["widget_id"], got["action"], got["payload"])
+        acted["widget"] = done["v"] = True
+    elif read_req.get("v") is None:
+        read_req["v"] = {"widget_id": got["widget_id"], "question": got["question"]}
+    return got["kind"]
+
+
 def present_if_show(read_req: dict, *, brief, operator_text: str, is_open: Callable, present: Callable,
                     emit) -> bool:
     """A read whose turn the verdict reads as «canvas: show», over a CLOSED card, brings the card through the

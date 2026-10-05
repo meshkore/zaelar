@@ -88,6 +88,8 @@ _SCRIPT = [
     ("close_meeting", {}, None),
     ("rsvp_meeting", {"title": "Reunión con Iván", "date": "TOM", "answer": "yes"}, "invitación"),
     ("cancel_meeting", {"title": "Reunión con Iván", "date": "TOM"}, None),
+    ("restore_meeting", {}, None),
+    ("cancel_meeting", {"title": "Reunión con Iván", "date": "TOM"}, None),
     ("clear_range", {"from": "TOM", "to": "TOM"}, None),
     ("drop_project", {"projectId": "p1"}, None),
     ("clear_all", {}, None),

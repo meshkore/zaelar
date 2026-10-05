@@ -137,6 +137,13 @@
         "from": "YYYY-MM-DD o «enero» — desde cuándo deja de repetirse (opcional)"
       }
     },
+    "restore_meeting": {
+      "desc": "DEVUELVE la última cita cancelada («restáurala», «deshaz eso», «vuelve a ponerme la del dentista»): la cita tal cual estaba, el día de una serie que se quitó, o la serie que se terminó antes. Sin argumentos deshace la última cancelación",
+      "payload": {
+        "title": "(opcional) cuál quiere de vuelta; sin él, la última cancelada"
+      },
+      "confirm": false
+    },
     "open_meeting": {
       "desc": "ABRE LA FICHA de una cita en pantalla, en su día («ábreme la cita del dentista», «enséñame el piano del martes», «qué pone en la reunión de mañana»). Solo muestra: no cambia nada",
       "ref": "title",

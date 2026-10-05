@@ -295,6 +295,13 @@ async def answer_a_search(*, FastClient, _forced_search, _res, action, dialog, o
                           _tbrief=None) -> dict:
     if action == "search":
         _sq = next((t["args"].get("query") for t in tool_calls if t["name"] == "web_search"), "") or text
+        # Demo pass 109, C2 — a search the card ANSWERS goes to the card (`card_commission.instead_of_a_search`).
+        from . import card_commission as _cc_s
+        _card = await _cc_s.instead_of_a_search(_sq, brief=_tbrief, operator_text=operator_text or text, spec=spec)
+        if _card and _card.get("kind") == "call":
+            tool_calls.append({"name": "widget_data", "args": {"widget_id": _card["widget_id"], "action": _card["action"],
+                                                               "payload": _card["payload"], "_repair": True}})
+            return {"action": "widget_data", "spoken": ""}
         try:
             from nucleo import websearch as _ws
             _t_s = _probe.time.time()

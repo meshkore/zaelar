@@ -3735,6 +3735,12 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.239", "title": "A web search the card ANSWERS goes to the card: verdict sure on an output.answer action → its "
+                                 "call, no web (both channels) — «find me a free 45 minutes» got timer websites (pass 109 C2)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_search_the_card_answers_goes_to_the_card.py"]},
+        {"id": "2.238", "title": "The booking circuit closes: «the afternoon» is a window, «book it» takes the slot found, a "
+                                 "clash is said, and a cancellation (one, a day of a series, a cut) comes back (pass 109 C2-C4)",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_the_booking_circuit_closes.py"]},
         {"id": "2.237", "title": "The line after a verdict-completed act fits what the words DID — «which…?» says it went with the "
                                  "likeliest one, «want me to…?» went ahead, a denial «Done.»; one table (demo passes 108-109)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_tail_fits_what_the_words_did.py"]},

@@ -255,7 +255,7 @@ def radius(action: str, payload: dict | None = None) -> int | None:
 from .actions import (  # noqa: E402,F401
     _a_drop_project, _a_add_meeting, _a_dedupe_meetings, _a_cancel_meeting, _a_set_reminder, _a_clear_range,
     _a_clear_all, _a_move_meeting, _a_open_meeting, _a_update_meeting, _a_invite, _a_rsvp_meeting, _a_proposal,
-    _a_show_day, _a_find_free, _a_connection, _a_add_meeting_noticed)
+    _a_show_day, _a_find_free, _a_connection, _a_add_meeting_noticed, _a_restore_meeting)
 from . import reminders  # noqa: E402  (the asked notice, V2-781 T513)
 
 
@@ -289,6 +289,7 @@ ACTIONS = {
     "decline_proposal": _a_proposal,
     "show_day": _a_show_day,
     "find_free": _a_find_free,
+    "restore_meeting": _a_restore_meeting,
     "set_default_calendar": _a_connection,
 }
 

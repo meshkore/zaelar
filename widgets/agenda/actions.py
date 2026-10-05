@@ -269,7 +269,11 @@ def _a_add_meeting_noticed(action, payload, db, _extra):
     # asked for replaces the default one. The ask keys are taken out first so the write does not report them
     # as unknown; a notice that cannot ring is said back in `notice_error`, and the write is kept.
     raw = next((payload[k] for k in _d.reminders.ASK_KEYS if payload.get(k) not in (None, "", False, True)), None)
+    from . import free as _free                    # demo pass 109, C3: «ok book it» books the slot just found
+    payload = _free.with_the_slot_found(db, payload, _d._resolve_date)
     res = _a_add_meeting(action, {k: v for k, v in payload.items() if k not in _d.reminders.ASK_KEYS}, db, _extra)
+    if isinstance(res, _d._Continue):
+        res.value["clashes"] = _free.clashes(db.get("meetings"), res.value.get("stored"))
     if raw is None or not isinstance(res, _d._Continue):
         return res
     st = res.value.get("stored") or {}
@@ -574,10 +578,19 @@ def _a_find_free(action, payload, db, _extra) -> dict:
     import time as _tm
     db["view"] = {"sel": _day if not _until else "month", "n": int((db.get("view") or {}).get("n", 0)) + 1,
                   "at": _tm.time()}
+    _got = (_free.find_span(db.get("meetings") or [], _day, _d._resolve_date(_until), payload) if _until
+            else _free.remember(db, _free.find(db.get("meetings") or [], _day, payload), payload))
     _d.store.save(_d.WIDGET_ID, db)
-    if _until:
-        return _free.find_span(db.get("meetings") or [], _day, _d._resolve_date(_until), payload)
-    return _free.find(db.get("meetings") or [], _day, payload)
+    return _got
+
+
+def _a_restore_meeting(action, payload, db, _extra) -> dict:
+    # «Put it back» — the other half of a cancellation that does not ask (`meeting_trash.py`).
+    from . import meeting_trash as _mt
+    res = _mt.restore(db, payload)
+    if not res.get("ok"):
+        return {**_d.view_data(), **res}
+    return _d._Continue({"result": res})
 
 
 def _a_connection(action, payload, db, _extra) -> dict:

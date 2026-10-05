@@ -338,9 +338,12 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     # V2-770 — «a partir de enero ya no hay piano»: the series ENDS the day before; nothing earlier is touched.
     from . import edit
     _ser = [m for m in hits if isinstance(m.get("repeat"), dict)]
+    from . import meeting_trash                        # every cancellation below can be put back (restore_meeting)
+    _prev = {id(m): str((m.get("repeat") or {}).get("until") or "") for m in _ser}
     if _ser and not payload.get("whole") and all(edit.cut_from(m, payload) for m in _ser):
         for m in _ser:
             gcal.patch_google(m)
+            meeting_trash.put(db, "cut", [m], until_before=_prev.get(id(m), ""))
         _ends = {str(m.get("date") or ""): m["repeat"]["until"] for m in _ser}
         for m in [m for m in hits if str(m.get("fromSeries") or "") in _ends
                   and str(m.get("date") or "") > _ends[str(m["fromSeries"])]]:
@@ -362,6 +365,7 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     if _day and not payload.get("whole"):
         once = [m for m in hits if isinstance(m.get("repeat"), dict)]
         if once and all(recur.skip(m, _day) for m in once):
+            meeting_trash.put(db, "skip", once, day=_day)
             for m in once:
                 gcal.patch_google(m)                   # V2-770: the skipped day leaves Google too
             hits = [m for m in hits if m not in once]
@@ -375,6 +379,7 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
             gone.append(m)
         else:
             stuck.append(m)
+    meeting_trash.put(db, "delete", gone)
     db["meetings"] = [m for m in db.get("meetings", []) if m not in gone]
     res = {"ok": True, "removed": len(gone), "title": str((gone or hits)[0].get("title") or ""),
            "date": str((gone or hits)[0].get("date") or "")}

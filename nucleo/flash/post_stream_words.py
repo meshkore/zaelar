@@ -7,6 +7,7 @@ bound.
 """
 from __future__ import annotations
 
+from nucleo.flash import card_commission as _cardc_ws
 from nucleo.flash import post_stream as _pst
 
 
@@ -152,8 +153,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
     # hasta el día que no suena.
     if spoken_text and not cron_seen["v"]:
         try:
-            # V2-153: misma función que el probe. Ver su docstring — el duplicado nació justamente de que
-            # cada canal decidía por su cuenta.
+            # V2-153: the probe's same function — the duplicate was born of each channel deciding alone.
             _cron = _router.dated_reminder_backstop(spoken_text, operator_text, window=brain._window)
             if _cron:
                 from nucleo import scheduler as _sched_bk
@@ -294,8 +294,10 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
                                     emit=emit, present=_pst._cvis.present, apply_widget_data=_apply_widget_data,
                                     window=list(brain._window)):
             data_done["v"] = True
-    # An order that owes WORDS whose data-op RETURNED data (search_archive, peek…): the answer is that data
-    # (`data_ops.answer_of`) — composed with it as the only source, after the op lands (bounded wait).
+    # An op that RETURNED data answers in words (`data_ops.answer_of`); a search the card answers goes to it (C2).
+    await _cardc_ws.voice_instead_of_a_search(search_req, read_req, brief=_brief, operator_text=_op_text, spec=spec,
+                                              window=list(brain._window), emit=emit, present=_pst._cvis.present,
+                                              apply_widget_data=_apply_widget_data, acted=acted, done=data_done)
     _op_answer = None
     if read_req["v"] is None and escalate_req["v"] is None and _turn_op_tasks:
         from nucleo.flash import turn_brief as _tbw
@@ -314,9 +316,8 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
                 except Exception:  # noqa: BLE001
                     pass
             _op_answer = _pst._data_ops.answer_to_speak(_got, data_done.get("ops"))
-        # The card of THIS turn already brought the answer, so a web search next to it is the second-best
-        # source (full15 M1: the Apple chart was up with its price, and «the search results only gave me quote
-        # pages, so I can't tell you» was what he heard). The card answers; the search does not run.
+        # The card of THIS turn already brought the answer: a web search next to it is the second-best source (full15
+        # M1: «the search results only gave me quote pages, so I can't tell you»). The card answers; no search.
         if _op_answer is not None and search_req["v"] is not None:
             emit("brain", "🔎 la tarjeta ya trae la respuesta — la búsqueda web sobra", role="system",
                  text=f"{_op_answer[0]} ← {search_req['v'][:100]}", extra={"cat": "flash"})

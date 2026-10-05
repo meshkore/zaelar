@@ -9,6 +9,14 @@ from __future__ import annotations
 
 _DAY_START, _DAY_END = "08:00", "20:00"
 _MAX_SLOTS = 5
+#: A part of the day said as a WORD in a window field (demo pass 109, C2): `from: "afternoon"` fell to 08:00 and the
+#: first slot was the morning. Product vocabulary (es/en), the windows the manifest already describes.
+_PARTS = {"morning": ("08:00", "12:00"), "mañana": ("08:00", "12:00"), "manana": ("08:00", "12:00"),
+          "noon": ("12:00", "15:00"), "midday": ("12:00", "15:00"), "mediodia": ("12:00", "15:00"),
+          "mediodía": ("12:00", "15:00"), "afternoon": ("12:00", "20:00"), "tarde": ("12:00", "20:00"),
+          "evening": ("18:00", "22:00"), "night": ("18:00", "22:00"), "noche": ("18:00", "22:00")}
+#: How long a slot this card FOUND stays the hour of a booking that names none («ok book it»).
+FRESH_S = 30 * 60
 
 
 def _m(hhmm) -> int | None:
@@ -51,12 +59,27 @@ def busy(meetings: list, day: str) -> list[tuple[int, int, str]]:
     return sorted(out)
 
 
+def _first_time(payload: dict, keys: tuple) -> int | None:
+    vals = [_m(payload.get(k)) for k in keys]      # «00:00» is a time: `or` read midnight as «no time»
+    return next((v for v in vals if v is not None), None)
+
+
+def _window(payload: dict) -> tuple[int, int]:
+    part = next((_PARTS[w] for k in ("from", "after", "start", "window", "part", "to", "before", "end")
+                 if (w := str(payload.get(k) or "").strip().lower()) in _PARTS), (_DAY_START, _DAY_END))
+    lo, hi = _first_time(payload, ("from", "after", "start")), _first_time(payload, ("to", "before", "end"))
+    return (_m(part[0]) if lo is None else lo), (_m(part[1]) if hi is None else hi)
+
+
+def _yes(v) -> bool:
+    return v is True or str(v or "").strip().lower() in ("true", "1", "yes", "si", "sí")
+
+
 def find(meetings: list, day: str, payload: dict) -> dict:
     need = _minutes(payload)
-    lo = _m(payload.get("from") or payload.get("after") or payload.get("start")) or _m(_DAY_START)
-    hi = _m(payload.get("to") or payload.get("before") or payload.get("end")) or _m(_DAY_END)
+    lo, hi = _window(payload)
     taken = busy(meetings, day)
-    if payload.get("after_last") and taken:
+    if _yes(payload.get("after_last")) and taken:
         lo = max(lo, max(e for _s, e, _t in taken))
     slots, cur = [], lo
     for s, e, _t in taken:
@@ -71,6 +94,47 @@ def find(meetings: list, day: str, payload: dict) -> dict:
             "busy": [{"from": _hhmm(s), "to": _hhmm(e), "title": t} for s, e, t in taken],
             "booked": False,
             "note": "nothing was booked — say the free time and wait for him to ask to book it (add_meeting)"}
+
+
+def remember(db: dict, res: dict, payload: dict) -> dict:
+    """Keep the first slot found, so «ok book it» books THAT (demo pass 109, C3: it lived only in the reply, the
+    reply went wrong, and the booking invented 11:45 beside a 15:00 the card knew about). Returns `res`."""
+    import time as _t
+    first = ((res or {}).get("free") or [{}])[0].get("first_fit") or ""
+    if "-" in first:
+        a, b = first.split("-", 1)
+        db["proposed"] = {"date": res["date"], "startTime": a, "endTime": b, "minutes": res.get("minutes"),
+                          "at": _t.time()}
+    return res
+
+
+def with_the_slot_found(db: dict, payload: dict, resolve_date) -> dict:
+    """A booking that names no hour, right after this card found a slot (same day, or none said), takes that slot
+    — and spends it: a later booking with no hour is a new question, not the same slot twice."""
+    import time as _t
+    p = db.get("proposed") or {}
+    if not p or any(str(payload.get(k) or "").strip() for k in ("startTime", "time", "start", "allDay")):
+        return payload
+    if _t.time() - float(p.get("at") or 0) > FRESH_S:
+        return payload
+    said = str(payload.get("date") or "").strip()
+    if said and str(resolve_date(said)) != str(p.get("date")):
+        return payload
+    db.pop("proposed", None)
+    return {**payload, "date": p["date"], "startTime": p["startTime"],
+            "endTime": str(payload.get("endTime") or "") or p["endTime"]}
+
+
+def clashes(meetings: list, row: dict | None) -> list[dict]:
+    """Timed appointments a just-written row overlaps that day — said back, never refused: he may mean it."""
+    if not isinstance(row, dict) or row.get("allDay"):
+        return []
+    s, e = _m(row.get("startTime")), _m(row.get("endTime"))
+    if s is None:
+        return []
+    e = e if e and e > s else s + 30
+    return [{"title": t, "from": _hhmm(a), "to": _hhmm(b)} for a, b, t in busy(meetings, str(row.get("date") or ""))
+            if a < e and s < b and t != str(row.get("title") or "")]
 
 
 _MAX_SPAN_DAYS = 62
