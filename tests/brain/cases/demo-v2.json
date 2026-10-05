@@ -1208,5 +1208,39 @@
    "worker"
   ],
   "open": "pass 112 V7: the screen was right (the card closed) and the words said it would stay; passes 110-111 said «closed» — model variance, and no tail follows a close the verdict completed"
+ },
+ {
+  "id": "demo-e4-unread-words-invent-what-was-opened",
+  "lang": "en",
+  "phrase": "oh and leave that inworld one as unread",
+  "source": "TMP/demo/run-p113 E4 (2026-10-05): «Here's the text you'd use to reproduce this turn: I didn't open the original Inworld receipt — the one I opened was your own email…» — E2 had opened the receipt itself; the promise repair ran mensajeria:unread on the right mail",
+  "screen": {
+   "open": [
+    "mensajeria"
+   ]
+  },
+  "model": {
+   "say": "Here's the text you'd use to reproduce this turn: I didn't open the original Inworld receipt — the one I opened was your own email, so I'll mark the Inworld receipt as unread for you.",
+   "tools": []
+  },
+  "brief": {
+   "request_type": [
+    "order",
+    0.49
+   ],
+   "screen_action": [
+    "mensajeria:unread",
+    0.98
+   ],
+   "wants_words": [
+    "act",
+    0.99
+   ]
+  },
+  "expect": "data-op mensajeria:unread",
+  "forbid": [
+   "worker"
+  ],
+  "open": "pass 113 E4: the act was right and the words invented the state and leaked a meta preamble — model variance (the inbox also holds an older forward of the same receipt)"
  }
 ]
