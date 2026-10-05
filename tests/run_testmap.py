@@ -3735,6 +3735,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.242", "title": "«More of those» on the picture viewer is the picture search: a sure verdict on imagenes:add → "
+                                 "more of the search under way, whatever tool the model reached for (pass 110 I2)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_more_of_those_on_the_viewer_is_the_picture_search.py"]},
         {"id": "2.241", "title": "A reply addressed to someone else is a FORWARD: his sentence names one contact who is not the "
                                  "sender → the card's forward to that person, both channels (pass 110 E3)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reply_addressed_to_someone_else_is_a_forward.py"]},

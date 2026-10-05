@@ -136,16 +136,47 @@ def picture_search_for(card: str, operator_text: str, commission: str = "") -> d
     return {"query": q, "n": _it.DEFAULT_N, "more": False}
 
 
-def picture_named_by(operator_text: str) -> dict | None:
+def picture_named_by(operator_text: str, brief=None) -> dict | None:
     """The picture search his words ask for when they NAME the picture viewer (its name or alias: «wallpaper»,
     «fondo de pantalla», «fotos») and it is empty — whatever tool the model reached for (demo passes 60-69, B1: a
-    worker, a promise, a commission, a product-listing search, in turn). None otherwise."""
+    worker, a promise, a commission, a product-listing search, in turn) — or the one the verdict surely names
+    (`picture_by_verdict`). None otherwise."""
     try:
         from widgets import runtime as _rt
         card = str(_rt.identify_named(operator_text or "") or "")
     except Exception:  # noqa: BLE001
+        card = ""
+    return (picture_search_for(card, operator_text) if card else None) or picture_by_verdict(brief, operator_text)
+
+
+def picture_by_verdict(brief, operator_text: str) -> dict | None:
+    """The picture search a SURE verdict on the viewer's `show`/`add` stands for, when the model reached elsewhere.
+
+    Demo pass 110, I2: «cool, show me a few more of those» right after the F40 photos — the verdict read
+    `imagenes:add` at 0.99, the model (whose window did not hold I1's photos yet: that search was still loading)
+    said «let me pull a few more 27-inch 4K options» and a listing search opened a SECOND monitors sheet, which then
+    broke I3, I4 and the whole S block. `add` is more of the search under way or last made; `show`, on an EMPTY
+    viewer only, is his words."""
+    if brief is None:
         return None
-    return picture_search_for(card, operator_text) if card else None
+    try:
+        from nucleo.flash import direct_action as _da, turn_brief as _tb
+        _c, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.9)
+        wid, action = _da.from_brief(brief)
+        if info is None or not info.get("used") or TOOL_FILLED.get(_base_card(wid)) != "show_images":
+            return None
+        from nucleo.flash import image_turn as _it
+        if action == "add":
+            q = _it.LAST_QUERY.get("q") or ""
+            if not q:
+                from widgets import store as _st
+                q = str((_st.load("imagenes") or {}).get("query") or "")
+            return {"query": q[:160], "n": _it.DEFAULT_N, "more": True} if q.strip() else None
+        if action == "show":                 # a viewer that holds pictures already shows them: only an empty one
+            return picture_search_for("imagenes", operator_text)
+    except Exception:  # noqa: BLE001
+        return None
+    return None
 
 
 def picture_search_for_empty_show(widget_id: str, action: str, payload: dict | None, operator_text: str) -> dict | None:

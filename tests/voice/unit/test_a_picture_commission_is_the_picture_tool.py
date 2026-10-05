@@ -125,5 +125,5 @@ def test_words_that_name_the_empty_viewer_are_the_picture_search(monkeypatch):
 def test_the_voice_turn_reads_the_named_viewer_before_the_ladder():
     import pathlib
     src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
-    i = src.index("_cardc_pic.picture_named_by(operator_text)")
+    i = src.index("_cardc_pic.picture_named_by(operator_text, _brief)")
     assert i < src.index("_eguard.drop_if_fragment(escalate_req"), "before any rung can spend a worker"

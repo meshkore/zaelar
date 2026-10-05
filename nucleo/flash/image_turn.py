@@ -34,6 +34,9 @@ import re
 # sheet, and it is what one Google results page yields without scrolling — asking for more would cost a second
 # page load to add pictures nobody scrolls to.
 DEFAULT_N = 12
+#: The query of the picture search under way or last made — what «more of those» means while the viewer is still
+#: loading it (demo pass 110, I2: the next order arrived before I1's search had filled the viewer).
+LAST_QUERY = {"q": ""}
 
 
 def request_from(tool_calls: list) -> dict:
@@ -76,6 +79,7 @@ async def execute(query: str, n: int = DEFAULT_N, more: bool = False) -> dict:
     if not q:
         parte["message"] = "no dijiste de qué"
         return parte
+    LAST_QUERY["q"] = q
     # «MORE of those» (demo pass 2026-09-28, I2: «cool, show me a few more of those» re-ran the same search and
     # REPLACED the viewer with the same twelve): the same query asked deeper, handed to the viewer's own `add`,
     # whose merge drops what is already there — so only new pictures join.

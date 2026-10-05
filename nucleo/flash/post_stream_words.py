@@ -65,11 +65,11 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
     from nucleo.flash import card_commission as _cardc_pic
     _pic_named = (None if images_req["v"] is not None
                   or any(str(_w).split("::")[0] == "imagenes" for _w, _a in (data_done.get("ops") or []))
-                  else _cardc_pic.picture_named_by(operator_text))
+                  else _cardc_pic.picture_named_by(operator_text, _brief))
     if _pic_named:
         images_req["v"], listing_req["v"] = _pic_named, None
         escalate_req["v"], escalate_req["more"] = None, []
-        emit("brain", "🎯 sus palabras nombran el visor de imágenes — la búsqueda de fotos, nada más",
+        emit("brain", "🎯 sus palabras o el veredicto nombran el visor de imágenes — la búsqueda de fotos, nada más",
              text=_pic_named["query"][:120], role="system", extra={"cat": "flash", "tool": "show_images"})
 
     # GHOST-WORKER guard, plus the «Sí» that has no directive either — in `escalation_guard`.
