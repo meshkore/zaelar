@@ -150,10 +150,12 @@ def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: s
     # left the Inworld one unread — it's back to showing as new.» and «Yep — putting Madonna on.» both got a
     # «Done.» stapled on, because the promise table is Spanish and neither is a refusal. A claim or a promise in
     # any language needs nothing after it; a denial does, and a question gets «went ahead» (below).
-    if promised or not (spoken or "").strip():
+    if not (spoken or "").strip():
         return ""
     shape = words_shape(spoken)
-    if not shape:
+    # …but a QUESTION is still a question when it also promises (pass 114, C5: «want me to fire it off… I'll send it
+    # as soon as you confirm?» — sent by the repair, and the last thing heard asked).
+    if not shape or (promised and shape not in ("asked", "asked_which")):
         return ""
     try:
         # …and a repaired LOOK changes nothing to acknowledge (demo pass 42, C2: «…want me to put it on your calendar
