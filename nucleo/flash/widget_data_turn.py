@@ -46,7 +46,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     from nucleo.flash import frontend as _fe
     from nucleo.flash import data_ops as _rg
     from widgets import actions as _wa
-
+    from nucleo.flash import reply_or_forward as _rof
     todas = [t.get("args") or {} for t in (tool_calls or []) if t.get("name") == "widget_data"]
     admitidas: list[dict] = []
     for a in todas:
@@ -72,9 +72,8 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
         # if it does not resolve, the raw text travels in the id field as well so the widget's OWN resolver
         # (e.g. the one in `imagenes`, which matches by tokens) gets its chance and its refusal can show the menu.
         _ref = str(a.get("item") or "").strip()
-        # HIS sentence is the reference of last resort (V2-708) — the voice path has passed it since then and this
-        # one never did: the demo's INIT («when I ask you to contact Rowan, use his Telegram») reached contactos as
-        # `set_channel {platform}` with no contact, and was refused with Rowan on file (demo pass 31).
+        # HIS sentence is the reference of last resort (V2-708), as on the voice path: the INIT's «contact Rowan on
+        # Telegram» reached contactos as `set_channel {platform}` with no contact and was refused (demo pass 31).
         try:
             from voice import brain_notes as _bn_wd
             _order = _bn_wd.operator_half(text or "")
@@ -116,6 +115,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
                     pl = {**pl, _campo: _ref}
             except Exception:  # noqa: BLE001
                 pl = {**pl, "item": _ref}
+        act, pl = ("forward", _fw) if (_fw := _rof.forward_of(wid, act, pl, _order)) else (act, pl)   # pass 110 E3
         mode = _fe.action_mode(wid, act)
         mode = _leave_gate.asked_if_leaving(mode, brief, wid, act, payload=pl, said=_order)   # V2-778 F4-33: the voice rail's rule
         if mode != _wa.FAST:

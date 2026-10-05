@@ -3735,6 +3735,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.241", "title": "A reply addressed to someone else is a FORWARD: his sentence names one contact who is not the "
+                                 "sender → the card's forward to that person, both channels (pass 110 E3)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reply_addressed_to_someone_else_is_a_forward.py"]},
         {"id": "2.240", "title": "A contact carries FLAGS (closed, blocked, vip; favorite its own field) and a CATEGORY label, a "
                                  "place word is a place, a deletion comes back with restore_contact (operator review 2026-10-05)",
             "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_a_contact_carries_flags_categories_and_a_way_back.py"]},

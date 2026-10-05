@@ -232,7 +232,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
     # a reversible view; for an act of level ≥ sensitive the costs are reversed, so the verdict's action
     # runs instead — and if it cannot, he is asked. Agreement, or no verdict at all, changes nothing.
     if mode == _wactions.FAST and _frontend.at_least_sensitive(wid, action_name):
-        _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name)
+        _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name) or _txw._rof.instead(wid, action_name, payload, _txw._bnotes.operator_half(text))
         if _vdis:
             emit("brain", "🛑 acto que sale fuera y el veredicto dice otra cosa — corre el veredicto",
                  text=f"{wid}: modelo={action_name} · veredicto={_vdis}", role="system",
@@ -240,7 +240,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
             # the model already wrote the content: it travels to the verdict's action, filtered to what
             # that action declares (a reply's `text` is a draft's `text`)
             _vkeys = set(_txw._direct_action._payload_spec(wid, _vdis))
-            _vpay = {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
+            _vpay = _txw._rof.forward_of(wid, action_name, payload, _txw._bnotes.operator_half(text)) or {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
             # …and the recipient his sentence names, which the model's call for the OTHER action did not
             # carry (full18 E3: `reply` has no recipient; the verdict's `forward` needs one)
             _vpay.update(_txw._direct_action.person_fill(wid, _vdis, _vpay, _txw._bnotes.operator_half(text)))
