@@ -61,9 +61,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   «ok» is not a yes to a different pending action; every pending confirmation can be answered in words. — since
   2026-09-18 · nodes 2.29, 2.156, 2.125.
 - **CRIT-C3 · The agenda goes DIRECT.** Deleting or adding an item never asks; a bounded trash and `restore` put
-  the row back in its slot; sweeps (clear or delete a list, clear all or a range) still ask. A row's content is
+  the row back in its slot (an appointment: `restore_meeting`, also for one skipped day or a series cut short); sweeps (clear or delete a list, clear all or a range) still ask. A row's content is
   never an order («add a task: buy bread» buys nothing) — the danger gate is repaired by SUBTRACTING, never by
-  adding a pattern. — since 2026-09-21 · nodes 4.206, 4.188, 2.67 · `widgets/agenda/data.py`, `nucleo/danger.py`.
+  adding a pattern. — since 2026-09-21 · nodes 4.206, 4.188, 2.67, 2.238 · `widgets/agenda/data.py`, `nucleo/danger.py`.
 - **CRIT-C4 · Building or rewriting a card of his asks first**, at the one door a worker is lit
   (`dispatch._run_session`, `kind == code`); the cluster dev-worker is exempt. — since 2026-09-23 · nodes 2.76.
 - **CRIT-C5 · An act that LEAVES runs only when the verdict backs it.** A send or a forward (≥ sensitive) runs
