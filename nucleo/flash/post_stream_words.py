@@ -201,7 +201,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
             _c_tail = _act_repair_c.after_the_completion(spoken_text, _pst._direct_action.from_brief(_brief)[0],
                                                          _completed)
             if _c_tail:
-                send(speech.sanitize(_c_tail, drop_metadata=False))
+                send(" " + speech.sanitize(_c_tail, drop_metadata=False))   # sanitize strips the joining space
                 spoken_text = spoken_text + _c_tail
     # …and a data-op INSIDE a card he also told to close by its name («stop the video and close youtube»): the
     # card closes after the op (`closes_the_named_card`).
@@ -257,7 +257,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
             _ar_tail = _act_repair.after_the_repair(spoken_text, _router.promises_action(spoken_text),
                                                     _ar["widget_id"], _ar["action"])
             if _ar_tail:
-                send(speech.sanitize(_ar_tail, drop_metadata=False))
+                send(" " + speech.sanitize(_ar_tail, drop_metadata=False))
                 spoken_text = spoken_text + _ar_tail
     # An order on ONE card while the turn only touched OTHERS (full23 C5: «send rowan a telegram with the new
     # time» re-wrote the meeting on the agenda and the reply said «he's getting the update now» — nothing was

@@ -98,6 +98,28 @@ def denies_the_act(spoken: str) -> bool:
     return bool(_DENIED_RE.search(spoken or ""))
 
 
+#: The line after an act the verdict carried out, by what the model's words DID (demo passes 108-109): «which…?» was
+#: answered with «I've gone ahead, as you asked» — a go-ahead nobody gave. The shape is read deterministically from
+#: the model's own words in the session language (`clarifying`): no trip on the tail, and the Jev brief is fired
+#: before the reply exists. A claim or a promise has no shape here and gets nothing.
+TAILS = {"asked_which": "data_ack_went_with", "asked": "data_ack_went_ahead", "denied": "data_ack"}
+
+
+def words_shape(spoken: str) -> str:
+    """"asked_which" (a missing detail), "asked" (any other question), "denied", or "" — the key of `TAILS`."""
+    s = spoken or ""
+    if "?" in s:
+        from nucleo.flash import clarifying as _cl
+        return "asked_which" if _cl.asks_for_missing_detail(s) else "asked"
+    return "denied" if denies_the_act(s) else ""
+
+
+def _tail(shape: str) -> str:
+    from i18n import langs as _langs
+    line = str(getattr(_langs.current_language(), TAILS.get(shape, ""), "") or "").strip() if shape else ""
+    return " " + line if line else ""
+
+
 def after_the_completion(spoken: str, widget_id: str = "", action: str = "") -> str:
     """What the VOICE adds when the VERDICT carried out an order the model's words only ASKED about.
 
@@ -106,14 +128,13 @@ def after_the_completion(spoken: str, widget_id: str = "", action: str = "") -> 
     thing heard was the question (incident T509). Unlike a repaired LOOK (`after_the_repair` stays silent: its answer
     comes from the op's data), a completed view changes the screen and has no answer of its own — so a question is
     followed by the went-ahead line. Words that did not ask need nothing."""
-    if "?" not in (spoken or ""):
+    shape = words_shape(spoken)
+    if shape not in ("asked", "asked_which"):
         return ""
     from widgets import effects as _fx
     if widget_id and action and _fx.carries(widget_id, action, _fx.OUTPUT_ANSWER):
         return ""                           # its answer is composed from the data — see `after_the_repair`
-    from i18n import langs as _langs
-    line = str(getattr(_langs.current_language(), "data_ack_went_ahead", "") or "").strip()
-    return " " + line if line else ""
+    return _tail(shape)
 
 
 def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: str = "") -> str:
@@ -131,7 +152,8 @@ def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: s
     # any language needs nothing after it; a denial does, and a question gets «went ahead» (below).
     if promised or not (spoken or "").strip():
         return ""
-    if "?" not in (spoken or "") and not denies_the_act(spoken):
+    shape = words_shape(spoken)
+    if not shape:
         return ""
     try:
         # …and a repaired LOOK changes nothing to acknowledge (demo pass 42, C2: «…want me to put it on your calendar
@@ -142,11 +164,7 @@ def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: s
     except Exception:  # noqa: BLE001
         pass
     try:
-        from i18n import langs as _langs   # the voice.engine.core shim is this same module
-        L = _langs.current_language()
-        if "?" in (spoken or "") and str(getattr(L, "data_ack_went_ahead", "") or "").strip():
-            return " " + L.data_ack_went_ahead.strip()
-        return " " + (L.data_ack or "").strip()
+        return _tail(shape)
     except Exception:  # noqa: BLE001
         return ""
 

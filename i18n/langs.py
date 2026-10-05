@@ -287,6 +287,7 @@ LANGUAGES: dict[str, LangSpec] = {
         not_on_screen_yet="Sorry — it's not on screen yet. I'm getting it ready for you.",
         data_ack="Done.",
         data_ack_went_ahead="I've gone ahead and done it, as you asked.",
+        data_ack_went_with="I went with the likeliest one — tell me if you meant something else.",
         data_acks=("Done.", "There you go.", "All set.", "Got it.", "Noted."),
         work_started="On it — I'll tell you when it's done.",
         list_started="Got it — that's several things. I'm on them and I'll let you know when I'm done.",

@@ -275,6 +275,8 @@ class LangSpec:
     # Demo pass 50: the words ASKED («…want me to write that?») and the order was carried out anyway — «?Done.» read
     # as the answer to its own question. After a question the line says it went ahead.
     data_ack_went_ahead: str = "Ya lo he hecho, tal como lo pediste."
+    # Demo passes 108-109: after «¿cuál…?» the verdict PICKED one — said as a choice he can correct, not a go-ahead.
+    data_ack_went_with: str = "He ido con lo más probable; si era otra cosa, dímelo."
     # V2-743 — the three beats of a CONFIRMED irreversible op. `work_started` replaces `data_ack` at the
     # moment the operator says yes: until today the gate answered «Hecho.» 0.86 s after DISPATCHING the
     # deletion and 7 s before any outcome existed. His own words for the beat he wanted: «me pongo a hacerlo

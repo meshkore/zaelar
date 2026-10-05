@@ -26,9 +26,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   «Done.» / «Here it is.» when the model said nothing. A spoken rule turns the ack off («no me confirmes las
   órdenes») and a retraction restores it. — since 2026-09-29 · nodes 3.22, 2.50, 3.97 · `nucleo/genesis.json`,
   `nucleo/style_policy.py`, the ack backstops in `voice/engine/llm/providers/nucleo.py`.
-- **CRIT-V2 · A repaired act is said after the words only when the words DENIED it** (or asked a question, which
-  gets «I've gone ahead»); a claim or a promise in any language needs nothing after it. — since 2026-09-29 ·
-  nodes 2.89, 2.154 · `nucleo/flash/act_repair.after_the_repair`.
+- **CRIT-V2 · A repaired act is said after the words only when the words DENIED it** (or asked a question: «which…?» gets
+  «I went with the likeliest one», «want me to…?» gets «I've gone ahead» — one table, `act_repair.TAILS`); a claim or a promise in any language needs nothing after it. — since 2026-09-29 ·
+  nodes 2.89, 2.154, 2.237 · `nucleo/flash/act_repair.after_the_repair`.
 - **CRIT-V3 · A «yes» is answered with a START, never with a completion.** The outcome is reported when the work
   settles (`op_receipt`), witnessed against the widget's own view; a pool timeout is not an outcome; an op that
   could not start or whose dispatch raised is said as not done, never left behind «Done.». — since 2026-09-30 ·
