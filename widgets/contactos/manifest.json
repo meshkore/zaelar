@@ -63,6 +63,7 @@
         "name": "string",
         "kind": "person | place | company | group (un chat de Telegram/WhatsApp o un cluster de MeshKore) | agent (un agente de un cluster)",
         "group": "etiqueta libre («restaurantes», «amigos del trabajo»); varias separadas por comas",
+        "category": "su clasificación: «personal», «trabajo», «restaurante», «familia»… (se guarda como etiqueta; opcional)",
         "city": "string (opcional)",
         "phone": "string (opcional)",
         "email": "string (opcional)",
@@ -82,6 +83,7 @@
         "name": "string (opcional)",
         "kind": "person | place | company (opcional)",
         "group": "etiqueta a AÑADIR (opcional)",
+        "category": "AÑADE una clasificación («personal», «restaurante»…) (opcional)",
         "groups": "lista o cadena con comas que SUSTITUYE las etiquetas (opcional)",
         "city": "string (opcional)",
         "phone": "string (opcional)",
@@ -93,12 +95,19 @@
       }
     },
     "remove_contact": {
-      "desc": "borra un contacto del directorio para siempre",
+      "desc": "borra un contacto del directorio; queda en la papelera y restore_contact lo devuelve tal cual",
       "payload": {
         "contactId": "string"
       },
       "confirm": true,
-      "confirm_q": "¿Borro «{item}» del directorio? Es permanente."
+      "confirm_q": "¿Borro «{item}» del directorio? Lo podrás recuperar."
+    },
+    "restore_contact": {
+      "desc": "DEVUELVE el último contacto borrado («recupéralo», «deshaz eso», «vuelve a ponerme a Iván»), con sus mismos datos",
+      "payload": {
+        "name": "(opcional) a quién quiere de vuelta; sin él, el último borrado"
+      },
+      "confirm": false
     },
     "set_channel": {
       "desc": "guarda POR DÓNDE se escribe a un contacto («a Iván escríbele por Telegram, es @ivanm») y lo deja como su canal preferido — con `preferred:false` solo guarda el canal sin cambiar el preferido",
@@ -116,6 +125,15 @@
         "favorite": "true/false (true si se omite)"
       }
     },
+    "set_flag": {
+      "desc": "pone o quita una MARCA de un contacto: favorite, closed (un sitio que cerró), blocked, vip («Casa Lucio ha cerrado», «bloquea a Juan», «quítale el cerrado»)",
+      "payload": {
+        "contactId": "string",
+        "flag": "favorite | closed | blocked | vip",
+        "on": "true pone la marca, false la quita (true si se omite)"
+      },
+      "confirm": false
+    },
     "link_contact": {
       "desc": "conecta un contacto con otro — la persona que conoces EN un restaurante o empresa cuelga de él; parentId vacío lo desconecta",
       "payload": {
@@ -131,6 +149,7 @@
         "source": "telegram | whatsapp | google | meshkore — «mis contactos de Telegram» enseña SOLO los suyos: los que vinieron de ahí y aquellos a los que puedes escribir por ahí (opcional)",
         "city": "ciudad (opcional)",
         "favorites": "true para solo favoritos (opcional)",
+        "flag": "closed | blocked | vip — solo los que llevan esa marca («los restaurantes cerrados») (opcional)",
         "query": "texto libre a buscar (opcional)",
         "hidden": "true para enseñar los que OCULTÓ («los que quité de la lista») en vez del directorio (opcional)"
       },

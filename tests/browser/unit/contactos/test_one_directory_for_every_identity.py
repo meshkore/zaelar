@@ -63,7 +63,10 @@ def test_every_capability_EXISTS_in_the_manifest_or_the_model_cannot_choose_it(c
                                  # V2-701 — the permanent half. «Mantén los contactos sincronizados» is a
                                  # state he can set BY VOICE; without it the switch would be reachable
                                  # only by someone looking at the card.
-                                 "set_auto"}
+                                 "set_auto",
+                                 # 2026-10-05 — a STATE on an entry (closed, blocked, vip) and the way back
+                                 # from a deletion said by voice.
+                                 "set_flag", "restore_contact"}
 
 
 def test_the_view_action_speaks_the_everyday_phrasing_not_a_schema(ct):
@@ -74,7 +77,7 @@ def test_the_view_action_speaks_the_everyday_phrasing_not_a_schema(ct):
 
 def test_removing_a_contact_asks_first(ct):
     a = _manifest()["actions"]["remove_contact"]
-    assert a.get("confirm") is True, "deleting a real contact is irreversible and must confirm"
+    assert a.get("confirm") is True, "deleting a real contact also queues its deletion in Google — it confirms"
 
 
 def test_the_directory_survives_a_reset_by_declaration(ct):

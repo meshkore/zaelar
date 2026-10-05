@@ -42,7 +42,21 @@ _KINDS = {"person": "person", "persona": "person", "people": "person",
           "company": "company", "empresa": "company", "negocio": "company", "business": "company",
           "group": "group", "grupo": "group", "chat": "group", "cluster": "group", "canal": "group",
           "channel": "group",
-          "agent": "agent", "agente": "agent", "bot": "agent"}
+          "agent": "agent", "agente": "agent", "bot": "agent",
+          # A PLACE said by what it is («apunta Casa Lucio, es un restaurante»): `kind: "restaurante"` became a
+          # person (2026-10-05). These are words for the kind itself, not a guess from a label.
+          "restaurante": "place", "restaurant": "place", "bar": "place", "cafe": "place", "cafeteria": "place",
+          "hotel": "place", "tienda": "place", "shop": "place", "store": "place", "gimnasio": "place",
+          "gym": "place"}
+
+#: FLAGS — a STATE of an entry, on or off («that restaurant closed», «block him»), apart from how it is filed
+#: (`groups`) and what it is (`kind`). `favorite` is one of them, but keeps its own boolean field: four modules
+#: outside this widget read `contact["favorite"]`. An unknown flag is refused, never invented.
+FLAGS = ("favorite", "closed", "blocked", "vip")
+_FLAGS = {"favorite": "favorite", "favorito": "favorite", "favorita": "favorite", "fav": "favorite",
+          "closed": "closed", "cerrado": "closed", "cerrada": "closed", "permanently closed": "closed",
+          "cerrado definitivamente": "closed", "blocked": "blocked", "block": "blocked", "bloqueado": "blocked",
+          "bloqueada": "blocked", "vip": "vip", "important": "vip", "importante": "vip"}
 
 #: The three channels a contact can carry, and the order every surface lists them in.
 PLATFORMS = ("whatsapp", "telegram", "email")
@@ -67,6 +81,26 @@ def norm(s) -> str:
 
 def kind(v) -> str:
     return _KINDS.get(norm(v), "person")
+
+
+def flag(v) -> str:
+    """The canonical flag a word names, or ""."""
+    return _FLAGS.get(norm(v), "")
+
+
+def with_category(payload: dict) -> dict:
+    """A CATEGORY («personal», «restaurante», «trabajo») is how he files the entry: a group label said in a field
+    of its own. Folded into `groups`/`group` once, before any action reads them."""
+    cat = payload.get("categories") if payload.get("categories") is not None else payload.get("category")
+    if cat in (None, "", []):
+        return payload
+    cats = [str(x) for x in cat] if isinstance(cat, (list, tuple)) else [str(cat)]
+    out = {k: v for k, v in payload.items() if k not in ("category", "categories")}
+    if isinstance(out.get("groups"), (list, tuple)):
+        out["groups"] = list(out["groups"]) + cats
+    else:
+        out["group"] = ", ".join([x for x in (str(out.get("group") or "").strip(),) if x] + cats)
+    return out
 
 
 def truthy(v, default: bool = False) -> bool:
@@ -231,6 +265,11 @@ def normalize(contact: dict) -> dict:
         else:
             contact[key] = []
             contact[scalar] = ""
+    fl = [f for f in dict.fromkeys(flag(x) for x in contact.get("flags") or []) if f and f != "favorite"]
+    if fl:
+        contact["flags"] = fl
+    else:
+        contact.pop("flags", None)
     return contact
 
 
@@ -271,7 +310,7 @@ _kind_of = kind
 
 
 def matches(contacts: list, *, group: str = "", city: str = "", favorites=None, query: str = "",
-            kind: str = "", source: str = "") -> list:
+            kind: str = "", source: str = "", flag_: str = "") -> list:
     """The rows a view means. ONE predicate, asked by the card, by `show_view` and by the digest — three
     surfaces of one directory that disagree about what «my Telegram contacts» means is the failure this
     house has paid for more than once."""
@@ -290,6 +329,8 @@ def matches(contacts: list, *, group: str = "", city: str = "", favorites=None, 
             if not (cw in cn or (cn and cn in cw)):
                 continue
         if favorites and not c.get("favorite"):
+            continue
+        if flag_ and flag_ not in (c.get("flags") or []):
             continue
         if qw:
             hay = norm(" ".join(str(c.get(k) or "") for k in ("name", "city", "address", "notes"))

@@ -1548,5 +1548,8 @@
  "chat.errClass.auth": "credential rejected",
  "chat.errClass.rate": "provider overloaded",
  "chat.errClass.stalled": "hung",
- "chat.errClass.ours": "internal failure"
+ "chat.errClass.ours": "internal failure",
+ "widgets.contactos.flag_closed": "Closed",
+ "widgets.contactos.flag_blocked": "Blocked",
+ "widgets.contactos.flag_vip": "VIP"
 }

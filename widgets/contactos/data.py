@@ -133,6 +133,8 @@ def _public(c: dict) -> dict:
             out[k] = c[k]
     if c.get("favorite"):
         out["favorite"] = True
+    if c.get("flags"):
+        out["flags"] = list(c["flags"])
     # The PLATFORMS only, never the handles: this row is read inside a prompt, and a phone number or an
     # address in there is personal data travelling for no reason — the door that sends already reads the
     # handle from the store itself.
@@ -227,6 +229,7 @@ def prompt_digest() -> str:
         extra = [str(c.get("kind") or "")] if c.get("kind") not in (None, "", "person") else []
         extra += [str(c.get("city") or "")] if c.get("city") else []
         extra += [", ".join(c.get("groups") or [])] if c.get("groups") else []
+        extra += ["flags: " + ", ".join(c["flags"])] if c.get("flags") else []
         # The primary number, and HOW MANY more there are — never all of them: this block rides every turn
         # while the card is open, and a company with six lines would spend the budget on one row. «+2 más»
         # is what stops «tel 900111222» reading as «that is the only number we hold» (the whole list is one
@@ -339,7 +342,7 @@ def _clear_in(payload: dict) -> list[str]:
 from .actions import (  # noqa: E402,F401
     _a_add_contact, _a_update_contact, _a_set_channel, _a_add_channel, _a_show_sources, _a_remove_contact,
     _a_set_favorite, _a_hide_contact, _a_sync_source, _a_link_contact, _a_show_contact_members, _a_show_view,
-    _a_show_contact, _a_set_auto, _a_sync_contacts)
+    _a_show_contact, _a_set_auto, _a_sync_contacts, _a_set_flag, _a_restore_contact)
 
 
 # V2-778 F1-12 — one function per action (in `actions.py`), and `apply_action` is the table lookup. Each body
@@ -356,6 +359,8 @@ ACTIONS = {
     "show_sources": _a_show_sources,
     "remove_contact": _a_remove_contact,
     "set_favorite": _a_set_favorite,
+    "set_flag": _a_set_flag,
+    "restore_contact": _a_restore_contact,
     "hide_contact": _a_hide_contact,
     "sync_source": _a_sync_source,
     "link_contact": _a_link_contact,
@@ -372,7 +377,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     """Widget actions. Every payload may carry `q` — the instance the canvas stamps into every click
     (V2-540: it is always `q`, never anything else); this widget is single-instance, so it is accepted and
     ignored, but a handler that crashed on it would break every button on the card."""
-    payload = payload or {}
+    payload = model.with_category(payload or {})       # a category is a label said in a field of its own
     q = str(payload.get("q") or "")
     db = load_db()
     contacts = db.setdefault("contacts", [])

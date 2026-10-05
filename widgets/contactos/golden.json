@@ -1,10 +1,15 @@
 {
   "view_data_shape": {
+    "circles": "list",
     "cities": "list",
     "contacts": "list",
     "count": "int",
     "favorites_count": "int",
     "groups": "list",
+    "hidden_count": "int",
+    "hidden_rows": "list",
+    "providers": "list",
+    "sync": "dict",
     "view": "NoneType"
   }
 }

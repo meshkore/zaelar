@@ -1548,5 +1548,8 @@
  "chat.errClass.auth": "credencial rechazada",
  "chat.errClass.rate": "proveedor saturado",
  "chat.errClass.stalled": "se colgó",
- "chat.errClass.ours": "fallo interno"
+ "chat.errClass.ours": "fallo interno",
+ "widgets.contactos.flag_closed": "Cerrado",
+ "widgets.contactos.flag_blocked": "Bloqueado",
+ "widgets.contactos.flag_vip": "VIP"
 }

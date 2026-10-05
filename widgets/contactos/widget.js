@@ -381,7 +381,10 @@ function haystack(c){
 // sentence, and the spoken answer is already computed over all three. A card that could hold only one
 // would show a different set from the one it had just read out — the two-surfaces-disagreeing failure
 // this widget's own digest exists to stop (V2-576). Measured: a single-axis rail broke exactly that case.
-const AXES = ["fav", "hidden", "kind", "group", "city"];
+const AXES = ["fav", "hidden", "kind", "group", "city", "flag"];
+
+// A flag's label: «closed» is a state of the entry, said in the operator's language (bundle `flag_<id>`).
+function flagLabel(f){ return tt("flag_"+f, null, String(f)); }
 
 function selOf(el){ return el._ctFilter || {}; }
 
@@ -394,6 +397,7 @@ function bySel(list, f){
   if(f.kind) out = out.filter(c=>kindOf(c)===f.kind);
   if(f.group) out = out.filter(c=>groupMatch(f.group,c));
   if(f.city) out = out.filter(c=>cityMatch(f.city,c));
+  if(f.flag) out = out.filter(c=>(c.flags||[]).includes(f.flag));     // closed | blocked | vip (model.FLAGS)
   return out;                                    // `hidden` chooses the POOL, not a predicate — see basePool
 }
 
@@ -1102,6 +1106,7 @@ function renderCrumb(el, data, ctx, shown, total){
   if(sel.kind) chip(kindPlural(sel.kind), drop("kind"));
   if(sel.group) chip(String(sel.group), drop("group"));
   if(sel.city) chip(String(sel.city), drop("city"));
+  if(sel.flag) chip(flagLabel(sel.flag), drop("flag"));
   if(el._ctQuery) chip("“"+String(el._ctQuery)+"”", ()=>{ el._ctQuery=""; });
   bar.appendChild(el2("span","ctcount", shown < total
     ? tt("shown_of", {n: shown, total: total}, shown + " de " + total)
@@ -1139,6 +1144,7 @@ export function render(el, data, ctx){
       if(sel.kind) f.kind=String(sel.kind);
       if(sel.group) f.group=String(sel.group);
       if(sel.city) f.city=String(sel.city);
+      if(sel.flag) f.flag=String(sel.flag);
       el._ctFilter=f;
     }
   }
@@ -1221,6 +1227,7 @@ export function render(el, data, ctx){
       // The KIND on the row, but only when it is not the obvious one: a directory of people that labelled
       // every row «persona» would be spending its only free strip on a word that says nothing.
       if(kindOf(c)!=="person") gs.appendChild(el2("span","ctpill",kindLabel(kindOf(c))));
+      (c.flags||[]).forEach(x=>gs.appendChild(el2("span","ctpill ctflag",flagLabel(x))));   // a STATE, before labels
       (c.groups||[]).slice(0,2).forEach(g=>gs.appendChild(el2("span","ctpill",g)));
       r.appendChild(gs);
       r.appendChild(favBtn(c,ctx,el,data));

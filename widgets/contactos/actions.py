@@ -246,9 +246,66 @@ def _a_remove_contact(action, payload, q, db, contacts, now) -> dict:
         pend = db.setdefault("sync", {}).setdefault("pendingDeletes", [])
         if gid not in pend:
             pend.append(gid)
+    # …and the row is KEPT for `restore_contact` (2026-10-05): a deletion said by voice is undone by voice. Bounded
+    # like the agenda's trash; the oldest falls off.
+    bin_ = db.setdefault("trash", [])
+    bin_.append({"at": _d.time.time(), "contact": dict(c)})
+    del bin_[:-TRASH_MAX]
     _d.store.save(_d.WIDGET_ID, db)
     d = _d.view_data(q)
-    d.update({"ok": True, "result": {"removed": _d._public(c)}})
+    d.update({"ok": True, "result": {"removed": _d._public(c), "restorable": True}})
+    return d
+
+
+TRASH_MAX = 20
+
+
+def _a_restore_contact(action, payload, q, db, contacts, now) -> dict:
+    """«Put him back» — the last deleted contact, or the latest whose name contains `name`. Same id, same record;
+    a Google deletion still queued for him is withdrawn, so the mirror does not delete what came back."""
+    bin_ = db.get("trash") or []
+    want = _d._norm(payload.get("name") or payload.get("contactId") or payload.get("what") or "")
+    idx = next((i for i in range(len(bin_) - 1, -1, -1)
+                if not want or want in _d._norm((bin_[i].get("contact") or {}).get("name"))), None)
+    if idx is None:
+        return {"ok": False, "error": "nothing in the contacts trash to bring back" if not bin_ else
+                f"no deleted contact by that name; the last one was «{(bin_[-1].get('contact') or {}).get('name')}»"}
+    c = dict(bin_.pop(idx).get("contact") or {})
+    if any(x.get("id") == c.get("id") for x in contacts):
+        c["id"] = f"c{db.get('next_id', 1)}"
+        db["next_id"] = int(db.get("next_id", 1)) + 1
+    gid = str(c.get("googleId") or "").strip()
+    pend = (db.get("sync") or {}).get("pendingDeletes") or []
+    if gid and gid in pend:
+        pend.remove(gid)
+    elif gid:
+        c.pop("googleId", None)          # already deleted there: the next push creates it again
+    _d._touch(c, now)
+    contacts.append(c)
+    _d.store.save(_d.WIDGET_ID, db)
+    d = _d.view_data(q)
+    d.update({"ok": True, "result": {"restored": _d._public(c)}})
+    return d
+
+
+def _a_set_flag(action, payload, q, db, contacts, now) -> dict:
+    """One flag on or off (`model.FLAGS`). `favorite` goes to its own field — the one meaning, whichever door."""
+    c = _d._find(db, payload.get("contactId"))
+    if not c:
+        return {"ok": False, "error": "contact not found — set_flag needs its `contactId` (or its name in `item`)"}
+    fl = _d.model.flag(payload.get("flag") or payload.get("name_of_flag") or "")
+    if not fl:
+        return {"ok": False, "error": f"unknown flag «{payload.get('flag')}» — one of: {', '.join(_d.model.FLAGS)}"}
+    on = _d._truthy(payload.get("on", payload.get("value")), default=True)
+    if fl == "favorite":
+        c["favorite"] = on
+    else:
+        c["flags"] = [f for f in (c.get("flags") or []) if f != fl] + ([fl] if on else [])
+    _d.model.normalize(c)
+    _d._touch(c, now)
+    _d.store.save(_d.WIDGET_ID, db)
+    d = _d.view_data(q)
+    d.update({"ok": True, "result": {"contact": _d._public(c), "flag": fl, "on": on}})
     return d
 
 
@@ -323,6 +380,8 @@ def _a_show_contact_members(action, payload, q, db, contacts, now) -> dict:
     if not c or c.get("kind") != "group":
         return {"ok": False, "error": "eso no es un grupo — pide el grupo por su nombre"}
     rows = [_d._public(x) for x in _d.visible(db) if x["id"] in (c.get("members") or [])]
+    _d._push_view(db, {"contactId": c["id"]})          # declared a view: the card opens the group it read out
+    _d.store.save(_d.WIDGET_ID, db)
     d = _d.view_data(q)
     d.update({"ok": True, "result": {"group": _d._public(c), "members": rows,
                                      "membersKnown": c.get("membersKnown", True)}})
@@ -338,6 +397,13 @@ def _a_show_view(action, payload, q, db, contacts, now) -> dict:
         v = str(payload.get(k) or "").strip()
         if v:
             sel[k] = v
+    if sel.get("kind"):
+        sel["kind"] = _d._kind(sel["kind"])           # the card compares kinds literally («empresa» → company)
+    fl = _d.model.flag(payload.get("flag") or "")
+    if fl == "favorite":
+        payload = {**payload, "favorites": True}
+    elif fl:
+        sel["flag"] = fl
     fav = payload.get("favorites")
     if fav is not None and str(fav).strip() != "":
         sel["favorites"] = _d._truthy(fav)
@@ -352,7 +418,7 @@ def _a_show_view(action, payload, q, db, contacts, now) -> dict:
     _d.store.save(_d.WIDGET_ID, db)
     found = _d._matches(pool, group=sel.get("group", ""), city=sel.get("city", ""),
                      favorites=sel.get("favorites"), query=sel.get("query", ""),
-                     kind=sel.get("kind", ""), source=sel.get("source", ""))
+                     kind=sel.get("kind", ""), source=sel.get("source", ""), flag_=sel.get("flag", ""))
     d = _d.view_data(q)
     d.update({"ok": True, "result": {"count": len(found), "matches": [_d._public(c) for c in found[:12]],
                                      **({"hidden": True} if hid else {})}})

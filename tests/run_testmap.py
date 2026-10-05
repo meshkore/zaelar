@@ -3735,6 +3735,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.240", "title": "A contact carries FLAGS (closed, blocked, vip; favorite its own field) and a CATEGORY label, a "
+                                 "place word is a place, a deletion comes back with restore_contact (operator review 2026-10-05)",
+            "ch": UNIT, "paths": ["tests/browser/unit/contactos/test_a_contact_carries_flags_categories_and_a_way_back.py"]},
         {"id": "2.239", "title": "A web search the card ANSWERS goes to the card: verdict sure on an output.answer action → its "
                                  "call, no web (both channels) — «find me a free 45 minutes» got timer websites (pass 109 C2)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_search_the_card_answers_goes_to_the_card.py"]},

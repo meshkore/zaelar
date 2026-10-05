@@ -44,7 +44,8 @@ His redesign order, with the card open on 2 688 contacts. Four things, and the f
 
 Also: the LIST is capped at 120 rows with «ver más» (his directory is 2 688 and every row used to become a
 DOM node on every keystroke); the hidden shelf became reachable and undoable; `link_contact` got a control
-(it had existed with no button since V2-541); and `show_connectors` was added so the plug has a voice.
+(it had existed with no button since V2-541); and `show_connectors` was added so the plug has a voice (renamed `show_sources` on 2026-10-04,
+when connecting moved to the ⚙ Conectores section).
 
 ⚠️ **`show_view` had carried `kind` and `source` since V2-714 and `widget.js` read NEITHER** — the spoken
 answer filtered and the card did not, which is the two-surfaces-disagreeing failure `prompt_digest` exists
@@ -54,3 +55,11 @@ to prevent. Found by a test, not by reading.
 whole selection; «mi restaurante favorito en Barcelona» is group + city + favourites at once. The first cut
 of the rail was single-axis and broke exactly that case — the card holds all of them now, and only a click
 clears the others.
+
+**2026-10-05 — flags, categories and the way back.** An entry carries FLAGS (`model.FLAGS`: favorite, closed,
+blocked, vip) — a STATE, apart from how it is filed (`groups`) and what it is (`kind`); `favorite` keeps its own
+boolean because four modules read it, and `set_flag favorite` writes that field. A CATEGORY («personal»,
+«restaurante») is a label said in a field of its own (`model.with_category`), and a place said by what it is
+(`kind: "restaurante"`) is a place, no longer a person. `remove_contact` keeps the row in a bounded trash and
+`restore_contact` brings it back with its id, withdrawing a Google deletion still queued for it. A pushed `kind`
+is normalised on the server, because the card compares it literally («empresa» showed everything).
