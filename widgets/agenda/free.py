@@ -64,8 +64,12 @@ def _first_time(payload: dict, keys: tuple) -> int | None:
     return next((v for v in vals if v is not None), None)
 
 
+#: Where a part of the day may arrive — pass 111, C2: the model wrote `period`, and the window was the whole day.
+_PART_KEYS = ("from", "after", "start", "window", "part", "period", "part_of_day", "time_of_day", "to", "before", "end")
+
+
 def _window(payload: dict) -> tuple[int, int]:
-    part = next((_PARTS[w] for k in ("from", "after", "start", "window", "part", "to", "before", "end")
+    part = next((_PARTS[w] for k in _PART_KEYS
                  if (w := str(payload.get(k) or "").strip().lower()) in _PARTS), (_DAY_START, _DAY_END))
     lo, hi = _first_time(payload, ("from", "after", "start")), _first_time(payload, ("to", "before", "end"))
     return (_m(part[0]) if lo is None else lo), (_m(part[1]) if hi is None else hi)

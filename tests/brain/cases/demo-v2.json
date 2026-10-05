@@ -1127,5 +1127,43 @@
    "worker"
   ],
   "open": "V2-776 · a stale query carried from an earlier block (the Inworld mail) became a results sheet; his words name tomorrow's day — the agenda"
+ },
+ {
+  "id": "demo-c5-send-a-telegram-is-a-send-not-a-draft",
+  "lang": "en",
+  "phrase": "send rowan a telegram with the new time",
+  "source": "TMP/demo/run-p111 C5 (2026-10-05): «Sure — I'll draft it for you to okay before it goes out.» then the promise repair called mensajeria:draft; the late catalogue named mensajeria 0.99, screen_action none 0.63",
+  "screen": {
+   "open": [
+    "agenda"
+   ]
+  },
+  "model": {
+   "say": "Sure — I'll draft it for you to okay before it goes out.",
+   "tools": []
+  },
+  "brief": {
+   "request_type": [
+    "order",
+    0.95
+   ],
+   "escalate_or_inline": [
+    "handle_inline",
+    0.95
+   ],
+   "wants_words": [
+    "act",
+    0.95
+   ],
+   "screen_action": [
+    "none",
+    0.63
+   ]
+  },
+  "expect": "data-op mensajeria:send_to",
+  "forbid": [
+   "worker"
+  ],
+  "open": "pass 111 C5: an explicit «send» became a draft because the repair followed the model's own words; pass 110 sent it — model variance, no broken mechanism found"
  }
 ]

@@ -35,6 +35,12 @@ def test_the_afternoon_is_a_window(ag):
         "midnight is a time, not «no time»"
 
 
+def test_the_part_of_day_under_another_key_is_the_window(ag):
+    """Pass 111, C2: the model sent `{"period": "afternoon", "duration": 45}` and the window was the whole day."""
+    got = ag.apply_action("find_free", {"date": "2026-10-06", "period": "afternoon", "duration": 45})
+    assert got["window"][0] == "12:00", got
+
+
 def test_after_last_false_is_false(ag):
     got = ag.apply_action("find_free", {"date": "2026-10-06", "duration_min": 45, "from": "12:00", "after_last": "false"})
     assert got["free"][0]["first_fit"] == "12:00-12:45", got
