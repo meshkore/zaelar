@@ -88,6 +88,8 @@ def speakable(text: str, lang: str) -> str:
     """The spoken form of `text`. An unknown language still gets the NAMES pass (see below)."""
     if not text:
         return text
+    from voice import speech as _speech        # demo pass 109, S4: nothing bracketed as an instruction is spoken
+    text = _speech.drop_directives(text)
     # Names first, and that order is load-bearing: a release name is full of digit runs («2026.1080p»,
     # «AAC5.1») that the figure regexes would otherwise be handed as if they were money.
     try:
@@ -124,9 +126,12 @@ _TAIL_RE = re.compile(r"(?:[€$£¥%]\s?)?\d[\d.,]*(?:\s?[€$£¥%])?\s?$|[€
 def safe_cut(buf: str) -> int:
     """Index up to which `buf` can be emitted now; the rest may still be the head of a figure OR a name."""
     cut = len(buf)
+    from voice import speech as _speech        # the TTS door: an instruction still being written stays held
+    d = _speech.directive_head(buf)
+    cut = d if d is not None else cut
     m = _TAIL_RE.search(buf)
     if m and len(buf) - m.start() <= _MAX_HOLD:
-        cut = m.start()
+        cut = min(cut, m.start())
     name = say_names.hold_start(buf)
     if name is not None:
         cut = min(cut, name)               # the EARLIER hold wins: whatever is still growing must stay whole

@@ -3735,6 +3735,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.236", "title": "An INSTRUCTION never reaches the voice: «[canvas:close:results]» is dropped whole or split "
+                                 "across chunks, at the TTS door too, and the action map records words (demo pass 109 S4)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_an_instruction_never_reaches_the_voice.py"]},
         # 2026-10-04 — a consent window the browser blocks is SAID and offered as a link under the connector pressed:
         # the panel used to sit on «connecting…» for three minutes with nothing open. Rendered (ConfigPanel + bundle).
         {"id": "2.235", "title": "A language switch re-points EVERY voice of the failover TTS, each in its own provider — the "

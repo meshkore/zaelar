@@ -122,6 +122,11 @@ def parse_json(raw: str):
         return None
 
 
+def _directive_head(buf: str):
+    from voice import speech as _speech
+    return _speech.directive_head(buf)
+
+
 def strip_tags(buf: str, emit_fn, final: bool):
     """
     Extract and emit widget tags from *buf*. Return ``(spoken, new_buf)``.
@@ -330,7 +335,7 @@ def strip_tags(buf: str, emit_fn, final: bool):
     if b != -1 and "]]" not in buf[b:]:
         hold = min(hold, b)
 
-    if buf.endswith("[") and not buf.endswith("[["):
-        hold = min(hold, len(buf) - 1)
+    d = _directive_head(buf)       # a lone "[" or an instruction still being written (demo pass 109, S4)
+    hold = min(hold, d) if d is not None else hold
 
     return buf[:hold], buf[hold:]

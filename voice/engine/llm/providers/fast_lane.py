@@ -87,10 +87,13 @@ async def handled(brain, text: str, emit, *, first_turn: bool, t_entry: float, w
     try:
         # Conv buffer (mirror of the provider's post-reply write): the NEXT turn — and a worker's
         # recent-conversation block — must see that this phrase was acted on.
+        # What Zaelar SAID is words; the act rides beside them — replayed as a bracketed assistant line, the model
+        # copied it into its own replies and «[canvas:close:results]» was read out (demo pass 109, S4).
         from memory import api as _memory0
-        _memory0.write(f"Operador: {text[:200]} · zaelar: [{_desc}]",
+        _said0 = _lg0.current_language().data_ack
+        _memory0.write(f"Operador: {text[:200]} · zaelar: {_said0}",
                        kind="conv", level="short", importance=0.2, ttl_days=2.0,
-                       meta={"source": "conv", "u": text[:400], "a": f"[{_desc}]"})
+                       meta={"source": "conv", "u": text[:400], "a": _said0, "act": _desc})
     except Exception:
         pass
     try:
@@ -326,7 +329,8 @@ async def wall_tab(brain, text: str, emit, *, first_turn: bool, window_max: int)
          extra={"cat": "flash", "engine": "wall_tab", "origin": "wall_tab", "src": "fast_lane"})
     from nucleo.flash import dialog as _dialog_wt
     _dialog_wt.push_user(brain._window, text)
-    brain._window.append({"role": "assistant", "content": f"[panel:{tab}]"})
+    from i18n import langs as _lg_wt
+    _dialog_wt.record_silent_action(brain._window, _lg_wt.current_language().data_ack)   # words, never a [tag]
     del brain._window[:-window_max]
     try:
         from nucleo import style_policy as _style

@@ -43,6 +43,11 @@ _META_LINE    = re.compile(r"^\s*(?:\*\*[^*]+\*\*|[A-Z][\w /-]{0,30})\s*[:：]\s
 # loud, brackets and all. After links (`[text](url)` → text) and brain tags (`[[…]]`) are gone, a single-bracketed
 # aside is dropped whatever its language, with the dash or space it leaves dangling.
 _STAGE        = re.compile(r"(?<!\[)\[(?!\[)[^\[\]\n]{1,120}\](?![\]\(])")
+# An INSTRUCTION is not speech either (demo pass 109, S4): `[canvas:close:results]`, `[panel:tasks]` — a lowercase
+# identifier with `:` segments in single brackets is the product's bookkeeping format, never prose. Unlike a stage
+# direction it goes even when it is all there is: a reply that is only an instruction says nothing.
+_DIRECTIVE    = re.compile(r"(?<!\[)\[\s*[a-z][a-z0-9_.\-]*(?:\s*:\s*[\w.\-]+)+\s*\](?![\]\(])")
+_DIRECTIVE_HEAD = re.compile(r"(?<!\[)\[\s*(?:[a-z][a-z0-9_.\-:]{0,47})?$")
 _PUNCT        = ".!?…,;:。！？，、；："
 _DANGLING     = re.compile(rf"\s*[—–-]+\s*(?=[{_PUNCT}]|$)")
 _SPACE_PUNCT  = re.compile(rf"[ \t]+([{_PUNCT}])")
@@ -57,6 +62,19 @@ def drop_stage_directions(text: str) -> str:
     return out if out.strip(" \t—–-" + _PUNCT) else text
 
 
+def drop_directives(text: str) -> str:
+    out = _DIRECTIVE.sub("", text or "")
+    if out == text:
+        return text
+    return _SPACE_PUNCT.sub(r"\1", _DANGLING.sub("", _WS_RUN.sub(" ", out))).strip()
+
+
+def directive_head(buf: str):
+    """Where a trailing `[` — or an instruction still being written — starts, so a stream holds it; else None."""
+    m = _DIRECTIVE_HEAD.search(buf or "")
+    return m.start() if m else None
+
+
 def _strip_markup(text: str, *, drop_code: bool) -> str:
     """Turn markdown/tag noise into plain speakable characters. Shared by sanitize() and inline()."""
     if drop_code:
@@ -66,6 +84,7 @@ def _strip_markup(text: str, *, drop_code: bool) -> str:
     text = _LINK.sub(r"\1", text)
     text = _INLINE_CODE.sub(r"\1", text)
     text = _BRAIN_TAG.sub("", text)
+    text = drop_directives(text)
     text = drop_stage_directions(text)
     text = _FENCE_BLOCK.sub("", text)
     text = _HR.sub("", text)

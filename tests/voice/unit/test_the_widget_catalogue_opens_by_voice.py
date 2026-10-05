@@ -208,7 +208,9 @@ def test_the_voice_lane_opens_the_tab_and_records_the_exchange():
     assert took is True and missed is False
     panel = [k for a, k in events if a[:2] == ("panel", "open")]
     assert panel == [{"extra": {"tab": "apps-custom", "src": "flash"}}], events
-    assert brain._window[-1] == {"role": "assistant", "content": "[panel:apps-custom]"}
+    from i18n import langs as _lg
+    # recorded as WORDS (demo pass 109, S4): a «[panel:…]» line in the assistant's mouth is copied into replies
+    assert brain._window[-1] == {"role": "assistant", "content": _lg.current_language().data_ack}
 
 
 def test_both_channels_try_the_lane_before_the_model():
