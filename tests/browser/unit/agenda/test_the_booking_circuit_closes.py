@@ -110,3 +110,13 @@ def test_the_manifest_declares_the_restore():
     import widgets.agenda as pkg
     acts = json.loads((Path(pkg.__file__).parent / "manifest.json").read_text("utf-8"))["actions"]
     assert "restore_meeting" in acts and acts["restore_meeting"].get("confirm") is False
+
+
+def test_a_stretch_asked_by_its_length_searches_the_stretch(ag):
+    """Pass 115, R3: «five days in her vacation where i'm free» came as find_free {date: first day, duration_min:
+    7200, note: «… (20 dic 2026 – 4 ene 2027)»} — no `until`, the stretch in words — and ONE day was searched."""
+    ag.apply_action("add_meeting", {"title": "Vacation", "date": "2026-12-20", "endDate": "2027-01-04", "allDay": True})
+    got = ag.apply_action("find_free", {"date": "2026-12-20", "duration_min": "7200", "note": "cinco días seguidos"})
+    assert (got.get("from"), got.get("until")) == ("2026-12-20", "2027-01-04"), got
+    got = ag.apply_action("find_free", {"date": "2026-11-02", "duration_min": 4320})
+    assert (got.get("from"), got.get("until")) == ("2026-11-02", "2026-11-04"), "three days asked, three searched"

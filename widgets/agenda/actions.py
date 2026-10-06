@@ -575,6 +575,7 @@ def _a_find_free(action, payload, db, _extra) -> dict:
                         for x in _d.re.findall(r"\b\d{4}-\d{2}-\d{2}\b", v) if x > str(_day)[:10])
         if _later:
             _until = _later[-1]
+        _until = _until or _free.span_end(db.get("meetings") or [], str(_day), payload)
     import time as _tm
     db["view"] = {"sel": _day if not _until else "month", "n": int((db.get("view") or {}).get("n", 0)) + 1,
                   "at": _tm.time()}

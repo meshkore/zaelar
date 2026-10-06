@@ -144,6 +144,31 @@ def clashes(meetings: list, row: dict | None) -> list[dict]:
 _MAX_SPAN_DAYS = 62
 
 
+def span_end(meetings: list, day: str, payload: dict) -> str:
+    """The last day a search asked BY ITS LENGTH covers, or "" — pass 115, R3: «five days in her vacation» came as
+    {date, duration_min: 7200} with the stretch only in words, and one day was searched. A length of a day or more
+    with no `until` is a stretch: the all-day span that covers `day` ends it, else the days the length adds up to."""
+    import datetime as _dt
+    need = 0
+    for k in ("duration_min", "minutes", "duration", "length"):
+        try:
+            need = need or int(float(str(payload.get(k)).strip()))
+        except (TypeError, ValueError):
+            pass                          # `_minutes` caps a slot at 12 h: a stretch is read uncapped
+    if need < 24 * 60:
+        return ""
+    try:
+        d0 = _dt.date.fromisoformat(str(day)[:10])
+    except ValueError:
+        return ""
+    for m in meetings or []:
+        rep = m.get("repeat") if isinstance(m.get("repeat"), dict) else {}
+        if (m.get("allDay") and rep.get("freq") == "daily" and int(rep.get("interval") or 1) == 1
+                and str(m.get("date") or "") <= str(d0) <= str(rep.get("until") or "")):
+            return str(rep["until"])
+    return (d0 + _dt.timedelta(days=-(-need // (24 * 60)) - 1)).isoformat()
+
+
 def find_span(meetings: list, first: str, last: str, payload: dict) -> dict:
     """Across days («five days in her vacation where I'm free»): which days in [first, last] have NO timed
     appointment — and, for the others, whether the slot asked for still fits. An all-day entry (her vacation
