@@ -181,6 +181,9 @@ def apply_action(action: str, payload: dict = None) -> dict:
     p = payload or {}
     db = _load()
     try:
+        _named = str(p.get("symbol") or "").strip()
+        if action == "range" and _named and _named.upper() != str(db.get("symbol") or "").upper():
+            action = "show"            # pass 120 M3: «and the nasdaq, over the year» is the Nasdaq, not Apple's year
         if action == "show":
             query = str(p.get("symbol") or p.get("item") or p.get("query") or "").strip()
             if not query:

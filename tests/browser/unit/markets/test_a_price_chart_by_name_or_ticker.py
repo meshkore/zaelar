@@ -188,3 +188,11 @@ def test_the_nasdaq_is_the_index_not_a_futures_contract(monkeypatch):
     monkeypatch.setattr(mk, "_get", get)
     assert mk._lookup("Nasdaq") == ("^IXIC", "NASDAQ Composite")
     assert mk._lookup("gold")[0] == "GOLD"
+
+
+def test_a_period_with_another_symbol_shows_that_symbol(fake_yahoo):
+    """Demo pass 120, M3: «and the nasdaq, over the whole year» → `range {symbol: ^IXIC, range: 1y}`: the period
+    changed, the symbol was dropped, and the reply said «the Nasdaq isn't in what I've got — only Apple»."""
+    mk.apply_action("show", {"symbol": "AAPL"})
+    mk.apply_action("range", {"symbol": "^IXIC", "range": "1y"})
+    assert any("^IXIC" in u or "%5EIXIC" in u for u in fake_yahoo), fake_yahoo[-1]
