@@ -594,7 +594,18 @@ def a_view_where_the_verdict_acts(wid: str, model_action: str, verdict_action: s
     disagreeing verdict) protects a model that is RIGHT from a wrong verdict — its counter-case would have restarted a
     video. A lens changes nothing, so yielding it costs nothing; and when the turn wants an act (`wants_words=act`)
     and the verdict names one that is not a lens, the lens is the reading that cannot be what he asked."""
-    if not (str(words or "") == "act" and verdict_action and is_view_op(wid, model_action)):
+    if not (verdict_action and is_view_op(wid, model_action)):
+        return False
+    if str(words or "") == "tell":
+        # …and its mirror (pass 119, C2: «find me a free 45 minutes…» → the model's `show_day`, a lens that answers
+        # nothing, under a verdict `find_free`): when he asks for WORDS, the lens that answers is what he asked.
+        try:
+            from widgets import effects as _fx
+            return (_fx.carries(wid, verdict_action, _fx.OUTPUT_ANSWER)
+                    and not _fx.carries(wid, model_action, _fx.OUTPUT_ANSWER))
+        except Exception:  # noqa: BLE001
+            return False
+    if str(words or "") != "act":
         return False
     if not is_view_op(wid, verdict_action):
         return True

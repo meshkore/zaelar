@@ -286,12 +286,12 @@ def close_target(widget_id: str) -> str:
             # Several of the piece open (demo passes 38/45/47, 2026-09-29, S4: the base shell beside the sheet, or
             # a phantom base card): the one his last turn acted on, else the ONE instance beside a bare shell.
             # Two real sheets and no focus keep the bare id — the tag's own resolution asks.
+            inst = [i for i in same if "::" in i]
+            if len(inst) == 1:          # pass 119 S4: a focused bare shell took the close and the sheet stayed
+                return inst[0]
             focus = canvas_focus.last_turn_card(same)
             if focus:
                 return focus
-            inst = [i for i in same if "::" in i]
-            if len(inst) == 1:
-                return inst[0]
         return wid
     return canvas_focus.last_turn_card(ids) or (ids[0] if len(ids) == 1 else "")
 

@@ -82,6 +82,8 @@ def _fill(node, payload: dict):
                     if optional:
                         continue
                     return None
+                if k.endswith("~") and isinstance(val, str):   # pass 118 E3: «Andrew (ago@proars.com)» is Andrew
+                    val = re.sub(r"\s*[(<][^)>]*[)>]\s*$", "", val).strip() or val
                 out[k] = val
             else:
                 got = _fill(v, payload)

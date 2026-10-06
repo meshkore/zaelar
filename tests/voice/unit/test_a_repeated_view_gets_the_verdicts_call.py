@@ -115,3 +115,14 @@ def test_an_answering_lens_yields_to_a_verdict_that_changes_the_screen():
     assert data_ops.a_view_where_the_verdict_acts("mensajeria", "search_archive", "open", "act")
     assert not data_ops.a_view_where_the_verdict_acts("mensajeria", "search_archive", "open", "tell")
     assert not data_ops.a_view_where_the_verdict_acts("mensajeria", "show_view", "open", "act"), "two plain lenses: the model's"
+
+
+def test_a_lens_that_does_not_answer_yields_to_the_one_that_does_when_he_asks():
+    """Pass 119, C2: «find me a free 45 minutes tomorrow afternoon…» — the verdict read `agenda:find_free` (an
+    `output.answer` lens), the model called `show_day`, a plain lens that answers nothing, and the slot was never
+    found: «book it» then had no time and the whole C block fell. When the turn wants WORDS, the lens that answers is
+    what he asked; the mirror of the clause above."""
+    from nucleo.flash import data_ops
+    assert data_ops.a_view_where_the_verdict_acts("agenda", "show_day", "find_free", "tell")
+    assert not data_ops.a_view_where_the_verdict_acts("agenda", "find_free", "show_day", "tell"), "the answer stays"
+    assert not data_ops.a_view_where_the_verdict_acts("agenda", "show_day", "show_week", "tell"), "two plain lenses"

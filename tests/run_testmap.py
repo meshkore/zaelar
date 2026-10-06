@@ -3735,6 +3735,8 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.245", "title": "«close the results» closes the one sheet, not a focused bare shell beside it (pass 119 S4)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_closing_the_results_closes_the_sheet_not_its_shell.py"]},
         {"id": "2.244", "title": "A SURE verdict view (≥0.95) on the card in front beats a model view on another card — «open the "
                                  "second one» opened a monitor over the photos (pass 114 I3); both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_sure_verdict_view_on_the_card_in_front_wins.py"]},
