@@ -87,8 +87,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   2.72, 3.59 · `nucleo/jev.py`, `nucleo/flash/build_decision.py`.
 - **CRIT-K2 · The verdict COMPLETES the model, never contradicts it.** A valid, resolvable model call runs (a
   discrepancy is recorded ⚖️); an empty turn or an unresolved call is filled by the verdict's declared action on
-  the open card; unsure, closed card or Jev off → the model's path bit for bit. — since 2026-09-23 · nodes 2.73,
-  2.121 · `nucleo/flash/direct_action.complete`.
+  the open card; unsure, closed card or Jev off → the model's path bit for bit. One exception: a verdict VIEW at
+  ≥ 0.95 on the card in front beats a model VIEW on ANOTHER card (pass 114 I3). — since 2026-09-23 · nodes 2.73,
+  2.121, 2.244 · `nucleo/flash/direct_action.complete`, `nucleo/flash/verdict_card.py`.
 - **CRIT-K3 · The verdict's action lands on the LIVE card**, never a bare phantom; with several cards of one type
   «close» goes to the one his last turn touched; «it» / «that» is the card his last turn acted on. — since
   2026-09-29 · nodes 2.167, 2.169, 2.85 · `nucleo/flash/show_target.py`, `nucleo/canvas_focus.py`.

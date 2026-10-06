@@ -522,8 +522,9 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
         emit("brain", _cd["label"], role="system", text=_cd["text"], extra=_cd["extra"])
     if _cd["ask"]:
         acted["widget"] = True; clarify["msg"] = _cd["ask"]; return
-    # V2-754 — una llamada VÁLIDA del modelo corre aunque el veredicto discrepe (a 0,99 habría REINICIADO el
-    # vídeo); la discrepancia se registra, que es lo que permitirá medir a quién creer.
+    if _txw._vcard.takes_the_view(_brief, _cd["card"], action_name, operator_text=_txw._bnotes.operator_half(text), emit=emit, present=_txw._cvis.present, apply_widget_data=_apply_widget_data):
+        acted["widget"] = True; return       # pass 114 I3: a sure verdict view on the card in front (`verdict_card`)
+    # V2-754 — a VALID model call runs over a disagreeing verdict (a 0.99 would have RESTARTED the video); logged.
     if (_dis := _txw._direct_action.completes(_brief, _cd["card"], model_action=action_name)):
         from nucleo.flash import turn_brief as _tb_vw
         _vw_words = str(_tb_vw.read(_brief, _tb_vw.WORDS_KEY, "")[0] or "")
@@ -559,10 +560,9 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
         if (_fx_q.carries(_cd["card"], _dis, _fx_q.OUTPUT_ANSWER)
                 and _fx_q.carries(_cd["card"], action_name, _fx_q.DATA_WRITE)
                 and _txw._direct_action._action_sure(_brief)):
-            # full51 C2: when the verdict cannot be completed alone (`find_free` needs the length and the
-            # afternoon only a model reads), the WRITE still ran — «Call with Rowan» booked at 15:45 over
-            # the 15:00 meeting, nobody having asked to book. The write never runs; the verdict's call is
-            # asked of the model after the turn (the repeated-view repair pass).
+            # full51 C2: when the verdict cannot be completed alone (`find_free` needs the length and the afternoon only
+            # a model reads), the WRITE still ran — «Call with Rowan» booked at 15:45 over the 15:00 meeting, nobody
+            # having asked to book. The write never runs; the verdict's call is asked after the turn (repair pass).
             if not _txw._direct_action.complete(_brief, operator_text=_txw._bnotes.operator_half(text), emit=emit,
                                            present=_txw._cvis.present, apply_widget_data=_apply_widget_data,
                                            widget_id=_cd["card"], instead_of=action_name,
