@@ -560,11 +560,12 @@ def _same_thing(a: str, b: str) -> bool:
 
 
 def resolve_sessions(query: str) -> list[str]:
-    """Referencia of the operator → tid(s) live. '' / 'todo' → all; a sola live → esa; varias → by kind or
-    solape of palabras with the goal; nothing casa → all (mejor parar of mas that leave zombies)."""
+    """Operator reference → live tid(s): a live id → that one; ''/all → all; one live → it; else kind, word overlap, all."""
     keys = _live_keys()
     if not keys:
         return []
+    if str(query or "").strip() in keys:      # an id is never a phrase (pass 116: a brief went to every worker)
+        return [str(query).strip()]
     q = _norm(query)
     if not q or _ALL_RE.search(q):
         return list(keys)
@@ -602,8 +603,7 @@ async def inject(which: str, message: str) -> list[str]:
             if r.session:
                 await r.session.inject(message)
             else:
-                # aun EN COLA of the pool (without proceso): the instruccion queda `pending` in the record and is entrega
-                # by piggyback in the first contacto of the worker (§v3·H) — never is pierde in silencio.
+                # still QUEUED (no process): pending on the record, piggybacked on the worker's first contact (§v3·H)
                 from nucleo.workers.session import Inject
                 r.injects.append(Inject(text=message, ts=time.time()))
             done.append(tid)

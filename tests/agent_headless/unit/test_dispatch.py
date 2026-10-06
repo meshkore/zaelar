@@ -721,6 +721,19 @@ def test_resolve_sessions_does_not_pick_one_among_several_unrelated_tasks(monkey
     assert dispatch.resolve_sessions("now make it have 3 wheels instead of 2") == ["m1", "m2"]
 
 
+def test_a_task_id_resolves_to_that_task_alone(monkeypatch):
+    """Demo pass 116, F1: the research DIRECTION composed for the new summary task was injected by its id
+    (`dispatch_prepare` → `inject_soon(key, …)`), the id shares no word with any goal, and «nothing matches → all»
+    sent it to the monitors worker too, which then switched to writing the summary. An id is never a phrase."""
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["9a0c47-1"] = SessionRecord(task_id="9a0c47-1", kind="web", status="running",
+                                                    goal="find three 27-inch 4K monitors under $400")
+    dispatch._SESSIONS["9a0c47-2"] = SessionRecord(task_id="9a0c47-2", kind="research", status="running",
+                                                    goal="write a one-page summary of the bitcoin whitepaper")
+    assert dispatch.resolve_sessions("9a0c47-2") == ["9a0c47-2"]
+
+
 def test_active_sessions_only_returns_live_ones():
     """PROCESOS ↔ FLUJOS desalineados (operador, 2026-08-18): el tablero de flujos decía «ningún flujo activo» y la
     pestaña «Procesos» seguía pintando «creando un widget… en curso» para una tarea acabada 30 minutos antes.
