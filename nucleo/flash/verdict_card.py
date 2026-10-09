@@ -64,3 +64,10 @@ def retarget(brief, widget_id: str, action: str, payload: dict, said: str) -> tu
     except Exception:  # noqa: BLE001
         pass
     return widget_id, action, payload
+
+
+def canvas_yields(brief) -> bool:
+    """No sure canvas gesture, or an inner op as SURE as one (V2-781 pair 5: «ya la puedes cerrar» read canvas=close
+    1.00 AND agenda:close_meeting 1.00, and the sheet stayed open). The R4/M4 misses had the inner op at 0.55-0.60."""
+    from nucleo.flash import direct_action as _da
+    return not _da.sure_canvas(brief) or _da._action_sure(brief, floor=SURE)

@@ -689,7 +689,7 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
         # A SURE «close the card» is about the card, never its data (demo pass 2026-09-28, R4: «ok close the
         # calendar», canvas=close 1.00 and screen_action=agenda:close_meeting 0.60 — the data action ran, the
         # card was shown again, and the reply said «calendar's closed»). The completion is the card's own close.
-        if sure_canvas(brief):
+        if not __import__("nucleo.flash.verdict_card", fromlist=["x"]).canvas_yields(brief):   # V2-781
             return ""                         # a canvas gesture is never a data action — `complete_canvas` owns it
         rung = resolve(operator_text, brief=brief, operator_text=operator_text, model_words=model_words)
     except Exception:  # noqa: BLE001

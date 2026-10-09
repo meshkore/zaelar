@@ -418,6 +418,8 @@ def _a_update_meeting(action, payload, db, _extra) -> dict:
     # here — moving an appointment reschedules its notice, and that belongs to move_meeting, which
     # owns the reminder. One door per consequence.
     _hits = _d.edit.find(db, payload)
+    if not _hits and set(payload) == {"title"} and (_hits := _d.edit.find(db, {})):
+        payload = {"newTitle": payload["title"]}    # V2-781 pair 5: a bare title naming no row is the new name
     if not _hits:
         return {"ok": False, "error": _d.edit.missing(db, payload)}
     _fields = ("notes", "details", "location", "place", "category", "attendees", "people", "with",

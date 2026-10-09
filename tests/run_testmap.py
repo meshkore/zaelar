@@ -3738,6 +3738,12 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.249", "title": "«ya la puedes cerrar» with the card open: a SURE inner op (≥0.95) beats a sure canvas "
+                                 "close — the sheet stayed open over «Vale, la cierro» (V2-781 pair 5); both channels",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_sure_inner_close_beats_the_canvas_close.py"]},
+        {"id": "2.248", "title": "«Cámbiale el nombre al dentista, ponle X» — a bare title naming no row renames the "
+                                 "appointment in focus instead of failing and writing a duplicate (V2-781 pair 5)",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_bare_new_name_renames_the_one_on_screen.py"]},
         {"id": "2.247", "title": "A date by day and month is read and wins over a weekday beside it — «el viernes 30 de "
                                  "octubre» was the 16th, «queda apuntado para avisarte» scheduled nothing (V2-781 T515)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_date_by_day_and_month_is_read.py"]},

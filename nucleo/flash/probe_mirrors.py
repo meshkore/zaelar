@@ -188,7 +188,7 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
     if not _already and not any(t["action"] == "close" for t in tags):
         try:
             from . import direct_action as _da_bs
-            if (_da_bs.names_an_order(_tbrief) and not _da_bs.sure_canvas(_tbrief)   # a canvas gesture is never data
+            if (_da_bs.names_an_order(_tbrief) and __import__("nucleo.flash.verdict_card", fromlist=["x"]).canvas_yields(_tbrief)
                     and (_rung := _da_bs.resolve(operator_text, brief=_tbrief, operator_text=operator_text,
                                                  model_words=spoken if isinstance(spoken, str) else ""))):
                 tool_calls.append({"name": "widget_data", "args": {"widget_id": _rung["widget"],
