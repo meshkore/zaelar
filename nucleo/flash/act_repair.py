@@ -253,6 +253,9 @@ async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: s
     pass asks «did you promise an act?», and a refusal did not, so it rightly called nothing — and the mail never
     went. A refusal of an action the card DECLARES, for an order the verdict names, is one more question to the
     model, with the action named. Bounded like the others: one card, its declared action, the caller's gate."""
+    from nucleo.flash import reply_promise as _rp     # V2-781 T529: an answer that promised nothing is left alone
+    if _rp.verdict(reply) == "none" and not denies_the_act(reply):
+        return None
     got = await call_for_promise(operator_text, reply, widget_id, spec, window=window)
     # V2-781 T518: «make it last until one» — the promise pass read «I'll open it so you can see it» and picked
     # `open_meeting` with the verdict at `agenda:move_meeting` 0.98. The verdict completes the model (CRIT-K2): a

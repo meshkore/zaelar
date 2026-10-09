@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.255", "title": "An answer that promised nothing (reply_promise=none) is never repaired into an act — "
+                                 "«the 16th is free» became «Done. Right now it holds…» (V2-781 T529); both channels",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_answer_that_promised_nothing_is_not_repaired.py"]},
         {"id": "2.254", "title": "A worker's notice at an instant already ringing is not a second notice — the premiere "
                                  "rang twice at 09:00 (V2-781 pair 3)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_worker_notice_at_an_instant_already_ringing_is_not_a_second.py"]},
