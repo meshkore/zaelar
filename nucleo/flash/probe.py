@@ -425,7 +425,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # confirm-gate. Medido: «paga la factura de la luz antes del día 5» acabó creando un recordatorio.
     # Va fuera del `if execute` porque el probe REPORTA la decisión aunque no ejecute, y el test tiene que ver
     # `escalate` igual que lo vería la voz.
-    if action in ("chat", "widget_data") or action.startswith("canvas:"):
+    if action == "chat" or action.startswith("canvas:"):    # V2-781 T530: a data-op has a funnel (voice: data_done)
         try:
             from nucleo import danger as _danger_bk
             if _danger_bk.is_dangerous(operator_text):
