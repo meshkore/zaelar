@@ -127,7 +127,8 @@ def dated_note_backstop(reply: str, operator_text: str = "", window=None) -> dic
         # as soon as the reply stops asking — measured in the same reproduction, it lands on the turn where the
         # date is finally settled, with the right title. Filing early costs a wrong entry that nobody will go
         # and delete.
-        if "?" in (reply or ""):
+        from . import clarifying as _cl      # V2-781 pair 5: «dime a qué dentista vas y te la apunto…» asks too
+        if "?" in (reply or "") or _cl.asks_for_missing_detail(reply):
             return None
         tail = n[m.end():]
         cut = _REMIND_VERB_RE.search(tail)

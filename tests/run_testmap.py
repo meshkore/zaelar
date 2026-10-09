@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.258", "title": "«Dime a qué dentista vas y te la apunto…» is an offer, not a note — the backstop filed "
+                                 "an all-day «con su aviso» (V2-781 pair 5)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_offer_to_note_it_is_not_a_note.py"]},
         {"id": "2.257", "title": "A repair pass knows what day it is — «el martes que viene» on a Saturday was corrected "
                                  "to the 20th, the 13th stayed with its notice (V2-781 pair 7)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_repair_pass_knows_what_day_it_is.py"]},
