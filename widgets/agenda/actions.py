@@ -137,11 +137,11 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
                 _ad["reminder_id"], _ad["remindAt"] = _jid, _at
         # V2-208: the SAME meeting twice (see `_is_same_meeting`). A duplicate notice is heard once; a
         # duplicate meeting is SEEN, and remains there until someone deletes it manually.
-        elif (_refused := _twins.series_refusal(_new, _meets)) is not None:      # V2-781 T520
-            return _refused
         elif (_same := next((m for m in _meets if _d._is_same_meeting(_new, m)), None)) is not None:
             if _d._settle_rule(db, _same, _new):     # V2-773: the twin takes the rule it did not carry
                 _extra["stored"] = dict(_same)
+        elif (_refused := _twins.series_refusal(_new, _meets)) is not None:      # V2-781 T520 (identical: above)
+            return _refused
         else:
             # V2-473 — the default reminder is the AGENDA's job, not the model's conduct. Measured in
             # `dentist-appointment-into-agenda` round 2: asked for a notice, the model escalated to a

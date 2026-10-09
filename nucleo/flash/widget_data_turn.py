@@ -246,6 +246,9 @@ def ensure_failure_named(spoken: str, parte: dict) -> str:
                 msgs.append(m)
     if not msgs:
         return spoken
+    import re as _re                 # V2-781 pair 7: the sentences written for the MODEL's retry are not his to hear
+    said = [c for c in _re.split(r"(?<=[.;])\s+", msgs[0]) if not _re.search(r"[{}`]|\b[a-z]+_[a-z_]+\b", c)]
+    msgs[0] = " ".join(said).rstrip(";") or "el widget no lo aceptó."
     cola = "No he podido: " + msgs[0]
     if cola.lower() in spoken.lower() or msgs[0].lower() in spoken.lower():
         return spoken

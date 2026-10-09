@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.253", "title": "A failure rides along in words he can read, never the tool's own instructions — «… "
+                                 "cancel_meeting {title, date}» was read to him (V2-781 pair 7)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_failure_is_named_without_the_tool_syntax.py"]},
         {"id": "2.252", "title": "The text channel's promise repair sees the conversation — without it «set a reminder on "
                                  "premiere day» had no date to write (V2-781 pair 3)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_text_channel_repair_sees_the_conversation.py"]},
