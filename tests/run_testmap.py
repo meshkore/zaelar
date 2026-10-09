@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.247", "title": "A date by day and month is read and wins over a weekday beside it — «el viernes 30 de "
+                                 "octubre» was the 16th, «queda apuntado para avisarte» scheduled nothing (V2-781 T515)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_date_by_day_and_month_is_read.py"]},
         {"id": "2.246", "title": "A build errand that mentions deleting its entries builds, and a worker never deletes a "
                                  "card — «móntame un widget de entrenamientos» deleted the clock (V2-781 T531)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/agentes/test_a_build_that_mentions_deleting_entries_builds.py"]},

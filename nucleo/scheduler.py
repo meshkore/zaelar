@@ -61,6 +61,37 @@ _RE_AT_HOUR = re.compile(r"\ba\s+las?\s+(\d{1,2})(?::(\d{2}))?\b|\bat\s+(\d{1,2}
 _RE_DAY_OF_MONTH = re.compile(r"\bel\s+d[ií]a\s+(\d{1,2})\b|\bon\s+the\s+(\d{1,2})(?:st|nd|rd|th)?\b", re.I)
 
 
+_MONTHS = {"enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 6, "julio": 7, "agosto": 8,
+           "septiembre": 9, "setiembre": 9, "octubre": 10, "noviembre": 11, "diciembre": 12,
+           "january": 1, "february": 2, "march": 3, "april": 4, "june": 6, "july": 7, "august": 8,
+           "september": 9, "october": 10, "november": 11, "december": 12,
+           "jan": 1, "feb": 2, "mar": 3, "apr": 4, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "sept": 9, "oct": 10,
+           "nov": 11, "dec": 12}
+_M = "|".join(sorted(_MONTHS, key=len, reverse=True))
+_RE_DAY_MONTH = re.compile(rf"\b(\d{{1,2}})\s+(?:de\s+)?({_M})\b\.?(?:,?\s+(?:de\s+|del\s+)?(\d{{4}}))?")
+_RE_MONTH_DAY = re.compile(rf"\b({_M})\.?\s+(\d{{1,2}})(?:st|nd|rd|th)?\b(?:,?\s+(\d{{4}}))?")
+
+
+def _day_and_month(n: str, hh: int, mi: int, now: float) -> str | None:
+    """«30 de octubre» / «October 30[, 2026]» → its spec; "" when said but impossible; None when not said (V2-781).
+    It wins over a weekday beside it: «el viernes 30 de octubre» is the 30th, never the next Friday."""
+    m = _RE_DAY_MONTH.search(n)
+    day, mon, year = (int(m.group(1)), _MONTHS[m.group(2)], m.group(3)) if m else (0, 0, None)
+    if not m and (m2 := _RE_MONTH_DAY.search(n)):
+        day, mon, year = int(m2.group(2)), _MONTHS[m2.group(1)], m2.group(3)
+    if not mon:
+        return None
+    lt = time.localtime(now)
+    for y in ([int(year)] if year else [lt.tm_year, lt.tm_year + 1]):
+        try:
+            ts = time.mktime((y, mon, day, hh, mi, 0, 0, 1, -1))
+        except (OverflowError, ValueError):
+            return ""
+        if time.localtime(ts).tm_mday == day and (year or ts > now):
+            return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))
+    return ""
+
+
 def _strip_accents_sched(text: str) -> str:
     import unicodedata as _ud
     return "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c)).lower()
@@ -101,6 +132,8 @@ def parse_when(text: str, now: float | None = None) -> str:
     # leaves exactly the adverb. «mañana por la mañana» still resolves to tomorrow: the first one survives.
     if re.search(r"\b(manana|tomorrow)\b", _RE_MORNING_NOUN.sub(" ", n)):
         return _iso(now + 86400)
+    if (dm := _day_and_month(n, hh, mi, now)) is not None:
+        return dm
     # TWO weekdays in the same sentence («el jueves tengo que… y recuérdamelo el miércoles») is ambiguous for a
     # backstop: which one is the reminder is exactly what we cannot know without understanding the sentence.
     # Answering "" sends it back to whoever has the context, instead of picking whichever the dict listed first.

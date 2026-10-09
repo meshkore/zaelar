@@ -46,12 +46,12 @@ from .text_norm import _content_words, _norm_txt, clause_is_only_a_date
 _REMIND_NOUN = r"(?:recordatorio|aviso|alarma|alerta)"
 _REMIND_DET = r"(?:un|una|el|la|tu|ese|este|esa|esta)\s+"
 _REMIND_VERB_RE = _re.compile(
-    r"\b(te\s+aviso|te\s+avisare|te\s+lo\s+recuerdo|te\s+lo\s+recordare|te\s+recuerdo|te\s+recordare|"
+    r"\b(te\s+aviso|te\s+avisare|para\s+avisarte|te\s+lo\s+recuerdo|te\s+lo\s+recordare|te\s+recuerdo|te\s+recordare|"
     r"dejo\s+puesto\s+" + _REMIND_DET + _REMIND_NOUN + r"|"
     r"dejo\s+programad[oa]\s+" + _REMIND_DET + _REMIND_NOUN + r"|"
     r"(?:program|pon|cre|configur|activ|dej)\w*\s+" + _REMIND_DET + _REMIND_NOUN + r"|"
     r"i'?ll\s+remind\s+you|i\s+will\s+remind\s+you|i'?ll\s+let\s+you\s+know\s+on|"
-    r"i'?ll\s+set\s+(?:up\s+)?(?:a|the)\s+reminder|i'?ll\s+put\s+(?:a|the)\s+reminder)\b", _re.I)
+    r"i'?ll\s+set\s+(?:up\s+)?(?:a|the)\s+reminder|i'?ll\s+get\s+(?:a|the)\s+reminder\s+set|i'?ll\s+put\s+(?:a|the)\s+reminder)\b", _re.I)
 def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:
     """The reply promises to remind the operator AT A GIVEN TIME → the schedule spec for it, else "".
 
