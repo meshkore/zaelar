@@ -748,7 +748,8 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
         return None
 
 
-async def probe_call_for_promise(operator_text: str, reply: str, spec=None, *, wait_s: float = 3.0) -> dict | None:
+async def probe_call_for_promise(operator_text: str, reply: str, spec=None, *, wait_s: float = 3.0,
+                                 window=None) -> dict | None:
     """The text channel's mirror: it has no brief in flight, so it fires one and waits for it (bounded) —
     only on the turn that already promised and called nothing. Same verdict, same repair, never raises."""
     try:
@@ -763,6 +764,6 @@ async def probe_call_for_promise(operator_text: str, reply: str, spec=None, *, w
             await asyncio.sleep(0.05)
             waited += 0.05
         wid = _bd.named_card(handle)
-        return await call_for_promise(operator_text, reply, wid, spec=spec) if wid else None
+        return await call_for_promise(operator_text, reply, wid, spec=spec, window=window) if wid else None
     except Exception:  # noqa: BLE001
         return None
