@@ -191,7 +191,7 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
             digest = str(_wr.read(wid) or "").strip()[:1500]
         except Exception:  # noqa: BLE001 — without the card the pass still runs on his words
             digest = ""
-        card = _CARD.format(wid=wid, digest=digest) if digest else ""
+        card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         from nucleo.flash.fast_client import FastClient
         await FastClient().complete(
             [{"role": "system", "content": _SYS.format(wid=wid, actions=_actions_block(manifest), card=card)},
@@ -298,7 +298,7 @@ async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: s
             digest = str(_wr.read(wid) or "").strip()[:1500]
         except Exception:  # noqa: BLE001
             digest = ""
-        card = _CARD.format(wid=wid, digest=digest) if digest else ""
+        card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         got: list[tuple[str, dict]] = []
         from nucleo.flash.fast_client import FastClient
         await FastClient().complete(
@@ -351,7 +351,7 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
         from nucleo.flash import widget_read as _wr
         block = str(_wr.read(rid) or "").strip()[:1500] or "(vacía)"
         digest = str(_wr.read(wid) or "").strip()[:800]
-        card = _CARD.format(wid=wid, digest=digest) if digest else ""
+        card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         got: list[tuple[str, dict]] = []
         from nucleo.flash.fast_client import FastClient
         await FastClient().complete(
@@ -472,7 +472,7 @@ async def call_after_search(operator_text: str, answer: str, brief, spec=None, *
             return None
         from nucleo.flash import widget_read as _wr
         digest = str(_wr.read(wid) or "").strip()[:800]
-        card = _CARD.format(wid=wid, digest=digest) if digest else ""
+        card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         said = " ".join(str(answer).split())[:600].replace("{", "(").replace("}", ")")
         got: list[tuple[str, dict]] = []
         from nucleo.flash.fast_client import FastClient
@@ -683,6 +683,16 @@ _SYS_REFUSAL = (
 )
 
 
+def _days() -> str:
+    """Today and the next seven days, the same lookup the turn's prompt carries (`prompt.live_state`): «el martes
+    que viene» is a LOOKUP, never arithmetic (V2-781 pair 7: the correction picked the 20th for the 13th)."""
+    import time as _t
+    now = _t.time()
+    days = "; ".join(f"{_t.strftime('%A', _t.localtime(now + i * 86400)).lower()} "
+                     f"{_t.strftime('%Y-%m-%d', _t.localtime(now + i * 86400))}" for i in range(0, 8))
+    return f"\n\nToday first, then the next days: {days}."
+
+
 def _session_lang() -> str:
     """The session's language by name (demo pass 102: «the operator's language» let a Spanish refusal win)."""
     try:
@@ -724,7 +734,7 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
             digest = str(_wr.read(wid) or "").strip()[:1500]
         except Exception:  # noqa: BLE001
             digest = ""
-        card = _CARD.format(wid=wid, digest=digest) if digest else ""
+        card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         got: list[tuple[str, dict]] = []
         from nucleo.flash.fast_client import FastClient
         await FastClient().complete(
