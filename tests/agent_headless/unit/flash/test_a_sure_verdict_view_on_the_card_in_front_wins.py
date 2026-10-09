@@ -62,3 +62,20 @@ def test_both_channels_ask_the_rule():
     assert calls.index("_txw._vcard.takes_the_view(") < calls.index("_txw._direct_action.completes(_brief, _cd["), \
         "before the same-card disagreement rule"
     assert "_vcard.retarget(" in turn and "_other_view(" in open("nucleo/flash/verdict_card.py").read()
+
+
+def test_the_text_channel_yields_a_lens_where_the_verdict_acts(monkeypatch):
+    """V2-781 pair 5 (text channel): «cámbiale el nombre al dentista, ponle X» — verdict agenda:update_meeting 0.99,
+    the model called open_meeting (a lens) and said «Hecho». The voice rail already yields a lens there
+    (`data_ops.a_view_where_the_verdict_acts`); the text channel did not carry the rule."""
+    from nucleo.flash import data_ops as _do, direct_action as _da, turn_brief as _tb
+    monkeypatch.setattr(_da, "from_brief", lambda _b: ("agenda", "update_meeting"))
+    monkeypatch.setattr(_da, "_action_sure", lambda _b, floor=0.8: True)
+    monkeypatch.setattr(_do, "is_view_op", lambda w, a: a == "open_meeting")
+    monkeypatch.setattr(_tb, "read", lambda b, key, d="", **k: ("act", {"confidence": 1.0}))
+    monkeypatch.setattr(_da, "resolve", lambda *a, **k: {"widget": "agenda", "action": "update_meeting",
+                                                         "payload": {"title": "Dentista", "newTitle": "Revisión"}})
+    from nucleo.flash import reply_or_forward as _rof
+    monkeypatch.setattr(_rof, "forward_of", lambda *a, **k: None)
+    got = VC.retarget(object(), "agenda", "open_meeting", {"title": "Dentista"}, "cámbiale el nombre al dentista")
+    assert got == ("agenda", "update_meeting", {"title": "Dentista", "newTitle": "Revisión"}), got

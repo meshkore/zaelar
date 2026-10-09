@@ -55,7 +55,9 @@ def retarget(brief, widget_id: str, action: str, payload: dict, said: str) -> tu
         from nucleo.flash import reply_or_forward as _rof
         if (fw := _rof.forward_of(widget_id, action, payload, said)):
             return widget_id, "forward", fw
-        vwid, vact = _other_view(brief, widget_id, action)
+        vwid, vact = _other_view(brief, widget_id, action) or ("", "")
+        if not vwid:
+            vwid, vact = _act_over_a_lens(brief, widget_id, action)
         if vwid:
             from nucleo.flash import direct_action as _da
             rung = _da.resolve(said, brief=brief, operator_text=said)
@@ -64,6 +66,17 @@ def retarget(brief, widget_id: str, action: str, payload: dict, said: str) -> tu
     except Exception:  # noqa: BLE001
         pass
     return widget_id, action, payload
+
+
+def _act_over_a_lens(brief, model_card: str, model_action: str) -> tuple[str, str]:
+    """The voice rail's `data_ops.a_view_where_the_verdict_acts`, for the text channel (V2-781 pair 5: «cámbiale el
+    nombre al dentista» → verdict update_meeting 0.99, model open_meeting, «Hecho»). Same card, sure verdict."""
+    from nucleo.flash import data_ops as _do, direct_action as _da, turn_brief as _tb
+    vwid, vact = _da.from_brief(brief)
+    if not vwid or _da._base_of(vwid) != _da._base_of(model_card) or not _da._action_sure(brief, floor=0.9):
+        return "", ""
+    words = str(_tb.read(brief, _tb.WORDS_KEY, "")[0] or "")
+    return (vwid, vact) if _do.a_view_where_the_verdict_acts(model_card, model_action, vact, words) else ("", "")
 
 
 def canvas_yields(brief) -> bool:

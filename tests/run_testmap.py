@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.251", "title": "«set a reminder on the premiere day» rings on the ONE date the last reply named — «I'll set "
+                                 "a heads-up for that day» scheduled nothing (V2-781 pair 3); both channels",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_asked_for_the_day_just_named_is_set.py"]},
         {"id": "2.250", "title": "An all-day item he writes rings at 09:00 that day (operator, 2026-10-10) — «set a reminder "
                                  "for that day» wrote Dexter's premiere with no notice (V2-781 pair 3)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_an_all_day_item_rings_at_nine_that_day.py"]},

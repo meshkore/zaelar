@@ -453,7 +453,7 @@ def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) ->
     backstop exists for the turn the model forgot, and a second alert for something the operator asked once is a
     defect he SEES, while the model's own `cron.create` tag is not gated by this and can still schedule freely.
     """
-    when = promises_a_dated_reminder(reply, operator_text)
+    when = promises_a_dated_reminder(reply, operator_text) or _asked_on_the_day_just_named(reply, operator_text, window)
     if not when:
         return None
     # V2-167 · (1) the notice must land BEFORE the thing it announces, and (2) what fires must be the REMINDER,
@@ -490,6 +490,27 @@ def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) ->
     if not clause_now_or_ask(clause_when, asked_now) and any(str(j.get("name") or "") == "aviso" for j in jobs):
         return None
     return {"schedule": when, "prompt": _reminder_prompt(clause, operator_text), "name": "aviso"}
+_SET_ASK_RE = _re.compile(r"\b(set\s+(?:me\s+)?(?:a|the)\s+reminder|reminder\s+for|ponme\s+(?:un|el)\s+(?:aviso|recordatorio)|"
+                         r"me\s+pones\s+(?:un|el)\s+(?:aviso|recordatorio))\b", _re.I)
+
+
+def _asked_on_the_day_just_named(reply: str, operator_text: str, window) -> str:
+    """He ASKED for a notice, the reply did not refuse it and his turn names no day → the ONE date the last reply
+    named (V2-781 pair 3: «set a reminder on the premiere day» → «I'll set a heads-up for that day», nothing set).
+    Two dates there, or none, give "" — a guessed day is worse than none."""
+    n = _norm_txt(operator_text)
+    if not (_REMIND_ASK_RE.search(n) or _SET_ASK_RE.search(n)) or _sched.parse_when(operator_text):
+        return ""
+    from . import act_repair as _ar
+    if _ar.denies_the_act(reply):
+        return ""
+    last = next((str(m.get("content") or "") for m in reversed(window or [])
+                 if (m or {}).get("role") == "assistant" and str(m.get("content") or "").strip()), "")
+    days = {_sched.parse_when(c)[:10] for c in _re.split(r"(?<=[.;!?])\s+|\band\b|\by\b", last) if c.strip()}
+    days.discard("")
+    return _sched.parse_when(last) if len(days) == 1 else ""
+
+
 def clause_now_or_ask(clause_when: str, asked_now: bool) -> bool:
     """Does THIS turn create a new obligation? Only if it dates a commitment or asks for something."""
     return bool(clause_when) or bool(asked_now)
