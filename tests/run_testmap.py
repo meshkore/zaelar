@@ -3735,6 +3735,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.246", "title": "A build errand that mentions deleting its entries builds, and a worker never deletes a "
+                                 "card — «móntame un widget de entrenamientos» deleted the clock (V2-781 T531)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/agentes/test_a_build_that_mentions_deleting_entries_builds.py"]},
         {"id": "2.245", "title": "«close the results» closes the one sheet, not a focused bare shell beside it (pass 119 S4)",
             "ch": UNIT, "paths": ["tests/voice/unit/test_closing_the_results_closes_the_sheet_not_its_shell.py"]},
         {"id": "2.244", "title": "A SURE verdict view (≥0.95) on the card in front beats a model view on another card — «open the "

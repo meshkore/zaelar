@@ -42,15 +42,11 @@ class GeneratorBackend(WorkerBackend):
             # widget basura. Ahora: existente + sin verbo de crear = MODIFY; borrado explícito = DELETE.
             action, existing = _code.widget_action(req)
             if action == "delete":
-                # Un borrado que llegó hasta aquí (debería resolverlo el FlashBrain, V2-017) NUNCA debe acabar
-                # creando/modificando un widget: se borra de verdad y se reporta.
-                await self._emit("phase", label=f"borrando el widget «{existing}»…")
-                from widgets import lifecycle
-                res = await lifecycle.delete_widget(existing, f"worker:{self._task_id or 'code'}")
-                summary = (f"He borrado el widget «{existing}»." if res.get("ok")
-                           else f"No pude borrar el widget «{existing}».")
-                await self._emit("result", summary=summary, ok=bool(res.get("ok")),
-                                 data={"widget": existing, "deleted": bool(res.get("ok"))})
+                # V2-781 T531 — a worker never deletes a card. Deleting is a CONFIRMED act (`pending_confirm`, the
+                # UI's Yes/No); inside an errand it ran with no question of its own and took the clock with it.
+                await self._emit("result", summary=f"No he borrado «{existing}»: borrar una tarjeta se confirma "
+                                 "aparte — pídemelo y te lo pregunto.", ok=False,
+                                 data={"widget": existing, "deleted": False})
                 return
             if action == "modify":
                 await self._emit("phase", label=f"modificando el widget «{existing}»…")

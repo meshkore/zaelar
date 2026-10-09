@@ -89,6 +89,13 @@ def _referenced_widget(request: str) -> str:
     return _identify_widget(request).get("match") or ""
 
 
+def _deletes(request: str) -> bool:
+    """A delete verb that is the request's ACT: no create verb comes before it. «Crear un widget… que se puedan
+    borrar entradas» is a build (V2-781 T531: it deleted the clock); «borra el reloj que creaste» is a delete."""
+    d, c = _DELETE_RE.search(request or ""), _CREATE_RE.search(request or "")
+    return bool(d) and (not c or d.start() < c.start())
+
+
 def widget_action(request: str) -> tuple[str, str]:
     """FUENTE ÚNICA de la decisión crear/modificar/borrar de un widget — compartida por el agente parkeado
     (`run`, más abajo) y el backend del generador (`nucleo/workers/generator_session`) para que NUNCA diverjan.
@@ -103,7 +110,7 @@ def widget_action(request: str) -> tuple[str, str]:
     (vacío en create). Determinista, acento-insensible vía `_identify_widget` (desempata por el widget ABIERTO)."""
     r = request or ""
     existing = _referenced_widget(r)
-    if existing and _DELETE_RE.search(r):
+    if existing and _deletes(r):
         return ("delete", existing)
     if existing and not _CREATE_RE.search(r):
         return ("modify", existing)
@@ -145,17 +152,13 @@ async def run(task) -> WorkResult:
     existing = ident.get("match") or ""
 
     # BORRAR primero (una petición de borrado NUNCA debe caer al ramal de crear). Determinista, sin agente.
-    if _DELETE_RE.search(req):
+    if _deletes(req):
         if not existing:
             return WorkResult(ok=False, deliver=True,
                               summary="No encuentro ese widget para borrarlo; ¿de cuál hablas?")
-        logger.info(f"code: DELETE widget '{existing}' (determinista)")
-        res = await lifecycle.delete_widget(existing, f"worker:{os.getenv('ZAELAR_TASK_ID', '') or 'code'}")
-        if res.get("ok"):
-            return WorkResult(ok=True, summary=f"He borrado el widget «{existing}».",
-                              deliver=True, meta={"widget_id": existing, "deleted": True})
-        return WorkResult(ok=False, error=res.get("error") or "borrado fallido", deliver=True,
-                          summary=f"No pude borrar el widget «{existing}».")
+        # V2-781 T531 — a worker never deletes a card: that is a confirmed act (`pending_confirm`).
+        return WorkResult(ok=False, deliver=True, meta={"widget_id": existing, "deleted": False},
+                          summary=f"No he borrado «{existing}»: borrar una tarjeta se confirma aparte.")
 
     if existing and _MODIFY_RE.search(req):
         logger.info(f"code: MODIFY widget '{existing}'")

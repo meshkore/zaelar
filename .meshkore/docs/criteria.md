@@ -66,6 +66,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   adding a pattern. — since 2026-09-21 · nodes 4.206, 4.188, 2.67, 2.238 · `widgets/agenda/data.py`, `nucleo/danger.py`.
 - **CRIT-C4 · Building or rewriting a card of his asks first**, at the one door a worker is lit
   (`dispatch._run_session`, `kind == code`); the cluster dev-worker is exempt. — since 2026-09-23 · nodes 2.76.
+- **CRIT-C4b · A worker never deletes a card.** Deleting is a confirmed act (`pending_confirm`, the UI's Yes/No);
+  the first verb of a request names its act, so a build that mentions deleting its own entries builds. — since
+  2026-10-09 · nodes 2.246.
 - **CRIT-C5 · An act that LEAVES runs only when the verdict backs it.** A send or a forward (≥ sensitive) runs
   when the verdict does not name another action; unbacked, it is DROPPED with a note to the model — never turned
   into a question, because the next «ok» would answer it. — since 2026-09-29 · nodes 2.106, 2.168.

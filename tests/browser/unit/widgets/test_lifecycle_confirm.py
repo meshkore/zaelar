@@ -186,7 +186,7 @@ def test_code_delete_never_creates(monkeypatch):
 
     task = Task(id="1", request="borra el widget del reloj", kind="code")
     wr = asyncio.run(code.run(task))
-    assert wr.ok and wr.meta.get("deleted") is True
+    assert wr.meta.get("deleted") is False         # V2-781 T531: a worker never deletes; that is a confirmed act
     assert created["called"] is False                              # the generator was NEVER called
 
 
