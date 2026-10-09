@@ -19,12 +19,13 @@ import sys
 from pathlib import Path
 
 from connectors import oauth_base as _b
+from connectors import secure_json_store as _sjs
 from connectors.photos import providers as _pv
 
 logger = logging.getLogger("zaelar.photos.oauth")
 
 _ROOT = Path(__file__).resolve().parent.parent.parent
-STORE = _ROOT / ".meshkore" / "credentials" / "photos_oauth.json"
+STORE = _sjs.credentials_path("photos_oauth.json")
 ENV_PREFIX = "PHOTOS"
 CALLBACK_PATH = "/api/photos/callback"
 _DEFAULT_REDIRECT = "http://127.0.0.1:43917/api/photos/callback"

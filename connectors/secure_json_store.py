@@ -13,6 +13,18 @@ import json
 import os
 from pathlib import Path
 
+_ROOT = Path(__file__).resolve().parent.parent
+
+
+def credentials_path(name: str) -> Path:
+    """Where a connector's token file lives. `ZAELAR_WORKSPACE` set → `<workspace>/credentials/<name>`, like
+    `config/credentials.py` and `meshkore/identity.py`; unset (self-host) → the checkout's `.meshkore/credentials/`.
+    Fixed to the checkout, an isolated sandbox booted with the operator's Google account connected (V2-781)."""
+    if os.getenv("ZAELAR_WORKSPACE"):
+        from nucleo import workspace as _workspace
+        return _workspace.root() / "credentials" / name
+    return _ROOT / ".meshkore" / "credentials" / name
+
 
 class SecureJsonStore:
     """A JSON dict persisted at `path`: atomic write, chmod 600 applied to the temp file BEFORE the rename so

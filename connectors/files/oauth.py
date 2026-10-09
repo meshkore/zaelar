@@ -25,12 +25,13 @@ import sys
 from pathlib import Path
 
 from connectors import oauth_base as _b
+from connectors import secure_json_store as _sjs
 from connectors.files import providers as _pv
 
 logger = logging.getLogger("zaelar.files.oauth")
 
 _ROOT = Path(__file__).resolve().parent.parent.parent
-STORE = _ROOT / ".meshkore" / "credentials" / "files_oauth.json"
+STORE = _sjs.credentials_path("files_oauth.json")
 ENV_PREFIX = "FILES"
 CALLBACK_PATH = "/api/cloudfiles/callback"
 _DEFAULT_REDIRECT = "http://127.0.0.1:43917/api/cloudfiles/callback"

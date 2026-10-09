@@ -25,12 +25,13 @@ from pathlib import Path
 import httpx
 
 from connectors.oauth_pkce import make_pkce as _make_pkce
+from connectors import secure_json_store as _sjs
 from connectors.secure_json_store import SecureJsonStore
 
 logger = logging.getLogger("zaelar.music.spotify")
 
 _ROOT = Path(__file__).resolve().parent.parent.parent
-STORE = _ROOT / ".meshkore" / "credentials" / "spotify.json"
+STORE = _sjs.credentials_path("spotify.json")
 
 _ACCOUNTS = "https://accounts.spotify.com"
 _SCOPE = "user-read-playback-state user-modify-playback-state user-read-currently-playing"
