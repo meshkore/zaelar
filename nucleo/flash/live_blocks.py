@@ -602,7 +602,7 @@ def _cron_line() -> str:
             'de días de tu ESTADO, no la calcules a ojo) o un cron de 5 campos si es RECURRENTE. '
             'Una ORDEN con plazo NO es pedir un recordatorio: «paga la factura antes del día 5» es HACERLO (y si es irreversible, preguntar antes) — apuntarlo en su lugar es no atenderle. REGLA DURA: si el operador pide que le AVISES/RECUERDES algo en un momento dado, emite la tag EN '
             'ESE TURNO — decir «te lo recuerdo» sin ella no programa nada y es mentirle. Si el compromiso tiene '
-            'fecha, apúntalo (widget_data add_meeting): CON hora crea sola su aviso; SIN hora no tiene, o si lo '
+            'fecha, apúntalo (widget_data add_meeting): crea su aviso (2h antes; sin hora, a las 9); si lo '
             'quiere otro día u hora, va en `remind` de ESE add_meeting, nunca un cron ni otra cita; '
             'moverlo después es set_reminder. La tag es para avisos SUELTOS sin cita detrás. Si falta el '
             'día o la hora, PREGUNTA antes de programar.')

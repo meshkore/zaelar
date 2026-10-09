@@ -23,6 +23,7 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
     # An all-day item has no hour, and its notice is only ever an asked one (V2-781 T513): the item lasts the
     # whole day, so the «already over» check measures against its last minute.
     said = start
+    at = at or ("" if start else f"{str(date)[:10]} 09:00")    # all-day: 09:00 that day (operator, 2026-10-10)
     start = start or ("23:59" if at else "")
     try:
         target = _t.mktime((int(date[:4]), int(date[5:7]), int(date[8:10]),

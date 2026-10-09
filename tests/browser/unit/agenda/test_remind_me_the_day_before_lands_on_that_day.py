@@ -76,7 +76,7 @@ def test_the_key_the_model_sent_live_is_read_not_dropped(fake_sched):
 
 def test_set_reminder_reaches_an_all_day_item(fake_sched):
     agenda.apply_action("add_meeting", {"title": "Renovar el seguro", "date": THU})
-    assert fake_sched["created"] == [], "an all-day item gets no default notice"
+    assert _live_stamps(fake_sched) == [f"{THU} 09:00"], "an all-day item rings at 09:00 that day (2026-10-10)"
     r = agenda.apply_action("set_reminder", {"title": "seguro", "at": WED})
     assert r.get("ok") is not False, r
     assert [s[:10] for s in _live_stamps(fake_sched)] == [WED]

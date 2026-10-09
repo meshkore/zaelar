@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.250", "title": "An all-day item he writes rings at 09:00 that day (operator, 2026-10-10) — «set a reminder "
+                                 "for that day» wrote Dexter's premiere with no notice (V2-781 pair 3)",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_an_all_day_item_rings_at_nine_that_day.py"]},
         {"id": "2.249", "title": "«ya la puedes cerrar» with the card open: a SURE inner op (≥0.95) beats a sure canvas "
                                  "close — the sheet stayed open over «Vale, la cierro» (V2-781 pair 5); both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_sure_inner_close_beats_the_canvas_close.py"]},
