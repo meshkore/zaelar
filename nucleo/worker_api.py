@@ -235,7 +235,7 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             # (V2-249), and never called it. A cron's reader is the AGENT at another time, so leaving the operator's
             # words asks it to TAKE NOTES — the loop this whole area exists to close.
             what = _safe_reminder_prompt(what)
-            out = await asyncio.to_thread(scheduler.create, what, spec, name)
+            out = await asyncio.to_thread(scheduler.create_unless_ringing, what, spec, name)   # one alarm per instant
             if not out.get("ok"):
                 # It knows the form; let it say so (same contract as V2-203).
                 return {"ok": False, "error": f"{out.get('error') or 'no se pudo programar'}. " + _CUANDO_VALE}

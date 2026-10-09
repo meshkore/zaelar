@@ -81,9 +81,9 @@ def test_el_aviso_dice_QUIEN_lo_puso(agenda):
 
 def test_hay_un_TOPE_por_tarea(agenda):
     """Without a cap, a worker in a loop fills the operator’s agenda — and each entry then triggers a turn."""
-    for i in range(worker_api._SCHEDULE_CAP):
-        assert _act({"when": "mañana a las 9", "prompt": f"aviso {i}"})["ok"]
-    out = _act({"when": "mañana a las 9", "prompt": "uno más"})
+    for i in range(worker_api._SCHEDULE_CAP):         # distinct instants: one instant rings once (V2-781)
+        assert _act({"when": f"mañana a las {8 + i}", "prompt": f"aviso {i}"})["ok"]
+    out = _act({"when": "mañana a las 20", "prompt": "uno más"})
     assert not out["ok"] and "tope" in out["error"]
     assert len(agenda.entries) == worker_api._SCHEDULE_CAP
 
@@ -91,7 +91,7 @@ def test_hay_un_TOPE_por_tarea(agenda):
 def test_el_tope_es_POR_TAREA_y_no_global(agenda, monkeypatch):
     """Two different tasks from the operator do not compete for the same slot."""
     for i in range(worker_api._SCHEDULE_CAP):
-        _act({"when": "mañana a las 9", "prompt": f"aviso {i}"})
+        _act({"when": f"mañana a las {8 + i}", "prompt": f"aviso {i}"})
 
     class _Otro:
         task_id = "t9"

@@ -444,6 +444,16 @@ def cancel(ref: str) -> bool:
     return hit
 
 
+def create_unless_ringing(prompt: str, schedule: str, name: str = "") -> dict:
+    """`create`, unless a live job already rings at that instant — then that job answers (V2-781 pair 3: the
+    worker re-scheduled the premiere the turn had already set, two alarms for one ask)."""
+    disp = (parse_schedule(schedule) or {}).get("display") or ""
+    live = next((j for j in list_jobs(active_only=True) if disp and str(j.get("schedule") or "") == disp), None)
+    if live:
+        return {"ok": True, "id": live.get("id"), "display": disp, "existed": True, "error": None}
+    return create(prompt, schedule, name)
+
+
 def supersede_loose_notices(display: str, *, within_s: float = 180.0, now: float | None = None) -> list:
     """Retire the prose backstop's loose «aviso» at the SAME instant an appointment's notice was just scheduled.
 
