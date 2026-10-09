@@ -59,7 +59,8 @@ def _notice_gate(scenario, run: dict, verdict: dict) -> dict | None:
     weekday = getattr(scenario, "notice_on", "") or ""
     if not weekday:
         return None
-    day = notice_day(weekday, round_day(run.get("transcript") or []))
+    # «any»: the day is what the agent FINDS (a premiere date), so any notice counts — and none never does
+    day = "" if weekday == "any" else notice_day(weekday, round_day(run.get("transcript") or []))
     jobs = ((run.get("mechanism_report") or {}).get("scheduled_jobs") or {}).get("created") or []
     rings = [j for j in jobs if str(j.get("schedule") or "").startswith(day)]
     out = {"day": day, "jobs": [str(j.get("schedule")) for j in jobs], "ok": bool(rings)}

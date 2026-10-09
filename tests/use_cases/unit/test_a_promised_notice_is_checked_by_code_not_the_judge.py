@@ -71,3 +71,18 @@ def test_the_right_language_and_short_lines_are_never_flagged():
         assert gates.reply_language(line, "us") in ("", "en"), line
     assert gates.reply_language("Te lo apunto para el jueves y te aviso el miércoles.", "es") == "es"
     assert gates.reply_language("I'll add it to your agenda for Thursday.", "es") == "en"
+
+
+def test_a_case_whose_day_is_found_asks_for_any_notice():
+    """V2-781 pair 3 (2026-10-09/10): the EN Dexter round was judged PASS three times with no job at all. Its day is
+    what the agent FINDS (30 Oct in the US, 31 in Spain), so the case asks for a notice on any day — never none."""
+    for sid in ("find-a-future-release-and-remind-me", "find-a-future-release-and-remind-me__us"):
+        assert _case(sid).notice_on == "any", sid
+    verdict = {"scores": {"resultado": 5, "mecanismo": 5}, "overall": 5, "findings": []}
+    case = _case("find-a-future-release-and-remind-me__us")
+    none = gates.apply(case, {"transcript": [], "mechanism_report": {"scheduled_jobs": {"created": []}}},
+                       copy.deepcopy(verdict))
+    assert none["overall"] <= 2
+    one = gates.apply(case, {"transcript": [], "mechanism_report": {"scheduled_jobs": {"created": [
+        {"name": "aviso: Dexter", "schedule": "2026-10-30 09:00"}]}}}, copy.deepcopy(verdict))
+    assert one["overall"] == 5

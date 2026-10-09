@@ -485,6 +485,7 @@ SCENARIOS: list[UseCaseScenario] = [
         id="find-a-future-release-and-remind-me",
         locale="es",
         tier=2,
+        notice_on="any",
         opening_line=(
             "Oye, me gusta mucho la serie Dexter y creo que este otoño sacan temporada nueva. "
             "¿Te enteras de cuándo se estrena y me avisas?"
