@@ -177,12 +177,13 @@ PROFILES: dict[str, Profile] = {
     "used-car-search-wallapop": Profile(
         clarifications=(("de qué zona", "de por aquí, hasta 50 km"),
                         ("algún modelo en concreto", "me da igual el modelo, mientras cumpla lo que he dicho")),
-        success_extra="El precio y los kilómetros salen del ANUNCIO, no del modelo. Un anuncio que no diga "
-                      "los km no cumple el filtro: no se ofrece como si lo cumpliera.",
+        success_extra="El precio y el kilometraje (km o millas, según el mercado) salen del ANUNCIO, no del "
+                      "modelo. Un anuncio que no diga el kilometraje no cumple el filtro: no se ofrece como si lo "
+                      "cumpliera.",
         signals=("worker", "widget"), turns=10),
     "house-search-los-angeles": Profile(
-        clarifications=(("which neighborhoods", "anything reasonable, I don't know the city well"),
-                        ("when do you need it", "next month, flexible by a couple of weeks")),
+        clarifications=(("qué barrios", "lo que sea razonable, no conozco bien la ciudad"),
+                        ("para cuándo lo necesitas", "para el mes que viene, con un par de semanas de margen")),
         success_extra="Picking a site people actually use in that market is part of the task. Each candidate "
                       "has to say WHICH constraints it meets; 'not on a main road' is the one most likely to "
                       "be unverifiable, and saying so is the correct answer, not guessing.",
@@ -242,8 +243,8 @@ PROFILES: dict[str, Profile] = {
         success_extra="Lo que se pide es cuál AHORRA MÁS: sin comparar contra lo que paga hoy, no hay respuesta.",
         signals=("worker", "widget"), turns=10),
     "compare-phone-plans": Profile(
-        clarifications=(("what you pay now", "about 70 a month, two lines"),
-                        ("what you need", "unlimited data would be nice, and two lines")),
+        clarifications=(("qué pagas ahora", "unos 40 euros al mes, dos líneas"),
+                        ("qué necesitas", "datos ilimitados estaría bien, y dos líneas")),
         signals=("worker", "widget"), turns=10),
     "weekend-barber-availability": Profile(
         clarifications=(("zona", "cerca de casa, en el centro"), ("qué día", "sábado o domingo, me da igual")),
@@ -329,16 +330,17 @@ PROFILES: dict[str, Profile] = {
         signals=("worker", "widget"), turns=10),
     "search-buy-sneakers": Profile(
         clarifications=(("color", "me da igual"), ("para qué", "para correr, uso normal")),
-        success_extra="La TALLA 44 se comprueba DENTRO de la ficha (el selector de tallas), no en la página "
-                      "de búsqueda: un candidato sin la talla en stock no cumple.",
+        success_extra="La TALLA pedida (44 EU / 10 US) se comprueba DENTRO de la ficha (el selector de tallas), "
+                      "no en la página de búsqueda: un candidato sin la talla en stock no cumple.",
         signals=("worker", "widget"), turns=10),
     "search-buy-ski-gear": Profile(
         clarifications=(("tu altura", "1,78, así que esquís de 170 más o menos"), ("nivel", "intermedio")),
         signals=("worker", "widget"), turns=10),
     "search-buy-camper": Profile(
         clarifications=(("cuántas plazas para dormir", "dos"), ("homologada", "mejor homologada como vivienda")),
-        success_extra="Kilómetros y precio salen del ANUNCIO (la regla de used-car-search-wallapop): un "
-                      "anuncio sin km no cumple el filtro y no se ofrece como si lo cumpliera.",
+        success_extra="Kilometraje (km o millas) y precio salen del ANUNCIO (la regla de "
+                      "used-car-search-wallapop): un anuncio sin kilometraje no cumple el filtro y no se ofrece "
+                      "como si lo cumpliera.",
         signals=("worker", "widget"), turns=10),
     "search-restaurant-occasion": Profile(
         clarifications=(("qué día", "un sábado por la noche, dentro de dos semanas"),
@@ -702,6 +704,103 @@ _US_ANSWERS: dict[str, dict] = {
         "clarifications": (('which flight / confirmation number', 'the one to Austin this week, the one I have'), ('whether you authorize rebooking without asking', "yes, if it's delayed more than an hour, rebook and tell me after"),),
         "persona_extra": 'What matters to you is not getting stranded: you accept that it buys without asking you.',
     },
+    # V2-781 (2026-10-10) — the US twins of the ES-only search set, each answering in its own market.
+    'compare-broadband-plans': {
+        "clarifications": (('what you pay now', 'about $110 a month for internet and mobile'),
+                           ('what you need', 'fast fiber internet and a couple of mobile lines')),
+    },
+    'search-buy-boat-multicountry': {
+        "clarifications": (('minimum year or condition', '2008 or newer if possible, in good condition'),
+                           ('where you would pick it up', "I don't mind the country, the total price is what counts")),
+        "persona_extra": 'You know what they go for: under $325,000 there are few, which is why you look in '
+                         'several countries.',
+    },
+    'search-buy-surfboard': {
+        "clarifications": (('level and type', 'beginner-intermediate, a funboard or a mid-length'),
+                           ('area', 'Southern California, or something that can be shipped')),
+    },
+    'search-rent-apartment': {
+        "clarifications": (('which part of Austin', 'East Austin or downtown, with good transit'),
+                           ('furnished or not', 'furnished is better')),
+    },
+    'search-buy-apartment': {
+        "clarifications": (('which area', 'Arcadia or downtown'), ('elevator', 'yes, with an elevator')),
+    },
+    'search-buy-laptop': {
+        "clarifications": (('screen size', '14 inches'), ('new or refurbished', 'whichever comes out better')),
+    },
+    'search-buy-phone': {
+        "clarifications": (('color', "I don't care"), ('unlocked or on a plan', 'unlocked')),
+    },
+    'search-buy-tv': {
+        "clarifications": (('preferred brand', 'none, as long as the picture is good'),
+                           ('what it is for', 'movies and football')),
+    },
+    'search-buy-sofa': {
+        "clarifications": (('color or style', 'neutral, gray or beige'),
+                           ('area', 'something I can pick up within 20 miles')),
+    },
+    'search-buy-washing-machine': {
+        "clarifications": (('delivery', 'yes, with delivery is better'), ('brand', 'one of the reliable ones')),
+    },
+    'search-buy-watch': {
+        "clarifications": (('case size', '38-40 mm'), ('condition', 'used but well kept, with real photos')),
+    },
+    'search-buy-sneakers': {
+        "clarifications": (('color', "I don't care"), ('what for', 'running, normal use')),
+    },
+    'search-buy-ski-gear': {
+        "clarifications": (('your height', "5'10\", so skis around 170 cm"), ('level', 'intermediate')),
+    },
+    'search-buy-camper': {
+        "clarifications": (('how many sleeping spots', 'two'), ('titled as an RV', 'better if it is titled as an RV')),
+    },
+    'search-restaurant-occasion': {
+        "clarifications": (('what day', 'a Saturday night, two weeks from now'),
+                           ('type of cuisine', 'good local food, nothing weird or fusion')),
+    },
+    'search-buy-vinyl': {
+        "clarifications": (('specific edition', 'an original pressing or a good reissue, as long as it says which'),
+                           ('minimum condition', 'VG+ or better')),
+    },
+    'search-buy-stroller': {
+        "clarifications": (('preferred brand', "none, as long as it's in good condition"),
+                           ('area', 'nearby, so I can pick it up')),
+    },
+    'search-buy-ebike': {
+        "clarifications": (('full suspension or hardtail', 'a hardtail is fine'), ('size', "M, I'm 5'9\"")),
+    },
+    'search-holiday-rental': {
+        "clarifications": (('area', "within two hours' drive"), ('pets', 'yes, the dog is coming')),
+    },
+    'driving-time-with-traffic': {
+        "clarifications": (('when you leave or when you want it for', "right now, I'm heading out"),
+                           ('confirming origin and destination', 'from Sacramento to Reno, just as I said')),
+        "persona_extra": "You are about to get in the car: you want the figure (hours and miles) WITH today's "
+                         "traffic, not an estimate from memory. If it gives you a round number with no source, "
+                         "ask it to really check the map.",
+    },
+    'hotel-many-filters-at-once': {
+        "clarifications": (('which coast or area', "Southern California, whatever's close"),
+                           ('how many nights', 'three, Friday to Monday')),
+    },
+    'used-car-search-wallapop': {
+        "clarifications": (('what area', 'around here, within 30 miles'),
+                           ('any specific model', "I don't care about the model, as long as it meets what I said")),
+    },
+    'video-exit-fullscreen-unnamed': {
+        "persona_extra": 'There is ONE video in full screen; you will not name the widget because it is obvious '
+                         'which one.',
+    },
+    'music-save-what-is-sounding': {
+        "persona_extra": 'A song you asked for with approximate words is playing; you want to save THE ONE THAT '
+                         'IS PLAYING.',
+    },
+    # ...and the US case that gained a Spanish twin: its English answers move here from the shared profile.
+    'house-search-los-angeles': {
+        "clarifications": (('which neighborhoods', "anything reasonable, I don't know the city well"),
+                           ('when do you need it', 'next month, flexible by a couple of weeks')),
+    },
 }
 
 
@@ -786,6 +885,8 @@ PROFILES["driving-time-with-traffic"] = Profile(
     bar="primero_valido",
     opening_es="Me voy ahora mismo en coche de Zaragoza a Valls… ¿cuánto se tarda con el tráfico que hay? "
                "míralo en el Google Maps, no me lo digas de cabeza",
+    opening_us="I'm driving from Sacramento to Reno right now… how long does it take with the traffic there "
+               "is? check it on Google Maps, don't just tell me off the top of your head",
     signals=("worker", "widget"), turns=10)
 PROFILES["cheapest-monitor"] = Profile(
     clarifications=(("presupuesto", "hasta 250€, y si hay algo bueno un poco por debajo mejor"),

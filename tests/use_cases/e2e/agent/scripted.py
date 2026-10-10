@@ -210,19 +210,28 @@ def _demo():
     return {k: v.isoformat() for k, v in demo_dates().items()}
 
 
-def _demo_events(d):
+#: The words each demo calendar entry must carry, per twin of the setup message (V2-781: the ES twin is set in
+#: Spain with neutral placeholder names, so its titles differ while the dates and hours are the same).
+_DEMO_TITLES = {
+    "us": ("weekly", "product", "meshcore", "accountant", "laura", "pixel"),
+    "es": ("semanal", "producto", "meshcore", "gestor", "sage", "pixel"),
+}
+
+
+def _demo_events(d, locale: str = "us"):
     D = _demo()
-    want = [(D["mon"], "09:00", ("weekly",)), (D["mon"], "11:00", ("product",)), (D["mon"], "15:00", ("meshcore",)),
-            (D["tue"], "10:00", ("accountant",)), (D["thu"], "13:00", ("laura",)), (D["vet"], "16:00", ("pixel",))]
-    return all(_at(d, *w[:2], *w[2]) for w in want)
+    w = _DEMO_TITLES[locale]
+    want = [(D["mon"], "09:00", (w[0],)), (D["mon"], "11:00", (w[1],)), (D["mon"], "15:00", (w[2],)),
+            (D["tue"], "10:00", (w[3],)), (D["thu"], "13:00", (w[4],)), (D["vet"], "16:00", (w[5],))]
+    return all(_at(d, *x[:2], *x[2]) for x in want)
 
 
-def _demo_span(d):
+def _demo_span(d, who: str = "anna"):
     """«Anna vacation» covers every day of the holiday, not a weekly series and not its first day only."""
     from widgets.agenda import recur
     D = _demo()
     n = (dt.date.fromisoformat(D["vac_to"]) - dt.date.fromisoformat(D["vac_from"])).days + 1
-    for m in _named(d, "anna"):
+    for m in _named(d, who):
         if m.get("date") == D["vac_from"]:
             days = recur.occurrences(m, D["vac_from"], D["vac_to"]) if isinstance(m.get("repeat"), dict) else []
             if len(days) == n or m.get("endDate") == D["vac_to"]:
@@ -259,8 +268,22 @@ CHECKS.update({
     "demo.events": _demo_events,
     "demo.anna_vacation_span": _demo_span,
     "demo.vet_once": _demo_no_twins,
+    # The Spanish twin of the demo (V2-781): the same twelve sections, set in Spain, placeholder names.
+    "demo_es.profile": ("memory", _has_any_each(("rowan",), ("valencia",), ("meshcore",),
+                                                ("alemania", "germany"))),
+    "demo_es.interests": ("memory", _has_any_each(("formula 1", "fórmula 1", "f1"), ("baloncesto", "basketball"),
+                                                  ("senderismo", "hiking"))),
+    "demo_es.family": ("memory", _has_all("orion")),
+    "demo_es.friends": ("memory", _has_all("quinn", "sagunto", "sage", "telegram")),
+    "demo_es.car": ("memory", _has_any_each(("tesla",), ("1234 lmn", "1234lmn", "1234-lmn"))),
+    "demo_es.motorbike": ("memory", _has_any_each(("ducati",), ("5678 klm", "5678klm", "5678-klm"))),
+    "demo_es.events": lambda d: _demo_events(d, "es"),
+    "demo_es.orion_vacation_span": lambda d: _demo_span(d, "orion"),
     "errands.dinner_with_pedro": lambda d: bool(_named(d, "pedro")),
     "errands.pedro_allergy": ("memory", _has_any_each(("marisco", "shellfish"))),
+    # The English twin of the errand list (V2-781): a US friend, the same allergy.
+    "errands.dinner_with_alex": lambda d: bool(_named(d, "alex")),
+    "errands.alex_allergy": ("memory", _has_any_each(("shellfish", "marisco"))),
     "errands.two_workers_at_a_time": ("tasks", _workers_two_at_a_time),
 })
 

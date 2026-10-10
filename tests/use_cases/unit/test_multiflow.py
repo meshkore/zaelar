@@ -159,7 +159,9 @@ def test_every_other_scenario_stays_single_task():
     #   · two-searches-two-sheets  → measures whether two simultaneous searches open TWO sheets, and
     #     "simultaneous" is exactly what live-registry sampling tests: a later dump shows that two tasks
     #     existed, never that they overlapped in time.
-    assert multi == ["three-tasks-at-once", "two-searches-two-sheets"]
+    #   · their `__us` twins (V2-781) → the same two measurements in the other market, by construction.
+    assert multi == ["three-tasks-at-once", "three-tasks-at-once__us",
+                     "two-searches-two-sheets", "two-searches-two-sheets__us"]
 
 
 # ── derivation engine (derived.py) ────────────────────────────────────────────────────────────────────────

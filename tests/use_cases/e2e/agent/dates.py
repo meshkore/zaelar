@@ -91,6 +91,11 @@ def en_full(d: _dt.date) -> str:
     return f"{d.strftime('%B')} {d.day}, {d.year}"
 
 
+def es_full(d: _dt.date) -> str:
+    """«28 de septiembre de 2026» — the way the Spanish twin of the demo message writes a date."""
+    return f"{d.day} de {_MESES_ES[d.month - 1]} de {d.year}"
+
+
 def _tokens() -> dict[str, str]:
     sat, sun = next_weekend()
     in3w = days_ahead(21)
@@ -120,6 +125,11 @@ def _tokens() -> dict[str, str]:
         **{f"{{DEMO_{k.upper()}}}": en_full(v) for k, v in demo_dates().items() if k != "registration"},
         "{DEMO_REGISTRATION}": demo_dates()["registration"].strftime("%B %Y"),
         "{VIERNES_QUE_VIENE}": es(demo_dates()["mon"] + _dt.timedelta(days=4)),
+        "{NEXT_FRIDAY}": en(demo_dates()["mon"] + _dt.timedelta(days=4)),
+        # V2-781 — the same demo dates, written the way the Spanish twin of the setup message writes them.
+        **{f"{{DEMO_{k.upper()}_ES}}": es_full(v) for k, v in demo_dates().items() if k != "registration"},
+        "{DEMO_REGISTRATION_ES}": f"{_MESES_ES[demo_dates()['registration'].month - 1]} de "
+                                  f"{demo_dates()['registration'].year}",
     }
 
 

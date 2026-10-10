@@ -979,6 +979,123 @@ CASES: list[UseCase] = [
             "Make me a report on electric cars for the city and put it on screen.",
             "The report is delivered on the document surface with its live process visible — never "
             "narrated as done with nothing on screen."),
+
+    # --- Every completable case in PAIRS, second batch (V2-781, 2026-10-10) -------------------------
+    # A twin is a LOCALIZED case, not a translation: the US row is set in the US market (US city, dollars,
+    # miles, US sites), the ES row in Spain. Same id, same tier and the same shared profile — what the
+    # person answers in each market lives in `derived._US_ANSWERS`.
+    UseCase("compare-broadband-plans", "us", 2, "Compare home internet + mobile bundles",
+            "Compare the carriers' home internet plus mobile bundles and tell me which one saves me the most.",
+            "Home internet + mobile bundles are compared and the cheapest is recommended."),
+    UseCase("search-buy-boat-multicountry", "us", 2, "Search boat listings across several countries",
+            "Find me a used Lagoon 440 catamaran for under $325,000, in the US, Canada or Mexico.",
+            "Real boat listings from more than one country's market are compared under the price cap, "
+            "with year/length read from each listing, not from model knowledge.",
+            notes="deep-nav: multi-country fan-out + marketplace filters + pagination"),
+    UseCase("search-buy-surfboard", "us", 2, "Search for a used surfboard",
+            "Find me a used surfboard, around 6 feet, for under $275.",
+            "Real second-hand surfboard listings matching size and price are presented with links.",
+            notes="deep-nav: classifieds filters + pagination"),
+    UseCase("search-rent-apartment", "us", 2, "Search a rental with filters on a listings portal",
+            "Find me an apartment to rent in Austin, two bedrooms, under $1,900 a month, pets allowed.",
+            "Real rental listings with every filter applied are presented; rent and rooms come from each "
+            "listing.",
+            notes="deep-nav: portal filter controls + pagination; portals are heavily bot-walled"),
+    UseCase("search-buy-apartment", "us", 2, "Search a home for sale on a real-estate portal",
+            "Find me a condo to buy in Phoenix, three bedrooms, under $350,000.",
+            "Real for-sale listings under the cap are compared with price and size from each listing.",
+            notes="deep-nav: portal filters + pagination"),
+    UseCase("search-buy-laptop", "us", 2, "Find a specific laptop under a price cap",
+            "Find me a MacBook Pro M5 for under $1,900, new or refurbished.",
+            "Real offers (new or refurbished) under the cap are compared across stores with links.",
+            notes="deep-nav: store search + condition filter + several stores"),
+    UseCase("search-buy-phone", "us", 2, "Find a phone model at its best real price",
+            "Find me the best price for a new 256 GB iPhone 17.",
+            "Real store offers for that exact model/storage are compared; prices from the stores."),
+    UseCase("search-buy-tv", "us", 2, "Find a TV that meets size and price",
+            "Find me a 55-inch OLED TV for under $1,000.",
+            "Real TV offers meeting size/tech/price are compared across stores."),
+    UseCase("search-buy-sofa", "us", 2, "Search for second-hand furniture",
+            "Find me a used three-seat sofa in good condition, under $350, that I can pick up nearby.",
+            "Real classifieds with photos and pickup location are presented under the cap.",
+            notes="deep-nav: classifieds + location filter + pagination"),
+    UseCase("search-buy-washing-machine", "us", 2, "Find an appliance by specs and price",
+            "Find me a washing machine of at least 4.5 cubic feet, Energy Star, for under $700.",
+            "Real appliance offers matching capacity/efficiency/price are compared."),
+    UseCase("search-buy-watch", "us", 2, "Search a collectors' marketplace for a watch",
+            "Find me a vintage automatic Seiko for under $450.",
+            "Real watch listings from a collectors' marketplace are presented with year and condition.",
+            notes="deep-nav: niche marketplace + condition reading"),
+    UseCase("search-buy-sneakers", "us", 2, "Find sneakers by model, size and price",
+            "Find me Nike Pegasus, men's size 10, for under $110.",
+            "Real offers with that size IN STOCK are found; size availability is checked inside the "
+            "listing, not assumed from the search page.",
+            notes="deep-nav: size filter lives INSIDE the product page"),
+    UseCase("search-buy-ski-gear", "us", 2, "Search for seasonal ski gear",
+            "Find me used touring skis with bindings for under $400.",
+            "Real second-hand listings for that gear are presented under the cap."),
+    UseCase("search-buy-camper", "us", 2, "Search vehicle listings for a camper van",
+            "Find me a used camper van, under 90,000 miles, for under $28,000.",
+            "Real camper listings with mileage/price from each listing are compared.",
+            notes="deep-nav: vehicle marketplace with its own filter controls"),
+    UseCase("search-restaurant-occasion", "us", 2, "Find a restaurant for an occasion, by reviews",
+            "Find me a restaurant for an anniversary in Portland, with good reviews, quiet, about $60 "
+            "a person.",
+            "Real restaurants matching area/price/reviews are compared; reviews come from the sites.",
+            notes="deep-nav: reviews + price band + area filtering"),
+    UseCase("search-buy-vinyl", "us", 2, "Search collectors' listings for records",
+            "Find me an original pressing of 'The Dark Side of the Moon' in good condition for under $70.",
+            "Real vinyl listings with pressing/condition are presented under the cap."),
+    UseCase("search-buy-stroller", "us", 2, "Search for second-hand baby gear",
+            "Find me a used travel-system stroller for under $275.",
+            "Real second-hand stroller listings are presented with condition and price."),
+    UseCase("search-buy-ebike", "us", 2, "Search for an e-bike by specs and price",
+            "Find me an electric mountain bike with at least a 500 Wh battery for under $1,700.",
+            "Real e-bike offers matching battery/type/price are compared."),
+    UseCase("search-holiday-rental", "us", 2, "Search a vacation rental with hard conditions",
+            "Find me a cabin for 6 people for {THIS_WEEKEND}, with a pool, for under $700 for the weekend.",
+            "Real vacation rentals with availability for those dates and every filter are compared.",
+            notes="deep-nav: dates + capacity + amenity filters + pagination"),
+    UseCase("driving-time-with-traffic", "us", 3, "How long it really takes between two cities, with traffic",
+            "Give me the driving distance and time from Sacramento to Reno, with traffic, using Google Maps.",
+            "The time and distance come from a real maps source with live traffic — not a model estimate — "
+            "and land in ONE results sheet the operator can read, while the process tab shows the steps as "
+            "they happen."),
+    UseCase("hotel-many-filters-at-once", "us", 7, "A hotel where EVERY filter has to hold at once",
+            "Find me a hotel on the coast for the long weekend, with a pool, free parking, decent wifi, "
+            "and they have to take dogs. Nothing inland.",
+            "Candidates are offered only when ALL constraints hold, each one checked against the page "
+            "rather than assumed, and any constraint that could not be verified is named as such."),
+    UseCase("used-car-search-wallapop", "us", 7, "Second-hand on a marketplace with its own filters",
+            "Look up used cars on Facebook Marketplace for me, diesel, under 75,000 miles, manual "
+            "transmission and under $10,000, near home.",
+            "Real listings are read from the marketplace with every filter applied, and price/mileage "
+            "come from the listing rather than from the model."),
+    UseCase("video-exit-fullscreen-unnamed", "us", 1, "Leave full screen without naming the widget",
+            "Exit full screen.",
+            "The card at fullscreen exits to its normal size. Nothing closes, and the order needs no "
+            "widget name — the canvas knows which card is maximized."),
+    UseCase("video-blocked-channel-respected", "us", 2, "A blocked channel stays blocked in the suggestions",
+            "Block this channel, don't suggest it to me again.",
+            "The channel disappears from home/suggestions and stays out; an explicit pasted link from "
+            "it still plays with a WARNING (an explicit order outranks a standing filter)."),
+    UseCase("music-playlist-reads-clean", "us", 1, "A playlist reads like a player, not like a dump",
+            "Play the True Blue playlist.",
+            "Playback starts; a shared artist is said ONCE in the header, rows read clean (never "
+            "«Madonna Papa Don't Preach» per row), and the sounding row is visibly marked."),
+    UseCase("music-save-what-is-sounding", "us", 1, "Save the song that is playing right now",
+            "Save this song to my favorites.",
+            "What lands in the list is the PROVIDER's resolved title/artist/art (what is sounding), "
+            "never the operator's raw spoken words."),
+    # And the two born in English, now with their Spanish twin.
+    UseCase("compare-phone-plans", "es", 2, "Comparar tarifas de móvil",
+            "Compárame las tarifas de móvil de los operadores y dime cuál me ahorra más.",
+            "Mobile plans are compared and the cheapest fit is recommended."),
+    UseCase("house-search-los-angeles", "es", 7, "Buscar casa en el portal que se use en ese mercado",
+            "Búscame casas de alquiler en Málaga, dos habitaciones, por menos de 1.800 euros, que admitan "
+            "mascotas y que no estén en una calle principal.",
+            "The agent picks a site people actually use in that market, applies the filters there, and "
+            "reports which constraint each candidate meets."),
 ]
 
 

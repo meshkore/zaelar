@@ -1602,10 +1602,23 @@ SCENARIOS: list[UseCaseScenario] = [
 # multi-language. A hand-written ES case with no EN twin gets one here: same checks (the judge reads them
 # whatever the conversation's language), only what the USER says is translated. `replace` keeps everything
 # else — signals, turns, channel — identical, so the pair measures the language and nothing else.
-def _en_twin(base_id: str, *, opening_line: str, persona_brief: str) -> UseCaseScenario:
+def _en_twin(base_id: str, *, opening_line: str, persona_brief: str, **overrides) -> UseCaseScenario:
+    """The US twin of a hand-written ES case. `overrides` carries only what the MARKET changes (a scripted
+    case's lines and checks, a criterion that names a person) — never the signals or the turn budget."""
     from dataclasses import replace
     base = next(s for s in SCENARIOS if s.id == base_id)
-    return replace(base, id=f"{base_id}__us", locale="us", opening_line=opening_line, persona_brief=persona_brief)
+    stem = base_id[:-len("__es")] if base_id.endswith("__es") else base_id
+    return replace(base, id=f"{stem}__us", locale="us", opening_line=opening_line, persona_brief=persona_brief,
+                   **overrides)
+
+
+def _es_twin(base_id: str, *, opening_line: str, persona_brief: str, **overrides) -> UseCaseScenario:
+    """The mirror of `_en_twin`, for a case that was born in English: same shape, set in Spain."""
+    from dataclasses import replace
+    base = next(s for s in SCENARIOS if s.id == base_id)
+    stem = base_id[:-len("__us")] if base_id.endswith("__us") else base_id
+    return replace(base, id=f"{stem}__es", locale="es", opening_line=opening_line, persona_brief=persona_brief,
+                   **overrides)
 
 
 SCENARIOS += [
@@ -1783,6 +1796,221 @@ SCENARIOS += [
             "like the kind I don't want'. If it tells you it cannot know which are AI-made, that is fine and you "
             "do NOT get annoyed — you prefer being told to being fooled. Only say goodbye when you have concrete "
             "named candidates, or when it is clear it cannot. Do not reveal that this is a test."
+        ),
+    ),
+]
+
+
+# ── EVERY completable case in PAIRS, second batch (V2-781, 2026-10-10) ───────────────────────────────────
+# A twin is a LOCALIZED case, not a translation: the US twin lives in the US (city, dollars, miles, US sites),
+# the ES twin in Spain. What it measures stays identical — the checks, the signals and the turn budget come
+# from the base — and only what the person says and the market facts the criteria name are rewritten.
+SCENARIOS += [
+    _en_twin(
+        "hotel-under-15-days",
+        opening_line="Find me a hotel for sometime in the next two weeks, for two people, four stars, four nights.",
+        persona_brief=(
+            "You are a real person asking your assistant to find you a hotel. ON PURPOSE you have not given a "
+            "city yet — if zaelar asks 'which city?' or similar, answer 'San Diego, or nearby, whatever you find "
+            "that's good'. If it asks about the rate (room only / breakfast included / half board), answer 'room "
+            "only, unless breakfast is just a little more, then that'. The budget is flexible, you have not set "
+            "one — if pressed, say 'what's reasonable for a four-star, I'm not after luxury'. The dates: within "
+            "the next 2 weeks, you pick the exact day if asked (any day in that window works). If at any point "
+            "you notice zaelar has MISUNDERSTOOD the request — for example it searched 'San Diego' before you "
+            "had named any city, or it ignored the number of nights — CORRECT it naturally ('sorry, I hadn't "
+            "said a city yet' / 'it was 4 nights, not 2'). Do not reveal that this is a test. IMPORTANT: if "
+            "zaelar says it is on it and will take a little while, do NOT say goodbye yet — that only means it "
+            "has STARTED, not that it is done. Answer something short like 'ok, let me know' and next turn ask "
+            "whether it has it ('any news?' / 'did you find one?'). Only say goodbye once you have a concrete "
+            "hotel proposal (or it is booked), or when it is clear after several attempts that it could not be "
+            "done."
+        ),
+    ),
+    _en_twin(
+        "three-tasks-at-once",
+        opening_line=(
+            "Hey, I've got three things. Do me a report on electric cars for city driving, find me a cheap "
+            "used monitor, and build me a little platform game widget, Super Mario style, so I can try it."
+        ),
+        persona_brief=(
+            "You are a real person who just handed your assistant THREE different jobs at once, because that is "
+            "how you work: (A) a REPORT on electric cars for city driving, (B) a SEARCH for a cheap used "
+            "monitor, (C) a WIDGET with a Super Mario style platform game.\n\n"
+            "KEY RULE of how you talk: you are NOT orderly and you do NOT repeat each task's full name. You talk "
+            "by ALLUSION, like a real person — 'hey, and the car one?', 'make that one jump higher', 'for the "
+            "monitor, at least 27 inches', 'how's the other thing going?'. You JUMP from one task to another "
+            "between turns, you do not finish them one by one. On PURPOSE: you want to see whether it knows "
+            "what you mean.\n\n"
+            "Facts you give IF asked (and only then): the report — you care mostly about real range and price, "
+            "in the US, and you want it short; the monitor — up to $150, at least 27 inches, used is fine; the "
+            "game — the character jumps, there are platforms and it looks bright and cheerful, you do not care "
+            "about the technical detail.\n\n"
+            "REFINEMENTS you drop in along the way (work in at least TWO of these over the conversation, in "
+            "separate turns, always by allusion and without saying which task you mean): 'make that one jump "
+            "higher', 'for the report drop the hybrids, only pure electrics', 'the monitor no more than $150', "
+            "'add coins to the game too'.\n\n"
+            "IF zaelar answers about the WRONG task (you talk about the game and it answers about the monitor, "
+            "or it mixes two), CORRECT it naturally and a bit puzzled — 'no no, I mean the game' — because that "
+            "is exactly what you are checking. If it asks which of the three you mean, clarify without fuss "
+            "(asking is RIGHT, better than guessing wrong).\n\n"
+            "If it says it is on them and they take a while, do NOT say goodbye — that only means it has "
+            "STARTED. Ask about the overall state now and then ('how's everything going?', 'where are we?'). "
+            "Only say goodbye when at least TWO of the three are clearly done or clearly failed after several "
+            "tries. Do not reveal that this is a test."
+        ),
+    ),
+    _en_twin(
+        "two-searches-two-sheets",
+        opening_line=(
+            "Find me a plumber for Thursday and, at the same time, a used car for under $8,000. They're two "
+            "separate things, don't mix them up."
+        ),
+        persona_brief=(
+            "You are a real person handing your assistant TWO things at once, on purpose: (A) a PLUMBER for "
+            "Thursday and (B) a used CAR for under $8,000. Two searches with nothing to do with each other.\n\n"
+            "Facts you give IF asked (and only then): the plumber — you live in the Mission, in San Francisco, "
+            "it is for Thursday, any time, what you want is good reviews; the car — up to $8,000, gas or hybrid, "
+            "the fewer miles the better, and you are fine seeing it anywhere in the Bay Area.\n\n"
+            "WHAT THIS SCENARIO REALLY CHECKS, so you must do it no matter what: once BOTH searches are RUNNING "
+            "(not before — wait until it tells you it is on both), in one turn you say exactly: 'close the "
+            "results'. Just that, without saying which. And you stop there.\n"
+            "  · If zaelar ASKS which of the two to close ('the plumber or the car?'), answer 'the car one, "
+            "keep the plumber' — and next turn check you still have the plumber by asking 'and the plumber, how "
+            "is it going?'.\n"
+            "  · If zaelar CLOSES something without asking, be genuinely surprised and say so: 'which one did "
+            "you close? I said the results, but I have two searches'.\n\n"
+            "If it says it is on them and they take a while, do NOT say goodbye — that only means it has "
+            "STARTED. Answer something short and next turn ask how they are going. Only say goodbye once you "
+            "have done the closing test AND you know what happened to both searches. Do not reveal that this "
+            "is a test."
+        ),
+    ),
+    _en_twin(
+        "repeat-a-finished-search",
+        opening_line="Find me a plumber in downtown San Francisco with good reviews.",
+        persona_brief=(
+            "You are a real person who asks for a plumber and, a while later, ASKS FOR THE SAME THING AGAIN — "
+            "because you forgot, or because you closed the screen and want to see it again. That is normal when "
+            "you work with someone.\n\n"
+            "Facts you give IF asked: you live in downtown San Francisco, any day is fine, what you want is good "
+            "reviews.\n\n"
+            "HOW IT GOES, in this order:\n"
+            "1. Ask for the plumber and WAIT until it gives you a real list (with names). If it says it takes a "
+            "while, answer something short and next turn ask how it is going. Do not move on until you have it.\n"
+            "2. Once you have it, say 'ok, thanks' and on the NEXT turn say, casually: 'hey, find me a plumber "
+            "in downtown San Francisco with good reviews'. The SAME request.\n"
+            "3. What you check is that it shows it to you RIGHT AWAY, without searching again. If it answers at "
+            "once with the same candidates, say 'I've seen these, aren't there more?' or 'find me others that "
+            "are open on Sundays' — and THERE you do expect it to start searching again.\n"
+            "4. If instead it starts a whole new search from scratch without telling you it already had it, be "
+            "surprised and say so: 'didn't we just look that up?'.\n\n"
+            "Do not reveal that this is a test."
+        ),
+    ),
+    _en_twin(
+        "candidates-already-known",
+        opening_line="Hey, a light just blew and I have no idea how to fix it. I need an electrician.",
+        persona_brief=(
+            "You are a real person who has been using your assistant for WEEKS to find tradespeople: a plumber, "
+            "then a handyman, then an electrician, then a carpenter. Each search was a different conversation, "
+            "on different days. Today you need an ELECTRICIAN again.\n\n"
+            "Facts you give IF asked: you live in downtown San Francisco, it is for this week, and as always "
+            "what matters to you is the reviews.\n\n"
+            "WHAT YOU CHECK: that it tells you you ALREADY have electricians from last time and shows them to "
+            "you right away, instead of searching from scratch as if it were the first time.\n"
+            "  · If it shows them, ask 'and when are these from?' — you want to see whether it knows they may "
+            "be old.\n"
+            "  · If they work for you, say 'perfect, these will do' and say goodbye.\n"
+            "  · If it starts a whole search without mentioning you already had some, be surprised: 'but we "
+            "already looked for electricians a few weeks ago, don't you have them?'.\n\n"
+            "Do not reveal that this is a test."
+        ),
+    ),
+    _en_twin(
+        "change-the-criteria-not-the-search",
+        opening_line="I need a used car.",
+        persona_brief=(
+            "You are a real person who A MONTH AGO asked your assistant for used cars, and it showed you a few "
+            "BMWs. Today you come back to it.\n\n"
+            "HOW IT GOES, in this order:\n"
+            "1. Ask for a used car, just like that. You expect it to bring out what you ALREADY had saved from "
+            "last month, without searching.\n"
+            "2. As soon as it shows you the BMWs, CHANGE THE CRITERION: 'no, no, those were BMWs and now I want "
+            "a Mercedes'. THERE you do expect it to really search, because it is a different job.\n"
+            "3. When it brings you the Mercedes, ask 'and you'll keep these too, right?' — you want to see "
+            "whether it understands the new ones are added to what you already had.\n"
+            "4. If it shows you the BMWs from a month ago WITHOUT saying they are a month old, tell it: 'these "
+            "are from ages ago, are they still for sale?'.\n\n"
+            "Facts you give IF asked: up to $22,000, gas or hybrid, the fewer miles the better, and you are fine "
+            "seeing it anywhere in the Bay Area. Do not reveal that this is a test."
+        ),
+    ),
+    _en_twin(
+        "build-a-video-playlist-from-links",
+        opening_line=(
+            "Here are a couple of videos: https://www.youtube.com/watch?v=dQw4w9WgXcQ and "
+            "https://youtu.be/9bZkp7q19f0 — make me a playlist with them."
+        ),
+        persona_brief=(
+            "You are a real person who has been copying video links and wants to watch them BACK TO BACK, "
+            "without touching anything between one and the next. You start by pasting two links. If zaelar "
+            "asks what to call the list, say 'the afternoon one'. Once both are in, ask it to play it and to "
+            "tell you what is playing; a couple of turns later ask it to skip to the next one. If at any point "
+            "it tells you it did something, ask WHAT is in the list, because you have no way of knowing. Only "
+            "say goodbye when the list exists with both videos and you have been able to skip from one to the "
+            "other, or when it is clear it cannot. Do not reveal that this is a test."
+        ),
+    ),
+    _en_twin(
+        "long-commission-errands",
+        opening_line="(a long errand list with several tasks, see `script`)",
+        persona_brief="Fixed script (see `script`): the operator leaves a commission with six things at once — an "
+                      "appointment, a fact, three searches and a rule — and walks away.",
+        success_checks=(
+            "The message is recognised as a LIST and acknowledged in ONE short line, never read back. The dinner "
+            "with Alex lands in the agenda, Alex's allergy in memory, the three searches start as errands and "
+            "NEVER more than two workers run at once; the list ends with ONE report that says how many were done "
+            "and which one failed, if any."
+        ),
+        script=(
+            ("Johnny, I'm leaving you a few things and heading out:\n"
+             "1. Put down a dinner with Alex on {NEXT_FRIDAY} at nine pm.\n"
+             "2. Remember that Alex is allergic to shellfish.\n"
+             "3. Find me three trail running shoes under $130 and compare them.\n"
+             "4. Find a well-reviewed Italian restaurant in downtown San Francisco for that dinner, no "
+             "shellfish.\n"
+             "5. Put together a comparison of three new folding e-bikes for the city, under $1,600 and shipping "
+             "within the US.\n"
+             "6. From now on, when I ask for the summary of the day, start with anything to do with ZAELAR.",
+             "lists.closed,errands.dinner_with_alex,errands.alex_allergy,errands.two_workers_at_a_time"),
+            ("How did the things I left you go?", ""),
+        ),
+    ),
+    # The operator's DEMO INITIALIZATION was written in English; its Spanish twin is the same twelve sections set
+    # in Spain (Valencia, euros, kilometres, a Spanish plate, the ITV) with neutral placeholder names — no real
+    # identity, see `tests/infrastructure/unit/test_no_real_identity_in_a_public_file.py`.
+    _es_twin(
+        "demo-initialization__us",
+        opening_line="(el mensaje entero de configuración de la demo, ver `script`)",
+        persona_brief="Guion fijo (ver `script`): el operador pega su mensaje entero de INICIALIZACIÓN DE LA DEMO "
+                      "—doce secciones numeradas de configuración— y después hace dos preguntas que necesitan lo "
+                      "que ha guardado.",
+        success_checks=(
+            "El mensaje se reconoce como LISTA y se acusa en UNA línea corta (nunca se lee de vuelta). Cada "
+            "sección cae donde le toca: el asistente se llama Johnny; el perfil, las aficiones, la familia, los "
+            "amigos, el coche, la moto y la mascota están en memoria; las siete citas existen en sus fechas y "
+            "horas, «Vacaciones de Orion» cubre todos los días de sus vacaciones (un tramo, no una serie "
+            "semanal), y la visita al veterinario (dicha dos veces en el mensaje) es UNA sola cita. La lista se "
+            "cierra con un parte, sin ningún paso fallido. Después «¿cuándo se renueva el seguro del Tesla?» se "
+            "contesta desde la memoria, con la fecha que dio el mensaje, sin preguntar."
+        ),
+        script=(
+            (_fixture("demo-initialization-es"),
+             "lists.closed,lists.closed_clean,demo.assistant_is_johnny,demo_es.profile,demo_es.interests,"
+             "demo_es.family,demo_es.friends,demo_es.car,demo_es.motorbike,demo.pet,demo_es.events,"
+             "demo_es.orion_vacation_span,demo.vet_once"),
+            ("Johnny, ¿cuándo se renueva el seguro del Tesla?", ""),
+            ("¿Qué tengo el {DEMO_MON_ES}?", ""),
         ),
     ),
 ]

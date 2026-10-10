@@ -52,7 +52,7 @@ _SHARED_ANSWERS_DEBT = {
     "archive-newsletters", "book-barber-slot", "buy-known-product", "cancel-trial-before-it-charges",
     "clean-and-reply-inbox", "compare-flights-sf-austin", "confirm-restaurant-together",
     "coordinate-dinner-with-alex", "file-expense-report", "grocery-restock-reactive",
-    "gym-membership-no-silent-renew", "house-search-los-angeles", "negotiate-lower-phone-bill", "pay-known-bill",
+    "gym-membership-no-silent-renew", "negotiate-lower-phone-bill", "pay-known-bill",
     "plan-joint-trip-with-friend", "rebook-delayed-flight-now", "reorder-prescription", "resolve-meetup-conflict",
     "search-buy-book", "smog-check-before-deadline", "split-airbnb-with-jordan", "track-package-reschedule",
     "track-price-drop-buy", "weekend-trip-austin",
