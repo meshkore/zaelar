@@ -289,7 +289,9 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
                 # V2-189: nunca la MISMA frase dos veces (espejo del provider — cablear en AMBOS).
                 from . import router_guards as _rg_hold
                 from nucleo.turn import errands_of_a_turn as _eot   # a status question owes the phases (three-tasks)
-                spoken = ((action != "escalate" and _eot.status_owed(text, brief)) or _rg_hold.holding_line(sess.window, _lg))
+                _stopped = isinstance(return_extra_exec, dict) and return_extra_exec.get("executed") == "stop"   # a stop he ordered is DONE, never «a moment»
+                spoken = ((_stopped and _lg.worker_stopped) or (action != "escalate" and _eot.status_owed(text, brief))
+                          or _rg_hold.holding_line(sess.window, _lg))
             elif action == "music":
                 # V2-380 — la BOCA dice lo que PASÓ, no «Hecho.» pase lo que pase. Misma casa que la ejecución.
                 spoken = _probe._music_turn.spoken_for(

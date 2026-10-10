@@ -129,6 +129,8 @@ class LangSpec:
     errands_status: str = "Así va todo: {items}."
     errand_under_way: str = "en marcha, sin novedades todavía"
     errand_waiting_on_you: str = "esperando a que me contestes algo"
+    # …and a stop he ordered is acknowledged as DONE, never answered with «dame un momento» (EN round 20:00).
+    worker_stopped: str = "Hecho, la he parado."
     # V2-757 — TOUCHING A CARD OF HIS IS ASKED FIRST. Measured live (session f84f91ef, 2026-09-23): with
     # the mic open the operator dictated a design brief to ANOTHER conversation, and the turn read it as
     # his to us — «lo mando hacer», a Brain Worker started rewriting the video card, and his «Olvídate de
@@ -298,6 +300,9 @@ class LangSpec:
     # split (~5 s) and the receipt must not wait for it. The report comes ONCE, at
     # the end: counts, then only what failed, what needs him, and what is still running.
     list_started: str = "Entendido, me pides varias cosas. Me pongo con ellas y te aviso cuando termine."
+    # three-tasks-at-once (2026-10-10 20:00): a canned line is said ONCE per conversation — the receipt above
+    # answered four distinct questions word for word. A second list gets this one; a third is an ordinary turn.
+    list_started_again: str = "Otra lista, entonces: me pongo con ella y te aviso al acabarla."
     list_done: str = "He terminado tu lista: {ok} de {n} hechas."
     list_failed: str = "No he podido con: {items}."
     list_needs_you: str = "Necesito que me aclares: {items}"

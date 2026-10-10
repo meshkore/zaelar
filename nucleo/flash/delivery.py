@@ -336,11 +336,18 @@ def _row_key(row: str) -> str:
     return _norm_txt(str(row or "").split(" — ")[0])[:80]
 
 
+#: errands whose stall this backstop already OFFERED to stop. An offer is made once: in the EN round of
+#: three-tasks-at-once (2026-10-10 20:00) he answered «stop it and try another way», the stop ran, and the next
+#: reply asked the same question again with «4 min» for «3 min». The fact stays in the prompt; the offer does not.
+_STALL_OFFERED: set = set()
+
+
 def forget_announced() -> None:
     _ANNOUNCED.clear()
+    _STALL_OFFERED.clear()
 
 
-def apply_to_reply(spoken: str, window) -> str:
+def apply_to_reply(spoken: str, window, *, heard_now: str = "") -> str:
     """Aplica el backstop a la respuesta de un turno y devuelve la que sale. Nunca lanza.
 
     Vive aquí y no en `probe` (V2-340) porque el trinquete de arquitectura lo pidió al crecer aquel fichero, y
@@ -377,6 +384,9 @@ def apply_to_reply(spoken: str, window) -> str:
             _emit("🧹 importe sin fuente recortado", dropped=[c[:120] for c in _cut[:3]])
         _said = _ANNOUNCED.setdefault(encargo, set())     # V2-781: what it said, kept past the window
         filas = [f for f in filas if _row_key(f) not in _said]
+        if filas and _about_another_errand(heard_now, encargo):
+            _emit("🤐 delivery backstop held: the turn is about another errand", goal=(encargo or "")[:80])
+            filas = []
         extra = sheet_delivery_backstop(spoken or "", filas, dicho, errand=encargo, heard=_user)
         if extra:
             _said.update(_row_key(f) for f in filas if f.split(" — ")[0][:40] in extra)
@@ -385,8 +395,9 @@ def apply_to_reply(spoken: str, window) -> str:
         # V2-359 — y si no hay filas que entregar, puede haber un ATASCO que callar. Va DESPUÉS y no antes:
         # con resultados delante la cara correcta es entregarlos, no hablar del atasco.
         _enc, _min, _mot = _lb.any_stalled_task()
-        _stall = stalled_task_backstop(spoken or "", _enc, _min, _mot)
+        _stall = "" if _row_key(_enc) in _STALL_OFFERED else stalled_task_backstop(spoken or "", _enc, _min, _mot)
         if _stall:
+            _STALL_OFFERED.add(_row_key(_enc))
             _emit("📬 backstop de atasco: la espera sale con el hecho", mins=_min, motivo=_mot)
             return ((spoken.rstrip() + " ") if spoken else "") + _stall
         # EL SILENCIO SE VE (V2-336). Todo esto vive bajo un `except` general, así que una avería interna
@@ -413,6 +424,22 @@ def apply_to_reply(spoken: str, window) -> str:
     except Exception:  # noqa: BLE001
         pass
     return spoken
+
+
+def _about_another_errand(heard_now: str, errand: str) -> bool:
+    """Does his sentence name errands, none of them the one whose rows the backstop would deliver?
+
+    three-tasks-at-once (ES, 2026-10-10 20:00): «del informe quítame los híbridos» → «dame un momento que lo miro»
+    + three MONITOR candidates. The refinement was about the report; gluing the monitor sheet to the reply changed
+    the subject under him, and he had to say it three more times. A sentence that names no errand keeps the
+    backstop, as before."""
+    if not heard_now or not errand:
+        return False
+    try:
+        from nucleo.turn import named_errand as _ne
+        return bool(_ne.named(heard_now)) and not _ne.named(heard_now, [{"request": errand}])
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _emit(label: str, **extra) -> None:

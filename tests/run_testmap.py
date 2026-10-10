@@ -3811,6 +3811,12 @@ DOMAINS: list[dict] = [
         {"id": "2.361", "title": "play_video carries `queue` in both channels, the turn names what plays, and a queue read "
                                  "carries the card's rows — «one video left» over two (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_few_videos_back_to_back_is_a_queue.py"]},
+        {"id": "2.350", "title": "A sentence about ONE of his errands is answered about that errand — a long turn about "
+                                 "live errands is not a new list, the canned receipt is said once, a status question "
+                                 "names the errand it asks about, a stop is said as done and its offer never re-asked, "
+                                 "another errand's rows are not glued to a refinement, a «no» about the monitor leaves "
+                                 "the parked game waiting (three-tasks-at-once, 2026-10-10 20:00)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sentence_about_an_errand_is_answered_about_it.py"]},
         {"id": "2.276", "title": "The delivery backstop never announces a row twice in one errand — the junk batch he "
                                  "turned down came back once the window forgot it (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_never_announces_a_row_twice.py"]},

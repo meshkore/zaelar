@@ -51,7 +51,9 @@ def three_live(monkeypatch):
 def test_a_status_question_gets_every_live_errand_and_its_phase(three_live):
     line = E.status_owed(SAID, _brief(wants_words="tell", request_type="question"))
     assert "Electric cars for city driving report" in line and "Elaborating the report" in line
-    assert "Super Mario platformer game" in line and "creando un widget" in line
+    assert "Super Mario platformer game" in line
+    # the engine's Spanish phase never reaches an English ear (round 20:00, the language gate flagged it)
+    assert "creando un widget" not in line and "under way" in line
     assert "cheap used monitor" in line, "an errand with no phase yet is still named"
 
 

@@ -25,7 +25,7 @@ def test_the_lane_returns_while_the_receipt_is_still_queued(monkeypatch):
         spoken.append(text)
         await released.wait()            # the queued `say`: it cannot start until the turn ends
 
-    async def intake(text, *, origin="voz"):
+    async def intake(text, *, origin="voz", said=()):
         return {"ack": "Got it — that's several things."}
 
     monkeypatch.setattr("nucleo.batch.intake", intake)

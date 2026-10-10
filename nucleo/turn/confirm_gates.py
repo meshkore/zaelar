@@ -107,8 +107,9 @@ def _task_gate(brief=None):
         from nucleo import dispatch as _d
         from widgets import confirm as _c
         words = operator_words(text)
-        v = task_reply(words, _c.classify_reply(words), str((_d.pending_confirm() or {}).get("question") or ""),
-                       brief=brief)
+        p = _d.pending_confirm() or {}
+        v = task_reply(words, _c.classify_reply(words), str(p.get("question") or ""), brief=brief,
+                       parked=str(p.get("task_id") or ""))
         return _d.resolve_confirm(v == "yes") if v else None
     return (_open, _do)
 
@@ -119,7 +120,7 @@ def operator_words(text: str) -> str:
     return _esc.strip_system_notes(text) if "[SISTEMA]" in (text or "") else (text or "")
 
 
-def task_reply(words: str, v: str | None, question: str, *, brief=None) -> str | None:
+def task_reply(words: str, v: str | None, question: str, *, brief=None, parked: str = "") -> str | None:
     """'yes' | 'no' | None — does the operator's turn ANSWER the parked errand's question? (three-tasks-at-once)
 
     Measured 2026-10-10 (sandbox 20261010-145227-es): with two errands parked, «Vale. Del monitor que no se te vaya
@@ -132,12 +133,30 @@ def task_reply(words: str, v: str | None, question: str, *, brief=None) -> str |
     from widgets import confirm as _c
     if v is None or _c.is_plain_answer(words, v):
         return v
+    if parked and _about_another_errand(words, parked):
+        return None
     judged = _c._judge(question, words) if question else None
     if judged is not None:
         return None if judged == "other" else judged
     from nucleo.flash import turn_brief as _tb
     kind, _info = _tb.read(brief, _tb.REQUEST_KEY, "") if brief is not None else ("", None)
     return v if kind == "answer" else None
+
+
+def _about_another_errand(words: str, parked: str) -> bool:
+    """A sentence that names OTHER errands and not the parked one does not answer the parked one's question.
+
+    three-tasks-at-once (EN, 2026-10-10 20:00): the game was parked on «shall I build it?», and «ah no those are
+    all too small — the monitor needs to be at least 27 inches… and did you get the jump change in?» CANCELLED it:
+    its «no» was about the monitor listings. The game was never built, and every later «did you get the jump in?»
+    had no errand to answer about. Bounded on the consequence: such a sentence leaves the errand parked — it can
+    still absorb the refinement — and a plain yes/no above is untouched."""
+    try:
+        from nucleo.turn import named_errand as _ne
+        named = _ne.named(words)
+        return bool(named) and not any(e["parked"] and e["id"] == parked for e in named)
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def _browser_gate():

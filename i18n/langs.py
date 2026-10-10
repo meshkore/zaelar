@@ -197,6 +197,7 @@ LANGUAGES: dict[str, LangSpec] = {
         errands_status="Here's where everything stands: {items}.",
         errand_under_way="under way, nothing new yet",
         errand_waiting_on_you="waiting on an answer from you",
+        worker_stopped="Done — I've stopped it.",
         widget_build_confirm=("If I've got this right, you're asking me to BUILD you a new card "
                               "(«{what}»). It takes a few minutes and it stays in your catalogue. "
                               "Shall I?"),
@@ -296,6 +297,7 @@ LANGUAGES: dict[str, LangSpec] = {
         data_acks=("Done.", "There you go.", "All set.", "Got it.", "Noted."),
         work_started="On it — I'll tell you when it's done.",
         list_started="Got it — that's several things. I'm on them and I'll let you know when I'm done.",
+        list_started_again="Another list, then — I'm on it and I'll tell you when it's done.",
         list_done="I've finished your list: {ok} of {n} done.",
         list_failed="I couldn't do: {items}.",
         list_needs_you="I need you to clarify: {items}",

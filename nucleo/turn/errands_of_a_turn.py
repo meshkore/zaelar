@@ -95,17 +95,32 @@ def status_owed(operator_text: str, brief) -> str:
     kind, _k = _tb.read(brief, _tb.REQUEST_KEY, "")
     if words != "tell" and kind != "question":
         return ""
-    from nucleo import dispatch as _d
-    live = list(_d.pending_summaries() or [])
-    if not live:
+    from nucleo.turn import named_errand as _ne
+    errands = _ne.known()
+    live = [e for e in errands if not e["parked"]]
+    # A question that NAMES an errand is about THAT errand (EN round 20:00: «the jump, did you make it higher?»
+    # got the report's and the monitor's phases three times) — parked ones included, so «waiting on you» is said.
+    # «How's everything going?» still asks about all of them, whatever else the sentence names.
+    asked = [] if _ne.asks_about_all(operator_text) else _ne.named(operator_text, errands)
+    if not (asked or live):
         return ""
     from i18n import langs as _lg
     lang = _lg.current_language()
     items = []
-    for e in live:
-        rec = _d.get_record(e.get("id"))
-        label = str(getattr(rec, "label", "") or "").strip() or str(e.get("request") or "").strip()[:70]
-        state = (lang.errand_waiting_on_you if e.get("waiting_on") else
-                 str(e.get("phase") or e.get("note") or "").strip().rstrip("…. ") or lang.errand_under_way)
+    for e in asked or live:
+        label = e["label"] or e["request"][:70]
+        phase = _phase_in_session_language((e["phase"] or e["note"]).strip().rstrip("…. "), _lg.current_code())
+        state = lang.errand_waiting_on_you if e["waiting_on"] else (phase or lang.errand_under_way)
         items.append(f"{label}: {state}")
     return lang.errands_status.format(items="; ".join(items))
+
+
+def _phase_in_session_language(phase: str, code: str) -> str:
+    """The phase, or "" when it would put another language in his ear. The engine writes its phases in Spanish
+    («entrando en ebay.es») and the EN round said them to an English operator; a worker's own note may be in
+    either. In Spanish a phase stays unless it reads as English; elsewhere it has to read as his language."""
+    from nucleo.flash import outgoing_lang as _ol
+    lang = _ol.language_of(phase)
+    if str(code or "es")[:2] == "es":
+        return "" if lang == "en" else phase
+    return phase if lang == str(code)[:2] else ""

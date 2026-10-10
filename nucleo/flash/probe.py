@@ -80,7 +80,7 @@ from .show_target import (  # noqa: F401
 async def _task_list(text: str, sess) -> dict | None:
     """The text channel's side of `fast_lane.task_list` (V2-771): the receipt line, or None → normal turn."""
     from nucleo import batch
-    got = await batch.intake(text, origin="chat")
+    got = await batch.intake(text, origin="chat", said=batch.assistant_lines(sess.window))
     if not got:
         return None
     from . import dialog
@@ -522,7 +522,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # con la hoja ya llena de filas frescas sale CON ellas, y su silencio queda registrado con las entradas de
     # la decisión. Aquí solo se le pasa la respuesta del turno; el porqué de cada regla vive en su módulo.
     from . import delivery as _delivery
-    spoken = _delivery.apply_to_reply(spoken, sess.window)
+    spoken = _delivery.apply_to_reply(spoken, sess.window, heard_now=operator_text or text)
     from . import outgoing_lang as _ol   # V2-781: «I'm in Madrid» turned the English session Spanish
     spoken = await _ol.said_in_session_language(spoken) if _ol.foreign_to_session(spoken) else spoken
 

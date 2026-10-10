@@ -66,6 +66,24 @@ def unmistakable(text: str) -> bool:
     return s["chars"] >= 400 and s["enumerated"] >= 3
 
 
+def about_errands_under_way(text: str) -> bool:
+    """Does the message talk about errands ALREADY running or waiting on him? Then it is not a new list.
+
+    three-tasks-at-once (2026-10-10 20:00, ES): with a report, a monitor hunt and a game live, «del coche, ¿qué
+    tal de autonomía real? ¿Y el juego? … Del monitor no te olvides de lo de los 150» — four sentences about the
+    three of them — passed the shape floor, Jev read «several», and four such turns became four new LISTS: the
+    questions went unanswered and the refinements never reached their errand. A message about live errands is a
+    conversation with them, and the turn is what answers a question and routes a refinement. An enumerated paste
+    still counts as a list — nobody numbers the questions he asks about work in progress."""
+    if unmistakable(text):
+        return False
+    try:
+        from nucleo.turn import named_errand
+        return bool(named_errand.named(text))
+    except Exception:  # noqa: BLE001 — a doubt keeps today's path
+        return False
+
+
 async def ask(text: str) -> dict | None:
     """Jev's verdict on the message, or None when it could not be asked. The blocking call runs in a thread —
     never on the event loop the voice turn shares (node 3.61)."""

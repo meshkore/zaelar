@@ -280,7 +280,7 @@ async def task_list(brain, text: str, emit, *, first_turn: bool, window_max: int
     if first_turn:
         return False
     from nucleo import batch
-    got = await batch.intake(text, origin="voz")
+    got = await batch.intake(text, origin="voz", said=batch.assistant_lines(brain._window))
     if not got:
         return False
     phrase = got["ack"]

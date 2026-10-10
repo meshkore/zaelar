@@ -32,6 +32,25 @@ def ack() -> str:
     return langs.current_language().list_started
 
 
+def receipt(said=()) -> str:
+    """The receipt line not yet said in this conversation, or "" when every variant has been.
+
+    A canned line is said ONCE (three-tasks-at-once, 2026-10-10 20:00): the same receipt answered four distinct
+    questions word for word, twice after he complained about it. `said` is what the assistant already said."""
+    from i18n import langs
+    lang = langs.current_language()
+    heard = {str(s or "").strip() for s in (said or ())}
+    for line in (lang.list_started, getattr(lang, "list_started_again", "")):
+        if line and line.strip() not in heard:
+            return line
+    return ""
+
+
+def assistant_lines(window) -> list[str]:
+    """What the assistant said in a dialogue window — the `said` of `receipt`."""
+    return [str((m or {}).get("content") or "") for m in (window or []) if (m or {}).get("role") == "assistant"]
+
+
 async def start(text: str, *, origin: str = "voz", run: bool = True) -> str:
     """Split, store and (by default) run a message already known to be a list. Returns the list's uid."""
     from . import runner, split
@@ -52,11 +71,18 @@ def _spawn(coro) -> None:
     task.add_done_callback(_TASKS.discard)
 
 
-async def intake(text: str, *, origin: str = "voz") -> dict | None:
+async def intake(text: str, *, origin: str = "voz", said=()) -> dict | None:
     """{ack} when `text` is a list and it was started; None otherwise (run today's turn)."""
     from . import detect, runner
     try:
         if not detect.could_be_a_list(text):
+            return None
+        line = receipt(said)
+        if not line:
+            runner._emit("📋 list: every receipt already said — ordinary turn", text=text[:200])
+            return None
+        if detect.about_errands_under_way(text):
+            runner._emit("📋 list: it talks about errands under way — ordinary turn", text=text[:200])
             return None
         is_list, why = await detect.is_a_list(text)
         runner._emit("📋 lista: ¿es una lista?", text=text[:200], verdict=why, is_list=is_list)
@@ -66,7 +92,7 @@ async def intake(text: str, *, origin: str = "voz") -> dict | None:
         logger.warning(f"lista: intake failed, running the message as one turn: {e!r}")
         return None
     _spawn(start(text, origin=origin))
-    return {"ack": ack()}
+    return {"ack": line}
 
 
 def run_later(uid: str) -> None:
