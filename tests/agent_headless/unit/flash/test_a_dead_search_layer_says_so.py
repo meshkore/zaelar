@@ -23,6 +23,8 @@ being asked for a captcha” lead the operator to different decisions, and neith
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from nucleo import websearch
@@ -81,8 +83,14 @@ def test_the_operator_semaphore_is_lit(monkeypatch):
     seen: list[tuple] = []
     from voice import health_state
     monkeypatch.setattr(health_state, "record", lambda *a, **kw: seen.append(a))
+    # V2-782: the search layer is a service and reaches the semaphore through a hook the server wires at boot
+    # (`server/boot_halves.py`); the test wires it the same way, so what is measured is the whole path.
+    from search import hooks as _hooks
+    monkeypatch.setattr(_hooks, "on_chain_failure", lambda kind, detail: health_state.record("search", kind, detail))
     websearch.note_failure("google: Weekly Limit Exhausted")
     assert seen and seen[0][0] == "search"
+    boot = (Path(__file__).resolve().parents[4] / "server" / "boot_halves.py").read_text(encoding="utf-8")
+    assert "_search_hooks.on_chain_failure" in boot, "the engine must wire the hook, or the light never turns red"
 
 
 # ── and it reaches the TURN, which was what was missing ────────────────────────────────────────────────────────

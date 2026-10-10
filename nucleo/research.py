@@ -112,8 +112,12 @@ def _roles(raw) -> list[str]:
     return out
 
 
-def parse(raw: str) -> dict | None:
-    """Composer JSON → validated brief. None if there is no usable JSON or it says this is not research."""
+def parse(raw: str, request: str = "") -> dict | None:
+    """Composer JSON → validated brief. None if there is no usable JSON or it says this is not research.
+
+    `request` — the operator's own words. When they name a size («a couple of recipes», «las tres mejores»), that
+    number is his and it caps both the floor and the model's own `n_final` (V2-782 T4.4: «a couple» became 40
+    candidates and 265 s). `search.criteria.breadth` reads it; a request that names none keeps the floor."""
     s = (raw or "").strip()
     if s.startswith("```"):
         s = s.strip("`")
@@ -144,6 +148,10 @@ def parse(raw: str) -> dict | None:
     except (TypeError, ValueError):
         nfin = _N_FINAL_DEFAULT
     nfin = max(1, min(_N_FINAL_CAP, nfin))
+    said = _said_breadth(request)
+    if said:
+        nfin = min(nfin, said["n_final"]) if deliv.get("n_final") else said["n_final"]
+        minc = min(minc, max(said["min_candidates"], nfin * 2))
 
     brief = {
         "goal": str(p.get("goal") or "").strip()[:400],
@@ -172,6 +180,18 @@ def parse(raw: str) -> dict | None:
 # `_SYSTEM` moved to research_prompts.py (2026-08-17 modularization pass) — re-exported here so `build_messages`
 # below keeps working unchanged, and so `research._SYSTEM` still resolves for anyone reading it that way.
 from nucleo.research_prompts import _SYSTEM  # noqa: F401 — re-export + used by build_messages below
+def _said_breadth(request: str) -> dict | None:
+    """`{n_final, min_candidates}` when the operator named a size, else None. One reader of his words: `search.criteria`."""
+    if not (request or "").strip():
+        return None
+    try:
+        from search import criteria as _crit
+        b = _crit.breadth(request, floor=_MIN_CANDIDATES_FLOOR, cap=_MIN_CANDIDATES_CAP, n_final_default=_N_FINAL_DEFAULT)
+    except Exception:  # noqa: BLE001 — a grammar must never cost a brief
+        return None
+    return b if b.get("said") else None
+
+
 def build_messages(request: str, context: str = "", today: str = "") -> list[dict]:
     user = []
     if today:
@@ -384,7 +404,7 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
     except Exception as e:  # noqa: BLE001
         logger.warning(f"research: el compositor falló ({e}) — el worker sale SIN brief (búsqueda sin dirigir)")
         raise ComposerUnavailable(str(e)) from None
-    brief = parse(out)
+    brief = parse(out, request=req)
     if brief is None:
         if _declined(out):
             return None                   # decisión SUYA: no pide amplitud ni baremo → presupuesto normal

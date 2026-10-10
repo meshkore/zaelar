@@ -1,0 +1,20 @@
+{
+  "title": "Resultados",
+  "subtitle": "",
+  "items": [],
+  "criteria": {
+    "changes": [
+      "solo coches usados completos en venta (no folletos, piezas, juguetes ni catálogos)",
+      "diésel o híbrido",
+      "menos de 60.000 millas",
+      "menos de $14.000",
+      "top 3",
+      "solo anuncios reales de coches completos en venta (no folletos, piezas, juguetes ni catálogos)",
+      "solo coches con menos de 60.000 millas (el Jaguar queda fuera: pasa de 60k)",
+      "top 3: además del Ford Fusion Hybrid 2012, faltan dos más que cumplan"
+    ]
+  },
+  "empty": true,
+  "note": "Sin resultados todavía.",
+  "harvest": {}
+}

@@ -30,8 +30,8 @@ arranque `make run` → `python -m server`.
   recursos, ~30 líneas] + `memory_cache.py` [cachea `memory.compose_state()` fuera del turno + siembra la misión] +
   `prewarm.py` [calienta FlashBrain+browser en el arranque, V2-024] + `dialog.py` [estabilidad conversacional V2-032:
   break-loop + poda de historial + anti-degeneración, COMPARTIDO por voz y probe] + `probe.py` [canal de PRUEBA
-  headless, 3ª forma de testing: `POST /api/flash/say`]). `nucleo/websearch.py` (hermano de `flash/`) = **búsqueda web COMPARTIDA** por los dos cerebros
-  (V2-022, ver decisión clave); `nucleo/browser_search.py` = capa **Google GRATIS vía Chromium persistente** (V2-024). **Latencia — la memoria NO está en el turno síncrono**
+  headless, 3ª forma de testing: `POST /api/flash/say`]). La **búsqueda** vive desde V2-782 en su propio paquete `search/` (`web.py` = la cadena compartida por los dos cerebros,
+  V2-022; `browser.py` = Google GRATIS vía Chromium persistente, V2-024; `nucleo.websearch`/`nucleo.browser_search` son alias) — mapa en `zaelar-search.md`. **Latencia — la memoria NO está en el turno síncrono**
   (V2-011): el bloque de ESTADO (nombre/trato/temas) sale de `memory_cache` (caché de sesión, TTL + refresco async
   + invalidación por `memory.updated`), y el recall semántico (`prompt.compose_recall`) es **bajo demanda**
   (`prompt.needs_recall`) y **fuera del event loop** (`asyncio.to_thread`) — el turno de charla nunca dispara el

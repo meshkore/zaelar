@@ -1,0 +1,55 @@
+{
+  "title": "Resultados",
+  "subtitle": "",
+  "items": [],
+  "criteria": {
+    "goal": "Reunir y seleccionar las 3 mejores recetas de cena sin gluten, sencillas y rápidas (pocos ingredientes, menos de ~30 minutos), aptas para cocinar en casa con esfuerzo mínimo por una persona celíaca. Ninguna receta puede contener gluten (nada de pasta de trigo, pan, salsas con harina, salsa de soja convencional ni otros ingredientes con gluten) ni alcohol. Para cada receta finalista entregar: nombr",
+    "domain": "Cocina sin gluten",
+    "hard": [
+      "Sin gluten en ningún ingrediente (ni trigo, ni cebada, ni centeno, ni espelta, ni pasta/pan/harina de trigo, ni salsa de soja convencional; si se usa soja, debe ser tamari o salsa de soja sin gluten)",
+      "Sin alcohol en ningún ingrediente, incluidos vinos, cervezas, licores y salsas o caldos que lo contengan",
+      "Tiempo total de preparación y cocción ≤ 30 minutos",
+      "Cocinable en casa con utensilios domésticos básicos",
+      "Número reducido de ingredientes (pocos, no una lista larga)"
+    ],
+    "soft": [
+      "Menos de ~8 ingredientes principales",
+      "Pasos simples y pocos (idealmente ≤5)",
+      "Ingredientes fáciles de encontrar en un supermercado normal",
+      "Pocos utensilios y mínima limpieza posterior",
+      "Opción que no exija encender el horno o que requiera técnicas básicas",
+      "Variedad entre las 3 recetas (que no sean tres variantes del mismo plato)"
+    ],
+    "assumed": [
+      "Número de comensales: 1-2 raciones por receta",
+      "Nivel de cocina: principiante, se buscan recetas muy sencillas",
+      "Utensilios disponibles: sartén, olla, microondas, horno estándar",
+      "Se puede usar soja fermentada sin gluten (tamari) como sustituto de salsa de soja convencional",
+      "Alergias/intolerancias adicionales: solo celiaquía (sin otros condicionantes indicados)"
+    ],
+    "enrichments": [
+      "Verificar que cada ingrediente procesado (salsas, caldos, especias, embutidos) esté etiquetado como sin gluten, ya que el gluten aparece en aditivos inesperados; por eso el ejecutor debe comprobar marcas/etiquetados y no",
+      "Incluir alternativas de proteína intercambiables (pollo, pescado, huevo, legumbre, tofu) para que Alex pueda adaptar según lo que tenga en la nevera",
+      "Señalar recetas que no requieran comprar ingredientes exóticos ni visitar tiendas especializadas, porque quien busca cenas rápidas no quiere una compra compleja",
+      "Indicar si la receta se puede preparar en batch y recalentar, útil para días de poco tiempo",
+      "Evitar recetas con salsas fermentadas dudosas y preferir opciones con ingredientes naturalmente sin gluten para reducir riesgo de contaminación cruzada",
+      "Comprobar el riesgo de contaminación cruzada en productos como salsas de tomate, caldos o condimentos comprados (que a veces llevan harina como espesante)"
+    ],
+    "quality_bar": [
+      "La receta está publicada en una fuente con instrucciones completas (ingredientes y pasos), no solo una foto o un titular",
+      "Se ha verificado explícitamente que todos los ingredientes son sin gluten (o se indica el sustituto sin gluten necesario)",
+      "Se ha verificado que no contiene alcohol en ningún ingrediente ni en los pasos",
+      "El tiempo declarado de preparación + cocción es ≤30 minutos; si no se declara, se estima y se justifica",
+      "La receta es reproducible por un principiante (pasos claros y sin técnicas avanzadas)",
+      "Se han contrastado al menos dos fuentes o se ha comprobado que la receta no depende de un producto específico difícil de conseguir"
+    ],
+    "min_candidates": 80,
+    "n_final": 3,
+    "changes": [
+      "Find 3 simple, quick gluten-free dinner recipes that can be made at home with minimal effort (few ingredients, under ~30 minutes). Avoid anything containing gluten (no wheat pasta, no bread, no flour-"
+    ]
+  },
+  "empty": true,
+  "note": "Sin resultados todavía.",
+  "harvest": {}
+}

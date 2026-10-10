@@ -411,6 +411,14 @@ _SEARCH_USD_PER_REQUEST: dict[str, float] = {
     # `listing_search._bd_request` meters after the 200).
     "brightdata_serp": 0.0015,
     "brightdata_unlocker": 0.003,
+    # V2-782 (2026-10-10). Gemini grounding: Google bills grounded PROMPTS ($35/1k beyond the daily free
+    # allowance, pricing page 2026-10) — the honest ceiling; the few hundred tokens are not metered twice.
+    "gemini": 0.035,
+    # Z.ai Web Search API (search-prime), pay per call, a different wallet from the coding plan's MCP quota.
+    # Taken from their pricing page 2026-10 at the top tier as the ceiling; RE-VERIFY at volume.
+    "zai": 0.03,
+    # Foursquare Places search, per call, their 2025 pay-as-you-go rate rounded UP; RE-VERIFY when credits exist.
+    "foursquare": 0.005,
     "": 0.008,               # unmapped paid provider → the most expensive known, logged once
 }
 _warned_search = set()

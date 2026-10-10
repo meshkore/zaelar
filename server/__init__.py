@@ -266,6 +266,8 @@ def create_app() -> FastAPI:
         routers.append(agent_report_router)
         from nucleo.worker_api import router as worker_router          # V2-038: request/response worker plane
         routers.append(worker_router)
+        from search.api import router as search_router                 # V2-782: the search service's HTTP face
+        routers.append(search_router)
         from widgets.navegador.act_api import router as navegador_act_router   # V2-036 F3: browser bridge
         routers.append(navegador_act_router)
         # /api/cron mounts ONLY with the brain whose loop fires the jobs (V2-601 T-13). Ungated, a cron was

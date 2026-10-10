@@ -1,0 +1,86 @@
+{
+  "title": "Alquiler de coche en Málaga fin de semana 10-11 octubre",
+  "subtitle": "",
+  "items": [
+    {
+      "title": "Las 10 mejores empresas de…",
+      "subtitle": "En esta comparativa te presentamos las 10 empresas más recomendadas…",
+      "url": "https://www.malagahoy.es/bc-malaga/mejores-rent-a-car-aeropuerto-malaga_0_2004390475.html",
+      "facts": [
+        {
+          "label": "Origen",
+          "value": "búsqueda web"
+        }
+      ]
+    },
+    {
+      "title": "TOP 35 Compañías Alquiler Coches…",
+      "subtitle": "Explora las 35 mejores compañías de alquiler de coches en Málaga en…",
+      "url": "https://rankingrentacar.com/espana/mejores-empresas-alquiler-coches-malaga/",
+      "facts": [
+        {
+          "label": "Origen",
+          "value": "búsqueda web"
+        }
+      ]
+    },
+    {
+      "title": "Alquiler de coches en el…",
+      "subtitle": "Las agencias de alquiler de coches que ofrecen servicio de recogida y…",
+      "url": "https://www.kayak.es/Aeropuerto-Malaga-Costa-del-Sol-alquiler-coches.AGP.cap.ksp",
+      "facts": [
+        {
+          "label": "Origen",
+          "value": "búsqueda web"
+        }
+      ]
+    },
+    {
+      "title": "Alquiler coches Málaga aeropuerto…",
+      "subtitle": "La mejor opción para conocer a tu aire esta provincia andaluza es el…",
+      "url": "https://www.centauro.net/alquiler-de-coches-baratos/espana/malaga-aeropuerto/",
+      "facts": [
+        {
+          "label": "Origen",
+          "value": "búsqueda web"
+        }
+      ]
+    }
+  ],
+  "empty": false,
+  "sources": [
+    {
+      "name": "búsqueda web (ddg)",
+      "status": "ok",
+      "found": 4
+    }
+  ],
+  "process": [
+    "💬 I'll start by checking the network for an existing agent, then plan the search.",
+    "ejecutando un paso…",
+    "buscando «sitio preferido para alquiler de coches» en la memoria…",
+    "conduciendo el navegador…",
+    "entrando en rentalcars.com…",
+    "entrando en kayak.es…",
+    "leyendo la página…",
+    "pulsando en la página…",
+    "entrando en kayak.es…",
+    "entrando en rentalcars.com…",
+    "escribiendo «Malaga Aeropuerto»…",
+    "pulsando en la página…",
+    "Kayak bloqueó la búsqueda; estoy rellenando el formulario de Rentalcars para Málaga (10-11 oct)",
+    "pulsando en la página…",
+    "conduciendo el navegador…",
+    "pulsando en la página…",
+    "leyendo la página…",
+    "recogiendo lo que hay en la página…",
+    "recorriendo la página…",
+    "recogiendo lo que hay en la página…",
+    "recorriendo la página…",
+    "entrando en rentalcars.com…",
+    "leyendo la página…",
+    "pulsando en la página…",
+    "entrando en discovercars.com…",
+    "escribiendo «Malaga»…"
+  ]
+}

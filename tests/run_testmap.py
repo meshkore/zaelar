@@ -6308,6 +6308,41 @@ DOMAINS: list[dict] = [
                                 "cada una es un xfail estricto hasta que exista el runner",
             "ch": UNIT, "paths": ["tests/brain/unit/test_the_circuit_fixtures_wait_for_l5.py"]},
     ]},
+    # V2-782 (2026-10-10) — THE SEARCH SERVICE, `search/`: one door (`find()`), one result shape, a route chosen
+    # by a verdict, every provider probed, and a ratchet that keeps it from importing the turn. Born from the
+    # V2-781 sweep: 25 failing cases, most of them searches, and no single place that answered «this request →
+    # this module». The use cases that deliver a shortlist are gated on this domain's F6.
+    {"id": "12", "name": "BÚSQUEDA (el servicio)", "nodes": [
+        {"id": "12.1", "title": "Una fila es un CANDIDATO o la PÁGINA que los lista: las fichas grabadas el 2026-10-10 "
+                                "(«Las 10 mejores…», «Política de Privacidad») salen a Fuentes con su motivo, y todo lo "
+                                "que trae precio, valoración o teléfono propio se queda — en las dos puertas de la hoja",
+            "ch": UNIT, "paths": ["tests/search/unit/test_a_page_is_a_source_not_a_candidate.py"]},
+        {"id": "12.2", "title": "El criterio que NINGUNA fila enseña se dice ausente (17 nombres de fontanero sin "
+                                "valoración no son «los mejor valorados»), en la hoja, en el digest y en find()",
+            "ch": UNIT, "paths": ["tests/search/unit/test_a_criterion_no_row_shows_is_said_missing.py"]},
+        {"id": "12.3", "title": "La petición dice CUÁNTOS («un par» son tres, no 25; «un piso» no es uno) y QUÉ datos "
+                                "(precio · valoración · disponibilidad), ES y EN",
+            "ch": UNIT, "paths": ["tests/search/unit/test_the_request_says_how_many_and_which_fields.py"]},
+        {"id": "12.4", "title": "El banco de rutas: 70 peticiones ES+EN con su módulo, su anchura y sus campos; el "
+                                "veredicto SEGURO decide, el inseguro solo completa (CRIT-K2); un vídeo no es una búsqueda",
+            "ch": UNIT, "paths": ["tests/search/unit/test_the_routing_bank.py"]},
+        {"id": "12.5", "title": "Los proveedores leen sus cargas GRABADAS (Z.ai, Gemini) y la cadena prefiere los índices "
+                                "con clave: un hecho va a Gemini, una pista a Z.ai; cada pago tiene tarifa",
+            "ch": UNIT, "paths": ["tests/search/unit/test_provider_parsers_read_recorded_payloads.py",
+                                  "tests/search/unit/test_the_chain_prefers_keyed_indexes.py"]},
+        {"id": "12.6", "title": "La sonda de salud: vivo · falta clave · agotado · bloqueado · credencial, con el NOMBRE "
+                                "de la clave y nunca su valor; sin ningún proveedor vivo el arnés no mide",
+            "ch": UNIT, "paths": ["tests/search/unit/test_health_reports_names_never_values.py"]},
+        {"id": "12.7", "title": "Una puerta, una forma: find() devuelve respuesta + candidatos + páginas + fuentes + "
+                                "criterios no enseñados + needs, y la cara HTTP sirve lo mismo",
+            "ch": UNIT, "paths": ["tests/search/unit/test_find_returns_one_shape.py",
+                                  "tests/search/unit/test_the_http_face.py"]},
+        {"id": "12.8", "title": "Independiente: search/ no importa al turno ni al motor (trinquete a cero), los alias "
+                                "viejos son el MISMO módulo, y el cerebro lee el servicio (pregunta del brief, ruta en "
+                                "sombra, filas de la red con valoración, el brief respeta el número que él dijo)",
+            "ch": UNIT, "paths": ["tests/search/unit/test_the_search_service_owes_the_turn_nothing.py",
+                                  "tests/search/unit/test_the_brain_reads_the_service.py"]},
+    ]},
 ]
 
 _SUMMARY = re.compile(r"(\d+) passed|(\d+) failed|(\d+) error")

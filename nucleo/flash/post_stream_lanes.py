@@ -300,6 +300,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
     if search_req["v"] is not None and reveal_req["v"] is None:
         query = search_req["v"]
         emit("brain", "🔎 búsqueda web", text=query, role="system")
+        from nucleo.flash import search_routing as _sr          # V2-782: the service's route, in shadow
+        _sr.shadow(query, proposal="web_search", brief=_brief, emit=emit, channel="voice")
         _cover_work("search")     # the slowest light route measured (7.2 s end to end) — V2-669
         _t_s = _pst.time.time()
         try:

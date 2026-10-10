@@ -29,6 +29,8 @@ _SENALES = (
     "api.anthropic.com", "api.elevenlabs.io", "api.deepgram.com",
     "api.perplexity.ai", "api.tavily.com", "api.search.brave.com",
     "api.brightdata.com",
+    # V2-782: the search service's two new keyed indexes and the places directory.
+    "generativelanguage.googleapis.com", "places-api.foursquare.com",
     # The decision model (Jev / TypeSafe System One). It was missing from this list, and that is the
     # whole reason it went unmetered: the gate only looks for what it has been told to look for, so a
     # provider that nobody added here is invisible to the very test written to make spending visible.
@@ -59,6 +61,11 @@ _EXENTOS: dict[str, str] = {
         "esta exención deja de valer y hay que reportarlo.",
     "nucleo/energy_meter.py":
         "ES el contador: aquí viven las tarifas, no un llamante que deba usarlas.",
+    "nucleo/provider_keys.py":
+        "una TABLA de base_url → nombre de variable de la clave; no llama a nadie (V2-782 añadió el host de Gemini a las señales).",
+    "search/providers/__init__.py":
+        "la DECLARACIÓN de cada proveedor (host, clave, tarifa) que la sonda de salud y la cadena leen; no hace ninguna llamada — "
+        "las hacen `search/providers/<nombre>.py` y `search/web.py`, que sí miden (V2-782).",
     "nucleo/workers/claude_session.py":
         "lanza el CLI del worker y no llama a nadie: la cadena 'api.anthropic.com' está en un COMENTARIO sobre el "
         "entorno heredado que se le quita al worker. Lo que ese worker consume se factura donde se lee su uso, "

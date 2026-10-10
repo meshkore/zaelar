@@ -67,6 +67,10 @@ modules:
     path: bus/
     description: >-
       (v2 · CONSTRUIDO V2-001) Sistema Nervioso — pub/sub de señales in-process (asyncio, generalización de voice/observer.py) con patrones fnmatch + emit_sync loop-agnóstico (call_soon_threadsafe, entrega cross-loop job-thread↔uvicorn). bus/log.py = log durable de eventos en SQLite (zaelar.db, tabla events, WAL) enganchado como sink. bus/sse.py = puente SSE al frontend: voice/observer.py re-expresado como suscriptor del topic `observer` (GET /events idéntico). Transporte HÍBRIDO (llamadas directas en la ruta caliente de voz + eventos para lo async/fan-out). NADA de Kafka/broker.
+  - id: search
+    path: search/
+    description: >-
+      (V2-782, 2026-10-10) THE SEARCH SERVICE — one door (`search.find()`), one result shape (candidate vs the PAGE that lists candidates, the criterion no row shows said missing), the module chosen by a verdict (`search/route.py`: inline_fact · listing · local_service · images · browser · brain_worker, CRIT-K2 precedence, no verb tables), every provider declared once (`search/providers/`: Perplexity, Tavily, Gemini grounding, Z.ai web search, Brave, our Chromium, DDG, Foursquare, Bright Data) with one minimal real call each in `python -m search.health`, and the HTTP face `/api/search/find|route|health`. Holds the moved chain (`web.py`, was nucleo/websearch.py), the listing ladder (`listing.py` + `extract.py`) and the warm Chromium (`browser.py` + `images.py`); the old `nucleo.*` names are aliases of the same modules. Never imports nucleo/flash, voice or widgets (ratchet at zero); `hooks.py` is what the server wires at boot. Tests: domain 12 (`tests/search/`).
   - id: nucleo
     path: nucleo/
     description: >-

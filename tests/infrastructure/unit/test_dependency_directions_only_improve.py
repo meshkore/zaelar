@@ -79,7 +79,6 @@ _MOTOR_REACH: set[tuple[str, str]] = {
     ("memory/state.py", "voice.engine.core"),
     ("nucleo/actionmap/store.py", "voice.engine.core"),
     ("nucleo/agentes/web.py", "voice.engine.core"),
-    ("nucleo/browser_search.py", "voice.engine.core"),
     ("nucleo/dispatch_prompts.py", "voice.engine.core"),
     ("nucleo/flash/delivery.py", "voice.engine.core"),
     ("nucleo/flash/image_turn.py", "voice.engine.core"),
@@ -98,7 +97,6 @@ _MOTOR_REACH: set[tuple[str, str]] = {
     ("nucleo/memllm.py", "voice.engine.core"),
     ("nucleo/sparks.py", "voice.engine.core"),
     ("nucleo/turn/vault_gate.py", "voice.engine.core"),
-    ("nucleo/websearch.py", "voice.engine.core"),
     ("server/boot_halves.py", "voice.engine.pipeline.agent"),       # V2-778 F1: moved with the lifespan's start half
     ("server/livekit_api.py", "voice.engine.core"),
     ("server/livekit_api.py", "voice.engine.core.config"),

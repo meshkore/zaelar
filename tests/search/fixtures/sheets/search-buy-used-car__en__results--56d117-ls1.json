@@ -1,0 +1,342 @@
+{
+  "title": "Used cars under $14,000 — diesel or hybrid, under 60k miles",
+  "subtitle": "Top 3 real listings · mileage, price and title read from each listing page on 10 Oct 2026",
+  "items": [
+    {
+      "title": "2012 Ford Fusion Hybrid",
+      "subtitle": "Private owner · clean title · Lodi, CA (SF Bay area)",
+      "price": "$8,900",
+      "badge": "Best value",
+      "url": "https://www.craigslist.org/view/d/lodi-2012-ford-fusion-hybrid-very-low/2cDNGrp8FWsTYTwobWDs7y",
+      "image": "https://images.craigslist.org/00E0E_eRLXNPAkk4d_0CI0t2_600x450.jpg",
+      "primary": true,
+      "lines": [
+        "Former city fleet vehicle, one owner, described as well maintained and running strong."
+      ],
+      "images": [
+        "https://images.craigslist.org/00E0E_eRLXNPAkk4d_0CI0t2_600x450.jpg",
+        "https://images.craigslist.org/01616_5UqFH8jppeR_0CI0t2_600x450.jpg",
+        "https://images.craigslist.org/00E0E_4muvizeXItt_0CI0t2_600x450.jpg",
+        "https://images.craigslist.org/00M0M_7vArRgCuCeg_0CI0t2_600x450.jpg"
+      ],
+      "facts": [
+        {
+          "label": "Mileage",
+          "value": "20,100 mi"
+        },
+        {
+          "label": "Fuel",
+          "value": "Hybrid (petrol-electric)"
+        },
+        {
+          "label": "Transmission",
+          "value": "Automatic"
+        },
+        {
+          "label": "Title",
+          "value": "Clean"
+        },
+        {
+          "label": "Seller",
+          "value": "Private owner"
+        },
+        {
+          "label": "Location",
+          "value": "Lodi, CA"
+        },
+        {
+          "label": "VIN",
+          "value": "3FADP0L33CR181768"
+        },
+        {
+          "label": "Body",
+          "value": "Sedan · grey · FWD"
+        }
+      ],
+      "score": {
+        "value": 9.2,
+        "max": 10,
+        "why": "Lowest price and lowest mileage of the whole shortlist, clean title, sold by owner"
+      }
+    },
+    {
+      "title": "2010 Ford Escape Hybrid",
+      "subtitle": "Private owner · clean title · Brooklyn, NY",
+      "price": "$10,500",
+      "badge": "Lowest mileage",
+      "url": "https://www.craigslist.org/view/d/brooklyn-2010-ford-escape-hybrid-onky/uPmm1uBVi2RGttgDEixfAa",
+      "image": "https://images.craigslist.org/00J0J_hi66YuCrUn5_0CI0t2_600x450.jpg",
+      "lines": [
+        "Seller states 'only 26,510 miles', clean Carfax. Phone or text only, no email."
+      ],
+      "images": [
+        "https://images.craigslist.org/00J0J_hi66YuCrUn5_0CI0t2_600x450.jpg",
+        "https://images.craigslist.org/01313_eHkx1BWTBJN_0CI0t2_600x450.jpg",
+        "https://images.craigslist.org/00909_lze9O5qc2pB_0CI0t2_600x450.jpg"
+      ],
+      "facts": [
+        {
+          "label": "Mileage",
+          "value": "26,510 mi"
+        },
+        {
+          "label": "Fuel",
+          "value": "Hybrid (petrol-electric)"
+        },
+        {
+          "label": "Transmission",
+          "value": "Automatic"
+        },
+        {
+          "label": "Title",
+          "value": "Clean (clean Carfax)"
+        },
+        {
+          "label": "Seller",
+          "value": "Private owner · cash only"
+        },
+        {
+          "label": "Location",
+          "value": "Brooklyn, NY"
+        },
+        {
+          "label": "Body",
+          "value": "SUV · 4 cylinders"
+        }
+      ],
+      "score": {
+        "value": 8.6,
+        "max": 10,
+        "why": "Only 26,510 miles on a hybrid SUV for $10,500 — very low for a 2010; contact is phone-only, cash sale"
+      }
+    },
+    {
+      "title": "2017 Jaguar XF 2.0D Prestige",
+      "subtitle": "Diesel · clean title · Pleasanton, CA (SF Bay area)",
+      "price": "$12,500",
+      "badge": "Only true diesel",
+      "url": "https://www.craigslist.org/view/d/pleasanton-jaguar-2017-xf-diesel-20/mioYx1G8GVAiC9tnZyYaxK",
+      "lines": [
+        "Price already reduced to $12,500 OBO; listing carries no photos."
+      ],
+      "facts": [
+        {
+          "label": "Mileage",
+          "value": "37,200 mi"
+        },
+        {
+          "label": "Fuel",
+          "value": "Diesel"
+        },
+        {
+          "label": "Transmission",
+          "value": "Automatic"
+        },
+        {
+          "label": "Title",
+          "value": "Clean"
+        },
+        {
+          "label": "Seller",
+          "value": "Original owner · no accidents"
+        },
+        {
+          "label": "Location",
+          "value": "Pleasanton, CA"
+        },
+        {
+          "label": "Body",
+          "value": "Sedan · navy blue · rear-wheel drive"
+        },
+        {
+          "label": "Registration",
+          "value": "Valid through June 2027"
+        }
+      ],
+      "score": {
+        "value": 8.4,
+        "max": 10,
+        "why": "The one real diesel on the shortlist, well under the mileage cap with a clean title and a reduced asking price"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "name": "discovery-free: websearch",
+      "status": "ok",
+      "found": 8
+    },
+    {
+      "name": "fetch: www.autotrader.com",
+      "status": "ok",
+      "found": 0
+    },
+    {
+      "name": "fetch: www.cars.com",
+      "status": "blocked"
+    },
+    {
+      "name": "fetch: www.nissanusa.com",
+      "status": "ok",
+      "found": 0
+    },
+    {
+      "name": "fetch: www.edmunds.com",
+      "status": "blocked"
+    },
+    {
+      "name": "fetch: www.cargurus.com",
+      "status": "blocked"
+    },
+    {
+      "name": "Craigslist",
+      "url": "https://www.craigslist.org/search/area/sfbay?cat=cta",
+      "status": "ok",
+      "detail": "Listings read and each car's own page checked for mileage, price and title",
+      "found": 21
+    },
+    {
+      "name": "Craigslist (New York)",
+      "url": "https://www.craigslist.org/search/area/newyork?cat=cta",
+      "status": "ok",
+      "detail": "Fewer matches than the Bay Area",
+      "found": 14
+    },
+    {
+      "name": "eBay Motors",
+      "url": "https://www.ebay.com/sch/i.html?_sacat=6001",
+      "status": "partial",
+      "detail": "Real cars load, but the odometer is not readable from the listing page, so nothing could be verified against the mileage cap",
+      "found": 15
+    },
+    {
+      "name": "Cars.com",
+      "url": "https://www.cars.com/shopping/results/",
+      "status": "blocked",
+      "detail": "Bot wall — the page never gets past 'Just a moment…'",
+      "found": 0
+    },
+    {
+      "name": "CarGurus",
+      "url": "https://www.cargurus.com/",
+      "status": "blocked",
+      "detail": "Page does not load at all",
+      "found": 0
+    },
+    {
+      "name": "Autotrader",
+      "url": "https://www.autotrader.com/cars-for-sale/all-cars",
+      "status": "error",
+      "detail": "Site returned 'currently unavailable' and showed no inventory",
+      "found": 0
+    },
+    {
+      "name": "Carvana",
+      "url": "https://www.carvana.com/cars",
+      "status": "blocked",
+      "detail": "Refused access (403)",
+      "found": 0
+    }
+  ],
+  "kind": "product",
+  "layout": "card",
+  "empty": false,
+  "summary": {
+    "explored": 25,
+    "selected": 3,
+    "discarded": 7,
+    "state": "done — top 3 verified",
+    "steps": [
+      "checked the network for a ready-made agent — none matched",
+      "Cars.com, CarGurus and Carvana block the browser; Autotrader is down",
+      "swept Craigslist in San Francisco Bay and New York with price, mileage and fuel filters",
+      "opened each shortlisted car's own page and read mileage, price, title and availability"
+    ]
+  },
+  "rejected": [
+    {
+      "title": "2013 Honda Civic Hybrid · $11,500",
+      "url": "https://www.craigslist.org/view/d/spotswood-2013-honda-civic-hybrid/_AmMo9W18RGIDJ_MiuFQMQ",
+      "why": "Marked sold on its own listing page",
+      "source": "Craigslist"
+    },
+    {
+      "title": "2014 Toyota Prius C · $7,999",
+      "url": "https://www.craigslist.org/view/d/santa-clara-must-see-2014-toyota-prius/fxuFSppmn7XEE1XZAJ9qha",
+      "why": "179,000 miles — far over the 60,000 cap",
+      "source": "Craigslist"
+    },
+    {
+      "title": "2013 Toyota Prius III · $7,999",
+      "url": "https://www.craigslist.org/view/d/sunnyvale-2013-toyota-prius-iii-clean/idQjLvMuHczHybmCn5WvSV",
+      "why": "138,000 miles — over the 60,000 cap",
+      "source": "Craigslist"
+    },
+    {
+      "title": "2022 Hyundai Ioniq Hybrid · $13,700",
+      "url": "https://www.craigslist.org/view/d/antioch-2022-hyundai-ioniq-hybrid-blue/wpoAMDsKz9Lzz5J3WdF2LZ",
+      "why": "Salvage title",
+      "source": "Craigslist"
+    },
+    {
+      "title": "2012 Honda Civic Hybrid · $13,499",
+      "url": "https://www.craigslist.org/view/d/sacramento-2012-honda-civic-hybrid/0K3xzwO68RGNktFGBuAORQ",
+      "why": "Meets every filter (49,735 mi, clean) but priced at the very top of the budget for its mileage — beaten on value by the three chosen",
+      "source": "Craigslist"
+    },
+    {
+      "title": "2016 BMW i3 Range Extender · $10,998",
+      "url": "https://www.craigslist.org/view/d/burlingame-2016-bmw-i3-range-extender/rMAT8J1AmPrf3o4Hg8iLuw",
+      "why": "Electric car with a small petrol range extender rather than a true hybrid; 49,200 mi",
+      "source": "Craigslist"
+    },
+    {
+      "title": "eBay Motors hybrids (Avalon, MKZ, C-Max, Highlander)",
+      "url": "https://www.ebay.com/sch/i.html?_nkw=hybrid&_sacat=6001&_udhi=14000",
+      "why": "Real cars within budget ($5,495-$11,198) but their odometer could not be read, so the under-60,000-mile filter could not be verified",
+      "source": "eBay Motors"
+    }
+  ],
+  "process": [
+    "buscando «used diesel hybrid cars under $14000 with under 60000 miles…»…",
+    "leyendo la página…",
+    "entrando en cars.com…",
+    "ejecutando un paso…",
+    "entrando en cargurus.com…",
+    "entrando en autotrader.com…",
+    "recogiendo lo que hay en la página…",
+    "recorriendo la página…",
+    "pulsando en la página…",
+    "entrando en autotrader.com…",
+    "recogiendo lo que hay en la página…",
+    "pulsando en la página…",
+    "entrando en ebay.com…",
+    "entrando en newyork.craigslist.org…",
+    "recogiendo lo que hay en la página…",
+    "buscando «ciudad o ubicación del operador dónde vive» en la memoria…",
+    "conduciendo el navegador…",
+    "leyendo craigslist.org…",
+    "entrando en ebay.com…",
+    "pulsando en la página…",
+    "Craigslist works now; pulling real hybrid listings from eBay Motors under $14,000 and verifying mileage on each",
+    "recogiendo lo que hay en la página…",
+    "leyendo ebay.com…",
+    "entrando en ebay.com…",
+    "recogiendo lo que hay en la página…",
+    "leyendo autotrader.com…",
+    "leyendo craigslist.org…",
+    "leyendo carvana.com…",
+    "leyendo craigslist.org…",
+    "mirando «results»…",
+    "entrando en craigslist.org…",
+    "leyendo craigslist.org…",
+    "escribiendo 56d117-2/informe.json…",
+    "escribiendo en «results»…",
+    "escribiendo 56d117-2/fuentes.json…",
+    "escribiendo 56d117-2/descartes.json…",
+    "escribiendo 56d117-2/progreso.json…",
+    "escribiendo en «results»…",
+    "abriéndote «results»…",
+    "💬 Three real, verified cars on screen now (results sheet): 1. **2012 Ford Fusion Hybrid** — $8,900 · 20,100 mi · clean title · private owner, Lodi, CA —…"
+  ]
+}

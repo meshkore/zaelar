@@ -1,0 +1,215 @@
+{
+  "title": "Peluquerías y barberías en Malasaña/centro — finde 10-11 oct",
+  "subtitle": "Verificadas en Google Maps como abiertas el domingo 11 (filtro de horario aplicado hoy sábado 10). Todas cortan pelo. No pude cerrar cita: sus motores de reserva (Booksy) no completan el flujo automatizado.",
+  "items": [
+    {
+      "title": "Hooligans Barber",
+      "subtitle": "Barbería · San Vicente Ferrer 10, Malasaña",
+      "badge": "Reserva online",
+      "url": "https://www.google.com/maps/search/?api=1&query=Hooligans+Barber+Madrid",
+      "facts": [
+        {
+          "label": "Dirección",
+          "value": "C. de San Vicente Ferrer, 10, L10, 28004 Madrid"
+        },
+        {
+          "label": "Abierto finde",
+          "value": "Sábado y domingo hasta las 19:00"
+        },
+        {
+          "label": "Teléfono",
+          "value": "910 27 72 81"
+        },
+        {
+          "label": "Reserva",
+          "value": "Booksy (no acepta reserva vía Treatwell)"
+        },
+        {
+          "label": "Encaje",
+          "value": "Malasaña puro; reseñas destacan precio asequible y trato cercano"
+        }
+      ]
+    },
+    {
+      "title": "BARBERIA TOP",
+      "subtitle": "Barbería · Monteleón 11, Malasaña",
+      "badge": "Reserva online",
+      "url": "https://www.google.com/maps/search/?api=1&query=BARBERIA+TOP+Madrid",
+      "facts": [
+        {
+          "label": "Dirección",
+          "value": "C. de Monteleón, 11, Loc 1, 28004 Madrid"
+        },
+        {
+          "label": "Abierto finde",
+          "value": "Sábado y domingo hasta las 20:00"
+        },
+        {
+          "label": "Teléfono",
+          "value": "643 96 27 36"
+        },
+        {
+          "label": "Reserva",
+          "value": "Booksy; su web es un Google Sites sin motor propio"
+        },
+        {
+          "label": "Valoración",
+          "value": "694 reseñas en Google Maps"
+        }
+      ]
+    },
+    {
+      "title": "MVP Barber Studio",
+      "subtitle": "Barbería · Molino de Viento 10, Malasaña",
+      "badge": "Reserva online",
+      "url": "https://www.google.com/maps/search/?api=1&query=MVP+Barber+Studio+Madrid",
+      "facts": [
+        {
+          "label": "Dirección",
+          "value": "C. del Molino de Viento, 10, 28004 Madrid"
+        },
+        {
+          "label": "Abierto finde",
+          "value": "Sábado y domingo hasta las 20:00"
+        },
+        {
+          "label": "Teléfono",
+          "value": "635 70 81 12"
+        },
+        {
+          "label": "Reserva",
+          "value": "Reserva online desde su ficha de Google Maps"
+        },
+        {
+          "label": "Nota",
+          "value": "Sin web propia; el contacto directo es el teléfono"
+        }
+      ]
+    },
+    {
+      "title": "Paparazzi Hair Studio",
+      "subtitle": "Peluquería · Noviciado 10, Malasaña",
+      "badge": "Reserva online",
+      "url": "https://www.google.com/maps/search/?api=1&query=Paparazzi+Hair+Studio+Noviciado+Madrid",
+      "facts": [
+        {
+          "label": "Dirección",
+          "value": "C. del Noviciado, 10, 28015 Madrid"
+        },
+        {
+          "label": "Abierto finde",
+          "value": "Sábado y domingo hasta las 20:30"
+        },
+        {
+          "label": "Teléfono",
+          "value": "914 38 04 90"
+        },
+        {
+          "label": "Reserva",
+          "value": "Reserva online desde su ficha de Google Maps"
+        },
+        {
+          "label": "Nota",
+          "value": "Unisex; sin web propia (enlaza a Facebook)"
+        }
+      ]
+    },
+    {
+      "title": "Splash Madrid",
+      "subtitle": "Peluquería · Hortaleza 15, centro-Chueca",
+      "badge": "Reserva online",
+      "url": "https://www.treatwell.es/establecimiento/splash-madrid-1/",
+      "facts": [
+        {
+          "label": "Dirección",
+          "value": "C. de Hortaleza, 15, 28004 Madrid"
+        },
+        {
+          "label": "Abierto finde",
+          "value": "Sábado 09:00-21:00 y domingo 10:00-20:00"
+        },
+        {
+          "label": "Teléfono",
+          "value": "910 62 11 34"
+        },
+        {
+          "label": "Reserva",
+          "value": "Treatwell, reservable; ficha con 4,5 sobre 2152 opiniones"
+        },
+        {
+          "label": "Aviso",
+          "value": "Reseñas mencionan cobros extra por servicios no pedidos"
+        }
+      ]
+    },
+    {
+      "title": "Peluquería Jade",
+      "subtitle": "Peluquería · Leganitos 3, centro",
+      "url": "https://www.google.com/maps/search/?api=1&query=Peluqueria+Jade+Leganitos+Madrid",
+      "facts": [
+        {
+          "label": "Dirección",
+          "value": "C. de Leganitos, 3, 28013 Madrid"
+        },
+        {
+          "label": "Abierto finde",
+          "value": "Sábado y domingo hasta las 21:00"
+        },
+        {
+          "label": "Teléfono",
+          "value": "613 60 88 18"
+        },
+        {
+          "label": "Reserva",
+          "value": "Sin reserva online en su ficha; web peluqueriajade.es"
+        },
+        {
+          "label": "Nota",
+          "value": "Cerca de Plaza de España; hay que llamar"
+        }
+      ]
+    },
+    {
+      "title": "Ahorro de hasta un 35%",
+      "price": "16,77 €"
+    },
+    {
+      "title": "DEPILACION BRAZOS & AXILAS",
+      "price": "5,75 €"
+    },
+    {
+      "title": "Corte, Peinado, Coloración &…",
+      "price": "0,01 €"
+    },
+    {
+      "title": "Servicio De Maquillaje(1)",
+      "price": "29,76 €"
+    },
+    {
+      "title": "Corte, Coloración Y Mechas…",
+      "price": "11,75 €"
+    },
+    {
+      "title": "Depilacion Señora(10)",
+      "price": "3,75 €"
+    },
+    {
+      "title": "Hombre - Depilación Con Cera / No…",
+      "price": "4,75 €"
+    },
+    {
+      "title": "Facial(4)",
+      "price": "19,75 €"
+    }
+  ],
+  "sources": [
+    {
+      "url": "https://www.treatwell.es/establecimiento/splash-madrid-1/",
+      "status": "ok",
+      "found": 8,
+      "name": "www.treatwell.es"
+    }
+  ],
+  "empty": false,
+  "harvest": {}
+}

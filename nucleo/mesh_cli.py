@@ -111,18 +111,30 @@ def main(argv: list[str] | None = None) -> int:
 
 
 def _rows_in(data, depth: int = 0) -> list[dict]:
-    """The first list of named records in an agent's answer, as sheet rows (title, price, url). Shape-agnostic: an
-    agent's answer has no schema of ours, so it is read the way a person would — a list of things with a name."""
+    """The first list of named records in an agent's answer, as sheet rows. Shape-agnostic: an agent's answer has no
+    schema of ours, so it is read the way a person would — a list of things with a name.
+
+    V2-782 (measured 2026-10-10 over ten rounds): these rows were the sheet's FIRST rows in six cases and the junk
+    the turn then recycled — eBay car PARTS for «a used car», a sauna for «a barber», hotels whose `rating` 8.8 was
+    DROPPED here. So a row now keeps the rating, the phone and the location the agent sent, travels through the
+    service's one shape (origin `mesh`, so the sheet's candidacy rule and the turn can tell a network lead from a
+    vetted candidate), and the batch is capped: eight leads from a stranger are a start, twenty are a sheet."""
     if depth > 4:
         return []
     if isinstance(data, list):
         rows = []
         for x in data:
             if isinstance(x, dict) and (x.get("title") or x.get("name")):
-                rows.append({"title": str(x.get("title") or x.get("name"))[:160],
-                             "price": str(x.get("price") or x.get("amount") or "")[:40],
-                             "url": str(x.get("url") or x.get("link") or x.get("href") or "")[:500],
-                             "facts": [{"label": "Origen", "value": "agente de la red"}]})
+                from search.result import Candidate as _C
+                rating = x.get("rating") or x.get("score") or x.get("stars") or ""
+                cand = _C(title=str(x.get("title") or x.get("name"))[:160],
+                          url=str(x.get("url") or x.get("link") or x.get("href") or "")[:500],
+                          price=str(x.get("price") or x.get("amount") or "")[:40],
+                          rating=str(rating)[:24] if rating not in (None, "") else "",
+                          phone=str(x.get("phone") or x.get("tel") or x.get("telephone") or "")[:40],
+                          subtitle=str(x.get("location") or x.get("address") or x.get("city") or "")[:120],
+                          image=str(x.get("image") or x.get("thumbnail") or "")[:500], origin="mesh")
+                rows.append(cand.to_row())
         if rows:
             return rows
         data = {str(i): v for i, v in enumerate(data)}
@@ -133,6 +145,10 @@ def _rows_in(data, depth: int = 0) -> list[dict]:
     return []
 
 
+#: How many of a network agent's rows reach the sheet at once (V2-782; was 20, see `_rows_in`).
+_MESH_ROWS_CAP = 8
+
+
 def _to_the_sheet(res) -> None:
     """V2-781 T528 — a network agent's rows go to the errand's sheet NOW, like a web search's (`hand_search_rows`):
     at 1.5 min the worker held 10 listings from an agent and the sheet stayed empty until minute 6. Fail-soft."""
@@ -141,7 +157,7 @@ def _to_the_sheet(res) -> None:
         if rows and os.getenv("ZAELAR_TASK_ID"):
             from nucleo import widget_cli
             widget_cli._act("widget_data", {"widget_id": "results", "action": "append",
-                                            "payload": {"items": rows[:20]}})
+                                            "payload": {"items": rows[:_MESH_ROWS_CAP]}})
     except Exception as e:  # noqa: BLE001 — the worker still gets its answer on stdout
         print(json.dumps({"sheet_append_failed": str(e)[:200]}), file=sys.stderr)
 

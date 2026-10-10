@@ -1,0 +1,219 @@
+{
+  "title": "Car insurance compared — best value for your renewal",
+  "subtitle": "2026 sample rates for a San Francisco driver with a compact car, ~12k miles/yr (MoneyGeek + NerdWallet profiles). Exact figures need your ZIP + VIN. All sources were free — $0 charged.",
+  "items": [
+    {
+      "title": "Progressive",
+      "subtitle": "Best balance: near-lowest price, top coverage",
+      "price": "≈$1,140–1,632/yr",
+      "badge": "Best value",
+      "url": "https://www.moneygeek.com/insurance/auto/reviews/progressive/",
+      "facts": [
+        {
+          "label": "Monthly (full cov.)",
+          "value": "$95–136/mo depending on profile"
+        },
+        {
+          "label": "CA ranking",
+          "value": "MoneyGeek #1 overall in California (4.63/5)"
+        },
+        {
+          "label": "Covers",
+          "value": "Gap insurance, rideshare, 8 add-ons; dedicated claims rep"
+        },
+        {
+          "label": "Watch",
+          "value": "Not the cheapest in every profile"
+        }
+      ]
+    },
+    {
+      "title": "GEICO",
+      "subtitle": "Lowest price in both sources; no-frills claims",
+      "price": "≈$1,140–1,358/yr",
+      "badge": "Cheapest",
+      "url": "https://www.moneygeek.com/insurance/auto/reviews/geico/",
+      "facts": [
+        {
+          "label": "Monthly (full cov.)",
+          "value": "$95–113/mo depending on profile"
+        },
+        {
+          "label": "Minimum coverage",
+          "value": "From $24/mo ($286/yr) — NerdWallet"
+        },
+        {
+          "label": "Covers",
+          "value": "Mechanical breakdown insurance; strong app"
+        },
+        {
+          "label": "Watch",
+          "value": "Call-center claims (7th in CA service); no rideshare in CA"
+        }
+      ]
+    },
+    {
+      "title": "Mercury",
+      "subtitle": "CA regional insurer; rewards lower mileage",
+      "price": "≈$1,380–1,644/yr",
+      "badge": "Regional pick",
+      "url": "https://www.nerdwallet.com/insurance/auto/cheap-car-insurance-california",
+      "facts": [
+        {
+          "label": "Monthly (full cov.)",
+          "value": "$115–137/mo depending on profile"
+        },
+        {
+          "label": "Low mileage",
+          "value": "RealDrive pay-per-mile saves up to 20%"
+        },
+        {
+          "label": "Covers",
+          "value": "Gap insurance; cheapest rideshare add-on ($0.90/day)"
+        },
+        {
+          "label": "Watch",
+          "value": "Middling service scores (4.0/5 MoneyGeek)"
+        }
+      ]
+    },
+    {
+      "title": "AAA / CSAA",
+      "subtitle": "#1 claims satisfaction in CA; local agents",
+      "price": "≈$1,548–1,620/yr",
+      "badge": "Best claims",
+      "url": "https://www.moneygeek.com/insurance/auto/reviews/aaa/",
+      "facts": [
+        {
+          "label": "Monthly (full cov.)",
+          "value": "$129–135/mo depending on profile"
+        },
+        {
+          "label": "Claims",
+          "value": "J.D. Power 2025 CA leader (676 pts, 2nd year running)"
+        },
+        {
+          "label": "Covers",
+          "value": "OEM parts, roadside, AAA membership perks (CSAA = NorCal)"
+        },
+        {
+          "label": "Watch",
+          "value": "Roughly $300–450/yr more than GEICO"
+        }
+      ]
+    },
+    {
+      "title": "State Farm",
+      "subtitle": "Biggest agent network; family-friendly",
+      "price": "≈$1,524/yr",
+      "badge": "Agent service",
+      "url": "https://www.moneygeek.com/insurance/auto/reviews/state-farm/",
+      "facts": [
+        {
+          "label": "Monthly (full cov.)",
+          "value": "$127/mo (MoneyGeek profile)"
+        },
+        {
+          "label": "Covers",
+          "value": "Rideshare endorsement; local-agent claims handling"
+        },
+        {
+          "label": "Watch",
+          "value": "Pricier than GEICO/Progressive; 4.03/5 MoneyGeek"
+        }
+      ]
+    },
+    {
+      "title": "Bottom line",
+      "subtitle": "Get Progressive + GEICO quotes ~3 weeks before renewal",
+      "price": "$0 charged today",
+      "badge": "Do this",
+      "url": "https://www.nerdwallet.com/insurance/auto/cheap-car-insurance-california",
+      "facts": [
+        {
+          "label": "Plan",
+          "value": "Quote Progressive & GEICO around Oct 20; skip auto-renewal"
+        },
+        {
+          "label": "Not sold in CA",
+          "value": "Accident forgiveness & new-car replacement (Prop 103)"
+        },
+        {
+          "label": "Also consider",
+          "value": "USAA (4.7/5) if military-eligible"
+        },
+        {
+          "label": "Exact price needs",
+          "value": "Your ZIP code, car model/VIN, driving record"
+        }
+      ]
+    },
+    {
+      "title": "License info",
+      "price": "$124",
+      "url": "https://www.nerdwalletinsurance.com/nerdwallet-insurance-experts-llc-licenses-and-disclosures"
+    },
+    {
+      "title": "Progressive",
+      "price": "$136",
+      "url": "https://www.nerdwallet.com/insurance/auto/progressive-auto-insurance-review"
+    }
+  ],
+  "sources": [
+    {
+      "name": "www.moneygeek.com",
+      "url": "https://www.moneygeek.com/insurance/auto/cheapest-car-insurance-california/",
+      "status": "ok",
+      "found": 4
+    },
+    {
+      "name": "www.nerdwallet.com",
+      "url": "https://www.nerdwallet.com/insurance/auto/cheap-car-insurance-california",
+      "status": "ok",
+      "found": 2
+    }
+  ],
+  "empty": false,
+  "process": [
+    "buscando «bankrate cheapest car insurance California 2026 average ann…»…",
+    "escribiendo /busca.json…",
+    "escribiendo 8e6c71-2/busca.json…",
+    "usando una herramienta de zaelar…",
+    "entrando en bankrate.com…",
+    "entrando en bankrate.com",
+    "pulsando en la página…",
+    "pulsando en la página",
+    "Free-source comparison underway: search engines are captcha-blocked, so navigating directly to insurer rate pages (Bankrate wall, trying NerdWallet next)",
+    "pulsando en la página…",
+    "pulsando en la página",
+    "leyendo la página…",
+    "leyendo la página",
+    "entrando en moneygeek.com…",
+    "leyendo nerdwallet.com…",
+    "entrando en moneygeek.com",
+    "recogiendo lo que hay en la página…",
+    "recogiendo lo que hay en la página",
+    "4 resultados en la página",
+    "leyendo moneygeek.com…",
+    "Rates and coverage gathered from MoneyGeek for a matching profile (40yo, compact car, 12k mi/yr); now cross-checking prices and building the recommendation",
+    "leyendo thezebra.com…",
+    "leyendo insurify.com…",
+    "entrando en thezebra.com…",
+    "entrando en thezebra.com",
+    "entrando en nerdwallet.com…",
+    "entrando en nerdwallet.com",
+    "pulsando en la página…",
+    "pulsando en la página",
+    "pulsando en la página…",
+    "pulsando en la página",
+    "pulsando en la página…",
+    "pulsando en la página",
+    "leyendo nerdwallet.com…",
+    "Cross-check done (NerdWallet confirms GEICO/Progressive/Mercury lead); writing the value comparison and recommendation to the results sheet",
+    "escribiendo 8e6c71-2/informe.json…",
+    "escribiendo en «results»…",
+    "Report is on the results sheet; saving findings to memory and closing",
+    "guardando lo que ha averiguado…",
+    "💬 Done — the comparison is on your results sheet. Cost first, as you asked: **$0 charged**. The only paid tool available was a network shopping agent wi…"
+  ]
+}

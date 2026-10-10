@@ -354,6 +354,16 @@ async def connectors_voice_and_health(*, _first_lifespan_entry, _identity, activ
             from nucleo.flash import prewarm as flash_prewarm
             _running_loop = asyncio.get_running_loop()
             browser_search.set_loop(_running_loop)
+            # V2-782: the search service's seams — the status light and the timeline — wired here, where the engine
+            # knows them; standalone the service runs with both unset.
+            try:
+                from search import hooks as _search_hooks
+                from voice import health_state as _hs
+                from voice.observer import emit as _emit_obs
+                _search_hooks.on_chain_failure = lambda kind, detail: _hs.record("search", kind, detail)
+                _search_hooks.emit = _emit_obs
+            except Exception as _e:  # noqa: BLE001 — a missing seam leaves the service standalone, never breaks boot
+                _bt._srv.logger.warning(f"search hooks not wired: {_e}")
             # V2-102: same cross-thread bridge, for `energy_meter._fire_and_forget` — without it, every
             # `nucleo/memllm.chat_sync` caller running inside `asyncio.to_thread` (i18n bundle generation,
             # nightly REM synthesis, the new turn-completeness judge) silently lost its usage report.

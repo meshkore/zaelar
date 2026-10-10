@@ -1,0 +1,19 @@
+{
+  "title": "Resultados",
+  "subtitle": "",
+  "items": [],
+  "criteria": {
+    "changes": [
+      "exigir valoración de estrellas (4 estrellas) y precio por noche para cada candidato",
+      "seguir descartando hasta tener estrellas y precios confirmados",
+      "cada candidato con 4 estrellas confirmadas, precio por noche y fechas (10-13 oct 2026, 2 personas, 4 noches)"
+    ]
+  },
+  "empty": true,
+  "note": "Sin resultados todavía.",
+  "harvest": {},
+  "summary": {
+    "state": "confirmando estrellas y precios por noche de los candidatos; aún sin ningún four-star con precio confirmado",
+    "note": "El operador pide que se lo envíe en cuanto haya un four-star con precio; se sigue descartando hasta tener estrellas (4) y precio por noche confirmados."
+  }
+}

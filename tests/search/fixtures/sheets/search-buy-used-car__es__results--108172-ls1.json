@@ -1,0 +1,427 @@
+{
+  "title": "Coches diésel hasta 12.000 € · Madrid y alrededores",
+  "subtitle": "10 turismos enteros · diésel · desde 2010 · hasta 200.000 km · en 100 km alrededor de Madrid · con precio y enlace directo",
+  "items": [
+    {
+      "title": "Citroen C4 SpaceTourer 1.5 BlueHDi",
+      "subtitle": "Monovolumen familiar · Madrid capital",
+      "price": "10.580 €",
+      "url": "https://www.autoscout24.es/anuncios/citroen-c4-spacetourer-c4-spacetourer-1-5bluehdi-s-diesel-blanco-cat_ma21mo75006-5059b772-c1b9-46b0-8e6f-2c7dc1c587e3",
+      "primary": true,
+      "facts": [
+        {
+          "label": "Combustible",
+          "value": "Diésel"
+        },
+        {
+          "label": "Zona",
+          "value": "Madrid (28050)"
+        },
+        {
+          "label": "Tipo",
+          "value": "Monovolumen"
+        },
+        {
+          "label": "Filtros que cumple",
+          "value": "Desde 2010 · ≤200.000 km · ≤12.000 €"
+        }
+      ],
+      "score": {
+        "value": 8.5,
+        "max": 10,
+        "why": "El más nuevo y espacioso de la lista; se queda 1.420 € por debajo del tope"
+      }
+    },
+    {
+      "title": "SEAT Leon ST 1.6 TDI 115 CV",
+      "subtitle": "Familiar · Valdemoro (Madrid)",
+      "price": "11.990 €",
+      "url": "https://www.autoscout24.es/anuncios/seat-leon-st-1-6-tdi-85kw-115cv-stsp-style-ed-diesel-blanco-cat_ma64mo15869-fb9c3a72-5c34-4994-acbb-9464d16e5022",
+      "primary": true,
+      "facts": [
+        {
+          "label": "Combustible",
+          "value": "Diésel"
+        },
+        {
+          "label": "Zona",
+          "value": "Valdemoro (Madrid)"
+        },
+        {
+          "label": "Tipo",
+          "value": "Familiar"
+        },
+        {
+          "label": "Filtros que cumple",
+          "value": "Desde 2010 · ≤200.000 km · ≤12.000 €"
+        }
+      ],
+      "score": {
+        "value": 8.3,
+        "max": 10,
+        "why": "Familiar TDI con acabado ST Style; al límite del presupuesto pero muy equipado"
+      }
+    },
+    {
+      "title": "Kia Sportage 1.7 CRDi Drive",
+      "subtitle": "SUV · Madrid capital",
+      "price": "11.899 €",
+      "url": "https://www.autoscout24.es/anuncios/kia-sportage-1-7crdi-drive-4x2-diesel-blanco-cat_ma39mo1812-ab506593-b645-459b-8861-058c4219cb62",
+      "facts": [
+        {
+          "label": "Combustible",
+          "value": "Diésel"
+        },
+        {
+          "label": "Zona",
+          "value": "Madrid"
+        },
+        {
+          "label": "Tipo",
+          "value": "SUV"
+        },
+        {
+          "label": "Filtros que cumple",
+          "value": "Desde 2010 · ≤200.000 km · ≤12.000 €"
+        }
+      ],
+      "score": {
+        "value": 8,
+        "max": 10,
+        "why": "El SUV más nuevo del listado sin pasar del tope"
+      }
+    },
+    {
+      "title": "Mazda CX-3 1.5 SKYACTIV-D 105",
+      "subtitle": "SUV pequeño · Fuenlabrada (Madrid)",
+      "price": "11.690 €",
+      "url": "https://www.autoscout24.es/anuncios/mazda-cx-3-1-5-skyactiv-de-77kw-style-2wd-diesel-rojo-cat_ma46mo21084-8aca76f0-c4bd-4e07-b931-e9dd0330fc26",
+      "facts": [
+        {
+          "label": "Combustible",
+          "value": "Diésel"
+        },
+        {
+          "label": "Zona",
+          "value": "Fuenlabrada (Madrid)"
+        },
+        {
+          "label": "Tipo",
+          "value": "SUV"
+        },
+        {
+          "label": "Filtros que cumple",
+          "value": "Desde 2010 · ≤200.000 km · ≤12.000 €"
+        }
+      ],
+      "score": {
+        "value": 7.9,
+        "max": 10,
+        "why": "Diésel moderno y de bajo consumo; acabado Style 2WD"
+      }
+    },
+    {
+      "title": "Renault Megane 1.5 dCi Blue Intens",
+      "subtitle": "Compacto · Valdemoro (Madrid)",
+      "price": "11.490 €",
+      "url": "https://www.autoscout24.es/anuncios/renault-megane-1-5dci-blue-intens-85kw-diesel-blanco-cat_ma60mo1965-f5c2b5ab-7da3-43fe-8bf3-206bd20257b7",
+      "facts": [
+        {
+          "label": "Combustible",
+          "value": "Diésel"
+        },
+        {
+          "label": "Zona",
+          "value": "Valdemoro (Madrid)"
+        },
+        {
+          "label": "Tipo",
+          "value": "Compacto"
+        },
+        {
+          "label": "Filtros que cumple",
+          "value": "Desde 2010 · ≤200.000 km · ≤12.000 €"
+        }
+      ],
+      "score": {
+        "value": 7.8,
+        "max": 10,
+        "why": "dCi de 85 kW, el motor más barato de mantener de la lista"
+      }
+    },
+    {
+      "title": "Nissan Micra 1.5 dCi Acenta 90",
+      "subtitle": "Urbano · Madrid capital",
+      "price": "10.199 €",
+      "url": "https://www.autoscout24.es/anuncios/nissan-micra-1-5dci-ss-acenta-90-diesel-blanco-cat_ma52mo1904-83059a41-d26b-470e-b5ea-68ddb9db279b",
+      "facts": [
+        {
+          "label": "Combustible",
+          "value": "Diésel"
+        },
+        {
+          "label": "Zona",
+          "value": "Madrid"
+        },
+        {
+          "label": "Tipo",
+          "value": "Urbano"
+        },
+        {
+          "label": "Filtros que cumple",
+          "value": "Desde 2010 · ≤200.000 km · ≤12.000 €"
+        }
+      ],
+      "score": {
+        "value": 7.5,
+        "max": 10,
+        "why": "Urbano diésel de bajo consumo; el anuncio trae 33 fotos"
+      }
+    },
+    {
+      "title": "Volkswagen Scirocco 2.0 TDI 140",
+      "subtitle": "Coupé · Humanes de Madrid",
+      "price": "8.195 €",
+      "url": "https://www.autoscout24.es/anuncios/volkswagen-scirocco-2-0-tdi-140cv-bluemotion-technology-diesel-negro-cat_ma74mo2092-23a957a9-4136-49fe-8e42-09f539580b46",
+      "facts": [
+        {
+          "label": "Combustible",
+          "value": "Diésel"
+        },
+        {
+          "label": "Zona",
+          "value": "Humanes de Madrid"
+        },
+        {
+          "label": "Tipo",
+          "value": "Coupé"
+        },
+        {
+          "label": "Filtros que cumple",
+          "value": "Desde 2010 · ≤200.000 km · ≤12.000 €"
+        }
+      ],
+      "score": {
+        "value": 7.4,
+        "max": 10,
+        "why": "Coupé 2.0 TDI a precio contenido; menos práctico como coche único"
+      }
+    },
+    {
+      "title": "Kia Sportage 1.7 CRDi Concept",
+      "subtitle": "SUV · Coslada (Madrid)",
+      "price": "7.900 €",
+      "url": "https://www.autoscout24.es/anuncios/kia-sportage-1-7crdi-concept-diesel-gris-cat_ma39mo1812-f9e0417d-f3d4-4ca2-9475-396da8b2c970",
+      "facts": [
+        {
+          "label": "Combustible",
+          "value": "Diésel"
+        },
+        {
+          "label": "Zona",
+          "value": "Coslada (Madrid)"
+        },
+        {
+          "label": "Tipo",
+          "value": "SUV"
+        },
+        {
+          "label": "Filtros que cumple",
+          "value": "Desde 2010 · ≤200.000 km · ≤12.000 €"
+        }
+      ],
+      "score": {
+        "value": 7.2,
+        "max": 10,
+        "why": "SUV diésel por 4.100 € menos que el tope; es el más antiguo de los verificados"
+      }
+    },
+    {
+      "title": "Alfa Romeo Giulietta 1.6 JTDm",
+      "subtitle": "Compacto · Humanes de Madrid",
+      "price": "7.495 €",
+      "url": "https://www.autoscout24.es/anuncios/alfa-romeo-giulietta-1-6jtdm-distinctive-diesel-blanco-cat_ma6mo1611-6b4b9450-36fd-4688-a1d8-73ed8304e7a7",
+      "facts": [
+        {
+          "label": "Combustible",
+          "value": "Diésel"
+        },
+        {
+          "label": "Zona",
+          "value": "Humanes de Madrid"
+        },
+        {
+          "label": "Tipo",
+          "value": "Compacto"
+        },
+        {
+          "label": "Filtros que cumple",
+          "value": "Desde 2010 · ≤200.000 km · ≤12.000 €"
+        }
+      ],
+      "score": {
+        "value": 7.1,
+        "max": 10,
+        "why": "Compacto JTDm con 31 fotos y margen de sobra bajo el presupuesto"
+      }
+    },
+    {
+      "title": "Ford Fiesta 1.4 TDCi Trend",
+      "subtitle": "Urbano · Humanes de Madrid",
+      "price": "5.195 €",
+      "url": "https://www.autoscout24.es/anuncios/ford-fiesta-1-4tdci-trend-diesel-azul-cat_ma29mo1758-bd41af0d-3856-4897-95e0-b9c055c4508d",
+      "facts": [
+        {
+          "label": "Combustible",
+          "value": "Diésel"
+        },
+        {
+          "label": "Zona",
+          "value": "Humanes de Madrid"
+        },
+        {
+          "label": "Tipo",
+          "value": "Urbano"
+        },
+        {
+          "label": "Filtros que cumple",
+          "value": "Desde 2010 · ≤200.000 km · ≤12.000 €"
+        }
+      ],
+      "score": {
+        "value": 6.9,
+        "max": 10,
+        "why": "La opción más barata: deja casi 7.000 € de margen"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "name": "discovery-free: websearch",
+      "status": "ok",
+      "found": 10
+    },
+    {
+      "name": "fetch: www.coches.net",
+      "status": "ok",
+      "found": 0
+    },
+    {
+      "name": "fetch: www.milanuncios.com",
+      "status": "ok",
+      "found": 0
+    },
+    {
+      "name": "fetch: holamotor.com",
+      "status": "ok",
+      "found": 0
+    },
+    {
+      "name": "fetch: es.wallapop.com",
+      "status": "ok",
+      "found": 0
+    },
+    {
+      "name": "fetch: www.coches.com",
+      "status": "ok",
+      "found": 0
+    },
+    {
+      "name": "AutoScout24",
+      "url": "https://www.autoscout24.es/lst/ft_diesel/pr_12000?fregfrom=2010&cy=E&kmto=200000&zipr=100&sort=age&desc=1&atype=C",
+      "status": "ok",
+      "detail": "Filtros puestos en la propia web: 100 km alrededor de Madrid, diésel, año desde 2010, hasta 200.000 km y hasta 12.000 €. Solo turismos completos.",
+      "found": 10
+    },
+    {
+      "name": "Wallapop",
+      "url": "https://es.wallapop.com/search?category_id=100&max_sale_price=12000",
+      "status": "partial",
+      "detail": "Sí encontré coches diésel hasta 12.000 €, pero la web no deja fijar Madrid y los resultados llegaban de toda España (comprobé uno en Burgos). Sin poder…",
+      "found": 0
+    },
+    {
+      "name": "coches.net",
+      "url": "https://www.coches.net/segunda-mano/",
+      "status": "blocked",
+      "detail": "Devuelve su página de error («Ups! Parece que algo no va bien…») en la portada, en el listado y en las URLs filtradas. Reintentado varias veces.",
+      "found": 0
+    },
+    {
+      "name": "Milanuncios",
+      "url": "https://www.milanuncios.com/coches-de-segunda-mano-en-madrid/?hasta=12000&combustible=diesel",
+      "status": "blocked",
+      "detail": "La primera carga funcionó (llegué a ver coches diésel en Madrid con año y km), pero después bloquea con «Pardon Our Interruption». Solo dejaba ver la portada.",
+      "found": 0
+    },
+    {
+      "name": "Red de agentes",
+      "url": "https://ybana.rjj.workers.dev",
+      "status": "error",
+      "detail": "No hay agente de coches. El que respondió devolvió despieces, motores sueltos y maquetas a escala: nada de vehículos.",
+      "found": 0
+    }
+  ],
+  "summary": {
+    "explored": 24,
+    "selected": 10,
+    "discarded": 4,
+    "state": "10 turismos diésel verificados a menos de 100 km de Madrid, todos ≤12.000 €, de 2010 en adelante y con menos de 200.000 km",
+    "note": "Ninguna de las webs ha devuelto aún coches que encajen; sigo buscando.",
+    "steps": [
+      "barrido en coches.net, milanuncios, wallapop, coches.com y holamotor"
+    ]
+  },
+  "tab": "results",
+  "kind": "product",
+  "criteria": {
+    "changes": [
+      "Coche entero de segunda mano (turismo): nada de piezas, motores sueltos, accesorios ni maquetas",
+      "Diésel · máximo 12.000 € · desde ~2010 · Madrid o hasta ~1 hora en coche",
+      "Al bloquearse las webs del catálogo, se acepta cualquier portal que permita filtrar zona, combustible, año y precio"
+    ]
+  },
+  "empty": false,
+  "process": [
+    "recogiendo lo que hay en la página…",
+    "conduciendo el navegador…",
+    "entrando en es.wallapop.com…",
+    "leyendo la página…",
+    "💬 Wallapop no está filtrando por Madrid (ese Skoda estaba en Burgos). Voy a fijar la ubicación.",
+    "entrando en es.wallapop.com…",
+    "Fijando la ubicación en Madrid dentro de Wallapop: los resultados venían de toda España (Burgos, etc.)",
+    "pulsando en la página…",
+    "entrando en es.wallapop.com…",
+    "pulsando en la página…",
+    "entrando en milanuncios.com…",
+    "leyendo la página…",
+    "💬 milanuncios sigue bloqueado. Pruebo AutoScout24, que permite filtrar por Madrid, diésel, año y precio en la URL.",
+    "entrando en autoscout24.es…",
+    "💬 AutoScout24 funciona con todos los filtros (Madrid 100 km, diésel, ≤12.000 €, desde 2010).",
+    "recogiendo lo que hay en la página…",
+    "entrando en autoscout24.es…",
+    "recogiendo lo que hay en la página…",
+    "recorriendo la página…",
+    "recogiendo lo que hay en la página…",
+    "conduciendo el navegador…",
+    "entrando en autoscout24.es…",
+    "recogiendo lo que hay en la página…",
+    "recorriendo la página…",
+    "entrando en milanuncios.com…",
+    "pulsando en la página…",
+    "leyendo la página…",
+    "pulsando en la página…",
+    "entrando en milanuncios.com…",
+    "AutoScout24 responde bien: afino la búsqueda (diésel, ≤12.000 €, 100 km de Madrid, desde 2010, menos de 200.000 km) y saco ciudad y datos de cada coche",
+    "entrando en autoscout24.es…",
+    "💬 AutoScout24 ya tiene todos los filtros confirmados (Madrid 100 km · diésel · desde 2010 · hasta 200.000 km · ≤12.000 €). Ahora saco la ciudad de cada …",
+    "entrando en autoscout24.es…",
+    "entrando en coches.net…",
+    "mirando «results»…",
+    "escribiendo navegador/informe.json…",
+    "escribiendo 108172-2/informe.json…",
+    "escribiendo en «results»…",
+    "abriéndote «results»…",
+    "💬 Ya está en pantalla: **10 turismos diésel completos, hasta 12.000 €, en 100 km alrededor de Madrid**, todos desde 2010 y con menos de 200.000 km. Los …"
+  ]
+}

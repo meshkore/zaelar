@@ -127,6 +127,12 @@ def one(data: dict) -> str:
                    else f"{con_enlace} de los {len(items)} resultados llevan")
         lines.append(f"[{cuantos} su ENLACE guardado en la ficha. Si te pide el enlace o el anuncio, NO "
                      "busques otra vez: dile de cuál es y ábrele su ficha.]")
+    # V2-782 — a criterion NO row can show is said missing, so the turn does not offer bare names as meeting it.
+    from search.candidacy import unshown_criteria as _unshown
+    _gap = _unshown(items, data.get("criteria") or {})
+    if _gap:
+        lines.append("[NINGUNA fila trae dato (precio, valoración, teléfono) para: " + " · ".join(_gap)[:200]
+                     + ". Dile que eso NO se encontró; no las presentes como que lo cumplen.]")
     if data.get("view") == "detail" and data.get("focus"):
         lines.append(f"[viendo el DETALLE de «{data['focus']}»]")
     for n, it in enumerate(items[:12], 1):

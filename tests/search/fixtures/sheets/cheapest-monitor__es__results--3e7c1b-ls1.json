@@ -1,0 +1,362 @@
+{
+  "title": "Monitores 27\" 4K para trabajar · todos por debajo de 300 €",
+  "subtitle": "7 modelos 4K reales (3840x2160) de 27\" en Amazon.es, de 152,99 a 249,99 €. Los dos que preguntaste (AOC 27B36X y MSI MAG 275F) son Full HD 1920x1080: descartados.",
+  "items": [
+    {
+      "title": "AOC U27B3A",
+      "subtitle": "27\" IPS · 4K · 60 Hz · HDR10 · altavoces",
+      "price": "152,99 €",
+      "badge": "El más barato",
+      "url": "https://www.amazon.es/dp/B0D7CPTFZ4",
+      "primary": true,
+      "facts": [
+        {
+          "label": "Resolución",
+          "value": "3840 x 2160 (4K UHD)"
+        },
+        {
+          "label": "Pantalla",
+          "value": "27\" IPS"
+        },
+        {
+          "label": "Refresco",
+          "value": "60 Hz"
+        },
+        {
+          "label": "Extras",
+          "value": "HDR10, altavoces, HDMI y DisplayPort"
+        }
+      ],
+      "score": {
+        "value": 8.7,
+        "max": 10,
+        "why": "La 4K de 27\" más barata que cumple todo: IPS, HDR10 y altavoces"
+      }
+    },
+    {
+      "title": "Philips 27E1N1800A",
+      "subtitle": "27\" IPS · 4K · 60 Hz · HDR10 · altavoces",
+      "price": "155,99 €",
+      "badge": "Plan B del AOC",
+      "url": "https://www.amazon.es/dp/B0D7HHHG9Q",
+      "facts": [
+        {
+          "label": "Resolución",
+          "value": "3840 x 2160 (4K UHD)"
+        },
+        {
+          "label": "Pantalla",
+          "value": "27\" IPS"
+        },
+        {
+          "label": "Refresco",
+          "value": "60 Hz"
+        },
+        {
+          "label": "Extras",
+          "value": "HDR10, altavoces, HDMI y DisplayPort"
+        }
+      ],
+      "score": {
+        "value": 8.4,
+        "max": 10,
+        "why": "Misma receta que el AOC por 3 € más, marca de fiar en oficina"
+      }
+    },
+    {
+      "title": "MSI Pro MP273U",
+      "subtitle": "27\" IPS · 4K · línea profesional · anti-reflejos",
+      "price": "164,00 €",
+      "badge": "Para oficina",
+      "url": "https://www.amazon.es/dp/B0DJ9KZG6P",
+      "primary": true,
+      "facts": [
+        {
+          "label": "Resolución",
+          "value": "3840 x 2160 (4K UHD)"
+        },
+        {
+          "label": "Pantalla",
+          "value": "27\" IPS"
+        },
+        {
+          "label": "Panel",
+          "value": "Anti-reflejos (Anti-Glare)"
+        },
+        {
+          "label": "Línea",
+          "value": "Profesional, para oficina"
+        }
+      ],
+      "score": {
+        "value": 8.8,
+        "max": 10,
+        "why": "Gama 'Pro' de oficina: IPS mate anti-reflejos, la más cómoda para trabajar muchas horas"
+      }
+    },
+    {
+      "title": "LG 27US500-W",
+      "subtitle": "27\" IPS · 4K · 60 Hz · HDR10 · HDMI 2.0",
+      "price": "175,00 €",
+      "url": "https://www.amazon.es/dp/B0DH51BPZD",
+      "facts": [
+        {
+          "label": "Resolución",
+          "value": "3840 x 2160 (4K UHD)"
+        },
+        {
+          "label": "Pantalla",
+          "value": "27\" IPS"
+        },
+        {
+          "label": "Refresco",
+          "value": "60 Hz"
+        },
+        {
+          "label": "Color",
+          "value": "DCI-P3 90%"
+        },
+        {
+          "label": "Extras",
+          "value": "HDR10, HDMI 2.0"
+        }
+      ],
+      "score": {
+        "value": 8.5,
+        "max": 10,
+        "why": "El 4K de oficina clásico de LG, verificado en su ficha: 3840x2160, HDR10, DCI-P3 90%"
+      }
+    },
+    {
+      "title": "Samsung ViewFinity S70D",
+      "subtitle": "27\" · 4K UHD · gama de productividad",
+      "price": "189,47 €",
+      "url": "https://www.amazon.es/dp/B0D3F6JTQY",
+      "facts": [
+        {
+          "label": "Resolución",
+          "value": "3840 x 2160 (4K UHD)"
+        },
+        {
+          "label": "Pantalla",
+          "value": "27\""
+        },
+        {
+          "label": "Gama",
+          "value": "ViewFinity S7 (productividad)"
+        }
+      ],
+      "score": {
+        "value": 8.4,
+        "max": 10,
+        "why": "La gama de productividad 4K de Samsung, a mitad del tope"
+      }
+    },
+    {
+      "title": "LG 27U730B-B",
+      "subtitle": "27\" IPS · 4K · altura ajustable",
+      "price": "239,00 €",
+      "badge": "Altura ajustable",
+      "url": "https://www.amazon.es/dp/B0H46B681F",
+      "image": "https://m.media-amazon.com/images/I/71uWqZZJ2rL._AC_UL320_.jpg",
+      "facts": [
+        {
+          "label": "Resolución",
+          "value": "3840 x 2160 (4K UHD)"
+        },
+        {
+          "label": "Pantalla",
+          "value": "27\" IPS"
+        },
+        {
+          "label": "Soporte",
+          "value": "Altura ajustable e inclinación"
+        }
+      ],
+      "score": {
+        "value": 8.6,
+        "max": 10,
+        "why": "Pequeño subidón de precio a cambio de pie con altura ajustable, lo más sano para el cuello"
+      }
+    },
+    {
+      "title": "Lenovo Legion 27U-10",
+      "subtitle": "27\" IPS · 4K · 160 Hz · HDMI 2.1 · ergonómico",
+      "price": "249,99 €",
+      "badge": "4K a 160 Hz",
+      "url": "https://www.amazon.es/dp/B0FHL1P65V",
+      "facts": [
+        {
+          "label": "Resolución",
+          "value": "3840 x 2160 (4K UHD)"
+        },
+        {
+          "label": "Pantalla",
+          "value": "27\" IPS"
+        },
+        {
+          "label": "Refresco",
+          "value": "160 Hz"
+        },
+        {
+          "label": "Extras",
+          "value": "HDR10, HDMI 2.1, G-Sync/FreeSync"
+        },
+        {
+          "label": "Soporte",
+          "value": "Ergonómico (verificado en ficha)"
+        }
+      ],
+      "score": {
+        "value": 8.9,
+        "max": 10,
+        "why": "El más completo: 4K a 160 Hz, HDR10, HDMI 2.1 y pie ergonómico, aún por debajo de 300 €"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "name": "discovery-free: websearch",
+      "status": "ok",
+      "found": 10
+    },
+    {
+      "name": "fetch: ergonomiza.com",
+      "status": "ok",
+      "found": 0
+    },
+    {
+      "name": "fetch: www.amazon.es",
+      "status": "ok",
+      "found": 0
+    },
+    {
+      "name": "fetch: www.elcorteingles.es",
+      "status": "blocked"
+    },
+    {
+      "name": "fetch: www.mejoresresenas.es",
+      "status": "ok",
+      "found": 0
+    },
+    {
+      "name": "fetch: elmejorcalidadprecio.es",
+      "status": "ok",
+      "found": 0
+    },
+    {
+      "name": "Amazon.es",
+      "url": "https://www.amazon.es",
+      "status": "ok",
+      "detail": "4 pasadas con filtro de precio y orden por precio; fichas de los dudosos verificadas una a una",
+      "found": 12
+    },
+    {
+      "name": "Red de agentes (eBay)",
+      "url": "https://ebay-finder.rjj.workers.dev",
+      "status": "partial",
+      "detail": "solo segunda mano y fuera de foco (uno era un monitor de constantes vitales); descartado",
+      "found": 0
+    }
+  ],
+  "criteria": {
+    "changes": [
+      "solo 27 pulgadas",
+      "resolución 4K real (3840x2160)",
+      "precio por debajo de 300 €"
+    ]
+  },
+  "kind": "product",
+  "summary": {
+    "explored": 26,
+    "selected": 7,
+    "discarded": 6,
+    "state": "selección final: 7 monitores 27\" 4K reales por debajo de 300 €",
+    "steps": [
+      "red de agentes descartada (solo eBay de segunda mano)",
+      "4 pasadas en Amazon.es con tope de 300 €",
+      "fichas de los dudosos verificadas una a una"
+    ]
+  },
+  "empty": false,
+  "rejected": [
+    {
+      "title": "AOC 27B36X (99,90 €)",
+      "url": "https://www.amazon.es/dp/B0FKGY4XLH",
+      "why": "Full HD 1920x1080, no es 4K — uno de los dos que preguntó el operador",
+      "source": "amazon.es"
+    },
+    {
+      "title": "MSI MAG 275F (99,00 €)",
+      "url": "https://www.amazon.es/dp/B0D2NTS18D",
+      "why": "Full HD 1920x1080, no es 4K — el otro que preguntó el operador",
+      "source": "amazon.es"
+    },
+    {
+      "title": "Lenovo L27h-4A (168,75 €)",
+      "url": "https://www.amazon.es/dp/B0DF84JPCW",
+      "why": "Verificado en ficha: es QHD 2560x1440, no 4K (buen plan B igualmente)",
+      "source": "amazon.es"
+    },
+    {
+      "title": "ASUS ProArt PA278QV (259,99 €)",
+      "url": "https://www.amazon.es/dp/B0886LBL8R",
+      "why": "QHD 2560x1440, no 4K; habiendo 4K reales bajo 300 €, fuera",
+      "source": "amazon.es"
+    },
+    {
+      "title": "Xiaomi Monitor 2K A27Qi (229,09 €)",
+      "url": "https://www.amazon.es/dp/B0DS54HLR5",
+      "why": "QHD, no 4K",
+      "source": "amazon.es"
+    },
+    {
+      "title": "Dell G2722HS (299,95 €)",
+      "url": "https://www.amazon.es/dp/B09RWPRG89",
+      "why": "Full HD 1920x1080 a precio de 4K: mal negocio",
+      "source": "amazon.es"
+    }
+  ],
+  "process": [
+    "recogiendo lo que hay en la página…",
+    "💬 Llega el refinamiento: 27\", 4K, bajo 300 €. Ajusto la búsqueda:",
+    "entrando en amazon.es…",
+    "recogiendo lo que hay en la página…",
+    "💬 Solo un 4K claro en esa pasada (Lenovo 27U-10 a 249,99 €). Hago una búsqueda más específica:",
+    "entrando en amazon.es…",
+    "recogiendo lo que hay en la página…",
+    "💬 Aún pocas 4K claras. Una pasada más con términos exactos de resolución:",
+    "entrando en amazon.es…",
+    "recogiendo lo que hay en la página…",
+    "💬 Aparece un Lenovo L27h-4A a 168,75 € que promete. Verifico los candidatos 4K en sus fichas:",
+    "conduciendo el navegador…",
+    "entrando en amazon.es…",
+    "Verificando en sus fichas qué candidatos son de verdad 27\" y 4K bajo 300 € (ya confirmado: AOC 27B36X y MSI MAG 275F son Full HD 1920x1080, NO 4K; Lenovo L27h-4",
+    "entrando en amazon.es…",
+    "💬 Legion 27U-10 confirmado: 27\" 4K UHD a 249,99 €. Busco más 4K baratas ordenando por precio:",
+    "entrando en amazon.es…",
+    "recogiendo lo que hay en la página…",
+    "💬 Ya hay buena cosecha de 4K reales bajo 300 €. Verifico la ficha del LG 27US500 (175 €), que salió sin título:",
+    "entrando en amazon.es…",
+    "💬 LG confirmado: 27\" 4K UHD a 175 €. Tengo bastante; monto la hoja:",
+    "mirando «results»…",
+    "💬 Contrato en mano. Pruebo un truco para capturar más fotos antes de montar la hoja:",
+    "entrando en amazon.es…",
+    "recorriendo la página…",
+    "recogiendo lo que hay en la página…",
+    "💬 Suficiente cosecha. Escribo el informe y lo entrego:",
+    "escribiendo informe.json…",
+    "Entregando la hoja: 7 monitores 27\" 4K verificados bajo 300 € (el más barato, AOC U27B3A a 152,99 €)",
+    "escribiendo en «results»…",
+    "escribiendo descartes.json…",
+    "escribiendo en «results»…",
+    "abriéndote «results»…",
+    "escribiendo en «results»…",
+    "mirando «results»…",
+    "💬 La hoja dice `shown: 7` al presentar, pero el estado leído sale vacío. Verifico contra la instancia de sesión que abrió `show`:",
+    "mirando «results»…",
+    "💬 `present` y `rejected` devolvieron `ok` con 7 fichas y 6 descartes y sin incidencias de presentación; el `data` del `read` no refleja la sesión (sale …",
+    "guardando lo que ha averiguado…",
+    "💬 Sí hay 4K de 27\" bien por debajo de 300 €, así que no hizo falta bajar a QHD. Lo que preguntaste: el AOC 27B36X (99,90 €) y el MSI MAG 275F (99,00 €) …"
+  ]
+}

@@ -1,0 +1,52 @@
+{
+  "title": "Resultados",
+  "subtitle": "",
+  "items": [],
+  "summary": {
+    "state": "buscando alquiler de coche en Austin para el fin de semana (10-11 oct); aún sin resultados",
+    "note": "recogida en Austin; el operador está en San Francisco"
+  },
+  "empty": true,
+  "note": "Sin resultados todavía.",
+  "harvest": {},
+  "criteria": {
+    "goal": "Identificar y comparar las compañías y opciones de alquiler de coche en Austin, Texas, para el fin de semana del sábado 10 al domingo 11 de octubre de 2026 (o recogida en viernes/sábado y devolución en domingo/lunes), priorizando las mejores valoraciones reales de clientes por encima del precio, y presentar las mejores opciones con su valoración verificada, empresa, categoría de vehículo, punto de",
+    "domain": "Alquiler de coches",
+    "hard": [
+      "El alquiler debe ser en Austin, Texas (ciudad de recogida), aunque el operador viva en San Francisco",
+      "Las fechas deben cubrir el fin de semana del 10-11 de octubre de 2026 (recogida sáb 10 y devolución dom 11, o recogida vie 9/sáb 10 y devolución dom 11/lun 12)",
+      "Debe ser una empresa de alquiler real y operativa (con mostrador o entrega física verificable), no un intermediario opaco sin flota propia identificable"
+    ],
+    "soft": [
+      "Mejor valoración media de clientes por encima de la tarifa más barata",
+      "Más número de opiniones (mayor fiabilidad de la nota)",
+      "Puntos de recogida convenientes: aeropuerto de Austin (AUS) o centros urbanos bien situados",
+      "Flota reciente y categorías habituales (económico, compacto, SUV, etc.)",
+      "Políticas flexibles de cancelación o kilometraje ilimitado"
+    ],
+    "assumed": [
+      "El operador necesita el coche solo durante el fin de semana, sin fechas alternativas que no fueran las dadas",
+      "No especifica tipo de vehículo, se asume categoría estándar/económica a menos que haya restricción",
+      "No indica número de pasajeros, se asume 1-2 personas (coche pequeño-medio)",
+      "No indica punto de recogida preferido: se asume aeropuerto de Austin (AUS) por ser lo habitual para un viajero desde San Francisco, pero se buscarán también opciones en centro",
+      "No fija presupuesto máximo, por lo que se reportarán precios como referencia sin descartar opciones por precio"
+    ],
+    "enrichments": [
+      "Aeropuerto AUS frente a recogida en centro: en un fin de semana con posible evento (F1 en Circuito de las Américas suele caer cerca de octubre), los precios y disponibilidad en el aeropuerto pueden dispararse; conviene c",
+      "Verificar si la tarifa incluye cargos obligatorios (tasas de aeropuerto, impuestos, recargo por conductor joven) para no comparar precios base engañosos",
+      "Comprobar política de combustible (lleno-lleno vs prepago) y kilometraje ilimitado, factores que cambian el coste real del fin de semana",
+      "Señalar las que permitan cancelación gratuita, dado que el operador podría necesitar flexibilidad si su viaje se ajusta",
+      "Indicar si alguna empresa tiene recogida fuera de horario o mostrador cerrado en domingo, que podría impedir la devolución el domingo 11",
+      "Mencionar si hay opciones con entrega en hotel o en el centro, útiles si no va directo al aeropuerto"
+    ],
+    "quality_bar": [
+      "Valoración media ≥4.0/5 con al menos 50 opiniones verificables en Google Maps, Trustpilot u otra fuente independiente",
+      "Comprobar que la valoración corresponde a la sucursal de Austin (no a la marca a nivel nacional)",
+      "Verificar disponibilidad real para el fin de semana del 10-11 de octubre de 2026 en la web oficial o en un agregador fiable",
+      "Confirmar que el punto de recogida está en Austin y que el horario de devolución en domingo 11 es viable",
+      "Revisar que la tarifa mostrada sea comparable (mismos cargos incluidos) y documentar qué incluye"
+    ],
+    "min_candidates": 40,
+    "n_final": 10
+  }
+}

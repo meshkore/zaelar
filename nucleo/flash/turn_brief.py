@@ -329,6 +329,10 @@ def build(operator_text: str, *, open_ids=None, running_goals=None, has_workers:
     # What he will LOOK AT if this becomes an errand — read by the escalation only when the model declared none.
     from nucleo import surfaces as _sf
     qs[_sf.SURFACE_KEY] = _sf.question()
+    # V2-782 — WHICH search module serves the turn (fact · listing · local service · images · browser · worker).
+    # One more question in the same trip; read by `search_routing` (shadow today) and by the service's `route`.
+    from search import route as _search_route
+    qs[_search_route.SEARCH_KEY] = _search_route.question()
     # V2-752 — is he telling us the last thing we did is WRONG? Asked only when there IS something we
     # just did, because with nothing behind us the answer could only be «unrelated». See `redo_decision`
     # for the two corrections this engine swallowed in a row while saying it would act on them.

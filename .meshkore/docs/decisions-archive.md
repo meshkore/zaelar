@@ -10563,3 +10563,161 @@ one-line index behind in the live log. Nothing below was edited or summarized on
   table change goes red instead of drifting; five disarms, mutations asserted, all red. The operator's own
   install was restored in the same pass (`settings.json` emptied, the wizard-written `fast`/`memory`
   sections dropped from `v2.json`) so the table governs again.
+
+## Moved on 2026-10-10 (V2-782 search service)
+
+- **ONE Google account, six doors — and Meet is an ARGUMENT, not a tool (V2-685, 2026-09-13)**: the
+  operator, handing over the OAuth client he had just registered — «we need to create the google connector…
+  we will use it for gmail. **change current to standardize**. use it for calendar and meet and for now i
+  guess we do not have more widgets were applicable», then «add features to the system so brain workers etc,
+  flashbrain, all can use it when need it». **MEASURED before writing a line**: six near-identical OAuth
+  modules (1 325 lines), **five of them fronting Google**, each asking for the SAME client under a different
+  name — `EMAIL_GMAIL_*`, `CALENDAR_GOOGLE_*`, `VIDEO_YOUTUBE_*`, `PHOTOS_GOOGLE_PHOTOS_*`, `FILES_GDRIVE_*`.
+  He answers one and the other four stay dormant in silence. `builtin_client_id` had been declared and EMPTY
+  since V2-603 and copied verbatim into the calendar connector the day it was built, both saying «EMPTY until Zaelar registers its own Google OAuth
+  client». He registered it on 2026-09-12.
+  - **`connectors/google/` holds the answer once, and is a LEAF**: nothing there imports another connector,
+    because everything else imports it. `app.py` resolves the client — the operator's own (`GOOGLE_CLIENT_ID`)
+    first, then the `client_secret_*.json` the console hands you, read **verbatim** out of
+    `.meshkore/credentials/` so nothing is retyped into a source file and no second copy can drift; cached on
+    (path, mtime), so a file dropped in while the engine runs is seen without a restart, and a value frozen at
+    import would have left him restarting to be believed. It reports WHERE the client came from, never what it
+    is. **Each connector's own name still wins**, which is what keeps the fair-code self-host story honest and
+    what makes the change safe: Outlook, which authenticates against Microsoft, gets nothing — handing it a
+    Google client would turn a dormant connector into a broken one, and that counterweight is the test that
+    matters most here.
+  - **`services.py` deliberately does NOT own the scopes of a connector that has its own registry.** Each
+    already declares them next to the client that requests them, this package sits BELOW those connectors and
+    cannot import them to check, and two copies of a scope list drift. It fills in `scopes` only for a service
+    with no connector at all — which today means exactly one.
+  - **Meet is that one, and it asks for NOTHING extra**: a Meet link is `conferenceData` on a calendar event,
+    minted by the calendar scope the connector already holds. There IS a standalone Meet REST API behind
+    `.../auth/meetings.space.created` and it is **named in `FUTURE_SCOPES` and not requested** — an unused
+    sensitive scope buys nothing today and costs a harder Google verification for every user of the app.
+    ⚠️ **`conferenceDataVersion=1` is the half that fails silently**: without that query parameter Google
+    returns 200, creates the event, and DROPS the conference — no error, no link, and an agent that has just
+    told the operator it made them a meeting room.
+  - **The capability is an ARGUMENT of the tool the model already has**, and `brain.py` says so out loud. Meet
+    is a verb this engine has never had, so a model asked for one has no prior behaviour to fall back on
+    except inventing a `create_meet` tool or promising a link before Google minted it. Naming the capability
+    alone is what makes a model improvise a verb — so the line names `meet: true` and states that no separate
+    tool exists. Third payment of V2-603's receipt («four claims, zero connections»). **Workers needed no
+    exception**: they reach it through `act widget_data`, already allowed and gated on the widget's own
+    manifest, so `_PRESTABLE_TOOLS` — whose comment says it «grows only with an explicit designation, never by
+    accident» — was left untouched.
+  - ⚠️ **Three ratchets went red and two were paid by EXTRACTING**: `prompt.py` (846 > 834, 30 lazy imports >
+    29) → `flash/connector_briefs.py`, ending at **789 and 26**, lower than before the batch started; the
+    Google wiring guard re-anchored on the module that OWNS the block, per V2-555. The third was **not paid**:
+    `widgets/agenda/data.py` sits EXACTLY on the 900-line newborn ceiling while another session edits it, so
+    its one-line delegation (`gcal.apply_meet(meeting, payload)`) is deliberately left out — extracting from
+    somebody else's in-flight file is worse than leaving one line, and a ratchet is never paid by a smaller
+    diff. Its test is skipped and says exactly that.
+  - ⚠️ **Eight tests in three other files went red, and all eight were MINE**: video, calendar and agenda each
+    assumed no Google client could exist — video's `sandbox` fixture said so in its own docstring and simply
+    had a third source it did not know about. **Pinned, never relaxed** (V2-606's lesson: a test that measures
+    the machine it runs on), each with its counterweight asserting the new reality — including a FOURTH
+    connector state the agenda had no sentence for: an app registered and awaiting consent is not «you have
+    not linked it». And one test DOUBLE had a narrower signature than the real client (`post` with no
+    `params`), so the new query parameter raised a TypeError that `insert_event`'s own except swallowed into
+    `{"ok": False}`.
+  - ⚠️ **The number collided.** This batch took V2-684 and the concurrent session already owned it; renumbered
+    at closure, and the blind rename then clobbered **four foreign citations** in `tests/run_testmap.py`,
+    restored by hand. Create the initiative file when the number is TAKEN.
+  - Node **5.25** (27 cases, ten disarms, every mutation asserted, all red — one came back GREEN and accused
+    the TEST: the case started from the already-trimmed state, so removing the guard popped a key that was not
+    there). **NOT verified live, and it cannot be yet**: it is a **web** client, so Google refuses a redirect
+    URI it has never seen — with `invalid_client`, at the END of a flow that looks healthy all the way up —
+    and the five the engine serves (`app.redirect_uris()`) are not registered in the console. Nothing connects
+    until the operator pastes them. **NOT committed**: `connectors/registry.py`, `connectors/calendar/`,
+    `widgets/agenda/` and their tests all carry another session's uncommitted work, and a pathspec limits
+    files, never hunks.
+
+- **The test system learns the ERRAND, and a language leak becomes a failure (V2-684, 2026-09-13)**: the
+  operator, handing over a second Telegram account of his own (`@cryptonite_fund`) to answer from — «así
+  lo podrás probar contra una cuenta real» — and merging two testing plans into one batch, errand first.
+  They ARE one plan: the errand's party turn is a language surface (`party.build_system` answers in the
+  PARTY's language, not the operator's), which is the one case neither plan covered.
+  - **The ARC, and why the pieces were not enough.** V2-683's 105 cases each move one piece with the
+    neighbours stubbed; all of the errand's interesting behaviour is multi-turn, and the multi-turn shape
+    had never run once. `tests/agent_headless/harness/errand_world.py` is ONE double, at the TRANSPORT —
+    it hears `msg.send`, decides whether the message really went out, echoes the conversation it created,
+    and can make the other person answer — with a clock the arc controls, so ten hours cost no seconds.
+    Everything above it is product: the widget's `send_to`, the owner's flush WITH its secret scan, the
+    watcher's three signals, the ledger, the wake, the parse, the verifier and the expiry sweep. Node
+    **3.43** (19 cases): agreement closing against the AGENDA and not against the model, the answer ten
+    hours later, «quiero hablar con Ricart» (blocks AND then stays quiet — the second half is the
+    assertion), nobody answering, two exchanges as ONE conversation, a send that failed, a meeting he
+    already had. Plus the half he said matters most, «sin necesidad de que lo tengamos que programar»: the
+    same arc with NO playbook, with reunión→cena, and with `config/playbooks.json` beating genesis — with
+    a ratchet that no playbook may name a person, a company or a site, which is what keeps a briefing from
+    quietly becoming a script.
+  - ⚠️ **The arc found a real defect: an ARMED errand would have answered NOBODY.** `wake._send` queues
+    the composed reply in `pending_send`, and the only flush lived inside `_Owner.handle` — with no
+    operator action on the messaging widget, nothing ever drained it. Invisible because the feature ships
+    in SHADOW (nothing to flush) and because every unit test stopped at «it was queued». The owner's own
+    beat drains it now; the flush stays where it is, because that is the one door where `memory/secrets.py`
+    reads a text written by a MODEL for somebody outside.
+  - **The shadow gate is a number now** (node **3.44**, read-only): every decision the errand logged, per
+    errand, with what it WOULD have said — and the one question answerable mechanically, «how many would
+    have written to a conversation that is not this errand's own». Zero is the gate. A log with no
+    decisions says so instead of printing a reassuring zero over nothing. And node **3.45** is the only
+    test in the house that writes to a PERSON: it arms the engine out of shadow for the length of the run
+    and restores it in a `finally`, **refuses to start while any other errand is open** (the flag is
+    global), and waits — saying what it is waiting for — through as many replies as the conversation takes.
+  - **A language leak is a failure of the test that caused it.** `tests/lang.speaking(code)` does the
+    THREE things a language change is (env + `actionmap.invalidate()` + `detect._should_cache`); five
+    files each did a subset by hand and only one invalidated the pack, so a test that switched language
+    read the previous language's table and passed describing the wrong one. The root conftest now fails
+    whoever leaves `ZAELAR_LANGUAGE` changed — documented in prose since 2026-08-20 and never made red —
+    and found two real leaks the day it was installed: one file POPPED the variable in its teardown
+    (leaving every later test with no language at all) and two cases call `settings.update
+    ({"stt_language": "de"})`, which writes the process env by design. Node **8.9**.
+  - **The segmenter corpus stops mixing languages.** It was red at 54 % against a 70 % floor and all ten
+    escaped fragments were English, while the segmenter has no branch for another language — so one
+    blended number was pressing to LOWER the Castilian bar to accommodate English. Two buckets, two
+    floors, a bucket too small to mean anything reported instead of asserted. ⚠️ Measured: the registry
+    holds ZERO Castilian fragments today (the sessions rotated), so that side SKIPS rather than passing,
+    and the test says which. ⚠️ Also measured, and the plan had it wrong: a session does NOT record its
+    language — one event in 12 127 carries the field — so the label is lexical and says it is test-side.
+  - Seven disarms, every mutation asserted, all red; two came back GREEN first and each accused the test
+    (the failed-send guard is not what stops a birth — no echo is; and the flush's WIRING was measured by
+    nobody, since the arcs drive it through the harness). `memory.errands_store` is blessed in the memory
+    contract: the boundary test and the architecture ratchet pointed opposite ways in V2-683 and the
+    extraction won — the blessing records that instead of leaving a red test with no written reason.
+  - ⭐ **VERIFIED LIVE, and the live run found SIX more defects, none of them visible from the suite.**
+    The operator answered from `@cryptonite_fund` and at 23:13:29 the errand answered him BY ITSELF —
+    «Perfecto, mañana por la mañana. ¿Te viene bien a las 10:00?» — the first sentence this system has ever
+    said to a person with nobody dictating it. What it cost, in the order it was found: (1) an errand
+    CLOSED ITSELF in the same second over his real «Cinema with Mary», because `verify.meeting_exists`
+    filtered on a `created` field the agenda never writes — **the earlier tests passed because they wrote
+    that field BY HAND**; (2) an answer arriving with the ⏻ off was LOST rather than postponed, because
+    `_fire_wakes` POPPED the wake six lines before `wake()` refused with «parado»; (3) the errand tests read
+    his REAL `config/playbooks.json`, which the live node writes `shadow: false` into, so the shadow arcs
+    ARMED themselves; (4) **an answer that arrived before a RESTART was lost for ever** — three messages
+    landed at 22:28, the engine came back at 22:33, and the errand sat in `contacting` with `last_inbound`
+    empty, because `_pending_wakes` is memory, the bus subscription is memory, and nothing ever asked the
+    thread store what it was ALREADY HOLDING (`watch._reconcile` now compares each live errand against its
+    own conversation: the bus becomes the FAST path instead of the only path, which also covers a ⏻ off for
+    longer than one process and any dropped event); (5) **the model said NOTHING and the conversation
+    died** — the party turn asked `deepseek-v4-pro`, a REASONER, for 700 tokens and got `reasoning_tokens:
+    700` of 700, `finish_reason: length`, `content: ''`, which `wake()` filed as «ilegible» and answered
+    with silence toward somebody who was waiting (the V2-658 class one layer over: `no_thinking`, a wider
+    budget, ONE bounded retry — and the operator is told, because a turn that could not answer is
+    indistinguishable from a gestión still in flight); (6) the dossier announced his OCCUPIED hours under
+    the label «HUECOS LIBRES», so the next thing it would have done is offer «Cinema with Mary»'s slot to a
+    stranger — **a label that contradicts its own value is worse than no line at all** — and the person was
+    called «telegram», because the contact is filed by the handle he dictated while the conversation is
+    keyed by the platform's numeric id.
+  - ⚠️ **And the first real errand turned four UNRELATED tests red on a clean tree**:
+    `context_packs.active_ids()` answered `['errands']` — his own gestión, in his own ledger — so the
+    PHRASEBOOK cases failed, because the phrasebook correctly stands aside while a phase is guiding.
+    Nothing was broken; the suite had started depending on whether he happened to have an errand open. The
+    cause is this invariant's last unreached store, **`zaelar.db`** (the memory, the durable event log and
+    the errand ledger), and the gap was already written down in `tests/browser/unit/agenda/conftest.py` —
+    «nothing in the test conftests overrides `ZAELAR_DB`» — which is the same shape V2-673 paid for
+    `config/v2.json`. The database moves for the whole session in the ROOT `conftest.py` now, beside the
+    three that already do, with its row in `test_suite_isolation`; a runner pointing at its own corpus is
+    honoured, because that is a test choosing its state. **NOT built**: the journey case and the language
+    axis proper (T-B…T-G), named in the initiative. **Still not verified live**: the full CLOSE of an
+    errand against a real agreement — the party turn holds no tools, so nothing turns «agreed» into an
+    agenda row yet (V2-683 row 6, blocked on `connectors/calendar/`).

@@ -1,0 +1,1042 @@
+[
+ {
+  "id": "fact-opening-hours__es",
+  "lang": "es",
+  "phrase": "¿a qué hora abre el Prado?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.95
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "one fact, answered in the turn"
+ },
+ {
+  "id": "fact-opening-hours__en",
+  "lang": "en",
+  "phrase": "what time does the Prado open?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.95
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "one fact, answered in the turn"
+ },
+ {
+  "id": "fact-weather__es",
+  "lang": "es",
+  "phrase": "¿qué tiempo hace ahora en Berlín?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": ""
+ },
+ {
+  "id": "fact-weather__en",
+  "lang": "en",
+  "phrase": "what's the weather in Berlin right now?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": ""
+ },
+ {
+  "id": "fact-who-won__es",
+  "lang": "es",
+  "phrase": "¿quién ganó el partido del Madrid?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": ""
+ },
+ {
+  "id": "fact-who-won__en",
+  "lang": "en",
+  "phrase": "who won the Madrid match?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": ""
+ },
+ {
+  "id": "fact-dinner-ideas__es",
+  "lang": "es",
+  "phrase": "dame ideas para cenar",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.85
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "ideas he can hear in a sentence — NOT a 50-search worker (knows-who-i-am, 265 s)"
+ },
+ {
+  "id": "fact-dinner-ideas__en",
+  "lang": "en",
+  "phrase": "give me some dinner ideas",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.85
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "ideas he can hear in a sentence — NOT a 50-search worker (knows-who-i-am, 265 s)"
+ },
+ {
+  "id": "fact-couple-of-recipes__es",
+  "lang": "es",
+  "phrase": "sácame un par de recetas sin gluten",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.8
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "a couple is three, never twenty-five",
+  "n_final": 3
+ },
+ {
+  "id": "fact-couple-of-recipes__en",
+  "lang": "en",
+  "phrase": "pull a couple of gluten-free recipes",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.8
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "a couple is three, never twenty-five",
+  "n_final": 3
+ },
+ {
+  "id": "fact-euro-dollar__es",
+  "lang": "es",
+  "phrase": "¿a cuánto está el euro frente al dólar hoy?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": ""
+ },
+ {
+  "id": "fact-euro-dollar__en",
+  "lang": "en",
+  "phrase": "what's the euro to dollar rate today?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": ""
+ },
+ {
+  "id": "fact-no-verdict__es",
+  "lang": "es",
+  "phrase": "¿cuándo es el próximo eclipse?",
+  "proposal": "web_search",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "no verdict at all: a web_search proposal stays a fact"
+ },
+ {
+  "id": "fact-no-verdict__en",
+  "lang": "en",
+  "phrase": "when is the next eclipse?",
+  "proposal": "web_search",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "no verdict at all: a web_search proposal stays a fact"
+ },
+ {
+  "id": "fact-unsure-escalate__es",
+  "lang": "es",
+  "phrase": "¿cuánto cuesta la entrada del Alhambra?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "escalate",
+    0.55
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "an unsure escalate does not turn a fact into a worker"
+ },
+ {
+  "id": "fact-unsure-escalate__en",
+  "lang": "en",
+  "phrase": "how much is the Alhambra ticket?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "escalate",
+    0.55
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "an unsure escalate does not turn a fact into a worker"
+ },
+ {
+  "id": "verdict-local-plumber__es",
+  "lang": "es",
+  "phrase": "el fontanero mejor valorado que pueda venir hoy",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "local_service",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "local_service",
+  "why": "rating + availability are the asked fields; a name alone does not meet them",
+  "fields": [
+   "rating",
+   "availability"
+  ]
+ },
+ {
+  "id": "verdict-local-plumber__en",
+  "lang": "en",
+  "phrase": "the best-rated plumber who can come today",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "local_service",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "local_service",
+  "why": "rating + availability are the asked fields; a name alone does not meet them",
+  "fields": [
+   "rating",
+   "availability"
+  ]
+ },
+ {
+  "id": "verdict-local-barber__es",
+  "lang": "es",
+  "phrase": "un barbero cerca que tenga hueco este fin de semana",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "local_service",
+    0.85
+   ]
+  },
+  "named_site": false,
+  "expect": "local_service",
+  "why": "",
+  "fields": [
+   "availability"
+  ]
+ },
+ {
+  "id": "verdict-local-barber__en",
+  "lang": "en",
+  "phrase": "a barber nearby with a slot this weekend",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "local_service",
+    0.85
+   ]
+  },
+  "named_site": false,
+  "expect": "local_service",
+  "why": "",
+  "fields": [
+   "availability"
+  ]
+ },
+ {
+  "id": "verdict-listing-flat__es",
+  "lang": "es",
+  "phrase": "busca un piso en alquiler en Madrid por menos de 1200",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "listing",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "listing",
+  "why": "",
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "verdict-listing-flat__en",
+  "lang": "en",
+  "phrase": "find a flat to rent in Madrid under 1200",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "listing",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "listing",
+  "why": "",
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "verdict-worker-insurance__es",
+  "lang": "es",
+  "phrase": "compárame tres seguros a terceros ampliado",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "brain_worker",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "brain_worker",
+  "why": "a comparison with criteria; three is his number",
+  "n_final": 3
+ },
+ {
+  "id": "verdict-worker-insurance__en",
+  "lang": "en",
+  "phrase": "compare three third-party-plus insurance quotes for me",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "brain_worker",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "brain_worker",
+  "why": "a comparison with criteria; three is his number",
+  "n_final": 3
+ },
+ {
+  "id": "verdict-images__es",
+  "lang": "es",
+  "phrase": "enséñame fotos del Ferrari Amalfi",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "images",
+    0.95
+   ]
+  },
+  "named_site": false,
+  "expect": "images",
+  "why": ""
+ },
+ {
+  "id": "verdict-images__en",
+  "lang": "en",
+  "phrase": "show me pictures of the Ferrari Amalfi",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "images",
+    0.95
+   ]
+  },
+  "named_site": false,
+  "expect": "images",
+  "why": ""
+ },
+ {
+  "id": "verdict-browser-named__es",
+  "lang": "es",
+  "phrase": "entra en Wallapop y búscame una bici",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "browser",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "browser",
+  "why": "he named the site"
+ },
+ {
+  "id": "verdict-browser-named__en",
+  "lang": "en",
+  "phrase": "go into Wallapop and find me a bike",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "browser",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "browser",
+  "why": "he named the site"
+ },
+ {
+  "id": "verdict-overrides-web-search__es",
+  "lang": "es",
+  "phrase": "busca restaurantes para una cena de cumpleaños el sábado",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "local_service",
+    0.8
+   ]
+  },
+  "named_site": false,
+  "expect": "local_service",
+  "why": "a sure routing verdict refines the model's generic web_search"
+ },
+ {
+  "id": "verdict-overrides-web-search__en",
+  "lang": "en",
+  "phrase": "find restaurants for a birthday dinner on Saturday",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "local_service",
+    0.8
+   ]
+  },
+  "named_site": false,
+  "expect": "local_service",
+  "why": "a sure routing verdict refines the model's generic web_search"
+ },
+ {
+  "id": "proposal-listings__es",
+  "lang": "es",
+  "phrase": "quiero un portátil de segunda mano por menos de 500",
+  "proposal": "search_listings",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "listing",
+  "why": "",
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "proposal-listings__en",
+  "lang": "en",
+  "phrase": "I want a used laptop under 500",
+  "proposal": "search_listings",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "listing",
+  "why": "",
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "proposal-listings-vs-unsure-verdict__es",
+  "lang": "es",
+  "phrase": "un monitor de 27 pulgadas 4K barato",
+  "proposal": "search_listings",
+  "verdicts": {
+   "search_module": [
+    "brain_worker",
+    0.6
+   ]
+  },
+  "named_site": false,
+  "expect": "listing",
+  "why": "an unsure verdict does not overturn the module the model named (CRIT-K2)",
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "proposal-listings-vs-unsure-verdict__en",
+  "lang": "en",
+  "phrase": "a cheap 27-inch 4K monitor",
+  "proposal": "search_listings",
+  "verdicts": {
+   "search_module": [
+    "brain_worker",
+    0.6
+   ]
+  },
+  "named_site": false,
+  "expect": "listing",
+  "why": "an unsure verdict does not overturn the module the model named (CRIT-K2)",
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "proposal-listings-vs-sure-verdict__es",
+  "lang": "es",
+  "phrase": "compárame planes de fibra de tres operadores",
+  "proposal": "search_listings",
+  "verdicts": {
+   "search_module": [
+    "brain_worker",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "brain_worker",
+  "why": "a SURE verdict completes the model: plans with criteria are a worker",
+  "n_final": 3
+ },
+ {
+  "id": "proposal-listings-vs-sure-verdict__en",
+  "lang": "en",
+  "phrase": "compare fibre plans from three providers",
+  "proposal": "search_listings",
+  "verdicts": {
+   "search_module": [
+    "brain_worker",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "brain_worker",
+  "why": "a SURE verdict completes the model: plans with criteria are a worker",
+  "n_final": 3
+ },
+ {
+  "id": "proposal-images__es",
+  "lang": "es",
+  "phrase": "fotos reales del nuevo Seat León",
+  "proposal": "show_images",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "images",
+  "why": ""
+ },
+ {
+  "id": "proposal-images__en",
+  "lang": "en",
+  "phrase": "real photos of the new Seat León",
+  "proposal": "show_images",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "images",
+  "why": ""
+ },
+ {
+  "id": "proposal-escalate-list__es",
+  "lang": "es",
+  "phrase": "búscame el mejor hotel de Sevilla por menos de 150 la noche",
+  "proposal": "escalate_to_slowbrain",
+  "verdicts": {
+   "errand_surface": [
+    "lista",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "brain_worker",
+  "why": "",
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "proposal-escalate-list__en",
+  "lang": "en",
+  "phrase": "find me the best hotel in Seville under 150 a night",
+  "proposal": "escalate_to_slowbrain",
+  "verdicts": {
+   "errand_surface": [
+    "lista",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "brain_worker",
+  "why": "",
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "proposal-escalate-named-site__es",
+  "lang": "es",
+  "phrase": "mira en Booking qué hoteles hay en Soria",
+  "proposal": "escalate_to_slowbrain",
+  "verdicts": {},
+  "named_site": true,
+  "expect": "browser",
+  "why": ""
+ },
+ {
+  "id": "proposal-escalate-named-site__en",
+  "lang": "en",
+  "phrase": "check on Booking which hotels there are in Soria",
+  "proposal": "escalate_to_slowbrain",
+  "verdicts": {},
+  "named_site": true,
+  "expect": "browser",
+  "why": ""
+ },
+ {
+  "id": "escalate-surface-list__es",
+  "lang": "es",
+  "phrase": "quiero comparar seguros de coche",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "escalate",
+    0.9
+   ],
+   "errand_surface": [
+    "lista",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "brain_worker",
+  "why": ""
+ },
+ {
+  "id": "escalate-surface-list__en",
+  "lang": "en",
+  "phrase": "I want to compare car insurance quotes",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "escalate",
+    0.9
+   ],
+   "errand_surface": [
+    "lista",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "brain_worker",
+  "why": ""
+ },
+ {
+  "id": "escalate-surface-item__es",
+  "lang": "es",
+  "phrase": "encuéntrame el vuelo directo más barato a Roma el viernes",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "escalate",
+    0.85
+   ],
+   "errand_surface": [
+    "item",
+    0.8
+   ]
+  },
+  "named_site": false,
+  "expect": "brain_worker",
+  "why": "",
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "escalate-surface-item__en",
+  "lang": "en",
+  "phrase": "find me the cheapest direct flight to Rome on Friday",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "escalate",
+    0.85
+   ],
+   "errand_surface": [
+    "item",
+    0.8
+   ]
+  },
+  "named_site": false,
+  "expect": "brain_worker",
+  "why": "",
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "escalate-surface-voice__es",
+  "lang": "es",
+  "phrase": "¿qué me recomiendas hacer este finde en Bilbao?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "escalate",
+    0.8
+   ],
+   "errand_surface": [
+    "voz",
+    0.8
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "escalate without a sheet is not a search worker; it stays a fact here"
+ },
+ {
+  "id": "escalate-surface-voice__en",
+  "lang": "en",
+  "phrase": "what do you recommend for this weekend in Bilbao?",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "escalate",
+    0.8
+   ],
+   "errand_surface": [
+    "voz",
+    0.8
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "escalate without a sheet is not a search worker; it stays a fact here"
+ },
+ {
+  "id": "escalate-weak__es",
+  "lang": "es",
+  "phrase": "busca información sobre el nuevo iPhone",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "escalate",
+    0.6
+   ],
+   "errand_surface": [
+    "lista",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "below SURE the escalation does not decide"
+ },
+ {
+  "id": "escalate-weak__en",
+  "lang": "en",
+  "phrase": "look up information on the new iPhone",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "escalate",
+    0.6
+   ],
+   "errand_surface": [
+    "lista",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "below SURE the escalation does not decide"
+ },
+ {
+  "id": "named-site-listing__es",
+  "lang": "es",
+  "phrase": "busca en Idealista pisos en Chamberí",
+  "proposal": "search_listings",
+  "verdicts": {},
+  "named_site": true,
+  "expect": "browser",
+  "why": ""
+ },
+ {
+  "id": "named-site-listing__en",
+  "lang": "en",
+  "phrase": "search Idealista for flats in Chamberí",
+  "proposal": "search_listings",
+  "verdicts": {},
+  "named_site": true,
+  "expect": "browser",
+  "why": ""
+ },
+ {
+  "id": "named-site-fact__es",
+  "lang": "es",
+  "phrase": "mira en la web del Ayuntamiento el horario de la piscina",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.9
+   ]
+  },
+  "named_site": true,
+  "expect": "browser",
+  "why": ""
+ },
+ {
+  "id": "named-site-fact__en",
+  "lang": "en",
+  "phrase": "check the council's website for the pool hours",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.9
+   ]
+  },
+  "named_site": true,
+  "expect": "browser",
+  "why": ""
+ },
+ {
+  "id": "named-site-images-stay__es",
+  "lang": "es",
+  "phrase": "fotos de la Sagrada Familia en Wikipedia",
+  "proposal": "show_images",
+  "verdicts": {},
+  "named_site": true,
+  "expect": "images",
+  "why": "pictures are pictures wherever he points"
+ },
+ {
+  "id": "named-site-images-stay__en",
+  "lang": "en",
+  "phrase": "pictures of the Sagrada Familia on Wikipedia",
+  "proposal": "show_images",
+  "verdicts": {},
+  "named_site": true,
+  "expect": "images",
+  "why": "pictures are pictures wherever he points"
+ },
+ {
+  "id": "breadth-three-best__es",
+  "lang": "es",
+  "phrase": "dame las tres mejores pizzerías de Valencia",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "local_service",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "local_service",
+  "why": "«best» is a quality bar, not a data field; three is his number",
+  "n_final": 3,
+  "fields": []
+ },
+ {
+  "id": "breadth-three-best__en",
+  "lang": "en",
+  "phrase": "give me the three best pizzerias in Valencia",
+  "proposal": "web_search",
+  "verdicts": {
+   "search_module": [
+    "local_service",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "local_service",
+  "why": "«best» is a quality bar, not a data field; three is his number",
+  "n_final": 3,
+  "fields": []
+ },
+ {
+  "id": "breadth-twenty__es",
+  "lang": "es",
+  "phrase": "ponme veinte coches eléctricos usados por menos de 20000",
+  "proposal": "search_listings",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "listing",
+  "why": "",
+  "n_final": 20,
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "breadth-twenty__en",
+  "lang": "en",
+  "phrase": "show me twenty used electric cars under 20000",
+  "proposal": "search_listings",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "listing",
+  "why": "",
+  "n_final": 20,
+  "fields": [
+   "price"
+  ]
+ },
+ {
+  "id": "breadth-one-good-one__es",
+  "lang": "es",
+  "phrase": "uno bueno nada más: un monitor 4K de 27 pulgadas",
+  "proposal": "search_listings",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "listing",
+  "why": "",
+  "n_final": 1
+ },
+ {
+  "id": "breadth-one-good-one__en",
+  "lang": "en",
+  "phrase": "just one good one: a 27-inch 4K monitor",
+  "proposal": "search_listings",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "listing",
+  "why": "",
+  "n_final": 1
+ },
+ {
+  "id": "breadth-none-said__es",
+  "lang": "es",
+  "phrase": "busca campers de segunda mano",
+  "proposal": "search_listings",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "listing",
+  "why": "no number said: the default breadth stands",
+  "n_final": 10
+ },
+ {
+  "id": "breadth-none-said__en",
+  "lang": "en",
+  "phrase": "find second-hand campers",
+  "proposal": "search_listings",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "listing",
+  "why": "no number said: the default breadth stands",
+  "n_final": 10
+ },
+ {
+  "id": "breadth-a-few__es",
+  "lang": "es",
+  "phrase": "unas pocas ideas de regalo para mi madre",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "",
+  "n_final": 3
+ },
+ {
+  "id": "breadth-a-few__en",
+  "lang": "en",
+  "phrase": "a few gift ideas for my mother",
+  "proposal": "web_search",
+  "verdicts": {
+   "escalate_or_inline": [
+    "handle_inline",
+    0.9
+   ]
+  },
+  "named_site": false,
+  "expect": "inline_fact",
+  "why": "",
+  "n_final": 3
+ },
+ {
+  "id": "video-not-a-search__es",
+  "lang": "es",
+  "phrase": "vídeos de poda de olivo hechos por personas",
+  "proposal": "play_video",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "not_a_search",
+  "why": "a video request goes to the player, never to the sheet"
+ },
+ {
+  "id": "video-not-a-search__en",
+  "lang": "en",
+  "phrase": "videos on olive pruning made by people",
+  "proposal": "play_video",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "not_a_search",
+  "why": "a video request goes to the player, never to the sheet"
+ },
+ {
+  "id": "music-not-a-search__es",
+  "lang": "es",
+  "phrase": "pon algo de Bill Evans",
+  "proposal": "play_music",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "not_a_search",
+  "why": ""
+ },
+ {
+  "id": "music-not-a-search__en",
+  "lang": "en",
+  "phrase": "play some Bill Evans",
+  "proposal": "play_music",
+  "verdicts": {},
+  "named_site": false,
+  "expect": "not_a_search",
+  "why": ""
+ }
+]

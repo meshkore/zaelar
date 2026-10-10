@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "id": "search",
+  "label": "Búsqueda · el servicio",
+  "description": "El servicio de búsqueda (search/): ruta, candidatura, proveedores, salud, la cara HTTP y el banco de rutas — V2-782",
+  "domain_ids": ["12"],
+  "requirements": ["python"],
+  "steps": [
+    {"id": "12.1", "label": "Una fila es candidato o es la página que los lista", "kind": "unit"},
+    {"id": "12.2", "label": "El criterio que ninguna fila enseña se dice ausente", "kind": "unit"},
+    {"id": "12.3", "label": "La petición dice cuántos y qué datos", "kind": "unit"},
+    {"id": "12.4", "label": "El banco de rutas: qué módulo sirve cada petición", "kind": "unit"},
+    {"id": "12.5", "label": "Los proveedores leen sus cargas grabadas y la cadena prefiere los índices con clave", "kind": "unit"},
+    {"id": "12.6", "label": "La sonda de salud: vivo, falta clave, agotado, bloqueado — nombres, nunca valores", "kind": "unit"},
+    {"id": "12.7", "label": "Una puerta, una forma: find() y la cara HTTP", "kind": "unit"},
+    {"id": "12.8", "label": "Independiente: el servicio no importa al turno, y los alias son el mismo módulo", "kind": "unit"}
+  ]
+}

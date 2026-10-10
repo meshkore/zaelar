@@ -7,12 +7,34 @@ still governs every call.
 """
 from __future__ import annotations
 
+from search import candidacy as _cand
+
 from . import data as _d
+
+
+def _file_pages(data: dict, pages: list[dict]) -> dict:
+    """V2-782 — pages leave the list for the Sources tab, and the reply SAYS which and why (see `search.candidacy`).
+
+    Every door into the sheet ends here, so the rule that a ranking article is a SOURCE and not a candidate is applied
+    once, for the worker's own `present`, the browser's `append`, a web search's leads and a network agent's rows alike.
+    A criterion no row can show is said missing in the same reply, so the worker's report says what it did NOT find."""
+    extra: dict = {}
+    if pages:
+        _d._merge_sections(data, {"sources": _cand.as_sources(pages)})
+        extra["not_candidates"] = [{"title": p["title"], "why": p["why"]} for p in pages]
+        extra["note_for_worker"] = _cand.note_for_worker(pages, len(data.get("items") or []))
+    gap = _cand.unshown_criteria(data.get("items") or [], data.get("criteria") or {})
+    if gap:
+        extra["criteria_unshown"] = gap
+        extra["note_for_worker"] = (extra.get("note_for_worker", "") + " No row carries any datum (price, rating, "
+                                    "phone, fact) for: " + " · ".join(gap) + ". In your report say what you did "
+                                    "NOT find; never present these rows as meeting it.").strip()
+    return extra
 
 
 def _a_present(action, payload, sheet) -> dict:
     issues = _d._audit(payload)
-    items = _d._clean_items(payload.get("items"))
+    items, pages = _cand.split(_d._clean_items(payload.get("items")))
     prev = _d.view_data(sheet)
     data = {
         "title": _d._clip(payload.get("title") or "Resultados", "sheet_title"),
@@ -53,8 +75,9 @@ def _a_present(action, payload, sheet) -> dict:
     # A `present` may also deliver the other sections (delivering everything at once is one less round trip for
     # the worker). They are MERGED over existing data, not blindly replaced.
     _d._merge_sections(data, payload)
+    extra = _file_pages(data, pages)
     _d._save(data, sheet)
-    return {"ok": True, "shown": len(items), "presentation": issues}
+    return {"ok": True, "shown": len(items), "presentation": issues, **extra}
 
 
 def _a_append(action, payload, sheet) -> dict:
@@ -63,7 +86,9 @@ def _a_append(action, payload, sheet) -> dict:
     if not add:
         return {"ok": False, "error": "append sin items válidos (cada item necesita al menos title)"}
     data = _d.view_data(sheet)
-    data.pop("note", None)
+    add, pages = _cand.split(add, prior=data["items"])
+    if add:
+        data.pop("note", None)
     seen = {(i.get("title"), i.get("url")) for i in data["items"]}
     for it in add:
         key = (it.get("title"), it.get("url"))
@@ -82,8 +107,9 @@ def _a_append(action, payload, sheet) -> dict:
     if lay in _d._LAYOUTS:
         data["layout"] = lay
     _d._merge_sections(data, payload)
+    extra = _file_pages(data, pages)
     _d._save(data, sheet)
-    return {"ok": True, "shown": len(data["items"]), "presentation": issues}
+    return {"ok": True, "shown": len(data["items"]), "presentation": issues, **extra}
 
 
 def _a_clear(action, payload, sheet) -> dict:

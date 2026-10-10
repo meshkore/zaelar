@@ -1,0 +1,190 @@
+{
+  "title": "Comparar aseguradoras de coche para renovar",
+  "subtitle": "",
+  "items": [
+    {
+      "title": "Dar parte de hogar",
+      "url": "https://www.mapfre.es/particulares/contacto/dar-parte-hogar/",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "+34918365365"
+        }
+      ]
+    },
+    {
+      "title": "política de",
+      "url": "https://www.mapfre.es/seguros/privacidad/privacidad.jsp",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "911985503"
+        }
+      ]
+    },
+    {
+      "title": "Política de Privacidad",
+      "url": "https://www.mapfre.es/privacidad/",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "+34919037013"
+        }
+      ]
+    },
+    {
+      "title": "Preguntas Frecuentes de Seguros…",
+      "url": "https://www.mapfre.es/particulares/seguros-de-hogar/articulos/",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "+34918365365"
+        }
+      ]
+    },
+    {
+      "title": "Preguntas Frecuentes de Seguros…",
+      "url": "https://www.mapfre.es/particulares/seguros-viaje/articulos/",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "+34918366280"
+        }
+      ]
+    },
+    {
+      "title": "Preguntas Frecuentes sobre…",
+      "url": "https://www.mapfre.es/particulares/patinete-electrico/articulos/",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "+34918366280"
+        }
+      ]
+    },
+    {
+      "title": "Calcular precio",
+      "price": "156€",
+      "url": "https://calculatuseguro.qualitasauto.com/?insuranceType=AUTO&origin=WEB"
+    },
+    {
+      "title": "Coches y motos",
+      "url": "https://www.pelayo.com/servicios-clientes/coches-motos",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "65 111 88 88"
+        }
+      ]
+    },
+    {
+      "title": "Hogar",
+      "url": "https://www.pelayo.com/servicios-clientes/hogar",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "65 111 88 88"
+        }
+      ]
+    },
+    {
+      "title": "Resto de seguros",
+      "url": "https://www.pelayo.com/servicios-clientes/resto-de-seguros",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "65 111 88 88"
+        }
+      ]
+    },
+    {
+      "title": "nuestras oficinas",
+      "url": "https://www.pelayo.com/oficinas-seguros",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "91 520 05 00"
+        }
+      ]
+    },
+    {
+      "title": "En la Oficina de Internet",
+      "url": "https://www.pelayo.com/login",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "91 520 05 00"
+        }
+      ]
+    },
+    {
+      "title": "Atención al cliente: 91 078 98 88",
+      "url": "https://www.allianzdirect.es/contacto/",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "91 078 98 88"
+        }
+      ]
+    },
+    {
+      "title": "Pedir una grúa",
+      "url": "https://www.allianzdirect.es/servicios/pedir-grua/",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "91 078 98 88"
+        }
+      ]
+    },
+    {
+      "title": "Dar un parte",
+      "url": "https://www.allianzdirect.es/servicios/",
+      "facts": [
+        {
+          "label": "Teléfono",
+          "value": "91 078 98 88"
+        }
+      ]
+    },
+    {
+      "title": "Más información",
+      "price": "180 €",
+      "url": "https://www.verti.es/promociones/verti-driver/"
+    }
+  ],
+  "empty": false,
+  "harvest": {},
+  "sources": [
+    {
+      "name": "www.mapfre.es",
+      "url": "https://www.mapfre.es/particulares/seguros-de-coche/",
+      "status": "ok",
+      "found": 6
+    },
+    {
+      "name": "www.qualitasauto.com",
+      "url": "https://www.qualitasauto.com/seguros-coche/terceros-ampliado/",
+      "status": "ok",
+      "found": 1
+    },
+    {
+      "name": "www.pelayo.com",
+      "url": "https://www.pelayo.com/seguros-coche/terceros/ampliado",
+      "status": "ok",
+      "found": 5
+    },
+    {
+      "name": "www.allianzdirect.es",
+      "url": "https://www.allianzdirect.es/seguro-de-coche/",
+      "status": "ok",
+      "found": 3
+    },
+    {
+      "url": "https://www.verti.es/seguros/seguros-coche/terceros-ampliado/",
+      "status": "ok",
+      "found": 1,
+      "name": "www.verti.es"
+    }
+  ]
+}

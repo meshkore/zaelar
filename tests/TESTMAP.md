@@ -84,6 +84,7 @@ de verdad distingue "la voz funciona pero el chat no":
 | 7 | SERVER/OBS | 7.1 bus/log · 7.2 SSE · 7.3 chat-transporte-real(vivo) · 7.4 smoke-integral(vivo) |
 | 8 | ENERGÍA/CONFIG | 8.1 energía/límites · 8.2 perfiles/v2/doctor/credenciales |
 | 9 | HOMEOSTASIS | 9.1 detección/seguridad/eviction/rotación · 9.2 salud-viva(vivo) |
+| 12 | BÚSQUEDA (el servicio, V2-782) | 12.1 candidato≠página · 12.2 criterio no enseñado · 12.3 cuántos/qué datos · 12.4 banco de rutas · 12.5 proveedores+cadena · 12.6 sonda de salud · 12.7 find()+HTTP · 12.8 independencia |
 
 ## Segunda opinión (qué está bien y qué falta)
 

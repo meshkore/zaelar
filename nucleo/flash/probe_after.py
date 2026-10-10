@@ -334,6 +334,9 @@ async def answer_a_search(*, FastClient, _forced_search, _res, action, dialog, o
                                                                "payload": _card["payload"], "_repair": True}})
             return {"action": "widget_data", "spoken": ""}
         try:
+            from nucleo.flash import search_routing as _sr          # V2-782: the service's route, in shadow
+            from voice.observer import emit as _emit_route
+            _sr.shadow(_sq, proposal="web_search", brief=_tbrief, emit=_emit_route, channel="probe")
             from nucleo import websearch as _ws
             _t_s = _probe.time.time()
             _res = await _probe.asyncio.to_thread(_ws.search, _sq)

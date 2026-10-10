@@ -178,49 +178,43 @@ break the daemon's automation or the project's git contract.
    operator's live picture of the project. Full decision chain:
    `.meshkore/docs/conventions/initiative-anchored-execution.md`.
 
-9. **The team — two verbs (§28, v36, revised v37).** The project has a roster of agent
-   profiles at `.meshkore/team/*.md`. They are not gates you need
-   permission from: you are a general agent and nothing is closed to you.
-   Each card is a prompt plus a slice of the project's knowledge, and you
-   have two ways to use one.
+9. **The team (§25, §28, revised v38).** The project has a roster of agent
+   profiles at `.meshkore/team/*.md`. A project is seeded with a small base
+   team: `a01` (the Architect Agent, which coordinates), `developer`,
+   `git-manager`, `deployer` and the public `consultant`. Each card is a
+   short prompt plus the slice of the project's knowledge that member
+   needs — a deployer does not load the data model.
 
-   **`become`** — adopt a teammate's profile for your next turn, in this
-   same conversation. Put `⟦become⟧ <member id>` on its own line, say in
-   one line why, and end the turn. No new session, no new row in the
-   operator's rail, nothing to wait for; your history and your code client
-   are untouched. This is the default move whenever the work is sequential
-   — you are about to deploy, then carry on.
-
-   **`delegate`** — give it to that member's own session:
+   **`delegate`** — the default way to use a teammate:
    `POST <daemon>/chat/delegate {parent_conv, member, brief}`, then END
    your turn; the daemon wakes you when that member reports, naming your
-   `request_id`. Right when the work should run BESIDE yours: long and
-   opaque so your turn can end, genuinely parallel, or needing a second
-   pair of eyes on your own work. **A member is ONE session** (§28.6):
-   your brief goes to the `deployer` that already exists, the same one
-   other agents hand deploys to, merged into its next turn. You do not get
-   a private copy, and that is the point — it is how three frontend
-   changes become one deploy instead of three agents racing in the same
-   tree.
+   `request_id`. The member runs in its own session with its own profile
+   and slice, so your thread stays about the plan. Chain the next step
+   from the report (build → commit → deploy) and give independent steps
+   to different members at once. **A member is ONE session** (§28.6): your
+   brief joins whatever that member is already holding.
 
-   **Or neither.** Most work is just work: a small fix, its test and its
-   commit are one agent's job. Never `become` to look thorough and never
-   delegate to spread a task thin or to avoid reading code.
+   **`become`** — `⟦become⟧ <member id>` on its own line adopts a profile
+   for your next turn in this same conversation. Only for one short step;
+   never to chain a pipeline through one thread.
 
-   **Usually the roster is just you** (v37). A project is seeded with ONE
-   agent — `a01`, the Architect Agent — and grows a team only when the
-   operator writes one. A catalog that lists nobody else is the normal
-   state, not a gap: do the work yourself. If you keep reaching for the
-   same shape of teammate, write its card once; never invent one to route
-   around.
+   **Or neither.** Most work is just work: a small fix and its test are
+   one agent's job. Never delegate to spread a task thin or to avoid
+   reading code. When the team has a `git-manager`, commits are its job:
+   leave your change in the working tree and list the files in your
+   report.
+
+   **Talk to the operator in sentences.** Report objects and markers are
+   agent-to-agent; never paste them into prose the operator reads.
 
    **If YOU are the member holding briefs**, you will see the whole batch:
    read it together, merge what collapses into one piece of work, and name
    every request id you answered in the report's `"for"` field. **If YOU
    were delegated**, three duties follow: anchor to the `(initiative,
    task)` your brief names (never mint a new one for a delegated step),
-   end your final reply with the `⟦report⟧` line, and add
-   `Parent: <parent member id>@<parent conv>` to your commit trailers.
+   end your final reply with the `⟦report⟧` line (once, as the last line —
+   never echo the object elsewhere), and add
+   `Parent: <parent member id>@<parent conv>` to any commit trailers.
    Do not write a diary entry for a delegated step — the root of the unit
    of work writes one entry for the whole thing. Full contract: §28.
 
@@ -298,8 +292,7 @@ http://localhost:43917 · https://local.zaelar.com:44317. `make restart` para re
 
 ## Cómo se trabaja aquí — las normas del operador
 
-Esto es lo que él ha pedido explícitamente, repetido y por escrito. Está arriba del todo porque es lo que más
-se incumple.
+Esto es lo que él ha pedido explícitamente, repetido y por escrito. Está arriba del todo porque es lo que más se incumple.
 
 - **Respuestas hipercomprimidas.** Al grano, sin narrar el proceso, lo esencial en pocas líneas; el detalle
   solo si lo pide. Al CERRAR una tanda —no en cada turno— se acaba con un bloque de **una línea por tarea
@@ -514,6 +507,7 @@ arranque `make run` → `python -m server`.
 |---|---|
 | `voice/` | Motor **LiveKit** (`voice/engine/`): STT/TTS, turnos, VAD, barge-in. Encima, el contrato del cerebro agnóstico del transporte: `attention.py` (qué turno va dirigido a zaelar), `speech.py`, `observer.py` (SSE). |
 | `nucleo/` | El **cerebro «Colmena»**: `flash/` (reflejo sub-segundo, enruta y responde), `workers/` (Brain Workers para lo que no cabe en un turno), `errands/` (un encargo que sobrevive al turno), `loop.py`+`scheduler.py` (pulso, crons, proactividad), `memory_agent.py`+`mem_processor.py` (único escritor de la memoria). A request's life: `spec.py` (born with its end state) → `circuit.py` (one loop, one bound, one report) → `tasks.py` (the durable row); `consent.py` (the one act-or-ask rule), `turn/` (decisions both channels share), `batch/` (several tasks → a list), `actionmap/` (a known phrase skips the model), `jev.py`, `susurro/`, `context_packs/`. |
+| `search/` | El **servicio de búsqueda** (V2-782): una puerta (`find()`), una forma de resultado (candidato ≠ página que los lista), la ruta por veredicto, los proveedores declarados una vez con su sonda de salud (`python -m search.health`) y la cara HTTP `/api/search/*`. No importa al turno ni al motor; el servidor le enchufa sus costuras al arrancar. Mapa: `.meshkore/docs/modules/zaelar-search.md`. |
 | `memory/` | **Memoria central** en un solo SQLite (`zaelar.db`): píldoras con `slot`, retriever (sqlite-vec + FTS5 + reranker), grafo, consolidador y fase REM, capa episódica y la bóveda de secretos. |
 | `observability/` | **QUIÉN · CUÁNDO · en qué FLUJO**: identidad de instalación y de sesión, lectura por `corr_id`. Solo lectura — el único escritor de `events` es el sink del bus. |
 | `bus/` | **Sistema nervioso**: pub/sub in-process + log durable de eventos + puente SSE al frontend. Nada de Kafka. |

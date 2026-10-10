@@ -1,0 +1,407 @@
+{
+  "title": "4-star hotels · San Diego · 16–20 Oct 2026",
+  "subtitle": "7 confirmed four-star options · 2 adults, 4 nights · prices are 4-night totals for the same dates, free-cancellation flagged where the rate allows it",
+  "items": [
+    {
+      "title": "Margaritaville Hotel Gaslamp",
+      "subtitle": "Gaslamp Quarter · downtown",
+      "price": "$1,138 total",
+      "badge": "Best overall",
+      "url": "https://book.liteapi.travel/hotel/lp369ef?checkin=2026-10-16&checkout=2026-10-20&adults=2&currency=USD",
+      "image": "https://static.cupid.travel/hotels/thumbnail/511143696.jpg",
+      "primary": true,
+      "facts": [
+        {
+          "label": "Star class",
+          "value": "4 stars (Booking.com)"
+        },
+        {
+          "label": "Guest score",
+          "value": "9.4 / 10"
+        },
+        {
+          "label": "Per night",
+          "value": "$284.53"
+        },
+        {
+          "label": "4 nights, 2 adults",
+          "value": "$1,138.13"
+        },
+        {
+          "label": "Dates",
+          "value": "Fri 16 – Tue 20 Oct 2026"
+        },
+        {
+          "label": "Cancellation",
+          "value": "Free cancellation"
+        },
+        {
+          "label": "Area",
+          "value": "Gaslamp Quarter, downtown"
+        }
+      ],
+      "score": {
+        "value": 9.4,
+        "max": 10,
+        "why": "Highest guest score of the shortlist and also the cheapest four-star"
+      }
+    },
+    {
+      "title": "Catamaran Resort Hotel & Spa",
+      "subtitle": "Mission Bay · beachfront resort",
+      "price": "$1,177 total",
+      "badge": "Coastal",
+      "url": "https://book.liteapi.travel/hotel/lp31b3c?checkin=2026-10-16&checkout=2026-10-20&adults=2&currency=USD",
+      "image": "https://static.cupid.travel/hotels/thumbnail/110103523.jpg",
+      "primary": true,
+      "facts": [
+        {
+          "label": "Star class",
+          "value": "4 stars (Booking.com)"
+        },
+        {
+          "label": "Guest score",
+          "value": "8.8 / 10"
+        },
+        {
+          "label": "Per night",
+          "value": "$294.17"
+        },
+        {
+          "label": "4 nights, 2 adults",
+          "value": "$1,176.66"
+        },
+        {
+          "label": "Dates",
+          "value": "Fri 16 – Tue 20 Oct 2026"
+        },
+        {
+          "label": "Cancellation",
+          "value": "Free cancellation"
+        },
+        {
+          "label": "Area",
+          "value": "Mission Bay / Mission Beach"
+        }
+      ],
+      "score": {
+        "value": 8.8,
+        "max": 10,
+        "why": "Polynesian-style beach resort on Sail Bay with pool and spa"
+      }
+    },
+    {
+      "title": "San Diego Marriott La Jolla",
+      "subtitle": "La Jolla (UTC) · quiet, near UCSD",
+      "price": "$1,213 total",
+      "url": "https://book.liteapi.travel/hotel/lp1c06d?checkin=2026-10-16&checkout=2026-10-20&adults=2&currency=USD",
+      "image": "https://static.cupid.travel/hotels/thumbnail/506768903.jpg",
+      "facts": [
+        {
+          "label": "Star class",
+          "value": "4 stars"
+        },
+        {
+          "label": "Guest score",
+          "value": "8.6 / 10"
+        },
+        {
+          "label": "Per night",
+          "value": "$303.18"
+        },
+        {
+          "label": "4 nights, 2 adults",
+          "value": "$1,212.70"
+        },
+        {
+          "label": "Dates",
+          "value": "Fri 16 – Tue 20 Oct 2026"
+        },
+        {
+          "label": "Cancellation",
+          "value": "Free cancellation"
+        },
+        {
+          "label": "Area",
+          "value": "La Jolla / University City"
+        }
+      ],
+      "score": {
+        "value": 8.6,
+        "max": 10,
+        "why": "Full-service Marriott in La Jolla, cheaper than the downtown four-stars"
+      }
+    },
+    {
+      "title": "Courtyard Marriott Downtown",
+      "subtitle": "Downtown · 4 blocks from the bay",
+      "price": "$1,382 total",
+      "url": "https://book.liteapi.travel/hotel/lp27311?checkin=2026-10-16&checkout=2026-10-20&adults=2&currency=USD",
+      "image": "https://static.cupid.travel/hotels/thumbnail/577070336.jpg",
+      "facts": [
+        {
+          "label": "Star class",
+          "value": "4 stars (Booking.com)"
+        },
+        {
+          "label": "Guest score",
+          "value": "9.0 / 10"
+        },
+        {
+          "label": "Per night",
+          "value": "$345.56"
+        },
+        {
+          "label": "4 nights, 2 adults",
+          "value": "$1,382.23"
+        },
+        {
+          "label": "Dates",
+          "value": "Fri 16 – Tue 20 Oct 2026"
+        },
+        {
+          "label": "Cancellation",
+          "value": "Free cancellation"
+        },
+        {
+          "label": "Area",
+          "value": "Downtown San Diego"
+        }
+      ],
+      "score": {
+        "value": 9,
+        "max": 10,
+        "why": "Well-rated downtown base, walkable to Gaslamp and the waterfront"
+      }
+    },
+    {
+      "title": "Hotel Indigo Gaslamp Quarter",
+      "subtitle": "Gaslamp · East Village, 9th Ave",
+      "price": "$1,493 total",
+      "url": "https://book.liteapi.travel/hotel/lp4f293?checkin=2026-10-16&checkout=2026-10-20&adults=2&currency=USD",
+      "image": "https://static.cupid.travel/hotels/thumbnail/275337457.jpg",
+      "facts": [
+        {
+          "label": "Star class",
+          "value": "4 stars (Booking.com)"
+        },
+        {
+          "label": "Guest score",
+          "value": "9.0 / 10"
+        },
+        {
+          "label": "Per night",
+          "value": "$373.20"
+        },
+        {
+          "label": "4 nights, 2 adults",
+          "value": "$1,492.81"
+        },
+        {
+          "label": "Dates",
+          "value": "Fri 16 – Tue 20 Oct 2026"
+        },
+        {
+          "label": "Cancellation",
+          "value": "Free cancellation"
+        },
+        {
+          "label": "Area",
+          "value": "Gaslamp Quarter, downtown"
+        }
+      ],
+      "score": {
+        "value": 9,
+        "max": 10,
+        "why": "Boutique IHG property right in the Gaslamp dining district"
+      }
+    },
+    {
+      "title": "Hotel La Jolla, Curio by Hilton",
+      "subtitle": "La Jolla Shores · 2 blocks from beach",
+      "price": "$1,649 total",
+      "url": "https://book.liteapi.travel/hotel/lp1f9d8?checkin=2026-10-16&checkout=2026-10-20&adults=2&currency=USD",
+      "image": "https://static.cupid.travel/hotels/thumbnail/474388135.jpg",
+      "facts": [
+        {
+          "label": "Star class",
+          "value": "4 stars (Booking.com)"
+        },
+        {
+          "label": "Guest score",
+          "value": "9.0 / 10"
+        },
+        {
+          "label": "Per night",
+          "value": "$412.20"
+        },
+        {
+          "label": "4 nights, 2 adults",
+          "value": "$1,648.78"
+        },
+        {
+          "label": "Dates",
+          "value": "Fri 16 – Tue 20 Oct 2026"
+        },
+        {
+          "label": "Cancellation",
+          "value": "Non-refundable rate"
+        },
+        {
+          "label": "Area",
+          "value": "La Jolla Shores"
+        }
+      ],
+      "score": {
+        "value": 9,
+        "max": 10,
+        "why": "Closest to La Jolla Shores beach and the kayak/snorkel launch"
+      }
+    },
+    {
+      "title": "Estancia La Jolla Hotel & Spa",
+      "subtitle": "Torrey Pines · AAA Four-Diamond resort",
+      "price": "$2,347 total",
+      "badge": "Splurge",
+      "url": "https://book.liteapi.travel/hotel/lp34fac?checkin=2026-10-16&checkout=2026-10-20&adults=2&currency=USD",
+      "image": "https://static.cupid.travel/hotels/thumbnail/12616889.jpg",
+      "facts": [
+        {
+          "label": "Star class",
+          "value": "4 stars (Google/Trip)"
+        },
+        {
+          "label": "Guest score",
+          "value": "9.0 / 10"
+        },
+        {
+          "label": "Per night",
+          "value": "$586.70"
+        },
+        {
+          "label": "4 nights, 2 adults",
+          "value": "$2,346.80"
+        },
+        {
+          "label": "Dates",
+          "value": "Fri 16 – Tue 20 Oct 2026"
+        },
+        {
+          "label": "Cancellation",
+          "value": "Free cancellation"
+        },
+        {
+          "label": "Area",
+          "value": "La Jolla / Torrey Pines"
+        }
+      ],
+      "score": {
+        "value": 9,
+        "max": 10,
+        "why": "Resort grounds and spa; the priciest four-star of the set"
+      }
+    }
+  ],
+  "kind": "place",
+  "layout": "card",
+  "sources": [
+    {
+      "name": "RoomRover (LiteAPI: Booking, Expedia, RateHawk)",
+      "url": "https://roomrover.rjj.workers.dev",
+      "status": "ok",
+      "detail": "Live quotes for 16–20 Oct, 2 adults, USD",
+      "found": 18
+    },
+    {
+      "name": "Google Hotels",
+      "url": "https://www.google.com/travel/search",
+      "status": "partial",
+      "detail": "4-star filter works, but prices come back in EUR and the list would not paginate",
+      "found": 4
+    },
+    {
+      "name": "Kayak",
+      "url": "https://www.kayak.com/hotels/San-Diego,California-c10760/2026-10-16/2026-10-20/2adults",
+      "status": "partial",
+      "detail": "Class 4+ filter works in USD, but results only advance one card at a time",
+      "found": 14
+    },
+    {
+      "name": "Booking.com",
+      "url": "https://www.booking.com/searchresults.html",
+      "status": "blocked",
+      "detail": "Anti-robot wall on the results page; star classes were confirmed from its hotel pages instead",
+      "found": 0
+    },
+    {
+      "name": "Expedia",
+      "url": "https://www.expedia.com/Hotel-Search",
+      "status": "blocked",
+      "detail": "Bot check",
+      "found": 0
+    },
+    {
+      "name": "Hotels.com",
+      "url": "https://www.hotels.com/Hotel-Search",
+      "status": "blocked",
+      "detail": "Bot check",
+      "found": 0
+    },
+    {
+      "name": "Priceline",
+      "url": "https://www.priceline.com",
+      "status": "blocked",
+      "detail": "Access denied",
+      "found": 0
+    }
+  ],
+  "summary": {
+    "explored": 18,
+    "selected": 7,
+    "state": "7 four-star options confirmed for 16–20 Oct 2026, 2 adults, priced and compared",
+    "note": "Star class cross-checked on Booking.com / Google before keeping each hotel"
+  },
+  "empty": false,
+  "process": [
+    "entrando en google.com…",
+    "entrando en expedia.com…",
+    "entrando en us.trip.com…",
+    "escribiendo «San Diego, California, United States»…",
+    "usando el teclado…",
+    "entrando en priceline.com…",
+    "Cross-checking the 4-star candidates and prices on Google Hotels; Booking, Expedia and Priceline are blocking automated access",
+    "ejecutando un paso…",
+    "buscando «Best Western Plus Island Palms\" San Diego Booking.com star …»…",
+    "buscando «Hotel Z\" Gaslamp San Diego star rating Booking.com 4 star»…",
+    "buscando «Courtyard by Marriott San Diego Downtown Little Italy\" star…»…",
+    "buscando «Bahia Resort Hotel\" San Diego star rating 3 star or 4 star»…",
+    "buscando «Humphreys Half Moon Inn\" San Diego star rating Booking.com»…",
+    "buscando «The Dana on Mission Bay\" San Diego star rating Booking.com …»…",
+    "buscando «Homewood Suites by Hilton San Diego Airport Liberty Station…»…",
+    "buscando «Courtyard by Marriott San Diego Downtown\" star rating Booki…»…",
+    "ejecutando un paso…",
+    "entrando en kayak.com…",
+    "recogiendo lo que hay en la página…",
+    "recorriendo la página…",
+    "entrando en kayak.com…",
+    "recorriendo la página…",
+    "pulsando en la página…",
+    "buscando «Hotel La Jolla, Curio Collection by Hilton\" star rating Boo…»…",
+    "buscando «San Diego Marriott La Jolla\" star rating Booking.com 4 stars»…",
+    "pulsando en la página…",
+    "buscando «EUR to USD exchange rate today»…",
+    "pulsando en la página…",
+    "buscando «Estancia La Jolla Hotel\" star rating Booking.com 4 stars»…",
+    "pulsando en la página…",
+    "entrando en hotels.com…",
+    "Consolidating the 4-star shortlist: star class verified on Booking.com, now checking the cheapest 4-star options before publishing",
+    "ejecutando un paso…",
+    "mirando «results»…",
+    "ejecutando un paso…",
+    "buscando «Hotel Indigo San Diego Gaslamp Quarter\" Booking.com star ra…»…",
+    "escribiendo informe.json…",
+    "escribiendo en «results»…",
+    "abriéndote «results»…",
+    "💬 Seven confirmed 4-star hotels for **16–20 Oct 2026** (Fri–Tue, 4 nights, 2 adults) are on screen, all live-priced for those exact dates. **Bottom line…"
+  ]
+}

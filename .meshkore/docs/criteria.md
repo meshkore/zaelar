@@ -231,6 +231,30 @@ below is the first kind, or it names the mechanism that replaced the second.
 
 ---
 
+## 8 · Search — the service
+
+- **CRIT-S1 · A row on the results sheet is a CANDIDATE or the PAGE that lists candidates, never both.** A
+  candidate names one thing and carries a datum of its own (price, rating, its own phone, a fact); a row without one
+  whose title counts or ranks a category, or whose url is an article/policy page, goes to Sources with its reason
+  and the reply says so. Applied once, at `present`/`append`. — since 2026-10-10 · nodes 12.1 · `search/candidacy.py`.
+- **CRIT-S2 · A criterion NO row can show is said missing, never implied met.** When every row carries only a name
+  and a link, the sheet's digest and `find().unshown` name the asked criteria (rating, availability, price) as not
+  found. — since 2026-10-10 · nodes 12.2.
+- **CRIT-S3 · The number the operator said is his breadth.** «A couple» is three and «las tres mejores» is three; a
+  request that names none keeps the floor (25 / 10). An article («un piso», «a flat») is not a number. The research
+  brief caps the model's own count with it. — since 2026-10-10 · nodes 12.3, 12.8 · `search/criteria.py`.
+- **CRIT-S4 · ONE place routes a search request to its module**, by precedence: the brief's sure `search_module`
+  verdict → the model's named tool → the unsure verdict → escalate + surface → default fact. No verb tables; a video
+  or music request never consults it. Applied in SHADOW until the recorded sessions show zero false routes. — since
+  2026-10-10 · nodes 12.4, 12.8 · `search/route.py`, `nucleo/flash/search_routing.py`.
+- **CRIT-S5 · Every search provider is declared once, probed with one minimal real call, and reported by key
+  NAME**: live · missing · exhausted · blocked · credential; a missing key is missing, never down. The use-case
+  harness does not grade a batch when no provider can answer (exit 4, INFRA). — since 2026-10-10 · nodes 12.5, 12.6
+  · `search/providers/`, `search/health.py`.
+- **CRIT-S6 · The search service owes the turn nothing.** `search/` never imports `nucleo/flash`, `voice` or
+  `widgets`; what it needs from the host (status light, timeline) are hooks set at boot; the old `nucleo.*` import
+  paths are aliases of the same modules. — since 2026-10-10 · nodes 12.8 · `search/hooks.py`.
+
 ## Contradicciones (esta tabla tiene que estar vacía)
 
 | topic | rule A | rule B | winner |

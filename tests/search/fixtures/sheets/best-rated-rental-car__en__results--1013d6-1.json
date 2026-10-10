@@ -1,0 +1,376 @@
+{
+  "title": "Car rental in Austin · weekend 10–11 Oct 2026",
+  "subtitle": "In progress · 30+ Austin branches scanned, real ratings pulled, availability and total price for the exact dates still being verified",
+  "items": [
+    {
+      "title": "Avis Car Rental — W 35th St",
+      "subtitle": "Central Austin counter · provisional, not yet priced",
+      "badge": "Provisional",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "facts": [
+        {
+          "label": "Rating (Google)",
+          "value": "4.8 / 5"
+        },
+        {
+          "label": "Reviews",
+          "value": "260"
+        },
+        {
+          "label": "Address",
+          "value": "1610 West 35th Street, Austin"
+        },
+        {
+          "label": "Status",
+          "value": "Rating verified from directory, branch availability pending"
+        }
+      ]
+    },
+    {
+      "title": "Avis Car Rental — W Slaughter Ln",
+      "subtitle": "South Austin counter · provisional, not yet priced",
+      "badge": "Provisional",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "facts": [
+        {
+          "label": "Rating (Google)",
+          "value": "4.8 / 5"
+        },
+        {
+          "label": "Reviews",
+          "value": "118"
+        },
+        {
+          "label": "Address",
+          "value": "2110 West Slaughter Ln, Austin"
+        },
+        {
+          "label": "Status",
+          "value": "Rating verified from directory, branch availability pending"
+        }
+      ]
+    },
+    {
+      "title": "Avis Car Rental — Burnet Rd (8820)",
+      "subtitle": "North Austin counter · provisional, not yet priced",
+      "badge": "Provisional",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "facts": [
+        {
+          "label": "Rating (Google)",
+          "value": "4.7 / 5"
+        },
+        {
+          "label": "Reviews",
+          "value": "127"
+        },
+        {
+          "label": "Address",
+          "value": "8820 Burnet Road, Austin"
+        },
+        {
+          "label": "Status",
+          "value": "Rating verified from directory, branch availability pending"
+        }
+      ]
+    },
+    {
+      "title": "Avis Car Rental — Burnet Rd (7100)",
+      "subtitle": "North Austin counter · provisional, not yet priced",
+      "badge": "Provisional",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "facts": [
+        {
+          "label": "Rating (Google)",
+          "value": "4.6 / 5"
+        },
+        {
+          "label": "Reviews",
+          "value": "163"
+        },
+        {
+          "label": "Address",
+          "value": "7100 Burnet Road, Austin"
+        },
+        {
+          "label": "Status",
+          "value": "Rating verified from directory, branch availability pending"
+        }
+      ]
+    },
+    {
+      "title": "Budget Car Rental — W 35th St",
+      "subtitle": "Central Austin counter · provisional, not yet priced",
+      "badge": "Provisional",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "facts": [
+        {
+          "label": "Rating (Google)",
+          "value": "4.6 / 5"
+        },
+        {
+          "label": "Reviews",
+          "value": "132"
+        },
+        {
+          "label": "Address",
+          "value": "1610 West 35th Street, Austin"
+        },
+        {
+          "label": "Status",
+          "value": "Rating verified from directory, branch availability pending"
+        }
+      ]
+    },
+    {
+      "title": "Avis Car Rental — S Capital of…",
+      "subtitle": "West Austin counter · provisional, not yet priced",
+      "badge": "Provisional",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "facts": [
+        {
+          "label": "Rating (Google)",
+          "value": "4.5 / 5"
+        },
+        {
+          "label": "Reviews",
+          "value": "191"
+        },
+        {
+          "label": "Address",
+          "value": "2901 S Capital of Texas Hwy, Ste P07"
+        },
+        {
+          "label": "Status",
+          "value": "Rating verified from directory, branch availability pending"
+        }
+      ]
+    },
+    {
+      "title": "Enterprise — W US 290",
+      "subtitle": "West Austin counter · provisional, not yet priced",
+      "badge": "Provisional",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "facts": [
+        {
+          "label": "Rating (Google)",
+          "value": "4.5 / 5"
+        },
+        {
+          "label": "Reviews",
+          "value": "86"
+        },
+        {
+          "label": "Address",
+          "value": "5350 West US Hwy 290 Service Rd"
+        },
+        {
+          "label": "Status",
+          "value": "Rating verified from directory, branch availability pending"
+        }
+      ]
+    },
+    {
+      "title": "National Car Rental — AUS airport",
+      "subtitle": "In-terminal at Austin-Bergstrom · provisional",
+      "badge": "Provisional",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "facts": [
+        {
+          "label": "Rating (Google)",
+          "value": "4.4 / 5"
+        },
+        {
+          "label": "Reviews",
+          "value": "408"
+        },
+        {
+          "label": "Address",
+          "value": "3819 Presidential Blvd, Austin 78719"
+        },
+        {
+          "label": "Status",
+          "value": "Rating verified from directory, availability pending"
+        }
+      ]
+    },
+    {
+      "title": "Budget Car Rental — S Capital of…",
+      "subtitle": "West Austin counter · provisional, not yet priced",
+      "badge": "Provisional",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "facts": [
+        {
+          "label": "Rating (Google)",
+          "value": "4.4 / 5"
+        },
+        {
+          "label": "Reviews",
+          "value": "76"
+        },
+        {
+          "label": "Address",
+          "value": "2901 S Capital of Texas Hwy, Ste P07"
+        },
+        {
+          "label": "Status",
+          "value": "Rating verified from directory, branch availability pending"
+        }
+      ]
+    },
+    {
+      "title": "Alamo Rent A Car — AUS airport",
+      "subtitle": "In-terminal at Austin-Bergstrom · provisional",
+      "badge": "Provisional",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "facts": [
+        {
+          "label": "Rating (Google)",
+          "value": "4.3 / 5"
+        },
+        {
+          "label": "Reviews",
+          "value": "389"
+        },
+        {
+          "label": "Address",
+          "value": "3819 Presidential Blvd, Austin 78719"
+        },
+        {
+          "label": "Status",
+          "value": "Rating verified from directory, availability pending"
+        }
+      ]
+    },
+    {
+      "title": "Enterprise — AUS airport",
+      "subtitle": "In-terminal at Austin-Bergstrom · provisional",
+      "badge": "Provisional",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "facts": [
+        {
+          "label": "Rating (Google)",
+          "value": "4.0 / 5"
+        },
+        {
+          "label": "Reviews",
+          "value": "486"
+        },
+        {
+          "label": "Address",
+          "value": "3819 Presidential Blvd, Austin 78719"
+        },
+        {
+          "label": "Status",
+          "value": "Rating verified from directory, availability pending"
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "name": "búsqueda web (ddg)",
+      "status": "ok",
+      "found": 4
+    },
+    {
+      "name": "Google Maps",
+      "url": "https://www.google.com/maps/search/car+rental+near+Austin-Bergstrom+International+Airport",
+      "status": "partial",
+      "detail": "9 brands confirmed at AUS. The star value is not exposed as text to the agent (no vision), so ratings are cross-checked elsewhere.",
+      "found": 9
+    },
+    {
+      "name": "Kayak cars (AUS, 10–11 Oct 2026)",
+      "url": "https://www.kayak.com/cars/Austin-Bergstrom-Intl-Airport,AUS/2026-10-10/2026-10-11",
+      "status": "ok",
+      "detail": "27 real deals loaded for the exact dates; total prices $52–$300 for the weekend.",
+      "found": 27
+    },
+    {
+      "name": "Rentalcars.com (AUS, 10–11 Oct 2026)",
+      "url": "https://www.rentalcars.com/search-results?locationIata=AUS&puDay=10&puMonth=10&puYear=2026&doDay=11&doMonth=10&doYear=2026",
+      "status": "ok",
+      "detail": "114 cars available at the airport for those dates (Alamo 80, National 34), all in-terminal, unlimited mileage.",
+      "found": 114
+    },
+    {
+      "name": "Loc8NearMe directory (Austin car rental)",
+      "url": "https://www.loc8nearme.com/texas/austin/car-rental/",
+      "status": "ok",
+      "detail": "30 Austin branches with star rating and review count — the source of the branch ratings above.",
+      "found": 30
+    },
+    {
+      "name": "Birdeye reviews (Hertz Austin)",
+      "url": "https://reviews.birdeye.com/hertz-car-rental-austin-south-austin-hle-166737854335114",
+      "status": "ok",
+      "detail": "Hertz Austin branches sit at 1.9–3.2 stars — below the 4.0 quality bar.",
+      "found": 4
+    },
+    {
+      "name": "Google Search",
+      "url": "https://www.google.com/search",
+      "status": "blocked",
+      "detail": "Anti-bot verification wall — could not read search results from the browser.",
+      "found": 0
+    }
+  ],
+  "kind": "product",
+  "layout": "card",
+  "summary": {
+    "explored": 34,
+    "discarded": 0,
+    "state": "30+ Austin branches catalogued with real ratings; verifying availability and total price for 10–11 Oct",
+    "note": "Operator is in San Francisco; pickup assumed at Austin-Bergstrom airport unless he says otherwise.",
+    "steps": [
+      "agent network checked — no agent covers this",
+      "9 brands confirmed at AUS",
+      "114 cars available at AUS for the dates",
+      "ratings pulled for 30 Austin branches"
+    ]
+  },
+  "empty": false,
+  "process": [
+    "recogiendo lo que hay en la página…",
+    "conduciendo el navegador…",
+    "recogiendo lo que hay en la página…",
+    "conduciendo el navegador…",
+    "entrando en kayak.com…",
+    "recogiendo lo que hay en la página…",
+    "recorriendo la página…",
+    "entrando en google.com…",
+    "leyendo la página…",
+    "conduciendo el navegador…",
+    "leyendo google.com…",
+    "buscando «best rated car rental companies Austin Texas airport Google…»…",
+    "entrando en google.com…",
+    "Building the candidate list of Austin rental companies; Google search is blocked by anti-bot, switching to booking/rentalcars for prices and ratings",
+    "entrando en rentalcars.com…",
+    "escribiendo «Austin-Bergstrom International Airport»…",
+    "pulsando en la página…",
+    "entrando en rentalcars.com…",
+    "recorriendo la página…",
+    "recogiendo lo que hay en la página…",
+    "recorriendo la página…",
+    "leyendo bing.com…",
+    "buscando «Austin\" car rental local company reviews Google rating 4.8 …»…",
+    "leyendo loc8nearme.com…",
+    "buscando «loc8nearme Hertz Car Rental Austin TX rating reviews»…",
+    "leyendo nicelocal.com…",
+    "buscando «Sixt rent a car Austin airport AUS Google reviews rating st…»…",
+    "Collecting real customer ratings for each Austin branch (Google-derived directory + Booking/rentalcars), Hertz already failing the bar at 2.8-3.2",
+    "escribiendo 1013d6-2/informe.json…",
+    "escribiendo en «results»…",
+    "entrando en expedia.com…",
+    "entrando en kayak.com…",
+    "pulsando en la página…",
+    "entrando en rentalcars.com…",
+    "recorriendo la página…",
+    "entrando en rentalcars.com…",
+    "leyendo chamberofcommerce.com…",
+    "leyendo loc8nearme.com…",
+    "buscando «Avis Car Rental 3819 Presidential Blvd Austin airport googl…»…",
+    "buscando «Dollar Thrifty Fox Sixt Payless car rental Austin Bergstrom…»…"
+  ]
+}

@@ -1516,6 +1516,33 @@ def brain_preflight(*, timeout: float = 210.0, lang: str = "es") -> str:
 
 
 
+def search_preflight(*, timeout: float = 90.0) -> str:
+    """CAN THE ENGINE SEARCH AT ALL? Returns "" when at least one provider answers, or the refusal to print.
+
+    V2-782 T2.3. The 2026-10-10 sweep graded ten search rounds as product failures while the chain had no paid key,
+    the workers' built-in search was out of quota and DuckDuckGo was the only index answering. One GET to the
+    engine's own health door (`/api/search/health`, one minimal real call per provider, names only) before the
+    batch separates «the product searched badly» from «nothing could search» — the same distinction INFRA exists
+    for, moved earlier so it costs nothing. The line it prints is the same one `python -m search.health` prints."""
+    out = probe_client._get("/api/search/health?fresh=1", timeout=timeout)
+    if not isinstance(out, dict) or out.get("error"):
+        return (f"✗ el motor no contesta a /api/search/health ({str((out or {}).get('error') or out)[:160]}).\n"
+                f"   No es un fallo del caso: no se ha medido nada.")
+    s = out.get("summary") or {}
+    rows = out.get("providers") or []
+    if s.get("can_answer"):
+        return ""
+    try:
+        from search import health as _health
+        detail = _health.render(rows)
+    except Exception:  # noqa: BLE001
+        detail = json.dumps(s, ensure_ascii=False)[:600]
+    return ("✗ NINGÚN BUSCADOR CONTESTA: una ronda ahora apuntaría como fallo de producto lo que es una clave o una "
+            "cuota.\n" + "\n".join("   " + ln for ln in detail.splitlines()) +
+            "\n   Pon una clave (Z_AI_API_KEY, GEMINI_API_KEY, PERPLEXITY_API_KEY…) o espera a que el bloqueo pase; "
+            "no se mide.")
+
+
 def bridge_allowlist_refusal() -> str:
     """CAN A WORKER REACH ITS OWN BRIDGES? Returns "" when yes, or the refusal to print.
 
@@ -1775,7 +1802,7 @@ def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | N
         # the harness believed nothing had carried over.
         print("  ⚠️ memoria del plató NO borrada: este agente recuerda las rondas anteriores y puede "
               "responder desde ellas. Usa --fresh para medir en limpio.")
-    for _refusal in (brain_preflight(), bridge_allowlist_refusal()):
+    for _refusal in (brain_preflight(), bridge_allowlist_refusal(), search_preflight()):
         if _refusal:
             print(_refusal)
             raise SystemExit(4)
@@ -1853,6 +1880,11 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
         _br = bridge_allowlist_refusal()
         if _br:
             print(_br)
+            raise SystemExit(4)
+        # …and if nothing can SEARCH, a search case would be graded on a dead layer (V2-782 T2.3). Same exit code.
+        _sp = search_preflight()
+        if _sp:
+            print(_sp)
             raise SystemExit(4)
         try:
             return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file,

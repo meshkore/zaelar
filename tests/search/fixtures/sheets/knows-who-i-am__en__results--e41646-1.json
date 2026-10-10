@@ -1,0 +1,476 @@
+{
+  "title": "3 quick gluten-free dinners — verified",
+  "subtitle": "3 picks from ~90 recipes reviewed · all under 20 min, naturally gluten-free, no alcohol · every finalist checked at source for gluten swaps and cross-contamination",
+  "items": [
+    {
+      "title": "Cauliflower fried rice (GF)",
+      "subtitle": "One skillet · egg + veg, takeaway-style comfort food",
+      "price": "20 min",
+      "badge": "Best all-round",
+      "url": "https://www.grainlesslife.com/gluten-free-cauliflower-fried-rice/",
+      "image": "https://www.grainlesslife.com/wp-content/uploads/2026/02/Cauliflower-Fried-Rice.webp",
+      "primary": true,
+      "facts": [
+        {
+          "label": "Time",
+          "value": "20 min (10 prep + 10 cook)"
+        },
+        {
+          "label": "Servings",
+          "value": "4 — halves easily"
+        },
+        {
+          "label": "Ingredients",
+          "value": "8"
+        },
+        {
+          "label": "Gluten",
+          "value": "None — page says 'completely gluten-free'; tamari is specified as GF"
+        },
+        {
+          "label": "Alcohol",
+          "value": "None"
+        },
+        {
+          "label": "Steps",
+          "value": "5, single skillet"
+        },
+        {
+          "label": "Batch",
+          "value": "Yes — reheats well"
+        },
+        {
+          "label": "Protein swap",
+          "value": "Add chicken, shrimp or tofu in step 3"
+        }
+      ],
+      "score": {
+        "value": 8.7,
+        "max": 10,
+        "why": "Hot complete dinner in one skillet, only 8 ingredients, and the page names certified gluten-free tamari outright instead of leaving the swap to you"
+      }
+    },
+    {
+      "title": "Tuscan tuna & white bean salad",
+      "subtitle": "No cooking at all · all from tins and a bowl",
+      "price": "15 min",
+      "badge": "Zero cooking",
+      "url": "https://www.cookedandloved.com/recipes/tuna-white-bean-salad/",
+      "image": "https://www.cookedandloved.com/wp-content/uploads/2025/11/healthy-tuna-salad-white-beans-meal-prep.jpg",
+      "facts": [
+        {
+          "label": "Time",
+          "value": "15 min, cook time 0"
+        },
+        {
+          "label": "Servings",
+          "value": "2"
+        },
+        {
+          "label": "Ingredients",
+          "value": "7 plus a pantry dressing"
+        },
+        {
+          "label": "Gluten",
+          "value": "None — 'gluten-free and dairy-free' per source"
+        },
+        {
+          "label": "Alcohol",
+          "value": "None"
+        },
+        {
+          "label": "Steps",
+          "value": "5, all assembly"
+        },
+        {
+          "label": "Batch",
+          "value": "Yes — keeps 3 days, better after 30 min"
+        },
+        {
+          "label": "Check",
+          "value": "Dijon mustard and the tinned tuna must be labelled GF"
+        }
+      ],
+      "score": {
+        "value": 8.6,
+        "max": 10,
+        "why": "The fastest and lowest-risk of all: no heat, no gluten swaps anywhere, and the page labels it explicitly gluten-free and dairy-free"
+      }
+    },
+    {
+      "title": "Beef & cabbage stir-fry",
+      "subtitle": "One skillet · 4 steps · the cheapest of the three",
+      "price": "20 min",
+      "badge": "Cheapest",
+      "url": "https://recipeslaboratory.com/beef-and-cabbage-stir-fry/",
+      "facts": [
+        {
+          "label": "Time",
+          "value": "20 min (5 prep + 15 cook)"
+        },
+        {
+          "label": "Servings",
+          "value": "2 as a main"
+        },
+        {
+          "label": "Ingredients",
+          "value": "8"
+        },
+        {
+          "label": "Gluten",
+          "value": "None if made with tamari — regular soy sauce would disqualify it"
+        },
+        {
+          "label": "Alcohol",
+          "value": "None"
+        },
+        {
+          "label": "Steps",
+          "value": "4, one skillet"
+        },
+        {
+          "label": "Batch",
+          "value": "Yes — good cold the next day"
+        },
+        {
+          "label": "Protein swap",
+          "value": "Works with ground turkey, pork or crumbled tofu"
+        }
+      ],
+      "score": {
+        "value": 8.3,
+        "max": 10,
+        "why": "Fewest steps (4) and fewest utensils of any finalist, budget ingredients, and a genuine gluten-free tamari path — the page just doesn't carry a photo"
+      }
+    }
+  ],
+  "sources": [
+    {
+      "name": "30seconds.com",
+      "url": "https://30seconds.com",
+      "status": "ok",
+      "detail": "Recipe cards with declared times and ingredient counts; explicitly gluten-free labelling",
+      "found": 5
+    },
+    {
+      "name": "The Gluten Free Blogger",
+      "url": "https://www.theglutenfreeblogger.com",
+      "status": "ok",
+      "detail": "Dedicated gluten-free blog, states certified-GF stock cubes",
+      "found": 3
+    },
+    {
+      "name": "Gimme Some Oven",
+      "url": "https://www.gimmesomeoven.com",
+      "status": "partial",
+      "detail": "Has a '15 gluten-free dinner ideas' round-up; individual recipes often need a soy-sauce swap not spelled out",
+      "found": 8
+    },
+    {
+      "name": "BBC Good Food",
+      "url": "https://www.bbcgoodfood.com",
+      "status": "partial",
+      "detail": "Gluten-free dinner collection exists (30 recipes) but 30-minute timing not confirmed in listings",
+      "found": 4
+    },
+    {
+      "name": "Gluten Free Palate",
+      "url": "https://www.glutenfreepalate.com",
+      "status": "ok",
+      "detail": "60+ gluten-free dinners sorted by fridge contents",
+      "found": 6
+    },
+    {
+      "name": "Pinch and Swirl",
+      "url": "https://pinchandswirl.com",
+      "status": "ok",
+      "detail": "General recipe blog; cod piccata naturally flour-free",
+      "found": 2
+    },
+    {
+      "name": "Paleo Running Momma",
+      "url": "https://www.paleorunningmomma.com",
+      "status": "ok",
+      "detail": "Whole30/Paleo one-pan skillets, naturally gluten-free",
+      "found": 3
+    },
+    {
+      "name": "Easy GF Recipes",
+      "url": "https://easygfrecipes.com",
+      "status": "ok",
+      "detail": "Small-batch gluten-free recipes for two, with declared times",
+      "found": 2
+    },
+    {
+      "name": "Cucina by Elena",
+      "url": "https://www.cucinabyelena.com",
+      "status": "ok",
+      "detail": "Italian pantry cooking; tuna & white bean salad",
+      "found": 2
+    },
+    {
+      "name": "Grainless Life",
+      "url": "https://www.grainlesslife.com",
+      "status": "ok",
+      "detail": "Gluten-free low-carb recipes, states tamari swap explicitly",
+      "found": 3
+    },
+    {
+      "name": "Oh My Gut",
+      "url": "https://www.oh-mygut.com",
+      "status": "ok",
+      "detail": "14 beginner-friendly gluten & dairy-free recipes, notes celiac suitability",
+      "found": 14
+    },
+    {
+      "name": "My Gluten Free Cucina",
+      "url": "https://myglutenfreecucina.com",
+      "status": "ok",
+      "detail": "Week-of easy gluten-free recipes",
+      "found": 5
+    },
+    {
+      "name": "Real Housemoms",
+      "url": "https://realhousemoms.com",
+      "status": "ok",
+      "detail": "Egg drop soup labelled gluten-free, 15 min",
+      "found": 1
+    },
+    {
+      "name": "Delphi Forums — celiac community",
+      "url": "https://forums.delphiforums.com/recipeknitting/messages/4/3383",
+      "status": "partial",
+      "detail": "User-posted recipe index from a long-time celiac member; recipes undated and unverified",
+      "found": 6
+    },
+    {
+      "name": "Reddit r/Celiac",
+      "url": "https://www.reddit.com/r/Celiac",
+      "status": "blocked",
+      "detail": "No forum thread surfaced through search for quick dinners; community threads not reachable from here",
+      "found": 0
+    }
+  ],
+  "summary": {
+    "explored": 90,
+    "selected": 3,
+    "discarded": 26,
+    "state": "3 verified dinner picks delivered",
+    "note": "Every finalist was opened at source and checked for gluten swaps, alcohol and declared times; nothing was assumed from search snippets.",
+    "steps": [
+      "network checked — no existing agent",
+      "~90 candidates gathered across 12 search angles",
+      "hard filter: gluten, alcohol, 30 min, utensils, ingredient count",
+      "13 finalists opened and read at source",
+      "3 picks locked and verified",
+      "network checked — no agent covers this, so browser and web research",
+      "~90 candidates gathered across 12 search angles (celiac blogs, quick-meal sites, general aggregators, forums)",
+      "hard filter applied: gluten, alcohol, 30 min, basic utensils, ingredient count",
+      "13 finalists opened and read in full at source",
+      "3 picks locked, with the tamari/broth/label caveats spelled out"
+    ]
+  },
+  "rejected": [
+    {
+      "title": "Marry Me Chickpeas",
+      "url": "https://www.theglutenfreeblogger.com/marry-me-chickpeas/",
+      "why": "Best gluten-free provenance of the lot (dedicated GF blog, names a GF stock cube) and only 15 min, but 12 ingredients including cream, parmesan and sun-dried tomatoes — the longest",
+      "source": "The Gluten Free Blogger"
+    },
+    {
+      "title": "Cod Piccata with lemon-caper sauce",
+      "url": "https://pinchandswirl.com/cod-piccata/",
+      "why": "Naturally flour-free so no gluten swap needed, but the recipe lists white wine as written — Alex doesn't drink alcohol, so it would need a broth substitution just to be usable",
+      "source": "Pinch and Swirl"
+    },
+    {
+      "title": "Tortilla de patatas for 2",
+      "url": "https://easygfrecipes.com/tortilla-de-patatas-for-2-recipe/",
+      "why": "Naturally gluten-free with no swaps and a real photo, but 26 min, 8 steps and a 10-minute gentle potato fry — more hands-on than the three winners",
+      "source": "Easy GF Recipes"
+    },
+    {
+      "title": "Easy sheet pan salmon and asparagus",
+      "url": "https://www.cookeryjoy.com/easy-sheet-pan-salmon-and-asparagus/",
+      "why": "Meets every criterion on paper (22-25 min, 7 ingredients, GF), but the page states the article and images were 'developed with AI assistance' and no second source corroborates it —",
+      "source": "Cookery Joy"
+    },
+    {
+      "title": "Quick gluten free chicken stir fry with veggies",
+      "url": "https://www.goldenglutenfree.com/quick-gluten-free-chicken-stir-fry-with-veggies/",
+      "why": "From a celiac-focused site and correctly flags certified GF tamari and cornstarch, but 25 min and 14 listed ingredients including a 10-minute marinade — a longer list and more wait",
+      "source": "Golden Gluten Free"
+    },
+    {
+      "title": "Sausage and cabbage stir fry",
+      "url": "https://www.edenplate.com/sausage-and-cabbage-stir-fry/",
+      "why": "The page never labels it gluten-free and explicitly flags that sausage brands add gluten-containing fillers — an avoidable cross-contamination risk when simpler safe options exist",
+      "source": "Eden Plate"
+    },
+    {
+      "title": "Egg drop soup",
+      "url": "https://realhousemoms.com/egg-drop-soup-recipe/",
+      "why": "Only 5 ingredients and 15 min, but it's a broth starter rather than a filling dinner on its own",
+      "source": "Real Housemoms"
+    },
+    {
+      "title": "20-minute chickpea curry",
+      "url": "https://30seconds.com/food/tip/amp-34549/20-Minute-Chickpea-Curry-Recipe-This-Easy-Chickpea-Curry-Recipe-Tastes-Like-It-Simmered-All-Day",
+      "why": "Genuinely 8 ingredients and 20 min, but it leans on both tinned tomatoes and a stock check for gluten — the tuna salad and fried rice needed fewer processed-ingredient verification",
+      "source": "30seconds.com"
+    },
+    {
+      "title": "Garlic butter chicken and potatoes",
+      "url": "https://www.paleorunningmomma.com/garlic-butter-chicken-and-potato-skillet-whole30/",
+      "why": "Sits exactly on the 30-minute ceiling and the potatoes need a 20-minute covered par-boil, leaving no margin if anything runs long",
+      "source": "Paleo Running Momma"
+    },
+    {
+      "title": "Ramen noodle stir fry with crispy veggies",
+      "url": "https://glutenfreeandmore.com/ramen-noodle-stir-fry-with-crispy-veggies/",
+      "why": "Naturally gluten-free in ~25 min, but it needs buckwheat noodles — a less common pantry item than anything in the winners",
+      "source": "Gluten Free & More"
+    },
+    {
+      "title": "Green Goddess Spaghetti",
+      "url": "https://thefeedfeed.com/marriedtoaceliac/green-goddess-spaghetti",
+      "why": "Under 20 min and GF, but needs gluten-free spaghetti plus a blender sauce — more kit and more washing up",
+      "source": "The Feedfeed"
+    },
+    {
+      "title": "Keto coconut chicken curry (30-minute Thai style)",
+      "url": "https://allchickenrecipes.com/keto-coconut-chicken-curry-30-minute-thai-style/",
+      "why": "A full 30 min with no margin, and the Thai red curry paste label needs verifying for gluten — one more processed-ingredient risk",
+      "source": "All Chicken Recipes"
+    },
+    {
+      "title": "Creamy shrimp and zucchini skillet",
+      "url": "https://creativescookery.com/creamy-shrimp-and-zucchini-skillet/",
+      "why": "About 30 min, and the page never labels it gluten-free; the cream and parmesan add another verification step for no gain",
+      "source": "Creatives Cookery"
+    },
+    {
+      "title": "Garlic mushroom & bacon chicken thighs",
+      "url": "https://www.everylastbite.com/garlic-mushroom-chicken/",
+      "why": "Under 30 min and Whole30-friendly, but it needs chicken broth (another GF label check) plus balsamic, pushing the ingredient count past the winners",
+      "source": "Every Last Bite"
+    },
+    {
+      "title": "20-minute harissa meatballs",
+      "url": "https://rachlmansfield.com/20-minute-harissa-meatballs/",
+      "why": "Gluten-free via almond flour, but the meatballs need the full 20 min in the pan and the dish expects a separate grain side — more components than asked for",
+      "source": "rachLmansfield"
+    },
+    {
+      "title": "Sheet pan salmon and broccoli with lemon",
+      "url": "https://minimalstudent.com/sheet-pan-salmon-and-broccoli-with-lemon/",
+      "why": "25 min and gluten-free, but Parmesan goes on at the end and it's a personal student blog with no second source to cross-check the timing",
+      "source": "Minimal Student"
+    },
+    {
+      "title": "15-minute spicy shrimp and vegetable stir-fry",
+      "url": "https://allrecipesmade.com/15-minute-spicy-shrimp-and-vegetable-stir-fry/print/84905/",
+      "why": "Fast at 15 min, but it lists plain soy sauce and only mentions tamari in passing — the fried rice names certified gluten-free tamari as the ingredient, which is a safer path for a ",
+      "source": "All Recipes Made"
+    },
+    {
+      "title": "Vegetarian quinoa stir fry",
+      "url": "https://cookrita.com/veggie-quinoa-stir-fry/",
+      "why": "30 min at the ceiling and lists soy sauce with only a tamari note; the quinoa adds a separate cooking step and pot",
+      "source": "Cookrita"
+    },
+    {
+      "title": "Gluten free pasta dish",
+      "url": "https://recipes.lidl.com/recipes/gluten-free-pasta-dish",
+      "why": "10 min prep + 10 min cook and genuinely gluten-free, but it's built on gluten-free pasta — wheat pasta is exactly what Alex asked to avoid and GF pasta is a specialist buy",
+      "source": "Lidl Recipes"
+    },
+    {
+      "title": "Zesty cauliflower fried rice",
+      "url": "https://cookwelltoday.com/zesty-cauliflower-fried-rice/print/4054/",
+      "why": "Same dish idea as the winner but 25 min total instead of 20 and it lists soy sauce as written, needing the swap made for you",
+      "source": "Cook Well Today"
+    },
+    {
+      "title": "One pot salmon zucchini and rice skillet",
+      "url": "https://rachlmansfield.com/one-pot-salmon-zucchini-and-rice-skillet/",
+      "why": "Under 30 min and gluten-free, but the rice needs its own simmer and the list runs past 8 ingredients — more time and more to buy",
+      "source": "rachLmansfield"
+    },
+    {
+      "title": "Chicken and asparagus risotto",
+      "url": "https://whatsheate.com/chicken-and-asparagus-risotto-97544",
+      "why": "Claims 20 minutes but stands on condensed cream of chicken soup — a processed product with a real gluten risk and no GF brand named",
+      "source": "What She Ate"
+    },
+    {
+      "title": "Pan sautéed tilapia with lemon and jalapeño",
+      "url": "https://whatsheate.com/pan-sautaed-tilapia-with-lemon-and-jalapeno-88789",
+      "why": "Disqualified outright: the method calls for dusting the fillets with Wondra, which is a wheat flour",
+      "source": "What She Ate"
+    },
+    {
+      "title": "15-minute baked salmon with garlic greens",
+      "url": "https://www.tastysavvy.com/15-minute-baked-salmon-with-garlic-greens/print/680/",
+      "why": "Marketed as 15 minutes but the page's own total is 25 min — the timing stated is unreliable, which fails the time verification",
+      "source": "Tasty Savvy"
+    },
+    {
+      "title": "Broccoli paneer",
+      "url": "https://www.ocado.com/recipes/broccoli-paneer/8z1J2yt5S0PgWjuE83fMs",
+      "why": "15 min and gluten-free, but it needs two pans and leans on harissa and hot honey — less everyday cupboard items",
+      "source": "Ocado"
+    },
+    {
+      "title": "15-minute baked parmesan crusted tilapia",
+      "url": "https://app.samsungfood.com/recipes/101e48893e9243c2e6a0d8e8d9bbcf4d09cdbb4be93",
+      "why": "Gluten-free via a parmesan-mayo topping, but it needs the oven and the crumb-and-press step adds utensils and washing up for a 15-minute promise",
+      "source": "Samsung Food"
+    }
+  ],
+  "kind": "product",
+  "empty": false,
+  "tab": "results",
+  "process": [
+    "leyendo acouplecooks.com…",
+    "leyendo easygfrecipes.com…",
+    "Verifying the finalist recipes one by one against the quality bar",
+    "leyendo la página…",
+    "💬 nav_cli can only list links, not body text. Trying my web reader on a batch of finalist sources.",
+    "leyendo theglutenfreeblogger.com…",
+    "leyendo cookeryjoy.com…",
+    "leyendo grainlesslife.com…",
+    "leyendo pinchandswirl.com…",
+    "💬 Verified four finalists. Fetching the remaining contenders.",
+    "leyendo cookedandloved.com…",
+    "leyendo realhousemoms.com…",
+    "leyendo recipeslaboratory.com…",
+    "leyendo paleorunningmomma.com…",
+    "💬 Strong finalists confirmed. Fetching two more to lock the third slot with a real photo.",
+    "leyendo goldenglutenfree.com…",
+    "leyendo edenplate.com…",
+    "💬 Verified. Writing the final selection and the rejected log.",
+    "escribiendo e41646-2/final.json…",
+    "escribiendo e41646-2/descartados.json…",
+    "escribiendo en «results»…",
+    "Publishing the final three verified recipes to the sheet",
+    "escribiendo en «results»…",
+    "escribiendo e41646-2/progreso.json…",
+    "escribiendo en «results»…",
+    "abriéndote «results»…",
+    "escribiendo en «results»…",
+    "mirando «results»…",
+    "💬 The read shows the default state, not the live instance. Verifying against the live one.",
+    "mirando «results»…",
+    "trabajando con un widget…",
+    "escribiendo e41646-2/detalle.json…",
+    "escribiendo en «results»…",
+    "💬 Items are live (index 1 resolves correctly) — the earlier read was a stale snapshot. Returning to the list view.",
+    "escribiendo en «results»…",
+    "mirando «results»…",
+    "escribiendo e41646-2/probe4.json…",
+    "escribiendo en «results»…",
+    "abriéndote «results»…",
+    "💬 Three verified picks are on screen — each opened and read at source, not trusted from search snippets. I reviewed ~90 recipes and cut 26 with a writte…"
+  ]
+}
