@@ -28,11 +28,8 @@ def _base(wid: str) -> str:
 
 
 def note_agent_order(wid: str, *, now: float | None = None) -> None:
-    """The brain (or a worker) just ran a data-op on this card. Never raises."""
-    try:
-        _last_agent_order[_base(wid)] = time.time() if now is None else float(now)
-    except Exception:  # noqa: BLE001
-        pass
+    """The brain (or a worker) just ran a data-op on this card."""
+    _last_agent_order[_base(wid)] = time.time() if now is None else float(now)
 
 
 def agent_ordered_recently(wid: str, *, now: float | None = None) -> bool:

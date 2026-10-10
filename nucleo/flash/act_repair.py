@@ -22,8 +22,6 @@ from __future__ import annotations
 import json
 import re
 
-from nucleo.flash import repair_grounding as _rg
-
 #: What the repair tells the model. Short on purpose: the ask is «make the call you promised», not a new turn.
 _SYS = (
     "You are the brain of a voice assistant. On the previous turn you answered WITHOUT calling any "
@@ -181,6 +179,7 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
         if not wid or not (operator_text or "").strip() or operator_text.lstrip().startswith("[SISTEMA]"):
             return None                     # a system note is not his order (V2-781, compare-insurance-quotes)
         from widgets import runtime as _rt
+        from nucleo.flash import repair_grounding as _rg
         manifest = _rt.get(wid) or {}
         declared = manifest.get("actions") or {}
         tool = _widget_data_tool()
