@@ -182,12 +182,21 @@ _PROCS: dict = {}          # token -> subprocess.Popen
 _PROCS_LOCK = threading.Lock()
 
 
+#: Tokens whose build is WAITING OUT a rate limit (no subprocess alive), and tokens stopped meanwhile.
+_WAITING: set = set()
+_CANCELLED: set = set()
+
+
 def kill(token: str) -> bool:
-    """Kill the generation subprocess associated with `token`, politely via terminate then kill. Idempotent."""
+    """Kill the generation subprocess associated with `token`, politely via terminate then kill. Idempotent.
+    A build that is waiting out a rate limit has no process: it is marked, and the wait gives up."""
     with _PROCS_LOCK:
         p = _PROCS.get(str(token))
+        waiting = str(token) in _WAITING
+        if p is not None or waiting:
+            _CANCELLED.add(str(token))
     if p is None:
-        return False
+        return waiting
     try:
         if p.poll() is None:
             p.terminate()
@@ -213,7 +222,9 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
     the Brain Workers read the provider CHAIN. Measured 2026-09-27: the workers had already relayed from an
     exhausted z.ai to DeepSeek, and the generator kept spawning on another tier and died in three seconds —
     twice. Same chain now, and a provider failure is noted (cooldown + alert) and relayed like a worker's."""
-    ran, err, tier = _run_agent_once(prompt, token, target=target)
+    with _PROCS_LOCK:
+        _CANCELLED.discard(str(token or ""))
+    ran, err, tier = _ride_out_rate(prompt, token, target, _run_agent_once(prompt, token, target=target))
     if ran or failure_class(err) not in ("credit", "auth", "rate"):
         return ran, err
     try:
@@ -227,6 +238,27 @@ def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]
                    f"→ relaying to «{cause['next']}»")
     ran, err2, _ = _run_agent_once(prompt, token, target=target)
     return ran, (err2 if not ran else "")
+
+
+def _ride_out_rate(prompt: str, token: str, target: str, first: tuple) -> tuple:
+    """A transient rate limit (429 / Z.ai 1302) is waited out a bounded few seconds and the build
+    re-run, before the ladder below decides it is a death. `nucleo/workers/rate_retry.py` owns the rule."""
+    from nucleo.workers import rate_retry
+    tok = str(token or "")
+    with _PROCS_LOCK:
+        _WAITING.add(tok)
+    try:
+        res = rate_retry.ride_out(lambda: _run_agent_once(prompt, token, target=target), first,
+                                  error_of=lambda r: "" if r[0] else (r[1] or ""), label="widget-agent",
+                                  cancelled=lambda: bool(tok) and tok in _CANCELLED)
+    finally:
+        with _PROCS_LOCK:
+            _WAITING.discard(tok)
+            stopped = tok in _CANCELLED
+            _CANCELLED.discard(tok)
+    if stopped and tok and not res[0]:
+        return False, "generation cancelled", res[2]
+    return res
 
 
 def _run_agent_once(prompt: str, token: str = "", *, target: str) -> tuple[bool, str, dict | None]:

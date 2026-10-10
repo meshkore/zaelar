@@ -79,7 +79,9 @@ def _remember_ended(rec, resuming: bool = False) -> None:
             # inheriting a box the errand never wrote to would re-open an empty card for no reason.
             "sheet": (sheet_of(rec) if surfaces.opens_sheet(getattr(rec, "surface", "")) else ""),
             # V2-224 — how many turns have already CARRIED this ending forward. See `mark_death_reported`.
-            "told": 0}
+            "told": 0,
+            # What died and WHY, so the reply backstop can say it in plain words (`flash/death_line.py`).
+            "kind": str(getattr(rec, "kind", "") or ""), "error_class": str(getattr(rec, "error_class", "") or "")}
         for k in [k for k, v in _ENDED_SESSIONS.items()
                   if time.time() - float(v.get("at") or 0) > JUST_ENDED_S]:
             _ENDED_SESSIONS.pop(k, None)
@@ -100,7 +102,7 @@ def _remember_ended(rec, resuming: bool = False) -> None:
                 f"operador no lo sabe: está esperando algo que ya no va a llegar. Díselo con tus palabras en este "
                 f"turno, DESPUÉS de contestar a lo que te haya pedido (V2-666: su petición va primero), y "
                 f"ofrécele una salida concreta —reintentarlo, probar otra vía o dejarlo—; no digas "
-                f"«sigo con ello» ni «te aviso en cuanto lo tenga».")
+                f"«sigo con ello» ni «te aviso en cuanto lo tenga».", key=f"death:{rec.task_id}")
     except Exception:  # noqa: BLE001
         pass
 

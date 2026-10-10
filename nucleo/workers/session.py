@@ -682,7 +682,7 @@ async def _deliver(rec: "SessionRecord") -> None:
         from nucleo.workers import spoken_delivery as _sd
         if await proactive.notify("zaelar", await _sd.line(rec.goal, summary, ok=rec.ok,
                                                            verdict=str(getattr(rec, "verdict", "") or "")) or summary,
-                                  speak=True):
+                                  speak=True, key=f"notice:{rec.task_id}"):
             # SPOKEN: he has heard it, and it sits in the conversation as our own words. The note above would
             # hand it to the next turn as news «to add after answering», and the demo pass (2026-09-28) heard the
             # same three monitors three times — the delivery, then two replies that «by the way» repeated it.

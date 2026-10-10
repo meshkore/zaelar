@@ -261,6 +261,17 @@ class LangSpec:
     worker_gave_up_provider: str = ("He intentado esa tarea {times} veces y el proveedor que mueve mis "
                                     "procesos de fondo ha fallado las {times}, así que paro. Lo tienes en el "
                                     "panel de estado.")
+    # An errand that DIED while the reply promising it was being written — `nucleo/flash/death_line.py`.
+    death_line: str = "Una corrección, eso sí: {what} acaba de fallar{why}. {offer}"
+    death_what_widget: str = "la construcción del widget"
+    death_what_task: str = "esa tarea de fondo"
+    death_why_rate: str = " — el proveedor de IA nos está limitando las peticiones ahora mismo"
+    death_why_credit: str = " — el proveedor de IA se ha quedado sin saldo o sin cuota"
+    death_why_auth: str = " — el proveedor de IA ha rechazado nuestra clave"
+    death_why_network: str = " — no he podido conectar con el proveedor de IA"
+    death_why_stalled: str = " — el proveedor dejó de responder"
+    death_offer_retry: str = "¿Quieres que lo intente otra vez?"
+    death_offer_fix: str = "Eso hay que arreglarlo en la configuración del proveedor antes de reintentarlo."
     # A widget refused a data operation — `nucleo/flash/widget_data_turn.py`.
     widget_data_failed: str = "No he podido: {reason}"
     widget_refused: str = "el widget no lo aceptó."

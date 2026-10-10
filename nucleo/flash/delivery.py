@@ -392,6 +392,12 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "") -> str:
             _said.update(_row_key(f) for f in filas if f.split(" — ")[0][:40] in extra)
             _emit("📬 backstop de entrega: la espera sale con las filas")
             return ((spoken.rstrip() + " ") if spoken else "") + extra
+        # An errand that DIED while this waiting reply was being written: the promise is corrected here,
+        # once (`death_line.py` — the 2026-10-10 widget build that died mid-turn on a rate limit).
+        from .death_line import backstop as _death_backstop
+        _dead = _death_backstop(spoken or "")
+        if _dead:
+            return ((spoken.rstrip() + " ") if spoken else "") + _dead
         # V2-359 — y si no hay filas que entregar, puede haber un ATASCO que callar. Va DESPUÉS y no antes:
         # con resultados delante la cara correcta es entregarlos, no hablar del atasco.
         _enc, _min, _mot = _lb.any_stalled_task()

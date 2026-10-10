@@ -279,6 +279,16 @@ LANGUAGES: dict[str, LangSpec] = {
                          "I stopped it. It can be relaunched."),
         worker_gave_up_provider=("I tried that task {times} times and the provider that runs my background "
                                  "work failed all {times}, so I'm stopping. It's in the status panel."),
+        death_line="One correction, though: {what} just failed{why}. {offer}",
+        death_what_widget="building the widget",
+        death_what_task="that background task",
+        death_why_rate=" — the AI provider is rate-limiting us right now",
+        death_why_credit=" — the AI provider is out of credit or quota",
+        death_why_auth=" — the AI provider rejected our key",
+        death_why_network=" — I couldn't reach the AI provider",
+        death_why_stalled=" — the provider stopped answering",
+        death_offer_retry="Want me to try again?",
+        death_offer_fix="That needs fixing in the provider settings before I can retry.",
         widget_data_failed="I couldn't: {reason}",
         widget_refused="the widget wouldn't take it.",
         login_opened=("I've opened the login for you. Sign in with your account; the moment I see you're in, "

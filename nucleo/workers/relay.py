@@ -32,6 +32,9 @@ def _say():
 
 def relay_out_of_fuel(rec, relay_cap: int) -> None:
     """Hand the baton on, or tell the truth about why nobody can. Mutates `rec`; never raises."""
+    # A TRANSIENT rate limit is neither out of fuel nor a death: one delayed relaunch, same ladder.
+    from .rate_retry import relaunch_after_rate
+    relaunch_after_rate(rec, relay_cap)
     # COMPACT AND CONTINUE (incident 2026-08-18). The context blew up, which is neither a task failure nor a
     # provider failure, so neither of the two existing paths fits: there is nothing to relay to (the next tier
     # would blow up identically) and nothing to report (the operator asked for a guitar, not for an API error).
