@@ -371,7 +371,7 @@ def absent_widget_misroute(widget_id: str, action: str, item: str, *,
     return wid not in open_now and (named_widget or "").strip().lower() != wid
 
 
-def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = "", payload=None) -> dict:
+def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = "", payload=None, open_ids=()) -> dict:
     """`which_card`, shaped into what a CALL SITE does with it — so neither channel grows to hold this.
 
     Both callers live in files the architecture ratchet lists (the voice provider and `probe.py`), and its
@@ -382,9 +382,10 @@ def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = 
     Returns `{card, ask, label, text, extra}` — `card` is the widget to act on (unchanged when nothing
     moved), `ask` is the sentence to say INSTEAD of acting (empty when there is nothing to ask), and the
     rest is one observability event or nothing. It writes no state and speaks to nobody: the caller does.
+    `open_ids` is the screen when the brief carries none (see `player_control`); empty = the brief's set.
     """
     wid = (widget_id or "").strip().lower()
-    route, alt = which_card(wid, action, brief=brief, payload=payload)
+    route, alt = which_card(wid, action, open_ids=open_ids, brief=brief, payload=payload)
     if route == "card":
         return {"card": str(alt), "ask": "",
                 "label": "🎯 la orden era de OTRA tarjeta — la reubica el veredicto de pantalla",

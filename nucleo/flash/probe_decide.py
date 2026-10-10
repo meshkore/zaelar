@@ -10,6 +10,7 @@ from __future__ import annotations
 from nucleo.flash import build_decision as _build_decision
 from nucleo.flash.connector_canon import canon_connector as _canon_connector  # the probe sees the same door the voice opens
 from nucleo.flash import hard_turn as _hard_turn
+from nucleo.flash import player_control as _player_control
 from nucleo.flash import probe as _probe
 from nucleo.flash import task_recall as _task_recall
 
@@ -76,9 +77,9 @@ async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names
         _rl = next((t["args"].get("label") for t in tool_calls if t["name"] == "reveal_secret"), "") or text
         from nucleo.turn import vault_gate as _vault_gate
         reveal_out = (await _vault_gate.reveal(str(_rl))).as_probe_payload()
-    elif "play_music" in names:
-        action = "music"                     # V2-041: ruta ligera; la EJECUTA el bloque `execute` de abajo (V2-380)
-        music_req = _probe._music_turn.request_from(tool_calls)
+    elif "play_music" in names:   # V2-041/V2-380: run below — unless a CONTROL belongs to the other player (`player_control`)
+        _pm = _player_control.probe_music(_probe._music_turn.request_from(tool_calls), tool_calls, brief=_tbrief)
+        action, music_req = _pm.pop("action"), _pm.pop("music_req")
     elif "play_video" in names:
         from nucleo.flash import canvas_license as _lic_v
         if _lic_v.video_license(text, _probe._last_assistant_line(sess.window), brief=getattr(sess, "brief", None)):
@@ -268,5 +269,5 @@ async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names
                 action = f"canvas:unfullscreen:{_fx}"
         except Exception:  # noqa: BLE001
             pass
-    _out = locals()
-    return {k: _out[k] for k in ('_cw', '_rt', '_show_chose', '_sp', 'action', 'images_req', 'music_req', 'reveal_out', 'video_req', ) if k in _out}
+    _out = {**locals(), **locals().get("_pm", {})}   # `_pm` carries the question a player control asks instead
+    return {k: _out[k] for k in ('_cw', '_rt', '_show_chose', '_sp', 'action', 'images_req', 'music_req', 'reveal_out', 'spoken', 'video_req', ) if k in _out}

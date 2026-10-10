@@ -7,6 +7,7 @@ thin closure that stays in `build`, at CALL time — the same late binding a clo
 """
 from __future__ import annotations
 
+from nucleo.flash import player_control as _player_control
 from nucleo.flash import tool_executor as _tx
 
 
@@ -117,8 +118,8 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
         if reveal_req["v"] is None:
             reveal_req["v"] = (args.get("label") or "").strip() or text
     elif name == "play_music":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_play_music(args=args, music_req=music_req)
+        return _t_play_music(args=args, music_req=music_req, _brief=_brief, _apply_widget_data=_apply_widget_data,
+                             acted=acted, clarify=clarify, emit=emit, ask_phrase=_say().ask_which_item)   # body below
     elif name == "play_video":
         # V2-045: VÍDEO = widget youtube (VER); una por turno. Cuerpo + LICENCIA V2-635 («Muy bien,
         # señora.» recargaba el que sonaba) en `video_turn.voice_execute` — una impl, ambos canales.
@@ -229,9 +230,16 @@ def _t_escalate_to_slowbrain(*, args, escalate_req, text):
 
 
 # V2-778 F1 — the `play_music` arm of `_on_tool_call`, moved verbatim.
-def _t_play_music(*, args, music_req):
+def _t_play_music(*, args, music_req, _brief=None, _apply_widget_data=None, acted=None, clarify=None, emit=None,
+                  ask_phrase=""):
     # V2-041: una acción de música por turno. Ruta LIGERA como web_search: se resuelve tras el stream,
     # FUERA del event loop.
+    # A CONTROL with the video open too: whose player? Asked once per turn, on its first music call — a control
+    # that follows a play of the same turn is about the music that play put on (the collapse below).
+    if music_req["v"] is None and _apply_widget_data is not None and _player_control.voice_route(
+            "play_music", args, brief=_brief, apply_widget_data=_apply_widget_data, acted=acted, clarify=clarify,
+            emit=emit, ask_phrase=ask_phrase):
+        return
     _mq = {"query": (args.get("query") or "").strip(),
            "action": (args.get("action") or "play").strip().lower()}
     if music_req["v"] is None:

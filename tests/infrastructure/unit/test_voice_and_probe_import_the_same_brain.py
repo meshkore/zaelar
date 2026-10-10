@@ -23,7 +23,6 @@ VOICE = ["voice/engine/llm/providers/nucleo.py", "nucleo/flash/tool_executor.py"
 #: three wired into the probe, five explained). A new voice-only module either gets wired or gets its reason here.
 VOICE_ONLY = {
     "accumulator": "the voice turn accumulates STT fragments before it speaks; the text channel gets whole lines",
-    "canvas_visibility": ("the ONE door that flips a card's open flag on the live canvas; the probe REPORTS a `canvas:` action and opens nothing, and reads what is open through `_ctx_ids`"),
     "music_flow": ("the probe runs the SAME rail through `music_turn.execute`, which imports it — this ratchet reads direct imports only"),
     "surface_ack": ("the probe reaches it through `router_guards.show_ack` (a re-export); the voice turn imports it directly only for the `empty` flag of the canvas event, which the probe never emits"),
     "tool_selection": ("progressive selection is off by default (V2-726 A5), so both channels offer the full `_router.tools` catalog; the voice keeps the `need_capability` retry and the recent-families memory for when it is on — wire the probe the day it is"),

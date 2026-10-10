@@ -337,8 +337,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         _show_chose = _blk['_show_chose']
     if '_sp' in _blk:
         _sp = _blk['_sp']
-    if 'action' in _blk:
-        action = _blk['action']
+    spoken, action = _blk.get('spoken', spoken), _blk['action']   # every branch names one; a player control may ASK
     if 'images_req' in _blk:
         images_req = _blk['images_req']
     if 'music_req' in _blk:
