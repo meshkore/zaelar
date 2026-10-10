@@ -70,10 +70,11 @@ def retarget(brief, widget_id: str, action: str, payload: dict, said: str) -> tu
 
 def _act_over_a_lens(brief, model_card: str, model_action: str) -> tuple[str, str]:
     """The voice rail's `data_ops.a_view_where_the_verdict_acts`, for the text channel (V2-781 pair 5: «cámbiale el
-    nombre al dentista» → verdict update_meeting 0.99, model open_meeting, «Hecho»). Same card, sure verdict."""
+    nombre al dentista» → verdict update_meeting 0.99, model open_meeting, «Hecho»; «quita el piano entero» → verdict
+    cancel_meeting 0.81, model show_day, «Hecho»). Same card, the verdict USED — the voice rail's bar (`completes`)."""
     from nucleo.flash import data_ops as _do, direct_action as _da, turn_brief as _tb
     vwid, vact = _da.from_brief(brief)
-    if not vwid or _da._base_of(vwid) != _da._base_of(model_card) or not _da._action_sure(brief, floor=0.9):
+    if not vwid or _da._base_of(vwid) != _da._base_of(model_card):    # the voice rail's bar: the verdict was USED
         return "", ""
     words = str(_tb.read(brief, _tb.WORDS_KEY, "")[0] or "")
     return (vwid, vact) if _do.a_view_where_the_verdict_acts(model_card, model_action, vact, words) else ("", "")
