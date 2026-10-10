@@ -48,10 +48,11 @@ def test_skipping_the_day_is_what_works():
     assert s["repeat"].get("skip") == ["2026-10-06"], s
 
 
-def test_the_identical_series_again_is_already_there_not_a_failure():
-    """V2-781 pair 7 (2026-10-10): «Vale, genial» after the add → the model wrote the SAME series again; the refusal
-    reached his ears as «No he podido: … already repeats … cancel_meeting {title, date}». Identical is idempotent."""
+
+def test_the_identical_series_replayed_is_refused_too():
+    """V2-781 pair 7 (2026-10-10): with an identical re-add settled as a no-op, «take off just next Tuesday» replayed
+    the SAME series, nothing was refused, no corrected retry ran, and the class stayed. Identical is refused too."""
     agenda.apply_action("add_meeting", dict(SERIES))
     r = agenda.apply_action("add_meeting", dict(SERIES))
-    assert r.get("ok") is not False, r
+    assert r.get("ok") is False and r.get("code") == "series_exists", r
     assert len(_series()) == 1
