@@ -572,22 +572,17 @@ def resolve_sessions(query: str) -> list[str]:
         return list(keys)
     if len(keys) == 1:
         return list(keys)
-    want = {k for k, hints in _KIND_HINTS.items() if any(h in q for h in hints)}
-    if want:
-        by_kind = [k for k in keys if (_SESSIONS[k].kind or "") in want]
-        if by_kind:
-            return by_kind
+    # The errand's own WORDS first, its kind only when no word names one (three-tasks, 20:00): «informe» is a
+    # `research` hint, the report ran as `generic` and the marketplace hunt as `research` — the report's refinement
+    # went to the monitor worker.
     q_words = _ref_words(q)
-    scored = []
-    for k in keys:
-        r = _SESSIONS[k]
-        hay_words = _ref_words(_norm(f"{r.label} {r.goal}"))
-        scored.append((sum(1 for w in q_words if any(_same_thing(w, h) for h in hay_words)), k))
-    scored.sort(reverse=True)
+    scored = sorted(((sum(1 for w in q_words if any(_same_thing(w, h) for h in _ref_words(_norm(
+        f"{_SESSIONS[k].label} {_SESSIONS[k].goal}")))), k) for k in keys), reverse=True)
     if scored and scored[0][0] > 0:
-        top = scored[0][0]
-        return [k for s, k in scored if s == top]
-    return list(keys)
+        return [k for s, k in scored if s == scored[0][0]]
+    want = {k for k, hints in _KIND_HINTS.items() if any(h in q for h in hints)}
+    by_kind = [k for k in keys if (_SESSIONS[k].kind or "") in want]
+    return by_kind or list(keys)
 
 
 # ── inyeccion (↓) ────────────────────────────────────────────────────────────────────────────────────────

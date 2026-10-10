@@ -69,4 +69,4 @@ def test_the_text_channel_sends_each_message_to_the_worker_it_names(monkeypatch)
              {"name": "send_to_worker", "args": {"which": "the platform game widget", "message": "jump higher"}}]
     out = PA._send_each(calls, "And the monitor, no more than $150. How's everything going?")
     assert sent == [("the monitor search", "max $150"), ("the platform game widget", "jump higher")]
-    assert out == {"executed": "inject", "sent": 2}
+    assert out == {"executed": "inject", "sent": 2, "to": []}   # nothing live here, so nobody to name back

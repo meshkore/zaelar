@@ -129,8 +129,11 @@ class LangSpec:
     errands_status: str = "Así va todo: {items}."
     errand_under_way: str = "en marcha, sin novedades todavía"
     errand_waiting_on_you: str = "esperando a que me contestes algo"
-    # …and a stop he ordered is acknowledged as DONE, never answered with «dame un momento» (EN round 20:00).
+    # …and a stop he ordered is acknowledged as DONE, never answered with the holding line (EN round 20:00).
     worker_stopped: str = "Hecho, la he parado."
+    # …and a refinement passed to a running errand is confirmed NAMING that errand: the report's refinement got
+    # the holding line, and he had to ask three more times whether it had landed (ES round 20:00).
+    errand_refined: str = "Hecho, se lo paso a {what}."
     # V2-757 — TOUCHING A CARD OF HIS IS ASKED FIRST. Measured live (session f84f91ef, 2026-09-23): with
     # the mic open the operator dictated a design brief to ANOTHER conversation, and the turn read it as
     # his to us — «lo mando hacer», a Brain Worker started rewriting the video card, and his «Olvídate de

@@ -33,9 +33,25 @@ def _send_each(tool_calls: list, text: str) -> dict:
     sends = [(str(t["args"].get("which") or "").strip() or "todo", str(t["args"].get("message") or "").strip())
              for t in tool_calls if t.get("name") == "send_to_worker"]
     sends = [(w, m) for w, m in sends if m] or [("", str(text))]
+    to: list[str] = []
     for which, msg in sends:
         _disp.inject_soon(which, msg)
-    return {"executed": "inject", "sent": len(sends)}
+        to += [n for n in _errand_names(_disp.resolve_sessions(which)) if n not in to]   # said back (three-tasks)
+    return {"executed": "inject", "sent": len(sends), "to": to}
+
+
+def _errand_names(tids) -> list[str]:
+    """How the refinement's errands are named back to him: their label, or their request when the label is still
+    the kind placeholder («Investigando…»)."""
+    from nucleo import dispatch as _disp
+    out = []
+    for tid in tids or []:
+        rec = _disp.get_record(tid)
+        label = str(getattr(rec, "label", "") or "").strip()
+        name = (label if label and not label.endswith("…") else str(getattr(rec, "goal", "") or "").strip())[:70]
+        if name:
+            out.append(name)
+    return out
 
 
 def _the_turns_errands(tool_calls: list, operator_text: str, window_goal: str, *, resolved: str | None = None):
@@ -290,7 +306,9 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
                 from . import router_guards as _rg_hold
                 from nucleo.turn import errands_of_a_turn as _eot   # a status question owes the phases (three-tasks)
                 _stopped = isinstance(return_extra_exec, dict) and return_extra_exec.get("executed") == "stop"   # a stop he ordered is DONE, never «a moment»
+                _to = (return_extra_exec.get("to") if isinstance(return_extra_exec, dict) else None) or []   # «del informe quítame…»
                 spoken = ((_stopped and _lg.worker_stopped) or (action != "escalate" and _eot.status_owed(text, brief))
+                          or (_to and _lg.errand_refined.format(what="; ".join(f"«{t}»" for t in _to[:3])))
                           or _rg_hold.holding_line(sess.window, _lg))
             elif action == "music":
                 # V2-380 — la BOCA dice lo que PASÓ, no «Hecho.» pase lo que pase. Misma casa que la ejecución.

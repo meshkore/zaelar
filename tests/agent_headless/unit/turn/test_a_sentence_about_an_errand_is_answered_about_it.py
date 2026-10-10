@@ -179,3 +179,29 @@ def test_a_no_about_another_errand_leaves_the_parked_one_waiting(errands, monkey
                             "fine, $150 max.", brief=_brief(request_type="answer"))
     assert not ans and "9" in dc._PENDING_CONFIRM
     assert gates.resolve_all("No, leave it").yes is False, "a plain no still answers at once"
+
+
+# ── 6. a refinement passed to a running errand is confirmed naming it ───────────────────────────────────────
+def test_a_refinement_is_confirmed_naming_its_errand(monkeypatch):
+    from i18n import langs
+    from nucleo.flash import probe_after as PA
+    sessions = {}
+    # the kinds the round's registry carried: the report ran as `generic`, the marketplace hunt as `research` —
+    # and «informe» is a `research` hint, so the kind used to send the report's refinement to the monitor
+    for tid, goal, label, kind in (("1", REPORT["request"], "Investigando…", "generic"),
+                                   ("3", MONITOR["request"], "Monitores", "research")):
+        rec = dispatch.SessionRecord(task_id=tid, goal=goal, kind=kind)
+        rec.status, rec.label = "running", label
+        sessions[tid] = rec
+    monkeypatch.setattr(dispatch, "_SESSIONS", sessions)
+    monkeypatch.setattr(dispatch, "inject_soon", lambda which, msg: None)
+    calls = [{"name": "send_to_worker", "args": {"which": "informe", "message": "sin híbridos, solo eléctricos puros"}}]
+    assert dispatch.resolve_sessions("informe") == ["1"], "the errand's own word beats a kind hint"
+    assert dispatch.resolve_sessions("el estudio") == ["3"], "with no word naming one, the kind still decides"
+    got = PA._send_each(calls, "del informe quítame los híbridos")
+    assert got["to"] == [REPORT["request"]], "the placeholder label is not a name"
+    out = asyncio.run(PA.the_words_it_owes(
+        _hw=True, _parts=None, _show_chose=None, action="send_to_worker", images_req=None, return_extra_exec=got,
+        sess=types.SimpleNamespace(window=[]), spoken="", tags=[], text="del informe quítame los híbridos",
+        video_req=None, brief=_brief(wants_words="act", request_type="order")))
+    assert out["spoken"] == langs.current_language().errand_refined.format(what=f"«{REPORT['request']}»")
