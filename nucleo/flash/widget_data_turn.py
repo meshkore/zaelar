@@ -50,7 +50,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     todas = [t.get("args") or {} for t in (tool_calls or []) if t.get("name") == "widget_data"]
     admitidas: list[dict] = []
     for a in todas:
-        if _rg.admite_data_op(a, admitidas):
+        if _rg.admite_data_op(a, admitidas, brief):
             admitidas.append(a)
     if not admitidas:
         return {"executed": "widget_data_skipped", "mode": "sin data-op utilizable", "widget": "", "act": ""}

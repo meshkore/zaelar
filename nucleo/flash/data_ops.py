@@ -30,6 +30,7 @@ import asyncio
 import json as _json
 
 from nucleo.flash import op_receipt as _receipt
+from nucleo.flash import two_orders as _two
 from nucleo.flash import write_outcome as _outcome
 
 #: Techo of data-ops by turn. Cinco enlaces pegados of a vez es a request; cincuenta es a model roto.
@@ -45,8 +46,9 @@ def _ident(args: dict) -> tuple[str, str, str]:
             _json.dumps(pl, sort_keys=True, ensure_ascii=False, default=str))
 
 
-def admite_data_op(args: dict, ya: list[dict]) -> bool:
-    """¿Se ejecuta ESTA data-op, habiendo ejecutado already `already`? Decision shared by the two canales."""
+def admite_data_op(args: dict, ya: list[dict], brief=None) -> bool:
+    """¿Se ejecuta ESTA data-op, habiendo ejecutado already `already`? Decision shared by the two canales.
+    `brief`: two actions its verdict heard in his sentence are two orders, not a menu (`two_orders`)."""
     wid, accion, payload = _ident(args)
     if not wid or not accion:
         return False
@@ -56,7 +58,8 @@ def admite_data_op(args: dict, ya: list[dict]) -> bool:
         p_wid, p_accion, p_payload = _ident(previa)
         if (wid, accion, payload) == (p_wid, p_accion, p_payload):
             return False                      # duplicado exacto → la cita doble
-        if wid == p_wid and accion != p_accion and not _distinct_targets(args, previa):
+        if wid == p_wid and accion != p_accion and not _distinct_targets(args, previa) \
+                and not _two.both_heard(brief, wid, accion, p_accion):
             return False                      # otra acción sobre el mismo widget → la enumeración
     return True
 

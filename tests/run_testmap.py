@@ -3787,6 +3787,9 @@ DOMAINS: list[dict] = [
         {"id": "2.331", "title": "A play the agent just started that the player then refuses is SAID — «Voy con ella» over "
                                  "two 150s and an exhausted list nobody heard about (V2-781)",
             "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_late_player_error_is_told.py"]},
+        {"id": "2.332", "title": "«Unmute it and skip to the next one» runs BOTH controls when the verdict heard both — "
+                                 "`next` was dropped as an enumeration and «Te paso al siguiente» was said over nothing (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_two_controls_the_verdict_heard_both_run.py"]},
         {"id": "2.276", "title": "The delivery backstop never announces a row twice in one errand — the junk batch he "
                                  "turned down came back once the window forgot it (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_never_announces_a_row_twice.py"]},

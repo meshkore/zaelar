@@ -72,7 +72,7 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
                      text=_pic["query"][:80], role="system")
                 return
         # V2-391 — VARIAS, no una: lo decide `data_ops` (ahí está el porqué y qué sigue bloqueado).
-        if not _tx._data_ops.admite_data_op(args, _data_ops_hechas):
+        if not _tx._data_ops.admite_data_op(args, _data_ops_hechas, _brief):
             return
         _data_ops_hechas.append(args)     # y `_tool_fired` ya no lo lee nadie: la cuenta es esta
         _handle_widget_data_tool(args)
