@@ -3753,6 +3753,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.276", "title": "The delivery backstop never announces a row twice in one errand — the junk batch he "
+                                 "turned down came back once the window forgot it (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_never_announces_a_row_twice.py"]},
         {"id": "2.275", "title": "A report errand's working rows are never announced as results-sheet candidates — «RENAULT "
                                  "4…» glued to a report's replies (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_report_errand_never_feeds_the_list_backstop.py"]},

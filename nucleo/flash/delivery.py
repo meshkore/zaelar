@@ -327,6 +327,19 @@ def strip_unbacked_amounts(reply: str, *, user_text: str = "", rows=None, active
     return out, dropped
 
 
+#: errand goal → the rows the backstop already announced. The window prunes old replies; this does not, so a
+#: batch he turned down is never re-offered as news (V2-781, search-buy-used-car).
+_ANNOUNCED: dict[str, set] = {}
+
+
+def _row_key(row: str) -> str:
+    return _norm_txt(str(row or "").split(" — ")[0])[:80]
+
+
+def forget_announced() -> None:
+    _ANNOUNCED.clear()
+
+
 def apply_to_reply(spoken: str, window) -> str:
     """Aplica el backstop a la respuesta de un turno y devuelve la que sale. Nunca lanza.
 
@@ -362,8 +375,11 @@ def apply_to_reply(spoken: str, window) -> str:
                                               active=_live)
         if _cut:
             _emit("🧹 importe sin fuente recortado", dropped=[c[:120] for c in _cut[:3]])
+        _said = _ANNOUNCED.setdefault(encargo, set())     # V2-781: what it said, kept past the window
+        filas = [f for f in filas if _row_key(f) not in _said]
         extra = sheet_delivery_backstop(spoken or "", filas, dicho, errand=encargo, heard=_user)
         if extra:
+            _said.update(_row_key(f) for f in filas if f.split(" — ")[0][:40] in extra)
             _emit("📬 backstop de entrega: la espera sale con las filas")
             return ((spoken.rstrip() + " ") if spoken else "") + extra
         # V2-359 — y si no hay filas que entregar, puede haber un ATASCO que callar. Va DESPUÉS y no antes:
