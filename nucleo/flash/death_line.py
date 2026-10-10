@@ -22,6 +22,8 @@ The sentence is the session's language (`i18n.langs`), and the reason is the A5 
 """
 from __future__ import annotations
 
+from loguru import logger
+
 import re as _re
 
 from .text_norm import _norm_txt
@@ -79,14 +81,14 @@ def backstop(reply: str, rows=None) -> str:
             from voice import brain_notes as _bn
             for key in (f"death:{tid}", f"delivery:{tid}", f"notice:{tid}"):
                 _bn.retract(key)
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"death_line: queued notes not withdrawn — {type(e).__name__}: {e}")
         try:
             from voice.observer import emit
             emit("brain", "📬 death backstop: the waiting reply says the errand died", role="system",
                  extra={"id": tid, "error_class": str(row.get("error_class") or ""), "reply": r[:90]})
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"death_line: emit failed — {type(e).__name__}: {e}")
         return line
     except Exception:  # noqa: BLE001
         return ""

@@ -102,8 +102,8 @@ def ride_out(run_once, first, *, error_of, label: str = "worker", cancelled=lamb
             from voice.observer import emit as _emit
             _emit("task", "⏳ rate limit — waiting it out", role="system", text=str(err)[:160],
                   extra={"attempt": i, "of": len(schedule), "wait_s": d, "who": label})
-        except Exception:  # noqa: BLE001
-            pass
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"{label}: rate-limit emit failed — {type(e).__name__}: {e}")
         if not _wait(d, cancelled, sleep):
             return res
         res = run_once()
