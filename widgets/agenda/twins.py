@@ -52,7 +52,60 @@ def _is_same_meeting(a: dict, b: dict) -> bool:
         return False
     if str(a.get("startTime") or "") != str(b.get("startTime") or ""):
         return False
-    return _titles_overlap(a.get("title"), b.get("title"))
+    if _titles_overlap(a.get("title"), b.get("title")):
+        return True
+    return _same_subject(a, b)
+
+
+# ── ONE SLOT, ONE SUBJECT, TWO WORDINGS (V2-781, 2026-10-10) ──────────────────────────────────────────────────
+# Measured on `demo-initialization__us`: «Veterinario de Pixel» and «Pixel — veterinarian», both 2026-11-20
+# 16:00-17:00, each with its own notice. The INIT says the vet visit twice (the pet section, then the calendar
+# section) and the model wrote the first one in Spanish in an English session. The token-subset rule above
+# compares words exactly, so a translation is «disjoint» and a second row landed. Two narrow widenings, both at
+# the SAME instant only:
+#   · a COGNATE counts as the same word (veterinario/veterinarian, dentista/dentist, producto/product): every
+#     meaningful word of the shorter title has an exact or cognate partner in the longer one;
+#   · the same PROPER NOUN (capitalised, and not just because it opens the title) in both titles, when both rows
+#     also give the same END — the full slot. Nobody keeps two different appointments about Pixel in one slot.
+def _cognate(x: str, y: str) -> bool:
+    if x == y:
+        return True
+    if min(len(x), len(y)) < 5:
+        return False
+    n = 0
+    for cx, cy in zip(x, y):
+        if cx != cy:
+            break
+        n += 1
+    return n >= max(5, min(len(x), len(y)) - 3)
+
+
+def _cognate_subset(ta, tb) -> bool:
+    wa, wb = _title_key(ta).split(), _title_key(tb).split()
+    if not wa or not wb:
+        return False
+    short, long_ = (wa, wb) if len(wa) <= len(wb) else (wb, wa)
+    return all(any(_cognate(w, v) for v in long_) for w in short)
+
+
+def _capitalised(title, *, skip_first: bool = False) -> set:
+    words = re.findall(r"\w+", str(title or ""))
+    return {_strip_accents(w).lower() for i, w in enumerate(words)
+            if (i > 0 or not skip_first) and len(w) >= 3 and w[0].isupper() and not w.isupper()
+            and _strip_accents(w).lower() not in _ARTICLES}
+
+
+def _same_subject(a: dict, b: dict) -> bool:
+    """Same instant already checked by the caller: a cognate wording, or a shared proper noun over the same end."""
+    ta, tb = a.get("title"), b.get("title")
+    if _cognate_subset(ta, tb):
+        return True
+    ea, eb = str(a.get("endTime") or ""), str(b.get("endTime") or "")
+    if not ea or ea != eb:
+        return False
+    # a NAME in at least one title (capitalised past its opening word) and capitalised in the other too
+    return bool((_capitalised(ta, skip_first=True) & _capitalised(tb))
+                | (_capitalised(tb, skip_first=True) & _capitalised(ta)))
 
 
 def _settle_rule(db: dict, twin: dict, new: dict) -> bool:
