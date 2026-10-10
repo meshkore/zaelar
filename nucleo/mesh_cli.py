@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 
 
@@ -104,8 +105,45 @@ def main(argv: list[str] | None = None) -> int:
     if isinstance(res, dict):
         res = {**_u.neutralize_tree(res), "untrusted": _u.NOTE}
         _u.seen()
+    _to_the_sheet(res)
     print(json.dumps(res, ensure_ascii=False, default=str))
     return 0
+
+
+def _rows_in(data, depth: int = 0) -> list[dict]:
+    """The first list of named records in an agent's answer, as sheet rows (title, price, url). Shape-agnostic: an
+    agent's answer has no schema of ours, so it is read the way a person would — a list of things with a name."""
+    if depth > 4:
+        return []
+    if isinstance(data, list):
+        rows = []
+        for x in data:
+            if isinstance(x, dict) and (x.get("title") or x.get("name")):
+                rows.append({"title": str(x.get("title") or x.get("name"))[:160],
+                             "price": str(x.get("price") or x.get("amount") or "")[:40],
+                             "url": str(x.get("url") or x.get("link") or x.get("href") or "")[:500],
+                             "facts": [{"label": "Origen", "value": "agente de la red"}]})
+        if rows:
+            return rows
+        data = {str(i): v for i, v in enumerate(data)}
+    if isinstance(data, dict):
+        for v in data.values():
+            if (rows := _rows_in(v, depth + 1)):
+                return rows
+    return []
+
+
+def _to_the_sheet(res) -> None:
+    """V2-781 T528 — a network agent's rows go to the errand's sheet NOW, like a web search's (`hand_search_rows`):
+    at 1.5 min the worker held 10 listings from an agent and the sheet stayed empty until minute 6. Fail-soft."""
+    try:
+        rows = _rows_in((res or {}).get("data")) if isinstance(res, dict) and res.get("ok") else []
+        if rows and os.getenv("ZAELAR_TASK_ID"):
+            from nucleo import widget_cli
+            widget_cli._act("widget_data", {"widget_id": "results", "action": "append",
+                                            "payload": {"items": rows[:20]}})
+    except Exception as e:  # noqa: BLE001 — the worker still gets its answer on stdout
+        print(json.dumps({"sheet_append_failed": str(e)[:200]}), file=sys.stderr)
 
 
 if __name__ == "__main__":
