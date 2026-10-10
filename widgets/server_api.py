@@ -476,6 +476,10 @@ async def brain_action(wid: str, action: str, payload: dict) -> dict:
     reported (`nothing_playing`) and a change that went through are opposite facts, and collapsing them is how
     «Hecho.» keeps surviving. Same reading as V2-346 — a datum that names them all names none of them.
     """
+    if "::" in str(wid or ""):     # V2-781 T528: a card instance is its base widget + `q`, as in `dispatch_tag`
+        wid, _inst = (x.strip() for x in str(wid).split("::", 1))
+        if _inst and isinstance(payload, dict) and not payload.get("sheet") and not payload.get("q"):
+            payload = {**payload, "q": _inst}
     wid = _safe(wid)
     try:
         from voice.observer import emit as _emit
