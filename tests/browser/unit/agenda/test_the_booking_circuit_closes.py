@@ -49,9 +49,9 @@ def test_after_last_false_is_false(ag):
 def test_book_it_takes_the_slot_that_was_found(ag):
     got = ag.apply_action("find_free", {"date": "2026-10-06", "duration_min": 45, "from": "12:00", "after_last": True})
     assert got["free"][0]["first_fit"] == "16:00-16:45", got
-    r = ag.apply_action("add_meeting", {"title": "Catch up with Ethan"})
+    r = ag.apply_action("add_meeting", {"title": "Catch up with Rowan"})
     assert r.get("ok") is not False, r
-    row = _rows(ag, "Catch up with Ethan")[0]
+    row = _rows(ag, "Catch up with Rowan")[0]
     assert (row["date"], row["startTime"], row["endTime"]) == ("2026-10-06", "16:00", "16:45"), row
 
 

@@ -130,10 +130,10 @@ def test_the_brief_enumerates_the_end_states_of_the_screen_and_of_the_specs_stil
 
 
 def test_a_name_match_reads_the_name_not_the_address_beside_it():
-    """Demo pass 118, E3: the model wrote `contact: "Andrew (ago@proars.com)"`, the mail went to Andrew, and the
-    spec `sent[name~=Andrew (ago@proars.com)]` never matched the sent row named «Andrew» — so the model was told the
+    """Demo pass 118, E3: the model wrote `contact: "Quinn (quinn@example.com)"`, the mail went to Quinn, and the
+    spec `sent[name~=Quinn (quinn@example.com)]` never matched the sent row named «Quinn» — so the model was told the
     send had not happened. A containment match takes the name, not the address the model wrote beside it."""
     from nucleo import spec as _spec
     tpl = {"widget": "mensajeria", "collection": "sent", "where": {"name~": "{contact}"}}
-    for said in ("Andrew (ago@proars.com)", "Andrew <ago@proars.com>", "Andrew"):
-        assert _spec._fill(tpl, {"contact": said})["where"]["name~"] == "Andrew", said
+    for said in ("Quinn (quinn@example.com)", "Quinn <quinn@example.com>", "Quinn"):
+        assert _spec._fill(tpl, {"contact": said})["where"]["name~"] == "Quinn", said

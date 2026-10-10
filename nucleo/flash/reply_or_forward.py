@@ -1,8 +1,8 @@
 """A reply addressed to someone else is a FORWARD (demo pass 110, E3, 2026-10-05).
 
-«send the invoice to andrew, tell him we're already trying inworld» — the model called `mensajeria:reply` on the
-Inworld receipt with «Hi Andrew — forwarding the Inworld receipt…». A reply goes to the message's SENDER: had he
-said «yes» to the question the outward gate rightly asked, the note for Andrew would have gone to Inworld. When the
+«send the invoice to quinn, tell him we're already trying inworld» — the model called `mensajeria:reply` on the
+Orion receipt with «Hi Quinn — forwarding the Orion receipt…». A reply goes to the message's SENDER: had he
+said «yes» to the question the outward gate rightly asked, the note for Quinn would have gone to Orion. When the
 verdict is sure it already runs `forward` instead (full12/full18 E3); this pass it read 0.49 and nothing did.
 
 The rule reads data, not phrasing: his sentence names exactly ONE person of the directory, and that person is not

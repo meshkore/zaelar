@@ -220,9 +220,8 @@ below is the first kind, or it names the mechanism that replaced the second.
   harness clears `__pycache__` on restore. — since 2026-09-20 · nodes 7.53.
 - **CRIT-W6 · A test never touches the operator's real state** (the root `conftest.py` sandbox, which pins
   `ZAELAR_WORKSPACE` and fails BY NAME the test after which his consent/style/library config changed); a red that
-  does not reproduce alone is contamination, not a bug; no real identity sits in a tracked file. — since
-  2026-09-30 · nodes 3.94, 7.10, 7.55. Every connector token store follows `ZAELAR_WORKSPACE`, so an isolated
-  engine never holds his Google, Spotify or mail tokens (2026-10-09, node 3.115).
+  does not reproduce alone is contamination, not a bug; no real identity sits in a tracked file; every connector token store follows
+  `ZAELAR_WORKSPACE`, so an isolated engine never holds his tokens. — since 2026-09-30 · nodes 3.94, 3.115, 7.10, 7.55.
 - **CRIT-W7 · A test outside the map does not exist**; every mechanism ships with its node; a node whose file is
   gone is red, and a file answers one deterministic node. — since 2026-09-30 · nodes 7.32, 7.56.
 - **CRIT-W8 · Public and private.** `engine/` describes mechanism, never product; neither our past nor our future

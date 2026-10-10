@@ -46,7 +46,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     from nucleo.flash import frontend as _fe
     from nucleo.flash import data_ops as _rg
     from widgets import actions as _wa
-    from nucleo.flash import verdict_card as _vcard
+    from nucleo.flash import reply_or_forward as _rof, verdict_card as _vcard  # noqa: F401 — _rof rides in retarget
     todas = [t.get("args") or {} for t in (tool_calls or []) if t.get("name") == "widget_data"]
     admitidas: list[dict] = []
     for a in todas:

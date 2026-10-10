@@ -153,8 +153,8 @@ def span_end(meetings: list, day: str, payload: dict) -> str:
     for k in ("duration_min", "minutes", "duration", "length"):
         try:
             need = need or int(float(str(payload.get(k)).strip()))
-        except (TypeError, ValueError):
-            pass                          # `_minutes` caps a slot at 12 h: a stretch is read uncapped
+        except (TypeError, ValueError):   # `_minutes` caps a slot at 12 h: a stretch is read uncapped
+            continue                      # not a number in this key — the next key may carry it
     if need < 24 * 60:
         return ""
     try:

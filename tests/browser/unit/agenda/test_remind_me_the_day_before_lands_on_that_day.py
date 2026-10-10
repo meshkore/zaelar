@@ -117,3 +117,18 @@ def test_set_reminder_reads_the_same_keys_add_meeting_does(fake_sched):
     r = agenda.apply_action("set_reminder", {"title": "Kids dentist appointment", "remind": f"{THU} 12:00"})
     assert r.get("ok") is not False, r
     assert _live_stamps(fake_sched) == [f"{THU} 12:00"]
+
+
+@pytest.mark.parametrize("said", ["el mismo día por la mañana", "ese día", "the same day", "el día del estreno",
+                                  "that morning"])
+def test_a_notice_on_that_day_rings_on_the_items_day(said):
+    """V2-781 pair 3 (2026-10-10): `remind: "el mismo día por la mañana"` rang TOMORROW — the noun «mañana» read as the
+    adverb — and «ese día» rang TODAY, the resolver's fallback. A phrase that names no day of its own is the item's."""
+    from widgets.agenda import reminders as R
+    assert R.asked_instant(said, "2026-10-30", "", agenda._resolve_date) == "2026-10-30 09:00"
+
+
+def test_a_notice_day_said_outright_still_moves_it():
+    from widgets.agenda import reminders as R
+    assert R.asked_instant("2026-10-29 20:00", "2026-10-30", "", agenda._resolve_date) == "2026-10-29 20:00"
+    assert R.asked_instant("the day before", "2026-10-30", "", agenda._resolve_date) == "2026-10-29 09:00"

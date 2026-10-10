@@ -39,8 +39,8 @@ def test_more_of_those_is_more_of_the_search_under_way(verdict):
 
 def test_with_nothing_under_way_the_viewer_query_is_more_of(verdict):
     from widgets import store
-    store.save("imagenes", {"query": "Helix nebula", "items": [{"url": "u"}]})
-    assert cc.picture_named_by("a few more", object())["query"] == "Helix nebula"
+    store.save("imagenes", {"query": "Crab nebula", "items": [{"url": "u"}]})
+    assert cc.picture_named_by("a few more", object())["query"] == "Crab nebula"
 
 
 def test_an_unsure_verdict_or_another_card_changes_nothing(verdict):

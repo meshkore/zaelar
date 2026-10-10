@@ -60,7 +60,7 @@ def test_the_wall_keeps_the_space_before_the_tail():
 
 
 def test_a_question_that_also_promises_still_gets_its_tail():
-    """Pass 114, C5: «Want me to fire off that Telegram to Ethan now… and I'll send it as soon as you confirm?» — the
+    """Pass 114, C5: «Want me to fire off that Telegram to Rowan now… and I'll send it as soon as you confirm?» — the
     repair SENT it, and `promised` (the «I'll send» in the question) dropped the tail: the last thing heard asked."""
     said = "Want me to fire off that Telegram to Rowan now, and I'll send it as soon as you confirm?"
     assert AR.after_the_repair(said, True, "mensajeria", "send_to").strip() == _line("data_ack_went_ahead")

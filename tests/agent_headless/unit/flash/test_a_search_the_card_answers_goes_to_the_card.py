@@ -1,6 +1,6 @@
 """A web search on a turn the card ANSWERS goes to the card, not to the web (demo pass 109, C2, 2026-10-05).
 
-«find me a free 45 minutes tomorrow afternoon to talk with ethan, after my last meeting» — the verdict read
+«find me a free 45 minutes tomorrow afternoon to talk with rowan, after my last meeting» — the verdict read
 `agenda:find_free` at 1.00, and the model called `web_search`. The results were timer websites, the reply said
 «those results were just time and timer tools… tell me when your last meeting finishes», and only afterwards a
 repair ran the find_free nobody then heard. When the verdict SURELY names an action whose result IS the reply

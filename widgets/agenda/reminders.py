@@ -66,9 +66,15 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
         return "", str((r or {}).get("error") or "scheduler")
     try:
         _sched.supersede_loose_notices(r.get("display") or stamp)   # V2-781 T519: one alert, the one with a name
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception:  # noqa: BLE001 — the notice itself stands; a loose twin may ring once more
+        __import__("logging").getLogger("zaelar.agenda").warning("supersede_loose_notices failed", exc_info=True)
     return str(r.get("id") or ""), stamp
+
+
+def notice_fields(title: str, date: str, start: str = "") -> dict:
+    """`{reminder_id, remindAt}` of the default notice just scheduled, or {} when none could be."""
+    jid, at = _schedule_reminder(title, date, start)
+    return {"reminder_id": jid, "remindAt": at} if jid else {}
 
 
 #: The keys a write uses to say WHEN its notice rings («apúntalo el jueves y avísame el miércoles»). Measured in
@@ -97,8 +103,11 @@ def asked_instant(raw, date: str, start: str, resolve_date) -> str:
         except Exception:  # noqa: BLE001
             return ""
         day = _t.strftime("%Y-%m-%d", _t.localtime(noon - 86400))
-    elif day:
-        day = resolve_date(day)
+    elif day and not re.match(r"^\d{4}-\d{2}-\d{2}$", day.strip()):
+        # A phrase with no day of its own («el mismo día por la mañana», «ese día», «the same day») is the item's
+        # day: the resolver falls back to TODAY, and «por la mañana» read as «mañana» rang TOMORROW (V2-781 pair 3).
+        from nucleo import scheduler as _sched
+        day = (_sched.parse_when(_sched._RE_MORNING_NOUN.sub(" ", folded)) or "")[:10]
     day = day or date
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", str(day)):
         return ""
@@ -129,8 +138,8 @@ def _cancel_reminder(meeting: dict) -> None:
     try:
         from nucleo import scheduler as _sched
         _sched.cancel(ref)
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception:  # noqa: BLE001 — an orphan alarm fires a ghost: say so
+        __import__("logging").getLogger("zaelar.agenda").warning(f"could not cancel notice {ref}", exc_info=True)
 
 
 def roll_series(load, save) -> bool:

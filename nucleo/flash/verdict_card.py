@@ -63,8 +63,8 @@ def retarget(brief, widget_id: str, action: str, payload: dict, said: str) -> tu
             rung = _da.resolve(said, brief=brief, operator_text=said)
             if rung and rung.get("action") == vact and isinstance(rung.get("payload"), dict):
                 return str(rung.get("widget") or vwid), vact, rung["payload"]
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception:  # noqa: BLE001 — the model's own call stands
+        __import__("logging").getLogger("zaelar.flash").warning("verdict_card.retarget failed", exc_info=True)
     return widget_id, action, payload
 
 

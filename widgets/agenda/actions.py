@@ -114,12 +114,9 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
 
     if _new.get("allDay"):
         _twin = next((m for m in _meets if _twin_of(m)), None)   # timed or all-day — either way it exists
-        if _twin is None:
-            _jid, _at = _d._schedule_reminder(title, _d.recur.next_occurrence(_new, _d._today()) or date, "")
-            if _jid:                           # all-day: 09:00 that day (operator, 2026-10-10)
-                _new["reminder_id"], _new["remindAt"] = _jid, _at
-            _d.gcal.commit_meeting(db, _new)
-            _d.edit.touch(db, _new)
+        if _twin is None:                      # all-day: its notice at 09:00 that day (operator, 2026-10-10)
+            _new.update(_d.reminders.notice_fields(title, _d.recur.next_occurrence(_new, _d._today()) or date))
+            _d.gcal.commit_meeting(db, _new); _d.edit.touch(db, _new)
         elif _d._settle_rule(db, _twin, _new):
             _extra["stored"] = dict(_twin)
     else:

@@ -1126,7 +1126,7 @@
    "search",
    "worker"
   ],
-  "open": "V2-776 · a stale query carried from an earlier block (the Inworld mail) became a results sheet; his words name tomorrow's day — the agenda"
+  "open": "V2-776 · a stale query carried from an earlier block (the Orion mail) became a results sheet; his words name tomorrow's day — the agenda"
  },
  {
   "id": "demo-c5-send-a-telegram-is-a-send-not-a-draft",
@@ -1213,14 +1213,14 @@
   "id": "demo-e4-unread-words-invent-what-was-opened",
   "lang": "en",
   "phrase": "oh and leave that inworld one as unread",
-  "source": "TMP/demo/run-p113 E4 (2026-10-05): «Here's the text you'd use to reproduce this turn: I didn't open the original Inworld receipt — the one I opened was your own email…» — E2 had opened the receipt itself; the promise repair ran mensajeria:unread on the right mail",
+  "source": "TMP/demo/run-p113 E4 (2026-10-05): «Here's the text you'd use to reproduce this turn: I didn't open the original Orion receipt — the one I opened was your own email…» — E2 had opened the receipt itself; the promise repair ran mensajeria:unread on the right mail",
   "screen": {
    "open": [
     "mensajeria"
    ]
   },
   "model": {
-   "say": "Here's the text you'd use to reproduce this turn: I didn't open the original Inworld receipt — the one I opened was your own email, so I'll mark the Inworld receipt as unread for you.",
+   "say": "Here's the text you'd use to reproduce this turn: I didn't open the original Orion receipt — the one I opened was your own email, so I'll mark the Orion receipt as unread for you.",
    "tools": []
   },
   "brief": {
