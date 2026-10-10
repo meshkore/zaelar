@@ -249,7 +249,8 @@ def ensure_failure_named(spoken: str, parte: dict) -> str:
     import re as _re                 # V2-781 pair 7: the sentences written for the MODEL's retry are not his to hear
     said = [c for c in _re.split(r"(?<=[.;])\s+", msgs[0]) if not _re.search(r"[{}`]|\b[a-z]+_[a-z_]+\b", c)]
     msgs[0] = " ".join(said).rstrip(";") or "el widget no lo aceptó."
-    cola = "No he podido: " + msgs[0]
+    from voice.engine.core import langs as _lg_fn            # V2-781: the table's wrapper, not a Spanish literal
+    cola = _lg_fn.current_language().widget_data_failed.replace("{reason}", msgs[0])
     if cola.lower() in spoken.lower() or msgs[0].lower() in spoken.lower():
         return spoken
     return spoken.rstrip() + " " + cola

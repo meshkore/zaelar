@@ -15,7 +15,10 @@ import re
 _TEXT_KEYS = ("text", "note", "body", "message")
 _MARKERS = {
     "es": {"el", "la", "los", "las", "que", "de", "del", "y", "con", "para", "por", "ya", "estamos", "así", "una",
-           "un", "es", "está", "nos", "vemos", "hola", "oye", "mañana", "hora", "adelante", "reserva", "gracias"},
+           "un", "es", "está", "nos", "vemos", "hola", "oye", "mañana", "hora", "adelante", "reserva", "gracias",
+           # V2-781: what a widget's refusal is made of («No encuentro ese vídeo en la lista» had one marker)
+           "ese", "esa", "hay", "más", "nada", "encuentro", "dime", "qué", "cuál", "vídeo", "vídeos", "lista",
+           "vacía", "puedo", "tengo"},
     "en": {"the", "and", "we", "we're", "already", "to", "of", "is", "are", "it", "you", "with", "for", "see",
            "tomorrow", "hey", "hi", "thanks", "please", "go", "ahead", "book", "our", "your", "at"},
 }
