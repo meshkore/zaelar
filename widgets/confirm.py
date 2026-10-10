@@ -236,6 +236,15 @@ def classify_reply(text: str) -> str | None:
 _PLAIN_ANSWER_WORDS = 3
 
 
+def is_plain_answer(text: str, verdict: str) -> bool:
+    """A bare yes/no: the answer word plus at most `_PLAIN_ANSWER_WORDS` others. Anything longer may be a different
+    request that happens to carry «vale» or a «no» — the task gate reads this too (`turn/confirm_gates.py`)."""
+    n = _norm(text)
+    m = (_YES_RE if verdict == "yes" else _NO_RE).search(n)
+    rest = [w for w in re.findall(r"\w+", (n[:m.start()] + " " + n[m.end():]) if m else n)]
+    return len(rest) <= _PLAIN_ANSWER_WORDS
+
+
 def answers_pending(text: str) -> str | None:
     """`classify_reply`, for the confirmation actually pending — 'yes' | 'no' | None.
 
@@ -248,10 +257,7 @@ def answers_pending(text: str) -> str | None:
     v = classify_reply(text)
     if v is None:
         return None
-    n = _norm(text)
-    m = (_YES_RE if v == "yes" else _NO_RE).search(n)
-    rest = [w for w in re.findall(r"\w+", (n[:m.start()] + " " + n[m.end():]) if m else n)]
-    if len(rest) <= _PLAIN_ANSWER_WORDS:
+    if is_plain_answer(text, v):
         return v
     items = sorted(pending().values(), key=lambda p: p.get("ts", 0))
     question = str((items[-1] if items else {}).get("question") or "").strip()

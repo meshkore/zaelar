@@ -35,7 +35,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
     # precedencia la decide `nucleo/turn/confirm_gates.py`, una vez y para los dos canales.
     if not had_pending_confirm and not worker_acted["v"]:
         from nucleo.turn import confirm_gates as _gates
-        _ans = _gates.resolve_all(text)
+        _ans = _gates.resolve_all(text, brief=_brief)
         if _ans:
             escalate_req["v"] = None      # contesta a lo PARADO; ni abre tarea nueva ni pide nada más
             escalate_req["more"] = []

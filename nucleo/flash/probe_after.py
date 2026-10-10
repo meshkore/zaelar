@@ -34,7 +34,7 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
         # Aquí solo queda la BOCA: convertir la respuesta en el nombre de acción que el probe reporta.
         try:
             from nucleo.turn import confirm_gates as _gates
-            _ans = _gates.resolve_all(text)
+            _ans = _gates.resolve_all(text, brief=_tbrief)
             if _ans:
                 action = "confirm_task" if _ans.yes else "confirm_task_no"
                 _res = _ans.result if isinstance(_ans.result, dict) else {}

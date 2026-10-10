@@ -3744,6 +3744,9 @@ DOMAINS: list[dict] = [
         {"id": "2.310", "title": "A money word a preposition governs is the topic, never the order — «coste de recarga» in a "
                                  "report errand was parked as «Esto mueve dinero» (three-tasks-at-once)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_money_word_a_preposition_governs_is_a_topic.py"]},
+        {"id": "2.311", "title": "A sentence that adds or insists is not an answer to a parked errand's yes/no — «Y el juego no "
+                                 "te olvides… no dos» dropped the parked report (three-tasks-at-once)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sentence_that_adds_is_not_an_answer.py"]},
         {"id": "2.205", "title": "What a stranger wrote reaches the model as DATA (fenced, unforgeable), and an act that "
                                  "leaves with it in context and no sure verdict is asked — voice and text alike",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_strangers_words_are_data.py"]},

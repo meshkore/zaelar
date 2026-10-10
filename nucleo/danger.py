@@ -356,9 +356,9 @@ _AGENDA_ITEM_RE = re.compile(
 # pan». Narrow to the two measured shapes on purpose: «confirma la compra» and «finalizar compra» are
 # checkout and keep stopping, which a broader «any determiner» version would have disarmed.
 #
-# The class is the PREPOSITION, not the word (three-tasks-at-once, 2026-10-10). The fast brain composed «hazme
-# un informe sobre coches eléctricos» as «… precio, coste DE RECARGA y mantenimiento …», and the gate parked a
-# report as «Esto mueve dinero»: «recarga» is in `_SPEND_VERB_RE` as the imperative («recarga el móvil»), and a
+# The class is the PREPOSITION, not the word (three-tasks-at-once, 2026-10-10). The fast brain composed a
+# report on city EVs as «… precio, coste DE RECARGA y mantenimiento …», and the gate parked that report as
+# «Esto mueve dinero»: «recarga» is in `_SPEND_VERB_RE` as the imperative («recarga el móvil»), and a
 # preposition in front makes it the noun. Same for «por recarga», «per charge», «free of charge». Only the
 # forms that ARE spelled like an imperative of this module are listed, and only after a PREPOSITION — a
 # determiner alone («confirma la compra») stays an order, and «paga por la compra» keeps its «paga».

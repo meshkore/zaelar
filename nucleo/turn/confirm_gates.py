@@ -98,7 +98,7 @@ def _widget_gate():
     return (_open, _do)
 
 
-def _task_gate():
+def _task_gate(brief=None):
     def _open():
         from nucleo import dispatch as _d
         return bool(_d.pending_confirm())
@@ -106,9 +106,38 @@ def _task_gate():
     def _do(text):
         from nucleo import dispatch as _d
         from widgets import confirm as _c
-        v = _c.classify_reply(text)
+        words = operator_words(text)
+        v = task_reply(words, _c.classify_reply(words), str((_d.pending_confirm() or {}).get("question") or ""),
+                       brief=brief)
         return _d.resolve_confirm(v == "yes") if v else None
     return (_open, _do)
+
+
+def operator_words(text: str) -> str:
+    """The turn without the `[SISTEMA]` notes glued in front: our notice's «sin tu OK» is not his vote."""
+    from nucleo.flash import escalate as _esc
+    return _esc.strip_system_notes(text) if "[SISTEMA]" in (text or "") else (text or "")
+
+
+def task_reply(words: str, v: str | None, question: str, *, brief=None) -> str | None:
+    """'yes' | 'no' | None — does the operator's turn ANSWER the parked errand's question? (three-tasks-at-once)
+
+    Measured 2026-10-10 (sandbox 20261010-145227-es): with two errands parked, «Vale. Del monitor que no se te vaya
+    de presupuesto» built the game and «Y el juego no te olvides, ¿eh? Que son tres, no dos» dropped the report.
+    Neither answers anything: this gate counted bare yes/no WORDS, over a text that still carried our own notes
+    («sin tu OK», «Si no te he entendido mal»). Now the reading is the widget gate's (`answers_pending`): only the
+    operator's words count; a plain yes/no answers at once; a longer sentence answers when the judge, shown THIS
+    question, says it does — and with no judge, only when the turn's verdict reads it as an answer. Otherwise it
+    stays waiting: an ambiguous sentence is not an authorisation, and the parked errand can still absorb it."""
+    from widgets import confirm as _c
+    if v is None or _c.is_plain_answer(words, v):
+        return v
+    judged = _c._judge(question, words) if question else None
+    if judged is not None:
+        return None if judged == "other" else judged
+    from nucleo.flash import turn_brief as _tb
+    kind, _info = _tb.read(brief, _tb.REQUEST_KEY, "") if brief is not None else ("", None)
+    return v if kind == "answer" else None
 
 
 def _browser_gate():
@@ -120,16 +149,17 @@ def _browser_gate():
     return (lambda: True, _do)
 
 
-def resolve_all(text: str, *, widget: bool = False) -> Answered:
+def resolve_all(text: str, *, widget: bool = False, brief=None) -> Answered:
     """The standard resolution: every gate a channel can answer, IN ONE CALL — which is the invariant.
 
     One call is what makes «the second gate never sees the word» true by construction instead of by the caller
     remembering to guard it. Splitting this back into one call per gate is the defect, whatever goes in between.
 
     `widget=True` includes the widget gate. Voice handles that one earlier in its turn (it has to speak the
-    acknowledgement and return), so by default it is left out rather than resolved twice.
+    acknowledgement and return), so by default it is left out rather than resolved twice. `brief` is the turn's
+    verdict handle: the task gate reads it when a long reply cannot be judged (`task_reply`).
     """
     return resolve(text,
                    widget=_widget_gate() if widget else None,
-                   task=_task_gate(),
+                   task=_task_gate(brief) if brief is not None else _task_gate(),
                    browser=_browser_gate())
