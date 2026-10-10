@@ -63,7 +63,7 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
                 _ar_wid = _cardc_probe.named_or_catalogue(_tbrief, operator_text)
                 _pv_o, _pv_a = _da_probe.from_brief(_tbrief)
                 _ar = (await _act_repair.call_for_promise_or_order(operator_text, spoken, _ar_wid, _pv_a if _pv_o == _ar_wid
-                       else "", spec=spec, window=getattr(sess, "window", None)) if _ar_wid   # window: V2-781 pair 3
+                       else "", spec=spec, window=getattr(sess, "window", None), brief=_tbrief) if _ar_wid   # V2-781 p3, T529
                        else await _act_repair.probe_call_for_promise(operator_text, spoken, spec, window=getattr(sess, "window", None)))
             if _ar:
                 # «widget_data», the label the executor matches — a richer label here meant the repaired call was

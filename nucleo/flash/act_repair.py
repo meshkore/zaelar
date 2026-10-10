@@ -244,8 +244,20 @@ _SYS_REFUSED = (
 )
 
 
+def _answered_a_question(brief, reply: str) -> bool:
+    """A SURE question (the brief) answered by a reply that promised nothing and refused nothing (`reply_promise`).
+    «none» also covers a report of something done («Hecho»), so the question half is what keeps a CLAIM repairable."""
+    try:
+        from nucleo.flash import reply_promise as _rp, turn_brief as _tb
+        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8) if brief is not None else ("", None)
+        return bool(info) and str(kind or "") == "question" and _rp.verdict(reply) == "none" \
+            and not denies_the_act(reply)
+    except Exception:  # noqa: BLE001
+        return False
+
+
 async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: str, verdict: str = "", spec=None, *,
-                                    window=None) -> dict | None:
+                                    window=None, brief=None) -> dict | None:
     """`call_for_promise`, and when the words promised nothing — they REFUSED — the verdict's call.
 
     Demo pass 41 (2026-09-29, E3): «send the invoice to quinn…» over the open receipt → «I can't send it myself —
@@ -253,8 +265,7 @@ async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: s
     pass asks «did you promise an act?», and a refusal did not, so it rightly called nothing — and the mail never
     went. A refusal of an action the card DECLARES, for an order the verdict names, is one more question to the
     model, with the action named. Bounded like the others: one card, its declared action, the caller's gate."""
-    from nucleo.flash import reply_promise as _rp     # V2-781 T529: an answer that promised nothing is left alone
-    if _rp.verdict(reply) == "none" and not denies_the_act(reply):
+    if _answered_a_question(brief, reply):           # V2-781 T529: an answer to a question is left alone
         return None
     got = await call_for_promise(operator_text, reply, widget_id, spec, window=window)
     # V2-781 T518: «make it last until one» — the promise pass read «I'll open it so you can see it» and picked

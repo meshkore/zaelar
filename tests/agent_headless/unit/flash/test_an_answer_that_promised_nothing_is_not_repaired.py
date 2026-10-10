@@ -25,10 +25,13 @@ def spy(monkeypatch):
     return calls
 
 
-def _run(reply, verdict):
+def _run(reply, verdict, kind="question"):
     import unittest.mock as m
-    with m.patch.object(RP, "verdict", lambda r: verdict):
-        return asyncio.run(A.call_for_promise_or_order("do I have anything on the 16th?", reply, "agenda"))
+    from nucleo.flash import turn_brief as TB
+    with m.patch.object(RP, "verdict", lambda r: verdict), \
+            m.patch.object(TB, "read", lambda b, key, d="", **k: (kind, {"confidence": 1.0})):
+        return asyncio.run(A.call_for_promise_or_order("do I have anything on the 16th?", reply, "agenda",
+                                                       brief=object()))
 
 
 def test_a_sure_none_is_left_as_it_was(spy):
@@ -42,3 +45,12 @@ def test_a_promise_or_an_unread_verdict_still_repairs(spy):
 
 def test_a_refusal_still_reaches_the_verdict(spy):
     assert _run("I can't send it myself.", "none")
+
+
+def test_a_claim_on_an_order_is_still_repaired(spy):
+    """«none» also reads a report of something done («Hecho.»); over an ORDER that claim with no call is repaired."""
+    assert _run("Hecho.", "none", kind="order")
+
+
+def test_the_text_channel_hands_the_brief():
+    assert "brief=_tbrief) if _ar_wid" in open("nucleo/flash/probe_mirrors.py", encoding="utf-8").read()
