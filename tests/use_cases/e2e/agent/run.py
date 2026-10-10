@@ -332,6 +332,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # difference is what `verify.unreadable_infra` reads below to refuse to score the round.
     _raw_events = probe_client.session_events(live_session_id) or []
     all_events = [e for e in _raw_events if (e.get("ts_ms") or 0) >= scenario_started_ms]
+    # A notice spoken after the last line is part of the talk: the judge reads the transcript (V2-781).
+    for _late in verifymod.late_notices(all_events, after_ms=(transcript[-1]["at"] * 1000 if transcript else 0)):
+        note("zaelar", f"🔔 (aviso espontáneo, tras la charla) {_late}")
     try:
         jobs_after = probe_client.scheduled_jobs()
     except Exception:

@@ -3669,3 +3669,17 @@ def embeddings_backend(db_path, *, since: float = 0.0) -> dict:
         out = {"backend": backend, "skipped": skipped,
                "degraded": bool(skipped or backend not in _backends_sanos())}
     return out
+
+
+def late_notices(all_events, *, after_ms: float) -> list[str]:
+    """What the agent SPOKE unprompted after the tester's last line (V2-781): the worker's «they're ready»
+    reaches the operator by voice, so a round that drops it scores a delivery as never said."""
+    out = []
+    for e in all_events or []:
+        f = _fields(e)
+        text = str(f.get("text") or e.get("text") or "").strip()
+        if (str(f.get("kind") or e.get("kind") or "") == "notify" and text
+                and str(f.get("role") or e.get("role") or "") == "assistant"
+                and float(e.get("ts_ms") or f.get("t_ms") or 0) > after_ms):
+            out.append(text)
+    return out

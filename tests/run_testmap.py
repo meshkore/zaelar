@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.264", "title": "A notice the agent speaks after the tester's last line reaches the judge — «they're "
+                                 "ready» at 330 s was scored as never said (V2-781)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_notice_spoken_after_the_talk_reaches_the_judge.py"]},
         {"id": "2.263", "title": "The widget agent never inherits the host's Claude Code session — «401 … ****2wAA is "
                                  "invalid» on every build (V2-781 T532)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_widget_agent_never_inherits_the_hosts_claude_session.py"]},
