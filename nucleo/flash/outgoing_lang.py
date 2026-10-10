@@ -32,7 +32,13 @@ def language_of(text: str) -> str:
     return "es" if es > en else "en"
 
 
+#: Off inside the suite (tests/conftest.py), like `spoken_delivery.LIVE`: a reply door must not reach the network.
+LIVE = True
+
+
 async def _translate(text: str, lang_name: str) -> str:
+    if not LIVE:
+        return ""
     from nucleo.flash.fast_client import FastClient
     out = await FastClient().complete(
         [{"role": "system", "content": f"Translate the message into {lang_name}. Keep names, numbers, times and the "
@@ -64,6 +70,33 @@ async def in_session_language(widget_id: str, action: str, payload: dict) -> dic
     except Exception as e:  # noqa: BLE001
         _note(widget_id, action, "", f"translation skipped: {type(e).__name__}")
         return payload
+
+
+def foreign_to_session(text: str) -> bool:
+    """True when `text` reads as the OTHER product language — the synchronous check, so a caller whose await points
+    matter (the proactive delivery queue) only yields when there is something to translate."""
+    try:
+        from i18n import langs as _lg
+        code = str(_lg.current_code() or "").lower()[:2]
+        return code in _MARKERS and language_of(text) not in ("", code)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+async def said_in_session_language(text: str) -> str:
+    """`text` (a reply or a spoken notice) in the session's language — «I'm in Madrid» turned an English session
+    Spanish (V2-781). Same rule as the outgoing door: only es↔en, too few words to tell is left alone."""
+    try:
+        from i18n import langs as _lg
+        code = str(_lg.current_code() or "").lower()[:2]
+        if code in _MARKERS and language_of(text) not in ("", code):
+            t = await _translate(text, _lg.spec(code).name)
+            if t and language_of(t) != language_of(text):
+                _note("reply", "say", text, t)
+                return t
+    except Exception as e:  # noqa: BLE001
+        _note("reply", "say", "", f"translation skipped: {type(e).__name__}")
+    return text
 
 
 def _note(widget_id: str, action: str, before: str, after: str) -> None:

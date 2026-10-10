@@ -25,6 +25,7 @@ def ol(monkeypatch):
             calls.append(messages[-1]["content"])
             return "We're already trying Inworld, so go ahead and book it."
     monkeypatch.setattr(fast_client, "FastClient", _FC)
+    monkeypatch.setattr(outgoing_lang, "LIVE", True)        # the client is faked: the door may call it
     outgoing_lang._calls = calls
     return outgoing_lang
 

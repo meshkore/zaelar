@@ -524,6 +524,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # la decisión. Aquí solo se le pasa la respuesta del turno; el porqué de cada regla vive en su módulo.
     from . import delivery as _delivery
     spoken = _delivery.apply_to_reply(spoken, sess.window)
+    from . import outgoing_lang as _ol   # V2-781: «I'm in Madrid» turned the English session Spanish
+    spoken = await _ol.said_in_session_language(spoken) if _ol.foreign_to_session(spoken) else spoken
 
     # CAPTURA FORENSE del turno (V2-040, espejo del provider de voz — cablear en AMBOS): prompt+ventana+tools+
     # decisión al fichero (categoría system). Así un test headless deja la misma traza diagnosticable.
