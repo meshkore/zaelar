@@ -171,6 +171,21 @@ def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: s
         return ""
 
 
+def _recipient_was_named(wid: str, action: str, payload: dict, operator_text: str, window) -> bool:
+    """An outbound message a repair invents must go to someone his words or the conversation carry (V2-781: «avísame
+    cuando esté» became `send_to {"contact": "zaelar"}`, the assistant's own name)."""
+    try:
+        from widgets import effects as _fx
+        if not _fx.carries(wid, action, _fx.EXTERNAL_SEND):
+            return True
+        who = str(payload.get("contact") or payload.get("to") or "").strip().lower()
+        heard = " ".join([operator_text or ""] + [str((m or {}).get("content") or "") for m in (window or [])
+                                                  if (m or {}).get("role") == "user"]).lower()
+        return not who or who in heard
+    except Exception:  # noqa: BLE001
+        return True
+
+
 async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=None, *,
                            window=None) -> dict | None:
     """`{widget_id, action, payload}` — the call the model should have made — or None. Never raises."""
@@ -211,6 +226,9 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
                 _note(wid, "acción no declarada", action=action[:40])
                 continue
             payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
+            if not _recipient_was_named(wid, action, payload, operator_text, window):
+                _note(wid, "envío a alguien que nadie nombró", action=action[:40])
+                continue
             return {"widget_id": wid, "action": action, "payload": payload}
         if not got:
             _note(wid, "el modelo no llamó a nada")
