@@ -1753,7 +1753,7 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
             # «— YA ENTREGADO», así que `%YA ENTREGADO%` casa con la segunda y NO con la primera. Lo aprendí
             # rompiéndolo: al enseñarle la nueva me cargué la que funcionaba, y lo cazó el caso que probaba
             # las dos a la vez.
-            "AND payload LIKE '%ENTREGADO%' ORDER BY ts_ms ASC",
+            "AND (payload LIKE '%ENTREGADO%' OR payload LIKE '%ENCONTRADO%') ORDER BY ts_ms ASC",
             (int(since * 1000),)).fetchall()
     except Exception:
         return out
@@ -1824,7 +1824,7 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
         # — cinco cadenas fijas del prompt, en todas las rondas, que además envenenaban `delivered_by_name`
         # porque este `named` lo alimenta. Un matcher que se afloja para cubrir un caso nuevo se traga el ruido
         # del viejo: se enumeran las dos formas y se acabó.
-        m = re.search(r"(?:LO QUE YA HA ENTREGADO|YA ENTREGADO)\s*\([^)]*\)\s*:\s*"
+        m = re.search(r"(?:LO QUE YA HA ENTREGADO|YA ENTREGADO|LO QUE HA ENCONTRADO|ENCONTRADO)\s*\([^)]*\)\s*:\s*"
                       r"(.+?)(?:\.\s*OJO|\(llevas|\.\s*Si el operador|$)", sp, re.S)
         if not m:
             continue
@@ -2496,9 +2496,9 @@ def delivered_by_name(transcript, known_titles) -> dict:
 
 
 #: El encabezado exacto con el que `live_blocks` empuja las filas de la hoja al prompt del turno.
-_ROWS_HEAD = "LO QUE YA HA ENTREGADO (nombre y precio, de la hoja): "
+_ROWS_HEAD = "LO QUE HA ENCONTRADO (nombre y precio, de la hoja): "
 #: La del bloque de TAREAS DE FONDO (V2-451), que es la única que existe cuando el encargo no abre navegador.
-_ROWS_HEAD_TAREA = " — YA ENTREGADO (de su hoja): "
+_ROWS_HEAD_TAREA = " — ENCONTRADO (en su hoja): "
 
 
 def shown_candidates(prompt_rows: list[dict] | None) -> list[str]:

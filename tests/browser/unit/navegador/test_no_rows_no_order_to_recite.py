@@ -94,7 +94,7 @@ def test_CON_filas_el_imperativo_de_siempre_sigue_intacto():
     st = _estado("Busca una guitarra acústica", "v330-5",
                  [{"title": "Guitarra Acústica Fender CD-60", "price": "120 €"}])
     assert "CUÉNTALE en este turno LO QUE ENCAJE" in st
-    assert "LO QUE YA HA ENTREGADO" in st
+    assert "LO QUE HA ENCONTRADO" in st
     assert "Fender CD-60 — 120 €" in st
     assert "DICE QUE YA TIENE CANDIDATOS" not in st
 

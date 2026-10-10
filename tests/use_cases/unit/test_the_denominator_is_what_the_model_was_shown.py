@@ -18,7 +18,7 @@ from __future__ import annotations
 from tests.use_cases.e2e.agent import verify as V
 from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
-_HEAD = "LO QUE YA HA ENTREGADO (nombre y precio, de la hoja): "
+_HEAD = "LO QUE HA ENCONTRADO (nombre y precio, de la hoja): "
 
 
 def _turno(*filas: str) -> dict:

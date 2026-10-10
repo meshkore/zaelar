@@ -71,7 +71,7 @@ def test_las_filas_SIGUEN_viajando_la_rama_no_las_sustituye():
     model would have to decide whether anything fits without seeing the lines. It is the V2-298 failure in reverse."""
     state = _face("Busca una guitarra acústica por debajo de 150 €", "v318-4",
                   [{"title": "Guitarra Acústica Taylor CE114", "price": "700 €"}])
-    assert "LO QUE YA HA ENTREGADO" in state
+    assert "LO QUE HA ENCONTRADO" in state
     assert "Guitarra Acústica Taylor CE114 — 700 €" in state
 
 

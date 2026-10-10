@@ -176,7 +176,7 @@ def say_the_browser_state(*, _asked, _blocked, _has_results, _head, _login, _orp
             # everything the page gave, and the JUDGING of what answers the errand belongs to the
             # turn, not to the recital. Same rule as the V2-223 note: hand over the facts AND name
             # the test.
-            _rows_bit = (" LO QUE YA HA ENTREGADO (nombre y precio, de la hoja): " + "; ".join(_rows) +
+            _rows_bit = (" LO QUE HA ENCONTRADO (nombre y precio, de la hoja): " + "; ".join(_rows) +
                          ". OJO: la hoja guarda TODO lo que dio la página — di solo lo que RESPONDE "
                          "a lo que pidió (precio dentro del tope, la cosa pedida y no un accesorio); "
                          "lo que no encaje no lo ofrezcas como resultado. Si pregunta por un dato que "

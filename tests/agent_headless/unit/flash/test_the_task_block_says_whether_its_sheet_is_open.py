@@ -2,7 +2,7 @@
 
 «so how did the monitors go, show me» — the monitor sheet had been closed two blocks earlier, the canvas
 reported nothing open, and the reply was «The shortlist is on your screen», with nothing opened. The block
-carried «YA ENTREGADO (de su hoja)» next to «negar una entrega que el operador tiene delante…», and left WHERE
+carried «ENCONTRADO (en su hoja)» next to «negar una entrega que el operador tiene delante…», and left WHERE
 the sheet was to be assumed. It now states it from the canvas's raw instances; unknown says nothing.
 """
 import pytest

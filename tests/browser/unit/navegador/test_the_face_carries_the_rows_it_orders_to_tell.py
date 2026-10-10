@@ -106,14 +106,14 @@ def test_la_cara_LLEVA_las_filas_no_solo_la_orden_de_contarlas():
     _sheet_with("v298-5", [{"title": "Guitarra Acústica Fender CD-60", "price": "120 €"}])
     state = "\n".join(LB.navegador_lines())
     assert "CUÉNTALE en este turno LO QUE ENCAJE" in state
-    assert "LO QUE YA HA ENTREGADO" in state
+    assert "LO QUE HA ENCONTRADO" in state
     assert "Guitarra Acústica Fender CD-60 — 120 €" in state
     assert "déjame mirar" in state          # the canned escape it exists to forbid, named in the block
 
 
 def test_con_amplitud_reportada_pero_hoja_vacia_la_cara_sale_SIN_filas():
     """Sensitivity the honest way round: `kept` says the worker FOUND, the sheet says what was WRITTEN.
-    With breadth but no rows yet, inventing a «LO QUE YA HA ENTREGADO» list would be the V2-278 false claim
+    With breadth but no rows yet, inventing a «LO QUE HA ENCONTRADO» list would be the V2-278 false claim
     again — the face must fire (there IS something to tell) but carry no rows it does not have."""
     from nucleo import dispatch as D
 
@@ -130,7 +130,7 @@ def test_con_amplitud_reportada_pero_hoja_vacia_la_cara_sale_SIN_filas():
     try:
         state = "\n".join(LB.navegador_lines())
         assert "YA HA ENCONTRADO" in state
-        assert "LO QUE YA HA ENTREGADO" not in state
+        assert "LO QUE HA ENCONTRADO" not in state
     finally:
         D._SESSIONS.pop("v298-fake", None)
 

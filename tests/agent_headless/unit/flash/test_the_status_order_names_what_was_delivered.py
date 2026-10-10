@@ -5,7 +5,7 @@ further down. The FIRST imperative the model reads about the operator asking for
 the STEP («di el PASO concreto y el tiempo que lleva»), so that is the one it obeyed, and the anti-negation
 paragraph below never got a turn. Measured in `search-buy-used-car__es` (2026-09-02, run v3): the prompt said
 
-    … — YA ENTREGADO (de su hoja): «AUDI A3 1.6TDI S Line Edition 81kW — 10.990 EUR»; «AUDI Q5 2.0TDI
+    … — ENCONTRADO (en su hoja): «AUDI A3 1.6TDI S Line Edition 81kW — 10.990 EUR»; «AUDI Q5 2.0TDI
     quattro Ambition 177 — 9.590 EUR»; «BMW X3 2.0d — 9.980 EUR» (llevas 37s)
 
 and the turn answered «Sigo sin tener anuncios concretos, la búsqueda va en el paso inicial y no ha avanzado.
@@ -47,7 +47,7 @@ def test_the_status_order_itself_forks_on_what_was_delivered():
     _errand_with_rows()
     st = "\n".join(LB.pending_task_lines())
     orden = st[st.index("Si el operador pregunta el estado"):][:600]
-    assert "YA ENTREGADO" in orden, "la primera orden sobre el estado sigue hablando SOLO del paso"
+    assert "ENCONTRADO (en su hoja)" in orden, "la primera orden sobre el estado sigue hablando SOLO del paso"
     assert "AUDI A3 1.6TDI S Line Edition 81kW — 10.990 EUR" in st, "las filas tienen que estar ahí"
 
 

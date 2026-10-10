@@ -43,10 +43,10 @@ def _encargo_sin_navegador(sheet="v451-1", filas=(("Dell S2725QC", "$280"), ("LG
     return rec
 
 
-#: The ROW HEAD, never the bare marker. Since V2-556 the block's own INSTRUCTION quotes «YA ENTREGADO (de su
+#: The ROW HEAD, never the bare marker. Since V2-556 the block's own INSTRUCTION quotes «ENCONTRADO (en su
 #: hoja)» to tell the model what to look for, so the bare string matches a prompt with zero rows — the very
 #: confusion `verify.py` documents at `_ROWS_HEAD_TAREA`. The separator prefix only ever precedes real rows.
-_ROW_HEAD = " — YA ENTREGADO (de su hoja): "
+_ROW_HEAD = " — ENCONTRADO (en su hoja): "
 
 
 def test_las_filas_de_su_hoja_llegan_al_prompt_SIN_pestana_de_navegador():

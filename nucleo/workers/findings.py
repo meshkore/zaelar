@@ -155,7 +155,7 @@ def hand_web_finding(task_id, text: str, goal: str = "") -> bool:
     news of an errand nobody had asked about, in the middle of another conversation, several times a pass.
 
     The finding does not need the note to survive: the rows already reach the errand's SHEET
-    (`hand_search_rows`), and the task block reads that sheet («YA ENTREGADO») every turn. So the lead now
+    (`hand_search_rows`), and the task block reads that sheet («ENCONTRADO») every turn. So the lead now
     lives on the errand, where the block shows it next to the task it belongs to — it is said when the
     operator asks about THAT errand, and nothing is pushed into a turn about something else.
 

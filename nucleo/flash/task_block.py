@@ -134,7 +134,7 @@ def pending_task_lines() -> list[str]:
                     bit += f" — DICE haber encontrado {_kept} candidato(s)"   # V2-444: SU cuenta, sin comprobar
                 _f = rows_of_sheet(str(t.get("sheet") or ""), 3) if t.get("sheet") else []   # V2-451
                 if _f:
-                    bit += " — YA ENTREGADO (de su hoja): " + "; ".join(_f)
+                    bit += " — ENCONTRADO (en su hoja): " + "; ".join(_f)
                     # WHERE that sheet is NOW, as a fact (demo pass 30, S1). The block below says «negar una
                     # entrega que el operador tiene delante en la pantalla…», and with the sheet CLOSED the
                     # model answered «the shortlist is on your screen» to «show me» — and opened nothing. The
@@ -164,12 +164,12 @@ def pending_task_lines() -> list[str]:
                          # familia cuesta una ronda. El branch anti-negación de V2-222 ya estaba escrito, pero
                          # QUINCE LÍNEAS más abajo, y esta orden —la primera que el modelo lee sobre «¿tienes
                          # algo?»— solo hablaba del PASO. Medido en `search-buy-used-car__es` (2026-09-02,
-                         # run v3): el prompt del turno llevaba «YA ENTREGADO (de su hoja): AUDI A3 — 10.990
+                         # run v3): el prompt del turno llevaba «ENCONTRADO (en su hoja): AUDI A3 — 10.990
                          # EUR; AUDI Q5 — 9.590; BMW X3 — 9.980» y la respuesta fue «Sigo sin tener anuncios
                          # concretos, la búsqueda va en el paso inicial». Tres coches con nombre y precio
                          # delante, negados. Una orden que nombra solo una de las dos caras se obedece entera.
                          "que ya está): " + "; ".join(bits) + ". Si el operador pregunta el estado o si YA "
-                         "TIENES ALGO, MIRA PRIMERO si esa tarea trae «YA ENTREGADO (de su hoja)»: si lo trae, "
+                         "TIENES ALGO, MIRA PRIMERO si esa tarea trae «ENCONTRADO (en su hoja)»: si lo trae, "
                          "la respuesta EMPIEZA por eso —nómbralo con su precio, que es justo lo que te ha "
                          "preguntado— y el paso va DESPUÉS; si NO lo trae, di el PASO concreto y el tiempo que "
                          "lleva. Si lleva MUCHO en el mismo paso, sé honesto (va lento o puede haberse "

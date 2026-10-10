@@ -103,9 +103,9 @@ def test_las_DOS_cabeceras_del_bloque_se_leen(tmp_path):
     db = tmp_path / "s.db"
     con = sqlite3.connect(db)
     con.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, ts_ms REAL, topic TEXT, kind TEXT, payload TEXT)")
-    for sp in ('… — YA ENTREGADO (de su hoja): «LG 27US500-W Ultrafine — $243.99»; '
+    for sp in ('… — ENCONTRADO (en su hoja): «LG 27US500-W Ultrafine — $243.99»; '
                '«Acer Nitro VG270K — $159.99» (llevas 68s). Si el operador pregunta…',
-               '… LO QUE YA HA ENTREGADO (nombre y precio, de la hoja): «Dell S2725QS — $199». OJO: …'):
+               '… LO QUE HA ENCONTRADO (nombre y precio, de la hoja): «Dell S2725QS — $199». OJO: …'):
         con.execute("INSERT INTO events (ts_ms, topic, kind, payload) VALUES (?,?,?,?)",
                     (1000.0, "observer", "flash", _j.dumps({"system_prompt": sp})))
     con.commit(); con.close()
@@ -128,7 +128,7 @@ def test_una_PISTA_no_se_cuenta_como_candidato(tmp_path):
     db = tmp_path / "s.db"
     con = sqlite3.connect(db)
     con.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, ts_ms REAL, topic TEXT, kind TEXT, payload TEXT)")
-    sp = ('… — YA ENTREGADO (de su hoja): «Acer Nitro VG270K — $159.99»; '
+    sp = ('… — ENCONTRADO (en su hoja): «Acer Nitro VG270K — $159.99»; '
           '«The 6 Best 27-Inch Monitors of 2026 - RTINGS.com — PÁGINA WEB por mirar, aún no es un candidato» '
           '(llevas 40s). Si el operador pregunta…')
     con.execute("INSERT INTO events (ts_ms, topic, kind, payload) VALUES (?,?,?,?)",
@@ -162,7 +162,7 @@ def test_la_PROSA_del_prompt_no_produce_candidatos(tmp_path):
     con.execute("CREATE TABLE events (id INTEGER PRIMARY KEY, ts_ms REAL, topic TEXT, kind TEXT, payload TEXT)")
     sp = ('Cuando el operador te ha ENTREGADO algo, no lo repitas: «el de siempre», «va dando pasos». '
           'Ejemplo: si te dice «tienes dos cosas: primero el recibo de la luz», eso NO es un candidato. '
-          '… — YA ENTREGADO (de su hoja): «Acer Nitro VG270K — $159.99» (llevas 40s).')
+          '… — ENCONTRADO (en su hoja): «Acer Nitro VG270K — $159.99» (llevas 40s).')
     con.execute("INSERT INTO events (ts_ms, topic, kind, payload) VALUES (?,?,?,?)",
                 (1000.0, "observer", "flash", _j.dumps({"system_prompt": sp})))
     con.commit(); con.close()
