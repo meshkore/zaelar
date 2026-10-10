@@ -355,12 +355,21 @@ _AGENDA_ITEM_RE = re.compile(
 # pan», «la lista DE LA COMPRA»: the form `_DANGER_RE` is actually for is the bare imperative, «compra el
 # pan». Narrow to the two measured shapes on purpose: «confirma la compra» and «finalizar compra» are
 # checkout and keep stopping, which a broader «any determiner» version would have disarmed.
-_SHOPPING_NOUN_RE = re.compile(r"\bde\s+(?:la\s+)?compras?\b", re.I)
+#
+# The class is the PREPOSITION, not the word (three-tasks-at-once, 2026-10-10). The fast brain composed «hazme
+# un informe sobre coches eléctricos» as «… precio, coste DE RECARGA y mantenimiento …», and the gate parked a
+# report as «Esto mueve dinero»: «recarga» is in `_SPEND_VERB_RE` as the imperative («recarga el móvil»), and a
+# preposition in front makes it the noun. Same for «por recarga», «per charge», «free of charge». Only the
+# forms that ARE spelled like an imperative of this module are listed, and only after a PREPOSITION — a
+# determiner alone («confirma la compra») stays an order, and «paga por la compra» keeps its «paga».
+_MONEY_NOUN_RE = re.compile(
+    r"\b(?:de|del|por|para|en|of|per|for)\s+(?:(?:la|las|el|los|una?|the|a|each|every)\s+)?"
+    r"(?:compras?|recargas?|pagas?|abonos?|charges?)\b", re.I)
 
 
 def _drop_agenda_items(order: str) -> str:
     """Remove what an agenda write NAMES — its row — before any verb is looked for."""
-    return _SHOPPING_NOUN_RE.sub(" ", _AGENDA_ITEM_RE.sub(" ", order))
+    return _MONEY_NOUN_RE.sub(" ", _AGENDA_ITEM_RE.sub(" ", order))
 
 
 def _drop_lookup_adjuncts(order: str) -> str:

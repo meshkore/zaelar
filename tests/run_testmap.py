@@ -3741,6 +3741,9 @@ DOMAINS: list[dict] = [
         {"id": "2.304", "title": "The speaker goes back to who it was taken from — «close the video and keep the music "
                                  "going» left the music paused by exclusivity (V2-781)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_speaker_goes_back_to_who_it_was_taken_from.py"]},
+        {"id": "2.310", "title": "A money word a preposition governs is the topic, never the order — «coste de recarga» in a "
+                                 "report errand was parked as «Esto mueve dinero» (three-tasks-at-once)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_money_word_a_preposition_governs_is_a_topic.py"]},
         {"id": "2.205", "title": "What a stranger wrote reaches the model as DATA (fenced, unforgeable), and an act that "
                                  "leaves with it in context and no sure verdict is asked — voice and text alike",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_strangers_words_are_data.py"]},
