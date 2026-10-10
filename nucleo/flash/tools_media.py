@@ -54,7 +54,7 @@ TOOLS: list[dict] = [
             "name": "play_video",
             "description": (
                 "VER un VÍDEO en el widget `youtube`: un videoclip, tráiler, peli, directo, «el último vídeo de X». "
-                "`query` = qué vídeo, en lenguaje natural. No es play_music (OÍR) ni web_search. Tarda: habla en "
+                "No es play_music (OÍR) ni web_search. Tarda: habla en "
                 "presente/futuro ('lo busco'), NUNCA en pasado antes de que cargue. BUSCAR para elegir ('búscame "
                 "vídeos de X', documentales, un podcast) es ESTA tool con action=list: resultados NUMERADOS al "
                 "Inicio (luego play_result/add_results). Un ENLACE ya PEGADO se AÑADE a la cola con "
@@ -67,8 +67,9 @@ TOOLS: list[dict] = [
                               "description": "qué vídeo VER, en lenguaje natural (se busca/carga en YouTube)"},
                     # Demo pass 69, V1: «show me some videos of…» → play_video with no action → ONE video loaded,
                     # and «play the second one» had no list. The choice is the model's, so it has to MAKE it.
-                    "action": {"type": "string", "enum": ["play", "list"],
-                               "description": "play = UN vídeo | list = VARIOS numerados"},
+                    # V2-781: «a few videos back to back» had no value — play loaded ONE, list played nothing.
+                    "action": {"type": "string", "enum": ["play", "list", "queue"],
+                               "description": "play=UNO | list=VARIOS a elegir | queue=VARIOS seguidos"},
                 },
                 "required": ["query", "action"],
             },

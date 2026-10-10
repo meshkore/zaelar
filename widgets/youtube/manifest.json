@@ -392,6 +392,13 @@
         "items": "números separados por comas, o \"all\""
       }
     },
+    "queue_search": {
+      "desc": "pon VARIOS vídeos SEGUIDOS: busca, pone los n primeros en la COLA y arranca el primero («ponme unos cuantos vídeos de X»)",
+      "payload": {
+        "query": "qué vídeos, en lenguaje natural",
+        "n": "cuántos a la cola (2-10, def 5) (opcional)"
+      }
+    },
     "clear_search": {
       "desc": "BORRA la banda de resultados de búsqueda del inicio (la lista numerada desaparece: «pon el cinco» ya no tiene de dónde). «Vuelve a la lista / a los resultados» NO es esto: eso es show_tab"
     },
@@ -434,7 +441,8 @@
       "previous",
       "play_item",
       "ended",
-      "play_result"
+      "play_result",
+      "queue_search"
     ],
     "suspend": "pause",
     "resume": "play",

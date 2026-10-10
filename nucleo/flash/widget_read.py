@@ -149,14 +149,18 @@ def read(wid: str) -> str:
                 parts.append(ctx)
     except Exception:
         pass
-    if not parts:
-        try:
-            from widgets import refs
-            items = str(refs.items_line(wid) or "").strip()
-            if items:
-                parts.append(items)
-        except Exception:
-            pass
+    # The ROWS always ride, after the digest (V2-781). The player's digest is its search band and a playback notice;
+    # its queue lives only in `ref_index`. Asked «what's in the queue right now?», the read handed over «X could not
+    # play, Y was put in its place» and nothing else, and the answer «the queue has one video» contradicted the two
+    # rows on the card. A notice NAMES rows too, so «is this label already in the block?» cannot tell a row from a
+    # mention — the line goes LAST, where the bound below cuts it before it cuts the digest.
+    try:
+        from widgets import refs
+        items = str(refs.items_line(wid) or "").strip()
+        if items and items not in parts:
+            parts.append(items)
+    except Exception:
+        pass
     block = "\n\n".join(parts).strip()
     return block[:_MAX_BLOCK_CHARS]
 

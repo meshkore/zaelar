@@ -258,6 +258,7 @@ from .actions import (  # noqa: E402,F401
     _a_block_channel, _a_unblock_channel, _a_remove, _a_move, _a_sort_list, _a_filter_list, _a_name_list,
     _a_clear_list, _a_play_item, _a_next, _a_previous, _a_ended, _a_play, _a_player_error, _a_pause, _a_mute,
     _a_unmute, _a_captions_on, _a_captions_off, _a_volume_up, _a_volume_down, _a_set_volume, _a_restart, _a_close)
+from .queue_search import _a_queue_search  # noqa: E402 — V2-781: «a few videos, back to back»
 
 
 # V2-778 F1-12 — one function per action (in `actions.py`), and `apply_action` is the table lookup. Each body
@@ -273,6 +274,7 @@ ACTIONS = {
     "search": _a_search,
     "play_result": _a_play_result,
     "add_results": _a_add_results,
+    "queue_search": _a_queue_search,
     "show_tab": _a_show_tab,
     "clear_search": _a_clear_search,
     "block_channel": _a_block_channel,

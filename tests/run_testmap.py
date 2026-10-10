@@ -3805,6 +3805,12 @@ DOMAINS: list[dict] = [
         {"id": "2.371", "title": "A list step that names the assistant leaves the name STORED or fails — «Te llamas Johnny…» "
                                  "stored nothing and the list closed «28 de 28» (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_list_step_that_names_the_assistant_stores_it.py"]},
+        {"id": "2.360", "title": "«A few videos, back to back» builds the QUEUE from the search and plays its first — "
+                                 "«I'll line up a few» over a lone `load`, then «the second one» failed 3× (V2-781)",
+            "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_few_videos_back_to_back_builds_the_queue.py"]},
+        {"id": "2.361", "title": "play_video carries `queue` in both channels, the turn names what plays, and a queue read "
+                                 "carries the card's rows — «one video left» over two (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_few_videos_back_to_back_is_a_queue.py"]},
         {"id": "2.276", "title": "The delivery backstop never announces a row twice in one errand — the junk batch he "
                                  "turned down came back once the window forgot it (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_never_announces_a_row_twice.py"]},

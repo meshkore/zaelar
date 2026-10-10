@@ -19,19 +19,26 @@ from __future__ import annotations
 
 
 def normalize_action(raw) -> str:
-    """`play_video.action` → "play" | "list". ONE definition shared by BOTH channels (voice and probe): the
-    V2-380/383 lesson is that anything decided per-channel ends up diverging per-channel. "list" is the V2-402
+    """`play_video.action` → "play" | "list" | "queue". ONE definition shared by BOTH channels (voice and probe):
+    the V2-380/383 lesson is that anything decided per-channel ends up diverging per-channel. "list" is the V2-402
     half: a content search meant for CHOOSING ("find me videos about…") fills the player's list with several
-    candidates without playing — a media search's destination is its dedicated widget, not the results sheet."""
+    candidates without playing — a media search's destination is its dedicated widget, not the results sheet.
+    "queue" is V2-781's: SEVERAL to watch back to back — the search's first results go to the queue and the first
+    one plays (`widgets/youtube/queue_search.py`)."""
     a = str(raw or "").strip().lower()
+    if a in ("queue", "cola", "playlist", "seguidos", "back_to_back"):
+        return "queue"
     return "list" if a in ("list", "lista", "search", "browse", "buscar", "varios") else "play"
 
 
 def voice_dispatch(raw_action) -> "tuple[str, str]":
     """(data-op, observability label) for a play_video call — the voice provider's whole branch body, kept
     here so the search-vs-load decision cannot diverge from the probe channel's (V2-402)."""
-    if normalize_action(raw_action) == "list":
+    a = normalize_action(raw_action)
+    if a == "list":
         return "search", "🔎 vídeos → lista youtube"
+    if a == "queue":
+        return "queue_search", "🎞️ vídeos → cola youtube"
     return "load", "▶️ vídeo → widget youtube"
 
 
@@ -65,6 +72,17 @@ Entirely fail-soft: the turn has to complete even if the player is broken.
             return {"executed": "play_video", "accion": "list", "ok": bool(res.get("ok")),
                     "query": q[:80],
                     "added": [str(t)[:120] for t in (res.get("results") or res.get("added") or [])],
+                    "count": int(res.get("count") or 0),
+                    "message": str(res.get("message") or res.get("error") or "")[:160]}
+        if normalize_action(action) == "queue":
+            # V2-781 — several videos back to back: the queue is built from the search and its first one plays.
+            res = await brain_action("youtube", "queue_search", {"query": q} if q else {})
+            res = res if isinstance(res, dict) else {}
+            _show_card(bool(res.get("ok")))
+            return {"executed": "play_video", "accion": "queue", "ok": bool(res.get("ok")),
+                    "query": q[:80], "title": str(res.get("title") or "")[:120],
+                    "videoId": str(res.get("videoId") or ""),
+                    "added": [str(t)[:120] for t in (res.get("queued") or [])],
                     "count": int(res.get("count") or 0),
                     "message": str(res.get("message") or res.get("error") or "")[:160]}
         res = await brain_action("youtube", "load", {"query": q} if q else {})
@@ -109,7 +127,7 @@ def ensure_delivery_named(spoken: str, parte: dict) -> str:
     """
     spoken = (spoken or "").strip()
     parte = parte if isinstance(parte, dict) else {}
-    if parte.get("executed") != "play_video" or parte.get("accion") != "list":
+    if parte.get("executed") != "play_video" or parte.get("accion") not in ("list", "queue"):
         return spoken
     canned = spoken_for(parte, "")
     if not spoken:
@@ -133,6 +151,8 @@ load, that is stated — the fifth time one of our sentences about an empty box 
     # THE ENGINE'S LANGUAGE, not Spanish (V2-464): same hole its imagenes sibling was caught with live on
     # the US agent — every canned line here was Spanish on an English-only engine. One read decides the set.
     en = _lang() == "en"
+    if parte.get("accion") == "queue":
+        return _queue_said(parte, en)
     if parte.get("accion") == "list":
         # A search is NAMED like the single video is: how many and which, verifiable at a glance (V2-057) —
         # and it invites a choice, because choosing is exactly what asking to SEARCH (vs to PLAY) means.
@@ -166,6 +186,22 @@ load, that is stated — the fifth time one of our sentences about an empty box 
     if en:
         return "I couldn't play it: " + (msg or "I found no such video.")
     return "No he podido ponerlo: " + (msg or "no encontré ese vídeo.")
+
+
+def _queue_said(parte: dict, en: bool) -> str:
+    """A queue that was built is NAMED: what plays now and what follows, so «the second one» has a referent he
+    has heard (V2-781). A failure is said as one, never as «Done.»."""
+    if not parte.get("ok"):
+        msg = str(parte.get("message") or "").strip()
+        return ("I couldn't line them up: " + (msg or "I found no videos of that.")) if en else \
+            ("No he podido ponerlos en cola: " + (msg or "no encontré vídeos de eso."))
+    added = [str(t) for t in (parte.get("added") or []) if str(t).strip()]
+    t = str(parte.get("title") or (added[0] if added else "")).strip()
+    rest = " · ".join(f"«{x}»" for x in added[1:3]) + (
+        (f" and {len(added) - 3} more" if en else f" y {len(added) - 3} más") if len(added) > 3 else "")
+    if en:
+        return f"Playing «{t}», with {len(added)} videos in the queue" + (f": next, {rest}." if rest else ".")
+    return f"Suena «{t}», con {len(added)} vídeos en la cola" + (f": luego, {rest}." if rest else ".")
 
 
 def _lang() -> str:
