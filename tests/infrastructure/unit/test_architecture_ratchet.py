@@ -230,7 +230,8 @@ _MIRROR_MAX = 42
 # to hold: measured 2026-09-20, the parallel-mirror count read 124 against a ceiling of 42 while the
 # real files summed to exactly 42. A ratchet that reads a developer's local runtime state is not
 # measuring the repo, and its red says nothing about the code (V2-726).
-_SKIP_DIRS = {".venv", "tests", "node_modules", "__pycache__", ".git", "frontend/vendor", ".meshkore"}
+_SKIP_DIRS = {".venv", "tests", "node_modules", "__pycache__", ".git", "frontend/vendor", ".meshkore",
+              ".claude"}   # .claude/worktrees: another session's checkout is not this tree
 
 
 def _engine_py_files():
