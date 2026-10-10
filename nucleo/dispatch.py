@@ -331,7 +331,8 @@ def pending_summaries() -> list[dict]:
              "no_step_s": int(now - (getattr(r, "last_step_at", 0) or r.started)),
              # Amplitud in curso: leaves al cerebro contestar «va by 30 candidatos» and, al acabar, ofrecer continue.
              "considered": r.considered, "kept": r.kept,
-             "sheet": sheet_of(r)}     # V2-451: la hoja es del ENCARGO, y sin esto solo viajaba con navegador
+             "sheet": sheet_of(r),     # V2-451: la hoja es del ENCARGO, y sin esto solo viajaba con navegador
+             "surface": getattr(r, "surface", "")}
             for r in _SESSIONS.values() if r.status in LIVE_SESSION_STATES]
 
 

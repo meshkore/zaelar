@@ -3753,6 +3753,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.275", "title": "A report errand's working rows are never announced as results-sheet candidates — «RENAULT "
+                                 "4…» glued to a report's replies (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_report_errand_never_feeds_the_list_backstop.py"]},
         {"id": "2.274", "title": "A title that carries its day («Piano del martes 2026-10-13») names that occurrence — the "
                                  "one-week move moved the whole series (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_title_that_carries_its_day_names_that_day.py"]},
