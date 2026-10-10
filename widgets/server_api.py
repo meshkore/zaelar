@@ -380,6 +380,7 @@ async def _dispatch(wid: str, action: str, payload: dict):
     _note_done(wid, action, payload, res)
     try:
         from . import producers
+        await producers.after_action(wid, action)     # V2-781: the speaker goes back when its taker leaves
         await producers.enforce_exclusive(wid, action)
     except Exception:
         pass

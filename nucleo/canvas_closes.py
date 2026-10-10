@@ -28,6 +28,21 @@ def note(extra: dict | None) -> None:
     base = _base(str(e.get("id") or ""))
     if base:
         _CLOSED[base] = time.time()
+        _hand_back(base)
+
+
+def _hand_back(card: str) -> None:
+    """A card he closed stops producing and gives the speaker back to what it silenced (V2-781: «close the video
+    and keep the music going» left the music paused). Scheduled on the running loop; no loop, nothing to do."""
+    try:
+        import asyncio
+        from widgets import producers
+        if producers.spec(card) is None:
+            return
+        asyncio.get_running_loop().create_task(producers.hand_back(card))
+    except Exception as e:  # noqa: BLE001 — a close never fails on bookkeeping (no loop here = nothing to hand back)
+        from loguru import logger
+        logger.debug(f"canvas_closes: no hand-back for {card}: {e!r}")
 
 
 def closed_after(card: str, since: float) -> float:

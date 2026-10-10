@@ -199,6 +199,7 @@
       "ended"
     ],
     "suspend": "pause",
+    "resume": "resume",
     "active_when": [
       {
         "yt.videoId": true,

@@ -3726,6 +3726,21 @@ DOMAINS: list[dict] = [
         {"id": "2.107", "title": "Forwarding what arrived: send_to carries a message's attachments (a NEW mail, never «Re:»), and a mail goes back to unread in the real mailbox",
             "ch": UNIT,
             "paths": ["tests/browser/unit/mensajeria/test_forwarding_an_attachment_and_leaving_it_unread.py"]},
+        {"id": "2.300", "title": "Two orders on one card in one sentence both run — «play the first, queue the rest» ran "
+                                 "play_result and dropped add_results as an enumeration (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_two_orders_on_one_card_in_one_sentence_both_run.py"]},
+        {"id": "2.301", "title": "A destructive action's declared plural selector names its target — remove {items: \"2\"} "
+                                 "was refused as «which one?» (V2-781)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_plural_selector_names_the_target_too.py"]},
+        {"id": "2.302", "title": "Removing a row never closes its card — «remove the third one in the list» closed the "
+                                 "video card, by verdict and by the context close backstop, voice and text (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_removing_a_row_never_closes_its_card.py"]},
+        {"id": "2.303", "title": "A widget's Spanish refusal is said in the session's language — «I couldn't: No encuentro "
+                                 "ese vídeo en la lista.» in an English session (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_widgets_refusal_is_said_in_the_sessions_language.py"]},
+        {"id": "2.304", "title": "The speaker goes back to who it was taken from — «close the video and keep the music "
+                                 "going» left the music paused by exclusivity (V2-781)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_speaker_goes_back_to_who_it_was_taken_from.py"]},
         {"id": "2.205", "title": "What a stranger wrote reaches the model as DATA (fenced, unforgeable), and an act that "
                                  "leaves with it in context and no sure verdict is asked — voice and text alike",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_strangers_words_are_data.py"]},

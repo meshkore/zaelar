@@ -87,6 +87,7 @@ def spec(w: dict | str) -> dict | None:
         "output": str(rt.get("output") or _NO_CHANNEL).strip(),
         "produce": {str(a).strip() for a in produce if str(a).strip()},
         "suspend": susp,
+        "resume": str(rt.get("resume") or "").strip(),     # V2-781: how it comes back when the speaker is handed back
         "active_when": _clauses(rt.get("active_when")),
     }
 
@@ -258,6 +259,7 @@ async def enforce_exclusive(wid: str, action: str) -> list[str]:
         return []
     others = await suspend_all(reason=f"exclusive:{channel}", channel=channel, keep=wid)
     if others:
+        _HELD[wid] = sorted(set(_HELD.get(wid, [])) | set(others))
         logger.info(f"producers[{wid}]: toma el canal «{channel}» → suspendidos {others}")
         try:
             from voice.observer import emit
@@ -266,3 +268,70 @@ async def enforce_exclusive(wid: str, action: str) -> list[str]:
         except Exception:
             pass
     return others
+
+
+# ── V2-781 · the speaker goes back to who it was taken from ─────────────────────────────────────────────────
+# «Close the video and keep the music going» left the music paused: exclusivity silenced it when the trailer took
+# the speaker, and nothing ever gave it back. A widget that silenced others to take a channel HANDS IT BACK when it
+# leaves — its card closed (`nucleo/canvas_closes.note`), or an action that ended its production. A pause is not
+# leaving. What the operator did to a silenced widget himself since then is his decision and is not overridden.
+
+#: holder id → the widgets it silenced to take its channel.
+_HELD: dict[str, list[str]] = {}
+
+
+def _forget(wid: str) -> None:
+    for holder in list(_HELD):
+        _HELD[holder] = [w for w in _HELD[holder] if w != wid]
+        if not _HELD[holder]:
+            _HELD.pop(holder, None)
+
+
+async def hand_back(wid: str, *, stop: bool = True) -> list[str]:
+    """`wid` leaves its channel: stop it (when `stop`) and resume what it silenced, through each one's declared
+    `resume`. Returns who was resumed. Never raises."""
+    try:
+        held = _HELD.pop(wid, [])
+        sp = spec(wid)
+        if stop:
+            _forget(wid)                       # a closed card is never the one brought back later
+            if sp and wid in await producing(channel=sp["output"]):
+                await suspend(wid, sp, reason="card_closed")
+        if not held:
+            return []
+        from . import server_api
+        out = []
+        for other in held:
+            osp = spec(other)
+            if not osp or not osp["resume"] or await producing(channel=osp["output"]):
+                continue
+            res = await server_api.dispatch_raw(other, osp["resume"], {"reason": f"handed_back:{wid}"})
+            if not (isinstance(res, dict) and (res.get("error") or res.get("ok") is False)):
+                out.append(other)
+        if out:
+            try:
+                from voice.observer import emit
+                emit("widget", "exclusive", text=f"{wid} hands the channel back → {', '.join(out)} resumes",
+                     extra={"id": wid, "resumed": out})
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"producers[{wid}]: hand-back not on the timeline: {e!r}")
+        return out
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"producers[{wid}]: hand_back failed: {e!r}")
+        return []
+
+
+async def after_action(wid: str, action: str) -> list[str]:
+    """Bookkeeping after an action reached `wid` through the funnel: the operator's own pause/play of a silenced
+    widget stands; a holder whose action ended its production (not its pause) hands the speaker back."""
+    try:
+        sp = spec(wid)
+        if not sp:
+            return []
+        if action == sp["suspend"] or str(action or "") in sp["produce"]:
+            _forget(wid)
+        if wid in _HELD and action != sp["suspend"] and wid not in await producing(channel=sp["output"]):
+            return await hand_back(wid, stop=False)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"producers[{wid}]: after_action failed: {e!r}")
+    return []

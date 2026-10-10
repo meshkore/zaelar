@@ -437,6 +437,7 @@
       "play_result"
     ],
     "suspend": "pause",
+    "resume": "play",
     "active_when": {
       "videoId": true,
       "paused": false,
