@@ -304,6 +304,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     # turn re-sent the move instead of the Telegram he asked for).
     payload = recur.normalize(payload) if action in ("add_meeting", "update_meeting", "move_meeting") \
         else (payload or {})
+    if action in ("move_meeting", "update_meeting", "cancel_meeting", "open_meeting"):
+        payload = edit.day_out_of_title(payload)       # «Piano del martes 2026-10-13» names that day (V2-781)
     if action == "add_task" and payload.get("date") and any(payload.get(k) not in (None, "", False, True)
                                                              for k in reminders.ASK_KEYS):
         # V2-781 T515 — a dated task that asks for a NOTICE («estreno de Dexter, el 30, avísame») is an agenda

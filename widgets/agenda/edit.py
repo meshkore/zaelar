@@ -171,3 +171,26 @@ def cut_from(m: dict, payload: dict) -> bool:
     cur = str(m["repeat"].get("until") or "")
     m["repeat"]["until"] = min(cur, prev) if cur else prev     # a cut never EXTENDS a series
     return True
+
+
+_DATED_TAIL = None
+
+
+def day_out_of_title(payload: dict) -> dict:
+    """«Piano de Abril del martes 2026-10-13» → {title: "Piano de Abril", date: "2026-10-13"} when no `date` came
+    (V2-781, agenda-everyday-edits: the model put the day in the title and a one-day move moved the whole series).
+    Only an ISO day, or a day with its month AND year («20 de octubre de 2026»), is read out of a title."""
+    global _DATED_TAIL
+    import re
+    if _DATED_TAIL is None:
+        _DATED_TAIL = re.compile(r"^(?P<t>.+?)[\s,]+(?:(?:del?|el|on|for|the)\s+)?(?:\w+\s+)?"
+                                 r"(?P<d>\d{4}-\d{2}-\d{2}|\d{1,2}\s+(?:de\s+)?\w+\s+(?:de\s+)?20\d{2})\s*$", re.I)
+    title = str((payload or {}).get("title") or "").strip()
+    m = _DATED_TAIL.match(title)
+    if not m or str(payload.get("date") or "").strip():
+        return payload
+    day = m.group("d")
+    if not re.match(r"\d{4}-", day):
+        from .when import _calendar_date, _strip_accents
+        day = _calendar_date(_strip_accents(day.lower()))
+    return {**payload, "title": m.group("t").strip(), "date": day} if day else payload
