@@ -177,3 +177,43 @@ def dataop_close_licensed(text: str, widget_id: str, *, brief=None, emit=None) -
              extra={"cat": "flash", "id": widget_id,
                     "kind_diag": "close_jev_licensed" if licensed else "close_without_order"})
     return licensed
+
+
+def names_a_row(widget_id: str, text: str) -> bool:
+    """Does this sentence name one ROW of the card — a position word, or a row's own title? (V2-781)
+
+    «Quita el tercero» / «remove the third one in the list» reached the only open card BY CONTEXT and closed it:
+    `quita` is a close verb and `identify` answers the one open card for any sentence. A position word cannot
+    name a card, and a row's title names that row, so either makes the sentence an order INSIDE the card. The
+    close backstops (voice and text) ask this before closing a card they reached by context. Read from the
+    closed position class `refs` owns and from the card's own `ref_index` — never a verb table. Never raises.
+    """
+    try:
+        from widgets import refs as _refs
+        toks = [t for t in _refs._norm(text).split() if t not in _refs._STOP and t not in _refs._POS_FILLER]
+        if any(t in _refs._ORDINALS or _re.fullmatch(r"\d+(?:o|a|er|ro|do|to|mo|vo|no|st|nd|rd|th)?", t)
+               for t in toks):
+            return True
+        content = [t for t in toks if len(t) > 2 and not looks_like_close(t)]
+        for row in _refs._ref_index(widget_id):
+            label = [t for t in _refs._norm(row.get("label")).split() if t not in _refs._STOP and len(t) > 2]
+            if sum(t in label for t in content) >= 2:
+                return True
+    except Exception as e:  # noqa: BLE001 — a doubt keeps today's path
+        from loguru import logger
+        logger.debug(f"names_a_row({widget_id}) could not read the card: {e!r}")
+    return False
+
+
+def keep_cards(cards: list, text: str, *, rows_too: bool) -> list:
+    """The cards a gesture lands on, without empties — and, for a close over words that named no card, without the
+    ones whose ROW the sentence names (V2-781: a sure `close` verdict over «remove the third one in the list»)."""
+    return [c for c in cards if c and not (rows_too and names_a_row(c, text))]
+
+
+def unless_a_row(card, text: str, identified: dict | None):
+    """The card a close backstop reached, or None when the sentence did not NAME it (it came by context, or by the
+    one-open-card fallback) and names one of its rows instead (V2-781). Shared by the voice and text backstops."""
+    idc = identified if isinstance(identified, dict) else {}
+    named = idc.get("match") == card and not idc.get("by_context")
+    return None if card and not named and names_a_row(str(card), text) else card

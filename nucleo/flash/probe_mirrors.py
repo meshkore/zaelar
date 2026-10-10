@@ -213,7 +213,7 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
                     _ow = list((_memapi.state() or {}).get("open_widgets") or [])
                 except Exception:
                     _ow = []
-                _cw = None
+                _cw, _idc = None, {}
                 try:
                     from widgets import runtime as _rt
                     # los ABIERTOS desempatan ("cierra el vídeo": vídeo empata navegador↔youtube; gana el abierto)
@@ -224,7 +224,7 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
                     _cw = None
                 if not _cw and _closeg.is_short_order(text) and len(_ow) == 1:
                     _cw = _ow[0]
-                if _cw:
+                if _cw := _closeg.unless_a_row(_cw, text, _idc):   # V2-781: «quita el tercero» is a row
                     tags.append({"action": "close", "extra": {"id": _cw, "backstop": True}})
                     action = "canvas:close:" + _cw
         except Exception:

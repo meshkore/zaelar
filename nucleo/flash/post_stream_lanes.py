@@ -160,7 +160,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             _openw = list((_memapi.state() or {}).get("open_widgets") or [])
         except Exception:
             _openw = []
-        _cw = None
+        _cw, _idc = None, {}
         # THE VERDICT NAMES THE CARD before any word match does (demo pass 2026-09-28, V7: «ok stop the video
         # and close it» — the video was already closed, «video» then tied navegador↔youtube, «the open one
         # wins» picked the worker's browser card, and the backstop closed THAT). Already closed → nothing to do.
@@ -180,7 +180,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         # sin nombre resuelto: solo el caso corto genérico ("ciérralo") con un único widget abierto.
         if not _cw and not _vc and _pst._closeg.is_short_order(text) and len(_openw) == 1:
             _cw = _openw[0]
-        if _cw:
+        if _cw := _pst._closeg.unless_a_row(_cw, text, _idc):   # V2-781: «quita el tercero» is a row
             _t = _close_target(_cw, text)
             if _t["ask"]:                           # V2-259 F3
                 clarify["msg"] = _t["ask"]

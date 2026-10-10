@@ -543,7 +543,7 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
             emit("brain", "🎯 el veredicto completa al modelo (sin tool) — arrange", role="system",
                  extra={"cat": "flash", "action": "arrange", "said": (operator_text or "")[:120]})
             return verb
-        from nucleo.flash import show_target as _st
+        from nucleo.flash import close_guards as _cg, show_target as _st
         verdict_wid = from_brief(brief)[0]
         named = named_cards(operator_text)
         if verdict_wid and not named and not _action_sure(brief):
@@ -562,7 +562,7 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
                 targets = [t for t in (_st.close_target(n) for n in named) if t in open_now]
             else:
                 targets = [_st.close_target("")]
-        targets = [t for t in targets if t]
+        targets = _cg.keep_cards(targets, operator_text, rows_too=verb == "close" and not named)   # V2-781
         if verb == "close" and targets:
             # …and the OTHER open cards his sentence names (full21 C6: «close the calendar and the messages» — the
             # verdict's card was the messages; the calendar stayed and the reply said both were off the screen)

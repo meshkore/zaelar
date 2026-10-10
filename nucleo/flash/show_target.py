@@ -420,7 +420,9 @@ CANVAS_INSTRUCTIONS = ("Does the user's turn ask to change what is visible on th
                         "inside a card — is neither.")
 CANVAS_VERBS = {
     "show": "the turn asks to show, open, display or bring up a widget or card",
-    "close": "the turn asks to close, hide or remove a widget or card from the screen",
+    # V2-781: «remove the third one in the list» read `close` at 0.98 and shut the video card — removing a ROW
+    # of a card is an order inside it. Measured with the real verdict before and after this wording.
+    "close": "the turn asks to close, hide or take a whole widget or card off the screen",
     # demo pass 2026-09-28 (human script): «can you make it bigger, like full screen» → «There you go — it's full
     # screen now» with no call, and the verdict could only say `neither`. The gestures that change a card's size
     # are canvas gestures too.
@@ -430,7 +432,8 @@ CANVAS_VERBS = {
     # demo pass 2026-09-28 (full21 C5b): «tidy up the screen a bit» → «screen's sorted» with no call, and the verdict
     # could only say `neither`. Laying out every card is a canvas gesture too.
     "arrange": "the turn asks to tidy, arrange, organise or lay out the cards on the screen (all of them)",
-    "neither": "the turn asks for nothing about showing, closing, resizing or arranging widgets",
+    "neither": "the turn asks for nothing about showing, closing, resizing or arranging widgets — removing, "
+               "skipping or moving ONE ITEM of a card's list (the third video, the one by X, a row) is neither",
 }
 
 
