@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.269", "title": "«Play the second one» over Home's results and an empty queue plays that result — play_item "
+                                 "said «not in the list» and a worker took 90 s (V2-781)",
+            "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_play_the_second_one_over_the_search_band_plays_it.py"]},
         {"id": "2.268", "title": "What the agent says goes in the session's language — «I'm in Madrid» turned an English "
                                  "session Spanish, reply and spoken notice (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reply_in_the_other_language_is_said_in_the_sessions.py"]},

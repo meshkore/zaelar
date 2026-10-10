@@ -459,7 +459,10 @@ def _a_clear_list(action, p, db) -> dict:
 
 def _a_play_item(action, p, db) -> dict:
     lst = db.get("list") or []
-    idx = _d._resolve_item(lst, p.get("item") if p.get("item") is not None else p.get("query"))
+    ref = next((p.get(k) for k in ("item", "n", "query") if p.get(k) is not None), None)
+    if not lst and db.get("search_results"):
+        return _a_play_result(action, {"item": ref}, db)   # «play the second one» over Home's band (V2-781)
+    idx = _d._resolve_item(lst, ref)
     if idx is None:
         return {"ok": False, "error": "item_not_found", "item": p.get("item"),
                 "message": "No encuentro ese vídeo en la lista."}
