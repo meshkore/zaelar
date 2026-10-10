@@ -52,9 +52,9 @@ def test_a_gate_LIFTS_when_its_mechanism_lands(monkeypatch):
     V2-259 and stopped being gated on 2026-08-21 when the complete initiative landed (`b8a1415` + `f3052f9`).
     A gate that nobody removes turns a built case into one that is NEVER measured, and the scoreboard
     does not say so: the row simply does not appear, as if it did not exist."""
-    got = _selected(monkeypatch)
-    assert "two-searches-two-sheets" in got
-    assert not G.blocked_by("two-searches-two-sheets")
+    assert not any(r.startswith("V2-259") for r in G.blocked_by("two-searches-two-sheets"))
+    # …and the search-service gate (V2-782) holds it now, on purpose: T6.1 lifts that one
+    assert G.blocked_by("two-searches-two-sheets") == G.SEARCH_SERVICE_GATE
 
 
 def test_the_rest_of_the_catalog_is_untouched(monkeypatch):
@@ -105,7 +105,8 @@ def test_a_future_case_still_says_what_it_expects():
     """The WRITING half: a gated case without criteria is a note, not a use case—and when it is
     unblocked, the bar would have to be invented, which is when it gets invented in favor of what it already does."""
     for scn in SC.all_scenarios():
-        if not G.blocked_by(scn.id):
+        seg = G.segment_of(scn.id)
+        if not (seg and seg.blocked_by):            # the cases WRITTEN before their mechanism, not the V2-782 hold
             continue
         assert len(scn.success_checks) > 400, scn.id
         assert len(scn.persona_brief) > 400, scn.id

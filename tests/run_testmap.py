@@ -3753,6 +3753,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.279", "title": "The search use cases wait for the search service — every shortlist-on-the-sheet case is "
+                                 "gated by V2-782 F6, the canaries keep running (operator 2026-10-10)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_search_cases_wait_for_the_search_service.py"]},
         {"id": "2.278", "title": "A [SISTEMA] note is never repaired into an order — a browser-blocked note became "
                                  "navegador:open and «Hecho.» (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_system_note_is_never_repaired_into_an_order.py"]},

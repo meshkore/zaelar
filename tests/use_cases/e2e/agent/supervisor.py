@@ -246,6 +246,8 @@ def rotacion() -> list[str]:
         import json as _j
         d = _j.loads((_RAIZ / "tests" / "use_cases" / "status.json").read_text(encoding="utf-8"))
         filas = (d.get("scenarios") or {}).items()
+        from tests.use_cases.e2e.agent import segments as _Gb   # a gated case leaves the loop, measured or not
+        filas = [(k, v) for k, v in filas if not _Gb.blocked_by(k)]
         rotos = [k for k, v in filas if str(v.get("state")) in ("FAIL", "INFRA")]
         buenos = [k for k, v in filas if str(v.get("state")) == "PASS"]
         # V2-367 — those that HAVE a runner and have NEVER been measured. The scoreboard lists only what has run

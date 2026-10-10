@@ -346,10 +346,18 @@ def is_completable(scenario_id: str) -> bool:
     return group_of(scenario_id) == COMPLETABLE
 
 
+#: V2-782 — every shortlist-on-the-sheet case waits for the search service (operator, 2026-10-10: «no merece la
+#: pena trabajar en ellos hasta que esté a tope el sistema de búsqueda»). Ungating is T6.1 of that initiative.
+SEARCH_SERVICE_GATE: tuple[str, ...] = ("V2-782 F6",)
+
+
 def blocked_by(scenario_id: str) -> tuple[str, ...]:
     """The pending roadmap tasks that gate this case. Empty = it can be run today."""
     seg = segment_of(scenario_id)
-    return seg.blocked_by if seg else ()
+    own = seg.blocked_by if seg else ()
+    if not own and SEARCH_SERVICE_GATE and delivers_findings(scenario_id):
+        return SEARCH_SERVICE_GATE
+    return own
 
 
 # A `completable` case whose deliverable is NOT findings-on-screen. Everything else in that segment ends in a
