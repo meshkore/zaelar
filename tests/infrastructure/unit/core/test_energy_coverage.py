@@ -42,7 +42,7 @@ _MARCAS = ("energy_meter", "report_llm_usage", "report_worker_usage",
            "report_decision_usage")
 
 # Folders that are not the production engine.
-_FUERA = ("tests/", ".venv/", "node_modules/", "widgets/_data/", "vendor/", "scripts/",
+_FUERA = ("tests/", ".venv/", ".claude/", "node_modules/", "widgets/_data/", "vendor/", "scripts/",
           # Frozen copies of a PAST state of the tree, kept for forensics. Asking an archive to meter
           # usage is meaningless — it never runs — and it would pin every new signal added here to
           # whatever the code looked like months ago.

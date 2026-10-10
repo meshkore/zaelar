@@ -21,7 +21,7 @@ from pathlib import Path
 from voice import observer
 
 ENGINE = Path(__file__).resolve().parents[4]
-_SKIP = (".venv", "node_modules", "__pycache__", "TMP")
+_SKIP = (".venv", ".claude/", "node_modules", "__pycache__", "TMP")
 
 # Families that the viewer renders as chips (frontend/app/components/DebugPanel.js::CATS). The backend cannot
 # invent a family that the UI does not offer: it would be an event unreachable from the filter.

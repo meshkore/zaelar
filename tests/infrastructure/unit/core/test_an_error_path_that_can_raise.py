@@ -62,7 +62,7 @@ def test_no_production_handler_slices_splitlines_without_a_guard():
         # `tools/` is excluded: these are development scripts run manually, not handlers for the live engine,
         # which is what this guard concerns. Its only case has been confirmed to be safe — the read follows an
         # `if text and …` on the previous line — so nothing is being hidden; the subject is being narrowed.
-        if any(x in rel.split("/") for x in (".venv", "tests", "tools", "__pycache__")) \
+        if any(x in rel.split("/") for x in (".venv", ".claude", "tests", "tools", "__pycache__")) \
                 or rel == "nucleo/errors.py":
             continue
         try:
