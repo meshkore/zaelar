@@ -139,3 +139,23 @@ def on_player_error(db: dict, code: str, dead: str) -> "str | None":
     db["blocked_notice"] = {"kind": "swapped", "from": dead_title,
                             "to": str(db.get("title") or "")[:100], "code": code}
     return "handled"
+
+
+def tell_for(db: dict) -> str:
+    """The sentence the OPERATOR must hear when this report ended playback for good — "" when it did not.
+
+    `build-a-video-playlist-from-links` (2026-10-10): «Ponla ya» → «Voy con ella.», then both videos of the list came
+    back 150 and the notice went `exhausted` with nobody told. A swap keeps something playing, so only the two
+    terminal kinds speak; the card's own `late_report` seam decides whether an agent order is being contradicted."""
+    from widgets import hint_lang as _hl
+    bn = db.get("blocked_notice") or {}
+    title = str(bn.get("from") or "")[:100]
+    if bn.get("kind") == "exhausted":
+        return _hl.pick(f"No he podido ponerlo: «{title}» no se puede reproducir aquí (su propietario bloquea verlo "
+                        "fuera de YouTube) y no me queda otro vídeo que sí se pueda.",
+                        f"I couldn't play it: «{title}» can't be played here (its owner blocks it outside YouTube) "
+                        "and there's no other video left that can.")
+    if bn.get("kind") == "explicit":
+        return _hl.pick(f"«{title}» no se puede reproducir aquí: su propietario solo deja verlo en YouTube.",
+                        f"«{title}» can't be played here: its owner only allows it on YouTube.")
+    return ""

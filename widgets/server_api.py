@@ -456,6 +456,8 @@ async def widget_action(wid: str, payload: dict):
     res = await _dispatch(wid, action, data)
     if res is _MISSING:
         return JSONResponse({"error": "no data module"}, status_code=404)
+    from . import late_report as _late
+    _late.deliver(wid, res)              # the card learnt that what the agent just started did not happen
     return JSONResponse(res)
 
 
@@ -489,6 +491,8 @@ async def brain_action(wid: str, action: str, payload: dict) -> dict:
                                          "payload": _payload_digest(payload)})
     except Exception:
         pass
+    from . import late_report as _late
+    _late.note_agent_order(wid)          # a late failure of what this starts is said (`late_report`)
     res = await _dispatch(wid, action, payload or {})
     res = {"error": "no data module"} if res is _MISSING else res
     try:

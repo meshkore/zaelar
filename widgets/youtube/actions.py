@@ -524,7 +524,11 @@ def _a_player_error(action, p, db) -> dict:
         return {"ok": True, "cmd": "player_error", "stale": True}
     if verdict is None:
         db["player_error"] = code
-    return _d._bump(db, "player_error")
+    out = _d._bump(db, "player_error")
+    tell = _d._avail.tell_for(db) if verdict == "handled" else ""
+    if tell and isinstance(out, dict):
+        out["tell"] = tell          # said only if an agent order is being contradicted (`widgets/late_report.py`)
+    return out
 
 
 def _a_pause(action, p, db) -> dict:

@@ -3784,6 +3784,9 @@ DOMAINS: list[dict] = [
         {"id": "2.330", "title": "A bare play / «what is playing?» belongs to the OPEN player — «Dale» over the video list "
                                  "became musica:play_playlist «Favoritos»; a repair never selects a list nobody said (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_bare_play_belongs_to_the_open_player.py"]},
+        {"id": "2.331", "title": "A play the agent just started that the player then refuses is SAID — «Voy con ella» over "
+                                 "two 150s and an exhausted list nobody heard about (V2-781)",
+            "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_late_player_error_is_told.py"]},
         {"id": "2.276", "title": "The delivery backstop never announces a row twice in one errand — the junk batch he "
                                  "turned down came back once the window forgot it (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_never_announces_a_row_twice.py"]},
