@@ -662,6 +662,9 @@ def mute_backstop(window, lang, has_work: bool, operator_text: str = "") -> str:
     # conservative V2-176 one: it only says «nothing for this» when it can tell.
     if has_work and operator_text:
         try:
+            from voice import endpointing as _ep
+            if _ep.is_backchannel(operator_text):     # an ack asks for nothing new: the live work is it (V2-781)
+                return str(getattr(lang, "filler_still_working", "") or "Sigo con ello.")
             from nucleo import dispatch as _d
             from nucleo.flash import router_guards as _rgd
             live = [str(r.get("request") or r.get("goal") or "") for r in _d.pending_summaries()]

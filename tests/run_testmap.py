@@ -3738,6 +3738,12 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.266", "title": "A mute turn after «sounds good 👍» over a live build says it is still working, not «Sorry, "
+                                 "I lost that» (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_mute_turn_after_an_ack_does_not_blame_a_lost_line.py"]},
+        {"id": "2.265", "title": "«I'll check in as soon as it's ready» is a follow-up, not a promise to look — it earned "
+                                 "«nothing is running» over a live build (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_checking_in_later_is_not_a_promise_to_look.py"]},
         {"id": "2.264", "title": "A notice the agent speaks after the tester's last line reaches the judge — «they're "
                                  "ready» at 330 s was scored as never said (V2-781)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_notice_spoken_after_the_talk_reaches_the_judge.py"]},

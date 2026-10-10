@@ -71,6 +71,8 @@ _BACKCHANNEL_WORDS = {
     # correctly by MEANING — that fallback is the point of this whole feature, not a gap to patch with more
     # hardcoded lists (same "local accelerator, LLM is the real mechanism" pattern as everywhere else in i18n).
     "uh", "uhh", "oops", "wow", "damn", "shit", "fuck", "good",
+    # the English twins of claro/guay/genial/perfecto (V2-781: «sounds good 👍» read as a new request)
+    "sure", "cool", "great", "perfect", "fine", "nice", "alright", "sounds",
 }
 _PUNCT_RE = re.compile(r"[^\wáéíóúüñ ]+", re.UNICODE)
 
