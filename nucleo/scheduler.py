@@ -450,8 +450,30 @@ def create_unless_ringing(prompt: str, schedule: str, name: str = "") -> dict:
     disp = (parse_schedule(schedule) or {}).get("display") or ""
     live = next((j for j in list_jobs(active_only=True) if disp and str(j.get("schedule") or "") == disp), None)
     if live:
+        _refresh_loose_notice(live, prompt)
         return {"ok": True, "id": live.get("id"), "display": disp, "existed": True, "error": None}
     return create(prompt, schedule, name)
+
+
+def _refresh_loose_notice(live: dict, prompt: str) -> None:
+    """The live job keeps its instant, but a prose backstop's loose «aviso» takes the newer, informed text.
+
+    V2-781 pair 3 (`find-a-future-release-and-remind-me`): the backstop set «aviso» at 09:00 on the premiere day
+    carrying the operator's own cut question; the worker then verified the date and asked for that same instant with the
+    confirmed fact — and was answered by the old job, so the fact was dropped and the question rang."""
+    prompt = (prompt or "").strip()
+    if str(live.get("name") or "").strip() != "aviso" or not prompt or prompt == live.get("prompt"):
+        return
+    try:
+        entry = _journal.get(int(live["id"]))
+        d = dict((entry or {}).get("detail") or {})
+        if d.get("kind") != _KIND or (d.get("origin") or "cron") != "cron":
+            return
+        d["prompt"] = prompt
+        _journal.update(entry["id"], status="pending", detail=d)
+        _board(entry["id"])
+    except Exception:  # noqa: BLE001 — the notice still rings with its old text
+        return
 
 
 def supersede_loose_notices(display: str, *, within_s: float = 180.0, now: float | None = None) -> list:

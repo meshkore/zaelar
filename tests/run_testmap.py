@@ -3896,6 +3896,10 @@ DOMAINS: list[dict] = [
         {"id": "2.252", "title": "The text channel's promise repair sees the conversation — without it «set a reminder on "
                                  "premiere day» had no date to write (V2-781 pair 3)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_text_channel_repair_sees_the_conversation.py"]},
+        {"id": "2.395", "title": "A notice asked for about something to FIND OUT rings with the answer the conversation "
+                                 "gave — the premiere's prompt was his own question cut at «cuándo se estrena» "
+                                 "(V2-781 pair 3); ES + EN, both channels (one backstop)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_notice_after_a_lookup_carries_the_fact.py"]},
         {"id": "2.251", "title": "«set a reminder on the premiere day» rings on the ONE date the last reply named — «I'll set "
                                  "a heads-up for that day» scheduled nothing (V2-781 pair 3); both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_asked_for_the_day_just_named_is_set.py"]},

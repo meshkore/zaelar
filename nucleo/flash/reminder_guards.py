@@ -27,6 +27,7 @@ import time as _time
 from nucleo import scheduler as _sched
 
 from .text_norm import _content_words, _norm_txt, clause_is_only_a_date
+from .reminder_fact import reminder_body, tidy_clause
 
 
 # PROMISE OF A DATED NOTICE (V2-146). «apúntame que el jueves… y recuérdamelo el miércoles» ended with
@@ -270,7 +271,7 @@ def commitment_clause(operator_text: str) -> str:
         return text.strip()
     end = m.start() if len(n) == len(text) else None
     head = text[:end] if end is not None else n[:m.start()]
-    return head.strip(" ,.;:y")
+    return tidy_clause(head)        # V2-781 pair 3: strip(" ,.;:y") cut CHARACTERS («hoy» → «ho»)
 def holding_line(window, lang=None, after_filler: str = "") -> str:
     """The never-mute filler for a turn whose only content is «the task is still running» — one that does NOT
     repeat itself.
@@ -467,7 +468,8 @@ def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) ->
     try:
         from nucleo import scheduler as _sched
     except Exception:
-        return {"schedule": when, "prompt": _reminder_prompt(clause, operator_text), "name": "aviso"}
+        return {"schedule": when, "prompt": _reminder_prompt(reminder_body(clause, window, reply, when), operator_text),
+                "name": "aviso"}
     # A clause that is nothing but a date states no event, so there is nothing for the notice to precede
     # (see `clause_is_only_a_date`). Passing it on would make `reminder_before` fire the notice at once.
     clause_when = "" if clause_is_only_a_date(clause) else (_sched.parse_when(clause) or "")
@@ -490,7 +492,9 @@ def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) ->
     asked_now = bool(_REMIND_ASK_RE.search(_norm_txt(operator_text)) or _NOTE_ASK_RE.search(_norm_txt(operator_text)))
     if not clause_now_or_ask(clause_when, asked_now) and any(str(j.get("name") or "") == "aviso" for j in jobs):
         return None
-    return {"schedule": when, "prompt": _reminder_prompt(clause, operator_text), "name": "aviso"}
+    # V2-781 pair 3 — a clause that ASKED for something to be found out is not what the notice says: its answer is.
+    return {"schedule": when, "prompt": _reminder_prompt(reminder_body(clause, window, reply, when), operator_text),
+            "name": "aviso"}
 _SET_ASK_RE = _re.compile(r"\b(set\s+(?:me\s+)?(?:a|the)\s+reminder|reminder\s+for|ponme\s+(?:un|el)\s+(?:aviso|recordatorio)|"
                          r"me\s+pones\s+(?:un|el)\s+(?:aviso|recordatorio))\b", _re.I)
 
