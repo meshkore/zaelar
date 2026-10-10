@@ -7,6 +7,7 @@ read through the module (`_probe.<name>`), so a patch on `probe` still governs i
 """
 from __future__ import annotations
 
+from nucleo.flash import card_close as _card_close
 from nucleo.flash import probe as _probe
 
 
@@ -48,6 +49,10 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
             action = "chat"
     except Exception:
         pass
+    # V2-781 — the voice ORDER: the verdict's sure canvas gesture runs BEFORE the promise repair («Close the music» →
+    # «Done.» was repaired into `youtube:close` from the screen verdict while the canvas verdict read `close` 0.99).
+    _cc = _card_close.complete_canvas_mirror(_tbrief, operator_text, blocked=action != "chat" or bool(tool_calls or tags))
+    action, spoken = _cc.get("action", action), _cc.get("spoken", spoken)
     if action == "chat" and spoken:
         try:
             from . import router as _routerc
@@ -153,23 +158,9 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
     _already = action.startswith(("music", "video", "search", "widget_data", "canvas:fullscreen", "canvas:minimize",
                                   "canvas:close", "send_to_worker", "answer_worker"))  # the model decided (close_guards.taken_elsewhere)
     # Mirror of the voice `complete_canvas` (demo pass 2026-09-28): no call, no tag, and the brief SURELY names a
-    # canvas gesture → that gesture on the turn's card.
-    if not _already and not tool_calls and not tags:
-        try:
-            from voice.observer import emit as _emit_cc
-            from . import direct_action as _da_cc
-            _cc: list = []
-            _verb = _da_cc.complete_canvas(_tbrief, tag_emit=lambda a, x: _cc.append((a, x)), emit=_emit_cc,
-                                           operator_text=operator_text)
-            if _verb == "arrange":
-                action, _already, spoken = "canvas:arrange", True, ""
-            elif _verb and _cc:
-                _cid = str(_cc[0][1].get("id") or "")
-                action = {"close": f"canvas:close:{_cid}", "minimize": f"canvas:minimize:{_cid}",
-                          "fullscreen": f"canvas:fullscreen:{_cid}"}.get(_verb, f"canvas:unfullscreen:{_cid}")
-                _already, spoken = True, ""
-        except Exception:
-            pass
+    # canvas gesture → that gesture on the turn's card (`card_close.complete_canvas_mirror`).
+    _cc = _card_close.complete_canvas_mirror(_tbrief, operator_text, blocked=_already or action == "clarify" or bool(tool_calls or tags))
+    action, spoken, _already = _cc.get("action", action), _cc.get("spoken", spoken), _cc.get("_already", _already)
     # Mirror of the voice `closes_the_named_card` (demo pass 2026-09-28, V7): a data-op inside a card he ALSO told
     # to close by its name closes the card after the op.
     if action == "widget_data" and not any(t["action"] == "close" for t in tags):

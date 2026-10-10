@@ -543,13 +543,13 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
             emit("brain", "🎯 el veredicto completa al modelo (sin tool) — arrange", role="system",
                  extra={"cat": "flash", "action": "arrange", "said": (operator_text or "")[:120]})
             return verb
-        from nucleo.flash import close_guards as _cg, show_target as _st
-        verdict_wid = from_brief(brief)[0]
+        from nucleo.flash import card_close as _ccl, close_guards as _cg, show_target as _st
+        verdict_wid = _ccl.verdict_unless_named(from_brief(brief)[0], operator_text)   # V2-781: his NAME wins
         named = named_cards(operator_text)
         if verdict_wid and not named and not _action_sure(brief):
             # an UNSURE card verdict over words that name no card: «that» is the card his last turn acted on
             # (M4: the Nasdaq chart he had just asked for, not the agenda at 0.55)
-            verdict_wid = _st.close_target("") or verdict_wid
+            verdict_wid = _ccl.position_or_focus(operator_text, _st.close_target("")) or verdict_wid
         if verdict_wid:
             targets = [_st.close_target(verdict_wid)]
         else:
@@ -561,7 +561,7 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
                 open_now = _open_now()
                 targets = [t for t in (_st.close_target(n) for n in named) if t in open_now]
             else:
-                targets = [_st.close_target("")]
+                targets = [_ccl.position_or_focus(operator_text, _st.close_target(""))]   # «the top one»
         targets = _cg.keep_cards(targets, operator_text, rows_too=verb == "close" and not named)   # V2-781
         if verb == "close" and targets:
             # …and the OTHER open cards his sentence names (full21 C6: «close the calendar and the messages» — the

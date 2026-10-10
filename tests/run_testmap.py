@@ -3790,6 +3790,15 @@ DOMAINS: list[dict] = [
         {"id": "2.332", "title": "«Unmute it and skip to the next one» runs BOTH controls when the verdict heard both — "
                                  "`next` was dropped as an enumeration and «Te paso al siguiente» was said over nothing (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_two_controls_the_verdict_heard_both_run.py"]},
+        {"id": "2.340", "title": "A close that NAMES a card closes that card — «Close the music» over a youtube:close verdict "
+                                 "emptied the player; «cierra la música» became «Pausado»; «the top one» by its place, or asked (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_that_names_a_card_closes_that_card.py"]},
+        {"id": "2.341", "title": "A control both open players declare is settled by the verdict only when SURE — «turn the "
+                                 "volume down» at 0.54 turned the music down in silence; a player he names decides first (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_shared_player_control_needs_a_sure_verdict.py"]},
+        {"id": "2.342", "title": "An order called beside a read runs on the text channel — «pausa eso… ¿qué tengo el jueves?» "
+                                 "answered Thursday and never paused the trailer (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_order_beside_a_read_runs_on_the_text_channel.py"]},
         {"id": "2.276", "title": "The delivery backstop never announces a row twice in one errand — the junk batch he "
                                  "turned down came back once the window forgot it (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_never_announces_a_row_twice.py"]},

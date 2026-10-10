@@ -12,9 +12,11 @@ import logging
 logger = logging.getLogger("zaelar.flash")
 
 #: Primary actions that are themselves a card or media turn — only those get companions; an escalation, a search
-#: or a data-op keeps its single path.
+#: or a data-op keeps its single path. A READ is one too (three cards, ES, 2026-10-10): «pause that… and what do I have
+#: on Thursday?» → `widget_data youtube:pause` + `read_widget agenda`; this channel named `read_widget`, answered
+#: Thursday, and the pause never ran — the trailer kept playing while a later reply said it was paused.
 def _card_turn(action: str) -> bool:
-    return action == "music" or str(action or "").startswith("canvas:show:")
+    return action in ("music", "read_widget") or str(action or "").startswith("canvas:show:")
 
 
 def _show(wid: str) -> bool:
@@ -40,6 +42,9 @@ async def run(action: str, tool_calls: list, text: str, *, window=None, brief=No
         if action != "music" and "play_music" in names:
             m = music_turn.request_from(tool_calls)
             out.append(await music_turn.execute(m["action"], m["query"]))
+        if action == "read_widget" and "widget_data" in names:   # the data-ops beside the read, as the voice runs them
+            from nucleo.flash import widget_data_turn
+            out.append(await widget_data_turn.execute(tool_calls, text=text, brief=brief))
         if (not action.startswith("canvas:show:") and "show_widget" in names
                 and not _router.show_contradicts_the_order(text)):
             from widgets import runtime as _rt

@@ -30,6 +30,12 @@ from __future__ import annotations
 #: Which card each player TOOL drives — ownership, not vocabulary.
 CARD_OF_TOOL = {"play_music": "musica", "play_video": "youtube"}
 
+#: How sure the screen verdict must be to pick between two open players on its own (V2-781, second round). Measured
+#: in the same case: «turn the volume down a bit» read `musica:volume_down` at 0.54 (EN) and 0.60 (ES) — «used», so
+#: the music was turned down in silence, and the judge called it what it is: luck. Two players that both declare
+#: the control are a coin the verdict only settles when it is sure; below this the operator is asked which.
+PLAYER_SURE = 0.8
+
 
 def _open_now() -> list[str]:
     """The cards on screen, for a turn whose brief carries no open set (Jev off). Never raises."""
@@ -48,10 +54,25 @@ def _ask_phrase() -> str:
         return ""
 
 
-def plan(tool: str, action: str, query: str = "", *, brief=None, ask_phrase: str = "") -> dict:
+def _named_player(operator_text: str, open_ids) -> str:
+    """The ONE open player his words name («turn the music down», «pausa el vídeo»), else ""."""
+    if not (operator_text or "").strip():
+        return ""
+    try:
+        from nucleo.flash import direct_action as _da
+        players = set(CARD_OF_TOOL.values())
+        named = {str(c).split("::", 1)[0] for c in _da.named_cards(operator_text)} & players
+        bases = {str(w).split("::", 1)[0].strip().lower() for w in (open_ids or [])}
+        return next(iter(named)) if len(named) == 1 and named <= bases else ""
+    except Exception:  # noqa: BLE001
+        return ""
+
+
+def plan(tool: str, action: str, query: str = "", *, brief=None, ask_phrase: str = "", operator_text: str = "") -> dict:
     """`frontend.card_decision` for a player tool's call, plus `route`: "keep" | "card" | "ask".
 
     `card` is where to act, `ask` the sentence to say INSTEAD of acting; `label/text/extra` one observability event.
+    A player his words NAME decides first; otherwise the verdict decides only when sure (`PLAYER_SURE`).
     """
     own = CARD_OF_TOOL.get(str(tool or "").strip())
     act = str(action or "").strip().lower()
@@ -60,17 +81,25 @@ def plan(tool: str, action: str, query: str = "", *, brief=None, ask_phrase: str
         return keep
     from nucleo.flash import frontend as _fe
     has_screen = isinstance(brief, dict) and bool(brief.get("open_ids"))
+    named = _named_player(operator_text, brief.get("open_ids") if has_screen else _open_now())
+    if named and act in (_fe.declared_actions(named) or {}):
+        return keep if named == own else {**keep, "route": "card", "card": named,
+                                          "label": "🎯 la orden era del OTRO reproductor — lo nombra él",
+                                          "text": f"{own}→{named}:{act}", "extra": {"id": named, "from": own,
+                                                                                   "action": act, "src": "words"}}
     cd = _fe.card_decision(own, act, brief=brief, ask_phrase=ask_phrase or _ask_phrase(),
-                           open_ids=() if has_screen else _open_now())
+                           open_ids=() if has_screen else _open_now(), min_confidence=PLAYER_SURE)
     route = "ask" if cd.get("ask") else ("card" if cd.get("card") and cd["card"] != own else "keep")
     return {**cd, "route": route, "action": act}
 
 
-def voice_route(tool: str, args: dict, *, brief, apply_widget_data, acted, clarify, emit, ask_phrase: str = "") -> bool:
+def voice_route(tool: str, args: dict, *, brief, apply_widget_data, acted, clarify, emit, ask_phrase: str = "",
+                operator_text: str = "") -> bool:
     """The voice half. True when this call was HANDLED here (moved to the other card, or asked about) and the
     tool's own rail must not run it; False to let the tool run as always."""
     args = args if isinstance(args, dict) else {}
-    p = plan(tool, str(args.get("action") or ""), str(args.get("query") or ""), brief=brief, ask_phrase=ask_phrase)
+    p = plan(tool, str(args.get("action") or ""), str(args.get("query") or ""), brief=brief, ask_phrase=ask_phrase,
+             operator_text=operator_text)
     if p["route"] == "keep":
         return False
     if p["label"]:
@@ -83,14 +112,14 @@ def voice_route(tool: str, args: dict, *, brief, apply_widget_data, acted, clari
     return True
 
 
-def probe_route(tool: str, req: dict, tool_calls: list, *, brief) -> dict:
+def probe_route(tool: str, req: dict, tool_calls: list, *, brief, text: str = "") -> dict:
     """The text half: what the turn's action becomes. `{}` keeps the caller's own action; otherwise
     `{"action": "widget_data", "spoken": ""}` (the moved call is appended to `tool_calls` for the data-op rail to
     run, and the reply is left to the result, as `act_repair` does — the model's words named the other player) or
     `{"action": "clarify", "spoken": <the question>}` — the question is SAID, so the model's claim about an
     order that did not run («Volume at 55 percent») never reaches the operator."""
     req = req if isinstance(req, dict) else {}
-    p = plan(tool, str(req.get("action") or ""), str(req.get("query") or ""), brief=brief)
+    p = plan(tool, str(req.get("action") or ""), str(req.get("query") or ""), brief=brief, operator_text=text)
     if p["route"] == "ask":
         return {"action": "clarify", "spoken": p["ask"]}
     if p["route"] == "card":
@@ -100,10 +129,20 @@ def probe_route(tool: str, req: dict, tool_calls: list, *, brief) -> dict:
     return {}
 
 
-def probe_music(req: dict, tool_calls: list, *, brief) -> dict:
+def probe_music(req: dict, tool_calls: list, *, brief, text: str = "", tags: list | None = None) -> dict:
     """`probe_route` for the text channel's `play_music` branch, shaped as the locals it binds: always `action`
-    and `music_req` (None when the music is not touched), plus `spoken` only when the reply changes."""
-    routed = probe_route("play_music", req, tool_calls, brief=brief)
+    and `music_req` (None when the music is not touched), plus `spoken` only when the reply changes.
+
+    A stop/pause of the music card his words told to CLOSE («cierra la música») is that card's close
+    (`card_close.player_close`): the close tag joins the turn's tags, as the close backstop's would."""
+    from nucleo.flash import card_close as _card_close
+    req = req if isinstance(req, dict) else {}
+    card = _card_close.player_close("play_music", str(req.get("action") or ""), text)
+    if card:
+        if tags is not None:
+            tags.append({"action": "close", "extra": {"id": card, "named": True}})
+        return {"action": f"canvas:close:{card}", "music_req": None, "spoken": ""}
+    routed = probe_route("play_music", req, tool_calls, brief=brief, text=text)
     return {"action": "music", "music_req": req} if not routed else {**routed, "music_req": None}
 
 

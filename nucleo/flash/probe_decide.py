@@ -78,7 +78,7 @@ async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names
         from nucleo.turn import vault_gate as _vault_gate
         reveal_out = (await _vault_gate.reveal(str(_rl))).as_probe_payload()
     elif "play_music" in names:   # V2-041/V2-380: run below — unless a CONTROL belongs to the other player (`player_control`)
-        _pm = _player_control.probe_music(_probe._music_turn.request_from(tool_calls), tool_calls, brief=_tbrief)
+        _pm = _player_control.probe_music(_probe._music_turn.request_from(tool_calls), tool_calls, brief=_tbrief, text=text, tags=tags)
         action, music_req = _pm.pop("action"), _pm.pop("music_req")
     elif "play_video" in names:
         from nucleo.flash import canvas_license as _lic_v

@@ -152,7 +152,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         pass
     if (not acted.get("closed")) and _pst._canvas_lic.close_license(text, brief=_brief) \
             and not _router.looks_like_create_widget(text) \
-            and not music_req["v"] and not data_done["v"] \
+            and not _pst._card_close.music_keeps_its_turn(music_req, _op_text) and not data_done["v"] \
             and not _pst._closeg.taken_elsewhere(_tool_fired) \
             and not attention.mentions_fullscreen(text):
         try:
@@ -164,7 +164,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         # THE VERDICT NAMES THE CARD before any word match does (demo pass 2026-09-28, V7: «ok stop the video
         # and close it» — the video was already closed, «video» then tied navegador↔youtube, «the open one
         # wins» picked the worker's browser card, and the backstop closed THAT). Already closed → nothing to do.
-        _vc = _pst._direct_action.verdict_card(_brief) if _pst._direct_action.sure_canvas(_brief) == "close" else ""
+        _vc = _pst._card_close.verdict_unless_named(_pst._direct_action.verdict_card(_brief), _op_text, _openw) if _pst._direct_action.sure_canvas(_brief) == "close" else ""
         try:
             from widgets import runtime as _rt_close
             # los ABIERTOS desempatan ("cierra el vídeo": vídeo empata navegador↔youtube; gana el abierto)

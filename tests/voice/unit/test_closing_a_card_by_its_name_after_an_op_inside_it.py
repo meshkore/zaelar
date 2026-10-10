@@ -73,4 +73,6 @@ def test_tidying_the_screen_is_a_canvas_gesture_the_verdict_can_complete(monkeyp
                               emit=lambda *a, **k: ev.append(a[:2]), operator_text="tidy up the screen") == "arrange"
     assert ("widget", "arrange") in ev and not any(e[0] == "tag" for e in ev)
     probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
-    assert 'if _verb == "arrange":' in probe
+    # the text channel's mirror lives in `card_close.complete_canvas_mirror` since V2-781 (it also runs before the repair)
+    assert "_card_close.complete_canvas_mirror(" in probe
+    assert 'if verb == "arrange":' in (ENGINE / "nucleo/flash/card_close.py").read_text(encoding="utf-8")

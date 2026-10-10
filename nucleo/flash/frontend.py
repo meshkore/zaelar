@@ -219,7 +219,8 @@ def _takes(card: str, action: str, payload) -> bool:
     return bool(keys & {str(k) for k in declared})
 
 
-def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=None) -> tuple[str, object]:
+def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=None,
+               min_confidence: float | None = None) -> tuple[str, object]:
     """Which OPEN CARD a declared data-op belongs to, when more than one can do it (V2-740).
 
     THE SITUATION, in the operator's words (2026-09-21): *«si tengo dos widgets que tienen las mismas
@@ -301,7 +302,8 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=
     # one therefore ASKS, which is not a degraded answer — it is the behaviour the operator described for
     # exactly this case, and it costs nothing and cannot be wrong. Giving the probe its own brief is a
     # cost decision (one call per text turn to serve a rare ambiguity), and it is his, not this file's.
-    choice, _info = _tb.read(brief, _tb.TARGET_KEY, "")
+    # `min_confidence`: a caller whose candidates are all equally plausible asks for a SURER verdict (player_control).
+    choice, _info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=min_confidence)
     owner, _, verdict_action = str(choice or "").rpartition(":")
     if owner and verdict_action == name and owner in cards and _tb.owner_still_open(brief, owner):
         return ("keep", None) if owner == wid else ("card", owner)
@@ -371,7 +373,8 @@ def absent_widget_misroute(widget_id: str, action: str, item: str, *,
     return wid not in open_now and (named_widget or "").strip().lower() != wid
 
 
-def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = "", payload=None, open_ids=()) -> dict:
+def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = "", payload=None, open_ids=(),
+                  min_confidence: float | None = None) -> dict:
     """`which_card`, shaped into what a CALL SITE does with it — so neither channel grows to hold this.
 
     Both callers live in files the architecture ratchet lists (the voice provider and `probe.py`), and its
@@ -385,7 +388,7 @@ def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = 
     `open_ids` is the screen when the brief carries none (see `player_control`); empty = the brief's set.
     """
     wid = (widget_id or "").strip().lower()
-    route, alt = which_card(wid, action, open_ids=open_ids, brief=brief, payload=payload)
+    route, alt = which_card(wid, action, open_ids=open_ids, brief=brief, payload=payload, min_confidence=min_confidence)
     if route == "card":
         return {"card": str(alt), "ask": "",
                 "label": "🎯 la orden era de OTRA tarjeta — la reubica el veredicto de pantalla",

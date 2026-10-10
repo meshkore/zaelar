@@ -341,7 +341,8 @@ def test_V7_the_close_backstop_takes_the_verdicts_card_even_when_it_is_already_c
     import inspect
     from voice.engine.llm.providers import nucleo as prov
     src = _vts.getsource(prov)
-    assert '_direct_action.verdict_card(_brief) if _direct_action.sure_canvas(_brief) == "close"' in src
+    # …unless his words call ANOTHER open card by its name (V2-781: «Close the music» over `youtube:close`)
+    assert '_direct_action.verdict_card(_brief), _op_text, _openw) if _direct_action.sure_canvas(_brief) == "close"' in src
 
 
 def test_F2_a_self_matching_reference_is_filled_with_his_words(on_screen):
