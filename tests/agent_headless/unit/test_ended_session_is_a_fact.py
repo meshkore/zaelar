@@ -123,8 +123,9 @@ def test_and_the_snapshot_does_not_hold_the_worker_handles():
     row = dispatch._ENDED_SESSIONS["w1"]
     assert isinstance(row, dict)
     # `sheet` joined in V2-566: the box the errand delivered into, so a follow-up can inherit it — a string,
-    # never a handle.
-    assert set(row) == {"id", "goal", "status", "ok", "summary", "at", "told", "sheet"}
+    # never a handle. `kind` and `error_class` (2026-10-10): what died and why, for the death backstop — strings.
+    assert set(row) == {"id", "goal", "status", "ok", "summary", "at", "told", "sheet", "kind", "error_class"}
+    assert all(isinstance(row[k], str) for k in ("kind", "error_class"))
 
 
 # ── the enumeration, only once (same lesson as V2-197) ────────────────────────────────────────────────────
