@@ -310,8 +310,11 @@ def guard(widget_id: str, action: str, payload: dict | None) -> dict | None:
         if not field:
             return None
         pl = payload if isinstance(payload, dict) else {}
-        if str(pl.get(field) if pl.get(field) is not None else "").strip():
-            return None
+        # …or its DECLARED plural sibling (`item` → `items`, V2-756): «remove the second one» sent `items: "2"`
+        # and was refused as naming nothing (V2-781).
+        for key in (field, field + "s") if field + "s" in (spec.get("payload") or {}) else (field,):
+            if str(pl.get(key) if pl.get(key) is not None else "").strip():
+                return None
         options = _options(wid, field)
         menu = ("; ".join(options[:5])) if options else ""
         return {
