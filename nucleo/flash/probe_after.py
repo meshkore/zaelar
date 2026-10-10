@@ -23,6 +23,21 @@ async def _escalated_with_its_data_ops(task_ids: list, tool_calls: list, text: s
     return out
 
 
+def _send_each(tool_calls: list, text: str) -> dict:
+    """Every `send_to_worker` of the turn, each to the worker its `which` names — the voice executor's behaviour.
+
+    three-tasks-at-once (EN, 2026-10-10): this channel sent only the FIRST message, and to `which=""`, i.e. every
+    live worker — «the monitor, no more than $150» landed in the report's worker and «jump higher» reached nobody.
+    A turn with no usable message keeps the old fallback: the operator's words, to every worker."""
+    from nucleo import dispatch as _disp
+    sends = [(str(t["args"].get("which") or "").strip() or "todo", str(t["args"].get("message") or "").strip())
+             for t in tool_calls if t.get("name") == "send_to_worker"]
+    sends = [(w, m) for w, m in sends if m] or [("", str(text))]
+    for which, msg in sends:
+        _disp.inject_soon(which, msg)
+    return {"executed": "inject", "sent": len(sends)}
+
+
 async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _window_goal, action, execute, images_req, music_req, operator_text, sess, spoken, tags, text, tool_calls, video_req) -> dict:
     if execute:
         # CONFIRMACIÓN de una TAREA irreversible parada por el confirm-gate (V2-126) y del navegador parado en
@@ -97,11 +112,7 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                     for _r in _reqs]
                 return_extra_exec = await _escalated_with_its_data_ops(_tids, tool_calls, text, _tbrief)
             elif action == "send_to_worker":
-                _msg = next((t["args"].get("message") for t in tool_calls
-                             if t["name"] == "send_to_worker" and t["args"].get("message")), "") or text
-                from nucleo import dispatch as _disp
-                _disp.inject_soon("", str(_msg))
-                return_extra_exec = {"executed": "inject"}
+                return_extra_exec = _send_each(tool_calls, text)
             elif action == "answer_worker":
                 _ans = next((t["args"].get("answer") or t["args"].get("text") for t in tool_calls
                              if t["name"] == "answer_worker"), "") or text

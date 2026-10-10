@@ -197,7 +197,7 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
         return _t_set_cluster_objective(args=args, _say=_say, _spawn=_spawn, clarify=clarify, emit=emit)
     elif name == "send_to_worker":
         # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_send_to_worker(args=args, emit=emit, worker_acted=worker_acted)
+        return _t_send_to_worker(args=args, emit=emit, worker_acted=worker_acted, fired=_tool_fired)
     elif name == "stop_worker":
         # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
         return _t_stop_worker(
@@ -205,7 +205,7 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
             worker_acted=worker_acted)
     elif name == "answer_worker":
         # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_answer_worker(args=args, emit=emit, worker_acted=worker_acted)
+        return _t_answer_worker(args=args, emit=emit, worker_acted=worker_acted, fired=_tool_fired)
 
 
 # V2-778 F1 — the `escalate_to_slowbrain` arm of `_on_tool_call`, moved verbatim.
@@ -560,7 +560,7 @@ def _t_set_cluster_objective(*, args, _say, _spawn, clarify, emit):
 
 
 # V2-778 F1 — the `send_to_worker` arm of `_on_tool_call`, moved verbatim.
-def _t_send_to_worker(*, args, emit, worker_acted):
+def _t_send_to_worker(*, args, emit, worker_acted, fired=None):
     # V2-038 (↓): refina/amplía un worker vivo → INYECTA (no relanza). Fire-and-forget marshalado al
     # loop del server (§v3·O: nunca await de una op de worker en el turno).
     which = (args.get("which") or "").strip()
@@ -570,6 +570,7 @@ def _t_send_to_worker(*, args, emit, worker_acted):
             from nucleo import dispatch as _d
             _d.inject_soon(which or "todo", msg)
             worker_acted["v"] = "inject"
+            fired is not None and fired.add("send_to_worker")    # the close backstop reads it (three-tasks)
             emit("brain", "↪️ inyección a worker", text=f"{which}: {msg}"[:120], role="system")
             # Observability (V2-090 gap): this correction continues a LIVE task — its own dialogue
             # exchange should show up INSIDE that task's flow instead of opening a fresh one. Only
@@ -653,13 +654,14 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
 
 
 # V2-778 F1 — the `answer_worker` arm of `_on_tool_call`, moved verbatim.
-def _t_answer_worker(*, args, emit, worker_acted):
+def _t_answer_worker(*, args, emit, worker_acted, fired=None):
     ans = (args.get("answer") or "").strip()
     if ans:
         try:
             from nucleo import worker_api as _wapi
             if _wapi.answer_active_soon(ans):
                 worker_acted["v"] = "answer"
+                fired is not None and fired.add("answer_worker")    # the close backstop reads it (three-tasks)
                 emit("brain", "💬 respuesta a worker", text=ans[:120], role="system")
         except Exception as e:  # noqa: BLE001
             _tx.logger.warning(f"answer_worker falló: {e}")

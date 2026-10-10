@@ -217,3 +217,18 @@ def unless_a_row(card, text: str, identified: dict | None):
     idc = identified if isinstance(identified, dict) else {}
     named = idc.get("match") == card and not idc.get("by_context")
     return None if card and not named and names_a_row(str(card), text) else card
+
+
+#: The calls with which the MODEL already decided where an order goes — a worker, or leaving full screen.
+_TAKEN_BY = frozenset({"fullscreen_widget", "send_to_worker", "answer_worker"})
+
+
+def taken_elsewhere(fired) -> bool:
+    """Did the model already route this turn's order somewhere the close backstop must not override? (three-tasks)
+
+    «Y del informe quítame los híbridos» → `send_to_worker` to the report, and the turn became `canvas:close:results`:
+    «quita» is a close verb and the results sheet, the one card open, was reached by context. In the text channel
+    that also lost the worker message, because the action the executor ran was the close. A sentence the model sent
+    to a worker is that worker's order; the close backstop completes a turn where the model closed NOTHING. Read by
+    both channels — the voice one over `_tool_fired`, the text one over the tool names."""
+    return bool(_TAKEN_BY & set(fired or ()))

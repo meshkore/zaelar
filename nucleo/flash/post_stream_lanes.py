@@ -153,7 +153,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
     if (not acted.get("closed")) and _pst._canvas_lic.close_license(text, brief=_brief) \
             and not _router.looks_like_create_widget(text) \
             and not music_req["v"] and not data_done["v"] \
-            and "fullscreen_widget" not in _tool_fired \
+            and not _pst._closeg.taken_elsewhere(_tool_fired) \
             and not attention.mentions_fullscreen(text):
         try:
             from memory import api as _memapi

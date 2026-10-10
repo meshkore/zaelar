@@ -3747,6 +3747,10 @@ DOMAINS: list[dict] = [
         {"id": "2.311", "title": "A sentence that adds or insists is not an answer to a parked errand's yes/no — «Y el juego no "
                                  "te olvides… no dos» dropped the parked report (three-tasks-at-once)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sentence_that_adds_is_not_an_answer.py"]},
+        {"id": "2.312", "title": "An order the model routed to a live worker is not a canvas close, and the text channel sends "
+                                 "each message to the worker it names — «del informe quítame los híbridos» closed the results "
+                                 "sheet (three-tasks-at-once)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_order_for_a_worker_is_not_a_canvas_close.py"]},
         {"id": "2.205", "title": "What a stranger wrote reaches the model as DATA (fenced, unforgeable), and an act that "
                                  "leaves with it in context and no sure verdict is asked — voice and text alike",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_strangers_words_are_data.py"]},
