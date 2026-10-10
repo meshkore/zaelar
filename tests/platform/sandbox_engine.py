@@ -198,7 +198,11 @@ def spawn_engine(*, workspace: Path, port: int, log_path: Path | None = None,
     else:
         log_path.parent.mkdir(parents=True, exist_ok=True)
 
-    env = os.environ.copy()
+    # The operator's engine starts with the host Claude Code session's routing stripped (`make start` under
+    # `env -u ANTHROPIC_…`); a sandbox launched FROM such a session must too, or its children authenticate with the
+    # host's token and a round measures that instead of the product (V2-781 T532: «401 … ****2wAA is invalid»).
+    from nucleo.workers.claude_session import _without_host_routing
+    env = _without_host_routing(os.environ.copy())
     env.update({
         "PORT": str(port), "HOST": "127.0.0.1",
         "BRAIN": "nucleo",                 # the probe channel + workers mount on this, not on LiveKit

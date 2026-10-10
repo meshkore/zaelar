@@ -265,7 +265,10 @@ def _run_agent_once(prompt: str, token: str = "", *, target: str) -> tuple[bool,
     cmd = [claude, "-p", "--allowedTools", "Write Edit Read",
            "--permission-mode", "acceptEdits", "--output-format", "json",
            "--settings", settings_path, "--add-dir", target]
-    env = dict(os.environ)
+    # V2-781 T532 — never the HOST's Claude Code session (its routing rode in and the CLI authenticated with it:
+    # «401 … ****2wAA is invalid»); the workers strip the same set (`claude_session._without_host_routing`).
+    from nucleo.workers.claude_session import _without_host_routing
+    env = _without_host_routing(dict(os.environ))
     env["PATH"] = os.path.dirname(claude) + os.pathsep + env.get("PATH", "")
     env["ZAELAR_DEV_WORKER_ROOT"] = target
         # the jail hook runs `python -m nucleo.dev_worker_guard` from the scratch cwd — the engine root on

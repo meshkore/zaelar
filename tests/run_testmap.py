@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.263", "title": "The widget agent never inherits the host's Claude Code session — «401 … ****2wAA is "
+                                 "invalid» on every build (V2-781 T532)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_widget_agent_never_inherits_the_hosts_claude_session.py"]},
         {"id": "2.262", "title": "The delivery backstop names rows nobody named yet — it re-announced the three he had "
                                  "turned down while the good ones sat further down (V2-781 T521)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_skips_what_was_already_named.py"]},
