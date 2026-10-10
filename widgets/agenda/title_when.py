@@ -36,8 +36,8 @@ _DATE_CUTS = (
                r"|(?:the\s+)?\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?" + _MONTHS_EN + r")(?:,?\s+\d{4})?\b", re.I),
 )
 _TIME_CUTS = (
-    # ES: «a las diez de la mañana», «a las 17:00», «a las cinco y media de la tarde», and the truncated «a las
-    # diez de la» the backstop's own date cut leaves behind (it reads «mañana» as tomorrow).
+    # Spanish: a spelled or numeric hour with its half/quarter and its part of the day, and the truncated form
+    # the backstop's own date cut leaves behind (that cut reads the word for «morning» as «tomorrow»).
     re.compile(r"\s*,?\s*\b(?:a|sobre|hacia)\s+las?\s+(?P<h>\d{1,2}(?:[:.h]\d{2})?|" + "|".join(_WORDS_ES) + r")"
                r"(?P<m>\s+y\s+(?:media|cuarto|\d{1,2}))?"
                r"(?P<p>\s+(?:de\s+la\s+(?:ma[ñn]ana|tarde|noche|madrugada)|del\s+mediod[ií]a|de\s+la|en\s+punto|"
@@ -102,6 +102,19 @@ def split_when(title: str, *, date: bool = True) -> tuple[str, str]:
     if len(out) < 3:
         return raw, ""
     return out[:1].upper() + out[1:], hour
+
+
+def said_when(payload: dict) -> dict:
+    """An `add_meeting` payload whose title carries no when: the date phrase goes only when a `date` came (else it is
+    the only copy of the day), and the hour the title said fills `startTime` when none was sent."""
+    if not isinstance(payload, dict) or not str(payload.get("title") or "").strip():
+        return payload
+    title, hour = split_when(str(payload["title"]), date=bool(str(payload.get("date") or "").strip()))
+    out = {**payload, "title": title}
+    if hour and not any(str(payload.get(k) or "").strip() for k in ("startTime", "time")):
+        out["startTime"] = hour
+        out.pop("allDay", None)
+    return out
 
 
 def strip_when(title: str) -> str:

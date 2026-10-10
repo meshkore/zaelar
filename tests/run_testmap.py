@@ -3918,7 +3918,7 @@ DOMAINS: list[dict] = [
         {"id": "2.402", "title": "«I've removed it from your agenda» with no call cancels the appointment in focus (and its "
                                  "notice); a list row, a notice, a flight, a question or a refusal never (agenda-appointment-"
                                  "lifecycle EN, 2026-10-10); both channels",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_cancelled_appointment_stays_cancelled.py"]},
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_claimed_removal_is_the_cancellation.py"]},
         {"id": "2.251", "title": "«set a reminder on the premiere day» rings on the ONE date the last reply named — «I'll set "
                                  "a heads-up for that day» scheduled nothing (V2-781 pair 3); both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_asked_for_the_day_just_named_is_set.py"]},

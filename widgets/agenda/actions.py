@@ -56,11 +56,6 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
     # V2-473 round 3: three probe samples in a row sent `time`, not the manifest's `startTime`, and the
     # hour fell to the default AGAIN. The unambiguous natural alias must not cost the fact (V2-341).
     _rawtime = str(payload.get("startTime", "") or payload.get("time", "") or "")
-    # The title says WHAT, never when: «… el 20 de octubre a las diez de la mañana» in a title goes stale the first
-    # time the appointment moves. The hour it carried fills `startTime` when none was sent (`title_when`).
-    title, _t_hour = _tw.split_when(title, date=bool(_rawdate.strip()))
-    if not _rawtime.strip() and _t_hour:
-        _rawtime = _t_hour
     # V2-473 — the model's natural datetime shape («2026-09-08 15:00», or with a T) is BOTH fields in
     # one: the date resolver kept the date and silently dropped the hour, so «a las tres de la tarde»
     # became the 17:00 default. The glued hour fills startTime only when none was given explicitly.
@@ -276,7 +271,7 @@ def _a_add_meeting_noticed(action, payload, db, _extra):
     # as unknown; a notice that cannot ring is said back in `notice_error`, and the write is kept.
     raw = next((payload[k] for k in _d.reminders.ASK_KEYS if payload.get(k) not in (None, "", False, True)), None)
     from . import free as _free                    # demo pass 109, C3: «ok book it» books the slot just found
-    payload = _free.with_the_slot_found(db, payload, _d._resolve_date)
+    payload = _tw.said_when(_free.with_the_slot_found(db, payload, _d._resolve_date))   # a title says what, not when
     res = _a_add_meeting(action, {k: v for k, v in payload.items() if k not in _d.reminders.ASK_KEYS}, db, _extra)
     if isinstance(res, _d._Continue):
         res.value["clashes"] = _free.clashes(db.get("meetings"), res.value.get("stored"))

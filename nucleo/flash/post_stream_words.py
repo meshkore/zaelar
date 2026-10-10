@@ -7,7 +7,9 @@ bound.
 """
 from __future__ import annotations
 
+from nucleo.flash import agenda_claims as _agc   # «I've removed it» with no call → its cancel_meeting
 from nucleo.flash import card_commission as _cardc_ws
+from nucleo.flash import note_backstop as _nb    # the dated-note backstop's one decision, both channels
 from nucleo.flash import post_stream as _pst
 
 
@@ -170,7 +172,6 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
     # cron puesto y ninguna cita. Solo si el turno no hizo ya una data-op.
     if spoken_text and not data_done["v"]:
         try:
-            from nucleo.flash import note_backstop as _nb
             _note = _nb.note_to_file(spoken_text, operator_text, window=brain._window, emit=emit)   # one decision
             if _note:
                 import widgets as _w_note
@@ -234,10 +235,8 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
                  extra={"cat": "flash", "widget": _ar_wid, "action": "close"})
             _ar_wid = ""
         _ar_vo, _ar_va = _pst._direct_action.from_brief(_brief)    # full41 E3: a refusal of the verdict's declared act
-        from nucleo.flash import agenda_claims as _agc   # «I've removed it» with no call → its cancel_meeting
-        _ar = _agc.cancel_call(_op_text, spoken_text) or (
-            await _act_repair.call_for_promise_or_order(_op_text, spoken_text, _ar_wid, _ar_va if _ar_vo == _ar_wid
-                                                        else "", spec=spec, window=list(brain._window)) if _ar_wid else None)
+        _ar = await _agc.or_repair(_op_text, spoken_text, lambda: _act_repair.call_for_promise_or_order(_op_text,
+            spoken_text, _ar_wid, _ar_va if _ar_vo == _ar_wid else "", spec=spec, window=list(brain._window)) if _ar_wid else None)
         # Demo pass 67, B1: a promise to find a wallpaper, the catalogue naming the EMPTY picture viewer, and no
         # call from the pass — the promise backstop then spent a worker. That order is the picture search.
         _pic = None if (_ar or not _ar_wid) else _cardc_ar.picture_search_for(_ar_wid, _op_text)

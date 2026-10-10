@@ -29,7 +29,7 @@ _ORDER_RE = re.compile(
     r"\b(?:anul|cancel|qu[ií]t(?:a|al[ao]|ar|amel[ao]|el[ao])\b|borr|elimin|suprim|remove|delete|drop|scrap|get\s+rid\s+of|call\s+(?:it\s+|that\s+)?off|"
     r"take\s+(?:it|that)\s+off)\w*", re.I)
 _CLAIM_RE = re.compile(
-    # EN — a finished removal: «I've removed it», «it's been cancelled», «that's deleted», «removed it from…»
+    # English: a finished removal in the perfect or the passive, or the bare participle with its object
     r"\b(?:i'?ve|i\s+have|it'?s|it\s+is|that'?s|it\s+has|has)\s+(?:now\s+)?(?:been\s+)?"
     r"(?:removed|cancell?ed|deleted|taken\s+(?:it\s+)?off|cleared|scrapped|dropped)\b|"
     r"\b(?:removed|cancell?ed|deleted)\s+(?:it|that|the\s+\w+)\b|"
@@ -92,6 +92,7 @@ def cancel_call(operator_text: str, reply: str, db: dict | None = None, *, now: 
     """`{widget_id: "agenda", action: "cancel_meeting", payload}` when the reply CLAIMS a removal his words ordered
     and no call made it, else None. Never raises."""
     try:
+        reply = "".join(reply) if isinstance(reply, list) else str(reply or "")   # the probe's spoken chunks
         said, words = _norm_txt(operator_text), _norm_txt(reply)
         if not said.strip() or not words.strip() or said.lstrip().startswith("[sistema]"):
             return None
@@ -118,3 +119,20 @@ def cancel_call(operator_text: str, reply: str, db: dict | None = None, *, now: 
         return {"widget_id": "agenda", "action": "cancel_meeting", "payload": payload}
     except Exception:  # noqa: BLE001 — a backing must never take down a live turn
         return None
+
+
+async def or_repair(operator_text: str, reply, repair):
+    """The claimed cancellation (`cancel_call`) when there is one, else the model repair `repair()` builds (a
+    coroutine, or None for no pass) — so a claim never costs a model pass and each caller keeps one statement."""
+    got = cancel_call(operator_text, reply)
+    if got:
+        try:
+            from voice.observer import emit as _emit
+            _emit("brain", "🗓️ dijo que la quitó sin llamar a nada — se anula de verdad", role="system",
+                  text=str(got["payload"].get("title") or "")[:120],
+                  extra={"cat": "flash", "widget": "agenda", "action": "cancel_meeting"})
+        except Exception:  # noqa: BLE001 — the trace is best-effort; the cancellation is not
+            __import__("logging").getLogger("zaelar.flash").debug("claim trace not emitted", exc_info=True)
+        return got
+    pending = repair()
+    return await pending if pending is not None else None
