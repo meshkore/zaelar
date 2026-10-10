@@ -15,6 +15,8 @@ same tokenizer in every language, ranked by the length of the words matched.
 """
 from __future__ import annotations
 
+from loguru import logger
+
 
 def known() -> list[dict]:
     """Every errand he can be asking about: {id, label, request, phase, waiting_on, parked}. Never raises."""
@@ -27,16 +29,16 @@ def known() -> list[dict]:
             out.append({"id": str(e.get("id") or ""), "label": "" if label.endswith("…") else label,
                         "request": str(e.get("request") or "").strip(), "phase": str(e.get("phase") or ""),
                         "note": str(e.get("note") or ""), "waiting_on": e.get("waiting_on") or "", "parked": False})
-    except Exception:  # noqa: BLE001 — a reader never breaks a turn
-        pass
+    except Exception as e:  # noqa: BLE001 — a reader never breaks a turn
+        logger.debug(f"named_errand: live errands unreadable — {type(e).__name__}: {e}")
     try:
         from nucleo import dispatch_confirm as _dc     # the gate's own store (`pending_confirm` reads this one)
         for tid, p in list((getattr(_dc, "_PENDING_CONFIRM", None) or {}).items()):
             refs = " ".join(str(r) for r in (p.get("refinements") or []))
             out.append({"id": str(tid), "label": "", "request": str(p.get("request") or "").strip(),
                         "extra": refs, "phase": "", "note": "", "waiting_on": "user", "parked": True})
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"named_errand: parked errands unreadable — {type(e).__name__}: {e}")
     return out
 
 

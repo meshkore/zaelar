@@ -31,6 +31,8 @@ Three answers, one per hole, and none of them a new decider:
 """
 from __future__ import annotations
 
+from loguru import logger
+
 import re
 
 from nucleo.flash.text_norm import _norm_txt
@@ -208,8 +210,8 @@ def complete_canvas_mirror(brief, operator_text: str, *, blocked: bool) -> dict:
             action = {"close": f"canvas:close:{cid}", "minimize": f"canvas:minimize:{cid}",
                       "fullscreen": f"canvas:fullscreen:{cid}"}.get(verb, f"canvas:unfullscreen:{cid}")
             return {"action": action, "spoken": "", "_already": True}
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"card_close: canvas mirror skipped — {type(e).__name__}: {e}")
     return {}
 
 

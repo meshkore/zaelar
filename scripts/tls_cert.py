@@ -119,8 +119,8 @@ def ensure(directory: str | None = None, *, which: Callable = shutil.which, run:
         return HTTP_ONLY
     try:
         os.chmod(keyfile, 0o600)
-    except OSError:
-        pass
+    except OSError as e:
+        say(f"! could not restrict the key's permissions ({e}) — check {keyfile}")
     say(f"✓ issued this install's own certificate for {', '.join(HOSTS)} → {directory}")
     if not ca_ready:
         say("ℹ run `mkcert -install` once so your browser trusts it (it adds mkcert's local CA to this machine).")
