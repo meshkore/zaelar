@@ -7,7 +7,7 @@ here, with mkcert mocked (it is not installed on CI, and the real one would touc
 
   · the pair is there and current → use it, run nothing;
   · it is missing (or expired) and mkcert is installed → issue one for local.zaelar.com, localhost, 127.0.0.1;
-  · it is missing and there is no mkcert → HTTP only, and ONE line that says how to enable HTTPS.
+  · it is missing and there is no mkcert → HTTP only, silently (http://localhost is the default).
 
 And the guard that matters most for a public repo: whatever the launcher writes there is gitignored.
 
@@ -92,11 +92,12 @@ def test_an_expired_pair_is_reissued(tmp_path):
     assert any("-cert-file" in c for c in fake.calls)
 
 
-def test_missing_pair_without_mkcert_is_http_only_with_one_hint(tmp_path):
+def test_missing_pair_without_mkcert_is_http_only_and_silent(tmp_path):
+    """No mkcert is the NORMAL case: plain http://localhost, nothing to install, nothing printed."""
     said: list[str] = []
     out = T.ensure(str(tmp_path / "none"), which=lambda _n: None, run=_never_run, say=said.append)
     assert out == T.HTTP_ONLY
-    assert len(said) == 1 and "mkcert -install" in said[0] and "http://localhost:43917" in said[0]
+    assert said == []
     assert not (tmp_path / "none" / "privkey.pem").exists()
 
 

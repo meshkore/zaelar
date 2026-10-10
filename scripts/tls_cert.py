@@ -100,7 +100,8 @@ def ensure(directory: str | None = None, *, which: Callable = shutil.which, run:
     if action == USE:
         return USE
     if action == HTTP_ONLY:
-        say(f"ℹ {HINT}")
+        # Silent on purpose: plain http://localhost is the default and needs nothing installed (operator,
+        # 2026-10-10 — a start must be instant, never a setup chore). HTTPS is an opt-in for whoever has mkcert.
         return HTTP_ONLY
 
     certfile, keyfile = paths(directory)

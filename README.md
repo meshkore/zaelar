@@ -34,18 +34,13 @@ cd zaelar
 .\zaelar.ps1      # checks your system, sets up, and starts
 ```
 
-Then open **http://localhost:43917** (or **https://local.zaelar.com:44317** once HTTPS is on, below) and follow
-the on-screen setup. Add your AI keys **in the app** — no `.env` editing, no config files to touch.
+Then open **http://localhost:43917** and follow the on-screen setup — nothing else to install; the microphone
+works there because browsers treat `localhost` as secure. Add your AI keys **in the app** — no `.env` editing, no config files to touch.
 
-> **HTTPS is per install.** `local.zaelar.com` is a public DNS record that points at **127.0.0.1**, so it resolves
-> to **your own machine** and nothing ever leaves it. Its certificate is issued on your machine by
-> [mkcert](https://github.com/FiloSottile/mkcert) the first time you start Zaelar — no certificate or key ships in
-> this repo. To turn it on: install mkcert (`brew install mkcert` on macOS), run `mkcert -install` once (it adds a
-> local certificate authority that only your machine trusts), and start Zaelar again; the certificate lands in
-> `certs/local.zaelar.com/` (gitignored). Without mkcert, Zaelar runs on plain HTTP and says so in one line —
-> `http://localhost:43917` still gets the microphone, because browsers treat `localhost` as secure.
-> If `local.zaelar.com` does not resolve, your router's DNS may block public names that point at 127.0.0.1
-> (DNS-rebinding protection): use `http://localhost:43917`, or add `127.0.0.1 local.zaelar.com` to your hosts file.
+> **HTTPS is optional and off by default.** If you already use [mkcert](https://github.com/FiloSottile/mkcert),
+> Zaelar issues itself a per-install certificate and also answers on `https://local.zaelar.com:44317` (a public DNS
+> name for 127.0.0.1 — your own machine). Nobody needs it: no key ships in this repo, and `http://localhost:43917`
+> is the address.
 
 ## Commands
 
