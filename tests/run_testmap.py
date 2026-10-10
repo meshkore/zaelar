@@ -3754,6 +3754,9 @@ DOMAINS: list[dict] = [
         {"id": "2.313", "title": "Every errand of a turn starts or is said not to have started — the monitor hunt beside a "
                                  "report and a game, and the errand beside a yes, vanished without a trace (three-tasks-at-once)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_every_errand_of_a_turn_starts_or_is_said.py"]},
+        {"id": "2.314", "title": "A status question over live errands is answered with each one's phase — «How's everything "
+                                 "going?» got «give me a moment to look into that» (three-tasks-at-once)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_status_question_is_answered_with_the_phases.py"]},
         {"id": "2.205", "title": "What a stranger wrote reaches the model as DATA (fenced, unforgeable), and an act that "
                                  "leaves with it in context and no sure verdict is asked — voice and text alike",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_strangers_words_are_data.py"]},

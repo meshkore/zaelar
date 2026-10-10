@@ -217,7 +217,7 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
     return _out
 
 
-async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, return_extra_exec, sess, spoken, tags, text, video_req, spec=None) -> dict:
+async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, return_extra_exec, sess, spoken, tags, text, video_req, spec=None, brief=None) -> dict:
     if not spoken and any(t.get("action") == "aparte" for t in tags):
         pass          # V2-657 (espejo del provider): [[aparte]] es silencio SANCIONADO — ningún backstop lo rellena
     elif not spoken:
@@ -288,7 +288,8 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
                             "connect_cluster"):
                 # V2-189: nunca la MISMA frase dos veces (espejo del provider — cablear en AMBOS).
                 from . import router_guards as _rg_hold
-                spoken = _rg_hold.holding_line(sess.window, _lg)
+                from nucleo.turn import errands_of_a_turn as _eot   # a status question owes the phases (three-tasks)
+                spoken = ((action != "escalate" and _eot.status_owed(text, brief)) or _rg_hold.holding_line(sess.window, _lg))
             elif action == "music":
                 # V2-380 — la BOCA dice lo que PASÓ, no «Hecho.» pase lo que pase. Misma casa que la ejecución.
                 spoken = _probe._music_turn.spoken_for(

@@ -78,3 +78,34 @@ def not_started_line(dropped: list[str]) -> str:
         return ""
     from i18n import langs as _lg
     return _lg.current_language().errands_not_started.format(what="; ".join(f"«{i}»" for i in items))
+
+
+def status_owed(operator_text: str, brief) -> str:
+    """Where each live errand is, in one sentence — owed when the turn asked to be TOLD and the model went mute.
+
+    EN twin (sandbox 20261010-145237-en): three errands live, «How's everything going?», the model called
+    `send_to_worker` twice and said nothing, and our holding line answered «Alright, give me a moment to look into
+    that» — an empty wait to a status question, with every errand's phase in the turn's own state. The line names
+    each live errand by its label (its request when it has none yet) and its phase. "" when the verdict did not ask
+    for words, or nothing is live — the caller then keeps its own line."""
+    from nucleo.flash import turn_brief as _tb
+    if brief is None:
+        return ""
+    words, _i = _tb.read(brief, _tb.WORDS_KEY, "")
+    kind, _k = _tb.read(brief, _tb.REQUEST_KEY, "")
+    if words != "tell" and kind != "question":
+        return ""
+    from nucleo import dispatch as _d
+    live = list(_d.pending_summaries() or [])
+    if not live:
+        return ""
+    from i18n import langs as _lg
+    lang = _lg.current_language()
+    items = []
+    for e in live:
+        rec = _d.get_record(e.get("id"))
+        label = str(getattr(rec, "label", "") or "").strip() or str(e.get("request") or "").strip()[:70]
+        state = (lang.errand_waiting_on_you if e.get("waiting_on") else
+                 str(e.get("phase") or e.get("note") or "").strip().rstrip("…. ") or lang.errand_under_way)
+        items.append(f"{label}: {state}")
+    return lang.errands_status.format(items="; ".join(items))

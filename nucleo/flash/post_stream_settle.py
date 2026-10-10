@@ -200,8 +200,9 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
     # Escalada sin texto hablado → frase de espera neutral (V2-029/V2-189): varía turno a turno y esquiva
     # la apertura si un filler ya sonó — en `harness_turn.holding_line`, con su historia.
     if escalate_req["v"] is not None and not spoken_text:
-        spoken_text = _pst._rg.holding_line_now(brain._window, _prev_pending,
-                                           after_filler=_filler_audio.played_recently())
+        spoken_text = _pst._rg.holding_line_now(brain._window, _prev_pending, after_filler=_filler_audio.played_recently())
         send(speech.sanitize(spoken_text, drop_metadata=False))
+    elif not spoken_text and worker_acted["v"] and (spoken_text := _pst._eot.status_owed(operator_text, _brief)):
+        send(speech.sanitize(spoken_text, drop_metadata=False))   # a status question owes the phases (three-tasks)
     _out = locals()
     return {k: _out[k] for k in ('spoken_text', ) if k in _out}

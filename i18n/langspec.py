@@ -125,6 +125,10 @@ class LangSpec:
     # is named back to him; dropping it silently left him waiting on work nothing was doing.
     errands_not_started: str = ("Eso sí, con esto no he empezado todavía: {what}. Cuando acabe alguna de las "
                                 "otras, dímelo y me pongo.")
+    # …and a status question over live errands is answered with each one's phase, never an empty wait.
+    errands_status: str = "Así va todo: {items}."
+    errand_under_way: str = "en marcha, sin novedades todavía"
+    errand_waiting_on_you: str = "esperando a que me contestes algo"
     # V2-757 — TOUCHING A CARD OF HIS IS ASKED FIRST. Measured live (session f84f91ef, 2026-09-23): with
     # the mic open the operator dictated a design brief to ANOTHER conversation, and the turn read it as
     # his to us — «lo mando hacer», a Brain Worker started rewriting the video card, and his «Olvídate de

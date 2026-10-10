@@ -194,6 +194,9 @@ LANGUAGES: dict[str, LangSpec] = {
         confirm_cancelled="Alright, I won't touch anything.",
         errands_not_started=("One thing though: I haven't started on this yet: {what}. Once one of the others "
                              "is done, tell me and I'll get on it."),
+        errands_status="Here's where everything stands: {items}.",
+        errand_under_way="under way, nothing new yet",
+        errand_waiting_on_you="waiting on an answer from you",
         widget_build_confirm=("If I've got this right, you're asking me to BUILD you a new card "
                               "(«{what}»). It takes a few minutes and it stays in your catalogue. "
                               "Shall I?"),
