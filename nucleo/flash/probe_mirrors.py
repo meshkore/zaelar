@@ -185,7 +185,7 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
     # V2-770 — the mirror of the voice `direct_action.complete`: a turn with no call whose verdict names an action
     # INSIDE an open card («ya la puedes cerrar» → agenda:close_meeting) runs that action — and the close
     # backstop below, which would have shut the whole card, never sees it.
-    if not _already and not any(t["action"] == "close" for t in tags):
+    if not _already and not any(t["action"] == "close" for t in tags) and not model_already_acted(tool_calls):
         try:
             from . import direct_action as _da_bs
             if (_da_bs.names_an_order(_tbrief) and __import__("nucleo.flash.verdict_card", fromlist=["x"]).canvas_yields(_tbrief)
@@ -287,3 +287,9 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
             pass
     _out = locals()
     return {k: _out[k] for k in ('_ar', '_forced_search', '_window_goal', 'action', 'music_req', 'spoken', ) if k in _out}
+
+
+def model_already_acted(tool_calls) -> bool:
+    """The model READ the card: that is the turn's call, and the verdict backstop (for a turn with NO call) stays out
+    (V2-781: «what do I have on those days?» → read_widget, plus a verdict `show_day` of his whole sentence = today)."""
+    return any((t or {}).get("name") == "read_widget" for t in tool_calls or [])
