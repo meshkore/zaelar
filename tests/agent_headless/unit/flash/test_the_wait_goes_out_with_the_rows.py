@@ -102,7 +102,7 @@ def test_the_probe_actually_wires_it():
     deliv = "\n".join(ln for ln in Path("nucleo/flash/delivery.py").read_text().splitlines()
                        if not ln.strip().startswith("#"))
     assert "sheet_delivery_backstop(spoken" in deliv
-    assert "any_live_task_rows()" in deliv
+    assert "any_live_task_rows(12)" in deliv     # V2-781 T521: read past the top three
     assert "errand=encargo" in deliv, "without the errand, the domain category kills the freshness of every row"
 
 

@@ -67,7 +67,7 @@ def _speaks_en() -> bool:
         return False
 
 
-def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str = "") -> str:
+def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str = "", heard: str = "") -> str:
     """La frase que se AÑADE a una respuesta de pura espera cuando la hoja ya tiene filas con nombre que la
     conversación no ha dicho. "" si no toca.
 
@@ -122,6 +122,7 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
     # queda en el turno sigue siendo la suya.
     _preguntando = bool(r.rstrip().endswith("?") or _PREGUNTA_RE.search(r))
     said = _norm_txt(str(said_before or "")) + " " + r
+    _heard = _norm_txt(str(heard or ""))
     fresh: list[str] = []
     for row in rows or []:
         row = str(row or "").strip()
@@ -147,6 +148,8 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
         # ha sonado; el nombre solo salda las filas que no llevan dato.
         _dato = _norm_txt(row.split(" — ", 1)[1]) if " — " in row else ""
         _dato_toks = [w for w in _dato.split() if any(c.isdigit() for c in w)]
+        if toks and any(t in _heard for t in toks):
+            continue         # V2-781 T521: a row HE named (turned down, asked about) is never news to him
         if toks and not any(t in said for t in toks):
             fresh.append(row)
         elif _dato_toks and not any(t in said for t in _dato_toks):
@@ -336,7 +339,7 @@ def apply_to_reply(spoken: str, window) -> str:
 
         dicho = " ".join(str((m or {}).get("content") or "") for m in (window or [])
                          if (m or {}).get("role") == "assistant")
-        encargo, filas = _lb.any_live_task_rows()
+        encargo, filas = _lb.any_live_task_rows(12)   # V2-781 T521: past the top three, to find three that are new
         # V2-472 — an unbacked amount does not survive a live errand. FIRST, so the backstops below append
         # rows to a reply already clean of inventions. The gate is the same «live errand» the backstops use;
         # backing rows come wider than the top-3 face (a figure delivered in row 7 is still a delivery).
@@ -357,7 +360,7 @@ def apply_to_reply(spoken: str, window) -> str:
                                               active=_live)
         if _cut:
             _emit("🧹 importe sin fuente recortado", dropped=[c[:120] for c in _cut[:3]])
-        extra = sheet_delivery_backstop(spoken or "", filas, dicho, errand=encargo)
+        extra = sheet_delivery_backstop(spoken or "", filas, dicho, errand=encargo, heard=_user)
         if extra:
             _emit("📬 backstop de entrega: la espera sale con las filas")
             return ((spoken.rstrip() + " ") if spoken else "") + extra

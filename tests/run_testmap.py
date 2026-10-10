@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.262", "title": "The delivery backstop names rows nobody named yet — it re-announced the three he had "
+                                 "turned down while the good ones sat further down (V2-781 T521)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_skips_what_was_already_named.py"]},
         {"id": "2.261", "title": "A card instance (results::<sheet>) reaches its widget from the text channel — «No he "
                                  "podido: no data module» on the open sheet (V2-781 T528)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_card_instance_reaches_its_widget_from_the_text_channel.py"]},

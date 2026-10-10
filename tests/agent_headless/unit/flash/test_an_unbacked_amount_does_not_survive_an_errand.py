@@ -58,7 +58,7 @@ def test_the_guard_is_wired_into_apply_to_reply(monkeypatch):
     """V2-199's lesson: a guard whose caller was deleted stays green. Through the real seam."""
     from nucleo.flash import live_blocks as LB
     monkeypatch.setattr(LB, "any_live_task_rows",
-                        lambda n=3: ("cheapest 27 inch 4K monitor", []) if n == 3 else ("", []))
+                        lambda n=3: ("cheapest 27 inch 4K monitor", []) if n != 30 else ("", []))
     monkeypatch.setattr(LB, "any_stalled_task", lambda: ("", 0, ""))
     eventos = []
     monkeypatch.setattr(D, "_emit", lambda label, **k: eventos.append(label))
