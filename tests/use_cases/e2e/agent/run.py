@@ -148,6 +148,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     turn_actions: list[dict] = []
     watchdog_log: list[dict] = []
     pending_nudge = ""
+    _canvas_said: list = []
+    _canvas_acts: list = []
     # Multi-flow scenarios need concurrency measured WHILE it happens (see ConcurrencyTracker's docstring):
     # a post-hoc event dump can show N tasks existed but never that two overlapped in time.
     concurrency = verifymod.ConcurrencyTracker() if scenario.concurrent_tasks else None
@@ -237,6 +239,16 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         note("zaelar", reply_text)
         print(f"  zaelar  · {reply_text[:160]}")
         driver.hears(reply_text)
+        # THE ROUND PLAYS THE DESKTOP (V2-781): the engine learns what is open only from the canvas's report.
+        try:
+            _canvas_acts += verifymod.canvas_act(res.get("action"), time.time() * 1000)
+            _open = verifymod.canvas_now(_canvas_acts + [e for e in (probe_client.session_events(
+                probe_client.current_session_id() or "") or []) if (e.get("ts_ms") or 0) >= scenario_started_ms])
+            if _open != _canvas_said:
+                probe_client._post("/api/canvas/state", {"open": _open})
+                _canvas_said = _open
+        except Exception:  # noqa: BLE001 — a canvas report never costs the round
+            pass
 
         if concurrency is not None:
             concurrency.sample(at_turn=turn)

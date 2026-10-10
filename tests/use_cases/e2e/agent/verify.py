@@ -3683,3 +3683,36 @@ def late_notices(all_events, *, after_ms: float) -> list[str]:
                 and float(e.get("ts_ms") or f.get("t_ms") or 0) > after_ms):
             out.append(text)
     return out
+
+
+def canvas_now(all_events) -> list[str]:
+    """The cards open on the canvas after these events — `show` adds, `close` removes, an id-less `close` clears.
+    The round reports it to the engine after each turn, as the desktop does (V2-781): without it a sandbox engine
+    believes nothing is open and every reference to «the video» is read against an empty screen."""
+    evs = []
+    for e in all_events or []:
+        if not isinstance(e, dict):
+            continue
+        f = _fields(e)
+        if (f.get("cat") if f.get("cat") is not None else e.get("cat")) != "widget":
+            continue
+        label = str((f.get("label") if f.get("label") is not None else e.get("label")) or "")
+        if label in ("show", "close"):
+            evs.append((float(f.get("t_ms") or e.get("t_ms") or e.get("ts_ms") or 0), label,
+                        str((f.get("id") if f.get("id") is not None else e.get("id")) or "")))
+    open_: list[str] = []
+    for _, label, wid in sorted(evs, key=lambda x: x[0]):
+        if label == "show" and wid and wid not in open_:
+            open_.append(wid)
+        elif label == "close":
+            open_ = [w for w in open_ if wid and w != wid and w.split("::", 1)[0] != wid] if wid else []
+    return sorted(open_)
+
+
+def canvas_act(action: str, at_ms: float) -> list[dict]:
+    """The canvas event a turn's reported ACTION stands for. The desktop applies `canvas:close:<id>` itself, so a
+    sandbox sees no `close` event for it (V2-781): the round folds the action in as the desktop would."""
+    parts = str(action or "").split(":", 2)
+    if len(parts) >= 2 and parts[0] == "canvas" and parts[1] in ("show", "close"):
+        return [{"t_ms": at_ms, "cat": "widget", "label": parts[1], "id": parts[2] if len(parts) > 2 else ""}]
+    return []

@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.271", "title": "The round plays the desktop — it reports the open cards after each turn; a sandbox engine "
+                                 "believed nothing was open and «pause the video» read none (V2-781)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_round_tells_the_engine_what_its_canvas_shows.py"]},
         {"id": "2.270", "title": "A repair pass never sends a message to someone nobody named — «avísame cuando esté» became "
                                  "send_to «zaelar» (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_repair_never_writes_to_someone_nobody_named.py"]},
