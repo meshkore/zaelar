@@ -56,9 +56,24 @@ def admite_data_op(args: dict, ya: list[dict]) -> bool:
         p_wid, p_accion, p_payload = _ident(previa)
         if (wid, accion, payload) == (p_wid, p_accion, p_payload):
             return False                      # duplicado exacto → la cita doble
-        if wid == p_wid and accion != p_accion:
+        if wid == p_wid and accion != p_accion and not _distinct_targets(args, previa):
             return False                      # otra acción sobre el mismo widget → la enumeración
     return True
+
+
+def _named(args: dict) -> set[str]:
+    """What a data-op names as its object: the non-empty values of its payload, comparable."""
+    pl = (args or {}).get("payload") if isinstance((args or {}).get("payload"), dict) else {}
+    return {str(v).strip().lower() for v in pl.values() if str(v if v is not None else "").strip()}
+
+
+def _distinct_targets(a: dict, b: dict) -> bool:
+    """Two different actions on one card are two ORDERS, not a menu, when each names what it acts on and nothing
+    they name is shared (V2-781: «play the first one, queue the rest» → play_result {1} + add_results {2..6}; the
+    second was dropped and the queue never existed). The enumeration offers alternatives over the SAME row, or
+    over none — that one stays out."""
+    na, nb = _named(a), _named(b)
+    return bool(na) and bool(nb) and not (na & nb)
 
 
 # ---------------------------------------------------------------------------------------------------
