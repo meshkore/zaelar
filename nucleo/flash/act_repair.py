@@ -191,8 +191,8 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
     """`{widget_id, action, payload}` — the call the model should have made — or None. Never raises."""
     try:
         wid = str(widget_id or "").strip().lower()
-        if not wid or not (operator_text or "").strip():
-            return None
+        if not wid or not (operator_text or "").strip() or operator_text.lstrip().startswith("[SISTEMA]"):
+            return None                     # a system note is not his order (V2-781, compare-insurance-quotes)
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}
         declared = manifest.get("actions") or {}
@@ -313,7 +313,7 @@ async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: s
     try:
         wid = str(widget_id or "").strip().lower()
         verdict = str(verdict or "").strip()
-        if not wid or not verdict or not (operator_text or "").strip():
+        if not wid or not verdict or not (operator_text or "").strip() or operator_text.lstrip().startswith("[SISTEMA]"):
             return None
         from widgets import runtime as _rt
         manifest = _rt.get(wid) or {}
