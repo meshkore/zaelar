@@ -105,3 +105,37 @@ def probe_music(req: dict, tool_calls: list, *, brief) -> dict:
     and `music_req` (None when the music is not touched), plus `spoken` only when the reply changes."""
     routed = probe_route("play_music", req, tool_calls, brief=brief)
     return {"action": "music", "music_req": req} if not routed else {**routed, "music_req": None}
+
+
+def open_player_owns(card: str, operator_text: str, *, open_ids=None) -> str:
+    """The card a late catalogue answer acts on when it named a CLOSED player while ANOTHER player is open.
+
+    Measured in `build-a-video-playlist-from-links` (2026-10-10): the list «la de la tarde» built and named on the
+    open `youtube` card, the music card closed, «Dale, ¿y qué está sonando ahora?». The screen verdict read a sure
+    «none», so `card_commission.named_or_catalogue` asked the catalogue — which only describes cards, not what is on
+    screen — and it answered `musica` (0.98): «what is playing» is any player's question. The repair pass then
+    invented `musica:play_playlist {"playlist": "Favoritos"}` and the turn said it could not find «Favoritos».
+
+    A bare order or question about «the player» — no card named in his words — belongs to the player in front of
+    him. Returns that open player, or `card` unchanged: when his words NAME a card («ponme música», «pon el vídeo
+    de gatos»), when `card` is not a player, when it is itself open, or when not exactly one other player is open.
+    """
+    card = str(card or "").strip()
+    base = card.split("::", 1)[0].lower()
+    players = set(CARD_OF_TOOL.values())
+    if base not in players:
+        return card
+    ids = _open_now() if open_ids is None else open_ids
+    open_bases = {str(w).split("::", 1)[0].strip().lower() for w in (ids or []) if str(w or "").strip()}
+    if base in open_bases:
+        return card
+    others = sorted(p for p in players if p in open_bases)
+    if len(others) != 1:
+        return card
+    try:
+        from nucleo.flash import direct_action as _da
+        if _da.named_cards(operator_text):
+            return card
+    except Exception:  # noqa: BLE001
+        return card
+    return others[0]
