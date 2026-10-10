@@ -188,8 +188,8 @@ def redirect_uris(origin: str = "") -> list[str]:
 
 
 #: The host of the engine's HTTPS listener. It is a DNS alias of 127.0.0.1 (`dig local.zaelar.com` → the
-#: loopback address) carrying a shared certificate, so that a LOCAL engine can be opened over TLS without
-#: the operator minting one. For Google it is not a second machine — it is the same machine by another name.
+#: loopback address) carrying a per-install certificate (`scripts/tls_cert.py`, mkcert), so that a LOCAL engine
+#: can be opened over TLS. For Google it is not a second machine — it is the same machine by another name.
 LOCAL_TLS_HOST = "local.zaelar.com"
 
 

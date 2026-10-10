@@ -75,6 +75,24 @@ HTTPS_PORT = 44317
 DAEMON_PORT = 45817
 
 
+def _open_line(https: bool) -> str:
+    """The URL to hand a person. HTTPS only when this install has its certificate (scripts/tls_cert.py)."""
+    if https:
+        return f"  open:  https://local.zaelar.com:{HTTPS_PORT}/   ·   http://127.0.0.1:{APP_PORT}/"
+    return f"  open:  http://localhost:{APP_PORT}/"
+
+
+def _ensure_tls() -> bool:
+    """Per-install certificate for local.zaelar.com (mkcert). Never fails a start: no cert = HTTP only + one hint."""
+    try:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import tls_cert
+        return tls_cert.ensure(say=_say) == tls_cert.USE
+    except Exception as e:  # noqa: BLE001
+        _say(f"  (TLS certificate check skipped: {e})")
+        return False
+
+
 # ── tiny helpers ──────────────────────────────────────────────────────────────────────────────────────────────────
 
 def _say(msg: str) -> None:
@@ -186,7 +204,7 @@ def cmd_status() -> int:
         _say("\n  zaelar is not running.  Start it with:  make start   (or: python scripts/zaelar.py start)")
         return 1
     if APP_PORT in up:
-        _say(f"\n  open:  https://local.zaelar.com:{HTTPS_PORT}/   ·   http://127.0.0.1:{APP_PORT}/")
+        _say("\n" + _open_line(HTTPS_PORT in up))
     return 0
 
 
@@ -332,7 +350,7 @@ def cmd_start(wait: float = 180.0, brain: str = "nucleo") -> int:
         build = live_build()
         if build:
             _say(f"zaelar is already running ({build}).")
-            _say(f"  open:  https://local.zaelar.com:{HTTPS_PORT}/")
+            _say(_open_line(port_busy(HTTPS_PORT)))
             _say("  to load new code:  make restart")
             return 0
         # Port taken but not answering: exactly the state that used to look like "it won't start".
@@ -381,6 +399,7 @@ def cmd_start(wait: float = 180.0, brain: str = "nucleo") -> int:
     else:
         _say("zaelar-daemon already up, reusing it.")
 
+    https = _ensure_tls()
     _say("starting zaelar…")
     pid = _spawn([py, "-m", "server"], "server.log", env)
     if not pid:
@@ -405,7 +424,7 @@ def cmd_start(wait: float = 180.0, brain: str = "nucleo") -> int:
     _say(f"\nzaelar is up  ({build})")
     if head and head not in build:
         _say(f"  ⚠ git HEAD is {head}: the instance is NOT running your latest commit")
-    _say(f"  open:  https://local.zaelar.com:{HTTPS_PORT}/   ·   http://127.0.0.1:{APP_PORT}/")
+    _say(_open_line(https))
     return 0
 
 

@@ -50,17 +50,16 @@ if __name__ == "__main__":
     logger.info(f"Assistant (voice) on http://{host}:{port}")
     servers = [uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning"))]
 
-    # Optional PUBLIC HTTPS listener for local.zaelar.com — a SHARED cert (issued once, same for every
-    # self-host install, à la Plex's *.plex.direct) so the browser address bar can show a real domain
-    # instead of literal "localhost" while still talking directly to THIS machine (DNS: bare A record to
-    # 127.0.0.1, no Cloudflare edge involved). Purely additive: internal loopback callers (nucleo/*_cli.py
-    # bridges) keep using the plain HTTP port above, untouched. No-op if the cert isn't present (a fresh
-    # clone without it just runs the plain HTTP port as always).
+    # Optional HTTPS listener for local.zaelar.com (DNS: bare A record to 127.0.0.1, no edge involved) so the
+    # address bar can show a real domain while still talking directly to THIS machine. The certificate is PER
+    # INSTALL — issued by `scripts/tls_cert.py` (mkcert, local CA) from the launchers, never shipped in the repo.
+    # Purely additive: internal loopback callers (nucleo/*_cli.py bridges) keep using the plain HTTP port above.
+    # No-op if the pair isn't present (no mkcert): the plain HTTP port runs as always.
     cert_dir = os.getenv("ZAELAR_TLS_CERT_DIR", os.path.join(ROOT, "certs", "local.zaelar.com"))
     certfile, keyfile = os.path.join(cert_dir, "fullchain.pem"), os.path.join(cert_dir, "privkey.pem")
     if os.path.exists(certfile) and os.path.exists(keyfile):
         tls_port = int(os.getenv("ZAELAR_TLS_PORT", "44317"))
-        logger.info(f"Assistant ALSO on https://local.zaelar.com:{tls_port} (shared cert)")
+        logger.info(f"Assistant ALSO on https://local.zaelar.com:{tls_port} (per-install cert)")
         servers.append(uvicorn.Server(uvicorn.Config(
             app, host=host, port=tls_port, log_level="warning",
             ssl_certfile=certfile, ssl_keyfile=keyfile,

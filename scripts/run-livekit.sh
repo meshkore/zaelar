@@ -129,6 +129,11 @@ echo "  ws://127.0.0.1:7880 (devkey/secret)"
 echo "▶ zaelar-daemon (the folders you allow it to read)…"
 ( cd "$HERE" && exec "$PY" -m daemon ) >"$HERE/.meshkore/logs/daemon.log" 2>&1 & DAEMON_PID=$!
 
+# Per-install TLS certificate for https://local.zaelar.com:44317 (mkcert). Idempotent: does nothing when the pair is
+# already there; without mkcert it prints one line on how to enable HTTPS and the server runs HTTP only.
+# `./zaelar start` already ran it (and said which URL to open), so it is not repeated then.
+[ -n "${ZAELAR_TLS_CHECKED:-}" ] || "$PY" "$HERE/scripts/tls_cert.py" || true
+
 echo "▶ servidor web zaelar (worker LiveKit EMBEBIDO, BRAIN=$BRAIN)…"
 # The worker runs inside this process (ZAELAR_ENGINE=livekit → server lifespan mounts the AgentServer THREAD).
 # There is no separate worker process: this way it shares the bus/observer-SSE, central memory, orchestrator loop, and

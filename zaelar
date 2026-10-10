@@ -46,11 +46,15 @@ setup() {
 start() {
   [ -d .venv ] || setup
   export PORT="${ZAELAR_PORT:-43917}"
-  # `local.zaelar.com` is a PUBLIC DNS A record pointing at 127.0.0.1, and the certificate for it ships in this
-  # repo (certs/local.zaelar.com/) — the same shared-cert model Plex uses for *.plex.direct. So this URL works for
-  # every install out of the box and never leaves the machine: a real domain in the address bar instead of
-  # "localhost", with HTTPS, which is also what browsers require before they grant microphone access.
-  echo "Starting Zaelar → https://local.zaelar.com:44317   (plain HTTP: http://localhost:${PORT})"
+  # `local.zaelar.com` is a PUBLIC DNS A record pointing at 127.0.0.1, so the name always means «this machine».
+  # Its certificate is PER INSTALL (scripts/tls_cert.py, issued by a local mkcert CA) — nothing shared, nothing
+  # in the repo. Without mkcert the engine runs on plain HTTP only; http://localhost still gets the microphone.
+  export ZAELAR_TLS_CHECKED=1   # run-livekit.sh would run the same check; once is enough
+  if .venv/bin/python scripts/tls_cert.py; then
+    echo "Starting Zaelar → https://local.zaelar.com:44317   (plain HTTP: http://localhost:${PORT})"
+  else
+    echo "Starting Zaelar → http://localhost:${PORT}"
+  fi
   # Delegates to the real stack: native LiveKit media server (auto-installed if missing, no Docker) +
   # the web server with the embedded voice agent (BRAIN=nucleo). Same path as `make run`.
   exec bash scripts/run-livekit.sh

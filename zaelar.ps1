@@ -135,8 +135,12 @@ function Invoke-Start {
     $env:BRAIN = "nucleo"
     $env:ZAELAR_ENGINE = "livekit"
     $env:PORT = $port
+    # Per-install certificate for https://local.zaelar.com:44317 (mkcert); without mkcert: HTTP only + one hint.
+    & .\.venv\Scripts\python.exe scripts\tls_cert.py
+    $https = ($LASTEXITCODE -eq 0)
     Write-Host ""
-    Write-Host "  -> open http://localhost:$port"
+    if ($https) { Write-Host "  -> open https://local.zaelar.com:44317   (plain HTTP: http://localhost:$port)" }
+    else { Write-Host "  -> open http://localhost:$port" }
     Write-Host ""
     & .\.venv\Scripts\python.exe -m server
   } finally {

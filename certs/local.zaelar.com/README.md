@@ -1,31 +1,20 @@
-# Shared certificate for `local.zaelar.com`
+# Per-install certificate for `local.zaelar.com`
 
-`local.zaelar.com` resolves via a **bare, unproxied DNS A record to `127.0.0.1`** — every user's own
-browser resolves it to their own machine, never a shared server (same trick that made the old plain-HTTP
-redirect work, just now serving real HTTPS instead of bouncing to `http://localhost:PORT`).
+`local.zaelar.com` resolves via a **bare, unproxied public DNS A record to `127.0.0.1`** — every user's own
+browser resolves it to their own machine, never a shared server.
 
-For the browser to accept that HTTPS without warnings, the engine needs a certificate that's actually
-valid for the hostname `local.zaelar.com`. Since there's no way to run a per-user domain-ownership
-challenge against `127.0.0.1`, **every self-hosted install ships and presents the SAME certificate** —
-the same trade-off Plex accepts with `*.plex.direct`.
+The certificate and key for it are **generated on each install** and never committed:
 
-**What this means, explicitly:**
-- `privkey.pem` is a real private key, **intentionally committed** to this public repo (unlike every
-  other credential file, which is gitignored). Anyone with the repo has it. That's fine — it protects
-  against a passive eavesdropper on your own LAN, not against "another install of the same software",
-  which isn't a meaningful threat model here (if someone has the software, they already have the key).
-- It is issued for `local.zaelar.com` **only** — not a wildcard, not `my.zaelar.com` (that one goes
-  through Cloudflare's own edge cert, unrelated to this).
+- `scripts/tls_cert.py` runs from the launchers (`./zaelar start`, `make run`, `make start` /
+  `python scripts/zaelar.py start`, `.\zaelar.ps1`). If `fullchain.pem` + `privkey.pem` are missing (or expired)
+  and [mkcert](https://github.com/FiloSottile/mkcert) is installed, it issues a certificate for
+  `local.zaelar.com`, `localhost` and `127.0.0.1` into this folder, signed by mkcert's **local** CA.
+- It never runs `mkcert -install` for you: that adds the local CA to your system and browser trust stores. Run it
+  once yourself so the browser accepts the certificate without a warning.
+- Without mkcert nothing is generated, the server skips the HTTPS listener (44317) and runs plain HTTP on 43917,
+  and the launcher prints one line saying how to enable HTTPS. `http://localhost:43917` keeps the microphone.
+- `*.pem` here is gitignored. The server reads the pair from `$ZAELAR_TLS_CERT_DIR` (default: this folder), so
+  you can also drop in a certificate of your own.
 
-**Renewal:** issued via Let's Encrypt (DNS-01, Cloudflare). Valid 90 days from issuance. Check
-`openssl x509 -in fullchain.pem -noout -enddate`. Re-issuing (team-side, needs the Cloudflare account
-token, not something an end user does):
-
-```bash
-certbot certonly --dns-cloudflare --dns-cloudflare-credentials cloudflare.ini \
-  -d local.zaelar.com --non-interactive --agree-tos -m <team-email>
-```
-
-then replace `fullchain.pem`/`privkey.pem` here and cut a release — installs pick up the new cert on
-next `./zaelar update` + restart. **No automated rotation pipeline exists yet** — this is a manual,
-periodic task until one is built (a background check + fetch-latest-cert endpoint would close that gap).
+Until 2026-10-10 every install shipped the SAME Let's Encrypt certificate with its private key committed to the
+public repo. That key is retired; do not bring a shared key back.

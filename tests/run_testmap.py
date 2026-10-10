@@ -3799,6 +3799,10 @@ DOMAINS: list[dict] = [
         {"id": "2.342", "title": "An order called beside a read runs on the text channel — «pausa eso… ¿qué tengo el jueves?» "
                                  "answered Thursday and never paused the trailer (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_order_beside_a_read_runs_on_the_text_channel.py"]},
+        {"id": "2.380", "title": "Each install issues its OWN certificate for local.zaelar.com — the shared key left the "
+                                 "public repo (2026-10-10): present → used, missing + mkcert → issued, no mkcert → HTTP "
+                                 "only + one hint, and the pair is gitignored",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_each_install_issues_its_own_certificate.py"]},
         {"id": "2.370", "title": "One slot, one subject, two wordings is ONE agenda row — «Veterinario de Pixel» and «Pixel — "
                                  "veterinarian» at 16:00-17:00 landed twice with two notices (V2-781)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_one_slot_one_subject_in_two_languages.py"]},

@@ -105,3 +105,13 @@ measure, and we need to find out here, not in a batch."""
     ids = {x.id for x in S._con_runner()}
     assert "play-music-and-build-playlist" in ids
     assert "watch-a-video-not-listen-to-it" in ids
+
+
+def test_a_clone_without_a_scoreboard_rotates_every_runnable_case(tmp_path, monkeypatch):
+    """`status.json` is local-only since 2026-10-10 (gitignored), so a fresh clone has NO scoreboard. That means
+    «nothing measured yet», not «unreadable»: before, the missing file fell into the outer `except` and the whole
+    rotation collapsed to one hard-coded case."""
+    monkeypatch.setattr(S, "_RAIZ", tmp_path)          # no tests/use_cases/status.json under it
+    monkeypatch.delenv("UC_ROTACION", raising=False)
+    _con_runner(monkeypatch, ["uno", "dos__us", "tres"])
+    assert sorted(S.rotacion()) == ["dos__us", "tres", "uno"]
