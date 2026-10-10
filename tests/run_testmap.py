@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.272", "title": "The delivery backstop never says the prompt's markers — «Humphreys Half Moon Inn — SIN "
+                                 "PRECIO» in an English reply (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_never_says_the_prompts_markers.py"]},
         {"id": "2.271", "title": "The round plays the desktop — it reports the open cards after each turn; a sandbox engine "
                                  "believed nothing was open and «pause the video» read none (V2-781)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_round_tells_the_engine_what_its_canvas_shows.py"]},

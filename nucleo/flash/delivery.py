@@ -126,8 +126,10 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
     fresh: list[str] = []
     for row in rows or []:
         row = str(row or "").strip()
-        if not row:
+        # the prompt's markers are not speech (V2-781): a bare lead is no candidate, «SIN PRECIO» is just unsaid
+        if not row or "PÁGINA WEB por mirar" in row:
             continue
+        row = row.replace(" — SIN PRECIO", "")
         # «Ya dicha» por TOKEN SIGNIFICATIVO, no por prefijo literal: zaelar dice «la Fender CD-60», nunca el
         # título entero del anuncio («Guitarra Acústica Fender CD-60»), y exigir el prefijo re-anunciaba lo
         # entregado (la misma identidad que el reloj de entrega pagó en la ronda 33). Significativo = trae
