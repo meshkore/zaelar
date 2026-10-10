@@ -307,7 +307,7 @@ Esto es lo que él ha pedido explícitamente, repetido y por escrito. Está arri
 - **Nada de pasadas de diseño autónomas.** Un cambio visual se acuerda antes; no se «mejora» la interfaz por
   iniciativa propia.
 - **Lo VIGENTE está en `.meshkore/docs/criteria.md`** — un criterio por línea, con fecha y nodo de test, sin
-  histórico. Se lee ANTES de tocar el comportamiento del motor; el diario (`decisions.md`) cuenta por qué.
+  histórico. Se lee ANTES de tocar el comportamiento del motor; el diario (`decisions.md`, LOCAL) cuenta por qué.
 - **Lo que no se ha verificado, se dice.** «No verificado en vivo» es una respuesta aceptable; afirmar que algo
   funciona sin haberlo medido, no. Si un test se pone verde al romper el producto, el sospechoso es el TEST.
 
@@ -317,7 +317,7 @@ Esto es lo que él ha pedido explícitamente, repetido y por escrito. Está arri
 |---|---|
 | Las **reglas** para trabajar en este repo | este fichero |
 | Los **criterios vigentes** del motor — lo que obedece HOY, una línea cada uno, con su test | `.meshkore/docs/criteria.md` |
-| El **diario** del motor: qué se decidió, por qué, y el fallo real que lo motivó | `.meshkore/docs/decisions.md` (+ `.meshkore/docs/decisions-archive.md`) |
+| El **diario** del motor: qué se decidió, por qué, y el fallo real que lo motivó | `.meshkore/docs/decisions.md` (+ `.meshkore/docs/decisions-archive.md`) — **solo en local**, gitignoreados desde 2026-10-10; en un clon no existen y el canon público es `criteria.md` |
 | El **contexto invariante** del proyecto (visión, producto, stack, arquitectura, restricciones, glosario) | `.meshkore/context/` |
 | Los **roles de agente** — qué hace cada miembro del equipo, a quién delega, qué no toca nunca | `.meshkore/team/*.md` (una ficha por rol, con su `owns:` y sus `refs:`) |
 | Las **tareas** por módulo | `.meshkore/modules/<módulo>/tasks/` |
@@ -479,7 +479,7 @@ Los pasos NO se recuerdan de memoria: viven en su doc. Cada fila es un procedimi
 | «cierra esto» / «documenta lo que has hecho» / «pasa el cierre» | los 8 pasos en el `.meshkore/` de la RAÍZ (privado); lo que es de ESTE repo, abajo |
 
 **Cerrar una tanda (lo que se salta siempre):** (1) el test con su NODO en `tests/run_testmap.py` — no está en el
-mapa = no existe para «¿está todo verde?»; (2) el WHY en `.meshkore/docs/decisions.md`, y una línea en
+mapa = no existe para «¿está todo verde?»; (2) el WHY en `.meshkore/docs/decisions.md` (local, no se commitea), y una línea en
 `criteria.md` SOLO si una regla cambió; (3) la **bitácora del módulo** `.meshkore/modules/<módulo>/logs/<YYYY-MM>/`
 (las palabras del operador, lo medido, los commits; numeración `T-NNN` GLOBAL, prefijos `N-`/`MK-`/`S-`/`TS-`/`C-`;
 gitignoreada, en la lengua del operador).
@@ -549,11 +549,11 @@ MISMA petición releva al suplente en el bucle de conexión, y los embeddings no
 ## Decisiones clave — están en su propio fichero
 
 El diario del motor (una entrada por tanda: qué se decidió, por qué, y el fallo real que lo motivó) vive en
-**`.meshkore/docs/decisions.md`**, y lo más viejo en `.meshkore/docs/decisions-archive.md`. Se lee ANTES de
-tocar una pieza — te dice qué se intentó ya y qué se descartó, que es la mitad del trabajo que no se repite.
+**`.meshkore/docs/decisions.md`** (+ `decisions-archive.md`), **solo en local** desde 2026-10-10 (gitignoreado:
+nombraba personas y pasadas privadas; en un clon o en CI no existe y sus trinquetes se saltan). Se lee ANTES de tocar.
 
-Al cerrar una tanda, la entrada se escribe allí, no aquí. Este fichero es de REGLAS y PUNTEROS, y el diario es
-HISTORIA: lo que el motor obedece HOY está, una línea por regla, en `.meshkore/docs/criteria.md`.
+Al cerrar una tanda, la entrada se escribe allí (sin commitearla), no aquí. Este fichero es de REGLAS y PUNTEROS;
+lo que el motor obedece HOY —y lo único que viaja con el repo— está, una línea por regla, en `.meshkore/docs/criteria.md`.
 
 ## Testing
 

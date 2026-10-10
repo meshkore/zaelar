@@ -40,6 +40,10 @@ def live_board(monkeypatch):
     the live artifacts again, and a test that needs the real board has to say so in its signature, where it is
     visible.
     """
+    if not _LIVE_LEDGER.is_file():
+        # The live scoreboard is local-only (gitignored since 2026-10-10): a fresh clone or CI has none, and an
+        # invariant of the REAL board cannot be asserted against a board that does not exist.
+        pytest.skip("tests/use_cases/status.json is local-only (gitignored); no live board on a clone")
     monkeypatch.setattr(statusmod, "LEDGER_PATH", _LIVE_LEDGER)
     monkeypatch.setattr(statusmod, "BOARD_PATH", _LIVE_BOARD)
     return _LIVE_LEDGER

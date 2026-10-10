@@ -27,6 +27,11 @@ ENGINE = Path(__file__).resolve().parents[3]
 CLAUDE = ENGINE / "CLAUDE.md"
 DECISIONS = ENGINE / ".meshkore" / "docs" / "decisions.md"
 
+# LOCAL-ONLY docs (gitignored since 2026-10-10, when they left the public repo because they named people and
+# private runs). CLAUDE.md still points at them — on the operator's machine they are real and current — so a
+# citation of one is checked when it exists and skipped when it does not (a fresh clone, CI).
+LOCAL_ONLY = {".meshkore/docs/decisions.md", ".meshkore/docs/decisions-archive.md"}
+
 # Paths as they appear in the file: inside backticks, under .meshkore/docs/, ending in .md
 _CITED = re.compile(r"`(\.meshkore/docs/[^`\s]+\.md)`")
 
@@ -58,6 +63,8 @@ def test_there_are_pointers_at_all():
 
 @pytest.mark.parametrize("rel", _cited())
 def test_every_cited_doc_exists(rel):
+    if rel in LOCAL_ONLY and not (ENGINE / rel).is_file():
+        pytest.skip(f"{rel} is local-only (gitignored); absent on a clone by design")
     assert (ENGINE / rel).is_file(), (
         f"nuestra documentación manda leer `{rel}` y ese fichero no existe. O se movió (arregla la cita) o se borró "
         f"(quita la cita): un puntero roto deja al siguiente agente trabajando sin el contexto que lo justifica.")

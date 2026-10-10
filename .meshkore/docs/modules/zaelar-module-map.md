@@ -7,7 +7,8 @@ lo forman, qué decide cada una y por qué está donde está. Vivía dentro de `
 El mapa CORTO (una línea por módulo, para orientarse) sigue en `CLAUDE.md`. La arquitectura con sus diagramas
 está en `.meshkore/docs/architecture/zaelar-architecture.md`; el detalle por módulo, en
 `.meshkore/docs/modules/zaelar-modules.md`. Las decisiones que trajeron cada pieza aquí, en
-`.meshkore/docs/decisions.md`.
+`.meshkore/docs/decisions.md` (solo en local, gitignoreado desde 2026-10-10; lo vigente y público está en
+`.meshkore/docs/criteria.md`).
 
 ## Módulos declarados (`.meshkore/public/cluster.yaml`)
 

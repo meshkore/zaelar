@@ -549,7 +549,7 @@ memoria, key POR ENDPOINT — lección del incidente: una key suelta enviada al 
 > **Esta sección es la respuesta canónica a «¿por qué estos modelos?».** Está pensada para no tener que repetir
 > ningún benchmark: si alguien pregunta, se responde desde aquí. El detalle denso vive en
 > `zaelar-model-benchmarks.md §12.3` (destilar) y **§12.4** (consolidar); los informes CRUDOS de cada corrida están
-> versionados en `tests/memory/e2e/bot/resultados/` y los arneses son reproducibles.
+> en `tests/memory/e2e/bot/resultados/` (solo en local — gitignoreado desde 2026-10-10) y los arneses son reproducibles.
 
 > ⛔ **Y LA RESPUESTA CANÓNICA A «PONLE UN FAILOVER A LOS EMBEDDINGS» ES QUE NO SE PUEDE** (V2-758,
 > 2026-09-23, preguntado por el operador). El CORAZÓN y el REM sí relevan —son modelos de chat y el escalón

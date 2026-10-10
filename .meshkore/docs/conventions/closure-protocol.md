@@ -7,7 +7,8 @@ What this repo adds on top of it (the operator's rules win over the preamble):
 
 1. **The test and its node.** A new test is seen RED under a disarm first, then mapped in `tests/run_testmap.py`.
    A test outside the map does not exist for «is everything green?».
-2. **The why** goes in `.meshkore/docs/decisions.md`; a line in `.meshkore/docs/criteria.md` only if a rule changed.
+2. **The why** goes in `.meshkore/docs/decisions.md` (local-only, gitignored since 2026-10-10 — written, never
+   committed); a line in `.meshkore/docs/criteria.md` only if a rule changed.
 3. **The module log** under `.meshkore/modules/<module>/logs/<YYYY-MM>/` (gitignored on purpose).
 4. **Commit with a pathspec** (`git commit -- <paths>`) after checking `git diff --cached --name-only` is empty,
    with the three MeshKore trailers **plus** `Co-Authored-By:` (operator override of §9.1, 2026-09-19), then push.

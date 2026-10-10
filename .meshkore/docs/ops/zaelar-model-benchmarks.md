@@ -15,8 +15,8 @@
 >
 > **ATAJO — «¿qué modelos usa la MEMORIA y por qué?»** (la pregunta que más se repite): respuesta canónica y
 > autosuficiente en **`zaelar-memory.md §Modelos de la memoria`**. Detalle denso aquí en **§12.3** (CORAZÓN de
-> escritura) y **§12.4** (sueño REM). **Informes CRUDOS de cada corrida, versionados**:
-> `tests/memory/e2e/bot/resultados/` (ver su `README.md` — índice de corridas y cómo leer un `report.json`).
+> escritura) y **§12.4** (sueño REM). **Informes CRUDOS de cada corrida, en local** (gitignoreados
+> desde 2026-10-10): `tests/memory/e2e/bot/resultados/` (ver su `README.md` — índice de corridas y cómo leer un `report.json`).
 > Las tres capas dicen lo mismo a propósito: la corta para responder, la densa para justificar, y los datos
 > crudos para que nadie tenga que fiarse de la palabra de nadie.
 

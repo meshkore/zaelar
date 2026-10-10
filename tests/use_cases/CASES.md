@@ -13,8 +13,8 @@ case gets a **dynamic harness** instead: `tests/use_cases/e2e/agent/` (driver + 
 judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
 (`tests/voice/e2e/agent/`) rather than reinventing it.
 
-> **➤ Which ones actually PASS right now: [`STATUS.md`](STATUS.md)** (generated; source of truth
-> `status.json`). That scoreboard is the answer to "cuáles funcionan bien y cuáles no" — this file is
+> **➤ Which ones actually PASS right now: `STATUS.md`** (generated, LOCAL-ONLY — gitignored since 2026-10-10;
+> source of truth `status.json`). That scoreboard is the answer to "cuáles funcionan bien y cuáles no" — this file is
 > the CATALOG (what we test and why), the scoreboard is the RESULT. `INFRA` there is deliberately a
 > third state, never folded into `FAIL`: a network timeout or a crashed harness says nothing about
 > whether the use case works, and merging the two is how a scoreboard starts lying.
@@ -850,9 +850,8 @@ Two details that cost a first attempt:
 - The three symlinks show as UNTRACKED and trip the same dirty-tree guard, because `.gitignore` matches
   `.venv/` as a directory and a symlink is a file. They go in the shared `.git/info/exclude` (worktrees
   read the common git dir, not their own `info/`). Never in `.gitignore` — that is a tracked file.
-- Do NOT symlink `tests/use_cases/status.json` or `STATUS.md` into the repo's copies: replacing a tracked
-  file with a symlink is a `typechange`, which is dirty, and the guard is right to refuse it. Let the
-  worktree keep its own and fold the row back into the repo's ledger after the round.
+- `tests/use_cases/status.json` and `STATUS.md` are gitignored (local-only since 2026-10-10), so a worktree
+  starts without them and writes its own; fold the row back into the main checkout's ledger after the round.
 
 Pin the worktree at the commit you mean to measure (`git -C <path> checkout <sha>`), and say which one in
 the report — a round is a statement about one commit or it is a statement about nothing.

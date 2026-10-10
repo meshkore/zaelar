@@ -244,7 +244,10 @@ def rotacion() -> list[str]:
         return [x.strip() for x in env.split(",") if x.strip()]
     try:
         import json as _j
-        d = _j.loads((_RAIZ / "tests" / "use_cases" / "status.json").read_text(encoding="utf-8"))
+        # The scoreboard is local-only (gitignored since 2026-10-10): on a fresh clone it does not exist yet, and
+        # that means «nothing measured», not «unreadable» — every runnable case is then in the never-measured set.
+        _sb = _RAIZ / "tests" / "use_cases" / "status.json"
+        d = _j.loads(_sb.read_text(encoding="utf-8")) if _sb.is_file() else {}
         filas = (d.get("scenarios") or {}).items()
         from tests.use_cases.e2e.agent import segments as _Gb   # a gated case leaves the loop, measured or not
         filas = [(k, v) for k, v in filas if not _Gb.blocked_by(k)]

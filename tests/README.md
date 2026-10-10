@@ -195,7 +195,7 @@ platform plugin and run environment are supplied. Before handoff, repeat the mea
 | Email, messaging, Spotify, WhatsApp, architect | `connectors` | provider sandbox/live connector only when authorized |
 | Peer capsule, cluster policy, security | `cluster` | live peer conversation |
 | Bus, SSE, config, server, homeostasis | `infrastructure` | chat transport/full smoke against live Zaelar |
-| Real-world ES/US task scenarios (119 runnable, isolated sandbox) | `use_cases` | see `tests/use_cases/CASES.md` + [`STATUS.md`](use_cases/STATUS.md) |
+| Real-world ES/US task scenarios (119 runnable, isolated sandbox) | `use_cases` | see `tests/use_cases/CASES.md` + `STATUS.md` (local-only) |
 
 `browser` currently contains deterministic browser/widget contracts. It must not be reported as a rendered UI
 E2E unless Chromium/Playwright was actually driven against the live application.
@@ -369,7 +369,8 @@ measured on a commit whose product code has since changed is STALE (`settle.stal
 - `tests/runs/use_cases/report_<stamp>.{md,json}` — the per-run DIARY: transcript, judge scores, mechanism
   report (which observability families actually fired vs. what the scenario expected — the source of truth
   for whether the agent really did the work, not just claimed to), watchdog interventions. Gitignored.
-- `tests/use_cases/STATUS.md` + `status.json` — the durable SCOREBOARD, committed: last-known verdict per
+- `tests/use_cases/STATUS.md` + `status.json` — the durable SCOREBOARD, LOCAL-ONLY (gitignored since 2026-10-10;
+  a fresh clone has none until its first run, and tests that read the live board skip): last-known verdict per
   scenario. This is the answer to "which use cases work?". `INFRA` is a third state, never folded into
   `FAIL` — a crashed harness or a network timeout says nothing about the use case.
 

@@ -4,6 +4,8 @@
 narrative, no superseded version. When a rule changes, its line changes here and the old text is gone — the
 story of how it changed is the diary's job (`.meshkore/docs/decisions.md`, then `decisions-archive.md`). An
 agent that has read this file knows what the engine must do; an agent that wants to know why reads the diary.
+The diary is LOCAL-ONLY since 2026-10-10 (gitignored — it named people and private runs): on a clone it does not
+exist, and this file is the whole public canon.
 
 **How to read a line.** `CRIT-<group><n>` · the rule · `— since <date> · nodes <ids>` where the ids are nodes
 of `tests/run_testmap.py` that guard it, and, when it helps, the code seam that implements it. A line marked

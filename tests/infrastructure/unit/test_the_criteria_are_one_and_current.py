@@ -10,6 +10,8 @@ readable rules of which only the last was true. This ratchet keeps the fix from 
 import re
 from pathlib import Path
 
+import pytest
+
 ENGINE = Path(__file__).resolve().parents[3]
 CRITERIA = ENGINE / ".meshkore/docs/criteria.md"
 CLAUDE = ENGINE / "CLAUDE.md"
@@ -89,6 +91,8 @@ def test_the_three_rendered_files_carry_one_operator_block():
     assert a == b == c, "the OPERATOR_CONTENT block differs between CLAUDE.md, AGENTS.md and AGENT_INSTRUCTIONS.md"
 
 
+@pytest.mark.skipif(not DECISIONS.is_file(),
+                    reason="decisions.md is local-only (gitignored since 2026-10-10); absent on a clone")
 def test_the_diary_declares_itself_history():
     head = DECISIONS.read_text(encoding="utf-8")[:3000]
     assert "Este fichero es HISTORIA" in head and "criteria.md" in head

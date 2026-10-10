@@ -17,6 +17,8 @@
 import re
 from pathlib import Path
 
+import pytest
+
 ENGINE = Path(__file__).resolve().parents[3]
 CLAUDE = ENGINE / "CLAUDE.md"
 DECISIONS = ENGINE / ".meshkore" / "docs" / "decisions.md"
@@ -27,6 +29,14 @@ ARCHIVE = ENGINE / ".meshkore" / "docs" / "decisions-archive.md"
 CLAUDE_CEILING_BYTES = 80_000
 # The live diary: compacted to 211KB on 2026-09-06, ~21KB/day ⇒ an archive pass every week or two.
 DECISIONS_CEILING_BYTES = 400_000
+
+# Since 2026-10-10 the diary and its archive are LOCAL-ONLY (gitignored): they named people and private runs,
+# so they left the public repo. They still live and grow on the operator's machine, where these guards keep
+# biting; on a fresh clone or in CI they are absent by design, and absence there is not a regression.
+diary_is_local = pytest.mark.skipif(
+    not (DECISIONS.is_file() and ARCHIVE.is_file()),
+    reason="decisions.md / decisions-archive.md are local-only (gitignored since 2026-10-10); absent on a clone",
+)
 
 
 def test_claude_md_stays_a_rules_file():
@@ -51,6 +61,7 @@ def test_the_diary_is_not_in_the_rules_file():
     )
 
 
+@diary_is_local
 def test_the_diary_fits_under_its_own_ceiling():
     size = DECISIONS.stat().st_size
     assert size <= DECISIONS_CEILING_BYTES, (
@@ -60,6 +71,7 @@ def test_the_diary_fits_under_its_own_ceiling():
     )
 
 
+@diary_is_local
 def test_the_archive_and_the_policy_note_exist():
     assert ARCHIVE.is_file(), "the decisions archive vanished — the index points at nothing"
     assert DECISIONS.is_file(), "the decision log vanished — CLAUDE.md points at nothing"
@@ -69,6 +81,7 @@ def test_the_archive_and_the_policy_note_exist():
     assert "## Moved on " in ARCHIVE.read_text(encoding="utf-8"), "archive passes must keep their dated markers"
 
 
+@diary_is_local
 def test_no_citation_is_lost_to_the_archive():
     """Everything cited in the archive is still cited in the live log (its index line carries the refs)."""
     ref = re.compile(r"\b(?:V2|INI)-\d{3}\b")
@@ -88,6 +101,7 @@ def test_no_citation_is_lost_to_the_archive():
 ARCHIVE_FLOOR_LINES = 10_456
 
 
+@diary_is_local
 def test_the_archive_only_grows():
     n = ARCHIVE.read_text(encoding="utf-8").count("\n")
     assert n >= ARCHIVE_FLOOR_LINES, (
