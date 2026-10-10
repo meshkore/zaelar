@@ -3799,6 +3799,12 @@ DOMAINS: list[dict] = [
         {"id": "2.342", "title": "An order called beside a read runs on the text channel — «pausa eso… ¿qué tengo el jueves?» "
                                  "answered Thursday and never paused the trailer (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_order_beside_a_read_runs_on_the_text_channel.py"]},
+        {"id": "2.370", "title": "One slot, one subject, two wordings is ONE agenda row — «Veterinario de Pixel» and «Pixel — "
+                                 "veterinarian» at 16:00-17:00 landed twice with two notices (V2-781)",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_one_slot_one_subject_in_two_languages.py"]},
+        {"id": "2.371", "title": "A list step that names the assistant leaves the name STORED or fails — «Te llamas Johnny…» "
+                                 "stored nothing and the list closed «28 de 28» (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_list_step_that_names_the_assistant_stores_it.py"]},
         {"id": "2.276", "title": "The delivery backstop never announces a row twice in one errand — the junk batch he "
                                  "turned down came back once the window forgot it (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_never_announces_a_row_twice.py"]},

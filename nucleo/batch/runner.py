@@ -28,6 +28,8 @@ import time
 
 from loguru import logger
 
+from . import identity as _identity
+
 #: How long the report waits for the workers a list started. Past it the report goes out anyway and says
 #: which ones are still running — a list must never go quiet forever behind one stuck worker.
 WORKER_WAIT_S = 45 * 60
@@ -325,6 +327,10 @@ async def _run_step(uid: str, row: dict, turn, ingest, *, sid: str = "", remembe
             verdict = "met" if all(v == "met" for v in verdicts) else "unverifiable"
     except Exception:  # noqa: BLE001
         pass
+    # V2-781 — a step that names the assistant is judged on the store, not on «I'm Johnny now» (see `identity`).
+    ident = await _identity.settle(row["goal"])
+    if ident is not None and not ident["stored"]:
+        state, note = "failed", f"assistant name not stored — «{ident['name']}» {ident.get('error', '')}".strip()
     fields = {"state": "running" if state == "waiting" else ("waiting" if state == "needs_you" else state),
               "outcome": (f"workers:{','.join(tids)} " if tids else "") + f"[{state}] {note}"}
     if state in ("done", "failed"):
