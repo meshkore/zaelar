@@ -174,6 +174,10 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                     _probe._widget_data_turn.complete_pasted_links(tool_calls, text), text=text, brief=_tbrief)
             else:
                 return_extra_exec = {}
+            from . import probe_companions as _pc   # the other cards the same turn asked for (V2-781)
+            if isinstance(return_extra_exec, dict) and (_comp := await _pc.run(
+                    action, tool_calls, text, window=sess.window, brief=_tbrief)):
+                return_extra_exec["companions"] = _comp
         except Exception as e:  # noqa: BLE001
             return_extra_exec = {"execute_error": str(e)[:200]}
     else:
