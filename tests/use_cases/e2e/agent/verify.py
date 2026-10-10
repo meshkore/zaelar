@@ -3299,7 +3299,7 @@ def search_returns(db_path, *, since: float = 0.0, last_turn_ms: float | None = 
                  # los 298 — la conversación llevaba tres minutos cerrada. La nota se empuja a un buzón que ya
                  # nadie iba a vaciar, así que el contador —que lee el DRENAJE, no el empujón— marcaba cero y
                  # el juez lo archivó como «fallo de ENTREGA del mecanismo».
-                 "returns_after_last_turn": 0}
+                 "returns_after_last_turn": 0, "inline_returns": 0}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -3328,6 +3328,7 @@ def search_returns(db_path, *, since: float = 0.0, last_turn_ms: float | None = 
                 continue
             if items:
                 out["queries"] += 1
+                out["inline_returns"] += 1     # the probe's own second pass read these to answer the turn
                 txt = " ".join(f"{it.get('t', '')} — {it.get('s', '')} ({it.get('u', '')})" for it in items
                                if isinstance(it, dict))
             out["returns"] += 1

@@ -120,3 +120,17 @@ def test_el_arnes_PASA_el_instante_del_ultimo_turno():
     from pathlib import Path
     src = Path("tests/use_cases/e2e/agent/run.py").read_text()
     assert 'last_turn_ms=(mech.get("sheet_timing") or {}).get("last_turn_ms")' in src
+
+
+# ── V2-781 T516 · a search read in the SAME turn ───────────────────────────────────────────────────────────────
+
+def test_a_search_answered_in_the_same_turn_is_not_a_delivery_defect():
+    """quick-fact-opening-hours__us (2026-10-10): «what time does the Prado open tomorrow…» → the probe searched
+    INLINE and its second pass answered «10:00 · 15 euros» from those results, in that same turn. The counters read
+    «1 respuesta, 0 notas ⚠️ y NINGUNA se le empujó al cerebro», and the judge graded a sourced answer as invented.
+    A return the turn's own second pass read needs no note."""
+    sr = _sr(1, 0)
+    sr["search_returns"]["inline_returns"] = 1
+    txt = _texto(J.mechanism_facts(sr)) + _texto(R._mechanism_numbers(sr))
+    assert "NINGUNA se le empujó" not in txt and "CON LA CONVERSACIÓN ABIERTA" not in txt, txt
+    assert "mismo turno" in txt

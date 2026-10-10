@@ -247,9 +247,12 @@ def _mechanism_numbers(mech: dict) -> list[str]:
         # after the last turn, there was no one to push them to, and saying “none were pushed to it” accuses the mechanism
         # of an impossible delivery failure — the same care as the line for the engine that is still working.
         _tarde = int(sr.get("returns_after_last_turn") or 0)
-        _a_tiempo = max(0, int(sr.get("returns") or 0) - _tarde)
+        _inline = int(sr.get("inline_returns") or 0)      # V2-781 T516: read by the turn's own second pass
+        _a_tiempo = max(0, int(sr.get("returns") or 0) - _tarde - _inline)
         if sr.get("notes_from_search"):
             tail = ""
+        elif _inline and not _a_tiempo:
+            tail = f"  · {_inline} leída(s) en el mismo turno (2º pase de la búsqueda): no hace falta nota"
         elif _a_tiempo:
             tail = "  ⚠️ y NINGUNA se le empujó al cerebro"
         else:

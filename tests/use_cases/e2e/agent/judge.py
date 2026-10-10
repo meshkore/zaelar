@@ -869,7 +869,12 @@ def mechanism_facts(mech: dict) -> str:
     # prueba un fallo de entrega. Medido en `compare-insurance-quotes__es` (2026-08-27): las ocho llegaron
     # entre los 473 y los 521 s, con el último turno a los 298. El juez lo archivó como fallo de mecanismo.
     _sr_tarde = int(sr.get("returns_after_last_turn") or 0)
-    _sr_a_tiempo = max(0, int(sr.get("returns") or 0) - _sr_tarde)
+    _sr_inline = int(sr.get("inline_returns") or 0)      # V2-781 T516: read by the turn's own second pass
+    _sr_a_tiempo = max(0, int(sr.get("returns") or 0) - _sr_tarde - _sr_inline)
+    if _sr_inline:
+        lines.append(f"· La búsqueda web contestó {_sr_inline} vez/veces DENTRO del mismo turno (el 2º pase de "
+                     f"la búsqueda leyó esos resultados para responder): lo que dijo ese turno SALE de ahí, no hace "
+                     f"falta nota. Ejemplo: «{(sr.get('sample') or [''])[0][:140]}».")
     if _sr_a_tiempo and not sr.get("notes_from_search"):
         lines.append(f"· ⚠️ LA BÚSQUEDA WEB CONTESTÓ {_sr_a_tiempo} vez/veces CON LA CONVERSACIÓN ABIERTA y "
                      f"NADA de eso se le empujó al cerebro (0 notas desde ese canal). Ejemplo de lo que "
