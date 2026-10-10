@@ -112,7 +112,8 @@ def _a_detail(action, payload, sheet) -> dict:
             sheet, it = hits[0]
             data = _d.view_data(sheet)
     if not it:
-        return {"ok": False, "error": "no encuentro ese resultado en la hoja (pasa el title o index 1-based)"}
+        return {"ok": False, "error": "no encuentro ese resultado en la hoja (pasa el title o index 1-based)",
+                "message": "No encuentro ese resultado en la hoja."}      # said to him; the hint is the model's
     data["view"] = "detail"
     data["focus"] = it["title"]
     data["tab"] = "results"                  # opening a record means returning to the list, not staying on sources
