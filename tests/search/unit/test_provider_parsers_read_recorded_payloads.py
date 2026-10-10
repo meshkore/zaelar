@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from search.providers import PROVIDERS, foursquare, gemini, zai
+from search.providers import PROVIDERS, foursquare, gemini, openai, zai
 
 FIX = Path(__file__).resolve().parents[1] / "fixtures"
 
@@ -30,6 +30,15 @@ def test_gemini_answer_and_citations():
     assert out["answer"] and "Prado" in out["answer"]
     assert out["results"] and all(r["url"].startswith("https://") for r in out["results"])
     assert gemini.parse({}, 5) == {"answer": "", "results": []}
+
+
+def test_openai_answer_and_page_citations():
+    data = json.loads((FIX / "openai_web_search.json").read_text(encoding="utf-8"))
+    out = openai.parse(data, 5)
+    assert "Prado" in out["answer"] and "10:00" in out["answer"]
+    assert out["results"] and out["results"][0]["title"] and out["results"][0]["url"].startswith("https://")
+    assert "vertexaisearch" not in out["results"][0]["url"], "a page url, not a redirect"
+    assert openai.parse({"output": [{"type": "web_search_call"}]}, 5) == {"answer": "", "results": []}
 
 
 def test_foursquare_rows_carry_phone_rating_and_open_now():
@@ -58,8 +67,9 @@ def test_every_paid_provider_has_an_energy_rate_and_a_host_the_coverage_gate_see
 
 
 def test_a_missing_key_returns_an_empty_answer_without_a_network_call(monkeypatch):
-    for name in ("Z_AI_API_KEY", "GEMINI_API_KEY", "FOURSQUARE_SERVICE_KEY"):
+    for name in ("Z_AI_API_KEY", "GEMINI_API_KEY", "FOURSQUARE_SERVICE_KEY", "OPENAI_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     assert zai.search("x")["results"] == []
     assert gemini.search("x")["answer"] == ""
+    assert openai.search("x")["answer"] == ""
     assert foursquare.places("x") == []

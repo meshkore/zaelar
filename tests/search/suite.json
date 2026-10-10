@@ -13,6 +13,8 @@
     {"id": "12.5", "label": "Los proveedores leen sus cargas grabadas y la cadena prefiere los índices con clave", "kind": "unit"},
     {"id": "12.6", "label": "La sonda de salud: vivo, falta clave, agotado, bloqueado — nombres, nunca valores", "kind": "unit"},
     {"id": "12.7", "label": "Una puerta, una forma: find() y la cara HTTP", "kind": "unit"},
-    {"id": "12.8", "label": "Independiente: el servicio no importa al turno, y los alias son el mismo módulo", "kind": "unit"}
+    {"id": "12.8", "label": "Independiente: el servicio no importa al turno, y los alias son el mismo módulo", "kind": "unit"},
+    {"id": "12.9", "label": "Las puertas van por el servicio: worker, voz, probe y el panel", "kind": "unit"},
+    {"id": "12.10", "label": "El extractor sobre páginas reales grabadas", "kind": "unit"}
   ]
 }

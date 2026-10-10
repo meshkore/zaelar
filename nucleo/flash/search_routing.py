@@ -11,6 +11,8 @@ A timeline row per search is what makes that measurable; a guess would not be.
 """
 from __future__ import annotations
 
+from loguru import logger
+
 from search.route import SEARCH_KEY, Route, search_route
 
 
@@ -25,8 +27,8 @@ def verdicts_from_brief(brief) -> dict:
             choice, info = _tb.read(brief, key, "", min_confidence=0.0)
             if choice and isinstance(info, dict):
                 out[key] = (str(choice), float(info.get("confidence") or 0.0))
-    except Exception:  # noqa: BLE001 — no brief reads as no verdicts; the service falls back to the proposal
-        pass
+    except Exception as e:  # noqa: BLE001 — no brief reads as no verdicts; the service falls back to the proposal
+        logger.debug(f"search_routing: could not read the brief ({e!r}); routing on the proposal alone")
     return out
 
 

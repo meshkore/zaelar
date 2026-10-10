@@ -55,6 +55,20 @@ _AMOUNT_RE = re.compile(
     r"(?:[$€£]\s?\d[\d.,]*|\d[\d.,]*\s?(?:[$€£]|€)|(?:USD|EUR|GBP)\s?\d[\d.,]*|\d[\d.,]*\s?(?:USD|EUR|GBP))", re.I)
 
 
+#: A phone number as a business WRITES it in a title or a snippet, by SHAPE — never «nine to fourteen digits», which
+#: is the trap V2-321 paid for (a date read as a phone). Spanish: nine digits starting 6/7/8/9, in pairs or threes
+#: («622 65 44 32», «910 27 72 81», «+34 630 443 211»). US: «(415) 724-7083», «415-724-7083», «+1 415 906 2456».
+_PHONE_RE = re.compile(
+    r"(?<!\d)(?:\+34[\s.-]?)?[6789]\d{2}[\s.-]?\d{2}[\s.-]?\d{2}[\s.-]?\d{2}(?!\d)"
+    r"|(?<!\d)(?:\+1[\s.-]?)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}(?!\d)")
+
+
+def lone_phone(text: str) -> str:
+    """The ONE phone `text` names, or "" when it names none — or several (a directory line is not one business)."""
+    hits = [" ".join(h.split()) for h in _PHONE_RE.findall(str(text or ""))]
+    return hits[0][:24] if len(hits) == 1 else ""
+
+
 def lone_amount(text: str) -> str:
     """The ONE amount `text` names, or "" when it names none — or several: picking one of «was $399 now $279»
     would be inventing a datum with the shape of an observation (V2-471)."""

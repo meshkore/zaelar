@@ -251,8 +251,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   2026-10-10 · nodes 12.4, 12.8 · `search/route.py`, `nucleo/flash/search_routing.py`.
 - **CRIT-S5 · Every search provider is declared once, probed with one minimal real call, and reported by key
   NAME**: live · missing · exhausted · blocked · credential; a missing key is missing, never down. The use-case
-  harness does not grade a batch when no provider can answer (exit 4, INFRA). — since 2026-10-10 · nodes 12.5, 12.6
-  · `search/providers/`, `search/health.py`.
+  harness does not grade a batch when no provider can answer (exit 4, INFRA); the status panel shows the last probe
+  and never probes on a poll. — since 2026-10-10 · nodes 12.5, 12.6, 12.9 · `search/providers/`, `search/health.py`.
+- **CRIT-S7 · A worker searches with `act use_tool "<query>"`** — a quoted sentence, no JSON, no file: the one form
+  the confinement guard lets through — and gets the service's answer (chain dict + route + candidates + pages +
+  unshown). The two fact doors of the turn call `find()` too. — since 2026-10-10 · nodes 12.9.
 - **CRIT-S6 · The search service owes the turn nothing.** `search/` never imports `nucleo/flash`, `voice` or
   `widgets`; what it needs from the host (status light, timeline) are hooks set at boot; the old `nucleo.*` import
   paths are aliases of the same modules. — since 2026-10-10 · nodes 12.8 · `search/hooks.py`.

@@ -99,3 +99,22 @@ def test_a_candidate_row_keeps_phone_rating_and_availability_as_facts():
     assert {"600 1", "8.7/10", "open now"} <= values
     back = candidate_from_row(row)
     assert (back.phone, back.rating, back.availability, back.origin) == ("600 1", "8.7/10", "open now", "local")
+
+
+def test_a_phone_a_business_wrote_in_its_title_is_its_datum(monkeypatch):
+    """Measured on Z.ai leads 2026-10-10: the phone is in the title. By SHAPE, never «nine digits» (V2-321)."""
+    from search import candidacy
+    assert candidacy.lone_phone("Fontaneros Urgentes en Madrid - 622 65 44 32") == "622 65 44 32"
+    assert candidacy.lone_phone("FONTANERO URGENTE MADRID 24 HORAS 630443211") == "630443211"
+    assert candidacy.lone_phone("Mr. Rooter Plumbing (415) 906-2456") == "(415) 906-2456"
+    assert candidacy.lone_phone("Five Star Plumbing +1 415-724-7083") == "+1 415-724-7083"
+    assert candidacy.lone_phone("Publicado el 10/10/2026 a las 10:30") == ""
+    assert candidacy.lone_phone("Pedido 2026101012345 recibido") == ""
+    assert candidacy.lone_phone("Tel 622 65 44 32 y 910 27 72 81") == "", "two phones is a directory line, not one business"
+    monkeypatch.setattr(web, "search", lambda q, k=5, mode="answer": {
+        "query": q, "answer": "", "source": "zai", "results": [
+            {"title": "Fontaneros Urgentes en Madrid - 622 65 44 32", "snippet": "24/7", "url": "https://rubio.es"}]})
+    res = search.find("fontanero urgente", route="local_service")
+    assert res.candidates[0].phone == "622 65 44 32"
+    labels = {f["label"]: f["value"] for f in res.rows()[0]["facts"]}
+    assert "622 65 44 32" in labels.values()

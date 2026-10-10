@@ -35,6 +35,8 @@ class Provider:
 PROVIDERS: dict[str, Provider] = {
     "perplexity": Provider("perplexity", "answer", ("PERPLEXITY_API_KEY", "PPLX_API_KEY"), True, "api.perplexity.ai"),
     "tavily": Provider("tavily", "answer", ("TAVILY_API_KEY",), True, "api.tavily.com"),
+    "openai": Provider("openai", "answer", ("OPENAI_API_KEY",), True, "api.openai.com",
+                       "OpenAI Responses web search: answer + cited PAGES (real deep links)", verified_live="2026-10-10"),
     "gemini": Provider("gemini", "answer", ("GEMINI_API_KEY",), True, "generativelanguage.googleapis.com",
                        "Gemini with Google Search grounding: Google's index, answer + cited domains",
                        verified_live="2026-10-10"),

@@ -46,11 +46,17 @@ def bare_query_payload(action: str, raw: str):
     text has one reading. Anything that STARTS like JSON is a badly written JSON, not a query (converting
     would run a search with braces inside); any other action's structure would be invented, so: None.
     """
-    if str(action or "").strip() != "web_search":
+    act = str(action or "").strip()
+    if act not in ("web_search", "use_tool"):
         return None
     texto = str(raw or "").strip()
-    if not texto or texto.startswith("{") or texto.startswith("["):
+    if not texto or texto.startswith("{") or texto.startswith("[") or texto.startswith("@"):
         return None
+    # V2-782 — `act use_tool "<query>"` is the form the prompts now teach: measured 2026-10-10, four workers wrote
+    # `busca.json` to a path the confinement guard refused and stayed blind; a quoted sentence has no braces, so
+    # the permission gate lets it through, and it reaches the one search tool a worker has.
+    if act == "use_tool":
+        return {"tool": "web_search", "args": {"query": texto[:400]}}
     return {"query": texto[:400]}
 
 

@@ -71,10 +71,10 @@ def _google_on() -> bool:
 #: pages, then the free scrapers. Gemini (Google's index, grounded) and Z.ai (ranked pages) were added by V2-782
 #: because the engine already held their keys while the chain fell to DuckDuckGo on every call (measured
 #: 2026-10-10: not one inline search in the sweep reached anything but `ddg`).
-_ANSWER_ORDER = ("perplexity", "tavily", "gemini", "zai", "brave", "google", "ddg")
+_ANSWER_ORDER = ("perplexity", "tavily", "openai", "gemini", "zai", "brave", "google", "ddg")
 #: The chain for LEADS (pages to open: listing discovery, a local service): providers that return real urls.
 #: Perplexity and Gemini are skipped — their citations are redirects or domains, useless as pages to fetch.
-_RESULTS_ORDER = ("zai", "brave", "tavily", "google", "ddg")
+_RESULTS_ORDER = ("zai", "brave", "openai", "tavily", "google", "ddg")
 
 
 def provider(mode: str = "answer") -> str:
@@ -92,7 +92,7 @@ def provider(mode: str = "answer") -> str:
 
 def is_ai_answer(src: str | None = None) -> bool:
     """Does the source already return a synthesized answer (not just snippets)?"""
-    return (src or provider()) in ("perplexity", "tavily", "gemini", "google")
+    return (src or provider()) in ("perplexity", "tavily", "openai", "gemini", "google")
 
 
 # ── IS THE SEARCH LAYER ALIVE? (V2-176, 2026-08-20) ──────────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ def search(query: str, k: int = _MAX_RESULTS, mode: str = "answer") -> dict:
             if r["results"] or r["answer"]:
                 # respect the `ai` flag set by the backend (google marks ai=True if it returns AI Overview/featured);
                 # by default, the rest are only the paid AI-answer providers.
-                r["ai"] = bool(r.get("ai")) or src in ("perplexity", "tavily", "gemini")
+                r["ai"] = bool(r.get("ai")) or src in ("perplexity", "tavily", "openai", "gemini")
                 _meter_search(src)
                 note_success()
                 _remember_answer(q if mode == "answer" else f"{mode}:{q}", r)
@@ -264,7 +264,7 @@ def search(query: str, k: int = _MAX_RESULTS, mode: str = "answer") -> dict:
 # charged — being free is a property of the provider, not a zero fee someone could misread. Adding a paid
 # search engine requires adding it here AND giving it a rate in `energy_meter._SEARCH_USD_PER_REQUEST`;
 # the Energy coverage gate fails otherwise.
-_PAID_BACKENDS = frozenset({"perplexity", "tavily", "brave", "gemini", "zai"})
+_PAID_BACKENDS = frozenset({"perplexity", "tavily", "brave", "openai", "gemini", "zai"})
 
 
 def _meter_search(src: str) -> None:
@@ -273,7 +273,7 @@ def _meter_search(src: str) -> None:
     reconciliation would detect it). Gemini and Z.ai meter INSIDE their own module (`search/providers/*`), where
     the host string the Energy coverage gate greps for lives; they are listed in `_PAID_BACKENDS` so the gate
     that demands a rate for every paid backend still sees them."""
-    if src not in _PAID_BACKENDS or src in ("gemini", "zai"):
+    if src not in _PAID_BACKENDS or src in ("openai", "gemini", "zai"):
         return
     from nucleo import energy_meter as _energy
     _energy.report_search_usage(provider=src)   # the counter does not raise: `@_never_raises` lives in the module
@@ -485,6 +485,11 @@ def _ddg_href(href: str) -> str:
     return href
 
 
+def _openai(q: str, k: int) -> dict:
+    from .providers import openai as _p
+    return _p.search(q, k)
+
+
 def _gemini(q: str, k: int) -> dict:
     from .providers import gemini as _p
     return _p.search(q, k)
@@ -495,7 +500,7 @@ def _zai(q: str, k: int) -> dict:
     return _p.search(q, k)
 
 
-_BACKENDS = {"perplexity": _perplexity, "tavily": _tavily, "gemini": _gemini, "zai": _zai, "brave": _brave,
+_BACKENDS = {"perplexity": _perplexity, "tavily": _tavily, "openai": _openai, "gemini": _gemini, "zai": _zai, "brave": _brave,
              "google": _google, "ddg": _ddg}
 
 

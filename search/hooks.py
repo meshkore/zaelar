@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from typing import Callable
 
+from loguru import logger
+
 on_chain_failure: Callable[[str, str], None] | None = None
 emit: Callable[..., None] | None = None
 
@@ -24,8 +26,8 @@ def chain_failed(kind: str, detail: str) -> None:
         return
     try:
         on_chain_failure(kind, detail)
-    except Exception:  # noqa: BLE001 — a status light must never take a search down
-        pass
+    except Exception as e:  # noqa: BLE001 — a status light must never take a search down
+        logger.debug(f"search.hooks: the failure hook raised ({e!r})")
 
 
 def note(family: str, label: str, **extra) -> None:
@@ -33,5 +35,5 @@ def note(family: str, label: str, **extra) -> None:
         return
     try:
         emit(family, label, **extra)
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"search.hooks: the emit hook raised ({e!r})")

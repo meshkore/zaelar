@@ -10,7 +10,7 @@ import pytest
 from search import web
 
 _KEYS = ("PERPLEXITY_API_KEY", "PPLX_API_KEY", "TAVILY_API_KEY", "BRAVE_SEARCH_KEY", "BRAVE_API_KEY",
-         "GEMINI_API_KEY", "Z_AI_API_KEY", "WEBSEARCH_PROVIDER")
+         "GEMINI_API_KEY", "Z_AI_API_KEY", "OPENAI_API_KEY", "WEBSEARCH_PROVIDER")
 
 
 @pytest.fixture
@@ -31,6 +31,15 @@ def test_gemini_and_zai_are_used_the_moment_their_keys_exist(no_keys, monkeypatc
     assert web._order("answer") == ["gemini", "zai", "ddg"], "a fact wants the grounded answer first"
     assert web._order("results") == ["zai", "ddg"], "leads want real pages: Gemini's redirects are skipped"
     assert web.is_ai_answer("gemini") and not web.is_ai_answer("zai")
+
+
+def test_openai_outranks_gemini_for_a_fact_and_serves_leads_too(no_keys, monkeypatch):
+    """Its citations are PAGES (title + url), so it answers a fact first and still counts as a lead provider."""
+    monkeypatch.setenv("OPENAI_API_KEY", "placeholder")
+    monkeypatch.setenv("GEMINI_API_KEY", "placeholder")
+    monkeypatch.setenv("Z_AI_API_KEY", "placeholder")
+    assert web._order("answer") == ["openai", "gemini", "zai", "ddg"]
+    assert web._order("results") == ["zai", "openai", "ddg"]
 
 
 def test_perplexity_still_outranks_everything(no_keys, monkeypatch):
@@ -61,5 +70,5 @@ def test_a_results_search_is_cached_apart_from_an_answer_search(no_keys, monkeyp
 
 
 def test_the_paid_set_names_the_new_backends_and_the_free_ones_stay_out():
-    assert {"gemini", "zai"} <= web._PAID_BACKENDS
+    assert {"openai", "gemini", "zai"} <= web._PAID_BACKENDS
     assert not {"google", "ddg"} & web._PAID_BACKENDS

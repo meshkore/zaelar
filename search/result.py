@@ -144,6 +144,7 @@ class SearchResult:
     failure: dict | None = None
     took_ms: int = 0
     repeated: dict | None = None
+    raw: dict | None = None      # the chain's own dict (fact / leads), for callers that still read that shape
 
     def ok(self) -> bool:
         return bool(self.candidates or self.answer)
@@ -156,6 +157,7 @@ class SearchResult:
 
     def to_dict(self) -> dict:
         d = asdict(self)
+        d.pop("raw", None)
         d["ok"] = self.ok()
         d["n"] = len(self.candidates)
         return d

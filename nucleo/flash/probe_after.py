@@ -358,8 +358,11 @@ async def answer_a_search(*, FastClient, _forced_search, _res, action, dialog, o
             from voice.observer import emit as _emit_route
             _sr.shadow(_sq, proposal="web_search", brief=_tbrief, emit=_emit_route, channel="probe")
             from nucleo import websearch as _ws
+            from search import find as _find                       # V2-782 T5.3: the fact door is the service's
             _t_s = _probe.time.time()
-            _res = await _probe.asyncio.to_thread(_ws.search, _sq)
+            _sres = await _probe.asyncio.to_thread(_find, _sq, route="inline_fact", proposal="web_search")
+            _res = dict(_sres.raw or {"query": _sq, "answer": "", "results": [], "source": "none",
+                                      **({"failure": _sres.failure} if _sres.failure else {})})
             _ctx = _ws.format_results(_res)
             # PARIDAD DE OBSERVABILIDAD con el canal vivo (2026-08-10). El probe es una implementación PARALELA
             # del turno, y este camino no registraba nada: una búsqueda hecha por el canal de prueba no dejaba ni

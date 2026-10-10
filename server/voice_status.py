@@ -252,6 +252,13 @@ async def the_rest_and_the_light(*, SETTINGS, brain, has, health_state, items) -
         tts_state, tts_detail = "ok", f"{prov} · {cur}"
     items.append({"key": "tts", "label": "TTS · texto→voz", "state": tts_state, "detail": tts_detail})
 
+    # ── the search providers (V2-782 T2.2): one line, from the last probe, never probing on a poll ──────────
+    try:
+        from search import api as _search_api
+        items.append(_search_api.status_item())
+    except Exception as e:  # noqa: BLE001 — a broken probe is a row that SAYS so, never a crash in /api/status
+        items.append({"key": "search", "label": "Búsqueda · proveedores", "state": "warn", "detail": f"sin sonda ({type(e).__name__})"})
+
     # ── OS audio output (operator request 2026-09-10: the monitor must catch «volume at zero») ──────────────
     try:
         from . import system_audio

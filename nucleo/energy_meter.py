@@ -414,6 +414,9 @@ _SEARCH_USD_PER_REQUEST: dict[str, float] = {
     # V2-782 (2026-10-10). Gemini grounding: Google bills grounded PROMPTS ($35/1k beyond the daily free
     # allowance, pricing page 2026-10) — the honest ceiling; the few hundred tokens are not metered twice.
     "gemini": 0.035,
+    # OpenAI Responses `web_search_preview`: $25-35 per 1k tool calls (pricing page 2026-10) plus a few hundred
+    # tokens per call; the per-call ceiling is the honest rate, tokens are not metered twice.
+    "openai": 0.03,
     # Z.ai Web Search API (search-prime), pay per call, a different wallet from the coding plan's MCP quota.
     # Taken from their pricing page 2026-10 at the top tier as the ceiling; RE-VERIFY at volume.
     "zai": 0.03,

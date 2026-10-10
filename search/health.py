@@ -70,6 +70,10 @@ def _call(name: str) -> tuple[bool, str]:
     if name == "brave":
         r = _web._brave("wikipedia", 1)
         return bool(r.get("results")), ""
+    if name == "openai":
+        from .providers import openai as _p
+        r = _p.search("What is today's date?", 1)
+        return bool(r.get("answer")), "" if r.get("results") else "answer without citations"
     if name == "gemini":
         from .providers import gemini as _p
         r = _p.search("What is today's date?", 1)

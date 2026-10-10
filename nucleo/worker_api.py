@@ -179,8 +179,15 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
                                           "{\"tool\":\"web_search\",\"args\":{\"query\":\"…\"}} — no adivino "
                                           "qué buscar con una query vacía."}
         try:
-            from nucleo import websearch
-            res = await asyncio.to_thread(websearch.search, str(q))
+            # V2-782 — through the SERVICE: the same chain, plus the route, the candidates vs pages split and what
+            # no row shows. `raw` keeps the chain's own dict for the two doors below that read it.
+            from search import find as _find
+            _sr = await asyncio.to_thread(_find, str(q), route="inline_fact", proposal="web_search",
+                                          k=int((args.get("k") or payload.get("k") or 6)))
+            res = dict(_sr.raw or {"query": q, "answer": "", "results": [], "source": "none"})
+            res.update({"route": _sr.route, "candidates": _sr.rows(), "pages": [{"title": p.title, "url": p.url,
+                        "why": p.why} for p in _sr.pages], "unshown": list(_sr.unshown),
+                        **({"failure": _sr.failure} if _sr.failure and not res.get("failure") else {})})
             # V2-236: and what the search brings goes INTO THE CONVERSATION immediately, not when the worker delivers
             # it — which failed to happen in 5 of 8 measured sessions. Same remedy V2-223 gave to what the browser
             # extracts through the other gate: this is OUR search, lent to the worker.

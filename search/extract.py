@@ -246,11 +246,16 @@ def extract_items(html: str, base_url: str) -> list[dict]:
     # On a MULTI-item page, an item pointing at the page ITSELF is the page describing itself (a category's
     # own Product node with no url of its own falls back to base_url) — furniture, not a candidate. A page
     # declaring exactly ONE item keeps it: a true detail page's listing legitimately IS its own url.
+    base_key = canonical_url(base_url)
     if len(items) > 1:
-        base_key = canonical_url(base_url)
         real = [i for i in items if canonical_url(i["url"]) != base_key]
         if real:
             items = real
+    elif items and items[0]["price"] is None and canonical_url(items[0]["url"]) == base_key:
+        # V2-782 T3.3, measured on fotocasa's rental LIST page (recorded 2026-10-10): ONE `RealEstateListing` node
+        # named «Casas y pisos de alquiler en Madrid», no price, url = the page itself. That is the page describing
+        # itself, not a flat; a true detail page always prices what it sells. Dropped as page furniture.
+        items = []
     if not items:
         og = _opengraph_item(html, base_url)
         if og:

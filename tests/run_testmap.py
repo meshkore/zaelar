@@ -6394,6 +6394,16 @@ DOMAINS: list[dict] = [
                                 "sombra, filas de la red con valoración, el brief respeta el número que él dijo)",
             "ch": UNIT, "paths": ["tests/search/unit/test_the_search_service_owes_the_turn_nothing.py",
                                   "tests/search/unit/test_the_brain_reads_the_service.py"]},
+        {"id": "12.9", "title": "Las puertas van por el servicio: el worker busca con `act use_tool \"<consulta>\"` (sin "
+                                "fichero que la guarda rechace) y recibe ruta + candidatos + páginas + lo no enseñado; las dos "
+                                "puertas de hecho (voz y probe) llaman a find(); el panel de estado lleva la línea de "
+                                "proveedores desde la última sonda, sin sondear en cada poll; el brief lleva los campos pedidos",
+            "ch": UNIT, "paths": ["tests/search/unit/test_the_worker_searches_through_the_service.py",
+                                  "tests/search/unit/test_the_panel_and_the_doors_read_the_service.py"]},
+        {"id": "12.10", "title": "El extractor sobre páginas REALES grabadas (coches.net, fotocasa, autoscout24, motos.net): "
+                                 "una categoría con AggregateOffer es fuente, la página que se describe a sí misma es mobiliario, "
+                                 "una ficha con precio se conserva",
+            "ch": UNIT, "paths": ["tests/search/unit/test_the_extractor_reads_recorded_pages.py"]},
     ]},
 ]
 

@@ -63,6 +63,11 @@ def _rows_from_web(res: dict, origin: str = "web") -> list[dict]:
         p = _candidacy.lone_amount(title) or _candidacy.lone_amount(row["subtitle"])
         if p:
             row["price"] = p
+        # A phone a business wrote in its own title or snippet is ITS datum (measured 2026-10-10 on Z.ai leads:
+        # «Fontaneros Urgentes en Madrid - 622 65 44 32»); the shape rule in `candidacy.lone_phone` keeps dates out.
+        tel = _candidacy.lone_phone(title) or _candidacy.lone_phone(row["subtitle"])
+        if tel:
+            row["phone"] = tel
         rows.append(row)
     return rows
 
@@ -76,6 +81,7 @@ def _split(rows: list[dict], origin: str) -> tuple[list[Candidate], list[Page]]:
 def _fact(request: str, k: int, out: SearchResult) -> None:
     from . import web as _web
     res = _web.search(request, k=max(1, k), mode="answer")
+    out.raw = res
     out.provider = str(res.get("source") or "")
     out.answer = str(res.get("answer") or "")
     out.failure = res.get("failure")
@@ -89,6 +95,7 @@ def _fact(request: str, k: int, out: SearchResult) -> None:
 def _leads(request: str, k: int, out: SearchResult, origin: str = "web") -> None:
     from . import web as _web
     res = _web.search(request, k=max(1, k), mode="results")
+    out.raw = res
     out.provider = str(res.get("source") or "")
     out.failure = res.get("failure")
     out.candidates, out.pages = _split(_rows_from_web(res, origin), origin)

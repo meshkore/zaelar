@@ -450,6 +450,15 @@ def to_criteria(brief: dict) -> dict:
     for k in ("hard", "soft", "assumed", "enrichments", "quality_bar"):
         if brief.get(k):
             out[k] = list(brief[k])
+    # V2-782 T4.3 — the FIELDS the operator's words ask for (price · rating · availability) travel as hard criteria,
+    # so the sheet's candidacy can say «no row shows the rating» when the worker presents bare names.
+    try:
+        from search import criteria as _crit
+        for line in _crit.hard_criteria(str(brief.get("request") or "")):
+            if line not in out.setdefault("hard", []):
+                out["hard"].append(line)
+    except Exception as e:  # noqa: BLE001 — a grammar never costs the criteria tab
+        logger.debug("research: asked fields not read (%r)", e)
     if brief.get("feedback"):
         out["changes"] = list(brief["feedback"])     # what the operator corrected when rejecting the previous round
     if b.get("min_candidates"):

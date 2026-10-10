@@ -306,7 +306,10 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         _t_s = _pst.time.time()
         try:
             from nucleo import websearch as _ws
-            res = await _pst.asyncio.to_thread(_ws.search, query)
+            from search import find as _find                       # V2-782 T5.3: the fact door is the service's
+            _sres = await _pst.asyncio.to_thread(_find, query, route="inline_fact", proposal="web_search")
+            res = dict(_sres.raw or {"query": query, "answer": "", "results": [], "source": "none",
+                                     **({"failure": _sres.failure} if _sres.failure else {})})
             ctx = _ws.format_results(res)
         except Exception as e:  # noqa: BLE001
             _pst.logger.warning(f"web_search falló (voz sigue): {e}")

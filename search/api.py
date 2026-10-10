@@ -14,12 +14,46 @@ from __future__ import annotations
 import asyncio
 import time
 
+from loguru import logger
+
 from fastapi import APIRouter, Body
 
 router = APIRouter()
 
 _HEALTH_TTL_S = 120.0
 _health_cache: dict = {"at": 0.0, "rows": []}
+
+
+def cached_rows() -> list[dict]:
+    """The last probe's rows, for the status panel — never probes on a poll (`/api/status` runs every 15 s)."""
+    return list(_health_cache["rows"])
+
+
+def prime_cache() -> None:
+    """One probe at boot (a few paid calls, once), so the panel has something to say before anyone asks."""
+    from . import health as _health
+    try:
+        rows = _health.probe_all()
+        _health_cache.update(at=time.time(), rows=rows)
+    except Exception as e:  # noqa: BLE001 — a failed priming leaves the cache empty; the panel says «sin sondear»
+        logger.warning(f"search.api: the boot probe failed ({e!r}); the panel will say «sin sondear todavía»")
+
+
+def status_item() -> dict:
+    """The ONE line of the status panel (V2-782 T2.2): live providers by name, or what is wrong."""
+    from . import health as _health
+    rows = cached_rows()
+    if not rows:
+        return {"key": "search", "label": "Búsqueda · proveedores", "state": "warn", "detail": "sin sondear todavía"}
+    s = _health.summary(rows)
+    failing = ", ".join(f"{f['provider']} {f['state']}" for f in s["failing"])
+    if not s["can_answer"]:
+        return {"key": "search", "label": "Búsqueda · proveedores", "state": "error",
+                "detail": ("ninguno contesta · " + failing) if failing else "ninguno contesta"}
+    detail = "vivos: " + ", ".join(s["live"])
+    if failing:
+        detail += " · " + failing
+    return {"key": "search", "label": "Búsqueda · proveedores", "state": "warn" if s["failing"] else "ok", "detail": detail}
 
 
 @router.get("/api/search/health")

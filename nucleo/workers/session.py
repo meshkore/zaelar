@@ -621,9 +621,8 @@ class WorkerSession(SessionNotes):
         except Exception:  # noqa: BLE001
             py = "python"
         msg = ("Tu buscador integrado se ha quedado SIN CUOTA y no vuelve en esta tarea: no lo uses más. Busca "
-               "con el de Zaelar: escribe con Write en `busca.json` un "
-               '{"tool":"web_search","args":{"query":"<qué buscas>"}} y lanza '
-               f"`{py} -m nucleo.worker_bridge act use_tool @busca.json`. Para leer una página, el navegador: "
+               f"con el de Zaelar: `{py} -m nucleo.worker_bridge act use_tool \"<qué buscas>\"` — la consulta entre "
+               "comillas, sin llaves ni ficheros. Para leer una página, el navegador: "
                f"`{py} -m nucleo.nav_cli`.")
         try:
             import asyncio as _aio
