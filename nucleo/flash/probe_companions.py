@@ -18,8 +18,8 @@ def _card_turn(action: str) -> bool:
 
 
 def _show(wid: str) -> bool:
-    from voice.observer import emit as _emit
-    _emit("widget", "show", extra={"id": wid, "src": "flash"})
+    from nucleo.flash import canvas_visibility as _cvis   # the one door: this turn's words asked for the card
+    _cvis.present(wid, reason="turn-order", action="show_widget", src="flash")
     return True
 
 
