@@ -102,15 +102,11 @@ async def run_scheduling_backstops(*, spoken, operator_text, action, tags, sess)
     # un aviso mal fechado.
     if spoken and action != "widget_data":
         try:
-            from . import router as _routern
-            _note = _routern.dated_note_backstop(spoken, operator_text, window=sess.window)
-            # V2-194: y no dos veces. Su puerta («solo si ESTE turno no hizo ya la data-op») no puede ver
-            # una data-op de un turno ANTERIOR, así que la agenda salió con el mismo compromiso dos veces
-            # —medido en el sandbox del 2026-08-20 02:34, «Renovar seguro del coche» y «Renovar el seguro
-            # del coche» el mismo día—. El hermano tiene esta protección desde V2-153; ésta es peor sin
-            # ella, porque un aviso duplicado se oye y una cita duplicada se VE, y se queda.
-            if _note and _routern.already_in_agenda(_note):
-                _note = None
+            from . import note_backstop as _nb
+            from voice.observer import emit as _emit_skip
+            # V2-194 (same day) and 2026-10-10 (cancelled or moved after he asked): `note_to_file` decides for
+            # both channels — a commitment he cancelled since is never written back.
+            _note = _nb.note_to_file(spoken, operator_text, window=sess.window, emit=_emit_skip)
             if _note:
                 import widgets as _wn
                 await _wn.dispatch_tag("widget.data", {"id": "agenda", "data": {

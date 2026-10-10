@@ -3908,6 +3908,17 @@ DOMAINS: list[dict] = [
                                  "gave — the premiere's prompt was his own question cut at «cuándo se estrena» "
                                  "(V2-781 pair 3); ES + EN, both channels (one backstop)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_notice_after_a_lookup_carries_the_fact.py"]},
+        {"id": "2.400", "title": "The dated-note backstop never writes back an appointment he cancelled or moved since — «Nos "
+                                 "vemos» resurrected the cancelled car service with its notice (agenda-appointment-lifecycle "
+                                 "ES, 2026-10-10); one decision for both channels",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_cancelled_appointment_stays_cancelled.py"]},
+        {"id": "2.401", "title": "An appointment's title says what, never when — «… a las diez de la» outlived the move to "
+                                 "17:00; the hour it carried becomes the start, numbers in a name stay (2026-10-10)",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_title_says_what_not_when.py"]},
+        {"id": "2.402", "title": "«I've removed it from your agenda» with no call cancels the appointment in focus (and its "
+                                 "notice); a list row, a notice, a flight, a question or a refusal never (agenda-appointment-"
+                                 "lifecycle EN, 2026-10-10); both channels",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_cancelled_appointment_stays_cancelled.py"]},
         {"id": "2.251", "title": "«set a reminder on the premiere day» rings on the ONE date the last reply named — «I'll set "
                                  "a heads-up for that day» scheduled nothing (V2-781 pair 3); both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_asked_for_the_day_just_named_is_set.py"]},

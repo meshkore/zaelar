@@ -560,8 +560,10 @@ def test_and_the_write_path_actually_consults_it():
     # backstops it delegates to (`probe_scheduling.py`). The guard is about the CHANNEL being wired, not
     # about which file holds the line, so it reads both — otherwise the next extraction turns a wiring
     # guard into a false alarm, and the fix would be to weaken it.
+    # Since 2026-10-10 both channels delegate the decision to `note_backstop.note_to_file`, which consults it.
+    from nucleo.flash import note_backstop
     src = _vts.getsource(probe.run_turn) + _vts.getsource(probe_scheduling)
-    assert "already_in_agenda(" in src
+    assert "note_to_file(" in src and "already_in_agenda(" in _vts.getsource(note_backstop)
 
 
 # ── V2-167 · the promise that does NOT name the day, and the day found only in the operator’s sentence ─────
