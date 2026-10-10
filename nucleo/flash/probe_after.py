@@ -38,7 +38,53 @@ def _send_each(tool_calls: list, text: str) -> dict:
     return {"executed": "inject", "sent": len(sends)}
 
 
+def _the_turns_errands(tool_calls: list, operator_text: str, window_goal: str, *, resolved: str | None = None):
+    """(requests, surfaces, not_started) — every errand this turn asked for, decided by the shared rules.
+
+    The escalations the model called, each with its declared surface (V2-227: a turn can ask for a list, a sheet
+    and a widget, and the first one's screen is wrong for the other two); the create-widget CLAUSE when no outgoing
+    request builds one (V2-118/V2-155: the whole turn says «informe» and the dedup ate the game by its target); a
+    listing hunt that is none of them (three-tasks-at-once). `operator_text`, never `text`: an errand must not be
+    the [SISTEMA] notes. With `resolved`, the errand a yes/no just answered is taken out and nothing falls back to
+    the turn's words; without it an empty list falls back to the window goal (V2-132) or his sentence."""
+    from nucleo.turn import errands_of_a_turn as _eot
+    reqs: list[str] = []
+    _surf: dict[str, str] = {}
+    for _tc in tool_calls:
+        _r = str(_tc["args"].get("request") or "").strip() if _tc["name"] == "escalate_to_slowbrain" else ""
+        if _r and _r not in reqs:
+            reqs.append(_r)
+            _surf[_r] = str(_tc["args"].get("surface") or "").strip()
+    listing = next((t["args"] for t in tool_calls if t["name"] == "search_listings"), None)
+    if listing is not None and (rides := _eot.listing_rides(_probe._lt.request_from(listing, operator_text), reqs)):
+        reqs.append(rides)
+        _surf[rides] = "lista"
+    try:
+        from nucleo.flash import router_guards as _rg_cw
+        if not any(_rg_cw.looks_like_create_widget(r) for r in reqs):
+            if (_w_req := _rg_cw.create_widget_request(operator_text)):
+                reqs.append(_w_req)
+    except Exception:  # noqa: BLE001
+        pass
+    if resolved is not None:
+        reqs = _eot.beside_an_answer(resolved, reqs)
+    kept, dropped = _eot.within_the_pool(reqs or ([] if resolved is not None else [window_goal or operator_text]))
+    return kept, _surf, dropped
+
+
+def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str) -> list:
+    """One escalation per request through the one portal (`escalate_to_slowbrain`); the DECISION to park an
+    errand whose turn asked permission lives there (V2-655), so the spoken turn travels as `asked`."""
+    from nucleo import surfaces as _surfaces
+    from nucleo.flash import escalate as _esc
+    return [_esc.escalate_to_slowbrain(str(_r), context={"src": "probe", "trace": trace_id, "asked": text,
+                                                          "surface": _surfaces.pick(_surf.get(_r, ""),
+                                                                                    _surfaces.from_brief(brief))})
+            for _r in reqs]
+
+
 async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _window_goal, action, execute, images_req, music_req, operator_text, sess, spoken, tags, text, tool_calls, video_req) -> dict:
+    _beside = None    # three-tasks-at-once: the errands a yes/no did NOT resolve still start
     if execute:
         # CONFIRMACIÓN de una TAREA irreversible parada por el confirm-gate (V2-126) y del navegador parado en
         # un clic (V2-202). Va ANTES que el resto: un «sí» reanuda lo PARADO, no abre nada nuevo, así que tiene
@@ -58,6 +104,7 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                                          "task_id": str(_res.get("task_id") or "")}
                 else:
                     return_extra_exec = {"executed": "confirm_task", "ok": bool(_res.get("ok"))}
+                    _beside = _the_turns_errands(tool_calls, operator_text, "", resolved=str(_res.get("request") or ""))
         except Exception:
             pass
         # The three SCHEDULING backstops (promise → tag, execute the cron tags, write the commitment to
@@ -67,50 +114,15 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
         await _probe._probe_scheduling.run_scheduling_backstops(
             spoken=spoken, operator_text=operator_text, action=action, tags=tags, sess=sess)
         try:
-            if action == "escalate":
-                # VARIAS tareas en un turno (V2-118, espejo del provider de voz — impl PARALELA, cablear en
-                # AMBOS): el operador que encarga tres trabajos de una sentada emite tres llamadas, y antes solo
-                # se ejecutaba la primera (`next(...)`). El tope de 3 es el mismo criterio que allí: el pool de
-                # workers es real y limitado (`dispatch._max_parallel`).
-                # V2-227: cada petición viaja CON su superficie declarada. Por par y no en una variable suelta,
-                # porque un turno que encarga tres cosas puede pedir una lista, una ficha y un widget — quedarse
-                # con la primera le daría a las otras dos la pantalla equivocada desde el segundo cero.
-                _reqs: list[str] = []
-                _surf: dict[str, str] = {}
-                for _tc in tool_calls:
-                    if _tc["name"] != "escalate_to_slowbrain":
-                        continue
-                    _r = str(_tc["args"].get("request") or "").strip()
-                    if _r and _r not in _reqs:
-                        _reqs.append(_r)
-                        _surf[_r] = str(_tc["args"].get("surface") or "").strip()
-                # Espejo del backstop del provider (impl PARALELA, cablear en AMBOS): si el turno pide CREAR
-                # un widget y ninguna de las peticiones que van a salir lo es, se añade. Medido en V2-118: cero
-                # tareas de kind `code` en 14 turnos pidiendo un juego.
-                # V2-155: lo que se añade es la CLÁUSULA que pide el widget, no el turno entero. Un turno que
-                # encarga tres cosas lleva las otras dos dentro, y el turno completo dice «informe», así que
-                # `find_duplicate` le daba destino `results` —el mismo que la tarea del informe— y se la comía
-                # por su señal más fuerte, la de mismo widget destino. La tercera tarea no se perdía por no
-                # detectarse: se detectaba y se deduplicaba contra la tarea con la que debía convivir.
-                try:
-                    from nucleo.flash import router_guards as _rg_cw
-                    if not any(_rg_cw.looks_like_create_widget(r) for r in _reqs):
-                        _w_req = _rg_cw.create_widget_request(operator_text)
-                        if _w_req:
-                            _reqs.append(_w_req)
-                except Exception:
-                    pass
-                # `operator_text`, no `text`: el turno lleva las notas [SISTEMA] pegadas delante y una tarea
-                # NUNCA debe tener por objetivo el mensaje de entrega del worker anterior.
-                # V2-132: si la promesa se apoyaba en una petición de HACE UNOS TURNOS, el objetivo es esa, no
-                # el «vale, avísame» de este turno — que como meta de una tarea no dice nada.
-                _reqs = _reqs[:3] or [_window_goal or operator_text]
-                from nucleo.flash import escalate as _esc
-                _tids = [_esc.escalate_to_slowbrain(
-                    str(_r), context={"src": "probe", "trace": _trace_id, "surface": __import__("nucleo.surfaces", fromlist=["x"]).pick(_surf.get(_r, ""), __import__("nucleo.surfaces", fromlist=["x"]).from_brief(_tbrief)),
-                                      "asked": text})   # V2-655: la DECISIÓN vive en el portal; aquí solo el dato
-                    for _r in _reqs]
-                return_extra_exec = await _escalated_with_its_data_ops(_tids, tool_calls, text, _tbrief)
+            if action == "escalate" or (_beside and _beside[0]):
+                # SEVERAL errands in one turn (V2-118), each WITH its declared surface (V2-227) — the decision lives
+                # in `_the_turns_errands`, the launch in `_launch`. Beside a yes/no only what it did not resolve.
+                _reqs, _surf, _left = _beside or _the_turns_errands(tool_calls, operator_text, _window_goal)
+                _tids = _launch(_reqs, _surf, trace_id=_trace_id, brief=_tbrief, text=text)
+                return_extra_exec = (await _escalated_with_its_data_ops(_tids, tool_calls, text, _tbrief)
+                                     if action == "escalate" else {"executed": action, "beside": _tids})
+                if _left:
+                    return_extra_exec["not_started"] = _left   # said by `the_words_it_owes`
             elif action == "send_to_worker":
                 return_extra_exec = _send_each(tool_calls, text)
             elif action == "answer_worker":
@@ -294,6 +306,9 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
                 spoken = _probe._rg_mute.mute_backstop(sess.window, _lg, _hw, operator_text=text)   # V2-603: rotates, owns the fault
         except Exception:
             pass
+    if isinstance(return_extra_exec, dict) and return_extra_exec.get("not_started"):   # three-tasks-at-once
+        from nucleo.turn import errands_of_a_turn as _eot
+        spoken = f"{spoken or ''} {_eot.not_started_line(return_extra_exec['not_started'])}".strip()
     _out = {}
     try:
         _out['_lg'] = _lg

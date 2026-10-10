@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from nucleo.flash import player_control as _player_control
 from nucleo.flash import tool_executor as _tx
+from nucleo.turn import errands_of_a_turn as _eot
 
 
 def a_search_is_his(query: str, operator_text: str, brief, overlap) -> bool:
@@ -225,8 +226,10 @@ def _t_escalate_to_slowbrain(*, args, escalate_req, text):
         # sin él la llamada cae a `text`, que es la MISMA frase, y duplicaríamos la tarea principal.
         # El tope existe porque el destinatario es un pool de workers reales (`dispatch._max_parallel`,
         # 3 por defecto): un modelo que se atasque enumerando no debe poder abrir una tarea por ítem.
-        if len(escalate_req["more"]) < 2 and req not in escalate_req["more"] and req != escalate_req["v"]:
-            escalate_req["more"].append(req)
+        if req not in escalate_req["more"] and req != escalate_req["v"]:
+            # three-tasks-at-once: what the pool cannot take is KEPT, so the turn can say it did not start it.
+            _full = len(escalate_req["more"]) >= _eot.MAX_ERRANDS - 1
+            (escalate_req.setdefault("dropped", []) if _full else escalate_req["more"]).append(req)
 
 
 # V2-778 F1 — the `play_music` arm of `_on_tool_call`, moved verbatim.

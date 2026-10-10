@@ -3751,6 +3751,9 @@ DOMAINS: list[dict] = [
                                  "each message to the worker it names — «del informe quítame los híbridos» closed the results "
                                  "sheet (three-tasks-at-once)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_order_for_a_worker_is_not_a_canvas_close.py"]},
+        {"id": "2.313", "title": "Every errand of a turn starts or is said not to have started — the monitor hunt beside a "
+                                 "report and a game, and the errand beside a yes, vanished without a trace (three-tasks-at-once)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_every_errand_of_a_turn_starts_or_is_said.py"]},
         {"id": "2.205", "title": "What a stranger wrote reaches the model as DATA (fenced, unforgeable), and an act that "
                                  "leaves with it in context and no sure verdict is asked — voice and text alike",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_strangers_words_are_data.py"]},

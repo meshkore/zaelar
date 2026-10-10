@@ -8,7 +8,7 @@ governs it. `close_the_turn` takes the turn's locals it read as keyword argument
 """
 from __future__ import annotations
 
-from voice.engine.llm.providers import nucleo as _p
+from voice.engine.llm.providers import nucleo as _p, turn_errands as _turn_errands
 
 
 async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _dialog, _escalate_mod, _filler_audio, _gate_ms, _op_text, _prev_pending, _router, _shown_ids, _start_web_auth, _t_entry, _t_stream0, _tool_fired, _turn_tools, acted, aside, attention, brain, clarify, confirm_state, data_done, deduped, emit, escalate_req, first_ms, first_turn, images_req, listing_req, llm_metrics, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, spec, speech, spoken_text, style_fired, system, t0, text, timings, worker_acted) -> dict:
@@ -288,49 +288,10 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                               "asked": spoken_text})   # V2-655: si el turno pidió permiso, se APARCA
             emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system")
 
-        # …y las tareas ADICIONALES del mismo turno (V2-118). Van DESPUÉS de la principal y solo si esta
-        # sobrevivió: los guards de arriba anulan `v` cuando el turno resulta no ser una tarea (era un show,
-        # un cierre, la respuesta a un worker), y en ese caso las demás tampoco lo eran. Cada una pasa por el
-        # MISMO dedup que la principal — dos peticiones parecidas se inyectan en la que ya corre en vez de
-        # abrir una segunda sesión de lo mismo.
-        # BACKSTOP CREATE-WIDGET (V2-118 ronda 2, medido): el operador pidió TRES cosas y una era «móntame
-        # un widget de un juego». El modelo llamó a la tool UNA vez, por el informe, y las otras dos se
-        # quedaron sin lanzar — el registro de tareas de la corrida no tiene NI UNA de kind `code` en los 14
-        # turnos, mientras el turno decía «te cargo un juego de plataformas». La capacidad de abanicar ya
-        # existe (arriba); lo que falla es que el modelo pequeño no la usa de forma fiable.
-        # El guard de crear-widget YA existía pero solo cuando el turno no había disparado NADA
-        # (`_no_tool`): en cuanto escalaba otra cosa, la petición de widget se caía en silencio. Aquí se
-        # cubre justo ese hueco, con el MISMO clasificador determinista y solo si ninguna de las peticiones
-        # que van a salir es ya una de crear widget.
-        # V2-155 (espejo del probe — cablear en AMBOS): se añade la CLÁUSULA que pide el widget, no el turno
-        # entero. Un turno que encarga tres cosas lleva las otras dos dentro, y con «informe» dentro el
-        # dedup le asigna el mismo widget destino que la tarea del informe y se la come por su señal más
-        # fuerte. Ver `router_guards.create_widget_request` para la medición.
-        _w_req = (_router.create_widget_request(_op_text)
-                  if not any(_router.looks_like_create_widget(r)
-                             for r in [req, *escalate_req["more"]]) else "")
-        if _w_req:
-            escalate_req["more"].append(_w_req)
-            emit("brain", "🏗️ crear-widget del mismo turno, sin lanzar → escalada añadida (backstop)",
-                 text=_w_req[:120], role="system", extra={"cat": "flash"})
-
-        _launched = list(_prev_pending) + [{"request": req}]
-        for _extra_req in escalate_req["more"]:
-            try:
-                if _p._similar_pending(_extra_req, _launched):
-                    from nucleo import dispatch as _disp4
-                    _disp4.inject_soon(_extra_req, _extra_req)
-                    emit("brain", "↪️ tarea adicional → inyección a worker vivo", text=_extra_req, role="system")
-                else:
-                    _escalate_mod.escalate_to_slowbrain(
-                        _extra_req,
-                        context={"src": "voice", "surface": escalate_req["surface"].get(_extra_req, ""),
-                                 "asked": spoken_text})
-                    emit("brain", "🧭 Flash → Brain Worker (tarea adicional del mismo turno)",
-                         text=_extra_req, role="system")
-                _launched.append({"request": _extra_req})
-            except Exception as _e_more:  # noqa: BLE001
-                _p.logger.warning(f"escalada adicional falló (las demás siguen): {_e_more}")
+        # The extra errands of the same sentence (V2-118/V2-155) and the one the pool could not take (three-tasks).
+        _turn_errands.launch_the_rest(escalate_req, req, _op_text=_op_text, prev_pending=_prev_pending, router=_router,
+                                      escalate=_escalate_mod.escalate_to_slowbrain, similar_pending=_p._similar_pending,
+                                      emit=emit, spoken_text=spoken_text, send=send, speech=speech)
 
     # Promise-without-action, and the forced escalation behind it (V2-049 + V2-534). The DECISION moved to
     # `promise_backstop.py` (architecture ratchet, same pattern as `vault_intercept.py`); `_did_act` is

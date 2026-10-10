@@ -91,7 +91,8 @@ def turn_source() -> str:
 
 
 #: Module-level helpers moved out of the provider (V2-778 F1), read as part of it by a source guard.
-_PROVIDER_MODULES = (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py",)
+_PROVIDER_MODULES = (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py",
+                     ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_errands.py")
 
 
 #: Blocks F1 moved out of `_run_inner` into a module of their own, called in place (V2-778 F1): (the comment that
@@ -169,7 +170,19 @@ def probe_source() -> str:
         b = prov.index(last, a) + len(last)
         src = where[0].read_text(encoding="utf-8") if where else after
         prov = prov[:a] + re.sub(r"\b_probe\.", "", _body_of(src, fname)) + prov[b:]
-    return _unlift(prov)
+    # the module-level helpers those bodies call (three-tasks-at-once), read with them, as written there
+    helpers = "".join(_module_function(after, f) for f in _PROBE_HELPERS)
+    return _unlift(prov + re.sub(r"\b_probe\.", "", helpers))
+
+
+#: Helpers of `probe_after.py` that the moved bodies call: a guard that reads the probe reads them too.
+_PROBE_HELPERS = ("_the_turns_errands", "_launch", "_send_each")
+
+
+def _module_function(src: str, fname: str) -> str:
+    i = src.index(f"\ndef {fname}(") + 1
+    j = min(x for x in (src.find("\ndef ", i), src.find("\nasync def ", i), len(src)) if x != -1)
+    return "\n" + src[i:j]
 
 
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.

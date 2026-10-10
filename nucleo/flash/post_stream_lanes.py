@@ -354,7 +354,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
     # las cuenta, o él mismo ya escaló a un worker que HEREDA la hoja y este 2º pase dice honestamente que
     # la búsqueda a fondo está en marcha. Se salta si el turno además escaló (escalate_req): dos workers
     # corriendo la misma caza es exactamente el defecto del fontanero (c480413b), no una redundancia sana.
-    if listing_req["v"] is not None and reveal_req["v"] is None and escalate_req["v"] is None:
+    if _pst._lt.runs_alone(listing_req, reveal_req, escalate_req):   # a DIFFERENT hunt rides with the escalations
         emit("brain", "🛒 búsqueda de anuncios", text=listing_req["v"]["query"], role="system")
         _buf_reset()   # descarta cualquier resto de tags del 1º pase antes de componer la respuesta
         _said_before = "".join(spoken).strip()

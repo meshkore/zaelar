@@ -152,6 +152,26 @@ def request_from(args: dict, fallback_text: str) -> dict:
             "condition": str(args.get("condition") or "").strip()}
 
 
+def runs_alone(listing_req: dict, reveal_req: dict, escalate_req: dict) -> bool:
+    """Does the voice turn's listing hunt run as its own fast lane? And when it cannot, does it ride? (three-tasks)
+
+    It runs alone when the turn escalated nothing (and revealed no secret). Beside escalations it never runs as a
+    lane — two workers on the SAME hunt race each other — but a DIFFERENT hunt is added to the turn's errands
+    instead of dropped: «un informe, un monitor de segunda mano y un juego» lost the monitor without a trace
+    (sandbox 20261010-145227-es). The text channel takes the same decision in `probe_after`."""
+    if listing_req.get("v") is None or reveal_req.get("v") is not None:
+        return False
+    if escalate_req.get("v") is None:
+        return True
+    from nucleo.turn import errands_of_a_turn as _eot
+    rides = _eot.listing_rides(listing_req["v"], [escalate_req["v"], *(escalate_req.get("more") or [])])
+    if rides:
+        _full = len(escalate_req.setdefault("more", [])) >= _eot.MAX_ERRANDS - 1
+        (escalate_req.setdefault("dropped", []) if _full else escalate_req["more"]).append(rides)
+        escalate_req.setdefault("surface", {})[rides] = "lista"
+    return False
+
+
 #: How long the turn waits for the fast pass before it speaks and lets the search finish on its own.
 FAST_PASS_BUDGET_S = 12.0
 
