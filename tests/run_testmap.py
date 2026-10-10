@@ -3738,6 +3738,9 @@ DOMAINS: list[dict] = [
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
+        {"id": "2.259", "title": "The delivery backstop reads the errand's own sheet, not only a browser task's — "
+                                 "priced DSLRs sat 151 s behind four «Will do.» with rows: 0 (V2-781 T528)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_reads_the_errands_sheet_too.py"]},
         {"id": "2.258", "title": "«Dime a qué dentista vas y te la apunto…» is an offer, not a note — the backstop filed "
                                  "an all-day «con su aviso» (V2-781 pair 5)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_offer_to_note_it_is_not_a_note.py"]},

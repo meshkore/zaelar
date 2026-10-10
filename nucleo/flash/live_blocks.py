@@ -479,8 +479,16 @@ def any_live_task_rows(n: int = 3) -> tuple[str, list[str]]:
             rows = _sheet_top_rows(_tid, n)
             if rows:
                 return str(_g or ""), [r.strip("«»") for r in rows]
-    except Exception:  # noqa: BLE001
-        pass
+        # …and the errand's OWN sheet, the source the TAREAS DE FONDO block shows (V2-781 T528: no browser task,
+        # rows on the sheet for 151 s, `rows: 0` on every waiting reply).
+        from nucleo import dispatch as _disp
+        from nucleo.flash import errand_sheet as _es
+        for t in _disp.pending_summaries() or []:
+            rows = _es.rows_of_sheet(str(t.get("sheet") or ""), n) if t.get("sheet") else []
+            if rows:
+                return str(t.get("request") or t.get("goal") or ""), [r.strip("«»") for r in rows]
+    except Exception:  # noqa: BLE001 — a backstop that cannot read stays out of the reply
+        __import__("logging").getLogger("zaelar.flash").warning("any_live_task_rows failed", exc_info=True)
     return "", []
 
 
