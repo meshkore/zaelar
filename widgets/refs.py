@@ -195,8 +195,8 @@ _ORDINALS = {
     "noveno": 8, "novena": 8, "nueve": 8, "ninth": 8,
     "decimo": 9, "decima": 9, "diez": 9, "tenth": 9,
     "ultimo": -1, "ultima": -1, "last": -1,
-    # Counted FROM THE END, like «last» (use case `la-cola-de-video-con-palabras-imprecisas`, 2026-10-11: «el
-    # penúltimo» named no row and the move had no item). «second to last» is three words: `from_the_end` folds it.
+    # Counted FROM THE END, like «last» (use case `la-cola-de-video-con-palabras-imprecisas`, 2026-10-11: the Spanish
+    # second-to-last word named no row and the move had no item). «second to last» is three words: `from_the_end` folds it.
     "penultimo": -2, "penultima": -2, "penultimate": -2,
     "antepenultimo": -3, "antepenultima": -3, "antepenultimate": -3,
     # English CARDINALS (demo pass 2026-09-28: «put on number five» was no number at all in an English

@@ -96,5 +96,5 @@ def for_turn(heard: str) -> str:
                 return out
     except Exception as e:  # noqa: BLE001 — a sheet that cannot be read leaves the reply as the model wrote it
         from voice.observer import emit
-        emit("flash", "row_check: sheet unreadable", text=f"{type(e).__name__}: {e}"[:160], role="system")
+        emit("rail", "row_check: sheet unreadable", text=f"{type(e).__name__}: {e}"[:160], role="system")
     return ""
