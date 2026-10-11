@@ -18,7 +18,7 @@ import threading
 _ACTS = ("show", "fullscreen", "maximize", "minimize", "action", "select")
 _OPERATOR = ("actionmap", "flash", "probe", "jev")
 _lock = threading.Lock()
-_state = {"current": [], "previous": [], "fs": "", "acts": []}
+_state = {"current": [], "previous": [], "fs": "", "acts": [], "failed": []}
 
 
 def _src_rank(src: str) -> int:
@@ -39,11 +39,18 @@ def note(kind: str, label: str, role: str = "", extra: dict | None = None) -> No
                     _state["previous"] = _state["current"]
                 _state["current"] = []
                 _state["acts"] = []
+                _state["failed"] = []
             return
         if kind != "widget":
             return
         e = extra or {}
         cid = str(e.get("id") or "").strip()
+        if label == "action_failed" and cid:
+            # The `data:<act>` event is the ORDER, emitted before dispatch; a control the card refused did not
+            # happen, and the receipt must not name it (`flash.transport_receipt`, 2026-10-11).
+            with _lock:
+                _state["failed"].append((cid.split("::", 1)[0], str(e.get("action") or "")))
+            return
         rank = _src_rank(e.get("src"))
         lab = str(label or "")
         if e.get("already_open"):
@@ -92,6 +99,7 @@ def this_turn_acts() -> list[tuple[str, str, str]]:
     one entry per card, a close over a show over a control. The voice channel's receipt (`flash.card_receipt`)."""
     with _lock:
         acts = list(_state["acts"])
+        failed = set(_state["failed"])
     best: dict[str, tuple[str, str, str]] = {}
     rank = {"close": 0, "show": 1, "control": 2}
     for cid, lab in acts:
@@ -99,6 +107,8 @@ def this_turn_acts() -> list[tuple[str, str, str]]:
         if action == "close":
             kind = "close"
         base = cid.split("::", 1)[0]
+        if kind == "control" and (base, action) in failed:
+            continue
         if base not in best or rank[kind] < rank[best[base][1]]:
             best[base] = (base, kind, action)
     return list(best.values())
@@ -126,3 +136,4 @@ def ordered_fullscreen() -> str:
 def _reset() -> None:                                   # tests
     with _lock:
         _state["current"], _state["previous"], _state["fs"] = [], [], ""
+        _state["acts"], _state["failed"] = [], []

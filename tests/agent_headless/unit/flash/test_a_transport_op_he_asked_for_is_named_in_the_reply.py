@@ -72,6 +72,6 @@ def test_the_voice_channel_reads_the_controls_his_turn_ran(player_on_psy, monkey
 
 def test_both_channels_are_wired():
     probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
-    assert "_tr.complete_probe(" in probe and "return_extra_exec)" in probe
+    assert "await _tr.complete_probe_settled(" in probe and "return_extra_exec)" in probe
     settle = (ENGINE / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
-    assert "transport_receipt" in settle and "voice_owed(spoken_text)" in settle
+    assert "transport_receipt" in settle and "await _pst_tr.voice_owed_settled(spoken_text)" in settle

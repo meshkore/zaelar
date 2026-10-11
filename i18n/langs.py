@@ -253,6 +253,9 @@ LANGUAGES: dict[str, LangSpec] = {
         receipt_now_playing="Now playing: «{title}».",
         receipt_paused="Paused «{title}».",
         receipt_queue_total="The queue now has {total}.",
+        receipt_cannot_play=("I couldn't play it: «{title}» can't be played here, its owner blocks it outside "
+                             "YouTube. It's still in your list."),
+        receipt_swapped="«{title}» can't be played here (its owner blocks it outside YouTube), so «{to}» is playing.",
         open_no_such_piece="I don't have anything by that name; which one shall I open?",
         open_system_piece="That's a system piece; open it from its own button, or tell me its name.",
         alias_which_widget="Which widget am I renaming? I can't place it.",

@@ -4036,6 +4036,18 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_from_the_end_ordinals_name_rows_and_slots.py"]},
         {"id": "2.494", "title": "A row he named and took back («el último… no, el penúltimo») is not one of the order's rows; three rows said for real still fill nothing",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_row_he_took_back_is_not_one_of_the_order.py"]},
+        {"id": "2.520", "title": "A next/play the embedded player refused is receipted as refused, with the reason (owner blocks embedding) — never «now playing»; both channels read the outcome",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_move_the_player_refused_is_named_as_refused.py"]},
+        {"id": "2.521", "title": "`player_outcome.settled` waits for the player on a screen: a refusal ends the wait, a swap restarts it and both refused titles are kept; no screen, no wait",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_player_outcome_waits_for_the_players_answer.py"]},
+        {"id": "2.522", "title": "The voice receipt counts only the controls that happened — a control the card refused (`action_failed`) is dropped from `canvas_focus.this_turn_acts`",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_voice_receipt_skips_a_control_the_card_refused.py"]},
+        {"id": "2.523", "title": "A video the player refused stays in the list digest marked «in the list, can't play here: owner blocks embedding» (es/en)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_refused_video_stays_in_the_list_digest.py"]},
+        {"id": "2.524", "title": "`youtube:next` tells «no more videos» apart from «the next/last one can't play here» (bundle strings es/en)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_next_tells_nothing_after_from_cannot_play_here.py"]},
+        {"id": "2.525", "title": "Turning the video card to its queue face answers with the queue; a bare face name is an ack, never an answer to compose words from",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_turning_to_the_queue_face_answers_with_the_queue.py"]},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

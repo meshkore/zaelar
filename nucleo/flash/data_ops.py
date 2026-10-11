@@ -476,7 +476,7 @@ def _unchanged(e: dict) -> bool:
 
 
 #: The keys every result carries — an ack, not an answer.
-_ACK_KEYS = frozenset({"ok", "queued", "id", "error", "message", "widget", "action"})
+_ACK_KEYS = frozenset({"ok", "queued", "id", "error", "message", "widget", "action", "tab"})   # a face's NAME answers nothing
 
 
 def answer_of(res) -> dict:

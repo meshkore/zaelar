@@ -312,7 +312,9 @@ def _a_show_tab(action, p, db) -> dict:
     # the card already believes it is there), and a flag the card has consumed cannot fire again.
     _d._goto(db, tab)
     _d.store.save(_d.WID, db)
-    return {"ok": True, "tab": tab}
+    from . import tab_answer as _ta               # 2026-10-11: the face's content IS the answer, not its name
+    _res = _ta.result(db, tab)
+    return {"ok": True, "tab": tab, **({"result": _res} if _res else {})}
 
 
 def _a_clear_search(action, p, db) -> dict:
@@ -445,6 +447,9 @@ def _a_play_item(action, p, db) -> dict:
 
 
 def _a_next(action, p, db) -> dict:
+    from . import playability as _plays          # 2026-10-11: «nothing after it» is not «it can't play here»
+    if (_refused := _plays.next_refusal(db)):
+        return _refused
     lst = db.get("list") or []
     nxt = int(db.get("pos", -1)) + 1
     if not lst or nxt >= len(lst):

@@ -228,6 +228,9 @@ class LangSpec:
     receipt_now_playing: str = "Suena ahora «{title}»."
     receipt_paused: str = "He pausado «{title}»."
     receipt_queue_total: str = "La cola tiene ahora {total}."
+    #: …and when the player REFUSED it (`player_outcome`): what could not play and why, never «Suena ahora».
+    receipt_cannot_play: str = "No he podido ponerlo: «{title}» no se puede reproducir aquí, su propietario bloquea verlo fuera de YouTube. Sigue en tu lista."
+    receipt_swapped: str = "«{title}» no se puede reproducir aquí (su propietario lo bloquea fuera de YouTube), así que suena «{to}»."
     #: OPENING a piece nobody can find (V2-609).
     open_no_such_piece: str = "No tengo ninguna pieza con ese nombre; ¿cuál quieres que te abra?"
     open_system_piece: str = "Eso es una pieza del sistema; ábrela desde su botón o dime su nombre."

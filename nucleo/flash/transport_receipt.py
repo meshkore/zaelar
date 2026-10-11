@@ -117,3 +117,58 @@ def voice_owed(reply: str) -> str:
     except Exception as e:  # noqa: BLE001
         logger.debug(f"transport_receipt: voice acts unread — {e}")
         return ""
+
+
+# ── 2026-10-11 (ES round, turn 5): the OUTCOME, not the intention ──────────────────────────────────────────────────
+# `owed` reads the card the instant the op returned: «Suena ahora «Rick Astley…»» was appended over a `next` the
+# embedded player refused a second later, twice (`player_outcome`). The async doors below read what the move ENDED
+# in, and a refusal owes its sentence even over a reply that named the title — that reply claimed it was playing.
+
+
+def _outcome_line(out: dict, lang) -> str:
+    refused = [t[:90] for t in (out.get("refused") or ([out.get("title")] if out.get("title") else []))]
+    if out.get("state") == "blocked" and refused:
+        joined = f"» {lang.receipt_and} «".join(refused)
+        return str(lang.receipt_cannot_play).format(title=joined)
+    if out.get("state") == "swapped" and out.get("title") and out.get("to"):
+        return str(lang.receipt_swapped).format(title=str(out["title"])[:90], to=str(out["to"])[:90])
+    return ""
+
+
+async def owed_settled(reply: str, ops, lang=None, *, min_wait: float = 0.0) -> str:
+    """`owed`, with a move on the video player answered by what the player made of it. Never raises."""
+    try:
+        if lang is None:
+            from i18n import langs as _langs
+            lang = _langs.current_language()
+        from nucleo.flash import player_outcome as _po
+        for card, act in ops or []:
+            base = str(card or "").split("::", 1)[0].strip().lower()
+            if base == "youtube" and str(act or "").strip() in MOVES:
+                out = await _po.settled(base, min_wait=min_wait)
+                line = _outcome_line(out, lang)
+                if line:
+                    return line
+                break
+        return owed(reply, ops, lang)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"transport_receipt: outcome skipped — {type(e).__name__}: {e}")
+        return owed(reply, ops, lang)
+
+
+async def complete_probe_settled(reply: str, action: str, parte) -> str:
+    """`complete_probe`, reading the outcome of a move (the text channel's ops have run; the player may not have)."""
+    line = await owed_settled(reply, ops_of_probe(action, parte))
+    return f"{str(reply or '').rstrip()} {line}".strip() if line else reply
+
+
+async def voice_owed_settled(reply: str) -> str:
+    """`voice_owed` over the controls that did NOT fail (`canvas_focus.this_turn_acts` drops a refused one), read
+    after the detached dispatch has landed and the player has answered."""
+    try:
+        from nucleo import canvas_focus as _cf
+        return await owed_settled(reply, [(c, a) for c, k, a in _cf.this_turn_acts() if k == "control"],
+                                  min_wait=0.3)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"transport_receipt: voice acts unread — {e}")
+        return ""

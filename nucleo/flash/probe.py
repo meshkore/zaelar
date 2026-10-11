@@ -522,7 +522,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # con la hoja ya llena de filas frescas sale CON ellas, y su silencio queda registrado con las entradas de
     # la decisión. Aquí solo se le pasa la respuesta del turno; el porqué de cada regla vive en su módulo.
     from . import card_receipt as _receipt, delivery as _delivery, transport_receipt as _tr   # V2-781: the reply names every card it changed; 2026-10-11: and the transport op he asked for
-    spoken = _tr.complete_probe(_receipt.complete_probe(_delivery.apply_to_reply(spoken, sess.window, heard_now=operator_text or text), action, tags, tool_calls), action, return_extra_exec)
+    spoken = await _tr.complete_probe_settled(_receipt.complete_probe(_delivery.apply_to_reply(spoken, sess.window, heard_now=operator_text or text), action, tags, tool_calls), action, return_extra_exec)
     from . import outgoing_lang as _ol   # V2-781: «I'm in Madrid» turned the English session Spanish
     spoken = await _ol.said_in_session_language(spoken) if _ol.foreign_to_session(spoken) else spoken
 

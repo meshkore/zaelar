@@ -152,7 +152,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
     # asked for — one more sentence names what is playing now. The words have streamed, so it is said after them.
     if data_done["v"] and spoken_text and escalate_req["v"] is None and search_req["v"] is None:
         from nucleo.flash import transport_receipt as _pst_tr
-        if (_tr_line := _pst_tr.voice_owed(spoken_text)):
+        if (_tr_line := await _pst_tr.voice_owed_settled(spoken_text)):
             send(speech.sanitize(_tr_line, drop_metadata=False))
             spoken_text = (spoken_text + " " + _tr_line).strip()
 
