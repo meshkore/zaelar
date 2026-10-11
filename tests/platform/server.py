@@ -121,7 +121,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         self.server.last_access = time.monotonic()
-        if self.path in ("/", "/index.html"):
+        # The page path WITHOUT its query: `python -m tests replay` opens `/?run=<id>`, and an exact match on
+        # the raw path answered that link with a 404.
+        if self.path.split("?", 1)[0] in ("/", "/index.html"):
             payload = (HERE / "dashboard" / "index.html").read_bytes()
             self._headers("text/html; charset=utf-8", len(payload))
             self.wfile.write(payload)

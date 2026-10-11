@@ -33,7 +33,9 @@ ZAELAR = os.path.dirname(HERE)                             # …/zaelar  (the ag
                                                              # generation stays repo-relative; see the
                                                              # Phase 3 plan's M10, deliberately out of
                                                              # scope for the M0 workspace-root refactor)
-GEN_TIMEOUT = float(os.getenv("WIDGET_GEN_TIMEOUT", "240"))
+# 240 → 480 s (2026-10-11): every platform-game build in the three-tasks use case (6 of 6, ES and EN) died on
+# 240 s on the deepseek tier while smaller widgets finish well inside it; a ceiling, not a target.
+GEN_TIMEOUT = float(os.getenv("WIDGET_GEN_TIMEOUT", "480"))
 GEN_MODEL = os.getenv("WIDGET_GEN_MODEL", "")              # optional override, e.g. "sonnet"
 
 _RESERVED = {"generator", "server_api", "runtime", "store", "brief", "_data", "__pycache__"}
