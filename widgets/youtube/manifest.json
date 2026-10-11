@@ -132,15 +132,17 @@
       "ref": "item"
     },
     "move": {
-      "desc": "mueve un vídeo de la lista a otra posición",
+      "desc": "cambia el ORDEN de la cola recolocando UN vídeo («pon el de X antes que el de Y», «el tercero antes del segundo», «put X before Y»): item + before/after (el otro vídeo) o to",
       "payload": {
-        "item": "número 1-N o texto del título",
-        "to": "posición destino 1-N"
+        "item": "número 1-N o texto del título del vídeo que se mueve",
+        "before": "número 1-N o título del vídeo que debe quedar JUSTO DETRÁS (opcional)",
+        "after": "número 1-N o título del vídeo que debe quedar JUSTO DELANTE (opcional)",
+        "to": "posición destino 1-N (opcional): en vez de before/after"
       },
       "ref": "item"
     },
     "sort_list": {
-      "desc": "ordena la lista (por título o por orden de añadido)",
+      "desc": "ordena la cola ENTERA por título o por orden de añadido (recolocar un vídeo concreto es move)",
       "payload": {
         "by": "'title' o 'added'"
       }

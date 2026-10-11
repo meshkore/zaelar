@@ -361,17 +361,29 @@ def _a_move(action, p, db) -> dict:
     if idx is None:
         return {"ok": False, "error": "item_not_found", "item": p.get("item"),
                 "message": "No encuentro ese vídeo en la lista."}
-    try:
-        to = max(0, min(len(lst) - 1, int(p.get("to")) - 1))     # 1-based target position
-    except (TypeError, ValueError):
-        return {"ok": False, "error": "bad_position", "message": "Dime a qué posición (1-N) lo muevo."}
+    # «put X before Y» names the OTHER video, not a slot (video-queue use case, 2026-10-11): the anchor is resolved
+    # like `item`, and the slot is computed after X leaves the list — the model had to do that arithmetic before.
+    side = "before" if str(p.get("before") or "").strip() else ("after" if str(p.get("after") or "").strip() else "")
+    if side:
+        anchor = _d._resolve_item(lst, p.get(side))
+        if anchor is None:
+            return {"ok": False, "error": "item_not_found", "item": p.get(side),
+                    "message": "No encuentro ese vídeo en la lista."}
+        if anchor == idx:
+            return {"ok": False, "error": "same_item", "message": "Es el mismo vídeo: dime cuál va delante de cuál."}
+        to = (anchor - 1 if anchor > idx else anchor) + (1 if side == "after" else 0)
+    else:
+        try:
+            to = max(0, min(len(lst) - 1, int(p.get("to")) - 1))     # 1-based target position
+        except (TypeError, ValueError):
+            return {"ok": False, "error": "bad_position", "message": "Dime a qué posición (1-N) lo muevo."}
     cur = lst[int(db.get("pos", -1))] if 0 <= int(db.get("pos", -1)) < len(lst) else None
     it = lst.pop(idx)
     lst.insert(to, it)
     if cur is not None:                              # pos follows the ITEM that was playing, not the slot
         db["pos"] = lst.index(cur)
     _d.store.save(_d.WID, db)
-    return {"ok": True, "moved": it.get("title"), "position": to + 1}
+    return {"ok": True, "moved": it.get("title"), "position": to + 1, "order": [str(x.get("title") or "") for x in lst]}
 
 
 def _a_sort_list(action, p, db) -> dict:

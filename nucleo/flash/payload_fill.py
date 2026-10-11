@@ -234,3 +234,83 @@ def fill_missing(widget_id: str, action: str, payload: dict, words: str) -> dict
         return enum_fill(widget_id, action, words) or number_fill(widget_id, action, words)
     except Exception:  # noqa: BLE001
         return {}
+
+
+#: Which side of the other row he put it on. A closed class of position words, not a verb table: the verdict has
+#: already named the action (`move`), so this only reads WHERE, the way `refs._ORDINALS` reads «the third».
+_AFTER_WORDS = frozenset("after behind below under despues detras tras debajo".split())
+_BEFORE_WORDS = frozenset("before ahead above antes delante encima".split())
+#: Cardinals that are also articles («una», «un») are no row reference inside a sentence.
+_NOT_A_ROW_NUMBER = frozenset({"un", "uno", "una"})
+
+
+def _row_mentions(words: str, rows: list[dict]) -> list[tuple[int, int]]:
+    """`(offset, row_id)` of every row the words NAME, in the order they are named.
+
+    A row is named by a spoken position («the third», «el segundo»), a marked digit («number 3»), or a word of its
+    title that no OTHER row carries («the skills one» over one title with «Skills»). A word every row shares
+    («Maradona» over a queue of Maradona videos) names nothing."""
+    import re as _re
+    from widgets import refs as _refs
+    norm = _refs._norm(words or "")
+    toks = [(m.start(), m.group(0)) for m in _re.finditer(r"[a-z0-9ñ]+", norm)]
+    out: list[tuple[int, int]] = []
+    n = len(rows)
+    nums = _refs.number_words()
+    for off, t in toks:
+        if t in nums and t not in _NOT_A_ROW_NUMBER and 1 <= nums[t] <= n:
+            out.append((off, nums[t]))
+    for m in _re.finditer(r"(?:\b(?:number|numero|n[o]|el|la|the)\s*|#)(\d{1,2})\b", norm):
+        if 1 <= int(m.group(1)) <= n:
+            out.append((m.start(1), int(m.group(1))))
+    title_toks = [set(t for t in _refs._norm(r.get("label")).split() if len(t) > 3 and not t.isdigit()) for r in rows]
+    for i, own in enumerate(title_toks):
+        unique = own.difference(*(o for j, o in enumerate(title_toks) if j != i))
+        hits = [off for off, t in toks if t in unique]
+        if hits:
+            out.append((min(hits), i + 1))
+    first: dict[int, int] = {}
+    for off, rid in sorted(out):
+        first.setdefault(rid, off)
+    return sorted((off, rid) for rid, off in first.items())
+
+
+def reorder_fill(widget_id: str, action: str, words: str, model_words: str = "") -> dict:
+    """`{item: n, before|after: m}` when the action declares a row to move beside ANOTHER row and the words name
+    exactly two rows with the side between them; `{}` otherwise.
+
+    The video-queue use case (2026-10-11): «the third one before the second» — the verdict read `youtube:move` at
+    1.00, the model called nothing and said «Done — Most Creative is now ahead of Los Goles», and `resolve` could not
+    fill a move (two keys), so the queue kept its order under a claim. The rows he named are a reading, not an invention
+    (the `number_fill` rule); his words first, then the model's own claim, which names the same two rows."""
+    try:
+        from widgets import refs as _refs
+        spec = _payload_spec(widget_id, action)
+        field = _refs.id_field_for_action(_base_of(widget_id), action) or ""
+        if not field or field not in spec or not ({"before", "after"} & set(spec)):
+            return {}
+        rows = [r for r in _refs._ref_index(_base_of(widget_id)) if r.get("field") == field]
+        if len(rows) < 2:
+            return {}
+        for text in (words, model_words):
+            named = _row_mentions(text, rows)
+            if len(named) != 2:
+                continue
+            (a_off, a_row), (b_off, b_row) = named
+            between = set(_refs._norm(text)[a_off:b_off].split())
+            side = "after" if between & _AFTER_WORDS else ("before" if between & _BEFORE_WORDS else "")
+            if side and side in spec:
+                return {field: str(rows[a_row - 1]["id"]), side: str(rows[b_row - 1]["id"])}
+        return {}
+    except Exception:  # noqa: BLE001
+        return {}
+
+
+def choice_or_order_fill(widget_id: str, action: str, words: str, model_words: str = "") -> tuple[dict, str]:
+    """`(payload, source)` for an action no single query key fills: a declared CHOICE he named (`enum-alias`), else
+    two rows he put in order (`said-order`); `({}, "")` when neither."""
+    if (filled := enum_fill(widget_id, action, words)):
+        return filled, "enum-alias"
+    if (filled := reorder_fill(widget_id, action, words, model_words)):
+        return filled, "said-order"
+    return {}, ""

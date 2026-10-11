@@ -42,7 +42,7 @@ read as «no rung», which is today's path bit for bit.
 from __future__ import annotations
 from nucleo.flash.payload_fill import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
     _ENUM_MARKS, _OPTIONAL_MARKS, _WORD_NUMBERS, _base_of, _optional, _payload_spec, _spell, _word_numbers_re,
-    enum_fill, fill_missing, fillable_key, number_fill, person_fill)
+    enum_fill, fill_missing, fillable_key, number_fill, person_fill, choice_or_order_fill)
 
 
 #: Past this, the operator's sentence is an errand and not a query. See the module docstring: this is
@@ -323,10 +323,10 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
         if no_payload(wid, action):
             return {"widget": wid, "action": action, "payload": {}, "key": "",
                     "source": "no-payload", "label": f"{wid}:{action} ← el veredicto de pantalla (sin payload)"}
-        filled = enum_fill(wid, action, words)
+        filled, src = choice_or_order_fill(wid, action, words, model_words)   # an alias he said, or «X before Y»
         if filled:
             return {"widget": wid, "action": action, "payload": filled, "key": next(iter(filled)),
-                    "source": "enum-alias", "label": f"{wid}:{action} ← el veredicto de pantalla (alias)"}
+                    "source": src, "label": f"{wid}:{action} ← el veredicto de pantalla ({src})"}
         return {}
     # V2-756 — an INDEX key is not a query. Before this, `play_result` got the whole sentence stuffed
     # into `item` («Ahora quiero que me pongas el vídeo número tres»), which the widget can only read as

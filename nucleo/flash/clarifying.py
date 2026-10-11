@@ -82,4 +82,12 @@ def asks_for_missing_detail(reply: str) -> bool:
     Deliberately narrow. A courtesy question («¿te aviso cuando lo tenga?») is not asking for a detail and must
     keep the backstop armed; so must «dame un momento y te enseño lo que encuentre», which is a promise wearing an
     imperative. When in doubt this returns False — falling back to today's behaviour, not to silence."""
-    return bool(_ASKS_DETAIL_RE.search(reply or ""))
+    return bool(_ASKS_DETAIL_RE.search(_HIS_NAME_RE.sub("?", reply or "")))
+
+
+#: A question about HIS NAME is the assistant getting to know him, never a detail an order is missing
+#: (the video-queue use case in English, 2026-10-11): «Done — X is now ahead of Y. By the way… what's your name?»
+#: read as asking for a detail, so the repair of a claimed move with no call never ran and the queue kept its order.
+#: Only the name CLAUSE goes: «which one first, and what's your name?» still asks which.
+_HIS_NAME_RE = _re.compile(
+    r"[^.!?¿,;]*(?:\byour name\b|\bcall you\b|\bte llamas\b|\btu nombre\b|\bte llame\b)[^.!?]*\?", _re.I)

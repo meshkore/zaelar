@@ -3951,6 +3951,16 @@ DOMAINS: list[dict] = [
                                  "Wednesday» renamed the series to «Dental checkup with Dr Ruiz» and the next three steps hit two "
                                  "indistinguishable rows (agenda-everyday-edits EN, 2026-10-11); refused with move_meeting named",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_rename_never_takes_another_appointments_name.py"]},
+        {"id": "2.450", "title": "The queue's `move` takes the OTHER row — «put X before/after Y» (`before`/`after`, a number or a title) and the widget does the slot arithmetic; the playing video keeps playing; same row or unknown row refused (la-cola-de-video, 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reorder_names_the_other_row.py"]},
+        {"id": "2.451", "title": "The two rows his words name fill a reorder — «the third one before the second», «el de skills antes que el de creative» (a title word no other row carries), else the model's own claim; no side, a shared word or three rows fill nothing",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reorder_is_filled_from_the_two_rows_he_named.py"]},
+        {"id": "2.452", "title": "An empty turn under the `youtube:move` verdict runs the move it can fill (the EN claim «Done — X is now ahead of Y» over an untouched queue); both channels hand the model's words to the rung",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_empty_reorder_turn_runs_the_cards_move.py"]},
+        {"id": "2.453", "title": "A question about HIS NAME is no missing detail — «…ahead of Y. By the way, what's your name?» kept the claimed-act repair from running; «which one first, and what's your name?» still asks",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_name_question_is_no_missing_detail.py"]},
+        {"id": "2.454", "title": "`move`'s descriptor carries the reorder words under the 200-char cut and `sort_list` points at it — «cambia el orden: ponlo antes que…» split the verdict (none 0.45, canvas arrange 0.84) and sent a 100 s Brain Worker",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_move_descriptor_carries_the_reorder_words.py"]},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
