@@ -81,7 +81,7 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
     # code no pasa by here: su address es the repo, no a espacio of candidatos.
     brief = None
     _brief_bg: _ds._d.asyncio.Task | None = None
-    if not _dev and not _ds._d.surfaces.delivers_pictures(getattr(rec, "surface", "")):   # photos: no ≥40-row hunt
+    if not _dev and not _ds._d.surfaces.delivers_pictures(getattr(rec, "surface", "")):   # pictures skip the research brief
         try:
             # V2-301 — the composer is a REASONING call (15-30 s) and it ran IN SERIES before the spawn:
             # measured across the guitar rounds (2026-08-24), the worker sat «in cola» 20-32 s doing
