@@ -27,6 +27,7 @@ from __future__ import annotations
 import re
 
 from search import asked as _asked
+from search import asked_size as _floor
 from search import category_words as _w
 
 #: Under this share of the stated ceiling, a price is not the price of the thing asked (a €12,000 ceiling → €600).
@@ -75,6 +76,7 @@ def asked_from(asked: str = "", context=()) -> dict:
         "vehicle": bool(_w.VEHICLE_ASK.search(n) and _w.BUYING.search(n) and not _w.NOT_BUYING.search(n)),
         "subjects": _asked.subjects(own),
         "size": _asked.size_inches(own),
+        "size_min": _floor.size_floor(own),     # «27 al menos»: a floor, not an exact size (three-tasks 2026-10-11)
         "uhd": _asked.wants_4k(own),
         "excluded": [w for w in _asked.exclusions(request) if not re.search(rf"\b{re.escape(w)}\b",
                                                                             _first_clause(n, w))],
@@ -125,10 +127,12 @@ def why_off(row: dict, ask: dict) -> str:
         hay = _asked.norm(_row_text(row) + " " + _url_words(row.get("url")))
         if not any(all(p in hay for p in s.split()) for s in subj):
             return "does not name " + " / ".join(f"«{s}»" for s in subj[:3])
-    size = ask.get("size")
-    if size:
+    size, floor = ask.get("size"), ask.get("size_min")
+    if size or floor:
         got = _asked.size_inches(raw_title + " " + str(row.get("subtitle") or ""))
-        if got and abs(got - size) >= 2:
+        if got and floor and got < floor:
+            return f"{got}\" — under the {floor}\" minimum asked"
+        if got and size and not floor and abs(got - size) >= 2:
             return f"{got}\" — not the {size}\" asked"
     if ask.get("uhd") and _asked.states_lower_than_4k(raw_title + " " + str(row.get("subtitle") or "")):
         return "not 4K, which was asked"

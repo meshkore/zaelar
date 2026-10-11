@@ -28,6 +28,16 @@ def _context(data: dict, payload: dict) -> list[str]:
     return [str(x) for x in out if x and str(x).strip().lower() not in _DEFAULT_TITLES]
 
 
+def _own(data: dict, payload: dict) -> str:
+    """His words as the sheet knows them: `asked`, plus the corrections a `criteria` op recorded as HIS («correcciones
+    del operador» — the turn writes them from his sentence). three-tasks-at-once (ES, 2026-10-11): «27 al menos»
+    reached the sheet only as a criteria change, and the gate, reading `asked` alone, never saw it."""
+    crit = data.get("criteria") or {}
+    pcrit = payload.get("criteria") if isinstance(payload.get("criteria"), dict) else {}
+    changes = [str(c) for src in (crit, pcrit or {}) for c in (src.get("changes") or []) if str(c or "").strip()]
+    return " ".join([str(data.get("asked") or "")] + changes).strip()
+
+
 def keep_asked(data: dict, prev: dict, payload: dict) -> None:
     """`asked` survives a `present` (which rebuilds the sheet) and a payload may set it."""
     asked = str(payload.get("asked") or prev.get("asked") or data.get("asked") or "").strip()
@@ -50,7 +60,7 @@ def _file(data: dict, off: list[dict]) -> None:
 
 def gate(data: dict, items: list[dict], payload: dict) -> tuple[list[dict], dict]:
     """(rows that are candidates, extra for the action's reply). Off rows are filed in `data["rejected"]`."""
-    on, off = _category.split(items, str(data.get("asked") or ""), _context(data, payload))
+    on, off = _category.split(items, _own(data, payload), _context(data, payload))
     if not off:
         return on, {}
     _file(data, off)
@@ -70,7 +80,7 @@ def recheck(sheet: str, correction: str) -> int:
     text = " ".join(str(correction or "").split())
     if text:
         data["asked"] = (str(data.get("asked") or "") + " " + text).strip()[-_MAX_ASKED:]
-    on, off = _category.split(data.get("items") or [], str(data.get("asked") or ""), _context(data, {}))
+    on, off = _category.split(data.get("items") or [], _own(data, {}), _context(data, {}))
     if off:
         data["items"] = on
         _file(data, off)

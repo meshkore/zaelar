@@ -512,6 +512,9 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
         corr = _register_ask(rec, q, action=action, retained={"action": action, "payload": payload})
         return JSONResponse({"ok": True, "status": "pending", "corr_id": corr, "injections": inj})
 
+    from nucleo import network_rows_gate as _net     # a network agent's rows never open a sheet for a report
+    if (_skip := _net.refused(rec, action, payload)):
+        return JSONResponse({"ok": True, "skipped": _skip, "injections": inj})
     # ALLOW inmediato
     res = await _exec_allow(action, payload or {}, rec)
     res["injections"] = inj

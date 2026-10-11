@@ -65,6 +65,8 @@ def _a_refinement_of_the_errand_it_names(spoken_text: str, op_text: str, emit) -
 def run(spoken_text: str, *, did_act: bool, op_text: str, prev_pending: list,
         emit, escalate, similar_pending, brief=None) -> None:
     """Fire the backstop for a turn that promised and did nothing. Best-effort: never raises into the turn."""
+    from nucleo.turn import his_spec_to_sheet as _spec
+    _spec.carry(op_text)          # every voice turn: a spec he stated about one errand reaches its sheet
     if not spoken_text or did_act:
         return
     if _a_refinement_of_the_errand_it_names(spoken_text, op_text, emit):

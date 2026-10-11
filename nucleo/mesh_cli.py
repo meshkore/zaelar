@@ -156,8 +156,9 @@ def _to_the_sheet(res) -> None:
         rows = _rows_in((res or {}).get("data")) if isinstance(res, dict) and res.get("ok") else []
         if rows and os.getenv("ZAELAR_TASK_ID"):
             from nucleo import widget_cli
+            from nucleo.network_rows_gate import MARK     # the bridge refuses it for a document errand
             widget_cli._act("widget_data", {"widget_id": "results", "action": "append",
-                                            "payload": {"items": rows[:_MESH_ROWS_CAP]}})
+                                            "payload": {"items": rows[:_MESH_ROWS_CAP], MARK: True}})
     except Exception as e:  # noqa: BLE001 — the worker still gets its answer on stdout
         print(json.dumps({"sheet_append_failed": str(e)[:200]}), file=sys.stderr)
 
