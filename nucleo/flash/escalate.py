@@ -133,10 +133,10 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
     #
     # El texto hablado llega por el CONTEXTO porque este portal no puede verlo de otra forma. Son dos canales y
     # los dos lo pasan; hay guarda que lo comprueba, igual que con el resto de implementaciones paralelas.
-    asked = str(ctx0.get("asked") or "")
+    asked = strip_system_notes(str(ctx0.get("asked") or ""))    # our own notes' «¿La hago?» is nobody's offer
     if asked and not ctx0.get("confirmed"):
         from nucleo.flash import clarifying as _clar
-        if _clar.asks_permission(asked):
+        if _clar.asks_permission(asked) and not _reasks_a_parked_errand(asked, req):
             try:
                 from nucleo import dispatch_confirm as _dc
                 _dc.remember_offer(req, context=ctx0, question=asked.strip()[:200])
@@ -163,6 +163,22 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
             pass
     _emit_bus("escalate.requested", {"id": tid, "request": req, "context": ctx, "ts": time.time()})
     return tid
+
+
+def _reasks_a_parked_errand(asked: str, req: str) -> bool:
+    """Is the permission question in the reply the one an errand ALREADY PARKED is waiting on — so it offers that
+    errand, not `req`? (three-tasks-at-once ES, 2026-10-11 02:04: «…Y lo otro: el juego de plataformas… ¿Te lo
+    monto?» re-asked the parked game; parking the turn's other errand under it hid the game behind a second,
+    newer «offer», and his «Sí, móntalo» was judged against the wrong question.) The yardstick is the one every
+    door reads, `named_errand.named`, over the parked errands alone."""
+    try:
+        from nucleo.turn import errands_of_a_turn as _eot, named_errand as _ne
+        parked = [e for e in _ne.known() if e["parked"]]
+        hits = _ne.named(asked, parked) if parked else []
+        return any(not _eot.same_errand(req, e["request"]) for e in hits)
+    except Exception as e:  # noqa: BLE001 — the safe side is today's rule: park it
+        logger.debug(f"escalate: parked errands unreadable — {type(e).__name__}: {e}")
+        return False
 
 
 def finish(tid: int, summary: str = "") -> None:

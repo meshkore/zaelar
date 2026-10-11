@@ -107,11 +107,35 @@ def _task_gate(brief=None):
         from nucleo import dispatch as _d
         from widgets import confirm as _c
         words = operator_words(text)
-        p = _d.pending_confirm() or {}
-        v = task_reply(words, _c.classify_reply(words), str(p.get("question") or ""), brief=brief,
-                       parked=str(p.get("task_id") or ""))
-        return _d.resolve_confirm(v == "yes") if v else None
+        named = _named_parked(words)
+        p = _d.pending_confirm(named) or {}
+        tid = str(p.get("task_id") or "")
+        v = task_reply(words, _c.classify_reply(words), str(p.get("question") or ""), brief=brief, parked=tid,
+                       names_it=bool(named) and named == tid)
+        if named and (v == "yes" or v is None):
+            # He is talking about THIS errand: what he adds travels with the «yes» (`resolve_confirm`), and the clock
+            # restarts — an errand he keeps talking about has not been left unanswered (three-tasks-at-once ES,
+            # 2026-10-11: the game expired while he was asking for coins in it, and was then reported as never
+            # confirmed). A bare yes adds nothing.
+            if not (v and _c.is_plain_answer(words, v)):
+                _d.absorb_refinement(tid, words)
+        return _d.resolve_confirm(v == "yes", tid) if v else None
     return (_open, _do)
+
+
+def _named_parked(words: str) -> str:
+    """The id of the PARKED errand his words name most, or "". Several errands can wait on him at once, and the
+    newest is not necessarily the one he answers: «Sí, móntalo. Y ponle que salte más alto…» is the game's yes,
+    whatever was parked after it (three-tasks-at-once ES, 2026-10-11 02:04)."""
+    try:
+        from nucleo.turn import named_errand as _ne
+        parked = [e for e in _ne.known() if e["parked"]]
+        top = _ne.strongest(words, parked) if parked else None
+        return str(top["id"]) if top else ""
+    except Exception as e:  # noqa: BLE001 — unreadable: the most recent ask answers, as before
+        from loguru import logger
+        logger.debug(f"confirm_gates: parked errands unreadable — {type(e).__name__}: {e}")
+        return ""
 
 
 def operator_words(text: str) -> str:
@@ -120,7 +144,8 @@ def operator_words(text: str) -> str:
     return _esc.strip_system_notes(text) if "[SISTEMA]" in (text or "") else (text or "")
 
 
-def task_reply(words: str, v: str | None, question: str, *, brief=None, parked: str = "") -> str | None:
+def task_reply(words: str, v: str | None, question: str, *, brief=None, parked: str = "",
+               names_it: bool = False) -> str | None:
     """'yes' | 'no' | None — does the operator's turn ANSWER the parked errand's question? (three-tasks-at-once)
 
     Measured 2026-10-10 (sandbox 20261010-145227-es): with two errands parked, «Vale. Del monitor que no se te vaya
@@ -140,7 +165,12 @@ def task_reply(words: str, v: str | None, question: str, *, brief=None, parked: 
         return None if judged == "other" else judged
     from nucleo.flash import turn_brief as _tb
     kind, _info = _tb.read(brief, _tb.REQUEST_KEY, "") if brief is not None else ("", None)
-    return v if kind == "answer" else None
+    if kind == "answer":
+        return v
+    # A «yes» that NAMES the parked errand answers it, whatever else the sentence adds (his «build it, and make the
+    # jump higher» read as an ORDER, so it was nobody's yes). A «no» keeps needing the judge or the verdict: a «no»
+    # beside the errand's name is as often about one of its details as about the errand.
+    return v if (v == "yes" and names_it) else None
 
 
 def _about_another_errand(words: str, parked: str) -> bool:

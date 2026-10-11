@@ -3829,6 +3829,24 @@ DOMAINS: list[dict] = [
                                  "another errand's rows are not glued to a refinement, a «no» about the monitor leaves "
                                  "the parked game waiting (three-tasks-at-once, 2026-10-10 20:00)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sentence_about_an_errand_is_answered_about_it.py"]},
+        {"id": "2.435", "title": "The results-sheet tail answers only a sentence about ITS errand, once — an errand is "
+                                 "named by his ask, not our «Find real marketplace listings» wrapper; a row he picked "
+                                 "ends the offering (three-tasks-at-once, 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_sheet_tail_answers_only_a_sentence_about_its_errand.py"]},
+        {"id": "2.436", "title": "«El informe» is the errand he named, not the card on screen — no repair writes a report "
+                                 "refinement into the monitor's results sheet, in either channel (three-tasks-at-once, "
+                                 "2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_report_is_the_errand_he_named_not_the_card_on_screen.py"]},
+        {"id": "2.437", "title": "Our own question is not an offer of his errand — the text channel passes its REPLY as "
+                                 "`asked`, [SISTEMA] notes are stripped, and re-asking a parked errand parks no other "
+                                 "(three-tasks-at-once, 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_our_own_question_is_not_an_offer_of_his_errand.py"]},
+        {"id": "2.438", "title": "A «yes» answers the parked errand it names, with what he added; an errand he keeps "
+                                 "talking about does not expire under him (three-tasks-at-once, 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_yes_answers_the_parked_errand_it_names.py"]},
+        {"id": "2.439", "title": "A promised refinement reaches the live errand it names, in both channels — «Voy con "
+                                 "ello, le añado monedas» with no call (three-tasks-at-once, 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_promised_refinement_reaches_the_errand_it_names.py"]},
         {"id": "2.276", "title": "The delivery backstop never announces a row twice in one errand — the junk batch he "
                                  "turned down came back once the window forgot it (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_never_announces_a_row_twice.py"]},

@@ -158,13 +158,14 @@ def absorb_refinement(task_id: str, text: str) -> str:
     return str(p.get("question") or "")
 
 
-def pending_confirm() -> dict | None:
+def pending_confirm(task_id: str = "") -> dict | None:
     """The confirmation still waiting for a yes/no, or None. Most recent wins — a second irreversible ask
-    supersedes the first, exactly like the widget gate."""
+    supersedes the first, exactly like the widget gate — unless `task_id` names which one (the reply named it)."""
     _sweep_confirm()
     if not _PENDING_CONFIRM:
         return None
-    tid = max(_PENDING_CONFIRM, key=lambda k: _PENDING_CONFIRM[k]["ts"])
+    tid = (str(task_id) if str(task_id or "") in _PENDING_CONFIRM
+           else max(_PENDING_CONFIRM, key=lambda k: _PENDING_CONFIRM[k]["ts"]))
     return {"task_id": tid, **_PENDING_CONFIRM[tid]}
 
 
@@ -209,10 +210,11 @@ def confirm_line() -> str:
             f"una frase.")
 
 
-def resolve_confirm(ok: bool) -> dict | None:
-    """Answer the pending confirmation. `True` re-dispatches the SAME request with `confirmed` set (the gate
-    lets it through this time); `False` drops it. Returns what was resolved, or None if nothing was pending."""
-    p = pending_confirm()
+def resolve_confirm(ok: bool, task_id: str = "") -> dict | None:
+    """Answer the pending confirmation (`task_id`'s when given, else the most recent). `True` re-dispatches the SAME
+    request with `confirmed` set (the gate lets it through this time); `False` drops it. Returns what was resolved,
+    or None if nothing was pending."""
+    p = pending_confirm(task_id)
     if not p:
         return None
     _PENDING_CONFIRM.pop(p["task_id"], None)

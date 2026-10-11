@@ -44,10 +44,32 @@ def committed(spoken_text: str) -> bool:
     return unnegated_match(_COMMITTED_RE, _norm(spoken_text))
 
 
+def _a_refinement_of_the_errand_it_names(spoken_text: str, op_text: str, emit) -> bool:
+    """A promise that is a refinement of one of his LIVE errands goes to that errand (the probe channel runs the
+    same decision, `errands_of_a_turn.promised_refinement`). True when it was sent."""
+    try:
+        from nucleo.turn import errands_of_a_turn as _eot
+        ref = _eot.promised_refinement(op_text, spoken_text)
+        if not ref:
+            return False
+        from nucleo import dispatch as _disp_ref
+        _disp_ref.inject_soon(ref, op_text)
+        emit("brain", "↪️ promise → refinement of the errand it names", text=op_text[:120], role="system",
+             extra={"cat": "flash", "to": ref})
+        return True
+    except Exception as e:  # noqa: BLE001 — the backstop below still runs
+        logger.warning(f"promise backstop: refinement routing failed: {type(e).__name__}: {e}")
+        return False
+
+
 def run(spoken_text: str, *, did_act: bool, op_text: str, prev_pending: list,
         emit, escalate, similar_pending, brief=None) -> None:
     """Fire the backstop for a turn that promised and did nothing. Best-effort: never raises into the turn."""
-    if not spoken_text or did_act or not committed(spoken_text):
+    if not spoken_text or did_act:
+        return
+    if _a_refinement_of_the_errand_it_names(spoken_text, op_text, emit):
+        return
+    if not committed(spoken_text):
         return
 
     from nucleo.flash import router as _router

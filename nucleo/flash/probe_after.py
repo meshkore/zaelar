@@ -91,7 +91,10 @@ def _the_turns_errands(tool_calls: list, operator_text: str, window_goal: str, *
 
 def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str) -> list:
     """One escalation per request through the one portal (`escalate_to_slowbrain`); the DECISION to park an
-    errand whose turn asked permission lives there (V2-655), so the spoken turn travels as `asked`."""
+    errand whose turn asked permission lives there (V2-655), so OUR REPLY travels as `asked` — the voice channel's
+    `spoken_text`. This channel used to pass HIS turn, [SISTEMA] notes included, so the gate's own «¿La hago?»
+    parked «del informe quítame los híbridos» as an offer that shadowed the game he then said yes to
+    (three-tasks-at-once ES, 2026-10-11 02:04)."""
     from nucleo import surfaces as _surfaces
     from nucleo.flash import escalate as _esc
     return [_esc.escalate_to_slowbrain(str(_r), context={"src": "probe", "trace": trace_id, "asked": text,
@@ -102,6 +105,7 @@ def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str) -> list
 
 async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _window_goal, action, execute, images_req, music_req, operator_text, sess, spoken, tags, text, tool_calls, video_req) -> dict:
     _beside = None    # three-tasks-at-once: the errands a yes/no did NOT resolve still start
+    from nucleo.turn import errands_of_a_turn as _eot_ref
     if execute:
         # CONFIRMACIÓN de una TAREA irreversible parada por el confirm-gate (V2-126) y del navegador parado en
         # un clic (V2-202). Va ANTES que el resto: un «sí» reanuda lo PARADO, no abre nada nuevo, así que tiene
@@ -135,7 +139,7 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                 # SEVERAL errands in one turn (V2-118), each WITH its declared surface (V2-227) — the decision lives
                 # in `_the_turns_errands`, the launch in `_launch`. Beside a yes/no only what it did not resolve.
                 _reqs, _surf, _left = _beside or _the_turns_errands(tool_calls, operator_text, _window_goal)
-                _tids = _launch(_reqs, _surf, trace_id=_trace_id, brief=_tbrief, text=text)
+                _tids = _launch(_reqs, _surf, trace_id=_trace_id, brief=_tbrief, text=spoken if isinstance(spoken, str) else "")
                 return_extra_exec = (await _escalated_with_its_data_ops(_tids, tool_calls, text, _tbrief)
                                      if action == "escalate" else {"executed": action, "beside": _tids})
                 if _left:
@@ -212,6 +216,10 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                 # single add carried one. His own words verbatim, so completing invents nothing.
                 return_extra_exec = await _probe._widget_data_turn.execute(
                     _probe._widget_data_turn.complete_pasted_links(tool_calls, text), text=text, brief=_tbrief)
+            elif action == "chat" and (_ref := _eot_ref.promised_refinement(operator_text, spoken)):
+                from nucleo import dispatch as _disp_ref     # a promised refinement reaches the errand it names
+                _disp_ref.inject_soon(_ref, operator_text)
+                return_extra_exec = {"executed": "inject", "to": _ref, "why": "promised_refinement"}
             else:
                 return_extra_exec = {}
             from . import probe_companions as _pc   # the other cards the same turn asked for (V2-781)
