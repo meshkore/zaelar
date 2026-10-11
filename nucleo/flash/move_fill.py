@@ -21,7 +21,7 @@ _PLAYING = re.compile(r"\b(?:que (?:esta |se esta )?(?:sonando|reproduciendo)|so
 #: How a row's hint marks it as playing (`widgets/youtube/data.ref_index`, both product languages).
 _PLAYING_HINT = re.compile(r"\b(?:suena|sonando|playing)\b")
 _HEAD = "primer[oa]?|first|principio|inicio|top|front|beginning|start|arriba"
-_TAIL = "ultim[oa]|last|final|end|bottom|back"
+_TAIL = "(?:ante)?penultim[oa]|(?:ante)?penultimate|ultim[oa]|last|final|end|bottom|back"   # counted from the end
 #: «number 3» right after the verb is the ROW («move number 3 to position 2»), so that word stays out of this lead.
 _LEAD = (r"(?:a\s+la\s+|al\s+|a\s+|to\s+the\s+|to\s+|at\s+the\s+|at\s+|in\s+|into\s+|en\s+(?:la\s+|el\s+)?|de\s+|"
          r"la\s+|el\s+|the\s+)?(?:posicion\s+|position\s+|puesto\s+|slot\s+|spot\s+|lugar\s+)?")
@@ -51,13 +51,14 @@ def _fold(text: str) -> str:
 def _destinations(norm: str, n: int) -> tuple[set[int], list[tuple[int, int]]]:
     """`(slots, spans)`: the 1-based slots said as a destination — the preposition-marked ones when any, else the
     rest — and the `(start, end)` of EVERY destination phrase, so none of them is read again as a row."""
+    from widgets import refs as _refs
     by_rx: list[list[tuple[int, int, int]]] = []
     for k, rx in enumerate(_DEST_RES):
         found: list[tuple[int, int, int]] = []
         if k != 2 or _VERB.search(norm):             # a clause-final ordinal is a destination only under a verb
             for m in rx.finditer(norm):
                 digit, head = m.group(1), m.group(2)
-                s = int(digit) if digit else (1 if head else n)
+                s = int(digit) if digit else (1 if head else n + 1 + min(-1, _refs._ORDINALS.get(m.group(3), -1)))
                 if 1 <= s <= n:
                     found.append((m.start(1 if digit else 2 if head else 3), m.end(), s))
         by_rx.append(found)
@@ -85,7 +86,7 @@ def move_fill(widget_id: str, action: str, words: str, model_words: str = "") ->
         n = len(rows)
         if n < 2:
             return {}
-        norm = _fold(words)
+        norm = _refs.from_the_end(_fold(words))     # «second to last» is one slot word
         slots, spans = _destinations(norm, n)
         to = slots.pop() if len(slots) == 1 else None
         masked = list(norm)

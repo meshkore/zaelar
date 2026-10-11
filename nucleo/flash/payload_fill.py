@@ -252,11 +252,12 @@ def _row_mentions(words: str, rows: list[dict]) -> list[tuple[int, int]]:
     («Maradona» over a queue of Maradona videos) names nothing."""
     import re as _re
     from widgets import refs as _refs
-    norm = _refs._norm(words or "")
+    from nucleo.flash import said_positions as _sp       # «el penúltimo», and «el último… no, el penúltimo»
+    norm = _refs.from_the_end(_refs._norm(words or ""))
     toks = [(m.start(), m.group(0)) for m in _re.finditer(r"[a-z0-9ñ]+", norm)]
-    out: list[tuple[int, int]] = []
     n = len(rows)
     nums = _refs.number_words()
+    out = _sp.from_end_mentions(toks, n)
     for off, t in toks:
         if t in nums and t not in _NOT_A_ROW_NUMBER and 1 <= nums[t] <= n:
             out.append((off, nums[t]))
@@ -272,7 +273,7 @@ def _row_mentions(words: str, rows: list[dict]) -> list[tuple[int, int]]:
     first: dict[int, int] = {}
     for off, rid in sorted(out):
         first.setdefault(rid, off)
-    return sorted((off, rid) for rid, off in first.items())
+    return _sp.drop_retracted(sorted((off, rid) for rid, off in first.items()), norm)
 
 
 def reorder_fill(widget_id: str, action: str, words: str, model_words: str = "") -> dict:
@@ -297,7 +298,7 @@ def reorder_fill(widget_id: str, action: str, words: str, model_words: str = "")
             if len(named) != 2:
                 continue
             (a_off, a_row), (b_off, b_row) = named
-            between = set(_refs._norm(text)[a_off:b_off].split())
+            between = set(_refs.from_the_end(_refs._norm(text))[a_off:b_off].split())   # the offsets' own text
             side = "after" if between & _AFTER_WORDS else ("before" if between & _BEFORE_WORDS else "")
             if side and side in spec:
                 return {field: str(rows[a_row - 1]["id"]), side: str(rows[b_row - 1]["id"])}

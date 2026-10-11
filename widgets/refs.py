@@ -195,10 +195,32 @@ _ORDINALS = {
     "noveno": 8, "novena": 8, "nueve": 8, "ninth": 8,
     "decimo": 9, "decima": 9, "diez": 9, "tenth": 9,
     "ultimo": -1, "ultima": -1, "last": -1,
+    # Counted FROM THE END, like «last» (use case `la-cola-de-video-con-palabras-imprecisas`, 2026-10-11: «el
+    # penúltimo» named no row and the move had no item). «second to last» is three words: `from_the_end` folds it.
+    "penultimo": -2, "penultima": -2, "penultimate": -2,
+    "antepenultimo": -3, "antepenultima": -3, "antepenultimate": -3,
     # English CARDINALS (demo pass 2026-09-28: «put on number five» was no number at all in an English
     # session). «one» stays out on purpose — «the red one» is not row 1 (`_POS_FILLER` drops it).
     "two": 1, "three": 2, "four": 3, "five": 4, "six": 5, "seven": 6, "eight": 7, "nine": 8, "ten": 9,
 }
+
+
+#: The English multi-word spellings of a from-the-end position, folded into the one word `_ORDINALS` reads.
+_FROM_END_PHRASES = ((re.compile(r"\b(?:second|next)(?: to | )last\b"), "penultimate"),
+                     (re.compile(r"\bthird(?: to | )last\b"), "antepenultimate"))
+
+
+def from_the_end(norm: str) -> str:
+    """`norm` (already `_norm`-ed) with «second to last» / «next to last» / «third to last» as one ordinal word."""
+    for rx, word in _FROM_END_PHRASES:
+        norm = rx.sub(word, norm)
+    return norm
+
+
+def from_end_index(word: str, n: int) -> "int | None":
+    """0-based row a from-the-end word («last», «penúltimo») names in a list of `n`, else None."""
+    pos = _ORDINALS.get(word)
+    return n + pos if pos is not None and pos < 0 and n + pos >= 0 else None
 
 
 def number_words() -> dict:
@@ -272,7 +294,7 @@ def _position_ref(query: str, n: int) -> "int | None":
     """
     if n <= 0:
         return None
-    toks = [t for t in (query or "").split() if t not in _STOP and t not in _POS_FILLER]
+    toks = [t for t in from_the_end(query or "").split() if t not in _STOP and t not in _POS_FILLER]
     if len(toks) != 1:
         return None
     t = toks[0]
@@ -288,7 +310,7 @@ def _position_ref(query: str, n: int) -> "int | None":
     if pos is None:
         return None
     if pos < 0:
-        return n - 1
+        return from_end_index(t, n)
     return pos if pos < n else None
 
 

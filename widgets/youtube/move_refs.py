@@ -78,7 +78,8 @@ def slot(value, n: int) -> "int | None":
     or an end word resolves through the one table every reader shares."""
     if n <= 0:
         return None
-    toks = [t for t in _h._norm(value).replace("#", " ").split() if t not in _SLOT_FILLER]
+    from widgets import refs as _refs
+    toks = [t for t in _refs.from_the_end(_h._norm(value).replace("#", " ")).split() if t not in _SLOT_FILLER]
     if len(toks) != 1:
         return None
     t = toks[0]
@@ -88,7 +89,6 @@ def slot(value, n: int) -> "int | None":
         return 0
     if t in _TAIL:
         return n - 1
-    from widgets import refs as _refs
     return _refs.position_index(t, n)
 
 

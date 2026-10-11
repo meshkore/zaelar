@@ -4024,6 +4024,18 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_slot_answering_the_cards_question_completes_the_parked_move.py"]},
         {"id": "2.463", "title": "The refusal is parked at the one seam both channels share (`data_ops.corrected_retry`) — the text channel never wrote `remember_refusal`; a corrected call that landed is forgotten, one refused again is the one parked",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_both_channels_park_the_refusal_at_the_corrected_retry.py"]},
+        # 2026-10-11 — `la-cola-de-video-con-palabras-imprecisas` (ES): «el último… no, el penúltimo, ponlo justo después
+        # del de skills» — verdict youtube:move 1.00, the model called `remove {item: 4}`, the video was deleted, «Hecho.».
+        {"id": "2.490", "title": "A removal the model called over a SURE verdict naming another action of the same card never runs — the verdict's move runs, filled from his words, or the card asks; an unsure verdict, a removal verdict or his own «quita» keep the model's call (text channel)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_removal_over_a_sure_move_verdict_runs_the_move.py"]},
+        {"id": "2.491", "title": "The voice rail dispatches the verdict's action, never the removal (`verdict_card.takes_the_view` → `destructive_veto`)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_voice_rail_runs_the_verdict_not_the_removal.py"]},
+        {"id": "2.492", "title": "Both channels ask ONE removal veto (`destructive_veto.instead`) before their own retargets and before dispatching",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_both_channels_ask_the_destructive_veto.py"]},
+        {"id": "2.493", "title": "«penúltimo» / «penultimate» / «second to last» / «antepenúltimo» are positions from the end in the one ordinal table — position refs, the queue's slot, a move's destination",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_from_the_end_ordinals_name_rows_and_slots.py"]},
+        {"id": "2.494", "title": "A row he named and took back («el último… no, el penúltimo») is not one of the order's rows; three rows said for real still fill nothing",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_row_he_took_back_is_not_one_of_the_order.py"]},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

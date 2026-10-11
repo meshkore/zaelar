@@ -33,7 +33,8 @@ def test_the_models_claim_names_the_same_two_rows_when_his_words_do_not(queue):
 @pytest.mark.parametrize("said", [
     "swap the third and the second",                 # no side said: a question, never a guess
     "put the Maradona one before the Maradona one",  # a word every row carries names nothing
-    "the first before the second, no, the fourth",   # three rows: not one order
+    "the first before the second and the fourth",    # three rows: not one order («…, no, the fourth» is a
+                                                     # correction — node 2.494 — and fills first-before-fourth)
     "move it",
 ])
 def test_no_fill_without_two_rows_and_a_side(queue, said):

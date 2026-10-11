@@ -30,8 +30,12 @@ def _other_view(brief, model_card: str, model_action: str) -> tuple[str, str]:
 
 def takes_the_view(brief, model_card: str, model_action: str, *, operator_text: str, emit, present,
                    apply_widget_data) -> str:
-    """The voice rail: run the verdict's view instead of the model's, or "". Never raises."""
+    """The voice rail: run the verdict's view instead of the model's — or its action instead of the model's removal
+    (`destructive_veto`) — or "". Never raises."""
     try:
+        from nucleo.flash import destructive_veto as _dv
+        if (swap := _dv.instead(brief, model_card, model_action, operator_text)):
+            return _dv.run(swap, model_action, emit=emit, apply_widget_data=apply_widget_data)
         vwid, vact = _other_view(brief, model_card, model_action)
         if not vwid:
             return ""
@@ -52,7 +56,9 @@ def retarget(brief, widget_id: str, action: str, payload: dict, said: str) -> tu
     """The text channel's `(widget, action, payload)`: a reply that is a forward (`reply_or_forward`), or the
     verdict's view on the card in front over a model view on another. Unchanged otherwise. Never raises."""
     try:
-        from nucleo.flash import reply_or_forward as _rof
+        from nucleo.flash import destructive_veto as _dv, reply_or_forward as _rof
+        if (swap := _dv.instead(brief, widget_id, action, said)):
+            return swap                              # never a removal over a sure verdict that names another act
         if (fw := _rof.forward_of(widget_id, action, payload, said)):
             return widget_id, "forward", fw
         vwid, vact = _other_view(brief, widget_id, action) or ("", "")
