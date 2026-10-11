@@ -3985,15 +3985,7 @@ DOMAINS: list[dict] = [
                                  "notice); a list row, a notice, a flight, a question or a refusal never (agenda-appointment-"
                                  "lifecycle EN, 2026-10-10); both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_claimed_removal_is_the_cancellation.py"]},
-        {"id": "2.440", "title": "A sure inner op outranks a sure close — «ya la puedes cerrar» (canvas=close 1.00, close_meeting 1.00) closed the whole agenda and the detail stayed open (agenda-everyday-edits ES, 2026-10-11); both channels",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_verdict_yields_to_the_order_inside_the_card.py"]},
-        {"id": "2.441", "title": "An inner WRITE is never read as a close — «quita el piano entero, toda la serie» (cancel_meeting 0.71) closed the agenda under «Hecho.»; the close yields and the repair builds the write, both channels",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_verdict_yields_to_the_order_inside_the_card.py"]},
-        {"id": "2.442", "title": "The close stands when he NAMED a card or the inner op is an unsure lens (R4 / M4 shapes kept)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_verdict_yields_to_the_order_inside_the_card.py"]},
-        {"id": "2.443", "title": "A claimed removal of a series he named by ONE word cancels it whole when he said «toda la serie» / «the whole series»; without the scope the series keeps its question; one word, two titles → nothing",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_verdict_yields_to_the_order_inside_the_card.py"]},
-        {"id": "2.444", "title": "update_meeting names `newTitle` as the NEW title and `title` as the current one (the first rename call carried only the old title, 2026-10-11)",
+        {"id": "2.440", "title": "A sure inner op outranks a sure close — «ya la puedes cerrar» (canvas=close 1.00, close_meeting 1.00) closed the whole agenda and the detail stayed open (agenda-everyday-edits ES, 2026-10-11); both channels. Also: An inner WRITE is never read as a close — «quita el piano entero, toda la serie» (cancel_meeting 0.71) closed the agenda under «Hecho.»; the close yields and the repair builds the write, both channels · The close stands when he NAMED a card or the inner op is an unsure lens (R4 / M4 shapes kept) · A claimed removal of a series he named by ONE word cancels it whole when he said «toda la serie» / «the whole series»; without the scope the series keeps its question; one word, two titles → nothing · update_meeting names `newTitle` as the NEW title and `title` as the current one (the first rename call carried only the old title, 2026-10-11)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_verdict_yields_to_the_order_inside_the_card.py"]},
         {"id": "2.445", "title": "A rename never gives an appointment ANOTHER appointment's name — «move next Tuesday's piano to "
                                  "Wednesday» renamed the series to «Dental checkup with Dr Ruiz» and the next three steps hit two "
