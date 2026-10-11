@@ -53,6 +53,13 @@ _AGENDA_RE = re.compile(r"\b(?:agenda|calendar|calendario|cita|appointment|meeti
                         re.I)
 
 
+# The WHOLE of a series, in his words — the agenda asks «one day or all of it?» otherwise (V2-769), and that question
+# is right only when he did not already answer it.
+_WHOLE_RE = re.compile(r"\b(?:(?:toda|la)\s+(?:la\s+)?serie|serie\s+(?:entera|completa)|enter[oa]|complet[oa]|"
+                       r"para\s+siempre|todas?\s+las\s+(?:clases|semanas|veces)|whole\s+(?:series|thing)|"
+                       r"entire\s+series|completely|altogether|for\s+good|all\s+of\s+(?:it|them))\b", re.I)
+
+
 # «cancel the flight» names SOMETHING: when it is not an appointment of his, the one in focus is not it either. A
 # pronoun («cancel it», «anúlala») or the agenda's own nouns («cancel the appointment») name the one in focus.
 _REF_RE = re.compile(r"\b(?:anul|cancel|borr|elimin|suprim|quit|remove|delete|drop|scrap)\w*\s+(?:the|my|our|this|"
@@ -67,16 +74,22 @@ def _names_something(said: str) -> bool:
 
 
 def _named(db: dict, words: set) -> dict | None:
-    """The ONE upcoming appointment his words name by its title, or None (none, or more than one)."""
+    """The ONE upcoming appointment his words name by its title, or None (none, or more than one).
+
+    Two shared words name a title; failing that, ONE distinctive word does when no other title has it — «quita el
+    piano entero» over «Clase de piano de Abril» (agenda-everyday-edits, 2026-10-11: the backing read «piano» as
+    something that is not his and left the series standing under «Hecho.»)."""
     if not words:
         return None
-    hits = []
+    hits, loose = [], []
     for m in db.get("meetings") or []:
         theirs = _content_words(str((m or {}).get("title") or ""))
         if theirs and len(words & theirs) >= min(2, len(theirs)):
             hits.append(m)
-    titles = {str(m.get("title") or "").strip().lower() for m in hits}
-    return hits[0] if len(titles) == 1 else None
+        elif any(len(w) >= 4 for w in words & theirs):
+            loose.append(m)
+    titles = {str(m.get("title") or "").strip().lower() for m in hits or loose}
+    return (hits or loose)[0] if len(titles) == 1 else None
 
 
 def _in_focus(db: dict, now: float, max_age: float) -> dict | None:
@@ -114,8 +127,11 @@ def cancel_call(operator_text: str, reply: str, db: dict | None = None, *, now: 
         if target is None or not str(target.get("title") or "").strip():
             return None
         payload = {"title": str(target["title"])}
-        if not isinstance(target.get("repeat"), dict) and target.get("date"):
-            payload["date"] = str(target["date"])   # a series keeps its own question (one day, or all of it?)
+        series = isinstance(target.get("repeat"), dict) or bool(target.get("fromSeries"))
+        if not series and target.get("date"):
+            payload["date"] = str(target["date"])
+        elif series and _WHOLE_RE.search(said):
+            payload["whole"] = True                 # he said «all of it»; without it the series asks its question
         return {"widget_id": "agenda", "action": "cancel_meeting", "payload": payload}
     except Exception:  # noqa: BLE001 — a backing must never take down a live turn
         return None
