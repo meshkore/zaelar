@@ -95,6 +95,9 @@ class GeneratorBackend(WorkerBackend):
                 why = {"network": " — no hay conexión con el proveedor", "credit": " — el proveedor se ha quedado "
                        "sin saldo o cuota", "auth": " — el proveedor rechaza la credencial",
                        "rate": " — el proveedor está saturado, prueba en un momento"}.get(cls, "")
+                if not why and "timed out" in err:
+                    # The real end state, said (2026-10-11: «it got wiped in a reset» was invented over this one).
+                    why = f" — se le acabó el tiempo ({int(generator.GEN_TIMEOUT // 60)} min) antes de terminarlo"
                 await self._emit("result", summary=f"No pude {verb}{why}.", ok=False,
                                  data={"error": err, "error_class": cls})
         except asyncio.CancelledError:

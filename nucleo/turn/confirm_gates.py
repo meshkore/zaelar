@@ -112,15 +112,29 @@ def _task_gate(brief=None):
         tid = str(p.get("task_id") or "")
         v = task_reply(words, _c.classify_reply(words), str(p.get("question") or ""), brief=brief, parked=tid,
                        names_it=bool(named) and named == tid)
-        if named and (v == "yes" or v is None):
+        if named and (v == "yes" or (v is None and not _names_another_errand(words, tid))):
             # He is talking about THIS errand: what he adds travels with the «yes» (`resolve_confirm`), and the clock
             # restarts — an errand he keeps talking about has not been left unanswered (three-tasks-at-once ES,
             # 2026-10-11: the game expired while he was asking for coins in it, and was then reported as never
-            # confirmed). A bare yes adds nothing.
+            # confirmed). A bare yes adds nothing. A sentence that ALSO talks about another errand is not folded
+            # in while it waits: the parked errand would then answer to that errand's words — EN 2026-10-11 02:58,
+            # «…btw for the monitor it has to be at least 27 inches» folded into the game made the next sentence
+            # about the monitors «name» the game, and its «no» cancelled it.
             if not (v and _c.is_plain_answer(words, v)):
                 _d.absorb_refinement(tid, words)
         return _d.resolve_confirm(v == "yes", tid) if v else None
     return (_open, _do)
+
+
+def _names_another_errand(words: str, parked: str) -> bool:
+    """Does the sentence name any errand besides the parked one `parked`?"""
+    try:
+        from nucleo.turn import named_errand as _ne
+        return any(e["id"] != parked for e in _ne.named(words))
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.debug(f"confirm_gates: errands unreadable — {type(e).__name__}: {e}")
+        return True
 
 
 def _named_parked(words: str) -> str:
@@ -156,9 +170,20 @@ def task_reply(words: str, v: str | None, question: str, *, brief=None, parked: 
     question, says it does — and with no judge, only when the turn's verdict reads it as an answer. Otherwise it
     stays waiting: an ambiguous sentence is not an authorisation, and the parked errand can still absorb it."""
     from widgets import confirm as _c
+    # The answer his reply OPENS with, when the reply names this errand, is his answer to it — whatever clauses
+    # follow. «Sí, justo eso, y ponle que salte más alto, que si no no hay quien pase» read as «no» (last word
+    # wins) and «yeah go ahead with the game… btw the monitor…» as OTHER (the judge saw the monitor), so both
+    # yeses of 2026-10-11 left the game parked and the agent asked again. A «no» keeps its stricter path below.
+    if names_it and _c.opening_answer(words) == "yes":
+        return "yes"
     if v is None or _c.is_plain_answer(words, v):
         return v
     if parked and _about_another_errand(words, parked):
+        return None
+    if parked and v == "no" and not names_it:
+        # A long «no» that never names the parked errand does not cancel it: «none of those work… no more than
+        # $150, keep looking» was about the monitor listings and dropped the parked game (EN 2026-10-11 02:58, the
+        # judge read it «no»). Cancelling needs the errand named or a bare «no»; the errand keeps waiting.
         return None
     judged = _c._judge(question, words) if question else None
     if judged is not None:

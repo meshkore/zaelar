@@ -45,11 +45,12 @@ def _errand_names(tids) -> list[str]:
     """How the refinement's errands are named back to him: their label, or their request when the label is still
     the kind placeholder («Investigando…»)."""
     from nucleo import dispatch as _disp
+    from nucleo.turn import named_errand as _ne
     out = []
     for tid in tids or []:
         rec = _disp.get_record(tid)
-        label = str(getattr(rec, "label", "") or "").strip()
-        name = (label if label and not label.endswith("…") else str(getattr(rec, "goal", "") or "").strip())[:70]
+        name = _ne.spoken_name({"label": getattr(rec, "label", ""), "title": getattr(rec, "title", ""),
+                                "request": getattr(rec, "goal", "")})   # his ask, not our wrapper (2026-10-11)
         if name:
             out.append(name)
     return out
@@ -89,7 +90,7 @@ def _the_turns_errands(tool_calls: list, operator_text: str, window_goal: str, *
     return kept, _surf, dropped
 
 
-def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str) -> list:
+def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str, derived=()) -> list:
     """One escalation per request through the one portal (`escalate_to_slowbrain`); the DECISION to park an
     errand whose turn asked permission lives there (V2-655), so OUR REPLY travels as `asked` — the voice channel's
     `spoken_text`. This channel used to pass HIS turn, [SISTEMA] notes included, so the gate's own «¿La hago?»
@@ -98,6 +99,7 @@ def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str) -> list
     from nucleo import surfaces as _surfaces
     from nucleo.flash import escalate as _esc
     return [_esc.escalate_to_slowbrain(str(_r), context={"src": "probe", "trace": trace_id, "asked": text,
+                                                          "derived": bool(_r) and _r in derived,
                                                           "surface": _surfaces.pick(_surf.get(_r, ""),
                                                                                     _surfaces.from_brief(brief))})
             for _r in reqs]
@@ -126,6 +128,8 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                 else:
                     return_extra_exec = {"executed": "confirm_task", "ok": bool(_res.get("ok"))}
                     _beside = _the_turns_errands(tool_calls, operator_text, "", resolved=str(_res.get("request") or ""))
+                    if _ans.yes:   # the turn's refinements of OTHER live errands still go out (were dropped)
+                        _eot_ref.send_beside_an_answer(tool_calls, str(_res.get("request") or ""), _send_each)
         except Exception:
             pass
         # The three SCHEDULING backstops (promise → tag, execute the cron tags, write the commitment to
@@ -139,11 +143,15 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                 # SEVERAL errands in one turn (V2-118), each WITH its declared surface (V2-227) — the decision lives
                 # in `_the_turns_errands`, the launch in `_launch`. Beside a yes/no only what it did not resolve.
                 _reqs, _surf, _left = _beside or _the_turns_errands(tool_calls, operator_text, _window_goal)
-                _tids = _launch(_reqs, _surf, trace_id=_trace_id, brief=_tbrief, text=spoken if isinstance(spoken, str) else "")
+                _still_parked = _eot_ref.parked_question_for(_reqs)
+                _tids = _launch(_reqs, _surf, trace_id=_trace_id, brief=_tbrief, text=spoken if isinstance(spoken, str) else "",
+                                derived=(operator_text, _window_goal))
                 return_extra_exec = (await _escalated_with_its_data_ops(_tids, tool_calls, text, _tbrief)
                                      if action == "escalate" else {"executed": action, "beside": _tids})
                 if _left:
                     return_extra_exec["not_started"] = _left   # said by `the_words_it_owes`
+                if _still_parked:
+                    return_extra_exec["still_parked"] = _still_parked
             elif action == "send_to_worker":
                 return_extra_exec = _send_each(tool_calls, text)
             elif action == "answer_worker":
@@ -240,6 +248,29 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
     except NameError:
         pass
     return _out
+
+
+def _true_to_the_gate(spoken, action: str, extra, sess):
+    """The reply says what the confirmation gate DID this turn (three-tasks-at-once, 2026-10-11 02:58):
+      · his yes launched the errand → a reply that asks permission again is replaced by the start line (EN: «yeah,
+        go ahead» was resolved, and the reply was «…shall I start it? Say the word»);
+      · the turn's escalation landed on an errand still PARKED → the reply carries that errand's question, unless
+        it already asks him something (ES: «el juego te lo construyo… va en marcha» over a parked game)."""
+    if not spoken or not isinstance(spoken, str):
+        return spoken
+    try:
+        from nucleo.flash import clarifying as _clar
+        if action == "confirm_task" and _clar.asks_permission(spoken):
+            from i18n import langs as _langs
+            from . import router_guards as _rg
+            return _rg.holding_line(getattr(sess, "window", None) or [], _langs.current_language())
+        q = (extra or {}).get("still_parked") if isinstance(extra, dict) else ""
+        if q and "?" not in spoken:
+            return f"{spoken} {q}"
+    except Exception as e:  # noqa: BLE001 — the reply as the model wrote it
+        from loguru import logger
+        logger.debug(f"probe_after: gate wording skipped — {type(e).__name__}: {e}")
+    return spoken
 
 
 async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, return_extra_exec, sess, spoken, tags, text, video_req, spec=None, brief=None) -> dict:
@@ -339,6 +370,7 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
     if isinstance(return_extra_exec, dict) and return_extra_exec.get("not_started"):   # three-tasks-at-once
         from nucleo.turn import errands_of_a_turn as _eot
         spoken = f"{spoken or ''} {_eot.not_started_line(return_extra_exec['not_started'])}".strip()
+    spoken = _true_to_the_gate(spoken, action, return_extra_exec, sess)
     # a CLAIMED reminder is checked against the schedule (2026-10-10)
     if spoken and (_fix := _rback.claim_correction(str(spoken), text, getattr(sess, "window", None))):
         spoken = f"{spoken} {_fix}"

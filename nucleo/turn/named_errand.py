@@ -27,6 +27,7 @@ def known() -> list[dict]:
             rec = _d.get_record(e.get("id"))
             label = str(getattr(rec, "label", "") or "").strip()
             out.append({"id": str(e.get("id") or ""), "label": "" if label.endswith("…") else label,
+                        "title": str(getattr(rec, "title", "") or "").strip(),
                         "request": str(e.get("request") or "").strip(), "phase": str(e.get("phase") or ""),
                         "note": str(e.get("note") or ""), "waiting_on": e.get("waiting_on") or "", "parked": False,
                         "sheet": str(e.get("sheet") or ""), "surface": str(e.get("surface") or "")})
@@ -63,7 +64,7 @@ def named(text: str, errands: list[dict] | None = None) -> list[dict]:
     scored = []
     for e in errands:
         # his ASK, never our wrapper around it: «Find real marketplace listings» made «autonomía real» name the hunt
-        hay = _words(f"{e.get('label', '')} {ask_of(e.get('request', ''))} {e.get('extra', '')}")
+        hay = _words(f"{e.get('label', '')} {e.get('title', '')} {ask_of(e.get('request', ''))} {e.get('extra', '')}")
         scored.append((sum(len(w) for w in said if any(_d._same_thing(w, h) for h in hay)), e))
     scored.sort(key=lambda se: -se[0])
     return [e for s, e in scored if s]
@@ -105,3 +106,17 @@ def card_is_another_errands(card: str, text: str) -> bool:
         return False
     top = strongest(text)
     return bool(top) and not owns_card(top, card)
+
+
+def spoken_name(errand: dict, limit: int = 72) -> str:
+    """How an errand is NAMED to him: the name it was given (`errand_title`), its label, or his ask clipped on a word
+    — never our listing wrapper and never a mid-word cut. three-tasks-at-once (ES, 2026-10-11 02:58): «Así va todo:
+    Crear un widget nuevo para el canvas: un juego de plataformas tipo Sup: esperando…; Find real marketplace
+    listings for: monitor de ordenador usado (condit: mirando «results»» was read to him as a status."""
+    from nucleo import errand_title as _et
+    from nucleo.turn.errands_of_a_turn import ask_of
+    for name in (errand.get("title"), errand.get("label")):
+        name = str(name or "").strip()
+        if name and not name.endswith("…"):
+            return _et.provisional(name, limit)
+    return _et.provisional(ask_of(str(errand.get("request") or "")), limit)

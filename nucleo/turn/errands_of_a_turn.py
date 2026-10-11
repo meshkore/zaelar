@@ -98,6 +98,10 @@ def not_started_line(dropped: list[str]) -> str:
     return _lg.current_language().errands_not_started.format(what="; ".join(f"«{i}»" for i in items))
 
 
+#: A phase that quotes one of our card ids («mirando «results»», «leyendo «documento::3»») is engine talk.
+_INTERNAL_PHASE_RE = __import__("re").compile(r"«(?:results|documento|navegador|widget)(?:::[^»]*)?»")
+
+
 def status_owed(operator_text: str, brief) -> str:
     """Where each live errand is, in one sentence — owed when the turn asked to be TOLD and the model went mute.
 
@@ -126,10 +130,11 @@ def status_owed(operator_text: str, brief) -> str:
     lang = _lg.current_language()
     items = []
     for e in asked or live:
-        label = e["label"] or e["request"][:70]
+        label = _ne.spoken_name(e)
         phase = _phase_in_session_language((e["phase"] or e["note"]).strip().rstrip("…. "), _lg.current_code())
+        phase = "" if _INTERNAL_PHASE_RE.search(phase) else phase     # «mirando «results»» names our card id
         state = lang.errand_waiting_on_you if e["waiting_on"] else (phase or lang.errand_under_way)
-        items.append(f"{label}: {state}")
+        items.append(f"{label} — {state}")
     return lang.errands_status.format(items="; ".join(items))
 
 
@@ -158,3 +163,26 @@ def promised_refinement(operator_text: str, spoken: str) -> str:
     from nucleo.turn import named_errand as _ne
     top = _ne.strongest(operator_text)
     return str(top["id"]) if top and not top["parked"] else ""
+
+
+def parked_question_for(requests: list[str]) -> str:
+    """The question of an errand still PARKED on him that one of this turn's requests IS ("" if none) — the request
+    will fold into it instead of starting, so the reply owes the question, not «va en marcha»."""
+    from nucleo import dispatch_confirm as _dc
+    for p in list((_dc._PENDING_CONFIRM or {}).values()):
+        if any(r and same_errand(r, str(p.get("request") or "")) for r in requests or []):
+            return str(p.get("question") or "")
+    return ""
+
+
+def send_beside_an_answer(tool_calls: list, resolved: str, send) -> None:
+    """The turn's `send_to_worker` calls that are NOT about the errand a yes just launched, sent with `send`.
+
+    EN 2026-10-11 02:58: «yeah go ahead with the game, and add coins… btw for the monitor it has to be at least 27
+    inches» carried a refinement of the monitor hunt beside the game's yes; the confirmation branch launched the
+    game (or meant to) and the monitor's message was never sent. The launched errand's own refinements travel with
+    it (`resolve_confirm`), so those are left out."""
+    others = [t for t in tool_calls or [] if t.get("name") == "send_to_worker"
+              and not same_errand(f"{t['args'].get('which') or ''} {t['args'].get('message') or ''}", resolved)]
+    if others and any(str(t["args"].get("message") or "").strip() for t in others):
+        send(others, "")

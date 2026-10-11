@@ -173,6 +173,8 @@ def _composers_never_reach_the_network():
     from nucleo.flash import delivery, outgoing_lang
     from nucleo.workers import spoken_delivery
     delivery.forget_announced()            # the backstop's own ledger is per conversation, so per test
+    from nucleo import dispatch_confirm
+    dispatch_confirm._DECLINED_CONFIRM.clear()   # a «no» one test read must not be a fact in the next one's prompt
     from widgets import confirm
     saved = (spoken_delivery.LIVE, confirm._JUDGE_LIVE, outgoing_lang.LIVE)
     if os.environ.get("ZAELAR_TEST_LLM_LIVE") != "1":

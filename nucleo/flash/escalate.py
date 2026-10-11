@@ -136,6 +136,14 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
     asked = strip_system_notes(str(ctx0.get("asked") or ""))    # our own notes' «¿La hago?» is nobody's offer
     if asked and not ctx0.get("confirmed"):
         from nucleo.flash import clarifying as _clar
+        if _clar.asks_permission(asked) and ctx0.get("derived"):
+            # The model called nothing: this request is HIS SENTENCE, derived by a backstop, and the reply asked him
+            # something. What it offered is not his sentence, so there is nothing to park under it — and nothing to
+            # start before he answers (ES 2026-10-11 02:58: «Vale, avísame. Yo mientras le echo un ojo al informe…»
+            # parked as an offer was then read back as an errand's name). His answer next turn decides.
+            _emit_bus("escalate.held", {"request": req, "asked": asked[:200], "ts": time.time()})
+            logger.info(f"escalate: NOT started — derived from his words while the reply asks him: {req[:70]}")
+            return 0
         if _clar.asks_permission(asked) and not _reasks_a_parked_errand(asked, req):
             try:
                 from nucleo import dispatch_confirm as _dc

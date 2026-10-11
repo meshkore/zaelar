@@ -52,6 +52,12 @@ _CONFIRM_TTL = 300.0     # 5 min. Longer than the widget gate's 90 s: this quest
 _EXPIRED_CONFIRM: dict[str, dict] = {}
 _EXPIRED_MEMORY_S = 900.0     # 15 min: long enough to outlive the conversation that asked
 
+# A «no» that dropped a parked errand is a fact too, for the same reason as an expiry. three-tasks-at-once (EN,
+# 2026-10-11 02:58): a «no» read off a sentence about the monitors dropped the parked game; the state then said
+# nothing about the game at all, and asked about it, the agent explained «it got built and then everything got
+# wiped in a reset» — no reset happened. What the state does not say, the model invents.
+_DECLINED_CONFIRM: dict[str, dict] = {}
+
 
 def _sweep_confirm(now: float | None = None) -> None:
     now = time.time() if now is None else now
@@ -59,6 +65,15 @@ def _sweep_confirm(now: float | None = None) -> None:
         _EXPIRED_CONFIRM[k] = {**_PENDING_CONFIRM.pop(k), "expired_at": now}
     for k in [k for k, v in _EXPIRED_CONFIRM.items() if now - float(v.get("expired_at") or 0) > _EXPIRED_MEMORY_S]:
         _EXPIRED_CONFIRM.pop(k, None)
+    for k in [k for k, v in _DECLINED_CONFIRM.items() if now - float(v.get("declined_at") or 0) > _EXPIRED_MEMORY_S]:
+        _DECLINED_CONFIRM.pop(k, None)
+
+
+def _forget_declined_like(request: str) -> None:
+    """Asked again for the same errand: the old «no» is no longer the fact about it."""
+    from nucleo.turn.errands_of_a_turn import same_errand
+    for k in [k for k, v in _DECLINED_CONFIRM.items() if same_errand(str(v.get("request") or ""), request)]:
+        _DECLINED_CONFIRM.pop(k, None)
 
 
 def remember_confirm(task_id: str, request: str, task: "Task", *, sheet: str = "") -> None:
@@ -76,6 +91,7 @@ def remember_confirm(task_id: str, request: str, task: "Task", *, sheet: str = "
     from nucleo import danger as _danger
     _sweep_confirm()
     _EXPIRED_CONFIRM.pop(str(task_id), None)      # se vuelve a preguntar: ya no es un caducado sin respuesta
+    _forget_declined_like(request)
     _PENDING_CONFIRM[str(task_id)] = {
         "request": request, "kind": (task.kind or "generic"), "trusted": bool(task.trusted),
         "context": dict(task.context or {}), "question": _danger.confirm_question(request),
@@ -96,6 +112,7 @@ def remember_code_change(task_id: str, request: str, task: "Task", *, sheet: str
     from nucleo import errand_kind as _ek
     _sweep_confirm()
     _EXPIRED_CONFIRM.pop(str(task_id), None)
+    _forget_declined_like(request)
     _PENDING_CONFIRM[str(task_id)] = {
         "request": request, "kind": (task.kind or "code"), "trusted": bool(task.trusted),
         "context": dict(task.context or {}), "question": _ek.code_change_question(request),
@@ -116,6 +133,7 @@ def remember_offer(request: str, *, context: dict, question: str) -> None:
     empezó» en vez de en una ejecución. Lo único distinto es la PREGUNTA: aquí es la del modelo, con sus
     palabras, no la fórmula de `danger.confirm_question` — el operador tiene que reconocer lo que contestó."""
     _sweep_confirm()
+    _forget_declined_like(request)
     key = f"offer:{int(time.time() * 1000)}"
     _PENDING_CONFIRM[key] = {
         "request": request, "kind": str((context or {}).get("kind") or "generic"), "trusted": True,
@@ -176,6 +194,14 @@ def confirm_line() -> str:
     if not p:
         # V2-190: nothing waiting — but maybe something EXPIRED waiting, and that is not the same as nothing.
         _sweep_confirm()
+        if _DECLINED_CONFIRM and not p:
+            _d = max(_DECLINED_CONFIRM.values(), key=lambda v: float(v.get("declined_at") or 0))
+            if not _EXPIRED_CONFIRM or float(_d["declined_at"]) >= max(
+                    float(v.get("expired_at") or 0) for v in _EXPIRED_CONFIRM.values()):
+                return (f"UNA TAREA QUE LE PREGUNTASTE QUEDÓ DESCARTADA porque leí un NO en su respuesta: "
+                        f"«{str(_d.get('request') or '')[:120]}». NUNCA EMPEZÓ y no está en marcha: no le des otra "
+                        f"causa (ningún reinicio, ningún fallo). Si pregunta por ella, dile que la di por descartada "
+                        f"y ofrece hacerla ahora.")
         if not _EXPIRED_CONFIRM:
             return ""
         _e = max(_EXPIRED_CONFIRM.values(), key=lambda v: float(v.get("expired_at") or 0))
@@ -219,6 +245,7 @@ def resolve_confirm(ok: bool, task_id: str = "") -> dict | None:
         return None
     _PENDING_CONFIRM.pop(p["task_id"], None)
     if not ok:
+        _DECLINED_CONFIRM[str(p["task_id"])] = {**p, "declined_at": time.time()}
         return {**p, "ok": False}
     # Se re-lanza by the MISMA puerta that any escalada (`escalate.requested` → `run_listener`), no by a
     # atajo: so preserves the trace, the dedup and the record of tasks. Lo only distinto es `confirmed`, that es

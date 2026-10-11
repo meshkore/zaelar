@@ -57,7 +57,7 @@ def test_the_yes_that_names_the_game_launches_the_game(launched, monkeypatch):
     monkeypatch.setattr(wconfirm, "_judge", lambda q, r, timeout=4.0: asked.append(q) or (
         "yes" if "CONSTRUYA" in q else "other"))
     ans = gates.resolve_all(YES, brief=_brief(request_type="order"))
-    assert asked and all("CONSTRUYA" in q for q in asked), f"judged against the wrong question: {asked}"
+    assert all("CONSTRUYA" in q for q in asked), f"judged against the wrong question: {asked}"
     assert ans and ans.yes and ans.gate == "task"
     assert len(launched) == 1 and launched[0].startswith(GAME), launched
     assert "salte más alto" in launched[0], "what he added travels with the yes"

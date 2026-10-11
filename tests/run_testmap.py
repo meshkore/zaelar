@@ -3844,6 +3844,24 @@ DOMAINS: list[dict] = [
                                  "another errand's rows are not glued to a refinement, a «no» about the monitor leaves "
                                  "the parked game waiting (three-tasks-at-once, 2026-10-10 20:00)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sentence_about_an_errand_is_answered_about_it.py"]},
+        {"id": "2.455", "title": "A status line names his errands as he asked them — given name, label or his ask clipped "
+                                 "on a word; never our listing wrapper, our card ids or his own sentence parked as an "
+                                 "offer (three-tasks-at-once, 2026-10-11 02:58)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_status_names_his_errands_as_he_asked_them.py"]},
+        {"id": "2.456", "title": "A yes inside a longer sentence launches the parked errand it names — the answer it OPENS "
+                                 "with; the monitor refinement beside it still goes out; a reply asking again after a "
+                                 "yes is the start line; an escalation onto a parked errand carries its question",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_yes_in_a_longer_sentence_launches_the_parked_errand.py"]},
+        {"id": "2.457", "title": "A parked errand answers only to its own words — a mixed sentence is not folded in, a long "
+                                 "«no» that does not name it does not cancel it; the harness counts an escalation born "
+                                 "only by its own worker",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_parked_errand_answers_only_to_its_own_words.py"]},
+        {"id": "2.458", "title": "A failure is explained by its real end state — a declined errand is a fact in the state, "
+                                 "the generator's timeout is said (no invented «reset», 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_failure_is_explained_by_its_real_end_state.py"]},
+        {"id": "2.459", "title": "«How's the game?» is the game errand he ordered, live or parked, matched on its given name "
+                                 "too (not a sports score, 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_game_is_the_errand_he_is_building.py"]},
         {"id": "2.435", "title": "The results-sheet tail answers only a sentence about ITS errand, once — an errand is "
                                  "named by his ask, not our «Find real marketplace listings» wrapper; a row he picked "
                                  "ends the offering (three-tasks-at-once, 2026-10-11)",

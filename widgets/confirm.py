@@ -235,6 +235,26 @@ def classify_reply(text: str) -> str | None:
 #: A yes/no with more than this many other words may carry an order of its own.
 _PLAIN_ANSWER_WORDS = 3
 
+#: The answer word that OPENS a reply — «Sí, justo eso, y ponle que salte más alto, que si no no hay quien pase»
+#: answers «sí»; the «no» of «si no» further on is a clause about the jump (three-tasks-at-once ES, 2026-10-11).
+_OPENING_RE = re.compile(r"^\W*(?:(?:oye|bueno|pues|hmm|cool|ah)\W+)?(?P<w>\w+(?:\s+(?:ahead|it))?)\b(?P<after>\W?)")
+
+
+def opening_answer(text: str) -> str | None:
+    """'yes' | 'no' | None — the answer his reply OPENS with, whatever clauses follow it. `classify_reply` keeps its
+    «the last one wins» rule for a bare reply («sí… bueno no, mejor no»); this reads only the first word."""
+    m = _OPENING_RE.match(_norm(text))
+    if not m:
+        return None
+    w = m.group("w")
+    if w == "si" and not m.group("after").strip() and not re.match(r"^\W*(?:\w+\W+)?sí\b", (text or "").lower()):
+        return None          # «si no te importa…» is an IF; «sí» (or «si,») is the answer
+    if _YES_RE.fullmatch(w) or _YES_RE.fullmatch(w.split()[0]):
+        return "yes"
+    if _NO_RE.fullmatch(w) or _NO_RE.fullmatch(w.split()[0]):
+        return "no"
+    return None
+
 
 def is_plain_answer(text: str, verdict: str) -> bool:
     """A bare yes/no: the answer word plus at most `_PLAIN_ANSWER_WORDS` others. Anything longer may be a different
@@ -271,7 +291,8 @@ def answers_pending(text: str) -> str | None:
 
 _JUDGE_SYS = ("You check whether a user's reply answers a confirmation question. The assistant asked: «{q}». "
               "Reply with exactly one word: YES if the reply agrees to exactly that pending action, NO if it declines "
-              "it, OTHER if it asks for a different action or is about something else.")
+              "it, OTHER if it does neither — it asks for a different action instead, or is about something else. "
+              "A reply that agrees or declines AND also talks about other things is still YES or NO.")
 
 
 #: False inside the test suite (root conftest) — see `nucleo.workers.spoken_delivery.LIVE`.
