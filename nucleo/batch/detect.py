@@ -74,12 +74,15 @@ def about_errands_under_way(text: str) -> bool:
     three of them — passed the shape floor, Jev read «several», and four such turns became four new LISTS: the
     questions went unanswered and the refinements never reached their errand. A message about live errands is a
     conversation with them, and the turn is what answers a question and routes a refinement. An enumerated paste
-    still counts as a list — nobody numbers the questions he asks about work in progress."""
+    still counts as a list — nobody numbers the questions he asks about work in progress.
+
+    FINISHED errands count too (2026-10-11 11:34, ES): with all three done, «me sacas un LG de 24… ¿El Fujitsu P27?
+    Y al juego… monedas? Y del informe…» became a list twice and was answered «me pongo con ellas»."""
     if unmistakable(text):
         return False
     try:
         from nucleo.turn import named_errand
-        return bool(named_errand.named(text))
+        return bool(named_errand.named(text, named_errand.known(with_finished=True)))
     except Exception:  # noqa: BLE001 — a doubt keeps today's path
         return False
 

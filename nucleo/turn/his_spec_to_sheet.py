@@ -1,0 +1,81 @@
+"""A spec he states about ONE errand reaches that errand's sheet, whatever the reply did with it.
+
+three-tasks-at-once (ES, 2026-10-11 11:34, sandbox 113401-es). «Y el monitor, que sea de 27 al menos» was answered
+«del monitor apunto lo de 27 pulgadas o más; ¿te vale hasta cuánto pagar?» — a question, so no promise backstop
+fired, and the turn called nothing. The 27" floor never reached the monitor hunt: its sheet had no `asked`, no
+criteria, and nine minutes later its finalists were an LG 24", a BenQ 24" and an Asus 23,8". He pointed it out twice
+(«me sacas un LG de 24 y un Asus de 23,8… te pedí mínimo 27») and the rows stayed.
+
+The sheet's door already rejects a row that contradicts his words (`search.category`, `results/category_gate`); it
+only needs to HEAR them. So: each sentence of his that names exactly one errand with a results sheet, and states
+something the door reads (a size, a minimum size, a price ceiling, 4K), joins that sheet's `asked` — re-said in the
+readers' plain form, never as his raw sentence — and re-judges its rows through the same `sheets.recheck_rows` an
+injected correction uses. A sentence naming several errands is left alone: «el informe hasta 30.000 y el monitor
+hasta 150» must not give the monitor a €30,000 ceiling.
+"""
+from __future__ import annotations
+
+import re
+
+from loguru import logger
+
+_SENTENCE = re.compile(r"(?<=[.!?;…])\s+|\n+")
+#: (sheet, sentence) already carried this process: the text channel can pass the same words twice in one turn.
+_CARRIED: set[tuple[str, str]] = set()
+
+
+def spec_of(sentence: str) -> str:
+    """The sentence's specs, re-said in the readers' own plain form ("" when it states none).
+
+    Never the sentence itself: «me sacas un LG de 24 y un Asus de 23,8… te pedí mínimo 27» names two rows he is
+    REJECTING, and the subject reader takes a capitalised name for the thing every row must name — carried whole, it
+    emptied the sheet, the Fujitsu he wanted included. Only the floor, the size, the ceiling and 4K travel. Not the
+    exclusions: read off conversation they are noise («nada de CRT ni monitores viejos» excludes «monitores»), and
+    an injected correction already carries them (`dispatch.inject` → `sheets.recheck_rows`)."""
+    from search.category import asked_from
+    ask = asked_from(sentence)
+    parts = [f"at least {ask['size_min']} inches" if ask.get("size_min")
+             else (f'{ask["size"]}"' if ask.get("size") else ""),
+             f"under {ask['ceiling']:.0f}" if ask.get("ceiling") else "",
+             "4K" if ask.get("uhd") else ""]
+    return " · ".join(p for p in parts if p)
+
+
+def carry(operator_text: str) -> list[str]:
+    """The sheets his words re-judged ([] when none). Never raises."""
+    text = str(operator_text or "").replace("...", "…")
+    if not text.strip():
+        return []
+    out: list[str] = []
+    try:
+        from nucleo import sheets
+        from nucleo.turn import named_errand as _ne
+        errands = _ne.known(with_finished=True)
+        if not any(str(e.get("sheet") or "").startswith("results") for e in errands):
+            return []
+        for sentence in (s.strip() for s in _SENTENCE.split(text)):
+            hits = _ne.named(sentence, errands) if sentence else []   # over ALL errands: «el informe… y el monitor…»
+            sheet = str(hits[0].get("sheet") or "") if len(hits) == 1 else ""
+            spec = spec_of(sentence) if sheet.startswith("results") else ""
+            if not spec or (sheet, spec) in _CARRIED:
+                continue
+            _CARRIED.add((sheet, spec))
+            sheets.recheck_rows(sheet, spec)
+            out.append(sheet)
+    except Exception as e:  # noqa: BLE001 — the turn goes on; the sheet keeps its rows
+        logger.warning(f"his_spec_to_sheet: could not carry his words to the sheet — {type(e).__name__}: {e}")
+    if out:
+        _emit(out)
+    return out
+
+
+def forget() -> None:
+    _CARRIED.clear()
+
+
+def _emit(sheets_: list[str]) -> None:
+    try:
+        from voice.observer import emit
+        emit("brain", "📋 his spec reached the errand's sheet", role="system", extra={"sheets": sheets_[:4]})
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"his_spec_to_sheet: emit failed — {e}")

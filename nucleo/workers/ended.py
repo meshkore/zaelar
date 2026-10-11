@@ -30,6 +30,17 @@ LIVE_SESSION_STATES = frozenset({"queued", "running"})
 # worked.
 ENDED_SESSION_STATES = frozenset({"done", "error", "cancelled", "relevada"})
 JUST_ENDED_S = 300.0     # five minutes: how long the conversation lasts in which the operator still asks
+# three-tasks-at-once (ES, 2026-10-11 11:34): the report finished at 11:36, and at 11:42 — 333 s later — the block
+# listed the monitor and the game as finished and not the report; asked «¿el informe en qué punto está?», the turn
+# answered «del informe no me consta ningún dato todavía» with the report open on his screen. Three errands at once
+# outlive five minutes. A DELIVERED errand stays a fact for the conversation; a death or a stop keeps the short
+# window its notice machinery was measured with (V2-221/224). The prompt does not grow: the block's cap stands.
+DELIVERED_KEPT_S = 900.0
+
+
+def _window(row: dict) -> float:
+    ok = bool(row.get("ok")) and str(row.get("status") or "") == "done"
+    return DELIVERED_KEPT_S if ok else JUST_ENDED_S
 
 
 _ENDED_SESSIONS: dict[str, dict] = {}
@@ -73,6 +84,7 @@ def _remember_ended(rec, resuming: bool = False) -> None:
         from nucleo.sheets import sheet_of
         _ENDED_SESSIONS[str(rec.task_id)] = {
             "id": str(rec.task_id), "goal": (rec.goal or "").strip(), "status": str(rec.status or "done"),
+            "title": str(getattr(rec, "title", "") or "").strip(),       # the name he hears it by (`errand_pool`)
             "ok": bool(rec.ok), "summary": (rec.result_summary or "").strip(), "at": time.time(),
             # V2-566 — the BOX the errand was delivering into, so a follow-up of this just-ended errand can
             # inherit it instead of opening a second one beside it. Only when the sheet really was its surface:
@@ -83,7 +95,7 @@ def _remember_ended(rec, resuming: bool = False) -> None:
             # What died and WHY, so the reply backstop can say it in plain words (`flash/death_line.py`).
             "kind": str(getattr(rec, "kind", "") or ""), "error_class": str(getattr(rec, "error_class", "") or "")}
         for k in [k for k, v in _ENDED_SESSIONS.items()
-                  if time.time() - float(v.get("at") or 0) > JUST_ENDED_S]:
+                  if time.time() - float(v.get("at") or 0) > _window(v)]:
             _ENDED_SESSIONS.pop(k, None)
     except Exception:  # noqa: BLE001
         pass
@@ -142,7 +154,7 @@ def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[di
     _live = _live_goals()
     rows = [{**v, "ago_s": int(now - float(v.get("at") or now))}
             for v in _ENDED_SESSIONS.values()
-            if (now - float(v.get("at") or 0)) <= JUST_ENDED_S
+            if (now - float(v.get("at") or 0)) <= _window(v)
             and (v.get("goal") or "").strip().lower() not in _live]
     rows.sort(key=lambda r: r["ago_s"])
     return rows[:max(1, limit)]

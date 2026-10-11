@@ -18,8 +18,11 @@ from __future__ import annotations
 from loguru import logger
 
 
-def known() -> list[dict]:
-    """Every errand he can be asking about: {id, label, request, phase, waiting_on, parked}. Never raises."""
+def known(*, with_finished: bool = False) -> list[dict]:
+    """Every errand he can be asking about: {id, label, request, phase, waiting_on, parked}. Never raises.
+
+    The one STARTING (asked, no session yet) is always in; the just-FINISHED ones only `with_finished` — a status
+    line must not report a finished errand as under way (`errand_pool`)."""
     from nucleo import dispatch as _d
     out: list[dict] = []
     try:
@@ -42,7 +45,9 @@ def known() -> list[dict]:
                         "sheet": str(p.get("sheet") or ""), "surface": str((p.get("context") or {}).get("surface") or "")})
     except Exception as e:  # noqa: BLE001
         logger.debug(f"named_errand: parked errands unreadable — {type(e).__name__}: {e}")
-    return out
+    from nucleo.turn import errand_pool as _pool
+    out += _pool.starting(out)
+    return out + (_pool.finished(out) if with_finished else [])
 
 
 def _words(text: str) -> set[str]:

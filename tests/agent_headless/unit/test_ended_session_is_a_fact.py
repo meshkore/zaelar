@@ -91,8 +91,16 @@ def test_but_a_LIVE_session_is_not_announced_as_ended():
 def test_and_an_old_ending_is_not_this_conversation():
     import time as _t
 
+    _session("error", ok=False)
+    dispatch._ENDED_SESSIONS["w1"]["at"] = _t.time() - (dispatch.JUST_ENDED_S + 60)
+    assert dispatch.recently_ended_sessions() == []
+    # a DELIVERED errand is a fact for the whole conversation (three-tasks-at-once 2026-10-11: three errands at
+    # once outlived five minutes, and the report vanished from the block) — but not forever
+    from nucleo.workers import ended as _ended
     _session("done")
     dispatch._ENDED_SESSIONS["w1"]["at"] = _t.time() - (dispatch.JUST_ENDED_S + 60)
+    assert [r["id"] for r in dispatch.recently_ended_sessions()] == ["w1"]
+    dispatch._ENDED_SESSIONS["w1"]["at"] = _t.time() - (_ended.DELIVERED_KEPT_S + 60)
     assert dispatch.recently_ended_sessions() == []
 
 
@@ -124,8 +132,10 @@ def test_and_the_snapshot_does_not_hold_the_worker_handles():
     assert isinstance(row, dict)
     # `sheet` joined in V2-566: the box the errand delivered into, so a follow-up can inherit it — a string,
     # never a handle. `kind` and `error_class` (2026-10-10): what died and why, for the death backstop — strings.
-    assert set(row) == {"id", "goal", "status", "ok", "summary", "at", "told", "sheet", "kind", "error_class"}
-    assert all(isinstance(row[k], str) for k in ("kind", "error_class"))
+    # `title` (2026-10-11): the name he hears the errand by, so a sentence about a finished one still names it.
+    assert set(row) == {"id", "goal", "status", "ok", "summary", "at", "told", "sheet", "kind", "error_class",
+                        "title"}
+    assert all(isinstance(row[k], str) for k in ("kind", "error_class", "title"))
 
 
 # ── the enumeration, only once (same lesson as V2-197) ────────────────────────────────────────────────────

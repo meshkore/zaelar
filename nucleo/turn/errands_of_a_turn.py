@@ -164,7 +164,8 @@ def promised_refinement(operator_text: str, spoken: str) -> str:
         return ""
     from nucleo.turn import named_errand as _ne
     top = _ne.strongest(operator_text)
-    return str(top["id"]) if top and not top["parked"] else ""
+    # a STARTING errand has no session to inject into yet: its id would resolve to whatever else is live
+    return str(top["id"]) if top and not top["parked"] and not top.get("starting") else ""
 
 
 def parked_question_for(requests: list[str]) -> str:

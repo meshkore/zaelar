@@ -354,6 +354,8 @@ def forget_announced() -> None:
     _forget_steps()
     from .asked_site import forget as _forget_sites
     _forget_sites()
+    from nucleo.turn.his_spec_to_sheet import forget as _forget_specs
+    _forget_specs()
 
 
 def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> str:
@@ -369,6 +371,8 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
         from . import live_blocks as _lb
         from . import asked_site as _site, nothing_claims as _nothing, own_words as _own
 
+        from nucleo.turn import his_spec_to_sheet as _spec
+        _spec.carry(heard_now)     # his «27 al menos» re-judges that errand's rows BEFORE any are delivered
         spoken = _own.keep_its_word(spoken or "", window, heard_now)   # a row it named is never denied (V2-782)
         dicho = " ".join(str((m or {}).get("content") or "") for m in (window or [])
                          if (m or {}).get("role") == "assistant")
@@ -508,7 +512,10 @@ def _about_another_errand(heard_now: str, errand: str) -> bool:
         return False
     try:
         from nucleo.turn import named_errand as _ne
-        return bool(_ne.named(heard_now)) and not _ne.named(heard_now, [{"request": errand}])
+        # starting and just-finished errands are named too: «for the game make the jump higher» while the game's
+        # session was still registering named nothing, and the monitor's rows answered it (EN 2026-10-11 11:34)
+        return (bool(_ne.named(heard_now, _ne.known(with_finished=True)))
+                and not _ne.named(heard_now, [{"request": errand}]))
     except Exception:  # noqa: BLE001
         return False
 

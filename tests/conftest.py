@@ -183,3 +183,19 @@ def _composers_never_reach_the_network():
         yield
     finally:
         spoken_delivery.LIVE, confirm._JUDGE_LIVE, outgoing_lang.LIVE = saved
+
+
+@pytest.fixture(autouse=True)
+def _the_errand_registries_start_empty():
+    """The errands a sentence can NAME include the ones just asked (`flash.escalate._tasks`, for 90 s) and the ones
+    just ended (`workers.ended._ENDED_SESSIONS`, up to 15 min for a delivery) — `nucleo/turn/errand_pool.py`. Both are
+    process-global, so a test that escalated or ended a session left errands every later test's sentence could name:
+    measured 2026-10-11, two `turn/` files passed alone and failed in their folder. Cleared per test, only when the
+    modules are already loaded (importing them here would change what the suite imports)."""
+    import sys
+    esc, ended = sys.modules.get("nucleo.flash.escalate"), sys.modules.get("nucleo.workers.ended")
+    if esc is not None:
+        esc._tasks.clear()
+    if ended is not None:
+        ended._ENDED_SESSIONS.clear()
+    yield
