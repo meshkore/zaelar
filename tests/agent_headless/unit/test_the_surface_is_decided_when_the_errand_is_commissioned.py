@@ -24,10 +24,11 @@ from nucleo.flash import router
 
 
 # ── the vocabulary, which is what prevents this from drifting ─────────────────────────────────────────────────
-def test_there_are_exactly_six_and_no_more():
-    # V2-644 added `informe` (a written thing you READ, delivered into the documento sheet) — the closed
-    # vocabulary is six now, and this pin is what makes the next addition a deliberate decision too.
-    assert surfaces.SURFACES == ("lista", "item", "informe", "widget", "voz", "silenciosa")
+def test_there_are_exactly_seven_and_no_more():
+    # V2-644 added `informe` (a written thing you READ, delivered into the documento sheet); the photo round
+    # (2026-10-11) added `imagenes` (pictures, delivered into the photo viewer) — seven now, and this pin is what
+    # makes the next addition a deliberate decision too.
+    assert surfaces.SURFACES == ("lista", "item", "informe", "widget", "voz", "silenciosa", "imagenes")
 
 
 @pytest.mark.parametrize("said,expected", [
@@ -106,7 +107,9 @@ def _escalate_tool():
 def test_the_tool_ASKS_for_it_and_offers_only_the_five():
     fn = _escalate_tool()["function"]
     par = fn["parameters"]["properties"]["surface"]
-    assert par["enum"] == list(surfaces.SURFACES)
+    # `imagenes` is read from the brief and the screen (`surfaces.from_brief`), not offered in the tool: the
+    # tool schema rides in every turn's prompt, and the turn prompt has a ceiling.
+    assert par["enum"] == [s for s in surfaces.SURFACES if s != surfaces.IMAGES]
     assert "surface" in fn["parameters"]["required"], (
         "optional = the model omits it and everything falls back by kind, which means guessing the screen")
 

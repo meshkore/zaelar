@@ -172,7 +172,10 @@ def test_dispatch_wires_every_doc_branch_the_sheet_already_has():
     assert "docsheet.doc_open(rec)" in _DISPATCH_SRC
     assert "docsheet.doc_retitle(rec)" in _DISPATCH_SRC
     assert "docsheet.doc_close(rec)" in _DISPATCH_SRC
-    assert _DISPATCH_SRC.count('opens_doc(getattr(rec, "surface", ""))') >= 5, (
+    # The two criteria guards read `not_a_sheet` since the photo round (2026-10-11): a DOCUMENT or a PICTURE
+    # errand has no results sheet to seed — the doc branch is still taken, through the wider predicate.
+    assert (_DISPATCH_SRC.count('opens_doc(getattr(rec, "surface", ""))')
+            + _DISPATCH_SRC.count('not_a_sheet(getattr(rec, "surface", ""))')) >= 5, (
         "commission, retitle, close, two criteria guards and the prompt block all branch on opens_doc")
     # V2-661: the prompt BLOCKS a trusted worker gets (this one + the library block) compose in one place,
     # `dispatch_prompts.trusted_blocks`; dispatch calls it. The guard follows the CHANNEL (V2-555).
