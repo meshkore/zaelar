@@ -1144,6 +1144,21 @@ DOMAINS: list[dict] = [
         {"id": "2.48", "title": "A hard RESET records WHO ordered it, not only what it destroyed",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_a_reset_says_who_asked_for_it.py"]},
+        # 2026-10-11 — `show-real-photo-of-a-new-car__us` + `build-a-video-playlist-from-links__us`, both EN rounds
+        # red: a `show_images` demoted to chat by its own verdict («Sorry, I lost that»), three `show-drag` vetoes
+        # over the viewer, a `next` he asked for that the reply ignored, and a question turn that ran a second `next`.
+        {"id": "2.481", "title": "A show_images the model called is the act — no repair demotes it into chat",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_media_call_is_not_demoted_into_chat_by_its_own_verdict.py"]},
+        {"id": "2.482", "title": "Pictures landing in the viewer are a mount (content-mount), and the emitters name the action",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_pictures_landing_in_the_viewer_mount_the_card.py"]},
+        {"id": "2.483", "title": "A next/pause/add he asked for is named in the reply — what is playing now, both channels",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_transport_op_he_asked_for_is_named_in_the_reply.py"]},
+        {"id": "2.484", "title": "A sure «tell me» turn gets no unsure action completed into it",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_sure_question_for_words_does_not_run_an_unsure_action.py"]},
         {"id": "2.49", "title": "One widget order, ONE mutation — and the boring ones never wait for a model",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_widget_orders_are_linear.py"]},

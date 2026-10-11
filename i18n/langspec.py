@@ -223,6 +223,11 @@ class LangSpec:
     receipt_opened: str = "También te he abierto {cards}."
     receipt_on_card: str = "Hecho en {cards}."
     receipt_and: str = "y"
+    #: The TRANSPORT receipt (`transport_receipt`, 2026-10-11): a reply that ignored the next/play/pause/add he
+    #: asked for names what happened and what is playing now.
+    receipt_now_playing: str = "Suena ahora «{title}»."
+    receipt_paused: str = "He pausado «{title}»."
+    receipt_queue_total: str = "La cola tiene ahora {total}."
     #: OPENING a piece nobody can find (V2-609).
     open_no_such_piece: str = "No tengo ninguna pieza con ese nombre; ¿cuál quieres que te abra?"
     open_system_piece: str = "Eso es una pieza del sistema; ábrela desde su botón o dime su nombre."

@@ -148,6 +148,14 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             spoken_text = "Hecho."
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
+    # The TRANSPORT receipt (2026-10-11): the model's words answered the side remark and skipped the next/pause/add he
+    # asked for — one more sentence names what is playing now. The words have streamed, so it is said after them.
+    if data_done["v"] and spoken_text and escalate_req["v"] is None and search_req["v"] is None:
+        from nucleo.flash import transport_receipt as _pst_tr
+        if (_tr_line := _pst_tr.voice_owed(spoken_text)):
+            send(speech.sanitize(_tr_line, drop_metadata=False))
+            spoken_text = (spoken_text + " " + _tr_line).strip()
+
     # Regla de usuario fijada/retirada SIN frase hablada → ack corto (V2-046 A1, visto en el probe: la
     # RETIRADA dejaba el turno MUDO). Nunca mudo al aceptar/quitar una regla.
     if style_fired["v"] and not spoken_text and escalate_req["v"] is None and search_req["v"] is None:
