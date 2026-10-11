@@ -63,6 +63,7 @@ Entirely fail-soft: the turn has to complete even if the player is broken.
     q = str(query or "").strip()
     try:
         from widgets.server_api import brain_action
+        from nucleo.flash import refusal_line as _rl
         if normalize_action(action) == "list":
             # V2-402/V2-632 — a media search goes to the PLAYER's own dashboard: numbered results on the
             # Inicio tab, nothing autoplays, the queue untouched (the operator steers from there by voice).
@@ -73,7 +74,7 @@ Entirely fail-soft: the turn has to complete even if the player is broken.
                     "query": q[:80],
                     "added": [str(t)[:120] for t in (res.get("results") or res.get("added") or [])],
                     "count": int(res.get("count") or 0),
-                    "message": str(res.get("message") or res.get("error") or "")[:160]}
+                    "message": (await _rl.said("youtube", res, generic_line=False))[:160]}
         if normalize_action(action) == "queue":
             # V2-781 — several videos back to back: the queue is built from the search and its first one plays.
             res = await brain_action("youtube", "queue_search", {"query": q} if q else {})
@@ -84,14 +85,14 @@ Entirely fail-soft: the turn has to complete even if the player is broken.
                     "videoId": str(res.get("videoId") or ""),
                     "added": [str(t)[:120] for t in (res.get("queued") or [])],
                     "count": int(res.get("count") or 0),
-                    "message": str(res.get("message") or res.get("error") or "")[:160]}
+                    "message": (await _rl.said("youtube", res, generic_line=False))[:160]}
         res = await brain_action("youtube", "load", {"query": q} if q else {})
         res = res if isinstance(res, dict) else {}
         _show_card(bool(res.get("ok", res.get("videoId"))))
         return {"executed": "play_video", "ok": bool(res.get("ok", res.get("videoId"))),
                 "query": q[:80], "videoId": str(res.get("videoId") or ""),
                 "title": str(res.get("title") or "")[:120],
-                "message": str(res.get("message") or res.get("error") or "")[:160]}
+                "message": (await _rl.said("youtube", res, generic_line=False))[:160]}
     except Exception as e:  # noqa: BLE001
         return {"executed": "play_video", "ok": False, "query": q[:80], "execute_error": str(e)[:200]}
 

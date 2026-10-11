@@ -746,7 +746,6 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
         tool = _widget_data_tool()
         if action not in (manifest.get("actions") or {}) or not tool:
             return None
-        digest = ""
         try:
             from nucleo.flash import widget_read as _wr
             digest = str(_wr.read(wid) or "").strip()[:1500]
@@ -754,6 +753,7 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
             digest = ""
         card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         got: list[tuple[str, dict]] = []
+        from nucleo.flash import refusal_line as _rline
         from nucleo.flash.fast_client import FastClient
         await FastClient().complete(
             [{"role": "system", "content": _SYS_REFUSAL.format(
@@ -762,7 +762,7 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
              {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»"
                                          + (f"\nWhat you just told him: «{said.strip()[:300]}» — if you named which one there, "
                                             f"the correction is THAT one." if (said or "").strip() else "")}],
-            spec=spec, max_tokens=300, tools=[tool], no_thinking=True,
+            spec=spec, max_tokens=_rline.correction_budget(manifest, action), tools=[tool], no_thinking=True,
             on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
         for name, args in got:
             if name != "widget_data" or not _same_card(str(args.get("widget_id") or ""), wid):

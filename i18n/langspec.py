@@ -275,6 +275,7 @@ class LangSpec:
     # A widget refused a data operation — `nucleo/flash/widget_data_turn.py`.
     widget_data_failed: str = "No he podido: {reason}"
     widget_refused: str = "el widget no lo aceptó."
+    widget_partial_failed: str = ", pero una no: {reason}"
     # The browser's own login ceremony — `widgets/navegador/owner.py`.
     login_opened: str = ("Te abrí el login. Entra con tu cuenta; en cuanto vea que estás dentro, sigo yo solo.")
     login_not_saved: str = "No me quedó guardada la sesión de {site}. ¿Reintentamos el inicio de sesión?"

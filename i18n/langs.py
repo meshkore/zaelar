@@ -291,6 +291,7 @@ LANGUAGES: dict[str, LangSpec] = {
         death_offer_fix="That needs fixing in the provider settings before I can retry.",
         widget_data_failed="I couldn't: {reason}",
         widget_refused="the widget wouldn't take it.",
+        widget_partial_failed=", but one didn't go through: {reason}",
         login_opened=("I've opened the login for you. Sign in with your account; the moment I see you're in, "
                       "I'll carry on by myself."),
         treatment_question="",

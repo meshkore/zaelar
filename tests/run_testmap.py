@@ -3919,6 +3919,11 @@ DOMAINS: list[dict] = [
                                  "notice); a list row, a notice, a flight, a question or a refusal never (agenda-appointment-"
                                  "lifecycle EN, 2026-10-10); both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_claimed_removal_is_the_cancellation.py"]},
+        {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
+                                 "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
+                                 "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
+                                 "or a generic line; the correction pass has room to write a document",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_widgets_refusal_reaches_him_as_a_sentence.py"]},
         {"id": "2.251", "title": "«set a reminder on the premiere day» rings on the ONE date the last reply named — «I'll set "
                                  "a heads-up for that day» scheduled nothing (V2-781 pair 3); both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_asked_for_the_day_just_named_is_set.py"]},
