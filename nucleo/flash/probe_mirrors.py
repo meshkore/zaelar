@@ -44,9 +44,13 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
     # la intención. Gated por la promesa en la RESPUESTA. Generaliza sobre conjugaciones/cortesías.
     # V2-770 — a show of a card that is already open, on a turn whose verdict names an action INSIDE it, is not
     # the act («ábreme la ficha del dentista» → show_widget(agenda) over an open agenda): the repair runs.
+    # …unless the show IS the model's own media call (`media_show`): `show_images` → `canvas:show:imagenes` with the
+    # search parked for after the stream — demoting it drops the search, and the mute backstop then apologises
+    # («Sorry, I lost that») over an order he had already repeated (`show-real-photo-of-a-new-car__us`, 2026-10-11).
     try:
-        from . import direct_action as _da_show
-        if action.startswith("canvas:show:") and _da_show.order_is_inside(_tbrief, action.split(":", 2)[2]):
+        from . import direct_action as _da_show, media_show as _media_show
+        if (action.startswith("canvas:show:") and not _media_show.carries_media_request(action, names)
+                and _da_show.order_is_inside(_tbrief, action.split(":", 2)[2])):
             action = "chat"
     except Exception:
         pass

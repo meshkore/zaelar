@@ -140,6 +140,12 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
         # for could be heard. Arming the arbiter without this rule would have answered that one with silence.
         if _mounts_production(wid, action):
             return _v(True, "producer-mount")
+        # CONTENT LANDING is a mount too (`show-real-photo-of-a-new-car__us`, 2026-10-11): the picture search
+        # fills the viewer and its `show` was filed as a drag three times in one round, because the emit carried
+        # no action. The declaration is the action's own `done_when` (`effects._fills_the_card`): the card goes
+        # from empty to holding what he asked to SEE. A lens (`select`) over an open card still earns nothing.
+        if _lands_content(wid, action):
+            return _v(True, "content-mount")
         return _v(False, "show-drag")
 
     if op == "data":
@@ -179,6 +185,19 @@ def _mounts_production(wid: str, action: str) -> bool:
     try:
         from widgets import producers
         return bool(producers.starts_production(wid.split("::", 1)[0], action))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _lands_content(wid: str, action: str) -> bool:
+    """Does the action DECLARE that the card ends up holding content it did not have (`effects.PRESENT_MOUNT`
+    derived from its `done_when`)? Production is read by `_mounts_production`; this is the other mount."""
+    if not (wid and action):
+        return False
+    try:
+        from widgets import effects as _fx, producers
+        base = wid.split("::", 1)[0]
+        return _fx.carries(base, action, _fx.PRESENT_MOUNT) and not producers.starts_production(base, action)
     except Exception:  # noqa: BLE001
         return False
 

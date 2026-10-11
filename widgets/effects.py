@@ -89,6 +89,13 @@ def of(wid: str, action: str) -> frozenset:
             out.add(DATA_READ if _wa.is_view(spec, a) else DATA_WRITE)
         except Exception:  # noqa: BLE001
             pass
+        # CONTENT ARRIVING is a mount too (`show-real-photo-of-a-new-car__us`, 2026-10-11): the picture viewer's
+        # `show` declares `done_when: {field: items, expect: present}` — the card goes from empty to holding what
+        # he asked to SEE, and that cannot happen off screen any more than the player's sound can. Read from the
+        # declaration, never from the action's name: only an action whose declared end state is «this card now
+        # holds content» carries it.
+        if _fills_the_card(w, spec.get("done_when")):
+            out.add(PRESENT_MOUNT)
     try:
         from . import producers
         if producers.starts_production(w, a):
@@ -103,6 +110,18 @@ def of(wid: str, action: str) -> frozenset:
     except Exception:  # noqa: BLE001
         pass
     return frozenset(out)
+
+
+def _fills_the_card(wid: str, done_when) -> bool:
+    """Does this `done_when` say the card ITSELF ends up holding content it did not have (`expect: present` on
+    one of its own fields)? A `changed` field (a different video, a moved appointment) is not that: the card
+    already held something. `all: [...]` is read clause by clause."""
+    if isinstance(done_when, dict) and isinstance(done_when.get("all"), list):
+        return any(_fills_the_card(wid, c) for c in done_when["all"])
+    if not isinstance(done_when, dict):
+        return False
+    return (str(done_when.get("widget") or "").strip().lower() == wid
+            and str(done_when.get("expect") or "").strip().lower() == "present")
 
 
 def carries(wid: str, action: str, effect: str) -> bool:

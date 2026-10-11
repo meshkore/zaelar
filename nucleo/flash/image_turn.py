@@ -30,6 +30,8 @@ from __future__ import annotations
 
 import re
 
+from loguru import logger
+
 # How many pictures a set holds. Twelve fills the thumbnail strip without turning the viewer into a contact
 # sheet, and it is what one Google results page yields without scrolling — asking for more would cost a second
 # page load to add pictures nobody scrolls to.
@@ -140,12 +142,16 @@ async def execute(query: str, n: int = DEFAULT_N, more: bool = False) -> dict:
         # appeared (2026-08-28, `show-real-photo-of-a-new-car__es`: 12 photos in the store, nothing on
         # screen). Emitting on the shared rail instead of patching the second channel is the lesson this
         # codebase has now paid for five times. Idempotent on the frontend; only fires when something loaded.
-        if parte["ok"] and parte["count"]:
+        # Through THE ONE DOOR (`canvas_visibility.present`, V2-723) and NAMING the action that fills the card:
+        # emitted bare, the arbiter filed this mount as a drag three times in one round
+        # (`show-real-photo-of-a-new-car__us`, 2026-10-11) — the pictures landing in the viewer is the mount the
+        # viewer's own `show` declares (`done_when: items present`), and an already-open viewer is not raised again.
+        if parte["ok"] and parte["count"] and not (more and shown):
             try:
-                from voice.observer import emit as _emit
-                _emit("widget", "show", extra={"id": "imagenes", "src": "flash"})
-            except Exception:  # noqa: BLE001
-                pass
+                from nucleo.flash import canvas_visibility as _cvis
+                _cvis.present("imagenes", reason="producer-mount", action="show", src="flash")
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"image_turn: mount not emitted — {e}")
         # WHERE the pictures come from is part of the answer, not decoration: the operator's own review of the
         # slow route praised it for going to the official site, so a fast route that cannot say whose picture
         # this is would be trading the thing he valued for speed.

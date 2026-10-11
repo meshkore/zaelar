@@ -13,6 +13,8 @@ through here—it is the `cluster_send` tool, not a widget data-op.)
 """
 from __future__ import annotations
 
+from loguru import logger
+
 from nucleo.flash import leave_gate as _leave_gate
 from nucleo.flash import refusal_line as _rline       # one door for what a refusal may say to him
 
@@ -160,11 +162,17 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
         # BUT NEVER OPENED»—the operator saw nothing, so «hecho» was invisible. A data-op that WRITES is
         # exactly what the frontend already uses to repaint an open card; opening it as well when it is not
         # open is the same decision, not a new one. Idempotent in the browser.
+        # NAMING the action (`show-real-photo-of-a-new-car__us`, 2026-10-11): emitted bare, the arbiter read every
+        # one of these as a drag — a `next` on the player is the production the card declares, and the policy can
+        # only see that if the emit says so. And a card already in front of him is not raised again over a lens
+        # (`select`): that was the third of the three vetoed shows, and it is the one door's own rule (V2-723).
         try:
+            from nucleo.flash import canvas_visibility as _cvis
             from voice.observer import emit as _emit
-            _emit("widget", "show", extra={"id": wid, "src": "flash"})
-        except Exception:  # noqa: BLE001
-            pass
+            if not _cvis.is_open(wid):
+                _emit("widget", "show", extra={"id": wid, "src": "flash", "action": act})
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"widget_data_turn: mount not emitted — {e}")
     if not hechas:
         if fallidas:
             f0 = fallidas[0]
