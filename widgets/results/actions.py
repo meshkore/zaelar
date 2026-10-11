@@ -12,6 +12,7 @@ from search import candidacy as _cand
 from . import category_gate as _gate
 
 from . import data as _d
+from . import hard_checks as _hard
 
 
 def _file_pages(data: dict, pages: list[dict]) -> dict:
@@ -31,6 +32,7 @@ def _file_pages(data: dict, pages: list[dict]) -> dict:
         extra["note_for_worker"] = (extra.get("note_for_worker", "") + " No row carries any datum (price, rating, "
                                     "phone, fact) for: " + " · ".join(gap) + ". In your report say what you did "
                                     "NOT find; never present these rows as meeting it.").strip()
+    _hard.file(data, extra)        # each hard requirement is a column every row carries (yes · no · «?»)
     return extra
 
 
@@ -110,6 +112,8 @@ def _a_append(action, payload, sheet) -> dict:
         if key not in seen:               # same title+url twice = the same finding, not a second result
             seen.add(key)
             data["items"].append(it)
+        else:                             # …but the row sent again may carry what the worker verified on it
+            _hard.merge_into(data["items"], it)
     data["items"] = data["items"][:_d._MAX_ITEMS]
     if payload.get("title"):
         data["title"] = _d._clip(payload["title"], "sheet_title")
@@ -333,9 +337,11 @@ def _a_criteria(action, payload, sheet) -> dict:
                 acc.append(ch)
         cur["changes"] = acc[-_d._MAX_CRIT:]
     data["criteria"] = cur
+    _open = _hard.stamp(data)              # the rows already on the sheet get the new columns too
     _d._save(data, sheet)
     off = _gate.recheck(sheet, "")              # a criterion that rules rows out applies to the rows already there
-    return {"ok": True, "criteria": cur, "reset": fresh, **({"off_category": off} if off else {})}
+    return {"ok": True, "criteria": cur, "reset": fresh, **({"off_category": off} if off else {}),
+            **({"hard_unverified": _open} if _open else {})}
 
 
 def _a_auth_done(action, payload, sheet) -> dict:

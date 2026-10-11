@@ -4114,6 +4114,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/memory/unit/test_a_bare_answer_reaches_the_distiller_with_its_question.py']},
         {"id": "2.542", "title": "After the first delivery, the sheet's rows only ride a WAIT: a reply that answers his question keeps the turn (rental-car: «ya hay candidatos en la hoja…» glued to four replies with one errand live)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_second_sheet_tail_only_rides_a_wait.py']},
+        {"id": "2.543", "title": "Each HARD requirement of his is a column every row carries (yes · no · «?») through every door of the results sheet; a row sent again carries what was verified; a list errand's worker is told to declare them",
+            "ch": UNIT, "paths": ['tests/browser/unit/results/test_a_hard_requirement_is_a_column_every_row_carries.py']},
+        {"id": "2.544", "title": "A question about a row and one of his must-haves is answered FROM the row's fact — «not verified» when it says «?» — and the delivery tail is not added on top (text channel)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_question_about_a_row_reads_its_hard_requirement.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

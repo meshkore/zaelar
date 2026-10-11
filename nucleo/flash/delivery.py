@@ -20,6 +20,7 @@ from __future__ import annotations
 import re as _re
 
 from .router_guards import _norm_txt
+from . import row_check as _row_check   # a question about a row reads its hard-requirement fact
 from . import delivery_repeat as _repeat   # a second tail only rides a wait (rental-car, 2026-10-11)
 
 
@@ -395,6 +396,10 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
         if _cut:
             _emit("🧹 importe sin fuente recortado", dropped=[c[:120] for c in _cut[:3]])
             spoken = (f"{spoken} {_ag.unbacked_line()}" if spoken else _ag.unbacked_line()) if _failed else spoken
+        _check = _row_check.for_turn(heard_now)       # he asked about a row and a must-have: the row answers
+        if _check:
+            _emit("📋 row check: the reply reads the row's hard-requirement fact", line=_check[:160])
+            return ((spoken.rstrip() + " ") if spoken else "") + _check
         _said = _ANNOUNCED.setdefault(encargo, set())     # V2-781: what it said, kept past the window
         filas = [f for f in filas if _row_key(f) not in _said]
         _held = (_not_owed(heard_now, encargo, _back_rows or filas, already=bool(_said))

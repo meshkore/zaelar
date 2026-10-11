@@ -287,8 +287,8 @@ def errand_block() -> str:
 def trusted_blocks(surface: str = "") -> str:
     """The extra blocks a TRUSTED worker's prompt carries, in order: the report-surface contract (V2-644) when
     the errand delivers a document, and where the operator's files live (V2-661). Empty when neither applies."""
-    from nucleo import surfaces as _surfaces
-    out = []
+    from nucleo import surfaces as _surfaces; from widgets.results import hard_checks as _hard  # noqa: E702
+    out = [_hard.worker_block()] if _surfaces.opens_sheet(surface or "") else []   # his must-haves are columns
     from nucleo import picture_errand as _pe              # a picture errand delivers into the photo viewer
     out += [DOC_SURFACE_BLOCK] if _surfaces.opens_doc(surface or "") else _pe.prompt_blocks(surface or "")
     lib = library_block()
