@@ -3007,17 +3007,22 @@ def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.5) -> dic
             except Exception:
                 continue
             if t:
-                got.append((ts, t, src))
+                got.append((ts, t, src, str(d.get("id") or "")))
         return got
 
     try:
         spawned = _texts("worker.spawned", "goal")
-        spawn_ts = [ts for ts, _t, _s in _stamped("worker.spawned", "goal")]
+        _spawns = _stamped("worker.spawned", "goal")
+        spawn_ts = [ts for ts, _t, _s, _i in _spawns]
+        spawn_ids = {i for _ts, _t, _s, i in _spawns if i}
         # SOLO las escaladas que llegaron a NACER. Una escalada DEDUPLICADA deja su `escalate.requested` y
         # ningún worker: contarla acusaría al dedup justo de los casos en los que funcionó — la forma exacta
         # del error anterior, un lector apuntado al sitio equivocado que fabrica el hallazgo en vez de fallar.
-        born = [(t, src) for ts, t, src in _stamped("escalate.requested", "request")
-                if any(0 <= s_ts - ts < 25000 for s_ts in spawn_ts)]
+        # Born = its OWN worker spawned (same id). The 25 s proximity fallback attributed someone else's spawn:
+        # three-tasks-at-once 2026-10-11 counted the game's PARKED ask and its later confirmed launch as «3 workers
+        # para UN encargo» — the game ran one worker; the others were spawns of the report and the monitor.
+        born = [(t, src) for ts, t, src, i in _stamped("escalate.requested", "request")
+                if (i in spawn_ids if (i and spawn_ids) else any(0 <= s_ts - ts < 25000 for s_ts in spawn_ts))]
     finally:
         try:
             con.close()
