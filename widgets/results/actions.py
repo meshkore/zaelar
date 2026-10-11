@@ -145,10 +145,14 @@ def _a_choose(action, payload, sheet) -> dict:
 def _a_detail(action, payload, sheet) -> dict:
     data = _d.view_data(sheet)
     it = _d._find(data.get("items") or [], _d._named(payload), payload.get("index"))
-    if not it and _d._named(payload) and not (payload.get("sheet") or payload.get("q")):
+    # a name that arrived in the index slot is a name too (search-buy-used-car ES, 2026-10-11: {"index": "Fiat Tipo"}
+    # against the empty base sheet never reached the errand's instance, and the reply said the row did not exist)
+    _idx = payload.get("index")
+    ref = _d._named(payload) or (_idx.strip() if isinstance(_idx, str) and not _idx.strip().isdigit() else "")
+    if not it and ref and not (payload.get("sheet") or payload.get("q")):
         # Demo pass 107, S3: the call named no sheet, the base had no such row and the errand's instance did.
         hits = [(s, f) for s in _d.sheets() if s != sheet
-                for f in [_d._find(_d.view_data(s).get("items") or [], _d._named(payload), None)] if f]
+                for f in [_d._find(_d.view_data(s).get("items") or [], ref, None)] if f]
         if len(hits) == 1:
             sheet, it = hits[0]
             data = _d.view_data(sheet)
