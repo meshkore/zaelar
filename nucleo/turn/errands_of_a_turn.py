@@ -26,6 +26,12 @@ def same_errand(a: str, b: str) -> bool:
     return bool(wa and wb) and matching.containment(wa, wb) >= matching.SAME_ERRAND
 
 
+#: Our own wrapper around a listing hunt. Its words are the ENGINE's, not his: «real», «price», «link» are in every
+#: listing errand's goal, so «autonomía real y precio» named the monitor hunt while he asked about the car report
+#: (three-tasks-at-once ES, 2026-10-11 02:04 — five turns with monitor rows glued to answers about the report).
+LISTING_PREFIX = "Find real marketplace listings for: "
+
+
 def listing_errand(listing: dict) -> str:
     """A `search_listings` call written as an errand for a worker: the hunt and the bounds he gave."""
     q = str((listing or {}).get("query") or "").strip()
@@ -33,8 +39,20 @@ def listing_errand(listing: dict) -> str:
               f"min price {listing['price_min']}" if listing.get("price_min") not in (None, "") else "",
               f"condition: {listing['condition']}" if str(listing.get("condition") or "").strip() else ""]
     bounds = [b for b in bounds if b]
-    return (f"Find real marketplace listings for: {q}" + (f" ({'; '.join(bounds)})" if bounds else "")
+    return (f"{LISTING_PREFIX}{q}" + (f" ({'; '.join(bounds)})" if bounds else "")
             + ". Put the real candidates, with price and link, on the results sheet.") if q else ""
+
+
+def ask_of(request: str) -> str:
+    """What HE asked for, out of an errand's goal: a listing hunt is its query, without our wrapper and bounds.
+    Any other goal is returned whole — those are written from his words (`errand_title`'s rule)."""
+    r = str(request or "")
+    if not r.startswith(LISTING_PREFIX):
+        return r
+    q = r[len(LISTING_PREFIX):]
+    for cut in (" (", ". Put the real"):
+        q = q.split(cut, 1)[0]
+    return q.strip()
 
 
 def listing_rides(listing: dict | None, requests: list[str]) -> str:
@@ -124,3 +142,19 @@ def _phase_in_session_language(phase: str, code: str) -> str:
     if str(code or "es")[:2] == "es":
         return "" if lang == "en" else phase
     return phase if lang == str(code)[:2] else ""
+
+
+def promised_refinement(operator_text: str, spoken: str) -> str:
+    """The LIVE errand a promise with no tool call is about — the one his sentence names most — or "".
+
+    three-tasks-at-once (ES, 2026-10-11 02:04): «¿y al juego le puedes poner monedas?» → «Voy con ello, le añado
+    monedas» and no call at all; the promise backstops only re-escalate a web-looking order, so a refinement of a
+    running errand was promised and dropped. Bounded on the consequence: his own words go to the errand they name,
+    through the same injection `send_to_worker` uses. A parked errand is left to the confirmation gate, which folds
+    the words into it; a reply that asks him for a detail promised nothing."""
+    from nucleo.flash import reply_promise as _rp, router as _router
+    if not (spoken or "").strip() or not _rp.promises_action(spoken) or _router.asks_for_missing_detail(spoken):
+        return ""
+    from nucleo.turn import named_errand as _ne
+    top = _ne.strongest(operator_text)
+    return str(top["id"]) if top and not top["parked"] else ""

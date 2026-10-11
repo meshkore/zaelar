@@ -786,7 +786,7 @@ async def probe_call_for_promise(operator_text: str, reply: str, spec=None, *, w
     try:
         import asyncio
         from nucleo import jev as _jev
-        from nucleo.flash import build_decision as _bd, turn_brief as _tb
+        from nucleo.flash import build_decision as _bd, card_commission as _cc, turn_brief as _tb
         handle = _tb.ask_for_turn(operator_text, last_reply="")
         if handle is None:
             return None
@@ -794,7 +794,7 @@ async def probe_call_for_promise(operator_text: str, reply: str, spec=None, *, w
         while not _jev._is_ready(handle) and waited < wait_s:
             await asyncio.sleep(0.05)
             waited += 0.05
-        wid = _bd.named_card(handle)
+        wid = _cc.card_for_his_words(_bd.named_card(handle), operator_text)   # `named_or_catalogue`'s refusal too
         return await call_for_promise(operator_text, reply, wid, spec=spec, window=window) if wid else None
     except Exception:  # noqa: BLE001
         return None

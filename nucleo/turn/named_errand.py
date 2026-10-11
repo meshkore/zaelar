@@ -28,7 +28,8 @@ def known() -> list[dict]:
             label = str(getattr(rec, "label", "") or "").strip()
             out.append({"id": str(e.get("id") or ""), "label": "" if label.endswith("…") else label,
                         "request": str(e.get("request") or "").strip(), "phase": str(e.get("phase") or ""),
-                        "note": str(e.get("note") or ""), "waiting_on": e.get("waiting_on") or "", "parked": False})
+                        "note": str(e.get("note") or ""), "waiting_on": e.get("waiting_on") or "", "parked": False,
+                        "sheet": str(e.get("sheet") or ""), "surface": str(e.get("surface") or "")})
     except Exception as e:  # noqa: BLE001 — a reader never breaks a turn
         logger.debug(f"named_errand: live errands unreadable — {type(e).__name__}: {e}")
     try:
@@ -36,7 +37,8 @@ def known() -> list[dict]:
         for tid, p in list((getattr(_dc, "_PENDING_CONFIRM", None) or {}).items()):
             refs = " ".join(str(r) for r in (p.get("refinements") or []))
             out.append({"id": str(tid), "label": "", "request": str(p.get("request") or "").strip(),
-                        "extra": refs, "phase": "", "note": "", "waiting_on": "user", "parked": True})
+                        "extra": refs, "phase": "", "note": "", "waiting_on": "user", "parked": True,
+                        "sheet": str(p.get("sheet") or ""), "surface": str((p.get("context") or {}).get("surface") or "")})
     except Exception as e:  # noqa: BLE001
         logger.debug(f"named_errand: parked errands unreadable — {type(e).__name__}: {e}")
     return out
@@ -53,13 +55,15 @@ def named(text: str, errands: list[dict] | None = None) -> list[dict]:
     the monitor alone. A short word shared by chance can add an errand he did not mean — one line too many,
     which is the cheaper error than leaving out the one he asked about."""
     from nucleo import dispatch as _d
+    from nucleo.turn.errands_of_a_turn import ask_of
     errands = known() if errands is None else errands
     said = _words(text)
     if not said or not errands:
         return []
     scored = []
     for e in errands:
-        hay = _words(f"{e.get('label', '')} {e.get('request', '')} {e.get('extra', '')}")
+        # his ASK, never our wrapper around it: «Find real marketplace listings» made «autonomía real» name the hunt
+        hay = _words(f"{e.get('label', '')} {ask_of(e.get('request', ''))} {e.get('extra', '')}")
         scored.append((sum(len(w) for w in said if any(_d._same_thing(w, h) for h in hay)), e))
     scored.sort(key=lambda se: -se[0])
     return [e for s, e in scored if s]
@@ -69,3 +73,35 @@ def asks_about_all(text: str) -> bool:
     """«¿Cómo va todo?» / «how's everything going?» — the attribution's own «all» reading (`dispatch._ALL_RE`)."""
     from nucleo import dispatch as _d
     return bool(_d._ALL_RE.search(_d._norm(text)))
+
+
+def strongest(text: str, errands: list[dict] | None = None) -> dict | None:
+    """The errand `text` names MOST — the one the sentence is about when it names several. None when it names none."""
+    hits = named(text, errands)
+    return hits[0] if hits else None
+
+
+def owns_card(errand: dict, card: str) -> bool:
+    """Is `card` (a results or document sheet, base id or instance) this errand's own box?"""
+    from nucleo import surfaces as _s
+    card = str(card or "")
+    family = card.split("::", 1)[0]
+    sheet, surface = str(errand.get("sheet") or ""), str(errand.get("surface") or "")
+    if family == "results":
+        return (sheet == card) if "::" in card else (sheet.startswith("results") or _s.opens_sheet(surface))
+    if family == "documento":
+        return _s.opens_doc(surface) or sheet.startswith("documento")
+    return True
+
+
+def card_is_another_errands(card: str, text: str) -> bool:
+    """Does his sentence belong to an errand that is NOT the one owning this results/document card?
+
+    three-tasks-at-once (ES, 2026-10-11 02:04): «¿Y el informe ese va bien? Lo quiero corto…» was repaired into
+    `results:criteria` because the monitor's sheet was the card on screen; «el informe» is the car REPORT, which had
+    no card open. The words of his original asks decide, not what is visible. False for any other card, and when
+    the sentence names no errand — then the screen is all there is to go by."""
+    if str(card or "").split("::", 1)[0] not in ("results", "documento"):
+        return False
+    top = strongest(text)
+    return bool(top) and not owns_card(top, card)

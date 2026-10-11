@@ -384,8 +384,9 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "") -> str:
             _emit("🧹 importe sin fuente recortado", dropped=[c[:120] for c in _cut[:3]])
         _said = _ANNOUNCED.setdefault(encargo, set())     # V2-781: what it said, kept past the window
         filas = [f for f in filas if _row_key(f) not in _said]
-        if filas and _about_another_errand(heard_now, encargo):
-            _emit("🤐 delivery backstop held: the turn is about another errand", goal=(encargo or "")[:80])
+        _held = _not_owed(heard_now, encargo, _back_rows or filas, already=bool(_said)) if filas else ""
+        if _held:
+            _emit(f"🤐 delivery backstop held: {_held}", goal=(encargo or "")[:80])
             filas = []
         extra = sheet_delivery_backstop(spoken or "", filas, dicho, errand=encargo, heard=_user)
         if extra:
@@ -430,6 +431,42 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "") -> str:
     except Exception:  # noqa: BLE001
         pass
     return spoken
+
+
+def _not_owed(heard_now: str, errand: str, rows, *, already: bool) -> str:
+    """Why this errand's rows are NOT owed to his sentence ("" = they are). The rows answer a sentence ABOUT that
+    errand, once — never a sentence about another one, and never as a tail that repeats.
+
+    three-tasks-at-once (ES, 2026-10-11 02:04): with a report, a monitor hunt and a game live, «Bueno, de hecho ya
+    hay candidatos en la hoja de resultados…» was glued to five replies in a row — three of them answers about the
+    car REPORT («¿y el informe ese va bien?»), one right after he had picked «el Samsung de 50 €». Three readings,
+    all of his sentence, none of a word list:
+      · it names other errands and not this one → it is about them;
+      · it names a row of this sheet → he is already choosing among what he was given;
+      · it names no errand while several are known, and this errand's rows were already delivered once → the
+        sentence is not about it, and a second delivery is the same tail again.
+    With nothing heard (a caller that does not pass his words), the rule stays what it was."""
+    if not heard_now or not errand:
+        return ""
+    if _about_another_errand(heard_now, errand):
+        return "the turn is about another errand"
+    said = _norm_txt(heard_now)
+    _errand_toks = set(_norm_txt(errand).split())
+    for row in rows or []:
+        title = _norm_txt(str(row or "").split(" — ")[0])
+        # a bare number is not a name: «al menos 27 pulgadas» is a criterion, not the «Samsung 27"» row
+        toks = [w for w in title.split() if not w.isdigit() and (any(c.isdigit() for c in w) or len(w) >= 5)
+                and w not in _errand_toks]
+        if any(_re.search(rf"\b{_re.escape(t)}\b", said) for t in toks):
+            return "he named a row of this sheet"
+    if already:
+        try:
+            from nucleo.turn import named_errand as _ne
+            if not _ne.named(heard_now) and len(_ne.known()) > 1:
+                return "already delivered, and his sentence is about no errand in particular"
+        except Exception as e:  # noqa: BLE001 — a reader never breaks a turn
+            _emit("🤐 delivery backstop: errands unreadable", error=f"{type(e).__name__}: {e}"[:120])
+    return ""
 
 
 def _about_another_errand(heard_now: str, errand: str) -> bool:

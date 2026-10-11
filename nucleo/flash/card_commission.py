@@ -22,6 +22,8 @@ import re
 
 from typing import Callable
 
+from loguru import logger
+
 
 #: The late catalogue question names a card for a repair that acts IN THE MODEL'S PLACE, on a card nobody sees
 #: yet — so it needs more than the classifier's «not a shrug». Demo pass 35 (2026-09-29, B1): «find me the
@@ -29,6 +31,27 @@ from typing import Callable
 #: on the canvas until the end of the demo. Every late read that named the right card across passes 20-35 was
 #: at 0.74 or more.
 LATE_CATALOGUE_MIN = 0.7
+
+
+def _another_errands_card(card: str, operator_text: str) -> bool:
+    """The screen verdict named a results/document sheet, but his sentence is about ANOTHER of his errands — the
+    one his words name (`named_errand.card_is_another_errands`). Then the card is not what the order is for, and
+    no repair may write into it: «del informe…» landed as `results:criteria` on the monitor's sheet."""
+    from nucleo.turn import named_errand as _ne
+    if not _ne.card_is_another_errands(card, operator_text):
+        return False
+    try:
+        from voice.observer import emit as _emit
+        _emit("brain", "🧭 card declined: his words name another errand", role="system",
+              extra={"cat": "flash", "card": card, "text": (operator_text or "")[:80]})
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"card_commission: emit failed — {type(e).__name__}: {e}")
+    return True
+
+
+def card_for_his_words(card: str, operator_text: str) -> str:
+    """`card`, or "" when his sentence belongs to another errand than the one owning it."""
+    return "" if card and _another_errands_card(card, operator_text) else (card or "")
 
 
 def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str:
@@ -45,7 +68,7 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
         from nucleo.flash import build_decision as _bd, turn_brief as _tb
         card = _bd.named_card(brief)
         if card:
-            return card
+            return card_for_his_words(card, operator_text)
         choice, info = _tb.read(brief, _tb.TARGET_KEY, "")
         # …or when the screen verdict is UNSURE (demo pass 2026-09-28, R3: «find me five days in her vacation where
         # i'm free» read `agenda:show_day` at 0.40 — unsure, so no card, and the commission went to a five-minute
