@@ -11,6 +11,7 @@ from nucleo.flash import agenda_claims as _agc   # «I've removed it» with no c
 from nucleo.flash import card_commission as _cardc_ws
 from nucleo.flash import note_backstop as _nb    # the dated-note backstop's one decision, both channels
 from nucleo.flash import post_stream as _pst
+from nucleo.flash import reminder_backing as _rback   # promise → job, claim → checked (both halves)
 
 
 async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
@@ -153,19 +154,11 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
     # letras: faltaba hacerlo cuando el modelo no lo hace. Solo con un momento RESOLUBLE — la función
     # devuelve "" ante cualquier expresión que no sea inequívoca, porque un aviso mal fechado no se nota
     # hasta el día que no suena.
-    if spoken_text and not cron_seen["v"]:
-        try:
-            # V2-153: the probe's same function — the duplicate was born of each channel deciding alone.
-            _cron = _router.dated_reminder_backstop(spoken_text, operator_text, window=brain._window)
-            if _cron:
-                from nucleo import scheduler as _sched_bk
-                _r = _sched_bk.create(_cron["prompt"], _cron["schedule"], name=_cron["name"])
-                emit("cron", "⏰ aviso programado por backstop (lo prometió sin emitir la tag)"
-                     if _r.get("ok") else "⚠️ schedule no reconocido",
-                     text=_r.get("display") or _r.get("error") or "", role="system",
-                     extra={"ok": bool(_r.get("ok")), "op": "cron.create", "backstop": True})
-        except Exception:
-            pass
+    # V2-153: the probe's same decision. 2026-10-10: a CLAIMED reminder is checked against the schedule.
+    if spoken_text and (_fix := _rback.back_and_check(spoken_text, operator_text, window=brain._window, emit=emit,
+                                                      backstop=not cron_seen["v"])):
+        send(speech.sanitize(_fix, drop_metadata=False))
+        spoken_text = f"{spoken_text} {_fix}"
 
     # BACKSTOP DEL APUNTE CON FECHA (V2-159, espejo del probe — cablear en AMBOS). La OTRA mitad del mismo
     # encargo: el caso pide las dos cosas —el compromiso registrado y el aviso— y la corrida salió con el

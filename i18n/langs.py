@@ -303,6 +303,8 @@ LANGUAGES: dict[str, LangSpec] = {
         widget_build_resumed=("The server restarted halfway through building the «{name}» widget; I'm "
                               "relaunching it now."),
         not_on_screen_yet="Sorry — it's not on screen yet. I'm getting it ready for you.",
+        reminder_not_set_yet=("Correction: that reminder isn't actually scheduled yet. Tell me the day and time and "
+                              "I'll set it."),
         data_ack="Done.",
         data_ack_went_ahead="I've gone ahead and done it, as you asked.",
         data_ack_went_with="I went with the likeliest one — tell me if you meant something else.",

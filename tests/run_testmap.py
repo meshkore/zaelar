@@ -3931,6 +3931,11 @@ DOMAINS: list[dict] = [
         {"id": "2.421", "title": "A case whose opening points at the screen gets that screen seeded first — the blocked-"
                                  "channel rounds ran on an empty player and measured the tester's invention",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_deictic_case_gets_its_scene.py"]},
+        {"id": "2.410", "title": "A spoken promise of a dated reminder is ONE job in English too — «I'll set that reminder for "
+                                 "October 30» and «I've still got that reminder set» left scheduled_jobs empty "
+                                 "(find-a-future-release-and-remind-me EN, 2026-10-10); a claimed reminder with no job owes "
+                                 "a correction; negations and questions schedule nothing; both channels",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_promised_reminder_in_english_is_scheduled.py"]},
         {"id": "2.251", "title": "«set a reminder on the premiere day» rings on the ONE date the last reply named — «I'll set "
                                  "a heads-up for that day» scheduled nothing (V2-781 pair 3); both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_asked_for_the_day_just_named_is_set.py"]},

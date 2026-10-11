@@ -489,7 +489,11 @@ def test_the_helper_is_wired_into_BOTH_channels():
     # about the CHANNEL carrying the call, not about which file holds the line.
     from nucleo.flash import probe_scheduling as _probe_sched
     _probe_src = _vts.getsource(_probe.run_turn) + _vts.getsource(_probe_sched)
-    for src in (_probe_src, _vts.getsource(_provider)):
+    # The voice half calls `reminder_backing.back_and_check` (2026-10-10), which holds the backstop call.
+    from nucleo.flash import reminder_backing as _rback
+    _voice_src = _vts.getsource(_provider)
+    assert "_rback.back_and_check(" in _voice_src and "window=brain._window" in _voice_src
+    for src in (_probe_src, _vts.getsource(_provider) + inspect.getsource(_rback)):
         assert "dated_reminder_backstop(" in src and "window=" in src
 
 

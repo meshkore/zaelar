@@ -44,25 +44,21 @@ from .reminder_fact import reminder_body, tidy_clause
 # the same promise, five missed. A promise is a VERB plus a reminder NOUN; the determiner in between is noise.
 # It is listed explicitly instead of `\\w+` so that a NEGATED promise («no te pongo ningún recordatorio») cannot
 # match and schedule the very thing the sentence declined to schedule.
-_REMIND_NOUN = r"(?:recordatorio|aviso|alarma|alerta)"
-_REMIND_DET = r"(?:un|una|el|la|tu|ese|este|esa|esta)\s+"
-_REMIND_VERB_RE = _re.compile(
-    r"\b(te\s+aviso|te\s+avisare|para\s+avisarte|te\s+lo\s+recuerdo|te\s+lo\s+recordare|te\s+recuerdo|te\s+recordare|"
-    r"dejo\s+puesto\s+" + _REMIND_DET + _REMIND_NOUN + r"|"
-    r"dejo\s+programad[oa]\s+" + _REMIND_DET + _REMIND_NOUN + r"|"
-    r"(?:program|pon|cre|configur|activ|dej)\w*\s+" + _REMIND_DET + _REMIND_NOUN + r"|"
-    r"i'?ll\s+remind\s+you|i\s+will\s+remind\s+you|i'?ll\s+let\s+you\s+know\s+on|"
-    r"i'?ll\s+set\s+(?:up\s+)?(?:a|the)\s+reminder|i'?ll\s+get\s+(?:a|the)\s+reminder\s+set|i'?ll\s+put\s+(?:a|the)\s+reminder)\b", _re.I)
-def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:
+# 2026-10-10 (find-a-future-release-and-remind-me EN): the pattern moved to `reminder_promise`, which adds the EN
+# determiners («that reminder»), the CLAIM forms («I've got that reminder set», «te he puesto el aviso»), and the
+# negation/question check. The names stay here for every reader that imports them.
+from . import reminder_promise as _rp
+_REMIND_NOUN, _REMIND_DET, _REMIND_VERB_RE = _rp._NOUN_ES, _rp._DET_ES, _rp.PROMISE_RE
+def promises_a_dated_reminder(reply: str, operator_text: str = "", window=None) -> str:
     """The reply promises to remind the operator AT A GIVEN TIME → the schedule spec for it, else "".
 
     Returns the spec rather than a bool so the caller cannot promise what it could not resolve: if the moment is
     not unambiguous the answer is "", and nothing gets scheduled on a guessed date.
     """
-    n = _norm_txt(reply)
-    m = _REMIND_VERB_RE.search(n)
-    if not m:
+    found = _rp.find(reply)          # a promise OR a claim, affirmed (not negated, not asked)
+    if not found:
         return ""
+    n, m = found
     try:
         from nucleo import scheduler as _sched
     except Exception:
@@ -79,9 +75,11 @@ def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:
     # ambiguity it tripped over is not one a person would perceive: the day belongs to whichever verb it follows.
     # So the operator's own turn gets read positionally too, and only then whole (which is what preserves every
     # case that already worked — one date anywhere still resolves exactly as before).
+    # 2026-10-10: «I'll set that reminder» on an «ok 👍» turn — the day is the one his earlier ask named.
     return (_sched.parse_when(n[m.end():])
             or _asked_reminder_moment(operator_text)
-            or _sched.parse_when(operator_text))
+            or _sched.parse_when(operator_text)
+            or _asked_moment_in_window(window))
 # DATED NOTE (V2-159). Sibling of the notice backstop, for the OTHER half of the same request. The prompt says so
 # explicitly —"if the commitment has a date, also add it to the agenda… these are two different things, the entry
 # and the notice, and the operator asks for both"— yet the run ended with the cron set and NO appointment: «Te apunto la
@@ -256,6 +254,10 @@ def _asked_reminder_moment(operator_text: str) -> str:
     except Exception:
         return ""
     return _sched.parse_when(n[m.end():]) or ""
+def _asked_moment_in_window(window, max_back: int = 6) -> str:
+    """The moment his most recent reminder ASK in the window named, read by position — or ""."""
+    turns = [str((m or {}).get("content") or "") for m in (window or []) if (m or {}).get("role") == "user"]
+    return next((w for w in (_asked_reminder_moment(t) for t in reversed(turns[-max_back:])) if w), "")
 def commitment_clause(operator_text: str) -> str:
     """The part of the operator's turn that states the COMMITMENT, with his reminder request cut off.
 
@@ -455,7 +457,8 @@ def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) ->
     backstop exists for the turn the model forgot, and a second alert for something the operator asked once is a
     defect he SEES, while the model's own `cron.create` tag is not gated by this and can still schedule freely.
     """
-    when = promises_a_dated_reminder(reply, operator_text) or _asked_on_the_day_just_named(reply, operator_text, window)
+    when = (promises_a_dated_reminder(reply, operator_text, window=window)
+            or _asked_on_the_day_just_named(reply, operator_text, window))
     if not when:
         return None
     # V2-167 · (1) the notice must land BEFORE the thing it announces, and (2) what fires must be the REMINDER,

@@ -11,6 +11,7 @@ the turn's locals it read as keyword arguments and returns the ones the rest of 
 from __future__ import annotations
 
 from nucleo.flash import probe as _probe
+from nucleo.flash import reminder_promise as _rpc
 
 
 async def _escalated_with_its_data_ops(task_ids: list, tool_calls: list, text: str, brief) -> dict:
@@ -330,6 +331,9 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
     if isinstance(return_extra_exec, dict) and return_extra_exec.get("not_started"):   # three-tasks-at-once
         from nucleo.turn import errands_of_a_turn as _eot
         spoken = f"{spoken or ''} {_eot.not_started_line(return_extra_exec['not_started'])}".strip()
+    # a CLAIMED reminder is checked against the schedule (2026-10-10)
+    if spoken and (_fix := _rpc.unbacked_claim_line(str(spoken))):
+        spoken = f"{spoken} {_fix}"
     _out = {}
     try:
         _out['_lg'] = _lg
