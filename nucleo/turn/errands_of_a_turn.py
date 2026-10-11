@@ -127,11 +127,13 @@ def status_owed(operator_text: str, brief) -> str:
     if not (asked or live):
         return ""
     from i18n import langs as _lg
+    from nucleo.workers import progress as _progress
     lang = _lg.current_language()
     items = []
     for e in asked or live:
         label = _ne.spoken_name(e)
-        phase = _phase_in_session_language((e["phase"] or e["note"]).strip().rstrip("…. "), _lg.current_code())
+        _ph = "" if _progress.is_mechanical(e["phase"]) else e["phase"]   # a click is the card's, not a sentence's
+        phase = _phase_in_session_language((_ph or e["note"]).strip().rstrip("…. "), _lg.current_code())
         phase = "" if _INTERNAL_PHASE_RE.search(phase) else phase     # «mirando «results»» names our card id
         state = lang.errand_waiting_on_you if e["waiting_on"] else (phase or lang.errand_under_way)
         items.append(f"{label} — {state}")

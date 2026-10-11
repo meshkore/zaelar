@@ -4118,6 +4118,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/browser/unit/results/test_a_hard_requirement_is_a_column_every_row_carries.py']},
         {"id": "2.544", "title": "A question about a row and one of his must-haves is answered FROM the row's fact — «not verified» when it says «?» — and the delivery tail is not added on top (text channel)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_question_about_a_row_reads_its_hard_requirement.py']},
+        {"id": "2.545", "title": "A status sentence never says the browser's micro-step («pulsando en la página», «usando el teclado»): the worker's milestone note, or «under way», instead",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_status_line_never_says_a_click.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

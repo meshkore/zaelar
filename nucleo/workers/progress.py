@@ -197,3 +197,22 @@ def narration_out(task_id: str, model: str, text: str, first_output_ms=None) -> 
         _d.record_phase(task_id, "💬 " + (t[:150] + "…" if len(t) > 150 else t))
     except Exception:  # noqa: BLE001
         pass
+
+
+def is_mechanical(phase: str) -> bool:
+    """Is this phase one of the BROWSER's own micro-steps («pulsando en la página», «usando el teclado», «entrando
+    en discovercars.com», «escribiendo «12/10/2026»»)? They are right on the card, where they move every second
+    next to the embedded browser, and wrong in a sentence: rental-car-automatic-airport (2026-10-11) answered «¿cómo
+    va?» with «Así va todo: … — pulsando en la página». Read off the table above, so a step added there is known
+    here too; the worker's own milestone note is what a status sentence says instead."""
+    p = " ".join(str(phase or "").split()).split(" — lleva ")[0].rstrip("…. ").strip()
+    if not p:
+        return False
+    for say in _SAY["navegador"].values():
+        bare = say("").rstrip("…. ")
+        probe = say("\x01")
+        cut = probe.find("\x01")
+        stem = probe[:cut].rstrip("«\"' ") if cut > 0 else ""
+        if p == bare or (stem and p.startswith(stem)):
+            return True
+    return p == _BY_WHERE["navegador"]
