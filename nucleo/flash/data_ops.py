@@ -216,6 +216,8 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
     why = str(res.get("message") or res.get("error") or "").strip()
     if not why or not (text or "").strip():
         return None
+    from nucleo.flash import parked_refusal as _parked      # the half he supplies next turn completes THIS call
+    _parked.remember(wid, action, payload, res)
     try:
         from nucleo.flash import act_repair as _ar
         fix = await _ar.call_for_refusal(text, wid, action, payload or {}, why, said=said)
@@ -223,6 +225,7 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
             return None
         res2 = await dispatch(wid, action, fix["payload"])
         res2 = res2 if isinstance(res2, dict) else {}
+        _parked.remember(wid, action, fix["payload"], res2)   # corrected and landed → nothing parked
         try:
             from voice.observer import emit
             emit("widget", "🔁 data-op rechazada → corregida en el mismo turno", text=why[:160],

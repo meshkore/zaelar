@@ -356,8 +356,11 @@ def _a_remove(action, p, db) -> dict:
 
 
 def _a_move(action, p, db) -> dict:
+    from . import move_refs as _mv          # which video, which slot, and which half a refusal names (2026-10-11)
     lst = db.get("list") or []
-    idx = _d._resolve_item(lst, p.get("item"))
+    if not str(p.get("item") if p.get("item") is not None else "").strip():
+        return _mv.refusal("missing_item")
+    idx = _mv.resolve_item(lst, p.get("item"), db)
     if idx is None:
         return {"ok": False, "error": "item_not_found", "item": p.get("item"),
                 "message": "No encuentro ese vídeo en la lista."}
@@ -365,7 +368,7 @@ def _a_move(action, p, db) -> dict:
     # like `item`, and the slot is computed after X leaves the list — the model had to do that arithmetic before.
     side = "before" if str(p.get("before") or "").strip() else ("after" if str(p.get("after") or "").strip() else "")
     if side:
-        anchor = _d._resolve_item(lst, p.get(side))
+        anchor = _mv.resolve_item(lst, p.get(side), db)
         if anchor is None:
             return {"ok": False, "error": "item_not_found", "item": p.get(side),
                     "message": "No encuentro ese vídeo en la lista."}
@@ -373,10 +376,11 @@ def _a_move(action, p, db) -> dict:
             return {"ok": False, "error": "same_item", "message": "Es el mismo vídeo: dime cuál va delante de cuál."}
         to = (anchor - 1 if anchor > idx else anchor) + (1 if side == "after" else 0)
     else:
-        try:
-            to = max(0, min(len(lst) - 1, int(p.get("to")) - 1))     # 1-based target position
-        except (TypeError, ValueError):
-            return {"ok": False, "error": "bad_position", "message": "Dime a qué posición (1-N) lo muevo."}
+        to, given = _mv.destination(p, len(lst))        # `to` or `position`; a number, an ordinal or an end
+        if to is None:
+            return _mv.refusal("bad_position" if given else "missing_position")
+    if to == idx:            # nothing would change: refused, so the repair reads his sentence instead of «Done.»
+        return _mv.refusal("already_there", item=lst[idx].get("title"), position=idx + 1)
     cur = lst[int(db.get("pos", -1))] if 0 <= int(db.get("pos", -1)) < len(lst) else None
     it = lst.pop(idx)
     lst.insert(to, it)

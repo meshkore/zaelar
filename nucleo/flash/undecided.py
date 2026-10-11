@@ -26,8 +26,10 @@ from loguru import logger
 def why(brief, widget_id: str, action: str, *, operator_text: str = "", model_words: str = "") -> str:
     """"asked" | "shared" when the verdict's `widget_id:action` must not be run for him, else "". Never raises."""
     try:
-        from nucleo.flash import clarifying as _cl
-        if model_words and _cl.asks_for_missing_detail(model_words):
+        from nucleo.flash import clarifying as _cl, parked_refusal as _parked
+        # …unless the reply only REPEATS the card's refusal of the turn before: that question was already asked, and
+        # his words this turn are its answer (video-queue ES, 2026-10-11: «Dime a qué posición» said twice).
+        if model_words and _cl.asks_for_missing_detail(model_words) and not _parked.parrots(model_words, widget_id, action):
             return "asked"
         from nucleo.flash import frontend as _fe
         if _fe.which_card(widget_id, action, brief=brief)[0] != "ask":

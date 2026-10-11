@@ -1556,5 +1556,9 @@
  "widgets.documento.refusal_empty": "el documento ha llegado vacío, sin nada que enseñar.",
  "widgets.documento.refusal_full": "el documento está lleno: no cabe nada más.",
  "widgets.results.refusal_no_row": "No encuentro ese resultado en la hoja.",
- "flash.widget_refused_card": "la tarjeta {card} no lo ha aceptado."
+ "flash.widget_refused_card": "la tarjeta {card} no lo ha aceptado.",
+ "widgets.youtube.move_missing_item": "¿Cuál de los vídeos muevo? Dime su número o parte del título.",
+ "widgets.youtube.move_missing_position": "¿A qué posición de la cola lo muevo?",
+ "widgets.youtube.move_bad_position": "No entiendo a qué posición moverlo: dime un número o «el primero» / «el último».",
+ "widgets.youtube.move_already_there": "Ese vídeo ya está en esa posición."
 }

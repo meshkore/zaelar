@@ -313,4 +313,7 @@ def choice_or_order_fill(widget_id: str, action: str, words: str, model_words: s
         return filled, "enum-alias"
     if (filled := reorder_fill(widget_id, action, words, model_words)):
         return filled, "said-order"
+    from nucleo.flash import move_fill as _mf     # «the one playing, first» / a slot answering the card's question
+    if (filled := _mf.move_fill(widget_id, action, words, model_words)):
+        return filled, "said-move"
     return {}, ""

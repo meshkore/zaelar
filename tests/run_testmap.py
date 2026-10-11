@@ -4016,6 +4016,14 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_name_question_is_no_missing_detail.py"]},
         {"id": "2.454", "title": "`move`'s descriptor carries the reorder words under the 200-char cut and `sort_list` points at it — «cambia el orden: ponlo antes que…» split the verdict (none 0.45, canvas arrange 0.84) and sent a 100 s Brain Worker",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_move_descriptor_carries_the_reorder_words.py"]},
+        {"id": "2.460", "title": "The queue's `move` reads a SLOT («first», «el primero», «al final», `position` as the model spells `to`) and «the one playing»; a refusal names the MISSING half — the video or the slot — through a bundle key in both languages, and a move that changes nothing is refused so the repair reads his words (la-cola-de-video ES, 2026-10-11: «Dime a qué posición» over «ponlo el primero»)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_move_reads_the_slot_and_the_one_playing.py"]},
+        {"id": "2.461", "title": "A move is filled from the row that is PLAYING (the card's hint) and the slot he said — «el que está sonando, ponlo el primero», «put the one playing first», «Es el 2 ahora mismo, ponlo el 1»; one half alone, two slots or an ordinal with no verb fill nothing",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_move_is_filled_from_the_playing_row_and_a_slot.py"]},
+        {"id": "2.462", "title": "A slot answering the card's own question completes the PARKED move («A la 1, ponlo el primero de todos» after «Dime a qué posición»), a reply that only repeats that refusal is not a new question for `undecided`, the parked question goes stale with the card, and the verdict rung runs it end to end",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_slot_answering_the_cards_question_completes_the_parked_move.py"]},
+        {"id": "2.463", "title": "The refusal is parked at the one seam both channels share (`data_ops.corrected_retry`) — the text channel never wrote `remember_refusal`; a corrected call that landed is forgotten, one refused again is the one parked",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_both_channels_park_the_refusal_at_the_corrected_retry.py"]},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
