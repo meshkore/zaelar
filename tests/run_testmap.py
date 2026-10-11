@@ -4110,6 +4110,8 @@ DOMAINS: list[dict] = [
         # rental-car-automatic-airport (2026-10-11): hard criteria, the repeated tail, the datum ask
         {"id": "2.540", "title": 'A form that needs HIS data asks for the datum once, whole and in his language — never an OK to click through the consent door (rental-car EN: three «needs your OK to click «Para rellenar este formulario me falta t»»)',
             "ch": UNIT, "paths": ['tests/browser/unit/navegador/test_a_form_needing_his_data_asks_for_the_datum_once.py']},
+        {"id": "2.541", "title": 'A bare answer reaches the memory distiller WITH the question it answers — «where are you based?» → «San Francisco» is not a trip, and both distiller calls of the ingest read the framed turn',
+            "ch": UNIT, "paths": ['tests/memory/unit/test_a_bare_answer_reaches_the_distiller_with_its_question.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 from nucleo.memory_agent import ingest as _ing
+from nucleo.memory_agent import answer_frame as _answer_frame   # a bare answer travels with its question
 
 _R = object()     # «the turn returns here»: the first element of a returned tuple
 
@@ -158,7 +159,7 @@ async def gate_the_utterance(*, plan, role, text) -> dict:
     atoms: list[dict] | None = None
     if mem_processor is not None:
         try:
-            atoms = await mem_processor.process(t, state=st)
+            atoms = await mem_processor.process(_answer_frame.framed(t), state=st)
         except Exception as e:  # noqa: BLE001
             _ing.logger.debug(f"memory_agent: LLM processor failed ({e}); falling back to heuristic")
             atoms = None
@@ -170,7 +171,7 @@ async def gate_the_utterance(*, plan, role, text) -> dict:
         if atoms is None and mem_processor.enabled():
             await _ing.asyncio.sleep(0.4)
             try:
-                atoms = await mem_processor.process(t, state=st)
+                atoms = await mem_processor.process(_answer_frame.framed(t), state=st)
             except Exception as e:  # noqa: BLE001
                 _ing.logger.debug(f"memory_agent: LLM processor retry also failed ({e}); falling back to heuristic")
                 atoms = None
