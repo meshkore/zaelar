@@ -38,6 +38,9 @@ def _op(wid, act, **payload):
 def rail(monkeypatch):
     """Replace the rail with a witness that can SAY NO — which is what did not get through before."""
     visto = {"ops": [], "respuestas": {}}
+    # The widgets' copy is Spanish: in a Spanish session it is said verbatim (in an English one it is translated
+    # or replaced — `test_a_widgets_refusal_reaches_him_as_a_sentence`).
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "es")
 
     async def _brain_action(wid, act, payload):
         visto["ops"].append((wid, act, payload))
@@ -149,7 +152,7 @@ def test_el_fallo_se_dice_en_el_idioma_del_operador(monkeypatch):
 def test_si_una_de_dos_fallo_se_DICE_aunque_la_otra_saliera(): 
     salida = _boca({"executed": "widget_data", "ops": [{"widget": "youtube", "act": "add"}],
                     "fallidas": [{"message": "No encontré ese vídeo."}]})
-    assert "pero una no" in salida and "No encontré" in salida
+    assert _spec().widget_partial_failed.split("{")[0].strip(" ,:") in salida and "No encontré" in salida
 
 
 def test_una_data_op_LIMPIA_conserva_su_ack():

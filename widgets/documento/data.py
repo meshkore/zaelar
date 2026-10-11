@@ -319,7 +319,11 @@ def apply_action(action: str, payload: dict = None) -> dict:
         elif not body.strip():
             # An empty `show` must NOT blank a sheet the operator is reading (the `imagenes` lesson): they
             # would be left staring at nothing with no way back, and the honest report is that nothing came.
-            return {"ok": False, "error": "no llegó ningún contenido para la hoja ('body' vacío)"}
+            # A `query` or a topic is not a document: this card does not search, its caller writes the text.
+            # The `error` tells the model's correction pass that; `say` is what the operator may hear.
+            return {"ok": False, "say": "widgets.documento.refusal_empty",
+                    "error": "no llegó ningún contenido para la hoja ('body' vacío): esta hoja no busca — "
+                             "escribe TÚ el documento entero en 'body' (markdown) y vuelve a llamar a 'show'"}
         db.pop("focus", None)
         if _text(p.get("title"), 120) != db.get("title"):
             db.pop("saved_rel", None)                      # another document: it gets its own file
@@ -336,14 +340,14 @@ def apply_action(action: str, payload: dict = None) -> dict:
             return {"ok": False, "error": "a un PDF no se le puede añadir texto; usa 'show' con el documento entero"}
         add = str(p.get("body") or p.get("content") or p.get("text") or "")
         if not add.strip():
-            return {"ok": False, "error": "no llegó nada que añadir ('body' vacío)"}
+            return {"ok": False, "say": "widgets.documento.refusal_empty", "error": "no llegó nada que añadir ('body' vacío)"}
         old = str(db.get("body") or "")
         body = old + ("\n\n" if old else "") + add
         if len(body) > MAX_CHARS:
             # Refuse WHOLE rather than truncate. A silent cut lands mid-sentence and reads like a finished
             # document that simply stops — the caller has no way to know it was cut, and neither has the
             # operator. Saying it is full is the only honest answer, and it names the way out.
-            return {"ok": False, "error": f"la hoja ya está llena ({MAX_CHARS} caracteres): no cabe lo que "
+            return {"ok": False, "say": "widgets.documento.refusal_full", "error": f"la hoja ya está llena ({MAX_CHARS} caracteres): no cabe lo que "
                                           f"añades. Usa 'show' para reemplazarla por una versión más corta",
                     "chars": len(old)}
         db["body"] = body

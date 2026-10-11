@@ -1551,5 +1551,9 @@
  "chat.errClass.ours": "fallo interno",
  "widgets.contactos.flag_closed": "Cerrado",
  "widgets.contactos.flag_blocked": "Bloqueado",
- "widgets.contactos.flag_vip": "VIP"
+ "widgets.contactos.flag_vip": "VIP",
+ "widgets.documento.refusal_empty": "el documento ha llegado vacío, sin nada que enseñar.",
+ "widgets.documento.refusal_full": "el documento está lleno: no cabe nada más.",
+ "widgets.results.refusal_no_row": "No encuentro ese resultado en la hoja.",
+ "flash.widget_refused_card": "la tarjeta {card} no lo ha aceptado."
 }

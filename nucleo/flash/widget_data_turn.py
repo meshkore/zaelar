@@ -14,6 +14,7 @@ through here—it is the `cluster_send` tool, not a widget data-op.)
 from __future__ import annotations
 
 from nucleo.flash import leave_gate as _leave_gate
+from nucleo.flash import refusal_line as _rline       # one door for what a refusal may say to him
 
 
 def _primera_clave(widget_id: str, action: str) -> str:
@@ -149,8 +150,8 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
         _wo.remember(wid, act, text, res)
         await _rg._report_ignored(wid, act, res)
         if res.get("error") or res.get("ok") is False:
-            fallidas.append({"widget": wid, "act": act,
-                             "message": str(res.get("message") or res.get("error") or "")[:160]})
+            fallidas.append({"widget": wid, "act": act, "message": (await _rline.said(wid, res))[:160],
+                             "error": str(res.get("error") or "")[:160]})   # said to him · kept for the log
             continue
         hechas.append({"widget": wid, "act": act})
         answers += [(wid, _ans)] if (_ans := _rg.answer_of(res)) else []   # V2-781 T518: what it answered
@@ -236,19 +237,14 @@ def ensure_failure_named(spoken: str, parte: dict) -> str:
     parte = parte if isinstance(parte, dict) else {}
     if not spoken:
         return spoken
-    msgs = []
-    if parte.get("executed") == "widget_data_failed":
-        msgs.append(str(parte.get("message") or "").strip() or "el widget no lo aceptó.")
-    else:
-        for f in (parte.get("fallidas") or []):
-            m = str((f or {}).get("message") or "").strip()
-            if m:
-                msgs.append(m)
+    failed = parte if parte.get("executed") == "widget_data_failed" else None
+    msgs = [_rline.clean(str((f or {}).get("message") or "")) for f in ([failed] if failed else
+                                                                     (parte.get("fallidas") or []))]
+    if failed and not msgs[0]:
+        msgs[0] = _rline.generic(str(parte.get("widget") or ""))
+    msgs = [m for m in msgs if m]          # the language was settled where the parte was built (`execute`)
     if not msgs:
         return spoken
-    import re as _re                 # V2-781 pair 7: the sentences written for the MODEL's retry are not his to hear
-    said = [c for c in _re.split(r"(?<=[.;])\s+", msgs[0]) if not _re.search(r"[{}`]|\b[a-z]+_[a-z_]+\b", c)]
-    msgs[0] = " ".join(said).rstrip(";") or "el widget no lo aceptó."
     from voice.engine.core import langs as _lg_fn            # V2-781: the table's wrapper, not a Spanish literal
     cola = _lg_fn.current_language().widget_data_failed.replace("{reason}", msgs[0])
     if cola.lower() in spoken.lower() or msgs[0].lower() in spoken.lower():
@@ -365,4 +361,7 @@ def spoken_for(parte: dict, ack: str) -> str:
     if not fallidas:
         return ack
     # One succeeded and another failed: say what did NOT succeed, which is what the operator cannot see.
-    return ack.rstrip(".") + f", pero una no: {str(fallidas[0].get('message') or '').strip() or 'el widget la rechazó.'}"
+    from voice.engine.core import langs as _lg_pf
+    _sp = _lg_pf.current_language()
+    return ack.rstrip(".") + _sp.widget_partial_failed.replace(
+        "{reason}", str(fallidas[0].get("message") or "").strip() or _sp.widget_refused)

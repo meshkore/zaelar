@@ -30,6 +30,7 @@ import asyncio
 import json as _json
 
 from nucleo.flash import op_receipt as _receipt
+from nucleo.flash import refusal_line as _rline
 from nucleo.flash import two_orders as _two
 from nucleo.flash import write_outcome as _outcome
 
@@ -142,7 +143,7 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
     # 2026-09-10 (session 7f77e2cc): that exact retry instruction was spoken aloud and painted into the
     # chat as zaelar's own words, twice. A bare `error` still corrects the model through the note below —
     # it is never voiced and never becomes agent speech.
-    speakable = str(res.get("message") or "").strip()
+    speakable = _rline.speakable(wid, res)          # the widget's `say` (bundle) or its cleaned `message`
     wid = (wid or "").strip().lower()
     action = (action or "").strip()
     if _dedup(f"{wid}:{action}:{detail}", _time.time()):
@@ -249,7 +250,7 @@ async def refused_unsaid(tasks, timeout: float = 4.0):
             if not t.done() or t.cancelled():
                 return None
             res = t.result()
-            if not (isinstance(res, dict) and _receipt.failed(res)) or str(res.get("message") or "").strip():
+            if not (isinstance(res, dict) and _receipt.failed(res)) or _rline.speakable(str(w), res):
                 return None
             out = out or (str(w), str(res.get("error") or "").strip())
         return out

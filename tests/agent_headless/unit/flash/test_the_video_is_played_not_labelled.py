@@ -33,6 +33,7 @@ from nucleo.flash import video_turn as VT
 def rail(monkeypatch):
     """Replace the rail with a witness: this measures the WIRING, not the YouTube search engine."""
     visto = {}
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "es")      # the widget's Spanish copy is said verbatim in Spanish
 
     async def _brain_action(wid, action, payload):
         visto.update({"wid": wid, "action": action, "payload": payload})

@@ -1551,5 +1551,9 @@
  "chat.errClass.ours": "internal failure",
  "widgets.contactos.flag_closed": "Closed",
  "widgets.contactos.flag_blocked": "Blocked",
- "widgets.contactos.flag_vip": "VIP"
+ "widgets.contactos.flag_vip": "VIP",
+ "widgets.documento.refusal_empty": "the document came back empty, with nothing in it to show.",
+ "widgets.documento.refusal_full": "the document is full — nothing more fits on it.",
+ "widgets.results.refusal_no_row": "that result isn't on the sheet.",
+ "flash.widget_refused_card": "the {card} card didn't take it."
 }
