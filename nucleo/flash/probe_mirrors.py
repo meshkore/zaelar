@@ -52,7 +52,7 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
         pass
     # V2-781 — the voice ORDER: the verdict's sure canvas gesture runs BEFORE the promise repair («Close the music» →
     # «Done.» was repaired into `youtube:close` from the screen verdict while the canvas verdict read `close` 0.99).
-    _cc = _card_close.complete_canvas_mirror(_tbrief, operator_text, blocked=action != "chat" or bool(tool_calls or tags))
+    _cc = _card_close.complete_canvas_mirror(_tbrief, operator_text, blocked=action != "chat" or bool(tool_calls or tags), calls=tool_calls)
     action, spoken = _cc.get("action", action), _cc.get("spoken", spoken)
     if action == "chat" and spoken:
         try:

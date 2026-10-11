@@ -534,8 +534,8 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
     Demo pass 2026-09-28: R4 «ok close the calendar» and V3 «can you make it bigger, like full screen» were both
     answered as done («calendar's closed», «it's full screen now») with nothing called."""
     try:
-        verb = sure_canvas(brief)
-        if not verb:
+        verb = sure_canvas(brief)   # …unless the verdict's inner order outranks the close (`inner_order_wins`)
+        if not verb or __import__("nucleo.flash.verdict_card", fromlist=["x"]).inner_order_wins(brief, operator_text):
             return ""
         if verb == "arrange":
             # the whole canvas, no card to pick: the same emit `arrange_canvas` and POST /api/canvas/arrange make

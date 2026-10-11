@@ -12,6 +12,7 @@ from nucleo.flash import card_commission as _cardc_ws
 from nucleo.flash import note_backstop as _nb    # the dated-note backstop's one decision, both channels
 from nucleo.flash import post_stream as _pst
 from nucleo.flash import reminder_backing as _rback   # promise → job, claim → checked (both halves)
+from nucleo.flash import verdict_card as _vcard     # a sure close that an inner order outranks is not owed
 
 
 async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
@@ -219,7 +220,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
         from nucleo.flash import card_commission as _cardc_ar
         _ar_wid = _cardc_ar.named_or_catalogue(_brief, _op_text)   # V2-773: a closed card while others are open
         _named_by_verdict = _ar_wid
-        if _ar_wid and _pst._direct_action.sure_canvas(_brief) == "close":
+        if _ar_wid and _vcard.close_is_owed(_brief, _op_text):
             # the promise was to CLOSE it: the card's own close, never a data action (S4 emptied the sheet)
             _tag_emit("close", {"id": _pst._show_target.close_target(_ar_wid)})
             acted["widget"] = True

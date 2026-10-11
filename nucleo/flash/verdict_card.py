@@ -85,3 +85,40 @@ def canvas_yields(brief) -> bool:
     1.00 AND agenda:close_meeting 1.00, and the sheet stayed open). The R4/M4 misses had the inner op at 0.55-0.60."""
     from nucleo.flash import direct_action as _da
     return not _da.sure_canvas(brief) or _da._action_sure(brief, floor=SURE)
+
+
+def inner_order_wins(brief, operator_text: str = "") -> str:
+    """Why a SURE «close» verdict must NOT close the card it lands on: "sure", "write", or "" (the close stands).
+
+    The canvas question can only answer show / close / neither, so every removal verb reaches it as «close». Measured
+    in `agenda-everyday-edits` (ES, 2026-10-11): «ya la puedes cerrar» read canvas=close 1.00 AND
+    `agenda:close_meeting` 1.00; «quita el piano entero, toda la serie» read canvas=close 0.91 AND
+    `agenda:cancel_meeting` 0.71. Both times the canvas completion ran first and closed the whole AGENDA, «Hecho.»
+    was said over it, and the action verdict — the one reader that knew WHAT his words remove — was never read.
+    `canvas_yields` already let a sure inner op win (V2-781 pair 5), but only at the data completion, which the
+    canvas completion pre-empted: the rule lived on one of two branches.
+
+      · "sure"  — the verdict names an action of the card as surely as the close (≥ SURE): that action runs.
+      · "write" — the verdict names a WRITE of the card (not a lens, not its own close): the close is the canvas
+        question's reading of a removal verb, and the write is left to the repair that builds its payload.
+    His words naming a card («cierra la agenda») keep the close: the canvas verdict is then about that card.
+    Never raises."""
+    try:
+        from nucleo.flash import data_ops as _do, direct_action as _da
+        if _da.sure_canvas(brief) != "close":
+            return ""
+        owner, name = _da.from_brief(brief)
+        if not owner or not name or _da.named_cards(operator_text):
+            return ""
+        if _da._action_sure(brief, floor=SURE):
+            return "sure"
+        return "write" if name != "close" and not _do.is_view_op(owner, name) else ""
+    except Exception:  # noqa: BLE001 — a doubt keeps today's close
+        __import__("logging").getLogger("zaelar.flash").debug("inner_order_wins failed", exc_info=True)
+        return ""
+
+
+def close_is_owed(brief, operator_text: str = "") -> bool:
+    """The voice promise door's «it promised to CLOSE»: a sure close verdict the inner order does not outrank."""
+    from nucleo.flash import direct_action as _da
+    return _da.sure_canvas(brief) == "close" and not inner_order_wins(brief, operator_text)

@@ -312,7 +312,8 @@ def test_the_promise_repair_closes_instead_of_writing_when_the_order_is_a_close(
     from voice.engine.llm.providers import nucleo as prov
     src = _vts.getsource(prov)
     i = src.index("_act_repair.call_for_promise_or_order(")
-    assert '_direct_action.sure_canvas(_brief) == "close"' in src[i - 700:i]
+    # …a sure close the inner order does not outrank (agenda-everyday-edits 2026-10-11, node 2.441)
+    assert '_vcard.close_is_owed(_brief, _op_text)' in src[i - 900:i]
 
 
 def test_the_canvas_verdict_knows_the_size_gestures():

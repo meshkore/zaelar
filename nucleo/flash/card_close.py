@@ -185,10 +185,13 @@ def ask_which(cands) -> str:
         return ""
 
 
-def complete_canvas_mirror(brief, operator_text: str, *, blocked: bool) -> dict:
+def complete_canvas_mirror(brief, operator_text: str, *, blocked: bool, calls: list | None = None) -> dict:
     """The text channel's run of the verdict's sure canvas gesture when the model called nothing — the mirror of the
     voice `direct_action.complete_canvas`. `{}` when nothing ran; else the turn's new `action`, `spoken` and
-    `_already`. A close over a place nobody can locate asks instead (`action: clarify`). Never raises."""
+    `_already`. A close over a place nobody can locate asks instead (`action: clarify`). Never raises.
+
+    `calls` — the turn's tool calls: when the close YIELDS to an inner order as sure as it (`inner_order_wins`), that
+    order is appended there, as the voice `complete` runs it right after `complete_canvas` (`inner_order_mirror`)."""
     if blocked:
         return {}
     try:
@@ -210,9 +213,29 @@ def complete_canvas_mirror(brief, operator_text: str, *, blocked: bool) -> dict:
             action = {"close": f"canvas:close:{cid}", "minimize": f"canvas:minimize:{cid}",
                       "fullscreen": f"canvas:fullscreen:{cid}"}.get(verb, f"canvas:unfullscreen:{cid}")
             return {"action": action, "spoken": "", "_already": True}
+        if not verb and calls is not None:
+            return inner_order_mirror(brief, operator_text, calls, emit=_emit)
     except Exception as e:  # noqa: BLE001
         logger.debug(f"card_close: canvas mirror skipped — {type(e).__name__}: {e}")
     return {}
+
+
+def inner_order_mirror(brief, operator_text: str, calls: list, *, emit) -> dict:
+    """The sure inner order a close yielded to («ya la puedes cerrar» → `agenda:close_meeting`), appended to `calls`
+    when its payload is exact (none, or a declared alias he said) — a payload read from a whole sentence is left to
+    the repair. `{}` when nothing was added."""
+    from nucleo.flash import direct_action as _da, verdict_card as _vc
+    if _vc.inner_order_wins(brief, operator_text) != "sure":
+        return {}
+    rung = _da.resolve(operator_text, brief=brief, operator_text=operator_text)
+    if not rung or rung.get("source") not in ("no-payload", "enum-alias"):
+        return {}
+    calls.append({"name": "widget_data", "args": {"widget_id": rung["widget"], "action": rung["action"],
+                                                  "payload": rung["payload"], "_verdict": True}})
+    emit("brain", "🎯 el veredicto completa al modelo — su orden dentro de la tarjeta, no el cierre",
+         text=rung["label"][:120], role="system",
+         extra={"cat": "flash", "widget": rung["widget"], "action": rung["action"], "source": rung["source"]})
+    return {"action": "widget_data", "spoken": "", "_already": True}
 
 
 def music_keeps_its_turn(music_req: dict, operator_text: str) -> bool:
