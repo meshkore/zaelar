@@ -4127,6 +4127,22 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/browser/unit/musica/test_saving_with_nothing_playing_says_so.py']},
         {"id": "2.562", "title": "A case whose persona says a song is playing gets one playing on the music card first, and the judge is told which (music-save-what-is-sounding)",
             "ch": UNIT, "paths": ['tests/use_cases/unit/test_a_case_that_says_a_song_is_playing_gets_one.py']},
+        {"id": "2.550", "title": "The errand STARTING (asked, no session yet) or just FINISHED is an errand his sentence names: «for the game make the jump higher» between the yes and the game's session gets no monitor rows (three-tasks EN 2026-10-11 11:34)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_errand_just_started_is_an_errand_he_names.py']},
+        {"id": "2.551", "title": 'A sentence about errands that just FINISHED is not a new list: «me sacas un LG de 24… ¿y el Fujitsu? …¿y el informe?» with all three done is an ordinary turn, never «me pongo con ellas» (three-tasks ES 2026-10-11)',
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/test_a_sentence_about_finished_errands_is_not_a_list.py']},
+        {"id": "2.552", "title": 'A DELIVERED errand stays in «YA ACABADAS» for the conversation (15 min), a death keeps five, the block keeps its cap of three — the report 333 s old was gone and the turn said «del informe no me consta nada» (three-tasks ES)',
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/test_a_delivered_errand_outlives_five_minutes.py']},
+        {"id": "2.553", "title": "A network agent's rows never open a results sheet for a DOCUMENT errand: the report's sheet «Informe sobre coches eléctricos urbanos» filled with a 1:43 toy and charging cables (three-tasks ES); the worker still reads the answer",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/test_network_rows_never_open_a_sheet_for_a_report.py']},
+        {"id": "2.554", "title": "A size stated as a MINIMUM («27 al menos», «at least 27 inches», «27+») is a floor at the sheet's door: under it is off, over it stays; a bare price is never a size (three-tasks ES/EN)",
+            "ch": UNIT, "paths": ['tests/search/unit/test_a_minimum_size_is_a_floor.py']},
+        {"id": "2.555", "title": "A spec he states about ONE errand reaches that errand's sheet on both channels, in the readers' plain form (never his raw sentence, whose rejected «Asus» would read as a subject); a sentence naming two errands is left alone",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_his_spec_reaches_the_errands_sheet.py']},
+        {"id": "2.556", "title": 'What he says to a widget build while it runs is applied to the widget once it exists — one modify pass, and the summary says whether it landed («make the jump higher», «add coins» were dropped by a bare `return`)',
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_message_to_a_widget_build_is_applied.py']},
+        {"id": "2.557", "title": 'A criteria change recorded as HIS correction is read at the sheet\'s door like his own words (the 24" rows stayed under «27 al menos» as a change); a title the model wrote is still not his spec',
+            "ch": UNIT, "paths": ['tests/browser/unit/results/test_a_criteria_change_is_his_word_at_the_door.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

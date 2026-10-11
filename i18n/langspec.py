@@ -132,6 +132,10 @@ class LangSpec:
     # …and a WAIT reply while an errand runs names its real current step (photo round, 2026-10-11: «Will do»,
     # «Sounds good» with «entrando en media.ferrari.com» in the turn's own state).
     errand_step_now: str = "Ahora mismo, {name}: {step}."
+    # …and what he asked for while a widget was being built is applied to it afterwards (three-tasks, 2026-10-11).
+    widget_changes_applied: str = "Y le he aplicado los cambios que me pediste mientras lo hacía."
+    widget_changes_not_applied: str = ("Los cambios que me pediste mientras lo hacía no los he podido aplicar; "
+                                       "pídemelos otra vez y lo modifico.")
     # …and a stop he ordered is acknowledged as DONE, never answered with the holding line (EN round 20:00).
     worker_stopped: str = "Hecho, la he parado."
     # …and a refinement passed to a running errand is confirmed NAMING that errand: the report's refinement got

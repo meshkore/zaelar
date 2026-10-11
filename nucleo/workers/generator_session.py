@@ -7,8 +7,8 @@ Brain Worker como cualquier otro (matable con stop_worker, visible en /api/tasks
 subproceso ni perder la validación (que era el valor real del generador).
 
 Emite WorkerEvent: phase (creando/modificando) → result (id creado / error) → done. `stop()` mata el subproceso del
-generador por token (= task_id). La inyección (↓) a una generación en curso no aplica (un build atómico no reabre
-turno) → se ignora con gracia; el operador refina re-generando o modificando después.
+generador por token (= task_id). A message injected while the build runs cannot reach the one-shot call; it is kept
+and applied as one modify pass on the widget once it exists (`generator_followup`, three-tasks-at-once 2026-10-11).
 """
 from __future__ import annotations
 
@@ -27,6 +27,7 @@ class GeneratorBackend(WorkerBackend):
         self._task_id = ""
         self._done = False
         self._run_task: asyncio.Task | None = None
+        self._later: list[str] = []      # what he said while the build ran (`generator_followup`)
 
     async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
         self._task_id = spec.task_id or ""
@@ -61,6 +62,7 @@ class GeneratorBackend(WorkerBackend):
                     summary = f"El widget «{wid}» ya existía, te lo muestro."
                 else:
                     summary = f"He {verb} el widget «{wid}»."
+                summary += await self._apply_what_came_later(wid)
                 # …Y ÁBRELO. Hasta el 2026-08-18 esto NO pasaba: el `wid` viajaba en el `data` del `result`, y NADIE
                 # lo leía (`session.py::_handle` se queda con `summary`/`ok`/`usage` y descarta `data`), así que el
                 # único camino que abría un widget de un worker era el del navegador (`dispatch._prepare_web`). Un
@@ -115,7 +117,25 @@ class GeneratorBackend(WorkerBackend):
             self._done = True
 
     async def send(self, text: str) -> None:
-        return                                   # un build atómico no acepta inyección mid-turno
+        """A build cannot be re-opened mid-call: the message waits for the widget to exist (`_apply_what_came_later`)."""
+        if str(text or "").strip() and not self._done:
+            self._later.append(str(text))
+
+    async def _apply_what_came_later(self, wid: str) -> str:
+        """One `modify_widget` pass with every message that arrived during the build; the summary's tail ("" if none)."""
+        from nucleo.workers import generator_followup as _fu
+        change = _fu.instruction(self._later)
+        self._later = []
+        if not change or not wid:
+            return ""
+        from widgets import generator
+        await self._emit("phase", label=f"aplicando tus cambios a «{wid}»…")
+        try:
+            res = await asyncio.to_thread(generator.modify_widget, wid, change, self._task_id)
+        except Exception as e:  # noqa: BLE001 — the widget it built stands; the tail says the changes did not land
+            logger.warning(f"generator worker[{self._task_id}]: follow-up modify failed: {e}")
+            res = {"ok": False}
+        return " " + _fu.summary_tail(bool(res.get("ok")))
 
     async def events(self):
         while True:
