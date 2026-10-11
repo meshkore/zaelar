@@ -1,0 +1,105 @@
+{
+ "title": "Entradas concierto Rosalía Madrid",
+ "items": [
+  {
+   "title": "El Cascanueces - Classic Stage",
+   "price": "33,00 €",
+   "url": "https://www.entradas.com/artist/el-cascanueces-classic-stage/"
+  },
+  {
+   "title": "DJ Symphonic",
+   "price": "48,00 €",
+   "url": "https://www.entradas.com/artist/dj-symphonic/dj-symphonic-royal-film-logrono-4210245/"
+  },
+  {
+   "title": "No me toques el cuento",
+   "price": "17,50 €",
+   "url": "https://www.entradas.com/artist/no-me-toques-el-cuento/no-me-toques-el-cuento-teatro-pavon-2566584/"
+  },
+  {
+   "title": "Álex Clavero",
+   "price": "23,76 €",
+   "url": "https://www.entradas.com/artist/alex-clavero/"
+  },
+  {
+   "title": "El Lago de los Cisnes - Ballet de…",
+   "price": "33,00 €",
+   "url": "https://www.entradas.com/artist/el-lago-de-los-cisnes-ballet-de-kiev/"
+  },
+  {
+   "title": "Goyo Jiménez",
+   "price": "20,52 €",
+   "url": "https://www.entradas.com/artist/goyo-jimenez/"
+  },
+  {
+   "title": "Cine Oro",
+   "price": "1,00 €",
+   "url": "https://www.entradas.com/artist/cine-oro/nouvelle-vague-cine-oro-4241529/"
+  },
+  {
+   "title": "Ya me has tocado el cuento",
+   "price": "21,60 €",
+   "url": "https://www.entradas.com/artist/ya-me-has-tocado-el-cuento/ya-me-has-tocado-el-cuento-valladolid-4143212/"
+  },
+  {
+   "title": "Que Dios Nos Pille Confesados",
+   "price": "14,50 €",
+   "url": "https://www.entradas.com/artist/que-dios-nos-pille-confesados/"
+  },
+  {
+   "title": "Corta el cable rojo",
+   "price": "30,88 €",
+   "url": "https://www.entradas.com/artist/corta-el-cable-rojo/corta-el-cable-rojo-madrid-1467602/"
+  },
+  {
+   "title": "Film Symphony Orchestra",
+   "price": "48,00 €",
+   "url": "https://www.entradas.com/artist/film-symphony-orchestra/"
+  },
+  {
+   "title": "Forever. King Of Pop",
+   "price": "30,80 €",
+   "url": "https://www.entradas.com/artist/forever-king-of-pop/"
+  },
+  {
+   "title": "Rosalía: un viaje de 12 meses a…",
+   "url": "https://elpais.com/cultura/2026-10-07/rosalia-un-viaje-de-12-meses-a-la-velocidad-de-la-lux.html?utm_source=openai",
+   "facts": [
+    {
+     "label": "Origen",
+     "value": "búsqueda web"
+    }
+   ]
+  },
+  {
+   "title": "La venta general para ver a…",
+   "url": "https://elpais.com/cultura/2025-12-11/como-comprar-entradas-para-ver-a-rosalia-la-venta-general-para-el-lux-tour-2026-empieza-hoy.html?utm_source=openai",
+   "facts": [
+    {
+     "label": "Origen",
+     "value": "búsqueda web"
+    }
+   ]
+  },
+  {
+   "title": "Rosalía | Tourism Madrid",
+   "url": "https://www.esmadrid.com/en/whats-on/rosalia-movistar-arena?utm_source=openai",
+   "facts": [
+    {
+     "label": "Origen",
+     "value": "búsqueda web"
+    }
+   ]
+  },
+  {
+   "title": "Entradas conciertos Rosalía para…",
+   "url": "https://elpais.com/cultura/2025-12-04/entradas-de-conciertos-de-rosalia-en-2026-fechas-de-la-gira-lux-en-madrid-y-barcelona-preventa-venta-oficial-y-limite-de-compra-por-persona.html?utm_source=openai",
+   "facts": [
+    {
+     "label": "Origen",
+     "value": "búsqueda web"
+    }
+   ]
+  }
+ ]
+}

@@ -369,7 +369,7 @@ def run(query: str, *, price_max=None, price_min=None, condition: str = "",
             sheet_mod.begin_task(title, fresh=True, sheet=sid)
             payload: dict = {"sheet": sid, "items": [_to_row(i) for i in items],
                              "sources": _source_rows(res.get("sources") or []),
-                             "criteria": {"objective": operator_text or query}}
+                             "criteria": {"objective": operator_text or query}, "asked": operator_text or query}
             if not items:
                 payload["note"] = "Buscando a fondo…" if not delivered else "Sin resultados."
             sheet_mod.apply_action("present", payload)

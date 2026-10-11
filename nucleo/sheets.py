@@ -442,3 +442,18 @@ def record_phase(rec, phase: str, phases_kept: int = 0) -> bool:
         except Exception:
             pass
     return True
+
+
+def recheck_rows(sheet: str, correction: str) -> int:
+    """A correction injected into an errand reaches its SHEET too (V2-782 T3.3): the rows it rules out leave the list
+    for the Rejected tab (`widgets/results/category_gate.recheck`). Never raises — the injection already happened,
+    and a sheet that cannot be re-judged must not read as a failed injection. Returns how many rows left."""
+    if not str(sheet or "").strip():
+        return 0
+    try:
+        from widgets.results import category_gate
+        return category_gate.recheck(str(sheet), correction)
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.warning(f"sheets: re-judging {sheet} after a correction failed: {e!r}")
+        return 0

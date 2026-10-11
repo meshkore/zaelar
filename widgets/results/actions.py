@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from search import candidacy as _cand
 
+from . import category_gate as _gate
+
 from . import data as _d
 
 
@@ -32,6 +34,14 @@ def _file_pages(data: dict, pages: list[dict]) -> dict:
     return extra
 
 
+def _merge_notes(off: dict, extra: dict) -> dict:
+    """The category gate's reply joined to the pages' one: both notes reach the worker."""
+    if not off:
+        return extra
+    note = " ".join(x for x in (off.get("note_for_worker"), extra.get("note_for_worker")) if x)
+    return {**extra, **off, "note_for_worker": note}
+
+
 def _a_present(action, payload, sheet) -> dict:
     issues = _d._audit(payload)
     items, pages = _cand.split(_d._clean_items(payload.get("items")))
@@ -51,6 +61,9 @@ def _a_present(action, payload, sheet) -> dict:
     for k in ("sources", "summary", "criteria", "rejected"):
         if prev.get(k):
             data[k] = prev[k]
+    _gate.keep_asked(data, prev, payload)
+    items, off = _gate.gate(data, items, payload)      # V2-782 T3.3: another category is not a candidate
+    data["items"] = items
     if prev.get("tab") in _d._TABS:
         data["tab"] = prev["tab"]
     kind = str(payload.get("kind") or "").strip().lower()
@@ -77,7 +90,7 @@ def _a_present(action, payload, sheet) -> dict:
     _d._merge_sections(data, payload)
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
-    return {"ok": True, "shown": len(items), "presentation": issues, **extra}
+    return {"ok": True, "shown": len(items), "presentation": issues, **_merge_notes(off, extra)}
 
 
 def _a_append(action, payload, sheet) -> dict:
@@ -87,6 +100,8 @@ def _a_append(action, payload, sheet) -> dict:
         return {"ok": False, "error": "append sin items válidos (cada item necesita al menos title)"}
     data = _d.view_data(sheet)
     add, pages = _cand.split(add, prior=data["items"])
+    _gate.keep_asked(data, data, payload)
+    add, off = _gate.gate(data, add, payload)          # V2-782 T3.3: another category is not a candidate
     if add:
         data.pop("note", None)
     seen = {(i.get("title"), i.get("url")) for i in data["items"]}
@@ -109,7 +124,7 @@ def _a_append(action, payload, sheet) -> dict:
     _d._merge_sections(data, payload)
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
-    return {"ok": True, "shown": len(data["items"]), "presentation": issues, **extra}
+    return {"ok": True, "shown": len(data["items"]), "presentation": issues, **_merge_notes(off, extra)}
 
 
 def _a_clear(action, payload, sheet) -> dict:
@@ -315,7 +330,8 @@ def _a_criteria(action, payload, sheet) -> dict:
         cur["changes"] = acc[-_d._MAX_CRIT:]
     data["criteria"] = cur
     _d._save(data, sheet)
-    return {"ok": True, "criteria": cur, "reset": fresh}
+    off = _gate.recheck(sheet, "")              # a criterion that rules rows out applies to the rows already there
+    return {"ok": True, "criteria": cur, "reset": fresh, **({"off_category": off} if off else {})}
 
 
 def _a_auth_done(action, payload, sheet) -> dict:

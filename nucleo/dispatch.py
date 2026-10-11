@@ -586,8 +586,7 @@ def resolve_sessions(query: str) -> list[str]:
 
 # ── inyeccion (↓) ────────────────────────────────────────────────────────────────────────────────────────
 async def inject(which: str, message: str) -> list[str]:
-    """Inyecta `message` a the(s) session(es) that resuelva `which`. Devuelve the tid inyectados. Reemplaza the
-    dedup-descartar of V2-029: a refinamiento is INYECTA, no is tira (§v3·G)."""
+    """Inject `message` into the session(s) `which` resolves to; returns the injected tids (V2-029, §v3·G)."""
     tids = resolve_sessions(which)
     done = []
     for tid in tids:
@@ -602,6 +601,7 @@ async def inject(which: str, message: str) -> list[str]:
                 from nucleo.workers.session import Inject
                 r.injects.append(Inject(text=message, ts=time.time()))
             done.append(tid)
+            _sheets.recheck_rows(getattr(r, "sheet", ""), message)   # V2-782 T3.3: the correction reaches its sheet
         except Exception as e:  # noqa: BLE001
             logger.warning(f"dispatch: inject a {tid} falló: {e}")
     return done
