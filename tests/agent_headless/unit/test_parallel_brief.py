@@ -36,7 +36,7 @@ def _wire(monkeypatch):
     monkeypatch.setattr(D, "inject_soon", lambda k, m: calls["injected"].append((k, m)))
     monkeypatch.setattr(D, "sync_state", lambda: calls.__setitem__("synced", calls["synced"] + 1))
 
-    async def _seed(b):
+    async def _seed(b, rec=None):
         calls["seeded"].append(b)
     monkeypatch.setattr(D, "_seed_research_criteria", _seed)
     return calls

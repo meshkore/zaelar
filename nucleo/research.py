@@ -468,7 +468,7 @@ def to_criteria(brief: dict) -> dict:
     return out
 
 
-async def seed_criteria(brief: dict) -> None:
+async def seed_criteria(brief: dict, rec=None) -> None:
     """Pour the freshly composed brief into the CRITERIA tab of the results sheet.
 
     Done in the PRE-FLIGHT, never inside the worker: if it depended on the executor remembering to write it,
@@ -482,10 +482,13 @@ async def seed_criteria(brief: dict) -> None:
     that composes the brief and already owns `to_criteria`.)"""
     try:
         payload = to_criteria(brief)
-        if not payload:
+        # The errand's OWN sheet (2026-10-11, photo round): with no `sheet` the criteria went to the BASE `results`
+        # box, and a desktop showing that errand's sheet got an empty base card mounted over it. No sheet, no seed.
+        sheet = str(getattr(rec, "sheet", "") or "") if rec is not None else ""
+        if not payload or (rec is not None and not sheet):
             return
         from widgets.server_api import brain_action
-        await brain_action("results", "criteria", payload)
+        await brain_action("results", "criteria", {**payload, **({"sheet": sheet} if sheet else {})})
     except Exception as exc:                                # noqa: BLE001 — never brake a task for the view
         logger.debug(f"research: could not seed the criteria into the results sheet ({exc})")
 

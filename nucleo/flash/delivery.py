@@ -345,9 +345,11 @@ _STALL_OFFERED: set = set()
 def forget_announced() -> None:
     _ANNOUNCED.clear()
     _STALL_OFFERED.clear()
+    from .step_line import forget as _forget_steps
+    _forget_steps()
 
 
-def apply_to_reply(spoken: str, window, *, heard_now: str = "") -> str:
+def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> str:
     """Aplica el backstop a la respuesta de un turno y devuelve la que sale. Nunca lanza.
 
     Vive aquí y no en `probe` (V2-340) porque el trinquete de arquitectura lo pidió al crecer aquel fichero, y
@@ -407,6 +409,11 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "") -> str:
             _STALL_OFFERED.add(_row_key(_enc))
             _emit("📬 backstop de atasco: la espera sale con el hecho", mins=_min, motivo=_mot)
             return ((spoken.rstrip() + " ") if spoken else "") + _stall
+        from .step_line import owed as _step_owed     # a wait names the errand's real step (photo round, 2026-10-11)
+        _step = _step_owed(spoken or "", brief)
+        if _step:
+            _emit("📬 la espera sale con el paso real", step=_step[:120])
+            return spoken.rstrip() + " " + _step
         # EL SILENCIO SE VE (V2-336). Todo esto vive bajo un `except` general, así que una avería interna
         # desaparece sin ruido — y un backstop que calla es indistinguible de uno que decidió callar. Fue
         # exactamente lo que pasó en la ronda limpia del coche (2026-08-26): tres esperas con la hoja llena y

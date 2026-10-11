@@ -150,7 +150,7 @@ def sheet_for_delivery(nav_task: str, sessions=(), live_states=()) -> str:
         # deliverable is the document, and its worker already receives every browser finding as a note. The
         # Juncal research measured what this branch does to a report: the page-extract pushed einforma's own
         # trust badges («Cero CO2», «Confianza Online») into a results sheet as if they were findings.
-        if surfaces.opens_doc(getattr(r, "surface", "")):
+        if surfaces.not_a_sheet(getattr(r, "surface", "")):     # …nor a PICTURE errand (its box is the viewer)
             continue
         if tid in (str(getattr(r, "nav_task", "") or ""), str(getattr(r, "task_id", "") or "")):
             _sheet_open(r)

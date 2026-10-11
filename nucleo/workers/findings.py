@@ -242,6 +242,9 @@ def hand_search_rows(rec, res: dict) -> int:
     title+url, so eight overlapping searches converge instead of piling.
     """
     try:
+        from nucleo import picture_errand as _pe     # a picture errand's search goes to the viewer, never a sheet
+        if _pe.deliver(rec, str(res.get("query") or ""), res):
+            return 0
         # V2-376 — WHAT RETURNS FROM A SEARCH IS A LEAD, NOT A CANDIDATE, and until now it entered the
         # sheet without being distinguished from a record extracted from a listing. Measured in
         # `weekend-adventure-sports-bilbao__es` (2026-08-27): **52 «named candidates»** from a SINGLE

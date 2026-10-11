@@ -289,8 +289,8 @@ def trusted_blocks(surface: str = "") -> str:
     the errand delivers a document, and where the operator's files live (V2-661). Empty when neither applies."""
     from nucleo import surfaces as _surfaces
     out = []
-    if _surfaces.opens_doc(surface or ""):
-        out.append(DOC_SURFACE_BLOCK)
+    from nucleo import picture_errand as _pe              # a picture errand delivers into the photo viewer
+    out += [DOC_SURFACE_BLOCK] if _surfaces.opens_doc(surface or "") else _pe.prompt_blocks(surface or "")
     lib = library_block()
     if lib:
         out.append(lib)

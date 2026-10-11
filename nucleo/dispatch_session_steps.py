@@ -81,7 +81,7 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
     # code no pasa by here: su address es the repo, no a espacio of candidatos.
     brief = None
     _brief_bg: _ds._d.asyncio.Task | None = None
-    if not _dev:
+    if not _dev and not _ds._d.surfaces.delivers_pictures(getattr(rec, "surface", "")):   # photos: no ≥40-row hunt
         try:
             # V2-301 — the composer is a REASONING call (15-30 s) and it ran IN SERIES before the spawn:
             # measured across the guitar rounds (2026-08-24), the worker sat «in cola» 20-32 s doing
@@ -119,8 +119,8 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
         if brief:
             _ds._d.research.save(key, brief)
             _ds._d.research.remember_round(_ds._d._goal_key(req), brief)   # para que una 2ª petición continúe, no reempiece
-            if not _ds._d.surfaces.opens_doc(getattr(rec, "surface", "")):   # V2-644: no results sheet to seed
-                await _ds._d._seed_research_criteria(brief)
+            if not _ds._d.surfaces.not_a_sheet(getattr(rec, "surface", "")):   # V2-644: no results sheet to seed
+                await _ds._d._seed_research_criteria(brief, rec)
             rec.phase = "preparando la investigación"
             # EL BRIEF ES LA PRUEBA of that esto es a INVESTIGACIÓN, and with ella is cobra the budget that le
             # corresponde. `loop._kind_budget_default` already reservaba 1200s for `research`… but NADIE asignaba

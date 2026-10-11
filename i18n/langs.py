@@ -197,6 +197,7 @@ LANGUAGES: dict[str, LangSpec] = {
         errands_status="Here's where everything stands: {items}.",
         errand_under_way="under way, nothing new yet",
         errand_waiting_on_you="waiting on an answer from you",
+        errand_step_now="Right now, {name}: {step}.",
         worker_stopped="Done — I've stopped it.",
         errand_refined="Done — I've passed that on to {what}.",
         widget_build_confirm=("If I've got this right, you're asking me to BUILD you a new card "

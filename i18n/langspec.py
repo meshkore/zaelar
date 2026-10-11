@@ -129,6 +129,9 @@ class LangSpec:
     errands_status: str = "Así va todo: {items}."
     errand_under_way: str = "en marcha, sin novedades todavía"
     errand_waiting_on_you: str = "esperando a que me contestes algo"
+    # …and a WAIT reply while an errand runs names its real current step (photo round, 2026-10-11: «Will do»,
+    # «Sounds good» with «entrando en media.ferrari.com» in the turn's own state).
+    errand_step_now: str = "Ahora mismo, {name}: {step}."
     # …and a stop he ordered is acknowledged as DONE, never answered with the holding line (EN round 20:00).
     worker_stopped: str = "Hecho, la he parado."
     # …and a refinement passed to a running errand is confirmed NAMING that errand: the report's refinement got

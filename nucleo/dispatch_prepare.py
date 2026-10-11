@@ -123,8 +123,8 @@ def _attach_brief_followup(task: "_d.asyncio.Task", *, key: str, rec: "_d.Sessio
             if b:
                 _d.research.save(key, b)
                 _d.research.remember_round(_d._goal_key(req), b)
-                if not _d.surfaces.opens_doc(getattr(rec, "surface", "")):    # V2-644: no results sheet to seed
-                    _d.asyncio.ensure_future(_d._seed_research_criteria(b))
+                if not _d.surfaces.not_a_sheet(getattr(rec, "surface", "")):    # V2-644: no results sheet to seed
+                    _d.asyncio.ensure_future(_d._seed_research_criteria(b, rec))
                 block = _d.research.to_prompt_block(b)
                 if block and rec.status in _d.LIVE_SESSION_STATES:
                     _d.inject_soon(key, ("Ya está compuesta la DIRECCIÓN de tu investigación — aplícala DESDE "

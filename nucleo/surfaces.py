@@ -34,8 +34,9 @@ DOC = "informe"             # ONE written thing to READ at the end → documento
 WIDGET = "widget"           # new functionality the operator uses  → its box, with a loader
 VOICE = "voz"               # it is told, there is nothing to look at → box
 SILENT = "silenciosa"       # nothing to show at all               → only the activity hexagon
+IMAGES = "imagenes"         # PICTURES to look at                  → the `imagenes` viewer, never a sheet
 
-SURFACES = (LIST, ITEM, DOC, WIDGET, VOICE, SILENT)
+SURFACES = (LIST, ITEM, DOC, WIDGET, VOICE, SILENT, IMAGES)
 
 #: Surfaces that open the results sheet before there is anything in it (the whole point of deciding early).
 SHEET = frozenset({LIST, ITEM})
@@ -53,6 +54,9 @@ _ALIASES = {
     "widget": WIDGET, "app": WIDGET, "componente": WIDGET,
     "voz": VOICE, "voice": VOICE, "speech": VOICE, "chat": VOICE,
     "silenciosa": SILENT, "silencioso": SILENT, "silent": SILENT, "none": SILENT, "ninguna": SILENT,
+    # The photo-escalation round (2026-10-11): «are they really the Amalfi? get them from Ferrari» landed in a
+    # results TABLE while he was looking at the photo viewer. Pictures have a box of their own (V2-457).
+    "imagenes": IMAGES, "images": IMAGES, "fotos": IMAGES, "photos": IMAGES, "pictures": IMAGES,
 }
 
 # Fallback by errand kind, for the doors where nobody declared one. `code` is the widget GENERATOR, so its
@@ -89,6 +93,7 @@ _QUESTION = {
         DOC: "one written piece to read (a summary, a report, a document, an essay)",
         VOICE: "nothing to look at: the answer is simply told",
         SILENT: "nothing to show or tell: something just gets done",
+        IMAGES: "pictures or photos to look at",
     },
 }
 
@@ -102,13 +107,14 @@ def from_brief(brief) -> str:
     try:
         from nucleo.flash import turn_brief as _tb
         choice, info = _tb.read(brief, SURFACE_KEY, "", min_confidence=0.7)
-        return normalize(choice) if info is not None else ""
+        from nucleo import picture_errand as _pe       # the screen's own reading when his words were unsure
+        return _pe.from_screen(brief, normalize(choice) if info is not None else "")
     except Exception:  # noqa: BLE001
         return ""
 
 
 #: The surfaces the operator LOOKS at. Between two of these, what he will look at is a reading of his words.
-_VISUAL = frozenset({LIST, ITEM, DOC})
+_VISUAL = frozenset({LIST, ITEM, DOC, IMAGES})
 
 
 def pick(declared, brief_reading: str = "") -> str:
@@ -148,6 +154,16 @@ def set_once(rec, value) -> str:
 def opens_sheet(surface: str) -> bool:
     """Does this surface mean «open the results sheet now, before there is anything in it»?"""
     return (surface or "") in SHEET
+
+
+def delivers_pictures(surface: str) -> bool:
+    """Does this errand deliver PICTURES into the `imagenes` viewer (no results sheet, no research brief)?"""
+    return (surface or "") == IMAGES
+
+
+def not_a_sheet(surface: str) -> bool:
+    """A surface whose deliverable has its OWN box (a document, the photo viewer): nothing of it goes to `results`."""
+    return (surface or "") in (DOC, IMAGES)
 
 
 def opens_doc(surface: str) -> bool:

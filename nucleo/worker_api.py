@@ -179,10 +179,10 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
                                           "{\"tool\":\"web_search\",\"args\":{\"query\":\"…\"}} — no adivino "
                                           "qué buscar con una query vacía."}
         try:
-            # V2-782 — through the SERVICE: the same chain, plus the route, the candidates vs pages split and what
-            # no row shows. `raw` keeps the chain's own dict for the two doors below that read it.
+            # V2-782 — through the SERVICE (route, candidates vs pages, what no row shows); `raw` = the chain's dict.
             from search import find as _find
-            _sr = await asyncio.to_thread(_find, str(q), route="inline_fact", proposal="web_search",
+            from nucleo.picture_errand import search_route as _route_of   # a picture errand searches IMAGES
+            _sr = await asyncio.to_thread(_find, str(q), route=_route_of(rec), proposal="web_search",
                                           k=int((args.get("k") or payload.get("k") or 6)))
             res = dict(_sr.raw or {"query": q, "answer": "", "results": [], "source": "none"})
             res.update({"route": _sr.route, "candidates": _sr.rows(), "pages": [{"title": p.title, "url": p.url,

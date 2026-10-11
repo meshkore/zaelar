@@ -3702,6 +3702,11 @@ def canvas_now(all_events) -> list[str]:
         if (f.get("cat") if f.get("cat") is not None else e.get("cat")) != "widget":
             continue
         label = str((f.get("label") if f.get("label") is not None else e.get("label")) or "")
+        # The canvas's OWN report comes back as `src: "user"` (V2-039 audit, normalised to the BASE id) and the
+        # desktop never obeys it (`sse.js` `_eco`). Folding it in mounted a base `results` over its instance in the
+        # photo round (2026-10-11): the round played a ghost the real desktop would not have.
+        if str((f.get("src") if f.get("src") is not None else e.get("src")) or "") == "user":
+            continue
         if label in ("show", "close"):
             evs.append((float(f.get("t_ms") or e.get("t_ms") or e.get("ts_ms") or 0), label,
                         str((f.get("id") if f.get("id") is not None else e.get("id")) or "")))

@@ -3892,6 +3892,26 @@ DOMAINS: list[dict] = [
         {"id": "2.459", "title": "«How's the game?» is the game errand he ordered, live or parked, matched on its given name "
                                  "too (not a sports score, 2026-10-11)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_game_is_the_errand_he_is_building.py"]},
+        {"id": "2.500", "title": "An errand whose deliverable is pictures is read as `imagenes` — the brief's surface offers it, "
+                                 "and a correction over the photo viewer is about those pictures (photo round, 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/pictures/test_a_picture_errand_is_read_as_pictures.py"]},
+        {"id": "2.501", "title": "The research criteria go to the errand's OWN sheet; an errand with no sheet (a picture "
+                                 "errand) seeds none and gets none opened under its browser (photo round, 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/pictures/test_the_criteria_go_to_the_errands_own_sheet.py"]},
+        {"id": "2.502", "title": "A picture errand's worker is told the viewer is the deliverable, searches the IMAGE module "
+                                 "and is handed no ≥40-candidate research brief (photo round, 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/pictures/test_a_picture_worker_is_told_where_the_photos_go.py"]},
+        {"id": "2.503", "title": "A site-scoped image search of a picture errand lands in the photo viewer with the site as "
+                                 "its source; unscoped or lone matches leave his set alone; nothing goes to `results`",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/pictures/test_a_scoped_image_search_lands_in_the_viewer.py"]},
+        {"id": "2.504", "title": "A wait reply while one errand runs names its real current step, in his language, once — "
+                                 "never «Will do» over «entrando en media.ferrari.com» (photo round, 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/pictures/test_a_wait_reply_names_the_real_step.py"]},
+        {"id": "2.505", "title": "The text channel's reply door gets the turn brief and appends the step line",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/pictures/test_the_text_channel_appends_the_step.py"]},
+        {"id": "2.506", "title": "The use-case round's canvas never obeys the canvas's own `src:user` echo — the ghost base "
+                                 "sheet over its instance (photo round, 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_round_never_obeys_the_canvas_echo.py"]},
         {"id": "2.435", "title": "The results-sheet tail answers only a sentence about ITS errand, once — an errand is "
                                  "named by his ask, not our «Find real marketplace listings» wrapper; a row he picked "
                                  "ends the offering (three-tasks-at-once, 2026-10-11)",
