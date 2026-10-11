@@ -3947,6 +3947,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_verdict_yields_to_the_order_inside_the_card.py"]},
         {"id": "2.444", "title": "update_meeting names `newTitle` as the NEW title and `title` as the current one (the first rename call carried only the old title, 2026-10-11)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_verdict_yields_to_the_order_inside_the_card.py"]},
+        {"id": "2.445", "title": "A rename never gives an appointment ANOTHER appointment's name — «move next Tuesday's piano to "
+                                 "Wednesday» renamed the series to «Dental checkup with Dr Ruiz» and the next three steps hit two "
+                                 "indistinguishable rows (agenda-everyday-edits EN, 2026-10-11); refused with move_meeting named",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_rename_never_takes_another_appointments_name.py"]},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

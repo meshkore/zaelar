@@ -413,6 +413,23 @@ def _a_open_meeting(action, payload, db, _extra) -> dict:
     return _d._Continue(_extra)
 
 
+def _name_taken(db: dict, m: dict, payload: dict) -> str:
+    """The refusal when `newTitle` is ANOTHER appointment's name, else "".
+
+    agenda-everyday-edits EN (2026-10-11): «Move next Tuesday's piano to Wednesday, just that week» was answered
+    with `update_meeting {item: piano, newTitle: "Dental checkup with Dr Ruiz"}` — the series took the dentist's
+    name, and every later order that named either one (skip a day, end the series, cancel Dr Ruiz) hit two
+    appointments that were now indistinguishable. A rename that merges two appointments' identities is never
+    what he asked; the model gets the reason and the right door, and nothing is written."""
+    new = str(payload.get("newTitle") or "").strip().lower()
+    if not new or new == str(m.get("title") or "").strip().lower():
+        return ""
+    if not any(x is not m and str((x or {}).get("title") or "").strip().lower() == new for x in db.get("meetings") or []):
+        return ""
+    return (f"«{payload['newTitle']}» ya es el nombre de OTRA cita: renombrarla así juntaría las dos. Para cambiar "
+            f"el día o la hora usa move_meeting (en una que se repite, con date = solo ese día). No he cambiado nada.")
+
+
 def _a_update_meeting(action, payload, db, _extra) -> dict:
     # V2-643 — the DETAILS of an appointment already in the agenda: «el dentista ya me lo ha
     # confirmado», «apunta que vienen cuatro», «es en la clínica Ruiz». Date and time are NOT edited
@@ -430,6 +447,8 @@ def _a_update_meeting(action, payload, db, _extra) -> dict:
                 "error": "no me has dicho qué cambiar — manda alguno de: status (confirmed/pending), "
                          "attendees, location, category, notes o newTitle"}
     m = _hits[0]
+    if (_why := _name_taken(db, m, payload)):
+        return {"ok": False, "error": _why}
     if (_why := _d.recur.update(m, payload, _d._today())):            # V2-769 — its rule is a detail too
         return {"ok": False, "error": _why}
     _extra = {"ignored": _d.recur.ignored_keys(payload), "stored": dict(m)}
