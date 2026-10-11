@@ -4068,6 +4068,20 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_next_tells_nothing_after_from_cannot_play_here.py"]},
         {"id": "2.525", "title": "Turning the video card to its queue face answers with the queue; a bare face name is an ack, never an answer to compose words from",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_turning_to_the_queue_face_answers_with_the_queue.py"]},
+        {"id": "2.530", "title": "Over an ASLEEP worker chain (every tier in cooldown) the wait lines — holding line, mute backstop, the ack branch — say the quota and its hour, never «Still on it»/«Sigue en marcha»; no word-for-word repeat (use cases 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_wait_line_over_an_asleep_chain_says_the_quota.py"]},
+        {"id": "2.531", "title": "An escalation turn over an asleep chain does not claim the errand started: the text channel replaces «Estoy investigando a fondo…» with the asleep sentence; a reply naming the quota stands",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_escalation_over_an_asleep_chain_does_not_claim_work.py"]},
+        {"id": "2.532", "title": "An errand the asleep chain refuses (dispatcher) or kills (no tier left) is PARKED as a durable scheduled job at the reset hour, once, bounded; its ending promises the resume — said once when the turn already said the quota",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_an_errand_refused_for_quota_is_parked_for_the_reset.py"]},
+        {"id": "2.533", "title": "A parked errand's job coming due relaunches the SAME errand (sheet/kind kept) and says the quota is back; still asleep → parked again, past the cap the plain asleep line; ordinary reminders still spoken",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_parked_errand_resumes_when_the_quota_returns.py"]},
+        {"id": "2.534", "title": "A parked errand is not dead (no «ha MUERTO, no se reintentará» note) and is work: a stop naming it, «para todo» and Reset cancel its job",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_parked_errand_is_not_dead_and_a_stop_forgets_it.py"]},
+        {"id": "2.535", "title": "A price said right after an errand FAILED needs a source like one said mid-errand: «1.079 euros»/«17 mil pesos» count as amounts, the in-turn search results back a figure, and the cut reply says it has no checked prices (search-buy-phone__es 2026-10-11)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_price_after_a_failed_errand_needs_a_source.py"]},
+        {"id": "2.536", "title": "The asleep-chain reason («out of quota, back at HH:MM») is in the session's language, never a Spanish literal in an English round",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_asleep_chain_says_it_in_his_language.py"]},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

@@ -266,6 +266,17 @@ class LangSpec:
     worker_no_relay: str = ("Me he quedado sin cuota en el proveedor que mueve mis procesos de fondo y no "
                             "tengo otro configurado, así que esta tarea se queda parada. Lo tienes en el "
                             "panel de estado.")
+    # The worker chain ASLEEP (every tier in cooldown): what a turn says instead of «still on it», and what an
+    # errand refused for it says once it is parked to resume at the reset time (`nucleo/workers/quota_wait.py`).
+    worker_chain_asleep: str = ("Me he quedado sin cuota en el proveedor que mueve mis procesos de fondo; vuelve "
+                                "a las {hour}. Hasta entonces no puedo lanzar una búsqueda.")
+    worker_chain_asleep_again: str = "Sigue sin haber cuota hasta las {hour}: ahora mismo no hay nada en marcha."
+    worker_chain_parked: str = "Me he quedado sin cuota hasta las {hour}; a esa hora lo retomo yo solo y te aviso."
+    worker_chain_parked_short: str = "Lo dejo apuntado: a las {hour} lo retomo yo solo y te aviso."
+    worker_chain_resumed: str = "Ya ha vuelto la cuota: retomo «{goal}»."
+    worker_chain_job_name: str = "Retomar «{goal}» cuando vuelva la cuota"
+    # A price said after an errand that FAILED, with nothing behind it (`nucleo/flash/amount_gate.py`).
+    amounts_unbacked: str = "No tengo precios comprobados que darte: lo que he mirado no los trae."
     worker_gave_up_context: str = ("He intentado esa tarea {times} veces y las {times} me he quedado sin "
                                    "espacio de contexto, así que paro en vez de seguir gastando. Pídemela por "
                                    "partes y la saco.")

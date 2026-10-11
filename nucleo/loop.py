@@ -573,7 +573,10 @@ class OrchestratorLoop:
                 _trace = None
             try:
                 _emit("loop.scheduled_fired", {"id": job.get("id"), "name": name, "prompt": prompt})
-                if prompt:
+                from nucleo.workers import quota_wait as _qwait
+                if _qwait.takes(d):                 # an errand parked for the quota's reset: relaunch it, not a speech
+                    await _qwait.fire(d, self._deliver)
+                elif prompt:
                     await self._deliver(name, prompt)
             finally:
                 if _trace is not None:

@@ -94,7 +94,8 @@ def _remember_ended(rec, resuming: bool = False) -> None:
     # context of the next five minutes); the order travels by the route that actually arrives.
     try:
         if (str(rec.status or "") != "cancelled" and not bool(rec.ok)
-                and not str(getattr(rec, "handoff", "") or "")):     # V2-238: a relayed errand has not died
+                and not str(getattr(rec, "handoff", "") or "")       # V2-238: a relayed errand has not died
+                and not _parked(rec.goal)):                           # …nor one parked for the quota's reset
             from voice import brain_notes
             _g = (rec.goal or "la tarea de fondo").strip()[:70]
             brain_notes.push(
@@ -105,6 +106,12 @@ def _remember_ended(rec, resuming: bool = False) -> None:
                 f"«sigo con ello» ni «te aviso en cuanto lo tenga».", key=f"death:{rec.task_id}")
     except Exception:  # noqa: BLE001
         pass
+
+
+def _parked(goal: str) -> bool:
+    """Parked to resume at the quota's reset (`quota_wait`): «it will not be retried» would be false."""
+    from .quota_wait import is_parked
+    return is_parked(goal)
 
 
 def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[dict]:

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from nucleo.flash import probe as _probe
 from nucleo.flash import reminder_backing as _rback   # a claimed reminder is checked, both channels
+from nucleo.workers import quota_wait as _qwait   # the worker chain asleep: what an escalation turn may say
 
 
 async def _escalated_with_its_data_ops(task_ids: list, tool_calls: list, text: str, brief) -> dict:
@@ -371,6 +372,8 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
         from nucleo.turn import errands_of_a_turn as _eot
         spoken = f"{spoken or ''} {_eot.not_started_line(return_extra_exec['not_started'])}".strip()
     spoken = _true_to_the_gate(spoken, action, return_extra_exec, sess)
+    if action == "escalate":   # the chain asleep refuses it: its words about starting it are false (2026-10-11)
+        spoken = _qwait.over_an_escalation(spoken, getattr(sess, "window", None))
     # a CLAIMED reminder is checked against the schedule (2026-10-10)
     if spoken and (_fix := _rback.claim_correction(str(spoken), text, getattr(sess, "window", None))):
         spoken = f"{spoken} {_fix}"

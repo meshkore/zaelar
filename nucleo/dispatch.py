@@ -78,10 +78,9 @@ _SESSIONS: dict[str, SessionRecord] = {}
 # own dispatch— CONTINÚA from there, in vez of open the tab 2ª/3ª/5ª and re-teclear todo (bug ITV 17-jul: 5
 # workers, cero continuidad). Los datos reunidos already viven in memory (slots task.*), so that the worker reanudado
 # no the vuelve a pedir. TTL 30 min; cap of auto-reanudaciones for no respawnear something roto in bucle.
-# ── CONTINUIDAD WEB (V2-049) — extraida a `nucleo/workers/resume.py` (trinquete, 2026-08-26). Los names
-# historicos quedan como ALIAS al MISMO objeto/funcion: quien mutaba `dispatch._WEB_RESUME` in site continues
-# mutando the dict real, and the guardas of source miden the funciones reales esten donde esten.
-from nucleo.workers import resume as _wres
+# ── CONTINUIDAD WEB (V2-049) — moved to `nucleo/workers/resume.py` (ratchet, 2026-08-26). The historical names
+# stay as ALIASES to the SAME object/function, so whoever mutated `dispatch._WEB_RESUME` still mutates the real dict.
+from nucleo.workers import resume as _wres, quota_wait as _qwait
 
 _WEB_RESUME = _wres._WEB_RESUME
 _RESUME_TTL = _wres._RESUME_TTL
@@ -636,6 +635,7 @@ def inject_soon(which: str, message: str) -> None:
 def cancel_soon(which: str) -> list[str]:
     """Fire-and-forget: resuelve `which` and MATA in the loop dueno. Devuelve the tid that VA a kill (for the voice)."""
     tids = resolve_sessions(which)   # lectura de dict (barata); la cancelación real va al loop dueño
+    _qwait.forget(which)             # a stop he ordered also stops an errand waiting for the quota's reset
     if _LOOP is not None and tids:
         def _do():
             for t in tids:

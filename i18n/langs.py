@@ -280,6 +280,14 @@ LANGUAGES: dict[str, LangSpec] = {
                              "hand it over to another. Have a look at the status panel."),
         worker_no_relay=("I ran out of quota on the provider that runs my background work and I have no "
                          "other one configured, so this task is stuck. It's in the status panel."),
+        worker_chain_asleep=("I've run out of quota on the provider that runs my background work; it's back "
+                             "at {hour}. Until then I can't start a search."),
+        worker_chain_asleep_again="Still no quota until {hour}: nothing is running right now.",
+        worker_chain_parked="I'm out of quota until {hour}; at that time I'll pick it up again myself and let you know.",
+        worker_chain_parked_short="I've noted it: at {hour} I'll pick it up again myself and let you know.",
+        worker_chain_resumed="The quota is back: I'm picking up «{goal}» again.",
+        worker_chain_job_name="Resume «{goal}» when the quota is back",
+        amounts_unbacked="I don't have checked prices to give you: what I looked at doesn't carry them.",
         worker_gave_up_context=("I tried that task {times} times and ran out of context space all {times}, "
                                 "so I'm stopping instead of burning more. Ask me for it in parts and I'll "
                                 "get it."),

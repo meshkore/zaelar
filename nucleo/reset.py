@@ -90,6 +90,8 @@ def abandon_work(*, source: str = "reset") -> dict:
         killed["workers"] = dispatch.cancel_all(reason=source)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"reset_all: cancel_all workers falló: {e}")
+    from nucleo.workers import quota_wait   # an errand parked for the quota's reset is work too (never raises)
+    killed["parked"] = quota_wait.forget("")
     try:
         from nucleo.flash import escalate
         killed["escaladas"] = len(escalate.pending())

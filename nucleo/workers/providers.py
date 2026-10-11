@@ -711,5 +711,5 @@ def exhausted_reason() -> str:
     until = exhausted_until()
     if not until:
         return ""
-    return ("Me he quedado sin cuota en el proveedor que mueve mis procesos de fondo; vuelve a las "
-            f"{time.strftime('%H:%M', time.localtime(until))}. Hasta entonces no puedo lanzar una búsqueda.")
+    from i18n import langs as _lg   # the operator's language (2026-10-11: an EN round was told this in Spanish)
+    return _lg.current_language().worker_chain_asleep.format(hour=time.strftime('%H:%M', time.localtime(until)))

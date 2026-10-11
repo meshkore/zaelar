@@ -283,7 +283,9 @@ def stalled_task_backstop(reply: str, encargo: str, minutos: int, motivo: str) -
 #: A monetary amount as a reply writes one — same shape as `findings._AMOUNT_RE` (kept textually in sync;
 #: importing the worker package from the flash layer for one regex would be a heavier coupling than the copy).
 _REPLY_AMOUNT_RE = _re.compile(
-    r"(?:[$€£]\s?\d[\d.,]*|\d[\d.,]*\s?(?:[$€£]|€)|(?:USD|EUR|GBP)\s?\d[\d.,]*|\d[\d.,]*\s?(?:USD|EUR|GBP))",
+    r"(?:[$€£]\s?\d[\d.,]*|\d[\d.,]*\s?(?:[$€£]|€)|(?:USD|EUR|GBP|MXN)\s?\d[\d.,]*|\d[\d.,]*\s?(?:USD|EUR|GBP|MXN)"
+    # the currency said as a WORD (2026-10-11: «1.079 euros», «830 dólares», «17 mil pesos» never matched)
+    r"|\d[\d.,]*\s?(?:mil\s+)?(?:euros?|d[oó]lares|dollars?|bucks|pesos|libras|pounds)\b)",
     _re.I)
 _BACKING_NUM_RE = _re.compile(r"\d[\d.,]*")
 
@@ -292,7 +294,7 @@ def _digits(s: str) -> str:
     return "".join(c for c in str(s or "") if c.isdigit())
 
 
-def strip_unbacked_amounts(reply: str, *, user_text: str = "", rows=None, active: bool = True):
+def strip_unbacked_amounts(reply: str, *, user_text: str = "", rows=None, active: bool = True, keep_whole: bool = True):
     """Cut the sentences of `reply` whose monetary amounts NO source of ours names. Returns (reply, dropped).
 
     V2-472 — the blocker class that dominates the US board, measured by the instrument as
@@ -311,20 +313,21 @@ def strip_unbacked_amounts(reply: str, *, user_text: str = "", rows=None, active
     reply = str(reply or "")
     if not active or not reply or not _REPLY_AMOUNT_RE.search(reply):
         return reply, []
+    from . import amount_gate as _ag
     backing = {_digits(t) for t in _BACKING_NUM_RE.findall(str(user_text or ""))}
-    for row in rows or []:
+    for row in [*(rows or []), _ag.search_backing()]:   # this turn's web results back a figure too (2026-10-11)
         backing |= {_digits(t) for t in _BACKING_NUM_RE.findall(str(row or ""))}
     kept, dropped = [], []
     for sent in _re.split(r"(?<=[.!?])\s+", reply):
         amounts = _REPLY_AMOUNT_RE.findall(sent)
-        if amounts and any(_digits(a) not in backing for a in amounts):
+        if amounts and any(not _ag.backed(_ag.amount_digits(a), backing) for a in amounts):
             dropped.append(sent.strip())
         else:
             kept.append(sent)
     out = " ".join(s for s in kept if s.strip()).strip()
-    if not out:
+    if not out and keep_whole:
         return reply, dropped                      # fail-open: never trade an invention for a mute turn
-    return out, dropped
+    return out, dropped                            # …unless the caller has a true sentence to say instead
 
 
 #: errand goal → the rows the backstop already announced. The window prunes old replies; this does not, so a
@@ -380,10 +383,13 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
                 _live = bool(_disp.pending_summaries())
             except Exception:
                 _live = False
+        from . import amount_gate as _ag
+        _failed = not _live and _ag.an_errand_just_failed()   # a dead errand is when inventing thrives (2026-10-11)
         spoken, _cut = strip_unbacked_amounts(spoken or "", user_text=_user, rows=_back_rows,
-                                              active=_live)
+                                              active=_live or _failed, keep_whole=not _failed)
         if _cut:
             _emit("🧹 importe sin fuente recortado", dropped=[c[:120] for c in _cut[:3]])
+            spoken = (f"{spoken} {_ag.unbacked_line()}" if spoken else _ag.unbacked_line()) if _failed else spoken
         _said = _ANNOUNCED.setdefault(encargo, set())     # V2-781: what it said, kept past the window
         filas = [f for f in filas if _row_key(f) not in _said]
         _held = _not_owed(heard_now, encargo, _back_rows or filas, already=bool(_said)) if filas else ""

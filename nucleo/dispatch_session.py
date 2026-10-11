@@ -118,7 +118,7 @@ async def _run_session(task: "Task") -> None:
     # then spawned into twice more inside three minutes — 1.8 s, 3.9 s, 1.9 s of life, and a person told three
     # times that a search was starting. `exhausted_until()` is the seam that tells the two Nones apart.
     try:
-        from nucleo.workers import providers as _prov
+        from nucleo.workers import providers as _prov, quota_wait as _qwait
         _sleep_reason = _prov.exhausted_reason()
     except Exception:  # noqa: BLE001
         _sleep_reason = ""
@@ -136,8 +136,8 @@ async def _run_session(task: "Task") -> None:
             pass
         rec.status = "done"
         rec.ok = False
-        rec.result_summary = _sleep_reason
-        await _d._deliver_confirm(rec)          # same one-liner path the confirm-gate uses: speak it and be done
+        rec.result_summary = _qwait.parked_summary(req, task.context, _sleep_reason)   # parked → resumed at reset
+        await _qwait.tell(rec, _d._deliver_confirm)   # the confirm-gate's one-liner path, said once per refusal
         _d._SESSIONS.pop(key, None)
         _d._task_row("ended_early", rec, state="failed")
         _d.sync_state()

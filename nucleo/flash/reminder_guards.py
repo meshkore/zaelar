@@ -296,6 +296,9 @@ def holding_line(window, lang=None, after_filler: str = "") -> str:
         lang = lang or _langs.current_language()
     except Exception:
         return "Sigo con ello."
+    from nucleo.workers import quota_wait as _qw   # the worker chain asleep: no wait line can be true (2026-10-11)
+    if asleep := _qw.asleep_line(window, lang):
+        return asleep
     lines = tuple(getattr(lang, "holding_lines", ()) or (getattr(lang, "filler_holding", "Sigo con ello."),))
     said = [str((m or {}).get("content") or "").strip()
             for m in (window or []) if (m or {}).get("role") == "assistant"]
@@ -686,7 +689,7 @@ def mute_backstop(window, lang, has_work: bool, operator_text: str = "") -> str:
         try:
             from voice import endpointing as _ep
             if _ep.is_backchannel(operator_text):     # an ack asks for nothing new: the live work is it (V2-781)
-                return str(getattr(lang, "filler_still_working", "") or "Sigo con ello.")
+                return _still_working(window, lang)
             from nucleo import dispatch as _d
             from nucleo.flash import router_guards as _rgd
             live = [str(r.get("request") or r.get("goal") or "") for r in _d.pending_summaries()]
@@ -694,9 +697,15 @@ def mute_backstop(window, lang, has_work: bool, operator_text: str = "") -> str:
                 has_work = False
         except Exception:  # noqa: BLE001
             pass
-    if has_work:
-        return str(getattr(lang, "filler_still_working", "") or "Sigo con ello.")
-    return mute_line(window, lang)
+    return _still_working(window, lang) if has_work else mute_line(window, lang)
+
+
+def _still_working(window, lang) -> str:
+    """«Still on it» — unless the worker chain is asleep, where it would be a lie (2026-10-11)."""
+    from nucleo.workers import quota_wait as _qw
+    return _qw.asleep_line(window, lang) or str(getattr(lang, "filler_still_working", "") or "Sigo con ello.")
+
+
 def holding_line_now(window, prev_pending: bool = False, *, after_filler: bool = False) -> str:
     """`holding_line` with the language resolved HERE (V2-661b). The shared turn-repair seam
     (`flash/harness_turn.py`) must not reach into the motor's internals — the V2-569 dependency ratchet — and

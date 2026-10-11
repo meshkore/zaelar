@@ -97,7 +97,10 @@ def relay_out_of_fuel(rec, relay_cap: int) -> None:
             # backend had not already closed it, that sentence was delivered as «Task completed: I ran out of quota…»
             # —the exact defect targeted by V2-092/V2-236: an ending that says the opposite of what happened.
             rec.ok = False
-            rec.result_summary = _say().worker_no_relay
+            from .quota_wait import parked_summary   # 2026-10-11: the reset hour is known → resume then, and say so
+            rec.result_summary = parked_summary(rec.goal, {"kind": rec.kind, "sheet": getattr(rec, "sheet", ""),
+                                                           "surface": getattr(rec, "surface", ""),
+                                                           "task_uid": getattr(rec, "uid", "")}, _say().worker_no_relay)
     # THE CHAIN STOPPED: it must be said, and the TRUTH must be told. Without this, a capped ending retained the
     # provider's raw error in `result_summary`, and `operator_safe_summary` translated it as «I ran out of context…
     # I'LL RESUME it with what I had» —a retry promise that will no longer happen. A reassuring sentence that
