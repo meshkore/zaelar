@@ -401,29 +401,11 @@ def transport_cost_to_energy(*, participant_seconds: float | None, provider: str
 # providers are NOT in this table and are NOT charged — they are filtered by the caller, because
 # "free" is a fact about the provider, not a rate of zero to be looked up. Source: public pricing,
 # 2026-08-13 — RE-VERIFY, and note these are entry-tier rates that volume discounts move.
-_SEARCH_USD_PER_REQUEST: dict[str, float] = {
-    "perplexity": 0.005,     # Sonar, incl. the synthesised answer
-    "tavily": 0.008,         # advanced depth (the depth this repo asks for)
-    "brave": 0.005,
-    # Bright Data (listing search, V2-556) — public entry-tier pricing, 2026-09-02, RE-VERIFY at
-    # volume: SERP API ~$1.50/1k, Web Unlocker ~$3/1k premium-domain rate taken as the honest
-    # ceiling (their entry rate is lower; billing only counts SUCCESSFUL responses, and so do we —
-    # `listing_search._bd_request` meters after the 200).
-    "brightdata_serp": 0.0015,
-    "brightdata_unlocker": 0.003,
-    # V2-782 (2026-10-10). Gemini grounding: Google bills grounded PROMPTS ($35/1k beyond the daily free
-    # allowance, pricing page 2026-10) — the honest ceiling; the few hundred tokens are not metered twice.
-    "gemini": 0.035,
-    # OpenAI Responses `web_search_preview`: $25-35 per 1k tool calls (pricing page 2026-10) plus a few hundred
-    # tokens per call; the per-call ceiling is the honest rate, tokens are not metered twice.
-    "openai": 0.03,
-    # Z.ai Web Search API (search-prime), pay per call, a different wallet from the coding plan's MCP quota.
-    # Taken from their pricing page 2026-10 at the top tier as the ceiling; RE-VERIFY at volume.
-    "zai": 0.03,
-    # Foursquare Places search, per call, their 2025 pay-as-you-go rate rounded UP; RE-VERIFY when credits exist.
-    "foursquare": 0.005,
-    "": 0.008,               # unmapped paid provider → the most expensive known, logged once
-}
+# The rates live BESIDE the providers they price (V2-782): `search/providers/__init__.py::USD_PER_REQUEST`, each with
+# its source and date. Only the catch-all row is this module's: an unmapped paid provider bills at the most expensive
+# known rate, and is logged once.
+from search.providers import USD_PER_REQUEST as _SEARCH_RATES  # noqa: E402 — a declaration table, no engine imports
+_SEARCH_USD_PER_REQUEST: dict[str, float] = {**_SEARCH_RATES, "": 0.008}
 _warned_search = set()
 
 

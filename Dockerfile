@@ -53,6 +53,7 @@ RUN apt-get update \
 COPY server ./server
 COPY voice ./voice
 COPY nucleo ./nucleo
+COPY search ./search
 COPY memory ./memory
 COPY bus ./bus
 COPY connectors ./connectors

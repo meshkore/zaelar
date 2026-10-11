@@ -70,8 +70,8 @@ every test that patches through them keeps working. New code imports `search.*`.
 | brightdata_serp / brightdata_unlocker | serp / unlocker | `BRIGHTDATA_API_TOKEN` (+ `BRIGHTDATA_SERP_ZONE`, `BRIGHTDATA_UNLOCKER_ZONE`) | yes | listing discovery and fetch through bot walls |
 | images | images | — | no | Google → Yandex → Bing in our Chromium |
 
-Every paid provider has a rate in `nucleo/energy_meter._SEARCH_USD_PER_REQUEST` (the Energy coverage gate fails
-otherwise) and meters only what ANSWERED. Timeouts: `WEBSEARCH_TIMEOUT` (12 s; Gemini +6), `LISTING_SEARCH_TIMEOUT`,
+Every paid provider has a rate in `search/providers/__init__.py::USD_PER_REQUEST` (beside its declaration; `nucleo/energy_meter`
+reads it and adds the catch-all row; the Energy coverage gate fails otherwise) and meters only what ANSWERED. Timeouts: `WEBSEARCH_TIMEOUT` (12 s; Gemini +6), `LISTING_SEARCH_TIMEOUT`,
 `BROWSER_SEARCH_TIMEOUT`.
 
 ## How the turn uses it today (2026-10-10)

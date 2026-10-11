@@ -73,4 +73,4 @@ def test_both_channels_ask_before_they_search():
     assert "voice_instead_of_a_search(" in words and "instead_of_a_search(" in probe
     assert post.index("hold_the_model_to_its_words(") < post.index("run_the_light_lanes("), \
         "the card is asked BEFORE the web"
-    assert probe.index("instead_of_a_search(") < probe.index("_ws.search, _sq")
+    assert probe.index("instead_of_a_search(") < probe.index("_sr.fact_search, _sq")   # V2-782: the search is the service's

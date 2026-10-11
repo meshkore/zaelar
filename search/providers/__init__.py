@@ -58,6 +58,27 @@ PROVIDERS: dict[str, Provider] = {
 }
 
 
+#: USD per paid request, the CEILING from each provider's pricing page on the date noted — RE-VERIFY at volume. Read
+#: by `nucleo.energy_meter._SEARCH_USD_PER_REQUEST` (which adds the catch-all row), so a provider declared above
+#: without a row here is billed at the catch-all, loudly (`test_energy_coverage`).
+USD_PER_REQUEST: dict[str, float] = {
+    "perplexity": 0.005,         # Sonar, incl. the synthesised answer
+    "tavily": 0.008,             # advanced depth (the depth this repo asks for)
+    "brave": 0.005,
+    # Bright Data (V2-556, 2026-09-02): SERP API ~$1.50/1k, Web Unlocker ~$3/1k premium-domain rate as the ceiling;
+    # billing counts SUCCESSFUL responses only, and so does `listing._bd_request` (meters after the 200).
+    "brightdata_serp": 0.0015,
+    "brightdata_unlocker": 0.003,
+    # V2-782 (2026-10-10): Gemini bills grounded PROMPTS ($35/1k beyond the daily free allowance); OpenAI bills the
+    # `web_search_preview` tool call ($25-35/1k) plus a few hundred tokens, metered once as the call; Z.ai search-prime
+    # per call at the top tier; Foursquare per search (2025 pay-as-you-go, rounded up). Tokens are never metered twice.
+    "gemini": 0.035,
+    "openai": 0.03,
+    "zai": 0.03,
+    "foursquare": 0.005,
+}
+
+
 def of_kind(kind: str) -> list[str]:
     return [p.name for p in PROVIDERS.values() if p.kind == kind]
 

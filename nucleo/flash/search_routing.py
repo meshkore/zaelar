@@ -14,6 +14,7 @@ from __future__ import annotations
 from loguru import logger
 
 from search.route import SEARCH_KEY, Route, search_route
+from search.web import format_results  # noqa: F401 — re-exported: the fact doors read the chain dict through one name
 
 
 def verdicts_from_brief(brief) -> dict:
@@ -34,6 +35,22 @@ def verdicts_from_brief(brief) -> dict:
 
 def route_for(query: str, *, proposal: str, brief, named_site: bool = False) -> Route:
     return search_route(query, proposal=proposal, verdicts=verdicts_from_brief(brief), named_site=named_site)
+
+
+def fact_search(query: str, *, brief, emit, channel: str) -> dict:
+    """The fact door of a channel: the shadow route row, then `find(route="inline_fact")`, returned as the chain's
+    dict the composing pass reads (`raw`, with the failure carried when the chain collapsed). BLOCKING: callers
+    on the loop run it in a thread. Never raises — a search that explodes is an empty result with its reason."""
+    shadow(query, proposal="web_search", brief=brief, emit=emit, channel=channel)
+    try:
+        from search import find as _find
+        sres = _find(query, route="inline_fact", proposal="web_search")
+        return dict(sres.raw or {"query": query, "answer": "", "results": [], "source": "none",
+                                 **({"failure": sres.failure} if sres.failure else {})})
+    except Exception as e:  # noqa: BLE001 — the turn goes on without the web, and says why on the timeline
+        logger.warning(f"search_routing: the fact door failed ({e!r})")
+        return {"query": query, "answer": "", "results": [], "source": "none",
+                "failure": {"kind": "error", "detail": f"{type(e).__name__}: {str(e)[:160]}"}}
 
 
 def shadow(query: str, *, proposal: str, brief, emit, channel: str) -> Route | None:

@@ -6415,6 +6415,13 @@ DOMAINS: list[dict] = [
                                  "una categoría con AggregateOffer es fuente, la página que se describe a sí misma es mobiliario, "
                                  "una ficha con precio se conserva",
             "ch": UNIT, "paths": ["tests/search/unit/test_the_extractor_reads_recorded_pages.py"]},
+        # T3.4 — the LIVE canary: real providers, a few cents, loose assertions (alive and shaped right, not «the world
+        # holds this answer»). Skipped without the switch, so the deterministic sweep never reaches the network.
+        {"id": "12.11", "title": "Canario VIVO del servicio: un hecho contestado, una caza con enlaces, el criterio no "
+                                 "enseñado dicho — contra los proveedores reales (ZAELAR_TEST_LIVE_SEARCH=1)",
+            # Deterministic node on purpose: without the switch every test SKIPS (the sweep stays offline); with it
+            # (`ZAELAR_TEST_LIVE_SEARCH=1 ./.venv/bin/python -m pytest -q tests/search/live`) they hit the providers.
+            "ch": UNIT, "paths": ["tests/search/live/test_live_canary.py"]},
     ]},
 ]
 

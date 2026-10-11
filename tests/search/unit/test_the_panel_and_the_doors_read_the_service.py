@@ -44,8 +44,20 @@ def test_both_fact_doors_call_the_service():
     root = Path(__file__).resolve().parents[3]
     for f in ("nucleo/flash/post_stream_lanes.py", "nucleo/flash/probe_after.py"):
         src = (root / f).read_text(encoding="utf-8")
-        assert 'route="inline_fact", proposal="web_search"' in src, f
+        assert "_sr.fact_search" in src, f
         assert "to_thread(_ws.search" not in src, f"{f} still calls the chain beside the service"
+
+
+def test_the_fact_door_returns_the_chain_dict_and_never_raises(monkeypatch):
+    from nucleo.flash import search_routing
+    from search import web
+    seen = []
+    monkeypatch.setattr(web, "search", lambda q, k=5, mode="answer": {"query": q, "answer": "x", "results": [], "source": "zai"})
+    res = search_routing.fact_search("q", brief=None, emit=lambda *a, **k: seen.append(a), channel="probe")
+    assert res["answer"] == "x" and res["source"] == "zai" and seen and seen[0][1].startswith("🧭")
+    monkeypatch.setattr(web, "search", lambda q, k=5, mode="answer": (_ for _ in ()).throw(RuntimeError("boom")))
+    res = search_routing.fact_search("q", brief=None, emit=None, channel="probe")
+    assert res["results"] == [] and res["failure"]["kind"] in ("error",)
 
 
 def test_the_brief_carries_the_fields_he_asked_for_as_hard_criteria():
