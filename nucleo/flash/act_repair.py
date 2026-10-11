@@ -753,7 +753,7 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
             digest = ""
         card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         got: list[tuple[str, dict]] = []
-        from nucleo.flash import refusal_line as _rline
+        from nucleo.flash import refusal_line as _rline, repair_grounding as _rg
         from nucleo.flash.fast_client import FastClient
         await FastClient().complete(
             [{"role": "system", "content": _SYS_REFUSAL.format(
@@ -771,7 +771,7 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
                 _note(wid, "la corrección cambiaba de acción", action=str(args.get("action") or "")[:40])
                 continue
             fixed = args.get("payload") if isinstance(args.get("payload"), dict) else {}
-            if fixed and fixed != (payload or {}):
+            if fixed and fixed != (payload or {}) and _rg.refusal_fix_grounded(wid, action, fixed, operator_text, digest):
                 return {"widget_id": wid, "action": action, "payload": fixed}
         _note(wid, "el rechazo no tiene corrección", action=action)
         return None

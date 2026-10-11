@@ -56,3 +56,24 @@ def list_was_named(payload: dict, operator_text: str, window, card_digest: str =
         return True
     except Exception:  # noqa: BLE001
         return True
+
+
+def refusal_fix_grounded(wid: str, action: str, fixed: dict, operator_text: str, card_digest: str = "") -> bool:
+    """The same bound on the REFUSAL correction (`act_repair.call_for_refusal`), which re-issues a refused call.
+
+    `music-playlist-reads-clean__es` (2026-10-11): «Ponme la lista True Blue.» → `play_playlist {"playlist": "True
+    Blue"}` refused (no such list), and the correction pass re-issued it as `{"playlist": "Favoritos"}` — a list he
+    never named and the card did not hold. It ran, was refused too, and THAT refusal was what he heard first: «No
+    encuentro ninguna lista que se llame «Favoritos»», so he apologised for a word he never said. The rule was
+    installed in the promise pass only. A correction that selects what nobody named is dropped, and he hears the
+    refusal of what he asked for. Never raises (True = allow)."""
+    if recipient_was_named(wid, action, fixed, operator_text, None) and \
+            list_was_named(fixed, operator_text, None, card_digest):
+        return True
+    try:
+        from nucleo.flash import act_repair as _ar
+        _ar._note(wid, "the correction selects a list or a recipient nobody named", action=str(action)[:40])
+    except Exception as e:  # noqa: BLE001 — the drop stands without its timeline line
+        from loguru import logger
+        logger.debug(f"repair_grounding note: {e}")
+    return False
