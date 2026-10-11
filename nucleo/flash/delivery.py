@@ -20,6 +20,7 @@ from __future__ import annotations
 import re as _re
 
 from .router_guards import _norm_txt
+from . import delivery_repeat as _repeat   # a second tail only rides a wait (rental-car, 2026-10-11)
 
 
 
@@ -396,7 +397,8 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
             spoken = (f"{spoken} {_ag.unbacked_line()}" if spoken else _ag.unbacked_line()) if _failed else spoken
         _said = _ANNOUNCED.setdefault(encargo, set())     # V2-781: what it said, kept past the window
         filas = [f for f in filas if _row_key(f) not in _said]
-        _held = _not_owed(heard_now, encargo, _back_rows or filas, already=bool(_said)) if filas else ""
+        _held = (_not_owed(heard_now, encargo, _back_rows or filas, already=bool(_said))
+                 or _repeat.held(spoken, already=bool(_said))) if filas else ""
         if _held:
             _emit(f"🤐 delivery backstop held: {_held}", goal=(encargo or "")[:80])
             filas = []

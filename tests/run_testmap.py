@@ -4112,6 +4112,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/browser/unit/navegador/test_a_form_needing_his_data_asks_for_the_datum_once.py']},
         {"id": "2.541", "title": 'A bare answer reaches the memory distiller WITH the question it answers — «where are you based?» → «San Francisco» is not a trip, and both distiller calls of the ingest read the framed turn',
             "ch": UNIT, "paths": ['tests/memory/unit/test_a_bare_answer_reaches_the_distiller_with_its_question.py']},
+        {"id": "2.542", "title": "After the first delivery, the sheet's rows only ride a WAIT: a reply that answers his question keeps the turn (rental-car: «ya hay candidatos en la hoja…» glued to four replies with one errand live)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_second_sheet_tail_only_rides_a_wait.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
