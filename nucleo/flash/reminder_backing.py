@@ -8,7 +8,7 @@ Two steps after the reply is spoken, in this order:
      while no active job exists owes a correction, which is returned for the caller to say.
 
 The probe channel runs step 1 in `probe_scheduling.py` (it appends a tag the cron executor runs) and step 2 in
-`probe_after.the_words_it_owes`, after that executor. Same decisions, one place each.
+`probe_after.the_words_it_owes` (`claim_correction`), after that executor. Same decisions, one place each.
 """
 from __future__ import annotations
 
@@ -20,6 +20,11 @@ from . import reminder_guards as _rg
 from . import reminder_promise as _rp
 
 logger = logging.getLogger(__name__)
+
+
+def claim_correction(spoken: str) -> str:
+    """The correction a reply CLAIMING a reminder owes when no job is behind it — both channels call this."""
+    return _rp.unbacked_claim_line(spoken)
 
 
 def back_and_check(spoken: str, operator_text: str, *, window, emit, backstop: bool = True) -> str:
@@ -35,7 +40,7 @@ def back_and_check(spoken: str, operator_text: str, *, window, emit, backstop: b
                      extra={"ok": bool(r.get("ok")), "op": "cron.create", "backstop": True})
         except Exception as e:  # noqa: BLE001
             logger.warning("reminder backstop failed: %s", e)
-    fix = _rp.unbacked_claim_line(spoken)
+    fix = claim_correction(spoken)
     if fix:
         emit("cron", "⚠️ claimed a reminder that is not scheduled", text=spoken[:160], role="system",
              extra={"op": "claim_check", "ok": False})
