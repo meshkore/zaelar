@@ -263,7 +263,9 @@ async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> 
         # is the difference between an agent that helps and one that keeps checking whether it may help.
         missing = needs_facts(sig)
         if missing and confirm is not None:
-            await confirm(_say_missing(missing))
+            # The DATUM is asked, never an OK to click: `confirm` is the yes/no door (form_facts.py says why).
+            from widgets.navegador import form_facts as _form_facts
+            await _form_facts.ask_once(task_id, missing)
             return False, f"faltan datos del operador: {', '.join(missing)}"
         shadow = shadow_reason(sig)
         if shadow:

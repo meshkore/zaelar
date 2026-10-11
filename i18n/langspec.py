@@ -332,6 +332,16 @@ class LangSpec:
     login_left_halfway: str = ("Antes dejaste a medias el inicio de sesión en {site}. Si quieres, lo retomamos.")
     login_already_in: str = "Ya estabas dentro de {site}, no hace falta iniciar sesión. Sigo."
     click_needs_ok: str = "La tarea {task} necesita tu OK para pulsar «{label}». ¿Confirmo?"
+    # A form that wants HIS data is a question for the DATUM, never a yes/no to click (widgets/navegador/form_facts.py).
+    form_needs_facts: str = "Para seguir con el formulario de la tarea {task} me falta {facts}. Dímelo y sigo."
+    form_fact_names: tuple = (("operator.name", "tu nombre"), ("operator.email", "tu email"),
+                              ("operator.phone", "tu teléfono"), ("operator.address", "tu dirección"))
+    # What a row says about one of his HARD requirements (nucleo/flash/row_check.py): yes / no / not verified.
+    row_check_yes: str = "sí (lo dice {source})"
+    row_check_no: str = "no (lo dice {source})"
+    row_check_unknown: str = "sin verificar"
+    row_check_none: str = "Ninguna de las {n} opciones de la hoja tiene verificado «{criterion}» todavía."
+    row_check_some: str = "Con «{criterion}» verificado: {rows}."
     # A restart caught a widget half-built — `widgets/server_api.py`.
     widget_build_resumed: str = "El servidor se reinició a mitad de crear el widget «{name}»; lo relanzo ahora."
     # The two that already had an inline `if english:` ternary. They were CORRECT for an English operator and
