@@ -3924,6 +3924,13 @@ DOMAINS: list[dict] = [
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
                                  "or a generic line; the correction pass has room to write a document",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_widgets_refusal_reaches_him_as_a_sentence.py"]},
+        {"id": "2.420", "title": "«Bloquéame este canal» blocks the channel ON THE CARD (playing video, a row number, the one "
+                                 "in sight) and names it; several in sight → asks which; a pasted link from it plays with "
+                                 "a notice; a style rule never stands in (video-blocked-channel-respected, 2026-10-10)",
+            "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_this_channel_is_the_one_on_the_card.py"]},
+        {"id": "2.421", "title": "A case whose opening points at the screen gets that screen seeded first — the blocked-"
+                                 "channel rounds ran on an empty player and measured the tester's invention",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_deictic_case_gets_its_scene.py"]},
         {"id": "2.251", "title": "«set a reminder on the premiere day» rings on the ONE date the last reply named — «I'll set "
                                  "a heads-up for that day» scheduled nothing (V2-781 pair 3); both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_asked_for_the_day_just_named_is_set.py"]},

@@ -124,7 +124,15 @@ def opened(db_path: str, ids: list[str], since: float) -> list[str]:
 
 
 def step(scenario, db_path: str) -> dict:
-    """The runner's one call: seed what the case declares and say what landed."""
+    """The runner's one call: seed what the case declares — finished errands, and the scene a card shows
+    (`card_seed`) — and say what landed."""
+    from . import card_seed
+    card = card_seed.step(scenario, str(Path(db_path).parents[2]) if db_path else "")
+    out = _errands_step(scenario, db_path)
+    return {**({"seeded": []} if card and not out else {}), **out, **({"card": card} if card else {})}
+
+
+def _errands_step(scenario, db_path: str) -> dict:
     workspace = str(Path(db_path).parents[2]) if db_path else ""
     errands = errands_for(str(getattr(scenario, "id", "")).split("__")[0], getattr(scenario, "locale", "es"))
     if not errands or not db_path:
@@ -141,6 +149,11 @@ def judge_note(seeded: dict | None) -> str:
     """What the judge must know before it reasons: the errands are ours, and which one the round reopened."""
     if not seeded:
         return ""
+    if seeded.get("card"):
+        from . import card_seed
+        rest = {k: v for k, v in seeded.items() if k not in ("card", "opened")}
+        return card_seed.judge_note(seeded["card"]) + (judge_note(rest) if rest.get("titles") or rest.get("error")
+                                                       else "")
     if not seeded.get("seeded"):
         return (f"\n⚠️ AVISO DE ARNÉS — la siembra de encargos FALLÓ ({seeded.get('error', 'sin filas')}): el "
                 f"motor no tenía ningún encargo que recordar, así que «no tengo nada» no es un fallo de memoria.")

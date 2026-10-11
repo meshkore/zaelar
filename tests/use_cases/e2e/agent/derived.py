@@ -954,6 +954,13 @@ PROFILES["video-exit-fullscreen-unnamed"] = Profile(
     bar="primero_valido",
     signals=("widget",), turns=4)
 PROFILES["video-blocked-channel-respected"] = Profile(
+    # The scene is SEEDED (`card_seed`): without it «este canal» pointed at nothing and the tester invented one.
+    persona_extra="En el reproductor suena un vídeo de Rick Astley y el inicio te sugiere más de ese canal: es "
+                  "«este canal». No digas su nombre al principio. Cuando te confirme el bloqueo, pega tú este enlace "
+                  "del mismo canal y pide que lo ponga: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    persona_extra_us="A Rick Astley video is playing and the home screen suggests more from that channel: that is "
+                     "«this channel». Don't say its name at first. Once the block is confirmed, paste this link from "
+                     "the same channel yourself and ask to play it: https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     success_extra="El canal desaparece de home/sugerencias y SIGUE fuera después; un enlace pegado de ese "
                   "canal reproduce con AVISO (una orden explícita gana a un filtro permanente, V2-604).",
     bar="primero_valido",
