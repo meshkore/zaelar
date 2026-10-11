@@ -3946,6 +3946,11 @@ DOMAINS: list[dict] = [
                                  "(find-a-future-release-and-remind-me EN, 2026-10-10); a claimed reminder with no job owes "
                                  "a correction; negations and questions schedule nothing; both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_promised_reminder_in_english_is_scheduled.py"]},
+        {"id": "2.411", "title": "A reminder keeps the YEAR the conversation said and a day gone by schedules nothing — "
+                                 "«September 30th» asked on Oct 11 rang 2027-09-30 while the search had said «September "
+                                 "30th, 2026» (find-a-future-release-and-remind-me EN, 2026-10-11); the reply says the date "
+                                 "passed; the job carries the verified fact; the model's own tag too; ES + EN",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_keeps_the_year_the_conversation_said.py"]},
         {"id": "2.251", "title": "«set a reminder on the premiere day» rings on the ONE date the last reply named — «I'll set "
                                  "a heads-up for that day» scheduled nothing (V2-781 pair 3); both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_asked_for_the_day_just_named_is_set.py"]},

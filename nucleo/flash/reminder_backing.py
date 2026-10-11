@@ -18,12 +18,18 @@ from nucleo import scheduler as _sched
 
 from . import reminder_guards as _rg
 from . import reminder_promise as _rp
+from . import reminder_year as _ry
 
 logger = logging.getLogger(__name__)
 
 
-def claim_correction(spoken: str) -> str:
-    """The correction a reply CLAIMING a reminder owes when no job is behind it — both channels call this."""
+def claim_correction(spoken: str, operator_text: str = "", window=None) -> str:
+    """The correction a reply owes about a reminder — both channels call this. A promise or claim for a day already
+    gone by says so (2026-10-11); a claim with no job behind it says it is not set."""
+    if _rp.find(spoken):
+        when = _rg.resolved_reminder_moment(spoken, operator_text, window)
+        if when and (line := _ry.passed_line(when, spoken, operator_text, window)):
+            return line
     return _rp.unbacked_claim_line(spoken)
 
 
@@ -40,7 +46,7 @@ def back_and_check(spoken: str, operator_text: str, *, window, emit, backstop: b
                      extra={"ok": bool(r.get("ok")), "op": "cron.create", "backstop": True})
         except Exception as e:  # noqa: BLE001
             logger.warning("reminder backstop failed: %s", e)
-    fix = claim_correction(spoken)
+    fix = claim_correction(spoken, operator_text, window)
     if fix:
         emit("cron", "⚠️ claimed a reminder that is not scheduled", text=spoken[:160], role="system",
              extra={"op": "claim_check", "ok": False})

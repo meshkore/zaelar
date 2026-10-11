@@ -332,7 +332,7 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
         from nucleo.turn import errands_of_a_turn as _eot
         spoken = f"{spoken or ''} {_eot.not_started_line(return_extra_exec['not_started'])}".strip()
     # a CLAIMED reminder is checked against the schedule (2026-10-10)
-    if spoken and (_fix := _rback.claim_correction(str(spoken))):
+    if spoken and (_fix := _rback.claim_correction(str(spoken), text, getattr(sess, "window", None))):
         spoken = f"{spoken} {_fix}"
     _out = {}
     try:

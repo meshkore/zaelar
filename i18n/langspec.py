@@ -298,6 +298,7 @@ class LangSpec:
     not_on_screen_yet: str = "Perdona — todavía no está en pantalla. Te lo estoy preparando."
     # A reply CLAIMED a reminder is set and no scheduled job exists — `nucleo/flash/reminder_promise.py`.
     reminder_not_set_yet: str = "Corrijo: ese aviso todavía no está programado. Dime qué día y a qué hora y lo programo."
+    reminder_date_passed: str = "Ojo: esa fecha —{date}— ya ha pasado, así que no he puesto ningún aviso."
     data_ack: str = "Hecho."       # short "done" when a widget data-op ran with no spoken content of its own (V2-026)
     # Demo pass 50: the words ASKED («…want me to write that?») and the order was carried out anyway — «?Done.» read
     # as the answer to its own question. After a question the line says it went ahead.

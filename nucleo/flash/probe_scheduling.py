@@ -75,7 +75,7 @@ async def run_scheduling_backstops(*, spoken, operator_text, action, tags, sess)
                                    # «hoy + 5 min» con «wednesday 2026-09-02» delante en el prompt.
                                    _rg_cron.safe_reminder_schedule(
                                        (_d.get("schedule") or _d.get("when") or "").strip(),
-                                       spoken, operator_text),
+                                       spoken, operator_text, getattr(sess, "window", None)),
                                    name=(_d.get("name") or "").strip(), repeat=str(_d.get("repeat") or ""))
                 _t["executed"] = {"ok": bool(_r.get("ok")), "display": _r.get("display") or "",
                                   "error": _r.get("error") or ""}

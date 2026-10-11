@@ -92,6 +92,26 @@ def _day_and_month(n: str, hh: int, mi: int, now: float) -> str | None:
     return ""
 
 
+def dated_mentions(text: str) -> list[tuple[str, str]]:
+    """Every day-and-month WITH a year in `text` → `[("YYYY-MM-DD", as said)]`, in order (2026-10-11).
+
+    A yearless «September 30th» that has gone by rolls to next year in `parse_when`, which is right when nobody
+    said a year. A reader that has the conversation uses this to keep the year it DID say."""
+    n = _strip_accents_sched(text)
+    raw = text if len(text or "") == len(n) else n          # the words as said, when positions line up
+    out = []
+    for rx, d, mo in ((_RE_DAY_MONTH, 1, 2), (_RE_MONTH_DAY, 2, 1)):
+        for m in rx.finditer(n):
+            if m.group(3):
+                try:
+                    ts = time.mktime((int(m.group(3)), _MONTHS[m.group(mo)], int(m.group(d)), 12, 0, 0, 0, 1, -1))
+                except (OverflowError, ValueError):
+                    continue
+                if time.localtime(ts).tm_mday == int(m.group(d)):
+                    out.append((m.start(), time.strftime("%Y-%m-%d", time.localtime(ts)), raw[m.start():m.end()]))
+    return [(iso, said) for _, iso, said in sorted(out)]
+
+
 def _strip_accents_sched(text: str) -> str:
     import unicodedata as _ud
     return "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c)).lower()

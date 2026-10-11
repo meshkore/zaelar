@@ -48,6 +48,7 @@ from .reminder_fact import reminder_body, tidy_clause
 # determiners («that reminder»), the CLAIM forms («I've got that reminder set», «te he puesto el aviso»), and the
 # negation/question check. The names stay here for every reader that imports them.
 from . import reminder_promise as _rp
+from . import reminder_year as _ry   # the year the conversation said; a day gone by schedules nothing
 _REMIND_NOUN, _REMIND_DET, _REMIND_VERB_RE = _rp._NOUN_ES, _rp._DET_ES, _rp.PROMISE_RE
 def promises_a_dated_reminder(reply: str, operator_text: str = "", window=None) -> str:
     """The reply promises to remind the operator AT A GIVEN TIME → the schedule spec for it, else "".
@@ -443,6 +444,13 @@ def reminder_before(when: str, commitment: str, now=None) -> str:
     if w <= now:
         return (now + _dt.timedelta(seconds=_PROMPT_S)).strftime("%Y-%m-%d %H:%M")
     return w.strftime("%Y-%m-%d %H:%M")
+def resolved_reminder_moment(reply: str, operator_text: str = "", window=None) -> str:
+    """The moment a promised notice belongs to, with the YEAR the conversation said for that day — or ""."""
+    when = (promises_a_dated_reminder(reply, operator_text, window=window)
+            or _asked_on_the_day_just_named(reply, operator_text, window))
+    return _ry.anchored(when, reply, operator_text, window) if when else ""
+
+
 def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) -> dict | None:
     """The whole backstop decision in ONE place: what to schedule when the model promised a notice in prose.
 
@@ -457,9 +465,8 @@ def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) ->
     backstop exists for the turn the model forgot, and a second alert for something the operator asked once is a
     defect he SEES, while the model's own `cron.create` tag is not gated by this and can still schedule freely.
     """
-    when = (promises_a_dated_reminder(reply, operator_text, window=window)
-            or _asked_on_the_day_just_named(reply, operator_text, window))
-    if not when:
+    when = resolved_reminder_moment(reply, operator_text, window)
+    if not when or _ry.passed(when):        # 2026-10-11: «September 30th» said on Oct 11 rang in 2027
         return None
     # V2-167 · (1) the notice must land BEFORE the thing it announces, and (2) what fires must be the REMINDER,
     # not the request that produced it. The measured job carried the operator's raw turn as its prompt, so on
@@ -547,7 +554,7 @@ _FIRST_PERSON_DUTY_RE = _re.compile(
 _AGENT_IMPERATIVE_RE = _re.compile(
     r"^\s*(avisa|av[ií]same|recu[eé]rda|recuerdame|dime|d[ií]|notif[ií]|remind|tell|notify|let\s+me\s+know)",
     _re.I)
-def safe_reminder_schedule(schedule: str, reply: str, operator_text: str = "") -> str:
+def safe_reminder_schedule(schedule: str, reply: str, operator_text: str = "", window=None) -> str:
     """WHEN the model tag's notice fires — corrected if it says TODAY while the conversation requested another day.
 
     Sibling of `safe_reminder_prompt`, for the other field of the same tag and for the same reason: V2-214
@@ -574,6 +581,13 @@ def safe_reminder_schedule(schedule: str, reply: str, operator_text: str = "") -
     if not spec:
         return spec
     try:
+        # 2026-10-11 — a one-off day the conversation dated WITH a year keeps that year: «September 30th» rolled to
+        # 2027 while the search had said «September 30th, 2026». A day gone by stays gone (`create` refuses it).
+        once = spec if _re.match(r"\d{4}-\d{2}-\d{2}\b", spec) else ""
+        if not once and not _sched.parse_schedule(spec):
+            once = _sched.parse_when(spec) or ""
+        if once and (fixed := _ry.anchored(once, reply or "", operator_text or "", window)) != once:
+            return fixed
         # With the REPLY available, position wins («lo que va después de "te avisaré"»). Without it —the provider
         # path executes the tag while generation is still underway— use the OPERATOR's turn, which is the
         # authority anyway: the operator said «recuérdamelo el miércoles».
@@ -581,6 +595,7 @@ def safe_reminder_schedule(schedule: str, reply: str, operator_text: str = "") -
                   if (reply or "").strip() else _asked_reminder_moment(operator_text or ""))
         if not pedido:
             return spec                       # without an unambiguous answer, correct nothing
+        pedido = _ry.anchored(pedido, reply or "", operator_text or "", window)   # a past day: `suyo` is None below
         # NORMALIZE first: `scheduler.create` understands only MACHINE forms, so a spoken expression that does
         # resolve («el próximo miércoles por la tarde») is translated here — as the worker path already does
         # (`worker_api`, chaining both parsers); omitting this left the notice uncreated.

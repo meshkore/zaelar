@@ -96,7 +96,7 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
                 from nucleo.flash import router_guards as _rg_cron
                 r = _sched.create(
                     _rg_cron.safe_reminder_prompt((d.get("prompt") or d.get("task") or "").strip()),
-                    _rg_cron.safe_reminder_schedule((d.get("schedule") or d.get("when") or "").strip(), "", text),  # V2-356
+                    _rg_cron.safe_reminder_schedule((d.get("schedule") or d.get("when") or "").strip(), "", text, brain._window),
                     name=(d.get("name") or "").strip(), repeat=str(d.get("repeat") or ""))
                 emit("cron", "⏰ tarea programada" if r.get("ok") else "⚠️ schedule no reconocido",
                      text=r.get("display") or r.get("error") or "", role="system",
