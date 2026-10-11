@@ -107,6 +107,10 @@ def notice_lines(db: dict) -> list:
         return [f"AVISO DEL REPRODUCTOR: el vídeo que el operador pidió («{bn.get('from','')}») solo puede "
                 "verse en YouTube — su propietario bloquea la reproducción embebida. Díselo claro; NO lo "
                 "recargues ni finjas que se reproduce."]
+    if k == "channel_blocked":
+        return [f"AVISO DEL REPRODUCTOR: «{bn.get('from','')}» es de «{bn.get('channel','')}», un canal que el "
+                "operador BLOQUEÓ; suena porque pegó el enlace él (una orden explícita gana al filtro). Si lo "
+                "comentas, dilo en una frase; no lo quites ni lo cambies."]
     if k == "exhausted":
         return [f"AVISO DEL REPRODUCTOR: «{bn.get('from','')}» está bloqueado para inserción y no encontré "
                 "sustituto reproducible — pídele otra búsqueda o el enlace."]

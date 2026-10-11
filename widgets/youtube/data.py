@@ -193,8 +193,15 @@ def prompt_digest() -> str:
         return ""
     # V2-634 — what just happened to playback is a FACT the model must say instead of narrate.
     lines = _avail.notice_lines(db)
+    # «bloquéame este canal» / «sigue a este» point at the playing video's author: the name rides here so the
+    # reply can say WHICH channel (video-blocked-channel-respected, 2026-10-10). Only while a video is loaded.
+    if db.get("videoId") and str(db.get("channel") or "").strip():
+        lines.append(f"EN EL REPRODUCTOR: «{str(db.get('title') or '')[:70]}» — canal «{str(db['channel'])[:40]}»")
     res = db.get("search_results") or []
     if not res:
+        if lines and db.get("list"):          # a digest replaces the items line in the brief: keep the queue
+            from widgets import refs as _refs
+            lines.append(_refs.items_line(WID))
         return "\n".join(lines)
     q = str(db.get("search_query") or "").strip()
     # V2-756 — the NEGATIVE belongs here too. «ponme el vídeo número tres» over this band came back as
@@ -255,10 +262,11 @@ def ref_index() -> list:
 # reads this one).
 from .actions import (  # noqa: E402,F401
     _a_torrent, _a_load, _a_add, _a_search, _a_play_result, _a_add_results, _a_show_tab, _a_clear_search,
-    _a_block_channel, _a_unblock_channel, _a_remove, _a_move, _a_sort_list, _a_filter_list, _a_name_list,
+    _a_remove, _a_move, _a_sort_list, _a_filter_list, _a_name_list,
     _a_clear_list, _a_play_item, _a_next, _a_previous, _a_ended, _a_play, _a_player_error, _a_pause, _a_mute,
     _a_unmute, _a_captions_on, _a_captions_off, _a_volume_up, _a_volume_down, _a_set_volume, _a_restart, _a_close)
 from .queue_search import _a_queue_search  # noqa: E402 — V2-781: «a few videos, back to back»
+from . import blocking as _blocking  # noqa: E402 — which channel «este canal» is, and the block itself
 
 
 # V2-778 F1-12 — one function per action (in `actions.py`), and `apply_action` is the table lookup. Each body
@@ -277,8 +285,8 @@ ACTIONS = {
     "queue_search": _a_queue_search,
     "show_tab": _a_show_tab,
     "clear_search": _a_clear_search,
-    "block_channel": _a_block_channel,
-    "unblock_channel": _a_unblock_channel,
+    "block_channel": _blocking.block,
+    "unblock_channel": _blocking.unblock,
     "remove": _a_remove,
     "move": _a_move,
     "sort_list": _a_sort_list,

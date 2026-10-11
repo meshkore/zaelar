@@ -40,6 +40,8 @@ def _a_load(action, p, db) -> dict:
         # link names the video; the public oembed endpoint names it back (fail-open to the URL, as `add`).
         meta = _d._oembed_title(vid)
         title, channel = meta["title"], meta["channel"]
+    if vid and not channel:
+        channel = _d._blocking.channel_of(db, vid)    # a row the card showed knows its author
     if not vid:
         rq = _d._results_query(raw)
         if rq:                                       # a RESULTS link is a search, already written
@@ -79,7 +81,8 @@ def _a_load(action, p, db) -> dict:
     _d.library.record_play(db, {"videoId": vid, "title": db["title"], "channel": channel, "url": db["url"]})
     _d.library.apply_prefs(db, fresh=not had_video)
     _d._goto(db, "player")                              # V2-755: he asked to watch it, so show it
-    return _d._bump(db, "load")
+    notice = _d._blocking.explicit_link_notice(db, explicit, channel, db["title"])
+    return {**_d._bump(db, "load"), **notice}
 
 
 def _a_add(action, p, db) -> dict:
@@ -316,50 +319,6 @@ def _a_clear_search(action, p, db) -> dict:
     db["search_results"], db["search_query"], db["searched_at"] = [], "", 0
     _d.store.save(_d.WID, db)
     return {"ok": True}
-
-
-def _a_block_channel(action, p, db) -> dict:
-    # V2-596 — «no quiero ver este canal»: the filter the operator educates by voice. The brain names the
-    # channel as it learns which ones he means («canales hechos con IA» → block each one it identifies);
-    # the widget only stores and applies the filter. Blocking also SWEEPS the current list — a channel he
-    # just refused must not keep sitting in his queue — but never cuts what is already playing (V2-366's
-    # rule: only `close` stops playback).
-    ch = str(p.get("channel") or p.get("name") or p.get("item") or "").strip()[:80]
-    if not ch:
-        return {"ok": False, "error": "no_channel",
-                "message": "Dime qué canal bloqueo (su nombre, como sale en la lista)."}
-    blocked = db.setdefault("blocked_channels", [])
-    if any(_d._norm(b) == _d._norm(ch) for b in blocked):
-        _d.store.save(_d.WID, db)
-        return {"ok": True, "already_blocked": True, "channel": ch, "blocked": list(blocked)}
-    blocked.append(ch)
-    lst = db.get("list") or []
-    cur = lst[int(db.get("pos", -1))] if 0 <= int(db.get("pos", -1)) < len(lst) else None
-    kept = [it for it in lst if not _d._is_blocked(it.get("channel") or "", [ch])]
-    swept = len(lst) - len(kept)
-    db["list"] = kept
-    db["pos"] = kept.index(cur) if cur is not None and cur in kept else -1
-    # V2-597 — the SUGGESTIONS band is swept too: a channel he just refused must not keep sitting on
-    # his home screen either.
-    sug = db.get("suggested") or []
-    db["suggested"] = [it for it in sug if not _d._is_blocked(it.get("channel") or "", [ch])]
-    swept += len(sug) - len(db["suggested"])
-    _d.store.save(_d.WID, db)
-    return {"ok": True, "channel": ch, "removed_from_list": swept, "blocked": list(blocked)}
-
-
-def _a_unblock_channel(action, p, db) -> dict:
-    ch = str(p.get("channel") or p.get("name") or p.get("item") or "").strip()
-    blocked = db.get("blocked_channels") or []
-    n = _d._norm(ch)
-    hit = next((b for b in blocked if _d._norm(b) == n or (n and n in _d._norm(b))), None)
-    if hit is None:
-        return {"ok": False, "error": "not_blocked", "channel": ch, "blocked": list(blocked),
-                "message": "Ese canal no está bloqueado." if blocked
-                           else "No hay ningún canal bloqueado."}
-    blocked.remove(hit)
-    _d.store.save(_d.WID, db)
-    return {"ok": True, "channel": hit, "blocked": list(blocked)}
 
 
 def _a_remove(action, p, db) -> dict:

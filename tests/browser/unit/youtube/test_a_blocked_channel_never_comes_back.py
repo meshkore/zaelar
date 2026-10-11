@@ -89,6 +89,6 @@ def test_unblock_restores_discoverability(sandbox):
 
 def test_blocking_nothing_teaches_the_retry(sandbox):
     r = yt.apply_action("block_channel", {})
-    assert r["ok"] is False and "canal" in r["message"]
+    assert r["ok"] is False and ("canal" in r["message"] or "channel" in r["message"])   # in the agent's language
     r2 = yt.apply_action("unblock_channel", {"channel": "nadie"})
     assert r2["ok"] is False and r2["error"] == "not_blocked"

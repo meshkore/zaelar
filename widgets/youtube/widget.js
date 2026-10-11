@@ -1239,6 +1239,9 @@ export function render(root, data, ctx){
     else if(bn.kind === "explicit")
       msg = tt("blocked_explicit", {from: bn.from || ""},
                "Su propietario bloquea la reproducción fuera de YouTube — este vídeo solo puede verse allí.");
+    else if(bn.kind === "channel_blocked")     // a pasted link from a channel he blocked: it plays, and says so
+      msg = tt("blocked_channel_link", {channel: bn.channel || ""},
+               "Lo pongo porque lo has pegado tú, aunque es de «{channel}», un canal que tienes bloqueado.");
     else if(bn.kind === "exhausted")
       msg = tt("blocked_exhausted", {from: bn.from || ""},
                "«{from}» está bloqueado por su propietario y no encontré sustituto — dime otra búsqueda.");

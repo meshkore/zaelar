@@ -1397,6 +1397,7 @@
  "widgets.youtube.back_subs": "‹ Subscriptions",
  "widgets.youtube.blocked_channels": "🚫 Blocked channels: {list}",
  "widgets.youtube.blocked_exhausted": "“{from}” is blocked by its owner and I found no playable substitute — give me another search.",
+ "widgets.youtube.blocked_channel_link": "Playing it because you pasted it, though it's from “{channel}”, a channel you blocked.",
  "widgets.youtube.blocked_explicit": "Its owner blocks playback outside YouTube — this video can only be watched there.",
  "widgets.youtube.blocked_swapped": "“{from}” is blocked by its owner from playing here — playing the next one: “{to}”.",
  "widgets.youtube.cc_off": "no captions",
