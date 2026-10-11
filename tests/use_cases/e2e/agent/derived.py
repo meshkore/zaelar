@@ -970,6 +970,7 @@ PROFILES["music-playlist-reads-clean"] = Profile(
              "que abrió V2-612.",
     bar="primero_valido",
     signals=("widget",), turns=4)
+# The song is SEEDED (`card_seed`): without it «it's still playing» was the tester's premise alone (2026-10-11).
 PROFILES["music-save-what-is-sounding"] = Profile(
     persona_extra="Suena una canción que pediste con palabras aproximadas; quieres guardar LA QUE SUENA.",
     success_extra="Lo guardado lleva el título/artista REALES que resolvió el proveedor, no tus palabras "

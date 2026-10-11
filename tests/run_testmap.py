@@ -4120,6 +4120,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_question_about_a_row_reads_its_hard_requirement.py']},
         {"id": "2.545", "title": "A status sentence never says the browser's micro-step («pulsando en la página», «usando el teclado»): the worker's milestone note, or «under way», instead",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_status_line_never_says_a_click.py']},
+        # music use cases (2026-10-11): the unasked «Favoritos», and «it's still playing» on an empty player
+        {"id": "2.560", "title": "A same-turn refusal correction may only select a list he named or the card holds — «Ponme la lista True Blue» was re-issued as «Favoritos» and that refusal was what he heard (music-playlist-reads-clean__es)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_refusal_correction_selects_only_what_he_named.py']},
+        {"id": "2.561", "title": "«Save this song» with nothing playing says THAT, in his language — never «the Music card didn't take it» three times (music-save-what-is-sounding__us)",
+            "ch": UNIT, "paths": ['tests/browser/unit/musica/test_saving_with_nothing_playing_says_so.py']},
+        {"id": "2.562", "title": "A case whose persona says a song is playing gets one playing on the music card first, and the judge is told which (music-save-what-is-sounding)",
+            "ch": UNIT, "paths": ['tests/use_cases/unit/test_a_case_that_says_a_song_is_playing_gets_one.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
