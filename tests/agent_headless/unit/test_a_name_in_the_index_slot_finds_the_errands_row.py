@@ -9,7 +9,8 @@ from __future__ import annotations
 from widgets.results import data as sheet
 
 
-def test_detail_by_a_name_in_the_index_slot_reaches_the_instance():
+def test_detail_by_a_name_in_the_index_slot_reaches_the_instance(monkeypatch):
+    monkeypatch.setattr(sheet, "sheets", lambda: ["", "t2517"])     # the sheets on disk are other tests' business
     sheet.store.save(sheet.sheet_key(""), {"title": "Coches completos", "items": []})
     sheet.store.save(sheet.sheet_key("t2517"), {"title": "Coches", "items": [{"title": "Fiat Tipo Lounge 2517", "price": "€ 10.490"}]})
     res = sheet.apply_action("detail", {"index": "Fiat Tipo Lounge 2517"})
