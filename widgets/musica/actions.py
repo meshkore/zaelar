@@ -95,7 +95,7 @@ def _a_favorite_current(action: str, p: dict) -> dict:
     db = _d._load_db()
     cur = _d._current_track(db)
     if not cur:
-        return {"ok": False, "error": "nothing_playing"}
+        return {"ok": False, "error": "nothing_playing", "say": "widgets.musica.refusal_nothing_playing"}
     # Plain "Favoritos": the old hardcoded "Favoritos de Manolo" was a demo leftover shipped to every
     # operator. No dual lineage on upgrade: _find_playlist matches by containment, so an existing
     # "Favoritos de Manolo" list keeps receiving the favorites under its old name. And since V2-384 the
