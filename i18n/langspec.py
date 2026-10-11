@@ -234,6 +234,19 @@ class LangSpec:
     #: …and when the player REFUSED it (`player_outcome`): what could not play and why, never «Suena ahora».
     receipt_cannot_play: str = "No he podido ponerlo: «{title}» no se puede reproducir aquí, su propietario bloquea verlo fuera de YouTube. Sigue en tu lista."
     receipt_swapped: str = "«{title}» no se puede reproducir aquí (su propietario lo bloquea fuera de YouTube), así que suena «{to}»."
+    #: A row zaelar NAMED and he quotes back (V2-782, `own_words`): never denied — named, and where it is now.
+    own_row_named: str = "Sí, te lo nombré yo: «{row}»."
+    own_row_still: str = "Sigue en la hoja de resultados."
+    own_row_facts: str = "Lo que trae su ficha: {facts}."
+    own_row_no_facts: str = "Su ficha no trae más datos todavía; se los pido a la búsqueda."
+    own_row_discarded: str = "Después lo descarté: {why}."
+    own_row_discarded_off: str = "Después lo saqué de la hoja: no era lo que pediste."
+    own_row_gone: str = "Ya no está en la hoja: la búsqueda rehízo la lista y esa fila no quedó."
+    #: The site he asked for blocked us, and the rows came from elsewhere (V2-782, `asked_site`).
+    asked_site_blocked: str = "Ojo: {site} me bloqueó el acceso, así que estos vienen de {hosts}."
+    asked_site_elsewhere: str = "Ojo: de {site} no he sacado nada; estos vienen de {hosts}."
+    #: A delivery that names fewer rows than he asked for (or than a comparison needs) — the rest, by name.
+    top_rows_line: str = "Las {n} opciones: {rows}."
     #: OPENING a piece nobody can find (V2-609).
     open_no_such_piece: str = "No tengo ninguna pieza con ese nombre; ¿cuál quieres que te abra?"
     open_system_piece: str = "Eso es una pieza del sistema; ábrela desde su botón o dime su nombre."

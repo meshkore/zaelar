@@ -39,6 +39,7 @@ def _file(data: dict, off: list[dict]) -> None:
     cur = list(data.get("rejected") or [])
     seen = {(x.get("url") or x.get("title") or "").strip().lower() for x in cur}
     for r in off:
+        r = {**r, "source": "category gate"}            # the reason is ours (English), not the worker's words
         key = (r.get("url") or r.get("title") or "").strip().lower()
         if key and key not in seen:
             seen.add(key)

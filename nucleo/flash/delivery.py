@@ -350,6 +350,8 @@ def forget_announced() -> None:
     _STALL_OFFERED.clear()
     from .step_line import forget as _forget_steps
     _forget_steps()
+    from .asked_site import forget as _forget_sites
+    _forget_sites()
 
 
 def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> str:
@@ -363,7 +365,9 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
     """
     try:
         from . import live_blocks as _lb
+        from . import asked_site as _site, nothing_claims as _nothing, own_words as _own
 
+        spoken = _own.keep_its_word(spoken or "", window, heard_now)   # a row it named is never denied (V2-782)
         dicho = " ".join(str((m or {}).get("content") or "") for m in (window or [])
                          if (m or {}).get("role") == "assistant")
         encargo, filas = _lb.any_live_task_rows(12)   # V2-781 T521: past the top three, to find three that are new
@@ -398,9 +402,13 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
             filas = []
         extra = sheet_delivery_backstop(spoken or "", filas, dicho, errand=encargo, heard=_user)
         if extra:
-            _said.update(_row_key(f) for f in filas if f.split(" — ")[0][:40] in extra)
+            _given = [f for f in filas if f.split(" — ")[0][:40] in extra]
+            _said.update(_row_key(f) for f in _given)
             _emit("📬 backstop de entrega: la espera sale con las filas")
-            return ((spoken.rstrip() + " ") if spoken else "") + extra
+            # V2-782: a «there is nothing» sentence does not stand beside the rows, and rows from another site
+            # than the one he asked for say where they came from.
+            _where = _site.note(_user, _given)
+            return _nothing.reconcile(spoken or "", extra + ((" " + _where) if _where else ""))
         # An errand that DIED while this waiting reply was being written: the promise is corrected here,
         # once (`death_line.py` — the 2026-10-10 widget build that died mid-turn on a rate limit).
         from .death_line import backstop as _death_backstop
