@@ -346,9 +346,9 @@ def is_completable(scenario_id: str) -> bool:
     return group_of(scenario_id) == COMPLETABLE
 
 
-#: V2-782 — every shortlist-on-the-sheet case waits for the search service (operator, 2026-10-10: «no merece la
-#: pena trabajar en ellos hasta que esté a tope el sistema de búsqueda»). Ungating is T6.1 of that initiative.
-SEARCH_SERVICE_GATE: tuple[str, ...] = ("V2-782 F6",)
+#: V2-782 — every shortlist-on-the-sheet case waited for the search service (operator, 2026-10-10). The service
+#: went live the same day and the gate was lifted on 2026-10-11 (T6.1): empty = the search cases run again.
+SEARCH_SERVICE_GATE: tuple[str, ...] = ()
 
 
 def blocked_by(scenario_id: str) -> tuple[str, ...]:

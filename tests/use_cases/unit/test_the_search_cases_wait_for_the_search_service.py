@@ -1,15 +1,16 @@
-"""The search use cases wait for the search service (V2-782, operator 2026-10-10).
+"""The search use cases ran again once the search service was live (V2-782 T6.1, 2026-10-11).
 
-«Hay que marcar los use cases relacionados, así que no merece la pena trabajar en ellos hasta que esté a tope el
-sistema de búsqueda.» Every completable case whose deliverable is a shortlist on the results sheet is gated by
-V2-782 F6, in both languages; the canaries (inline fact, recipes, images, documents) keep running.
+On 2026-10-10 every completable case whose deliverable is a shortlist on the results sheet was gated by V2-782 F6
+(operator: «no merece la pena trabajar en ellos hasta que esté a tope el sistema de búsqueda»). The service shipped
+the same day; the gate is now EMPTY and a shortlist case is runnable unless its segment names a gate of its own.
 """
 from tests.use_cases.e2e.agent import segments
 
 
-def test_a_shortlist_case_is_gated_by_the_search_service():
+def test_a_shortlist_case_runs_now_that_the_search_service_is_live():
+    assert segments.SEARCH_SERVICE_GATE == ()
     for sid in ("best-rated-rental-car", "compare-insurance-quotes__us", "cheapest-monitor", "hotel-under-15-days__us"):
-        assert "V2-782 F6" in segments.blocked_by(sid), sid
+        assert not segments.blocked_by(sid), sid
 
 
 def test_the_canaries_still_run():
