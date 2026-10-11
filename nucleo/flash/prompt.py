@@ -799,7 +799,7 @@ def build_flash_system(directive: str = "", recall_query: str = "", recall_block
         # directive is HIS instruction and a pack is OURS; and a pack is about a STRETCH of the relationship,
         # a weaker claim than what is true this second. Outside the stable prefix (V2-536) on purpose — a
         # phase ends mid-conversation, and a cached block keeps being spoken after its phase is over.
-        + _packs.compose()
+        + _packs.compose(turn_text)
         + "\n\n── AHORA MISMO ──\n" + live
         + "\n\nAtiende ahora la petición del operador que viene a continuación."
     )

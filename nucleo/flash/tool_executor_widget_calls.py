@@ -440,8 +440,7 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
     # claramente CERRAR (verbo de cerrar, sin verbo de borrar, ≤5 palabras — sin más sustancia que el
     # pronombre/el widget) se redirige DETERMINISTA a la tag de canvas. Una frase larga con "cierra"
     # dentro ("cierra la sesión de spotify del widget") NO entra aquí (pasa a su data-op normal).
-    if (_txw._closeg.is_short_close_order(text) and runtime.get(wid) is not None   # V2-713 R3: extraída
-            and _txw._direct_action.from_brief(_brief) != (wid, action_name)):   # V2-770: both readers agree
+    if runtime.get(wid) is not None and _txw._card_close.data_close(wid, action_name, text, brief=_brief):   # V2-713 R3 / V2-781
         emit("brain", "🙈 orden corta de CERRAR → close (no data-op)", text=f"{wid} (era {action_name})",
              role="system")
         _tag_emit("close", {"id": wid})
@@ -517,7 +516,7 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
     # V2-740 — ¿de QUIÉN era la orden, con dos tarjetas que saben hacer lo mismo? El porqué y la
     # forma del plan, en `frontend.card_decision`; el probe toma la misma por la misma función.
     _cd = _frontend.card_decision(wid, action_name, brief=_brief, ask_phrase=_say().ask_which_item,
-                                  payload=payload)
+                                  payload=payload, operator_text=_txw._bnotes.operator_half(text))
     if _cd["label"]:
         emit("brain", _cd["label"], role="system", text=_cd["text"], extra=_cd["extra"])
     if _cd["ask"]:

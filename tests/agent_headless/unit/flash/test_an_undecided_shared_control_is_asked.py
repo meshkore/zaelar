@@ -94,7 +94,7 @@ def test_a_named_card_or_a_sure_verdict_still_completes(screen):
 
 def test_the_text_channel_asks_and_says_the_question():
     src = (ENGINE / "nucleo/flash/probe_decide.py").read_text(encoding="utf-8")
-    assert "brief=_tbrief, ask_phrase=_player_control._ask_phrase())" in src
+    assert "brief=_tbrief, ask_phrase=_player_control._ask_phrase(), operator_text=text)" in src
     assert 'action, spoken = "clarify", _cd["ask"]' in src
     mirrors = (ENGINE / "nucleo/flash/probe_mirrors.py").read_text(encoding="utf-8")
     assert '"answer_worker", "clarify"))' in mirrors, "a turn that ASKED is decided: no rung, no backstop completes it"

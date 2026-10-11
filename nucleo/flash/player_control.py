@@ -34,7 +34,9 @@ CARD_OF_TOOL = {"play_music": "musica", "play_video": "youtube"}
 #: in the same case: «turn the volume down a bit» read `musica:volume_down` at 0.54 (EN) and 0.60 (ES) — «used», so
 #: the music was turned down in silence, and the judge called it what it is: luck. Two players that both declare
 #: the control are a coin the verdict only settles when it is sure; below this the operator is asked which.
-PLAYER_SURE = 0.8
+#: Raised 0.8 → 0.9 (EN round 2026-10-11): «Turn the volume down.» with nothing naming a card read 0.81, the music
+#: went down in silence and he had to ask which one — a guess that scrapes the bar is still a guess.
+PLAYER_SURE = 0.9
 
 
 def _open_now() -> list[str]:
@@ -54,16 +56,17 @@ def _ask_phrase() -> str:
         return ""
 
 
-def _named_player(operator_text: str, open_ids) -> str:
-    """The ONE open player his words name («turn the music down», «pausa el vídeo»), else ""."""
+def _named_player(operator_text: str, open_ids, action: str = "") -> str:
+    """The ONE open player his words make the TARGET («turn the music down», «bájale a la música, el vídeo no lo
+    toques»), else "". A player named only to be left alone is never it (`named_target`, V2-781)."""
     if not (operator_text or "").strip():
         return ""
     try:
-        from nucleo.flash import direct_action as _da
+        from nucleo.flash import named_target as _nt
         players = set(CARD_OF_TOOL.values())
-        named = {str(c).split("::", 1)[0] for c in _da.named_cards(operator_text)} & players
-        bases = {str(w).split("::", 1)[0].strip().lower() for w in (open_ids or [])}
-        return next(iter(named)) if len(named) == 1 and named <= bases else ""
+        open_players = [w for w in (open_ids or []) if str(w).split("::", 1)[0].strip().lower() in players]
+        named = _nt.target(operator_text, open_players, action)
+        return str(named).split("::", 1)[0].strip().lower() if named else ""
     except Exception:  # noqa: BLE001
         return ""
 
@@ -81,7 +84,7 @@ def plan(tool: str, action: str, query: str = "", *, brief=None, ask_phrase: str
         return keep
     from nucleo.flash import frontend as _fe
     has_screen = isinstance(brief, dict) and bool(brief.get("open_ids"))
-    named = _named_player(operator_text, brief.get("open_ids") if has_screen else _open_now())
+    named = _named_player(operator_text, brief.get("open_ids") if has_screen else _open_now(), act)
     if named and act in (_fe.declared_actions(named) or {}):
         return keep if named == own else {**keep, "route": "card", "card": named,
                                           "label": "🎯 la orden era del OTRO reproductor — lo nombra él",

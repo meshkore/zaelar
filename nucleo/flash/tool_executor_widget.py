@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from loguru import logger
 
 from nucleo.flash import (canvas_license as _canvas_lic,
-                          canvas_visibility as _cvis, close_guards as _closeg, data_ops as _data_ops,
+                          canvas_visibility as _cvis, card_close as _card_close, close_guards as _closeg, data_ops as _data_ops,
                           direct_action as _direct_action, show_target as _show_target)
 from nucleo.flash import leave_gate as _leave_gate  # V2-778 F4-33, read as _txw._leave_gate
 from nucleo.flash import reply_or_forward as _rof  # demo pass 110 E3, read as _txw._rof

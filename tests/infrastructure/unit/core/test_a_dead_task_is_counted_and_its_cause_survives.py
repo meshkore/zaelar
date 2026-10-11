@@ -170,7 +170,11 @@ def test_los_DOS_canales_llaman_a_la_misma_funcion_y_ninguno_la_copia():
     dice «si dos canales necesitan la misma regla, extrae primero», y copiarla habría costado una marca."""
     voz = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
     txt = _vts.read(ENGINE / "nucleo" / "flash" / "probe.py")
-    assert "is_short_close_order(text)" in voz and "is_short_close_order(text)" in txt
+    # V2-781: both channels reach it through the ONE data-op close door (`card_close.data_close`), which is the only
+    # caller of the short-close rule on the `widget_data` path.
+    assert "_card_close.data_close(" in voz and "_card_close.data_close(" in txt
+    door = _vts.read(ENGINE / "nucleo" / "flash" / "card_close.py")
+    assert "is_short_close_order(operator_text)" in door
     for canal, src in (("voz", voz), ("texto", txt)):
         assert "len(text.split()) <= 5" not in src, (
             f"el canal de {canal} reimplementa el límite en vez de llamarlo. ⚠️ Este assert encontró DOS sitios "

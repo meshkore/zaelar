@@ -33,9 +33,11 @@ def why(brief, widget_id: str, action: str, *, operator_text: str = "", model_wo
         if _fe.which_card(widget_id, action, brief=brief)[0] != "ask":
             return ""
         base = str(widget_id or "").split("::", 1)[0].strip().lower()
-        from nucleo.flash import direct_action as _da
-        if any(str(c).split("::", 1)[0].lower() == base for c in _da.named_cards(operator_text)):
-            return ""
+        from nucleo.flash import named_target as _nt
+        ids = list(brief.get("open_ids") or []) if isinstance(brief, dict) else []
+        named = _nt.target(operator_text, ids or _fe._screen_now(), action)
+        if named:                       # his words settle it: the verdict's card runs, another card's never does
+            return "" if named.split("::", 1)[0].lower() == base else "shared"
         from memory import api as _memapi
         from nucleo import canvas_focus as _cf
         focus = _cf.last_turn_card(list((_memapi.state() or {}).get("open_widgets") or []))

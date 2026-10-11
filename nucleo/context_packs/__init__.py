@@ -96,13 +96,15 @@ def blocks() -> list[str]:
     return out
 
 
-def compose() -> str:
-    """The whole contribution as ONE prompt section, or "" when no phase is running.
+def compose(turn_text: str = "") -> str:
+    """The whole contribution as ONE prompt section, or "" when no phase is running — or when THIS turn is not
+    free (`free_turn.is_free`): a question or an order gets its answer, never our introduction on top of it.
 
     The header is not decoration: without it the model reads a phase instruction as a permanent rule about
     who it is, which is the one thing a pack must never become."""
     try:
-        parts = blocks()
+        from nucleo.context_packs import free_turn as _free
+        parts = blocks() if _free.is_free(turn_text) else []
     except Exception as e:  # noqa: BLE001 — the registry already catches per pack; this is the second net,
         logger.warning(f"context_packs: no phase context this turn: {e!r}")   # and it is on the hot path
         return ""

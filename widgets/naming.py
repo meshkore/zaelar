@@ -123,7 +123,7 @@ _CLAUSE_RE = _re.compile(r"([,.;:!?¡¿]+|\s(?:and|but|then|y|e|pero|luego)\s)",
 _KEEP_RE = _re.compile(r"(?<!\w)(?:keep(?:s|ing)?|leave|stays?|staying|d[eé]ja(?!\s+de\b)\w*|d[eé]jal\w*"
                        r"|mant[eé]n\w*|que\s+se\s+qued\w*|se\s+qued\w*|que\s+sig\w*)(?!\w)", _re.I)
 _NOT_KEEP_RE = _re.compile(r"(?<!\w)(?:don'?t|do\s+not|no)\s+(?:keep|leave|dejes|mantengas)(?!\w)", _re.I)
-_DONT_TOUCH_RE = _re.compile(r"(?<!\w)(?:don'?t|do\s+not|never|no)\s+(?:close|shut|touch|remove|kill|turn\s+off"
+_DONT_TOUCH_RE = _re.compile(r"(?<!\w)(?:don'?t|do\s+not|never|no)\s+(?:(?:lo|la|los|las|le|me|it|that|them)\s+)?(?:close|shut|touch|remove|kill|turn\s+off"
                              r"|cierres|quites|toques|apagues)(?!\w)", _re.I)
 _EXCEPT_RE = _re.compile(r"(?<!\w)(?:except(?:\s+for)?|but\s+not|apart\s+from|other\s+than|menos|salvo|excepto)"
                          r"(?!\w).*", _re.I | _re.S)

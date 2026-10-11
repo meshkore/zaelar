@@ -286,8 +286,8 @@ def _code(path: Path) -> str:
 def test_the_prompt_carries_the_packs_after_the_operators_own_directive():
     """A directive is HIS instruction and a pack is OURS, so his is read last of the two."""
     src = _code(ENGINE / "nucleo/flash/prompt.py")
-    assert "_packs . compose ( )" in src, "build_flash_system does not compose the context packs"
-    i_dir, i_pack = src.index("_directive_block ( directive )"), src.index("_packs . compose ( )")
+    assert "_packs . compose ( turn_text )" in src, "build_flash_system does not compose the context packs"
+    i_dir, i_pack = src.index("_directive_block ( directive )"), src.index("_packs . compose ( turn_text )")
     assert i_dir < i_pack, "a pack is read before the operator's own directive"
 
 

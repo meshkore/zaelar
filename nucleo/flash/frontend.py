@@ -241,7 +241,7 @@ def _players_floor(cards) -> float | None:
 
 
 def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=None,
-               min_confidence: float | None = None) -> tuple[str, object]:
+               min_confidence: float | None = None, operator_text: str = "") -> tuple[str, object]:
     """Which OPEN CARD a declared data-op belongs to, when more than one can do it (V2-740).
 
     THE SITUATION, in the operator's words (2026-09-21): *«si tengo dos widgets que tienen las mismas
@@ -317,6 +317,13 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=
         cards = [c for c in cards if c == wid or _takes(c, name, payload)]
     if len(cards) < 2:
         return ("keep", None)
+    # His words name the target and exclude the rest — «bájale a la música, el vídeo no lo toques» ran
+    # `youtube.volume_down` three turns running (V2-781, `named_target`): the sentence decides before any verdict.
+    if operator_text:
+        from nucleo.flash import named_target as _nt
+        named = _nt.target(operator_text, cards, name)
+        if named:
+            return ("keep", None) if _tb._base_of(named) == _tb._base_of(wid) else ("card", named)
     if min_confidence is None:
         min_confidence = _players_floor(cards)
 
@@ -399,7 +406,7 @@ def absent_widget_misroute(widget_id: str, action: str, item: str, *,
 
 
 def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = "", payload=None, open_ids=(),
-                  min_confidence: float | None = None) -> dict:
+                  min_confidence: float | None = None, operator_text: str = "") -> dict:
     """`which_card`, shaped into what a CALL SITE does with it — so neither channel grows to hold this.
 
     Both callers live in files the architecture ratchet lists (the voice provider and `probe.py`), and its
@@ -413,7 +420,8 @@ def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = 
     `open_ids` is the screen when the brief carries none (see `player_control`); empty = the brief's set.
     """
     wid = (widget_id or "").strip().lower()
-    route, alt = which_card(wid, action, open_ids=open_ids, brief=brief, payload=payload, min_confidence=min_confidence)
+    route, alt = which_card(wid, action, open_ids=open_ids, brief=brief, payload=payload, min_confidence=min_confidence,
+                            operator_text=operator_text)
     if route == "card":
         return {"card": str(alt), "ask": "",
                 "label": "🎯 la orden era de OTRA tarjeta — la reubica el veredicto de pantalla",
@@ -424,7 +432,17 @@ def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = 
         # sentence for consent's ASK_WHICH, and this IS that verdict — the thing in doubt is a card rather
         # than a row, which `consent.decide` does not distinguish either. A second string for the same
         # question would be a second thing to translate, to keep in step, and to get out of step.
-        names = [str(c) for c in (alt or [])]
+        # The question names the cards as he knows them («Música, YouTube»), never by id — and parks the control, so
+        # his answer («el de la música») runs it even if the model then calls nothing (V2-781, `named_target`).
+        from nucleo.flash import card_receipt as _receipt, named_target as _nt
+        ids = [str(c).split(" — ", 1)[0] for c in (alt or [])]
+        _nt.park(action, ids)
+        try:
+            from i18n import langs as _langs
+            code = str(getattr(_langs.current_language(), "code", "") or "")   # the question's own language
+        except Exception:  # noqa: BLE001
+            code = ""
+        names = [_receipt.display_label(str(c), code) for c in (alt or [])]
         return {"card": wid,
                 "ask": (ask_phrase or "").format(cands=", ".join(names[:3])) or "",
                 "label": "❓ varias tarjetas pueden hacer eso — pregunto en cuál",

@@ -51,6 +51,9 @@ below is the first kind, or it names the mechanism that replaced the second.
   `nucleo/flash/continuation.py`.
 - **CRIT-V8 · The assistant's own name changes by a verdict, never by a regex, and fails CLOSED** (absent or
   unsure → no rename). — since 2026-09-22 · nodes 2.56.
+- **CRIT-V9 · A phase pack rides only a FREE turn.** A question, an order or a long sentence gets its answer and
+  no introduction block that turn (`nucleo/context_packs/free_turn.py`, `context_packs.compose(turn_text)`).
+  — since 2026-10-11 · nodes 2.474.
 
 ## 2 · Consent — act or ask
 
@@ -117,6 +120,14 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-K9 · A classifier before the model is a PRICE** (~780 ms), paid only where the decision cannot be read
   after; a fixed table may decide alone only where a wrong answer costs nothing — a fail-open default, as the scope
   of a spoken rule is. — since 2026-09-22 · nodes 3.58, 2.172.
+- **CRIT-K10 · A card named only to be LEFT ALONE is never the target.** With several open cards declaring the
+  same control, his sentence decides before any verdict: the card it names as the target wins, a card inside a
+  keep / don't-touch / negation clause is excluded (`nucleo/flash/named_target.py`); a «which card?» the engine
+  asks parks the control, is phrased with the cards' display names, and his next answer naming one of them runs
+  it; two players settle on a verdict only at `PLAYER_SURE` (0.9). — since 2026-10-11 · nodes 2.470, 2.471, 2.472.
+- **CRIT-K11 · A close order answered with a player's pause is the card's CLOSE** («cierra la música» →
+  `musica:pause` closes the card, both channels through `card_close.data_close`, and the receipt says closed).
+  — since 2026-10-11 · nodes 2.473, 2.430.
 
 ## 4 · Errands and workers
 

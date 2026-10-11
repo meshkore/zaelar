@@ -8,6 +8,7 @@ what to execute below. The code is the SAME; every name it read from `probe` is 
 from __future__ import annotations
 
 from nucleo.flash import build_decision as _build_decision
+from nucleo.flash import card_close as _card_close
 from nucleo.flash.connector_canon import canon_connector as _canon_connector  # the probe sees the same door the voice opens
 from nucleo.flash import hard_turn as _hard_turn
 from nucleo.flash import player_control as _player_control
@@ -202,11 +203,9 @@ async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names
             _pl = _wd["args"].get("payload") if isinstance(_wd["args"].get("payload"), dict) else {}
             if _router.show_request_blocks_data_action(text, _wid, _act, _pl) and _rt.get(_wid) is not None:
                 action = f"canvas:show:{_wid}"
-            # V2-713 R3 — the short-close redirect, which had lived only in the voice rail. Shared as a
-            # FUNCTION, never copied; the incident and the reason are in `close_guards.is_short_close_order`.
-            elif (_cg.is_short_close_order(text) and _rt.get(_wid) is not None
-                  # V2-770 — unless the verdict names THIS very action: «ya la puedes cerrar» → close_meeting
-                  and __import__("nucleo.flash.direct_action", fromlist=["x"]).from_brief(_tbrief) != (_wid, _act)):
+            # V2-713 R3 / V2-781 — a short close order, or «cierra la música» answered with the player's pause: the
+            # card's CLOSE, shared as a FUNCTION with the voice rail (`card_close.data_close`), never copied.
+            elif _rt.get(_wid) is not None and _card_close.data_close(_wid, _act, text, brief=_tbrief):
                 action = f"canvas:close:{_wid}"
             elif _fe.action_mode(_wid, _act) is None:
                 # ESPEJO de la voz (misma decisión compartida, `frontend.resolve_undeclared_action` — cablear
@@ -222,7 +221,7 @@ async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names
             # V2-740 — ESPEJO de la voz, misma FUNCIÓN (nunca copiada). Sin brief que leer, la duda
             # se PREGUNTA: la segunda pregunta de V2-712, no una nueva.
             if action == "widget_data":
-                _cd = _fe.card_decision(_wid, _act, payload=(_wd.get("args") or {}).get("payload"), brief=_tbrief, ask_phrase=_player_control._ask_phrase())
+                _cd = _fe.card_decision(_wid, _act, payload=(_wd.get("args") or {}).get("payload"), brief=_tbrief, ask_phrase=_player_control._ask_phrase(), operator_text=text)
                 _wd["args"]["widget_id"] = _wid = _cd["card"]
                 if _cd["ask"]:
                     action, spoken = "clarify", _cd["ask"]   # the question is SAID (player_control does the same)

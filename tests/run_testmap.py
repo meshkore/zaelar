@@ -3814,6 +3814,21 @@ DOMAINS: list[dict] = [
         {"id": "2.434", "title": "Both channels take the receipt — the probe beside its delivery backstop, the voice in its bare "
                                  "acks from what HIS turn did on the canvas (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_both_channels_take_the_receipt.py"]},
+        {"id": "2.470", "title": "A card named only to be LEFT ALONE is never the target of a shared control — «bájale a la música, el "
+                                 "vídeo no lo toques» ran youtube.volume_down three turns (the brand name outscored «la música»); "
+                                 "keep/don't-touch/negation clauses exclude, both channels ask `named_target` first (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_card_named_to_be_left_alone_is_never_the_target.py"]},
+        {"id": "2.471", "title": "An answer to our own «which card?» runs the PARKED control on the card it names — «El de la música, "
+                                 "el vídeo déjalo» was asked the same question again; one shot, through the rung (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_answer_to_which_card_runs_the_parked_control.py"]},
+        {"id": "2.472", "title": "The «which card?» question names cards as he knows them («Música, YouTube»), never «musica, youtube» (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_which_card_question_names_cards_as_he_knows_them.py"]},
+        {"id": "2.473", "title": "«Cierra la música» answered with the player's PAUSE closes the card, both channels — `card_close.data_close` "
+                                 "is the one door for the short close and the named player's stop; the receipt says closed (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_order_on_a_players_pause_closes_the_card.py"]},
+        {"id": "2.474", "title": "A phase pack rides only a FREE turn — «¿Sigo con algo o le damos a la agenda?» got «¿cómo te llamas?»; a "
+                                 "question, an order or a long sentence sends no introduction block (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_phase_pack_rides_only_a_free_turn.py"]},
         {"id": "2.380", "title": "Each install issues its OWN certificate for local.zaelar.com — the shared key left the "
                                  "public repo (2026-10-10): present → used, missing + mkcert → issued, no mkcert → HTTP "
                                  "only + one hint, and the pair is gitignored",

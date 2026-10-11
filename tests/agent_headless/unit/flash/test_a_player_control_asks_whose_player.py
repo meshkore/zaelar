@@ -55,7 +55,7 @@ def test_the_verdict_naming_the_music_keeps_it():
 def test_no_verdict_asks_which_player_with_both_names():
     plan = PC.plan("play_music", "volume_down", "", brief=None)
     assert plan["route"] == "ask", plan
-    assert "youtube" in plan["ask"] and "musica" in plan["ask"] and "{" not in plan["ask"], plan["ask"]
+    assert "youtube" in plan["ask"].lower() and "music" in plan["ask"].lower() and "{" not in plan["ask"], plan["ask"]
 
 
 def test_with_only_the_music_open_nothing_is_asked(monkeypatch):
@@ -96,7 +96,7 @@ def test_the_probe_asks_and_says_the_question_instead_of_the_models_claim():
     calls = [{"name": "play_music", "args": {"action": "volume_down"}}]
     blk = _probe(calls, None)
     assert blk["action"] == "clarify", blk
-    assert "youtube" in blk.get("spoken", "") and "musica" in blk.get("spoken", ""), blk
+    assert "youtube" in blk.get("spoken", "").lower() and "music" in blk.get("spoken", "").lower(), blk
     assert not blk.get("music_req"), "asking and acting at once"
 
 
@@ -127,7 +127,7 @@ def test_the_voice_runs_the_moved_control_on_the_video_card():
 def test_the_voice_asks_which_player():
     mr, applied, clarify, acted = _voice({"action": "pause"}, None)
     assert not applied and mr["v"] is None
-    assert "youtube" in clarify["msg"] and "musica" in clarify["msg"] and acted["widget"], clarify
+    assert "youtube" in clarify["msg"].lower() and "music" in clarify["msg"].lower() and acted["widget"], clarify
 
 
 def test_the_voice_keeps_a_control_that_follows_a_play_of_the_same_turn():

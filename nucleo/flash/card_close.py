@@ -125,8 +125,28 @@ def player_close(tool: str, action: str, operator_text: str, open_ids=None) -> s
     All of: a stop/pause (a play or a volume is never a close), a card-only close verb that is not negated or
     narrated (`close_guards.looks_like_close`), his words naming THIS player's card and no other open card, and the
     card open. «pausa la música y cierra la agenda» names two cards and keeps its pause."""
-    from nucleo.flash import close_guards as _cg, player_control as _pc
-    card = _pc.CARD_OF_TOOL.get(str(tool or "").strip(), "")
+    from nucleo.flash import player_control as _pc
+    return _player_card_close(_pc.CARD_OF_TOOL.get(str(tool or "").strip(), ""), action, operator_text, open_ids)
+
+
+def data_close(widget_id: str, action: str, operator_text: str, *, brief=None, open_ids=None) -> bool:
+    """A declared data-op his words make the CLOSE of its card (both channels, `widget_data`):
+
+      · a SHORT close order («Vale, ciérralo» → `youtube:mute`, V2-713 R3) — unless the verdict names this very
+        action («ya la puedes cerrar» → `close_meeting`, V2-770);
+      · a player's stop/pause under a close verb naming that card («cierra la música, que ya no la quiero» →
+        `musica:pause`, «Hecho en Música», and the card stayed — ES round 2026-10-11): `player_close`'s rule."""
+    from nucleo.flash import close_guards as _cg, direct_action as _da, player_control as _pc
+    if _cg.is_short_close_order(operator_text):
+        return _da.from_brief(brief) != (widget_id, action)
+    base = _base(widget_id)
+    if base in set(_pc.CARD_OF_TOOL.values()):
+        return bool(_player_card_close(base, action, operator_text, open_ids))
+    return False
+
+
+def _player_card_close(card: str, action: str, operator_text: str, open_ids=None) -> str:
+    from nucleo.flash import close_guards as _cg
     if not card or str(action or "").strip().lower() not in _STOPS:
         return ""
     if not (_CARD_CLOSE_VERB_RE.search(_norm_txt(operator_text)) and _cg.looks_like_close(operator_text)):

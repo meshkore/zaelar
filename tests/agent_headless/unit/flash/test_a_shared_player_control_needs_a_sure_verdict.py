@@ -39,7 +39,7 @@ def test_an_unsure_verdict_between_two_players_asks_which(conf):
     plan = PC.plan("play_music", "volume_down", "", brief=_brief("musica:volume_down", conf),
                    operator_text="Thanks. Turn the volume down a bit.")
     assert plan["route"] == "ask", plan
-    assert "youtube" in plan["ask"] and "musica" in plan["ask"], plan["ask"]
+    assert "youtube" in plan["ask"].lower() and "music" in plan["ask"].lower(), plan["ask"]   # display names (V2-781)
 
 
 def test_a_sure_verdict_still_decides():
@@ -82,7 +82,7 @@ def test_the_text_channel_says_the_question_instead_of_turning_the_music_down():
                                          _vault_gate=None, ingest=None, names=["play_music"], sess=_Sess(), tags=[],
                                          text="Thanks. Turn the volume down a bit.", tool_calls=calls))
     assert blk["action"] == "clarify" and not blk.get("music_req"), blk
-    assert "youtube" in blk["spoken"] and "musica" in blk["spoken"], blk
+    assert "youtube" in blk["spoken"].lower() and "music" in blk["spoken"].lower(), blk
 
 
 def test_the_voice_asks_too():
@@ -91,4 +91,4 @@ def test_the_voice_asks_too():
     TXC._t_play_music(args={"action": "volume_down"}, music_req=music_req, _brief=_brief("musica:volume_down", 0.6),
                       _apply_widget_data=lambda w, a, p, ref="": applied.append((w, a)), acted=acted, clarify=clarify,
                       emit=lambda *a, **k: None, text="bájale un poco el volumen")
-    assert music_req["v"] is None and not applied and "musica" in clarify["msg"], (music_req, applied, clarify)
+    assert music_req["v"] is None and not applied and "music" in clarify["msg"].lower(), (music_req, applied, clarify)

@@ -205,7 +205,8 @@ def test_the_sentence_the_operator_HEARS_is_actually_produced():
                                 brief=_brief("", open_ids=BOTH), ask_phrase=phrase)
         assert plan["ask"], f"[{code}] the ASK branch produced no sentence"
         assert "{" not in plan["ask"], f"[{code}] an unfilled placeholder survived: {plan['ask']!r}"
-        assert "youtube" in plan["ask"] and "musica" in plan["ask"], plan["ask"]
+        heard = plan["ask"].lower().replace("ú", "u")     # display names, not ids (V2-781): «Música»/«Music», «YouTube»
+        assert "youtube" in heard and "music" in heard, plan["ask"]
 
 
 def test_a_confident_none_keeps_the_models_own_card():

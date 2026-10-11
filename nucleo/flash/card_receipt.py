@@ -80,6 +80,12 @@ def card_name(card: str, code: str = "") -> str:
         return base
 
 
+def display_label(label: str, code: str = "") -> str:
+    """A `which_card` label («youtube — paused») with its id shown as the card's display name («YouTube — paused»)."""
+    wid, sep, rest = str(label or "").partition(" — ")
+    return card_name(wid, code) + sep + rest if wid else str(label or "")
+
+
 def _words_of(card: str) -> list[str]:
     base = _base(card)
     words: list[str] = [base]
