@@ -227,6 +227,6 @@ def test_both_channels_call_the_one_helper():
     for rel, needle in (("nucleo/flash/probe_mirrors.py", "_card_close.complete_canvas_mirror"),
                         ("nucleo/flash/post_stream_lanes.py", "_card_close.music_keeps_its_turn"),
                         ("nucleo/flash/post_stream_lanes.py", "_card_close.verdict_unless_named"),
-                        ("nucleo/flash/direct_action.py", "_ccl.verdict_unless_named"),
+                        ("nucleo/flash/card_close.py", "verdict_unless_named(_da.from_brief(brief)[0]"),   # `complete_canvas`'s body
                         ("nucleo/flash/player_control.py", "_card_close.player_close")):
         assert needle in (root / rel).read_text(encoding="utf-8"), (rel, needle)

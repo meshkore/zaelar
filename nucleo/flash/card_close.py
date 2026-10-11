@@ -83,15 +83,37 @@ def _says(text: str, wid: str) -> bool:
 
 
 def named_open(operator_text: str, open_ids=None) -> list[str]:
-    """The open cards his words call by their catalogue NAME (never by an alias or by context)."""
+    """The open cards his words call by their catalogue NAME (never by an alias or by context) — outside the clauses
+    that tell a card to STAY: «…just keep the calendar up» names the calendar to keep it (`naming.split_kept`)."""
     ids = _open_now() if open_ids is None else [str(i) for i in open_ids or []]
-    return [w for w in ids if _says(operator_text, w)]
+    words = _close_words(operator_text)
+    return [w for w in ids if _says(words, w)]
+
+
+def _close_words(operator_text: str) -> str:
+    try:
+        from widgets import naming as _naming
+        return _naming.without_kept(operator_text)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"card_close: keep split skipped — {e}")
+        return operator_text or ""
+
+
+def kept(operator_text: str, open_ids=None) -> set[str]:
+    """The BASES of the open cards his sentence tells to stay — no close reaches them (`instances.kept_named`)."""
+    try:
+        from widgets import instances as _inst
+        ids = _open_now() if open_ids is None else [str(i) for i in open_ids or []]
+        return {_base(w) for w in _inst.kept_named(operator_text, ids)}
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"card_close: kept cards unread — {e}")
+        return set()
 
 
 def verdict_unless_named(verdict_wid: str, operator_text: str, open_ids=None) -> str:
     """The screen verdict's card, or "" when his words name a DIFFERENT open card and not the verdict's own —
     «Close the music» over `youtube:close` (0.54) is the music's close. "" hands the choice to the named cards."""
-    if not verdict_wid or _says(operator_text, verdict_wid):
+    if not verdict_wid or _says(_close_words(operator_text), verdict_wid):
         return verdict_wid
     others = [w for w in named_open(operator_text, open_ids) if _base(w) != _base(verdict_wid)]
     return "" if others else verdict_wid
@@ -236,6 +258,73 @@ def inner_order_mirror(brief, operator_text: str, calls: list, *, emit) -> dict:
          text=rung["label"][:120], role="system",
          extra={"cat": "flash", "widget": rung["widget"], "action": rung["action"], "source": rung["source"]})
     return {"action": "widget_data", "spoken": "", "_already": True}
+
+
+def run_gesture(brief, *, tag_emit, emit, operator_text: str = "") -> str:
+    """`direct_action.complete_canvas`'s body: the model called NOTHING and the brief SURELY names a canvas gesture —
+    do it on the card the turn is about (the verdict's card, else the card his last turn acted on, else the only one
+    open), through the same tag funnel the model's own calls use. Returns the gesture, or "". Never raises.
+
+    The cards are read from his words WITHOUT the clauses that tell a card to stay (`naming.split_kept`), and a card
+    he told to stay is never a target, whoever proposed it: «get rid of the video too, just keep the calendar up»
+    named only the calendar, so the verdict's `youtube:close` yielded to it and the CALENDAR closed (EN t7)."""
+    try:
+        from nucleo.flash import direct_action as _da
+        verb = _da.sure_canvas(brief)   # …unless the verdict's inner order outranks the close (`inner_order_wins`)
+        if not verb or __import__("nucleo.flash.verdict_card", fromlist=["x"]).inner_order_wins(brief, operator_text):
+            return ""
+        if verb == "arrange":
+            # the whole canvas, no card to pick: the same emit `arrange_canvas` and POST /api/canvas/arrange make
+            emit("widget", "arrange", extra={"src": "flash"})
+            emit("brain", "🎯 el veredicto completa al modelo (sin tool) — arrange", role="system",
+                 extra={"cat": "flash", "action": "arrange", "said": (operator_text or "")[:120]})
+            return verb
+        from nucleo.flash import close_guards as _cg, show_target as _st
+        words = operator_text   # the name readers are keep-aware (`named_open`, `also_named`); `stay` filters the rest
+        stay = kept(operator_text, _da._open_now()) if verb in ("close", "minimize") else set()
+        verdict_wid = verdict_unless_named(_da.from_brief(brief)[0], operator_text)   # V2-781: his NAME wins
+        if _base(verdict_wid) in stay:
+            verdict_wid = ""                     # the verdict proposed the card he said to keep
+        named = [n for n in _da.named_cards(words) if _base(n) not in stay]
+        if verdict_wid and not named and not _da._action_sure(brief):
+            # an UNSURE card verdict over words that name no card: «that» is the card his last turn acted on
+            # (M4: the Nasdaq chart he had just asked for, not the agenda at 0.55)
+            verdict_wid = position_or_focus(words, _st.close_target("")) or verdict_wid
+        if verdict_wid:
+            targets = [_st.close_target(verdict_wid)]
+        elif named:
+            # HIS words name the cards (demo pass 2026-09-28, C6: «close the calendar and the messages», neither
+            # open — the gesture fell back to the card his last turn touched and closed the VIDEO). Named cards that
+            # are open get the gesture; named cards that are not open mean there is nothing to do.
+            open_now = _da._open_now()
+            targets = [t for t in (_st.close_target(n) for n in named) if t in open_now]
+        else:
+            targets = [position_or_focus(words, _st.close_target(""))]   # «the top one»
+        targets = _cg.keep_cards(targets, words, rows_too=verb == "close" and not named)   # V2-781
+        if verb == "close" and targets:
+            # …and the OTHER open cards his sentence names (full21 C6: «close the calendar and the messages» — the
+            # verdict's card was the messages; the calendar stayed and the reply said both were off the screen)
+            try:
+                from widgets import instances as _inst
+                targets += [x for x in _inst.also_named(words, _da._open_now(), exclude=targets) if x not in targets]
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"card_close: also-named skipped — {e}")
+        targets = [t for t in targets if _base(t) not in stay]
+        if not targets:
+            return ""
+        for wid in targets:
+            if verb == "close":
+                tag_emit("close", {"id": wid})
+            elif verb == "minimize":
+                tag_emit("minimize", {"id": wid})
+            else:
+                tag_emit("fullscreen", {"id": wid, "on": verb == "fullscreen"})
+            emit("brain", f"🎯 el veredicto completa al modelo (sin tool) — {verb}", text=wid, role="system",
+                 extra={"cat": "flash", "widget": wid, "action": verb, "said": (operator_text or "")[:120]})
+        return verb
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"card_close: gesture skipped — {type(e).__name__}: {e}")
+        return ""
 
 
 def music_keeps_its_turn(music_req: dict, operator_text: str) -> bool:

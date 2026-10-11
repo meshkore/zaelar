@@ -86,14 +86,18 @@ def _close_target(wid: str, text: str = "") -> dict:
 
 def with_also_named(ids, text: str) -> list[str]:
     """The cards to close: the resolved ones plus the OTHER open cards the sentence names (V2-773 — «Close the
-    map and the results» closed the map and asked which one for the rest). Fail-soft to the list given."""
+    map and the results» closed the map and asked which one for the rest) — minus the cards the sentence tells to
+    STAY («…just keep the calendar up», `instances.kept_named`). Fail-soft to the list given."""
     out = [str(x) for x in (ids or []) if str(x or "").strip()]
     try:
         from server.voice_api import open_instances
         from widgets import instances as _inst
-        for x in _inst.also_named(text, open_instances(), exclude=out):
+        _open = open_instances()
+        for x in _inst.also_named(text, _open, exclude=out):
             if x not in out:
                 out.append(x)
+        stay = {_inst.base_of(k) for k in _inst.kept_named(text, _open)}
+        out = [x for x in out if _inst.base_of(x) not in stay]
     except Exception:  # noqa: BLE001
         pass
     return out

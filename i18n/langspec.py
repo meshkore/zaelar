@@ -216,6 +216,13 @@ class LangSpec:
     #: The item reference did not resolve: the candidate list, or the bare question when there is none.
     ask_which_item: str = "¿Cuál exactamente? Tengo {cands}."
     ask_which_item_bare: str = "No tengo claro a cuál te refieres, ¿me lo concretas?"
+    #: The turn's RECEIPT (V2-781, `card_receipt`): the cards a turn changed that its reply did not account for.
+    receipt_closed: str = "He cerrado {cards}."
+    receipt_left: str = "Sigue en pantalla: {cards}."
+    receipt_left_none: str = "Ya no queda nada en pantalla."
+    receipt_opened: str = "También te he abierto {cards}."
+    receipt_on_card: str = "Hecho en {cards}."
+    receipt_and: str = "y"
     #: OPENING a piece nobody can find (V2-609).
     open_no_such_piece: str = "No tengo ninguna pieza con ese nombre; ¿cuál quieres que te abra?"
     open_system_piece: str = "Eso es una pieza del sistema; ábrela desde su botón o dime su nombre."

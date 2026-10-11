@@ -244,6 +244,12 @@ LANGUAGES: dict[str, LangSpec] = {
         # V2-709 — what the provider asks back
         ask_which_item="Which one exactly? I have {cands}.",
         ask_which_item_bare="I'm not sure which one you mean — can you pin it down?",
+        receipt_closed="I've closed {cards}.",
+        receipt_left="Still on screen: {cards}.",
+        receipt_left_none="Nothing's left on screen.",
+        receipt_opened="I've also opened {cards}.",
+        receipt_on_card="Done on {cards}.",
+        receipt_and="and",
         open_no_such_piece="I don't have anything by that name; which one shall I open?",
         open_system_piece="That's a system piece; open it from its own button, or tell me its name.",
         alias_which_widget="Which widget am I renaming? I can't place it.",

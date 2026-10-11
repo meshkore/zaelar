@@ -18,7 +18,7 @@ import threading
 _ACTS = ("show", "fullscreen", "maximize", "minimize", "action", "select")
 _OPERATOR = ("actionmap", "flash", "probe", "jev")
 _lock = threading.Lock()
-_state = {"current": [], "previous": [], "fs": ""}
+_state = {"current": [], "previous": [], "fs": "", "acts": []}
 
 
 def _src_rank(src: str) -> int:
@@ -38,6 +38,7 @@ def note(kind: str, label: str, role: str = "", extra: dict | None = None) -> No
                 if _state["current"]:
                     _state["previous"] = _state["current"]
                 _state["current"] = []
+                _state["acts"] = []
             return
         if kind != "widget":
             return
@@ -58,6 +59,9 @@ def note(kind: str, label: str, role: str = "", extra: dict | None = None) -> No
         elif cid and lab in ("minimize", "close") and cid.split("::", 1)[0] == _state["fs"].split("::", 1)[0]:
             with _lock:
                 _state["fs"] = ""
+        if cid and rank == 2 and (lab in ("show", "close") or lab.startswith("data:")):
+            with _lock:   # what HIS turn did to each card, for the receipt (`flash.card_receipt.voice_ack`)
+                _state["acts"].append((cid, lab))
         if not cid or not rank or not (lab in _ACTS or lab.startswith("data:")):
             return
         with _lock:
@@ -81,6 +85,23 @@ def last_turn_card(open_ids: list[str]) -> str:
         if len(same_base) == 1:
             return same_base[0]
     return ""
+
+
+def this_turn_acts() -> list[tuple[str, str, str]]:
+    """`[(card, kind, action)]` — what the CURRENT turn's own orders did to each card (kind close / show / control),
+    one entry per card, a close over a show over a control. The voice channel's receipt (`flash.card_receipt`)."""
+    with _lock:
+        acts = list(_state["acts"])
+    best: dict[str, tuple[str, str, str]] = {}
+    rank = {"close": 0, "show": 1, "control": 2}
+    for cid, lab in acts:
+        kind, action = (("control", lab[5:]) if lab.startswith("data:") else (lab, lab))
+        if action == "close":
+            kind = "close"
+        base = cid.split("::", 1)[0]
+        if base not in best or rank[kind] < rank[best[base][1]]:
+            best[base] = (base, kind, action)
+    return list(best.values())
 
 
 def this_turn_cards() -> list[str]:

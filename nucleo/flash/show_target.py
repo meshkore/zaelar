@@ -314,6 +314,8 @@ def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None) -> str
             from server.voice_api import open_instances
             from widgets import instances as _inst
             targets += [x for x in _inst.also_named(text, open_instances(), exclude=[rid]) if x not in targets]
+            stay = {_inst.base_of(k) for k in _inst.kept_named(text, open_instances())}   # «…keep the calendar up»
+            targets = [t for t in targets if _inst.base_of(t) not in stay]
         except Exception:  # noqa: BLE001
             pass
     for t in targets:

@@ -110,3 +110,48 @@ def says_the_name(text: str, widget_id: str) -> bool:
     t = _norm(text)
     return any(re.search(r"(?<!\w)" + re.escape(_norm(x)) + r"(?!\w)", t)
                for x in catalogue_names(widget_id) if len(x) >= 3)
+
+
+# ── the cards a sentence tells to STAY (V2-781, `tres-tarjetas-y-el-video-por-alusion__us`) ─────────────────────
+# «get rid of the video too, just keep the calendar up» closed the CALENDAR: every close reader looked for the
+# cards the sentence NAMES, and the only card it named was the one it said to keep. A clause that tells a card to
+# stay (keep, leave, don't close — and the same verbs in every language we ship) or excepts it («except») names a
+# card that a close must never reach. One split, read by every close site (`instances.also_named`, `card_close`).
+import re as _re
+
+_CLAUSE_RE = _re.compile(r"([,.;:!?¡¿]+|\s(?:and|but|then|y|e|pero|luego)\s)", _re.I)
+_KEEP_RE = _re.compile(r"(?<!\w)(?:keep(?:s|ing)?|leave|stays?|staying|d[eé]ja(?!\s+de\b)\w*|d[eé]jal\w*"
+                       r"|mant[eé]n\w*|que\s+se\s+qued\w*|se\s+qued\w*|que\s+sig\w*)(?!\w)", _re.I)
+_NOT_KEEP_RE = _re.compile(r"(?<!\w)(?:don'?t|do\s+not|no)\s+(?:keep|leave|dejes|mantengas)(?!\w)", _re.I)
+_DONT_TOUCH_RE = _re.compile(r"(?<!\w)(?:don'?t|do\s+not|never|no)\s+(?:close|shut|touch|remove|kill|turn\s+off"
+                             r"|cierres|quites|toques|apagues)(?!\w)", _re.I)
+_EXCEPT_RE = _re.compile(r"(?<!\w)(?:except(?:\s+for)?|but\s+not|apart\s+from|other\s+than|menos|salvo|excepto)"
+                         r"(?!\w).*", _re.I | _re.S)
+
+
+def split_kept(text: str) -> tuple[str, str]:
+    """`(close_words, kept_words)`: the sentence without the clauses that tell a card to stay, and those clauses.
+
+    «get rid of the video too, just keep the calendar up» → («…get rid of the video too, », «just keep the calendar
+    up»); «No, el vídeo, la música déjala» keeps «la música»; «cierra todo menos la agenda» keeps «la agenda».
+    A negated keep («don't leave the music on») is an order to remove, and stays in the close words."""
+    kept: list[str] = []
+    out: list[str] = []
+    for part in _CLAUSE_RE.split(str(text or "")):
+        if _CLAUSE_RE.fullmatch(part or ""):
+            out.append(part)
+            continue
+        if (_KEEP_RE.search(part) and not _NOT_KEEP_RE.search(part)) or _DONT_TOUCH_RE.search(part):
+            kept.append(part)
+            continue
+        m = _EXCEPT_RE.search(part)
+        if m:
+            kept.append(m.group(0))
+            part = part[:m.start()]
+        out.append(part)
+    return "".join(out), " ".join(kept)
+
+
+def without_kept(text: str) -> str:
+    """The words a close reads: the sentence minus every clause that tells a card to stay (`split_kept`)."""
+    return split_kept(text)[0]

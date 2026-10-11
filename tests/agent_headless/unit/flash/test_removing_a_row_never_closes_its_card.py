@@ -63,7 +63,7 @@ def test_both_close_backstops_ask_it():
     does the verdict's own completion of a mute turn (`complete_canvas`, read by both)."""
     for rel in ("nucleo/flash/post_stream_lanes.py", "nucleo/flash/probe_mirrors.py"):
         assert "_closeg.unless_a_row(" in (ENGINE / rel).read_text(encoding="utf-8"), rel
-    assert "_cg.keep_cards(" in (ENGINE / "nucleo/flash/direct_action.py").read_text(encoding="utf-8")
+    assert "_cg.keep_cards(" in (ENGINE / "nucleo/flash/card_close.py").read_text(encoding="utf-8")   # `complete_canvas`'s body
 
 
 def test_a_card_reached_by_context_is_kept_when_a_row_is_named():

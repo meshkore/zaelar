@@ -3799,6 +3799,21 @@ DOMAINS: list[dict] = [
         {"id": "2.342", "title": "An order called beside a read runs on the text channel — «pausa eso… ¿qué tengo el jueves?» "
                                  "answered Thursday and never paused the trailer (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_order_beside_a_read_runs_on_the_text_channel.py"]},
+        {"id": "2.430", "title": "A card his sentence tells to STAY is never closed — «get rid of the video too, just keep the "
+                                 "calendar up» closed the CALENDAR; keep/deja/mantén/except clauses leave every close reader (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_card_he_keeps_is_never_closed.py"]},
+        {"id": "2.431", "title": "A shared control nobody settled is ASKED, never completed — the rung turned the music down "
+                                 "under «Which one exactly?» and paused the video under the model's own question (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_undecided_shared_control_is_asked.py"]},
+        {"id": "2.432", "title": "A close says what closed and what is left; a shared control names its card — «Done.» over two "
+                                 "closes hid the wrong one, and the closed video went unsaid three turns (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_says_what_is_left.py"]},
+        {"id": "2.433", "title": "A turn that opened several cards names each — «Voy con el tráiler y la música» left the agenda "
+                                 "unsaid and he had to ask for it (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_turn_names_every_card_it_opened.py"]},
+        {"id": "2.434", "title": "Both channels take the receipt — the probe beside its delivery backstop, the voice in its bare "
+                                 "acks from what HIS turn did on the canvas (V2-781)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_both_channels_take_the_receipt.py"]},
         {"id": "2.380", "title": "Each install issues its OWN certificate for local.zaelar.com — the shared key left the "
                                  "public repo (2026-10-10): present → used, missing + mkcert → issued, no mkcert → HTTP "
                                  "only + one hint, and the pair is gitignored",

@@ -271,6 +271,9 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
     wid, action = from_brief(brief)
     if not wid or not action:
         return {}
+    from nucleo.flash import undecided as _und   # a turn that ASKED, or a shared control nobody settled (V2-781)
+    if _und.stops_the_rung(brief, wid, action, operator_text=operator_text or commission, model_words=model_words):
+        return {}
     # V2-776 L1 — a rung is the ENGINE's own inference from the verdict (never the model's valid call), so it is
     # held to the engine's own reading of the phrase: when the brief names an attestable END STATE, the rung has
     # to be an action that attests it. Pass 60, B2: «set the first one as my background» with only the monitors
@@ -533,58 +536,8 @@ def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
 
     Demo pass 2026-09-28: R4 «ok close the calendar» and V3 «can you make it bigger, like full screen» were both
     answered as done («calendar's closed», «it's full screen now») with nothing called."""
-    try:
-        verb = sure_canvas(brief)   # …unless the verdict's inner order outranks the close (`inner_order_wins`)
-        if not verb or __import__("nucleo.flash.verdict_card", fromlist=["x"]).inner_order_wins(brief, operator_text):
-            return ""
-        if verb == "arrange":
-            # the whole canvas, no card to pick: the same emit `arrange_canvas` and POST /api/canvas/arrange make
-            emit("widget", "arrange", extra={"src": "flash"})
-            emit("brain", "🎯 el veredicto completa al modelo (sin tool) — arrange", role="system",
-                 extra={"cat": "flash", "action": "arrange", "said": (operator_text or "")[:120]})
-            return verb
-        from nucleo.flash import card_close as _ccl, close_guards as _cg, show_target as _st
-        verdict_wid = _ccl.verdict_unless_named(from_brief(brief)[0], operator_text)   # V2-781: his NAME wins
-        named = named_cards(operator_text)
-        if verdict_wid and not named and not _action_sure(brief):
-            # an UNSURE card verdict over words that name no card: «that» is the card his last turn acted on
-            # (M4: the Nasdaq chart he had just asked for, not the agenda at 0.55)
-            verdict_wid = _ccl.position_or_focus(operator_text, _st.close_target("")) or verdict_wid
-        if verdict_wid:
-            targets = [_st.close_target(verdict_wid)]
-        else:
-            # HIS words name the cards (demo pass 2026-09-28, C6: «close the calendar and the messages», neither
-            # open — the gesture fell back to the card his last turn touched and closed the VIDEO). Named cards
-            # that are open get the gesture; named cards that are not open mean there is nothing to do, and no
-            # other card stands in for them.
-            if named:
-                open_now = _open_now()
-                targets = [t for t in (_st.close_target(n) for n in named) if t in open_now]
-            else:
-                targets = [_ccl.position_or_focus(operator_text, _st.close_target(""))]   # «the top one»
-        targets = _cg.keep_cards(targets, operator_text, rows_too=verb == "close" and not named)   # V2-781
-        if verb == "close" and targets:
-            # …and the OTHER open cards his sentence names (full21 C6: «close the calendar and the messages» — the
-            # verdict's card was the messages; the calendar stayed and the reply said both were off the screen)
-            try:
-                from widgets import instances as _inst
-                targets += [x for x in _inst.also_named(operator_text, _open_now(), exclude=targets) if x not in targets]
-            except Exception:  # noqa: BLE001
-                pass
-        if not targets:
-            return ""
-        for wid in targets:
-            if verb == "close":
-                tag_emit("close", {"id": wid})
-            elif verb == "minimize":
-                tag_emit("minimize", {"id": wid})
-            else:
-                tag_emit("fullscreen", {"id": wid, "on": verb == "fullscreen"})
-            emit("brain", f"🎯 el veredicto completa al modelo (sin tool) — {verb}", text=wid, role="system",
-                 extra={"cat": "flash", "widget": wid, "action": verb, "said": (operator_text or "")[:120]})
-        return verb
-    except Exception:  # noqa: BLE001
-        return ""
+    from nucleo.flash import card_close as _ccl   # the body lives with the other close readers (V2-781)
+    return _ccl.run_gesture(brief, tag_emit=tag_emit, emit=emit, operator_text=operator_text)
 
 
 def catalogue_names(widget_id: str) -> list[str]:

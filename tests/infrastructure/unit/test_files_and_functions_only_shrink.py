@@ -34,7 +34,6 @@ FILES = {
     'memory/api.py': 891,
     'nucleo/dispatch.py': 921,
     'nucleo/energy_meter.py': 820,
-    'nucleo/flash/direct_action.py': 821,
     'nucleo/flash/fast_client.py': 866,
     'nucleo/flash/prompt.py': 815,
     'nucleo/jev.py': 831,

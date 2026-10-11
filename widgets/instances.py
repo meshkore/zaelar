@@ -33,6 +33,8 @@ import re
 import re as _re
 import unicodedata as _ud
 
+from loguru import logger
+
 SEP = "::"
 
 
@@ -249,7 +251,28 @@ def data_target(target, open_ids) -> str:
 def also_named(text: str, open_ids, exclude=()) -> list[str]:
     """The OTHER open cards a sentence names — «Close the map and the results» closes both (V2-773). Read by
     the card's own id, name and aliases (the words it declares for itself), never by context; an open card the
-    sentence does not name is left alone."""
+    sentence does not name is left alone — and neither is one it tells to STAY («…just keep the calendar up»,
+    `naming.split_kept`): a card named only to be kept is never a card to close."""
+    try:
+        from . import naming as _naming_k
+        text = _naming_k.without_kept(text)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"also_named: keep split skipped — {e}")
+    return named_in(text, open_ids, exclude)
+
+
+def kept_named(text: str, open_ids) -> list[str]:
+    """The open cards a sentence tells to STAY (`naming.split_kept`) — never a close target, whatever reached them."""
+    try:
+        from . import naming as _naming_k
+        return named_in(_naming_k.split_kept(text)[1], open_ids)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"kept_named skipped — {e}")
+        return []
+
+
+def named_in(text: str, open_ids, exclude=()) -> list[str]:
+    """The open cards `text` names by id, name, catalogue name or alias — the word match `also_named` reads."""
     t = _strip_accents(str(text or "").lower())
     if not t:
         return []

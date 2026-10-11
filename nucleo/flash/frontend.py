@@ -12,6 +12,8 @@ cacheado. El refresco de datos sigue por `widgets/store.save()` → SSE.
 """
 from __future__ import annotations
 
+from loguru import logger
+
 _ALLOWED_WHERE = {"izquierda", "derecha", "centro", "arriba", "abajo",
                   "left", "right", "center", "top", "bottom"}
 
@@ -219,6 +221,25 @@ def _takes(card: str, action: str, payload) -> bool:
     return bool(keys & {str(k) for k in declared})
 
 
+def _screen_now() -> list[str]:
+    """The cards on screen, from the normalised state — for a caller whose brief carries no open set. Never raises."""
+    try:
+        from memory import api as _memapi
+        return [str(w).strip().lower() for w in ((_memapi.state() or {}).get("open_widgets") or []) if str(w).strip()]
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"which_card: screen unread — {e}")
+        return []
+
+
+def _players_floor(cards) -> float | None:
+    """Two PLAYERS that both declare the control are a coin the verdict settles only when sure (`PLAYER_SURE`) —
+    the bar `player_control` already set for the player tools, now for the `widget_data` path too: «turn the volume
+    down a bit» read `musica:volume_down` 0.78 and «pause that» `youtube:pause` 0.67, both run in silence (V2-781)."""
+    from nucleo.flash import player_control as _pc
+    players = set(_pc.CARD_OF_TOOL.values())
+    return _pc.PLAYER_SURE if all(str(c).split("::", 1)[0] in players for c in cards) else None
+
+
 def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=None,
                min_confidence: float | None = None) -> tuple[str, object]:
     """Which OPEN CARD a declared data-op belongs to, when more than one can do it (V2-740).
@@ -273,6 +294,8 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=
     # questions instead of adding a state read to the provider the architecture ratchet already lists.
     if not open_ids and isinstance(brief, dict):
         open_ids = brief.get("open_ids") or ()
+    if not open_ids:
+        open_ids = _screen_now()       # no brief, or one without its open set: the screen itself (V2-781 t2)
     # Who else on screen could do this? `_possible_now` is the same downward refinement the question
     # itself uses, so the candidates here are exactly the candidates Jev was offered — asking about a
     # card the question never carried would make the ASK branch offer an option nobody can choose.
@@ -294,6 +317,8 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=
         cards = [c for c in cards if c == wid or _takes(c, name, payload)]
     if len(cards) < 2:
         return ("keep", None)
+    if min_confidence is None:
+        min_confidence = _players_floor(cards)
 
     # ⚠️ NO SYNCHRONOUS FALLBACK HERE, and the absence is the design. The text channel fires no brief, so
     # it reaches this with nothing to read — and the obvious repair (ask the question synchronously, «the

@@ -157,10 +157,10 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
     # estaba en esta lista → el backstop de cierre de abajo CERRABA el widget entero en vez de solo salir de
     # fullscreen (fullscreen_widget YA resolvió la intención real este turno).
     _already = action.startswith(("music", "video", "search", "widget_data", "canvas:fullscreen", "canvas:minimize",
-                                  "canvas:close", "send_to_worker", "answer_worker"))  # the model decided (close_guards.taken_elsewhere)
+                                  "canvas:close", "send_to_worker", "answer_worker", "clarify"))  # decided, or ASKED (V2-781)
     # Mirror of the voice `complete_canvas` (demo pass 2026-09-28): no call, no tag, and the brief SURELY names a
     # canvas gesture → that gesture on the turn's card (`card_close.complete_canvas_mirror`).
-    _cc = _card_close.complete_canvas_mirror(_tbrief, operator_text, blocked=_already or action == "clarify" or bool(tool_calls or tags))
+    _cc = _card_close.complete_canvas_mirror(_tbrief, operator_text, blocked=_already or bool(tool_calls or tags))
     action, spoken, _already = _cc.get("action", action), _cc.get("spoken", spoken), _cc.get("_already", _already)
     # Mirror of the voice `closes_the_named_card` (demo pass 2026-09-28, V7): a data-op inside a card he ALSO told
     # to close by its name closes the card after the op.

@@ -222,10 +222,10 @@ async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names
             # V2-740 — ESPEJO de la voz, misma FUNCIÓN (nunca copiada). Sin brief que leer, la duda
             # se PREGUNTA: la segunda pregunta de V2-712, no una nueva.
             if action == "widget_data":
-                _cd = _fe.card_decision(_wid, _act, payload=(_wd.get("args") or {}).get("payload"))
+                _cd = _fe.card_decision(_wid, _act, payload=(_wd.get("args") or {}).get("payload"), brief=_tbrief, ask_phrase=_player_control._ask_phrase())
                 _wd["args"]["widget_id"] = _wid = _cd["card"]
                 if _cd["ask"]:
-                    action = "clarify"
+                    action, spoken = "clarify", _cd["ask"]   # the question is SAID (player_control does the same)
             # …y el mis-ruteo por pronombre suelto, que vivía COPIADO aquí y en el provider: el porqué y
             # las dos veces que hubo que arreglarlo por separado están en `frontend.absent_widget_misroute`.
             if action == "widget_data" and _fe.absent_widget_misroute(
