@@ -89,7 +89,8 @@ def compose_system(operator_text: str, query: str, res: dict, ctx: str, *, today
         "Si los resultados NO contienen la respuesta clara, dilo con naturalidad; NO inventes datos que no "
         "estén en ellos."
     )
-    tail = ("" if (res or {}).get("results") else _why_empty(res))
+    # An answer-only provider (Gemini grounding) can bring the fact with no ranked pages; that is not «nothing».
+    tail = ("" if ((res or {}).get("results") or (res or {}).get("answer")) else _why_empty(res))
     if on_screen:
         # What THIS turn already put in front of him (demo pass 2026-09-28, M1: the Markets chart of Apple was on
         # screen and this pass said «I'm not able to display a chart here; I can only talk», and the next two

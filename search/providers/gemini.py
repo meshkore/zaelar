@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 
+from . import gemini_budget as _budget
 from . import keys as _keys
 
 _TIMEOUT = float(os.getenv("WEBSEARCH_TIMEOUT", "12.0")) + 6.0   # a grounded call is a model call; a bit longer
@@ -32,11 +33,14 @@ def _model() -> str:
 
 
 def parse(data: dict, k: int) -> dict:
-    """`{answer, results}` from a `generateContent` payload. Pure; tested on a recorded fixture."""
+    """`{answer, results}` from a `generateContent` payload (plus `cut: True` when the budget stopped it — the
+    stump is dropped, see `gemini_budget`). Pure; tested on recorded fixtures."""
     cands = (data or {}).get("candidates") or []
     if not cands:
         return {"answer": "", "results": []}
     c = cands[0] if isinstance(cands[0], dict) else {}
+    if _budget.was_cut(c):
+        return {"answer": "", "results": [], "cut": True}
     parts = ((c.get("content") or {}).get("parts") or [])
     answer = " ".join(" ".join(str(p.get("text") or "").split()) for p in parts if isinstance(p, dict)).strip()
     results = []
@@ -62,13 +66,16 @@ def search(q: str, k: int = 5) -> dict:
     body = {"systemInstruction": {"parts": [{"text": f"{_SYSTEM} Today is {today}."}]},
             "contents": [{"parts": [{"text": q}]}],
             "tools": [{"google_search": {}}],
-            "generationConfig": {"maxOutputTokens": 300}}
+            "generationConfig": _budget.generation_config(_model())}
     with httpx.Client(timeout=_TIMEOUT) as c:
         resp = c.post(url, headers={"x-goog-api-key": key, "Content-Type": "application/json"}, json=body)
     if resp.status_code != 200:
         raise RuntimeError(f"gemini grounding: HTTP {resp.status_code} {resp.text[:160]}")
     parsed = parse(resp.json(), k)
-    if parsed["answer"] or parsed["results"]:
+    if parsed.get("cut"):
+        from loguru import logger
+        logger.warning(f"gemini grounding: answer cut by the output budget ({_model()}); the chain asks the next index")
+    if parsed["answer"] or parsed["results"] or parsed.get("cut"):     # a cut answer was still billed by Google
         from nucleo import energy_meter as _energy
         _energy.report_search_usage(provider="gemini")
     return {"query": q, "answer": parsed["answer"], "results": parsed["results"], "source": "gemini",

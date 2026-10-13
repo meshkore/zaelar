@@ -1,0 +1,24 @@
+{
+ "candidates": [
+  {
+   "content": {
+    "parts": [
+     {
+      "text": "El Museo del Prado abre de lunes a sábado de 10:00 a 20:00 h, y los domingos y fest"
+     }
+    ],
+    "role": "model"
+   },
+   "finishReason": "MAX_TOKENS",
+   "index": 0
+  }
+ ],
+ "usageMetadata": {
+  "promptTokenCount": 14,
+  "candidatesTokenCount": 24,
+  "thoughtsTokenCount": 276,
+  "totalTokenCount": 467
+ },
+ "modelVersion": "gemini-2.5-flash",
+ "_note": "Reconstructed from the measured stump (quick-fact-opening-hours ES, 2026-10-14 00:17): the text is the evidence row verbatim; the token split is illustrative, the finishReason is what a budget stop returns."
+}

@@ -4150,6 +4150,12 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_close_the_video_never_closes_the_card_he_defers.py']},
         {"id": "2.572", "title": "The close backstops of both channels read his close words (`close_identify`), never a card he told to stay or defers",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_close_backstop_never_reaches_a_kept_card.py']},
+        {"id": "2.580", "title": "A grounded fact answer has room to finish: Gemini 2.5 Flash is asked not to think and the budget is far above what an answer spends — «…y los domingos y fest» was 300 tokens eaten by thought (quick-fact-opening-hours ES 2026-10-14)",
+            "ch": UNIT, "paths": ['tests/search/unit/test_a_grounded_answer_has_room_to_finish.py']},
+        {"id": "2.581", "title": "A cut answer is not an answer: a `MAX_TOKENS` stump is dropped and the fact chain asks the next index, so the reader never composes from half a sentence (quick-fact-opening-hours ES)",
+            "ch": UNIT, "paths": ['tests/search/unit/test_a_cut_answer_asks_the_next_index.py']},
+        {"id": "2.582", "title": "An answer with no ranked pages is not an empty search: the composing pass is not told «no ha devuelto nada útil… ofrécete con el navegador», the line that turned a fact into a Brain Worker on his «sí»",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_answer_without_pages_is_not_an_empty_search.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
