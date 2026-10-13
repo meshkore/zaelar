@@ -4195,6 +4195,18 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_verdict_backstop_stays_out_of_a_media_call.py']},
         {"id": "2.619", "title": "His sentence never fills a payload key declared as a list of records (`items: lista de {url, …}`, `places`): `payload_fill.fillable_key` declines it",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_sentence_never_fills_a_list_of_records.py']},
+        {"id": "2.610", "title": "A worker never messages somebody he did not name: `send_to` to a number his words never said parks as the worker's CONFIRM, his «sí» sends it, his «no» sends nothing (best-plumber-same-day ES: two WhatsApps to plumbers on a «find» errand)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_worker_never_messages_somebody_he_did_not_name.py']},
+        {"id": "2.611", "title": "A worker sends to somebody HE named without a second question — address, number (country prefix or not), a name as a phrase; one named recipient does not carry another, and loose shared words name nobody (V2-719 kept)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_worker_sends_to_whom_he_named_without_asking.py']},
+        {"id": "2.612", "title": "A worker never adds to his directory a business he did not name — `add_contact` declares `on_his_behalf`, and `rows.put` over contacts is the same act; one he named is saved without asking",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_worker_never_adds_a_contact_he_did_not_name.py']},
+        {"id": "2.613", "title": "His words reach a worker's door from either channel (`dialog.push_user` → `his_words`), and a [SISTEMA] note quoting a worker is never his words",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_his_words_are_what_he_said_on_either_channel.py']},
+        {"id": "2.614", "title": "A browser form that sends his details (two of name/email/phone) goes only to a site his words named; any other asks through the click gate's yes/no door — a search box is not his identity",
+            "ch": UNIT, "paths": ['tests/browser/unit/navegador/test_a_form_with_his_details_goes_only_to_a_site_he_named.py']},
+        {"id": "2.615", "title": "A sandbox never reaches his messaging accounts: WhatsApp/Telegram sessions inside the throwaway workspace, its own WA bridge port (his live bridge on :3111 was reusable), every messaging connector off",
+            "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_never_reaches_his_messaging_accounts.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
