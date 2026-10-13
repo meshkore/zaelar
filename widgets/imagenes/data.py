@@ -18,6 +18,7 @@ from __future__ import annotations
 import os
 
 from .. import store
+from . import held as _held
 
 WIDGET_ID = "imagenes"
 DB_VERSION = 1
@@ -168,6 +169,11 @@ def _local_files() -> list:
     return out
 
 
+def _refused(what: str, error: str, n: int = 0) -> dict:
+    """A refusal: `error` is for the model, `say` the bundle key the operator hears (`refusal_line.speakable`)."""
+    return {"ok": False, "say": f"widgets.imagenes.refusal_{what}", "error": error, "n": n}
+
+
 def apply_action(action: str, payload: dict = None) -> dict:
     p = payload or {}
     a = str(action or "").strip().lower()
@@ -179,8 +185,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
         if not rows:
             # An empty `show` must not blank a set that IS on screen: the operator would be left staring at an
             # empty card with no way back, and the honest report is that nothing was found (V2-377's lesson,
-            # applied to pictures).
-            return {"ok": False, "error": "no llegó ninguna imagen", "n": len(items)}
+            # applied to pictures). But a set already held that answers the request IS the show (`held`).
+            return _held.answers_show(db, p) or _refused("none", "no llegó ninguna imagen", len(items))
         db.update({"items": rows, "i": 0, "auto": False,   # a fresh set starts STILL (V2-589)
                    "title": " ".join(str(p.get("title") or p.get("query") or "").split())[:120],
                    "query": " ".join(str(p.get("query") or "").split())[:120],
@@ -198,14 +204,14 @@ def apply_action(action: str, payload: dict = None) -> dict:
     if a == "local":
         rows = _rows(_local_files())
         if not rows:
-            return {"ok": False, "error": "no hay imágenes guardadas en este equipo", "n": len(items)}
+            return _refused("no_local", "no hay imágenes guardadas en este equipo", len(items))
         db.update({"items": rows, "i": 0, "title": "Imágenes guardadas", "query": "", "source": "local"})
         store.save(WIDGET_ID, _clamp(db))
         return {"ok": True, "n": len(rows), "source": "local"}
 
     if a in ("select", "next", "previous"):
         if not items:
-            return {"ok": False, "error": "no hay ninguna imagen en pantalla", "n": 0}
+            return _refused("empty", "no hay ninguna imagen en pantalla")
         if a == "select":
             # An explicit choice STOPS the slideshow: a viewer that keeps advancing after the operator picked
             # a photo is fighting the operator (V2-551's rule). next/previous keep it — same gesture as the pase.
@@ -238,7 +244,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         # currently shown). The widget only RESOLVES; the persisted value goes through config.settings'
         # sanitizer (the CSS-injection seam), and the live push rides the same widget event channel as show/close.
         if not items:
-            return {"ok": False, "error": "no hay ninguna imagen en pantalla que poner de fondo", "n": 0}
+            return _refused("empty", "no hay ninguna imagen en pantalla que poner de fondo")
         wants = str(p.get("item") or "").strip()
         k = _resolve(items, p.get("item"))
         if k is None:
@@ -281,7 +287,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         # presentación») with zero tools behind it: it did not exist, so narrating was the only move available.
         # The index stays server-owned; widget.js only re-arms a timer that calls the ordinary `next`.
         if not items:
-            return {"ok": False, "error": "no hay ninguna imagen en pantalla que pasar", "n": 0}
+            return _refused("empty", "no hay ninguna imagen en pantalla que pasar")
         if len(items) < 2:
             return {"ok": False, "error": "solo hay una imagen — no hay nada que pasar", "n": 1}
         try:
