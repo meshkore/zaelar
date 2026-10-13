@@ -408,7 +408,7 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
         _said = _ANNOUNCED.setdefault(encargo, set())     # V2-781: what it said, kept past the window
         filas = [f for f in filas if _row_key(f) not in _said]
         _held = (_not_owed(heard_now, encargo, _back_rows or filas, already=bool(_said))
-                 or _repeat.held(spoken, already=bool(_said))) if filas else ""
+                 or _repeat.held(spoken, already=bool(_said), brief=brief)) if filas else ""
         if _held:
             _emit(f"🤐 delivery backstop held: {_held}", goal=(encargo or "")[:80])
             filas = []

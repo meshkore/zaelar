@@ -4211,6 +4211,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_folded_escalation_is_not_another_errand.py']},
         {"id": "2.601", "title": "A row he NAMED is named by a word only that row carries (not shared with another row, not his errand's vocabulary, never a bare number) — «monitor» and «27» made both real monitors «his» and only power adapters were ever offered (cheapest-monitor EN); «fontanero», «Madrid», «24h» did the same to three plumbers (best-plumber-same-day ES)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_row_is_named_only_by_a_word_it_alone_carries.py']},
+        {"id": "2.602", "title": "After a first tail, rows never announced still ride a turn of his that waits to be told (brief: wants_words=tell, not routed to a worker) whatever the reply's wording — «keep me posted» → «I'll ping you the moment…» held a real 27\" 4K monitor behind three adapters (cheapest-monitor EN)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_new_rows_ride_a_turn_that_waits_for_words.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
