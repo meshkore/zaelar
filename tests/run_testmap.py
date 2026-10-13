@@ -4187,6 +4187,14 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_reply_never_claims_an_ai_check.py']},
         {"id": "2.599", "title": "A queue edit (add_results / remove / clear_list) owes what the queue HOLDS now, read from the card, naming three rows or fewer — «Done.» over a queue still holding the video he dropped",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_queue_edit_says_what_the_queue_holds.py']},
+        {"id": "2.616", "title": "A picture-less `imagenes:show` that names the set on screen is answered by that set; another subject, no subject or an empty viewer is still refused and never blanks it — «No he podido» twice over the six Amalfi photos he asked for (show-real-photo-of-a-new-car ES)",
+            "ch": UNIT, "paths": ['tests/browser/unit/widgets/test_a_show_naming_the_held_set_shows_it.py']},
+        {"id": "2.617", "title": "Every empty-viewer refusal of `imagenes` names a `say` bundle key present in ES and EN, and the operator hears that line — not the generic «la tarjeta Imágenes no lo ha aceptado» repeated word for word",
+            "ch": UNIT, "paths": ['tests/browser/unit/widgets/test_the_viewers_refusal_says_what_failed.py']},
+        {"id": "2.618", "title": "The probe's verdict backstop stays out of a turn whose model called a media/search/read tool, as the voice `_no_tool` does — it added `imagenes:show {items: <his sentence>}` over a `show_images` and the search never ran",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_verdict_backstop_stays_out_of_a_media_call.py']},
+        {"id": "2.619", "title": "His sentence never fills a payload key declared as a list of records (`items: lista de {url, …}`, `places`): `payload_fill.fillable_key` declines it",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_sentence_never_fills_a_list_of_records.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

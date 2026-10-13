@@ -62,6 +62,10 @@ def fillable_key(widget_id: str, action: str) -> str:
         # Nor is a sentence one of an enumeration's values (V2-742).
         if any(m in str(payload.get(key) or "") for m in _ENUM_MARKS):
             return ""
+        # Nor a list of RECORDS (`{url, title, …}`): a sentence is never one. `show-real-photo-of-a-new-car__es`
+        # (2026-10-14): the verdict backstop filled `imagenes:show {items: «¿Cómo que no has podido?…»}`.
+        if "{" in str(payload.get(key) or ""):
+            return ""
         return key
     except Exception:  # noqa: BLE001
         return ""

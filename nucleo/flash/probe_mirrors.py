@@ -285,7 +285,17 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
     return {k: _out[k] for k in ('_ar', '_forced_search', '_window_goal', 'action', 'music_req', 'spoken', ) if k in _out}
 
 
+#: The calls that ARE the turn's act, as the voice `_no_tool` counts them (`post_stream_words`): with one of these the
+#: verdict backstop — written for a turn with NO call — stays out.
+_TURN_CALLS = ("read_widget", "show_images", "play_video", "play_music", "web_search", "search_listings",
+               "reopen_task", "reveal_secret", "escalate_to_slowbrain")
+
+
 def model_already_acted(tool_calls) -> bool:
-    """The model READ the card: that is the turn's call, and the verdict backstop (for a turn with NO call) stays out
-    (V2-781: «what do I have on those days?» → read_widget, plus a verdict `show_day` of his whole sentence = today)."""
-    return any((t or {}).get("name") == "read_widget" for t in tool_calls or [])
+    """The model already made the turn's call, so the verdict backstop (for a turn with NO call) stays out.
+
+    V2-781: «what do I have on those days?» → read_widget, plus a verdict `show_day` of his whole sentence = today.
+    `show-real-photo-of-a-new-car__es` (2026-10-14): «enséñamelo igual» → the model called `show_images`, and the
+    backstop added `imagenes:show {items: <his sentence>}` on top, renamed the turn `widget_data` — so the search
+    never ran — and the viewer refused the sentence: «No he podido» over the photos he had asked for twice."""
+    return any((t or {}).get("name") in _TURN_CALLS for t in tool_calls or [])
