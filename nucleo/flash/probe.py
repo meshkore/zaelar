@@ -443,7 +443,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             _owner, _owner_act = _da_esc.from_brief(_tbrief)
             if _owner and not _danger_ar.is_dangerous(operator_text):
                 _ar = await _ar_esc.call_for_promise_or_order(operator_text, spoken or text, _owner, _owner_act,
-                                                              spec=spec)
+                                                              spec=spec, brief=_tbrief)
                 if _ar:
                     tool_calls.append({"name": "widget_data", "args": {"widget_id": _ar["widget_id"],
                                        "action": _ar["action"], "payload": _ar["payload"], "_repair": True}})

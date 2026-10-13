@@ -95,7 +95,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
             _ar = (None if _danger_esc.is_dangerous(operator_text) else   # full44 E3: + the verdict's call
                    await _act_repair_esc.call_for_promise_or_order(operator_text, str(escalate_req.get("v") or ""),
                                                                    _esc_owner, _pst._direct_action.from_brief(_brief)[1],
-                                                                   spec=spec, window=list(brain._window)))
+                                                                   spec=spec, window=list(brain._window), brief=_brief))
             if _ar:
                 _pst._cvis.present(_ar["widget_id"], reason="turn-order", src="flash", emit=emit)
                 _apply_widget_data(_ar["widget_id"], _ar["action"], _ar["payload"])

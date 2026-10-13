@@ -19,8 +19,8 @@ the turns that fail, and zero on every other turn.
 """
 from __future__ import annotations
 
-import json
-import re
+import json, re
+from . import commission_keep as _keep   # a commission whose deliverable is a sheet keeps its worker
 
 #: What the repair tells the model. Short on purpose: the ask is «make the call you promised», not a new turn.
 _SYS = (
@@ -272,7 +272,7 @@ async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: s
     pass asks «did you promise an act?», and a refusal did not, so it rightly called nothing — and the mail never
     went. A refusal of an action the card DECLARES, for an order the verdict names, is one more question to the
     model, with the action named. Bounded like the others: one card, its declared action, the caller's gate."""
-    if _answered_a_question(brief, reply):           # V2-781 T529: an answer to a question is left alone
+    if _answered_a_question(brief, reply) or _keep.keeps_the_worker(brief, widget_id):   # T529 · 2026-10-14
         return None
     got = await call_for_promise(operator_text, reply, widget_id, spec, window=window)
     # V2-781 T518: «make it last until one» — the promise pass read «I'll open it so you can see it» and picked

@@ -4213,6 +4213,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_row_is_named_only_by_a_word_it_alone_carries.py']},
         {"id": "2.602", "title": "After a first tail, rows never announced still ride a turn of his that waits to be told (brief: wants_words=tell, not routed to a worker) whatever the reply's wording — «keep me posted» → «I'll ping you the moment…» held a real 27\" 4K monitor behind three adapters (cheapest-monitor EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_new_rows_ride_a_turn_that_waits_for_words.py']},
+        {"id": "2.603", "title": "A commission the brief sends to a worker with a SHEET as its deliverable is never replaced by one repaired call on the browser or that sheet — «compare a few insurers» became `navegador:search` + «Done.», and «are they top-rated, can they come today?» became `results:progress` + «Done.» (compare-insurance-quotes EN, best-plumber-same-day EN); both channels hand the brief to the rung",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_commission_for_a_sheet_keeps_its_worker.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
