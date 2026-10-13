@@ -609,6 +609,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # transcript y sin informe de mecanismo. O sea que el camino escrito para reconocer una avería del arnés
     # era, él mismo, una avería del arnés — y no había corrido nunca.
     crashed = ""
+    if getattr(driver, "farewell", None):     # the goodbye's second look: a round that ended early says so
+        mech["farewell"] = driver.farewell
     if getattr(driver, "role_flips", 0):
         mech["role_flips"] = driver.role_flips
         if driver.role_flips > 1:

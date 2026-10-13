@@ -63,8 +63,7 @@ def _a_add_to_playlist(action: str, p: dict) -> dict:
         # creating an empty list here would turn a failed save into silent clutter.
         tr = _d._current_track(db)
         if not tr:
-            return {"ok": False, "error": "nothing_playing",
-                    "message": "No suena nada ahora y no me has dicho qué canción añadir."}
+            return {"ok": False, "error": "nothing_playing", "say": "widgets.musica.refusal_nothing_to_add"}
     pl, created = _d._find_or_create_playlist(db, ref)      # V2-384: one call is all the model gets
     dupe_key = _d._norm((tr.get("title") or "") + "|" + (tr.get("artist") or ""))
     tracks = pl.setdefault("tracks", [])

@@ -4127,6 +4127,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/browser/unit/musica/test_saving_with_nothing_playing_says_so.py']},
         {"id": "2.562", "title": "A case whose persona says a song is playing gets one playing on the music card first, and the judge is told which (music-save-what-is-sounding)",
             "ch": UNIT, "paths": ['tests/use_cases/unit/test_a_case_that_says_a_song_is_playing_gets_one.py']},
+        # play-music-and-build-playlist__us (2026-10-14, 2/5): the persona left on turn 1 and the play was only promised
+        {"id": "2.575", "title": "A play_music that STARTED is named in the text reply («Now playing: «…».»), never left as «I'll put something calm on for you.» over music already playing",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_play_that_started_is_named_not_promised.py']},
+        {"id": "2.576", "title": "«Add it to my list» with nothing playing and no song named says THAT in his language (a bundle key, not a Spanish message) and leaves no empty list",
+            "ch": UNIT, "paths": ['tests/browser/unit/musica/test_adding_with_nothing_playing_says_so_in_his_language.py']},
+        {"id": "2.577", "title": "A persona's goodbye gets ONE second look against its brief before it ends the round, and the round reports it (the playlist was never asked: turn 1 of 8)",
+            "ch": UNIT, "paths": ['tests/use_cases/unit/test_a_goodbye_gets_one_second_look.py']},
         {"id": "2.550", "title": "The errand STARTING (asked, no session yet) or just FINISHED is an errand his sentence names: «for the game make the jump higher» between the yes and the game's session gets no monitor rows (three-tasks EN 2026-10-11 11:34)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_errand_just_started_is_an_errand_he_names.py']},
         {"id": "2.551", "title": 'A sentence about errands that just FINISHED is not a new list: «me sacas un LG de 24… ¿y el Fujitsu? …¿y el informe?» with all three done is an ordinary turn, never «me pongo con ellas» (three-tasks ES 2026-10-11)',

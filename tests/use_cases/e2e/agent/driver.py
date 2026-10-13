@@ -324,6 +324,7 @@ class Driver:
         self.done = False
         self.role_flips = 0
         self.empty_retries = 0    # empty DRIVE completions retried — a provider hiccup, not a persona line
+        self.farewell = None      # the goodbye's second look (`farewell.second_look`), once per round
         # The name the AGENT calls this person by (the lab profile's `operator_name`). Only used to catch the
         # vocative flip — see `_vocative_re`. Empty against a sandbox with no seeded identity, and then face 5
         # is simply off rather than guessing a name.
@@ -395,6 +396,9 @@ class Driver:
             txt = llm.call(msgs, model=config.DRIVE_MODEL, temperature=0.7, max_tokens=200).strip()
             if looks_like_the_assistant(txt, self.persona_name):
                 self.role_flips += 1
+        if is_closing(txt):
+            from . import farewell as _farewell     # a goodbye may be leaving the request half-asked (2026-10-14)
+            txt = _farewell.second_look(self, msgs, txt)
         self.history.append({"role": "assistant", "content": txt})
         if is_closing(txt):
             self.done = True

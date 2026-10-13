@@ -1560,6 +1560,7 @@
  "widgets.documento.refusal_full": "the document is full — nothing more fits on it.",
  "widgets.results.refusal_no_row": "that result isn't on the sheet.",
  "widgets.musica.refusal_nothing_playing": "nothing is playing on the Music card right now, so there is no song to save.",
+ "widgets.musica.refusal_nothing_to_add": "nothing is playing right now and you didn't tell me which song to add to the list.",
  "flash.widget_refused_card": "the {card} card didn't take it.",
  "widgets.youtube.move_missing_item": "Which video should I move? Give me its number or part of the title.",
  "widgets.youtube.move_missing_position": "Where in the queue should it go?",

@@ -68,7 +68,9 @@ def names_title(reply: str, title: str) -> bool:
     return bool(t) and any(re.search(r"(?<!\w)" + re.escape(w) + r"(?!\w)", t) for w in words)
 
 
-_FILLER = frozenset("official video audio lyric lyrics remaster remastered version feat with the and".split())
+#: Words that name no title: «some calm music» does not name «Focus Music for Work…».
+_FILLER = frozenset("official video audio lyric lyrics remaster remastered version feat with the and "
+                    "music song songs track playlist".split())
 
 
 def owed(reply: str, ops, lang=None) -> str:
@@ -97,8 +99,17 @@ def owed(reply: str, ops, lang=None) -> str:
 
 
 def ops_of_probe(action: str, parte) -> list[tuple[str, str]]:
-    """The text channel's successful data-ops, from `widget_data_turn.execute`'s report (`ops` = what ran)."""
-    if str(action or "") != "widget_data" or not isinstance(parte, dict):
+    """The text channel's successful data-ops, from `widget_data_turn.execute`'s report (`ops` = what ran) — and a
+    `play_music` that started (`music_turn.execute`'s report): `play-music-and-build-playlist__us` (2026-10-14)
+    answered «I'll put something calm on for you.» 0.6 s AFTER the rail had it playing, so the only reply he got
+    promised in the future what had already happened and never said what was on. The voice channel needs no copy:
+    there the audio itself is the receipt."""
+    if not isinstance(parte, dict):
+        return []
+    if str(action or "") == "music":
+        played = parte.get("executed") == "play_music" and parte.get("ok") is True
+        return [("musica", str(parte.get("accion") or "play"))] if played else []
+    if str(action or "") != "widget_data":
         return []
     return [(str(o.get("widget") or ""), str(o.get("act") or "")) for o in (parte.get("ops") or []) if isinstance(o, dict)]
 

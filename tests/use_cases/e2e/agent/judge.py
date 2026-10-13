@@ -421,6 +421,9 @@ def mechanism_facts(mech: dict) -> str:
         lines.append(f"· La memoria de este motor destila en «{ml}», NO en el idioma de la conversación. Así que "
                      f"una preferencia guardada puede estar EN ESE IDIOMA en el prompt. Si vas a decir que "
                      f"zaelar no recordaba algo, no te fíes de no ver la palabra en castellano.")
+    from . import farewell as _farewell     # a round the persona LEFT is not a round zaelar half-delivered
+    if (_bye := _farewell.judge_line(mech.get("farewell"))):
+        lines.append(_bye)
     flips = mech.get("role_flips") or 0
     if flips:
         lines.append(f"· ⚠️ AVERÍA DEL ARNÉS: el modelo que hace de usuario se salió de su papel {flips} "

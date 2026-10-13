@@ -1560,6 +1560,7 @@
  "widgets.documento.refusal_full": "el documento está lleno: no cabe nada más.",
  "widgets.results.refusal_no_row": "No encuentro ese resultado en la hoja.",
  "widgets.musica.refusal_nothing_playing": "ahora mismo no suena nada en la tarjeta de Música, así que no hay canción que guardar.",
+ "widgets.musica.refusal_nothing_to_add": "ahora mismo no suena nada y no me has dicho qué canción añadir a la lista.",
  "flash.widget_refused_card": "la tarjeta {card} no lo ha aceptado.",
  "widgets.youtube.move_missing_item": "¿Cuál de los vídeos muevo? Dime su número o parte del título.",
  "widgets.youtube.move_missing_position": "¿A qué posición de la cola lo muevo?",
