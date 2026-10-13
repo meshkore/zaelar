@@ -136,6 +136,8 @@ def push_user(window: list[dict], text: str) -> None:
     t = (text or "").strip()
     if not t:
         return
+    from nucleo import his_words as _his
+    _his.note(t)          # a door that runs minutes later reads what HE asked for (best-plumber-same-day ES)
     if window and window[-1].get("role") == "user":
         prev = (window[-1].get("content") or "").strip()
         pn, tn = _norm(prev), _norm(t)

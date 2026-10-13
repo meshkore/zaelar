@@ -94,6 +94,9 @@ LANGUAGES: dict[str, LangSpec] = {
         worker_confirm_channel="The background task wants to send something to «{channel}». Shall I?",
         worker_confirm_widget="The background task wants to do «{action}» on «{widget}», and it can't be undone. Is that OK?",
         worker_confirm_generic="The background task wants to run «{action}». Is that OK?",
+        worker_confirm_on_behalf=("The background task wants to do «{action}» with «{who}» on your behalf, and "
+                                  "you didn't ask me for that. Shall I?"),
+        nav_form_on_behalf="it sends your details to «{site}», and you didn't ask me for that",
         worker_budget_killed=("I stopped «{goal}»: it ran out of time. I've left what it found so far on the "
                               "card."),
         worker_end_state_met="Even so, what you asked for did get done — I checked.",

@@ -440,6 +440,10 @@ class LangSpec:
     worker_confirm_channel: str = "El worker quiere enviar algo al canal «{channel}». ¿Lo hago?"
     worker_confirm_widget: str = "El worker quiere hacer «{action}» en «{widget}», y no se puede deshacer. ¿Lo autorizas?"
     worker_confirm_generic: str = "El worker quiere ejecutar «{action}». ¿Lo autorizas?"
+    # An act in HIS name toward somebody he never named in this errand (`nucleo/on_his_behalf.py`).
+    worker_confirm_on_behalf: str = ("El proceso quiere hacer «{action}» con «{who}» en tu nombre, y eso no me lo "
+                                     "has pedido. ¿Lo hago?")
+    nav_form_on_behalf: str = "manda tus datos a «{site}», y eso no me lo has pedido"
     worker_budget_killed: str = ("He parado «{goal}»: agotó su tiempo. Te dejo en la tarjeta lo que ha "
                                  "encontrado hasta ahora.")
     # V2-776 L3 — said beside a forced ending: the END STATE the circuit read, not only the clock.

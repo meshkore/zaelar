@@ -267,7 +267,13 @@ async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> 
             from widgets.navegador import form_facts as _form_facts
             await _form_facts.ask_once(task_id, missing)
             return False, f"faltan datos del operador: {', '.join(missing)}"
-        shadow = shadow_reason(sig)
+        # A form that hands his identity to a site his words never named is an act in his name he did not ask
+        # for (best-plumber-same-day ES): the same rule as a worker's message, `on_his_behalf`.
+        from nucleo import on_his_behalf as _behalf
+        why = _behalf.form_question(task_id, sig)
+        if why:
+            ask = True
+        shadow = shadow_reason(sig) if not ask else ""
         if shadow:
             try:
                 from voice.observer import emit as _emit
@@ -276,7 +282,8 @@ async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> 
                              "url": str((sig or {}).get("pageUrl") or "")[:160]})
             except Exception:  # noqa: BLE001
                 pass
-        return True, ""
+        if not ask:
+            return True, ""
     label = str((sig or {}).get("name") or "").strip() or "esta acción"
     # The REASON rides on the trace: the operator hears only the label, and on 2026-09-30 a Newegg search box
     # asked for an OK with nothing anywhere saying which rule fired — the page was behind Cloudflare and could

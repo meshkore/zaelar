@@ -282,6 +282,7 @@
       },
       "confirm": true,
       "consent_class": "calendar.invite_new_party",
+      "on_his_behalf": "who",
       "confirm_q": "¿Invito a {who} a «{meeting}»? Verá la hora y el enlace de la reunión."
     },
     "accept_proposal": {

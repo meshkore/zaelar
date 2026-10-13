@@ -213,7 +213,14 @@ def spawn_engine(*, workspace: Path, port: int, log_path: Path | None = None,
         "ZAELAR_TLS_CERT_DIR": str(workspace / "no-tls"),
         "ZAELAR_HOMEOSTASIS": "0",         # no engine-recycling/log-rotation watchdog in a throwaway
         "MESHKORE_AUTORECONNECT": "0",     # never dial the operator's real clusters
-        "WA_ENABLED": "0", "TG_ENABLED": "0",
+        "WA_ENABLED": "0", "TG_ENABLED": "0", "EMAIL_ENABLED": "0",
+        # The messaging connectors' OWN state, which `ZAELAR_WORKSPACE` does not reach: the WhatsApp and Telegram
+        # sessions default to the repo's `connectors/*/_session/` (the operator's paired accounts), and a bridge
+        # already answering on WA_BRIDGE_PORT is REUSED (`bridge_proc._already_up`). A sandbox that ever turned
+        # WhatsApp on would have sent from his real number through his live bridge (best-plumber-same-day ES).
+        "WA_SESSION_DIR": str(workspace / "connectors" / "whatsapp-session"),
+        "TG_SESSION_DIR": str(workspace / "connectors" / "telegram-session"),
+        "WA_BRIDGE_PORT": str(free_port()),
     })
     if extra_env:
         env.update({k: str(v) for k, v in extra_env.items()})

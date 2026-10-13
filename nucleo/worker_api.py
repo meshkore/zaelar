@@ -506,9 +506,11 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
         corr = _register_ask(rec, str(q))
         return JSONResponse({"ok": True, "status": "pending", "corr_id": corr, "injections": inj})
 
-    if pol == CONFIRM:
+    from nucleo import on_his_behalf as _behalf      # an act in his name he never asked for is a question
+    _q_behalf = _behalf.worker_question(rec, action, payload) if pol == ALLOW else ""
+    if pol == CONFIRM or _q_behalf:
         # §v3·K: an irreversible act becomes an auto-generated ask_user with the RETAINED action.
-        q = _confirm_question(action, payload)
+        q = _q_behalf or _confirm_question(action, payload)
         corr = _register_ask(rec, q, action=action, retained={"action": action, "payload": payload})
         return JSONResponse({"ok": True, "status": "pending", "corr_id": corr, "injections": inj})
 
