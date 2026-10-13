@@ -32,7 +32,10 @@ GENERIC: dict[str, re.Pattern] = {
     "an accessory": re.compile(
         r"\b(accesorios?|accessor(?:y|ies)|amplificador\w*|amplifiers?|subwoofers?|fundas?|alfombrillas?|"
         r"floor mats?|llaveros?|keychains?|pegatinas?|stickers?|decals?|emblemas?|emblems?|carro de mano|"
-        r"hand trucks?|tumbonas?)\b"),
+        r"hand trucks?|tumbonas?|"
+        # cheapest-monitor EN (2026-10-14): «Nuevo Adaptador de CA Monitor — 170», «Adaptador 19V para LG 27UK650-W —
+        # 17.91», «19.5v3.3a Adapter for LG — 26.35» were offered as monitors; «with adapter» stays (`_WITH_BEFORE`)
+        r"adaptador(?:es)?|adapters?|cargador(?:es)?|chargers?|power suppl(?:y|ies)|fuentes? de alimentacion)\b"),
     "an add-on, not the item": re.compile(
         r"\b(insurance|accidental damage|extended warranty|garantia extendida|protection plan|"
         r"seguro (?:de|contra) (?:accidentes|robo|danos))\b"),
