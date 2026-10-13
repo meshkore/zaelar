@@ -4143,6 +4143,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_message_to_a_widget_build_is_applied.py']},
         {"id": "2.557", "title": 'A criteria change recorded as HIS correction is read at the sheet\'s door like his own words (the 24" rows stayed under «27 al menos» as a change); a title the model wrote is still not his spec',
             "ch": UNIT, "paths": ['tests/browser/unit/results/test_a_criteria_change_is_his_word_at_the_door.py']},
+        # three cards and a close by allusion (2026-10-14): «cierra el vídeo … La agenda la miro luego» closed the agenda
+        {"id": "2.570", "title": "A clause that puts looking at a card off until later («la agenda la miro luego», «I'll check the calendar later») keeps that card: it leaves the close words; a close or a plain look is never a deferral",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_card_he_will_look_at_later_is_kept.py']},
+        {"id": "2.571", "title": "«cierra el vídeo … La agenda la miro luego» closes the PLAYER on both channels' verdict gesture, whatever card the verdict proposed (tres-tarjetas ES t6 closed the agenda)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_close_the_video_never_closes_the_card_he_defers.py']},
+        {"id": "2.572", "title": "The close backstops of both channels read his close words (`close_identify`), never a card he told to stay or defers",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_close_backstop_never_reaches_a_kept_card.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

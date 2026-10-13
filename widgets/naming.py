@@ -135,7 +135,8 @@ def split_kept(text: str) -> tuple[str, str]:
     «get rid of the video too, just keep the calendar up» → («…get rid of the video too, », «just keep the calendar
     up»); «No, el vídeo, la música déjala» keeps «la música»; «cierra todo menos la agenda» keeps «la agenda».
     A negated keep («don't leave the music on») is an order to remove, and stays in the close words."""
-    kept: list[str] = []
+    from widgets import later_clause as _later   # «la agenda la miro luego» defers it: a keep (2026-10-14)
+    text, kept = _later.split_deferred(text)
     out: list[str] = []
     for part in _CLAUSE_RE.split(str(text or "")):
         if _CLAUSE_RE.fullmatch(part or ""):

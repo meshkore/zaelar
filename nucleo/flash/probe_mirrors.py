@@ -211,9 +211,9 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
                     _ow = []
                 _cw, _idc = None, {}
                 try:
-                    from widgets import runtime as _rt
+                    from . import close_identify as _ci   # his close words, never a card he keeps (2026-10-14)
                     # los ABIERTOS desempatan ("cierra el vídeo": vídeo empata navegador↔youtube; gana el abierto)
-                    _idc = _rt.identify(text, open_ids=_ow) or {}
+                    _idc = _ci.identify(text, _ow)
                     if not _idc.get("ambiguous"):
                         _cw = _idc.get("match")
                 except Exception:

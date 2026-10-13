@@ -166,10 +166,10 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         # wins» picked the worker's browser card, and the backstop closed THAT). Already closed → nothing to do.
         _vc = _pst._card_close.verdict_unless_named(_pst._direct_action.verdict_card(_brief), _op_text, _openw) if _pst._direct_action.sure_canvas(_brief) == "close" else ""
         try:
-            from widgets import runtime as _rt_close
+            from nucleo.flash import close_identify as _ci_close   # never a card he keeps (2026-10-14)
             # los ABIERTOS desempatan ("cierra el vídeo": vídeo empata navegador↔youtube; gana el abierto)
             _idc = ({"match": _vc if _vc in _openw else ""} if _vc
-                    else (_rt_close.identify(text, open_ids=_openw) or {}))
+                    else _ci_close.identify(text, _openw))
             # NOMBRE resuelto y NO ambiguo = cerramos aunque el turno sea largo (señal fuerte: cerrar + widget
             # nombrado). No exigimos que esté en open_widgets: el frontend puede no haberlo reportado y cerrar
             # uno ya cerrado es no-op inofensivo; el valor real es CANCELAR la escalada espuria.
