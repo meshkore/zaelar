@@ -44,6 +44,8 @@ def is_create(action: str) -> bool:
 
 def remember(wid: str, action: str, text: str, res, *, now: float | None = None) -> None:
     """After a create LANDED: keep what could take it back out, and the sentence it came from."""
+    from nucleo.flash import served_writes as _served
+    _served.note(wid, action, text, res, now=now)    # any landed WRITE: its sentence is not a worker's errand
     if not (is_create(action) and isinstance(res, dict) and isinstance(res.get("revert"), dict)):
         return
     _last[wid] = {"action": action, "text": _fold(text), "revert": res["revert"],
@@ -70,6 +72,8 @@ def forget(wid: str) -> None:
 
 def reset() -> None:
     _last.clear()
+    from nucleo.flash import served_writes as _served
+    _served.reset()
 
 
 def declared_fields(wid: str, action: str) -> list[str]:

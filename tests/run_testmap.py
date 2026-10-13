@@ -4134,6 +4134,16 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/browser/unit/musica/test_adding_with_nothing_playing_says_so_in_his_language.py']},
         {"id": "2.577", "title": "A persona's goodbye gets ONE second look against its brief before it ends the round, and the round reports it (the playlist was never asked: turn 1 of 8)",
             "ch": UNIT, "paths": ['tests/use_cases/unit/test_a_goodbye_gets_one_second_look.py']},
+        # agenda-everyday-edits / what-does-my-week-look-like ES (2026-10-14): the model's day over his words, a scoped
+        # move that moved the series, a close that ate a cancellation with the decision model down, a worker for a done write
+        {"id": "2.585", "title": "«El jueves que viene» said on a Wednesday is TOMORROW: the model's ISO day one week late (22 for 15) is put back on both channels; «este/próximo <día>» and «next <day>» alike; the week ahead he names is kept",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_immediate_weekday_is_the_coming_one.py']},
+        {"id": "2.586", "title": "«Pásalo al miércoles, solo esa semana» moves ONE lesson: the move gets the occurrence's date (the day he names, else the next one), the series keeps its Tuesdays and the later skip lands on a real one",
+            "ch": UNIT, "paths": ['tests/browser/unit/agenda/test_a_move_said_for_one_week_moves_one_occurrence.py']},
+        {"id": "2.587", "title": "A [[close]] of the agenda over «quita el piano entero, toda la serie» cancels the series even with no verdict (decision model at 529): a removal naming one of its rows and not the card is that row's cancel_meeting, both channels",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_close_over_a_row_removal_cancels_the_row.py']},
+        {"id": "2.588", "title": "A request whose WRITE already landed is not a window errand: «Apúntame dos cosas…» written in turn 0 started a Brain Worker three turns later off an onboarding offer read as a promise",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_landed_write_is_not_a_window_errand.py']},
         {"id": "2.550", "title": "The errand STARTING (asked, no session yet) or just FINISHED is an errand his sentence names: «for the game make the jump higher» between the yes and the game's session gets no monitor rows (three-tasks EN 2026-10-11 11:34)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_errand_just_started_is_an_errand_he_names.py']},
         {"id": "2.551", "title": 'A sentence about errands that just FINISHED is not a new list: «me sacas un LG de 24… ¿y el Fujitsu? …¿y el informe?» with all three done is an ordinary turn, never «me pongo con ellas» (three-tasks ES 2026-10-11)',

@@ -211,8 +211,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             # V2-635 (espejo del guarda del provider) + licencia Jev (T-jev-show-close, lector COMPARTIDO
             # `show_target.close_has_order`, nunca una segunda implementación): un [[close]] sin orden se
             # descarta; un "close" seguro de Jev lo licencia (dos lectores de acuerdo).
-            from nucleo.flash import direct_action as _da_close, show_target as _st_close
-            if _da_close.order_is_inside(_tbrief, str((extra or {}).get("id") or "")):
+            from nucleo.flash import agenda_close_is_a_cancel as _cic, show_target as _st_close
+            if _cic.inside_or_cancelled(_tbrief, operator_text, extra, lambda c: tool_calls.append({"name": "widget_data", "args": c})):
                 return                           # V2-770 — the order is an action inside the card, not this tag
             _has_order, _order_src = _st_close.close_has_order(text, canvas_h)
             if not _has_order:

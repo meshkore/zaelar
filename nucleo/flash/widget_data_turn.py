@@ -49,7 +49,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     from nucleo.flash import frontend as _fe
     from nucleo.flash import data_ops as _rg
     from widgets import actions as _wa
-    from nucleo.flash import reply_or_forward as _rof, verdict_card as _vcard  # noqa: F401 — _rof rides in retarget
+    from nucleo.flash import agenda_said_day as _sday, reply_or_forward as _rof, verdict_card as _vcard  # noqa: F401
     todas = [t.get("args") or {} for t in (tool_calls or []) if t.get("name") == "widget_data"]
     admitidas: list[dict] = []
     for a in todas:
@@ -118,7 +118,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
                     pl = {**pl, _campo: _ref}
             except Exception:  # noqa: BLE001
                 pl = {**pl, "item": _ref}
-        wid, act, pl = _vcard.retarget(brief, wid, act, pl, _order)   # passes 110 E3 · 114 I3 (`verdict_card`)
+        wid, act, pl = _sday.align(*_vcard.retarget(brief, wid, act, pl, _order), _order)   # 110 E3 · 114 I3 · said day
         mode = _fe.action_mode(wid, act)
         mode = _leave_gate.asked_if_leaving(mode, brief, wid, act, payload=pl, said=_order)   # V2-778 F4-33: the voice rail's rule
         if mode != _wa.FAST:

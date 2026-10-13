@@ -113,6 +113,9 @@ def escalate_goal_from_window(window, current_text: str = "", max_back: int = 6)
             break
         content = str((msg or {}).get("content") or "").strip()
         if content and _rg._needs_real_work(content):
+            from nucleo.flash import served_writes as _served
+            if _served.served(content):
+                continue           # its write already landed in the light path (2026-10-14): nothing to start
             return f"{content} — {current_text}".strip(" —") if current_text else content
     return ""
 

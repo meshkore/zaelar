@@ -117,7 +117,7 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
     # messages» — the verdict read `mensajeria:close`, the chat inside, and this guard kept the card open).
     if (action == "close" and not (extra or {}).get("named")
             and not _txw._direct_action._says_the_name(_txw._bnotes.operator_half(text), str((extra or {}).get("id") or ""))
-            and _txw._direct_action.order_is_inside(_brief, str((extra or {}).get("id") or ""))):
+            and _txw._close_cancel.inside_or_cancelled(_brief, _txw._bnotes.operator_half(text), extra, lambda c: _apply_widget_data(c["widget_id"], c["action"], c["payload"]))):
         # V2-770 — the order is an action INSIDE the card («ciérrala» over a detail card): not this tag.
         emit("brain", "🛡️ close ignorado — la orden es una acción DENTRO de la tarjeta",
              text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_inside_card"})
@@ -213,9 +213,8 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
         emit("brain", "🔁 data-op «close» sobre un cierre seguro — cierra la tarjeta", text=wid, role="system",
              extra={"cat": "flash", "widget": wid, "action": "close"})
         return
-    # V2-757 — THE TAIL OF A SENTENCE IS NOT AN ORDER. Here because this is where the tool and the
-    # tag converge: a rule installed in one of two branches is this repo's own named way of fixing
-    # half a defect. The why and the measurement: `direct_action.a_fragment_moves_nothing`.
+    # V2-757 — THE TAIL OF A SENTENCE IS NOT AN ORDER; here because the tool and the tag converge here.
+    # The why and the measurement: `direct_action.a_fragment_moves_nothing`.
     if (_frag_why := _txw._direct_action.a_fragment_moves_nothing(
             _txw._bnotes.operator_half(text), brief=_brief,
             last_reply=getattr(brain, "_last_reply", "") or "")):
@@ -224,6 +223,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
              role="system", extra={"cat": "flash", "why": _frag_why,
                                    "id": wid, "action": action_name})
         return
+    payload = _txw._said_day.payload(wid, action_name, payload, _txw._bnotes.operator_half(text))   # the day he said (2026-10-14)
     mode = _frontend.action_mode_now(wid, action_name, payload)   # V2-712: decidido para ESTA llamada
     # TWO READERS DISAGREE ON AN ACT THAT LEAVES (demo pass 2026-09-28, full12 E3): «draft a short reply
     # saying i'll send the meet link…» — the verdict read `mensajeria:draft` at 1.00, the model called
