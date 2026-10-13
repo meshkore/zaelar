@@ -346,6 +346,7 @@ LANGUAGES: dict[str, LangSpec] = {
         row_check_yes="yes (per {source})",
         row_check_no="no (per {source})",
         row_check_unknown="not verified",
+        row_check_row_unknown="{row}: I don't have that verified yet",
         row_check_none="None of the {n} options on the sheet has «{criterion}» verified yet.",
         row_check_some="With «{criterion}» verified: {rows}.",
         login_not_saved="Your {site} session didn't stick. Shall we try signing in again?",

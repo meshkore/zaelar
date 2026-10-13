@@ -350,6 +350,7 @@ class LangSpec:
     row_check_yes: str = "sí (lo dice {source})"
     row_check_no: str = "no (lo dice {source})"
     row_check_unknown: str = "sin verificar"
+    row_check_row_unknown: str = "{row}: eso no lo tengo verificado todavía"   # a row asked about something it does not carry
     row_check_none: str = "Ninguna de las {n} opciones de la hoja tiene verificado «{criterion}» todavía."
     row_check_some: str = "Con «{criterion}» verificado: {rows}."
     # A restart caught a widget half-built — `widgets/server_api.py`.

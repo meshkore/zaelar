@@ -14,25 +14,9 @@ read as not verified (`hard_checks.status`).
 """
 from __future__ import annotations
 
-import re
-
 #: At most this many named rows are read back: past three it stops being an answer and becomes a list.
 _MAX_ROWS = 3
 _MAX_ROW_CHARS = 40
-
-
-def _rows_of(heard_norm: str, items: list[dict]) -> list[dict]:
-    """The rows his sentence names: by a word of the title that no OTHER row's title has (so «oferta» or «total»
-    never names anything), matched as a whole word."""
-    from widgets.results.hard_checks import _norm
-    words = [set(re.findall(r"[a-z]{4,}", _norm(i.get("title")))) for i in items]
-    named = []
-    for i, ws in zip(items, words):
-        others = set().union(*(w for w in words if w is not ws)) if len(words) > 1 else set()
-        own = ws - others
-        if any(re.search(rf"\b{re.escape(w)}\b", heard_norm) for w in own):
-            named.append(i)
-    return named[:_MAX_ROWS]
 
 
 def _short(item: dict) -> str:
@@ -40,16 +24,23 @@ def _short(item: dict) -> str:
     return t if len(t) <= _MAX_ROW_CHARS else t[:_MAX_ROW_CHARS - 1].rstrip() + "…"
 
 
-def line(heard: str, data: dict) -> str:
-    """The sentence the sheet `data` owes to his sentence `heard`. "" when it owes none."""
+def line(heard: str, data: dict, reply: str = "") -> str:
+    """The sentence the sheet `data` owes to his sentence `heard`. "" when it owes none.
+
+    2026-10-14 (cheapest-monitor ES): read clause by clause (`row_ask`) — a clause that names a row is answered with
+    what that row carries about what the clause asks: its hard-requirement fact, another fact of the row whose label
+    is the thing asked, or — when the turn's `reply` leaves that row unsaid — «not verified». Never the criteria
+    block. A row whose reply speaks of it, or a call with no reply, gets no «not verified»: the row's price or
+    title may be the very answer, and the reply is the one reading them."""
     from widgets.results import hard_checks as H
-    h = H._norm(heard)
+    from . import row_ask as RA
     if "?" not in str(heard or ""):
         return ""
-    items = [i for i in ((data or {}).get("items") or []) if isinstance(i, dict) and i.get("title")]
-    asked = [c for c in H.hard_of(data) if H.stems(c) & H.stems(heard)]
-    if not (items and asked):
+    items = [i for i in ((data or {}).get("items") or [])
+             if isinstance(i, dict) and i.get("title") and not RA.is_lead(i)]
+    if not items:
         return ""
+    hard = H.hard_of(data)
     from i18n import langs as _lg
     lang = _lg.current_language()
 
@@ -61,10 +52,23 @@ def line(heard: str, data: dict) -> str:
             return said.format(source=source) if source else said.split(" (")[0]   # no source: the bare word
         return lang.row_check_unknown
 
-    named = _rows_of(h, items)
-    if named:
-        parts = [f"{_short(i)}: {crit}, {_say(i, crit)}" for i in named for crit in asked]
-        return "; ".join(parts) + "."
+    pairs = RA.asks(heard, items)
+    if pairs:
+        in_reply = RA.named_in(reply, items) if reply else []
+        parts = []
+        for item, about in pairs[:_MAX_ROWS]:
+            crits = [c for c in hard if RA.content_stems(c) & about]
+            if crits:
+                parts += [f"{_short(item)}: {crit}, {_say(item, crit)}" for crit in crits]
+                continue
+            fact = RA.fact_asked(item, about)
+            if fact:
+                parts.append(f"{_short(item)}: {fact.get('label')} — {fact.get('value')}")
+            elif reply and all(item is not r for r in in_reply):   # a reply that left the row unsaid
+                parts.append(lang.row_check_row_unknown.format(row=_short(item)))
+        return ("; ".join(parts) + ".") if parts else ""
+    about = set().union(*(RA.content_stems(c) for c in RA.clauses(heard) if "?" in c))
+    asked = [c for c in hard if RA.content_stems(c) & about]
     out = []
     for crit in asked:
         ok = [_short(i) for i in items if H.status((H.fact_for(i, crit) or {}).get("value"))[0] == H.YES]
@@ -84,14 +88,14 @@ def _live_sheets() -> list[str]:
     return sheets
 
 
-def for_turn(heard: str) -> str:
+def for_turn(heard: str, reply: str = "") -> str:
     """`line` over the live errands' sheets — the first that owes a sentence. Never raises."""
     if "?" not in str(heard or ""):
         return ""
     try:
         from widgets.results import data as _sheet
         for sheet in _live_sheets():
-            out = line(heard, _sheet.view_data(sheet) or {})
+            out = line(heard, _sheet.view_data(sheet) or {}, reply)
             if out:
                 return out
     except Exception as e:  # noqa: BLE001 — a sheet that cannot be read leaves the reply as the model wrote it

@@ -401,7 +401,7 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
         if _cut:
             _emit("🧹 importe sin fuente recortado", dropped=[c[:120] for c in _cut[:3]])
             spoken = (f"{spoken} {_ag.unbacked_line()}" if spoken else _ag.unbacked_line()) if _failed else spoken
-        _check = _row_check.for_turn(heard_now)       # he asked about a row and a must-have: the row answers
+        _check = _row_check.for_turn(heard_now, spoken or "")   # he asked about a row: the row answers
         if _check:
             _emit("📋 row check: the reply reads the row's hard-requirement fact", line=_check[:160])
             return ((spoken.rstrip() + " ") if spoken else "") + _check

@@ -4219,6 +4219,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_bare_done_never_answers_a_turn_that_wants_words.py']},
         {"id": "2.605", "title": "A power adapter, charger or power supply is an accessory, never a candidate for the thing asked (unless he asked for one; «with/incluye adaptador» stays) — three adapters were offered as 27\" 4K monitors (cheapest-monitor EN)",
             "ch": UNIT, "paths": ['tests/search/unit/test_a_power_adapter_is_not_a_monitor.py']},
+        {"id": "2.606", "title": "A question about rows he NAMES is answered clause by clause from those rows — the hard fact the clause asks, another fact whose label it asks, or «not verified» when the reply leaves the row unsaid — never the criteria block («¿el curvo es 4K? ¿el Blackview tiene buenas reseñas?» got every criterion of three rows, «para» naming the AOC; cheapest-monitor ES)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_question_about_named_rows_reads_those_rows.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

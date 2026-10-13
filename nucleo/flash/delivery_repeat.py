@@ -37,7 +37,7 @@ def wants_words(brief) -> bool:
     try:
         from nucleo.flash import turn_brief as _tb
         return str(_tb.read(brief, _tb.WORDS_KEY, "")[0]) == "tell"
-    except Exception:  # noqa: BLE001 — no verdict reads as no
+    except Exception:  # noqa: BLE001 — an unreadable verdict is a False
         return False
 
 
