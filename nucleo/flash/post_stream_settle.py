@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from nucleo.flash import card_receipt as _pst_receipt   # V2-781: a bare ack names the cards the turn changed
 from nucleo.flash import post_stream as _pst
+from nucleo.flash import unchecked_provenance as _pst_up   # 2026-10-14: no claimed check of a video's provenance
 
 
 async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _dialog, _filler_audio, _langs, _prev_pending, _r, _resolve_confirm, _router, _shown_ids, acted, aside, brain, clarify, confirm_state, data_done, emit, escalate_req, had_pending_confirm, llm_metrics, music_req, operator_text, search_req, send, speech, spoken_text, style_fired, text, worker_acted) -> dict:
@@ -19,7 +20,6 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
                 _resolve_confirm(verdict == "yes")
         except Exception:
             pass
-
     # …y lo mismo para una TAREA irreversible parada por el confirm-gate (V2-126). MISMO clasificador
     # determinista, distinto registro: aquel resuelve una acción de widget, este re-lanza la tarea. Va
     # DESPUÉS y solo si no había confirmación de widget, para que un único «sí» no resuelva dos cosas.
@@ -27,7 +27,6 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
     # del operador no tenía a qué volver y la acción quedaba parada para siempre sin decirlo.
     # …y la TERCERA puerta con la misma llave (V2-202): el navegador parado en un clic irreversible. Aquélla
     # re-lanza una tarea; ésta desbloquea un clic que está esperando AHORA MISMO dentro del navegador.
-    #
     # LAS DOS SE DECIDEN JUNTAS, y ahí estaba el defecto (medido 2026-08-24). Eran dos bloques con el MISMO
     # guarda —`not had_pending_confirm and not worker_acted["v"]`, que mira la puerta de WIDGET—, así que
     # nada registraba que la de tarea acabase de resolverse: con las dos abiertas, un solo «sí» hablado
@@ -155,6 +154,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         if (_tr_line := await _pst_tr.voice_owed_settled(spoken_text)):
             send(speech.sanitize(_tr_line, drop_metadata=False))
             spoken_text = (spoken_text + " " + _tr_line).strip()
+    spoken_text = _pst_up.said_after(spoken_text, send, speech)   # a claimed AI check, corrected aloud (2026-10-14)
 
     # Regla de usuario fijada/retirada SIN frase hablada → ack corto (V2-046 A1, visto en el probe: la
     # RETIRADA dejaba el turno MUDO). Nunca mudo al aceptar/quitar una regla.

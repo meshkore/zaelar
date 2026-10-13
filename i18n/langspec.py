@@ -236,6 +236,11 @@ class LangSpec:
     receipt_now_playing: str = "Suena ahora «{title}»."
     receipt_paused: str = "He pausado «{title}»."
     receipt_queue_total: str = "La cola tiene ahora {total}."
+    #: …naming the rows when they are few (2026-10-14: «Hecho.» over three videos he could not see were there).
+    receipt_queue_titles: str = "La cola tiene ahora {total}: {titles}."
+    receipt_queue_empty: str = "La cola se ha quedado vacía."
+    #: A reply that claimed it checked whether videos are AI-made (`unchecked_provenance`): nothing here can.
+    provenance_unchecked: str = "Ojo: no puedo comprobar si un vídeo está hecho con IA; solo veo su título y su canal, así que eso lo decides tú."
     #: …and when the player REFUSED it (`player_outcome`): what could not play and why, never «Suena ahora».
     receipt_cannot_play: str = "No he podido ponerlo: «{title}» no se puede reproducir aquí, su propietario bloquea verlo fuera de YouTube. Sigue en tu lista."
     receipt_swapped: str = "«{title}» no se puede reproducir aquí (su propietario lo bloquea fuera de YouTube), así que suena «{to}»."

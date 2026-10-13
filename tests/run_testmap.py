@@ -4173,6 +4173,20 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/search/unit/test_a_cut_answer_asks_the_next_index.py']},
         {"id": "2.582", "title": "An answer with no ranked pages is not an empty search: the composing pass is not told «no ha devuelto nada útil… ofrécete con el navegador», the line that turned a fact into a Brain Worker on his «sí»",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_answer_without_pages_is_not_an_empty_search.py']},
+        {"id": "2.593", "title": "A search-band row he names by title or channel PLAYS — «play the Palm Centre one» twice answered «Solo hay 6 resultados» and nothing played (find-videos-on-a-topic-no-ai-slop EN); words on two rows are refused, never guessed",
+            "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_a_band_row_he_names_plays.py']},
+        {"id": "2.594", "title": "The band rows he NAMES reach the queue by name («el de Iván, el de José Manuel y el de Jaén»), and an `add` of a row on screen adds that row without a fresh search; one unknown name adds nothing",
+            "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_the_rows_he_names_go_to_the_queue.py']},
+        {"id": "2.595", "title": "`clear_list` over an EMPTY queue with the band on screen is refused and names the band's writes (`redirect`) — it said `ok` and «Hecho.» twice over three videos never added (find-videos-on-a-topic-no-ai-slop ES)",
+            "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_clearing_an_empty_queue_over_the_band_is_refused.py']},
+        {"id": "2.596", "title": "A refusal that names its alternatives lets ONE same-turn pass run one of them, and only those (`refusal_redirect`); the shared seam returns the action that ran and both channels unpack it",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_refusal_that_names_its_alternative_runs_it.py']},
+        {"id": "2.597", "title": "With the search band on screen the video digest still shows the QUEUE, numbered by its own order, or says it is empty — «just the Palm Centre one, drop the rest» was numbered by the band and kept the emoji video",
+            "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_the_queue_is_shown_beside_the_band.py']},
+        {"id": "2.598", "title": "A reply never claims it checked whether a video is AI-made («filtrando los que huelen a generado», «no synthetic voice» with zero navigations): the claim is dropped and the honest caveat said, on both channels",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_reply_never_claims_an_ai_check.py']},
+        {"id": "2.599", "title": "A queue edit (add_results / remove / clear_list) owes what the queue HOLDS now, read from the card, naming three rows or fewer — «Done.» over a queue still holding the video he dropped",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_queue_edit_says_what_the_queue_holds.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

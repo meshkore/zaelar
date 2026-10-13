@@ -210,7 +210,8 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
     `act_repair.call_for_refusal` owns the why and the bounds (same action, same card, a different payload);
     this is the seam both channels share — the voice path through `dispatch_and_report`, the text channel
     through `widget_data_turn.execute` — so the rule is not installed in one of two branches. `dispatch` is the
-    channel's own way to run a data-op. Returns `(payload, result)` of the corrected call, or None."""
+    channel's own way to run a data-op. Returns `(payload, result)` of the corrected call, `(payload, result, action)`
+    when the card's own redirect ran another action (`refusal_redirect`), or None."""
     if not isinstance(res, dict) or _receipt.is_pool_timeout(res) or not _receipt.failed(res):
         return None
     why = str(res.get("message") or res.get("error") or "").strip()
@@ -219,6 +220,12 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
     from nucleo.flash import parked_refusal as _parked      # the half he supplies next turn completes THIS call
     _parked.remember(wid, action, payload, res)
     try:
+        # A refusal that NAMES the alternatives its card offers (`res["redirect"]`) is not a payload to correct but an
+        # action to replace: `refusal_redirect` runs one of those, and the third element tells the caller what ran.
+        from nucleo.flash import refusal_redirect as _redirect
+        if (alt := await _redirect.retry(wid, action, payload, res, text, dispatch)):
+            _parked.remember(wid, action, payload, alt[2])
+            return alt[1], alt[2], alt[0]
         from nucleo.flash import act_repair as _ar
         fix = await _ar.call_for_refusal(text, wid, action, payload or {}, why, said=said)
         if not fix:
@@ -416,7 +423,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     except Exception:  # noqa: BLE001
         _said = ""
     if not receipt and (_fixed := await corrected_retry(wid, action_name, payload, res, text, _run, said=_said)):
-        payload, res = _fixed
+        payload, res, action_name = (*_fixed, action_name)[:3]     # a redirect names the action that ran
     _outcome.remember(wid, action_name, text, res)
     _refused = bool(_receipt.failed(res)) if isinstance(res, dict) else False
     _attested = None

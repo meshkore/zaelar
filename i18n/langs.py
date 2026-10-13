@@ -258,6 +258,9 @@ LANGUAGES: dict[str, LangSpec] = {
         receipt_now_playing="Now playing: «{title}».",
         receipt_paused="Paused «{title}».",
         receipt_queue_total="The queue now has {total}.",
+        receipt_queue_titles="The queue now has {total}: {titles}.",
+        receipt_queue_empty="The queue is empty now.",
+        provenance_unchecked="One caveat: I can't check whether a video is AI-made — I only see its title and channel, so that call is yours.",
         receipt_cannot_play=("I couldn't play it: «{title}» can't be played here, its owner blocks it outside "
                              "YouTube. It's still in your list."),
         receipt_swapped="«{title}» can't be played here (its owner blocks it outside YouTube), so «{to}» is playing.",

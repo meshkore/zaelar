@@ -148,7 +148,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
                 pass
         res = _r if isinstance(_r := await _brain_action(wid, act, pl), dict) else {}
         if (_fixed := await _rg.corrected_retry(wid, act, pl, res, text, _brain_action)):
-            pl, res = _fixed
+            pl, res, act = (*_fixed, act)[:3]               # a redirect names the action that ran (`refusal_redirect`)
         _wo.remember(wid, act, text, res)
         await _rg._report_ignored(wid, act, res)
         if res.get("error") or res.get("ok") is False:

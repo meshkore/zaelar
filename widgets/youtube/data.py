@@ -216,6 +216,8 @@ def prompt_digest() -> str:
         if r.get("channel"):
             bits.append(str(r["channel"])[:30])
         lines.append(f"  {i}. " + " — ".join(bits))
+    from . import result_refs as _rr
+    lines.append(_rr.queue_line(db))
     return "\n".join(lines)
 
 

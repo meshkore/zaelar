@@ -8,6 +8,7 @@ still governs every call.
 from __future__ import annotations
 
 from . import data as _d
+from . import result_refs as _rr
 
 
 # V2-638 — the player is where a film is WATCHED, so the two non-YouTube sources belong on this surface
@@ -120,6 +121,8 @@ def _a_add(action, p, db) -> dict:
         q = str(p.get("query") or p.get("q") or raw or "").strip()
         if not q:
             return {"ok": False, "error": "no_video", "message": "Dime qué vídeo añado (enlace o nombre)."}
+        if (band := _rr.resolve(db.get("search_results") or [], q)) is not None:
+            return _a_add_results(action, {"items": str(band + 1)}, db)   # a row he can SEE is not a new search
         db["adding"] = q                            # visible state while the network search runs
         _d.store.save(_d.WID, db)
         r = _d._search_id(q, db.get("blocked_channels"), _d._blocked_ids(db))
@@ -232,15 +235,16 @@ def _a_search(action, p, db) -> dict:
 def _a_play_result(action, p, db) -> dict:
     # V2-632 — «reproduce el tercero» over the dashboard's search band. 1-based, like every spoken number.
     res = db.get("search_results") or []
-    try:
-        i = int(str(p.get("item") or p.get("n") or "").strip()) - 1
-    except Exception:
-        i = -1
     if not res:
         return {"ok": False, "error": "no_results", "message": "No hay resultados de búsqueda ahora mismo."}
-    if i < 0 or i >= len(res):
-        return {"ok": False, "error": "bad_index", "count": len(res),
-                "message": f"Solo hay {len(res)} resultados."}
+    ref = p.get("item") if p.get("item") is not None else p.get("n")
+    i = _rr.resolve(res, ref)          # a number, or the title/channel he named (2026-10-14, `result_refs`)
+    if i is None:
+        if str(ref or "").strip().isdigit():
+            return {"ok": False, "error": "bad_index", "count": len(res),
+                    "message": _d._hl.pick(f"Solo hay {len(res)} resultados.", f"There are only {len(res)} results.")}
+        return {"ok": False, "error": "item_not_found", "item": ref, "count": len(res),
+                "message": _d._hl.pick("No sé cuál de los resultados es ese.", "I can't tell which of the results that is.")}
     it = res[i]
     _d._swap_to(db, it)   # V2-634: the shared field-set (pick_explicit=False and queue position inside)
     _d._goto(db, "player")                              # V2-755: he asked to watch it, so show it
@@ -257,16 +261,7 @@ def _a_add_results(action, p, db) -> dict:
     if not res:
         return {"ok": False, "error": "no_results", "message": "No hay resultados de búsqueda ahora mismo."}
     raw = p.get("items", p.get("item", p.get("n", "")))
-    idxs = []
-    if isinstance(raw, list):
-        idxs = [int(x) for x in raw if str(x).strip().isdigit()]
-    else:
-        t = str(raw or "").strip().lower()
-        if t in ("all", "todos", "todas", "*"):
-            idxs = list(range(1, len(res) + 1))
-        else:
-            idxs = [int(x) for x in _d.re.findall(r"\d+", t)]
-    idxs = [i for i in idxs if 1 <= i <= len(res)]
+    idxs = _rr.indices(res, raw)        # numbers, «all», or the rows he named (2026-10-14, `result_refs`)
     if not idxs:
         return {"ok": False, "error": "no_items", "count": len(res),
                 "message": "Dime cuáles añado (números, o «todos»)."}
@@ -428,6 +423,8 @@ def _a_name_list(action, p, db) -> dict:
 def _a_clear_list(action, p, db) -> dict:
     # Empties the LIST only: whatever is playing keeps playing (voice «empty the list» must not cut the
     # video — close is the action that stops playback).
+    if not db.get("list") and db.get("search_results"):
+        return _rr.nothing_queued()                  # «Hecho» over an empty queue hid the add he asked for
     db["list"] = []
     db["pos"] = -1
     _d.store.save(_d.WID, db)
@@ -440,6 +437,9 @@ def _a_play_item(action, p, db) -> dict:
     if not lst and db.get("search_results"):
         return _a_play_result(action, {"item": ref}, db)   # «play the second one» over Home's band (V2-781)
     idx = _d._resolve_item(lst, ref)
+    if idx is None and not str(ref or "").strip().isdigit() \
+            and _rr.resolve(db.get("search_results") or [], ref) is not None:
+        return _a_play_result(action, {"item": ref}, db)   # a band row he named, the queue holding others
     if idx is None:
         return {"ok": False, "error": "item_not_found", "item": p.get("item"),
                 "message": "No encuentro ese vídeo en la lista."}

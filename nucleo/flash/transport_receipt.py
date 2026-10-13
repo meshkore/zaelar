@@ -9,7 +9,7 @@ card HOLDS now — and appends the one sentence owed:
 
   · a move or a play (`next`, `previous`, `play`, `play_item`, `play_result`, `resume`) → what is playing now;
   · a `pause` → what was paused;
-  · an `add` → how many the queue holds now.
+  · an `add`, a `remove` or a `clear_list` → what the queue holds now (its titles when three or fewer).
 
 A reply that already names the title (any distinctive word of it) owes nothing; a failed op owes nothing here (its
 failure is named by `widget_data_turn.ensure_failure_named`). The sentences are the language's own (`receipt_*`).
@@ -27,6 +27,8 @@ from loguru import logger
 MOVES = frozenset({"next", "previous", "play", "play_item", "play_result", "resume"})
 PAUSES = frozenset({"pause"})
 ADDS = frozenset({"add", "add_results"})
+#: A removal from the queue owes what is LEFT in it (2026-10-14: «Done.» over a queue still holding the video he dropped).
+REMOVES = frozenset({"remove", "clear_list"})
 #: The player cards and how each one says what it holds: `(title, paused, queue_total)` from its store.
 _CARDS = ("youtube", "musica")
 
@@ -61,6 +63,25 @@ def _holding(card: str) -> tuple[str, bool, int]:
     return "", False, 0
 
 
+def _queue_line(card: str, total: int, lang) -> str:
+    """What the queue holds now: empty, its titles when they are three or fewer, else its count."""
+    if not total:
+        return str(lang.receipt_queue_empty)
+    titles: list[str] = []
+    try:
+        from widgets import store as _st
+        if card == "youtube" and total <= 3:
+            titles = [str(it.get("title") or "")[:60] for it in (_st.load(card) or {}).get("list") or []
+                      if isinstance(it, dict) and str(it.get("title") or "").strip()]
+    except Exception as e:  # noqa: BLE001 — the count alone is still true
+        logger.debug(f"transport_receipt: queue titles unread — {e}")
+    if titles and len(titles) == total:
+        joined = "«" + f"» {lang.receipt_and} «".join(titles) + "»" if len(titles) < 3 else \
+            "«" + "», «".join(titles[:-1]) + f"» {lang.receipt_and} «{titles[-1]}»"
+        return str(lang.receipt_queue_titles).format(total=total, titles=joined)
+    return str(lang.receipt_queue_total).format(total=total)
+
+
 def names_title(reply: str, title: str) -> bool:
     """Does the reply carry any distinctive word of the title (4+ letters, not a filler)? Then it named it."""
     t = _norm(reply)
@@ -90,8 +111,9 @@ def owed(reply: str, ops, lang=None) -> str:
                 return str(lang.receipt_now_playing).format(title=title[:90])
             if a in PAUSES and title and not names_title(reply, title):
                 return str(lang.receipt_paused).format(title=title[:90])
-            if a in ADDS and total and not re.search(r"(?<!\d)" + str(total) + r"(?!\d)", str(reply or "")):
-                return str(lang.receipt_queue_total).format(total=total)
+            if a in ADDS | REMOVES and (total or a in REMOVES) \
+                    and not re.search(r"(?<!\d)" + str(total) + r"(?!\d)", str(reply or "")):
+                return _queue_line(base, total, lang)
         return ""
     except Exception as e:  # noqa: BLE001
         logger.debug(f"transport_receipt: skipped — {type(e).__name__}: {e}")

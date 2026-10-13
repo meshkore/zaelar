@@ -47,7 +47,8 @@ def test_a_reply_that_already_names_the_title_owes_nothing(player_on_psy):
 def test_a_pause_and_an_add_have_their_own_receipts(player_on_psy, monkeypatch):
     player_on_psy["paused"] = True
     assert TR.owed("Sure thing.", [("youtube", "pause")], lang=langs.spec("en")) == f"Paused «{PSY['title']}»."
-    assert TR.owed("Sure thing.", [("youtube", "add")], lang=langs.spec("en")) == "The queue now has 2."
+    assert TR.owed("Sure thing.", [("youtube", "add")], lang=langs.spec("en")) == \
+        f"The queue now has 2: «{RICK['title'][:60]}» and «{PSY['title'][:60]}»."   # few rows are named (2026-10-14)
     assert TR.owed("Added it — 2 in the queue.", [("youtube", "add")], lang=langs.spec("en")) == ""
 
 
