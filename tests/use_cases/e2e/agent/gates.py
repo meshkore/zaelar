@@ -60,9 +60,13 @@ def _notice_gate(scenario, run: dict, verdict: dict) -> dict | None:
     if not weekday:
         return None
     # «any»: the day is what the agent FINDS (a premiere date), so any notice counts — and none never does
-    day = "" if weekday == "any" else notice_day(weekday, round_day(run.get("transcript") or []))
+    ref = round_day(run.get("transcript") or [])
+    day = "" if weekday == "any" else notice_day(weekday, ref)
+    # Said ON that weekday («recuérdamelo el miércoles» on a Wednesday at 00:30, deadline Thursday), today is the
+    # natural reading as well as next week's: a job ringing later today counts (measured 2026-10-14).
+    days = (day, ref.isoformat()) if day and _WEEKDAYS[weekday.strip().lower()] == ref.weekday() else (day,)
     jobs = ((run.get("mechanism_report") or {}).get("scheduled_jobs") or {}).get("created") or []
-    rings = [j for j in jobs if str(j.get("schedule") or "").startswith(day)]
+    rings = [j for j in jobs if str(j.get("schedule") or "").startswith(days)]
     out = {"day": day, "jobs": [str(j.get("schedule")) for j in jobs], "ok": bool(rings)}
     if not rings:
         _cap(verdict, {"resultado": 2, "mecanismo": 2}, 2)

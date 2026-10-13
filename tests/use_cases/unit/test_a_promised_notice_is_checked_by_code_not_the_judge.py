@@ -86,3 +86,15 @@ def test_a_case_whose_day_is_found_asks_for_any_notice():
     one = gates.apply(case, {"transcript": [], "mechanism_report": {"scheduled_jobs": {"created": [
         {"name": "aviso: Dexter", "schedule": "2026-10-30 09:00"}]}}}, copy.deepcopy(verdict))
     assert one["overall"] == 5
+
+
+def test_said_on_that_weekday_a_job_later_today_counts():
+    """«recuérdamelo el miércoles» said on a Wednesday at 00:30 (deadline Thursday): today's 09:00 job rings (2026-10-14)."""
+    import datetime as _dt
+    wed = _dt.datetime(2026, 10, 14, 0, 30).timestamp()
+    run = {"transcript": [{"at": wed, "who": "tester", "text": "x"}],
+           "mechanism_report": {"scheduled_jobs": {"created": [{"name": "aviso", "schedule": "2026-10-14 09:00"}]}}}
+    v = gates.apply(_case("remember-and-remind-deadline"), run, {"overall": 5, "scores": {}, "findings": []})
+    assert v["overall"] == 5 and v["gates"]["notice_on"]["ok"]
+    run["mechanism_report"]["scheduled_jobs"]["created"] = [{"name": "aviso", "schedule": "2026-10-16 09:00"}]
+    assert gates.apply(_case("remember-and-remind-deadline"), run, {"overall": 5, "scores": {}, "findings": []})["overall"] <= 2
