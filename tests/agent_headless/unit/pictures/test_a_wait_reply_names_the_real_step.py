@@ -67,3 +67,18 @@ def test_a_spanish_session_hears_the_phase_as_it_is(errand, monkeypatch):
     monkeypatch.setattr("i18n.langs.current_code", lambda: "es")
     errand.update(plan=[])
     assert "entrando en media.ferrari.com" in step_line.owed("Vale, te aviso.", TELL)
+
+
+def test_an_errand_without_a_name_never_leaves_an_empty_slot(errand, monkeypatch):
+    """docs-single-recipe-not-a-list ES (2026-10-14) heard «Ahora mismo, : buscando…» — a nameless errand."""
+    from nucleo.turn import named_errand
+    monkeypatch.setattr(named_errand, "spoken_name", lambda _e: "")
+    line = step_line.owed("Will do.", TELL)
+    assert line.startswith("Right now: ") and ", :" not in line, line
+
+
+def test_our_plumbing_and_bare_phases_are_no_step(errand, monkeypatch):
+    monkeypatch.setattr("i18n.langs.current_code", lambda: "es")
+    errand.update(note="Contrato de la hoja leído y receta auténtica confirmada", phase="buscando…",
+                  plan=["usando una herramienta de zaelar."], done=0)
+    assert step_line.owed("Te aviso.", TELL) == ""

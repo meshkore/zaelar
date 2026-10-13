@@ -198,6 +198,7 @@ LANGUAGES: dict[str, LangSpec] = {
         errand_under_way="under way, nothing new yet",
         errand_waiting_on_you="waiting on an answer from you",
         errand_step_now="Right now, {name}: {step}.",
+        errand_step_bare="Right now: {step}.",
         widget_changes_applied="And I applied the changes you asked for while I was building it.",
         widget_changes_not_applied=("I couldn't apply the changes you asked for while I was building it; ask me "
                                     "again and I'll modify it."),

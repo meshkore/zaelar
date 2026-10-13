@@ -38,8 +38,12 @@ _PHASE_EN = (
     ("pulsando", "clicking"),
 )
 #: Phases that say no step at all (queued, starting, thinking) or quote one of our card ids.
-_EMPTY_PHASE_RE = re.compile(r"^(arrancando|en cola|pensando|ejecutando un paso|trabajando)\b|«(results|documento|"
-                             r"navegador|widget)(::[^»]*)?»", re.I)
+_EMPTY_PHASE_RE = re.compile(r"^(arrancando|en cola|pensando|ejecutando un paso|trabajando|buscando|usando una "
+                             r"herramienta)\b|«(results|documento|navegador|widget)(::[^»]*)?»", re.I)
+#: A worker note that talks about OUR plumbing (the sheet contract, our tools) is no step he can follow
+#: (docs-single-recipe-not-a-list ES, 2026-10-14: «Ahora mismo, : Contrato de la hoja leído…»).
+_PLUMBING_RE = re.compile(r"\b(contrato de la hoja|sheet contract|herramienta de zaelar|zaelar tool|cli|payload|"
+                          r"widget_data|results::)\b", re.I)
 _HOST_RE = re.compile(r"\b[a-z0-9-]+(?:\.[a-z0-9-]+)+\b", re.I)
 
 
@@ -74,14 +78,15 @@ def candidates(errand: dict, code: str) -> list[str]:
     """The steps this errand can be said to be on, best first, already in the session's language."""
     out = []
     note = _clean(errand.get("note"))
-    if note and _in_language(note, code):
+    if note and _in_language(note, code) and not _PLUMBING_RE.search(note):
         out.append(note)
     phase = _phase_for(str(errand.get("phase") or ""), code)
     if phase:
         out.append(phase)
     plan, done = list(errand.get("plan") or []), int(errand.get("done") or 0)
-    if 0 <= done < len(plan) and _in_language(str(plan[done]), code):
-        out.append(_clean(plan[done]))
+    step = _clean(plan[done]) if 0 <= done < len(plan) else ""
+    if step and _in_language(step, code) and not (_PLUMBING_RE.search(step) or _EMPTY_PHASE_RE.search(step)):
+        out.append(step)
     return [s for i, s in enumerate(out) if s and s not in out[:i]]
 
 
@@ -120,7 +125,9 @@ def owed(reply: str, brief) -> str:
         from nucleo.turn import named_errand as _ne
         said.add(fresh[0])
         name = _ne.spoken_name({"title": errand.get("title"), "label": "", "request": errand.get("goal")})
-        return _lg.current_language().errand_step_now.format(name=name, step=fresh[0])
+        lang = _lg.current_language()
+        return (lang.errand_step_now.format(name=name, step=fresh[0]) if str(name or "").strip()
+                else lang.errand_step_bare.format(step=fresh[0]))
     except Exception:  # noqa: BLE001 — a status sentence never costs the reply
         return ""
 

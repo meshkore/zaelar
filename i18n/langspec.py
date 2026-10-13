@@ -132,6 +132,7 @@ class LangSpec:
     # …and a WAIT reply while an errand runs names its real current step (photo round, 2026-10-11: «Will do»,
     # «Sounds good» with «entrando en media.ferrari.com» in the turn's own state).
     errand_step_now: str = "Ahora mismo, {name}: {step}."
+    errand_step_bare: str = "Ahora mismo: {step}."
     # …and what he asked for while a widget was being built is applied to it afterwards (three-tasks, 2026-10-11).
     widget_changes_applied: str = "Y le he aplicado los cambios que me pediste mientras lo hacía."
     widget_changes_not_applied: str = ("Los cambios que me pediste mientras lo hacía no los he podido aplicar; "
