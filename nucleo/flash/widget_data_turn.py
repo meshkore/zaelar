@@ -278,7 +278,7 @@ def _asked_something(text: str) -> bool:
     return bool(_ASKS.search(plano))
 
 
-def named_ack(parte: dict, ack: str, operator_text: str = "") -> str:
+def named_ack(parte: dict, ack: str, operator_text: str = "", *, asked: bool = False) -> str:
     """A bare «Done.» to a QUESTION is a non-answer (V2-469, `build-a-video-playlist` 23:05): «And what is
     in the list?» → mute model over a redundant `add` → «Done.», twice, watchdog nudging both times and
     the user asking FIVE times before getting the titles.
@@ -292,7 +292,7 @@ def named_ack(parte: dict, ack: str, operator_text: str = "") -> str:
     base = spoken_for(parte, ack)
     if parte.get("executed") != "widget_data" or parte.get("fallidas"):
         return base
-    if not _asked_something(operator_text):
+    if not (asked or _asked_something(operator_text)):   # `asked`: the brief says he wants words (2026-10-14)
         return base
     wid = str(parte.get("widget") or "").strip()
     if not wid:
@@ -325,14 +325,14 @@ def named_ack(parte: dict, ack: str, operator_text: str = "") -> str:
     return (f"Done. Right now it holds: {vista}." if en else f"Hecho. Ahora mismo hay: {vista}.")
 
 
-async def answer_in_words(parte: dict, operator_text: str, spec=None) -> str:
+async def answer_in_words(parte: dict, operator_text: str, spec=None, *, asked: bool = False) -> str:
     """A QUESTION the turn answered with a data-op, told in words from what the op RETURNED — or "".
 
     V2-781 T518 (EN `agenda-everyday-edits`, step 12): «What do I have next Thursday?» → a mute `show_day`, and the
     text channel answered «Done. Right now it holds: …» with every row on the card (`named_ack`'s list). The voice
     already composes from the op's answer (`post_stream_words`: «op answer compose»); this is that, for the probe."""
     answers = parte.get("answers") if isinstance(parte, dict) else None
-    if not answers or not _asked_something(operator_text):
+    if not answers or not (asked or _asked_something(operator_text)):
         return ""
     try:
         import json as _json

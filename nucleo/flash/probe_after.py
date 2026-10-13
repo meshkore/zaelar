@@ -307,8 +307,10 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
                 # V2-469 — but «Hecho.» to a QUESTION is a non-answer: when the operator asked something
                 # and the model went mute over the op, the ack enumerates what the widget now holds.
                 if action == "widget_data" and isinstance(return_extra_exec, dict):
-                    spoken = (await _probe._widget_data_turn.answer_in_words(return_extra_exec, text, spec)  # T518
-                              or _probe._widget_data_turn.named_ack(return_extra_exec, _lg.data_ack, text))
+                    from .delivery_repeat import wants_words as _ww   # a question without «?» (2026-10-14)
+                    _asked = _ww(brief)
+                    spoken = (await _probe._widget_data_turn.answer_in_words(return_extra_exec, text, spec, asked=_asked)
+                              or _probe._widget_data_turn.named_ack(return_extra_exec, _lg.data_ack, text, asked=_asked))
                 else:
                     spoken = _lg.data_ack
             elif action == "canvas:show:imagenes" and images_req:

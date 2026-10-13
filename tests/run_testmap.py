@@ -4215,6 +4215,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_new_rows_ride_a_turn_that_waits_for_words.py']},
         {"id": "2.603", "title": "A commission the brief sends to a worker with a SHEET as its deliverable is never replaced by one repaired call on the browser or that sheet — «compare a few insurers» became `navegador:search` + «Done.», and «are they top-rated, can they come today?» became `results:progress` + «Done.» (compare-insurance-quotes EN, best-plumber-same-day EN); both channels hand the brief to the rung",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_commission_for_a_sheet_keeps_its_worker.py']},
+        {"id": "2.604", "title": "A mute data-op under a turn the brief reads as `wants_words=tell` is answered with what the card holds or the op's answer, never a bare «Done.» — «I need to know if any of them are top-rated…» had no «?» and got «Done.» (best-plumber-same-day EN)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_bare_done_never_answers_a_turn_that_wants_words.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

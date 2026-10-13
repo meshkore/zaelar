@@ -30,6 +30,17 @@ def held(spoken: str, *, already: bool, brief=None) -> str:
     return "rows already delivered once, and this reply answers something of its own"
 
 
+def wants_words(brief) -> bool:
+    """The brief is sure he expects to be TOLD something this turn (`wants_words=tell`). Never raises."""
+    if brief is None:
+        return False
+    try:
+        from nucleo.flash import turn_brief as _tb
+        return str(_tb.read(brief, _tb.WORDS_KEY, "")[0]) == "tell"
+    except Exception:  # noqa: BLE001 — no verdict reads as no
+        return False
+
+
 def waits_for_words(brief) -> bool:
     """HIS turn waits to be told something about the work — «keep me posted», «any news?», a goodbye — and orders
     none: the brief reads `wants_words=tell` and does not send the turn to a worker.
@@ -39,12 +50,10 @@ def waits_for_words(brief) -> bool:
     unannounced in the prompt. The reply was a wait in words this file does not list — and listing wait wordings is
     the race V2-364 already lost. What makes the rows owed is his turn, not the reply's vocabulary; only rows never
     announced ride it, and a sentence about a row or another errand is held before this is asked."""
-    if brief is None:
+    if not wants_words(brief):
         return False
     try:
         from nucleo.flash import turn_brief as _tb
-        words, _ = _tb.read(brief, _tb.WORDS_KEY, "")
-        route, _ = _tb.read(brief, _tb.ESCALATE_KEY, "", min_confidence=0.0)
-        return str(words) == "tell" and str(route) != "escalate"
+        return str(_tb.read(brief, _tb.ESCALATE_KEY, "", min_confidence=0.0)[0]) != "escalate"
     except Exception:  # noqa: BLE001 — without verdicts the reply's own wording decides, as before
         return False
