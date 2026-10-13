@@ -85,6 +85,8 @@ async def retry(wid: str, action: str, payload: dict, res, text: str, dispatch) 
             return None
         res2 = await dispatch(wid, alt["action"], alt["payload"])
         res2 = res2 if isinstance(res2, dict) else {}
+        from nucleo.flash import parked_refusal as _parked
+        _parked.remember(wid, action, payload, res2)          # landed → nothing parked; refused again → that one
         from voice.observer import emit
         emit("widget", "↪ refused data-op → the alternative the card named", text=str(res.get("message") or "")[:160],
              extra={"id": wid, "action": alt["action"], "refused": action, "refused_payload": payload or {},

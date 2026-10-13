@@ -224,8 +224,7 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
         # action to replace: `refusal_redirect` runs one of those, and the third element tells the caller what ran.
         from nucleo.flash import refusal_redirect as _redirect
         if (alt := await _redirect.retry(wid, action, payload, res, text, dispatch)):
-            _parked.remember(wid, action, payload, alt[2])
-            return alt[1], alt[2], alt[0]
+            return alt[1], alt[2], alt[0]                   # it settles the parked refusal itself
         from nucleo.flash import act_repair as _ar
         fix = await _ar.call_for_refusal(text, wid, action, payload or {}, why, said=said)
         if not fix:
