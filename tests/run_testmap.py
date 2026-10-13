@@ -4209,6 +4209,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_never_reaches_his_messaging_accounts.py']},
         {"id": "2.600", "title": "An escalation the dedup FOLDED into a live errand closes with the fold, so it is never a «starting» errand of its own — his goodbye «quedo a la espera si sale algo» named that phantom by «sale» and three plumbers with phones were withheld (best-plumber-same-day ES)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_folded_escalation_is_not_another_errand.py']},
+        {"id": "2.601", "title": "A row he NAMED is named by a word only that row carries (not shared with another row, not his errand's vocabulary, never a bare number) — «monitor» and «27» made both real monitors «his» and only power adapters were ever offered (cheapest-monitor EN); «fontanero», «Madrid», «24h» did the same to three plumbers (best-plumber-same-day ES)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_row_is_named_only_by_a_word_it_alone_carries.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

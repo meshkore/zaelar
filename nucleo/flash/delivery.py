@@ -22,6 +22,7 @@ import re as _re
 from .router_guards import _norm_txt
 from . import row_check as _row_check   # a question about a row reads its hard-requirement fact
 from . import delivery_repeat as _repeat   # a second tail only rides a wait (rental-car, 2026-10-11)
+from . import row_named as _row_named   # a row he named is named by a word only it carries (2026-10-14)
 
 
 
@@ -69,7 +70,8 @@ def _speaks_en() -> bool:
         return False
 
 
-def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str = "", heard: str = "") -> str:
+def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str = "", heard: str = "",
+                            sheet=None) -> str:
     """La frase que se AÑADE a una respuesta de pura espera cuando la hoja ya tiene filas con nombre que la
     conversación no ha dicho. "" si no toca.
 
@@ -124,7 +126,6 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
     # queda en el turno sigue siendo la suya.
     _preguntando = bool(r.rstrip().endswith("?") or _PREGUNTA_RE.search(r))
     said = _norm_txt(str(said_before or "")) + " " + r
-    _heard = _norm_txt(str(heard or ""))
     fresh: list[str] = []
     for row in rows or []:
         row = str(row or "").strip()
@@ -152,7 +153,7 @@ def sheet_delivery_backstop(reply: str, rows, said_before: str = "", errand: str
         # ha sonado; el nombre solo salda las filas que no llevan dato.
         _dato = _norm_txt(row.split(" — ", 1)[1]) if " — " in row else ""
         _dato_toks = [w for w in _dato.split() if any(c.isdigit() for c in w)]
-        if toks and any(t in _heard for t in toks):
+        if _row_named.by_him(heard, row, sheet or rows, errand):
             continue         # V2-781 T521: a row HE named (turned down, asked about) is never news to him
         if toks and not any(t in said for t in toks):
             fresh.append(row)
@@ -411,7 +412,7 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
         if _held:
             _emit(f"🤐 delivery backstop held: {_held}", goal=(encargo or "")[:80])
             filas = []
-        extra = sheet_delivery_backstop(spoken or "", filas, dicho, errand=encargo, heard=_user)
+        extra = sheet_delivery_backstop(spoken or "", filas, dicho, errand=encargo, heard=_user, sheet=_back_rows or None)
         if extra:
             _given = [f for f in filas if f.split(" — ")[0][:40] in extra]
             _said.update(_row_key(f) for f in _given)
@@ -482,15 +483,9 @@ def _not_owed(heard_now: str, errand: str, rows, *, already: bool) -> str:
         return ""
     if _about_another_errand(heard_now, errand):
         return "the turn is about another errand"
-    said = _norm_txt(heard_now)
-    _errand_toks = set(_norm_txt(errand).split())
-    for row in rows or []:
-        title = _norm_txt(str(row or "").split(" — ")[0])
-        # a bare number is not a name: «al menos 27 pulgadas» is a criterion, not the «Samsung 27"» row
-        toks = [w for w in title.split() if not w.isdigit() and (any(c.isdigit() for c in w) or len(w) >= 5)
-                and w not in _errand_toks]
-        if any(_re.search(rf"\b{_re.escape(t)}\b", said) for t in toks):
-            return "he named a row of this sheet"
+    # a bare number or the category is not a name: «al menos 27 pulgadas» is a criterion, not the «Samsung 27"» row
+    if any(_row_named.by_him(heard_now, row, rows, errand) for row in rows or []):
+        return "he named a row of this sheet"
     if already:
         try:
             from nucleo.turn import named_errand as _ne
