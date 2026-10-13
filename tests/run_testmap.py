@@ -4207,6 +4207,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/browser/unit/navegador/test_a_form_with_his_details_goes_only_to_a_site_he_named.py']},
         {"id": "2.615", "title": "A sandbox never reaches his messaging accounts: WhatsApp/Telegram sessions inside the throwaway workspace, its own WA bridge port (his live bridge on :3111 was reusable), every messaging connector off",
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_never_reaches_his_messaging_accounts.py']},
+        {"id": "2.600", "title": "An escalation the dedup FOLDED into a live errand closes with the fold, so it is never a «starting» errand of its own — his goodbye «quedo a la espera si sale algo» named that phantom by «sale» and three plumbers with phones were withheld (best-plumber-same-day ES)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_folded_escalation_is_not_another_errand.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

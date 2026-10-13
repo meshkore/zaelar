@@ -90,7 +90,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 except Exception:
                     pass
                 try:
-                    await _d.inject(dup, request)      # refinamiento a la sesión viva (no relanza)
+                    await _fold_into(dup, request, key)      # a refinement of the live session (no relaunch)
                 except Exception as e:  # noqa: BLE001
                     logger.warning(f"dispatch: inject de dedup a {dup} falló: {e}")
                 # Same task, proven by the dedup match → ONE flow (V2-123). Only when the fuse didn't happen does
@@ -118,7 +118,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                         except Exception:  # noqa: BLE001 — fail-open, like the live half
                             pdup = None
                 if pdup:
-                    question = _d.absorb_refinement(pdup, request)
+                    question = _absorb_into(pdup, request, key)
                     try:
                         from voice.observer import emit
                         emit("task", "dedup", role="system", text=request[:120],
@@ -227,3 +227,32 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
     finally:
         sub.close()
         logger.info("dispatch: listener de escalados detenido")
+
+
+async def _fold_into(dup: str, request: str, key: str) -> None:
+    """The escalation became a REFINEMENT of the live errand `dup`: inject it, and close the escalation itself.
+
+    best-plumber-same-day ES (2026-10-14): «…si esto no sale hoy me lanzo a llamar…» was folded into the live
+    plumber errand, but its escalation stayed open in `escalate._tasks`, so for 90 s `errand_pool.starting` listed
+    his complaint as an errand of its own. His goodbye («Quedo a la espera si sale algo») then named THAT errand by
+    «sale», the delivery backstop read «the turn is about another errand», and three plumbers with their phones
+    stayed in the prompt while the reply said «aquí sigo pendiente». A folded escalation is part of the errand it
+    joined, never a second one."""
+    await _d.inject(dup, request)
+    _close_folded(key)
+
+
+def _absorb_into(pdup: str, request: str, key: str) -> str:
+    """Same as `_fold_into`, for an errand PARKED on a question to him: the escalation joins it and closes."""
+    question = _d.absorb_refinement(pdup, request)
+    _close_folded(key)
+    return question
+
+
+def _close_folded(key: str) -> None:
+    try:
+        if str(key).isdigit():
+            from nucleo.flash import escalate as _esc
+            _esc.finish(int(key), "")
+    except Exception as e:  # noqa: BLE001 — the fold already happened; a registry that cannot close is logged
+        logger.debug(f"dispatch: folded escalation {key} not closed — {type(e).__name__}: {e}")
