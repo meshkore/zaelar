@@ -298,6 +298,8 @@ def test_task_recall_is_a_real_consumer_of_the_same_module(wire, monkeypatch):
             {"id": "t2", "title": "vuelos", "goal": "buscar vuelos"}]
     monkeypatch.setattr(tr, "candidates", lambda q, limit=5: rows)
     wire.answer = ("strong", 0.9)
-    out = tr.resolve("lo del piso que te dije")
+    # No word of his is in only one title: «piso» would name t1 lexically and rightly skip the chooser
+    # (`task_recall_named`), which is not the path this pins.
+    out = tr.resolve("lo que te dije la semana pasada")
     assert len(wire.calls) == 1, "task recall stopped reaching the chooser"
     assert out["status"] in (jev.SELECTED, jev.NO_MATCH, jev.UNAVAILABLE, jev.DISABLED, jev.EMPTY)
