@@ -53,7 +53,7 @@ def _a_refinement_of_the_errand_it_names(spoken_text: str, op_text: str, emit) -
         if not ref:
             return False
         from nucleo import dispatch as _disp_ref
-        _disp_ref.inject_soon(ref, op_text)
+        _disp_ref.inject_soon(ref, _eot.words_for(op_text, spoken_text))
         emit("brain", "↪️ promise → refinement of the errand it names", text=op_text[:120], role="system",
              extra={"cat": "flash", "to": ref})
         return True

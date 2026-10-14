@@ -106,7 +106,10 @@ def block() -> str:
     _treat = (_lg.current_language().treatment_question or "").strip()
     if _treat:
         _goals.append((_treat, "treatment"))
-    missing = [label for label, key in _goals if not str(st.get(key) or "").strip()]
+    from nucleo.context_packs import place_in_play as _place   # not beside an errand about a place (2026-10-14)
+    _here = _place.an_errand_names_a_place()
+    missing = [label for label, key in _goals
+               if not str(st.get(key) or "").strip() and not (_here and key == "location")]
     lines = [
         "ES EL PRINCIPIO DE VUESTRA RELACIÓN: todavía no os conocéis. Durante esta fase, además de atender "
         "lo que te pida, te toca a ti llevar la conversación hacia conoceros.",

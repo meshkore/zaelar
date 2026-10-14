@@ -105,6 +105,8 @@ def compose(turn_text: str = "") -> str:
     try:
         from nucleo.context_packs import free_turn as _free
         parts = blocks() if _free.is_free(turn_text) else []
+        from nucleo.context_packs import ridden as _ridden
+        _ridden.note(turn_text, bool(parts))     # a question the phase made the reply ask is ours (our_question)
     except Exception as e:  # noqa: BLE001 — the registry already catches per pack; this is the second net,
         logger.warning(f"context_packs: no phase context this turn: {e!r}")   # and it is on the hot path
         return ""

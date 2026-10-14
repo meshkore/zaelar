@@ -231,7 +231,7 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                     _probe._widget_data_turn.complete_pasted_links(tool_calls, text), text=text, brief=_tbrief)
             elif action == "chat" and (_ref := _eot_ref.promised_refinement(operator_text, spoken)):
                 from nucleo import dispatch as _disp_ref     # a promised refinement reaches the errand it names
-                _disp_ref.inject_soon(_ref, operator_text)
+                _disp_ref.inject_soon(_ref, _eot_ref.words_for(operator_text, spoken))
                 return_extra_exec = {"executed": "inject", "to": _ref, "why": "promised_refinement"}
             else:
                 return_extra_exec = {}
