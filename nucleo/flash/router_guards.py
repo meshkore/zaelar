@@ -172,8 +172,7 @@ _CREATE_WIDGET_RE = _re.compile(
 _WIDGET_DEST_RE = _re.compile(
     r"\b(?:en|al|sobre|dentro\s+de|dentro\s+del|hacia)\s+"
     r"(?:el\s+|la\s+|los\s+|las\s+|un\s+|una\s+|unos\s+|unas\s+)?" + _WIDGET_SYN + r"\b(?!\s+nuev[oa]\b)"
-    r"|\b(?:into|in|on)\s+(?:the\s+|a\s+|an\s+)?(?:(?!new\b|nuev[oa]\b)[a-z]+\s+)?" + _WIDGET_SYN
-    + r"\b(?!\s+nuev[oa]\b)", _re.I)
+    r"|\b(?:into|in|on)\s+(?:the\s+|a\s+|an\s+)?(?:(?!new\b|nuev[oa]\b)[a-z]+\s+)?" + _WIDGET_SYN + r"\b(?!\s+nuev[oa]\b)", _re.I)
 
 
 def looks_like_create_widget(text: str) -> bool:
