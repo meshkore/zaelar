@@ -9,7 +9,7 @@ How: each channel calls `prefetch(reply, operator_text)` ONCE, when the reply is
 it, through Jev's NON-blocking door (`ask_many`, the turn brief's own) and waited for without blocking the loop
 (one question, ~300 ms, after the words were already streamed). The answer is cached by
 the reply's normalised text, so every reader of this turn — whatever string slice of the reply it holds — gets the
-same verdict without asking again. `verdict(reply)` returns "act" / "music" / "none" when the verdict is SURE, and
+same verdict without asking again. `verdict(reply)` returns "act" / "ask_first" / "music" / "none" when the verdict is SURE, and
 None otherwise: then the tables decide, exactly as before — they are the proposal, never removed.
 """
 from __future__ import annotations
@@ -20,13 +20,15 @@ import unicodedata
 
 CHOICES = {
     "act": "promises to do a task now: «I'll send it», «sending it now», «lo mando», «je l'envoie», «ich schicke es»",
+    "ask_first": "will do the task only once the operator gives the go-ahead, with or without a question mark: «say the "
+                 "word and I'll send it», «I won't send it until you confirm», «want me to send it?», «dis-moi et je l'envoie»",
     "music": "promises to play music now: «putting on X», «te pongo X», «je mets X», «ich lege X auf», «metto su X»",
     "none": "no promise: an answer, a fact, a question, a refusal («I can't», «no puedo»), or a REPORT that it is "
             "already done («Done», «Hecho», «ya está», «C'est fait», «Fatto», «Erledigt», «Pronto, já enviei»)",
 }
 INSTRUCTIONS = ("Classify the assistant's REPLY (any language). The operator's request is context only. "
-                "Choose act if the reply promises to carry out a task (future or in progress), music if it promises to play "
-                "music, none otherwise. A refusal, a negated action, or a report of something ALREADY done is none.")
+                "Choose act if the reply promises to carry out a task (future or in progress), ask_first if it holds that task "
+                "until the operator says yes, music if it promises to play music, none otherwise. A refusal, a negated action, or a report of something ALREADY done is none.")
 TTL_S = 120.0
 _CACHE: dict[str, tuple[str, float]] = {}
 _MAX = 64
@@ -109,7 +111,7 @@ def read_now(reply, operator_text: str = "") -> str | None:
 
 
 def verdict(reply) -> str | None:
-    """The SURE verdict for this reply ("act" / "music" / "none"), or None — then the tables decide."""
+    """The SURE verdict for this reply ("act" / "ask_first" / "music" / "none"), or None — then the tables decide."""
     hit = _CACHE.get(_key(reply))
     if not hit or time.time() - hit[1] >= TTL_S or not hit[0]:
         return None
@@ -123,9 +125,16 @@ def verdict(reply) -> str | None:
 def promises_action(reply: str) -> bool:
     v = verdict(reply)
     if v is not None:
-        return v in ("act", "music")
+        return v in ("act", "ask_first", "music")
     from nucleo.flash import router_guards as _rg
     return _rg.promises_action(reply)
+
+
+def waits_for_go_ahead(reply: str) -> bool:
+    """The reply holds the act until he says yes — a question in substance even without a «?» (demo pass 124, C5:
+    «I don't write messages on my own. Say the word and I'll send Ethan the note» — sent by the repair, and the last
+    thing heard asked for the go-ahead). Only a SURE verdict answers: no table guesses this in any language."""
+    return verdict(reply) == "ask_first"
 
 
 def promises_music(reply: str) -> bool:

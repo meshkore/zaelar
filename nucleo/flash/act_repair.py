@@ -111,6 +111,9 @@ def words_shape(spoken: str) -> str:
     if "?" in s:
         from nucleo.flash import clarifying as _cl
         return "asked_which" if _cl.asks_for_missing_detail(s) else "asked"
+    from nucleo.flash import reply_promise as _rp
+    if _rp.waits_for_go_ahead(s):                     # «say the word and I'll send it» asks without a «?» (pass 124)
+        return "asked"
     return "denied" if denies_the_act(s) else ""
 
 
@@ -417,7 +420,7 @@ def same_card_order_after_read(brief, read_widget: str, reply: str = "") -> str:
         if str(kind or "") == "question":
             return ""
         sure_order = str(kind or "") == "order" and bool(k_info)
-        return act if (sure_order or _rp.verdict(reply) == "act") else ""
+        return act if (sure_order or _rp.verdict(reply) in ("act", "ask_first")) else ""
     except Exception:  # noqa: BLE001
         return ""
 
