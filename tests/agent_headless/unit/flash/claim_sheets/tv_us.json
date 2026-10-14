@@ -1,0 +1,85 @@
+{
+ "_source": "search-buy-tv__us 2026-10-14 10:05: the sheet as the turn's prompt carried it (the Sansui 924 row was on it; a later rewrite dropped it)",
+ "title": "55-inch OLED under 1000",
+ "criteria": {},
+ "items": [
+  {
+   "title": "Sony Bravia XR A75L Series 4K…",
+   "price": "850",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  },
+  {
+   "title": "SANSUI TV 55\" 4K OLED Google TV…",
+   "price": "649.99",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  },
+  {
+   "title": "LG 55\" Class 4K (2160p) Smart…",
+   "price": "759",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  },
+  {
+   "title": "Samsung S85H 55 Inch Class OLED…",
+   "price": "949",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  },
+  {
+   "title": "Roku 55RAD5 Pro Series 55-Inch 4K…",
+   "price": "949.99",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  },
+  {
+   "title": "Sony BRAVIA 6 55\" OLED 4K HDR…",
+   "price": "949",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  },
+  {
+   "title": "Sansui 55\" UHD OLED Google TV…",
+   "price": "924",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  }
+ ],
+ "rejected": []
+}

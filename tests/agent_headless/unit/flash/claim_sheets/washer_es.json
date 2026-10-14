@@ -1,0 +1,61 @@
+{
+ "_source": "search-buy-washing-machine__es 2026-10-14 10:17: the three rows the delivery backstop quoted (titles and prices from the extraction in the timeline; hard facts as the sheet carried them, unverified)",
+ "title": "Lavadoras 8 kg clase A",
+ "criteria": {
+  "hard": [
+   "Capacidad de carga declarada exactamente 8 kg (no 7,5, no 8,5, no 'hasta 8')",
+   "Clase energética declarada explícitamente como A (no A+, A++, A+++, B ni 'bajo consumo' genérico)"
+  ]
+ },
+ "items": [
+  {
+   "title": "Lavadora Evvo Terra Carga Frontal…",
+   "full_title": "Lavadora Evvo Terra Carga Frontal 8 Kg 1350 rpm A Blanca Motor Inverter",
+   "price": "329,50€",
+   "subtitle": "www.pccomponentes.com",
+   "facts": [
+    {
+     "label": "Capacidad de carga declarada exactamente 8 kg (no 7,5, no 8,5, no 'hasta 8')",
+     "value": "?"
+    },
+    {
+     "label": "Clase energética declarada explícitamente como A (no A+, A++, A+++, B ni 'bajo consumo' genérico)",
+     "value": "?"
+    }
+   ]
+  },
+  {
+   "title": "Lavadora Balay 3TS382B Carga…",
+   "full_title": "Lavadora Balay 3TS382B Carga Frontal 8kg 1200rpm Clase A Acero Inox ExtraSilencio Pausa+Ca",
+   "price": "529,29€",
+   "subtitle": "www.pccomponentes.com",
+   "facts": [
+    {
+     "label": "Capacidad de carga declarada exactamente 8 kg (no 7,5, no 8,5, no 'hasta 8')",
+     "value": "?"
+    },
+    {
+     "label": "Clase energética declarada explícitamente como A (no A+, A++, A+++, B ni 'bajo consumo' genérico)",
+     "value": "?"
+    }
+   ]
+  },
+  {
+   "title": "Lavadora SVAN SLCS8301AI Carga…",
+   "full_title": "Lavadora SVAN SLCS8301AI Carga Superior 8kg 1200rpm Clase A Blanca",
+   "price": "427,99€",
+   "subtitle": "www.pccomponentes.com",
+   "facts": [
+    {
+     "label": "Capacidad de carga declarada exactamente 8 kg (no 7,5, no 8,5, no 'hasta 8')",
+     "value": "?"
+    },
+    {
+     "label": "Clase energética declarada explícitamente como A (no A+, A++, A+++, B ni 'bajo consumo' genérico)",
+     "value": "?"
+    }
+   ]
+  }
+ ],
+ "rejected": []
+}

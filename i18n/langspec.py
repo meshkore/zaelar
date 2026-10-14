@@ -371,6 +371,12 @@ class LangSpec:
     row_check_row_unknown: str = "{row}: eso no lo tengo verificado todavía"   # a row asked about something it does not carry
     row_check_none: str = "Ninguna de las {n} opciones de la hoja tiene verificado «{criterion}» todavía."
     row_check_some: str = "Con «{criterion}» verificado: {rows}."
+    # A reply's claim about a row that no source carries (nucleo/flash/row_claims.py): said as not verified.
+    claim_unverified: str = "De {row} no tengo verificado: {what}."
+    claim_backed: str = "Sí consta: {what}."
+    claim_not_verified: str = "No lo tengo verificado."
+    claim_candidate_unbacked: str = "Ese candidato no lo tengo en la hoja ni en nada de lo que he leído, así que no te lo doy."
+    claim_correction: str = "Corrijo:"
     # A restart caught a widget half-built — `widgets/server_api.py`.
     widget_build_resumed: str = "El servidor se reinició a mitad de crear el widget «{name}»; lo relanzo ahora."
     # The two that already had an inline `if english:` ternary. They were CORRECT for an English operator and

@@ -1,0 +1,992 @@
+{
+ "title": "New 256 GB iPhone 17 — best prices in Spain",
+ "criteria": {
+  "goal": "Encontrar el mejor precio actual para comprar un Apple iPhone 17 NUEVO con 256 GB de almacenamiento (modelo estándar, no Pro/Pro Max/Air), explorando las principales fuentes de venta (Apple oficial, grandes retailers, operadores de telefonía, marketplaces y comparadores de precios), y presentar las mejores opciones ordenadas por precio total real, indicando tienda, precio, garantía, condiciones de",
+  "hard": [
+   "Estándar iPhone 17 — no Pro, no Pro Max, no Air",
+   "Capacidad exacta 256 GB",
+   "Nuevo, precintado, sin uso",
+   "Modelo español (SIP válido), garantía Apple España 2 años",
+   "Precio final con IVA y envío incluidos o desglosados",
+   "Disponible ahora (stock o plazo indicado)"
+  ]
+ },
+ "items": [
+  {
+   "title": "iPhone 17 256 GB · Fnac",
+   "subtitle": "Nuevo, libre · precio del comparador m8d",
+   "price": "929,88 €",
+   "badge": "Cheapest",
+   "primary": true,
+   "parts": [
+    {
+     "kind": "Dispositivo",
+     "title": "Apple iPhone 17 256 GB",
+     "subtitle": "Estándar, libre de operador, nuevo",
+     "facts": [
+      {
+       "label": "Modelo",
+       "value": "iPhone 17 (2025)"
+      },
+      {
+       "label": "Capacidad",
+       "value": "256 GB"
+      },
+      {
+       "label": "Colores",
+       "value": "Negro, blanco, azul neblina, lavanda, verde salvia"
+      }
+     ]
+    },
+    {
+     "kind": "Tienda/Oferta",
+     "title": "Fnac España",
+     "price": "929,88 €",
+     "facts": [
+      {
+       "label": "Envío",
+       "value": "Gratis a tienda"
+      },
+      {
+       "label": "Financiación",
+       "value": "20 plazos sin intereses"
+      },
+      {
+       "label": "Recogida",
+       "value": "En tienda gratis"
+      }
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "label": "Modelo",
+     "value": "iPhone 17 estándar · 256 GB"
+    },
+    {
+     "label": "Estado",
+     "value": "Nuevo, precintado"
+    },
+    {
+     "label": "Precio total",
+     "value": "929,88 € · IVA incluido"
+    },
+    {
+     "label": "Envío",
+     "value": "?"
+    },
+    {
+     "label": "Garantía",
+     "value": "2 años Apple España"
+    },
+    {
+     "label": "Devolución",
+     "value": "14 días"
+    },
+    {
+     "label": "Mercado",
+     "value": "España"
+    },
+    {
+     "label": "Comprobado hoy",
+     "value": "? — solo en el comparador m8d"
+    },
+    {
+     "label": "Estándar iPhone 17 — no Pro, no Pro Max, no Air",
+     "value": "?"
+    },
+    {
+     "label": "Capacidad exacta 256 GB",
+     "value": "?"
+    },
+    {
+     "label": "Nuevo, precintado, sin uso",
+     "value": "?"
+    },
+    {
+     "label": "Disponible ahora (stock o plazo indicado)",
+     "value": "?"
+    }
+   ],
+   "score": {
+    "value": 7.8,
+    "max": 10,
+    "why": "Lowest tracked price and a Spanish retailer with 14-day returns, but I could not open Fnac's own page to confirm it"
+   }
+  },
+  {
+   "title": "iPhone 17 256 GB · Phone House",
+   "subtitle": "Nuevo, libre · cadena con tiendas físicas",
+   "price": "929,00 €",
+   "badge": "Tied cheapest",
+   "parts": [
+    {
+     "kind": "Dispositivo",
+     "title": "Apple iPhone 17 256 GB",
+     "subtitle": "Estándar, libre de operador, nuevo",
+     "facts": [
+      {
+       "label": "Modelo",
+       "value": "iPhone 17 (2025)"
+      },
+      {
+       "label": "Capacidad",
+       "value": "256 GB"
+      }
+     ]
+    },
+    {
+     "kind": "Tienda/Oferta",
+     "title": "Phone House",
+     "price": "929,00 €",
+     "facts": [
+      {
+       "label": "Red",
+       "value": "Tiendas físicas en toda España"
+      },
+      {
+       "label": "Venta online",
+       "value": "Sí"
+      },
+      {
+       "label": "Recogida",
+       "value": "Consultar tienda"
+      }
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "label": "Modelo",
+     "value": "iPhone 17 estándar · 256 GB"
+    },
+    {
+     "label": "Estado",
+     "value": "Nuevo, precintado"
+    },
+    {
+     "label": "Precio total",
+     "value": "929,00 € · IVA incluido"
+    },
+    {
+     "label": "Envío",
+     "value": "?"
+    },
+    {
+     "label": "Garantía",
+     "value": "2 años Apple España"
+    },
+    {
+     "label": "Devolución",
+     "value": "14 días"
+    },
+    {
+     "label": "Mercado",
+     "value": "España"
+    },
+    {
+     "label": "Comprobado hoy",
+     "value": "? — solo en resumen de búsqueda"
+    },
+    {
+     "label": "Estándar iPhone 17 — no Pro, no Pro Max, no Air",
+     "value": "?"
+    },
+    {
+     "label": "Capacidad exacta 256 GB",
+     "value": "?"
+    },
+    {
+     "label": "Nuevo, precintado, sin uso",
+     "value": "?"
+    },
+    {
+     "label": "Disponible ahora (stock o plazo indicado)",
+     "value": "?"
+    }
+   ],
+   "score": {
+    "value": 7.4,
+    "max": 10,
+    "why": "Matches the lowest price and has physical shops for pickup, but the figure comes from a search summary, not from the listing"
+   }
+  },
+  {
+   "title": "iPhone 17 256 GB · K-tuin",
+   "subtitle": "Apple Premium Partner, precio bajo PVP",
+   "price": "939,00 €",
+   "badge": "Apple reseller",
+   "parts": [
+    {
+     "kind": "Dispositivo",
+     "title": "Apple iPhone 17 256 GB",
+     "subtitle": "Estándar, libre, nuevo",
+     "facts": [
+      {
+       "label": "Modelo",
+       "value": "iPhone 17 (2025)"
+      },
+      {
+       "label": "Capacidad",
+       "value": "256 GB"
+      },
+      {
+       "label": "Colores",
+       "value": "Negro, azul neblina, lavanda"
+      }
+     ]
+    },
+    {
+     "kind": "Tienda/Oferta",
+     "title": "K-tuin (Apple Premium Partner)",
+     "price": "939,00 €",
+     "facts": [
+      {
+       "label": "Servicio técnico",
+       "value": "Oficial Apple en tienda"
+      },
+      {
+       "label": "Financiación",
+       "value": "Cetelem, Caixabank, Aplazame"
+      },
+      {
+       "label": "Plan Renove",
+       "value": "Sí"
+      }
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "label": "Modelo",
+     "value": "iPhone 17 estándar · 256 GB"
+    },
+    {
+     "label": "Estado",
+     "value": "Nuevo, precintado"
+    },
+    {
+     "label": "Precio total",
+     "value": "939,00 € · IVA incluido"
+    },
+    {
+     "label": "Envío",
+     "value": "?"
+    },
+    {
+     "label": "Garantía",
+     "value": "2 años Apple España"
+    },
+    {
+     "label": "Devolución",
+     "value": "14 días"
+    },
+    {
+     "label": "Mercado",
+     "value": "España (Apple Premium Partner)"
+    },
+    {
+     "label": "Comprobado hoy",
+     "value": "? — ficha abierta, precio no legible"
+    },
+    {
+     "label": "Estándar iPhone 17 — no Pro, no Pro Max, no Air",
+     "value": "?"
+    },
+    {
+     "label": "Capacidad exacta 256 GB",
+     "value": "?"
+    },
+    {
+     "label": "Nuevo, precintado, sin uso",
+     "value": "?"
+    },
+    {
+     "label": "Disponible ahora (stock o plazo indicado)",
+     "value": "?"
+    }
+   ],
+   "score": {
+    "value": 8,
+    "max": 10,
+    "why": "Apple Premium Partner: factura y garantía españolas directas, y precio por debajo del oficial; la cifra aún es de una ficha previa"
+   }
+  },
+  {
+   "title": "iPhone 17 256 GB · Worten",
+   "subtitle": "Nuevo, libre · valor vía app de reparto",
+   "price": "939,99 €",
+   "parts": [
+    {
+     "kind": "Dispositivo",
+     "title": "Apple iPhone 17 256 GB",
+     "subtitle": "Estándar, libre, nuevo",
+     "facts": [
+      {
+       "label": "Modelo",
+       "value": "iPhone 17 (2025)"
+      },
+      {
+       "label": "Capacidad",
+       "value": "256 GB"
+      }
+     ]
+    },
+    {
+     "kind": "Tienda/Oferta",
+     "title": "Worten",
+     "price": "939,99 €",
+     "facts": [
+      {
+       "label": "Nota",
+       "value": "El mismo modelo aparece a 1.099 € en otra tienda Worten"
+      }
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "label": "Modelo",
+     "value": "iPhone 17 estándar · 256 GB"
+    },
+    {
+     "label": "Estado",
+     "value": "Nuevo (no la unidad reacondicionada que aparece en el enlace)"
+    },
+    {
+     "label": "Precio total",
+     "value": "939,99 € · IVA incluido"
+    },
+    {
+     "label": "Envío",
+     "value": "?"
+    },
+    {
+     "label": "Garantía",
+     "value": "2 años Apple España"
+    },
+    {
+     "label": "Devolución",
+     "value": "14 días"
+    },
+    {
+     "label": "Mercado",
+     "value": "España"
+    },
+    {
+     "label": "Comprobado hoy",
+     "value": "? — dato de listado de reparto, no de la ficha web"
+    },
+    {
+     "label": "Estándar iPhone 17 — no Pro, no Pro Max, no Air",
+     "value": "?"
+    },
+    {
+     "label": "Capacidad exacta 256 GB",
+     "value": "?"
+    },
+    {
+     "label": "Nuevo, precintado, sin uso",
+     "value": "?"
+    },
+    {
+     "label": "Disponible ahora (stock o plazo indicado)",
+     "value": "?"
+    }
+   ],
+   "score": {
+    "value": 6.8,
+    "max": 10,
+    "why": "Price is reasonable but the same chain also lists it at 1.099 €, so the figure is unstable"
+   }
+  },
+  {
+   "title": "iPhone 17 256 GB · Neobyte",
+   "subtitle": "Nuevo, blanco · tienda de informática",
+   "price": "949,90 €",
+   "parts": [
+    {
+     "kind": "Dispositivo",
+     "title": "Apple iPhone 17 256 GB",
+     "subtitle": "Estándar, libre, nuevo",
+     "facts": [
+      {
+       "label": "Modelo",
+       "value": "iPhone 17 (2025)"
+      },
+      {
+       "label": "Capacidad",
+       "value": "256 GB"
+      },
+      {
+       "label": "Color",
+       "value": "Blanco"
+      }
+     ]
+    },
+    {
+     "kind": "Tienda/Oferta",
+     "title": "Neobyte",
+     "price": "949,90 €",
+     "facts": [
+      {
+       "label": "Tipo",
+       "value": "Tienda online española de informática"
+      }
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "label": "Modelo",
+     "value": "iPhone 17 estándar · 256 GB (blanco)"
+    },
+    {
+     "label": "Estado",
+     "value": "Nuevo, precintado"
+    },
+    {
+     "label": "Precio total",
+     "value": "949,90 € · IVA incluido"
+    },
+    {
+     "label": "Envío",
+     "value": "?"
+    },
+    {
+     "label": "Garantía",
+     "value": "2 años Apple España"
+    },
+    {
+     "label": "Devolución",
+     "value": "14 días"
+    },
+    {
+     "label": "Mercado",
+     "value": "España"
+    },
+    {
+     "label": "Comprobado hoy",
+     "value": "? — vía comparador preciomasbajo"
+    },
+    {
+     "label": "Estándar iPhone 17 — no Pro, no Pro Max, no Air",
+     "value": "?"
+    },
+    {
+     "label": "Capacidad exacta 256 GB",
+     "value": "?"
+    },
+    {
+     "label": "Nuevo, precintado, sin uso",
+     "value": "?"
+    },
+    {
+     "label": "Disponible ahora (stock o plazo indicado)",
+     "value": "?"
+    }
+   ],
+   "score": {
+    "value": 6.6,
+    "max": 10,
+    "why": "Good price for a full-prepay shop, but obtained through a comparator and not confirmed on Neobyte's own page"
+   }
+  },
+  {
+   "title": "iPhone 17 256 GB · El Corte Inglés",
+   "subtitle": "Nuevo, libre · garantía y postventa sólidas",
+   "price": "959,00 €",
+   "badge": "Buy with backup",
+   "parts": [
+    {
+     "kind": "Dispositivo",
+     "title": "Apple iPhone 17 256 GB",
+     "subtitle": "Estándar, libre, nuevo",
+     "facts": [
+      {
+       "label": "Modelo",
+       "value": "iPhone 17 (2025)"
+      },
+      {
+       "label": "Capacidad",
+       "value": "256 GB"
+      },
+      {
+       "label": "Colores",
+       "value": "Negro, azul neblina y más"
+      }
+     ]
+    },
+    {
+     "kind": "Tienda/Oferta",
+     "title": "El Corte Inglés",
+     "price": "959,00 €",
+     "facts": [
+      {
+       "label": "Plan Renove",
+       "value": "Hasta 1.100 € por tu móvil antiguo"
+      },
+      {
+       "label": "Recogida",
+       "value": "En tienda"
+      },
+      {
+       "label": "Financiación",
+       "value": "Tarjeta ECI"
+      }
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "label": "Modelo",
+     "value": "iPhone 17 estándar · 256 GB"
+    },
+    {
+     "label": "Estado",
+     "value": "Nuevo, precintado"
+    },
+    {
+     "label": "Precio total",
+     "value": "959,00 € · IVA incluido"
+    },
+    {
+     "label": "Envío",
+     "value": "Gratis con ECI Plus"
+    },
+    {
+     "label": "Garantía",
+     "value": "2 años Apple España"
+    },
+    {
+     "label": "Devolución",
+     "value": "14 días"
+    },
+    {
+     "label": "Mercado",
+     "value": "España (factura ECI)"
+    },
+    {
+     "label": "Comprobado hoy",
+     "value": "? — ficha muy protegida, precio no legible; stock sin confirmar"
+    },
+    {
+     "label": "Estándar iPhone 17 — no Pro, no Pro Max, no Air",
+     "value": "?"
+    },
+    {
+     "label": "Capacidad exacta 256 GB",
+     "value": "?"
+    },
+    {
+     "label": "Nuevo, precintado, sin uso",
+     "value": "?"
+    },
+    {
+     "label": "Disponible ahora (stock o plazo indicado)",
+     "value": "?"
+    }
+   ],
+   "score": {
+    "value": 8.2,
+    "max": 10,
+    "why": "Spanish price held below Apple's 1.109 €, plus trade-in up to 1.100 € and the strongest after-sales of the list; stock not confirmed"
+   }
+  },
+  {
+   "title": "iPhone 17 256 GB · Coolmod",
+   "subtitle": "Nuevo, blanco · tienda española de componentes",
+   "price": "994,95 €",
+   "parts": [
+    {
+     "kind": "Dispositivo",
+     "title": "Apple iPhone 17 256 GB",
+     "subtitle": "Estándar, libre, nuevo",
+     "facts": [
+      {
+       "label": "Modelo",
+       "value": "iPhone 17 (2025)"
+      },
+      {
+       "label": "Capacidad",
+       "value": "256 GB"
+      },
+      {
+       "label": "Color",
+       "value": "Blanco"
+      }
+     ]
+    },
+    {
+     "kind": "Tienda/Oferta",
+     "title": "Coolmod",
+     "price": "994,95 €",
+     "facts": [
+      {
+       "label": "Tipo",
+       "value": "Tienda online española"
+      }
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "label": "Modelo",
+     "value": "iPhone 17 estándar · 256 GB (blanco)"
+    },
+    {
+     "label": "Estado",
+     "value": "Nuevo, precintado"
+    },
+    {
+     "label": "Precio total",
+     "value": "994,95 € · IVA incluido"
+    },
+    {
+     "label": "Envío",
+     "value": "?"
+    },
+    {
+     "label": "Garantía",
+     "value": "2 años Apple España"
+    },
+    {
+     "label": "Devolución",
+     "value": "14 días"
+    },
+    {
+     "label": "Mercado",
+     "value": "España"
+    },
+    {
+     "label": "Comprobado hoy",
+     "value": "? — dato de buscador"
+    },
+    {
+     "label": "Estándar iPhone 17 — no Pro, no Pro Max, no Air",
+     "value": "?"
+    },
+    {
+     "label": "Capacidad exacta 256 GB",
+     "value": "?"
+    },
+    {
+     "label": "Nuevo, precintado, sin uso",
+     "value": "?"
+    },
+    {
+     "label": "Disponible ahora (stock o plazo indicado)",
+     "value": "?"
+    }
+   ],
+   "score": {
+    "value": 6.2,
+    "max": 10,
+    "why": "Above the cheapest cluster with no extra benefit; only worth it if the others are out of stock"
+   }
+  },
+  {
+   "title": "iPhone 17 256 GB · Amazon.es",
+   "subtitle": "Verde salvia · vendido y enviado por Amazon.es",
+   "price": "1.035,00 €",
+   "badge": "Verified today",
+   "parts": [
+    {
+     "kind": "Dispositivo",
+     "title": "Apple iPhone 17 256 GB",
+     "subtitle": "Estándar, libre, nuevo · Verde salvia",
+     "facts": [
+      {
+       "label": "Modelo",
+       "value": "iPhone 17, pantalla 6,3\", chip A19"
+      },
+      {
+       "label": "Capacidad",
+       "value": "256 GB"
+      },
+      {
+       "label": "Color",
+       "value": "Verde salvia (Sage Green)"
+      }
+     ]
+    },
+    {
+     "kind": "Tienda/Oferta",
+     "title": "Amazon.es",
+     "price": "1.035,00 €",
+     "facts": [
+      {
+       "label": "Vendedor",
+       "value": "Amazon.es (directo, no marketplace)"
+      },
+      {
+       "label": "Envío",
+       "value": "Gratis con Prime"
+      },
+      {
+       "label": "Devolución",
+       "value": "30 días"
+      }
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "label": "Modelo",
+     "value": "iPhone 17 estándar · 256 GB"
+    },
+    {
+     "label": "Estado",
+     "value": "Nuevo, precintado"
+    },
+    {
+     "label": "Precio total",
+     "value": "1.035,00 € · IVA incluido"
+    },
+    {
+     "label": "Envío",
+     "value": "Gratis con Prime"
+    },
+    {
+     "label": "Garantía",
+     "value": "2 años Apple España (vendido por Amazon.es)"
+    },
+    {
+     "label": "Devolución",
+     "value": "30 días"
+    },
+    {
+     "label": "Mercado",
+     "value": "España"
+    },
+    {
+     "label": "Comprobado hoy",
+     "value": "Sí — leído en la ficha de Amazon.es el 14 oct"
+    },
+    {
+     "label": "Estándar iPhone 17 — no Pro, no Pro Max, no Air",
+     "value": "?"
+    },
+    {
+     "label": "Capacidad exacta 256 GB",
+     "value": "?"
+    },
+    {
+     "label": "Nuevo, precintado, sin uso",
+     "value": "?"
+    },
+    {
+     "label": "Disponible ahora (stock o plazo indicado)",
+     "value": "?"
+    }
+   ],
+   "score": {
+    "value": 8.6,
+    "max": 10,
+    "why": "The only big-retailer price I read live on the shop's own page today, sold directly by Amazon.es with Spanish invoice and returns"
+   }
+  },
+  {
+   "title": "iPhone 17 256 GB · MediaMarkt",
+   "subtitle": "Precio del comparador m8d · cuidado con el marketplace",
+   "price": "1.075,00 €",
+   "parts": [
+    {
+     "kind": "Dispositivo",
+     "title": "Apple iPhone 17 256 GB",
+     "subtitle": "Estándar, libre, nuevo",
+     "facts": [
+      {
+       "label": "Modelo",
+       "value": "iPhone 17 (2025)"
+      },
+      {
+       "label": "Capacidad",
+       "value": "256 GB"
+      },
+      {
+       "label": "Colores",
+       "value": "Negro, blanco, azul neblina, lavanda, verde salvia"
+      }
+     ]
+    },
+    {
+     "kind": "Tienda/Oferta",
+     "title": "MediaMarkt (venta directa)",
+     "price": "1.075,00 €",
+     "facts": [
+      {
+       "label": "Aviso marketplace",
+       "value": "Oferta de 882 € = seminuevo de asgoodasnew, no nuevo"
+      },
+      {
+       "label": "Trade-In",
+       "value": "Sí, descuento por tu móvil antiguo"
+      },
+      {
+       "label": "Envío",
+       "value": "Gratis"
+      }
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "label": "Modelo",
+     "value": "iPhone 17 estándar · 256 GB"
+    },
+    {
+     "label": "Estado",
+     "value": "Nuevo en el precio de MediaMarkt; el de 882 € es seminuevo"
+    },
+    {
+     "label": "Precio total",
+     "value": "1.075,00 € · IVA incluido, envío gratis"
+    },
+    {
+     "label": "Envío",
+     "value": "Gratis"
+    },
+    {
+     "label": "Garantía",
+     "value": "2 años Apple España"
+    },
+    {
+     "label": "Devolución",
+     "value": "14 días"
+    },
+    {
+     "label": "Mercado",
+     "value": "España"
+    },
+    {
+     "label": "Comprobado hoy",
+     "value": "Parcial — precio m8d; la ficha muestra el 882 € como usado"
+    },
+    {
+     "label": "Estándar iPhone 17 — no Pro, no Pro Max, no Air",
+     "value": "?"
+    },
+    {
+     "label": "Capacidad exacta 256 GB",
+     "value": "?"
+    },
+    {
+     "label": "Nuevo, precintado, sin uso",
+     "value": "?"
+    },
+    {
+     "label": "Disponible ahora (stock o plazo indicado)",
+     "value": "?"
+    }
+   ],
+   "score": {
+    "value": 6.5,
+    "max": 10,
+    "why": "Reliable chain and free shipping, but the headline price is now above Apple's discount peers; the tempting 882 € offer on this page is a used unit from a marketplace seller"
+   }
+  },
+  {
+   "title": "iPhone 17 256 GB · PcComponentes",
+   "subtitle": "Verificado hoy en su ficha",
+   "price": "1.079,01 €",
+   "parts": [
+    {
+     "kind": "Dispositivo",
+     "title": "Apple iPhone 17 256 GB",
+     "subtitle": "Estándar, libre, nuevo",
+     "facts": [
+      {
+       "label": "Modelo",
+       "value": "iPhone 17 (2025)"
+      },
+      {
+       "label": "Capacidad",
+       "value": "256 GB"
+      },
+      {
+       "label": "Colores",
+       "value": "Negro, azul neblina, lavanda, verde salvia"
+      }
+     ]
+    },
+    {
+     "kind": "Tienda/Oferta",
+     "title": "PcComponentes",
+     "price": "1.079,01 €",
+     "facts": [
+      {
+       "label": "Envío",
+       "value": "Gratis"
+      },
+      {
+       "label": "Recogida",
+       "value": "En tienda"
+      },
+      {
+       "label": "Financiación",
+       "value": "Sí"
+      }
+     ]
+    }
+   ],
+   "facts": [
+    {
+     "label": "Modelo",
+     "value": "iPhone 17 estándar · 256 GB"
+    },
+    {
+     "label": "Estado",
+     "value": "Nuevo, precintado"
+    },
+    {
+     "label": "Precio total",
+     "value": "1.079,01 € · IVA incluido"
+    },
+    {
+     "label": "Envío",
+     "value": "Gratis"
+    },
+    {
+     "label": "Garantía",
+     "value": "2 años Apple España"
+    },
+    {
+     "label": "Devolución",
+     "value": "14 días"
+    },
+    {
+     "label": "Mercado",
+     "value": "España"
+    },
+    {
+     "label": "Comprobado hoy",
+     "value": "Sí — leído en su rastreador de precio el 14 oct"
+    },
+    {
+     "label": "Estándar iPhone 17 — no Pro, no Pro Max, no Air",
+     "value": "?"
+    },
+    {
+     "label": "Capacidad exacta 256 GB",
+     "value": "?"
+    },
+    {
+     "label": "Nuevo, precintado, sin uso",
+     "value": "?"
+    },
+    {
+     "label": "Disponible ahora (stock o plazo indicado)",
+     "value": "?"
+    }
+   ],
+   "score": {
+    "value": 7.5,
+    "max": 10,
+    "why": "Spanish shop with a strong reputation and a price I confirmed live today, but it sits at the top of the range"
+   }
+  }
+ ],
+ "rejected": [],
+ "_source": "search-buy-phone__us 2026-10-14, final sheet (verified retailer rows)"
+}

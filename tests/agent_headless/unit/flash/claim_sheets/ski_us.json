@@ -1,0 +1,67 @@
+{
+ "_source": "search-buy-ski-gear__us 2026-10-14 10:32: the sheet as the turn's prompt carried it (network-agent rows; a later rewrite emptied it)",
+ "title": "Used touring skis with bindings",
+ "criteria": {},
+ "items": [
+  {
+   "title": "Alpine Touring Gear",
+   "subtitle": "geartrade.com"
+  },
+  {
+   "title": "Esquís escaper Rossignol Blackops…",
+   "price": "303.56",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  },
+  {
+   "title": "Esquís de fondo Alpina Approach…",
+   "price": "108.05",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  },
+  {
+   "title": "Esquís Head Kore 99 All Mountain…",
+   "price": "208.69",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  },
+  {
+   "title": "Esquís Head Kore 99 All Mountain…",
+   "price": "220.07",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  },
+  {
+   "title": "Esquís Head Kore 93 All Mountain…",
+   "price": "303.56",
+   "subtitle": "{'country': 'US'}",
+   "facts": [
+    {
+     "label": "Origin",
+     "value": "network agent"
+    }
+   ]
+  }
+ ],
+ "rejected": []
+}

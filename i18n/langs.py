@@ -370,6 +370,11 @@ LANGUAGES: dict[str, LangSpec] = {
         row_check_row_unknown="{row}: I don't have that verified yet",
         row_check_none="None of the {n} options on the sheet has «{criterion}» verified yet.",
         row_check_some="With «{criterion}» verified: {rows}.",
+        claim_unverified="I don't have this verified for {row}: {what}.",
+        claim_backed="It does say: {what}.",
+        claim_not_verified="I don't have that verified.",
+        claim_candidate_unbacked="I don't have that candidate on the sheet or in anything I read, so I won't offer it.",
+        claim_correction="Correction:",
         login_not_saved="Your {site} session didn't stick. Shall we try signing in again?",
         widget_build_resumed=("The server restarted halfway through building the «{name}» widget; I'm "
                               "relaunching it now."),

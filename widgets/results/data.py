@@ -71,7 +71,10 @@ from .record import (  # noqa: F401,E402 — re-export
 # web, so we never let arbitrary keys through to the renderer (widget.js paints with textContent only, but the
 # schema is the contract and it stays closed).
 _ITEM_FIELDS = ("title", "subtitle", "price", "badge", "url", "image", "primary", "lines",
-                "parts", "images", "facts", "score", "blocks")
+                "parts", "images", "facts", "score", "blocks", "full_title")
+#: `full_title` — the title as the listing wrote it, kept when the card's slot clips it. «Premium 3-Seat Sofa –
+#: Excellent Condition – Only 6 Months Used» became «Premium 3-Seat Sofa – Excellent…» and the condition it carried
+#: was gone from every later turn (2026-10-14): the card paints `title`; a reader of the row reads both.
 # A PART is one piece of a composite item (the hotel inside a holiday plan, the ferry, the restaurant). Same
 # closed-schema discipline; `kind` is the piece's role ("Hotel", "Ferry", "Restaurante") so the card can label it.
 _PART_FIELDS = ("kind", "title", "subtitle", "price", "url", "image", "lines", "facts")
@@ -256,6 +259,8 @@ def _clean_item(raw: dict) -> dict | None:
                 it[k] = s
         elif k in _SLOT_CLIP_KEYS:
             it[k] = _clip_slot(v, _SLOT_CLIP_KEYS[k])
+            if k == "title" and it[k] != str(v).strip():
+                it.setdefault("full_title", str(v).strip()[:300])
         else:
             it[k] = str(v)[:300]
     return it if it.get("title") else None       # a card with no title is not a result, it is noise

@@ -371,7 +371,7 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
     """
     try:
         from . import live_blocks as _lb
-        from . import asked_site as _site, nothing_claims as _nothing, own_words as _own
+        from . import asked_site as _site, nothing_claims as _nothing, own_words as _own, row_claims as _claims, note_owed as _note
 
         from nucleo.turn import his_spec_to_sheet as _spec
         _spec.carry(heard_now)     # his «27 al menos» re-judges that errand's rows BEFORE any are delivered
@@ -402,6 +402,7 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
         if _cut:
             _emit("🧹 importe sin fuente recortado", dropped=[c[:120] for c in _cut[:3]])
             spoken = (f"{spoken} {_ag.unbacked_line()}" if spoken else _ag.unbacked_line()) if _failed else spoken
+        spoken = _note.deliver(_claims.guard(spoken or "", window, heard_now), window, heard_now)   # claims need a source; a pushed finding is said (2026-10-14)
         _check = _row_check.for_turn(heard_now, spoken or "")   # he asked about a row: the row answers
         if _check:
             _emit("📋 row check: the reply reads the row's hard-requirement fact", line=_check[:160])
