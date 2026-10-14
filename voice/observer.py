@@ -453,7 +453,10 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
         # AUDIT lost both the count and provenance. It still kills the real flood (the same identical action).
         if kind == "widget":
             _e = extra or {}
-            k = (kind, label, str(_e.get("id") or ""), str(_e.get("src") or ""))
+            # …and the ACTION and its payload: two different ops of one card within 150 ms are not a flood (a turn
+            # of five calls lost its move of the whole piano series from the audit, 20261014-121305-en).
+            k = (kind, label, str(_e.get("id") or ""), str(_e.get("src") or ""), str(_e.get("action") or ""),
+                 repr(_e.get("payload"))[:240])
         else:
             k = (kind, label)
         if ts - _dedup.get(k, -1e9) < 150:

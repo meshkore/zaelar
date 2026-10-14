@@ -196,6 +196,10 @@ def _a_cancel_meeting(action, payload, db, _extra) -> dict:
                   "error": f"Borré {res['removed']}, pero Google no me dejó borrar "
                            f"{len(stuck)}: " + ", ".join(f"«{m.get('title')}»" for m in stuck[:4])})
         return d
+    if res.get("left"):                    # «the whole series» with days of it still in the calendar is not done
+        d.update({"ok": False, "result": res, "error": "series_left_behind",
+                  "message": _d._spoken("agenda_series_left").replace("{left}", "; ".join(res["left"]))})
+        return d
     d.update({"ok": True, "result": res})
     return d
 

@@ -47,6 +47,7 @@ class LangSpec:
                            "la hora.")
     agenda_no_title: str = "No la he apuntado porque no sé de qué es la cita. ¿Cómo la llamo?"
     agenda_series_scope: str = "Esa cita se repite: ¿quito solo un día (cuál) o toda la serie?"
+    agenda_series_left: str = "He quitado la serie, pero en la agenda sigue habiendo días suyos: {left}."
     #: A DESTRUCTIVE widget action that arrived with no selector (V2-705, `widgets/contract.py`). The
     #: operator hears this instead of «done» — and instead of losing everything, which is what an empty
     #: `cancel_meeting` did to his Google Calendar on 2026-09-15. `{options}` is the widget's own menu.
@@ -393,6 +394,8 @@ class LangSpec:
     reminder_date_passed: str = "Ojo: esa fecha —{date}— ya ha pasado, así que no he puesto ningún aviso."
     # An asked notice whose hour had already gone today rings soon today instead — `nucleo/flash/notice_readback.py`.
     reminder_moved_soon: str = "Las {asked} de hoy ya han pasado, así que te aviso hoy a las {at}."
+    done_not_on_card: str = "Todavía no está en la tarjeta, así que no está hecho."   # «Hecho.» over an unmet end state
+    done_just_started: str = "Me pongo con ello; todavía no está hecho."              # «Hecho.» over an errand that just started
     data_ack: str = "Hecho."       # short "done" when a widget data-op ran with no spoken content of its own (V2-026)
     # Demo pass 50: the words ASKED («…want me to write that?») and the order was carried out anyway — «?Done.» read
     # as the answer to its own question. After a question the line says it went ahead.

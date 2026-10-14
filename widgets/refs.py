@@ -490,7 +490,8 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
     ⚠️ Pass HIS half of the turn, never the composed prompt: a `[SISTEMA]` note carries the candidate labels
     themselves, so feeding it in here would make every reference ambiguous.
     """
-    payload = dict(payload or {})
+    from . import ref_day
+    payload = ref_day.carried(widget_id, action, ref, dict(payload or {}))   # «X on 2026-10-20» keeps its day
     field = id_field_for_action(widget_id, action)
     if not field:
         return RefResult(True, payload)                       # nothing to resolve (e.g. add_meeting)

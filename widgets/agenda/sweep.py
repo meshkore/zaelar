@@ -307,7 +307,7 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
         the dentist» means all its copies, never «which of the eleven?».
     A row Google refuses to delete STAYS (the `clear_range` lesson: 42 reported gone, four still there).
     """
-    from . import data as _data
+    from . import data as _data, series_days
 
     if not str(payload.get("title") or "").strip():
         return {"ok": False, "error": "selector_missing",
@@ -323,8 +323,7 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     # the same appointment to him, and counting them as a second one made `whole` answer «ambiguous».
     _sers = [m for m in hits if isinstance(m.get("repeat"), dict)]
     if _sers and (payload.get("whole") or any(str(payload.get(k) or "").strip() for k in ("from", "fromDate", "since", "desde"))):
-        _firsts = {str(m.get("date") or "") for m in _sers}
-        hits = [m for m in hits if m in _sers or str(m.get("fromSeries") or "") in _firsts]
+        hits = [m for m in hits if m in _sers or series_days.series_of(m, _sers) is not None]
     distinct = {dup_key(m) for m in hits if not m.get("fromSeries")}   # the SAME grouping `dedupe_meetings` keeps one of
     if len(distinct) > 1 and not str(payload.get("date") or "").strip():
         rows = sorted(distinct, key=lambda k: (k[1], k[2]))
@@ -344,9 +343,8 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
         for m in _ser:
             gcal.patch_google(m)
             meeting_trash.put(db, "cut", [m], until_before=_prev.get(id(m), ""))
-        _ends = {str(m.get("date") or ""): m["repeat"]["until"] for m in _ser}
-        for m in [m for m in hits if str(m.get("fromSeries") or "") in _ends
-                  and str(m.get("date") or "") > _ends[str(m["fromSeries"])]]:
+        for m in [m for m in hits if (s := series_days.series_of(m, _ser)) is not None
+                  and str(m.get("date") or "") > s["repeat"]["until"]]:
             if gcal.delete_google(m):                  # a day moved out of it, past the new end, ends with it
                 _data._cancel_reminder(m)
                 db["meetings"] = [x for x in db.get("meetings", []) if x is not m]
@@ -383,6 +381,8 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     db["meetings"] = [m for m in db.get("meetings", []) if m not in gone]
     res = {"ok": True, "removed": len(gone), "title": str((gone or hits)[0].get("title") or ""),
            "date": str((gone or hits)[0].get("date") or "")}
+    if payload.get("whole") and _ser and (_left := series_days.left_behind(db, _ser)):
+        res["left"] = [f"{m.get('title')} {m.get('date')}" for m in _left][:6]   # said as a failure upstream
     if stuck:
         res["failed"] = [m.get("title") for m in stuck]
     return res, stuck

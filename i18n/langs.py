@@ -169,6 +169,7 @@ LANGUAGES: dict[str, LangSpec] = {
         agenda_no_data="I haven't put the appointment in: I'm not sure about the title, the day or the time.",
         agenda_no_title="I haven't put it in because I don't know what it's for. What should I call it?",
         agenda_series_scope="That appointment repeats: do I remove just one day (which one) or the whole series?",
+        agenda_series_left="I removed the series, but some of its days are still in the agenda: {left}.",
         widget_selector_missing="I couldn't tell which one to remove, so I left everything as it is. "
                                 "Which of these? {options}",
         widget_selector_missing_bare="I couldn't tell which one to remove, so I left everything as it is. "
@@ -386,6 +387,8 @@ LANGUAGES: dict[str, LangSpec] = {
                               "I'll set it."),
         reminder_date_passed="Heads-up: that date — {date} — has already passed, so I haven't set a reminder.",
         reminder_moved_soon="{asked} today has already gone by, so I'll remind you today at {at}.",
+        done_not_on_card="It isn't on the card yet, so it's not done.",
+        done_just_started="I'm on it — it isn't done yet.",
         data_ack="Done.",
         data_ack_went_ahead="I've gone ahead and done it, as you asked.",
         data_ack_went_with="I went with the likeliest one — tell me if you meant something else.",
