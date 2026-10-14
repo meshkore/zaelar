@@ -229,7 +229,8 @@ def voice_ack(ack: str) -> str:
     """The voice channel's bare ack, replaced by the receipt of the cards this turn touched (`canvas_focus`)."""
     try:
         from nucleo import canvas_focus as _cf
-        return complete(ack, _cf.this_turn_acts()) or ack
+        from nucleo.flash import worker_note_relay as _relay   # his words went to the worker: say what follows
+        return _relay.voice_line(_cf.this_turn_acts()) or complete(ack, _cf.this_turn_acts()) or ack
     except Exception as e:  # noqa: BLE001
         logger.debug(f"card_receipt: voice ack kept — {e}")
         return ack

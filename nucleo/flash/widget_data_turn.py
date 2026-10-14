@@ -17,6 +17,7 @@ from loguru import logger
 
 from nucleo.flash import leave_gate as _leave_gate
 from nucleo.flash import refusal_line as _rline       # one door for what a refusal may say to him
+from nucleo.flash import worker_note_relay as _relay  # a worker's own note on a live errand's sheet goes to it
 
 
 def _primera_clave(widget_id: str, action: str) -> str:
@@ -119,15 +120,15 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
             except Exception:  # noqa: BLE001
                 pl = {**pl, "item": _ref}
         wid, act, pl = _sday.align(*_vcard.retarget(brief, wid, act, pl, _order), _order)   # 110 E3 · 114 I3 · said day
+        if (_to := _relay.relay(wid, act, _order)):    # his words, for the worker (search-buy-watch, 2026-10-14)
+            hechas.append({"widget": wid, "act": act, "relayed_to": _to}); continue
         mode = _fe.action_mode(wid, act)
         mode = _leave_gate.asked_if_leaving(mode, brief, wid, act, payload=pl, said=_order)   # V2-778 F4-33: the voice rail's rule
         if mode != _wa.FAST:
             saltadas.append({"widget": wid, "act": act, "mode": str(mode)})
             continue
-        # V2-769 — the SAME write rules as the voice path (`data_ops.dispatch_and_report`): a rule installed
-        # in one of two branches is half a fix. The order is logged WITH its payload (the text channel logged
-        # only the action name, so a dropped field could not be seen), a piece of a sentence is taken back out
-        # when the whole one arrives, and a write that lost fields is corrected.
+        # V2-769 — the voice path's write rules (`data_ops.dispatch_and_report`): the order logged WITH its payload,
+        # a piece of a sentence taken back when the whole one arrives, a write that lost fields corrected.
         from nucleo.flash import write_outcome as _wo
         try:
             from voice.observer import emit as _emit_op
@@ -368,7 +369,7 @@ def spoken_for(parte: dict, ack: str) -> str:
     fallidas = parte.get("fallidas") or []
     if not fallidas:
         from nucleo.flash.correction_ack import line as _correction   # a sheet correction says what changed
-        return _correction(parte) or ack
+        return _relay.line(parte) or _correction(parte) or ack
     # One succeeded and another failed: say what did NOT succeed, which is what the operator cannot see.
     from voice.engine.core import langs as _lg_pf
     _sp = _lg_pf.current_language()

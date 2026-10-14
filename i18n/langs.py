@@ -215,6 +215,8 @@ LANGUAGES: dict[str, LangSpec] = {
                                     "again and I'll modify it."),
         worker_stopped="Done — I've stopped it.",
         errand_refined="Done — I've passed that on to {what}.",
+        errand_relayed_next="I've passed that on to {what} — it checks that first, and I'll tell you what it finds "
+                            "before anything else happens.",
         errands_each="On each one: {items}.",
         errand_part_passed="passed on",
         errand_part_done="already done",

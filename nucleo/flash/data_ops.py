@@ -377,7 +377,9 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     know: the caller dispatches and returns. The anti-drag guard's memory is written through it, so a
     mutation the door refused is never remembered as executed — see the note at the call site."""
     import widgets
-    from nucleo.flash import outgoing_lang as _olang
+    from nucleo.flash import outgoing_lang as _olang, worker_note_relay as _relay
+    if (_to := _relay.relay(wid, action_name, text)):    # a worker's own note: his words go to it (2026-10-14)
+        return {"ok": True, "relayed_to": _to}
     payload = await _olang.in_session_language(wid, action_name, payload or {})   # demo pass 106, E3
     # V2-743 — the WITNESS is taken BEFORE the op or it witnesses nothing. Only on the `receipt` path (an
     # irreversible action a human already confirmed): paying an extra widget read on every fast data-op would

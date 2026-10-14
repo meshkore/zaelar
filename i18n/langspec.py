@@ -142,6 +142,9 @@ class LangSpec:
     # …and a refinement passed to a running errand is confirmed NAMING that errand: the report's refinement got
     # the holding line, and he had to ask three more times whether it had landed (ES round 20:00).
     errand_refined: str = "Hecho, se lo paso a {what}."
+    # his words on a live errand's progress note go to its worker: say what happens next (search-buy-watch, 2026-10-14)
+    errand_relayed_next: str = ("Se lo paso a {what}: lo comprueba primero y te cuento lo que encuentre antes de "
+                                "dar ningún paso.")
     # …and ONE sentence about several errands is answered errand by errand (three-tasks-at-once EN, 2026-10-14:
     # «…ping me when the game's ready… for the monitor make sure it's got hdmi» got a bare «Done.»; split_by_errand.py).
     errands_each: str = "Por partes: {items}."
