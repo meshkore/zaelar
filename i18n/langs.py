@@ -385,6 +385,7 @@ LANGUAGES: dict[str, LangSpec] = {
         reminder_not_set_yet=("Correction: that reminder isn't actually scheduled yet. Tell me the day and time and "
                               "I'll set it."),
         reminder_date_passed="Heads-up: that date — {date} — has already passed, so I haven't set a reminder.",
+        reminder_moved_soon="{asked} today has already gone by, so I'll remind you today at {at}.",
         data_ack="Done.",
         data_ack_went_ahead="I've gone ahead and done it, as you asked.",
         data_ack_went_with="I went with the likeliest one — tell me if you meant something else.",

@@ -16,6 +16,7 @@ import logging
 
 from nucleo import scheduler as _sched
 
+from . import notice_readback as _readback
 from . import reminder_guards as _rg
 from . import reminder_promise as _rp
 from . import reminder_year as _ry
@@ -25,7 +26,10 @@ logger = logging.getLogger(__name__)
 
 def claim_correction(spoken: str, operator_text: str = "", window=None) -> str:
     """The correction a reply owes about a reminder — both channels call this. A promise or claim for a day already
-    gone by says so (2026-10-11); a claim with no job behind it says it is not set."""
+    gone by says so (2026-10-11); a claim with no job behind it says it is not set; a notice moved this turn to ring
+    soon today (its hour had gone) is said at the time the live job rings (2026-10-14)."""
+    if (moved := _readback.moved_line(spoken)):
+        return moved
     if _rp.find(spoken):
         when = _rg.resolved_reminder_moment(spoken, operator_text, window)
         if when and (line := _ry.passed_line(when, spoken, operator_text, window)):

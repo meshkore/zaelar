@@ -16,6 +16,7 @@ The functions moved BYTE FOR BYTE. This module changed no behaviour: it changed 
 Every name is re-exported from `router_guards`, so no call site anywhere in the repo needed to change —
 the same compatibility contract that file's own docstring describes for the split that created it.
 """
+import logging as _logging
 import re as _re
 import time as _time
 
@@ -49,6 +50,8 @@ from .reminder_fact import reminder_body, tidy_clause
 # negation/question check. The names stay here for every reader that imports them.
 from . import reminder_promise as _rp
 from . import reminder_year as _ry   # the year the conversation said; a day gone by schedules nothing
+from nucleo import notice_today as _nt   # an hour gone today rings soon today, and the reply says when
+_log = _logging.getLogger(__name__)
 _REMIND_NOUN, _REMIND_DET, _REMIND_VERB_RE = _rp._NOUN_ES, _rp._DET_ES, _rp.PROMISE_RE
 def promises_a_dated_reminder(reply: str, operator_text: str = "", window=None) -> str:
     """The reply promises to remind the operator AT A GIVEN TIME → the schedule spec for it, else "".
@@ -422,7 +425,7 @@ def reminder_before(when: str, commitment: str, now=None) -> str:
     that one already past → fire PROMPTLY, because the day he named is today (or gone) and reminding him now is
     the useful reading of what he asked. Never the silent useless date.
     """
-    if not when or not commitment:
+    if not when:
         return when
     import datetime as _dt
     if now is None:
@@ -438,15 +441,27 @@ def reminder_before(when: str, commitment: str, now=None) -> str:
             now = _dt.datetime.now()
     try:
         w = _dt.datetime.strptime(when.strip(), "%Y-%m-%d %H:%M")
-        c = _dt.datetime.strptime(commitment.strip(), "%Y-%m-%d %H:%M")
+        c = _dt.datetime.strptime(commitment.strip(), "%Y-%m-%d %H:%M") if commitment else None
     except Exception:
         return when
-    if w.date() < c.date():
+    # 2026-10-14: an instant already gone TODAY is not «already early» — it rings soon today (`notice_today`), the
+    # next full hour rather than five minutes, and that move is noted so the reply says the time it rings at.
+    if (c is None or w.date() < c.date()) and not (w <= now and w.date() == now.date()):
         return when
-    w -= _dt.timedelta(days=7)
+    if c is not None and w.date() >= c.date():
+        w -= _dt.timedelta(days=7)
     if w <= now:
-        return (now + _dt.timedelta(seconds=_PROMPT_S)).strftime("%Y-%m-%d %H:%M")
+        n_ts, c_ts = now.timestamp(), (c.timestamp() if c else None)
+        return _nt.stamp(_nt.moved(w.timestamp(), _nt.soon(n_ts, before=c_ts), n_ts))
     return w.strftime("%Y-%m-%d %H:%M")
+
+
+def commitment_moment(operator_text: str, window=None) -> str:
+    """When the commitment a notice announces happens («el jueves tengo que…» → Thursday 09:00), or ""."""
+    clause = commitment_from_window(window, operator_text) if window else commitment_clause(operator_text)
+    # A clause that is nothing but a date states no event, so there is nothing for the notice to precede
+    # (see `clause_is_only_a_date`). Passing it on would make `reminder_before` fire the notice at once.
+    return "" if clause_is_only_a_date(clause) else (_sched.parse_when(clause) or "")
 def resolved_reminder_moment(reply: str, operator_text: str = "", window=None) -> str:
     """The moment a promised notice belongs to, with the YEAR the conversation said for that day — or ""."""
     when = (promises_a_dated_reminder(reply, operator_text, window=window)
@@ -483,9 +498,7 @@ def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) ->
     except Exception:
         return {"schedule": when, "prompt": _reminder_prompt(reminder_body(clause, window, reply, when), operator_text),
                 "name": "aviso"}
-    # A clause that is nothing but a date states no event, so there is nothing for the notice to precede
-    # (see `clause_is_only_a_date`). Passing it on would make `reminder_before` fire the notice at once.
-    clause_when = "" if clause_is_only_a_date(clause) else (_sched.parse_when(clause) or "")
+    clause_when = commitment_moment(operator_text, window)
     when = reminder_before(when, clause_when)
     if not when:
         return None
@@ -558,6 +571,27 @@ _AGENT_IMPERATIVE_RE = _re.compile(
     r"^\s*(avisa|av[ií]same|recu[eé]rda|recuerdame|dime|d[ií]|notif[ií]|remind|tell|notify|let\s+me\s+know)",
     _re.I)
 def safe_reminder_schedule(schedule: str, reply: str, operator_text: str = "", window=None) -> str:
+    """WHEN the model tag's notice fires — as `_schedule_as_asked` reads it, and then BEFORE the commitment.
+
+    2026-10-14 (`remember-and-remind-deadline`, asked on the Wednesday itself at noon): the model wrote today 09:00,
+    the scheduler refused it as past, and the correction below answered «el miércoles» = NEXT Wednesday — after the
+    Thursday deadline. A one-off instant now passes through `reminder_before`, the backstop's own rule: never after
+    the commitment, and an hour already gone today rings soon today. Two limits keep V2-356's contract: the model's
+    OWN future instant stands (it may read the request better than a rule), and a commitment that resolves to today
+    («el jueves» said on a Thursday) is ambiguous, so it bounds nothing."""
+    spec = _schedule_as_asked(schedule, reply, operator_text, window)
+    if not _re.match(r"^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$", spec):
+        return spec
+    if spec == (schedule or "").strip() and _sched.parse_schedule(spec):
+        return spec
+    try:
+        until = commitment_moment(operator_text, window)
+        today = _time.strftime("%Y-%m-%d", _time.localtime(_time.time()))
+        return reminder_before(spec, until if until[:10] > today else "")
+    except Exception:  # noqa: BLE001 — the model's own instant still goes to the scheduler
+        _log.warning("reminder deadline check failed", exc_info=True)
+        return spec
+def _schedule_as_asked(schedule: str, reply: str, operator_text: str = "", window=None) -> str:
     """WHEN the model tag's notice fires — corrected if it says TODAY while the conversation requested another day.
 
     Sibling of `safe_reminder_prompt`, for the other field of the same tag and for the same reason: V2-214

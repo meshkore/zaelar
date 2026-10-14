@@ -22,7 +22,7 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
     import time as _t
     # An all-day item has no hour, and its notice is only ever an asked one (V2-781 T513): the item lasts the
     # whole day, so the «already over» check measures against its last minute.
-    said = start
+    said, asked = start, bool(at)
     at = at or ("" if start else f"{str(date)[:10]} 09:00")    # all-day: 09:00 that day (operator, 2026-10-10)
     start = start or ("23:59" if at else "")
     try:
@@ -36,6 +36,13 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
                               int(at[11:13]), int(at[14:16]), 0, 0, 1, -1))
         except Exception:  # noqa: BLE001
             return "", "instante del aviso ilegible"
+        if asked:
+            # An ASKED notice for today whose hour is gone rings soon today, never next week (2026-10-14),
+            # and never after the item it announces.
+            from nucleo import notice_today as _nt
+            when = _nt.ring_at(when, _t.time(), before=target)
+            if when > target:
+                return "", "el aviso caería después de la cita"
     else:
         when = target - before_minutes * 60
         if when <= _t.time() + 60 < target:

@@ -1157,12 +1157,15 @@ def derive(case: CD.UseCase) -> UseCaseScenario:
         turns=prof.turns,
         channel="probe",
         notice_on=NOTICE_ON.get(case.id, ""),
+        deadline_on=DEADLINE_ON.get(case.id, ""),
     )
 
 
 #: V2-781 T514 — the weekday each case's promised notice must ring on, for the twins derived here; the
 #: hand-written ES case carries the same value in `scenarios.py`, so both rounds of a pair meet the same gate.
 NOTICE_ON = {"remember-and-remind-deadline": "wednesday"}
+#: …and the weekday of the commitment it announces: a job on or after it never counts (2026-10-14).
+DEADLINE_ON = {"remember-and-remind-deadline": "thursday"}
 
 
 def derivable() -> list[CD.UseCase]:

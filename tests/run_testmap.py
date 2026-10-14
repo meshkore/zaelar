@@ -4379,6 +4379,16 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_exit_with_nothing_at_full_screen_says_so.py']},
         {"id": "2.718", "title": "The seeded video scenes hold what the sentence points at: a NEW link of the blocked channel, a player MAXIMIZED that the round un-maximizes as the desktop would (video-blocked-channel-respected, video-exit-fullscreen-unnamed)",
             "ch": UNIT, "paths": ['tests/use_cases/unit/test_the_seeded_scenes_measure_what_the_case_asks.py']},
+        {"id": "2.710", "title": "A notice asked for TODAY whose hour has already gone rings soon today — the next full hour at least 15 min ahead, 5 min when the deadline or midnight is closer — and the move is noted for the reply; a day already gone is not moved (remember-and-remind-deadline, 2026-10-14)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/test_a_notice_asked_for_today_after_its_hour_rings_soon_today.py']},
+        {"id": "2.711", "title": "The agenda's asked notice («apúntalo el jueves y avísame el miércoles», said on the Wednesday at noon) rings today at the next full hour, through add_meeting and set_reminder; never after the item, and a day gone is still refused (remember-and-remind-deadline EN)",
+            "ch": UNIT, "paths": ['tests/browser/unit/agenda/test_a_notice_asked_for_today_rings_today_not_next_week.py']},
+        {"id": "2.712", "title": "The model's cron.create notice never lands a week past the deadline nor in the past: today 09:00 at noon → 13:00 today, not next Wednesday, in both channels; the prose backstop says the same instant (remember-and-remind-deadline ES)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_models_notice_tag_never_jumps_past_the_deadline.py']},
+        {"id": "2.713", "title": "A notice moved to ring soon today is said at the time the LIVE job rings, read back from the schedule, once, in the session language and in both channels; nothing owed when the reply says it or no job exists (remember-and-remind-deadline)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_moved_notice_is_said_at_the_time_it_rings.py']},
+        {"id": "2.714", "title": "The notice_on gate never counts a job on or after the deadline it announces: said on the Wednesday, next week's Wednesday fails and today's passes (remember-and-remind-deadline ES + __us)",
+            "ch": UNIT, "paths": ['tests/use_cases/unit/test_the_notice_gate_never_counts_a_day_past_the_deadline.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

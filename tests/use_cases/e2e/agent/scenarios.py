@@ -79,6 +79,9 @@ class UseCaseScenario:
     # V2-781 T514 — the weekday a promised notice must ring on («recuérdamelo el miércoles»). Set, `gates.py`
     # FAILS the round when no scheduled job falls on that date, whatever the judge scored.
     notice_on: str = ""
+    # The weekday of the commitment that notice announces («el jueves tengo que…»): a job on or after it never
+    # counts for `notice_on` (2026-10-14 — asked on the Wednesday itself, next week's rang after the deadline).
+    deadline_on: str = ""
 
 
 SCENARIOS: list[UseCaseScenario] = [
@@ -527,6 +530,7 @@ SCENARIOS: list[UseCaseScenario] = [
         locale="es",
         tier=1,
         notice_on="wednesday",
+        deadline_on="thursday",
         opening_line=(
             "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles."
         ),

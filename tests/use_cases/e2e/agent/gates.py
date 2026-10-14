@@ -7,6 +7,7 @@ itself in the findings (`gate: <name>`), so a reader sees which number came from
 
   · `notice_on` — the case names the weekday its notice must ring on; no scheduled job on that date ⇒
     resultado/mecanismo/overall ≤ 2, whatever the judge scored.
+    With `deadline_on` («el jueves tengo que…»), a day on or after that deadline never counts.
   · `reply_language` — a zaelar line clearly in the other language ⇒ naturalidad ≤ 2, overall ≤ 3.
 """
 from __future__ import annotations
@@ -66,6 +67,10 @@ def _notice_gate(scenario, run: dict, verdict: dict) -> dict | None:
     # Said ON that weekday («recuérdamelo el miércoles» on a Wednesday at 00:30, deadline Thursday), today is the
     # natural reading as well as next week's: a job ringing later today counts (measured 2026-10-14).
     days = (day, ref.isoformat()) if day and _WEEKDAYS[weekday.strip().lower()] == ref.weekday() else (day,)
+    # …but never a day ON or AFTER the deadline the notice announces (2026-10-14): asked on the Wednesday itself,
+    # next week's Wednesday rings six days after Thursday's renewal — that is the defect, not a reading of it.
+    if (until := getattr(scenario, "deadline_on", "") or "") and day:
+        days = tuple(d for d in days if d < notice_day(until, ref)) or ("-",)
     jobs = ((run.get("mechanism_report") or {}).get("scheduled_jobs") or {}).get("created") or []
     rings = [j for j in jobs if str(j.get("schedule") or "").startswith(days)]
     out = {"day": day, "jobs": [str(j.get("schedule")) for j in jobs], "ok": bool(rings)}
