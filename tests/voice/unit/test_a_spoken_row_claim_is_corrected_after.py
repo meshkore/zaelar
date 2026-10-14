@@ -57,3 +57,23 @@ def test_the_settle_chain_says_it_after_the_streamed_words():
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
              and n.func.attr == "said_after" and getattr(n.func.value, "id", "") == "_pst_rc"]
     assert calls, "post_stream_settle no longer says the row-claims correction"
+
+
+def test_a_name_he_said_a_turn_ago_backs_the_spoken_answer(monkeypatch):
+    """Demo pass 124 (2026-10-14), M2: «how's apple stock doing today» then «what about the last month» — the
+    answer «Over the last month Apple is at 342.08 USD, up 2.70%.» got «Correction: I don't have that candidate on the
+    sheet…» after it, inside a shortlist context (the monitors errand had just ended). The voice read only this turn's
+    words; the conversation names Apple, as the text channel's `guard` already saw."""
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
+    _sources(monkeypatch)
+    sent = []
+    spoken = "Over the last month Apple is at 342.08 USD, up 2.70%."
+    window = [{"role": "user", "content": "how's apple stock doing today, show me the chart"},
+              {"role": "assistant", "content": "Here's Apple's chart for today."}]
+    assert R.said_after(spoken, sent.append, _Speech, "what about the last month", window) == spoken and not sent
+    assert R.said_after(spoken, [].append, _Speech, "what about the last month") != spoken, "the case reproduces"
+
+
+def test_the_settle_chain_hands_the_conversation_to_the_correction():
+    src = (ENGINE / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
+    assert 'operator_text or text, list(getattr(brain, "_window", None) or []))' in src

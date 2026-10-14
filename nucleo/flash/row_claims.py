@@ -191,10 +191,14 @@ def guard(reply: str, window=None, heard: str = "") -> str:
         return reply
 
 
-def said_after(spoken: str, send, speech, heard: str = "") -> str:
-    """Voice: the words streamed, so the correction is said after them. Returns what the turn said in total."""
+def said_after(spoken: str, send, speech, heard: str = "", window=None) -> str:
+    """Voice: the words streamed, so the correction is said after them. Returns what the turn said in total.
+
+    `window` is the conversation, as the text channel's `guard` gets it (demo pass 124, M2: «how's apple stock doing
+    today» then «what about the last month» → «Apple is at 342.08 USD…» was cut as an unbacked candidate, because
+    the voice read only this turn's words and «apple» was in the one before)."""
     try:
-        r = review(str(spoken or ""), None, heard)
+        r = review(str(spoken or ""), window, heard)
         lines = list(dict.fromkeys(r["lines"]))
         if not lines and any(c["why"] == "candidate" for c in r["cut"]):
             from i18n import langs as _lg

@@ -157,7 +157,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         if (_tr_line := await _pst_tr.voice_owed_settled(spoken_text)):
             send(speech.sanitize(_tr_line, drop_metadata=False))
             spoken_text = (spoken_text + " " + _tr_line).strip()
-    spoken_text = await _pst_bcr.said_after(_pst_rc.said_after(_pst_up.said_after(spoken_text, send, speech), send, speech, operator_text or text), send, speech)   # AI check · row claims · a blocked channel's link (V2-604)
+    spoken_text = await _pst_bcr.said_after(_pst_rc.said_after(_pst_up.said_after(spoken_text, send, speech), send, speech, operator_text or text, list(getattr(brain, "_window", None) or [])), send, speech)   # AI check · row claims · a blocked channel's link (V2-604)
 
     # Regla de usuario fijada/retirada SIN frase hablada → ack corto (V2-046 A1, visto en el probe: la
     # RETIRADA dejaba el turno MUDO). Nunca mudo al aceptar/quitar una regla.

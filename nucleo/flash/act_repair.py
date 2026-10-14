@@ -108,13 +108,10 @@ TAILS = {"asked_which": "data_ack_went_with", "asked": "data_ack_went_ahead", "d
 def words_shape(spoken: str) -> str:
     """"asked_which" (a missing detail), "asked" (any other question), "denied", or "" — the key of `TAILS`."""
     s = spoken or ""
+    from nucleo.flash import clarifying as _cl, reply_promise as _rp
     if "?" in s:
-        from nucleo.flash import clarifying as _cl
         return "asked_which" if _cl.asks_for_missing_detail(s) else "asked"
-    from nucleo.flash import reply_promise as _rp
-    if _rp.waits_for_go_ahead(s):                     # «say the word and I'll send it» asks without a «?» (pass 124)
-        return "asked"
-    return "denied" if denies_the_act(s) else ""
+    return "asked" if _rp.waits_for_go_ahead(s) else ("denied" if denies_the_act(s) else "")   # «say the word…» (p124)
 
 
 def _tail(shape: str) -> str:
