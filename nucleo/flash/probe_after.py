@@ -13,6 +13,7 @@ from __future__ import annotations
 from nucleo.flash import probe as _probe
 from nucleo.flash import reminder_backing as _rback   # a claimed reminder is checked, both channels
 from nucleo.workers import quota_wait as _qwait   # the worker chain asleep: what an escalation turn may say
+from nucleo.flash.delivery_repeat import wants_words as _ww   # a question without «?» is in the brief (2.604)
 
 
 async def _escalated_with_its_data_ops(task_ids: list, tool_calls: list, text: str, brief) -> dict:
@@ -307,10 +308,9 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
                 # V2-469 — but «Hecho.» to a QUESTION is a non-answer: when the operator asked something
                 # and the model went mute over the op, the ack enumerates what the widget now holds.
                 if action == "widget_data" and isinstance(return_extra_exec, dict):
-                    from .delivery_repeat import wants_words as _ww   # a question without «?» (2026-10-14)
-                    _asked = _ww(brief)
-                    spoken = (await _probe._widget_data_turn.answer_in_words(return_extra_exec, text, spec, asked=_asked)
-                              or _probe._widget_data_turn.named_ack(return_extra_exec, _lg.data_ack, text, asked=_asked))
+                    _ask = {"asked": True} if _ww(brief) else {}
+                    spoken = (await _probe._widget_data_turn.answer_in_words(return_extra_exec, text, spec, **_ask)
+                              or _probe._widget_data_turn.named_ack(return_extra_exec, _lg.data_ack, text, **_ask))
                 else:
                     spoken = _lg.data_ack
             elif action == "canvas:show:imagenes" and images_req:

@@ -48,6 +48,21 @@ def test_the_probe_reads_the_brief_for_both_acks():
     import inspect
     from nucleo.flash import probe_after
     src = inspect.getsource(probe_after.the_words_it_owes)
-    assert "answer_in_words(return_extra_exec, text, spec, asked=_asked)" in src
-    assert "named_ack(return_extra_exec, _lg.data_ack, text, asked=_asked)" in src
-    assert "_ww(brief)" in src
+    assert "answer_in_words(return_extra_exec, text, spec, **_ask)" in src
+    assert "named_ack(return_extra_exec, _lg.data_ack, text, **_ask)" in src
+    assert '{"asked": True} if _ww(brief)' in src
+
+
+def test_the_probes_owed_words_answer_the_measured_turn():
+    import asyncio
+    from nucleo.flash import probe_after
+
+    class _Sess:
+        window, last_action = [], ""
+
+    def _owed(brief):
+        return asyncio.run(probe_after.the_words_it_owes(
+            _hw=False, _parts=None, _show_chose=False, action="widget_data", images_req=None, return_extra_exec=_OK,
+            sess=_Sess(), spoken="", tags=[], text=HEARD, video_req=None, brief=brief))["spoken"]
+    assert "Ace Plumbing" in _owed(_brief("tell"))
+    assert "Ace Plumbing" not in _owed(_brief("act")), "an order without a question keeps its plain ack"
