@@ -163,6 +163,13 @@ below is the first kind, or it names the mechanism that replaced the second.
   left by a previous boot is judged once from it (`met`) or closed as interrupted, silently (2026-10-01). — since
   2026-09-30 · nodes 2.194, 2.196, 2.198, 3.105, 3.106, 3.113 · `nucleo/request_row.py`, `nucleo/circuit.py`,
   `nucleo/spec.py`, `nucleo/tasks.py`.
+- **CRIT-E13 · A worker's request is never his click.** On a self-hosted engine every mutation is the operator's
+  unless it is a named worker door (`/api/worker/*`, the agent report, the browser bridge, memory with the per-task
+  token, search); it is admitted for his screen's per-boot HttpOnly cookie or a process the engine did not spawn,
+  and refused for a worker (engine ancestry, a remembered worker session, worker env), the engine itself or a
+  socket nobody here owns. The CSRF/rebinding rules of CRIT-E11 also cover mutations outside `/api/`. — since
+  2026-10-14 · nodes 2.620, 2.621, 2.622, 2.623, 2.624 · `server/operator_gate.py`, `server/peer_process.py`,
+  `server/ui_session.py`, `nucleo/workers/spawned.py`.
 - **CRIT-E12 · What a stranger wrote is data, and it cannot send on its own.** Every body of a mail, a chat or an
   agent's answer reaches the model fenced (⟦ ⟧, unforgeable); with such text in the context, an act that leaves runs
   without a question only when the verdict surely names that send — both channels. — since 2026-10-02 · nodes 2.205 ·

@@ -310,6 +310,35 @@ A request without `Origin` (a CLI, the daemon, the WhatsApp bridge, the engine c
 another site and passes the origin rule; the host and peer rules still apply. Starlette's in-process `TestClient`
 pair (peer «testclient», Host «testserver») is accepted: a real socket always has an IP for a peer. Node 7.62.
 
+## A worker's request is never his click (`server/operator_gate.py`, 2026-10-14)
+
+A background worker is a CLI session with Bash on the operator's own machine. To the HTTP layer its `curl` is a
+loopback peer like his browser, with any headers it likes, and `POST /widgets/{id}/action` records whatever reaches
+it as HIS click — skipping `/api/worker/act` and its consent gate. The same held for every other mutation his screen
+makes (messaging, cluster send, contacts, agenda, settings, credentials, the vault, `/api/flash/say`). A prompt line
+was the only fence. Now, on a self-hosted engine:
+
+| Caller | Mutation on an operator route |
+|---|---|
+| His page holding the UI cookie (`zaelar_ui`: per boot, memory only, HttpOnly, SameSite=Strict) | admitted, fast path |
+| A process on this machine the engine did not spawn (his browser before the cookie, his terminal, the test harness) | admitted, and minted the cookie |
+| A worker — the engine is its ancestor, it lives in a session a worker opened (`nucleo/workers/spawned.py`, catches orphans), or it carries `ZAELAR_WORKER`/`ZAELAR_TASK_*` | refused (403 `worker_is_not_the_operator`) |
+| The engine itself, or a socket no local process owns | refused; a remote caller with `ZAELAR_API_TOKEN` is admitted |
+
+Every mutating route is an operator route unless it is a named worker door (`/api/worker/*`, `/api/agent/report`,
+`/api/navegador/act`, `/api/memory/recall|remember`, `/api/search/*`) — default-deny, pinned against the assembled
+app. The shells (`GET /`, `GET /m`) mint the cookie under the same rule, so no frontend code knows about it; after a
+restart the old cookie stops matching and his next click re-mints it. The agent's own Chromium is an engine
+descendant, so a page it loads cannot click his screen either. `api_guard`'s CSRF/rebinding rules now also cover
+mutations outside `/api/` (`/widgets/*`, `/config`, `/reset`, `/user`).
+
+Peer attribution (`server/peer_process.py`) finds the client end of the connection among this user's processes
+(~15 ms on a busy Mac, off the event loop, only when no valid cookie is presented). Limits: a process that calls
+`setsid()` itself after scrubbing its environment and orphaning itself is no longer recognisable — deliberate
+evasion with a language runtime, not a `curl`; a browser cookie store on disk is readable by a worker on platforms
+that do not encrypt it. Skipped on a cloud account process, where the account session is the admission. Nodes
+2.620-2.624.
+
 ## What a stranger wrote (`nucleo/untrusted.py`, `nucleo/flash/leave_gate.py`, V2-778 F4-32/33, 2026-10-02)
 
 The cluster channel fenced a peer's message since July; everything else a stranger writes reached the turn bare —
