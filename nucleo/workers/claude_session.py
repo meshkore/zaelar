@@ -668,3 +668,7 @@ def _result_text(content) -> str:
         return " ".join(p for p in parts if p)[:1500]
 
 
+
+
+#: Public name for the widget generator, which strips the same host routing (widgets/generator.py).
+without_host_routing = _without_host_routing

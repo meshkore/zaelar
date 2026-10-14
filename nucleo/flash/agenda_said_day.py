@@ -44,7 +44,7 @@ _ONE_OCCURRENCE_RE = re.compile(
 
 
 def _weekdays() -> dict[str, int]:
-    from widgets.agenda.when import _WEEKDAYS, _strip_accents
+    from widgets.agenda.when import WEEKDAYS as _WEEKDAYS, strip_accents as _strip_accents
     return {_strip_accents(k): v for k, v in _WEEKDAYS.items()}
 
 
@@ -97,7 +97,7 @@ def _occurrence(payload: dict, said: str, today: _dt.date) -> str:
             if _WEEK_AHEAD_RE.search(said):
                 day = today + _dt.timedelta(days=7 - today.weekday() + wd)
             return day.isoformat()
-    from widgets.agenda.when import _calendar_date
+    from widgets.agenda.when import calendar_date as _calendar_date
     if (named := _calendar_date(said)) and named != (dest.isoformat() if dest else ""):
         return named
     from widgets import store as _store

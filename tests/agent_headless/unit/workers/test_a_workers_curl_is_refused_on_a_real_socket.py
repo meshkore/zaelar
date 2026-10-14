@@ -101,18 +101,22 @@ def engine(tmp_path_factory):
     proc = subprocess.Popen([sys.executable, str(d / "gate_engine.py"), str(port), str(d / "client.py")],
                             cwd=str(ENGINE), env=env)
     base = f"http://127.0.0.1:{port}"
-    up = False
-    for _ in range(300):
+    def _up():
         if proc.poll() is not None:
-            break
+            return "exited"
         try:
             urllib.request.urlopen(base + "/healthz-none", timeout=1)
         except urllib.error.HTTPError:
-            up = True
-            break
+            return "up"
         except OSError:
-            time.sleep(0.1)
-    if not up:
+            return ""
+        return "up"
+    from tests.waiting import until_sync
+    try:
+        state = until_sync(_up, "the gate's test server answering", timeout_s=30)
+    except AssertionError:
+        state = ""
+    if state != "up":
         proc.kill()
         pytest.fail("the gate's test server never came up")
     yield base, d

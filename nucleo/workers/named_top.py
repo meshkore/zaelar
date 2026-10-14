@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 
 from search.asked import norm as _norm
-from search.criteria import _NUMBER_WORDS
+from search.criteria import NUMBER_WORDS as _NUMBER_WORDS
 
 _MAX = 5
 _DEFAULT = 3

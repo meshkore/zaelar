@@ -30,11 +30,9 @@ def _orphan(tmp_path, *, new_session: bool, env: dict | None = None) -> tuple[in
     leader = subprocess.Popen(["/bin/sh", "-c", cmd], start_new_session=new_session,
                               env={**os.environ, **(env or {})})
     leader.wait(timeout=10)
-    for _ in range(200):
-        if pidfile.exists() and pidfile.read_text().strip():
-            return leader.pid, int(pidfile.read_text())
-        time.sleep(0.02)
-    raise AssertionError("the sleeper never started")
+    from tests.waiting import until_sync
+    until_sync(lambda: pidfile.exists() and pidfile.read_text().strip(), "the sleeper writing its pid", timeout_s=4)
+    return leader.pid, int(pidfile.read_text())
 
 
 def _kill(pid):

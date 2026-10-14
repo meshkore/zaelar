@@ -46,12 +46,11 @@ def find_pid(peer_ip: str, peer_port: int, server_port: int) -> int | None:
     if peer is None or not peer_port or not server_port:
         return None
     try:                                    # Linux/Windows: one call; macOS needs root for it → per-process scan
-        for c in psutil.net_connections(kind="tcp"):
-            if c.pid and _is_client_end(c, peer, peer_port, server_port):
-                return c.pid
-        return None
+        conns = psutil.net_connections(kind="tcp")
     except psutil.AccessDenied:
-        pass
+        conns = None                        # the per-process scan below is the macOS road, not a failure
+    if conns is not None:
+        return next((c.pid for c in conns if c.pid and _is_client_end(c, peer, peer_port, server_port)), None)
     uid = os.getuid() if hasattr(os, "getuid") else None
     for p in psutil.process_iter():
         try:

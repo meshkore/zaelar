@@ -106,3 +106,7 @@ def for_request(request: str, **kw) -> dict:
     out["fields"] = fields(request)
     out["hard"] = hard_criteria(request)
     return out
+
+
+#: Public name for readers outside the search package (nucleo/workers/named_top.py).
+NUMBER_WORDS = _NUMBER_WORDS

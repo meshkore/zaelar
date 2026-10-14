@@ -125,3 +125,9 @@ def _resolve_time(raw: str, default: str = "17:00") -> str:
             h += 12
         return f"{h % 24:02d}:00"
     return default
+
+
+# Public names for readers outside the widget (nucleo/flash/agenda_said_day.py).
+WEEKDAYS = _WEEKDAYS
+calendar_date = _calendar_date
+strip_accents = _strip_accents

@@ -92,12 +92,20 @@ async def _kind(request) -> str:
         return peer_process.UNKNOWN
 
 
+def _routed(request) -> bool:
+    """Does any mounted route take this request? (a deliberate non-nucleo brain mounts no /api/flash/*)."""
+    from starlette.routing import Match
+    return any(r.matches(request.scope)[0] != Match.NONE for r in request.app.router.routes)
+
+
 def install(app) -> None:
     """Mount the gate. Installed between ingress and `api_guard`, so the origin/host checks still run first."""
     @app.middleware("http")
     async def _operator_gate(request, call_next):
         path, method = request.url.path, request.method.upper()
         if not (method == "GET" and path in SHELLS) and not is_operator_route(path, method):
+            return await call_next(request)
+        if not _routed(request):                  # no such route: the router's own 404, not a 403 that says it exists
             return await call_next(request)
         peer = (request.client.host if request.client else "") or ""
         cloud = _cloud()
