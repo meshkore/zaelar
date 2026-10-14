@@ -77,3 +77,21 @@ def test_a_name_he_said_a_turn_ago_backs_the_spoken_answer(monkeypatch):
 def test_the_settle_chain_hands_the_conversation_to_the_correction():
     src = (ENGINE / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
     assert 'operator_text or text, list(getattr(brain, "_window", None) or []))' in src
+
+
+def test_what_the_card_answered_backs_the_words_built_on_it(monkeypatch):
+    """Demo pass 125 (2026-10-14), M3: «and the nasdaq, over the whole year» → «The NASDAQ Composite is at 26,676.49
+    USD…» then «Correction: I don't have that candidate…». «Composite» was in the markets card's own answer — the
+    data-op's return is a source, like a web search's."""
+    from nucleo.flash import data_ops
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
+    monkeypatch.setattr(B, "rows", lambda: [])
+    monkeypatch.setattr(B, "goals", lambda: "")
+    monkeypatch.setattr(B, "in_errand", lambda: True)
+    monkeypatch.setattr(data_ops, "_LAST_ANSWER", {"at": 0.0, "text": ""})
+    spoken = "The NASDAQ Composite is at 26,676.49 USD, up 17.62% over the past year."
+    heard = "and the nasdaq, over the whole year"
+    assert R.said_after(spoken, [].append, _Speech, heard) != spoken, "the case reproduces without the card's answer"
+    data_ops.answer_of({"ok": True, "result": {"symbol": "^IXIC", "name": "NASDAQ Composite", "price": 26676.49}})
+    sent = []
+    assert R.said_after(spoken, sent.append, _Speech, heard) == spoken and not sent

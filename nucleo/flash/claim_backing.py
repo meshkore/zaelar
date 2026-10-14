@@ -97,6 +97,8 @@ def texts(window=None, heard: str = "") -> list[str]:
     try:
         from nucleo.flash import amount_gate as _ag
         out.append(_ag.search_backing())
+        from nucleo.flash import data_ops as _dops
+        out.append(_dops.answer_backing())            # what a card answered this turn (p125 M3)
         from nucleo import dispatch as _disp
         for t in _disp.pending_summaries() or []:
             out.append(" ".join(str((t or {}).get(k) or "") for k in ("phase", "note")))
