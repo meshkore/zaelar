@@ -1,0 +1,59 @@
+{
+ "title": "Vuelos Madrid-Roma fin de semana 13 nov 2026",
+ "items": [
+  {
+   "title": "Buscar vuelos de Logroño (RJL) a…",
+   "price": "88 €"
+  },
+  {
+   "title": "Buscar vuelos de Madrid (MAD) a…",
+   "price": "49 €"
+  },
+  {
+   "title": "Buscar vuelos de Barcelona (BCN)…",
+   "price": "32 €"
+  },
+  {
+   "title": "Buscar vuelos de Palma (PMI) a…",
+   "price": "85 €"
+  }
+ ],
+ "extracted": [
+  {
+   "title": "Buscar vuelos de Logroño (RJL) a Madrid (MAD) desde 88 €. Operado por Iberia. De 5 nov a ",
+   "price": "88 €"
+  },
+  {
+   "title": "Buscar vuelos de Madrid (MAD) a Lisboa (LIS) desde 49 €. Operado por Ryanair. De 10 dic a",
+   "price": "49 €"
+  },
+  {
+   "title": "Buscar vuelos de Madrid (MAD) a Nueva York (JFK) desde 363 €. Operado por Iberia. De 11 e",
+   "price": "363 €"
+  },
+  {
+   "title": "Buscar vuelos de Madrid (MAD) a Barcelona (BCN) desde 81 €. Operado por Vueling. De 20 di",
+   "price": "81 €"
+  },
+  {
+   "title": "Buscar vuelos de Barcelona (BCN) a Palma (PMI) desde 32 €. Operado por Vueling. De 7 ene ",
+   "price": "32 €"
+  },
+  {
+   "title": "Buscar vuelos de Barcelona (BCN) a Lisboa (LIS) desde 42 €. Operado por Ryanair. De 12 di",
+   "price": "42 €"
+  },
+  {
+   "title": "Buscar vuelos de Barcelona (BCN) a Eivissa (IBZ) desde 32 €. Operado por Vueling. De 17 d",
+   "price": "32 €"
+  },
+  {
+   "title": "Buscar vuelos de Palma (PMI) a Eivissa (IBZ) desde 85 €. Operado por Iberia. De 15 nov a ",
+   "price": "85 €"
+  },
+  {
+   "title": "Buscar vuelos de Palma (PMI) a Mánchester (MAN) desde 60 €. Operado por easyJet. De 24 oc",
+   "price": "60 €"
+  }
+ ]
+}

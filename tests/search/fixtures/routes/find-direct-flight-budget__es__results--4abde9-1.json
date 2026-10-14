@@ -1,0 +1,168 @@
+{
+ "title": "Madrid - Roma | 13-15 nov 2026",
+ "criteria": {
+  "hard": [
+   "Madrid (MAD) a Roma (FCO o CIA)",
+   "Salida viernes 13 de noviembre de 2026",
+   "Regreso domingo 15 de noviembre de 2026",
+   "Vuelos directos, sin escalas",
+   "El precio mas barato posible"
+  ]
+ },
+ "items": [
+  {
+   "title": "Ryanair 110 EUR",
+   "subtitle": "Ida 13 nov 21:55 MAD (FR9602) y vuelta 15 nov 06:25 FCO (FR2437)",
+   "price": "110 EUR",
+   "badge": "Mas barata",
+   "url": "https://www.ryanair.com/es/es/trip/flights/select?adults=1&dateOut=2026-11-13&dateIn=2026-11-15&isReturn=true&originIata=MAD&destinationIata=FCO",
+   "facts": [
+    {
+     "label": "Madrid a Roma",
+     "value": "yes - Google Vuelos y Ryanair, ruta MAD-FCO"
+    },
+    {
+     "label": "Salida 13 nov 2026",
+     "value": "yes - ida viernes 13 nov a las 21:55 desde MAD"
+    },
+    {
+     "label": "Regreso 15 nov 2026",
+     "value": "yes - vuelta domingo 15 nov a las 06:25 desde FCO"
+    },
+    {
+     "label": "Sin escalas",
+     "value": "? - no pude leer el detalle entero en Google Vuelos"
+    },
+    {
+     "label": "Lo mas barato",
+     "value": "yes - 110 EUR es el minimo de toda la busqueda"
+    },
+    {
+     "label": "Equipaje",
+     "value": "Tarifa Basic: solo bolsa pequena, sin bodega"
+    }
+   ]
+  },
+  {
+   "title": "Opcion 122 EUR",
+   "subtitle": "Ida el 13 nov a las 08:55 desde MAD",
+   "price": "122 EUR",
+   "url": "https://www.google.com/travel/flights/search?tfs=CBwQAhojEgoyMDI2LTExLTEzagcIARIDTUFEcgwIAxIIL20vMDZjNjIaIxIKMjAyNi0xMS0xNWoMCAMSCC9tLzA2YzYycgcIARIDTUFEQAFIAXABggELCP___________wGYAQE&hl=es&curr=EUR",
+   "facts": [
+    {
+     "label": "Madrid a Roma",
+     "value": "yes - resultados de Google Vuelos"
+    },
+    {
+     "label": "Salida 13 nov 2026",
+     "value": "yes - ida viernes 13 nov a las 08:55 desde MAD"
+    },
+    {
+     "label": "Regreso 15 nov 2026",
+     "value": "? - el listado no deja leer la hora de vuelta"
+    },
+    {
+     "label": "Sin escalas",
+     "value": "? - no pude leer el detalle entero"
+    },
+    {
+     "label": "Lo mas barato",
+     "value": "no - 12 EUR por encima de la mas barata"
+    }
+   ]
+  },
+  {
+   "title": "Opcion 128 EUR",
+   "subtitle": "Ida el 13 nov a las 10:25 desde MAD",
+   "price": "128 EUR",
+   "url": "https://www.google.com/travel/flights/search?tfs=CBwQAhojEgoyMDI2LTExLTEzagcIARIDTUFEcgwIAxIIL20vMDZjNjIaIxIKMjAyNi0xMS0xNWoMCAMSCC9tLzA2YzYycgcIARIDTUFEQAFIAXABggELCP___________wGYAQE&hl=es&curr=EUR",
+   "facts": [
+    {
+     "label": "Madrid a Roma",
+     "value": "yes - resultados de Google Vuelos"
+    },
+    {
+     "label": "Salida 13 nov 2026",
+     "value": "yes - ida viernes 13 nov a las 10:25 desde MAD"
+    },
+    {
+     "label": "Regreso 15 nov 2026",
+     "value": "? - el listado no deja leer la hora de vuelta"
+    },
+    {
+     "label": "Sin escalas",
+     "value": "? - no pude leer el detalle entero"
+    },
+    {
+     "label": "Lo mas barato",
+     "value": "no - 18 EUR por encima de la mas barata"
+    }
+   ]
+  },
+  {
+   "title": "Opcion 136 EUR",
+   "subtitle": "Ida el 13 nov a las 05:55 o a las 20:40 desde MAD",
+   "price": "136 EUR",
+   "url": "https://www.google.com/travel/flights/search?tfs=CBwQAhojEgoyMDI2LTExLTEzagcIARIDTUFEcgwIAxIIL20vMDZjNjIaIxIKMjAyNi0xMS0xNWoMCAMSCC9tLzA2YzYycgcIARIDTUFEQAFIAXABggELCP___________wGYAQE&hl=es&curr=EUR",
+   "facts": [
+    {
+     "label": "Madrid a Roma",
+     "value": "yes - resultados de Google Vuelos"
+    },
+    {
+     "label": "Salida 13 nov 2026",
+     "value": "yes - ida viernes 13 nov a las 05:55 o 20:40"
+    },
+    {
+     "label": "Regreso 15 nov 2026",
+     "value": "? - el listado no deja leer la hora de vuelta"
+    },
+    {
+     "label": "Sin escalas",
+     "value": "? - no pude leer el detalle entero"
+    },
+    {
+     "label": "Lo mas barato",
+     "value": "no - 26 EUR por encima de la mas barata"
+    }
+   ]
+  },
+  {
+   "title": "Donde mire",
+   "subtitle": "Skyscanner bloqueo con captcha; Google Vuelos y Ryanair si dieron…",
+   "price": "-",
+   "badge": "Fuentes",
+   "url": "https://www.google.com/travel/flights",
+   "facts": [
+    {
+     "label": "Skyscanner",
+     "value": "captcha anti-robot, no se pudo buscar"
+    },
+    {
+     "label": "Google Vuelos",
+     "value": "precios reales: 110, 122, 128, 136, 144 y 146 EUR"
+    },
+    {
+     "label": "Ryanair oficial",
+     "value": "ida desde 28,23 EUR y vuelta desde 81,74 EUR"
+    },
+    {
+     "label": "Historial",
+     "value": "este viaje estuvo entre 58 y 67 EUR hace 1-2 meses"
+    },
+    {
+     "label": "Madrid (MAD) a Roma (FCO o CIA)",
+     "value": "?"
+    },
+    {
+     "label": "Salida viernes 13 de noviembre de 2026",
+     "value": "?"
+    },
+    {
+     "label": "El precio mas barato posible",
+     "value": "?"
+    }
+   ]
+  }
+ ]
+}

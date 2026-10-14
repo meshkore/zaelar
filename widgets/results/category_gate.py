@@ -12,6 +12,7 @@ sheet by whoever opened it for him (`listing_turn`) and grown by every correctio
 from __future__ import annotations
 
 from search import category as _category
+from search import route_fit as _route
 
 _MAX_ASKED = 900
 _DEFAULT_TITLES = frozenset(("resultados", "results", "sin resultados", ""))
@@ -60,7 +61,8 @@ def _file(data: dict, off: list[dict]) -> None:
 
 def gate(data: dict, items: list[dict], payload: dict) -> tuple[list[dict], dict]:
     """(rows that are candidates, extra for the action's reply). Off rows are filed in `data["rejected"]`."""
-    on, off = _category.split(items, _own(data, payload), _context(data, payload))
+    own, ctx = _own(data, payload), _context(data, payload)
+    on, off = _route.split(*_category.split(items, own, ctx), own, ctx, raw_items=payload.get("items"))
     if not off:
         return on, {}
     _file(data, off)
@@ -80,7 +82,8 @@ def recheck(sheet: str, correction: str) -> int:
     text = " ".join(str(correction or "").split())
     if text:
         data["asked"] = (str(data.get("asked") or "") + " " + text).strip()[-_MAX_ASKED:]
-    on, off = _category.split(data.get("items") or [], _own(data, {}), _context(data, {}))
+    own, ctx = _own(data, {}), _context(data, {})
+    on, off = _route.split(*_category.split(data.get("items") or [], own, ctx), own, ctx)
     if off:
         data["items"] = on
         _file(data, off)

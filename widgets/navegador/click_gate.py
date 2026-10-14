@@ -285,6 +285,10 @@ async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> 
         if not ask:
             return True, ""
     label = str((sig or {}).get("name") or "").strip() or "esta acción"
+    from widgets.navegador.buy_held import held as _held    # he asked ABOUT a row: the worker reads it, he is not asked
+    held = _held(task_id, why)
+    if held:
+        return False, held
     # The REASON rides on the trace: the operator hears only the label, and on 2026-09-30 a Newegg search box
     # asked for an OK with nothing anywhere saying which rule fired — the page was behind Cloudflare and could
     # not be read back afterwards.
