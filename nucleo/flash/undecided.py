@@ -70,6 +70,18 @@ def sure_order(brief, widget_id: str, action: str) -> bool:
         return False
 
 
+def a_question_holds(brief, words: str) -> bool:
+    """Does the reply's question hold the turn's act for him? Only while the verdict is NOT sure of the order and its
+    action (`sure_order`, the operator's 70%). The one test both channels' promise repair asks before it runs (live
+    bench E3, 2026-10-15: «…what should the message say exactly?» over order 1.00 and `forward` 0.75 — the repair
+    never ran and nothing was sent). A question with no verdict, or an unsure one, holds as it always did."""
+    from nucleo.flash import clarifying as _cl, direct_action as _da
+    if not _cl.asks_for_missing_detail(words or ""):
+        return False
+    wid, action = _da.from_brief(brief)
+    return not (wid and action and sure_order(brief, wid, action))
+
+
 def stops_the_rung(brief, widget_id: str, action: str, *, operator_text: str = "", model_words: str = "") -> bool:
     """`why`, with its observability line: True when the verdict rung must leave this turn alone."""
     reason = why(brief, widget_id, action, operator_text=operator_text, model_words=model_words)

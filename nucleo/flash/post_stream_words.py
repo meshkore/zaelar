@@ -216,7 +216,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
     # prompt); the door only needs a card the turn names (`named_or_catalogue` below, "" = no pass).
     _named_by_verdict = ""     # the card the verdict (brief or late catalogue) names for this order, if any
     if (_no_tool and spoken_text and not clarify["msg"]
-            and not _sbe.holds_the_repair(spoken_text, _op_text)):
+            and not _sbe.holds_the_repair(spoken_text, _op_text, _brief)):
         from nucleo.flash import act_repair as _act_repair, build_decision as _bd_ar
         from nucleo.flash import card_commission as _cardc_ar
         _ar_wid = _cardc_ar.named_or_catalogue(_brief, _op_text)   # V2-773: a closed card while others are open

@@ -68,7 +68,7 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
             _ar = None
             from . import direct_action as _da_probe
             # full44 M1 — mirror of the voice door: the repair judges its own reply, the door needs no wording table
-            if not _routerc.asks_for_missing_detail(spoken):
+            if not __import__("nucleo.flash.undecided", fromlist=["x"]).a_question_holds(_tbrief, spoken):   # the 70%
                 # V2-764 — mirror of the voice repair (`act_repair`), gated like it on the verdict too (V2-770).
                 from . import act_repair as _act_repair, card_commission as _cardc_probe
                 _ar_wid = _cardc_probe.named_or_catalogue(_tbrief, operator_text)

@@ -117,3 +117,26 @@ def test_a_question_the_verdict_is_sure_enough_to_answer_does_not_hold_the_order
     remark = _brief("mensajeria:forward", 0.9, canvas="neither", canvas_conf=1.0, open_ids=["mensajeria"])
     remark["result"]["request_type"] = {"choice": "question", "confidence": 0.95}
     assert undecided.why(remark, "mensajeria", "forward", operator_text="did andrew get it?", model_words=asked) == "asked"
+
+
+def test_both_channels_let_a_sure_order_repair_over_a_question(screen):
+    """Live bench E3 (2026-10-15): «…what should the message say exactly?» over order 1.00 and `forward` 0.75 — the
+    promise repair of BOTH channels stood down on any question, and nothing was sent. The question holds the repair
+    only under the operator's bar (`undecided.a_question_holds`)."""
+    from nucleo.flash import undecided
+    screen["open"] = ["mensajeria"]
+    asked = "I can send Andrew an email, but before I do — what should the message say exactly?"
+    sure = _brief("mensajeria:forward", 0.75, canvas="neither", canvas_conf=1.0, open_ids=["mensajeria"])
+    sure["result"]["request_type"] = {"choice": "order", "confidence": 1.0}
+    unsure = _brief("mensajeria:forward", 0.55, canvas="neither", canvas_conf=1.0, open_ids=["mensajeria"])
+    unsure["result"]["request_type"] = {"choice": "order", "confidence": 1.0}
+    assert undecided.a_question_holds(sure, asked) is False
+    assert undecided.a_question_holds(unsure, asked) is True
+    assert undecided.a_question_holds(None, asked) is True
+    assert undecided.a_question_holds(sure, "Sending it now.") is False
+    import inspect
+    from nucleo.flash import probe_mirrors
+    from nucleo.turn import split_by_errand
+    assert "a_question_holds(_tbrief, spoken)" in inspect.getsource(probe_mirrors)
+    assert "_und.a_question_holds(brief, spoken)" in inspect.getsource(split_by_errand.holds_the_repair)
+    assert "holds_the_repair(spoken_text, _op_text, _brief)" in (ENGINE / "nucleo/flash/post_stream_words.py").read_text()

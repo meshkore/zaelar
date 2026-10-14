@@ -110,11 +110,12 @@ def routed(operator_text: str) -> bool:
     return bool(route(operator_text))
 
 
-def holds_the_repair(spoken: str, operator_text: str) -> bool:
-    """The voice promise repair does not run: the reply ASKS him for the detail it needs (V2-534), or his sentence
-    about several errands already went part by part — a card repair would put one errand's words on a card."""
-    from nucleo.flash import router as _router
-    return _router.asks_for_missing_detail(spoken) or routed(operator_text)
+def holds_the_repair(spoken: str, operator_text: str, brief=None) -> bool:
+    """The voice promise repair does not run: the reply ASKS him for the detail it needs (V2-534) and the verdict is
+    not sure of the order (`undecided.a_question_holds`, the operator's 70%), or his sentence about several errands
+    already went part by part — a card repair would put one errand's words on a card."""
+    from nucleo.flash import undecided as _und
+    return _und.a_question_holds(brief, spoken) or routed(operator_text)
 
 
 def each_line(spoken: str, turn_text: str) -> str:
