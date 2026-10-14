@@ -138,6 +138,8 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
     _beside = None    # three-tasks-at-once: the errands a yes/no did NOT resolve still start
     action = an_inline_act_settles_the_commission(action, tool_calls, brief=_tbrief, operator_text=operator_text,
                                                   spoken=spoken)
+    if not execute:
+        _probe._widget_data_turn.plan_dry(tool_calls, text, _tbrief)   # the report is what `execute` would run
     from nucleo.turn import errands_of_a_turn as _eot_ref
     if execute:
         # CONFIRMACIÓN de una TAREA irreversible parada por el confirm-gate (V2-126) y del navegador parado en

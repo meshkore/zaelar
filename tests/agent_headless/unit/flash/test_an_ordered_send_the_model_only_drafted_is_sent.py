@@ -56,3 +56,16 @@ def test_both_channels_ask_it():
     from nucleo.flash import tool_executor_widget_calls, verdict_card
     assert "_os.instead(brief, widget_id, action, payload, said)" in inspect.getsource(verdict_card.retarget)
     assert "_txw._ordered_send.run(_brief, wid, action_name, payload" in inspect.getsource(tool_executor_widget_calls)
+
+
+def test_a_dry_turn_reports_the_call_as_it_would_run():
+    """The bank and the live bench run dry; their report must carry the engine's own resolution, or they measure the
+    model's raw call and stay blind to this rule (`widget_data_turn.plan_dry`)."""
+    from nucleo.flash import widget_data_turn
+    calls = [{"name": "widget_data", "args": {"widget_id": "mensajeria", "action": "draft",
+                                              "payload": {"text": "please book it"}}}]
+    widget_data_turn.plan_dry(calls, SAID, _brief("mensajeria:forward", 0.79))
+    assert calls[0]["args"]["action"] == "forward", calls
+    import inspect
+    from nucleo.flash import probe_after
+    assert "_probe._widget_data_turn.plan_dry(tool_calls, text, _tbrief)" in inspect.getsource(probe_after.execute_what_was_decided)

@@ -40,6 +40,29 @@ def _primera_clave(widget_id: str, action: str) -> str:
     return ""
 
 
+def plan_dry(tool_calls: list, text: str = "", brief=None) -> None:
+    """A DRY turn reports each data-op as `execute` would run it: the same `verdict_card.retarget`, in place.
+
+    The decision bank and the live bench run with `execute=False` and judge the reported calls; without this they
+    measured the model's raw call and never the engine's own resolution (`ordered_send`, `reply_or_forward`, the
+    verdict's view on the card in front) — a rule could be right and its measure blind to it (2026-10-15)."""
+    try:
+        from voice import brain_notes as _bn
+        from nucleo.flash import verdict_card as _vcard
+        order = _bn.operator_half(text or "")
+        for t in tool_calls or []:
+            if t.get("name") != "widget_data":
+                continue
+            a = t.get("args") or {}
+            pl = a.get("payload") if isinstance(a.get("payload"), dict) else {}
+            wid, act, pl2 = _vcard.retarget(brief, str(a.get("widget_id") or "").strip().lower(),
+                                            str(a.get("action") or "").strip(), pl, order)
+            if (wid, act) != (str(a.get("widget_id") or "").strip().lower(), str(a.get("action") or "").strip()):
+                t["args"] = {**a, "widget_id": wid, "action": act, "payload": pl2}
+    except Exception:  # noqa: BLE001 — a dry report keeps the model's calls
+        pass
+
+
 async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     """Dispatch the turn's data-ops and return the report, or say which was skipped and WHY.
 
