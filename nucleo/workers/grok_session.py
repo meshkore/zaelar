@@ -46,6 +46,7 @@ import tempfile
 from loguru import logger
 
 from .base import WorkerSpec
+from . import spawned as _spawned  # a worker's session id marks every request it sends
 from .claude_session import _BRIDGE_TOOLS, ClaudeCodeSession, _STREAM_LIMIT, _ZAELAR
 
 # Tools NATIVAS de Grok que un worker confiable puede usar, en su propio vocabulario. `run_terminal_command` es su
@@ -232,7 +233,7 @@ class GrokSession(ClaudeCodeSession):
         logger.info(f"worker[{self._task_id}]: GrokSession start (model={spec.model or 'default'}, "
                     f"deny={spec.deny_tools}, cwd={cwd})")
         try:
-            self._proc = await asyncio.create_subprocess_exec(
+            self._proc = await _spawned.spawn(
                 *cmd, cwd=cwd, env=env,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
@@ -245,8 +246,6 @@ class GrokSession(ClaudeCodeSession):
             await self._q.put(self._ev("done"))
             self._done = True
             return
-        from nucleo.workers import spawned as _spawned   # its session id marks every request it sends
-        _spawned.remember(self._proc.pid)
 
         # El prompt ya está en `--prompt-file`; stdin se cierra para que el CLI no espere entrada que no va a llegar.
         try:

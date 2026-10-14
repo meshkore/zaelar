@@ -42,6 +42,7 @@ import signal
 from loguru import logger
 
 from .base import WorkerBackend, WorkerEvent, WorkerSpec
+from . import spawned as _spawned  # a worker's session id marks every request it sends
 
 _ZAELAR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 _STREAM_LIMIT = int(os.getenv("WORKER_STREAM_LIMIT", str(16 * 1024 * 1024)))
@@ -179,7 +180,7 @@ class CodexSession(WorkerBackend):
         logger.info(f"worker[{self._task_id}]: CodexSession start (model={spec.model or 'default'}, "
                     f"sandbox={_SANDBOX}, cwd={cwd})")
         try:
-            self._proc = await asyncio.create_subprocess_exec(
+            self._proc = await _spawned.spawn(
                 *cmd, cwd=cwd, env=env,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
@@ -190,8 +191,6 @@ class CodexSession(WorkerBackend):
         except Exception as e:  # noqa: BLE001
             await self._fail(f"no se pudo arrancar el worker: {e}")
             return
-        from nucleo.workers import spawned as _spawned   # its session id marks every request it sends
-        _spawned.remember(self._proc.pid)
 
         try:
             self._proc.stdin.write(prompt.encode("utf-8"))

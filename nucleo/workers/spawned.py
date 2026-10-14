@@ -27,6 +27,17 @@ def remember(pid: int | None) -> None:
             _SIDS.pop(next(iter(_SIDS)))
 
 
+async def spawn(*cmd, **kw):
+    """`asyncio.create_subprocess_exec` for a worker CLI, its session remembered. The session IS the mark, so a
+    spawn without `start_new_session=True` is refused rather than silently unmarked."""
+    import asyncio
+    if not kw.get("start_new_session"):
+        raise ValueError("a worker is spawned in a session of its own (start_new_session=True)")
+    proc = await asyncio.create_subprocess_exec(*cmd, **kw)
+    remember(getattr(proc, "pid", None))
+    return proc
+
+
 def sessions() -> frozenset[int]:
     with _LOCK:
         return frozenset(_SIDS)

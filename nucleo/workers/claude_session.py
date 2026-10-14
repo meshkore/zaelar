@@ -28,6 +28,7 @@ import sys
 from loguru import logger
 
 from .base import WorkerBackend, WorkerEvent, WorkerSpec
+from . import spawned as _spawned  # a worker's session id marks every request it sends
 from .tool_steps import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
     _QUOTED_RE, _URL_RE, _bash_step, _cmd_head, _nav_target, _quoted, _short_path, _tool_phase, _tool_step,
     _url_in)
@@ -305,7 +306,7 @@ class ClaudeCodeSession(WorkerBackend):
             except Exception:
                 preexec = None
         try:
-            self._proc = await asyncio.create_subprocess_exec(
+            self._proc = await _spawned.spawn(
                 *cmd, cwd=cwd, env=env,
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
@@ -319,8 +320,6 @@ class ClaudeCodeSession(WorkerBackend):
             await self._q.put(self._ev("done"))
             self._done = True
             return
-        from nucleo.workers import spawned as _spawned   # its session id marks every request it sends
-        _spawned.remember(self._proc.pid)
 
         # turno inicial por stdin (la sesión queda VIVA para inyecciones posteriores).
         try:
