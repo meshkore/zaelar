@@ -36,8 +36,9 @@ def notice_day(weekday: str, ref: _dt.date) -> str:
 
 
 def reply_language(line: str, locale: str) -> str:
-    """'es' / 'en' when the line is clearly one of them, '' when it is too short or mixed to tell."""
-    words = re.findall(r"[a-záéíóúñü']+", (line or "").lower())
+    """'es' / 'en' when the line is clearly one of them, '' when it is too short or mixed to tell. A «quoted» span is a
+    NAME (his errand, a title: «Comprar vinilo The Dark Side of the Moon»), not the language the line speaks in."""
+    words = re.findall(r"[a-záéíóúñü']+", re.sub(r"«[^»]*»", " ", line or "").lower())
     if len(words) < 4:
         return ""
     es, en = sum(w in _ES for w in words), sum(w in _EN for w in words)

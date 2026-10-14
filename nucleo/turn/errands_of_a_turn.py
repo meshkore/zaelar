@@ -98,10 +98,6 @@ def not_started_line(dropped: list[str]) -> str:
     return _lg.current_language().errands_not_started.format(what="; ".join(f"«{i}»" for i in items))
 
 
-#: A phase that quotes one of our card ids («mirando «results»», «leyendo «documento::3»») is engine talk.
-_INTERNAL_PHASE_RE = __import__("re").compile(r"«(?:results|documento|navegador|widget)(?:::[^»]*)?»")
-
-
 def status_owed(operator_text: str, brief) -> str:
     """Where each live errand is, in one sentence — owed when the turn asked to be TOLD and the model went mute.
 
@@ -127,33 +123,29 @@ def status_owed(operator_text: str, brief) -> str:
     if not (asked or live):
         return ""
     from i18n import langs as _lg
-    items = [f"{_ne.spoken_name(e)} — {errand_state(e)}" for e in asked or live]
+    items = [status_item(e, errand_state(e)) for e in asked or live]
     return _lg.current_language().errands_status.format(items="; ".join(items))
+
+
+def status_item(e: dict, state: str) -> str:
+    """One errand in a status sentence: its name QUOTED, as every line of ours names his errands («…»), so a title in
+    another language («The Dark Side of the Moon») reads as the name it is, then where it stands."""
+    from nucleo.turn import named_errand as _ne
+    return f"«{_ne.spoken_name(e)}» — {state}"
 
 
 def errand_state(e: dict) -> str:
     """Where ONE errand is, in his language: waiting on him, its own milestone note or phase, or «under way» — never
-    a browser micro-step, our card ids or a phase in another language."""
+    a browser micro-step, our plumbing (card ids, the sheet's columns) or a note in another language."""
     from i18n import langs as _lg
+    from nucleo.flash import speakable_note as _sn
     from nucleo.workers import progress as _progress
     lang = _lg.current_language()
     if e.get("waiting_on"):
         return lang.errand_waiting_on_you
     _ph = "" if _progress.is_mechanical(e.get("phase") or "") else str(e.get("phase") or "")   # a click is the card's
-    phase = _phase_in_session_language((_ph or str(e.get("note") or "")).strip().rstrip("…. "), _lg.current_code())
-    phase = "" if _INTERNAL_PHASE_RE.search(phase) else phase     # «mirando «results»» names our card id
-    return phase or lang.errand_under_way
-
-
-def _phase_in_session_language(phase: str, code: str) -> str:
-    """The phase, or "" when it would put another language in his ear. The engine writes its phases in Spanish
-    («entrando en ebay.es») and the EN round said them to an English operator; a worker's own note may be in
-    either. In Spanish a phase stays unless it reads as English; elsewhere it has to read as his language."""
-    from nucleo.flash import outgoing_lang as _ol
-    lang = _ol.language_of(phase)
-    if str(code or "es")[:2] == "es":
-        return "" if lang == "en" else phase
-    return phase if lang == str(code)[:2] else ""
+    said = [p.strip().rstrip("…. ") for p in (_ph, str(e.get("note") or ""))]
+    return next((p for p in said if _sn.speakable(p, _lg.current_code(), strict=True)), "") or lang.errand_under_way
 
 
 def promised_refinement(operator_text: str, spoken: str) -> str:
@@ -167,10 +159,21 @@ def promised_refinement(operator_text: str, spoken: str) -> str:
     from nucleo.flash import reply_promise as _rp, router as _router
     if not (spoken or "").strip() or not _rp.promises_action(spoken) or _router.asks_for_missing_detail(spoken):
         return ""
+    from nucleo.turn import our_question as _oq        # his answer to our phase's question is not for the errand
+    operator_text = _oq.without_its_answer(operator_text, spoken)
+    if not operator_text:
+        return ""
     from nucleo.turn import named_errand as _ne
     top = _ne.strongest(operator_text)
     # a STARTING errand has no session to inject into yet: its id would resolve to whatever else is live
     return str(top["id"]) if top and not top["parked"] and not top.get("starting") else ""
+
+
+def words_for(operator_text: str, spoken: str) -> str:
+    """What of his sentence a live errand may hear: all of it, minus the answer to a question OUR phase asked
+    (`our_question`, search-restaurant-occasion 2026-10-14). Both injection sites send this, never his raw turn."""
+    from nucleo.turn import our_question as _oq
+    return _oq.without_its_answer(operator_text, spoken, quiet=True)
 
 
 def parked_question_for(requests: list[str]) -> str:

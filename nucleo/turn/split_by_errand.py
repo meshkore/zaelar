@@ -136,7 +136,7 @@ def each_line(spoken: str, turn_text: str) -> str:
         state = {"passed": lang.errand_part_passed, "ended": lang.errand_part_done,
                  "parked": lang.errand_waiting_on_you, "starting": lang.errand_under_way}.get(p["did"]) \
             or _eot.errand_state(e)
-        items.append(f"{_ne.spoken_name(e)} — {state}")
+        items.append(_eot.status_item(e, state))
     return lang.errands_each.format(items="; ".join(items)) if items else ""
 
 

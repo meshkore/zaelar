@@ -17,6 +17,10 @@ from __future__ import annotations
 
 import re
 
+# A worker note in another language or about OUR plumbing is no step he can follow (docs-single-recipe-not-a-list
+# ES, 2026-10-14: «Ahora mismo, : Contrato de la hoja leído…») — one reader for both composers.
+from nucleo.flash.speakable_note import speakable as _speakable
+
 #: errand id → steps already appended for it. A step is said once; the next wait says the next one or nothing.
 _SAID: dict[str, set] = {}
 
@@ -40,23 +44,11 @@ _PHASE_EN = (
 #: Phases that say no step at all (queued, starting, thinking) or quote one of our card ids.
 _EMPTY_PHASE_RE = re.compile(r"^(arrancando|en cola|pensando|ejecutando un paso|trabajando|buscando|usando una "
                              r"herramienta)\b|«(results|documento|navegador|widget)(::[^»]*)?»", re.I)
-#: A worker note that talks about OUR plumbing (the sheet contract, our tools) is no step he can follow
-#: (docs-single-recipe-not-a-list ES, 2026-10-14: «Ahora mismo, : Contrato de la hoja leído…»).
-_PLUMBING_RE = re.compile(r"\b(contrato de la hoja|sheet contract|herramienta de zaelar|zaelar tool|cli|payload|"
-                          r"widget_data|results::)\b", re.I)
 _HOST_RE = re.compile(r"\b[a-z0-9-]+(?:\.[a-z0-9-]+)+\b", re.I)
 
 
 def _clean(text: str) -> str:
     return " ".join(str(text or "").split()).strip().rstrip("…. ")
-
-
-def _in_language(text: str, code: str) -> bool:
-    from nucleo.flash import outgoing_lang as _ol
-    lang = _ol.language_of(text)
-    if code in ("es", "en"):
-        return lang != ("en" if code == "es" else "es")
-    return lang == code
 
 
 def _phase_for(phase: str, code: str) -> str:
@@ -78,14 +70,14 @@ def candidates(errand: dict, code: str) -> list[str]:
     """The steps this errand can be said to be on, best first, already in the session's language."""
     out = []
     note = _clean(errand.get("note"))
-    if note and _in_language(note, code) and not _PLUMBING_RE.search(note):
+    if _speakable(note, code):
         out.append(note)
     phase = _phase_for(str(errand.get("phase") or ""), code)
     if phase:
         out.append(phase)
     plan, done = list(errand.get("plan") or []), int(errand.get("done") or 0)
     step = _clean(plan[done]) if 0 <= done < len(plan) else ""
-    if step and _in_language(step, code) and not (_PLUMBING_RE.search(step) or _EMPTY_PHASE_RE.search(step)):
+    if _speakable(step, code) and not _EMPTY_PHASE_RE.search(step):
         out.append(step)
     return [s for i, s in enumerate(out) if s and s not in out[:i]]
 
