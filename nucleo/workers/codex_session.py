@@ -190,6 +190,8 @@ class CodexSession(WorkerBackend):
         except Exception as e:  # noqa: BLE001
             await self._fail(f"no se pudo arrancar el worker: {e}")
             return
+        from nucleo.workers import spawned as _spawned   # its session id marks every request it sends
+        _spawned.remember(self._proc.pid)
 
         try:
             self._proc.stdin.write(prompt.encode("utf-8"))

@@ -319,6 +319,8 @@ class ClaudeCodeSession(WorkerBackend):
             await self._q.put(self._ev("done"))
             self._done = True
             return
+        from nucleo.workers import spawned as _spawned   # its session id marks every request it sends
+        _spawned.remember(self._proc.pid)
 
         # turno inicial por stdin (la sesión queda VIVA para inyecciones posteriores).
         try:

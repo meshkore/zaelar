@@ -245,6 +245,8 @@ class GrokSession(ClaudeCodeSession):
             await self._q.put(self._ev("done"))
             self._done = True
             return
+        from nucleo.workers import spawned as _spawned   # its session id marks every request it sends
+        _spawned.remember(self._proc.pid)
 
         # El prompt ya está en `--prompt-file`; stdin se cierra para que el CLI no espere entrada que no va a llegar.
         try:

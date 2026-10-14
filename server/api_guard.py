@@ -47,6 +47,14 @@ TOKEN_HEADER = "x-zaelar-token"
 #: whole app in-process from needing a disguise, without opening anything a request from outside can reach.
 _IN_PROCESS = ("testclient", "testserver")
 
+#: Mutating routes his screen calls OUTSIDE `/api/` (the widget cards, the legacy config/reset/user routes). A
+#: cross-site page could POST them just the same, so the same rules apply to their mutations (2026-10-14).
+SCREEN_MUTATING = ("/widgets/", "/config", "/reset", "/user")
+
+
+def guarded(path: str, method: str) -> bool:
+    return path.startswith("/api/") or (method.upper() in MUTATING and path.startswith(SCREEN_MUTATING))
+
 
 def _hostname(raw_host: str) -> str:
     h = (raw_host or "").strip().lower()
@@ -65,7 +73,7 @@ def _is_loopback(peer: str) -> bool:
 def decide(*, path: str, method: str, peer: str, host: str, origin: str, fetch_site: str,
            token_given: str, token_set: str, cloud: bool, forwarded_host: str = "") -> tuple[bool, str]:
     """`(allowed, reason)` for one request. `reason` is a stable slug, never a header value."""
-    if not path.startswith("/api/"):
+    if not guarded(path, method):
         return True, "not_api"
     mutating = method.upper() in MUTATING
     if cloud:
@@ -101,7 +109,7 @@ def install(app) -> None:
     @app.middleware("http")
     async def _api_guard(request, call_next):
         path = request.url.path
-        if not path.startswith("/api/"):
+        if not guarded(path, request.method):
             return await call_next(request)
         try:
             from nucleo import account_routing as _ar

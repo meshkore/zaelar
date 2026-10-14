@@ -228,6 +228,10 @@ def create_app() -> FastAPI:
     # a single-process install.
     from . import ingress as _ingress
     _ingress.install(app)
+    # A WORKER'S REQUEST IS NEVER HIS CLICK (2026-10-14): a mutation is admitted for his screen (UI cookie) or a
+    # process the engine did not spawn, never for a worker's curl. Contract: server/operator_gate.py.
+    from . import operator_gate as _operator_gate
+    _operator_gate.install(app)
     # WHO MAY CALL /api/* (V2-778 F4-35): on a self-hosted engine, only this machine and never a page from another
     # site (CSRF, DNS rebinding); on a cloud account, a mutation only from the account's own site. Added after
     # ingress, so it is the OUTER middleware and refuses before any session lookup. Contract: server/api_guard.py.

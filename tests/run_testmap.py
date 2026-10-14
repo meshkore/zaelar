@@ -4221,6 +4221,16 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/search/unit/test_a_power_adapter_is_not_a_monitor.py']},
         {"id": "2.606", "title": "A question about rows he NAMES is answered clause by clause from those rows — the hard fact the clause asks, another fact whose label it asks, or «not verified» when the reply leaves the row unsaid — never the criteria block («¿el curvo es 4K? ¿el Blackview tiene buenas reseñas?» got every criterion of three rows, «para» naming the AOC; cheapest-monitor ES)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_question_about_named_rows_reads_those_rows.py']},
+        {"id": "2.620", "title": "A worker's request is never his click: `operator_gate.decide` refuses a worker on every route family his screen calls (widget action/confirm/delete, messaging, cluster send, contacts, agenda lists and reminders, tasks, settings, credentials, vault, his spoken turn, reset) and admits his UI cookie or a process the engine did not spawn; the worker's own doors stay open",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_workers_request_is_never_his_click.py']},
+        {"id": "2.621", "title": 'A process the engine spawned is a worker even orphaned: `peer_process.classify` — a child is WORKER by ancestry, an orphan out of a worker session by its session id, a worker environment by its markers; his side of the machine is OUTSIDE, the engine SELF, a gone pid UNKNOWN',
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_process_the_engine_spawned_is_a_worker.py']},
+        {"id": "2.622", "title": "A worker's curl is refused on a real socket (uvicorn + the real gate): a client the engine spawns in its own session and one orphaned out of it get 403; a POST from outside the engine is admitted and minted the HttpOnly SameSite=Strict UI cookie, which then admits on the fast path; a cross-site page is refused",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_workers_curl_is_refused_on_a_real_socket.py']},
+        {"id": "2.623", "title": 'Every mutation of the assembled app is an operator route unless it is a NAMED worker door (the list is pinned); the gate is mounted inside `api_guard`, and the CSRF/rebinding rules reach `/widgets/*` mutations',
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_mutation_of_the_app_is_an_operator_route.py']},
+        {"id": "2.624", "title": 'Every worker backend (Claude, Codex, Grok) remembers the session it spawns (`nucleo/workers/spawned.py`), so an orphan of that worker is still recognised',
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_worker_backend_names_its_session.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
