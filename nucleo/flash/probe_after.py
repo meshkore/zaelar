@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from nucleo.flash import probe as _probe
 from nucleo.flash import reminder_backing as _rback   # a claimed reminder is checked, both channels
+from nucleo.flash import done_backing as _dback   # «Done.» is checked against the cards (2026-10-14)
 from nucleo.workers import quota_wait as _qwait   # the worker chain asleep: what an escalation turn may say
 from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one is said (2.643)
 from nucleo.flash.delivery_repeat import wants_words as _ww   # a question without «?» is in the brief (2.604)
@@ -60,7 +61,8 @@ def _errand_names(tids) -> list[str]:
     return out
 
 
-def _the_turns_errands(tool_calls: list, operator_text: str, window_goal: str, *, resolved: str | None = None):
+def _the_turns_errands(tool_calls: list, operator_text: str, window_goal: str, *, resolved: str | None = None,
+                       declined: bool = False):
     """(requests, surfaces, not_started) — every errand this turn asked for, decided by the shared rules.
 
     The escalations the model called, each with its declared surface (V2-227: a turn can ask for a list, a sheet
@@ -89,7 +91,7 @@ def _the_turns_errands(tool_calls: list, operator_text: str, window_goal: str, *
     except Exception:  # noqa: BLE001
         pass
     if resolved is not None:
-        reqs = _eot.beside_an_answer(resolved, reqs)
+        reqs = _eot.beside_an_answer(resolved, reqs, declined=declined)
     kept, dropped = _eot.within_the_pool(reqs or ([] if resolved is not None else [window_goal or operator_text]))
     return kept, _surf, dropped
 
@@ -132,7 +134,8 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                                          "task_id": str(_res.get("task_id") or "")}
                 else:
                     return_extra_exec = {"executed": "confirm_task", "ok": bool(_res.get("ok"))}
-                    _beside = _the_turns_errands(tool_calls, operator_text, "", resolved=str(_res.get("request") or ""))
+                    _beside = _the_turns_errands(tool_calls, operator_text, "", resolved=str(_res.get("request") or ""),
+                                                 declined=not _ans.yes)
                     if _ans.yes:   # the turn's refinements of OTHER live errands still go out (were dropped)
                         _eot_ref.send_beside_an_answer(tool_calls, str(_res.get("request") or ""), _send_each)
         except Exception:
@@ -378,6 +381,7 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
         from nucleo.turn import errands_of_a_turn as _eot
         spoken = f"{spoken or ''} {_eot.not_started_line(return_extra_exec['not_started'])}".strip()
     spoken = _true_to_the_gate(spoken, action, return_extra_exec, sess)
+    spoken = _dback.backed(spoken, action, return_extra_exec)   # a bare «Done.» the cards do not back is not said
     if action == "escalate":   # the chain asleep refuses it: its words about starting it are false (2026-10-11)
         spoken = _qwait.over_an_escalation(spoken, getattr(sess, "window", None))
     # a CLAIMED reminder is checked against the schedule (2026-10-10)

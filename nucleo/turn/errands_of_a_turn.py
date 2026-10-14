@@ -69,17 +69,20 @@ def listing_rides(listing: dict | None, requests: list[str]) -> str:
     return listing_errand(listing)
 
 
-def beside_an_answer(resolved: str, requests: list[str]) -> list[str]:
-    """The turn's escalations that are NOT the errand its yes/no just resolved — those are still orders."""
-    return [r for r in (requests or []) if r and not (resolved and same_errand(r, resolved))]
+def beside_an_answer(resolved: str, requests: list[str], *, declined: bool = False) -> list[str]:
+    """The turn's escalations that are NOT the errand its yes/no just resolved — those are still orders. After a
+    «no» to a build, the same errand asked without the build is one of them (`declined_build`)."""
+    from nucleo.turn import declined_build
+    return [r for r in (requests or []) if r and not (resolved and same_errand(r, resolved)
+                                                      and not (declined and declined_build.still_wanted(r, resolved)))]
 
 
-def keep_beside_an_answer(escalate_req: dict, resolved: str | None) -> None:
+def keep_beside_an_answer(escalate_req: dict, resolved: str | None, *, declined: bool = False) -> None:
     """The voice turn's `escalate_req`, cut down to what the answer did not resolve (the confirmed errand is
     relaunched by `resolve_confirm`; re-escalating it would open it twice). `resolved=None` — an answer that names
     no errand, a click held in the browser — keeps today's rule: the turn opens nothing new."""
     rest = ([] if resolved is None
-            else beside_an_answer(resolved, [escalate_req.get("v"), *(escalate_req.get("more") or [])]))
+            else beside_an_answer(resolved, [escalate_req.get("v"), *(escalate_req.get("more") or [])], declined=declined))
     escalate_req["v"], escalate_req["more"] = (rest[0] if rest else None), rest[1:]
 
 

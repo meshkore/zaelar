@@ -4391,6 +4391,18 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/use_cases/unit/test_the_notice_gate_never_counts_a_day_past_the_deadline.py']},
         {"id": "2.709", "title": "A criteria change is the turn's paraphrase: its capitalised names never become subjects (Bay Area rejected 55 cars, search-buy-used-car EN, 2026-10-14); its specs still count",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_criteria_change_never_names_a_subject.py"]},
+        {"id": "2.720", "title": "«Get rid of the piano completely, the whole series» leaves no day of it behind even after the series' first day moved (the detached day's link went stale); a day still in the calendar is a failure he hears, never «Done.» (agenda-everyday-edits EN)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/test_the_whole_series_takes_its_days_whatever_its_first_day.py']},
+        {"id": "2.721", "title": "A reference that names its day («Abril's piano lesson on 2026-10-20») keeps the day: a re-sent one-day move never moves the whole series (agenda-everyday-edits EN)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/test_a_reference_that_names_its_day_keeps_it.py']},
+        {"id": "2.722", "title": "Two DIFFERENT ops on one card within 150 ms both reach the audit; only an identical repeat collapses (the move of the whole series vanished from the timeline)",
+            "ch": UNIT, "paths": ['tests/voice/unit/test_two_ops_of_one_card_are_both_audited.py']},
+        {"id": "2.723", "title": "A recipe to show on an existing card is not a card to BUILD — «cream» is not «crea», «in the documento widget» is a destination (docs-single-recipe-not-a-list EN)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_recipe_for_a_card_is_not_a_card_to_build.py']},
+        {"id": "2.724", "title": "A «no» to BUILDING a card is not a «no» to the errand: the same errand asked without the build still starts, in both channels (docs-single-recipe-not-a-list EN)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_no_to_building_is_not_a_no_to_the_errand.py']},
+        {"id": "2.725", "title": "A bare «Done.» stands only when the cards back it: an unmet end state on the card (an empty document sheet) or an errand that just started is said as what it is (docs-single-recipe-not-a-list EN)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_done_is_backed_by_the_cards.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

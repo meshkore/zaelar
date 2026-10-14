@@ -137,7 +137,7 @@ from .close_guards import (  # noqa: F401
 # create verb.
 _WIDGET_SYN = r"(?:widget|panel|gadget|tablero|contador|cuadro de mando|mini[- ]?app|tarjeta)"
 _CREATE_WIDGET_RE = _re.compile(
-    r"(\b(cre[ae]\w*|cr[eé][aá]me\w*|haz\w*|h[aá]zme\w*|hac[eé]\w*|hacer|hag\w*|gener\w*|mont\w*|dise[nñ]\w*|"
+    r"(\b(cre[ae](?!m(?:s|y)?\b)\w*|cr[eé][aá]me\w*|haz\w*|h[aá]zme\w*|hac[eé]\w*|hacer|hag\w*|gener\w*|mont\w*|dise[nñ]\w*|"
     r"constru\w*|prepar\w*|program\w*|make|build|create)\b[^.!?]{0,45}\b" + _WIDGET_SYN + r"\b)"
     r"|(\b" + _WIDGET_SYN + r"\b[^.!?]{0,25}\bnuev[oa]\b)|(\bnuev[oa]\b[^.!?]{0,12}\b" + _WIDGET_SYN + r"\b)", _re.I)
 
@@ -172,7 +172,8 @@ _CREATE_WIDGET_RE = _re.compile(
 _WIDGET_DEST_RE = _re.compile(
     r"\b(?:en|al|sobre|dentro\s+de|dentro\s+del|hacia)\s+"
     r"(?:el\s+|la\s+|los\s+|las\s+|un\s+|una\s+|unos\s+|unas\s+)?" + _WIDGET_SYN + r"\b(?!\s+nuev[oa]\b)"
-    r"|\b(?:into|in|on)\s+(?:the\s+|a\s+|an\s+)?" + _WIDGET_SYN + r"\b(?!\s+nuev[oa]\b)", _re.I)
+    r"|\b(?:into|in|on)\s+(?:the\s+|a\s+|an\s+)?(?:(?!new\b|nuev[oa]\b)[a-z]+\s+)?" + _WIDGET_SYN
+    + r"\b(?!\s+nuev[oa]\b)", _re.I)
 
 
 def looks_like_create_widget(text: str) -> bool:
