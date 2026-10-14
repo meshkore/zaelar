@@ -85,7 +85,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--repeat", type=int, default=7, help="with --live: runs per case (a case holds only at N of N)")
     ap.add_argument("--only", help="case ids starting with this prefix")
     args = ap.parse_args(argv)
-    cases = harness.load_cases()
+    cases = harness.load_cases(live=args.live)
     if args.only:
         cases = [c for c in cases if c["id"].startswith(args.only)]
     if args.case:

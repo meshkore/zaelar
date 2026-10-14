@@ -53,11 +53,12 @@ DECISIONS = re.compile(
 FORBIDS = ("worker", "search", "show", "close", "data-op", "second-card", "model", "ask")
 
 CASE_KEYS = {"id", "lang", "phrase", "source", "screen", "memory", "model", "brief", "expect", "also",
-             "forbid", "open", "note", "file", "widgets"}
+             "forbid", "open", "note", "file", "widgets", "history", "live_only", "accept"}
 
 
-def load_cases(pattern: str = "*.json") -> list[dict]:
-    """Every case in `cases/`, validated, ids unique across files."""
+def load_cases(pattern: str = "*.json", *, live: bool = False) -> list[dict]:
+    """Every case in `cases/`, validated, ids unique across files. A `live_only` case has no recorded model (it measures
+    the real one) and is left out of the recorded bank."""
     out: list[dict] = []
     seen: set[str] = set()
     for path in sorted(CASES_DIR.glob(pattern)):
@@ -68,7 +69,8 @@ def load_cases(pattern: str = "*.json") -> list[dict]:
             if raw["id"] in seen:
                 raise ValueError(f"{path.name}: duplicate case id {raw['id']!r}")
             seen.add(raw["id"])
-            out.append(raw)
+            if live or not raw.get("live_only"):
+                out.append(raw)
     return out
 
 
@@ -83,7 +85,7 @@ def validate(case: dict) -> None:
         raise ValueError(f"{case['id']}: lang must be one of {LANGS}")
     if not DECISIONS.match(case["expect"]):
         raise ValueError(f"{case['id']}: expect {case['expect']!r} is not in the decision grammar")
-    for extra in case.get("also", ()):
+    for extra in (*case.get("also", ()), *case.get("accept", ())):
         if not DECISIONS.match(extra):
             raise ValueError(f"{case['id']}: also {extra!r} is not in the decision grammar")
     for f in case.get("forbid", ()):
@@ -104,6 +106,9 @@ def validate(case: dict) -> None:
     memory = case.get("memory") or {}
     if set(memory) - {"agenda", "state"}:
         raise ValueError(f"{case['id']}: memory fixtures are 'agenda' and 'state'")
+    for turn in case.get("history") or ():
+        if not (isinstance(turn, dict) and set(turn) == {"role", "text"} and turn["role"] in ("user", "assistant")):
+            raise ValueError(f"{case['id']}: a history turn is {{role: user|assistant, text}}")
     widgets = case.get("widgets") or {}
     if not isinstance(widgets, dict) or any(not isinstance(v, dict) for v in widgets.values()):
         raise ValueError(f"{case['id']}: widgets is {{card id: its store document}}")
@@ -124,6 +129,7 @@ class Outcome:
     events: list = field(default_factory=list)
     error: str = ""
     ms: float = 0.0
+    live: bool = False                              # the real model: «which lane answered» is not what is measured
 
     @property
     def all_decisions(self) -> list[str]:
@@ -134,12 +140,12 @@ class Outcome:
         why: list[str] = []
         if self.error:
             why.append(f"turn failed: {self.error}")
-        if self.decision != case["expect"]:
+        if self.decision != case["expect"] and self.decision not in case.get("accept", ()):
             why.append(f"decided {self.decision!r}, expected {case['expect']!r}")
         for extra in case.get("also", ()):
             if extra not in self.also:
                 why.append(f"expected also {extra!r}, observed {self.also}")
-        if case.get("model") is None and self.model_consulted:
+        if case.get("model") is None and self.model_consulted and not self.live:
             why.append("the model was consulted for a turn a deterministic lane owns")
         for f in case.get("forbid", ()):
             hit = {
@@ -431,7 +437,7 @@ def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False) -> Outc
     """One case, fully isolated, through the headless turn. Never raises for a product failure: the
     outcome carries it, so a run over the whole bank reports every red instead of stopping at the first."""
     import time as _time
-    out = Outcome(case_id=case["id"])
+    out = Outcome(case_id=case["id"], live=live)
     with Isolated(case["lang"], live=live) as iso:
         iso.seed(case)
         from nucleo.flash import probe
@@ -439,6 +445,10 @@ def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False) -> Outc
         n0 = len(observer._events)
         t0 = _time.time()
         sid = f"bank:{case['id']}"
+        if case.get("history"):                         # the turns before this one, as the conversation window holds them
+            sess = probe._session(sid, execute=False)
+            sess.window[:] = [{"role": t["role"], "content": t["text"]} for t in case["history"]]
+            sess.seeded = True
         try:
             res = asyncio.run(asyncio.wait_for(
                 probe.run_turn(case["phrase"], sid=sid, ingest=False, execute=False), timeout_s))
@@ -456,7 +466,8 @@ def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False) -> Outc
         out.action = str(res.get("action") or "")
         reply = res.get("reply")
         out.reply = " ".join(reply) if isinstance(reply, list) else str(reply or "")
-        out.model_consulted = True if live else RecordedModel.consulted
+        out.model_consulted = (any(str(e.get("label") or "").startswith("🧾 turno") for e in out.events)   # the turn's perf row
+                               if live else RecordedModel.consulted)
         out.decision = decision_of(res, out.tool_calls) if res else ""
         out.also, out.cards_touched = _secondary(res, out.tool_calls, out.decision)
     return out

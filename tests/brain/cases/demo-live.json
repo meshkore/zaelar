@@ -1,0 +1,742 @@
+[
+ {
+  "id": "live-v2-play-the-second-one",
+  "lang": "en",
+  "phrase": "play the second one",
+  "source": "TMP/demo/run-p124..p131 (2026-10-14): the steps that held some passes and not others",
+  "screen": {
+   "open": [
+    "youtube"
+   ]
+  },
+  "expect": "data-op youtube:play_result",
+  "live_only": true,
+  "accept": [
+   "data-op youtube:play_item"
+  ],
+  "widgets": {
+   "youtube": {
+    "search_results": [
+     {
+      "title": "Starship Flight 4 — full replay",
+      "channel": "SpaceX",
+      "videoId": "vid1",
+      "url": "https://www.youtube.com/watch?v=vid1",
+      "published": "2025",
+      "source": "youtube"
+     },
+     {
+      "title": "Starship's Fifth Flight Test",
+      "channel": "SpaceX",
+      "videoId": "vid2",
+      "url": "https://www.youtube.com/watch?v=vid2",
+      "published": "2025",
+      "source": "youtube"
+     },
+     {
+      "title": "Starship Flight 6 highlights",
+      "channel": "Everyday Astronaut",
+      "videoId": "vid3",
+      "url": "https://www.youtube.com/watch?v=vid3",
+      "published": "2025",
+      "source": "youtube"
+     },
+     {
+      "title": "What happened on Starship flight 7",
+      "channel": "Tech Map",
+      "videoId": "vid4",
+      "url": "https://www.youtube.com/watch?v=vid4",
+      "published": "2025",
+      "source": "youtube"
+     },
+     {
+      "title": "Starship's First Flight Test",
+      "channel": "SpaceX",
+      "videoId": "vid5",
+      "url": "https://www.youtube.com/watch?v=vid5",
+      "published": "2025",
+      "source": "youtube"
+     },
+     {
+      "title": "Booster catch from three angles",
+      "channel": "NASASpaceflight",
+      "videoId": "vid6",
+      "url": "https://www.youtube.com/watch?v=vid6",
+      "published": "2025",
+      "source": "youtube"
+     }
+    ],
+    "last_query": "spacex starship tests"
+   }
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "hey johnny, show me some videos of the spacex starship tests"
+   },
+   {
+    "role": "assistant",
+    "text": "Pulling up Starship test videos for you now."
+   }
+  ]
+ },
+ {
+  "id": "live-e3-send-the-invoice-to-andrew",
+  "lang": "en",
+  "phrase": "send the invoice to andrew, tell him we're already trying inworld and he should book it",
+  "source": "TMP/demo/run-p124..p131 (2026-10-14): the steps that held some passes and not others",
+  "screen": {
+   "open": [
+    "mensajeria"
+   ]
+  },
+  "expect": "data-op mensajeria:forward",
+  "live_only": true,
+  "accept": [
+   "data-op mensajeria:send_to"
+  ],
+  "widgets": {
+   "mensajeria": {
+    "items": [
+     {
+      "platform": "whatsapp",
+      "chatId": "120363000000000000@g.us",
+      "messageId": "AC55472783C81494831F160969CE09BD",
+      "senderId": "34600000000@s.whatsapp.net",
+      "from": "Family group",
+      "group": "Family",
+      "isGroup": true,
+      "body": "Dinner on Sunday?",
+      "ts": 1792016217
+     },
+     {
+      "platform": "email",
+      "chatId": "billing@inworld.example",
+      "messageId": "220440",
+      "senderId": "billing@inworld.example",
+      "from": "Inworld AI",
+      "subject": "Your receipt from Inworld AI #2281-4878",
+      "body": "Thanks for your payment of $25.00 on September 27, 2026.",
+      "media": [
+       {
+        "url": "/widgets/mensajeria/asset/eml_220440_1_Receipt-2281-4878.pdf",
+        "type": "document",
+        "name": "eml_220440_1_Receipt-2281-4878.pdf"
+       }
+      ],
+      "ts": 1790548017
+     }
+    ],
+    "threads": {
+     "email|billing@inworld.example": {
+      "msgs": [
+       {
+        "id": "220440",
+        "dir": "in",
+        "who": "Inworld AI",
+        "ts": 1790548017,
+        "subject": "Your receipt from Inworld AI #2281-4878",
+        "body": "[Subject: Your receipt from Inworld AI #2281-4878] Thanks for your payment of $25.00.",
+        "media": [
+         {
+          "url": "/widgets/mensajeria/asset/eml_220440_1_Receipt-2281-4878.pdf",
+          "type": "document",
+          "name": "eml_220440_1_Receipt-2281-4878.pdf"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "active_chat": {
+     "platform": "email",
+     "chatId": "billing@inworld.example"
+    }
+   },
+   "contactos": {
+    "contacts": [
+     {
+      "id": 1,
+      "name": "Andrew",
+      "email": "andrew@example.com",
+      "channels": [],
+      "notes": "Handles the company accounts: invoices and receipts go to him by email."
+     },
+     {
+      "id": 2,
+      "name": "Ethan",
+      "email": "",
+      "channels": [
+       {
+        "platform": "telegram",
+        "handle": "@ethan_demo",
+        "chatId": "1000001"
+       }
+      ],
+      "notes": "One of my closest friends, lives in San Mateo."
+     }
+    ],
+    "next_id": 3
+   }
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "check my email, did inworld send me something?"
+   },
+   {
+    "role": "assistant",
+    "text": "Yes — Inworld AI sent you a receipt on September 27, 2026: $25.00, invoice 2281-4878."
+   },
+   {
+    "role": "user",
+    "text": "open it"
+   },
+   {
+    "role": "assistant",
+    "text": "Done."
+   }
+  ],
+  "forbid": [
+   "worker"
+  ]
+ },
+ {
+  "id": "live-e4-leave-it-unread",
+  "lang": "en",
+  "phrase": "oh and leave that inworld one as unread",
+  "source": "TMP/demo/run-p124..p131 (2026-10-14): the steps that held some passes and not others",
+  "screen": {
+   "open": [
+    "mensajeria"
+   ]
+  },
+  "expect": "data-op mensajeria:unread",
+  "live_only": true,
+  "widgets": {
+   "mensajeria": {
+    "items": [
+     {
+      "platform": "whatsapp",
+      "chatId": "120363000000000000@g.us",
+      "messageId": "AC55472783C81494831F160969CE09BD",
+      "senderId": "34600000000@s.whatsapp.net",
+      "from": "Family group",
+      "group": "Family",
+      "isGroup": true,
+      "body": "Dinner on Sunday?",
+      "ts": 1792016217
+     },
+     {
+      "platform": "email",
+      "chatId": "billing@inworld.example",
+      "messageId": "220440",
+      "senderId": "billing@inworld.example",
+      "from": "Inworld AI",
+      "subject": "Your receipt from Inworld AI #2281-4878",
+      "body": "Thanks for your payment of $25.00 on September 27, 2026.",
+      "media": [
+       {
+        "url": "/widgets/mensajeria/asset/eml_220440_1_Receipt-2281-4878.pdf",
+        "type": "document",
+        "name": "eml_220440_1_Receipt-2281-4878.pdf"
+       }
+      ],
+      "ts": 1790548017
+     }
+    ],
+    "threads": {
+     "email|billing@inworld.example": {
+      "msgs": [
+       {
+        "id": "220440",
+        "dir": "in",
+        "who": "Inworld AI",
+        "ts": 1790548017,
+        "subject": "Your receipt from Inworld AI #2281-4878",
+        "body": "[Subject: Your receipt from Inworld AI #2281-4878] Thanks for your payment of $25.00.",
+        "media": [
+         {
+          "url": "/widgets/mensajeria/asset/eml_220440_1_Receipt-2281-4878.pdf",
+          "type": "document",
+          "name": "eml_220440_1_Receipt-2281-4878.pdf"
+         }
+        ]
+       }
+      ]
+     }
+    },
+    "active_chat": {
+     "platform": "email",
+     "chatId": "billing@inworld.example"
+    }
+   },
+   "contactos": {
+    "contacts": [
+     {
+      "id": 1,
+      "name": "Andrew",
+      "email": "andrew@example.com",
+      "channels": [],
+      "notes": "Handles the company accounts: invoices and receipts go to him by email."
+     },
+     {
+      "id": 2,
+      "name": "Ethan",
+      "email": "",
+      "channels": [
+       {
+        "platform": "telegram",
+        "handle": "@ethan_demo",
+        "chatId": "1000001"
+       }
+      ],
+      "notes": "One of my closest friends, lives in San Mateo."
+     }
+    ],
+    "next_id": 3
+   }
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "check my email, did inworld send me something?"
+   },
+   {
+    "role": "assistant",
+    "text": "Yes — Inworld AI sent you a receipt on September 27, 2026: $25.00, invoice 2281-4878."
+   },
+   {
+    "role": "user",
+    "text": "open it"
+   },
+   {
+    "role": "assistant",
+    "text": "Done."
+   },
+   {
+    "role": "user",
+    "text": "send the invoice to andrew, tell him we're already trying inworld and he should book it"
+   },
+   {
+    "role": "assistant",
+    "text": "Sent the Inworld receipt to Andrew."
+   }
+  ]
+ },
+ {
+  "id": "live-c3-ok-book-it",
+  "lang": "en",
+  "phrase": "ok book it, call it catch up with ethan",
+  "source": "TMP/demo/run-p124..p131 (2026-10-14): the steps that held some passes and not others",
+  "screen": {
+   "open": [
+    "agenda"
+   ]
+  },
+  "expect": "data-op agenda:add_meeting",
+  "live_only": true,
+  "memory": {
+   "agenda": [
+    {
+     "title": "ZAELAR weekly review",
+     "day": "+1",
+     "start": "09:00",
+     "end": "10:00"
+    },
+    {
+     "title": "Product meeting",
+     "day": "+1",
+     "start": "11:00",
+     "end": "12:00"
+    },
+    {
+     "title": "Meshcore architecture",
+     "day": "+1",
+     "start": "15:00",
+     "end": "16:00"
+    }
+   ]
+  },
+  "widgets": {
+   "contactos": {
+    "contacts": [
+     {
+      "id": 1,
+      "name": "Andrew",
+      "email": "andrew@example.com",
+      "channels": [],
+      "notes": "Handles the company accounts: invoices and receipts go to him by email."
+     },
+     {
+      "id": 2,
+      "name": "Ethan",
+      "email": "",
+      "channels": [
+       {
+        "platform": "telegram",
+        "handle": "@ethan_demo",
+        "chatId": "1000001"
+       }
+      ],
+      "notes": "One of my closest friends, lives in San Mateo."
+     }
+    ],
+    "next_id": 3
+   }
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "johnny show me what i've got tomorrow"
+   },
+   {
+    "role": "assistant",
+    "text": "Tomorrow you've got three things: ZAELAR weekly review at 9, Product meeting at 11, and Meshcore architecture at 3."
+   },
+   {
+    "role": "user",
+    "text": "find me a free 45 minutes tomorrow afternoon to talk with ethan, after my last meeting"
+   },
+   {
+    "role": "assistant",
+    "text": "Your last meeting ends at 4, so 4:00 to 4:45 tomorrow afternoon is free. Want me to book it?"
+   }
+  ],
+  "forbid": [
+   "worker"
+  ]
+ },
+ {
+  "id": "live-c4-move-it-half-an-hour",
+  "lang": "en",
+  "phrase": "actually move it half an hour later",
+  "source": "TMP/demo/run-p124..p131 (2026-10-14): the steps that held some passes and not others",
+  "screen": {
+   "open": [
+    "agenda"
+   ]
+  },
+  "expect": "data-op agenda:move_meeting",
+  "live_only": true,
+  "memory": {
+   "agenda": [
+    {
+     "title": "ZAELAR weekly review",
+     "day": "+1",
+     "start": "09:00",
+     "end": "10:00"
+    },
+    {
+     "title": "Product meeting",
+     "day": "+1",
+     "start": "11:00",
+     "end": "12:00"
+    },
+    {
+     "title": "Meshcore architecture",
+     "day": "+1",
+     "start": "15:00",
+     "end": "16:00"
+    },
+    {
+     "title": "Catch up with Ethan",
+     "day": "+1",
+     "start": "16:00",
+     "end": "16:45"
+    },
+    {
+     "title": "Catch up with Ethan",
+     "day": "-6",
+     "start": "16:00",
+     "end": "16:45"
+    }
+   ]
+  },
+  "widgets": {
+   "contactos": {
+    "contacts": [
+     {
+      "id": 1,
+      "name": "Andrew",
+      "email": "andrew@example.com",
+      "channels": [],
+      "notes": "Handles the company accounts: invoices and receipts go to him by email."
+     },
+     {
+      "id": 2,
+      "name": "Ethan",
+      "email": "",
+      "channels": [
+       {
+        "platform": "telegram",
+        "handle": "@ethan_demo",
+        "chatId": "1000001"
+       }
+      ],
+      "notes": "One of my closest friends, lives in San Mateo."
+     }
+    ],
+    "next_id": 3
+   }
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "johnny show me what i've got tomorrow"
+   },
+   {
+    "role": "assistant",
+    "text": "Tomorrow you've got three things: ZAELAR weekly review at 9, Product meeting at 11, and Meshcore architecture at 3."
+   },
+   {
+    "role": "user",
+    "text": "find me a free 45 minutes tomorrow afternoon to talk with ethan, after my last meeting"
+   },
+   {
+    "role": "assistant",
+    "text": "Your last meeting ends at 4, so 4:00 to 4:45 tomorrow afternoon is free. Want me to book it?"
+   },
+   {
+    "role": "user",
+    "text": "ok book it, call it catch up with ethan"
+   },
+   {
+    "role": "assistant",
+    "text": "Done."
+   }
+  ],
+  "forbid": [
+   "worker"
+  ]
+ },
+ {
+  "id": "live-c5-telegram-the-new-time",
+  "lang": "en",
+  "phrase": "send ethan a telegram with the new time",
+  "source": "TMP/demo/run-p124..p131 (2026-10-14): the steps that held some passes and not others",
+  "screen": {
+   "open": [
+    "agenda"
+   ]
+  },
+  "expect": "data-op mensajeria:send_to",
+  "live_only": true,
+  "memory": {
+   "agenda": [
+    {
+     "title": "ZAELAR weekly review",
+     "day": "+1",
+     "start": "09:00",
+     "end": "10:00"
+    },
+    {
+     "title": "Product meeting",
+     "day": "+1",
+     "start": "11:00",
+     "end": "12:00"
+    },
+    {
+     "title": "Meshcore architecture",
+     "day": "+1",
+     "start": "15:00",
+     "end": "16:00"
+    },
+    {
+     "title": "Catch up with Ethan",
+     "day": "+1",
+     "start": "16:00",
+     "end": "16:45"
+    },
+    {
+     "title": "Catch up with Ethan",
+     "day": "-6",
+     "start": "16:00",
+     "end": "16:45"
+    }
+   ]
+  },
+  "widgets": {
+   "contactos": {
+    "contacts": [
+     {
+      "id": 1,
+      "name": "Andrew",
+      "email": "andrew@example.com",
+      "channels": [],
+      "notes": "Handles the company accounts: invoices and receipts go to him by email."
+     },
+     {
+      "id": 2,
+      "name": "Ethan",
+      "email": "",
+      "channels": [
+       {
+        "platform": "telegram",
+        "handle": "@ethan_demo",
+        "chatId": "1000001"
+       }
+      ],
+      "notes": "One of my closest friends, lives in San Mateo."
+     }
+    ],
+    "next_id": 3
+   }
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "johnny show me what i've got tomorrow"
+   },
+   {
+    "role": "assistant",
+    "text": "Tomorrow you've got three things: ZAELAR weekly review at 9, Product meeting at 11, and Meshcore architecture at 3."
+   },
+   {
+    "role": "user",
+    "text": "find me a free 45 minutes tomorrow afternoon to talk with ethan, after my last meeting"
+   },
+   {
+    "role": "assistant",
+    "text": "Your last meeting ends at 4, so 4:00 to 4:45 tomorrow afternoon is free. Want me to book it?"
+   },
+   {
+    "role": "user",
+    "text": "ok book it, call it catch up with ethan"
+   },
+   {
+    "role": "assistant",
+    "text": "Done."
+   },
+   {
+    "role": "user",
+    "text": "actually move it half an hour later"
+   },
+   {
+    "role": "assistant",
+    "text": "Moved it to 4:30 to 5:15 tomorrow."
+   }
+  ],
+  "forbid": [
+   "worker"
+  ]
+ },
+ {
+  "id": "live-i3-open-the-second-picture",
+  "lang": "en",
+  "phrase": "open the second one",
+  "source": "TMP/demo/run-p124..p131 (2026-10-14): the steps that held some passes and not others",
+  "screen": {
+   "open": [
+    "imagenes"
+   ]
+  },
+  "expect": "data-op imagenes:select",
+  "live_only": true,
+  "widgets": {
+   "imagenes": {
+    "items": [
+     {
+      "title": "Red Ferrari F40 photo 1",
+      "url": "https://img.example.com/f40-1.jpg",
+      "thumb": "https://img.example.com/f40-1-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 2",
+      "url": "https://img.example.com/f40-2.jpg",
+      "thumb": "https://img.example.com/f40-2-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 3",
+      "url": "https://img.example.com/f40-3.jpg",
+      "thumb": "https://img.example.com/f40-3-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 4",
+      "url": "https://img.example.com/f40-4.jpg",
+      "thumb": "https://img.example.com/f40-4-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 5",
+      "url": "https://img.example.com/f40-5.jpg",
+      "thumb": "https://img.example.com/f40-5-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 6",
+      "url": "https://img.example.com/f40-6.jpg",
+      "thumb": "https://img.example.com/f40-6-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 7",
+      "url": "https://img.example.com/f40-7.jpg",
+      "thumb": "https://img.example.com/f40-7-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 8",
+      "url": "https://img.example.com/f40-8.jpg",
+      "thumb": "https://img.example.com/f40-8-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     }
+    ],
+    "query": "red ferrari f40",
+    "source": "web"
+   }
+  },
+  "history": [
+   {
+    "role": "user",
+    "text": "show me a red ferari f40"
+   },
+   {
+    "role": "assistant",
+    "text": "Here are some red Ferrari F40s."
+   },
+   {
+    "role": "user",
+    "text": "cool, show me a few more of those"
+   },
+   {
+    "role": "assistant",
+    "text": "Added a few more."
+   }
+  ]
+ },
+ {
+  "id": "live-u1-play-some-madonna",
+  "lang": "en",
+  "phrase": "play some madonna",
+  "source": "TMP/demo/run-p124..p131 (2026-10-14): the steps that held some passes and not others",
+  "screen": {
+   "open": []
+  },
+  "expect": "music play",
+  "live_only": true,
+  "accept": [
+   "data-op musica:play",
+   "data-op musica:search"
+  ]
+ }
+]
