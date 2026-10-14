@@ -82,3 +82,18 @@ def test_a_pid_that_is_gone_or_absent_is_unknown():
     gone.wait()
     assert P.classify(gone.pid, engine_pid=os.getpid(), worker_sids=frozenset()) == P.UNKNOWN
     assert P.classify(None, engine_pid=os.getpid(), worker_sids=frozenset()) == P.UNKNOWN
+
+
+def test_a_process_whose_socket_vanishes_mid_scan_does_not_abort_the_lookup(monkeypatch):
+    """use cases (2026-10-14, sandbox 113639-en): one process raised OSError ENOTSOCK while its socket closed; the
+    whole lookup failed, the gate answered UNKNOWN and the harness's own turn (POST /api/flash/say) was refused."""
+    import psutil
+    from server import peer_process
+
+    class _Gone:
+        pid = 1
+        def uids(self):
+            raise OSError(38, "Socket operation on non-socket")
+    monkeypatch.setattr(psutil, "net_connections", lambda kind="tcp": (_ for _ in ()).throw(psutil.AccessDenied()))
+    monkeypatch.setattr(psutil, "process_iter", lambda: iter([_Gone()]))
+    assert peer_process.find_pid("127.0.0.1", 50000, 43921) is None

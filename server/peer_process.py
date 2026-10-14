@@ -58,8 +58,8 @@ def find_pid(peer_ip: str, peer_port: int, server_port: int) -> int | None:
                 continue
             if any(_is_client_end(c, peer, peer_port, server_port) for c in p.net_connections(kind="tcp")):
                 return p.pid
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            continue
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess, OSError):
+            continue                        # macOS: a process closing a socket mid-scan raises ENOTSOCK (2026-10-14)
     return None
 
 
