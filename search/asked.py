@@ -57,8 +57,8 @@ def ceiling(text) -> float | None:
     """The price ceiling the request states («que no pase de 12 mil euros», «under $14,000»), or None. A number
     followed by a distance/size unit («60k miles») is never a price."""
     t = norm(text)
-    for m in re.finditer(rf"{_CUR}\s?(\d[\d.,]*\s*(?:mil|k)?)|(\d[\d.,]*\s*(?:mil|k)?)\s?{_CUR}"
-                         rf"|{_BOUND}\s+(?:de\s+)?(\d[\d.,]*\s*(?:mil|k)?)", t):
+    for m in re.finditer(rf"{_CUR}\s?(\d[\d.,]*\s*(?:mil\b|k\b)?)|(\d[\d.,]*\s*(?:mil\b|k\b)?)\s?{_CUR}"
+                         rf"|{_BOUND}\s+(?:de\s+)?(\d[\d.,]*\s*(?:mil\b|k\b)?)", t):
         num = next(g for g in m.groups() if g)
         if _UNIT_AFTER.match(t[m.end():]) and not re.search(_CUR, m.group(0)):
             continue

@@ -41,3 +41,11 @@ def test_the_last_ceiling_he_said_wins_and_his_words_beat_the_sheet():
     assert ceiling_fit.asked_ceiling(ask)["value"] == 1400
     assert ceiling_fit.asked_ceiling(ask, ["Portátiles hasta 900 €"])["value"] == 1400
     assert ceiling_fit.asked_ceiling("busco un portátil", ["Portátiles hasta 900 €"])["value"] == 900
+
+
+def test_a_distance_in_km_is_never_a_thousands_price():
+    """search-buy-camper ES (2026-10-14): «menos de 150.000 km, por debajo de 25.000 euros» read the «k» of «km»
+    as «mil» and set a 150,000,000 ceiling — 73 real campers were judged against it."""
+    from search import asked
+    assert asked.ceiling("Busco una camper con menos de 150.000 km, por debajo de 25.000 euros") == 25000.0
+    assert asked.ceiling("hasta 15k €") == 15000.0
