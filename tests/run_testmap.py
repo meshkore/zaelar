@@ -637,6 +637,10 @@ DOMAINS: list[dict] = [
         # asumía 4 chars/token (inglés) cuando el input real va a 3,36 y cobraba un 16% de menos.
         {"id": "2.24", "title": "Un turno CANCELADO también se factura (y con el estimado bien calibrado)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_cancelled_turn_billing.py"]},
+        # 2026-10-14: every text-channel perf row said `cache_hit_tokens: null` while DeepSeek reported the hit — the
+        # probe's allowlist of stream metrics did not name it. Fake usage chunk → metrics → timings → verdict + meter.
+        {"id": "2.726", "title": "A provider cache hit reaches the perf row and the meter once",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_cache_hit_reported_by_the_provider_reaches_the_perf_row.py"]},
         # 2026-08-20: una SESIÓN de worker que acaba desaparecía del estado sin dejar rastro — el mismo hueco
         # que V2-150 cerró para las tareas de navegador, un nivel por encima y peor: una tarea de navegador
         # solo existe con kind=web, y TODA escalada abre una sesión.

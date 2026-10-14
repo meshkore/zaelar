@@ -556,11 +556,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     timings["total_ms"] = round((time.time() - t0) * 1000, 1)
     timings["ttft_ms"] = _ttft
     # totalizadores del modelo (tamaño + tokens + cold) fundidos en timings → visibles en `make flash`
-    for _k in ("prompt_chars", "system_chars", "n_tools", "tools_chars", "n_msgs", "prompt_tokens",
-               "prompt_tokens_est", "completion_tokens", "completion_tokens_est", "completion_chars",
-               "total_ms", "cold_estimate", "gap_since_last_s", "usage_source"):
-        if _k in llm_metrics:
-            timings.setdefault(f"llm_{_k}" if _k in ("total_ms",) else _k, llm_metrics[_k])
+    merge_llm_metrics(timings, llm_metrics)
     # VEREDICTO de latencia, igual que en la voz (paridad probe↔voz): prompt grande vs proveedor vs frío.
     try:
         from . import turn_perf as _perf
@@ -589,6 +585,22 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         **return_extra_exec,               # V2-049: {executed, task_id} si execute=True disparó una acción de worker
         **({"reveal": reveal_out} if reveal_out else {}),   # V2-060: desenlace de reveal_secret (sin el valor)
     }
+
+
+# The model's totals that the text channel copies into `timings` (and so into the perf verdict). An ALLOWLIST, so a
+# key fast_client fills but that is missing here never reaches the timeline: `prompt_cache_hit_tokens` was missing
+# and every text-channel perf row said `cache_hit_tokens: null` while DeepSeek was reporting the hit.
+_LLM_TIMING_KEYS = ("prompt_chars", "system_chars", "n_tools", "tools_chars", "n_msgs", "prompt_tokens",
+                    "prompt_tokens_est", "completion_tokens", "completion_tokens_est", "completion_chars",
+                    "total_ms", "cold_estimate", "gap_since_last_s", "usage_source", "prompt_cache_hit_tokens")
+
+
+def merge_llm_metrics(timings: dict, llm_metrics: dict) -> dict:
+    """Fold the stream's `llm_metrics` into the turn's `timings` (`total_ms` as `llm_total_ms`); never overwrites."""
+    for _k in _LLM_TIMING_KEYS:
+        if _k in llm_metrics:
+            timings.setdefault("llm_total_ms" if _k == "total_ms" else _k, llm_metrics[_k])
+    return timings
 
 
 # ── HTTP + CLI (V2-098 split) ────────────────────────────────────────────────────────────────────────────
