@@ -154,7 +154,7 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
     elif name == "close_widget":
         # Each CARD once, not the tool once: «close the calendar and the messages» may be two calls.
         if _tx._show_target.close_dispatch(args, _tag_emit, emit, text=_tx._bnotes.operator_half(text),
-                                       done=_closed_by_tool):
+                                       done=_closed_by_tool, clarify=clarify):
             _tool_fired.add("close_widget")
             acted["widget"] = True
     elif name == "fullscreen_widget":

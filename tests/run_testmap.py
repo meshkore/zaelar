@@ -4254,6 +4254,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_probe_rebuilds_the_report_it_reopens.py']},
         {"id": "2.642", "title": "`flat-hunt-recall-the-report` ES and US on the harness's own seed through the probe: «lo del piso que te dije» asks naming both, «el de Gràcia» / «the Williamsburg one» brings back that report's rows",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_the_flat_hunt_recall_case_in_both_languages.py']},
+        {"id": "2.645", "title": "A `close_widget` of a piece with two errands' sheets open and no word for one ASKS which, in both tool paths (`close_which`) — «cierra los resultados» over the plumber's and the car's sheets closed both (two-searches-two-sheets ES); «los dos» closes both, a title word closes that one, one sheet closes without asking, a minimize never asks",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_closing_one_of_two_sheets_asks_which.py']},
         {"id": "2.647", "title": "A click the browser gate stops is asked about in HIS language with the reason whole — «Task t1 needs your OK to click «Reload — el destino es una página de com»» reached an English session (find-direct-flight-budget EN): the gate's reasons are the session language's (`click_reason`), the label is clipped on a word and the reason travels apart",
             "ch": UNIT, "paths": ['tests/browser/unit/navegador/test_a_click_ok_is_asked_in_his_language_and_whole.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "

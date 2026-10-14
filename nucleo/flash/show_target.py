@@ -296,7 +296,7 @@ def close_target(widget_id: str) -> str:
     return canvas_focus.last_turn_card(ids) or (ids[0] if len(ids) == 1 else "")
 
 
-def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None) -> str:
+def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None, clarify=None) -> str:
     """The provider's `close_widget` branch body, shared with the probe: close or put away a card through the
     SAME canvas route the [[close]] tag and the canvas minimize already take. Returns the card, or "".
 
@@ -306,6 +306,14 @@ def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None) -> str
     rid = close_target(str(args.get("widget_id") or ""))
     if not rid:
         return ""
+    # Several cards of the piece open and no word to tell them apart: the close ASKS which (node 2.645). `rid` is
+    # returned so the turn counts the call as handled — its answer is the question in `clarify`, never a close.
+    from nucleo.flash import close_which as _close_which
+    _act, _q = _close_which.probe_action(args, rid, text) if clarify is not None else ("", "")
+    if _q:
+        clarify["msg"] = _q
+        return rid
+    rid = _act.split(":", 2)[2] if _act.startswith("canvas:close:") else rid   # a title word named one sheet
     done = done if done is not None else set()
     mode = str(args.get("mode") or "close").strip().lower()
     targets = [rid]

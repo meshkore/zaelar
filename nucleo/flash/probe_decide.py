@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from nucleo.flash import build_decision as _build_decision
 from nucleo.flash import card_close as _card_close
+from nucleo.flash import close_which as _close_which   # a close of one of several sheets asks which (2.645)
 from nucleo.flash.connector_canon import canon_connector as _canon_connector  # the probe sees the same door the voice opens
 from nucleo.flash import hard_turn as _hard_turn
 from nucleo.flash import player_control as _player_control
@@ -149,9 +150,9 @@ async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names
                       f"panel:{_probe._wall_tab_for(_sys, text)}" if _probe._wall_tab_for(_sys, text) else "clarify")
     elif "close_widget" in names:
         _cw = next(t for t in tool_calls if t["name"] == "close_widget")
-        _crid = _probe._close_target(str(_cw["args"].get("widget_id") or ""))
-        _cmode = "minimize" if str(_cw["args"].get("mode") or "") == "minimize" else "close"
-        action = f"canvas:{_cmode}:{_crid}" if _crid else "clarify"
+        action, _cask = _close_which.probe_action(_cw["args"], _probe._close_target(str(_cw["args"].get("widget_id") or "")), text)
+        if _cask:
+            spoken = _cask       # two sheets open and no word for one: the question is SAID, nothing closes (2.645)
     elif "fullscreen_widget" in names:
         # BUG real 2026-07-23 — espejo del provider: pone/quita pantalla completa de verdad. Resuelve el id por
         # nombre/alias con certeza (V2-082); sin match → pregunta (no fabrica).
