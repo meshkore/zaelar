@@ -1276,5 +1276,47 @@
    "worker"
   ],
   "open": "pass 124 C5/E3: an explicit, named send held for a go-ahead nobody asked for — model variance (no prompt or tool text found asking for it); the repair acts and, since 5cf4629c, says it went ahead"
+ },
+ {
+  "id": "demo-e3-read-pass-denies-the-send",
+  "lang": "en",
+  "phrase": "send the invoice to andrew, tell him we're already trying inworld and he should book it",
+  "source": "TMP/demo/run-p130 E3 (2026-10-14): the brief was unsure on every key (request_type answer 0.46, screen_action mensajeria:forward 0.45); the model read the mail card and the read pass, which has no tools, said «I can't actually send anything from here — I can only see what's in your messages». Nothing was sent",
+  "screen": {
+   "open": [
+    "mensajeria"
+   ]
+  },
+  "model": {
+   "say": "",
+   "tools": [
+    {
+     "name": "read_widget",
+     "args": {
+      "widget_id": "mensajeria",
+      "question": "Which message is the Inworld AI receipt?"
+     }
+    }
+   ]
+  },
+  "brief": {
+   "request_type": [
+    "answer",
+    0.46
+   ],
+   "screen_action": [
+    "mensajeria:forward",
+    0.45
+   ],
+   "wants_words": [
+    "act",
+    1.0
+   ]
+  },
+  "expect": "data-op mensajeria:forward",
+  "forbid": [
+   "worker"
+  ],
+  "open": "pass 130 E3: an explicit forward read the card first and the tool-less read answer refused; an unsure verdict cannot carry an outbound send — the read pass needs to know the turn can act"
  }
 ]
