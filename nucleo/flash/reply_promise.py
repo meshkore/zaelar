@@ -20,8 +20,9 @@ import unicodedata
 
 CHOICES = {
     "act": "promises to do a task now: «I'll send it», «sending it now», «lo mando», «je l'envoie», «ich schicke es»",
-    "ask_first": "will do the task only once the operator gives the go-ahead, with or without a question mark: «say the "
-                 "word and I'll send it», «I won't send it until you confirm», «want me to send it?», «dis-moi et je l'envoie»",
+    "ask_first": "has NOT done the task and holds it until the operator gives the go-ahead, with or without a question "
+                 "mark: «say the word and I'll send it», «I won't send it until you confirm», «want me to send it?». A reply "
+                 "that reports the task done and offers what comes next («Paused — say the word to resume») is none",
     "music": "promises to play music now: «putting on X», «te pongo X», «je mets X», «ich lege X auf», «metto su X»",
     "none": "no promise: an answer, a fact, a question, a refusal («I can't», «no puedo»), or a REPORT that it is "
             "already done («Done», «Hecho», «ya está», «C'est fait», «Fatto», «Erledigt», «Pronto, já enviei»)",
@@ -60,10 +61,17 @@ def _ask(reply, operator_text: str):
                         name="reply-promise", question_id="reply_promise")
 
 
+#: A held act adds a spoken line after a repair, so it must be SURE; below this it stays the promise it was before
+#: the split (demo pass 126, U3: «Paused — just say the word when you want it back on» read ask_first at 0.69).
+ASK_FIRST_MIN = 0.85
+
+
 def _settle(k: str, handle) -> str | None:
     from nucleo import jev
-    choice, _info = jev.read(handle, "reply_promise", "")
+    choice, info = jev.read(handle, "reply_promise", "")
     choice = choice if choice in CHOICES else ""
+    if choice == "ask_first" and float((info or {}).get("confidence") or 0.0) < ASK_FIRST_MIN:
+        choice = "act"
     _remember(k, choice)
     return choice or None
 

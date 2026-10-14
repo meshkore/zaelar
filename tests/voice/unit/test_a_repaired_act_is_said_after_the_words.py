@@ -82,3 +82,16 @@ def test_words_that_hold_the_act_for_a_go_ahead_ask_even_without_a_question_mark
         assert act_repair.after_the_repair(promised, True, "mensajeria", "send_to") == ""
     finally:
         rp.reset()
+
+
+def test_an_unsure_held_act_stays_a_plain_promise(monkeypatch):
+    """Demo pass 126 (2026-10-14), U3: «Paused — just say the word when you want it back on» read ask_first at 0.69,
+    and the completed pause got «I've gone ahead and done it, as you asked.» after it. A held act adds a line, so only
+    a sure one counts; below the bar it is the promise it always was."""
+    from nucleo import jev
+    from nucleo.flash import reply_promise as rp
+    rp.reset()
+    for conf, want in ((0.69, "act"), (0.92, "ask_first")):
+        monkeypatch.setattr(jev, "read", lambda h, k, d, conf=conf: ("ask_first", {"confidence": conf, "used": True}))
+        assert rp._settle(f"k{conf}", object()) == want
+    rp.reset()
