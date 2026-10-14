@@ -46,19 +46,33 @@ def _card(decision: str) -> str:
     return ""
 
 
+def _brief_of(events: list[dict]) -> dict:
+    """`{key: [choice, confidence]}` from the turn's Jev reads — what the brief said, used or not."""
+    out = {}
+    for e in events:
+        lab = str(e.get("label") or "")
+        if lab.startswith("jev read ") and e.get("choice") is not None:
+            out.setdefault(lab[9:], [e.get("choice"), e.get("confidence")])
+    return out
+
+
 def run_repeated(cases: list[dict], times: int) -> tuple[list[dict], dict]:
     """Each case `times` times, live. A case holds only at N of N; the spread of decisions says where it wanders."""
     rows = []
     for case in cases:
-        got, why, ms = [], [], []
+        got, why, ms, reds = [], [], [], []
         for _ in range(times):
             out = harness.run_case(case, live=True)
             got.append(out.decision or (f"(none: {out.error[:60]})" if out.error else "(none)"))
             why.append(out.failures(case))
             ms.append(out.ms)
+            if why[-1]:                                 # what a red run said and how sure the brief was — the cause
+                reds.append({"reply": out.reply[:240], "all": out.all_decisions, "calls": [(t.get("args") or {}).get("action") or t.get("name") for t in out.tool_calls][:6],
+                             "brief": _brief_of(out.events)})
         ok = sum(1 for w in why if not w)
         rows.append({"id": case["id"], "phrase": case["phrase"], "expect": case["expect"], "ok": ok, "times": times,
                      "decisions": {d: got.count(d) for d in dict.fromkeys(got)}, "why": [w for w in why if w][:3],
+                     "reds": reds[:4],
                      "ms_median": sorted(ms)[len(ms) // 2] if ms else 0})
     held = [r["id"] for r in rows if r["ok"] == r["times"]]
     return rows, {"cases": len(rows), "times": times, "held": len(held),

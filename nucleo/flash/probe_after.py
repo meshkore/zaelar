@@ -112,8 +112,32 @@ def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str, derived
             for _r in reqs]
 
 
+def an_inline_act_settles_the_commission(action: str, tool_calls: list, *, brief, operator_text: str, spoken) -> str:
+    """The voice's commission gate (`escalation_guard.settle_commission`), on this channel too: a turn that ACTED on
+    a card and also escalated, read `handle_inline` by its brief with no promise in the reply, does not launch the
+    worker. 2026-10-15, live bench E3: «send the invoice to andrew…» → `forward` AND `escalate_to_slowbrain` — the
+    voice annulled that worker and this channel launched it beside the send. Returns the action to report."""
+    if action != "escalate" or not any(t.get("name") == "widget_data" for t in tool_calls):
+        return action
+    from nucleo.flash import escalation_guard as _eg
+    reqs = [str(t["args"].get("request") or "") for t in tool_calls if t.get("name") == "escalate_to_slowbrain"]
+    req = {"v": reqs[0] if reqs else operator_text, "more": reqs[1:]}
+    try:
+        from voice.observer import emit
+    except Exception:  # noqa: BLE001
+        emit = lambda *a, **k: None   # noqa: E731
+    _eg.settle_commission(req, brief=brief, operator_text=operator_text, reply=spoken if isinstance(spoken, str) else "",
+                          acted=True, anything_running=False, emit=emit)
+    if req["v"] is not None:
+        return action
+    tool_calls[:] = [t for t in tool_calls if t.get("name") != "escalate_to_slowbrain"]
+    return "widget_data"
+
+
 async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _window_goal, action, execute, images_req, music_req, operator_text, sess, spoken, tags, text, tool_calls, video_req) -> dict:
     _beside = None    # three-tasks-at-once: the errands a yes/no did NOT resolve still start
+    action = an_inline_act_settles_the_commission(action, tool_calls, brief=_tbrief, operator_text=operator_text,
+                                                  spoken=spoken)
     from nucleo.turn import errands_of_a_turn as _eot_ref
     if execute:
         # CONFIRMACIÓN de una TAREA irreversible parada por el confirm-gate (V2-126) y del navegador parado en
