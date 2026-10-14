@@ -74,6 +74,17 @@ def test_a_read_of_the_card_the_verdict_names_carries_the_op_out(brief):
     assert act_repair.same_card_order_after_read({"x": 1}, "agenda") == "", "a view verdict changes nothing"
 
 
+def test_a_sure_order_for_a_lens_is_carried_out_after_the_read(brief):
+    """Demo pass 124 (2026-10-14), F2: «go to the part about proof of work» — the verdict read `documento:goto` (1.00)
+    and a sure ORDER; the model read the document and recited the section, and nothing moved on screen. A lens is
+    still left to the words when the turn is no sure order (the test above); a sure order for one is the order."""
+    from nucleo.flash import turn_brief as tb
+    brief[tb.TARGET_KEY], brief[tb.REQUEST_KEY], brief["promise"] = "documento:goto", "order", "none"
+    assert act_repair.same_card_order_after_read({"x": 1}, "documento", "The relevant part is…") == "goto"
+    brief[tb.REQUEST_KEY] = "comment"
+    assert act_repair.same_card_order_after_read({"x": 1}, "documento", "The relevant part is…") == ""
+
+
 def test_the_probe_read_route_runs_the_op_instead_of_answering_in_words(brief, model):
     from nucleo.flash import second_pass
     m = model([CANCEL])

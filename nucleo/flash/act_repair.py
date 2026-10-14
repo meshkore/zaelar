@@ -411,12 +411,12 @@ def same_card_order_after_read(brief, read_widget: str, reply: str = "") -> str:
         target, t_info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.85)
         owner, _sep, act = str(target or "").rpartition(":")
         rid = str(read_widget or "").split("::")[0].strip().lower()
-        if not (t_info and owner and act) or owner.split("::")[0].lower() != rid or _is_view(rid, act):
+        if not (t_info and owner and act) or owner.split("::")[0].lower() != rid:
             return ""
         kind, k_info = _tb.read(brief, _tb.REQUEST_KEY, "")
-        if str(kind or "") == "question":
-            return ""
         sure_order = str(kind or "") == "order" and bool(k_info)
+        if str(kind or "") == "question" or (_is_view(rid, act) and not sure_order):   # p124 F2: «go to» is a sure lens
+            return ""
         return act if (sure_order or _rp.verdict(reply) in ("act", "ask_first")) else ""
     except Exception:  # noqa: BLE001
         return ""
