@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import re
 import time as _t
+from datetime import date as _date
 
 from . import recur
 from .when import _m2, _resolve_date, _resolve_time, _today
@@ -52,17 +53,40 @@ def find(db: dict, payload: dict) -> list[dict]:
     still needs a named selector (`widgets/contract.py`)."""
     from .sweep import _matches
     if str(payload.get("title") or "").strip():
-        return _matches(db, payload)
+        return _likeliest_first(db, _matches(db, payload))
     f = db.get("focus") or {}
     if not f.get("title") or _t.time() - float(f.get("at") or 0) > FOCUS_TTL_S:
         return []
     return _matches(db, {"title": f["title"], **({"date": payload["date"]} if payload.get("date") else {})})
 
 
+def _likeliest_first(db: dict, hits: list[dict]) -> list[dict]:
+    """Several rows under one title, the one he means first: the appointment this conversation is on, then the
+    upcoming ones by nearness, then the past ones. Demo pass 124 (2026-10-14), C4: «move it half an hour later»
+    sent `{title: Catch up with Ethan}` right after booking it for tomorrow, and the move took a week-old row of
+    the same name — the order of the calendar's list, not of the conversation."""
+    if len(hits) < 2:
+        return hits
+    f = db.get("focus") or {}
+    fresh = bool(f.get("title")) and _t.time() - float(f.get("at") or 0) <= FOCUS_TTL_S
+    today = _today()
+
+    def _key(m: dict):
+        day = (recur.next_occurrence(m, today) if isinstance(m.get("repeat"), dict) else "") or str(m.get("date") or "")
+        on_focus = fresh and str(m.get("title") or "") == f["title"] and (not f.get("date") or f["date"] == m.get("date"))
+        try:
+            gap = (_date.fromisoformat(day) - _date.fromisoformat(today)).days
+        except ValueError:
+            gap = 10 ** 6                                # an unreadable day goes last
+        return (0 if on_focus else 1, 0 if gap >= 0 else 1, abs(gap))   # past ones: the most recent first
+    return sorted(hits, key=_key)
+
+
 def touch(db: dict, m: dict | None) -> None:
-    """Remember which appointment the conversation is on (see `find`)."""
+    """Remember which appointment the conversation is on (see `find`) — its day too, so two rows of one title are
+    told apart."""
     if isinstance(m, dict) and m.get("title"):
-        db["focus"] = {"title": str(m["title"]), "at": _t.time()}
+        db["focus"] = {"title": str(m["title"]), "date": str(m.get("date") or ""), "at": _t.time()}
 
 
 def missing(db: dict, payload: dict) -> str:

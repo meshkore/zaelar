@@ -61,3 +61,32 @@ def test_a_bare_day_in_a_move_is_where_it_goes(ag):
     ag.apply_action("add_meeting", {"title": "Dentist", "date": day, "startTime": "10:00", "endTime": "11:00"})
     got = ag.apply_action("move_meeting", {"title": "Dentist", "day": "2026-12-01"})
     assert (got.get("stored") or {}).get("date") == "2026-12-01", got
+
+
+def _days(n: int) -> str:
+    return time.strftime("%Y-%m-%d", time.localtime(time.time() + n * 86400))
+
+
+def test_a_move_by_title_takes_the_one_just_booked_not_an_old_namesake(ag):
+    """Demo pass 124 (2026-10-14), C4: a week-old «Catch up with Ethan» from an earlier pass sat in the calendar;
+    «book it» wrote tomorrow's and «move it half an hour later» sent `{title}` — the move took the OLD row (first in
+    the calendar's list), and tomorrow's stayed at 16:00 while the reply said 16:30."""
+    ag.apply_action("add_meeting", {"title": "Catch up with Ethan", "date": _days(-6), "startTime": "16:00",
+                                    "endTime": "16:45"})
+    ag.apply_action("add_meeting", {"title": "Catch up with Ethan", "date": _days(1), "startTime": "16:00",
+                                    "endTime": "16:45"})
+    got = ag.apply_action("move_meeting", {"title": "Catch up with Ethan", "newTime": "16:30", "endTime": "17:15"})
+    assert got.get("ok") is not False, got
+    rows = {m["date"]: m["startTime"] for m in ag.load_db()["meetings"] if m["title"] == "Catch up with Ethan"}
+    assert rows == {_days(-6): "16:00", _days(1): "16:30"}, rows
+
+
+def test_without_a_conversation_on_it_the_upcoming_namesake_comes_before_the_past_one(ag):
+    ag.apply_action("add_meeting", {"title": "Dentist", "date": _days(-3), "startTime": "10:00", "endTime": "10:30"})
+    ag.apply_action("add_meeting", {"title": "Dentist", "date": _days(5), "startTime": "10:00", "endTime": "10:30"})
+    db = ag.load_db()
+    db.pop("focus", None)
+    from widgets import store
+    store.save("agenda", db)
+    from widgets.agenda import edit
+    assert [m["date"] for m in edit.find(ag.load_db(), {"title": "Dentist"})] == [_days(5), _days(-3)]
