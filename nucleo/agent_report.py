@@ -56,39 +56,63 @@ def _post(payload: dict) -> int:
     return 0
 
 
-def main(argv: list[str] | None = None) -> int:
+def _count(raw: str) -> int:
+    """A step count as a worker writes it: «3», «3/5», «1,2,3» (the steps it lists), «paso 2». Measured 2026-10-14
+    (search-buy-boat-multicountry ES): our own status demand said «--done <pasos hechos>» and the worker's call
+    died on exit code 2, so the report it was told to give never arrived."""
     import argparse
-    ap = argparse.ArgumentParser(prog="agent_report", description="Reporte de progreso del worker al FlashBrain")
+    import re
+    nums = re.findall(r"\d+", str(raw or ""))
+    if not nums:
+        raise argparse.ArgumentTypeError(f"«{raw}» is not a step count — pass the number of steps done, e.g. 3")
+    if "," in raw or len(nums) > 2 or (len(nums) == 2 and "/" not in raw):
+        return len(nums)                     # a list of the steps done: how many
+    return int(nums[0])                      # «3» or «3/5»: the first number
+
+
+def parser():
+    """The CLI. Every subcommand that carries a free text also takes `--done`/`--pct`: the status demand names
+    `phase` and `progress` in one sentence, and a worker that glued the flag onto `phase` (2026-10-14) lost its
+    report to a usage error."""
+    import argparse
+    ap = argparse.ArgumentParser(prog="agent_report", description="Worker progress report to the FlashBrain")
     sub = ap.add_subparsers(dest="cmd", required=True)
-    p = sub.add_parser("phase", help="actualiza la fase legible de la sesión (visible para el operador)")
-    p.add_argument("text")
-    n = sub.add_parser("note", help="deja una traza en observabilidad")
-    n.add_argument("text")
-    pl = sub.add_parser("plan", help="declara la LISTA DE TAREAS al empezar (pasos separados por | )")
+    for name, helptext in (("phase", "set the session's readable phase (visible to the operator)"),
+                           ("note", "leave a trace in observability"),
+                           ("progress", "report progress: note + --done N (steps done) and/or --pct P (0-100)")):
+        p = sub.add_parser(name, help=helptext)
+        p.add_argument("text", nargs="?" if name == "progress" else None, default="")
+        p.add_argument("--done", type=_count, default=None)
+        p.add_argument("--pct", type=_count, default=None)
+    pl = sub.add_parser("plan", help="declare the TASK LIST at the start (steps separated by | )")
     pl.add_argument("text")
-    pr = sub.add_parser("progress", help="reporta progreso: nota + --done N (pasos hechos) y/o --pct P (0-100)")
-    pr.add_argument("text", nargs="?", default="")
-    pr.add_argument("--done", type=int, default=None)
-    pr.add_argument("--pct", type=int, default=None)
-    go = sub.add_parser("goal", help="declara CÓMO SE MIDE el éxito de este encargo (JSON, o @fichero.json)")
+    go = sub.add_parser("goal", help="declare HOW success of this errand is measured (JSON, or @file.json)")
     go.add_argument("text")
-    co = sub.add_parser("considered", help="AMPLITUD: cuántos candidatos has evaluado de verdad (--kept N finalistas)")
-    co.add_argument("n", type=int)
-    co.add_argument("--kept", type=int, default=None)
-    a = ap.parse_args(argv)
-    if a.cmd == "phase":
-        return _post({"phase": a.text})
-    if a.cmd == "note":
-        return _post({"note": a.text})
+    co = sub.add_parser("considered", help="BREADTH: how many candidates you really evaluated (--kept N finalists)")
+    co.add_argument("n", type=_count)
+    co.add_argument("--kept", type=_count, default=None)
+    return ap
+
+
+def _progress_body(a) -> dict:
+    body: dict = {}
+    if getattr(a, "done", None) is not None:
+        body["done"] = a.done
+    if getattr(a, "pct", None) is not None:
+        body["pct"] = a.pct
+    return body
+
+
+def main(argv: list[str] | None = None) -> int:
+    a = parser().parse_args(argv)
+    if a.cmd in ("phase", "note"):
+        rc = _post({a.cmd: a.text})
+        counts = _progress_body(a)
+        return (_post({"progress": a.text, **counts}) or rc) if counts else rc
     if a.cmd == "plan":
         return _post({"plan": a.text})
     if a.cmd == "progress":
-        body: dict = {"progress": a.text or ""}
-        if a.done is not None:
-            body["done"] = a.done
-        if a.pct is not None:
-            body["pct"] = a.pct
-        return _post(body)
+        return _post({"progress": a.text or "", **_progress_body(a)})
     if a.cmd == "goal":
         raw = a.text
         if raw.startswith("@"):

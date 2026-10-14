@@ -4205,6 +4205,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/search/unit/test_a_soft_or_zone_preference_is_never_a_subject.py']},
         {"id": "2.676", "title": "A hard «solo en Ruzafa» is a place, not a subject: a row silent on the neighbourhood stays, and the city gate still sends a row in another city to the Rejected tab",
             "ch": UNIT, "paths": ['tests/search/unit/test_a_hard_neighbourhood_keeps_a_row_silent_on_it.py']},
+        {"id": "2.677", "title": "Every `agent_report` command our own instructions name (read from every string literal under nucleo/) parses; `phase \"…\" --done 1` — the measured call that died on exit code 2 — reports the phase AND the step; «3/5», «1,2,3» are step counts (search-buy-boat-multicountry ES)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_report_flag_our_instructions_name_parses.py']},
         {"id": "2.593", "title": "A search-band row he names by title or channel PLAYS — «play the Palm Centre one» twice answered «Solo hay 6 resultados» and nothing played (find-videos-on-a-topic-no-ai-slop EN); words on two rows are refused, never guessed",
             "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_a_band_row_he_names_plays.py']},
         {"id": "2.594", "title": "The band rows he NAMES reach the queue by name («el de Iván, el de José Manuel y el de Jaén»), and an `add` of a row on screen adds that row without a fresh search; one unknown name adds nothing",
