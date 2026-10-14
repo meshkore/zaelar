@@ -68,19 +68,28 @@ def ceiling(text) -> float | None:
 
 
 #: A capitalised run of words that is not the sentence's first word: «Rosalía», «Bad Bunny», «Ford Focus».
-#: Titlecase only: an all-caps token («SUV», «TDI», «4K») is a spec or a category, never the subject.
-_CAPS = re.compile(r"(?<![.!?¿¡]\s)\b([A-ZÁÉÍÓÚÑ][a-záéíóúñü][\wáéíóúñü&'-]*(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñü][\wáéíóúñü&'-]*)*)")
+#: Titlecase only: an all-caps token («SUV», «TDI», «4K») is a spec or a category, never the subject. A word right
+#: after an opening «¿»/«¡» starts a sentence: «¿Los tienes?» named the subject «los».
+_CAPS = re.compile(r"(?<![.!?¿¡]\s)(?<![¿¡])\b([A-ZÁÉÍÓÚÑ][a-záéíóúñü][\wáéíóúñü&'-]*(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñü][\wáéíóúñü&'-]*)*)")
 #: What precedes a PLACE, not a subject: «en Madrid», «in Miami», «cerca de Sevilla».
 _PLACE_BEFORE = re.compile(r"(?:\b(?:en|in|at|near|cerca de|desde|from|to|around|por)\s+)$", re.I)
 
 
+#: Both ends of a ROUTE are places: «de Madrid a Londres», «from Boston to Denver». His words now reach every errand's
+#: sheet (`nucleo/turn/commission_words.py`), and a flight row says «MAD → LHR», not «Madrid».
+_ROUTE = re.compile(r"\b(?:de|desde|from)\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñü-]*(?:\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñü-]*)*"
+                    r"\s+(?:a|al|hasta|to)\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñü-]*(?:\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñü-]*)*")
+
+
 def subjects(text) -> list[str]:
     """The proper names the request asks ABOUT — the subject a candidate must name. Places are left out (a ticket
-    row says «Movistar Arena», not «Madrid»), and so are months, days and greetings. Empty when nothing is named."""
+    row says «Movistar Arena», not «Madrid»; a route's two ends), and so are months, days and greetings. Empty when
+    nothing is named."""
     raw = " ".join(str(text or "").split())
+    routes = [r.span() for r in _ROUTE.finditer(raw)]
     out: list[str] = []
     for m in _CAPS.finditer(raw):
-        if m.start() == 0 or _PLACE_BEFORE.search(raw[:m.start()]):
+        if m.start() == 0 or _PLACE_BEFORE.search(raw[:m.start()]) or any(a <= m.start() < b for a, b in routes):
             continue
         words = [w for w in norm(m.group(1)).split() if w not in NOT_A_SUBJECT and len(w) >= 3]
         if words and words[0] != "i":
@@ -122,6 +131,11 @@ _STOP = frozenset((
     "such", "have", "worry", "bother", "sure", "older", "newer", "over", "less", "really", "quite", "even", "any",
     "puedo", "puedes", "hay", "vale", "gracias", "thanks", "problem", "rush", "prisa", "longer",
 ))
+
+
+def without_negated(text) -> str:
+    """`text` with every negated noun taken out («busco hotel, no hostales» → «busco hotel, »): what he ASKED for."""
+    return _NEG.sub(" ", norm(text))
 
 
 def exclusions(text) -> list[str]:

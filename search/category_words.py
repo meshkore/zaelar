@@ -87,3 +87,12 @@ NOT_A_SUBJECT = frozenset((
     "november", "december", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
     "hey", "hola", "oye", "please", "porfa", "zaelar",
 ))
+
+#: One kind of thing, named in ES and EN: a word he RULED OUT in one language rules out the row that says it in the
+#: other (`search/excluded.py`). hotel-under-15-days ES (2026-10-14): «no hostales ni albergues» stood while «Hostel
+#: Ikigai», «Urban Cube Hostel Sevilla» and «The Nomad Hostel&Pension» were offered as four-star hotels. Accent-free
+#: singular stems; a family is listed only when a recorded sheet carried it.
+SAME_THING: tuple[tuple[str, ...], ...] = (
+    ("hostal", "hostel", "albergue"),
+    ("pension", "guesthouse", "guest house"),
+)

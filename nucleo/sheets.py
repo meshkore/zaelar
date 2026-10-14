@@ -369,6 +369,8 @@ def _sheet_open(rec, *, show: bool = True) -> None:
         _sheet.prune_sheets()          # the sheet persists deliberately; N instances cannot grow without a ceiling
     except Exception:  # noqa: BLE001
         pass
+    from nucleo.turn import commission_words as _cw
+    _cw.seed(_sid, getattr(rec, "goal", ""))     # his commissioning sentence: the door judges rows by it (2.630)
     if not show:
         return
     try:
@@ -444,7 +446,7 @@ def record_phase(rec, phase: str, phases_kept: int = 0) -> bool:
     return True
 
 
-def recheck_rows(sheet: str, correction: str) -> int:
+def recheck_rows(sheet: str, correction: str, *, relayed: bool = False) -> int:
     """A correction injected into an errand reaches its SHEET too (V2-782 T3.3): the rows it rules out leave the list
     for the Rejected tab (`widgets/results/category_gate.recheck`). Never raises — the injection already happened,
     and a sheet that cannot be re-judged must not read as a failed injection. Returns how many rows left."""
@@ -452,7 +454,7 @@ def recheck_rows(sheet: str, correction: str) -> int:
         return 0
     try:
         from widgets.results import category_gate
-        return category_gate.recheck(str(sheet), correction)
+        return category_gate.recheck(str(sheet), correction, relayed=relayed)   # relayed: the model's words
     except Exception as e:  # noqa: BLE001
         from loguru import logger
         logger.warning(f"sheets: re-judging {sheet} after a correction failed: {e!r}")

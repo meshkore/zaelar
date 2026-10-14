@@ -383,6 +383,12 @@ class LangSpec:
     data_ack_went_ahead: str = "Ya lo he hecho, tal como lo pediste."
     # Demo passes 108-109: after «¿cuál…?» the verdict PICKED one — said as a choice he can correct, not a go-ahead.
     data_ack_went_with: str = "He ido con lo más probable; si era otra cosa, dímelo."
+    # A correction of a results sheet ran as a data-op the model did not speak over (`nucleo/flash/correction_ack.py`):
+    # «esos no son de Rosalía» got a bare «Hecho.» twice (find-concert-tickets ES, 2026-10-14). The line says what
+    # changed: how many rows left the list, and that what does not fit no longer comes in.
+    correction_dropped: str = "Entendido: he quitado {n} que no encajaban con lo que pides; lo que no encaje ya no entra."
+    correction_dropped_one: str = "Entendido: he quitado la que no encajaba con lo que pides; lo que no encaje ya no entra."
+    correction_noted: str = "Entendido, apuntado en la hoja: lo que no encaje con eso ya no entra."
     # V2-743 — the three beats of a CONFIRMED irreversible op. `work_started` replaces `data_ack` at the
     # moment the operator says yes: until today the gate answered «Hecho.» 0.86 s after DISPATCHING the
     # deletion and 7 s before any outcome existed. His own words for the beat he wanted: «me pongo a hacerlo

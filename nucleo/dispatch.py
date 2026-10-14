@@ -601,7 +601,7 @@ async def inject(which: str, message: str) -> list[str]:
                 from nucleo.workers.session import Inject
                 r.injects.append(Inject(text=message, ts=time.time()))
             done.append(tid)
-            _sheets.recheck_rows(getattr(r, "sheet", ""), message)   # V2-782 T3.3: the correction reaches its sheet
+            _sheets.recheck_rows(getattr(r, "sheet", ""), message, relayed=True)   # V2-782 T3.3: our words, not his
         except Exception as e:  # noqa: BLE001
             logger.warning(f"dispatch: inject a {tid} falló: {e}")
     return done

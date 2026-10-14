@@ -22,20 +22,24 @@ from loguru import logger
 _CARRIED: set[tuple[str, str]] = set()
 
 
-def spec_of(sentence: str) -> str:
+def spec_of(sentence: str, *, exclusions: bool = False) -> str:
     """The sentence's specs, re-said in the readers' own plain form ("" when it states none).
 
     Never the sentence itself: «me sacas un LG de 24 y un Asus de 23,8… te pedí mínimo 27» names two rows he is
     REJECTING, and the subject reader takes a capitalised name for the thing every row must name — carried whole, it
     emptied the sheet, the Fujitsu he wanted included. Only the floor, the size, the ceiling and 4K travel. Not the
-    exclusions: read off conversation they are noise («nada de CRT ni monitores viejos» excludes «monitores»), and
-    an injected correction already carries them (`dispatch.inject` → `sheets.recheck_rows`)."""
+    exclusions unless `exclusions`: read against a sheet that holds none of his words they are noise («nada de CRT ni
+    monitores viejos» excludes «monitores»). With his commissioning words on the sheet («busco un monitor…») the door
+    keeps a word he asked for (`category._first_clause`), and what he rules out reaches it in HIS words — the model's
+    relay of it («DESCARTAR todos los albergues…», hotel-under-15-days ES 2026-10-14) carries no negation the reader
+    reads, so «no hostales ni albergues» never reached the door and «Hostel Ikigai» was offered next turn."""
     from search.category import asked_from
     ask = asked_from(sentence)
     parts = [f"at least {ask['size_min']} inches" if ask.get("size_min")
              else (f'{ask["size"]}"' if ask.get("size") else ""),
              f"under {ask['ceiling']:.0f}" if ask.get("ceiling") else "",
              "4K" if ask.get("uhd") else ""]
+    parts += [f"no {w}" for w in (ask.get("excluded") or [])[:4]] if exclusions else []
     return " · ".join(p for p in parts if p)
 
 
@@ -54,7 +58,8 @@ def carry(operator_text: str) -> list[str]:
         from nucleo.turn import split_by_errand as _split
         for part in _split.parts(text, errands):   # over ALL errands, cut per errand: «…the game, and the monitor 27»
             sheet = str(part["errand"].get("sheet") or "")
-            spec = spec_of(part["words"]) if sheet.startswith("results") else ""
+            spec = (spec_of(part["words"], exclusions=bool(_asked_of(sheet)))   # exclusions need his words there
+                    if sheet.startswith("results") else "")
             if not spec or (sheet, spec) in _CARRIED:
                 continue
             _CARRIED.add((sheet, spec))
@@ -65,6 +70,11 @@ def carry(operator_text: str) -> list[str]:
     if out:
         _emit(out)
     return out
+
+
+def _asked_of(sheet: str) -> str:
+    from widgets.results import category_gate
+    return category_gate.asked_of(sheet)
 
 
 def forget() -> None:

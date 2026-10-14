@@ -4264,6 +4264,22 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_his_spec_in_a_sentence_about_several_errands_reaches_its_sheet.py']},
         {"id": "2.647", "title": "A click the browser gate stops is asked about in HIS language with the reason whole — «Task t1 needs your OK to click «Reload — el destino es una página de com»» reached an English session (find-direct-flight-budget EN): the gate's reasons are the session language's (`click_reason`), the label is clipped on a word and the reason travels apart",
             "ch": UNIT, "paths": ['tests/browser/unit/navegador/test_a_click_ok_is_asked_in_his_language_and_whole.py']},
+        {"id": "2.630", "title": "His sentence that COMMISSIONED a worker errand reaches that errand's sheet (`asked`), so the door judges rows by his subject — «entradas de Rosalía» never reached the worker's sheet and «Miguel Lago», «El Cascanueces» were offered (find-concert-tickets ES); a turn with two errands hands neither its words",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_commissioning_sentence_reaches_the_errands_sheet.py']},
+        {"id": "2.631", "title": "A correction in the MODEL's words (an injection, a folded escalation) joins the sheet as context, never his ask: its capitalised names are no subject — «(Hostel Trotamundos, …)» rejected every real four-star hotel and «(Wallapop, Milanuncios…)» eight guitars (hotel-under-15-days ES, search-buy-guitar ES)",
+            "ch": UNIT, "paths": ['tests/search/unit/test_our_relay_of_a_correction_is_never_his_subject.py']},
+        {"id": "2.632", "title": "A word he rules out rejects the row in its singular, its plural and its ES/EN twin, in the first request or a correction — «no hostales ni albergues» left «Hostel Ikigai», «Urban Cube Hostel» as candidates (hotel-under-15-days ES); a word he asked for is never read as ruled out",
+            "ch": UNIT, "paths": ['tests/search/unit/test_a_ruled_out_word_matches_its_plural_and_its_other_language.py']},
+        {"id": "2.633", "title": "What he rules out about one errand reaches its sheet in HIS words before the reply names rows (only a sheet that holds his commissioning words) — the relay «DESCARTAR todos los albergues…» carried no negation and two hostels were presented next (hotel-under-15-days ES)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_what_he_rules_out_reaches_the_sheet_in_his_words.py']},
+        {"id": "2.634", "title": "A repaired `results:criteria` correction is acknowledged with what changed (rows taken off, what does not fit stays out), never a bare «Hecho.» — «esos no son de Rosalía» got «Hecho.» twice over twelve rejected rows (find-concert-tickets ES)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_sheet_correction_says_what_changed.py']},
+        {"id": "2.635", "title": "The rows a first tail left out ride his next wait (`wants_words=tell`), and a question about rows he named keeps its reply — on the search-buy-guitar ES round's own guitars",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_guitars_left_in_the_prompt_ride_a_wait.py']},
+        {"id": "2.636", "title": "Both ends of a route in his words («de Madrid a Londres», «from Boston to Denver») are places, never a subject a row must name — his words now reach every errand's sheet",
+            "ch": UNIT, "paths": ['tests/search/unit/test_a_routes_two_ends_are_places_not_subjects.py']},
+        {"id": "2.637", "title": "A capitalised word right after an opening «¿»/«¡» starts a sentence, never a subject — «¿Los tienes?» named the subject «los»",
+            "ch": UNIT, "paths": ['tests/search/unit/test_an_opening_question_mark_starts_a_sentence.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "

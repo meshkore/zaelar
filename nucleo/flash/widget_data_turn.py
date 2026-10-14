@@ -290,7 +290,7 @@ def named_ack(parte: dict, ack: str, operator_text: str = "", *, asked: bool = F
     """
     parte = parte if isinstance(parte, dict) else {}
     base = spoken_for(parte, ack)
-    if parte.get("executed") != "widget_data" or parte.get("fallidas"):
+    if parte.get("executed") != "widget_data" or parte.get("fallidas") or base != ack:   # its own line already
         return base
     if not (asked or _asked_something(operator_text)):   # `asked`: the brief says he wants words (2026-10-14)
         return base
@@ -367,7 +367,8 @@ def spoken_for(parte: dict, ack: str) -> str:
         return ack
     fallidas = parte.get("fallidas") or []
     if not fallidas:
-        return ack
+        from nucleo.flash.correction_ack import line as _correction   # a sheet correction says what changed
+        return _correction(parte) or ack
     # One succeeded and another failed: say what did NOT succeed, which is what the operator cannot see.
     from voice.engine.core import langs as _lg_pf
     _sp = _lg_pf.current_language()

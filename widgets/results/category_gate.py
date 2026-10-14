@@ -15,6 +15,7 @@ from search import category as _category
 from search import route_fit as _route
 
 _MAX_ASKED = 900
+_MAX_RELAYED = 6
 _DEFAULT_TITLES = frozenset(("resultados", "results", "sin resultados", ""))
 
 
@@ -22,6 +23,7 @@ def _context(data: dict, payload: dict) -> list[str]:
     crit = data.get("criteria") or {}
     pcrit = payload.get("criteria") if isinstance(payload.get("criteria"), dict) else {}
     out = [data.get("title"), payload.get("title"), crit.get("goal"), (pcrit or {}).get("goal")]
+    out += list(data.get("relayed") or [])          # a correction in OUR words (see `recheck`)
     for src in (crit, pcrit or {}):
         out += list(src.get("changes") or []) + list(src.get("hard") or [])
     # A default title says nothing about what was asked: judging a «Resultados» sheet by category would reject the
@@ -40,10 +42,31 @@ def _own(data: dict, payload: dict) -> str:
 
 
 def keep_asked(data: dict, prev: dict, payload: dict) -> None:
-    """`asked` survives a `present` (which rebuilds the sheet) and a payload may set it."""
+    """`asked` survives a `present` (which rebuilds the sheet) and a payload may set it; so do relayed corrections."""
     asked = str(payload.get("asked") or prev.get("asked") or data.get("asked") or "").strip()
     if asked:
         data["asked"] = asked[-_MAX_ASKED:]
+    if prev.get("relayed") and not data.get("relayed"):
+        data["relayed"] = list(prev["relayed"])
+
+
+def asked_of(sheet: str) -> str:
+    """His words as this sheet holds them ("" when none reached it)."""
+    from widgets.results import data as _d
+    return str(_d.view_data(sheet).get("asked") or "").strip()
+
+
+def hear(sheet: str, words: str) -> bool:
+    """The sentence that COMMISSIONED the errand becomes the sheet's `asked`, when it has none yet. True when set.
+
+    find-concert-tickets ES (2026-10-14): a worker's sheet never had `asked` — only the listing fast pass wrote it —
+    so «Rosalía» was nobody's subject, and «Miguel Lago», «El Club de los Poetas Muertos» and «El Cascanueces» were
+    offered as Rosalía tickets. Re-judged too: a sheet inherited from a relay may already hold rows."""
+    text = " ".join(str(words or "").split())
+    if not text or asked_of(sheet):
+        return False
+    recheck(sheet, text)
+    return True
 
 
 def _file(data: dict, off: list[dict]) -> None:
@@ -73,14 +96,22 @@ def gate(data: dict, items: list[dict], payload: dict) -> tuple[list[dict], dict
                                     + ". Present only instances of the thing he asked for.")}
 
 
-def recheck(sheet: str, correction: str) -> int:
+def recheck(sheet: str, correction: str, *, relayed: bool = False) -> int:
     """A correction reached the errand: it joins `asked`, and the rows already on the sheet are judged again.
     Returns how many left the list. Measured (search-buy-used-car ES, 2026-10-11): the worker heard «solo coches,
-    no maquetas» and said «lo descarto», yet the eBay rows stayed and the reply kept offering them."""
+    no maquetas» and said «lo descarto», yet the eBay rows stayed and the reply kept offering them.
+
+    `relayed`: the text is the MODEL's message to the worker, not his sentence. It joins the context side (what
+    was ruled out, the ceiling), never `asked`, whose capitalised names are the subjects every row must name.
+    hotel-under-15-days ES (2026-10-14): «DESCARTAR … (Hostel Trotamundos, bambu hostel capsules, Arc House…)» was
+    read as his ask, and every real four-star hotel left the sheet for «does not name «hostel trotamundos»»;
+    search-buy-guitar ES: «(Wallapop, Milanuncios y similares)» rejected eight guitars the same way."""
     from widgets.results import data as _d
     data = _d.view_data(sheet)
     text = " ".join(str(correction or "").split())
-    if text:
+    if text and relayed:
+        data["relayed"] = (list(data.get("relayed") or []) + [text[:_MAX_ASKED]])[-_MAX_RELAYED:]
+    elif text:
         data["asked"] = (str(data.get("asked") or "") + " " + text).strip()[-_MAX_ASKED:]
     own, ctx = _own(data, {}), _context(data, {})
     on, off = _route.split(*_category.split(data.get("items") or [], own, ctx), own, ctx)

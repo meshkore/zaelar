@@ -30,6 +30,7 @@ from search import asked as _asked
 from search import asked_size as _floor
 from search import category_words as _w
 from search import route_fit as _route
+from search import excluded as _excluded
 
 #: Under this share of the stated ceiling, a price is not the price of the thing asked (a €12,000 ceiling → €600).
 _CEILING_SHARE = 0.05
@@ -79,8 +80,8 @@ def asked_from(asked: str = "", context=()) -> dict:
         "size": _asked.size_inches(own),
         "size_min": _floor.size_floor(own),     # «27 al menos»: a floor, not an exact size (three-tasks 2026-10-11)
         "uhd": _asked.wants_4k(own),
-        "excluded": [w for w in _asked.exclusions(request) if not re.search(rf"\b{re.escape(w)}\b",
-                                                                            _first_clause(n, w))],
+        "excluded": [w for w in _asked.exclusions(request)
+                     if not _excluded.named_in(w, _asked.without_negated(_first_clause(n, w)))],
     }
 
 
@@ -108,7 +109,7 @@ def why_off(row: dict, ask: dict) -> str:
         if not _w.GENERIC[label].search(req) and rx.search(raw_title):
             return f"{label} («{rx.search(raw_title).group(0)}»), not what was asked"
     for w in ask.get("excluded") or ():
-        if re.search(rf"\b{re.escape(w.rstrip('s'))}(?:e?s)?\b", title):
+        if _excluded.named_in(w, title):           # «hostales» rules out «Hostal X» and «Hostel X» alike
             return f"he ruled out «{w}»"
     price, ceiling = _price(row), ask.get("ceiling")
     if price is not None and ceiling and price < ceiling * _CEILING_SHARE:

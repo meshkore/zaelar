@@ -15,6 +15,7 @@ from nucleo.flash import reminder_backing as _rback   # a claimed reminder is ch
 from nucleo.workers import quota_wait as _qwait   # the worker chain asleep: what an escalation turn may say
 from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one is said (2.643)
 from nucleo.flash.delivery_repeat import wants_words as _ww   # a question without «?» is in the brief (2.604)
+from nucleo.turn import commission_words as _commission_words   # his sentence reaches the errand's sheet (2.630)
 
 
 async def _escalated_with_its_data_ops(task_ids: list, tool_calls: list, text: str, brief) -> dict:
@@ -93,7 +94,7 @@ def _the_turns_errands(tool_calls: list, operator_text: str, window_goal: str, *
     return kept, _surf, dropped
 
 
-def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str, derived=()) -> list:
+def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str, derived=(), heard: str = "") -> list:
     """One escalation per request through the one portal (`escalate_to_slowbrain`); the DECISION to park an
     errand whose turn asked permission lives there (V2-655), so OUR REPLY travels as `asked` — the voice channel's
     `spoken_text`. This channel used to pass HIS turn, [SISTEMA] notes included, so the gate's own «¿La hago?»
@@ -101,6 +102,7 @@ def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str, derived
     (three-tasks-at-once ES, 2026-10-11 02:04)."""
     from nucleo import surfaces as _surfaces
     from nucleo.flash import escalate as _esc
+    _commission_words.note(reqs, heard)            # one errand: his sentence reaches its sheet when it opens
     return [_esc.escalate_to_slowbrain(str(_r), context={"src": "probe", "trace": trace_id, "asked": text,
                                                           "derived": bool(_r) and _r in derived,
                                                           "surface": _surfaces.pick(_surf.get(_r, ""),
@@ -148,7 +150,7 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                 _reqs, _surf, _left = _beside or _the_turns_errands(tool_calls, operator_text, _window_goal)
                 _still_parked = _eot_ref.parked_question_for(_reqs)
                 _tids = _launch(_reqs, _surf, trace_id=_trace_id, brief=_tbrief, text=spoken if isinstance(spoken, str) else "",
-                                derived=(operator_text, _window_goal))
+                                derived=(operator_text, _window_goal), heard=operator_text)
                 return_extra_exec = (await _escalated_with_its_data_ops(_tids, tool_calls, text, _tbrief)
                                      if action == "escalate" else {"executed": action, "beside": _tids})
                 if _left:
