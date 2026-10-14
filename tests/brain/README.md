@@ -20,7 +20,15 @@ export ZAELAR_WORKSPACE=$(mktemp -d)                       # the suite isolates 
 ./.venv/bin/python -m pytest -q tests/brain/unit           # one test per case + the disarm proofs
 ./.venv/bin/python -m tests.brain.runner                   # the table and the four numbers (A2's control run)
 ./.venv/bin/python -m tests.brain.runner --case demo-v7-stop-it-and-close-the-video
+./.venv/bin/python -m tests.brain.runner --live --repeat 7 --only demo-   # real model + real Jev, 7 times each
 ```
+
+**Live, N times (2026-10-15).** The recorded bank fixes the model's words, so it cannot say how often the model gives
+them. `--live` runs each case on the real fast model and the real brief (routing copied from the install's
+`config/v2.json`, keys read from its credential store into the process and put back after), still isolated and with
+`execute=False` — nothing is sent. A case HOLDS only at N of N; the table shows how its decisions spread. A case can
+seed what a card holds with `widgets: {card: its store document}`, because a live model decides on the card's content.
+It costs model calls: a measurement you run, not a CI gate.
 
 The runner's exit code is about REGRESSIONS: non-zero when a case that was green is red, or when an `open`
 case has turned green without anyone removing its mark.

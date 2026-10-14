@@ -6875,6 +6875,8 @@ DOMAINS: list[dict] = [
     {"id": "11", "name": "CEREBRO (banco de decisiones)", "nodes": [
         {"id": "11.1", "title": "Each turn of the bank decides what its case expects (53 cases ES+EN, 15 open; published nightly)",
             "ch": UNIT, "paths": ["tests/brain/unit/test_the_bank.py"]},
+        {"id": "11.4", "title": "The live bench: a case seeds what a card holds, and going live puts the keys and the model routing back",
+            "ch": UNIT, "paths": ["tests/brain/unit/test_the_live_bench.py"]},
         {"id": "11.2", "title": "El banco mide el PRODUCTO: tres desarmes (mapa de acciones, cierre, veredicto) "
                                 "ponen su caso en rojo",
             "ch": UNIT, "paths": ["tests/brain/unit/test_the_bank_measures_the_product.py"]},

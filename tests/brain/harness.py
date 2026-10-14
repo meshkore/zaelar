@@ -53,7 +53,7 @@ DECISIONS = re.compile(
 FORBIDS = ("worker", "search", "show", "close", "data-op", "second-card", "model", "ask")
 
 CASE_KEYS = {"id", "lang", "phrase", "source", "screen", "memory", "model", "brief", "expect", "also",
-             "forbid", "open", "note", "file"}
+             "forbid", "open", "note", "file", "widgets"}
 
 
 def load_cases(pattern: str = "*.json") -> list[dict]:
@@ -104,6 +104,9 @@ def validate(case: dict) -> None:
     memory = case.get("memory") or {}
     if set(memory) - {"agenda", "state"}:
         raise ValueError(f"{case['id']}: memory fixtures are 'agenda' and 'state'")
+    widgets = case.get("widgets") or {}
+    if not isinstance(widgets, dict) or any(not isinstance(v, dict) for v in widgets.values()):
+        raise ValueError(f"{case['id']}: widgets is {{card id: its store document}}")
 
 
 # ── the outcome and its judge ─────────────────────────────────────────────────────────────────────────────
@@ -289,8 +292,9 @@ _ENV_KEYS = ("ZAELAR_WORKSPACE", "ZAELAR_DB", "ZAELAR_JEV", "ZAELAR_EMBED_BACKEN
 class Isolated:
     """Everything a bank turn can reach, redirected to a temp dir, and put back afterwards."""
 
-    def __init__(self, lang: str):
+    def __init__(self, lang: str, live: bool = False):
         self.lang = lang
+        self.live = live
         self.tmp = ""
         self._env: dict[str, str | None] = {}
         self._patched: list[tuple[Any, str, Any]] = []
@@ -306,7 +310,7 @@ class Isolated:
         os.environ.update({
             "ZAELAR_WORKSPACE": os.path.join(self.tmp, "ws"),
             "ZAELAR_DB": os.path.join(self.tmp, "zaelar.db"),
-            "ZAELAR_JEV": "0",
+            "ZAELAR_JEV": "1" if self.live else "0",
             "ZAELAR_EMBED_BACKEND": "hash",
             "MEMORY_RERANK": "off",
             "ZAELAR_LANGUAGE_GATE": "0",
@@ -332,16 +336,38 @@ class Isolated:
             self._set(scheduler, "create", lambda prompt, stamp, name="": {"ok": True, "id": "bank-job"})
             self._set(scheduler, "cancel", lambda ref: None)
             from nucleo.flash import fast_client, turn_brief, show_target, probe
-            self._set(fast_client, "FastClient", RecordedModel)
-            self._set(turn_brief, "ask_for_turn", lambda *a, **k: self._handle)
-            self._set(turn_brief, "ask", lambda *a, **k: self._handle)
-            self._set(show_target, "ask_canvas_async", lambda *a, **k: None)
+            if self.live:
+                self._go_live()
+            else:
+                self._set(fast_client, "FastClient", RecordedModel)
+                self._set(turn_brief, "ask_for_turn", lambda *a, **k: self._handle)
+                self._set(turn_brief, "ask", lambda *a, **k: self._handle)
+                self._set(show_target, "ask_canvas_async", lambda *a, **k: None)
             probe._SESSIONS.clear()
         except Exception:
             self.__exit__(None, None, None)
             raise
         self._handle = None
         return self
+
+    def _go_live(self) -> None:
+        """LIVE: the real fast model and the real Jev, everything else still isolated. The model routing is a COPY of
+        the install's `config/v2.json` (so the turn runs on the models the operator runs), and the provider keys are
+        read from the install's credential store into this process's env — values never printed, restored on exit.
+        `execute=False` still holds: nothing spawns, nothing is sent."""
+        from config import credentials, v2
+        real = Path(v2.__file__).resolve().parent / "v2.json"
+        store = credentials._ROOT / ".meshkore" / "credentials" / "zaelar.env"
+        text = store.read_text(encoding="utf-8") if store.exists() else ""
+        for k, v in credentials._parse(text):
+            v = credentials._unquote((v or "").strip()) if k else ""
+            if v and not os.environ.get(k):
+                self._env.setdefault(k, None)
+                os.environ[k] = v
+        copy = Path(self.tmp) / "v2.json"
+        if real.exists():
+            shutil.copy(real, copy)
+        self._set(v2, "_PATH", copy)
 
     def __exit__(self, *_exc) -> None:
         try:
@@ -384,6 +410,11 @@ class Isolated:
             res = agenda.apply_action("add_meeting", {k: v for k, v in payload.items() if v})
             if res.get("ok") is False:
                 raise RuntimeError(f"{case['id']}: agenda fixture refused: {res}")
+        from widgets import store
+        for wid, doc in (case.get("widgets") or {}).items():
+            store.save(wid, json.loads(json.dumps(doc)))
+        if self.live:
+            return                                      # the model and the brief are the real ones
         RecordedModel.load(case.get("model"))
         self._handle = brief_handle(case)
 
@@ -396,12 +427,12 @@ def _relative_day(spec: str) -> _dt.date:
 
 
 # ── run ───────────────────────────────────────────────────────────────────────────────────────────────────
-def run_case(case: dict, *, timeout_s: float = 60.0) -> Outcome:
+def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False) -> Outcome:
     """One case, fully isolated, through the headless turn. Never raises for a product failure: the
     outcome carries it, so a run over the whole bank reports every red instead of stopping at the first."""
     import time as _time
     out = Outcome(case_id=case["id"])
-    with Isolated(case["lang"]) as iso:
+    with Isolated(case["lang"], live=live) as iso:
         iso.seed(case)
         from nucleo.flash import probe
         from voice import observer
@@ -425,7 +456,7 @@ def run_case(case: dict, *, timeout_s: float = 60.0) -> Outcome:
         out.action = str(res.get("action") or "")
         reply = res.get("reply")
         out.reply = " ".join(reply) if isinstance(reply, list) else str(reply or "")
-        out.model_consulted = RecordedModel.consulted
+        out.model_consulted = True if live else RecordedModel.consulted
         out.decision = decision_of(res, out.tool_calls) if res else ""
         out.also, out.cards_touched = _secondary(res, out.tool_calls, out.decision)
     return out
