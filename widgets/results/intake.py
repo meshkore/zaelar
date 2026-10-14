@@ -81,6 +81,10 @@ def push(rows, *, sheet: str = "", source_url: str = "", source_name: str = "",
         if not (res or {}).get("ok"):
             logger.warning("results.intake: la hoja rechazó el append (%s)", (res or {}).get("error"))
             return 0
+        # what the door KEPT, told to the worker that handed it (`door_verdict`) and to the harness's clock below
+        from widgets.results import door_verdict
+        landed = door_verdict.on_sheet(items, _sheet.view_data(str(sheet or "")).get("items") or [])
+        door_verdict.record(str(sheet or ""), len(items), landed, res)
     except Exception as e:  # noqa: BLE001
         logger.warning("results.intake: no pude entregar a la hoja (%s)", e)
         return 0
@@ -89,7 +93,7 @@ def push(rows, *, sheet: str = "", source_url: str = "", source_name: str = "",
         # the one that did not change and leaves the one that did unchanged.
         from voice.observer import emit
         from widgets.results import data as _d
-        emit("widget", "data", extra={"id": _d.instance_id(str(sheet or "")), "src": "navegador"})
-    except Exception:
-        pass
+        emit("widget", "data", extra={"id": _d.instance_id(str(sheet or "")), "src": "navegador", "landed": landed})
+    except Exception as e:  # noqa: BLE001 — a repaint that cannot be announced never undoes the delivery
+        logger.debug("results.intake: repaint emit failed (%s)", e)
     return len(items)

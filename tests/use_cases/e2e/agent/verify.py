@@ -3569,7 +3569,11 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
             # candidatos extraídos de una página. Se guarda aparte en vez de endurecer el de arriba porque
             # los dos dicen cosas distintas y las dos hacen falta: «cuándo empezó a escribir» separa «llegó
             # tarde» de «no llegó», y «cuándo hubo candidatos» es el único que puede cronometrar una entrega.
-            if (label == "data" and out.get("sheet_named_ms") is None and src == "navegador"):
+            # …unless the door kept NONE of them (`landed: 0`, results.intake): search-buy-boat EN (2026-10-14)
+            # clocked «5 candidates 7 s before» a turn over a sheet the door had left EMPTY — its one intake row,
+            # «Advanced Search $1», went to Rejected — and the judge filed a [alta] denial that was true.
+            if (label == "data" and out.get("sheet_named_ms") is None and src == "navegador"
+                    and d.get("landed", 1) != 0):
                 out["sheet_named_ms"] = ts_ms
             continue
         if kind == "widget" and str(d.get("id") or "") == "results":

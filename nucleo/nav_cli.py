@@ -139,6 +139,8 @@ def _print_state(res: dict) -> None:
         return
     if "listings" in res:
         print(json.dumps(res.get("listings", []), ensure_ascii=False, indent=2))
+        if (res.get("door") or {}).get("note"):          # the sheet's door turned rows away: say which and why
+            print(f"⚠️ SHEET: {res['door']['note']}")
         return
     if res.get("msg"):
         print(res["msg"])

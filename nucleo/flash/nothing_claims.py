@@ -20,7 +20,11 @@ _NOTHING = re.compile(
     r"(no hay nada|no (aparece|sale) (ningun|ninguna|nada)|no hay (ningun|ninguna) (resultado|candidato|anuncio|opcion|"
     r"ficha|modelo)|(todavia|aun) no (tengo|hay) (nada|ningun)|no tengo nada|sin resultados|nada solido|"
     r"nothing (to show|yet|solid|worth|on the sheet|so far)|there'?s nothing|there is nothing|no results|"
-    r"i (don'?t|do not) have anything|haven'?t found anything|not found anything|nothing worth)")
+    r"i (don'?t|do not) have anything|haven'?t found anything|not found anything|nothing worth|"
+    # boat hunt EN/ES (2026-10-14): the waits that deny in other words — «nothing landed yet», «still nothing»,
+    # «no luck on Boat Trader so far», «todavía nada», «aún no tengo nada que darte».
+    r"nothing (has )?(landed|come up|turned up|popped up)|still nothing|no luck|nada todavia|(todavia|aun) nada|"
+    r"de momento nada|sin nada (todavia|aun))")
 _SENT = re.compile(r"(?<=[.!?:])\s+")
 _LEADS = ("Bueno, de hecho ya hay", "Actually, there are already")
 _BARE = {"Bueno, de hecho ya hay": "Ya hay", "Actually, there are already": "There are already"}
@@ -31,8 +35,15 @@ def reconcile(reply: str, delivery: str) -> str:
     try:
         if not delivery:
             return reply
-        kept = [s for s in _SENT.split(str(reply or "")) if s.strip() and not _NOTHING.search(_norm(s))]
-        cut = len(kept) < len([s for s in _SENT.split(str(reply or "")) if s.strip()])
+        kept: list[str] = []
+        cut = False
+        for s in (x for x in _SENT.split(str(reply or "")) if x.strip()):
+            if not _NOTHING.search(_norm(s)):
+                kept.append(s)
+                continue
+            cut = True
+            if kept and kept[-1].rstrip().endswith(":"):    # «Right now:» announced the denial; it goes with it
+                kept.pop()
         out = " ".join(kept).strip()
         if cut and not out:
             for lead in _LEADS:

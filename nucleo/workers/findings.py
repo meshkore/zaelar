@@ -272,10 +272,14 @@ def hand_search_rows(rec, res: dict) -> int:
             p = _lone_amount(r["title"]) or _lone_amount(r.get("subtitle") or "")
             if p:
                 r["price"] = p
+        from nucleo.workers import answer_rows     # the candidates its ANSWER names whole (boat hunt ES, 2026-10-14)
+        rows = answer_rows.rows_of(res) + rows
         if not rows:
             return 0
-        from widgets.results import intake
-        return intake.push(rows, sheet=str(getattr(rec, "sheet", "") or ""),
-                           source_name=f"búsqueda web ({str(res.get('source') or 'web')})")
+        from widgets.results import door_verdict, intake
+        sheet = str(getattr(rec, "sheet", "") or "")
+        n = intake.push(rows, sheet=sheet, source_name=f"búsqueda web ({str(res.get('source') or 'web')})")
+        res.update(door_verdict.take(sheet))       # what the door turned away rides the worker's own result
+        return n
     except Exception:  # noqa: BLE001
         return 0                              # best-effort: losing a row is bad, bringing down the turn is worse

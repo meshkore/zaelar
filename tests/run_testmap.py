@@ -4295,6 +4295,18 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/search/unit/test_a_routes_two_ends_are_places_not_subjects.py']},
         {"id": "2.637", "title": "A capitalised word right after an opening «¿»/«¡» starts a sentence, never a subject — «¿Los tienes?» named the subject «los»",
             "ch": UNIT, "paths": ['tests/search/unit/test_an_opening_question_mark_starts_a_sentence.py']},
+        {"id": "2.660", "title": "A wait that denies in other words («nothing landed yet», «still nothing», «no luck», «todavía nada») is cut when the delivery backstop hands over the errand's rows, with the «Right now:» that introduced it (search-buy-boat-multicountry EN)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_nothing_landed_wait_does_not_stand_beside_rows.py']},
+        {"id": "2.661", "title": "«Me los pasas cuando tengas los enlaces y años» with backed rows on the errand's sheet is answered with the rows NOW; with none, the promise stands (search-buy-boat-multicountry ES)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_send_them_when_you_have_them_with_rows_is_now.py']},
+        {"id": "2.662", "title": "A candidate a search ANSWER names whole (name, ONE amount, a link its citations back) reaches the errand's sheet as a row — «Lagoon 440 de 2009, 299.000 €, Sitges» lived only in the errand's lead while the sheet showed two index pages (search-buy-boat-multicountry ES)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_search_answers_named_candidate_reaches_the_sheet.py']},
+        {"id": "2.663", "title": "The browser extraction's reply (and `nav_cli`) tells the worker which rows the sheet's door turned away and why, and how many landed — three Fotocasa flats went to Rejected and the worker never knew (search-rent-apartment ES)",
+            "ch": UNIT, "paths": ['tests/browser/unit/results/test_a_row_the_door_turns_away_is_said_to_the_worker.py']},
+        {"id": "2.664", "title": "A worker's `web_search` result carries the door's verdict on the rows it brought (handed, landed, which were turned away and why); a search whose rows all landed is left as it was",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_searchs_rows_the_door_turns_away_ride_its_result.py']},
+        {"id": "2.665", "title": "An intake the door left EMPTY (`landed: 0`) does not start the harness's «candidates existed» clock — the judge filed «5 candidates 7 s before» over an empty sheet (search-buy-boat-multicountry EN); the intake emits what landed",
+            "ch": UNIT, "paths": ['tests/use_cases/unit/test_an_intake_the_door_emptied_does_not_start_the_clock.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
