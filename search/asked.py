@@ -17,6 +17,7 @@ import re
 import unicodedata
 
 from search.category_words import NOT_A_SUBJECT
+from search.soft_zone import is_zone
 
 
 def norm(text) -> str:
@@ -72,7 +73,10 @@ def ceiling(text) -> float | None:
 #: after an opening «¿»/«¡» starts a sentence: «¿Los tienes?» named the subject «los».
 _CAPS = re.compile(r"(?<![.!?¿¡]\s)(?<![¿¡])\b([A-ZÁÉÍÓÚÑ][a-záéíóúñü][\wáéíóúñü&'-]*(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñü][\wáéíóúñü&'-]*)*)")
 #: What precedes a PLACE, not a subject: «en Madrid», «in Miami», «cerca de Sevilla».
-_PLACE_BEFORE = re.compile(r"(?:\b(?:en|in|at|near|cerca de|desde|from|to|around|por)\s+)$", re.I)
+#: An article may stand between: «in the Mission», «por el Carmen» (search-rent-apartment, 2026-10-14) — never after
+#: «to/from», where «tickets to the Weeknd» names an artist.
+_PLACE_BEFORE = re.compile(r"(?:\b(?:en|in|at|near|cerca de|around|por)\s+(?:(?:el|la|los|las|the)\s+)?"
+                           r"|\b(?:desde|from|to)\s+)$", re.I)
 
 
 #: Both ends of a ROUTE are places: «de Madrid a Londres», «from Boston to Denver». His words now reach every errand's
@@ -91,6 +95,8 @@ def subjects(text) -> list[str]:
     for m in _CAPS.finditer(raw):
         if m.start() == 0 or _PLACE_BEFORE.search(raw[:m.start()]) or any(a <= m.start() < b for a, b in routes):
             continue
+        if is_zone(raw, m.start(), m.end()):
+            continue                       # «zona: Ruzafa», «si puedes, por Ruzafa o el centro»: a zone, at most a hint
         words = [w for w in norm(m.group(1)).split() if w not in NOT_A_SUBJECT and len(w) >= 3]
         if words and words[0] != "i":
             out.append(" ".join(words))
