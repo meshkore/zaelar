@@ -79,7 +79,9 @@ def test_the_text_channel_says_the_status_instead_of_the_holding_line(three_live
 
 
 def test_both_channels_ask_it():
-    assert "_eot.status_owed(" in (ENGINE / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
-    assert "_eot.status_owed(" in (ENGINE / "nucleo/flash/probe_after.py").read_text(encoding="utf-8")
+    # both reach `status_owed` through `split_by_errand.status_with_refined`, which adds the errands a send reached (2.644)
+    assert "_sbe.status_with_refined(" in (ENGINE / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
+    assert "_sbe.status_with_refined(" in (ENGINE / "nucleo/flash/probe_after.py").read_text(encoding="utf-8")
+    assert "_eot.status_owed(" in (ENGINE / "nucleo/turn/split_by_errand.py").read_text(encoding="utf-8")
     assert "brief=_tbrief" in (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8").split(
         "_probe_after.the_words_it_owes(")[1][:200]

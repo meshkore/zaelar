@@ -301,7 +301,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                           emit=emit, escalate=_escalate_mod.escalate_to_slowbrain,
                           similar_pending=_p._similar_pending, brief=_brief)
     from nucleo.turn import split_by_errand as _sbe
-    if (_each := _sbe.each_line(spoken_text)):      # one sentence about several errands: each one said (2.643)
+    if (_each := _sbe.each_line(spoken_text, _op_text)):      # one sentence about several errands: each one said (2.643)
         send(speech.sanitize(_each, drop_metadata=False))
     _out = {}
     return _out

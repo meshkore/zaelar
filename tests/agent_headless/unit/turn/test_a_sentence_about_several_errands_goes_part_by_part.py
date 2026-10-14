@@ -58,23 +58,24 @@ def test_each_part_reaches_its_own_errand(injected):
 
 def test_a_bare_done_becomes_the_sentence_for_each(injected):
     S.route(HIS)
-    line = S.each_said("Done.")
+    line = S.each_said("Done.", HIS)
     assert line.startswith("On each one:"), line
     assert "monitor" in line and "passed on" in line and "already done" in line, line
-    assert S.each_said("Done.") == "Done.", "said once per routing"
+    assert S.each_said("Done.", HIS) == "Done.", "said once per routing"
 
 
 def test_what_the_reply_already_named_is_not_said_twice(injected):
     S.route(HIS)
-    line = S.each_said("Sure, I'll ping you the moment the game is ready.")
+    line = S.each_said("Sure, I'll ping you the moment the game is ready.", HIS)
     assert line.startswith("Sure, I'll ping you"), line
     assert "monitor" in line and "Super Mario" not in line, line
 
 
 def test_a_question_part_is_answered_not_injected(injected):
-    S.route("the monitor is fine, keep it under 150. how's the game coming?")
+    q = "the monitor is fine, keep it under 150. how's the game coming?"
+    S.route(q)
     assert [w for w, _m in injected] == ["3"], injected
-    assert "Super Mario" in S.each_line("")
+    assert "Super Mario" in S.each_line("", q)
 
 
 def test_one_errand_named_is_not_this_door(injected):
@@ -120,8 +121,14 @@ def test_both_channels_say_each_errand():
     import inspect
     from nucleo.flash import probe_after
     from voice.engine.llm.providers import turn_after
-    assert "_sbe.each_said(spoken)" in inspect.getsource(probe_after.the_words_it_owes)
-    assert "_sbe.each_line(spoken_text)" in inspect.getsource(turn_after.close_the_turn)
+    assert "_sbe.each_said(spoken, text)" in inspect.getsource(probe_after.the_words_it_owes)
+    assert "_sbe.each_line(spoken_text, _op_text)" in inspect.getsource(turn_after.close_the_turn)
+
+
+def test_a_routing_is_said_only_in_its_own_turn(injected):
+    """A routed turn that ended up as another action owes nothing to the NEXT turn's reply."""
+    S.route(HIS)
+    assert S.each_line("Sure.", "how's the weather?") == ""
 
 
 def test_the_text_channel_replaces_a_bare_done(injected):

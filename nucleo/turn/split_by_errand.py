@@ -117,10 +117,10 @@ def holds_the_repair(spoken: str, operator_text: str) -> bool:
     return _router.asks_for_missing_detail(spoken) or routed(operator_text)
 
 
-def each_line(spoken: str) -> str:
-    """The sentence the reply still owes after a per-errand routing — one item per errand his words named that
-    `spoken` does not already name; "" when nothing is owed. Said ONCE per routing."""
-    if _LAST["said"] or time.monotonic() - _LAST["t"] > FRESH_S:
+def each_line(spoken: str, turn_text: str) -> str:
+    """The sentence the reply still owes after a per-errand routing OF THIS TURN (`turn_text` carries his words) —
+    one item per errand his words named that `spoken` does not already name; "" when nothing is owed. Said ONCE."""
+    if _LAST["said"] or time.monotonic() - _LAST["t"] > FRESH_S or _LAST["text"] not in str(turn_text or ""):
         return ""
     _LAST["said"] = True
     from i18n import langs as _lg
@@ -140,9 +140,9 @@ def each_line(spoken: str) -> str:
     return lang.errands_each.format(items="; ".join(items)) if items else ""
 
 
-def each_said(spoken: str) -> str:
+def each_said(spoken: str, turn_text: str) -> str:
     """`spoken` with the per-errand sentence it owes; a bare ack («Done.») is REPLACED — it said nothing of any."""
-    line = each_line(spoken)
+    line = each_line(spoken, turn_text)
     if not line:
         return spoken
     from i18n import langs as _lg

@@ -277,7 +277,7 @@ def _true_to_the_gate(spoken, action: str, extra, sess):
 
 
 async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, return_extra_exec, sess, spoken, tags, text, video_req, spec=None, brief=None) -> dict:
-    spoken = _sbe.each_said(spoken) if action == "chat" else spoken
+    spoken = _sbe.each_said(spoken, text) if action == "chat" else spoken
     if not spoken and any(t.get("action") == "aparte" for t in tags):
         pass          # V2-657 (espejo del provider): [[aparte]] es silencio SANCIONADO — ningún backstop lo rellena
     elif not spoken:
