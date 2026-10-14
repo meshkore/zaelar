@@ -19,8 +19,10 @@ WINDOW = [{"role": "user", "content": "dime año y km"}, {"role": "assistant", "
 
 
 @pytest.fixture(autouse=True)
-def _spanish(monkeypatch):
+def _spanish(monkeypatch, tmp_path):
     monkeypatch.setenv("ZAELAR_LANGUAGE", "es")
+    from widgets import store as _store                       # its own sheet store: another file's sheets never answer
+    monkeypatch.setattr(_store, "DATA_DIR", str(tmp_path))
     for sid in ("t2513a", "t2513b", "t2513c"):                # each test sees only its own sheet
         sheet.store.save(sheet.sheet_key(sid), {"title": "Resultados", "items": []})
 
