@@ -525,8 +525,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # EL BACKSTOP DE ENTREGA (V2-305/336/339, extraído a `delivery` en V2-340): una respuesta de pura espera
     # con la hoja ya llena de filas frescas sale CON ellas, y su silencio queda registrado con las entradas de
     # la decisión. Aquí solo se le pasa la respuesta del turno; el porqué de cada regla vive en su módulo.
-    from . import card_receipt as _receipt, delivery as _delivery, transport_receipt as _tr, unchecked_provenance as _uprov   # V2-781: the reply names every card it changed; 2026-10-11: and the transport op he asked for
-    spoken = _uprov.honest(await _tr.complete_probe_settled(_receipt.complete_probe(_delivery.apply_to_reply(spoken, sess.window, heard_now=operator_text or text, brief=_tbrief), action, tags, tool_calls), action, return_extra_exec))
+    from . import blocked_channel_receipt as _bcr, card_receipt as _receipt, fullscreen_nothing as _fsn, delivery as _delivery, transport_receipt as _tr, unchecked_provenance as _uprov   # V2-781: the reply names every card it changed; 2026-10-11: and the transport op he asked for
+    spoken = _fsn.honest(_bcr.complete(_uprov.honest(await _tr.complete_probe_settled(_receipt.complete_probe(_delivery.apply_to_reply(spoken, sess.window, heard_now=operator_text or text, brief=_tbrief), action, tags, tool_calls), action, return_extra_exec))), action)
     from . import outgoing_lang as _ol   # V2-781: «I'm in Madrid» turned the English session Spanish
     spoken = await _ol.said_in_session_language(spoken) if _ol.foreign_to_session(spoken) else spoken
 

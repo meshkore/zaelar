@@ -117,6 +117,9 @@ def _a_add(action, p, db) -> dict:
     if vid and not title:
         meta = _d._oembed_title(vid)                   # a pasted bare link still deserves a readable row
         title, channel = meta["title"], meta["channel"]
+    pasted = bool(vid)                               # a link he handed over, not a search we resolved (V2-604)
+    if vid and not channel:
+        channel = _d._blocking.channel_of(db, vid)
     if not vid:                                     # not URL/id → search by name
         q = str(p.get("query") or p.get("q") or raw or "").strip()
         if not q:
@@ -137,9 +140,11 @@ def _a_add(action, p, db) -> dict:
     lst = db.setdefault("list", [])
     for i, it in enumerate(lst):                    # dedup by videoId: a repeated add is almost always a retry
         if it.get("videoId") == vid:
+            notice = _d._blocking.explicit_link_notice(db, pasted, channel or it.get("channel") or "",
+                                                       it.get("title") or title, queued=True)
             _d.store.save(_d.WID, db)
             return {"ok": True, "already_in_list": True, "position": i + 1,
-                    "title": it.get("title"), "count": len(lst)}
+                    "title": it.get("title"), "count": len(lst), **notice}
     url = "https://www.youtube.com/watch?v=" + vid
     # `added_seq` is the insertion order: several adds can land in the same SECOND, so `added_at` alone
     # cannot restore it (measured: sort_list by=added left a same-second batch in its current order).
@@ -149,8 +154,9 @@ def _a_add(action, p, db) -> dict:
     if db.get("videoId") and db.get("pos", -1) < 0:
         # current video was loaded outside the list; keep it that way (ended → list[0] still correct)
         pass
+    notice = _d._blocking.explicit_link_notice(db, pasted, channel, lst[-1]["title"], queued=True)
     _d.store.save(_d.WID, db)
-    return {"ok": True, "position": len(lst), "title": lst[-1]["title"], "count": len(lst)}
+    return {"ok": True, "position": len(lst), "title": lst[-1]["title"], "count": len(lst), **notice}
 
 
 def _a_search(action, p, db) -> dict:

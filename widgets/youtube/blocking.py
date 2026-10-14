@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import re
 
+from . import blocked_order as _bo
 from . import data as _d
 
 # A pointer at the card, not a name: what is left after these words is the name, if any.
@@ -131,11 +132,17 @@ def channel_of(db: dict, vid: str) -> str:
     return ""
 
 
-def explicit_link_notice(db: dict, explicit: bool, channel: str, title: str) -> dict:
-    """A link he PASTED from a channel he blocked plays — an explicit order outranks a standing filter (V2-604) —
-    and the card says so, once, in its banner. Returns the notice ({} when there is nothing to say)."""
+def explicit_link_notice(db: dict, explicit: bool, channel: str, title: str, queued: bool = False) -> dict:
+    """A link he PASTED from a channel he blocked plays (or is queued) — an explicit order outranks a standing filter
+    (V2-604) — and says so: the card in its banner when it plays, and the turn's reply through the stamp
+    `blocked_order` leaves for `nucleo.flash.blocked_channel_receipt`. Returns the notice ({} when nothing to say)."""
     if not (explicit and channel and _d._is_blocked(channel, db.get("blocked_channels") or [])):
         return {}
+    _bo.stamp(db, channel, title, queued)
+    if queued:
+        return {"notice": "channel_blocked", "channel": channel,
+                "message": _pick(f"Lo añado a la cola, aunque es de «{channel}», un canal que tienes bloqueado.",
+                                 f"Queued it, though it's from «{channel}», a channel you blocked.")}
     db["blocked_notice"] = {"kind": "channel_blocked", "from": str(title or "")[:100], "channel": channel[:80]}
     return {"notice": "channel_blocked", "channel": channel,
             "message": _pick(f"Lo pongo, aunque es de «{channel}», un canal que tienes bloqueado.",

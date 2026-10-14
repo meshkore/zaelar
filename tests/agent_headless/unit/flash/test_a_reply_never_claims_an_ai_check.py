@@ -47,5 +47,5 @@ def test_honest_replies_and_other_cards_are_untouched():
 def test_both_channels_ask_it():
     probe = (ENGINE / "nucleo/flash/probe.py").read_text("utf-8")
     voice = (ENGINE / "nucleo/flash/post_stream_settle.py").read_text("utf-8")
-    assert "spoken = _uprov.honest(await _tr.complete_probe_settled(" in probe
+    assert "_uprov.honest(await _tr.complete_probe_settled(" in probe
     assert "_pst_up.said_after(spoken_text, send, speech)" in voice and "spoken_text = " in voice   # row claims wrap it (2.690)

@@ -252,6 +252,11 @@ class LangSpec:
     #: …and when the player REFUSED it (`player_outcome`): what could not play and why, never «Suena ahora».
     receipt_cannot_play: str = "No he podido ponerlo: «{title}» no se puede reproducir aquí, su propietario bloquea verlo fuera de YouTube. Sigue en tu lista."
     receipt_swapped: str = "«{title}» no se puede reproducir aquí (su propietario lo bloquea fuera de YouTube), así que suena «{to}»."
+    #: A pasted link from a channel he BLOCKED, let through because he asked (`blocked_channel_receipt`, V2-604).
+    receipt_blocked_channel_played: str = "Ojo: ese vídeo es de «{channel}», el canal que bloqueaste; lo pongo porque me lo has pedido tú."
+    receipt_blocked_channel_queued: str = "Ojo: ese vídeo es de «{channel}», el canal que bloqueaste; lo añado porque me lo has pedido tú."
+    #: «Exit full screen» with no card at full screen (`fullscreen_nothing`): said, never «Hecho.».
+    fullscreen_nothing: str = "No hay ninguna tarjeta a pantalla completa ahora mismo, así que no había nada que quitar."
     #: A row zaelar NAMED and he quotes back (V2-782, `own_words`): never denied — named, and where it is now.
     own_row_named: str = "Sí, te lo nombré yo: «{row}»."
     own_row_still: str = "Sigue en la hoja de resultados."

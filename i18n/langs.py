@@ -280,6 +280,9 @@ LANGUAGES: dict[str, LangSpec] = {
         receipt_cannot_play=("I couldn't play it: «{title}» can't be played here, its owner blocks it outside "
                              "YouTube. It's still in your list."),
         receipt_swapped="«{title}» can't be played here (its owner blocks it outside YouTube), so «{to}» is playing.",
+        receipt_blocked_channel_played="Heads up: that video is from «{channel}», the channel you blocked — playing it because you asked.",
+        receipt_blocked_channel_queued="Heads up: that video is from «{channel}», the channel you blocked — queued it because you asked.",
+        fullscreen_nothing="Nothing is at full screen right now, so there was nothing to exit.",
         own_row_named="Yes — I named it myself: «{row}».",
         own_row_still="It's still on the results sheet.",
         own_row_facts="What its listing carries: {facts}.",
