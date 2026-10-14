@@ -289,6 +289,19 @@ def reply_promises(reply: str, *, acted: bool = False, anything_running: bool = 
         return False
 
 
+def _the_order_was_carried_out(brief) -> bool:
+    """No SURE «escalate» in the brief, and the turn's order is one the verdict is sure of at the operator's bar — so the
+    act this turn ran IS the commission (live bench E3, 2026-10-15: `forward` + `escalate_to_slowbrain` with the escalate
+    key missing from the brief; the worker was kept and was free to send the same mail again). A sure «escalate» — a
+    compound turn that also commissions real work — keeps its worker."""
+    from nucleo.flash import direct_action as _da, turn_brief as _tb, undecided as _und
+    _c, info = _tb.read(brief, _tb.ESCALATE_KEY, "")
+    if info is not None:
+        return False
+    wid, action = _da.from_brief(brief)
+    return bool(wid and action) and _und.sure_order(brief, wid, action)
+
+
 def settle_commission(escalate_req: dict, *, brief, operator_text: str, reply: str,
                       acted: bool, anything_running: bool, emit) -> dict:
     """Read the gate, decide the DISPOSITION, record it, and clear only if it was earned.
@@ -305,6 +318,8 @@ def settle_commission(escalate_req: dict, *, brief, operator_text: str, reply: s
         # V2-726 F2 — READ, never call: `judge_escalation` blocks its thread on urlopen, and the
         # voice path runs on the event loop STT, TTS and barge-in share.
         choice = judge_escalation_from_brief(brief)
+        if choice != "handle_inline" and acted and _the_order_was_carried_out(brief):
+            choice = "handle_inline"
     except Exception:  # noqa: BLE001
         choice = "escalate"
     try:

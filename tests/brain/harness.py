@@ -233,8 +233,8 @@ def _secondary(res: dict, tool_calls: list, primary: str) -> tuple[list[str], se
             if wid:
                 cards.add(wid)
     names = [t.get("name") for t in tool_calls]
-    if "escalate_to_slowbrain" in names:
-        also.append("escalate")
+    if "escalate_to_slowbrain" in names and str(res.get("action") or "") == "escalate":
+        also.append("escalate")                         # only a worker the channel would launch (2026-10-15)
     if "web_search" in names:
         also.append("search")
     if primary.startswith(("show ", "close ", "data-op ", "read ")):

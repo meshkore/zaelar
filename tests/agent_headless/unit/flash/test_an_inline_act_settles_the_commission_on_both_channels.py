@@ -54,3 +54,20 @@ def test_the_text_channel_asks_it_before_executing():
     import inspect
     src = inspect.getsource(probe_after.execute_what_was_decided)
     assert "action = an_inline_act_settles_the_commission(action, tool_calls" in src, "the gate is not wired"
+
+
+def test_a_carried_out_sure_order_settles_a_commission_the_brief_did_not_judge(monkeypatch):
+    """Live bench E3: the escalate key missing from the brief, `forward` sure at 0.74 under an order at 1.00 — the act
+    the turn ran is the commission. A sure «escalate» (a compound turn) keeps its worker. Shared by both channels."""
+    import server.voice_api as _va
+    monkeypatch.setattr(_va, "open_instances", lambda: ["mensajeria"])
+    b = _brief("handle_inline")
+    b["result"] = {"screen_action": {"choice": "mensajeria:forward", "confidence": 0.74},
+                   "request_type": {"choice": "order", "confidence": 1.0}}
+    calls = _calls()
+    assert probe_after.an_inline_act_settles_the_commission("escalate", calls, brief=b, operator_text="x",
+                                                            spoken="Done.") == "widget_data"
+    b["result"]["escalate_or_inline"] = {"choice": "escalate", "confidence": 0.95}
+    calls = _calls()
+    assert probe_after.an_inline_act_settles_the_commission("escalate", calls, brief=b, operator_text="x",
+                                                            spoken="Done.") == "escalate"
