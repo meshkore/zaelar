@@ -10,7 +10,7 @@ from nucleo.flash import task_recall as TR
 
 def test_no_errand_but_a_sheet_that_shares_his_words_is_shown(monkeypatch):
     from widgets.results import sheet_names as SN
-    monkeypatch.setattr(TR, "recall_and_reopen", lambda q: {"ok": False, "ask": []})
+    monkeypatch.setattr(TR, "recall_and_reopen", lambda q, *a: {"ok": False, "ask": []})
     monkeypatch.setattr(SN, "recent_faces", lambda limit=5: [
         {"id": "results::ab-4", "label": "5-day warm trip for Richard and Anna"},
         {"id": "results::ab-ls1", "label": "Three 27-inch 4K monitors under $400"}])
@@ -20,7 +20,7 @@ def test_no_errand_but_a_sheet_that_shares_his_words_is_shown(monkeypatch):
 
 def test_a_tie_or_a_single_shared_word_shows_nothing(monkeypatch):
     from widgets.results import sheet_names as SN
-    monkeypatch.setattr(TR, "recall_and_reopen", lambda q: {"ok": False, "ask": []})
+    monkeypatch.setattr(TR, "recall_and_reopen", lambda q, *a: {"ok": False, "ask": []})
     monkeypatch.setattr(SN, "recent_faces", lambda limit=5: [
         {"id": "results::a", "label": "Monitors for the office"}, {"id": "results::b", "label": "Monitors at home"}])
     assert TR.voice_turn("monitors")["show"] is None

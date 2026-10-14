@@ -260,7 +260,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
     # V2-728 — RECUPERAR UN ENCARGO TERMINADO. La decisión ENTERA (índice léxico → Jev → preguntar si hay
     # varios) y su descripción viven en `task_recall.voice_turn`; aquí solo lo propio del canal.
     if reopen_req["v"] is not None and escalate_req["v"] is None:
-        _re = await _pst.asyncio.to_thread(_pst._trecall.voice_turn, reopen_req["v"])
+        _re = await _pst.asyncio.to_thread(_pst._trecall.voice_turn, reopen_req["v"], operator_text or text)
         acted["widget"] = True          # lo ATENDIMOS (abriendo o preguntando) — no cae a escalate
         if _re["show"]:
             _tag_emit("show", {"id": _re["show"]})

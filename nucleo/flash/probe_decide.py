@@ -13,7 +13,6 @@ from nucleo.flash.connector_canon import canon_connector as _canon_connector  # 
 from nucleo.flash import hard_turn as _hard_turn
 from nucleo.flash import player_control as _player_control
 from nucleo.flash import probe as _probe
-from nucleo.flash import task_recall as _task_recall
 
 
 #: The model's calls to a live worker, in the order they win (stop before a message, a message before an answer).
@@ -33,14 +32,12 @@ def _hard_that_ends_the_turn(text: str, hard):
     return hard
 
 
-async def _reopen_action(tool_calls, text: str) -> str:
+async def _reopen_action(tool_calls, text: str, sess=None) -> dict:
     """V2-778 F2-22 — the voice turn answers `reopen_task` with `task_recall` (lexical index → Jev → ask when several
-    fit, V2-728). Same decision here, DRY like `connect_cluster`: it resolves which errand he means and names the show
-    or the question, without rebuilding the sheet a headless channel would never see."""
-    import asyncio
-    q = next((t["args"] for t in tool_calls if t["name"] == "reopen_task"), {}) or {}
-    r = await asyncio.to_thread(_task_recall.resolve, str(q.get("query") or "").strip() or text)
-    return "canvas:show:results" if r.get("ok") else "clarify"
+    fit, V2-728). Same decision here: the show or the question, and — when the probe executes — the sheet rebuilt and
+    the question SAID (`probe_reopen`). `{"action", "spoken"?}`, merged into the turn like a player control's."""
+    from nucleo.flash import probe_reopen as _reopen
+    return await _reopen.action_for(tool_calls, text, sess)
 
 
 def _builds(text: str, router, brief) -> bool:
@@ -60,7 +57,7 @@ async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names
     elif "escalate_to_slowbrain" in names:
         action = "escalate"
     elif "reopen_task" in names:
-        action = await _reopen_action(tool_calls, text)
+        action = (_pm := await _reopen_action(tool_calls, text, sess)).pop("action")   # `_pm` carries the question
     elif "search_listings" in names:
         # V2-556: the LISTING fast pass. Above web_search for the same reason escalate is: a turn that hunts
         # ads AND asks a fact is a hunt. The heavy side effects (search + possible self-escalation) run only

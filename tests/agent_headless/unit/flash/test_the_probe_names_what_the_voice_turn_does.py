@@ -54,12 +54,12 @@ def test_the_remainder_is_the_voice_turns_own():
 
 def test_reopen_task_names_the_errand_it_found(monkeypatch):
     from nucleo.flash import task_recall as TR
-    monkeypatch.setattr(TR, "resolve", lambda q: {"ok": True, "task": {"id": "abc", "title": "piso"}})
+    monkeypatch.setattr(TR, "resolve", lambda q, **k: {"ok": True, "task": {"id": "abc", "title": "piso"}})
     assert _action("ábreme lo del piso que te dije", None,
                    [{"name": "reopen_task", "args": {"query": "piso"}}]) == "canvas:show:results"
 
 
 def test_reopen_task_over_several_errands_asks(monkeypatch):
     from nucleo.flash import task_recall as TR
-    monkeypatch.setattr(TR, "resolve", lambda q: {"ok": False, "ask": [{"id": "a"}, {"id": "b"}]})
+    monkeypatch.setattr(TR, "resolve", lambda q, **k: {"ok": False, "ask": [{"id": "a"}, {"id": "b"}]})
     assert _action("lo que te dije", None, [{"name": "reopen_task", "args": {}}]) == "clarify"

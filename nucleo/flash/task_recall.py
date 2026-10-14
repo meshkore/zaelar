@@ -54,7 +54,7 @@ def _label(row: dict) -> str:
     return " · ".join(b for b in bits if b)[:300]
 
 
-def resolve(query: str, *, limit: int = MAX_CANDIDATES) -> dict:
+def resolve(query: str, *, limit: int = MAX_CANDIDATES, heard: str = "") -> dict:
     """Which task does this phrase mean?
 
     Returns one of three answers, and the caller must handle all three:
@@ -73,6 +73,12 @@ def resolve(query: str, *, limit: int = MAX_CANDIDATES) -> dict:
         return {"ok": False, "ask": [], "reason": "nada parecido"}
     if len(rows) == 1:
         return {"ok": True, "task": rows[0], "how": "único"}
+    # A word only one candidate's title has names it — in the tool's query, or else in his own sentence, which
+    # the model may have paraphrased the name out of. Lexical, so it costs no model (`task_recall_named`).
+    from nucleo.flash import task_recall_named as _named
+    named = _named.named(rows, q) or _named.named(rows, heard)
+    if named:
+        return {"ok": True, "task": named, "how": "nombrado"}
     try:
         from nucleo import jev as _jev
         picked, status = _jev.select_many_status(
@@ -105,13 +111,13 @@ def reopen(task: dict) -> dict:
     return _rehy.sheet_from_task(str(task.get("id") or ""))
 
 
-def recall_and_reopen(query: str) -> dict:
+def recall_and_reopen(query: str, heard: str = "") -> dict:
     """The whole gesture, for the `reopen_task` tool: find it, and show it.
 
     On an ambiguity it returns the shortlist rather than a card, because the turn has to ASK — and the tool's
     answer is what the model reads to phrase that question.
     """
-    r = resolve(query)
+    r = resolve(query, heard=heard)
     if not r.get("ok"):
         return {"ok": False, "ask": [{"id": x["id"], "title": x.get("title") or x.get("goal") or x["id"]}
                                      for x in r.get("ask", [])]}
@@ -136,7 +142,7 @@ def sheet_named_by(query: str) -> dict | None:
     return hits[0] if best >= 2 and len(hits) == 1 else None
 
 
-def voice_turn(query: str) -> dict:
+def voice_turn(query: str, heard: str = "") -> dict:
     """The whole gesture as ONE verdict the voice turn can act on without deciding anything itself.
 
         {"show": …|None, "ask": "a, b, c"|None, "title", "rebuilt", "label", "text", "extra"}
@@ -146,7 +152,7 @@ def voice_turn(query: str) -> dict:
     or a description OF one, and none of it is about speaking — the provider keeps exactly the two things
     that are its own: emitting the canvas tag and phrasing the question in the operator's language.
     """
-    out = recall_and_reopen(query)
+    out = recall_and_reopen(query, heard)
     if not out.get("ok") and not out.get("ask"):
         # Demo pass 89, S1 «show me the monitors»: the index had no candidate at that instant (the errand's row was
         # still settling) and the turn said «bringing back those monitors» over an empty screen. The SHEET was

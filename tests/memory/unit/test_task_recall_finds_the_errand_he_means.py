@@ -104,10 +104,12 @@ def test_jev_picks_the_one_he_means(fresh_db, monkeypatch):
     monkeypatch.setattr(jev, "select_many_status", lambda *a, **k: (lambda r: (r, jev.SELECTED if r else jev.NO_MATCH))(_pick(*a, **k)))
     _done("t1", "piso en Gràcia", "búscame piso de alquiler en Gracia", created=1000)
     _done("t2", "piso en Sants", "búscame piso de alquiler en Sants", "3 opciones", created=2000)
-    r = tr.resolve("el piso de Sants")
+    # No word of his is in only one TITLE (a title word would name it without a model, see
+    # `test_a_past_errand_named_by_its_own_word_is_reopened.py`), so this is the chooser's call.
+    r = tr.resolve("el piso que tenía tres opciones")
     assert r["ok"] and r["task"]["id"] == "t2" and r["how"] == "jev"
     # what the chooser was given: HIS sentence as the criteria, and each candidate with its outcome
-    assert "el piso de Sants" in seen["criteria"]
+    assert "el piso que tenía tres opciones" in seen["criteria"]
     assert any("3 opciones" in x for x in seen["labels"])
 
 

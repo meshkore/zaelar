@@ -52,13 +52,17 @@ class ProbeSession:
     seeded: bool = False   # window seeded from memory? (short-term circuit, mirror of nucleo.py::_run)
     smalltalk_bounce: bool = False   # V2-674: did OUR last phrasebook reply hand the question back?
     last_action: str = ""  # surface/action produced by the preceding turn (for deictic continuity)
+    executes: bool = False  # this turn runs for real (`run_turn(execute=)`) — a dry run decides and writes nothing
 
 
 _SESSIONS: dict[str, ProbeSession] = {}
 
 
-def _session(sid: str) -> ProbeSession:
-    return _SESSIONS.setdefault(sid or "default", ProbeSession())
+def _session(sid: str, *, execute: bool | None = None) -> ProbeSession:
+    sess = _SESSIONS.setdefault(sid or "default", ProbeSession())
+    if execute is not None:   # only a turn says whether it runs for real; a read of the session leaves it
+        sess.executes = bool(execute)
+    return sess
 
 
 # The show-target resolver (mirror of providers/nucleo.py) lives in show_target.py — extracted
@@ -105,7 +109,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     from .fast_client import FastClient, spec_from_config
     from .prompt import build_flash_system, compose_recent_block, needs_recall, needs_recent
 
-    sess = _session(sid)
+    sess = _session(sid, execute=execute)
     text = (text or "").strip()
     if not text:
         return {"ok": False, "error": "texto vacío"}

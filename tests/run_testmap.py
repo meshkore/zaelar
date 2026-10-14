@@ -4231,6 +4231,16 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_mutation_of_the_app_is_an_operator_route.py']},
         {"id": "2.624", "title": 'Every worker backend (Claude, Codex, Grok) remembers the session it spawns (`nucleo/workers/spawned.py`), so an orphan of that worker is still recognised',
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_worker_backend_names_its_session.py']},
+        {"id": "2.638", "title": "A past errand he names by a word only its TITLE has is that errand: «el de Gràcia» over Gràcia/Sant Antoni picks without the chooser, accent-folded; shared words, both names, or a goal-only word («last month») stay a question (flat-hunt-recall, 2026-10-14)",
+            "ch": UNIT, "paths": ['tests/memory/unit/test_a_past_errand_named_by_its_own_word_is_reopened.py']},
+        {"id": "2.639", "title": "His own sentence names the errand when the model's `reopen_task` query («piso») paraphrased the name out — `resolve(heard=)`, `voice_turn(query, heard)`, and the voice lane passes the operator's text",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_his_own_sentence_names_the_errand_the_query_lost.py']},
+        {"id": "2.640", "title": "The text probe ASKS which errand with the voice's `ask_which_item`, naming the candidates (ES «¿Cuál exactamente? Tengo …», US «Which one exactly?»), instead of a `clarify` with no question that fell to «se me ha ido»",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_probe_says_which_errands_it_means.py']},
+        {"id": "2.641", "title": "An EXECUTING probe rebuilds the reopened report from `task_artifacts` (kept + discarded with reasons) and presents `results::<task>` through the one door; a dry run decides and writes nothing",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_probe_rebuilds_the_report_it_reopens.py']},
+        {"id": "2.642", "title": "`flat-hunt-recall-the-report` ES and US on the harness's own seed through the probe: «lo del piso que te dije» asks naming both, «el de Gràcia» / «the Williamsburg one» brings back that report's rows",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/test_the_flat_hunt_recall_case_in_both_languages.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
