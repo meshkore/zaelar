@@ -560,6 +560,18 @@ class LangSpec:
     # it names the state (nothing running) so the operator is not left waiting on a look that never started.
     promise_retracted: str = ("Perdona — en realidad no lo he mirado todavía y no hay nada en marcha. Dime qué "
                               "quieres que compruebe y lo hago ahora.")
+    #: The FIRST backed rows of an errand he asked to be told about, said once (`nucleo/turn/first_rows_notice`).
+    #: Measured 2026-10-14: boats landed 34 s and kid-friendly activities 18 s after his last turn, and nothing
+    #: reached him. The cues are DATA (accent-free, lowercase, matched as substrings): his «tell me» and our «I'll
+    #: tell you» — a new language is a translation of these, never a code change.
+    first_rows_notice: str = "Ya tengo los primeros para «{title}»: {rows}. Los tienes en la hoja."
+    tell_me_cues: tuple = ("avisame", "me avisas", "avisa cuando", "me dices", "dime cuando", "dime algo",
+                           "me lo dices", "me los pasas", "me lo pasas", "me las pasas", "me cuentas",
+                           "cuentame", "en cuanto tengas", "cuando tengas", "cuando lo tengas",
+                           "mantenme al tanto", "tenme al tanto", "me mantienes", "me tienes al tanto")
+    tell_you_cues: tuple = ("te aviso", "te avisare", "voy avisandote", "te lo enseno", "te los enseno",
+                            "te las enseno", "te digo algo", "te lo digo", "te cuento", "te lo paso",
+                            "te los paso", "en cuanto tenga", "te mantengo al tanto")
     closers_no_answer: tuple = ("Pues ahora mismo no tengo una buena respuesta a eso.",
                                 "Esa no te la sé contestar ahora, la verdad.",
                                 "Ahí me he quedado sin respuesta — pregúntamelo de otra forma si quieres.")

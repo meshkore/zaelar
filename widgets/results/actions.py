@@ -7,6 +7,7 @@ still governs every call.
 """
 from __future__ import annotations
 
+from nucleo.turn import first_rows_notice as _first_rows
 from search import candidacy as _cand
 
 from . import category_gate as _gate
@@ -92,6 +93,7 @@ def _a_present(action, payload, sheet) -> dict:
     _d._merge_sections(data, payload)
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
+    _first_rows.landed(sheet, items)                   # his errand's first backed rows are told to him, once
     return {"ok": True, "shown": len(items), "presentation": issues, **_merge_notes(off, extra)}
 
 
@@ -128,6 +130,7 @@ def _a_append(action, payload, sheet) -> dict:
     _d._merge_sections(data, payload)
     extra = _file_pages(data, pages)
     _d._save(data, sheet)
+    _first_rows.landed(sheet, data["items"])           # his errand's first backed rows are told to him, once
     return {"ok": True, "shown": len(data["items"]), "presentation": issues, **_merge_notes(off, extra)}
 
 
