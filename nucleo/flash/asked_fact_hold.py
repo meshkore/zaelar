@@ -19,7 +19,7 @@ import re
 
 from search.asked import norm as _norm
 
-#: Shorter words are function words in both languages («under», «menos», «about»): no requirement of his.
+#: Shorter words are function words in both product languages ("under", "about"): no requirement of his.
 _MIN_LETTERS = 6
 _STEM = 6
 
@@ -61,7 +61,7 @@ def recent_his_sentences(limit: int = 12) -> list[str]:
     try:
         from memory import api as _mem
         return his_sentences(_mem.recent_window(limit=limit, max_chars=4000) or [])
-    except Exception as e:  # noqa: BLE001 — no window, no hold
+    except Exception as e:  # noqa: BLE001 — without a window nothing is held
         __import__("logging").getLogger(__name__).debug("asked_fact_hold: window unreadable: %s", e)
         return []
 
