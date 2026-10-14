@@ -324,3 +324,39 @@ def test_two_contacts_with_one_address_are_one_recipient(box):
     cd.apply_action("add_contact", {"name": "Andrés Garcia", "email": "quinn@example.com"})
     t = outbound.resolve_target({"contact": "quinn@example.com", "channel": "email", "text": "book it"})
     assert t["ok"] and t["to"] == "quinn@example.com", t
+
+
+# ── demo passes 122-124 (2026-10-06 → 10-14), E3: a description in another language than the mail ────────────────
+# E2 opened the Inworld conversation, and E3's forward described the mail as «el recibo de Inworld». Only one of its
+# words is in the (English) mail, so the description found nothing — and a `from` that finds nothing never looked at
+# the conversation that was OPEN, which is what «this one» means. Three passes in a row refused the forward. The open
+# conversation answers only when it is the sender he described: never a stand-in.
+
+def _open_inworld(box, active_chat):
+    from widgets import store
+    db = box.load_db()
+    item = db["items"].pop()
+    db["items"] = [{"platform": "email", "chatId": "support@ovh.invalid", "messageId": "501", "from": "Soporte de OVHcloud",
+                    "subject": "Your invoice is available", "body": "x"}]
+    db.setdefault("threads", {})["email|billing@example.invalid"] = {"msgs": [
+        {"id": "220440", "dir": "in", "who": "Inworld AI", "ts": 1.0,
+         "body": "[Asunto: Your receipt from Inworld AI #2281-4878] Thanks", "media": item["media"]}]}
+    db.setdefault("threads", {})["email|support@ovh.invalid"] = {"msgs": [
+        {"id": "501", "dir": "in", "who": "Soporte de OVHcloud", "ts": 2.0, "body": "Your invoice is available"}]}
+    db["active_chat"] = active_chat
+    store.save("mensajeria", db)
+
+
+def test_a_description_that_finds_nothing_falls_to_the_open_conversation_of_that_sender(box):
+    from widgets.mensajeria import outbound
+    _open_inworld(box, {"platform": "email", "chatId": "billing@example.invalid"})
+    hit = outbound._message_ref(box.load_db(), {"from": "el recibo de Inworld"})
+    assert hit and hit["messageId"] == "220440", hit
+    r = box.answer_action("forward", {"from": "el recibo de Inworld", "contact": "Quinn", "text": "please book it"})
+    assert r and r["ok"], r
+
+
+def test_the_open_conversation_of_another_sender_is_never_the_stand_in(box):
+    from widgets.mensajeria import outbound
+    _open_inworld(box, {"platform": "email", "chatId": "support@ovh.invalid", "name": "Soporte de OVHcloud"})
+    assert outbound._message_ref(box.load_db(), {"from": "el recibo de Inworld"}) is None

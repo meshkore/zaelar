@@ -274,7 +274,16 @@ def _message_ref(db: dict, ref: dict) -> dict | None:
         scored.sort(key=lambda t: -t[0])
         if scored and scored[0][0] >= 2 and (len(scored) == 1 or scored[0][0] > scored[1][0]):
             return scored[0][1]
-        return None
+        # …and the conversation that is OPEN, when it is the sender he described (demo passes 122-124, E3: E2 opened
+        # the Inworld mail and the forward said «el recibo de Inworld» — one word in common with an English mail, so
+        # the description found nothing and «this one» was refused). Another sender's open chat is never a stand-in.
+        chat = db.get("active_chat") or {}
+        th = (db.get("threads") or {}).get(f"{chat.get('platform')}|{chat.get('chatId')}") or {}
+        hay = " ".join([str(chat.get(k) or "") for k in ("name", "chatId")]
+                       + [str(m.get("who") or "") for m in (th.get("msgs") or []) if m.get("dir") == "in"]).lower()
+        if not hay.strip() or not any(w in hay for w in words):
+            return None
+        n, mid = None, ""
     if n is not None or mid:
         for it in _d._visible_items(db):
             if (n is not None and str(it.get("n")) == str(n)) or (mid and str(it.get("messageId")) == mid):
