@@ -27,6 +27,11 @@ _NAME = re.compile(r"(?<![\w'-])(" + "|".join(re.escape(n) for n in _ALL) + r")(
 _PREP = re.compile(r"\b(?:en|in|near|cerca de|around|at|por|de)\s+$", re.I)
 _US_ADDR = re.compile(r"\b([A-Z][a-z]+(?: [A-Z][a-z]+){0,2}),\s*([A-Z]{2})\b")
 _WIDENED = re.compile(_w.WIDENED)
+#: A place name inside a street name is no place: «811 San Jose Ave», «Calle de Toledo», «Avenida de Madrid».
+_STREET_AFTER = re.compile(r"^\.?\s+(?:ave|avenue|st|street|rd|road|blvd|boulevard|ln|lane|dr|drive|way|pkwy|parkway|"
+                           r"hwy|highway|pl|place|ct|court|sq|square)\b\.?", re.I)
+_STREET_BEFORE = re.compile(r"\b(?:calle|c/|avenida|avda|av|paseo|plaza|pza|camino|carretera|ronda|travesia|glorieta|"
+                            r"rua|carrer|avinguda|passeig)\.?\s+(?:(?:de|del|de la|dels)\s+)?$", re.I)
 
 
 def _plain(text) -> str:
@@ -89,12 +94,20 @@ def _url_places(url: str) -> set[str]:
     return out
 
 
+def _city(name: str) -> str:
+    """The city of a «City, ST» address, without its quarter: «Downtown Austin, TX» is in Austin."""
+    low = name.lower()
+    known = _NAME.search(low)
+    return known.group(1) if known else " ".join(w for w in low.split() if w not in _QUARTER)
+
+
 def named(row: dict) -> set[str]:
     """Every place this row names: a known one in its text or URL, or the city of a «City, ST» address."""
     facts = " ".join(f"{f.get('value', '')}" for f in (row.get("facts") or []) if isinstance(f, dict))
     text = _plain(" · ".join(str(row.get(k) or "") for k in ("title", "subtitle")) + " · " + facts)
-    out = {m.group(1).lower() for m in _NAME.finditer(text) if m.group(1)[0].isupper()}
-    out |= {m.group(1).lower() for m in _US_ADDR.finditer(text) if m.group(2) in _w.US_STATES}
+    out = {m.group(1).lower() for m in _NAME.finditer(text) if m.group(1)[0].isupper()
+           and not _STREET_AFTER.match(text[m.end():]) and not _STREET_BEFORE.search(text[:m.start()])}
+    out |= {_city(m.group(1)) for m in _US_ADDR.finditer(text) if m.group(2) in _w.US_STATES}
     return out | _url_places(row.get("url"))
 
 
