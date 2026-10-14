@@ -353,7 +353,8 @@ def test_el_turno_de_VOZ_lo_pregunta_y_cambia_lo_que_dice():
     assert '_dry = bool(_v.get("dry"))' in txt
     # Repointed 2026-08-31 (ratchet extraction): the wiring is unchanged — «¿me lo repites?» stays the
     # NOT-dry line, and the dry branch swaps it for the chain's own sentence (dry_chain_line).
-    assert '_line = "Uf, se me ha ido un momento. ¿Me lo repites?"' in txt
+    # Demo pass 128 (2026-10-14): the not-dry line is the i18n `say_again`, never a fixed Spanish sentence.
+    assert "_line = _lg_line.current_language().say_again" in txt
     assert "if _dry:" in txt and "_pchain2.dry_chain_line" in txt
     # V2-676 — this used to also assert the Spanish SENTENCE appeared in that file. It does not any more, and
     # that is the fix, not a regression: a sentence written where it is delivered is exactly how the operator

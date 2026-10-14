@@ -608,15 +608,14 @@ class NucleoLLMStream(llm.LLMStream):
         # nada; el operador vio "confirmar" y la agenda no cambió — no era un fallo de `apply_action` (que SÍ
         # marca los datos), era que la confirmación jamás llegó a ejecutarse. Un sí/no CLARO se resuelve AQUÍ,
         # determinista y ANTES de llamar al modelo — mismo principio que `attention.hard_interrupt`: lo
-        # irreversible no puede depender de que el turno sobreviva entero. Ambiguo (`classify_reply` → None) cae
-        # al backstop de siempre, que sigue con el modelo por si aporta más contexto.
+        # irreversible no puede depender de que el turno sobreviva entero. Ambiguo → el backstop de siempre.
         if not first_turn and had_pending_confirm:
             try:
                 _verdict_early = _wconfirm.answers_pending(text)
             except Exception:
                 _verdict_early = None
             if _verdict_early:
-                if _resolve_pending_confirm(_verdict_early == "yes"):
+                if _resolve_and_end_the_turn(_verdict_early, text):   # p129 C3: a judged «no» serves the rest
                     # V2-743 — A YES IS ANSWERED WITH A START, NEVER WITH A COMPLETION. `data_ack` is
                     # «Hecho.», and this branch fires the instant the operator agrees: measured 2026-09-21
                     # (session bcd4aba1) it was spoken 0.86 s after the deletion was DISPATCHED and 7 s
@@ -995,4 +994,4 @@ from voice.engine.llm.providers import turn_fragment as _turn_fragment  # noqa: 
 
 # V2-778 F1 — moved to `pending_confirm.py`, imported back under their names (that module reads this one).
 from .pending_confirm import (  # noqa: E402,F401
-    _resolve_pending_confirm)
+    _resolve_pending_confirm, _resolve_and_end_the_turn)

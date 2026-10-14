@@ -228,7 +228,7 @@ def test_a_YES_is_answered_with_work_started_and_never_with_data_ack():
     """Defect A. `data_ack` is «Hecho.» and it fired the instant he agreed — before the dispatch had a
     result, and 7 s before this one had any outcome at all."""
     src = _vts.read(PROVIDER)     # V2-778 F1: the turn whole, moved blocks included
-    i = src.index("_resolve_pending_confirm(_verdict_early")
+    i = src.index("_resolve_and_end_the_turn(_verdict_early")   # p129 C3: the early answer, through its door
     branch = src[i:i + 900]
     assert "_say().work_started" in branch, "the yes is still answered with something other than a START"
     assert "_say().data_ack" not in branch, "«Hecho.» is still being spoken before the work exists"
