@@ -229,6 +229,12 @@ def _a_send_to(action, payload) -> dict:
                     "message": "Solo sé enviar adjuntos por correo — dime su dirección de email."}
     # A chat message is written on screen before it leaves (`_composing`); an email is a document, not a
     # line typed into a conversation, and goes straight out.
+    if atts and (dup := _d._outbound.same_files_just_sent(db, t, atts)):
+        # Demo pass 127, E3: the verdict's forward went out and the same-turn correction of the model's refused
+        # forward sent the receipt to Andrew a SECOND time. The same files to the same person seconds later are
+        # one send; it is reported as done, never queued again.
+        return {"ok": True, "result": {"to": t.get("name"), "channel": t.get("platform"), "ref": dup.get("ref"),
+                                       "attachments": len(atts), "already_sent": True}}
     seen = t.get("platform") != "email" and bool(str(t.get("chatId") or "").strip())
     send_at = _d.time.time() + _d._compose_seconds(payload.get("text")) if seen else 0.0
     order = _d._outbound.enqueue(db, t, payload.get("text"), subject=str(payload.get("subject") or ""),

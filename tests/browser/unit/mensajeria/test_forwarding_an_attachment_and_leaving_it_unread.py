@@ -360,3 +360,25 @@ def test_the_open_conversation_of_another_sender_is_never_the_stand_in(box):
     from widgets.mensajeria import outbound
     _open_inworld(box, {"platform": "email", "chatId": "support@ovh.invalid", "name": "Soporte de OVHcloud"})
     assert outbound._message_ref(box.load_db(), {"from": "el recibo de Inworld"}) is None
+
+
+# ── demo pass 127 (2026-10-14), E3: the receipt went to Andrew TWICE ─────────────────────────────────────────────
+# The verdict turned the model's `send_to` into a forward that went out; the model's own forward (refused for a
+# missing text) was then corrected in the same turn and went out too. The same files to the same person a moment
+# later are one send, whichever path sends them again.
+
+def test_the_same_files_to_the_same_person_go_out_once(box):
+    from widgets.contactos import data as cd
+    cd.apply_action("add_contact", {"name": "Rowan", "email": "rowan@example.com"})
+    first = box.apply_action("forward", {"from": "Inworld AI", "contact": "Quinn", "text": "please book it"})
+    again = box.apply_action("forward", {"from": "Inworld AI", "contact": "Quinn", "text": "We're trying it — book it."})
+    other = box.apply_action("forward", {"from": "Inworld AI", "contact": "Rowan", "text": "fyi"})
+    assert first["ok"] and again["ok"] and other["ok"], (first, again, other)
+    assert again["result"].get("already_sent") and not other["result"].get("already_sent")
+    assert [o["to"] for o in box.load_db()["pending_send"]] == ["quinn@example.com", "rowan@example.com"]
+
+
+def test_two_messages_without_files_are_two_sends(box):
+    box.apply_action("send_to", {"contact": "Quinn", "channel": "email", "text": "one"})
+    box.apply_action("send_to", {"contact": "Quinn", "channel": "email", "text": "two"})
+    assert [o["text"] for o in box.load_db()["pending_send"]] == ["one", "two"]

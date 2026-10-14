@@ -426,7 +426,29 @@ def enqueue(db: dict, target: dict, text: str, *, subject: str = "", objective: 
         order["objective"] = objective
     if attachments:
         order["attachments"] = [str(a) for a in attachments]
+        db["recent_files_sent"] = [r for r in db.get("recent_files_sent") or [] if order["at"] - r["at"] <= SAME_FILES_S] \
+            + [{"ref": order["ref"], "to": _send_key(order), "files": _file_key(attachments), "at": order["at"]}]
     if not_before:
         order["not_before"] = float(not_before)   # held in the queue until then — see `take_pending_send`
     db.setdefault("pending_send", []).append(order)
     return order
+
+
+#: How long the same files to the same person count as ONE send (demo pass 127, E3: two forwards of the receipt).
+SAME_FILES_S = 180.0
+
+
+def _send_key(t: dict) -> str:
+    return f"{t.get('platform') or ''}|{str(t.get('to') or t.get('chatId') or '').strip().lower()}"
+
+
+def _file_key(paths) -> list[str]:
+    import os
+    return sorted(os.path.basename(str(p)) for p in paths or [])
+
+
+def same_files_just_sent(db: dict, target: dict, attachments) -> dict | None:
+    """The send that carried these very files to this very person a moment ago, or None."""
+    now, key, files = time.time(), _send_key(target), _file_key(attachments)
+    return next((r for r in db.get("recent_files_sent") or []
+                 if now - float(r.get("at") or 0) <= SAME_FILES_S and r.get("to") == key and r.get("files") == files), None)
