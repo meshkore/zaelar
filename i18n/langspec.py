@@ -142,6 +142,11 @@ class LangSpec:
     # …and a refinement passed to a running errand is confirmed NAMING that errand: the report's refinement got
     # the holding line, and he had to ask three more times whether it had landed (ES round 20:00).
     errand_refined: str = "Hecho, se lo paso a {what}."
+    # …and ONE sentence about several errands is answered errand by errand (three-tasks-at-once EN, 2026-10-14:
+    # «…ping me when the game's ready… for the monitor make sure it's got hdmi» got a bare «Done.»; split_by_errand.py).
+    errands_each: str = "Por partes: {items}."
+    errand_part_passed: str = "se lo he pasado"
+    errand_part_done: str = "ya está terminado"
     # V2-757 — TOUCHING A CARD OF HIS IS ASKED FIRST. Measured live (session f84f91ef, 2026-09-23): with
     # the mic open the operator dictated a design brief to ANOTHER conversation, and the turn read it as
     # his to us — «lo mando hacer», a Brain Worker started rewriting the video card, and his «Olvídate de

@@ -13,6 +13,7 @@ from __future__ import annotations
 from nucleo.flash import probe as _probe
 from nucleo.flash import reminder_backing as _rback   # a claimed reminder is checked, both channels
 from nucleo.workers import quota_wait as _qwait   # the worker chain asleep: what an escalation turn may say
+from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one is said (2.643)
 from nucleo.flash.delivery_repeat import wants_words as _ww   # a question without «?» is in the brief (2.604)
 
 
@@ -276,6 +277,7 @@ def _true_to_the_gate(spoken, action: str, extra, sess):
 
 
 async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, return_extra_exec, sess, spoken, tags, text, video_req, spec=None, brief=None) -> dict:
+    spoken = _sbe.each_said(spoken) if action == "chat" else spoken
     if not spoken and any(t.get("action") == "aparte" for t in tags):
         pass          # V2-657 (espejo del provider): [[aparte]] es silencio SANCIONADO — ningún backstop lo rellena
     elif not spoken:
@@ -350,7 +352,7 @@ async def the_words_it_owes(*, _hw, _parts, _show_chose, action, images_req, ret
                 from nucleo.turn import errands_of_a_turn as _eot   # a status question owes the phases (three-tasks)
                 _stopped = isinstance(return_extra_exec, dict) and return_extra_exec.get("executed") == "stop"   # a stop he ordered is DONE, never «a moment»
                 _to = (return_extra_exec.get("to") if isinstance(return_extra_exec, dict) else None) or []   # «del informe quítame…»
-                spoken = ((_stopped and _lg.worker_stopped) or (action != "escalate" and _eot.status_owed(text, brief))
+                spoken = ((_stopped and _lg.worker_stopped) or (action != "escalate" and _sbe.status_with_refined(text, brief, _to))
                           or (_to and _lg.errand_refined.format(what="; ".join(f"«{t}»" for t in _to[:3])))
                           or _rg_hold.holding_line(sess.window, _lg))
             elif action == "music":

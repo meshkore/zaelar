@@ -10,6 +10,7 @@ from __future__ import annotations
 from nucleo.flash import player_control as _player_control
 from nucleo.flash import tool_executor as _tx
 from nucleo.turn import errands_of_a_turn as _eot
+from nucleo.turn import split_by_errand as _sbe   # a send beside a status question is said (2.644)
 
 
 def a_search_is_his(query: str, operator_text: str, brief, overlap) -> bool:
@@ -591,6 +592,7 @@ def _t_send_to_worker(*, args, emit, worker_acted, fired=None):
                         _trace.adopt(_target_trace)
             except Exception:
                 pass
+            _sbe.note_sent(which)   # the status line names the errand this reached (2.644)
         except Exception as e:  # noqa: BLE001
             _tx.logger.warning(f"send_to_worker falló: {e}")
 

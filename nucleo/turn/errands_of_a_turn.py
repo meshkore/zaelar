@@ -127,17 +127,22 @@ def status_owed(operator_text: str, brief) -> str:
     if not (asked or live):
         return ""
     from i18n import langs as _lg
+    items = [f"{_ne.spoken_name(e)} — {errand_state(e)}" for e in asked or live]
+    return _lg.current_language().errands_status.format(items="; ".join(items))
+
+
+def errand_state(e: dict) -> str:
+    """Where ONE errand is, in his language: waiting on him, its own milestone note or phase, or «under way» — never
+    a browser micro-step, our card ids or a phase in another language."""
+    from i18n import langs as _lg
     from nucleo.workers import progress as _progress
     lang = _lg.current_language()
-    items = []
-    for e in asked or live:
-        label = _ne.spoken_name(e)
-        _ph = "" if _progress.is_mechanical(e["phase"]) else e["phase"]   # a click is the card's, not a sentence's
-        phase = _phase_in_session_language((_ph or e["note"]).strip().rstrip("…. "), _lg.current_code())
-        phase = "" if _INTERNAL_PHASE_RE.search(phase) else phase     # «mirando «results»» names our card id
-        state = lang.errand_waiting_on_you if e["waiting_on"] else (phase or lang.errand_under_way)
-        items.append(f"{label} — {state}")
-    return lang.errands_status.format(items="; ".join(items))
+    if e.get("waiting_on"):
+        return lang.errand_waiting_on_you
+    _ph = "" if _progress.is_mechanical(e.get("phase") or "") else str(e.get("phase") or "")   # a click is the card's
+    phase = _phase_in_session_language((_ph or str(e.get("note") or "")).strip().rstrip("…. "), _lg.current_code())
+    phase = "" if _INTERNAL_PHASE_RE.search(phase) else phase     # «mirando «results»» names our card id
+    return phase or lang.errand_under_way
 
 
 def _phase_in_session_language(phase: str, code: str) -> str:

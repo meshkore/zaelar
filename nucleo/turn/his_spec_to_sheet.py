@@ -10,16 +10,14 @@ The sheet's door already rejects a row that contradicts his words (`search.categ
 only needs to HEAR them. So: each sentence of his that names exactly one errand with a results sheet, and states
 something the door reads (a size, a minimum size, a price ceiling, 4K), joins that sheet's `asked` — re-said in the
 readers' plain form, never as his raw sentence — and re-judges its rows through the same `sheets.recheck_rows` an
-injected correction uses. A sentence naming several errands is left alone: «el informe hasta 30.000 y el monitor
-hasta 150» must not give the monitor a €30,000 ceiling.
+injected correction uses. A sentence naming several errands is cut per errand on its own punctuation
+(`split_by_errand.parts`); a clause naming several is left alone: «el informe hasta 30.000 y el monitor hasta 150»
+must not give the monitor a €30,000 ceiling.
 """
 from __future__ import annotations
 
-import re
-
 from loguru import logger
 
-_SENTENCE = re.compile(r"(?<=[.!?;…])\s+|\n+")
 #: (sheet, sentence) already carried this process: the text channel can pass the same words twice in one turn.
 _CARRIED: set[tuple[str, str]] = set()
 
@@ -53,10 +51,10 @@ def carry(operator_text: str) -> list[str]:
         errands = _ne.known(with_finished=True)
         if not any(str(e.get("sheet") or "").startswith("results") for e in errands):
             return []
-        for sentence in (s.strip() for s in _SENTENCE.split(text)):
-            hits = _ne.named(sentence, errands) if sentence else []   # over ALL errands: «el informe… y el monitor…»
-            sheet = str(hits[0].get("sheet") or "") if len(hits) == 1 else ""
-            spec = spec_of(sentence) if sheet.startswith("results") else ""
+        from nucleo.turn import split_by_errand as _split
+        for part in _split.parts(text, errands):   # over ALL errands, cut per errand: «…the game, and the monitor 27»
+            sheet = str(part["errand"].get("sheet") or "")
+            spec = spec_of(part["words"]) if sheet.startswith("results") else ""
             if not spec or (sheet, spec) in _CARRIED:
                 continue
             _CARRIED.add((sheet, spec))

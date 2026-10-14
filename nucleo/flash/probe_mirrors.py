@@ -10,6 +10,7 @@ from __future__ import annotations
 from nucleo.flash import agenda_claims as _agc   # «I've removed it» with no call → its cancel_meeting
 from nucleo.flash import card_close as _card_close
 from nucleo.flash import probe as _probe
+from nucleo.turn import split_by_errand as _sbe   # a sentence about several errands goes part by part (2.643)
 
 
 def _a_show_may_replace(action: str, names) -> bool:
@@ -58,7 +59,7 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
     # «Done.» was repaired into `youtube:close` from the screen verdict while the canvas verdict read `close` 0.99).
     _cc = _card_close.complete_canvas_mirror(_tbrief, operator_text, blocked=action != "chat" or bool(tool_calls or tags), calls=tool_calls)
     action, spoken = _cc.get("action", action), _cc.get("spoken", spoken)
-    if action == "chat" and spoken:
+    if action == "chat" and not _sbe.routed(operator_text) and spoken:
         try:
             from . import router as _routerc
             # Mirror of the voice provider: a reply that ASKS the operator for the detail it needs is not a

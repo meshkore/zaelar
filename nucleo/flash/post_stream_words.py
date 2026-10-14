@@ -13,6 +13,7 @@ from nucleo.flash import note_backstop as _nb    # the dated-note backstop's one
 from nucleo.flash import post_stream as _pst
 from nucleo.flash import reminder_backing as _rback   # promise → job, claim → checked (both halves)
 from nucleo.flash import verdict_card as _vcard     # a sure close that an inner order outranks is not owed
+from nucleo.turn import split_by_errand as _sbe   # a sentence about several errands goes part by part (2.643)
 
 
 async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
@@ -215,7 +216,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
     # prompt); the door only needs a card the turn names (`named_or_catalogue` below, "" = no pass).
     _named_by_verdict = ""     # the card the verdict (brief or late catalogue) names for this order, if any
     if (_no_tool and spoken_text and not clarify["msg"]
-            and not _router.asks_for_missing_detail(spoken_text)):
+            and not _sbe.holds_the_repair(spoken_text, _op_text)):
         from nucleo.flash import act_repair as _act_repair, build_decision as _bd_ar
         from nucleo.flash import card_commission as _cardc_ar
         _ar_wid = _cardc_ar.named_or_catalogue(_brief, _op_text)   # V2-773: a closed card while others are open

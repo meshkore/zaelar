@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from nucleo.flash import card_receipt as _pst_receipt   # V2-781: a bare ack names the cards the turn changed
 from nucleo.flash import post_stream as _pst
+from nucleo.turn import split_by_errand as _sbe   # the status line names the errand a send reached (2.644)
 from nucleo.flash import unchecked_provenance as _pst_up   # 2026-10-14: no claimed check of a video's provenance
 
 
@@ -211,7 +212,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
     if escalate_req["v"] is not None and not spoken_text:
         spoken_text = _pst._rg.holding_line_now(brain._window, _prev_pending, after_filler=_filler_audio.played_recently())
         send(speech.sanitize(spoken_text, drop_metadata=False))
-    elif not spoken_text and worker_acted["v"] and (spoken_text := _pst._eot.status_owed(operator_text, _brief)):
+    elif not spoken_text and worker_acted["v"] and (spoken_text := _sbe.status_with_refined(operator_text, _brief)):
         send(speech.sanitize(spoken_text, drop_metadata=False))   # a status question owes the phases (three-tasks)
     _out = locals()
     return {k: _out[k] for k in ('spoken_text', ) if k in _out}

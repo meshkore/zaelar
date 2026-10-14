@@ -207,6 +207,9 @@ LANGUAGES: dict[str, LangSpec] = {
                                     "again and I'll modify it."),
         worker_stopped="Done — I've stopped it.",
         errand_refined="Done — I've passed that on to {what}.",
+        errands_each="On each one: {items}.",
+        errand_part_passed="passed on",
+        errand_part_done="already done",
         widget_build_confirm=("If I've got this right, you're asking me to BUILD you a new card "
                               "(«{what}»). It takes a few minutes and it stays in your catalogue. "
                               "Shall I?"),
