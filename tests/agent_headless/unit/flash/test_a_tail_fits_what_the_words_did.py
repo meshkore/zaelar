@@ -65,3 +65,12 @@ def test_a_question_that_also_promises_still_gets_its_tail():
     said = "Want me to fire off that Telegram to Rowan now, and I'll send it as soon as you confirm?"
     assert AR.after_the_repair(said, True, "mensajeria", "send_to").strip() == _line("data_ack_went_ahead")
     assert AR.after_the_repair("Sending it to Rowan now.", True, "mensajeria", "send_to") == "", "a promise needs nothing"
+
+
+def test_a_denial_over_a_completed_act_is_followed_by_done():
+    """Demo pass 130 (2026-10-14), V2: «play the second one» — the model said «Nope — there's no such video in your
+    history.», the verdict played the second result, and the last thing heard denied what was on screen. A completed
+    act after a denial gets the same «Done.» the repair gives it; a plain claim still gets nothing."""
+    assert AR.after_the_completion("Nope — there's no such video in your history.", "youtube",
+                                   "play_result").strip() == _line("data_ack")
+    assert AR.after_the_completion("Playing the second one now.", "youtube", "play_result") == ""

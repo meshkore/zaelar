@@ -127,9 +127,9 @@ def after_the_completion(spoken: str, widget_id: str = "", action: str = "") -> 
     view do you want them in, side by side?»; the verdict set `layout: compare` and the sheet changed, and the last
     thing heard was the question (incident T509). Unlike a repaired LOOK (`after_the_repair` stays silent: its answer
     comes from the op's data), a completed view changes the screen and has no answer of its own — so a question is
-    followed by the went-ahead line. Words that did not ask need nothing."""
+    followed by the went-ahead line; a denial by «Done.» (p130 V2: «no such video» over it playing). Others: nothing."""
     shape = words_shape(spoken)
-    if shape not in ("asked", "asked_which"):
+    if not shape:
         return ""
     from widgets import effects as _fx
     if widget_id and action and _fx.carries(widget_id, action, _fx.OUTPUT_ANSWER):
