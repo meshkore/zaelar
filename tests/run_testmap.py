@@ -3532,6 +3532,8 @@ DOMAINS: list[dict] = [
             "paths": ["tests/voice/unit/test_a_stalled_turn_says_so_in_the_session_language.py"]},
         {"id": "2.728", "title": "A turn that acted on a card and also escalated, read inline, launches no worker — on the text channel as on the voice",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_inline_act_settles_the_commission_on_both_channels.py"]},
+        {"id": "2.729", "title": "An ordered act that leaves, sure at the operator's 70%, runs when the model only drafted it — both channels",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_ordered_send_the_model_only_drafted_is_sent.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},

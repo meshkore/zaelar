@@ -59,6 +59,9 @@ def retarget(brief, widget_id: str, action: str, payload: dict, said: str) -> tu
         from nucleo.flash import destructive_veto as _dv, reply_or_forward as _rof
         if (swap := _dv.instead(brief, widget_id, action, said)):
             return swap                              # never a removal over a sure verdict that names another act
+        from nucleo.flash import ordered_send as _os
+        if (sent := _os.instead(brief, widget_id, action, payload, said)):
+            return widget_id, sent[0], sent[1]       # an ordered act that leaves, which the model only prepared
         if (fw := _rof.forward_of(widget_id, action, payload, said)):
             return widget_id, "forward", fw
         vwid, vact = _other_view(brief, widget_id, action) or ("", "")

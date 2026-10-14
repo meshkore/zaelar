@@ -272,6 +272,8 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
             except Exception:  # noqa: BLE001
                 pass
             return
+    if _txw._ordered_send.run(_brief, wid, action_name, payload, _txw._bnotes.operator_half(text), emit=emit, acted=acted, apply=_apply_widget_data):
+        return                                    # an ordered act that leaves, which the model only prepared (live bench E3)
 
     def _log_dataop(m: str) -> None:
         """REGISTRO DE ACCIONES DE WIDGET (2026-08-09, petición del operador). Hasta ahora una data-op
