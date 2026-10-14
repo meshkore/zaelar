@@ -158,6 +158,16 @@ def ask_at() -> str:
     return lvl if lvl in LEVELS else "critical"
 
 
+def intent_act_at() -> float:
+    """How sure the turn's verdict must be of an ORDER and its action to carry it out when the model held it for a
+    question (2026-10-15, the operator's 70%). Genesis `intent_act_at`, overridable like every other knob here."""
+    try:
+        v = float(policy().get("intent_act_at", 0.7))
+    except (TypeError, ValueError):
+        v = 0.7
+    return min(max(v, 0.5), 0.99)
+
+
 def class_policy(key: str) -> str:
     """A standing rule of the operator's for a named class: 'never' | 'ask' | 'allow' | '' (unset).
 

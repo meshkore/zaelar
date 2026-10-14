@@ -25,7 +25,13 @@ def _piano_with_a_moved_day_and_a_moved_series():
                                         "until": (TUE + dt.timedelta(weeks=12)).isoformat()})
     wed = (TUE + dt.timedelta(days=1)).isoformat()
     agenda.apply_action("move_meeting", {"title": "Abril's piano lesson", "date": TUE.isoformat(), "newDate": wed})
-    agenda.apply_action("move_meeting", {"title": "Abril's piano lesson", "newDate": wed})   # the undated re-send
+    # The undated re-send used to move the SERIES and break the link; since a reference by title takes the row the
+    # conversation is on (e7079a73) it lands on the detached day instead, so the broken link is set up directly.
+    from widgets import store
+    db = agenda.load_db()
+    ser0 = next(m for m in db["meetings"] if isinstance(m.get("repeat"), dict))
+    ser0["date"] = wed
+    store.save("agenda", db)
     rows = agenda.load_db()["meetings"]
     ser = next(m for m in rows if isinstance(m.get("repeat"), dict))
     one = next(m for m in rows if m.get("fromSeries"))

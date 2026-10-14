@@ -10,7 +10,9 @@
   },
   "consent": {
     "_comment": "CONSENT (V2-712) — THE ONE RULE that decides act-or-ask, layered exactly like `style`: these are the factory defaults, the operator overrides any of them by SAYING so, and the override lands in <workspace>/config/consent.json applied on the very next decision. The rule itself is in nucleo/consent.py and asks four questions in order: is a FACT missing, is there DOUBT about what will be touched, does the RADIUS exceed what he named, and only then is the CLASS sensitive enough. Nothing here is hardcoded in code: a widget declares `security` (all shipped widgets: standard) and an action may declare `sensitivity`.",
-    "ask_at": "critical",
+    "intent_act_at": 0.7,
+  "_intent_act_at": "DOUBT ABOUT WHAT HE WANTS, measured (2026-10-15). The turn's verdict says how sure it is of the order and of the action it names; at or above this the engine carries the order out even when the model's own words held it for a question, and below it the question stands. The operator's rule: «en un 70% continuamos, pero si nos quedamos en un 50%… nos obligaría a preguntar». Calibrated on 1188 demo turns (passes 110-131): the screen-action verdict was right 100% of 122 times in 0.7-0.8 and 99% above; 71-90% below 0.5. A question is asked only when the doubt changes the outcome — the shared-card rule (`frontend.which_card`) keeps its own higher bar.",
+  "ask_at": "critical",
     "_ask_at": "The lowest level that asks for consent EVEN with a clear order, a resolved target and complete data. `critical` means only money leaving his accounts stops by class; everything else is decided by radius and by whether the engine has what it needs. Operator, 2026-09-16: «si le digo borra una cita de la agenda llamada tal, la borras y punto».",
     "unbounded_asks": true,
     "_unbounded_asks": "A call that does not name WHAT it acts on, or that will touch more than one thing, asks regardless of level — V2-707's rail, born from 147 DELETE requests against his real calendar: «vacía la agenda» is not «borra la cita del dentista». This is a rail on the CONSEQUENCE and does not bend for convenience.",
