@@ -1318,5 +1318,48 @@
    "worker"
   ],
   "open": "pass 130 E3: an explicit forward read the card first and the tool-less read answer refused; an unsure verdict cannot carry an outbound send — the read pass needs to know the turn can act"
+ },
+ {
+  "id": "demo-e3-forward-points-at-a-whatsapp-row",
+  "lang": "en",
+  "phrase": "send the invoice to andrew, tell him we're already trying inworld and he should book it",
+  "source": "TMP/demo/run-p131 E3 (2026-10-14): E2 had opened the Inworld AI mail; the model sent forward {messageId: AC5547…} — the id of a WhatsApp group message first on the list — and the pre-check refused it (no files, never another sender's message). Nothing was sent",
+  "screen": {
+   "open": [
+    "mensajeria"
+   ]
+  },
+  "model": {
+   "say": "",
+   "tools": [
+    {
+     "name": "widget_data",
+     "args": {
+      "widget_id": "mensajeria",
+      "action": "forward",
+      "payload": {
+       "contact": "Andrew",
+       "messageId": "AC55472783C81494831F160969CE09BD",
+       "text": "Hi Andrew — forwarding you the Inworld AI receipt."
+      }
+     }
+    }
+   ]
+  },
+  "brief": {
+   "screen_action": [
+    "mensajeria:forward",
+    0.9
+   ],
+   "wants_words": [
+    "act",
+    1.0
+   ]
+  },
+  "expect": "data-op mensajeria:forward on the open Inworld mail",
+  "forbid": [
+   "worker"
+  ],
+  "open": "pass 131 E3: the model's own pointer named a row of another platform and sender; the guard was right to refuse, and nothing turned it into the open mail the turn was about"
  }
 ]
