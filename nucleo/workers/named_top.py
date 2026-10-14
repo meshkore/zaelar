@@ -74,7 +74,12 @@ def complete(said: str, rec) -> str:
         named = [i for i in rows if _named(said, i)]
         if len(named) >= n:
             return said
-        picks = (named + [i for i in rows if i not in named])[:n]
+        from nucleo.flash import asked_fact_hold as _hold   # never a row that lacks what he asked about (vinyl)
+        picks = (named + _hold.items_owed(texts[0], [i for i in rows if i not in named],
+                                          _hold.recent_his_sentences()))[:n]
+        if len(picks) <= len(named):
+            return said
+        n = len(picks)
         from i18n import langs as _langs
         line = _langs.current_language().top_rows_line.format(n=n, rows="; ".join(_row(i) for i in picks))
         _emit(n, len(named), sheet)

@@ -23,6 +23,7 @@ from .router_guards import _norm_txt
 from . import row_check as _row_check   # a question about a row reads its hard-requirement fact
 from . import delivery_repeat as _repeat   # a second tail only rides a wait (rental-car, 2026-10-11)
 from . import row_named as _row_named   # a row he named is named by a word only it carries (2026-10-14)
+from . import asked_fact_hold as _hold   # a row that lacks what he asked about is not news (vinyl, 2026-10-14)
 
 
 
@@ -407,6 +408,7 @@ def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> s
             return ((spoken.rstrip() + " ") if spoken else "") + _check
         _said = _ANNOUNCED.setdefault(encargo, set())     # V2-781: what it said, kept past the window
         filas = [f for f in filas if _row_key(f) not in _said]
+        filas = _hold.rows_owed(encargo, filas, _hold.his_sentences(window, heard_now))   # what he asked, carried
         _held = (_not_owed(heard_now, encargo, _back_rows or filas, already=bool(_said))
                  or _repeat.held(spoken, already=bool(_said), brief=brief)) if filas else ""
         if _held:

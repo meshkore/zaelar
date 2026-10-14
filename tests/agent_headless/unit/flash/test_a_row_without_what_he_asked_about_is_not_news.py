@@ -1,0 +1,73 @@
+"""A row that does not carry what he asked about is not glued to the reply as news (node 2.700).
+
+search-buy-vinyl EN (2026-10-14, sandbox 104623-en): after «are any of them actually original pressings? and what
+condition are they in» and «no need to show it again, just let me know when you have the pressing and condition
+details», the delivery backstop appended «Actually, there are already candidates on the results sheet: …» three
+times — titles and prices, nothing about pressing or condition — once right after the model's «I won't push the
+sheet on you again». A row carries what he asked when its title names it or one of its facts VERIFIES it.
+"""
+from __future__ import annotations
+
+import pytest
+
+from nucleo.flash import asked_fact_hold as H
+from nucleo.flash import delivery, live_blocks
+
+COMMISSION = "Find me an original pressing of 'The Dark Side of the Moon' in good condition for under $70."
+ASKED = "prices look fine, but are any of them actually original pressings? and what condition are they in"
+ROWS = ["Pink Floyd 'DARK SIDE OF THE… — 37.82", "Pink Floyd the Dark Side of the… — 45.37"]
+BARE = [{"title": "Pink Floyd 'DARK SIDE OF THE…", "price": "37.82",
+         "facts": [{"label": "Rating", "value": "99.8"}, {"label": "Origin", "value": "network agent"}]},
+        {"title": "Pink Floyd the Dark Side of the…", "price": "45.37", "facts": []}]
+VERIFIED = [{"title": "Pink Floyd 'DARK SIDE OF THE…", "price": "37.82",
+             "facts": [{"label": "original pressing (1973 first press)", "value": "yes — Harvest SMAS-11163"},
+                       {"label": "good condition", "value": "no — graded G+"}]},
+            {"title": "Pink Floyd the Dark Side of the…", "price": "45.37",
+             "facts": [{"label": "original pressing (1973 first press)", "value": "? — not stated"}]}]
+WAIT = "I'll let you know as soon as I have the pressing and condition details — I'm pushing on that now."
+
+
+def _window(*his):
+    return [{"role": "user", "content": t} for t in his]
+
+
+@pytest.fixture
+def vinyl(monkeypatch):
+    monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: ("", 0, ""))
+    monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: (COMMISSION, ROWS[:n]))
+    monkeypatch.setattr(delivery, "_speaks_en", lambda: True)
+    delivery.forget_announced()
+    return monkeypatch
+
+
+def test_rows_lacking_what_he_asked_are_held(vinyl):
+    vinyl.setattr(H, "_items", lambda: BARE)
+    out = delivery.apply_to_reply(WAIT, _window(COMMISSION, ASKED, "ok let me know"), heard_now="ok let me know")
+    assert "candidates on the results sheet" not in out, out
+    assert out == WAIT
+
+
+def test_a_row_that_verifies_it_is_delivered(vinyl):
+    vinyl.setattr(H, "_items", lambda: VERIFIED)
+    out = delivery.apply_to_reply(WAIT, _window(COMMISSION, ASKED, "ok let me know"), heard_now="ok let me know")
+    assert "DARK SIDE OF THE" in out, "the first row verifies pressing and condition"
+    assert "the Dark Side of the… — 45.37" not in out, "a «?» is not an answer"
+
+
+def test_with_nothing_asked_after_the_commission_the_tail_is_as_before(vinyl):
+    vinyl.setattr(H, "_items", lambda: BARE)
+    out = delivery.apply_to_reply(WAIT, _window(COMMISSION, "ok let me know"), heard_now="ok let me know")
+    assert "candidates on the results sheet" in out, out
+
+
+def test_what_he_asked_is_his_commission_said_again():
+    said = [COMMISSION, "San Francisco", ASKED]
+    assert H.asked(COMMISSION, said) == {"origin", "pressi", "condit"}
+    assert H.asked(COMMISSION, [COMMISSION]) == set(), "the commission itself asks nothing new"
+    assert H.asked(COMMISSION, [COMMISSION, "show me the cheapest under $70"]) == set(), "short words are no ask"
+
+
+def test_a_shortlist_does_not_name_a_row_that_lacks_it(monkeypatch):
+    monkeypatch.setattr(H, "recent_his_sentences", lambda limit=12: [COMMISSION, ASKED])
+    kept = H.items_owed(COMMISSION, VERIFIED, H.recent_his_sentences())
+    assert [i["price"] for i in kept] == ["37.82"]
