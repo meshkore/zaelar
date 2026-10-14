@@ -3548,7 +3548,10 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
                     # archivó [alta] una «hoja llena» que estaba VACÍA — el instrumento acusando al producto.
                     # Una ENTREGA real es la del intake (`src:"navegador"`) o una data-op del worker por el
                     # puente (`server_api` la emite CON su `op`); el repintado no lleva `op`.
-                    and (src == "navegador" or d.get("op"))):
+                    and (src == "navegador" or d.get("op"))
+                    # an intake the door kept NONE of is no write of rows, on this clock either (search-buy-camper
+                    # ES, 2026-10-14: `landed: 0` at 54.8 s timed 254 s of «retention» over an EMPTY sheet)
+                    and d.get("landed", 1) != 0):
                 out["sheet_rows_ms"] = ts_ms
                 if not out["sheet_box"]:
                     out["sheet_box"] = _sfx

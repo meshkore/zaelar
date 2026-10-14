@@ -49,10 +49,21 @@ def test_the_rows_replace_a_wait_that_says_none_landed(boats, reply):
     assert "Right now:" not in out, "the colon that announced the denial does not dangle before the rows"
 
 
-@pytest.mark.parametrize("reply", ["Todavía nada: sigue buscando.", "De momento nada, sigo mirando portales."])
+@pytest.mark.parametrize("reply", [
+    "Todavía nada: sigue buscando.", "De momento nada, sigo mirando portales.",
+    # search-buy-camper ES (2026-10-14): the model's own wording, said over a sheet the door had emptied
+    "Sigue sin haber resultados: el rastreo de anuncios de camper continúa y de momento no ha soltado nada que darte.",
+])
 def test_the_spanish_forms_are_cut_too(reply):
     out = nothing_claims.reconcile(reply, "Bueno, de hecho ya hay candidatos en la hoja: «Lagoon 440 — 299.000 €».")
-    assert "nada" not in out.lower() and "Lagoon 440 — 299.000 €" in out, out
+    assert "nada" not in out.lower() and "sin haber" not in out.lower() and "Lagoon 440 — 299.000 €" in out, out
+
+
+@pytest.mark.parametrize("reply", ["Still no results — the listing sites keep blocking me.",
+                                   "The search hasn't turned up anything yet."])
+def test_the_english_forms_of_the_same_denial_are_cut(reply):
+    out = nothing_claims.reconcile(reply, "Actually, there are already candidates: «Lagoon 440 — $289,000».")
+    assert out.startswith("There are already candidates"), out
 
 
 def test_a_wait_without_a_denial_keeps_its_words():

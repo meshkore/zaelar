@@ -24,7 +24,10 @@ _NOTHING = re.compile(
     # boat hunt EN/ES (2026-10-14): the waits that deny in other words — «nothing landed yet», «still nothing»,
     # «no luck on Boat Trader so far», «todavía nada», «aún no tengo nada que darte».
     r"nothing (has )?(landed|come up|turned up|popped up)|still nothing|no luck|nada todavia|(todavia|aun) nada|"
-    r"de momento nada|sin nada (todavia|aun))")
+    r"de momento nada|sin nada (todavia|aun)|"
+    # camper ES (2026-10-14): «Sigue sin haber resultados: … de momento no ha soltado nada que darte».
+    r"sin haber (nada|resultados?|ningun)|no ha (soltado|dado|traido|encontrado|sacado) nada|"
+    r"still no (results?|candidates?|listings?|options?)|(hasn'?t|has not) (found|turned up|returned) anything)")
 _SENT = re.compile(r"(?<=[.!?:])\s+")
 _LEADS = ("Bueno, de hecho ya hay", "Actually, there are already")
 _BARE = {"Bueno, de hecho ya hay": "Ya hay", "Actually, there are already": "There are already"}
