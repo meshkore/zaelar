@@ -81,10 +81,11 @@ def _file(data: dict, off: list[dict]) -> None:
     data["rejected"] = cur[:_d._MAX_REJECTED]
 
 
-def gate(data: dict, items: list[dict], payload: dict) -> tuple[list[dict], dict]:
-    """(rows that are candidates, extra for the action's reply). Off rows are filed in `data["rejected"]`."""
+def gate(data: dict, items: list[dict], payload: dict, prior=()) -> tuple[list[dict], dict]:
+    """(rows that are candidates, extra for the action's reply). Off rows are filed in `data["rejected"]`.
+    `prior`: the rows already on the sheet, for an `append` (a second copy of one of them is off)."""
     own, ctx = _own(data, payload), _context(data, payload)
-    on, off = _fit.split(items, own, ctx, raw_items=payload.get("items"))
+    on, off = _fit.split(items, own, ctx, raw_items=payload.get("items"), prior=prior)
     if not off:
         return on, {}
     _file(data, off)

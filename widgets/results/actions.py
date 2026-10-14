@@ -105,7 +105,7 @@ def _a_append(action, payload, sheet) -> dict:
     data = _d.view_data(sheet)
     add, pages = _cand.split(add, prior=data["items"])
     _gate.keep_asked(data, data, payload)
-    add, off = _gate.gate(data, add, payload)          # V2-782 T3.3: another category is not a candidate
+    add, off = _gate.gate(data, add, payload, prior=data["items"])   # V2-782 T3.3: not a candidate, not a copy
     if add:
         data.pop("note", None)
     seen = {(i.get("title"), i.get("url")) for i in data["items"]}
