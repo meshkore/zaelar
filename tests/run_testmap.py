@@ -4336,7 +4336,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_searchs_rows_the_door_turns_away_ride_its_result.py']},
         {"id": "2.665", "title": "An intake the door left EMPTY (`landed: 0`) does not start the harness's «candidates existed» clock — the judge filed «5 candidates 7 s before» over an empty sheet (search-buy-boat-multicountry EN); the intake emits what landed",
             "ch": UNIT, "paths": ['tests/use_cases/unit/test_an_intake_the_door_emptied_does_not_start_the_clock.py']},
-        {"id": "2.700", "title": "A row that does not carry what he asked about after commissioning (title or a VERIFIED fact) is not glued to the reply by the delivery backstop — «I won't push the sheet on you again» plus three rows without pressing or condition (search-buy-vinyl EN)",
+        {"id": "2.700", "title": "A row that does not carry what he asked about after commissioning (title or a VERIFIED fact) is offered by no delivery tail (the backstop, the unprompted first-rows notice) — «I won't push the sheet on you again» plus three rows without pressing or condition (search-buy-vinyl EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_row_without_what_he_asked_about_is_not_news.py']},
         {"id": "2.701", "title": "A finished shortlist completes its line only with rows that carry what he asked about; the count is what was named (search-buy-vinyl EN)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_shortlist_names_only_rows_carrying_what_he_asked.py']},

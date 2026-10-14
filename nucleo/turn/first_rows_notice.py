@@ -116,6 +116,9 @@ def decide(sheet: str, data: dict, *, errand: dict | None, events, now_ms: float
     convo = lines(events)
     if in_flight(convo):
         return "", "in flight"
+    from nucleo.flash import asked_fact_hold as _hold   # never a row that lacks what he asked about (vinyl, 10-14)
+    if not (rows := _hold.items_owed(str(errand.get("request") or ""), rows, [t for _ts, r, t in convo if r == "user"])):
+        return "", "rows lack what he asked about"
     since = now_ms - 1000.0 * float(errand.get("secs") or 0)
     words = f"{errand.get('request') or ''} {(data or {}).get('title') or ''}"
     if already_said(rows[:_MAX_ROWS], convo, since, words):

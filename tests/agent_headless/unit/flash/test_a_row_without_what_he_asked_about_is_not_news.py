@@ -71,3 +71,22 @@ def test_a_shortlist_does_not_name_a_row_that_lacks_it(monkeypatch):
     monkeypatch.setattr(H, "recent_his_sentences", lambda limit=12: [COMMISSION, ASKED])
     kept = H.items_owed(COMMISSION, VERIFIED, H.recent_his_sentences())
     assert [i["price"] for i in kept] == ["37.82"]
+
+
+def test_the_unprompted_first_rows_notice_holds_them_too(monkeypatch):
+    from i18n import langs
+    from nucleo.turn import first_rows_notice as frn
+    frn.forget()
+    monkeypatch.setattr(langs, "current_language", lambda: langs.spec("en"))
+    now = 1_000_000.0
+    talk = [{"t_ms": now - 200_000, "kind": "brain", "wall": "you", "role": "user", "text": COMMISSION},
+            {"t_ms": now - 100_000, "kind": "brain", "wall": "you", "role": "user", "text": ASKED + ", let me know"},
+            {"t_ms": now - 90_000, "kind": "brain", "wall": "agent", "role": "assistant", "text": WAIT}]
+    errand = {"id": "v1", "request": COMMISSION, "secs": 300, "sheet": "v1-ls1"}
+    bare = [dict(i, url=f"https://ebay.com/{n}") for n, i in enumerate(BARE)]
+    said, why = frn.decide("v1-ls1", {"items": bare}, errand=errand, events=talk, now_ms=now)
+    assert said == "" and why == "rows lack what he asked about", (said, why)
+    said, why = frn.decide("v1-ls1", {"items": [dict(i, url=f"https://ebay.com/{n}") for n, i in enumerate(VERIFIED)]},
+                           errand=errand, events=talk, now_ms=now)
+    assert "DARK SIDE OF THE" in said and "45.37" not in said, (said, why)
+    frn.forget()
