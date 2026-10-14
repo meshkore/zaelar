@@ -27,9 +27,16 @@ from pathlib import Path
 ENGINE = Path(__file__).resolve().parents[4]
 
 BLOCKED = "Rick Astley"
-PASTED_LINK = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+_PLAYING_LINK = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+#: The link the tester pastes after the block: ANOTHER video of the blocked channel. It used to be the one already
+#: playing (2026-10-14, ES+EN 3/5): EN «play» became an unmute of the loaded video and ES an `add` deduped against
+#: it, so neither round ever let a NEW link from a blocked channel through — the half of the case it exists for.
+#: He watched it before (`history`), so the card knows its channel without the oembed lookup.
+PASTED_LINK = "https://www.youtube.com/watch?v=yPYZpwSpKmA"
+_PASTED = {"videoId": "yPYZpwSpKmA", "title": "Rick Astley - Together Forever (Official Video) [4K Remaster]",
+           "channel": BLOCKED, "url": PASTED_LINK, "played_at": 1, "plays": 1, "quality": 0}
 _PLAYING = {"videoId": "dQw4w9WgXcQ", "title": "Rick Astley - Never Gonna Give You Up (Official Video)",
-            "channel": BLOCKED, "url": PASTED_LINK}
+            "channel": BLOCKED, "url": _PLAYING_LINK}
 _SUGGESTED = [dict(_PLAYING, published="hace 2 días"),
               {"videoId": "9bZkp7q19f0", "title": "PSY - GANGNAM STYLE", "channel": "officialpsy",
                "url": "https://www.youtube.com/watch?v=9bZkp7q19f0", "published": "hace 3 días"},
@@ -63,9 +70,37 @@ print(json.dumps({"title": cur.get("title") or "", "artist": cur.get("artist") o
 SCENES: dict[str, tuple[str, dict]] = {
     "video-blocked-channel-respected": ("youtube", dict(
         _PLAYING, published="hace 2 días", paused=False, muted=True, suggested=_SUGGESTED, suggested_at=1,
-        blocked_channels=[], blocked_notice={})),
+        blocked_channels=[], blocked_notice={}, history=[dict(_PASTED)])),
+    # «Exit full screen» names no card: the canvas must HAVE one at full screen (2026-10-14, EN 2/5 — both rounds ran
+    # on an empty canvas, so the case measured «Done.» over nothing). The video plays and the card is maximized.
+    "video-exit-fullscreen-unnamed": ("youtube", dict(
+        _PLAYING, published="hace 2 días", paused=False, muted=False, blocked_channels=[], blocked_notice={})),
     "music-save-what-is-sounding": ("musica", dict(SOUNDING)),
 }
+
+
+#: Cases whose card the canvas reports at FULL SCREEN (`layout[].max`, what `maximized_widget` is read from).
+MAXIMIZED = frozenset({"video-exit-fullscreen-unnamed"})
+
+
+def canvas_report(case_id: str, card: str, maximized: bool | None = None) -> dict:
+    """The `/api/canvas/state` body the desktop would send for this scene: the card open, maximized when the case
+    says so (or when `maximized` overrides it after a turn un-maximized it)."""
+    big = (str(case_id or "").split("__")[0] in MAXIMIZED) if maximized is None else maximized
+    return {"open": [card], "layout": [{"id": card, **({"max": "1"} if big else {})}]}
+
+
+def after_turn(case_id: str, card: str, action: str) -> "dict | None":
+    """What the desktop reports after a turn's canvas action on a MAXIMIZED scene: an exit takes the card out of full
+    screen, an entry puts it back. `None` when the turn left full screen alone (or the case has no such scene)."""
+    if str(case_id or "").split("__")[0] not in MAXIMIZED or not card:
+        return None
+    a = str(action or "")
+    if a.startswith(("canvas:unfullscreen", "canvas:minimize")):
+        return canvas_report(case_id, card, maximized=False)
+    if a.startswith("canvas:fullscreen"):
+        return canvas_report(case_id, card, maximized=True)
+    return None
 
 
 def _scene(case_id: str) -> tuple[str, dict]:
@@ -100,9 +135,10 @@ def step(scenario, workspace: str) -> dict:
         return {"card": wid, "seeded": False, "error": str(e)[:200]}
     try:
         from . import probe_client
-        probe_client._post("/api/canvas/state", {"open": [wid]}, timeout=15.0)
+        probe_client._post("/api/canvas/state", canvas_report(getattr(scenario, "id", ""), wid), timeout=15.0)
     except Exception as e:  # noqa: BLE001 — the data landed; the card may still be closed, and that is said
         got["open_error"] = str(e)[:200]
+    got["maximized"] = str(getattr(scenario, "id", "")).split("__")[0] in MAXIMIZED
     print(f"  ▸ tarjeta sembrada: {wid} · {json.dumps(got, ensure_ascii=False)[:120]}")
     return {"card": wid, "seeded": True, **got}
 
@@ -115,6 +151,11 @@ def judge_note(card: dict | None) -> str:
                 f"«{card.get('title')}» de «{card.get('artist')}» (audio de YouTube). «Esta canción» es ESA: lo correcto "
                 f"es musica:favorite_current y que lo guardado lleve ese título y artista resueltos, no las palabras de "
                 f"la persona. Decir que no suena nada, o preguntar el título teniéndolo en pantalla, es FALLO.")
+    if card.get("seeded") and card.get("maximized"):
+        return (f"\n⚠️ AVISO DE ARNÉS — TARJETA SEMBRADA A PANTALLA COMPLETA: antes de la primera frase el reproductor de "
+                f"vídeo tenía sonando un vídeo de «{card.get('channel')}» y el canvas lo informaba MAXIMIZADO. «Sal de "
+                f"pantalla completa» es ESA tarjeta: lo correcto es sacarla de pantalla completa sin cerrarla. Decir que "
+                f"no hay nada a pantalla completa, o cerrar la tarjeta, es FALLO.")
     if not card.get("seeded"):
         return (f"\n⚠️ AVISO DE ARNÉS — la siembra de la tarjeta FALLÓ ({card.get('error', '?')}): el reproductor "
                 "estaba vacío, así que «no veo ningún canal» no es un fallo del agente.")

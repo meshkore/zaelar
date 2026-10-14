@@ -247,6 +247,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             if _open != _canvas_said:
                 probe_client._post("/api/canvas/state", {"open": _open})
                 _canvas_said = _open
+            # …and a seeded FULL SCREEN, which the desktop takes out (or puts back) on the turn's own action.
+            from . import card_seed as _cs
+            if (_fs := _cs.after_turn(scenario.id, _cs.card_for(scenario.id), res.get("action"))):
+                probe_client._post("/api/canvas/state", _fs)
         except Exception:  # noqa: BLE001 — a canvas report never costs the round
             pass
 

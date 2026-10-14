@@ -4371,6 +4371,14 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_introduction_does_not_ask_where_he_lives_beside_a_placed_errand.py']},
         {"id": "2.708", "title": "An intake the door left EMPTY (`landed: 0`) does not start the weak «first write» clock either — a 254 s «retention» over an empty sheet (search-buy-camper ES)",
             "ch": UNIT, "paths": ['tests/use_cases/unit/test_an_emptied_intake_does_not_start_the_first_write_clock.py']},
+        {"id": "2.715", "title": "A pasted link from a channel he BLOCKED goes through (queued or played) and the card stamps it for the reply — `add` included, a name search or an unblocked channel never (video-blocked-channel-respected)",
+            "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_a_pasted_link_from_a_blocked_channel_is_stamped.py']},
+        {"id": "2.716", "title": "The reply that let a blocked channel's link through says so, once, in his language, on both channels — unless it already speaks of the block (video-blocked-channel-respected)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_blocked_channels_link_is_said_in_the_reply.py']},
+        {"id": "2.717", "title": "«Exit full screen» with no card at full screen is answered as that, never «Done.» (video-exit-fullscreen-unnamed EN)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_exit_with_nothing_at_full_screen_says_so.py']},
+        {"id": "2.718", "title": "The seeded video scenes hold what the sentence points at: a NEW link of the blocked channel, a player MAXIMIZED that the round un-maximizes as the desktop would (video-blocked-channel-respected, video-exit-fullscreen-unnamed)",
+            "ch": UNIT, "paths": ['tests/use_cases/unit/test_the_seeded_scenes_measure_what_the_case_asks.py']},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
