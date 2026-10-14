@@ -103,7 +103,11 @@ async def say_the_turn_failed(*, emit, err_exc, err_text, errored, llm_metrics, 
         # Medido en producción el 2026-08-21: `Insufficient Balance` (DeepSeek, 402) dos veces, «SIN RELEVO
         # disponible», y el canario del arnés MUDO en todos los turnos hasta que él paró de medir.
         # V2-244: la composición (nombrar lo callado + su clave) vive en provider_chain.dry_chain_line.
-        _line = "Uf, se me ha ido un momento. ¿Me lo repites?"
+        try:                       # demo pass 128, E1: a fixed Spanish line was said into an English session
+            from i18n import langs as _lg_line
+            _line = _lg_line.current_language().say_again
+        except Exception:  # noqa: BLE001
+            _line = "Perdona, ¿me lo repites?"
         if _dry:
             try:
                 _line = _pchain2.dry_chain_line(_pchain2.suppressed_relays())
