@@ -129,7 +129,8 @@ def test_a_postal_address_is_only_required_when_the_form_actually_asks_for_one(m
 
 def test_a_checkout_path_is_enough_on_its_own():
     ask, why = G.decide(_sig(name="Continuar", signals="", targetUrl="https://x.com/checkout/step2"))
-    assert ask is True and "compra" in why
+    from widgets.navegador import click_reason as _R   # the reason in the session language (node 2.647)
+    assert ask is True and why == _R.why("checkout")
 
 
 def test_the_PAGE_url_counts_too_because_a_confirm_posts_back_to_itself():

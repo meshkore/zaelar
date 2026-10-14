@@ -28,7 +28,7 @@ from urllib.parse import quote_plus
 from loguru import logger
 
 from .. import store
-from . import click_gate as _click_gate
+from . import click_gate as _click_gate, click_reason as _click_reason
 from nucleo.errors import brief as _brief
 
 
@@ -763,11 +763,11 @@ class TaskBrowser:
         """Ask the operator for OK on an irreversible action and WAIT for the response (by voice, routed to this task).
         Returns True if approved. Timeout ~60s → do not execute (fail-safe). Cancellable."""
         from . import tasks
-        tasks.ask(self.task_id, f"Voy a pulsar «{label[:50]}». ¿Lo confirmo? (dime sí o no)")
+        tasks.ask(self.task_id, _click_reason.card_question(label))
         try:
             from voice import proactive
             await proactive.notify("navegador",
-                                   _say().click_needs_ok.format(task=self.task_id, label=label[:40]),
+                                   _click_reason.needs_ok(self.task_id, label),
                                    kind="notify")
         except Exception:
             pass

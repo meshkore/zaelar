@@ -342,6 +342,16 @@ class LangSpec:
     login_left_halfway: str = ("Antes dejaste a medias el inicio de sesión en {site}. Si quieres, lo retomamos.")
     login_already_in: str = "Ya estabas dentro de {site}, no hace falta iniciar sesión. Sigo."
     click_needs_ok: str = "La tarea {task} necesita tu OK para pulsar «{label}». ¿Confirmo?"
+    # …and with the gate's reason apart and whole: «Reload — el destino es una página de com» was read to an
+    # English session, in Spanish and cut mid-word (find-direct-flight-budget EN, 2026-10-14; click_reason.py).
+    click_needs_ok_why: str = "La tarea {task} necesita tu OK para pulsar «{label}»: {why}. ¿Confirmo?"
+    nav_click_card_question: str = "Voy a pulsar «{label}». ¿Lo confirmo? (dime sí o no)"
+    nav_click_this_action: str = "esta acción"
+    nav_click_why_unreadable: str = "no he podido leer el elemento"
+    nav_click_why_button: str = "el botón dice «{name}»"
+    nav_click_why_secret: str = "el formulario pide una contraseña o datos de pago"
+    nav_click_why_payment: str = "el formulario pide datos de pago (tarjeta, IBAN, CVV)"
+    nav_click_why_checkout: str = "el destino es una página de compra, pedido o reserva"
     # A form that wants HIS data is a question for the DATUM, never a yes/no to click (widgets/navegador/form_facts.py).
     form_needs_facts: str = "Para seguir con el formulario de la tarea {task} me falta {facts}. Dímelo y sigo."
     form_fact_names: tuple = (("operator.name", "tu nombre"), ("operator.email", "tu email"),

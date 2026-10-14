@@ -48,6 +48,8 @@ from __future__ import annotations
 
 import re
 
+from . import click_reason as _reason   # what the gate SAYS, in his language (2.647)
+
 #: The paths a purchase, a booking or an order lives at. Matched on the TARGET url and on the page's own,
 #: because a confirm button often posts back to the same address it is displayed at.
 _CHECKOUT_URL_RE = re.compile(
@@ -148,18 +150,18 @@ def decide(sig: dict | None) -> tuple[bool, str]:
     Order matters only for the REASON reported, never for the answer: any one signal is enough.
     """
     if not isinstance(sig, dict):
-        return True, "no se pudo leer el elemento"
+        return True, _reason.why("unreadable")
     name = str(sig.get("name") or "")
     if label_is_irreversible(name):
-        return True, f"el botón dice «{name[:40]}»"
+        return True, _reason.why("button", name=_reason.clip(name, 40))
 
     haystack = _text(sig, "signals")
     in_form = bool(sig.get("inForm"))
     submitish = bool(sig.get("isSubmit")) or in_form
     if submitish and sig.get("payment") is True:
-        return True, "el formulario pide una contraseña o datos de pago"
+        return True, _reason.why("secret")
     if submitish and _PAYMENT_FIELD_RE.search(haystack):
-        return True, "el formulario pide datos de pago (tarjeta, IBAN, CVV)"
+        return True, _reason.why("payment")
     # ⚠️ V2-712 — THE IDENTITY RULE NO LONGER ASKS FOR CONSENT, and the operator is right that it should not.
     # «Si te digo que reserves mesa en un restaurante, tú ya tienes que saber quién soy yo, cuál es mi
     # teléfono, cuál es mi email. Y si no lo sabes, obviamente preguntas. Pero una vez ya lo sepas y lo tengas
@@ -174,7 +176,7 @@ def decide(sig: dict | None) -> tuple[bool, str]:
     # `<div role="button">` their script wires up, and requiring a submit let exactly that walk through.
     buttonish = submitish or str(sig.get("role") or "").lower() == "button"
     if buttonish and _CHECKOUT_URL_RE.search(urls):
-        return True, "el destino es una página de compra, pedido o reserva"
+        return True, _reason.why("checkout")
     return False, ""
 
 
@@ -284,7 +286,7 @@ async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> 
                 pass
         if not ask:
             return True, ""
-    label = str((sig or {}).get("name") or "").strip() or "esta acción"
+    label = str((sig or {}).get("name") or "").strip() or _reason.this_action()
     from widgets.navegador.buy_held import held as _held    # he asked ABOUT a row: the worker reads it, he is not asked
     held = _held(task_id, why)
     if held:
@@ -300,6 +302,6 @@ async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> 
                      "target": str((sig or {}).get("targetUrl") or "")[:160]})
     except Exception:  # noqa: BLE001
         pass
-    if confirm is not None and await confirm(f"{label} — {why}" if why else label):
+    if confirm is not None and await confirm(f"{label}{_reason.SEP}{why}" if why else label):
         return True, ""
     return False, f"acción «{label[:40]}» NO confirmada por el operador ({why})"
