@@ -36,7 +36,10 @@ def _own(data: dict, payload: dict) -> str:
     reached the sheet only as a criteria change, and the gate, reading `asked` alone, never saw it."""
     crit = data.get("criteria") or {}
     pcrit = payload.get("criteria") if isinstance(payload.get("criteria"), dict) else {}
-    changes = [str(c) for src in (crit, pcrit or {}) for c in (src.get("changes") or []) if str(c or "").strip()]
+    # A change is the TURN's paraphrase, not his sentence: its specs count («27 al menos»), its capitalised names
+    # never become subjects every row must name (lower-cased: the subject reader takes titlecase only).
+    # search-buy-used-car EN (2026-10-14): «ubicación: Bay Area, hasta una hora…» rejected 55 real cars.
+    changes = [str(c).lower() for src in (crit, pcrit or {}) for c in (src.get("changes") or []) if str(c or "").strip()]
     return " ".join([str(data.get("asked") or "")] + changes).strip()
 
 

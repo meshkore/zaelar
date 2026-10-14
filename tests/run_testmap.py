@@ -4389,6 +4389,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_moved_notice_is_said_at_the_time_it_rings.py']},
         {"id": "2.714", "title": "The notice_on gate never counts a job on or after the deadline it announces: said on the Wednesday, next week's Wednesday fails and today's passes (remember-and-remind-deadline ES + __us)",
             "ch": UNIT, "paths": ['tests/use_cases/unit/test_the_notice_gate_never_counts_a_day_past_the_deadline.py']},
+        {"id": "2.709", "title": "A criteria change is the turn's paraphrase: its capitalised names never become subjects (Bay Area rejected 55 cars, search-buy-used-car EN, 2026-10-14); its specs still count",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_criteria_change_never_names_a_subject.py"]},
         {"id": "2.415", "title": "A widget's refusal reaches him as a sentence in the session's language — «I couldn't: no "
                                  "llegó ningún contenido para la hoja ('body' vacío)» in English (docs-single-recipe EN, "
                                  "2026-10-10): `say` bundle key or cleaned `message`, never `error`; foreign → translated "
