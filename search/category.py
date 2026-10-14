@@ -29,6 +29,7 @@ import re
 from search import asked as _asked
 from search import asked_size as _floor
 from search import category_words as _w
+from search import place_fit as _place
 from search import route_fit as _route
 from search import excluded as _excluded
 
@@ -76,7 +77,7 @@ def asked_from(asked: str = "", context=()) -> dict:
         "norm": n,
         "ceiling": _asked.ceiling(own) or _asked.ceiling(request),
         "vehicle": bool(_w.VEHICLE_ASK.search(n) and _w.BUYING.search(n) and not _w.NOT_BUYING.search(n)),
-        "subjects": _route.not_places(_asked.subjects(own)),   # «Madrid–Roma», «Nov 6»: a route, a date
+        "subjects": _place.not_places(_route.not_places(_asked.subjects(own))),   # a route, a date, a city
         "size": _asked.size_inches(own),
         "size_min": _floor.size_floor(own),     # «27 al menos»: a floor, not an exact size (three-tasks 2026-10-11)
         "uhd": _asked.wants_4k(own),

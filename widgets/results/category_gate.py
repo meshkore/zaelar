@@ -11,8 +11,7 @@ sheet by whoever opened it for him (`listing_turn`) and grown by every correctio
 """
 from __future__ import annotations
 
-from search import category as _category
-from search import route_fit as _route
+from search import row_fit as _fit
 
 _MAX_ASKED = 900
 _MAX_RELAYED = 6
@@ -85,7 +84,7 @@ def _file(data: dict, off: list[dict]) -> None:
 def gate(data: dict, items: list[dict], payload: dict) -> tuple[list[dict], dict]:
     """(rows that are candidates, extra for the action's reply). Off rows are filed in `data["rejected"]`."""
     own, ctx = _own(data, payload), _context(data, payload)
-    on, off = _route.split(*_category.split(items, own, ctx), own, ctx, raw_items=payload.get("items"))
+    on, off = _fit.split(items, own, ctx, raw_items=payload.get("items"))
     if not off:
         return on, {}
     _file(data, off)
@@ -93,7 +92,7 @@ def gate(data: dict, items: list[dict], payload: dict) -> tuple[list[dict], dict
     return on, {"off_category": off[:8],
                 "note_for_worker": (f"{len(off)} row(s) are NOT what he asked for — moved to the Rejected tab: "
                                     + "; ".join(f"«{o['title'][:50]}» ({o['why']})" for o in off[:4])
-                                    + ". Present only instances of the thing he asked for.")}
+                                    + ". Do not re-add them: present only rows that fit what he asked for.")}
 
 
 def recheck(sheet: str, correction: str, *, relayed: bool = False) -> int:
@@ -114,7 +113,7 @@ def recheck(sheet: str, correction: str, *, relayed: bool = False) -> int:
     elif text:
         data["asked"] = (str(data.get("asked") or "") + " " + text).strip()[-_MAX_ASKED:]
     own, ctx = _own(data, {}), _context(data, {})
-    on, off = _route.split(*_category.split(data.get("items") or [], own, ctx), own, ctx)
+    on, off = _fit.split(data.get("items") or [], own, ctx)
     if off:
         data["items"] = on
         _file(data, off)
