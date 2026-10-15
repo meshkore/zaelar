@@ -98,10 +98,10 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
                                                                    _esc_owner, _pst._direct_action.from_brief(_brief)[1],
                                                                    spec=spec, window=list(brain._window), brief=_brief))
             if _ar:
-                _pst._cvis.present(_ar["widget_id"], reason="turn-order", src="flash", emit=emit)
+                _pst._cvis.present(_pst._direct_action.card_to_present(_ar["widget_id"], operator_text),
+                                   reason="turn-order", src="flash", emit=emit)   # the sheet, never the bare base
                 _apply_widget_data(_ar["widget_id"], _ar["action"], _ar["payload"])
-                escalate_req["v"], escalate_req["more"] = None, []
-                acted["widget"] = True
+                escalate_req["v"], escalate_req["more"], acted["widget"] = None, [], True
                 emit("brain", "🎯 acción declarada en vez de un worker (segunda pasada con sus campos)",
                      text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
                      extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
@@ -243,10 +243,10 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
                  text=f"{_ar_wid} ← show_images «{_pic['query'][:100]}»", role="system",
                  extra={"cat": "flash", "widget": _ar_wid, "tool": "show_images"})
         if _ar:
-            _pst._cvis.present(_ar["widget_id"], reason="turn-order", src="flash", emit=emit)
+            _pst._cvis.present(_pst._direct_action.card_to_present(_ar["widget_id"], _op_text), reason="turn-order",
+                               src="flash", emit=emit)   # pass 133 S1: the sheet it lands on, never the bare base
             _apply_widget_data(_ar["widget_id"], _ar["action"], _ar["payload"])
-            acted["widget"] = True
-            _no_tool = False
+            acted["widget"], _no_tool = True, False
             emit("brain", "🔁 prometió actuar sin tool — la llamada, en una segunda pasada",
                  text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
                  extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})

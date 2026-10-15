@@ -3556,6 +3556,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_present_with_no_rows_keeps_the_rows_on_the_sheet.py"]},
         {"id": "2.740", "title": "A yes to an act that leaves the machine is his words, never the model's confirmed=true over a sentence about something else; a pending delete keeps the model's reading",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_yes_to_a_send_is_his_never_the_models.py"]},
+        {"id": "2.741", "title": "A repaired call presents the sheet it lands on (card_to_present), never the bare base card — both voice repair sites",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_a_repaired_call_presents_the_sheet_it_lands_on.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},
