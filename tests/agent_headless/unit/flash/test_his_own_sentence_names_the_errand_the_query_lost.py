@@ -62,4 +62,4 @@ def test_the_voice_lane_hands_the_resolver_his_words():
     """The wiring, read where it lives: without the operator's text the voice channel keeps the old defect."""
     from nucleo.flash import post_stream_lanes as lanes
     src = inspect.getsource(lanes.run_the_light_lanes)
-    assert '_trecall.voice_turn, reopen_req["v"], operator_text or text)' in src
+    assert '_trecall.voice_turn, reopen_req["v"], operator_text or text, _brief)' in src
