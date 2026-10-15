@@ -3552,6 +3552,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_parked_question_nobody_said_rides_the_next_reply.py"]},
         {"id": "2.738", "title": "A status with no milestone says the facts that moved (its plan step, or how long it has run), never one fixed «under way, nothing new yet» turn after turn",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_status_with_no_milestone_says_what_moved.py"]},
+        {"id": "2.739", "title": "A results `present` that carries no rows re-shows the rows on the sheet (a repaired «show me» never empties it); an explicit empty list still does",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_present_with_no_rows_keeps_the_rows_on_the_sheet.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},
