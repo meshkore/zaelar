@@ -26,7 +26,7 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 MAX_INTERNAL_IMPORTS = 24
 
 _IMPORT_RE = re.compile(r"^[ \t]*from[ \t]+memory(\.[a-z_]+)?[ \t]+import[ \t]+(.+)$", re.MULTILINE)
-_SKIP_DIRS = ("/memory/", "/tests/", "/.venv/", "/TMP/", "/.meshkore/")
+_SKIP_DIRS = ("/memory/", "/tests/", "/.venv/", "/TMP/", "/.meshkore/", "/.claude/")   # .claude/worktrees: other sessions' checkouts
 # The facade and this contract itself are the blessed paths by definition.
 _FACADE = {"api", "contract"}
 

@@ -96,9 +96,8 @@ def _key(goal: str) -> str:
 
 def _parked_jobs() -> list[dict]:
     try:
-        from memory import journal as _journal
-        return [e for e in _journal.list_entries(status="pending")
-                if (e.get("detail") or {}).get("kind") == "scheduled" and (e.get("detail") or {}).get("resume_errand")]
+        from nucleo import scheduler as _sched
+        return _sched.pending_carrying("resume_errand")
     except Exception as e:  # noqa: BLE001
         logger.debug(f"quota_wait: journal unreadable ({type(e).__name__})")
         return []
@@ -122,16 +121,13 @@ def park(goal: str, context: dict | None = None) -> float:
     if _PARKS.get(k, 0) >= MAX_PARKS:
         return 0.0
     try:
-        from memory import journal as _journal
         from nucleo import scheduler as _sched
         ctx = {f: str((context or {}).get(f) or "") for f in ("kind", "sheet", "surface", "task_uid")}
         when = time.strftime("%Y-%m-%d %H:%M", time.localtime(until + FIRE_MARGIN_S))
         made = _sched.create("", when, name=_lang().worker_chain_job_name.format(goal=goal[:60]))
         if not made.get("ok"):
             return 0.0
-        entry = _journal.get(int(made["id"])) or {}
-        _journal.update(int(made["id"]), detail={**(entry.get("detail") or {}),
-                                                 "resume_errand": goal, "resume_ctx": ctx})
+        _sched.annotate(made["id"], resume_errand=goal, resume_ctx=ctx)
         _PARKS[k] = _PARKS.get(k, 0) + 1
         logger.info(f"quota_wait: «{goal[:70]}» parked until {hour(until)} (job {made['id']})")
         return until

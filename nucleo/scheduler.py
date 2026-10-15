@@ -356,6 +356,18 @@ def _scheduled(entries: list[dict]) -> list[dict]:
     return [e for e in entries if (e.get("detail") or {}).get("kind") == _KIND]
 
 
+def pending_carrying(key: str) -> list[dict]:
+    """Pending scheduled jobs whose detail carries `key`, raw — for the module that put it there (quota_wait's
+    `resume_errand`), so the journal stays behind this file instead of being read from a third place."""
+    return [e for e in _scheduled(_journal.list_entries(status="pending")) if (e.get("detail") or {}).get(key)]
+
+
+def annotate(jid, **fields) -> None:
+    """Merge `fields` into a scheduled job's detail (what a caller needs back when it fires)."""
+    entry = _journal.get(int(jid)) or {}
+    _journal.update(int(jid), detail={**(entry.get("detail") or {}), **fields})
+
+
 # ── the operator's BOARD (V2-728) ─────────────────────────────────────────────────────────────────────────
 # A scheduled job is a commission with a clock on it, and it belongs in the same list as every other one.
 # `nucleo/tasks.py` owns the translation; this file owns WHEN. One function rather than a line at each of the

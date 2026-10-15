@@ -33,7 +33,7 @@ def _corpus() -> dict[str, str]:
     out = {}
     for p in _ROOT.rglob("*.py"):
         rel = p.relative_to(_ROOT).as_posix()
-        if ".venv" in rel or rel.startswith("tests/"):
+        if ".venv" in rel or rel.startswith(("tests/", ".claude/")):
             continue
         try:
             out[rel] = p.read_text()

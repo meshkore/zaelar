@@ -11,14 +11,21 @@ identical from a shell, alone under pytest and at the end of the whole flash chu
 
 Frozen DOWN-ONLY. The small margin absorbs what the live state legitimately varies by (the day's name, the
 date). A raise is not an edit to this file: it is a reason to look at what grew.
+
+2026-10-15 — re-measured, not raised. Red at 24 540 over 24 115, and nothing had grown: in two clean checkouts on
+the same day, the ceiling's own commit (10e43520) composed 24 793 / 29 261 / 36 761 and HEAD 24 608 / 29 103 /
+36 561 — smaller in all three. The 10-02 numbers no longer reproduce with their own code, and the measurement was
+not clean: the Google block reads the client from `.meshkore/credentials/` (gitignored), which `Isolated` does not
+isolate, so the operator's installed client changed the composed prompt. The snippet now pins Google to a clean
+install (no client) and the ceilings are HEAD's clean numbers.
 """
 from __future__ import annotations
 
 import pytest
 
 MARGIN = 64
-CEILINGS = {(): 24_115, ("agenda", "mensajeria"): 29_091,
-            ("agenda", "mensajeria", "youtube", "contactos", "results", "musica"): 37_151}
+CEILINGS = {(): 24_608, ("agenda", "mensajeria"): 29_103,
+            ("agenda", "mensajeria", "youtube", "contactos", "results", "musica"): 36_561}
 TARGET_EVERYDAY = 30_000
 
 
@@ -26,6 +33,8 @@ _SNIPPET = """
 import json, sys
 from tests.brain.harness import Isolated
 with Isolated("es"):
+    from connectors.google import app as _gapp
+    _gapp.client_id = lambda: ""          # a clean install has no Google client (it lives in gitignored credentials)
     from memory import api as memapi
     from nucleo.flash.prompt import build_flash_system
     out = {}

@@ -28,7 +28,7 @@ from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[3]
 
-_SKIP = {".venv", "tests", "node_modules", "__pycache__", ".git", "TMP"}
+_SKIP = {".venv", "tests", "node_modules", "__pycache__", ".git", "TMP", ".claude"}
 
 
 def _packages() -> set[str]:

@@ -40,7 +40,7 @@ if str(ENGINE) not in sys.path:
 _MARKER = "translated implementation note"
 _DOC_PLACEHOLDER = "Documentation translated to English."
 
-_SKIP_DIRS = {".venv", "node_modules", "__pycache__", ".git", "vendor", "tests"}
+_SKIP_DIRS = {".venv", "node_modules", "__pycache__", ".git", "vendor", "tests", ".claude"}
 
 #: Modules whose comments ARE the mechanism: each carries the incident that shaped it, and a reader who
 #: loses them re-widens a pattern that was deliberately narrowed. A module joins this list when its rules

@@ -60,6 +60,7 @@ _AGENDA_ORDERS = {
     "set_reminder": "ponme un aviso media hora antes de la reunión del jueves",
     "dedupe_meetings": "quita las reuniones repetidas del jueves",
     "cancel_meeting": "cancela la reunión con Iván del jueves",
+    "restore_meeting": "vuelve a ponerme la reunión con Iván que cancelé",
     "open_meeting": "ábreme la cita del dentista del martes",
     "close_meeting": "cierra la ficha de la cita",
     "find_free": "búscame un hueco libre de cuarenta y cinco minutos mañana por la tarde",

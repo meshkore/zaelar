@@ -96,7 +96,7 @@ def test_every_workspace_root_used_in_the_code_is_declared(  # the guard that ke
     found: dict[str, set[str]] = {}
     for py in ENGINE_ROOT.rglob("*.py"):
         rel = py.relative_to(ENGINE_ROOT).as_posix()
-        if rel.startswith(("tests/", ".venv/")) or "/__pycache__/" in rel:
+        if rel.startswith(("tests/", ".venv/", ".claude/")) or "/__pycache__/" in rel:
             continue
         for root in pattern.findall(py.read_text(encoding="utf-8", errors="ignore")):
             found.setdefault(root, set()).add(rel)
