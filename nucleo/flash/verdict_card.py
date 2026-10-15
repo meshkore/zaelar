@@ -15,17 +15,37 @@ from __future__ import annotations
 SURE = 0.95
 
 
-def _other_view(brief, model_card: str, model_action: str) -> tuple[str, str]:
-    """`(card, action)` of a sure verdict VIEW on another open card, when the model's call is a view too."""
+def _other_view(brief, model_card: str, model_action: str, operator_text: str = "") -> tuple[str, str]:
+    """`(card, action)` of a sure verdict VIEW on another open card, when the model's call is a view too — or on the
+    SAME card when a sure close names it (`a_view_his_close_names`)."""
     from nucleo.flash import data_ops as _do, direct_action as _da
     vwid, vact = _da.from_brief(brief)               # re-validated against what is still open
-    if not vwid or not vact or _da._base_of(vwid) == _da._base_of(model_card):
+    if vwid and _da._base_of(vwid) == _da._base_of(model_card):
+        return (vwid, vact) if a_view_his_close_names(brief, model_card, model_action, operator_text) else ("", "")
+    if not vwid or not vact:
         return "", ""
     if not _da._action_sure(brief, floor=SURE):
         return "", ""
     if not (_do.is_view_op(model_card, model_action) and _do.is_view_op(vwid, vact)):
         return "", ""
     return vwid, vact
+
+
+def a_view_his_close_names(brief, card: str, model_action: str, operator_text: str = "") -> str:
+    """The card's own VIEW a sure close names, over the model's view on that card; "" otherwise. agenda-everyday-edits
+    ES (2026-10-15): «Vale, ya la puedes cerrar» read canvas=close 1.00 AND `agenda:close_meeting` 1.00, the model
+    called `open_meeting`, and the short-close shortcut shut the whole AGENDA. Two lenses, nothing irreversible
+    either way, and the close says the model's reading is the one he did not ask for. Never raises."""
+    try:
+        from nucleo.flash import data_ops as _do, direct_action as _da
+        vwid, vact = _da.from_brief(brief)
+        if not vwid or not vact or vact == model_action or _da._base_of(vwid) != _da._base_of(card):
+            return ""
+        if inner_order_wins(brief, operator_text) != "sure":
+            return ""
+        return vact if _do.is_view_op(card, model_action) and _do.is_view_op(vwid, vact) else ""
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def takes_the_view(brief, model_card: str, model_action: str, *, operator_text: str, emit, present,
@@ -36,7 +56,7 @@ def takes_the_view(brief, model_card: str, model_action: str, *, operator_text: 
         from nucleo.flash import destructive_veto as _dv
         if (swap := _dv.instead(brief, model_card, model_action, operator_text)):
             return _dv.run(swap, model_action, emit=emit, apply_widget_data=apply_widget_data)
-        vwid, vact = _other_view(brief, model_card, model_action)
+        vwid, vact = _other_view(brief, model_card, model_action, operator_text)
         if not vwid:
             return ""
         from nucleo.flash import direct_action as _da
@@ -64,7 +84,7 @@ def retarget(brief, widget_id: str, action: str, payload: dict, said: str) -> tu
             return widget_id, sent[0], sent[1]       # an ordered act that leaves, which the model only prepared
         if (fw := _rof.forward_of(widget_id, action, payload, said)):
             return widget_id, "forward", fw
-        vwid, vact = _other_view(brief, widget_id, action) or ("", "")
+        vwid, vact = _other_view(brief, widget_id, action, said) or ("", "")
         if not vwid:
             vwid, vact = _act_over_a_lens(brief, widget_id, action)
         if vwid:

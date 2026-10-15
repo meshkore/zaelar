@@ -136,9 +136,10 @@ def data_close(widget_id: str, action: str, operator_text: str, *, brief=None, o
         action («ya la puedes cerrar» → `close_meeting`, V2-770);
       · a player's stop/pause under a close verb naming that card («cierra la música, que ya no la quiero» →
         `musica:pause`, «Hecho en Música», and the card stayed — ES round 2026-10-11): `player_close`'s rule."""
-    from nucleo.flash import close_guards as _cg, direct_action as _da, player_control as _pc
-    if _cg.is_short_close_order(operator_text):
-        return _da.from_brief(brief) != (widget_id, action)
+    from nucleo.flash import close_guards as _cg, direct_action as _da, player_control as _pc, verdict_card as _vc
+    if _cg.is_short_close_order(operator_text):   # …nor when a sure close names another view of this card
+        return _da.from_brief(brief) != (widget_id, action) and not _vc.a_view_his_close_names(
+            brief, widget_id, action, operator_text)
     base = _base(widget_id)
     if base in set(_pc.CARD_OF_TOOL.values()):
         return bool(_player_card_close(base, action, operator_text, open_ids))
