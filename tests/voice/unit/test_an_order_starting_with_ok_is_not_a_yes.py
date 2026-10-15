@@ -47,16 +47,21 @@ def test_a_long_yes_the_reader_confirms_is_a_yes(monkeypatch):
     assert confirm.answers_pending("yeah sure, send that to him right now please") == "yes"
 
 
-def test_without_the_reader_the_word_reading_stands(monkeypatch):
+def test_without_the_reader_a_longer_sentence_never_sends(monkeypatch):
+    """Demo pass 134 (2026-10-15): with no reader, the word reading SENT the mail on «ok book it…». For a pending act
+    that leaves, a longer sentence without a reader is no answer; for any other act the word reading stands."""
     monkeypatch.setattr(confirm, "_judge", lambda *a, **k: None)
+    assert confirm.answers_pending("ok book it, call it catch up with rowan") is None
+    confirm.reset()
+    confirm.request("delete", "agenda", "Delete the agenda?", notify_ui=False)
     assert confirm.answers_pending("ok book it, call it catch up with rowan") == "yes"
 
 
 def test_both_voice_sites_and_the_gate_use_it():
     from pathlib import Path
     root = Path(__file__).resolve().parents[3]
-    assert _vts.read(root / "voice/engine/llm/providers/nucleo.py").count("_wconfirm.answers_pending(text)") == 2
-    assert "_c.answers_pending(text)" in (root / "nucleo/turn/confirm_gates.py").read_text("utf-8")
+    assert _vts.read(root / "voice/engine/llm/providers/nucleo.py").count("_wconfirm.answers_pending(text, _brief)") == 2
+    assert "_c.answers_pending(text" in (root / "nucleo/turn/confirm_gates.py").read_text("utf-8")
 
 
 def test_a_no_read_from_a_longer_order_cancels_and_the_turn_serves_the_order(monkeypatch):

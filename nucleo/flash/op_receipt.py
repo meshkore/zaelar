@@ -134,15 +134,16 @@ def spoken_line(wid: str, action: str, res, outcome: str, lang) -> str:
     that knows what it did. `error` never reaches the mouth — it is diagnostic and frequently addressed to the
     MODEL, and V2-652 measured one of those retry instructions being read aloud as zaelar's own words."""
     res = res if isinstance(res, dict) else {}
-    said = str(res.get("message") or "").strip()
+    from nucleo.flash import refusal_line as _rl          # `say` in his language, then `message` — never `error`
+    said = _rl.speakable(wid, res).strip()
     if said:
         return said
     if outcome == "ok":
         return str(getattr(lang, "data_ack", "") or "Hecho.")
     if outcome == "failed":
-        detail = str(res.get("error") or "").strip()
-        base = str(getattr(lang, "op_failed", "") or "No he podido completarlo.")
-        return f"{base} {detail}".strip() if detail and not is_pool_timeout(res) else base
+        # demo pass 134: «I couldn't get that done. falta `text` en forward: … vuelve a llamar a forward» — the
+        # model's retry instruction, in Spanish, read to him. The base line is what he hears.
+        return str(getattr(lang, "op_failed", "") or "No he podido completarlo.")
     return str(getattr(lang, "op_unknown", "") or "Lo he lanzado, pero no he podido confirmar que quedara hecho.")
 
 

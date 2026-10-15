@@ -611,7 +611,7 @@ class NucleoLLMStream(llm.LLMStream):
         # irreversible no puede depender de que el turno sobreviva entero. Ambiguo → el backstop de siempre.
         if not first_turn and had_pending_confirm:
             try:
-                _verdict_early = _wconfirm.answers_pending(text)
+                _verdict_early = _wconfirm.answers_pending(text, _brief)
             except Exception:
                 _verdict_early = None
             if _verdict_early:

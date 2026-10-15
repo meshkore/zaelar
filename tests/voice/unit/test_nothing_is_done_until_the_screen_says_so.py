@@ -257,3 +257,13 @@ def test_work_started_exists_in_BOTH_languages_and_promises_nothing_done():
         line = str(getattr(lang, "work_started", ""))
         assert line, f"{code} has no `work_started`"
         assert "Hecho" not in line and "Done" not in line, f"{code}: {line!r} still claims completion"
+
+
+def test_a_failed_confirmed_order_never_reads_the_models_error_aloud(monkeypatch):
+    """Demo pass 134 (2026-10-15): «I couldn't get that done. falta `text` en forward: … vuelve a llamar a forward» —
+    the model's retry instruction, in Spanish, read to him. A failure says the widget's own sentence or the base line."""
+    from types import SimpleNamespace
+    from nucleo.flash import op_receipt as OR
+    lang = SimpleNamespace(op_failed="I couldn't get that done.", data_ack="Done.")
+    res = {"ok": False, "error": "falta `text` en forward: vuelve a llamar a forward con contact, text y from"}
+    assert OR.spoken_line("mensajeria", "forward", res, "failed", lang) == "I couldn't get that done."

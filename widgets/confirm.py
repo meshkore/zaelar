@@ -265,7 +265,7 @@ def is_plain_answer(text: str, verdict: str) -> bool:
     return len(rest) <= _PLAIN_ANSWER_WORDS
 
 
-def answers_pending(text: str) -> str | None:
+def answers_pending(text: str, brief=None) -> str | None:
     """`classify_reply`, for the confirmation actually pending — 'yes' | 'no' | None.
 
     Demo pass 45 (2026-09-29), C2→C3: the model asked «I'll write to Rowan on Telegram: … Shall I send it?» for a
@@ -279,14 +279,39 @@ def answers_pending(text: str) -> str | None:
         return None
     if is_plain_answer(text, v):
         return v
-    items = sorted(pending().values(), key=lambda p: p.get("ts", 0))
-    question = str((items[-1] if items else {}).get("question") or "").strip()
+    items = sorted(pending().items(), key=lambda kv: kv[1].get("ts", 0))
+    wid, p = items[-1] if items else ("", {})
+    # Demo pass 134 (2026-10-15), E3→C3: «ok book it, call it catch up with ethan» answered the pending forward to
+    # Andrew — the verdict SURELY named `agenda:add_meeting`, an order on another card; the meeting was never booked.
+    if _orders_another_card(brief, wid):
+        return None
+    question = str(p.get("question") or "").strip()
     if not question:
         return v
     judged = _judge(question, text)
-    if judged is None:
-        return v
+    if judged is None:      # no reader: a longer sentence never sends on a word («ok …»); elsewhere the words stand
+        return None if _leaves(wid, p) else v
     return None if judged == "other" else judged
+
+
+def _orders_another_card(brief, wid: str) -> bool:
+    """Does the turn's verdict SURELY name an action on a card other than the pending one's?"""
+    try:
+        from nucleo.flash import direct_action as _da
+        vw, va = _da.from_brief(brief) if brief is not None else ("", "")
+        return bool(vw and va and wid and _da._base_of(vw) != _da._base_of(wid) and _da._action_sure(brief))
+    except Exception:  # noqa: BLE001 — no verdict: the reading below decides
+        return False
+
+
+def _leaves(wid: str, p: dict) -> bool:
+    """Is the pending act one that leaves the machine (`external.send`)? Unreadable → yes (never a licence)."""
+    op = p.get("op") if isinstance(p.get("op"), dict) else {}
+    try:
+        from widgets import effects as _fx
+        return p.get("action") == "data" and _fx.carries(wid, str(op.get("action") or ""), _fx.EXTERNAL_SEND)
+    except Exception:  # noqa: BLE001
+        return True
 
 
 def backs_a_yes(text: str) -> bool:
@@ -299,13 +324,7 @@ def backs_a_yes(text: str) -> bool:
     if not items:
         return True
     wid, p = items[-1]
-    op = p.get("op") if isinstance(p.get("op"), dict) else {}
-    try:
-        from widgets import effects as _fx
-        leaves = p.get("action") == "data" and _fx.carries(wid, str(op.get("action") or ""), _fx.EXTERNAL_SEND)
-    except Exception:  # noqa: BLE001 — an unreadable declaration is not a licence
-        leaves = True
-    if not leaves:
+    if not _leaves(wid, p):
         return True
     v = classify_reply(text)
     if v == "no":

@@ -18,7 +18,7 @@ from nucleo.flash import blocked_channel_receipt as _pst_bcr   # V2-604: a block
 async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _dialog, _filler_audio, _langs, _prev_pending, _r, _resolve_confirm, _router, _shown_ids, acted, aside, brain, clarify, confirm_state, data_done, emit, escalate_req, had_pending_confirm, llm_metrics, music_req, operator_text, search_req, send, speech, spoken_text, style_fired, text, worker_acted) -> dict:
     if had_pending_confirm and not confirm_state["handled"]:
         try:
-            verdict = _pst._wconfirm.answers_pending(text)
+            verdict = _pst._wconfirm.answers_pending(text, _brief)
             if verdict:
                 _resolve_confirm(verdict == "yes")
         except Exception:
