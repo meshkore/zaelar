@@ -3546,6 +3546,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_dentist_detail_opens_and_closes_inside_the_agenda.py"]},
         {"id": "2.735", "title": "A refused op that names the row another op of the same turn already acted on is that op's echo, never «No he podido» — a row that was not there is still said",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_echo_of_what_the_turn_did_is_not_a_failure.py"]},
+        {"id": "2.736", "title": "Rows a worker writes as a JSON array reach the action's one declared list field through widget_cli; anywhere else an array is still refused",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_rows_written_as_a_list_reach_the_one_list_field.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},

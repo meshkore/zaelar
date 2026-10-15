@@ -89,7 +89,7 @@ def _report(res: dict) -> int:
 _AYUDA = ("--help", "-h", "help", "ayuda", "--ayuda", "-?", "/?")
 
 
-def _read_payload(raw: str):
+def _read_payload(raw: str, list_key: str = ""):
     """The JSON payload of a verb, from an argument, a `@file` or `-` (stdin). `None` means «already
     explained why it could not be read»; `{}` means «none given». Extracted so `data` and `rows` answer an
     unreadable payload with the SAME sentence — two bridges answering one question differently is exactly
@@ -134,6 +134,8 @@ def _read_payload(raw: str):
         except Exception as e:  # noqa: BLE001
             print(f"el payload ({src}) no es JSON válido: {e}")
             return None
+        if isinstance(payload, list) and list_key:
+            payload = {list_key: payload}    # rows where the action declares ONE list: its only reading (`_list_key`)
         if not isinstance(payload, dict):
             print("el payload debe ser un objeto JSON")
             return None
@@ -150,6 +152,14 @@ def _declared_payload(wid: str, action: str) -> dict:
     acts = man.get("actions") or {}
     spec = acts.get(action) if isinstance(acts, dict) else None
     return spec if isinstance(spec, dict) else {}
+
+
+def _list_key(wid: str, action: str) -> str:
+    """The ONE payload field an action declares as a list, or "". best-plumber-same-day ES (2026-10-15): a worker wrote
+    its rows as a JSON array to `rows.json`, `data results append @rows.json` died with «el payload debe ser un
+    objeto JSON», and a round went to rewrapping what `append {items: [...]}` could only have meant."""
+    fields = [k for k, v in (_declared_payload(wid, action).get("payload") or {}).items() if isinstance(v, list)]
+    return fields[0] if len(fields) == 1 else ""
 
 
 def _bare_text_payload(wid: str, action: str, raw: str):
@@ -231,7 +241,7 @@ def main(argv: list[str]) -> int:
         bare = _bare_text_payload(wid, action, raw)
         if bare is not None:
             return _report(_act("widget_data", {"widget_id": wid, "action": action, "payload": bare}))
-        payload = _read_payload(raw)
+        payload = _read_payload(raw, _list_key(wid, action))
         if payload is None:
             return 2
         return _report(_act("widget_data", {"widget_id": wid, "action": action, "payload": payload}))
