@@ -203,11 +203,9 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
                 emit("brain", "🧾 widget_data cortada por el tope → escalada con superficie documento",
                      text=_owed["head"][:120], role="system")
             else:
-                _fix = _pst._rg.follow_up_line()
-                send(speech.sanitize(_fix, drop_metadata=False))
+                send(speech.sanitize(_fix := _pst._rg.follow_up_line(), drop_metadata=False))
                 spoken_text = (spoken_text + " " + _fix).strip()
-    except Exception as _e_h:  # noqa: BLE001
-        _pst.logger.warning(f"turn repairs skipped: {_e_h}")
+    except Exception as _e_h: _pst.logger.warning(f"turn repairs skipped: {_e_h}")  # noqa: BLE001,E701
 
     # Escalada sin texto hablado → frase de espera neutral (V2-029/V2-189): varía turno a turno y esquiva
     # la apertura si un filler ya sonó — en `harness_turn.holding_line`, con su historia.
@@ -216,5 +214,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         send(speech.sanitize(spoken_text, drop_metadata=False))
     elif not spoken_text and worker_acted["v"] and (spoken_text := _sbe.status_with_refined(operator_text, _brief)):
         send(speech.sanitize(spoken_text, drop_metadata=False))   # a status question owes the phases (three-tasks)
+    if spoken_text and (_oq := __import__("nucleo.dispatch_confirm", fromlist=["x"]).owed_question(spoken_text)):
+        send(speech.sanitize(_oq, drop_metadata=False)); spoken_text = f"{spoken_text} {_oq}"  # noqa: E702 — never said
     _out = locals()
     return {k: _out[k] for k in ('spoken_text', ) if k in _out}

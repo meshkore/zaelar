@@ -300,7 +300,10 @@ def _true_to_the_gate(spoken, action: str, extra, sess):
             return _rg.holding_line(getattr(sess, "window", None) or [], _langs.current_language())
         q = (extra or {}).get("still_parked") if isinstance(extra, dict) else ""
         if q and "?" not in spoken:
-            return f"{spoken} {q}"
+            spoken = f"{spoken} {q}"
+        from nucleo import dispatch_confirm as _dc     # a parked errand's question nobody said yet (2026-10-15)
+        if (owed := _dc.owed_question(spoken)):
+            return f"{spoken} {owed}"
     except Exception as e:  # noqa: BLE001 — the reply as the model wrote it
         from loguru import logger
         logger.debug(f"probe_after: gate wording skipped — {type(e).__name__}: {e}")

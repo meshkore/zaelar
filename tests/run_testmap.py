@@ -3548,6 +3548,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_echo_of_what_the_turn_did_is_not_a_failure.py"]},
         {"id": "2.736", "title": "Rows a worker writes as a JSON array reach the action's one declared list field through widget_cli; anywhere else an array is still refused",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_rows_written_as_a_list_reach_the_one_list_field.py"]},
+        {"id": "2.737", "title": "A parked errand's question that nobody said (no live speaker, the note dropped) rides the next reply once, both channels — unless that reply already names the errand",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_parked_question_nobody_said_rides_the_next_reply.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},

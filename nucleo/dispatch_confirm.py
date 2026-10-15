@@ -95,7 +95,7 @@ def remember_confirm(task_id: str, request: str, task: "Task", *, sheet: str = "
     _PENDING_CONFIRM[str(task_id)] = {
         "request": request, "kind": (task.kind or "generic"), "trusted": bool(task.trusted),
         "context": dict(task.context or {}), "question": _danger.confirm_question(request),
-        "sheet": str(sheet or ""), "ts": time.time()}
+        "sheet": str(sheet or ""), "ts": time.time(), "asked": _SPOKEN.pop(str(task_id), False)}
 
 
 def remember_code_change(task_id: str, request: str, task: "Task", *, sheet: str = "") -> None:
@@ -117,7 +117,7 @@ def remember_code_change(task_id: str, request: str, task: "Task", *, sheet: str
         "request": request, "kind": (task.kind or "code"), "trusted": bool(task.trusted),
         "context": dict(task.context or {}), "question": _ek.code_change_question(request),
         "sheet": str(sheet or ""), "code_change": _ek.code_change(request) or "modify",
-        "ts": time.time()}
+        "ts": time.time(), "asked": _SPOKEN.pop(str(task_id), False)}
 
 
 def remember_offer(request: str, *, context: dict, question: str) -> None:
@@ -268,11 +268,31 @@ def resolve_confirm(ok: bool, task_id: str = "") -> dict | None:
     return {**p, "ok": True}
 
 
+#: Was the gate's question actually SPOKEN to him (`proactive.notify`'s own answer)? By task id; read once by
+#: `remember_*`, which park the errand right after the delivery.
+_SPOKEN: dict[str, bool] = {}
+
+
 async def _deliver_confirm(rec: "SessionRecord") -> None:
     try:
         from voice import proactive
-        await proactive.notify("zaelar", rec.result_summary, speak=True)
+        _SPOKEN[str(rec.task_id)] = bool(await proactive.notify("zaelar", rec.result_summary, speak=True))
     except Exception:
         pass
+
+
+def owed_question(spoken: str) -> str:
+    """The question of an errand parked on him that nobody has SAID yet, or "" — given once, for a reply that does
+    not already name that errand (three-tasks-at-once EN, 2026-10-15). With no live speaker the gate's question
+    falls back to a note, and the reply that should carry it said only the car's refinement: the game sat parked
+    on «build you a new card?» that he never heard, and «make that one jump higher» went to the car report."""
+    _sweep_confirm()
+    from nucleo.turn import named_errand as _ne
+    for p in sorted(_PENDING_CONFIRM.values(), key=lambda v: v["ts"]):
+        if p.get("asked") or not p.get("question"):
+            continue
+        p["asked"] = True                 # said now — by this reply's own words, or by the line returned
+        return "" if _ne.named(spoken or "", [{"request": p.get("request") or ""}]) else str(p["question"])
+    return ""
 
 
