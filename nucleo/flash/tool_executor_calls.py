@@ -177,7 +177,7 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
     elif name == "restore_widget":
         _request_restore_confirm((args.get("widget_id") or "").strip(), text)
     elif name == "confirm_widget_delete":
-        confirm_state["handled"] = _resolve_confirm(bool(args.get("confirmed")))
+        confirm_state["handled"] = _t_confirm(args, operator_text or text, _resolve_confirm, clarify, emit)
     elif name == "set_style_directive":
         # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
         return _t_set_style_directive(
@@ -670,3 +670,17 @@ def _t_answer_worker(*, args, emit, worker_acted, fired=None):
                 emit("brain", "💬 respuesta a worker", text=ans[:120], role="system")
         except Exception as e:  # noqa: BLE001
             _tx.logger.warning(f"answer_worker falló: {e}")
+
+
+def _t_confirm(args: dict, said: str, _resolve_confirm, clarify, emit) -> bool:
+    """The model's answer to a pending confirmation — except a YES to an act that leaves the machine that his own
+    words do not give (`widgets.confirm.backs_a_yes`, demo pass 133 E4): nothing is resolved, and the turn asks the
+    question again instead of saying it sent."""
+    from widgets import confirm as _wconfirm
+    if bool(args.get("confirmed")) and not _wconfirm.backs_a_yes(said):
+        items = sorted(_wconfirm.pending().values(), key=lambda p: p.get("ts", 0))
+        clarify["msg"] = str((items[-1] if items else {}).get("question") or "")
+        emit("brain", "🛑 el modelo dio el sí a un acto que sale fuera y sus palabras no", role="system",
+             text=str(said or "")[:120], extra={"cat": "flash"})
+        return False
+    return _resolve_confirm(bool(args.get("confirmed")))

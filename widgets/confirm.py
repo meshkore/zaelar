@@ -289,6 +289,33 @@ def answers_pending(text: str) -> str | None:
     return None if judged == "other" else judged
 
 
+def backs_a_yes(text: str) -> bool:
+    """Do HIS words agree to the pending act — when that act LEAVES the machine (`external.send`)? Any other pending
+    act keeps the model's reading (True). Demo pass 133 (2026-10-15), E3→E4: the forward to Andrew asked «Shall I send
+    it?», the next turn was «oh and leave that inworld one as unread», and the model answered the question itself —
+    `confirm_widget_delete(confirmed=true)` — so the mail went out on a sentence that never said yes. Same reading as
+    the early door (`answers_pending`): a plain yes, or the judge's YES; with the judge out, the words alone."""
+    items = sorted(pending().items(), key=lambda kv: kv[1].get("ts", 0))
+    if not items:
+        return True
+    wid, p = items[-1]
+    op = p.get("op") if isinstance(p.get("op"), dict) else {}
+    try:
+        from widgets import effects as _fx
+        leaves = p.get("action") == "data" and _fx.carries(wid, str(op.get("action") or ""), _fx.EXTERNAL_SEND)
+    except Exception:  # noqa: BLE001 — an unreadable declaration is not a licence
+        leaves = True
+    if not leaves:
+        return True
+    v = classify_reply(text)
+    if v == "no":
+        return False
+    if v == "yes" and is_plain_answer(text, v):
+        return True
+    judged = _judge(str(p.get("question") or ""), text)
+    return v == "yes" if judged is None else judged == "yes"
+
+
 _JUDGE_SYS = ("You check whether a user's reply answers a confirmation question. The assistant asked: «{q}». "
               "Reply with exactly one word: YES if the reply agrees to exactly that pending action, NO if it declines "
               "it, OTHER if it does neither — it asks for a different action instead, or is about something else. "

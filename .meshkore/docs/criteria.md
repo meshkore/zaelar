@@ -84,8 +84,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   is DROPPED with a note to the model — never turned into a question, because the next «ok» would answer it. Its
   recipient is never a doubt: one he did not name (this turn or his last 15 min) is asked «¿se lo mando a X?», a
   spelling-only near contact is named back, never written to, and the engine never turns a draft into a send to
-  somebody he did not name. — since 2026-09-29, recipient 2026-10-15 · nodes 2.106, 2.168, 2.730 ·
-  `nucleo/flash/leave_gate.py`, `widgets/mensajeria/outbound.py`.
+  somebody he did not name. When it was asked, the yes is HIS words (a plain yes, or the judge's YES), never the
+  model's `confirmed=true` over a sentence about something else. — since 2026-09-29, recipient and yes 2026-10-15 ·
+  nodes 2.106, 2.168, 2.730, 2.740 · `nucleo/flash/leave_gate.py`, `widgets/mensajeria/outbound.py`,
+  `widgets/confirm.py::backs_a_yes`.
 - **CRIT-C6 · An action does not manufacture permission for its own side effects**; the confirm gate asks
   SOMEONE, and its «yes» returns to the click it stopped. — since 2026-09-18 · nodes 4.21, 2.29.
 - **CRIT-C7 · A transactional op never enters the task list** (deleting an item, sending a message); the list is
