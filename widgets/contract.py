@@ -207,6 +207,10 @@ _ALIASES: dict[str, tuple[str, ...]] = {
     # the END had its twin (`newEndTime`) and the START did not: «Move it 30 minutes later» stretched the
     # meeting instead of moving it (demo run, 2026-09-26)
     "newTime": ("newStartTime", "new_start_time", "newStart"),
+    # demo pass 134 (2026-10-15), C2: find_free {afterTime: "16:00", duration: 45} — both ignored, the whole day
+    # came back and the reply offered 3:00 over the 3-4 meeting
+    "from": ("afterTime", "after_time"),
+    "duration_min": ("duration", "minutes", "durationMin", "duration_minutes"),
 }
 
 

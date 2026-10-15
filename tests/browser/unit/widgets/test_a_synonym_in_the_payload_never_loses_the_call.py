@@ -117,3 +117,14 @@ def test_a_move_said_as_newStartTime_lands_on_newTime():
     out = contract.fold_aliases("agenda", "move_meeting", {"title": "X", "newStartTime": "16:45",
                                                            "newEndTime": "17:30"})
     assert out["newTime"] == "16:45"
+
+
+def test_the_free_slot_search_keeps_his_window_and_length():
+    """Demo pass 134 (2026-10-15), C2: «find me a free 45 minutes tomorrow afternoon… after my last meeting» →
+    find_free {afterTime: "16:00", duration: 45}; both keys were ignored, the whole day came back and the reply
+    offered 3:00-3:45 over the 3-4 meeting."""
+    from widgets import contract
+    out = contract.fold_aliases("agenda", "find_free", {"date": "2026-10-16", "afterTime": "16:00", "duration": 45})
+    assert out["from"] == "16:00" and out["duration_min"] == 45
+    fw = contract.fold_aliases("mensajeria", "forward", {"from": "the receipt", "afterTime": "16:00"})
+    assert fw["from"] == "the receipt", "a key the model sent is never overwritten"
