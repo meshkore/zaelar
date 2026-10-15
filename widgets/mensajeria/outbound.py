@@ -210,7 +210,7 @@ def resolve_target(payload: dict | None = None) -> dict:
             return {"ok": False, "say": "widgets.mensajeria.refusal_no_channel", "error": f"no tengo el {label(want)} de {name} — {tail}. Pregúntale al "
                                           f"operador el dato que falta y guárdalo con contactos/set_channel."}
         if have:
-            return {"ok": False, "error": f"{name} tiene varios canales ({', '.join(label(p) for p in have)}) "
+            return {"ok": False, "say": "widgets.mensajeria.refusal_which_channel", "error": f"{name} tiene varios canales ({', '.join(label(p) for p in have)}) "
                                           f"y ninguno marcado como preferido. PREGÚNTALE al operador por cuál "
                                           f"le escribe y vuelve a llamar a send_to con `channel`."}
         return {"ok": False, "say": "widgets.mensajeria.refusal_no_channel", "error": f"no tengo ninguna forma de escribir a {name}: ni teléfono, ni usuario "

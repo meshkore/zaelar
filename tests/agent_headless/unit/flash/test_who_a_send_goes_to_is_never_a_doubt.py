@@ -91,3 +91,16 @@ def test_a_near_name_is_not_a_guest_either(directory):
     g = invite.resolve_guests({"who": "Pako Ruiz"})
     assert g["emails"] == [] and g["ambiguous"] and g["ambiguous"][0][1] == ["Paco Ruiz"], g
     assert invite.resolve_guests({"who": "paco ruiz"})["emails"] == ["paco@example.com"]
+
+
+def test_two_channels_and_none_preferred_is_asked_in_his_language(directory, monkeypatch):
+    """Which channel is a doubt too: nothing is sent, and the refusal is a sentence in the session's language."""
+    directory.apply_action("add_contact", {"name": "Rowan Lee", "kind": "person", "email": "rowan@example.com",
+                                           "channels": [{"platform": "email", "handle": "rowan@example.com"},
+                                                        {"platform": "telegram", "handle": "@rowanlee"}]})
+    from widgets.mensajeria import outbound
+    from nucleo.flash import refusal_line
+    t = outbound.resolve_target({"contact": "Rowan Lee", "text": "hi"})
+    assert t["ok"] is False and t["say"] == "widgets.mensajeria.refusal_which_channel", t
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
+    assert "none is marked as preferred" in refusal_line.speakable("mensajeria", t)

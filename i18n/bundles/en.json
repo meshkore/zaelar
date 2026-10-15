@@ -292,6 +292,7 @@
  "widgets.mensajeria.refusal_which_person": "more than one contact matches that name, so nothing was sent — tell me which one.",
  "widgets.mensajeria.refusal_near_name": "nobody in your contacts has exactly that name, so nothing was sent — tell me if you meant the closest one.",
  "widgets.mensajeria.refusal_no_channel": "I have no way to reach them on that channel, so nothing was sent — tell me their number, handle or address.",
+ "widgets.mensajeria.refusal_which_channel": "they have more than one channel and none is marked as preferred, so nothing was sent — tell me which one to use.",
  "config.cxw.telegram.2.title": "Create the application",
  "config.cxw.telegram.2.body": "Open «API development tools» and fill in the form: App title «Zaelar», Short name «Zaelar», leave the rest blank. Press «Create application». You will see two values: the api_id (a short number) and the api_hash (a long string of letters and digits).",
  "config.cxw.telegram.form_tip": "Paste both values here. The api_id is a short number; the api_hash a long string of letters and digits.",
