@@ -157,7 +157,30 @@ def _a_reply(action, payload) -> dict:
         if target is not None:
             _d._outbound.enqueue_reply(db, target, text)
             _d.store.save(_d.WIDGET_ID, db)
-    return _d.view_data()
+            return _d.view_data()
+        # A reply with nothing to answer is a send that did not happen, and it must SAY so (use case
+        # dictate-a-reply-honestly, 2026-10-15: «respóndele a Marta por WhatsApp…» with no chat of hers and WhatsApp
+        # unlinked came back as the card's whole state, and the turn said «Hecho.»). What leaves the machine is
+        # never claimed without the act — the operator's rule for anything that reaches somebody else.
+        return {"ok": False, "error": _NO_TARGET_FOR_THE_MODEL, "message": _no_reply_target(db)}
+    if n is not None and not text:
+        return _d.view_data()                      # nothing dictated: nothing to send and nothing to claim
+    return {"ok": False, "error": _NO_TARGET_FOR_THE_MODEL, "message": _no_reply_target(_d.load_db())}
+
+
+_NO_TARGET_FOR_THE_MODEL = ("no_target: no hay ningún mensaje con ese número al que contestar. Para escribir a alguien que no "
+                            "ha escrito, llama a send_to con `contact` y `channel`; si el canal no está conectado, "
+                            "díselo al operador y no afirmes ningún envío.")
+
+
+def _no_reply_target(db: dict) -> str:
+    """The sentence a reply that had no message to answer comes back with: what is missing, and the way out."""
+    plats = db.get("platforms") or {}
+    off = [_d._outbound.label(p) for p in _d._outbound.PLATFORMS
+           if str((plats.get(p) or {}).get("status") or "off") in ("off", "disconnected")]
+    tail = (f" {', '.join(off)} no {'está conectado' if len(off) == 1 else 'están conectados'} — se conectan en "
+            f"⚙ Conectores.") if off else ""
+    return "No tengo esa conversación para contestarla, así que no se ha enviado nada." + tail
 
 
 # V2-611 — DRAFT then SEND, as a pair: dictating a reply (or typing it) fills a visible box the operator
