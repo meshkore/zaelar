@@ -10,7 +10,9 @@ reading. Here the costs are the other way round: he asked for the act that leave
 operator's own bar (`consent.intent_act_at`), and the model's call stops short of it. The verdict's act runs, with
 the words the model already wrote and the person his sentence names.
 
-Below the bar, or with the model's call leaving too, or with the two readers agreeing, nothing changes here.
+Below the bar, or with the model's call leaving too, or with the two readers agreeing, nothing changes here. And the
+engine never ORIGINATES a send to somebody his words did not name (`leave_gate.unnamed_recipients`, the operator's
+2026-10-15 rule: who it goes to is never a doubt) — the model's draft stays a draft.
 """
 from __future__ import annotations
 
@@ -32,7 +34,10 @@ def instead(brief, widget_id: str, model_action: str, payload: dict | None, said
         out = _rof.forward_of(widget_id, model_action, pay, said) or {
             k: v for k, v in pay.items() if k in keys and str(v or "").strip()}
         out.update(_pf.person_fill(widget_id, verdict, out, said))
-        return (verdict, out) if out else None
+        from nucleo.flash import leave_gate as _lg
+        if not out or _lg.unnamed_recipients(widget_id, verdict, out, said):
+            return None
+        return verdict, out
     except Exception as e:  # noqa: BLE001 — the model's own call stands
         logger.debug(f"ordered_send: skipped — {type(e).__name__}: {e}")
         return None

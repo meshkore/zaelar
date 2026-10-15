@@ -156,10 +156,11 @@ def reachable(question: str) -> str:
         return ""
 
 
-def resolve(name: str) -> list[dict]:
+def resolve(name: str, *, tolerant: bool = True) -> list[dict]:
     """The contacts `name` can mean. Exact name wins outright; otherwise every contact whose name contains
     all the words said. An empty name resolves to NOBODY — «mándale un mensaje» with no name must ask, and
-    returning the whole directory would let a caller pick the first row."""
+    returning the whole directory would let a caller pick the first row. `tolerant=False` stops before the
+    spelling-tolerant last resort: a door that LEAVES asks about a near name (`near`) instead of using it."""
     q = _norm(name)
     if not q:
         return []
@@ -181,7 +182,7 @@ def resolve(name: str) -> list[dict]:
             out.append(c)
         elif any(_same_phone(q, tel) for tel in _phones(c)):
             out.append(c)
-    if out:
+    if out or not tolerant:
         return out
     # TOLERANT last resort, through the ONE shared matcher (`widgets/textmatch`, V2-705). The operator, 2026-09-15:
     # «una C por una K, una letra que falta, una H… que sea flexible, preciso, pero inteligente», and «tiene que
@@ -192,6 +193,12 @@ def resolve(name: str) -> list[dict]:
     from . import textmatch
     near = [c for _score, c in textmatch.rank(name, people, key=lambda c: c.get("name"), floor=0.8)]
     return near or out
+
+
+def near(name: str) -> list[dict]:
+    """The contacts only the spelling-tolerant match finds for `name` — what a door that leaves names back to him as
+    «¿te refieres a X?» (the operator, 2026-10-15: who a message goes to is never left in doubt)."""
+    return [] if resolve(name, tolerant=False) else resolve(name)
 
 
 def find_by_channel(platform: str, chat_id) -> dict | None:

@@ -82,7 +82,10 @@ def resolve_guests(payload: dict) -> dict:
             part = part.strip()
             if not part or _EMAIL_RE.match(part):
                 continue
-            hits = d.resolve(part)
+            hits = d.resolve(part, tolerant=False)
+            if not hits and d.near(part):    # a near name is a question, never a guest (the operator, 2026-10-15)
+                ambiguous.append((part, [c.get("name") or "" for c in d.near(part)[:5]]))
+                continue
             if len(hits) > 1:
                 ambiguous.append((part, [c.get("name") or "" for c in hits[:5]]))
                 continue

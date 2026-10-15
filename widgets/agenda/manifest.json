@@ -283,7 +283,10 @@
       "confirm": true,
       "consent_class": "calendar.invite_new_party",
       "on_his_behalf": "who",
-      "confirm_q": "¿Invito a {who} a «{meeting}»? Verá la hora y el enlace de la reunión."
+      "confirm_q": "¿Invito a {who} a «{meeting}»? Verá la hora y el enlace de la reunión.",
+      "effects": [
+        "external.send"
+      ]
     },
     "accept_proposal": {
       "desc": "ACEPTA una cita que otra persona (o el agente de otro, por el cluster) ha propuesto y que está esperando el visto bueno del operador. Al aceptarla se crea de verdad en el calendario y se le confirma a quien la pidió. Nunca se acepta sola: siempre la acepta él",
@@ -304,7 +307,10 @@
         "title": "string (título de la cita, aunque sea parcial)",
         "date": "YYYY-MM-DD (opcional, si hay varias con ese título)",
         "answer": "accepted | declined | tentative (o dilo como él: «sí voy», «no puedo», «quizá»)"
-      }
+      },
+      "effects": [
+        "external.send"
+      ]
     },
     "set_default_calendar": {
       "desc": "elige en qué calendario de Google se crean las citas nuevas cuando el operador tiene varios",

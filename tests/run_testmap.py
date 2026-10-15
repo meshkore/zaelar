@@ -3534,6 +3534,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_inline_act_settles_the_commission_on_both_channels.py"]},
         {"id": "2.729", "title": "An ordered act that leaves, sure at the operator's 70%, runs when the model only drafted it — both channels",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_ordered_send_the_model_only_drafted_is_sent.py"]},
+        {"id": "2.730", "title": "Who a send goes to is never a doubt: an act that leaves (`external.send`, the meeting invitation included) asks when its recipient is not named in his words or only a near spelling matches, and the engine never turns a draft into a send to somebody he did not name",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_who_a_send_goes_to_is_never_a_doubt.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},

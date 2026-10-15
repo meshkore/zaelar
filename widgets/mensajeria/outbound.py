@@ -118,7 +118,20 @@ def _resolve_recipient(who: str):
     from .. import textmatch
     d = _directory()
     for span in textmatch.spans(who):
-        hits = d.resolve(span)
+        hits = d.resolve(span, tolerant=False)
+        if hits:
+            return hits
+    return []
+
+
+def _near_recipient(who: str) -> list[dict]:
+    """The contacts only a spelling-tolerant match finds — never written to, named back as a question (the operator,
+    2026-10-15: «no podemos dejar con una duda quién es el destinatario»). «Kryptonite» → «¿te refieres a
+    Cryptonite?» costs one turn; the wrong person costs what cannot be taken back."""
+    from .. import textmatch
+    d = _directory()
+    for span in textmatch.spans(who):
+        hits = d.near(span)
         if hits:
             return hits
     return []
@@ -174,6 +187,13 @@ def resolve_target(payload: dict | None = None) -> dict:
         if _EMAIL_RE.match(who) and want in ("", "email"):
             return {"ok": True, "platform": "email", "to": who, "chatId": who, "name": who,
                     "contactId": "", "known": False}
+        near = _near_recipient(who)
+        if near:
+            names = " · ".join(str(c.get("name") or "") for c in near[:3])
+            return {"ok": False, "near": [c.get("name") for c in near[:3]],
+                    "error": f"no tengo a nadie que se llame exactamente «{who}»; el más parecido es {names}. "
+                               f"PREGÚNTALE al operador si es ese y vuelve a llamar con el nombre exacto — "
+                               f"nunca se escribe a alguien por parecido."}
         return {"ok": False, "error": f"no tengo a «{who}» en el directorio. Si el operador te ha dado su "
                                       f"teléfono, su usuario o su correo, guárdalo primero con "
                                       f"contactos/add_contact (o set_channel) y vuelve a intentarlo; si no, "

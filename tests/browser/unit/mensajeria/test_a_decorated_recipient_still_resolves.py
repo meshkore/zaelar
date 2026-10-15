@@ -30,8 +30,7 @@ def _target(who, **extra):
 
 @pytest.mark.parametrize("who", [
     "Cryptonite",                                   # the plain name
-    "Kryptonite",                                   # the operator's spelling (fuzzy, V2-698)
-    "Kryptonite (Telegram @cryptonitefund)",        # THE measured failure: name + channel annotation
+    "Cryptonite (Telegram @cryptonitefund)",        # THE measured failure: name + channel annotation
     "Cryptonite, my friend from the fund",          # name + a trailing clause
     "Cryptonite — the crypto contact",              # name + a dash note
 ])
@@ -40,6 +39,15 @@ def test_a_decorated_recipient_resolves_to_the_contacts_real_channel(directory, 
     assert t["ok"] is True, t
     assert t["name"] == "Cryptonite"
     assert t["to"] == "@cryptonite_fund" and t["chatId"] == "7477656357"
+
+
+@pytest.mark.parametrize("who", ["Kryptonite", "Kryptonite (Telegram @cryptonitefund)"])
+def test_a_spelling_only_near_is_asked_never_written_to(directory, who):
+    """The operator's spelling «Kryptonite» used to be written to as «Cryptonite» (V2-698). Since 2026-10-15 who a
+    message goes to is never a doubt: the door names the near contact back as a question and sends nothing."""
+    t = _target(who)
+    assert t["ok"] is False and t["near"] == ["Cryptonite"], t
+    assert "Cryptonite" in t["error"]
 
 
 def test_the_whole_reference_still_wins_when_it_is_the_name(directory):
