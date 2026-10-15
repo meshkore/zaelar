@@ -90,6 +90,10 @@ def _lookup(query: str) -> tuple[str, str]:
         return "", ""
     if _TICKER.match(q.upper()) and (q.isupper() or q.startswith("^") or any(c in q for c in ".-=")):
         return q.upper(), ""
+    # «Apple (AAPL)» names its ticker (demo pass 137, M1: the search ranked `AAPS.L`, a London leveraged note, and
+    # «Apple's up 2.19%, 23.64 USD» was said over it). The ticker the query spells out is the answer.
+    if (m := re.search(r"\(\s*(\^?[A-Z][A-Z0-9.=\-]{0,11})\s*\)", q)) and _TICKER.match(m.group(1)):
+        return m.group(1), q[:m.start()].strip()
     got = _get("https://query1.finance.yahoo.com/v1/finance/search?"
                + urllib.parse.urlencode({"q": q, "quotesCount": 6, "newsCount": 0}))
     quotes = [it for it in (got.get("quotes") or [])

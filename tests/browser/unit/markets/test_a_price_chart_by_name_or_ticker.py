@@ -196,3 +196,15 @@ def test_a_period_with_another_symbol_shows_that_symbol(fake_yahoo):
     mk.apply_action("show", {"symbol": "AAPL"})
     mk.apply_action("range", {"symbol": "^IXIC", "range": "1y"})
     assert any("^IXIC" in u or "%5EIXIC" in u for u in fake_yahoo), fake_yahoo[-1]
+
+
+def test_a_name_that_spells_its_ticker_takes_that_ticker(monkeypatch):
+    """Demo pass 137, M1: `show {query: "Apple (AAPL)"}` went to the search, which ranked `AAPS.L` (a London
+    leveraged note) first, and «Apple's up 2.19%, 23.64 USD» was said over it. The ticker in the query wins."""
+    from widgets.markets import data as mk
+
+    def _no_search(url, *a, **k):
+        raise AssertionError("a query that spells its ticker never needs the search")
+    monkeypatch.setattr(mk, "_get", _no_search)
+    assert mk._lookup("Apple (AAPL)") == ("AAPL", "Apple")
+    assert mk._lookup("Nasdaq Composite (^IXIC)") == ("^IXIC", "Nasdaq Composite")
