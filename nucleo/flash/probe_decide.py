@@ -33,12 +33,12 @@ def _hard_that_ends_the_turn(text: str, hard):
     return hard
 
 
-async def _reopen_action(tool_calls, text: str, sess=None) -> dict:
+async def _reopen_action(tool_calls, text: str, sess=None, brief=None) -> dict:
     """V2-778 F2-22 — the voice turn answers `reopen_task` with `task_recall` (lexical index → Jev → ask when several
     fit, V2-728). Same decision here: the show or the question, and — when the probe executes — the sheet rebuilt and
     the question SAID (`probe_reopen`). `{"action", "spoken"?}`, merged into the turn like a player control's."""
     from nucleo.flash import probe_reopen as _reopen
-    return await _reopen.action_for(tool_calls, text, sess)
+    return await _reopen.action_for(tool_calls, text, sess, brief)
 
 
 def _builds(text: str, router, brief) -> bool:
@@ -58,7 +58,7 @@ async def name_the_action(*, _hard, _router, _tbrief, _vault_gate, ingest, names
     elif "escalate_to_slowbrain" in names:
         action = "escalate"
     elif "reopen_task" in names:
-        action = (_pm := await _reopen_action(tool_calls, text, sess)).pop("action")   # `_pm` carries the question
+        action = (_pm := await _reopen_action(tool_calls, text, sess, _tbrief)).pop("action")   # `_pm` carries the question
     elif "search_listings" in names:
         # V2-556: the LISTING fast pass. Above web_search for the same reason escalate is: a turn that hunts
         # ads AND asks a fact is a hunt. The heavy side effects (search + possible self-escalation) run only

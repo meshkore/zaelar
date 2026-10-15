@@ -3540,6 +3540,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_reply_with_nothing_to_answer_says_nothing_was_sent.py"]},
         {"id": "2.732", "title": "A messaging channel he names while nothing is linked reaches the prompt with its state and the way to link it — an idle turn pays nothing for it",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_unlinked_channel_he_names_is_in_the_prompt.py"]},
+        {"id": "2.733", "title": "A finished report he corrects is never a mute turn: a report errand reopens on the document that holds it, and a reopen with nothing to show under a worker verdict escalates his words",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_finished_report_he_corrects_is_never_a_mute_turn.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},

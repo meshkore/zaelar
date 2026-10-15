@@ -34,7 +34,7 @@ def _present(card: str, verdict: dict) -> None:
     emit("brain", verdict["label"], role="system", text=verdict["text"], extra=verdict["extra"])
 
 
-async def action_for(tool_calls, text: str, sess) -> dict:
+async def action_for(tool_calls, text: str, sess, brief=None) -> dict:
     """`{"action": …}` plus `"spoken"` when the turn has to ASK. Merged by `probe_decide.name_the_action`."""
     q = next((t["args"] for t in tool_calls if t["name"] == "reopen_task"), {}) or {}
     query = str(q.get("query") or "").strip() or text
@@ -43,11 +43,18 @@ async def action_for(tool_calls, text: str, sess) -> dict:
         if r.get("ok"):
             return {"action": "canvas:show:results"}
         names = ", ".join(str(x.get("title") or x.get("goal") or "")[:60] for x in (r.get("ask") or [])[:3])
+        from nucleo.flash import direct_action as _da
+        if not names and _da.verdict_escalates(brief):
+            return {"action": "escalate"}
     else:
-        v = await asyncio.to_thread(_task_recall.voice_turn, query, text)
+        v = await asyncio.to_thread(_task_recall.voice_turn, query, text, brief)
         if v["show"]:
             _present(v["show"], v)
             return {"action": f"canvas:show:{v['show']}"}
+        if v.get("escalate"):
+            from voice.observer import emit
+            emit("brain", v["label"], role="system", text=v["text"], extra=v["extra"])
+            return {"action": "escalate"}
         names = v["ask"] or ""
     said = _ask_line(names)
     return {"action": "clarify", **({"spoken": said} if said else {})}
