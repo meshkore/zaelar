@@ -424,12 +424,30 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
         # {symbol: AAPL}») is the order itself.
         if not got or (str(got.get("action") or "") in ("show", "open_widget") and not got.get("payload")):
             return False
+        if _a_question_writing(brief, got, emit):
+            return False
         present(got["widget_id"], reason="turn-order", src="flash", emit=emit)
         apply_widget_data(got["widget_id"], got["action"], got["payload"])
         emit("brain", "🔁 abrió la tarjeta y prometió más — la llamada, en una segunda pasada",
              text=f"{got['widget_id']}:{got['action']}", role="system",
              extra={"cat": "flash", "widget": got["widget_id"], "action": got["action"],
                     "suppressed": bool(acted.get("show_suppressed"))})
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _a_question_writing(brief, got: dict, emit) -> bool:
+    """A QUESTION (the verdict, sure) never gets a WRITE from this repair — only a view. Demo pass 134 (2026-10-15),
+    R2: «and when does anna's vacation start? show me in the calendar» opened the agenda, and the repair added
+    «Anna's vacation» as a meeting nobody had asked to create. Never raises; an unreadable verdict blocks nothing."""
+    try:
+        from nucleo.flash import data_ops as _do, turn_brief as _tb
+        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
+        if info is None or str(kind) != "question" or _do.is_view_op(got["widget_id"], got["action"]):
+            return False
+        emit("brain", "❓ una pregunta no escribe — la reparación no crea ni cambia nada", role="system",
+             text=f"{got['widget_id']}:{got['action']}", extra={"cat": "flash"})
         return True
     except Exception:  # noqa: BLE001
         return False

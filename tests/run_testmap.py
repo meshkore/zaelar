@@ -3560,6 +3560,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/voice/unit/test_a_repaired_call_presents_the_sheet_it_lands_on.py"]},
         {"id": "2.742", "title": "An order on another card never answers a pending send; with no reader a longer sentence never sends on a word — a plain yes still does, and other pending acts keep the words",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_order_on_another_card_never_answers_a_pending_send.py"]},
+        {"id": "2.743", "title": "A question never gets a write from the show repair — only a view; an order keeps its write",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_question_never_gets_a_write_from_the_show_repair.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},
