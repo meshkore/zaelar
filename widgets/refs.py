@@ -595,10 +595,28 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
         # Tributaria…» offering ONE option — «delete one of those, I don't care which», «those are the
         # same», «Are you stupid or what?». The door exists so we never act on the WRONG item; when the
         # rows are interchangeable there is no wrong item, so asking is the defect and not the safeguard.
-        if len(options) > 1:
+        if len(options) > 1 and not _one_name_lens(widget_id, action, close):
             return RefResult(False, needs="ambiguous", candidates=options)
     payload[field] = best["id"]
     return RefResult(True, payload)
+
+
+def _one_name_lens(widget_id: str, action: str, rows: list[dict]) -> bool:
+    """Tied rows that all carry ONE name, under a LENS: any of them is the right one to look at.
+
+    Demo pass 135 (2026-10-15), R2: «when does anna's vacation start? show me in the calendar» — the model answered
+    «December 20» and called `open_meeting`, and the reply was replaced by «Which one exactly? I have Anna vacation
+    (appointment 2026-12-20), Anna vacation (appointment 2026-12-20 00:00 · every day until …)»: two copies of one
+    event in his calendar. A view moves nothing and the operator sees which row it opened; the question stays for
+    every act that writes, and for rows with different names."""
+    if len({_norm(str(i.get("label") or "")) for i in rows}) != 1:
+        return False
+    try:
+        from widgets import actions as _wactions, runtime
+        spec = ((runtime.get(str(widget_id).split("::", 1)[0]) or {}).get("actions") or {}).get(action)
+        return _wactions.is_view(spec, action)
+    except Exception:  # noqa: BLE001
+        return False
 
 
 def label_for(widget_id: str, field: str, item_id: str) -> str:
