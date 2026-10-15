@@ -162,15 +162,24 @@ def _a_reply(action, payload) -> dict:
         # dictate-a-reply-honestly, 2026-10-15: «respóndele a Marta por WhatsApp…» with no chat of hers and WhatsApp
         # unlinked came back as the card's whole state, and the turn said «Hecho.»). What leaves the machine is
         # never claimed without the act — the operator's rule for anything that reaches somebody else.
-        return {"ok": False, "error": _NO_TARGET_FOR_THE_MODEL, "message": _no_reply_target(db)}
+        return {"ok": False, "error": _NO_TARGET_FOR_THE_MODEL, "message": _no_reply_target(db), "say": _no_reply_say(db)}
     if n is not None and not text:
         return _d.view_data()                      # nothing dictated: nothing to send and nothing to claim
-    return {"ok": False, "error": _NO_TARGET_FOR_THE_MODEL, "message": _no_reply_target(_d.load_db())}
+    db = _d.load_db()
+    return {"ok": False, "error": _NO_TARGET_FOR_THE_MODEL, "message": _no_reply_target(db), "say": _no_reply_say(db)}
 
 
 _NO_TARGET_FOR_THE_MODEL = ("no_target: no hay ningún mensaje con ese número al que contestar. Para escribir a alguien que no "
                             "ha escrito, llama a send_to con `contact` y `channel`; si el canal no está conectado, "
                             "díselo al operador y no afirmes ningún envío.")
+
+
+def _no_reply_say(db: dict) -> str:
+    """The same sentence as an i18n key, so a session in any language hears it (`refusal_line.speakable`)."""
+    plats = db.get("platforms") or {}
+    offline = all(str((plats.get(p) or {}).get("status") or "off") in ("off", "disconnected")
+                  for p in _d._outbound.PLATFORMS)
+    return "widgets.mensajeria.refusal_no_conversation" + ("_offline" if offline else "")
 
 
 def _no_reply_target(db: dict) -> str:

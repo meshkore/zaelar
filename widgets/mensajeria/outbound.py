@@ -179,7 +179,7 @@ def resolve_target(payload: dict | None = None) -> dict:
                            for c in hits[:5])
         # The ambiguity is the answer: asking which one costs a turn, writing to the wrong person costs
         # something that cannot be taken back (the `refs.py` doctrine, at the one door where it is final).
-        return {"ok": False, "error": f"tengo {len(hits)} contactos que encajan con «{who}»: {names}. "
+        return {"ok": False, "say": "widgets.mensajeria.refusal_which_person", "error": f"tengo {len(hits)} contactos que encajan con «{who}»: {names}. "
                                       f"PREGÚNTALE al operador a cuál se refiere y vuelve a llamar a send_to "
                                       f"con el nombre completo."}
     if not hits:
@@ -190,11 +190,11 @@ def resolve_target(payload: dict | None = None) -> dict:
         near = _near_recipient(who)
         if near:
             names = " · ".join(str(c.get("name") or "") for c in near[:3])
-            return {"ok": False, "near": [c.get("name") for c in near[:3]],
+            return {"ok": False, "near": [c.get("name") for c in near[:3]], "say": "widgets.mensajeria.refusal_near_name",
                     "error": f"no tengo a nadie que se llame exactamente «{who}»; el más parecido es {names}. "
                                f"PREGÚNTALE al operador si es ese y vuelve a llamar con el nombre exacto — "
                                f"nunca se escribe a alguien por parecido."}
-        return {"ok": False, "error": f"no tengo a «{who}» en el directorio. Si el operador te ha dado su "
+        return {"ok": False, "say": "widgets.mensajeria.refusal_unknown_person", "error": f"no tengo a «{who}» en el directorio. Si el operador te ha dado su "
                                       f"teléfono, su usuario o su correo, guárdalo primero con "
                                       f"contactos/add_contact (o set_channel) y vuelve a intentarlo; si no, "
                                       f"pregúntaselo."}
@@ -207,13 +207,13 @@ def resolve_target(payload: dict | None = None) -> dict:
         if want:
             tail = (f"lo que sí tengo suyo es {', '.join(label(p) for p in have)}"
                     if have else "no tengo ningún canal suyo")
-            return {"ok": False, "error": f"no tengo el {label(want)} de {name} — {tail}. Pregúntale al "
+            return {"ok": False, "say": "widgets.mensajeria.refusal_no_channel", "error": f"no tengo el {label(want)} de {name} — {tail}. Pregúntale al "
                                           f"operador el dato que falta y guárdalo con contactos/set_channel."}
         if have:
             return {"ok": False, "error": f"{name} tiene varios canales ({', '.join(label(p) for p in have)}) "
                                           f"y ninguno marcado como preferido. PREGÚNTALE al operador por cuál "
                                           f"le escribe y vuelve a llamar a send_to con `channel`."}
-        return {"ok": False, "error": f"no tengo ninguna forma de escribir a {name}: ni teléfono, ni usuario "
+        return {"ok": False, "say": "widgets.mensajeria.refusal_no_channel", "error": f"no tengo ninguna forma de escribir a {name}: ni teléfono, ni usuario "
                                       f"de Telegram, ni correo. Pregúntaselo al operador y guárdalo con "
                                       f"contactos/set_channel."}
 
