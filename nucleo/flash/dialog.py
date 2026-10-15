@@ -283,7 +283,7 @@ _SPOKEN_SEQ = [0]
 _CURSORS: dict[str, int] = {}
 
 
-def note_spoken(text: str) -> None:
+def note_spoken(text: str, about: str = "") -> None:
     """A proactive delivery that was actually SAID enters the brain's window at its next prompt.
 
     Manual session 7850de3f (2026-09-30): the INIT list finished in three minutes and said «I've finished your
@@ -294,8 +294,9 @@ def note_spoken(text: str) -> None:
     happened; the window is where the model reads what happened."""
     t = sanitize_reply((text or "").strip()) if (text or "").strip() else ""
     if t:
+        import time
         _SPOKEN_SEQ[0] += 1
-        _SPOKEN.append((_SPOKEN_SEQ[0], t))
+        _SPOKEN.append((_SPOKEN_SEQ[0], t, time.monotonic(), str(about or "")))
         del _SPOKEN[:-_SPOKEN_MAX]
 
 
@@ -305,7 +306,27 @@ def drain_spoken(window: list[dict], channel: str = "voice") -> None:
     line said before that conversation existed is not part of it."""
     if channel not in _CURSORS:
         _CURSORS[channel] = 0 if channel == "voice" else _SPOKEN_SEQ[0]
-    for seq, text in list(_SPOKEN):
+    for seq, text, at, about in list(_SPOKEN):
         if seq > _CURSORS[channel]:
-            window.append({"role": "assistant", "content": text})
+            _place(window, {"role": "assistant", "content": text}, at, about)
             _CURSORS[channel] = seq
+
+
+def _place(window: list[dict], line: dict, at: float, about: str) -> None:
+    """A report on card `about` that CROSSED his last exchange about another card goes ahead of that exchange.
+
+    Demo pass 135 (2026-10-15), I2: «show me a red ferari f40» → «I'll pull up the F40» → the monitor errand's first
+    rows, told unprompted three seconds later → «cool, show me a few more of those». The report was the last line
+    before his words, so «those» became the monitors: «I'll get the rest of that monitor list up», and «open the
+    second one» was said over an LG monitor while the second PHOTO opened. Measured on the live bench: the same
+    window with the report ahead of his order holds 5/5 on the photos; tagging the report as an aside did not
+    (0/5, and three of them started the monitor errand again). The line stays in the window — only its place
+    changes, and only when the report is about another card than the one his last turn acted on."""
+    i = None
+    try:
+        from nucleo import canvas_focus as _cf
+        if _cf.crossed_by(at, about):
+            i = next((k for k in range(len(window) - 1, -1, -1) if window[k].get("role") == "user"), None)
+    except Exception:  # noqa: BLE001
+        i = None
+    window.insert(i, line) if i is not None else window.append(line)

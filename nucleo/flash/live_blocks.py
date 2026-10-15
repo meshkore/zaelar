@@ -649,6 +649,11 @@ def shelf_lines() -> list[str]:
         from memory import api as _memapi
         from widgets import instances as _inst
         open_now = {str(w).strip() for w in ((_memapi.state() or {}).get("open_widgets") or [])}
+        try:   # the state keeps BASE ids; a sheet is an instance (demo pass 135: the open monitor sheet listed as closed)
+            from server.voice_api import open_instances
+            open_now |= {str(w).strip() for w in open_instances()}
+        except Exception:  # noqa: BLE001
+            pass
         rows = [r for r in _inst.recent_faces(5) if str(r.get("id")) not in open_now][:3]
     except Exception:  # noqa: BLE001
         return []

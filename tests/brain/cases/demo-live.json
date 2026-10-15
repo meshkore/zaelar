@@ -738,5 +738,254 @@
    "data-op musica:play",
    "data-op musica:search"
   ]
+ },
+ {
+  "lang": "en",
+  "source": "TMP/demo/run-p135 (2026-10-15): an errand's unprompted report crossed his order about the photos; the window places it ahead of that order (`dialog._place`)",
+  "screen": {
+   "open": [
+    "results::t135",
+    "imagenes"
+   ]
+  },
+  "live_only": true,
+  "focus": "imagenes",
+  "widgets": {
+   "imagenes": {
+    "items": [
+     {
+      "title": "Red Ferrari F40 photo 1",
+      "url": "https://img.example.com/f40-1.jpg",
+      "thumb": "https://img.example.com/f40-1-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 2",
+      "url": "https://img.example.com/f40-2.jpg",
+      "thumb": "https://img.example.com/f40-2-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 3",
+      "url": "https://img.example.com/f40-3.jpg",
+      "thumb": "https://img.example.com/f40-3-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 4",
+      "url": "https://img.example.com/f40-4.jpg",
+      "thumb": "https://img.example.com/f40-4-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 5",
+      "url": "https://img.example.com/f40-5.jpg",
+      "thumb": "https://img.example.com/f40-5-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 6",
+      "url": "https://img.example.com/f40-6.jpg",
+      "thumb": "https://img.example.com/f40-6-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 7",
+      "url": "https://img.example.com/f40-7.jpg",
+      "thumb": "https://img.example.com/f40-7-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 8",
+      "url": "https://img.example.com/f40-8.jpg",
+      "thumb": "https://img.example.com/f40-8-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     }
+    ],
+    "query": "red ferrari f40",
+    "source": "web"
+   },
+   "results::t135": {
+    "title": "27\" 4K monitors under $400 — top 10",
+    "items": [
+     {
+      "title": "Dell S2725QC",
+      "price": "$345.99"
+     },
+     {
+      "title": "LG 27UP850K-W",
+      "price": "$347.93"
+     },
+     {
+      "title": "LG 27G810A-B UltraGear",
+      "price": "$349.99"
+     }
+    ],
+    "kind": "products"
+   }
+  },
+  "id": "live-i2-more-photos-after-a-report",
+  "phrase": "cool, show me a few more of those",
+  "expect": "data-op imagenes:add",
+  "history": [
+   {
+    "role": "assistant",
+    "text": "The first ones for «27\" 4K monitors · top 10 under $400» are in: Dell S2725QC — $345.99; LG 27UP850K-W — $347.93; LG 27G810A-B UltraGear — $349.99. They're on your sheet."
+   },
+   {
+    "role": "user",
+    "text": "show me a red ferari f40"
+   },
+   {
+    "role": "assistant",
+    "text": "I'll pull up the F40 for you now."
+   }
+  ],
+  "forbid": [
+   "worker"
+  ]
+ },
+ {
+  "lang": "en",
+  "source": "TMP/demo/run-p135 (2026-10-15): an errand's unprompted report crossed his order about the photos; the window places it ahead of that order (`dialog._place`)",
+  "screen": {
+   "open": [
+    "results::t135",
+    "imagenes"
+   ]
+  },
+  "live_only": true,
+  "focus": "imagenes",
+  "widgets": {
+   "imagenes": {
+    "items": [
+     {
+      "title": "Red Ferrari F40 photo 1",
+      "url": "https://img.example.com/f40-1.jpg",
+      "thumb": "https://img.example.com/f40-1-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 2",
+      "url": "https://img.example.com/f40-2.jpg",
+      "thumb": "https://img.example.com/f40-2-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 3",
+      "url": "https://img.example.com/f40-3.jpg",
+      "thumb": "https://img.example.com/f40-3-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 4",
+      "url": "https://img.example.com/f40-4.jpg",
+      "thumb": "https://img.example.com/f40-4-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 5",
+      "url": "https://img.example.com/f40-5.jpg",
+      "thumb": "https://img.example.com/f40-5-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 6",
+      "url": "https://img.example.com/f40-6.jpg",
+      "thumb": "https://img.example.com/f40-6-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 7",
+      "url": "https://img.example.com/f40-7.jpg",
+      "thumb": "https://img.example.com/f40-7-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     },
+     {
+      "title": "Red Ferrari F40 photo 8",
+      "url": "https://img.example.com/f40-8.jpg",
+      "thumb": "https://img.example.com/f40-8-t.jpg",
+      "site": "img.example.com",
+      "w": 1600,
+      "h": 900
+     }
+    ],
+    "query": "red ferrari f40",
+    "source": "web"
+   },
+   "results::t135": {
+    "title": "27\" 4K monitors under $400 — top 10",
+    "items": [
+     {
+      "title": "Dell S2725QC",
+      "price": "$345.99"
+     },
+     {
+      "title": "LG 27UP850K-W",
+      "price": "$347.93"
+     },
+     {
+      "title": "LG 27G810A-B UltraGear",
+      "price": "$349.99"
+     }
+    ],
+    "kind": "products"
+   }
+  },
+  "id": "live-i3-second-photo-after-a-report",
+  "phrase": "open the second one",
+  "expect": "data-op imagenes:select",
+  "history": [
+   {
+    "role": "assistant",
+    "text": "The first ones for «27\" 4K monitors · top 10 under $400» are in: Dell S2725QC — $345.99; LG 27UP850K-W — $347.93; LG 27G810A-B UltraGear — $349.99. They're on your sheet."
+   },
+   {
+    "role": "user",
+    "text": "show me a red ferari f40"
+   },
+   {
+    "role": "assistant",
+    "text": "I'll pull up the F40 for you now."
+   },
+   {
+    "role": "user",
+    "text": "cool, show me a few more of those"
+   },
+   {
+    "role": "assistant",
+    "text": "I've added 8 more — 16 on screen now."
+   }
+  ]
  }
 ]

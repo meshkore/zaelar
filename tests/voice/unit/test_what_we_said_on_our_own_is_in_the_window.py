@@ -82,3 +82,59 @@ def test_the_text_channel_drains_before_it_builds_the_prompt():
     src = (Path(__file__).resolve().parents[3] / "nucleo" / "flash" / "probe_before.py").read_text("utf-8")
     assert "dialog.drain_spoken(sess.window" in src and src.index("dialog.drain_spoken(sess.window") < src.index(
         "messages += dialog.prune_window(sess.window)")
+
+
+# ── demo pass 135: a report that crossed his exchange about another card goes ahead of it ──────────────────
+
+def _his_turn(card: str = "") -> None:
+    from nucleo import canvas_focus as cf
+    cf.note("transcript", "said", role="user")
+    if card:
+        cf.note("widget", "show", extra={"id": card, "src": "flash"})
+
+
+def test_a_report_on_another_card_that_crossed_his_order_goes_ahead_of_it():
+    """«show me a red ferari f40» → «I'll pull up the F40» → the monitors' first rows → «cool, show me a few more
+    of those»: with the report last, «those» became the monitors (live bench 1/5 → 5/5 with it ahead)."""
+    from nucleo import canvas_focus as cf
+    cf._reset()
+    try:
+        _his_turn("imagenes")
+        window = [{"role": "user", "content": "show me a red ferari f40"},
+                  {"role": "assistant", "content": "I'll pull up the F40 for you now."}]
+        dialog.drain_spoken(window, channel="text:cross")   # the conversation exists before the line is said
+        dialog.note_spoken("The first monitors are in.", about="results::t1")
+        _his_turn()                                       # his next words arrive; the prompt drains
+        dialog.drain_spoken(window, channel="text:cross")
+        assert [m["content"] for m in window] == ["The first monitors are in.", "show me a red ferari f40",
+                                                  "I'll pull up the F40 for you now."]
+    finally:
+        cf._reset()
+
+
+def test_a_report_on_the_card_he_was_on_or_on_no_card_stays_last():
+    from nucleo import canvas_focus as cf
+    for card, about in (("results::t1", "results::t1"), ("imagenes", "")):
+        cf._reset()
+        _his_turn(card)
+        window = [{"role": "user", "content": "find me monitors"}, {"role": "assistant", "content": "On it."}]
+        dialog.drain_spoken(window, channel=f"text:{card}{about}")
+        dialog.note_spoken("The first monitors are in.", about=about)
+        _his_turn()
+        dialog.drain_spoken(window, channel=f"text:{card}{about}")
+        assert window[-1]["content"] == "The first monitors are in.", (card, about)
+    cf._reset()
+
+
+def test_a_report_long_after_his_order_stays_last(monkeypatch):
+    from nucleo import canvas_focus as cf
+    cf._reset()
+    _his_turn("imagenes")
+    cf._state["t_cur"] -= cf.CROSSING_S + 5               # his order was a while ago
+    window = [{"role": "user", "content": "show me a red ferari f40"}, {"role": "assistant", "content": "Here."}]
+    dialog.drain_spoken(window, channel="text:late-report")
+    dialog.note_spoken("The first monitors are in.", about="results::t1")
+    _his_turn()
+    dialog.drain_spoken(window, channel="text:late-report")
+    assert window[-1]["content"] == "The first monitors are in."
+    cf._reset()

@@ -153,7 +153,7 @@ def ephemeral_speaker():
 
 
 async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify",
-                 key: str = "", opens_window: bool = True, carry: bool = True) -> bool:
+                 key: str = "", opens_window: bool = True, carry: bool = True, about: str = "") -> bool:
     """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises.
 
     `opens_window` (V2-655) — this delivery is ADDRESSED TO the operator, so his answer to it is directed by
@@ -167,7 +167,7 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
 
     `carry=False` — a message that must NOT ride the conversation when it cannot be said: it stays on screen (the
     event above) and that is all. A worker's interim `say` is that kind (demo pass 2026-09-28: «On the monitors: a
-    Philips… no price confirmed yet» appended to the answers about Apple's chart and the music)."""
+    Philips… no price confirmed yet» appended to the answers about Apple's chart and the music). `about`: dialog._place"""
     text = (text or "").strip()
     if not text:
         return False
@@ -260,7 +260,7 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
             said = True
             try:
                 from nucleo.flash import dialog as _dialog
-                _dialog.note_spoken(spoken)
+                _dialog.note_spoken(spoken, about=about)
             except Exception:  # noqa: BLE001
                 pass
         finally:

@@ -165,7 +165,7 @@ async def _check(sheet: str) -> bool:
     _TOLD[str(errand["id"])] = time.time()
     observer.emit("widget", "🔔 first rows of the errand, told unprompted", role="system", text=said[:200],
                   extra={"id": f"results::{_bare(sheet)}", "errand": str(errand["id"])})
-    await proactive.notify("zaelar", said, speak=True, key=f"first_rows:{errand['id']}")
+    await proactive.notify("zaelar", said, speak=True, key=f"first_rows:{errand['id']}", about=f"results::{_bare(sheet)}")
     return True
 
 

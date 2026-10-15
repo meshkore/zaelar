@@ -53,7 +53,7 @@ DECISIONS = re.compile(
 FORBIDS = ("worker", "search", "show", "close", "data-op", "second-card", "model", "ask")
 
 CASE_KEYS = {"id", "lang", "phrase", "source", "screen", "memory", "model", "brief", "expect", "also",
-             "forbid", "open", "note", "file", "widgets", "history", "live_only", "accept"}
+             "forbid", "open", "note", "file", "widgets", "history", "live_only", "accept", "focus"}
 
 
 def load_cases(pattern: str = "*.json", *, live: bool = False) -> list[dict]:
@@ -193,6 +193,9 @@ def decision_of(res: dict, tool_calls: list) -> str:
         return "unfullscreen"
     if a.startswith("canvas:fullscreen:"):
         return "fullscreen " + a.split(":", 2)[2]
+    if a == "canvas:show:imagenes" and any(t.get("name") == "show_images" and (t.get("args") or {}).get("more")
+                                           for t in tool_calls):
+        return "data-op imagenes:add"                   # «more of those»: the image turn hands them to the viewer's `add`
     if a.startswith("canvas:show:"):
         return "show " + a.split(":", 2)[2]
     if a.startswith("canvas:close:"):
@@ -419,6 +422,10 @@ class Isolated:
         from widgets import store
         for wid, doc in (case.get("widgets") or {}).items():
             store.save(wid, json.loads(json.dumps(doc)))
+        from nucleo import canvas_focus
+        canvas_focus._reset()
+        if case.get("focus"):                           # the card his previous turn acted on, as the event funnel leaves it
+            canvas_focus._state["previous"], canvas_focus._state["current"] = [(2, str(case["focus"]))], [(2, str(case["focus"]))]
         if self.live:
             return                                      # the model and the brief are the real ones
         RecordedModel.load(case.get("model"))

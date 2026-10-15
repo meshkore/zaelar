@@ -14,11 +14,14 @@ operator's own tab echoing the canvas back (`src: user`) and system housekeeping
 from __future__ import annotations
 
 import threading
+import time
 
 _ACTS = ("show", "fullscreen", "maximize", "minimize", "action", "select")
 _OPERATOR = ("actionmap", "flash", "probe", "jev")
 _lock = threading.Lock()
-_state = {"current": [], "previous": [], "fs": "", "acts": [], "failed": []}
+_state = {"current": [], "previous": [], "fs": "", "acts": [], "failed": [], "t_cur": 0.0, "t_prev": 0.0}
+#: How long after his order an unprompted report still counts as crossing that exchange (`crossed_by`).
+CROSSING_S = 30.0
 
 
 def _src_rank(src: str) -> int:
@@ -38,6 +41,7 @@ def note(kind: str, label: str, role: str = "", extra: dict | None = None) -> No
                 if _state["current"]:
                     _state["previous"] = _state["current"]
                 _state["current"] = []
+                _state["t_prev"], _state["t_cur"] = _state["t_cur"], time.monotonic()
                 _state["acts"] = []
                 _state["failed"] = []
             return
@@ -94,6 +98,18 @@ def last_turn_card(open_ids: list[str]) -> str:
     return ""
 
 
+def crossed_by(at: float, about: str) -> bool:
+    """A report said at `at` about card `about` crossed his last exchange: said within `CROSSING_S` of that order,
+    while the card his order acted on is ANOTHER one. Unknown card or no order of his to cross: False."""
+    base = str(about or "").split("::", 1)[0]
+    with _lock:
+        touched, t_prev = list(_state["previous"]), _state["t_prev"]
+    mine = [cid for r, cid in touched if r == 2]
+    if not base or not mine or not t_prev or not (0.0 <= at - t_prev <= CROSSING_S):
+        return False
+    return all(cid.split("::", 1)[0] != base for cid in mine)
+
+
 def this_turn_acts() -> list[tuple[str, str, str]]:
     """`[(card, kind, action)]` — what the CURRENT turn's own orders did to each card (kind close / show / control),
     one entry per card, a close over a show over a control. The voice channel's receipt (`flash.card_receipt`)."""
@@ -137,3 +153,4 @@ def _reset() -> None:                                   # tests
     with _lock:
         _state["current"], _state["previous"], _state["fs"] = [], [], ""
         _state["acts"], _state["failed"] = [], []
+        _state["t_cur"], _state["t_prev"] = 0.0, 0.0
