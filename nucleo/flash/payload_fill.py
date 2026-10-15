@@ -332,9 +332,14 @@ def named_row(widget_id: str, action: str, words: str) -> dict:
     try:
         from widgets import refs as _refs
         base = _base_of(widget_id)
-        if not str(words or "").strip() or not _refs.id_field_for_action(base, action):
+        field = _refs.id_field_for_action(base, action)
+        # Only a card that PUBLISHES its rows can be read this way: elsewhere `resolve` hands the raw sentence
+        # back as the value (demo pass 134, E3: `mensajeria:forward {from: «send the invoice to andrew…»}` — a
+        # forward with no recipient and no note, which then asked). A value that is his sentence is not a row.
+        if not str(words or "").strip() or not field or not _refs._exposes_ref_index(base):
             return {}
         rr = _refs.resolve(base, action, "", {}, order=words)
-        return dict(rr.payload) if rr.ok and rr.payload else {}
+        got = dict(rr.payload) if rr.ok and isinstance(rr.payload, dict) else {}
+        return got if got.get(field) and str(got.get(field)).strip() != str(words).strip() else {}
     except Exception:  # noqa: BLE001
         return {}
