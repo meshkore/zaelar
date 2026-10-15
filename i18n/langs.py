@@ -92,6 +92,7 @@ LANGUAGES: dict[str, LangSpec] = {
                        "It's still running; I'll tell you the moment I have something."),
         mute_stuck=("Something is wrong on my end: that's three turns without answering you. "
                     "Stop me and start me again if you like."),
+        mute_wordless="I'm here if you need me.",
         mute_lines=("Sorry, I lost that. Could you say it again?",
                     "Sorry, I didn't follow. What did you want me to do?",
                     "Something went sideways on my end and I didn't answer. Tell me again what you need."),

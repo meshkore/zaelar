@@ -731,6 +731,8 @@ def mute_backstop(window, lang, has_work: bool, operator_text: str = "") -> str:
                 has_work = False
         except Exception:  # noqa: BLE001
             pass
+    if not has_work and operator_text and not any(c.isalnum() for c in operator_text):
+        return str(getattr(lang, "mute_wordless", "") or mute_line(window, lang))   # «👋» asked for nothing
     return _still_working(window, lang) if has_work else mute_line(window, lang)
 
 

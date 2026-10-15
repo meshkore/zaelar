@@ -466,6 +466,9 @@ class LangSpec:
     mute_lines: tuple = ("Perdona, se me ha ido. ¿Me lo dices otra vez?",
                          "Perdona, no te he seguido bien. ¿Qué querías que hiciera?",
                          "Se me ha cruzado algo por dentro y no te he contestado. Dime otra vez qué necesitas.")
+    #: A turn with no words at all («👋», «👍») asks for nothing: answering it with an apology for a lost line
+    #: blamed a turn nobody lost (dictate-a-reply-honestly EN, 2026-10-15, after the goodbyes).
+    mute_wordless: str = "Aquí estoy si me necesitas."
     # And from the third consecutive wait onward, the only honest fact available: how long it has been running. Without
     # inventing what point it has reached, and with a way out — something the operator can do with that information.
     filler_waited: str = ("Lleva {min} min y todavía no me ha dado nada. ¿La dejo seguir o la paro y "

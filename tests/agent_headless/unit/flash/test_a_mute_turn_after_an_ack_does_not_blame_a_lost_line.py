@@ -27,3 +27,11 @@ def test_an_ack_over_live_work_says_still_working(monkeypatch):
     monkeypatch.setattr(router_guards, "nothing_running_for", lambda *a, **k: True)
     assert rg.mute_backstop([], LANG, True, "sounds good 👍") == "Still on it."
     assert rg.mute_backstop([], LANG, True, "find me a free slot tomorrow") == "Sorry, I lost that."
+
+
+def test_a_wordless_turn_with_nothing_running_is_not_a_lost_line():
+    """«👋» after the goodbyes (dictate-a-reply-honestly EN, 2026-10-15): it asked for nothing, so nothing was lost."""
+    lang = SimpleNamespace(mute_wordless="I'm here if you need me.", mute_lines=("Sorry, I lost that.",))
+    assert rg.mute_backstop([], lang, False, "👋") == "I'm here if you need me."
+    assert rg.mute_backstop([], lang, False, "👍 !") == "I'm here if you need me."
+    assert rg.mute_backstop([], lang, False, "yes") == "Sorry, I lost that.", "a word may answer a question"
