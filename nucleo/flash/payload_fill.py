@@ -322,3 +322,19 @@ def choice_or_order_fill(widget_id: str, action: str, words: str, model_words: s
     if (filled := _mf.move_fill(widget_id, action, words, model_words)):
         return filled, "said-move"
     return {}, ""
+
+
+def named_row(widget_id: str, action: str, words: str) -> dict:
+    """The selector of the ONE row of the card his sentence names (`refs.resolve`'s last-resort reading, V2-708) —
+    a reading of what exists, never his sentence stuffed into a selector. agenda-everyday-edits ES (2026-10-15):
+    «Ábreme la ficha del dentista» → verdict `agenda:open_meeting` 0.99, the model only said «Voy a abrirla», and
+    the rung refused because `title` names a row; the row was right there. None named, or several → {}."""
+    try:
+        from widgets import refs as _refs
+        base = _base_of(widget_id)
+        if not str(words or "").strip() or not _refs.id_field_for_action(base, action):
+            return {}
+        rr = _refs.resolve(base, action, "", {}, order=words)
+        return dict(rr.payload) if rr.ok and rr.payload else {}
+    except Exception:  # noqa: BLE001
+        return {}

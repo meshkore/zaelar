@@ -70,8 +70,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     so they cannot diverge: the same widget and action with DIFFERENT payloads yes (two pasted links), an
     exact duplicate no (the double quote), and a different action on the same widget neither (the listing).
     """
-    from nucleo.flash import frontend as _fe
-    from nucleo.flash import data_ops as _rg
+    from nucleo.flash import data_ops as _rg, frontend as _fe
     from widgets import actions as _wa
     from nucleo.flash import agenda_said_day as _sday, reply_or_forward as _rof, verdict_card as _vcard  # noqa: F401
     todas = [t.get("args") or {} for t in (tool_calls or []) if t.get("name") == "widget_data"]
@@ -86,7 +85,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     # it the turn CANNOT know whether the operation happened, and the mouth says «Hecho.» regardless. It is
     # exactly the same reason already written in `video_turn.execute`, here in the general case.
     from widgets.server_api import brain_action as _brain_action
-    hechas, saltadas, fallidas, answers = [], [], [], []
+    hechas, saltadas, fallidas, answers, did = [], [], [], [], set()
     for a in admitidas:
         wid = _rg.one_open_instance(str(a.get("widget_id") or "").strip().lower())   # V2-773: as the voice rail
         act = str(a.get("action") or "").strip()
@@ -113,11 +112,9 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
             # that exists is kept as is, and a name that resolves to nothing leaves the payload untouched.
             try:
                 from widgets import refs as _refs0
-                _f0 = _refs0.id_field_for_action(wid, act)
-                if _f0:
-                    _r0 = _refs0.resolve(wid, act, "", pl, order=_order)
-                    if getattr(_r0, "ok", False) and isinstance(_r0.payload, dict):
-                        pl = _r0.payload
+                _r0 = _refs0.resolve(wid, act, "", pl, order=_order) if _refs0.id_field_for_action(wid, act) else None
+                if getattr(_r0, "ok", False) and isinstance(_r0.payload, dict):
+                    pl = _r0.payload
             except Exception:  # noqa: BLE001
                 pass
         if _ref:
@@ -176,10 +173,12 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
         _wo.remember(wid, act, text, res)
         await _rg._report_ignored(wid, act, res)
         if res.get("error") or res.get("ok") is False:
+            if (sel := _selector(pl)) and (wid, act, sel) in did:
+                continue                     # an echo of what THIS turn already did, not a failure (`_selector`)
             fallidas.append({"widget": wid, "act": act, "message": (await _rline.said(wid, res))[:160],
                              "error": str(res.get("error") or "")[:160]})   # said to him · kept for the log
             continue
-        hechas.append({"widget": wid, "act": act})
+        hechas.append({"widget": wid, "act": act}); did.add((wid, act, _selector(pl)))   # noqa: E702
         answers += [(wid, _ans)] if (_ans := _rg.answer_of(res)) else []   # V2-781 T518: what it answered
         # THE CARD OPENS WHERE THE DATA LANDS (V2-463, now also in the generic case). Measured
         # in `build-a-video-playlist-from-links`: the model executed `name_list` and the report marked «WRITTEN
@@ -256,6 +255,15 @@ def complete_pasted_links(tool_calls: list, operator_text: str) -> list:
     pl["url"] = (str(pl.get("url") or "").strip() + " " + " ".join(faltan)).strip()
     adds[0]["args"] = {**args, "payload": pl}
     return tool_calls
+
+
+def _selector(pl: dict) -> str:
+    """The row an op names. A refused op naming the row another op of the SAME turn already acted on (same card and
+    action) is that op's echo (agenda-everyday-edits ES, 2026-10-15: the repair cancelled the piano series, the
+    model's own «whole series» call then found nothing left, and «No he podido» was said over a series that was
+    gone). An op that names no row is never an echo — «cancel A and B» with no B is still said."""
+    pl = pl if isinstance(pl, dict) else {}
+    return " ".join(str(pl.get("item") or pl.get("title") or pl.get("id") or "").lower().split())
 
 
 def ensure_failure_named(spoken: str, parte: dict) -> str:

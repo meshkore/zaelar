@@ -3544,6 +3544,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_finished_report_he_corrects_is_never_a_mute_turn.py"]},
         {"id": "2.734", "title": "A meeting's detail opens and closes INSIDE the agenda: the verdict rung fills a row selector with the one row his sentence names, and a sure close that names another view of the card runs it instead of closing the card",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_dentist_detail_opens_and_closes_inside_the_agenda.py"]},
+        {"id": "2.735", "title": "A refused op that names the row another op of the same turn already acted on is that op's echo, never «No he podido» — a row that was not there is still said",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_echo_of_what_the_turn_did_is_not_a_failure.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},

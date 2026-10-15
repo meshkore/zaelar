@@ -42,7 +42,7 @@ read as «no rung», which is today's path bit for bit.
 from __future__ import annotations
 from nucleo.flash.payload_fill import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
     _ENUM_MARKS, _OPTIONAL_MARKS, _WORD_NUMBERS, _base_of, _optional, _payload_spec, _spell, _word_numbers_re,
-    enum_fill, fill_missing, fillable_key, number_fill, person_fill, choice_or_order_fill)
+    enum_fill, fill_missing, fillable_key, number_fill, person_fill, choice_or_order_fill, named_row)
 
 
 #: Past this, the operator's sentence is an errand and not a query. See the module docstring: this is
@@ -354,22 +354,6 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
     return {"widget": wid, "action": action, "payload": {key: words}, "key": key,
             "source": "operator-words",
             "label": f"{wid}:{action} ← el veredicto de pantalla"}
-
-
-def named_row(widget_id: str, action: str, words: str) -> dict:
-    """The selector of the ONE row of the card his sentence names (`refs.resolve`'s last-resort reading, V2-708) —
-    a reading of what exists, never his sentence stuffed into a selector. agenda-everyday-edits ES (2026-10-15):
-    «Ábreme la ficha del dentista» → verdict `agenda:open_meeting` 0.99, the model only said «Voy a abrirla», and
-    the rung refused because `title` names a row; the row was right there. None named, or several → {}."""
-    try:
-        from widgets import refs as _refs
-        base = _base_of(widget_id)
-        if not str(words or "").strip() or not _refs.id_field_for_action(base, action):
-            return {}
-        rr = _refs.resolve(base, action, "", {}, order=words)
-        return dict(rr.payload) if rr.ok and rr.payload else {}
-    except Exception:  # noqa: BLE001
-        return {}
 
 
 def no_payload(widget_id: str, action: str) -> bool:
