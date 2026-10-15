@@ -21,3 +21,17 @@ def test_the_tool_syntax_never_reaches_his_ears():
 def test_a_plain_failure_is_still_named_whole():
     out = W.ensure_failure_named("Hecho.", {"executed": "widget_data_failed", "message": "no encuentro esa cita"})
     assert out.endswith("no encuentro esa cita"), out
+
+
+
+def test_a_bare_done_over_a_failed_op_is_replaced_never_followed(monkeypatch):
+    """agenda-everyday-edits EN (2026-10-15): «Done. I couldn't: the Calendar card didn't take it.» — a claim of what
+    did not happen with the failure stapled behind it. Over an op that failed, a bare ack is replaced."""
+    failed = {"executed": "widget_data_failed", "message": "no encuentro esa cita"}
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
+    out = W.ensure_failure_named("Done.", failed)
+    assert not out.startswith("Done") and out.endswith("no encuentro esa cita"), out
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "es")
+    out = W.ensure_failure_named("Hecho.", failed)
+    assert not out.startswith("Hecho") and out.endswith("no encuentro esa cita"), out
+    assert W.ensure_failure_named("Lo muevo al jueves.", failed).startswith("Lo muevo")

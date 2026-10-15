@@ -278,9 +278,15 @@ def ensure_failure_named(spoken: str, parte: dict) -> str:
     if not msgs:
         return spoken
     from voice.engine.core import langs as _lg_fn            # V2-781: the table's wrapper, not a Spanish literal
-    cola = _lg_fn.current_language().widget_data_failed.replace("{reason}", msgs[0])
+    lang = _lg_fn.current_language()
+    cola = lang.widget_data_failed.replace("{reason}", msgs[0])
     if cola.lower() in spoken.lower() or msgs[0].lower() in spoken.lower():
         return spoken
+    # A bare «Done.» over an op that FAILED is a claim of what did not happen (agenda-everyday-edits EN, 2026-10-15:
+    # «Done. I couldn't: …» three times) — the failure replaces it; it never rides behind it.
+    if failed and spoken in set(getattr(lang, "acks", ()) or ()) | set(getattr(lang, "data_acks", ()) or ()) \
+            | {str(getattr(lang, "data_ack", "") or "")}:
+        return cola
     return spoken.rstrip() + " " + cola
 
 
