@@ -46,13 +46,13 @@ def _merge_notes(off: dict, extra: dict) -> dict:
 
 
 def _a_present(action, payload, sheet) -> dict:
+    issues = _d._audit(payload)
     prev = _d.view_data(sheet)
     # A `present` that carries NO `items` key re-shows the rows already there (demo pass 132, S1: «show me» was
     # repaired into `present {tab: results}` and the four monitors were replaced by nothing — S3 then had no row
     # to open). An explicit `items: []` is still a search that found nothing, and still empties the sheet.
     if "items" not in payload and prev.get("items"):
         payload = {"items": prev["items"], "title": prev.get("title"), "subtitle": prev.get("subtitle"), **payload}
-    issues = _d._audit(payload)
     items, pages = _cand.split(_d._clean_items(payload.get("items")))
     data = {
         "title": _d._clip(payload.get("title") or "Resultados", "sheet_title"),

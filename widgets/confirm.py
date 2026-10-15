@@ -281,8 +281,8 @@ def answers_pending(text: str, brief=None) -> str | None:
         return v
     items = sorted(pending().items(), key=lambda kv: kv[1].get("ts", 0))
     wid, p = items[-1] if items else ("", {})
-    # Demo pass 134 (2026-10-15), E3→C3: «ok book it, call it catch up with ethan» answered the pending forward to
-    # Andrew — the verdict SURELY named `agenda:add_meeting`, an order on another card; the meeting was never booked.
+    # Demo pass 134 (2026-10-15), E3→C3: «ok book it, call it catch up with rowan» answered the pending forward to
+    # Quinn — the verdict SURELY named `agenda:add_meeting`, an order on another card; the meeting was never booked.
     if _orders_another_card(brief, wid):
         return None
     question = str(p.get("question") or "").strip()
@@ -316,7 +316,7 @@ def _leaves(wid: str, p: dict) -> bool:
 
 def backs_a_yes(text: str) -> bool:
     """Do HIS words agree to the pending act — when that act LEAVES the machine (`external.send`)? Any other pending
-    act keeps the model's reading (True). Demo pass 133 (2026-10-15), E3→E4: the forward to Andrew asked «Shall I send
+    act keeps the model's reading (True). Demo pass 133 (2026-10-15), E3→E4: the forward to Quinn asked «Shall I send
     it?», the next turn was «oh and leave that inworld one as unread», and the model answered the question itself —
     `confirm_widget_delete(confirmed=true)` — so the mail went out on a sentence that never said yes. Same reading as
     the early door (`answers_pending`): a plain yes, or the judge's YES; with the judge out, the words alone."""

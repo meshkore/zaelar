@@ -70,8 +70,8 @@ def test_an_unsure_inner_verdict_keeps_the_close(verdict):
 
 def test_a_card_that_publishes_no_rows_never_gets_his_sentence_as_a_selector():
     """Demo pass 134, E3: `mensajeria` publishes no row index, `refs.resolve` handed the raw sentence back, and the
-    rung filled `forward {from: «send the invoice to andrew…»}` — a forward with no recipient and no note."""
+    rung filled `forward {from: «send the invoice to quinn…»}` — a forward with no recipient and no note."""
     from tests.brain.harness import Isolated
     with Isolated("en"):
-        said = "send the invoice to andrew, tell him we're already trying inworld and he should book it"
+        said = "send the invoice to quinn, tell him we're already trying inworld and he should book it"
         assert DA.named_row("mensajeria", "forward", said) == {}

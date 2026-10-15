@@ -1,6 +1,6 @@
 """An order on another card never answers a pending send (demo pass 134, 2026-10-15, E3→C3).
 
-The forward to Andrew was waiting on «Shall I send it?». The next turn, «ok book it, call it catch up with ethan»,
+The forward to Quinn was waiting on «Shall I send it?». The next turn, «ok book it, call it catch up with rowan»,
 matched `ok`, the early door resolved the forward, the mail went (with no note) and the meeting was never booked.
 The verdict had SURELY named `agenda:add_meeting`. Now: a reply longer than a plain yes whose verdict surely names
 an action on ANOTHER card does not answer the pending question; and for a pending act that leaves, a longer reply
@@ -32,7 +32,7 @@ def _pending_send():
 def test_an_order_on_the_agenda_is_not_a_yes_to_the_mail(monkeypatch):
     _pending_send()
     _verdict(monkeypatch, "agenda", "add_meeting")
-    assert C.answers_pending("ok book it, call it catch up with ethan", brief=object()) is None
+    assert C.answers_pending("ok book it, call it catch up with rowan", brief=object()) is None
 
 
 def test_with_no_reader_a_longer_sentence_never_sends(monkeypatch):

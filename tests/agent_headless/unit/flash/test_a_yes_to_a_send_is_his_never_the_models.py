@@ -1,6 +1,6 @@
 """A yes to an act that leaves the machine is HIS, never the model's (demo pass 133, 2026-10-15, E3→E4).
 
-The forward of the Inworld receipt to Andrew asked «Shall I send it?». The next turn was «oh and leave that inworld one
+The forward of the Inworld invoice to Quinn asked «Shall I send it?». The next turn was «oh and leave that inworld one
 as unread», and the model answered the question itself — `confirm_widget_delete(confirmed=true)` — so the mail went
 out on a sentence that never said yes. For a pending act that leaves (`external.send`), the model's yes resolves only
 when his words give it (`widgets.confirm.backs_a_yes`); otherwise nothing is resolved and the question is asked again.
@@ -27,7 +27,7 @@ def _answer(said: str):
 
 
 def _pending_send():
-    C.request("data", "mensajeria", "Shall I send it?", op={"action": "forward", "payload": {"contact": "Andrew"}},
+    C.request("data", "mensajeria", "Shall I send it?", op={"action": "forward", "payload": {"contact": "Quinn"}},
               notify_ui=False)
 
 
