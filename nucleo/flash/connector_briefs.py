@@ -17,7 +17,7 @@ state» are two questions that become relevant at different moments.
 from __future__ import annotations
 
 
-def for_prompt(open_ids: set[str]) -> str:
+def for_prompt(open_ids: set[str], turn_text: str = "") -> str:
     """Connector briefs for the FlashBrain turn—#6 contributor to prompt bloat (V2-027): they appeared in EVERY
     turn even when unused. Normal turns now omit them; only **messaging** gets one, and ONLY while its widget is
     OPEN (in front of the operator). **architect** and **cluster/meshkore** briefs are rare, operator-only tag
@@ -44,6 +44,12 @@ def for_prompt(open_ids: set[str]) -> str:
             # does NOT HALLUCINATE "you have no messages" when disconnected or unchecked (the headless test found
             # that it invented "you have no important messages" while the widget was closed).
             out = _mb.for_brain() if "mensajeria" in open_ids else _mb._platform_states()
+        elif _names_a_channel(turn_text):
+            # Nothing linked and he names the channel: «Reply to Marta on WhatsApp» answered «I can't find any
+            # chat from Marta» with no word of WhatsApp being unlinked nor of how to link it (dictate-a-reply EN,
+            # 2026-10-15) — the same «not in its prompt» as above. Only on his words, so no turn pays it idle.
+            from connectors.messaging import brief as _mb
+            out = _mb._platform_states()
         # V2-603 — VIDEO ACCOUNTS. TWO different gates, because they answer two different questions:
         #
         #   · the capability does NOT EXIST yet (no OAuth client anywhere) → ALWAYS, card open or not.
@@ -80,3 +86,9 @@ def for_prompt(open_ids: set[str]) -> str:
     except Exception:
         pass
     return ""
+
+
+def _names_a_channel(turn_text: str) -> bool:
+    """Does his sentence name a messaging platform by its proper name? Names, not verbs: same in every language."""
+    t = str(turn_text or "").lower()
+    return "whatsapp" in t or "telegram" in t

@@ -206,12 +206,12 @@ def _directive_block(directive: str) -> str:
             f"{directive}\n")
 
 
-def _connector_briefs(open_ids: set[str]) -> str:
+def _connector_briefs(open_ids: set[str], turn_text: str = "") -> str:
     """The connector facts for this turn. Body in `flash/connector_briefs.py` — extracted to pay the
     architecture ratchet (V2-685), which asks for a module and never for a higher ceiling. Kept as a name
     here because three tests and one call site already address it through this module."""
     from nucleo.flash import connector_briefs as _cb
-    return _cb.for_prompt(open_ids)
+    return _cb.for_prompt(open_ids, turn_text)
 
 
 def _open_widget_ids() -> set[str]:
@@ -502,7 +502,7 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "NO es web_search (eso es un dato) ni el widget de YouTube (eso es VÍDEO). No lo escales ni lo busques.\n"
         "El \"cuándo SÍ / cuándo NO\" de cada tool vive en su descripción; no lo repito aquí."
     )
-    tail = _connector_briefs(open_ids)
+    tail = _connector_briefs(open_ids, turn_text)
     return ops + "\n\n" + res + (("\n\n" + tail) if tail else "")
 
 
