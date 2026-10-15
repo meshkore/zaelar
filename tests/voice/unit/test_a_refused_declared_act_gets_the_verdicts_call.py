@@ -79,5 +79,6 @@ def test_an_escalation_to_an_open_card_gets_the_verdicts_call_too():
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     i = voice.index("V2-770 — the rung fills ONE key")
     assert "call_for_promise_or_order(operator_text, str(escalate_req" in voice[i:i + 1200]
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
+    assert ".probe_escalation(" in _vts.read(ENGINE / "nucleo/flash/probe.py")
+    probe = _vts.read(ENGINE / "nucleo/flash/card_commission.py")      # the probe's escalation, extracted (2026-10-15)
     assert "_ar_esc.call_for_promise_or_order(operator_text, spoken or text, _owner, _owner_act" in probe

@@ -441,19 +441,8 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # `agenda:cancel_meeting` at 0.96, and a worker was spawned for a two-field data-op the rung below cannot
     # fill by itself. Mirror of the voice provider; a dangerous sentence never takes this path.
     if action == "escalate" and "widget_data" not in names:
-        try:
-            from nucleo import danger as _danger_ar
-            from . import act_repair as _ar_esc, direct_action as _da_esc
-            _owner, _owner_act = _da_esc.from_brief(_tbrief)
-            if _owner and not _danger_ar.is_dangerous(operator_text):
-                _ar = await _ar_esc.call_for_promise_or_order(operator_text, spoken or text, _owner, _owner_act,
-                                                              spec=spec, brief=_tbrief)
-                if _ar:
-                    tool_calls.append({"name": "widget_data", "args": {"widget_id": _ar["widget_id"],
-                                       "action": _ar["action"], "payload": _ar["payload"], "_repair": True}})
-                    action, spoken = "widget_data", ""
-        except Exception:
-            pass
+        action, spoken = await __import__("nucleo.flash.card_commission", fromlist=["x"]).probe_escalation(
+            tool_calls, action, spoken, text=text, brief=_tbrief, operator_text=operator_text, spec=spec)
 
     # V2-778 F1 — executing the decision lives in `nucleo/flash/probe_after.py`.
     _blk = await _probe_after.execute_what_was_decided(

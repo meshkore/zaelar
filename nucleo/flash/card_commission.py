@@ -255,6 +255,78 @@ def _as_tool_request(got: dict, operator_text: str) -> dict | None:
     return {"query": q, "n": _it.DEFAULT_N, "more": str(got.get("action")) == "add"}
 
 
+async def commission_call(commission: str, *, brief, operator_text: str, spec, window=None,
+                          pictures: bool = False) -> dict | None:
+    """The DECISION of `before_worker`, the same for both channels: `{"kind": "call"|"read", …}` or None (the worker
+    keeps the errand). Each channel carries it out its own way — the voice runs it, the probe records the call."""
+    from nucleo import danger as _danger
+    from nucleo.flash import act_repair as _repair
+    card = named_or_catalogue(brief, operator_text)
+    if not card or _danger.is_dangerous(operator_text):
+        return None
+    # Any card the verdict names may take the CALL; the read half is offered only to one that can answer.
+    # An order the verdict reads as owing NO words («send rowan a telegram with the new time», wants_words=act)
+    # is not answered by a read: offering one made the pass check the directory instead of sending (C5, 2/4).
+    from nucleo.flash import direct_action as _da_cc, turn_brief as _tbw
+    _w, _wi = _tbw.read(brief, _tbw.WORDS_KEY, "")
+    may_read = not (_wi is not None and str(_w or "") == "act")
+    _v_card, _v_act = _da_cc.from_brief(brief)
+    got = await _repair.call_or_read_for_commission(operator_text, commission, card, spec=spec, window=window,
+                                                    may_read=may_read,
+                                                    verdict_action=_v_act if _base_card(_v_card) == _base_card(card)
+                                                    else "")
+    if (not got or got.get("kind") != "call") and pictures:
+        # Demo pass 66, B1: the catalogue named the viewer and the pass still sent «find me the wallpaper cosmic
+        # eye…» to a worker. An empty viewer's only way to hold anything is the picture search.
+        _pic = picture_search_for(card, operator_text, commission)
+        if _pic:
+            got = {"kind": "call", "widget_id": card, "action": "show", "payload": {"query": _pic["query"]}}
+    return got or None
+
+
+async def probe_instead_of_a_worker(tool_calls: list, commission: str, *, brief, operator_text: str, spec,
+                                    window=None) -> bool:
+    """The text channel's half (V2-252): a declared CALL the catalogue card takes is recorded as the turn's repaired
+    `widget_data`. Live bench, «send rowan a telegram with the new time» with the messages card closed: 4/7 — the
+    three reds escalated a two-field send to a worker the voice channel would never have launched. A read, or
+    nothing, keeps the errand as it was. Never raises."""
+    try:
+        got = await commission_call(commission, brief=brief, operator_text=operator_text, spec=spec, window=window)
+    except Exception:  # noqa: BLE001
+        return False
+    if not got or got.get("kind") != "call":
+        return False
+    tool_calls.append({"name": "widget_data", "args": {"widget_id": got["widget_id"], "action": got["action"],
+                                                       "payload": got["payload"], "_repair": True}})
+    return True
+
+
+async def probe_escalation(tool_calls: list, action: str, spoken: str, *, text: str, brief, operator_text: str,
+                           spec) -> tuple[str, str]:
+    """The text channel's escalation, before a worker is spent: `(action, spoken)`. An OPEN card the verdict names
+    gets one pass with its fields (V2-770, `act_repair`); otherwise the CLOSED catalogue card may take the call
+    (`probe_instead_of_a_worker`). A dangerous sentence takes neither. Never raises."""
+    try:
+        from nucleo import danger as _danger
+        from nucleo.flash import act_repair as _ar_esc, direct_action as _da_esc
+        if _danger.is_dangerous(operator_text):
+            return action, spoken
+        _owner, _owner_act = _da_esc.from_brief(brief)
+        if _owner:
+            _ar = await _ar_esc.call_for_promise_or_order(operator_text, spoken or text, _owner, _owner_act,
+                                                          spec=spec, brief=brief)
+            if _ar:
+                tool_calls.append({"name": "widget_data", "args": {"widget_id": _ar["widget_id"],
+                                   "action": _ar["action"], "payload": _ar["payload"], "_repair": True}})
+                return "widget_data", ""
+        elif await probe_instead_of_a_worker(tool_calls, spoken or text, brief=brief, operator_text=operator_text,
+                                             spec=spec):
+            return "widget_data", ""
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"card_commission: the probe's escalation pass failed — {type(e).__name__}: {e}")
+    return action, spoken
+
+
 async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_text: str, spec, emit,
                         present: Callable, apply_widget_data: Callable, window=None,
                         images_req: dict | None = None) -> str:
@@ -263,29 +335,8 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
     The caller owns the precondition — a commission survived every guard and nothing in the turn acted — and
     the two rungs before this one found no OPEN card. Never raises: a second pass never breaks a turn."""
     try:
-        from nucleo import danger as _danger
-        from nucleo.flash import act_repair as _repair, build_decision as _bd
-        card = named_or_catalogue(brief, operator_text)
-        if not card or _danger.is_dangerous(operator_text):
-            return ""
-        # Any card the verdict names may take the CALL; the read half is offered only to one that can answer.
-        # An order the verdict reads as owing NO words («send rowan a telegram with the new time», wants_words=act)
-        # is not answered by a read: offering one made the pass check the directory instead of sending (C5, 2/4).
-        from nucleo.flash import turn_brief as _tbw
-        _w, _wi = _tbw.read(brief, _tbw.WORDS_KEY, "")
-        may_read = not (_wi is not None and str(_w or "") == "act")
-        from nucleo.flash import direct_action as _da_cc
-        _v_card, _v_act = _da_cc.from_brief(brief)
-        got = await _repair.call_or_read_for_commission(operator_text, str(escalate_req.get("v") or ""), card,
-                                                        spec=spec, window=window, may_read=may_read,
-                                                        verdict_action=_v_act if _base_card(_v_card) == _base_card(card)
-                                                        else "")
-        if (not got or got.get("kind") != "call") and images_req is not None:
-            # Demo pass 66, B1: the catalogue named the viewer and the pass still sent «find me the wallpaper cosmic
-            # eye…» to a worker. An empty viewer's only way to hold anything is the picture search.
-            _pic = picture_search_for(card, operator_text, str(escalate_req.get("v") or ""))
-            if _pic:
-                got = {"kind": "call", "widget_id": card, "action": "show", "payload": {"query": _pic["query"]}}
+        got = await commission_call(str(escalate_req.get("v") or ""), brief=brief, operator_text=operator_text,
+                                    spec=spec, window=window, pictures=images_req is not None)
         if not got:
             return ""
         _tool = _as_tool_request(got, operator_text) if got["kind"] == "call" and images_req is not None else None
