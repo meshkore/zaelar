@@ -45,7 +45,7 @@ where it belongs:
 ## What `where` may say
 
 Closed in OPERATORS, open in CONTENT — the same split as the harness's verifiers. A key may carry a
-suffix: `title~` contains, `date>=` / `date<=` / `date>` / `date<` compare as strings (ISO dates sort
+suffix: `title~` contains (`name|chatId~` — in any of those fields), `date>=` / `date<=` / `date>` / `date<` compare as strings (ISO dates sort
 correctly), `status!` is not-equal, a bare key is equality, and a list value means «any of these». String
 comparison folds case and accents, because the operator says «cryptonite» about a row spelled «Cryptonite».
 Nothing here parses natural language: that is the model's half, and it has the schema to do it with.
@@ -173,7 +173,11 @@ def matches(row: dict, where: dict | None) -> bool:
         return True
     for key, want in where.items():
         field, op = _split(key)
-        if not _one(row.get(field), op, want):
+        # `name|chatId~` — any of these FIELDS (demo pass 137, E3: the mail went to «quinn@example.com», the sent row
+        # names «Quinn» and keeps the address in `chatId`, and a send that left was judged unmet and reported as
+        # failed). Under a negative operator every field must differ, as with a list of values.
+        hits = [_one(row.get(f), op, want) for f in field.split("|") if f]
+        if not (all(hits) if op == "!=" else any(hits)):
             return False
     return True
 

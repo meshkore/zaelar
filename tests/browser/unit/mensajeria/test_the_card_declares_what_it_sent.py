@@ -52,3 +52,20 @@ def test_the_send_to_postcondition_is_met_by_the_message_that_left(md):
     # the card, so a Telegram Rowan received read «unmet». What is attestable is that it went out to HIM.
     assert verify.check(spec.render("mensajeria", "send_to", {"contact": "Rowan", "text": "see you at 5"})) is True
     assert verify.check(spec.render("mensajeria", "send_to", {"contact": "Anna", "text": "see you at 5"})) is False
+
+
+def test_a_send_to_an_address_is_met_by_the_row_that_keeps_that_address():
+    """Demo pass 137, E3: `forward {contact: "quinn@…"}` went out and the sent row said `name: "Quinn"`, `chatId:
+    "quinn@…"`. The clause read only `name`, the send was judged unmet and the operator heard «I couldn't finish
+    that». The template now reads `name|chatId~`; the row grammar's `a|b` is any of those fields."""
+    from nucleo import spec
+    from widgets import rows
+    row = {"name": "Quinn", "chatId": "quinn@example.com", "platform": "email"}
+    for action in ("forward", "send_to"):
+        for contact in ("quinn@example.com", "Quinn", "Quinn (quinn@example.com)"):
+            where = spec._fill(spec.template_of("mensajeria", action), {"contact": contact})["where"]
+            assert rows.matches(row, where), (action, contact, where)
+        where = spec._fill(spec.template_of("mensajeria", action), {"contact": "rowan@example.com"})["where"]
+        assert not rows.matches(row, where), "another address is another send"
+    assert not rows.matches(row, {"name|chatId!": "Quinn"}), "a negative over several fields: every one must differ"
+    assert rows.matches(row, {"name|chatId!": "Rowan"})
