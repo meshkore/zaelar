@@ -60,8 +60,11 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-C1 · One consent rule.** A missing datum → ask for the DATUM; a doubt between two → ask which; a radius
   → ask; otherwise act. Genesis asks at `critical`; a spoken rule moves it («pregúntame siempre antes» → sensitive,
   «hazlo directamente» → critical) in both channels; a negation that governs «sin preguntar» / «without asking»
-  in its own clause is MORE friction («nunca envíes un correo sin preguntarme» → sensitive). — since 2026-09-17,
-  spoken rule 2026-09-30 · nodes 4.188, 4.185, 2.174, 2.199 · `nucleo/consent.py`.
+  in its own clause is MORE friction («nunca envíes un correo sin preguntarme» → sensitive). A question only
+  clarifies WHAT he wants, never asks permission: when the verdict is sure of the order and its action at
+  `consent.intent_act_at` (genesis 0.7), the engine acts even if the model asked — below it the question stands.
+  — since 2026-09-17, spoken rule 2026-09-30, the 70 % 2026-10-15 · nodes 4.188, 4.185, 2.174, 2.199, 2.431, 2.728,
+  2.729 · `nucleo/consent.py`, `nucleo/flash/undecided.py`.
 - **CRIT-C2 · A «yes» answers ONE proposal** and spends only that proposal's authority; an order that starts with
   «ok» is not a yes to a different pending action; every pending confirmation can be answered in words. — since
   2026-09-18 · nodes 2.29, 2.156, 2.125.
@@ -76,9 +79,13 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-C4b · A worker never deletes a card.** Deleting is a confirmed act (`pending_confirm`, the UI's Yes/No);
   the first verb of a request names its act, so a build that mentions deleting its own entries builds. — since
   2026-10-09 · nodes 2.246.
-- **CRIT-C5 · An act that LEAVES runs only when the verdict backs it.** A send or a forward (≥ sensitive) runs
-  when the verdict does not name another action; unbacked, it is DROPPED with a note to the model — never turned
-  into a question, because the next «ok» would answer it. — since 2026-09-29 · nodes 2.106, 2.168.
+- **CRIT-C5 · An act that LEAVES runs only when the verdict backs it and its recipient is certain.** A send, a
+  forward or a meeting invitation (`external.send`) runs when the verdict does not name another action; unbacked, it
+  is DROPPED with a note to the model — never turned into a question, because the next «ok» would answer it. Its
+  recipient is never a doubt: one he did not name (this turn or his last 15 min) is asked «¿se lo mando a X?», a
+  spelling-only near contact is named back, never written to, and the engine never turns a draft into a send to
+  somebody he did not name. — since 2026-09-29, recipient 2026-10-15 · nodes 2.106, 2.168, 2.730 ·
+  `nucleo/flash/leave_gate.py`, `widgets/mensajeria/outbound.py`.
 - **CRIT-C6 · An action does not manufacture permission for its own side effects**; the confirm gate asks
   SOMEONE, and its «yes» returns to the click it stopped. — since 2026-09-18 · nodes 4.21, 2.29.
 - **CRIT-C7 · A transactional op never enters the task list** (deleting an item, sending a message); the list is
