@@ -66,13 +66,13 @@ def test_words_that_already_carry_the_act_get_nothing(monkeypatch):
 
 def test_words_that_hold_the_act_for_a_go_ahead_ask_even_without_a_question_mark(monkeypatch):
     """Demo pass 124 (2026-10-14), C5: «One thing, Richard — I don't write messages on my own. Say the word and I'll
-    send Ethan the note on Telegram…» — the repair sent the Telegram, and the last thing heard asked for a go-ahead.
+    send Rowan the note on Telegram…» — the repair sent the Telegram, and the last thing heard asked for a go-ahead.
     No «?», so the shape read nothing. The reply verdict says it waits (`ask_first`); a plain promise still gets nothing."""
     from nucleo.flash import reply_promise as rp
     monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
     rp.reset()
-    held = "One thing, Richard — I don't write messages on my own. Say the word and I'll send Ethan the note."
-    promised = "Sure — sending Ethan a Telegram now with the 4:30 time."
+    held = "One thing, Richard — I don't write messages on my own. Say the word and I'll send Rowan the note."
+    promised = "Sure — sending Rowan a Telegram now with the 4:30 time."
     rp._remember(rp._key(held), "ask_first")
     rp._remember(rp._key(promised), "act")
     try:

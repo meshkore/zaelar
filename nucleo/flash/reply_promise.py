@@ -140,7 +140,7 @@ def promises_action(reply: str) -> bool:
 
 def waits_for_go_ahead(reply: str) -> bool:
     """The reply holds the act until he says yes — a question in substance even without a «?» (demo pass 124, C5:
-    «I don't write messages on my own. Say the word and I'll send Ethan the note» — sent by the repair, and the last
+    «I don't write messages on my own. Say the word and I'll send Rowan the note» — sent by the repair, and the last
     thing heard asked for the go-ahead). Only a SURE verdict answers: no table guesses this in any language."""
     return verdict(reply) == "ask_first"
 

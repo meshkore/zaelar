@@ -1,6 +1,6 @@
 """The commission gate runs on the text channel too (2026-10-15, live bench E3).
 
-«send the invoice to andrew, tell him we're already trying inworld and he should book it» → the model called
+«send the invoice to quinn, tell him we're already trying inworld and he should book it» → the model called
 `forward` AND `escalate_to_slowbrain`. The voice annuls that worker (`escalation_guard.settle_commission`: the brief
 read `handle_inline`, the turn acted, the reply promised nothing); the text channel launched it beside the send —
 a worker free to send the same mail again. One gate, both channels.
@@ -22,15 +22,15 @@ def _brief(escalate: str, conf: float = 0.95) -> dict:
 
 
 def _calls():
-    return [{"name": "escalate_to_slowbrain", "args": {"request": "forward the Inworld receipt to Andrew"}},
+    return [{"name": "escalate_to_slowbrain", "args": {"request": "forward the Inworld invoice to Quinn"}},
             {"name": "widget_data", "args": {"widget_id": "mensajeria", "action": "forward",
-                                             "payload": {"contact": "Andrew", "text": "book it"}}}]
+                                             "payload": {"contact": "Quinn", "text": "book it"}}}]
 
 
 def test_an_act_on_a_card_read_inline_launches_no_worker_beside_it():
     calls = _calls()
     action = probe_after.an_inline_act_settles_the_commission("escalate", calls, brief=_brief("handle_inline"),
-                                                              operator_text="send the invoice to andrew", spoken="Done.")
+                                                              operator_text="send the invoice to quinn", spoken="Done.")
     assert action == "widget_data"
     assert [t["name"] for t in calls] == ["widget_data"]
 

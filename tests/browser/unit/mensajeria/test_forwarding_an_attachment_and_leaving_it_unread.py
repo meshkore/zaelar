@@ -362,7 +362,7 @@ def test_the_open_conversation_of_another_sender_is_never_the_stand_in(box):
     assert outbound._message_ref(box.load_db(), {"from": "el recibo de Inworld"}) is None
 
 
-# ── demo pass 127 (2026-10-14), E3: the receipt went to Andrew TWICE ─────────────────────────────────────────────
+# ── demo pass 127 (2026-10-14), E3: the receipt went to Quinn TWICE ─────────────────────────────────────────────
 # The verdict turned the model's `send_to` into a forward that went out; the model's own forward (refused for a
 # missing text) was then corrected in the same turn and went out too. The same files to the same person a moment
 # later are one send, whichever path sends them again.

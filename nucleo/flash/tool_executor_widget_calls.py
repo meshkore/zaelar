@@ -269,11 +269,9 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
                 _bn_drop.push(f"[SISTEMA] La acción «{action_name}» sobre «{wid}» NO se ejecutó: el operador "
                               f"no la pidió (su orden era otra). No digas que se ha enviado ni lo ofrezcas; "
                               f"si él te lo pide explícitamente, llama entonces a «{action_name}».")
-            except Exception:  # noqa: BLE001
-                pass
+            except Exception: pass  # noqa: BLE001, E701
             return
-    if _txw._ordered_send.run(_brief, wid, action_name, payload, _txw._bnotes.operator_half(text), emit=emit, acted=acted, apply=_apply_widget_data):
-        return                                    # an ordered act that leaves, which the model only prepared (live bench E3)
+    if _txw._ordered_send.run(_brief, wid, action_name, payload, _txw._bnotes.operator_half(text), emit=emit, acted=acted, apply=_apply_widget_data): return  # noqa: E701 — an ordered act that leaves, the model only prepared (E3)
 
     def _log_dataop(m: str) -> None:
         """REGISTRO DE ACCIONES DE WIDGET (2026-08-09, petición del operador). Hasta ahora una data-op

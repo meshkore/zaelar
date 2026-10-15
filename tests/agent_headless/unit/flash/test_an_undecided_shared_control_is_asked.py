@@ -108,15 +108,15 @@ def test_a_question_the_verdict_is_sure_enough_to_answer_does_not_hold_the_order
     screen["open"] = ["mensajeria"]
     sure = _brief("mensajeria:forward", 0.77, canvas="neither", canvas_conf=1.0, open_ids=["mensajeria"])
     sure["result"]["request_type"] = {"choice": "order", "confidence": 1.0}
-    asked = "Here's what I'd send Andrew — should I go ahead?"
-    assert undecided.why(sure, "mensajeria", "forward", operator_text="send the invoice to andrew", model_words=asked) == ""
+    asked = "Here's what I'd send Quinn — should I go ahead?"
+    assert undecided.why(sure, "mensajeria", "forward", operator_text="send the invoice to quinn", model_words=asked) == ""
     unsure = _brief("mensajeria:forward", 0.62, canvas="neither", canvas_conf=1.0, open_ids=["mensajeria"])
     unsure["result"]["request_type"] = {"choice": "order", "confidence": 1.0}
-    assert undecided.why(unsure, "mensajeria", "forward", operator_text="send the invoice to andrew",
+    assert undecided.why(unsure, "mensajeria", "forward", operator_text="send the invoice to quinn",
                          model_words=asked) == "asked"
     remark = _brief("mensajeria:forward", 0.9, canvas="neither", canvas_conf=1.0, open_ids=["mensajeria"])
     remark["result"]["request_type"] = {"choice": "question", "confidence": 0.95}
-    assert undecided.why(remark, "mensajeria", "forward", operator_text="did andrew get it?", model_words=asked) == "asked"
+    assert undecided.why(remark, "mensajeria", "forward", operator_text="did quinn get it?", model_words=asked) == "asked"
 
 
 def test_both_channels_let_a_sure_order_repair_over_a_question(screen):
@@ -125,7 +125,7 @@ def test_both_channels_let_a_sure_order_repair_over_a_question(screen):
     only under the operator's bar (`undecided.a_question_holds`)."""
     from nucleo.flash import undecided
     screen["open"] = ["mensajeria"]
-    asked = "I can send Andrew an email, but before I do — what should the message say exactly?"
+    asked = "I can send Quinn an email, but before I do — what should the message say exactly?"
     sure = _brief("mensajeria:forward", 0.75, canvas="neither", canvas_conf=1.0, open_ids=["mensajeria"])
     sure["result"]["request_type"] = {"choice": "order", "confidence": 1.0}
     unsure = _brief("mensajeria:forward", 0.55, canvas="neither", canvas_conf=1.0, open_ids=["mensajeria"])

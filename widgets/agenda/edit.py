@@ -63,7 +63,7 @@ def find(db: dict, payload: dict) -> list[dict]:
 def _likeliest_first(db: dict, hits: list[dict]) -> list[dict]:
     """Several rows under one title, the one he means first: the appointment this conversation is on, then the
     upcoming ones by nearness, then the past ones. Demo pass 124 (2026-10-14), C4: «move it half an hour later»
-    sent `{title: Catch up with Ethan}` right after booking it for tomorrow, and the move took a week-old row of
+    sent `{title: Catch up with Rowan}` right after booking it for tomorrow, and the move took a week-old row of
     the same name — the order of the calendar's list, not of the conversation."""
     if len(hits) < 2:
         return hits

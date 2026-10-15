@@ -68,16 +68,16 @@ def _days(n: int) -> str:
 
 
 def test_a_move_by_title_takes_the_one_just_booked_not_an_old_namesake(ag):
-    """Demo pass 124 (2026-10-14), C4: a week-old «Catch up with Ethan» from an earlier pass sat in the calendar;
+    """Demo pass 124 (2026-10-14), C4: a week-old «Catch up with Rowan» from an earlier pass sat in the calendar;
     «book it» wrote tomorrow's and «move it half an hour later» sent `{title}` — the move took the OLD row (first in
     the calendar's list), and tomorrow's stayed at 16:00 while the reply said 16:30."""
-    ag.apply_action("add_meeting", {"title": "Catch up with Ethan", "date": _days(-6), "startTime": "16:00",
+    ag.apply_action("add_meeting", {"title": "Catch up with Rowan", "date": _days(-6), "startTime": "16:00",
                                     "endTime": "16:45"})
-    ag.apply_action("add_meeting", {"title": "Catch up with Ethan", "date": _days(1), "startTime": "16:00",
+    ag.apply_action("add_meeting", {"title": "Catch up with Rowan", "date": _days(1), "startTime": "16:00",
                                     "endTime": "16:45"})
-    got = ag.apply_action("move_meeting", {"title": "Catch up with Ethan", "newTime": "16:30", "endTime": "17:15"})
+    got = ag.apply_action("move_meeting", {"title": "Catch up with Rowan", "newTime": "16:30", "endTime": "17:15"})
     assert got.get("ok") is not False, got
-    rows = {m["date"]: m["startTime"] for m in ag.load_db()["meetings"] if m["title"] == "Catch up with Ethan"}
+    rows = {m["date"]: m["startTime"] for m in ag.load_db()["meetings"] if m["title"] == "Catch up with Rowan"}
     assert rows == {_days(-6): "16:00", _days(1): "16:30"}, rows
 
 

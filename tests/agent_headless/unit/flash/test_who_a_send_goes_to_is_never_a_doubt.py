@@ -39,10 +39,10 @@ def test_a_recipient_he_never_named_is_asked_even_with_no_stranger_in_the_contex
 
 
 def test_a_recipient_he_named_a_moment_ago_is_his(gate):
-    """«book a catch up with Ethan» … «telegram him the new time»: the person is his from the conversation."""
+    """«book a catch up with Rowan» … «telegram him the new time»: the person is his from the conversation."""
     from nucleo import his_words
-    his_words.note("find me a free slot tomorrow afternoon to talk with Ethan")
-    assert gate.unnamed_recipients("mensajeria", "send_to", {"contact": "Ethan"}, "telegram him the new time") == []
+    his_words.note("find me a free slot tomorrow afternoon to talk with Rowan")
+    assert gate.unnamed_recipients("mensajeria", "send_to", {"contact": "Rowan"}, "telegram him the new time") == []
     assert gate.unnamed_recipients("mensajeria", "send_to", {"contact": "Quinn"}, "telegram him the new time") == ["Quinn"]
 
 

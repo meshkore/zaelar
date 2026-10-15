@@ -254,7 +254,7 @@ def _a_send_to(action, payload) -> dict:
     # line typed into a conversation, and goes straight out.
     if atts and (dup := _d._outbound.same_files_just_sent(db, t, atts)):
         # Demo pass 127, E3: the verdict's forward went out and the same-turn correction of the model's refused
-        # forward sent the receipt to Andrew a SECOND time. The same files to the same person seconds later are
+        # forward sent the receipt to Quinn a SECOND time. The same files to the same person seconds later are
         # one send; it is reported as done, never queued again.
         return {"ok": True, "result": {"to": t.get("name"), "channel": t.get("platform"), "ref": dup.get("ref"),
                                        "attachments": len(atts), "already_sent": True}}

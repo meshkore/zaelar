@@ -73,7 +73,7 @@ def _resolve_pending_confirm(ok: bool) -> bool:
 def _resolve_and_end_the_turn(verdict: str, text: str) -> bool:
     """Resolve the pending confirmation with the early verdict; True when that answer is the WHOLE turn.
 
-    Demo pass 129 (2026-10-14), C3: «ok book it, call it catch up with ethan» over a mail still pending from two
+    Demo pass 129 (2026-10-14), C3: «ok book it, call it catch up with rowan» over a mail still pending from two
     turns before — the reader said NO, the mail was cancelled, and the turn ended on «Alright, I won't touch
     anything.»: the meeting he asked for was never booked. A bare «no» is the whole answer; a «no» read from a
     longer order cancels and leaves the turn to serve the order."""

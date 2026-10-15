@@ -115,7 +115,7 @@ def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str, derived
 def an_inline_act_settles_the_commission(action: str, tool_calls: list, *, brief, operator_text: str, spoken) -> str:
     """The voice's commission gate (`escalation_guard.settle_commission`), on this channel too: a turn that ACTED on
     a card and also escalated, read `handle_inline` by its brief with no promise in the reply, does not launch the
-    worker. 2026-10-15, live bench E3: «send the invoice to andrew…» → `forward` AND `escalate_to_slowbrain` — the
+    worker. 2026-10-15, live bench E3: «send the invoice to quinn…» → `forward` AND `escalate_to_slowbrain` — the
     voice annulled that worker and this channel launched it beside the send. Returns the action to report."""
     if action != "escalate" or not any(t.get("name") == "widget_data" for t in tool_calls):
         return action

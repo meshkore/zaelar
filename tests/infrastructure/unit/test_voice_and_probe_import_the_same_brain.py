@@ -24,6 +24,8 @@ VOICE = ["voice/engine/llm/providers/nucleo.py", "nucleo/flash/tool_executor.py"
 VOICE_ONLY = {
     "accumulator": "the voice turn accumulates STT fragments before it speaks; the text channel gets whole lines",
     "music_flow": ("the probe runs the SAME rail through `music_turn.execute`, which imports it — this ratchet reads direct imports only"),
+    "ordered_send": ("the probe runs the SAME rule through `verdict_card.retarget` (`ordered_send.instead`), which both "
+                     "its execute and its dry plan call; the voice imports it directly for `run`, its rail's emit and apply"),
     "row_claims": ("the probe runs the SAME guard through `delivery.apply_to_reply` (`guard`, which cuts before the words leave); the voice imports it directly for `said_after`, the correction after streamed words"),
     "surface_ack": ("the probe reaches it through `router_guards.show_ack` (a re-export); the voice turn imports it directly only for the `empty` flag of the canvas event, which the probe never emits"),
     "tool_selection": ("progressive selection is off by default (V2-726 A5), so both channels offer the full `_router.tools` catalog; the voice keeps the `need_capability` retry and the recent-families memory for when it is on — wire the probe the day it is"),

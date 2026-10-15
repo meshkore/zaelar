@@ -1,6 +1,6 @@
 """An ORDERED act that leaves runs when the model only prepared it (2026-10-15, the operator's 70%).
 
-Live bench E3: «send the invoice to andrew, tell him we're already trying inworld and he should book it» — order at
+Live bench E3: «send the invoice to quinn, tell him we're already trying inworld and he should book it» — order at
 1.00, `mensajeria:forward` at 0.79, and the model called `draft`: 2 of 7 runs sent nothing and said «Done.». The
 mirror of the voice rule that runs the verdict over a model call that LEAVES when nobody asked for it.
 
@@ -14,7 +14,7 @@ import pytest
 
 from nucleo.flash import ordered_send
 
-SAID = "send the invoice to andrew, tell him we're already trying inworld and he should book it"
+SAID = "send the invoice to quinn, tell him we're already trying inworld and he should book it"
 
 
 def _brief(target: str, conf: float, kind: str = "order") -> dict:
@@ -31,7 +31,7 @@ def directory(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     monkeypatch.setattr(store, "_last_hash", {})
     from widgets.contactos import data as cd
-    cd.apply_action("add_contact", {"name": "Andrew", "email": "andrew@example.com"})
+    cd.apply_action("add_contact", {"name": "Quinn", "email": "quinn@example.com"})
     import server.voice_api as _va
     monkeypatch.setattr(_va, "open_instances", lambda: ["mensajeria"])
 

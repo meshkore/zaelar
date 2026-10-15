@@ -1,6 +1,6 @@
 """An ORDERED act that leaves is carried out when the model only prepared it (2026-10-15, the operator's 70%).
 
-Live bench E3, «send the invoice to andrew, tell him we're already trying inworld and he should book it»: the turn
+Live bench E3, «send the invoice to quinn, tell him we're already trying inworld and he should book it»: the turn
 was read as an ORDER at 1.00 and its action as `mensajeria:forward` at 0.79, and the model called `draft` — a reply
 written in the box and left there. Two runs in seven ended with nothing sent and «Done.» said.
 

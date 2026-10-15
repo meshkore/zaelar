@@ -22,7 +22,7 @@ from __future__ import annotations
 
 SURE = 0.9
 #: How far back his words still name the person a send goes to: the conversation's own span («book a catch up with
-#: Ethan» … «telegram him the new time»).
+#: Rowan» … «telegram him the new time»).
 RECENT_S = 900.0
 _RECIPIENT_KEYS = ("to", "contact", "recipient", "chat")
 

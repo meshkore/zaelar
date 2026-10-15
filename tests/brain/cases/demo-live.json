@@ -81,9 +81,9 @@
   ]
  },
  {
-  "id": "live-e3-send-the-invoice-to-andrew",
+  "id": "live-e3-send-the-invoice-to-quinn",
   "lang": "en",
-  "phrase": "send the invoice to andrew, tell him we're already trying inworld and he should book it",
+  "phrase": "send the invoice to quinn, tell him we're already trying inworld and he should book it",
   "source": "TMP/demo/run-p124..p131 (2026-10-14): the steps that held some passes and not others",
   "screen": {
    "open": [
@@ -157,19 +157,19 @@
     "contacts": [
      {
       "id": 1,
-      "name": "Andrew",
-      "email": "andrew@example.com",
+      "name": "Quinn",
+      "email": "quinn@example.com",
       "channels": [],
       "notes": "Handles the company accounts: invoices and receipts go to him by email."
      },
      {
       "id": 2,
-      "name": "Ethan",
+      "name": "Rowan",
       "email": "",
       "channels": [
        {
         "platform": "telegram",
-        "handle": "@ethan_demo",
+        "handle": "@rowan_demo",
         "chatId": "1000001"
        }
       ],
@@ -275,19 +275,19 @@
     "contacts": [
      {
       "id": 1,
-      "name": "Andrew",
-      "email": "andrew@example.com",
+      "name": "Quinn",
+      "email": "quinn@example.com",
       "channels": [],
       "notes": "Handles the company accounts: invoices and receipts go to him by email."
      },
      {
       "id": 2,
-      "name": "Ethan",
+      "name": "Rowan",
       "email": "",
       "channels": [
        {
         "platform": "telegram",
-        "handle": "@ethan_demo",
+        "handle": "@rowan_demo",
         "chatId": "1000001"
        }
       ],
@@ -316,18 +316,18 @@
    },
    {
     "role": "user",
-    "text": "send the invoice to andrew, tell him we're already trying inworld and he should book it"
+    "text": "send the invoice to quinn, tell him we're already trying inworld and he should book it"
    },
    {
     "role": "assistant",
-    "text": "Sent the Inworld receipt to Andrew."
+    "text": "Sent the Inworld invoice to Quinn."
    }
   ]
  },
  {
   "id": "live-c3-ok-book-it",
   "lang": "en",
-  "phrase": "ok book it, call it catch up with ethan",
+  "phrase": "ok book it, call it catch up with rowan",
   "source": "TMP/demo/run-p124..p131 (2026-10-14): the steps that held some passes and not others",
   "screen": {
    "open": [
@@ -363,19 +363,19 @@
     "contacts": [
      {
       "id": 1,
-      "name": "Andrew",
-      "email": "andrew@example.com",
+      "name": "Quinn",
+      "email": "quinn@example.com",
       "channels": [],
       "notes": "Handles the company accounts: invoices and receipts go to him by email."
      },
      {
       "id": 2,
-      "name": "Ethan",
+      "name": "Rowan",
       "email": "",
       "channels": [
        {
         "platform": "telegram",
-        "handle": "@ethan_demo",
+        "handle": "@rowan_demo",
         "chatId": "1000001"
        }
       ],
@@ -396,7 +396,7 @@
    },
    {
     "role": "user",
-    "text": "find me a free 45 minutes tomorrow afternoon to talk with ethan, after my last meeting"
+    "text": "find me a free 45 minutes tomorrow afternoon to talk with rowan, after my last meeting"
    },
    {
     "role": "assistant",
@@ -440,13 +440,13 @@
      "end": "16:00"
     },
     {
-     "title": "Catch up with Ethan",
+     "title": "Catch up with Rowan",
      "day": "+1",
      "start": "16:00",
      "end": "16:45"
     },
     {
-     "title": "Catch up with Ethan",
+     "title": "Catch up with Rowan",
      "day": "-6",
      "start": "16:00",
      "end": "16:45"
@@ -458,19 +458,19 @@
     "contacts": [
      {
       "id": 1,
-      "name": "Andrew",
-      "email": "andrew@example.com",
+      "name": "Quinn",
+      "email": "quinn@example.com",
       "channels": [],
       "notes": "Handles the company accounts: invoices and receipts go to him by email."
      },
      {
       "id": 2,
-      "name": "Ethan",
+      "name": "Rowan",
       "email": "",
       "channels": [
        {
         "platform": "telegram",
-        "handle": "@ethan_demo",
+        "handle": "@rowan_demo",
         "chatId": "1000001"
        }
       ],
@@ -491,7 +491,7 @@
    },
    {
     "role": "user",
-    "text": "find me a free 45 minutes tomorrow afternoon to talk with ethan, after my last meeting"
+    "text": "find me a free 45 minutes tomorrow afternoon to talk with rowan, after my last meeting"
    },
    {
     "role": "assistant",
@@ -499,7 +499,7 @@
    },
    {
     "role": "user",
-    "text": "ok book it, call it catch up with ethan"
+    "text": "ok book it, call it catch up with rowan"
    },
    {
     "role": "assistant",
@@ -513,7 +513,7 @@
  {
   "id": "live-c5-telegram-the-new-time",
   "lang": "en",
-  "phrase": "send ethan a telegram with the new time",
+  "phrase": "send rowan a telegram with the new time",
   "source": "TMP/demo/run-p124..p131 (2026-10-14): the steps that held some passes and not others",
   "screen": {
    "open": [
@@ -543,13 +543,13 @@
      "end": "16:00"
     },
     {
-     "title": "Catch up with Ethan",
+     "title": "Catch up with Rowan",
      "day": "+1",
      "start": "16:00",
      "end": "16:45"
     },
     {
-     "title": "Catch up with Ethan",
+     "title": "Catch up with Rowan",
      "day": "-6",
      "start": "16:00",
      "end": "16:45"
@@ -561,19 +561,19 @@
     "contacts": [
      {
       "id": 1,
-      "name": "Andrew",
-      "email": "andrew@example.com",
+      "name": "Quinn",
+      "email": "quinn@example.com",
       "channels": [],
       "notes": "Handles the company accounts: invoices and receipts go to him by email."
      },
      {
       "id": 2,
-      "name": "Ethan",
+      "name": "Rowan",
       "email": "",
       "channels": [
        {
         "platform": "telegram",
-        "handle": "@ethan_demo",
+        "handle": "@rowan_demo",
         "chatId": "1000001"
        }
       ],
@@ -594,7 +594,7 @@
    },
    {
     "role": "user",
-    "text": "find me a free 45 minutes tomorrow afternoon to talk with ethan, after my last meeting"
+    "text": "find me a free 45 minutes tomorrow afternoon to talk with rowan, after my last meeting"
    },
    {
     "role": "assistant",
@@ -602,7 +602,7 @@
    },
    {
     "role": "user",
-    "text": "ok book it, call it catch up with ethan"
+    "text": "ok book it, call it catch up with rowan"
    },
    {
     "role": "assistant",
