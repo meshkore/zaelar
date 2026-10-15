@@ -148,7 +148,17 @@ def errand_state(e: dict) -> str:
         return lang.errand_waiting_on_you
     _ph = "" if _progress.is_mechanical(e.get("phase") or "") else str(e.get("phase") or "")   # a click is the card's
     said = [p.strip().rstrip("…. ") for p in (_ph, str(e.get("note") or ""))]
-    return next((p for p in said if _sn.speakable(p, _lg.current_code(), strict=True)), "") or lang.errand_under_way
+    return next((p for p in said if _sn.speakable(p, _lg.current_code(), strict=True)), "") or how_far(e, lang)
+
+
+def how_far(e: dict, lang) -> str:
+    """With no milestone to say, the FACTS that move between two asks — its plan step, or how long it has run —
+    never the same fixed line (three-tasks-at-once EN, 2026-10-15: «under way, nothing new yet» for the game and
+    the monitor, turn after turn, while both were working)."""
+    done, total, secs = int(e.get("done") or 0), int(e.get("total") or 0), int(e.get("secs") or 0)
+    if total and 0 < done < total:
+        return lang.errand_step_of.format(done=done, total=total)
+    return lang.errand_running_for.format(min=secs // 60) if secs >= 60 else lang.errand_under_way
 
 
 def promised_refinement(operator_text: str, spoken: str) -> str:

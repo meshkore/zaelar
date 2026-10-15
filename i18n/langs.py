@@ -209,6 +209,8 @@ LANGUAGES: dict[str, LangSpec] = {
                              "is done, tell me and I'll get on it."),
         errands_status="Here's where everything stands: {items}.",
         errand_under_way="under way, nothing new yet",
+        errand_step_of="under way, on step {done} of {total}",
+        errand_running_for="under way for {min} min, no milestone yet",
         errand_waiting_on_you="waiting on an answer from you",
         errand_step_now="Right now, {name}: {step}.",
         errand_step_bare="Right now: {step}.",

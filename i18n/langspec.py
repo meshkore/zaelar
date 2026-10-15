@@ -129,6 +129,8 @@ class LangSpec:
     # …and a status question over live errands is answered with each one's phase, never an empty wait.
     errands_status: str = "Así va todo: {items}."
     errand_under_way: str = "en marcha, sin novedades todavía"
+    errand_step_of: str = "en marcha, va por el paso {done} de {total}"
+    errand_running_for: str = "lleva {min} min en marcha, sin hitos todavía"
     errand_waiting_on_you: str = "esperando a que me contestes algo"
     # …and a WAIT reply while an errand runs names its real current step (photo round, 2026-10-11: «Will do»,
     # «Sounds good» with «entrando en media.ferrari.com» in the turn's own state).

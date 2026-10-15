@@ -33,7 +33,8 @@ def known(*, with_finished: bool = False) -> list[dict]:
                         "title": str(getattr(rec, "title", "") or "").strip(),
                         "request": str(e.get("request") or "").strip(), "phase": str(e.get("phase") or ""),
                         "note": str(e.get("note") or ""), "waiting_on": e.get("waiting_on") or "", "parked": False,
-                        "sheet": str(e.get("sheet") or ""), "surface": str(e.get("surface") or "")})
+                        "sheet": str(e.get("sheet") or ""), "surface": str(e.get("surface") or ""),
+                        "secs": int(e.get("secs") or 0), "done": int(e.get("done") or 0), "total": int(e.get("total") or 0)})
     except Exception as e:  # noqa: BLE001 — a reader never breaks a turn
         logger.debug(f"named_errand: live errands unreadable — {type(e).__name__}: {e}")
     try:
