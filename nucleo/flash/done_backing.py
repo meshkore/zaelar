@@ -41,7 +41,8 @@ def backed(spoken, action: str, extra) -> str:
         return spoken
     from i18n import langs as _langs
     lang = _langs.current_language()
-    if _fold(spoken) != _fold(lang.data_ack):
+    bare = {_fold(lang.data_ack)} | {_fold(a) for a in (getattr(lang, "data_acks", None) or ())}
+    if _fold(spoken) not in bare:          # the voice rotates its ack among `data_acks` (V2-038): all of them are bare
         return spoken
     extra = extra if isinstance(extra, dict) else {}
     if any(extra.get("beside") or []):

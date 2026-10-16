@@ -64,3 +64,18 @@ def test_the_probe_reply_goes_through_it():
     import inspect
     from nucleo.flash import probe_after
     assert "_dback.backed(" in inspect.getsource(probe_after.the_words_it_owes)
+
+
+def test_every_rotating_ack_of_the_voice_is_a_bare_done():
+    """The voice picks its ack among `data_acks` so two ops in a row are not said alike (V2-038); every variant is
+    the same bare claim and is checked the same way (audit V2-783 P0-2)."""
+    spec.open(BODY, text="give me the carbonara recipe", widget="documento")
+    for ack in list(getattr(_lang(), "data_acks", None) or ()) + [_lang().data_ack]:
+        assert done_backing.backed(ack, "widget_data", {"ops": [{"widget": "documento"}]}) == _lang().done_not_on_card, ack
+
+
+def test_the_voice_ack_is_checked_against_the_cards_too():
+    import inspect
+    from nucleo.flash import post_stream_settle
+    src = inspect.getsource(post_stream_settle.settle_what_is_pending)
+    assert "_dback.backed(spoken_text, \"widget_data\"" in src, "the voice channel's canned ack must go through done_backing"

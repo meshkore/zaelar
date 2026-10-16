@@ -169,3 +169,14 @@ def test_the_probes_owed_words_use_it_before_the_list(monkeypatch):
         _hw=False, _parts=None, _show_chose=False, action="widget_data", images_req=None, return_extra_exec=PARTE,
         sess=_Sess(), spoken="", tags=[], text="What do I have next Thursday?", video_req=None))
     assert out["spoken"] == "Next Thursday: the dental checkup at 11:30.", out
+
+
+def test_a_reply_that_holds_the_act_for_a_go_ahead_is_not_carried_out(brief):
+    """`ask_first` means the model has NOT done it and waits for his word (`reply_promise.CHOICES`): a read of the card
+    plus a reply that holds the act is a question, never a licence to act — only a SURE order or a promise to act is
+    (audit V2-783 P0-3, 2026-10-16: «Shall I send it?» + a named recipient was sent by this repair)."""
+    brief["promise"] = "ask_first"
+    assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "Shall I cancel the piano on the 13th?") == ""
+    brief[__import__("nucleo.flash.turn_brief", fromlist=["x"]).REQUEST_KEY] = "order"
+    assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "Shall I cancel it?") == "cancel_meeting", \
+        "a SURE order is carried out whatever the words — the operator's 70% decides, not the reply's shape"

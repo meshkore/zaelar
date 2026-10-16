@@ -148,6 +148,14 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             spoken_text = _pst_receipt.voice_ack(next((a for a in _acks if a.strip().lower() != _last), _acks[0]))
         except Exception:
             spoken_text = "Hecho."
+        # The ack is a claim about the cards: checked against them before it is said (V2-783 P0-2; text channel does the
+        # same in `probe_after`). An unmet end state on a card this turn wrote to says what is true instead.
+        try:
+            from nucleo.flash import done_backing as _dback
+            spoken_text = _dback.backed(spoken_text, "widget_data",
+                                        {"ops": [{"widget": str(w)} for w, _a in (data_done.get("ops") or [])]})
+        except Exception:  # noqa: BLE001 — an unreadable screen leaves the ack as it was
+            pass
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
     # The TRANSPORT receipt (2026-10-11): the model's words answered the side remark and skipped the next/pause/add he

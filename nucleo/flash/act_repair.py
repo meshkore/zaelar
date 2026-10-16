@@ -417,7 +417,9 @@ def same_card_order_after_read(brief, read_widget: str, reply: str = "") -> str:
         sure_order = str(kind or "") == "order" and bool(k_info)
         if str(kind or "") == "question" or (_is_view(rid, act) and not sure_order):   # p124 F2: «go to» is a sure lens
             return ""
-        return act if (sure_order or _rp.verdict(reply) in ("act", "ask_first")) else ""
+        # `ask_first` HOLDS the act for his word (`reply_promise.CHOICES`): only a promise to act, or an order sure at
+        # the operator's 70%, licenses the repair (audit V2-783 P0-3 — «Shall I send it?» was carried out here).
+        return act if (sure_order or _rp.verdict(reply) == "act") else ""
     except Exception:  # noqa: BLE001
         return ""
 

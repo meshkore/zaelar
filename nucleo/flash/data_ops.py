@@ -289,6 +289,42 @@ async def say_refusal_instead(tasks, data_done: dict, send, speech) -> str:
     return said
 
 
+async def say_owed_after_ops(tasks, data_done: dict, send, speech, timeout: float = 4.0) -> list[str]:
+    """The lines this turn OWES to its data-ops (`data_done["owed"]`: a completion or repair tail — «Done.», «I've
+    gone ahead, as you asked») are said once the ops ANSWERED, and never over a refusal. Returns what was said.
+
+    Audit V2-783 P0-2 (2026-10-16): the voice sent those tails the instant the op was dispatched, so a refused op was
+    followed by «Done.» and corrected afterwards. A refusal is told by `report_failure` (or the next turn's note), so
+    the owed line is simply dropped; an op still running past `timeout` is not claimed either — the card is the
+    answer then. Never raises."""
+    owed = [str(line) for line in (data_done.get("owed") or []) if str(line or "").strip()]
+    data_done["owed"] = []
+    if not owed or not tasks:
+        return []
+    try:
+        pend = [t for _w, t in tasks if not t.done()]
+        if pend:
+            await asyncio.wait(pend, timeout=timeout)
+        for w, t in tasks:
+            if not t.done() or t.cancelled():
+                return []
+            res = t.result()
+            if isinstance(res, dict) and _receipt.failed(res):
+                try:
+                    from voice.observer import emit
+                    emit("brain", "🚫 owed line dropped: the op was refused", role="system",
+                         text=f"{w}: {str(res.get('message') or res.get('error') or '')[:120]}",
+                         extra={"cat": "flash", "id": str(w), "owed": owed[:3]})
+                except Exception:  # noqa: BLE001 — the trace never decides the words
+                    pass
+                return []
+    except Exception:  # noqa: BLE001 — unreadable ops claim nothing
+        return []
+    for line in owed:
+        send(" " + speech.sanitize(line, drop_metadata=False))   # sanitize strips the joining space
+    return owed
+
+
 def _failed_line() -> str:
     try:
         from i18n import langs as _lg

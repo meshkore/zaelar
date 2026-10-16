@@ -198,8 +198,8 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
             _c_tail = _act_repair_c.after_the_completion(spoken_text, _pst._direct_action.from_brief(_brief)[0],
                                                          _completed)
             if _c_tail:
-                send(" " + speech.sanitize(_c_tail, drop_metadata=False))   # sanitize strips the joining space
-                spoken_text = spoken_text + _c_tail
+                # owed to the op, said once it answered (`post_stream` → `data_ops.say_owed_after_ops`, V2-783 P0-2)
+                data_done.setdefault("owed", []).append(_c_tail.strip())
     # …and a data-op INSIDE a card he also told to close by its name («stop the video and close youtube»): the
     # card closes after the op (`closes_the_named_card`).
     if data_done["v"] and not clarify["msg"] and "close_widget" not in _tool_fired:
@@ -254,8 +254,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
             _ar_tail = _act_repair.after_the_repair(spoken_text, _router.promises_action(spoken_text),
                                                     _ar["widget_id"], _ar["action"])
             if _ar_tail:
-                send(" " + speech.sanitize(_ar_tail, drop_metadata=False))
-                spoken_text = spoken_text + _ar_tail
+                data_done.setdefault("owed", []).append(_ar_tail.strip())   # said once the op answered (V2-783 P0-2)
     # An order on ONE card while the turn only touched OTHERS (full23 C5: «send rowan a telegram with the new
     # time» re-wrote the meeting on the agenda and the reply said «he's getting the update now» — nothing was
     # sent). The order is carried out on its card, with what the touched card holds.
