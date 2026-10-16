@@ -43,6 +43,13 @@ def _m2(hhmm) -> int:
         return 0
 
 
+#: A time-of-day phrase, in either language, read OUT of the text before the day is looked for: the «mañana»
+#: inside «por la mañana» is the morning, not tomorrow. Accent-free, like the text it is applied to.
+_TIME_OF_DAY = re.compile(r"\b(?:(?:por|de|a|en)\s+la\s+manana|esta\s+manana|(?:in\s+the\s+)?morning|"
+                          r"por\s+la\s+(?:tarde|noche)|esta\s+(?:tarde|noche)|(?:in\s+the\s+)?(?:afternoon|evening)|"
+                          r"at\s+night|tonight)\b", re.I)
+
+
 def _resolve_date(raw: str) -> str:
     """Convert a spoken relative date (tomorrow, today, the day after tomorrow, a weekday, or already 'YYYY-MM-DD') into
     'YYYY-MM-DD'. Sensible default: today. This keeps a relative-date appointment correctly placed even when the
@@ -53,18 +60,21 @@ def _resolve_date(raw: str) -> str:
         return _today()
     if len(s) >= 8 and s[:4].isdigit() and "-" in s:      # already comes as YYYY-MM-DD
         return s[:10]
-    n = _strip_accents(s)
+    n = _TIME_OF_DAY.sub(" ", _strip_accents(s))
     if (_named := _calendar_date(n)):
         return _named
     today = _t.localtime()
     base = _t.mktime(today)
     day = 86400
+    # «hoy» is read before «mañana» and before a weekday: «hoy jueves» is today, and the morning of a day is an
+    # hour of that day — «hoy por la mañana» and «el jueves por la mañana» resolved to TOMORROW until 2026-10-16
+    # (audit V2-783 P1-1), in Spanish only, since «morning» is not «tomorrow».
+    if "hoy" in n or "today" in n:
+        return _today()
     if "pasado manana" in n or "day after tomorrow" in n:
         return _t.strftime("%Y-%m-%d", _t.localtime(base + 2 * day))
     if "manana" in n or "tomorrow" in n:
         return _t.strftime("%Y-%m-%d", _t.localtime(base + day))
-    if "hoy" in n or "today" in n:
-        return _today()
     for name, wd in _WEEKDAYS.items():
         nn = _strip_accents(name)
         if nn in n:
@@ -114,6 +124,8 @@ def _resolve_time(raw: str, default: str = "17:00") -> str:
     m = re.search(r"(\d{1,2})[:h\.](\d{2})", s)
     if m:
         return f"{int(m.group(1)):02d}:{m.group(2)}"
+    if re.search(r"\b(?:mediodia|mediodía|noon|midday)\b", s):
+        return "12:00"                                     # noon is twelve, never the afternoon default
     m = re.search(r"\b(\d{1,2})\b", s)
     if m:
         h = int(m.group(1))

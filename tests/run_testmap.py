@@ -3566,6 +3566,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_two_copies_of_one_event_are_one_thing_to_look_at.py"]},
         {"id": "2.745", "title": "A commission the closed catalogue card can do is its call on both channels: one decision (commission_call), the probe records it as the repaired widget_data",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_closed_card_takes_the_call_on_both_channels.py"]},
+        {"id": "2.746", "title": "«por la mañana» is an hour, never the day after: a time-of-day phrase is read out before the day, «hoy» beats a weekday said beside it, noon is twelve (V2-783 P1-1)",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_time_of_day_is_not_a_date.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},
