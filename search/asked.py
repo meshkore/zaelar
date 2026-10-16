@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from search.category_words import NOT_A_SUBJECT
+from search.category_words import NOT_A_SUBJECT, NOT_A_SUBJECT_SIGLA
 from search.soft_zone import is_zone
 
 
@@ -85,6 +85,10 @@ _ROUTE = re.compile(r"\b(?:de|desde|from)\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñü-]
                     r"\s+(?:a|al|hasta|to)\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñü-]*(?:\s+[A-ZÁÉÍÓÚÑ][\wáéíóúñü-]*)*")
 
 
+#: An all-caps token of two to four letters offered as an ALTERNATIVE to a name: «Samsung o LG», «Dell or HP».
+_SIGLA_OFFERED = re.compile(r"(?:,|\b(?:o|or|y|and|u))\s+([A-Z]{2,4})\b(?![\w-])")
+
+
 def subjects(text) -> list[str]:
     """The proper names the request asks ABOUT — the subject a candidate must name. Places are left out (a ticket
     row says «Movistar Arena», not «Madrid»; a route's two ends), and so are months, days and greetings. Empty when
@@ -100,6 +104,13 @@ def subjects(text) -> list[str]:
         words = [w for w in norm(m.group(1)).split() if w not in NOT_A_SUBJECT and len(w) >= 3]
         if words and words[0] != "i":
             out.append(" ".join(words))
+    if out:
+        # A sigla he OFFERED beside a name is one of the alternatives, not a spec: «Samsung o LG», «Dell or HP»,
+        # «Honda, Yamaha o KTM». Only beside a found name — alone, «un SUV» or «una TV» names a category.
+        for m in _SIGLA_OFFERED.finditer(raw):
+            tok = norm(m.group(1))
+            if tok not in NOT_A_SUBJECT_SIGLA and tok not in out:
+                out.append(tok)
     return out
 
 

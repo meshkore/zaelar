@@ -6975,6 +6975,8 @@ DOMAINS: list[dict] = [
             # Deterministic node on purpose: without the switch every test SKIPS (the sweep stays offline); with it
             # (`ZAELAR_TEST_LIVE_SEARCH=1 ./.venv/bin/python -m pytest -q tests/search/live`) they hit the providers.
             "ch": UNIT, "paths": ["tests/search/live/test_live_canary.py"]},
+        {"id": "12.12", "title": "A subject is any of the names he offered, siglas included («Samsung o LG» kept only Samsung); the sheet's `asked` keeps the sentence that opened the hunt when it has to be cut (V2-783 P0-1)",
+            "ch": UNIT, "paths": ["tests/search/unit/test_a_subject_is_any_name_he_offered.py"]},
     ]},
 ]
 

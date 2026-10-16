@@ -14,6 +14,7 @@ from __future__ import annotations
 from search import row_fit as _fit
 
 _MAX_ASKED = 900
+_HEAD_ASKED = 240            # the commissioning sentence, kept whole when `asked` has to be cut
 _MAX_RELAYED = 6
 _DEFAULT_TITLES = frozenset(("resultados", "results", "sin resultados", ""))
 
@@ -50,11 +51,24 @@ def _attribute(change: str) -> str:
     return change.lower() if sep and 0 < len(head.split()) <= 3 else change
 
 
+def _fit_asked(asked: str) -> str:
+    """`asked` within `_MAX_ASKED`, keeping its HEAD — the sentence that commissioned the hunt names the subject —
+    and its latest corrections; the middle goes. Until 2026-10-16 the last 900 characters were kept, so a long
+    round cut off exactly the words the subject reader needs (audit V2-783 P0-1)."""
+    if len(asked) <= _MAX_ASKED:
+        return asked
+    head = asked[:_HEAD_ASKED]
+    cut = head.rfind(". ")
+    head = head[:cut + 1] if cut >= _HEAD_ASKED // 2 else head
+    tail = asked[-(_MAX_ASKED - len(head) - 2):]
+    return f"{head} …{tail}"
+
+
 def keep_asked(data: dict, prev: dict, payload: dict) -> None:
     """`asked` survives a `present` (which rebuilds the sheet) and a payload may set it; so do relayed corrections."""
     asked = str(payload.get("asked") or prev.get("asked") or data.get("asked") or "").strip()
     if asked:
-        data["asked"] = asked[-_MAX_ASKED:]
+        data["asked"] = _fit_asked(asked)
     if prev.get("relayed") and not data.get("relayed"):
         data["relayed"] = list(prev["relayed"])
 
@@ -122,7 +136,7 @@ def recheck(sheet: str, correction: str, *, relayed: bool = False) -> int:
     if text and relayed:
         data["relayed"] = (list(data.get("relayed") or []) + [text[:_MAX_ASKED]])[-_MAX_RELAYED:]
     elif text:
-        data["asked"] = (str(data.get("asked") or "") + " " + text).strip()[-_MAX_ASKED:]
+        data["asked"] = _fit_asked((str(data.get("asked") or "") + " " + text).strip())
     own, ctx = _own(data, {}), _context(data, {})
     on, off = _fit.split(data.get("items") or [], own, ctx)
     if off:

@@ -88,6 +88,13 @@ NOT_A_SUBJECT = frozenset((
     "hey", "hola", "oye", "please", "porfa", "zaelar",
 ))
 
+#: A sigla that names a CATEGORY or a SPEC, never one of the things he offered by name («Samsung o LG»): read
+#: only when it stands beside a found name (`asked.subjects`).
+NOT_A_SUBJECT_SIGLA = frozenset((
+    "suv", "tv", "pc", "4k", "hd", "fhd", "uhd", "led", "oled", "lcd", "ips", "usb", "ssd", "hdd", "ram", "gps",
+    "tdi", "tdci", "hdi", "gti", "abs", "ok", "ia", "ai", "dvd", "cd", "bd", "ev", "phev", "awd", "cvt", "diy",
+))
+
 #: One kind of thing, named in ES and EN: a word he RULED OUT in one language rules out the row that says it in the
 #: other (`search/excluded.py`). hotel-under-15-days ES (2026-10-14): «no hostales ni albergues» stood while «Hostel
 #: Ikigai», «Urban Cube Hostel Sevilla» and «The Nomad Hostel&Pension» were offered as four-star hotels. Accent-free
