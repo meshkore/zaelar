@@ -79,3 +79,18 @@ def test_no_voice_only_module_is_left_owed():
     `task_recall`), five given the reason they really have. A new line carries its reason from day one."""
     owed = sorted(m for m, why in VOICE_ONLY.items() if why.strip() == "owed")
     assert not owed, f"write why these are voice-only, or wire them into the probe: {owed}"
+
+
+#: The other direction, frozen 2026-10-16 (audit V2-783 P1-4): brain modules the TEXT probe imports and the voice turn
+#: does not. A rule wired into the probe alone passes the bank (which runs on the probe) and never fires live, so
+#: this set may only shrink. Measured 29 that day; wiring one into the voice turn lowers the number.
+PROBE_ONLY_MAX = 29
+_PROBE_OWN = {"probe", "probe_after", "probe_before", "probe_decide", "probe_mirrors", "probe_reopen", "widget_data_turn"}
+
+
+def test_the_probe_only_set_does_not_grow():
+    probe_only = _flash_imports(_probe_files()) - _flash_imports(VOICE) - _PROBE_OWN
+    assert len(probe_only) <= PROBE_ONLY_MAX, (
+        f"{len(probe_only)} nucleo.flash modules are imported by the text probe and not by the voice turn (ceiling "
+        f"{PROBE_ONLY_MAX}): a rule only the probe runs never fires live. Wire it into the voice turn too, or lower "
+        f"nothing here: {sorted(probe_only)}")

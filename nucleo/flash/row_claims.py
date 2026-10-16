@@ -134,7 +134,8 @@ def review(reply: str, window=None, heard: str = "", *, rows=None, evidence=None
     his_text = B.his_words(window, heard) + " " + (B.goals() if goals is None else goals)
     his = B.tokens(his_text)
     figures = {_int_digits(n) for n in _NUMBER.findall(his_text)} - {""}
-    units = [B.tokens(r["text"]) for r in rows] + [B.tokens(t) for t in evidence] + [his]
+    # A row the door turned away is not on his list: it backs no candidate (audit V2-783 P1-2, 2026-10-16).
+    units = [B.tokens(r["text"]) for r in rows if not r.get("rejected")] + [B.tokens(t) for t in evidence] + [his]
     heard_rows = _named(B.his_words([], heard), rows)
     from i18n import langs as _lg
     lang = _lg.current_language()

@@ -292,7 +292,13 @@ async def probe_instead_of_a_worker(tool_calls: list, commission: str, *, brief,
     nothing, keeps the errand as it was. Never raises."""
     try:
         got = await commission_call(commission, brief=brief, operator_text=operator_text, spec=spec, window=window)
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001 — a model call that broke is SAID on the trace, never «no commission»
+        try:
+            from voice.observer import emit
+            emit("brain", "⚠️ commission call failed — the errand stays as it was", role="system",
+                 text=f"{type(e).__name__}: {e}"[:160], extra={"cat": "flash", "is_error": True})
+        except Exception:  # noqa: BLE001
+            pass
         return False
     if not got or got.get("kind") != "call":
         return False

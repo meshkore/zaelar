@@ -49,3 +49,18 @@ def test_his_figure_or_a_plan_or_a_turn_outside_a_shortlist_is_no_candidate(monk
     assert said(plan, "ok", sheets=("ski_us",), window=window) == plan
     answer = "Netflix Standard costs $17.99 a month in the US."
     assert said(answer, "how much is netflix?", sheets=("ski_us",), errand=False) == answer
+
+
+def test_a_row_the_door_turned_away_backs_no_candidate(monkeypatch):
+    """A row filed under Rejected is not on his list: a sentence offering it is the same invention as one offering a
+    row no sheet ever held (audit V2-783 P1-2, 2026-10-16 — the backing units took the Rejected tab as a source)."""
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
+    from nucleo.flash import row_claims as R
+    rejected = {"item": {"title": "Völkl Blaze 94 with Marker Duke bindings", "price": "$310"},
+                "text": "Völkl Blaze 94 with Marker Duke bindings", "rejected": True}
+    live = {"item": {"title": "Head Kore 99 skis", "price": "$208.69"}, "text": "Head Kore 99 skis — $208.69", "rejected": False}
+    r = R.review(GHOST, [], "anything yet?", rows=[live, rejected], evidence=[], goals="", errand=True)
+    assert [c["why"] for c in r["cut"]] == ["candidate"], r
+    r = R.review(GHOST, [], "anything yet?", rows=[live, {**rejected, "rejected": False}], evidence=[], goals="",
+                 errand=True)
+    assert r["cut"] == [], "the same row on the list backs the sentence"
