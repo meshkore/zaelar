@@ -18,14 +18,17 @@ for a verb, would deadlock a real order.
 """
 from __future__ import annotations
 
-_UNREADABLE = "no se pudo leer el elemento"
 #: browser task → his latest turn when a click was held there (the ring is bounded, so a count would stall).
 _HELD: dict[str, str] = {}
 
 
-def held(task_id: str, why: str) -> str:
-    """The reason handed back to the worker ("" = put the ask to him, as usual). Never raises."""
-    if not why or why == _UNREADABLE:
+def held(task_id: str, why: str, *, readable: bool = True) -> str:
+    """The reason handed back to the worker ("" = put the ask to him, as usual). Never raises.
+
+    `readable` is the gate's FACT about the page (`click_gate.decide` got signals), not the text of its reason:
+    the reason is the session language's sentence and comparing against it is a guard that dies the day the
+    sentence changes — it did on 2026-10-14 (audit V2-783 P0-4)."""
+    if not why or not readable:
         return ""                          # an unreadable page is the case that must reach him
     try:
         rec, items, data = _errand_sheet(task_id)

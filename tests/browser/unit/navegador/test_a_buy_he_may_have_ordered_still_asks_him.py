@@ -43,9 +43,28 @@ def test_an_order_that_names_the_row_asks(rec):
     assert buy_held.held("t8", WHY) == ""
 
 
-def test_an_unreadable_page_asks(rec):
+class _Unreadable:
+    async def evaluate(self, _js):
+        raise RuntimeError("detached frame")
+
+
+@pytest.mark.parametrize("code", ["es", "en"])
+def test_an_unreadable_page_asks_in_either_language(rec, monkeypatch, code):
+    """The gate's reason for an unreadable page travels as a FACT (`readable=False`), never as its text: on
+    2026-10-14 `a436f23e` moved the text to the langspec and the hold kept comparing against the old literal,
+    so an unreadable page was held in both languages (audit V2-783 P0-4)."""
+    import asyncio
+    from widgets.navegador import click_gate
+    monkeypatch.setenv("ZAELAR_LANGUAGE", code)
     his_words.note("¿El de jazz cuánto cuesta?")
-    assert buy_held.held("t8", "no se pudo leer el elemento") == ""
+    asked = []
+
+    async def confirm(q):
+        asked.append(q)
+        return False
+    ok, _why = asyncio.run(click_gate.may_act(None, _Unreadable(), confirm=confirm, task_id="t8"))
+    assert not ok and len(asked) == 1            # he was asked — the click was not held back to the worker
+    assert buy_held.held("t8", _why, readable=False) == ""
 
 
 def test_an_errand_without_a_sheet_asks(rec):

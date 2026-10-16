@@ -288,7 +288,7 @@ async def may_act(page, handle, at=None, *, confirm=None, task_id: str = "") -> 
             return True, ""
     label = str((sig or {}).get("name") or "").strip() or _reason.this_action()
     from widgets.navegador.buy_held import held as _held    # he asked ABOUT a row: the worker reads it, he is not asked
-    held = _held(task_id, why)
+    held = _held(task_id, why, readable=isinstance(sig, dict))
     if held:
         return False, held
     # The REASON rides on the trace: the operator hears only the label, and on 2026-09-30 a Newegg search box
