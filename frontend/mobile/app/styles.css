@@ -19,7 +19,10 @@
    ============================================================================ */
 
 :root {
-  --dock-h: 84px;                        /* the bar's own height; the safe-area pad is added on top of it */
+  /* 64px since 2026-10-26 (operator, iPhone 14 screenshots: «la parte de abajo parece que estamos desaprovechando
+     espacio»): the bar is exactly its row of 44px icons; the orb rises above its edge like the centre button of a
+     tab bar. The safe-area pad is added ONCE, here, and every card ends at the bar's top edge. */
+  --dock-h: 64px;                        /* the bar's own height; the safe-area pad is added on top of it */
   /* Sheet height, measured from ON TOP OF the dock (see .zm-sheet). Leaves the deck visible above it, so the
      card you were reading never disappears entirely behind the chat. */
   --zm-sheet-max: calc(78vh - var(--dock-h));
@@ -73,6 +76,7 @@ body {
      floor the two side tracks are always equal, so the orb is centred on the SCREEN by construction, and an
      over-wide side group overflows VISIBLY instead of silently sliding the orb. */
   display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center;
+  overflow: visible;                      /* the orb is taller than the bar on purpose */
   background: var(--hb-bg-a);
   /* The blur is what makes the bar read as glass over a live card rather than as a solid strip that ate 84px of
      the screen. -webkit- prefix included: Safari is the browser that matters most here. */
@@ -84,12 +88,15 @@ body {
 .zm-side { display: flex; align-items: center; gap: 2px; }
 .zm-side:first-child { justify-content: flex-end; }
 .zm-side:last-child  { justify-content: flex-start; }
-.zm-centre { display: flex; align-items: center; justify-content: center; padding: 0 6px; }
+/* The centre slot hangs from the bar's TOP edge: the 72px orb rises 8px above it (the raised centre of a tab
+   bar) and never below the bar's own row, where a phone without a safe area would cut it off. */
+.zm-centre { display: flex; align-items: flex-start; justify-content: center; padding: 0 6px; align-self: start;
+  margin-top: -8px; }
 
 .zm-ic {
-  /* THREE per side since 2026-10-24: (390 - 16 padding - 86 orb column) / 2 = 144 per side; 3 * 46 + 2 * 2 = 142.
+  /* THREE per side since 2026-10-24: (390 - 16 padding - 84 orb column) / 2 = 145 per side; 3 * 44 + 2 * 2 = 136.
      The min() keeps a 360px phone from overflowing (≈41px there) — the tap area stays the whole button. */
-  width: min(46px, calc((100vw - 110px) / 6)); height: 46px; flex: 0 0 auto;
+  width: min(44px, calc((100vw - 110px) / 6)); height: 44px; flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
   border: none; border-radius: 15px; background: transparent;
   transition: color .18s, background .18s, transform .12s;
@@ -104,7 +111,7 @@ body {
    there is nothing else true to show, so the one thing that can be done gets the whole middle of the bar. The ring
    is what makes it read as the primary action instead of a seventh icon. */
 .zm-pwr {
-  width: 60px; height: 60px; border-radius: 50%;
+  width: 56px; height: 56px; border-radius: 50%;
   color: var(--hb-muted-2);
   border: 2px solid var(--hb-line); background: var(--hb-bubble);
 }
@@ -126,9 +133,15 @@ body {
 /* THE KEYBOARD (V2-813, shell/keyboard.js): while a field inside a card is being typed into, the deck covers only
    the visible part of the screen and the dock steps aside — otherwise the keyboard hides the bottom of the card and
    the dock hides what is left of it (agenda's Save/Cancel, measured on iPhone 14 and Pixel 7). */
-html.zm-kbd .zm-dock, html.zm-kbd .zm-pips { display: none; }
-html.zm-kbd .zm-deck { top: var(--zm-vvt, 0px); bottom: auto; height: var(--zm-vvh, 100%); }
-html.zm-kbd .zm-card { bottom: 0; }
+html.zm-kbd .zm-dock, html.zm-kbd .zm-pips, html.zm-kbd .zm-held, html.zm-kbd .zm-banner { display: none; }
+html.zm-kbd[data-kbd="deck"] .zm-deck { top: var(--zm-vvt, 0px); bottom: auto; height: var(--zm-vvh, 100%); }
+html.zm-kbd[data-kbd="deck"] .zm-card, html.zm-kbd[data-kbd="deck"] .zm-home { bottom: 0; }
+/* Typing in a SHEET (the chat, 2026-10-26, iPhone 14): the sheet sat on top of the dock and the dock on top of the
+   keyboard — composer, a whole bar of controls nobody can use while typing, the keyboard's own accessory row, then
+   the keys: half the screen of chrome. With the keyboard up the open sheet IS the visible part of the screen, its
+   composer directly on the keyboard, and the dock is gone until the keyboard is. */
+html.zm-kbd[data-kbd="sheet"] .zm-sheet.open { top: var(--zm-vvt, 0px); bottom: auto; height: var(--zm-vvh, 100%);
+  max-height: none; border-radius: 0; }
 /* `stalled` = "should be on and is not". It has to be impossible to mistake for `live`, because mistaking them is
    exactly what cost a whole session once: a red ring, and it blinks. `pausing` is AMBER, deliberately not red —
    the agent is genuinely still finishing a turn, that is not a fault (V2-092 addenda). */
@@ -156,7 +169,9 @@ html.zm-kbd .zm-card { bottom: 0; }
    to two: the centre column now takes 74 + 12 of padding and each side still has ~144px for its two 48px
    buttons. The canvases stay 96x96 in ATTRIBUTES and are stretched by CSS — visualizer.js handles DPR itself,
    so the orb is not resampled, it is drawn at the density the device has. */
-.zm-orb { position: relative; flex: 0 0 auto; width: 74px; height: 74px; }
+/* 72px in a 64px bar: it overflows the bar's top edge by 4px, which is what makes it read as THE button of the
+   bar (the raised centre of a tab bar) instead of one icon more in a row. */
+.zm-orb { position: relative; flex: 0 0 auto; width: 72px; height: 72px; }
 .zm-orb-c, .zm-viz-c { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; }
 .zm-viz-c { opacity: .55; }               /* the person's voice sits behind zaelar's own */
 .zm-orb.off { filter: grayscale(1); opacity: .45; }   /* stopped = frozen and grey, visibly (V2-092) */

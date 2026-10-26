@@ -101,7 +101,7 @@ export function DockBar() {
   }).catch(() => {});
   // Built ONCE, outside the reactive tree, because the visualiser holds this canvas by reference.
   const ORB = OrbMini();
-  return h("nav", { class: "zm-dock", "aria-label": t("mobile.dock_label") },
+  return h("nav", { class: "zm-dock", "aria-label": () => t("mobile.dock_label") },
 
     // ── LEFT of the orb: the menu, the conversation, and the wake word ──
     // 2026-10-24 (operator): the dashboards button is gone — «I do not know what it is». The deck already has its own

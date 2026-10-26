@@ -112,7 +112,7 @@ def run(url):
                             device_scale_factor=3)
         pg = ctx.new_page()
         pg.on("pageerror", lambda e: errors.append(str(e)))
-        pg.goto(url, wait_until="networkidle")
+        pg.goto(url, wait_until="domcontentloaded")
         pg.wait_for_timeout(2500)      # let the i18n bundle land: a label read too early freezes on its key
         pg.evaluate(LIFT_VEIL)
         pg.wait_for_timeout(300)
@@ -153,22 +153,27 @@ def run(url):
         check("the orb is centred on the screen",
               box["centre"] and abs(box["centre"]["cx"] - W / 2) <= 1.5,
               f"centre x={box['centre'] and round(box['centre']['cx'], 1)}, screen centre={W / 2}")
-        # TWO controls per side since V2-573 (2026-09-04). It was 3+2 — mic · speaker · captions | ORB | chat ·
-        # menu — until the operator's restyle: chat · dashboards | ORB | mic · config, with the captions button
-        # retired and the speaker moved into the config sheet. Measured on the RENDERED bar rather than trusted
-        # from the source, because "the icon is declared" and "the icon is on screen at a reachable size" are
-        # different claims, and this shell has already paid for the difference once (the unpainted orb).
+        # THREE controls per side since 2026-10-24 (operator): ☰ menu · chat · wake word | ORB | mic · speaker ·
+        # feedback. Measured on the RENDERED bar rather than trusted from the source, because "the icon is
+        # declared" and "the icon is on screen at a reachable size" are different claims, and this shell has
+        # already paid for the difference once (the unpainted orb).
         left = [x["label"] for x in box["btns"] if x["x"] + x["w"] / 2 < box["centre"]["cx"] - 5]
         right = [x["label"] for x in box["btns"] if x["x"] + x["w"] / 2 > box["centre"]["cx"] + 5]
-        check("two controls left of the orb, two right",
-              len(left) == 2 and len(right) == 2,
+        check("three controls left of the orb, three right",
+              len(left) == 3 and len(right) == 3,
               f"left={left} right={right}")
 
         small = [(x["label"], x["w"], x["h"]) for x in box["btns"] if min(x["w"], x["h"]) < MIN_TAP]
         check(f"every tap target is at least {MIN_TAP}px", not small, str(small))
+        # The ORB rises above the bar's top edge on purpose (V2-815: a 72px orb in a 64px bar, the raised centre
+        # of a tab bar) — by a few px, never more; everything else stays inside, and nothing goes under the edge.
         out = [x["label"] for x in box["btns"]
-               if x["y"] < box["dock"]["y"] - 1 or x["y"] + x["h"] > H + 1]
-        check("no control escapes the dock", not out, str(out))
+               if x["y"] < box["dock"]["y"] - 10 or x["y"] + x["h"] > H + 1]
+        check("no control escapes the dock (the orb may rise a few px above its edge)", not out, str(out))
+        orb = next((x for x in box["btns"] if x["h"] >= 60), None)
+        check("the bar is its row of icons: no taller than 64px plus the safe area, the orb riding above its edge",
+              box["dock"]["h"] <= 64 + 1 and orb and orb["y"] < box["dock"]["y"] + 2,
+              json.dumps({"dock": box["dock"], "orb": orb}))
 
         # ── the orb is really DRAWN ──
         check("the orb has its two canvases", box["canvases"] == 2, f"{box['canvases']}")
@@ -208,7 +213,7 @@ def run(url):
         # ── STOPPED: the centre slot becomes a ⏻, and the orb comes BACK painted when restarted ──
         pg2 = ctx.new_page()
         pg2.add_init_script("localStorage.setItem('hb_power_off','1')")
-        pg2.goto(url, wait_until="networkidle")
+        pg2.goto(url, wait_until="domcontentloaded")
         pg2.wait_for_timeout(2000)
         pg2.evaluate(LIFT_VEIL)
         st = pg2.evaluate("""() => {

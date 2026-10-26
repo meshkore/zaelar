@@ -4,8 +4,9 @@ WHY THIS EXISTS: the deterministic node (4.18) can prove the pips' CSS names --d
 they are visible, and that is exactly how they shipped the first time: at bottom:6px, 100% hidden UNDER the
 fixed dock, with every source-level test green. Everything below is something only a browser can answer:
 where the pips actually sit, whether a tap on one changes the card, whether the switcher opens/jumps/closes,
-whether a one-finger swipe on the header pages, and whether the producing badge follows the declared
-runtime.active_when and not a widget-name list.
+whether a one-finger swipe pages (anywhere, V2-815 — and NOT over a sideways scroller), whether the HOME shows
+one tile per card and jumps, and whether the producing badge follows the declared runtime.active_when and not a
+widget-name list.
 
 SELF-CONTAINED: starts its own preview (server.pages + /static + i18n) and serves THREE FAKE WIDGETS through
 Playwright route interception — catalog, data, manifest and the widget.js module itself — so no backend and
@@ -143,7 +144,7 @@ def run(url):
         pg = ctx.new_page()
         pg.on("pageerror", lambda e: errors.append(str(e)))
         pg.route(ROUTE_RE, make_router({"items": [], "live": []}))
-        pg.goto(url, wait_until="networkidle")
+        pg.goto(url, wait_until="domcontentloaded")
         pg.wait_for_timeout(2200)
         pg.evaluate(LIFT_VEIL)
         pg.evaluate("""async () => {
@@ -167,47 +168,97 @@ def run(url):
           const cr = count && count.getBoundingClientRect();
           return { open: window.__zaelarDeck.list(), dockTop: dock.y, pips,
                    liveId: live && live.dataset.wid, liveText: live && live.textContent,
-                   count: count && { text: count.textContent, tag: count.tagName,
+                   count: count && { text: count.textContent, tag: count.tagName, inButton: !!count.closest('button'),
                                      visible: !!count.offsetParent, h: cr.height } };
         }""")
         check("three cards open, the last one in front",
               deck["open"] == ["alpha", "beta", "gamma"] and deck["liveId"] == "gamma", json.dumps(deck["open"]))
         check("the fake widget really mounted (its module was imported and rendered)",
               deck["liveText"] and "W:Gamma view" in deck["liveText"], str(deck["liveText"])[:80])
-        check("three pips, and they are buttons", len(deck["pips"]) == 3
-              and all(x["tag"] == "BUTTON" for x in deck["pips"]), json.dumps(deck["pips"]))
+        # THE HOME IS PAGE ZERO (V2-815): one pip for the home, then one per card.
+        check("four pips — the home and three cards — and they are buttons", len(deck["pips"]) == 4
+              and all(x["tag"] == "BUTTON" for x in deck["pips"]) and "home" in deck["pips"][0]["cls"],
+              json.dumps(deck["pips"]))
         check("the pips are VISIBLE above the dock (the original ones were 100% under it)",
               deck["pips"] and all(x["bottom"] <= deck["dockTop"] + 1 for x in deck["pips"]),
               f"dockTop={deck['dockTop']}, pips={[round(x['bottom'], 1) for x in deck['pips']]}")
         check(f"each pip's hit box is at least {MIN_TAP}px",
               all(min(x["w"], x["h"]) >= MIN_TAP for x in deck["pips"]), json.dumps(deck["pips"]))
-        check("the producing card's pip carries the badge (from active_when, index 1 = beta)",
-              "prod" in deck["pips"][1]["cls"] and "prod" not in deck["pips"][0]["cls"]
-              and "prod" not in deck["pips"][2]["cls"],
+        check("the current card's pip is lit, the home's is not",
+              "on" in deck["pips"][3]["cls"].split() and "on" not in deck["pips"][0]["cls"].split(),
               json.dumps([x["cls"] for x in deck["pips"]]))
-        check("the k/n chip is visible on the front card and is a button",
-              deck["count"] and deck["count"]["visible"] and deck["count"]["tag"] == "BUTTON"
-              and deck["count"]["text"] == "3/3", json.dumps(deck["count"]))
+        check("the producing card's pip carries the badge (from active_when, index 1 = beta → pip 2)",
+              "prod" in deck["pips"][2]["cls"] and "prod" not in deck["pips"][1]["cls"]
+              and "prod" not in deck["pips"][3]["cls"],
+              json.dumps([x["cls"] for x in deck["pips"]]))
+        check("the top bar says k/n under the name, inside a tappable title",
+              deck["count"] and deck["count"]["visible"] and deck["count"]["text"] == "3/3"
+              and deck["count"]["inButton"], json.dumps(deck["count"]))
+
+        # THE TOP BAR: ⌂ · ‹ · name · › · ×, every control a 44px target, the ⌂ first.
+        bar = pg.evaluate("""() => {
+          const head = document.querySelector('.zm-card.live .zm-head');
+          const btns = [...head.querySelectorAll('button')].filter(e => e.offsetParent !== null).map(e => {
+            const r = e.getBoundingClientRect();
+            return { cls: e.className, label: e.getAttribute('aria-label'), w: r.width, h: r.height, x: r.x,
+                     disabled: e.disabled }; });
+          return btns; }""")
+        check("the bar holds ⌂ · ‹ · title · › · × in that order",
+              [b["cls"].split()[-1] for b in bar] == ["zm-home-b", "zm-prev", "zm-ttl", "zm-next", "zm-x"],
+              json.dumps([b["cls"] for b in bar]))
+        check("every control in the bar is a 44px-tall target", all(b["h"] >= 44 for b in bar),
+              json.dumps([(b["cls"], b["h"]) for b in bar]))
+        check("on the last card › is disabled and ‹ is not",
+              bar[3]["disabled"] and not bar[1]["disabled"], json.dumps(bar))
 
         # a tap on a pip JUMPS to its card
-        pg.evaluate("() => document.querySelectorAll('.zm-pip')[0].click()")
+        pg.evaluate("() => document.querySelectorAll('.zm-pip')[1].click()")
         pg.wait_for_timeout(400)
-        check("tapping the first pip brings the first card to front",
+        check("tapping the first card's pip brings the first card to front",
               pg.evaluate("() => document.querySelector('.zm-card.live').dataset.wid") == "alpha")
 
-        # ONE-finger swipe on the HEADER pages (host chrome; the body's one finger still belongs to the widget)
-        pg.evaluate("""() => {
-          const head = document.querySelector('.zm-card.live .zm-head');
-          const t = (type, x, y) => {
-            const touch = new Touch({ identifier: 1, target: head, clientX: x, clientY: y });
-            head.dispatchEvent(new TouchEvent(type, { touches: type === 'touchend' ? [] : [touch],
+        # ONE-finger swipe, anywhere (V2-815): on the header…
+        def swipe1(sel, x_from, x_to, y=40):
+            pg.evaluate("""([sel, xa, xb, y]) => {
+              const el = document.querySelector(sel);
+              const t = (type, x) => {
+                const touch = new Touch({ identifier: 1, target: el, clientX: x, clientY: y });
+                el.dispatchEvent(new TouchEvent(type, { touches: type === 'touchend' ? [] : [touch],
                                                       bubbles: true, cancelable: true }));
-          };
-          t('touchstart', 300, 40); t('touchmove', 230, 42); t('touchend', 230, 42);
+              };
+              t('touchstart', xa); t('touchmove', xb); t('touchend', xb);
+            }""", [sel, x_from, x_to, y])
+            pg.wait_for_timeout(400)
+        live = lambda: pg.evaluate("() => document.querySelector('.zm-card.live') && document.querySelector('.zm-card.live').dataset.wid")
+        swipe1('.zm-card.live .zm-head', 300, 230)
+        check("a one-finger swipe LEFT on the header pages to the next card", live() == "beta")
+        # …and on the widget's BODY, which used to belong to the widget alone
+        swipe1('.zm-card.live .fake-w', 300, 200, 400)
+        check("a one-finger swipe LEFT on the card's body pages to the next card", live() == "gamma")
+        swipe1('.zm-card.live .fake-w', 100, 220, 400)
+        check("a one-finger swipe RIGHT on the body pages back", live() == "beta")
+        # A finger that commits to going DOWN first is the widget's: a diagonal drift later does not page.
+        pg.evaluate("""() => {
+          const el = document.querySelector('.zm-card.live .fake-w');
+          const t = (type, x, y) => el.dispatchEvent(new TouchEvent(type, { touches: type === 'touchend' ? []
+            : [new Touch({ identifier: 1, target: el, clientX: x, clientY: y })], bubbles: true, cancelable: true }));
+          t('touchstart', 300, 300); t('touchmove', 298, 340); t('touchmove', 200, 420); t('touchend', 200, 420);
         }""")
-        pg.wait_for_timeout(400)
-        check("a one-finger swipe LEFT on the header pages to the next card",
-              pg.evaluate("() => document.querySelector('.zm-card.live').dataset.wid") == "beta")
+        pg.wait_for_timeout(300)
+        check("a finger that went down first (a scroll) never pages, whatever it does later", live() == "beta")
+        # A swipe that starts on something that scrolls SIDEWAYS on its own (a tab strip) is that element's…
+        pg.evaluate("""() => {
+          const el = document.querySelector('.zm-card.live .fake-w');
+          const strip = document.createElement('div'); strip.id = 'strip';
+          strip.style.cssText = 'overflow-x:auto;white-space:nowrap;width:200px;height:40px';
+          strip.innerHTML = '<span style="display:inline-block;width:900px">tabs</span>';
+          el.appendChild(strip);
+        }""")
+        swipe1('#strip', 300, 200, 420)
+        check("a one-finger swipe on a sideways scroller inside the card does NOT page", live() == "beta")
+        # …unless it starts at the screen's EDGE, which always pages.
+        swipe1('#strip', 6, 160, 420)
+        check("a swipe from the screen's edge pages even over a sideways scroller", live() == "alpha")
 
         # TWO- AND THREE-FINGER PAGING ON THE BODY (V2-573, operator: «we can switch screens moving mobile screen
         # with 2 or 3 fingers, right and left»). Dispatched on the STAGE, which is where the deck listens in the
@@ -226,11 +277,9 @@ def run(url):
             pg.wait_for_timeout(400)
 
         swipe(2, 300, 180)      # right-to-left → next
-        check("a TWO-finger swipe left pages to the next card",
-              pg.evaluate("() => document.querySelector('.zm-card.live').dataset.wid") == "gamma")
+        check("a TWO-finger swipe left pages to the next card", live() == "beta")
         swipe(3, 120, 300)      # left-to-right → previous
-        check("a THREE-finger swipe right pages back",
-              pg.evaluate("() => document.querySelector('.zm-card.live').dataset.wid") == "beta")
+        check("a THREE-finger swipe right pages back", live() == "alpha")
 
         # CARD CONTENT STARTS AT THE TOP, AND EVERY CARD IS THE SAME BOX (V2-573). Measured, not read from the
         # stylesheet: `margin-block:auto` used to centre anything shorter than the screen, so the check that
@@ -241,69 +290,95 @@ def run(url):
           const kid = sc && sc.firstElementChild;
           if (!kid) return null;
           const s = sc.getBoundingClientRect(), k = kid.getBoundingClientRect();
-          return { gap: Math.round(k.y - s.y), kidH: Math.round(k.height), scH: Math.round(s.height) };
+          const dock = document.querySelector('.zm-dock').getBoundingClientRect();
+          const card = document.querySelector('.zm-card.live').getBoundingClientRect();
+          return { gap: Math.round(k.y - s.y), kidH: Math.round(k.height), scH: Math.round(s.height),
+                   cardBottom: Math.round(card.bottom), dockTop: Math.round(dock.y) };
         }""")
         check("the widget starts at the TOP of the card, not floating in the middle",
               geom and geom["gap"] <= 2, json.dumps(geom))
         check("a short widget still fills the card's box",
               geom and geom["kidH"] >= geom["scH"] - 2, json.dumps(geom))
+        check("the card ends exactly at the dock's top edge — nothing under the bar, no band wasted",
+              geom and abs(geom["cardBottom"] - geom["dockTop"]) <= 1, json.dumps(geom))
 
-        # ── the switcher: open from the chip, rows mirror the deck, jump, close one, close all ───────────────
-        pg.evaluate("() => document.querySelector('.zm-card.live .zm-count').click()")
-        pg.wait_for_timeout(350)
-        sw = pg.evaluate("""() => {
-          const ov = document.querySelector('.zm-switch');
+        # ── THE HOME: the launcher of what is open (V2-815) ──────────────────────────────────────────────────
+        # Swiping RIGHT from the first card lands on the home; so does ⌂ in the bar and the first pip.
+        swipe1('.zm-card.live .fake-w', 100, 260, 400)
+        home = pg.evaluate("""() => {
+          const h = document.querySelector('.zm-home');
           const dock = document.querySelector('.zm-dock').getBoundingClientRect();
-          const ovr = ov.getBoundingClientRect();
-          const rows = [...ov.querySelectorAll('.zm-swrow')].map(e => ({
-            cls: e.className, name: e.querySelector('.zm-swgo span').textContent,
-            prod: !!e.querySelector('.zm-swprod'),
-            xh: e.querySelector('.zm-swx').getBoundingClientRect().height }));
-          return { open: ov.classList.contains('open'), rows, ovBottom: ovr.y + ovr.height, dockTop: dock.y };
-        }""")
-        check("the chip opens the switcher", sw["open"])
-        check("the switcher stops ABOVE the dock (mic and ⏻ stay reachable)",
-              sw["ovBottom"] <= sw["dockTop"] + 1, json.dumps({k: sw[k] for k in ("ovBottom", "dockTop")}))
-        check("one row per card, named by the LIVE title",
-              [r["name"] for r in sw["rows"]] == ["Alpha card", "Beta tunes", "Gamma view"],
-              json.dumps([r["name"] for r in sw["rows"]]))
-        check("the current card's row is marked", "cur" in sw["rows"][1]["cls"], json.dumps(sw["rows"]))
-        check("only the producing row carries the ♪ badge",
-              [r["prod"] for r in sw["rows"]] == [False, True, False], json.dumps(sw["rows"]))
-        check("every row close button is a 44px tap target",
-              all(r["xh"] >= 44 for r in sw["rows"]), json.dumps([r["xh"] for r in sw["rows"]]))
+          const hr = h.getBoundingClientRect();
+          const tiles = [...h.querySelectorAll('.zm-tile')].map(e => {
+            const r = e.getBoundingClientRect();
+            return { cls: e.className, name: e.querySelector('.zm-tn').textContent, prod: !!e.querySelector('.zm-tprod'),
+                     mono: e.querySelector('.zm-tic').firstChild.textContent, h: r.height, w: r.width,
+                     bg: getComputedStyle(e.querySelector('.zm-tic')).backgroundColor }; });
+          const xs = [...h.querySelectorAll('.zm-tx')].map(e => { const r = e.getBoundingClientRect(); return Math.min(r.width, r.height); });
+          const pips = [...document.querySelectorAll('.zm-pip')].map(e => e.className);
+          return { live: h.classList.contains('live'), cardLive: !!document.querySelector('.zm-card.live'),
+                   bottom: hr.bottom, dockTop: dock.y, tiles, xs, pips,
+                   count: h.querySelector('.zm-count').textContent, all: !!h.querySelector('.zm-hall:not(.hide)') }; }""")
+        check("a one-finger swipe right from the first card lands on the HOME, and no card is live",
+              home["live"] and not home["cardLive"], json.dumps({k: home[k] for k in ("live", "cardLive")}))
+        check("the home ends at the dock's top edge like a card", abs(home["bottom"] - home["dockTop"]) <= 1,
+              json.dumps({k: home[k] for k in ("bottom", "dockTop")}))
+        check("one tile per card, named by the LIVE title",
+              [t["name"] for t in home["tiles"]] == ["Alpha card", "Beta tunes", "Gamma view"],
+              json.dumps([t["name"] for t in home["tiles"]]))
+        check("each tile wears the app's monogram on its own colour",
+              [t["mono"] for t in home["tiles"]] == ["A", "B", "G"] and len({t["bg"] for t in home["tiles"]}) == 3,
+              json.dumps([(t["mono"], t["bg"]) for t in home["tiles"]]))
+        check("only the producing tile carries the ♪ badge",
+              [t["prod"] for t in home["tiles"]] == [False, True, False], json.dumps(home["tiles"]))
+        check("the home's pip is lit and it says how many are open",
+              "on" in home["pips"][0].split() and home["count"].startswith("3"), json.dumps([home["pips"][0], home["count"]]))
+        check("every tile and every tile × is a 44px target",
+              all(t["h"] >= 44 for t in home["tiles"]) and all(x >= 40 for x in home["xs"]),
+              json.dumps([t["h"] for t in home["tiles"]] + home["xs"]))
 
-        pg.evaluate("() => document.querySelectorAll('.zm-swrow .zm-swgo')[0].click()")
+        pg.evaluate("() => document.querySelectorAll('.zm-tile')[1].click()")
         pg.wait_for_timeout(400)
-        check("tapping a row jumps to that card and dismisses the switcher",
-              pg.evaluate("""() => document.querySelector('.zm-card.live').dataset.wid === 'alpha'
-                               && !document.querySelector('.zm-switch').classList.contains('open')"""))
+        check("tapping a tile opens that card", live() == "beta")
+        pg.evaluate("() => document.querySelector('.zm-card.live .zm-home-b').click()")
+        pg.wait_for_timeout(400)
+        check("⌂ in the bar goes home", pg.evaluate("() => document.querySelector('.zm-home').classList.contains('live')"))
+        check("the tile of the card we came from is marked current",
+              pg.evaluate("() => [...document.querySelectorAll('.zm-tile')].map(e => e.classList.contains('cur'))") == [False, True, False])
 
-        pg.evaluate("() => { document.querySelector('.zm-card.live .zm-count').click(); }")
-        pg.wait_for_timeout(300)
-        pg.evaluate("() => document.querySelectorAll('.zm-swrow .zm-swx')[2].click()")
+        pg.evaluate("() => document.querySelectorAll('.zm-tx')[2].click()")
         pg.wait_for_timeout(500)
         after_close = pg.evaluate("""() => ({ open: window.__zaelarDeck.list(),
-          rows: [...document.querySelectorAll('.zm-swrow')].length,
-          swOpen: document.querySelector('.zm-switch').classList.contains('open') })""")
-        check("closing a card from the switcher removes it and the list repaints in place",
-              after_close["open"] == ["alpha", "beta"] and after_close["rows"] == 2 and after_close["swOpen"],
+          tiles: document.querySelectorAll('.zm-tile').length,
+          home: document.querySelector('.zm-home').classList.contains('live') })""")
+        check("closing a card from its tile removes it, the grid repaints in place, and we stay home",
+              after_close["open"] == ["alpha", "beta"] and after_close["tiles"] == 2 and after_close["home"],
               json.dumps(after_close))
 
-        pg.evaluate("() => document.querySelector('.zm-swall').click()")
+        # «minimise» from the engine (the canvas order the brain emits for «go home») lands on the home too
+        pg.evaluate("() => { window.__zaelarDeck.show('alpha'); }")
+        pg.wait_for_timeout(300)
+        pg.evaluate("() => window.__zaelarDeck.shrink('alpha')")
+        pg.wait_for_timeout(300)
+        check("the engine's minimize order takes the phone to the home, the card still open",
+              pg.evaluate("() => document.querySelector('.zm-home').classList.contains('live') && window.__zaelarDeck.list().length === 2"))
+
+        pg.evaluate("() => document.querySelector('.zm-hall').click()")
         pg.wait_for_timeout(600)
         emptied = pg.evaluate("""() => ({ open: window.__zaelarDeck.list(),
-          swOpen: document.querySelector('.zm-switch').classList.contains('open'),
-          empty: !!document.querySelector('.zm-empty.on') })""")
-        check("close-all empties the deck, dismisses the switcher and shows the resting state",
-              emptied["open"] == [] and not emptied["swOpen"] and emptied["empty"], json.dumps(emptied))
+          pips: document.querySelectorAll('.zm-pip').length,
+          empty: !!document.querySelector('.zm-empty.on'),
+          grid: getComputedStyle(document.querySelector('.zm-hgrid')).display })""")
+        check("close-all empties the deck: no pips, the grid gone, the resting state on the home",
+              emptied["open"] == [] and emptied["pips"] == 0 and emptied["empty"] and emptied["grid"] == "none",
+              json.dumps(emptied))
 
         # ── PAGE 2: restore parity with the desktop (V2-351) ─────────────────────────────────────────────────
         pg2 = ctx.new_page()
         pg2.route(ROUTE_RE, make_router({"items": [], "live": ["results::live1", "navegador::t9"]}))
         pg2.add_init_script(
             "localStorage.setItem('zaelar_mobile_deck', JSON.stringify(['results','results::abc','navegador::t4']))")
-        pg2.goto(url, wait_until="networkidle")
+        pg2.goto(url, wait_until="domcontentloaded")
         pg2.wait_for_timeout(2500)
         restored = pg2.evaluate("() => window.__zaelarDeck.list()")
         check("restore sweeps the base-card fossil (bare 'results' next to its own instance)",
@@ -320,7 +395,7 @@ def run(url):
                              device_scale_factor=3)
         pg3 = ctx3.new_page()
         pg3.route(ROUTE_RE, make_router({"items": [{"id": "alpha", "q": ""}], "live": []}))
-        pg3.goto(url, wait_until="networkidle")
+        pg3.goto(url, wait_until="domcontentloaded")
         pg3.wait_for_timeout(2500)
         fresh = pg3.evaluate("() => window.__zaelarDeck.list()")
         check("a fresh install restores the account's open set from the server (a phone IS a new browser)",

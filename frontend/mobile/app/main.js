@@ -27,9 +27,9 @@ import { initTheme } from "../../app/services/theme.js?v=2";
 import { initI18n, t } from "../../app/core/i18n.js?v=1";
 import { submitChat } from "../../app/components/ChatWall.js?v=5";
 
-import { Deck } from "./shell/Deck.js?v=2";
-import { initKeyboard } from "./shell/keyboard.js?v=1";
-import { MOBILE_SURFACES } from "./shell/mobile-surfaces.js?v=3";
+import { Deck } from "./shell/Deck.js?v=3";
+import { initKeyboard } from "./shell/keyboard.js?v=2";
+import { MOBILE_SURFACES } from "./shell/mobile-surfaces.js?v=4";
 
 // ---- theme + language before mounting anything, so nothing flashes the wrong palette or the wrong words ----
 initTheme();
@@ -262,7 +262,8 @@ function topMostClose() {
   if (store.mobileFeedbackOpen()) return store.setMobileFeedbackOpen(false), true;
   if (store.mobileMenuOpen()) return store.setMobileMenuOpen(false), true;
   if (store.chatOpen()) return store.setChatOpen(false), true;
-  if (deck.list().length) return deck.close(deck.list()[deck.at] ?? deck.list()[0], { by: "hand" }), true;
+  // On a card, back goes HOME (the card stays open as a tile), as in any phone app; on the home it leaves the app.
+  if (deck.at >= 0) return deck.home(), true;
   return false;
 }
 try {
@@ -289,6 +290,7 @@ window.zaelar = {
   close: (id) => (id ? deck.close(id, { by: "console" }) : deck.closeAll({ by: "console" })),
   next: () => deck.next(),
   prev: () => deck.prev(),
+  home: () => deck.home(),
   chat: (text) => submitChat(text),
   panel: () => store.setChatOpen(true),
   menu: () => store.setMobileMenuOpen(true),

@@ -1,7 +1,7 @@
 ---
 title: Mobile Shell (PWA)
 category: modules
-updated: 2026-10-25
+updated: 2026-10-26
 owner: ricart
 status: current
 ---
@@ -107,11 +107,14 @@ is a panel UI keyed to a wide window, and re-fitting it is its own piece of work
 
 ## Design rules specific to this shell
 
-- **Paging is two- OR three-finger**, left and right. One finger belongs to the widget — scrolling a list, panning
-  a map, dragging a slider. If one finger also paged, every scrollable widget would be unusable. A single touch is
-  never intercepted. Three is not merely a looser count: it is iOS muscle memory, and it is what an intended
-  two-finger swipe becomes when a thumb rests on the edge. The centroid is taken over ALL active touches and
-  re-baselined when the count changes mid-gesture, or a finger landing late reads as a page.
+- **Paging is one finger, anywhere — and still two or three** (V2-815, operator: «tiene que ser fácil movernos con
+  un dedo a derecha e izquierda»). One finger pages when the swipe is clearly sideways (48px, twice as much sideways
+  as down) and did not start on something that scrolls or drags sideways on its own — a tab strip, a thumbnail rail,
+  a map, a slider, a canvas (`Deck._ownsSideways`) — unless it started within 22px of a screen edge, which always
+  pages. A finger that goes down first is the widget's for the rest of the gesture, and the vertical scroll is never
+  prevented. That is the rule a ViewPager and a UIPageViewController apply. Two or three fingers page as before:
+  three is iOS muscle memory, and what an intended two-finger swipe becomes when a thumb rests on the edge. The
+  centroid is taken over ALL active touches and re-baselined when the count changes mid-gesture.
 - **Card content is TOP-aligned in a uniform box**, with the widget's own tabs (if any) as its first row. Centring
   anything shorter than the screen would float a clock mid-phone, push a widget's tabs away from the header, and
   make the body jump under a header that stays put while paging. `min-height:100%` is the half that makes the box
@@ -136,12 +139,14 @@ That last rule is right for a toolbar and wrong for two shapes, which are exempt
 
 **The keyboard** (`shell/keyboard.js`). Both phone browsers shrink only the VISUAL viewport, so with a field focused
 the deck kept its full height: the keyboard covered its bottom half and the dock covered the rest. While a field
-inside `.zm-deck` has focus and the visual viewport is clearly shorter than the screen, the root wears `zm-kbd`:
-- the deck is laid over `--zm-vvh`/`--zm-vvt`;
-- the dock and the pips step aside;
+inside `.zm-deck` or inside a `.zm-sheet` has focus and the visual viewport is clearly shorter than the screen, the
+root wears `zm-kbd` with `data-kbd="deck"|"sheet"`:
+- the surface holding the field (the deck, or the open sheet) is laid over `--zm-vvh`/`--zm-vvt`;
+- the dock, the pips, the voice notice and the install banner step aside;
 - the field is scrolled into view.
 
-The chat sheet keeps its own composer and is not touched.
+Typing in the chat on the iPhone used to show composer · the whole dock · the keyboard's accessory row · the keys —
+half the screen of chrome (V2-815). The accessory row is the system's; everything of ours around it is gone.
 
 Two widget-side rules came out of the same pass:
 - a hover-only affordance holds no space on a touch screen (`@media (hover:none)`);
@@ -149,18 +154,24 @@ Two widget-side rules came out of the same pass:
 
 ### Navigating the deck
 
-Four ways to see and change what is open, all host chrome, none stealing a gesture from the widget:
+**The HOME is page zero** (V2-815, 2026-10-26). Swiping right past the first card, ⌂ in any card's top bar, the first
+pip, the Android back button and the engine's `minimize` order all land there. It is a launcher of what is open: one
+tile per card — the app's monogram on a colour hashed from its id, its LIVE title (the same source the top bar
+paints), ♪ on the one producing sound, the card he came from ringed, an × on each — plus «Close all»; with nothing
+open it is the resting state («Talk to zaelar»). Closing from a tile stays on the home. The bottom-sheet switcher the
+k/n chip used to open is gone: the home is the switcher.
 
-- **The pips** sit ABOVE the dock (`bottom: calc(var(--dock-h) + safe-area)`) and each one is a 26px BUTTON
-  that jumps to its card. They are the only always-on "there are more cards" signal, so their geometry is
-  checked by a rendered test (node 4.87), not assumed from the source. `pointer-events` live on the buttons,
-  never the full-width row.
-- **The `k/n` chip** in every card header is a button that opens the **deck switcher**: one row per open card,
-  named by its LIVE title (same source the header paints), the current one marked, a 44px × per row, and
-  "close all". It stops ON TOP of the dock like every sheet — mic and ⏻ stay reachable — and it mirrors the
-  deck: a close repaints it in place, an emptied deck dismisses it.
-- **A one-finger swipe on the HEADER pages.** The header is host chrome — no widget scrolls or drags there —
-  so a single finger is safe to claim only there. Same thresholds as the two-finger gesture.
+**Every card wears a top bar**: ⌂ · ‹ · the app's name with k/n under it (a tap goes home) · › · ×, every one a 44px
+target; the arrows show only with two or more cards and › is disabled on the last one.
+
+Then the pips and the gestures, all host chrome, none stealing a gesture from the widget:
+
+- **The pips** sit ABOVE the dock (`bottom: calc(var(--dock-h) + safe-area)`): a ⌂ pip for the home, then one
+  26px BUTTON per card, the current one lit, each jumping where it points. They are the only always-on "there are
+  more cards" signal, so their geometry is checked by a rendered test (node 4.87), not assumed from the source.
+  `pointer-events` live on the buttons, never the full-width row. They overlay the card's last 30px, which the
+  scroller pads for.
+- **A one-finger swipe anywhere pages** (rule above); the header, being host chrome, pages on any sideways finger.
 - **The producing badge.** A hidden card that is PRODUCING (music behind the front card) marks its pip and its
   switcher row: sound with no visible source reads as a haunted phone. "Producing" is read from the manifest's
   `runtime.active_when`, evaluated with the SAME semantics as `widgets/producers.py::is_producing`
@@ -216,8 +227,11 @@ The glyphs are the desktop's byte for byte, copied from `app/components/Orb.js`,
 assertion from that file: if the desktop redraws its mic, the mobile shell goes red and somebody decides,
 instead of the two drifting apart unnoticed.
 
-- **`--dock-h` is the only geometry.** Every other surface is flow layout in a full-bleed box. Cards end above the
-  dock; sheets stop ON TOP of it rather than over it, so the mic and ⏻ are never more than one tap away.
+- **`--dock-h` is the only geometry, and it is 64px** (V2-815 — operator, iPhone 14 screenshots: the bar was wasting
+  the bottom of the screen). The bar is exactly its row of 44px icons plus the safe area ONCE; the 72px orb hangs from
+  the bar's top edge and rises 8px above it, the raised centre of a tab bar. Every other surface is flow layout in a
+  full-bleed box. Cards end exactly at the dock's top edge; sheets stop ON TOP of it rather than over it, so the mic
+  and ⏻ are never more than one tap away.
 - **The phone must be able to HEAR.** Two browser rules govern a voice app, not one: the MICROPHONE needs a user
   gesture (handled by re-arming the session on `pointerdown`) and so does audio PLAYBACK. This shell connects at
   LOAD by design, so the agent's first audio track arrives before any tap and the browser refuses it. LiveKit
