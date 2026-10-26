@@ -5677,6 +5677,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/musica/test_a_silent_page_player_says_so_and_offers_the_tap.py"]},
         {"id": "4.298", "title": "The brain sees what the music card shows (song, which player and where, playing, volume) — no lists is not «empty» — and volume by voice or slider reaches the player making the sound (V2-812 T-02)",
             "ch": UNIT, "paths": ["tests/browser/unit/musica/test_the_brain_sees_what_the_music_card_shows.py"]},
+        {"id": "4.302", "title": "An errand runs behind the screen: a card action a repair or the catalogue rung runs comes up only for a present.mount output, a lens over a closed card, or a turn whose verdict says canvas=show — never on habit (V2-815)",
+            "ch": UNIT, "paths": ["tests/voice/unit/test_an_errand_runs_behind_the_screen.py"]},
         {"id": "4.300", "title": "A field typed into inside a card, or in the chat sheet, stays in sight above the phone's keyboard: that surface covers only the visible part and the dock steps aside; a field in neither is left alone (RENDERED, V2-813, V2-815)",
             "ch": UNIT, "paths": ["tests/browser/unit/mobile/test_a_card_fits_above_the_keyboard.py"]},
         {"id": "4.301", "title": "The phone pass: every native app opened in the REAL mobile shell on iPhone 14 (WebKit) and Pixel 7 (Chromium), tab by tab — nothing scrolls sideways or escapes, no input under 16px, no tab strip wraps; then the screenshots are LOOKED at (V2-813)",

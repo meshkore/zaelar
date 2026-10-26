@@ -67,7 +67,8 @@ def test_instance_cards_persist_and_a_dead_tab_is_filtered_at_restore():
     code_lines = [l for l in layout.splitlines() if not l.strip().startswith("//")]
     assert not any('includes("::")' in l and "return" in l for l in code_lines), layout
     restore = src[src.index("async restore()"):src.index("\n  has(id){")]
-    assert 'startsWith("navegador::")' in restore and "liveSet" in restore
+    # V2-815: the base card is process state too — a browser card of either shape with nothing live goes.
+    assert 'split("::",1)[0]==="navegador"' in restore.replace(" ", "") and "liveSet" in restore
 
 
 def test_a_fossil_base_card_next_to_its_instance_is_swept_at_restore():

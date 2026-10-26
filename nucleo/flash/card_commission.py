@@ -409,7 +409,10 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
                  extra={"cat": "flash", "widget": got["widget_id"], "tool": "show_images"})
             return "call"
         if got["kind"] == "call":
-            present(got["widget_id"], reason="turn-order", src="flash", emit=emit)
+            # V2-815: the catalogue card took the errand — it runs behind the screen unless the turn asked to SEE
+            # it or the action's output only exists there (`canvas_visibility.present_for_call`).
+            from nucleo.flash import canvas_visibility as _cvis
+            _cvis.present_for_call(got["widget_id"], got["action"], brief=brief, src="flash", emit=emit)
             apply_widget_data(got["widget_id"], got["action"], got["payload"])
             escalate_req["v"], escalate_req["more"] = None, []
             emit("brain", "🎯 acción declarada en vez de un worker (la tarjeta del catálogo)",
@@ -475,7 +478,8 @@ async def voice_instead_of_a_search(search_req: dict, read_req: dict, *, brief, 
          extra={"cat": "flash", "widget": got["widget_id"]})
     search_req["v"] = None
     if got["kind"] == "call":
-        present(got["widget_id"], reason="turn-order", src="flash", emit=emit)
+        from nucleo.flash import canvas_visibility as _cvis      # V2-815: one rule for whether the card comes up
+        _cvis.present_for_call(got["widget_id"], got["action"], brief=brief, src="flash", emit=emit)
         apply_widget_data(got["widget_id"], got["action"], got["payload"])
         acted["widget"] = done["v"] = True
     elif read_req.get("v") is None:

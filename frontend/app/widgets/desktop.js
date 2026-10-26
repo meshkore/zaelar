@@ -560,11 +560,13 @@ export class Desktop {
     for(const id of (Array.isArray(srv.live)?srv.live:[])){
       if(id && !have.has(String(id))){ items.push({id:String(id), q:""}); have.add(String(id)); }
     }
-    // A browser-tab card with no LIVE task behind it has nothing to reload: navegador data is process state,
-    // not a persisted sheet. Sheets and every other widget restore always.
+    // A browser card with no LIVE task behind it has nothing to reload: navegador data is process state, not a
+    // persisted sheet. The BASE card too (V2-815): measured on a phone, a Chromium that had crashed 30 min earlier
+    // came back on every reconnect as «Inicia sesión: Cuentas de Google · abriendo pestaña…», the last title of a
+    // dead tab. Sheets and every other widget restore always.
     const liveSet = new Set((Array.isArray(srv.live)?srv.live:[]).map(String));
     items = items.filter(it=>{ const id=String(it.id||"");
-      return !(id.startsWith("navegador::") && !liveSet.has(id)); });
+      return !(id.split("::",1)[0]==="navegador" && !liveSet.has(id)); });
     try{ items = await (await _screens()).filterRestore(this, items, srv); }catch(_){}   // V2-792: a video playing on the other screen stays there
     if(!items.length) return;
     this._restoring=true;

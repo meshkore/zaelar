@@ -160,6 +160,62 @@ def present(widget_id: str, *, reason: str, action: str = "", src: str = "flash"
     return True
 
 
+def present_for_call(widget_id: str, action: str, *, brief=None, card: str = "", src: str = "flash",
+                     emit=None, known=None) -> bool:
+    """A card ACTION this turn is about to run (a repair pass, the catalogue card instead of a worker): does it
+    bring its card on screen? True when the show was emitted. The ONE rule every such path asks (V2-815).
+
+    Measured on a phone, 2026-10-26: «busca el programa que está en tu web», «retoma la búsqueda», «check hacker
+    news, locate my post» — the brief said `canvas = neither` every time, the arbiter would have vetoed the show,
+    and the browser card took the whole screen three times anyway, because the catalogue rung and the promise
+    repair presented every call as a `turn-order`. A search is work done BEHIND the screen; its findings reach
+    the sheet the errand owns (`task-owned`). The main tool path already worked this way — a write is not
+    presented — and only the repair rungs did not.
+
+    The card comes up when one of these is TRUE, never on habit:
+      · the action's output only exists on screen (`present.mount`: the player, the picture viewer);
+      · the action is a LENS (`data.read`) over a closed card — a view nobody can see is a silent nothing;
+      · the turn's verdict says `canvas = show` — he asked to see it.
+    Otherwise the call runs and the visibility flag stays where he left it; the refusal is emitted."""
+    wid = str(widget_id or "").split("::", 1)[0].strip().lower()
+    target = str(card or widget_id or "").strip()
+    if not wid or not target:
+        return False
+    from loguru import logger
+    try:
+        from widgets import effects as _fx
+        fx = _fx.of(wid, str(action or "").strip())
+        if _fx.PRESENT_MOUNT in fx:
+            return present(target, reason="producer-mount", action=action, src=src, known=known, emit=emit)
+        if _fx.DATA_READ in fx and not is_open(wid, known=known):
+            return present(target, reason="turn-order", action=action, src=src, known=known, emit=emit)
+    except Exception as e:  # noqa: BLE001 — an unreadable declaration is not a reason to cover the screen
+        logger.debug(f"present_for_call: declaration of {wid}:{action} unreadable — {e!r}")
+    try:
+        from nucleo.flash import turn_brief as _tb
+        verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
+        if info is not None and str(verb or "") == "show":
+            return present(target, reason="turn-order", action=action, src=src, known=known, emit=emit)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"present_for_call: canvas verdict unreadable — {e!r}")
+    _say(emit, "🚫 presentación suprimida", {
+        "id": wid, "src": src, "action": action, "reason": "turn-order", "cat": "widget",
+        "detail": "la acción corre detrás de la pantalla: el turno no pidió ver la tarjeta"})
+    return False
+
+
+def _say(emit, label: str, extra: dict) -> None:
+    """Emit on the stream the caller gave, or the observer's. A broken stream is logged, never raised."""
+    from loguru import logger
+    try:
+        if emit is None:
+            from voice.observer import emit as observer_emit
+            emit = observer_emit
+        emit("widget", label, extra=extra)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"canvas_visibility: could not emit {label!r} — {e!r}")
+
+
 def is_minimized(widget_id: str) -> bool:
     """Open on the canvas but put away in the rail — not in front of him. A show brings it back (desktop.js)."""
     wid = str(widget_id or "").split("::", 1)[0].strip().lower()

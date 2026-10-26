@@ -22,5 +22,6 @@ def test_the_base_narrows_to_the_open_sheet(monkeypatch):
 
 def test_the_voice_repair_presents_that_card():
     src = _vts.read(ENGINE / "nucleo/flash/post_stream_words.py")
-    assert '_pst._cvis.present(_pst._direct_action.card_to_present(_ar["widget_id"], _op_text)' in src
+    # V2-815: through the one rule for a repaired call (`present_for_call`), still landing on that card
+    assert 'card=_pst._direct_action.card_to_present(_ar["widget_id"], _op_text)' in src
     assert '_pst._cvis.present(_ar["widget_id"]' not in src

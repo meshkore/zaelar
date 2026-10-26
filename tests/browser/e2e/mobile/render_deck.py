@@ -387,6 +387,19 @@ def run(url):
               "results::live1" in restored and "navegador::t9" in restored, json.dumps(restored))
         check("a navegador instance with no live task behind it does not come back",
               "navegador::t4" not in restored, json.dumps(restored))
+        # V2-815: the BASE browser card too — a crashed tab's last title came back on every reconnect. Its own
+        # browser context and NO browser instance anywhere: with one, the fossil sweep removes the base card and
+        # this check would pass with the rule disarmed (measured).
+        ctx2b = b.new_context(viewport={"width": W, "height": H}, is_mobile=True, has_touch=True)
+        pg2b = ctx2b.new_page()
+        pg2b.route(ROUTE_RE, make_router({"items": [], "live": []}))
+        pg2b.add_init_script("localStorage.setItem('zaelar_mobile_deck', JSON.stringify(['alpha','navegador']))")
+        pg2b.goto(url, wait_until="domcontentloaded")
+        pg2b.wait_for_timeout(2500)
+        restored2b = pg2b.evaluate("() => window.__zaelarDeck.list()")
+        check("the bare navegador card with nothing live behind it does not come back either",
+              "navegador" not in restored2b and "alpha" in restored2b, json.dumps(restored2b))
+        ctx2b.close()
 
         # ── PAGE 3: a fresh browser (empty localStorage) falls back to the SERVER's desktop ──────────────────
         # Its OWN context: pages 1-2 share this origin's localStorage, so "fresh install" must not inherit the

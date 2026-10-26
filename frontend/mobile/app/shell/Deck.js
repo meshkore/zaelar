@@ -848,7 +848,7 @@ export class Deck {
     //     never saved it. That is the start-on-the-computer, follow-on-the-phone story, and it is `srv.live`.
     //   · THE FOSSIL SWEEP — a bare BASE card next to its own instance is the pre-V2-261 ghost: every restore
     //     resurrected an empty «Results» on top of the full sheet. A base card is legitimate ALONE.
-    //   · a browser::tN with no live task behind it has nothing to reload (process state, not a sheet).
+    //   · a browser card (base or ::tN) with no live task behind it has nothing to reload (process state).
     let srv = { items: [], live: [] };
     try { srv = (await fetch("/api/canvas/layout?dev=" + encodeURIComponent(await _device())).then((r) => r.json())) || srv; } catch (_) {}
     if (!items.length && Array.isArray(srv.items) && srv.items.length) {
@@ -861,7 +861,8 @@ export class Deck {
       if (id && !have.has(String(id))) { items.push({ id: String(id), q: "" }); have.add(String(id)); }
     }
     const liveSet = new Set((Array.isArray(srv.live) ? srv.live : []).map(String));
-    items = items.filter((it) => !(it.id.startsWith("navegador::") && !liveSet.has(it.id)));
+    // The BASE browser card too (V2-815): a dead tab's last title came back on every reconnect.
+    items = items.filter((it) => !(it.id.split("::", 1)[0] === "navegador" && !liveSet.has(it.id)));
     // Capped at 8: a deck is paged one card at a time, so restoring 40 would mount 40 widgets to show one.
     try { items = await (await _screens()).filterRestore(this, items, srv); } catch (_) {}   // V2-792: a video playing on the other screen stays there
     this._restoring = true;

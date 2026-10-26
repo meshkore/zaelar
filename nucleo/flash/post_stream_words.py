@@ -246,8 +246,9 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
                  text=f"{_ar_wid} ← show_images «{_pic['query'][:100]}»", role="system",
                  extra={"cat": "flash", "widget": _ar_wid, "tool": "show_images"})
         if (_ar := _pk.landed(_ar, _pk_out, acted=acted, data_done=data_done, escalate_req=escalate_req, emit=emit,
-                              run=lambda: (_pst._cvis.present(_pst._direct_action.card_to_present(_ar["widget_id"], _op_text),
-                                           reason="turn-order", src="flash", emit=emit),   # pass 133 S1: the sheet
+                              run=lambda: (_pst._cvis.present_for_call(_ar["widget_id"], _ar["action"], brief=_brief,   # V2-815
+                                           card=_pst._direct_action.card_to_present(_ar["widget_id"], _op_text),
+                                           src="flash", emit=emit),   # pass 133 S1: the sheet
                                            _apply_widget_data(_ar["widget_id"], _ar["action"], _ar["payload"])))):
             acted["widget"], _no_tool = True, False
             emit("brain", "🔁 prometió actuar sin tool — la llamada, en una segunda pasada",
@@ -269,7 +270,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
             _oc = await _act_repair_oc.call_after_read(_op_text, next(iter(_ops_cards)), _missed, spec=spec,
                                                        window=list(brain._window))
             if _oc:
-                _pst._cvis.present(_oc["widget_id"], reason="turn-order", src="flash", emit=emit)
+                _pst._cvis.present_for_call(_oc["widget_id"], _oc["action"], brief=_brief, src="flash", emit=emit)   # V2-815
                 _apply_widget_data(_oc["widget_id"], _oc["action"], _oc["payload"])
                 emit("brain", "🔁 la orden era sobre otra tarjeta — la llamada, en una segunda pasada",
                      role="system", text=f"{sorted(_ops_cards)} → {_oc['widget_id']}:{_oc['action']}",
