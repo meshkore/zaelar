@@ -218,6 +218,11 @@ def spawn_engine(*, workspace: Path, port: int, log_path: Path | None = None,
         "WA_SESSION_DIR": str(workspace / "connectors" / "whatsapp-session"),
         "TG_SESSION_DIR": str(workspace / "connectors" / "telegram-session"),
         "WA_BRIDGE_PORT": str(free_port()),
+        # ONE ENGINE PER MACHINE (`nucleo/one_engine.py`, 2026-10-21) guards what an engine OWNS — the voice worker
+        # slot, the fixed ports, the connectors' pollers. A sandbox owns none of them (no LiveKit worker, its own
+        # port, every connector off and its own sessions), so it takes its own lock inside its workspace. Without
+        # this the operator's running engine refused every sandbox at boot and no use case could run at all.
+        "ZAELAR_LOCK_DIR": str(workspace / ".engine-lock"),
     })
     if extra_env:
         env.update({k: str(v) for k, v in extra_env.items()})
