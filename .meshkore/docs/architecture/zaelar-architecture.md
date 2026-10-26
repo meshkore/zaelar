@@ -637,6 +637,13 @@ is woven through voice/widgets/frontend:
   **There is no separate reasoning brain** — escalating LAUNCHES a headless worker that drives the task; the
   FlashBrain is the sole orchestrator. The tool that triggers this is `escalate_to_slowbrain` (legacy name) — see
   the **canonical tool catalog in §8**.
+- **Slow-process seat** (`services.slow_process`, `config/v2 §slow_process`, V2-811) = a second, cheaper model seat
+  for background work that can wait: classification, extraction, per-item summaries, memory paraphrases, watch
+  probes. OFF by default (off = byte-identical). Reached through the same door the memory tasks use
+  (`memllm.chat_sync(…, via="slow")`), through `llm_egress.route` with its OWN family, metered like any call. It
+  points at any OpenAI-compatible endpoint — a cheap hosted pair, a local server, or an agent on the network that
+  routes by cost. Which work goes slow is decided ONCE per rule or task (one closed question to the decision model
+  in a trip that already happens) and stored; never per item. Context: `context/slow-lane.md`.
 - `active_brain()` (`config/v2.py`, env-first `BRAIN`, default `nucleo`) selects the brain; `BRAIN=direct`/`local`
   are plain-model baselines.
 Everything else — the tag vocabulary (§2), the widget contract (§3), the circuit (§4), and the compute layer (§5)

@@ -34,6 +34,12 @@ nodes:
     desc: "Superficie de voz, cerebro propio, agente atómico por widget."
     load: pinned
     src: context/architecture.md
+  - id: architecture.slow_lane
+    parent: architecture
+    title: "The slow lane"
+    desc: "A second model seat for background work that can wait; decided once, adopted progressively, off = identical."
+    load: pinned
+    src: context/slow-lane.md
   - id: architecture.full
     parent: architecture
     title: "Arquitectura completa"
