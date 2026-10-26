@@ -4575,6 +4575,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_never_reaches_his_messaging_accounts.py']},
         {"id": "2.815", "title": "A use-case sandbox boots beside the operator's running engine: it takes its own one-engine lock inside its throwaway workspace (it owns no voice slot, port or connector the lock guards)",
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_boots_beside_the_running_engine.py']},
+        {"id": "2.816", "title": "A use-case sandbox calls the models with the operator's keys: his credential store is lent into the sandbox's own store (mode 600, same precedence over .env) and taken back when it stops — an empty store made every round measure the relay",
+            "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_calls_models_with_the_operators_keys.py']},
         {"id": "2.600", "title": "An escalation the dedup FOLDED into a live errand closes with the fold, so it is never a «starting» errand of its own — his goodbye «quedo a la espera si sale algo» named that phantom by «sale» and three plumbers with phones were withheld (best-plumber-same-day ES)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_folded_escalation_is_not_another_errand.py']},
         {"id": "2.601", "title": "A row he NAMED is named by a word only that row carries (not shared with another row, not his errand's vocabulary, never a bare number) — «monitor» and «27» made both real monitors «his» and only power adapters were ever offered (cheapest-monitor EN); «fontanero», «Madrid», «24h» did the same to three plumbers (best-plumber-same-day ES)",

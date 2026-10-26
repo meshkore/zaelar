@@ -36,9 +36,13 @@ What makes the isolation real (each of these was verified against the code that 
     (`server/__init__.py`, `!= "livekit"`). The probe channel does not need LiveKit at all: `/api/flash/say`
     mounts on `active_brain() == "nucleo"` alone, which is what makes a headless sandbox possible.
 
-Credentials are deliberately NOT isolated: `server/common.py` loads `.env` + `.meshkore/credentials/` from
-the repo root, so the sandbox uses the operator's real API keys. That's intended — the point is a clean
-DATABASE, not a crippled engine that can't call a model.
+Credentials are deliberately NOT isolated: the sandbox uses the operator's real API keys. That's intended — the
+point is a clean DATABASE, not a crippled engine that can't call a model. Since 2026-10-26 the server reads the
+credential store the WRITER uses (`config.credentials.STORE`), which follows `ZAELAR_WORKSPACE` — so a sandbox
+read an empty store, every provider key resolved to its «local» sentinel, DeepSeek answered 401 and every round
+measured the relay instead of the product. `lend_credentials` now copies the operator's store into the sandbox's
+own `credentials/zaelar.env` (mode 600, same precedence over `.env` as on his engine) and `stop_engine` takes it
+back, so no key outlives the engine in a workspace kept for inspection.
 
 ⚠️ KNOWN LEAK (worked around, not fixed) — generated widget CODE. `widgets/store.py` honours the workspace (widget *data* is
 isolated), but `widgets/generator.py` and `widgets/lifecycle.py` write the widget's code to
@@ -228,6 +232,7 @@ def spawn_engine(*, workspace: Path, port: int, log_path: Path | None = None,
         env.update({k: str(v) for k, v in extra_env.items()})
 
     (workspace / "memory" / "_data").mkdir(parents=True, exist_ok=True)
+    lend_credentials(workspace)
 
     # NOT a `with`: the child inherits the descriptor, so closing the parent's copy right away is correct and
     # keeps the log writable for as long as the engine lives — including after this process is gone.
@@ -245,8 +250,33 @@ def spawn_engine(*, workspace: Path, port: int, log_path: Path | None = None,
     return eng
 
 
+#: The operator's credential store — where `config.credentials` keeps it when no workspace is set.
+OPERATOR_STORE = ENGINE / ".meshkore" / "credentials" / "zaelar.env"
+
+
+def lend_credentials(workspace: Path) -> Path | None:
+    """Copy the operator's credential store into the sandbox's own store. The path returned is the copy, or None
+    when he has none (a clean clone): then the sandbox runs on `.env` alone, as his engine would."""
+    if not OPERATOR_STORE.is_file():
+        return None
+    dest = Path(workspace) / "credentials" / "zaelar.env"
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(OPERATOR_STORE, dest)
+    dest.chmod(0o600)
+    return dest
+
+
+def take_back_credentials(workspace: Path) -> None:
+    """Remove the lent store: a workspace kept for inspection must not keep his keys."""
+    try:
+        (Path(workspace) / "credentials" / "zaelar.env").unlink(missing_ok=True)
+    except OSError as exc:
+        print(f"  ⚠️ no pude retirar las credenciales prestadas del sandbox: {exc}")
+
+
 def stop_engine(eng: SandboxEngine, *, clean_widgets: bool = True) -> None:
-    """Terminate the engine and (by default) remove the widget CODE it generated — see the leak note above."""
+    """Terminate the engine, take back the credentials it was lent and (by default) remove the widget CODE it
+    generated — see the leak note above."""
     proc = eng.process
     if proc is not None:
         proc.terminate()
@@ -255,6 +285,7 @@ def stop_engine(eng: SandboxEngine, *, clean_widgets: bool = True) -> None:
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait(5)
+    take_back_credentials(eng.workspace)
     if not clean_widgets:
         return
     # Remove the widget CODE this sandbox generated. Not doing so was measured to CORRUPT later runs, not just
