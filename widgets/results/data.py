@@ -93,7 +93,7 @@ _MAX_PART_LINES = 20
 # during a live task, the derived state carried it back to Results. An unsaved click does not fail noisily: it fails
 # by pulling the operator away from where they chose to look (V2-227 C).
 # V2-822 — and «process» is no longer one: an errand's progress lives in the processes panel (the running process's
-# entry), never inside its deliverable. The alias below still reads «proceso» so the refusal can say where it went.
+# entry), never inside its deliverable. The alias below still reads «proceso»: the `tab` action opens that panel.
 _TABS = ("results", "summary", "sources", "criteria")
 
 #: WHAT KIND OF THING the sheet found. This is CONTENT, not layout — which is the whole reason it is allowed to

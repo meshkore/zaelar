@@ -217,18 +217,7 @@ def test_el_encargo_siguiente_estrena_su_historia_y_la_del_anterior_SIGUE():
         "…y el viejo conserva el suyo: estrenar dejó de significar borrar")
 
 
-# ── V2-822: the sheet has NO process tab — the process lives in the processes panel ─────────────────────────
-
-def test_the_sheet_has_no_process_tab_and_says_where_the_process_is():
-    """The results sheet shows its deliverable only; «proceso» by voice is refused with the way there (the processes
-    panel), and a stale persisted `process` tab falls back to the derived one instead of painting nothing."""
-    sheet.apply_action("present", {"title": "Hoteles", "items": [{"title": "Bécquer"}]})
-    for said in ("process", "proceso"):
-        out = sheet.apply_action("tab", {"tab": said})
-        assert out["ok"] is False and "processes panel" in out["error"], out
-    assert sheet.apply_action("tab", {"tab": "sources"})["ok"] is True
-    assert sheet.view_data().get("tab") == "sources"
-
+# ── V2-822: «proceso» opens the processes panel — tests/browser/unit/results/test_saying_process_opens_the_panel.py
 
 def test_una_pestana_inventada_sigue_rechazandose():
     assert sheet.apply_action("tab", {"tab": "inventada"})["ok"] is False

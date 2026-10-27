@@ -230,9 +230,8 @@ def _a_layout(action, payload, sheet) -> dict:
 def _a_tab(action, payload, sheet) -> dict:
     tab = str(payload.get("tab") or payload.get("name") or "").strip().lower()
     tab = _d._TAB_ALIASES.get(tab, tab)
-    if tab == "process":                     # V2-822: the progress lives in the processes panel, not in the sheet
-        return {"ok": False, "error": "the sheet has no process tab: what the errand is doing is in the processes "
-                                      "panel — show_panel procesos"}
+    if tab == "process":
+        return _a_process_panel()
     if tab not in _d._TABS:
         return {"ok": False,
                 "error": f"pestaña «{tab}» desconocida (results · summary · sources · criteria)"}
@@ -243,6 +242,22 @@ def _a_tab(action, payload, sheet) -> dict:
         data.pop("focus", None)
     _d._save(data, sheet)
     return {"ok": True, "tab": tab}
+
+
+def _a_process_panel() -> dict:
+    """«Proceso» said to the sheet opens the PROCESSES PANEL (V2-822, the operator's decision 5).
+
+    The sheet has no process tab any more: what the errand is doing lives in the running process's entry in the
+    processes panel. The request still arrives as this declared action (`tab` → `process`), so the action itself
+    takes him there — the same `panel` event `show_panel` emits, on «Procesos ▸ En curso» — instead of refusing and
+    leaving the model to make a second call it may not make."""
+    try:
+        from voice.observer import emit
+        emit("panel", "open", extra={"tab": "procesos", "src": "results:tab"})
+    except Exception as e:  # noqa: BLE001 — an event that cannot be emitted is said, not swallowed
+        return {"ok": False, "error": f"could not open the processes panel: {e}"}
+    return {"ok": True, "tab": "process", "opened": "procesos",
+            "note": "the processes panel is open on what is running now"}
 
 
 def _a_sources(action, payload, sheet) -> dict:
