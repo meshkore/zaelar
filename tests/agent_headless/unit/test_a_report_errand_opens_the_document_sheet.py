@@ -146,7 +146,7 @@ def test_the_view_derives_the_live_narrative_from_the_dispatcher(doc_data, monke
     monkeypatch.setitem(sys.modules, "nucleo.dispatch", fake)
     monkeypatch.setattr(nucleo, "dispatch", fake, raising=False)
     proc = doc_data.view_data()["process"]
-    assert proc == {"alive": True, "phases": ["fase de t9"], "title": "Informe X"}
+    assert proc == {"alive": True, "phases": ["fase de t9"], "plan": [], "done": 0, "title": "Informe X"}   # V2-820
     # And the brain sees the same fact instead of «the sheet is empty» (which would contradict the screen).
     digest = doc_data.prompt_digest()
     assert "PROCESO" in digest and "fase de t9" in digest

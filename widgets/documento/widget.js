@@ -93,6 +93,12 @@ function injectStyles(){
             border-left:2px solid var(--hb-line,#eef1f6);margin:0 0 2px;word-break:break-word}
   .hbd-prow:last-child{color:var(--hb-ink,#0d1622);border-left-color:var(--hb-accent2,#16B8A6)}
   .hbd-pempty{padding:22px 20px;font-size:12.5px;color:var(--hb-muted-2,#9aa7b8)}
+  .hbd-pplan{flex:0 0 auto;padding:10px 20px 8px;border-bottom:1px solid var(--hb-line,#eef1f6)}
+  .hbd-pstep{display:flex;gap:8px;font-size:12.5px;line-height:1.5;color:var(--hb-muted-2,#9aa7b8);padding:1px 0}
+  .hbd-pstep b{flex:0 0 14px;text-align:center;font-weight:600}
+  .hbd-pstep.done{color:var(--hb-muted,#5b6b82)}
+  .hbd-pstep.now{color:var(--hb-ink,#0d1622);font-weight:600}
+  .hbd-pstep.now b{color:var(--hb-accent2,#16B8A6)}
   @media(max-width:520px){.hbd-head{padding:12px 16px 9px}.hbd-scroll{padding:10px 8px 14px}
     .hbd-sheet{padding:18px 18px 24px;font-size:13.5px}}
   `; document.head.appendChild(s);
@@ -292,17 +298,29 @@ function processInto(root, d, ctx){
   const proc = d.process || {};
   const alive = !!proc.alive;
   const phases = Array.isArray(proc.phases) ? proc.phases : [];
+  // V2-820 — the steps the worker DECLARED (its plan, in its words) and how many it has done: the account he asked
+  // for («leyendo tus mensajes · analizando cómo escribes · creando el documento»). Never invented here.
+  const plan = Array.isArray(proc.plan) ? proc.plan.filter(s => String(s||"").trim()) : [];
+  const done = Math.max(0, Math.min(plan.length, parseInt(proc.done, 10) || 0));
   const box = root.appendChild(el("div","hbd-proc"));
   const stat = box.appendChild(el("div","hbd-pstat"));
   if(alive) stat.appendChild(el("div","hbd-pspin"));
   const hasBody = !!String(d.body||"").trim();
   const now = alive
     ? (hasBody ? tr(ctx,"writing","Redactando el documento…")
-               : (phases[phases.length-1] || tr(ctx,"preparing","Preparando…")))
+               : (phases[phases.length-1] || plan[done] || tr(ctx,"preparing","Preparando…")))
     : tr(ctx,"process_done","Proceso terminado");
   stat.appendChild(el("div","hbd-pnow", now));
+  if(alive && plan.length){
+    const steps = box.appendChild(el("div","hbd-pplan"));
+    plan.forEach((s, i) => {
+      const row = steps.appendChild(el("div", "hbd-pstep" + (i < done ? " done" : (i === done ? " now" : ""))));
+      row.appendChild(el("b", null, i < done ? "✓" : (i === done ? "▸" : "·")));
+      row.appendChild(el("span", null, String(s)));
+    });
+  }
   if(!phases.length){
-    box.appendChild(el("div","hbd-pempty", tr(ctx,"no_steps","Aún no hay pasos que contar.")));
+    if(!plan.length) box.appendChild(el("div","hbd-pempty", tr(ctx,"no_steps","Aún no hay pasos que contar.")));
     return;
   }
   const list = box.appendChild(el("div","hbd-plist"));

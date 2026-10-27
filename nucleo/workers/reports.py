@@ -21,6 +21,8 @@ from typing import TYPE_CHECKING
 
 from loguru import logger
 
+from nucleo import sheets as _sheets   # V2-820: who tells the process card it moved (`notify_process`)
+
 if TYPE_CHECKING:                      # runtime import would be circular; the annotation is a string
     from .session import SessionRecord
 
@@ -102,6 +104,7 @@ def session_plan(tid, steps) -> None:
     r.done = 0
     r.last_event_at = time.time()
     r.last_step_at = r.last_event_at      # V2-354: el reloj del avance arranca AL DECLARAR el plan
+    _sheets.notify_process(r)             # V2-820: the card that shows the process paints the plan now
     try:
         from voice.observer import emit
         extra = {"id": str(tid), "plan": r.plan}
@@ -134,6 +137,7 @@ def session_progress(tid, note: str = "", done: int | None = None, pct: int | No
         except (TypeError, ValueError):
             pass
     r.last_event_at = time.time()
+    _sheets.notify_process(r)             # V2-820: a step done moves the plan on the card
     try:
         from voice.observer import emit
         extra = {"id": str(tid), "done": r.done, "total": len(r.plan), "pct": _progress_pct(r)}

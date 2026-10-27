@@ -141,7 +141,9 @@ def _process(db: dict):
         except Exception:  # noqa: BLE001
             live = {}
     if live.get("alive"):
-        return {"alive": True, "phases": _clean_phases(live.get("phases")),
+        plan = _clean_phases(live.get("plan"))           # V2-820: the worker's declared steps, and how many are done
+        return {"alive": True, "phases": _clean_phases(live.get("phases")), "plan": plan,
+                "done": max(0, min(int(live.get("done") or 0), len(plan))),
                 "title": str(db.get("task_title") or "")}
     return {"alive": False, "phases": stored, "title": str(db.get("task_title") or "")}
 

@@ -171,7 +171,11 @@ def task_progress(task: str = "", sessions=(), live_states=()) -> dict:
         return {"alive": False, "phases": []}
     for r in list(sessions):
         if str(getattr(r, "task_id", "") or "") == tid and r.status in live_states:
-            return {"alive": True, "phases": _phrases(r)[-PHASES_KEPT:]}
+            # V2-820 — the plan the worker DECLARED and how much of it is done: the steps he asked to see («leyendo
+            # tus mensajes · analizando cómo escribes · creando el documento»), in the worker's own words, never ours.
+            plan = [str(s) for s in (getattr(r, "plan", None) or []) if str(s or "").strip()]
+            return {"alive": True, "phases": _phrases(r)[-PHASES_KEPT:], "plan": plan,
+                    "done": max(0, min(int(getattr(r, "done", 0) or 0), len(plan)))}
     return {"alive": False, "phases": []}
 
 
@@ -453,18 +457,29 @@ def record_phase(rec, phase: str, phases_kept: int = 0) -> bool:
         return False
     r.phases.append({"t": time.time(), "s": _p})
     del r.phases[:-(phases_kept or PHASES_KEPT)]
-    # …and let the open card know. `widgets/store.py` emits this on SAVE, and there is nothing to save here:
-    # the process is a view of the live registry, not sheet data. Without this notice the tab would remain still
-    # until the next data change —a progress panel that does not advance.
-    if surfaces.opens_sheet(getattr(r, "surface", "")):
-        try:
-            from voice.observer import emit as _emit_w
-            from widgets.results import data as _sheet3
-            _emit_w("widget", "data",
-                    extra={"id": _sheet3.instance_id(sheet_of(r)), "src": "worker"})
-        except Exception:
-            pass
+    notify_process(r)
     return True
+
+
+def notify_process(rec) -> None:
+    """Let the card that shows this errand's PROCESS know it changed — a new line, a declared plan, a step done.
+
+    `widgets/store.py` emits `widget data` on SAVE, and there is nothing to save here: the process is a view of the
+    live registry, not card data. Without this notice the card stays where it was painted — a progress panel that
+    does not advance. V2-820: only the results sheet was told; a REPORT errand's document sheet (`opens_doc`) never
+    was, so its process view said «Preparando… · Aún no hay pasos que contar» for the whole errand while the worker
+    had declared a five-step plan and narrated every step (measured: 0 `widget data documento` in two minutes of
+    phases). Never raises."""
+    surface = getattr(rec, "surface", "")
+    try:
+        from voice.observer import emit as _emit_w
+        if surfaces.opens_sheet(surface):
+            from widgets.results import data as _sheet3
+            _emit_w("widget", "data", extra={"id": _sheet3.instance_id(sheet_of(rec)), "src": "worker"})
+        elif surfaces.opens_doc(surface):
+            _emit_w("widget", "data", extra={"id": "documento", "src": "worker"})
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def recheck_rows(sheet: str, correction: str, *, relayed: bool = False) -> int:
