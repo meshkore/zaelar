@@ -80,12 +80,16 @@ def _session_start_opts() -> dict:
     return {**opts, **room_options(SETTINGS.voice_isolation, SETTINGS.livekit_url)}
 
 
-async def entrypoint(ctx: JobContext) -> None:
+def _before_connect() -> None:
+    """What has to exist before the room connects. Voice isolation (V2-812 T-08): the plugin must be registered
+    BEFORE the connection, or the FFI never initialises it for it and the filter fails with code 209. Fails open."""
     setup_console_logging()
-    # Voice isolation (V2-812 T-08): the plugin must be registered BEFORE the room connects, or the FFI never
-    # initialises it for this connection and the filter fails with code 209. Fails open, like the rest of it.
     from .voice_isolation import preload as _preload_isolation
     _preload_isolation(SETTINGS.voice_isolation, SETTINGS.livekit_url)
+
+
+async def entrypoint(ctx: JobContext) -> None:
+    _before_connect()
     await ctx.connect()
 
     session_id = time.strftime("%Y%m%d-%H%M%S", time.localtime())
