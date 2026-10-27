@@ -7,6 +7,9 @@
 //   · Account     — cloud only (store.cloudProfile): plan, Energy, billing, renewal and sign-out live on the account
 //                   page, so this row is the door to all of it. FIRST, because it is what a phone user comes here for.
 //   · Energy      — the balance, read from store.energy() (the SSE keeps it live); tapping it opens the top-up
+//   · Apps        — the apps launcher (V2-823, operator 2026-10-27: «en el móvil, el lanzador de aplicaciones va
+//                   dentro del menú ☰»): the row turns the sheet into AppsPane — the list, then an app's page with
+//                   «Open» — the same launcher the desk opens from its corner, built on the same module
 //   · Settings    — opens SettingsSheet (the «small settings device»)
 //   · Feedback is NOT here any more (2026-10-25, operator): it has its own dock button and its own sheet
 //     (FeedbackSheet.js); a second copy at the bottom of the menu read as clutter.
@@ -25,6 +28,8 @@ import { t } from "../../../app/core/i18n.js?v=1";
 import { accountLink } from "../../../app/core/account-link.js?v=1";
 import * as daemon from "../../../app/services/daemon.js?v=3";
 import { ProcessEntry } from "../../../app/components/ProcessEntry.js?v=1";
+import { createSignal, createEffect } from "../../../app/core/reactive.js?v=2";
+import { AppsPane } from "./AppsPane.js?v=1";
 
 // The daemon poll runs here too: the desktop starts it from the setup surface, which this shell does not
 // mount. Without this the row would always read "not connected", which is a wrong answer rather than a
@@ -54,6 +59,10 @@ export function MenuSheet() {
     if (u) window.open(u, "_blank", "noopener");
   };
   const close = () => store.setMobileMenuOpen(false);
+  // What the sheet shows: its rows, or the apps launcher. Closing the menu returns it to its rows, so the ☰ always
+  // opens on the menu he knows.
+  const [view, setView] = createSignal("menu");
+  createEffect(() => { if (!store.mobileMenuOpen()) setView("menu"); });
 
   return h("section", {
     class: () => "zm-sheet zm-menu" + (store.mobileMenuOpen() ? " open" : ""),
@@ -65,7 +74,9 @@ export function MenuSheet() {
       h("button", { class: "zm-sheet-x", "aria-label": () => t("desktop.close"), onClick: close }, "×"),
     ),
 
-    h("div", { class: "zm-rows" },
+    AppsPane({ active: () => view() === "apps", onBack: () => setView("menu") }),
+
+    h("div", { class: () => "zm-rows" + (view() === "apps" ? " is-off" : "") },
       // ── RUNNING PROCESSES (V2-822). The phone has no processes tab, and since the cards stopped telling their
       //    errand's progress (a card shows only its deliverable), this is where a running process is told: the
       //    same entry the desktop's processes tab draws, from the same record. Absent when nothing runs.
@@ -105,6 +116,10 @@ export function MenuSheet() {
           },
         })),
       ),
+
+      // ── APPS (V2-823) — the launcher, one row deep: the phone has no desk corner to hang it on.
+      h("div", { class: "zm-apps-entry" },
+        Row(() => t("mobile.apps"), () => t("mobile.apps_sub"), () => setView("apps"))),
 
       Row(() => t("mobile.settings"), () => t("mobile.settings_sub"),
         () => { store.setMobileSettingsOpen(true); }),

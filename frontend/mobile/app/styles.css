@@ -571,8 +571,34 @@ html.zm-kbd[data-kbd="sheet"] .zm-sheet.open { top: var(--zm-vvt, 0px); bottom: 
 /* V2-822 — the live process count rides the ☰ (the menu is the phone's processes view): ProcessCount.js, its look in
    core/shared-surfaces.css (`.pcount`). Placed on the button's top-right corner so the dock's seven controls keep
    their geometry; it takes no tap of its own — tapping it is tapping ☰. */
-.zm-menu { position: relative; }
-.zm-menu .pcount { position: absolute; top: 1px; right: -3px; gap: 3px; padding: 0 2px; cursor: inherit;
+/* Scoped to the DOCK on purpose: the ☰ sheet carries `zm-menu` too (`zm-sheet zm-menu`), and an unscoped
+   `.zm-menu { position: relative }` turned the fixed sheet into a block in the page flow, below the screen. */
+.zm-dock .zm-menu { position: relative; }
+.zm-dock .zm-menu .pcount { position: absolute; top: 1px; right: -3px; gap: 3px; padding: 0 2px; cursor: inherit;
   pointer-events: none; }
-.zm-menu .pcount-n { font-size: 0.75rem; }
-.zm-menu .pcount-bar { height: 11px; }
+.zm-dock .zm-menu .pcount-n { font-size: 0.75rem; }
+.zm-dock .zm-menu .pcount-bar { height: 11px; }
+
+/* V2-823 — the apps launcher inside the ☰ menu (shell/AppsPane.js). The rows and the app's page are drawn by
+   app/components/apps-catalog.js and styled ONCE in core/shared-surfaces.css; this is only the sheet's layout and
+   the phone's touch floor: every control here is ≥ 44px (CRIT-K31) — a row is the whole tap target. One screen at a
+   time (the list, then a page), so the menu's own rows step aside while the pane is up. */
+.zm-rows.is-off, .zm-apps.is-off { display: none; }
+.zm-apps { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.zm-apps-h { flex: 0 0 auto; display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+  border-bottom: 1px solid var(--hb-line-subtle); }
+.zm-apps-h .zm-apps-back { width: 44px; height: 44px; min-width: 44px; }
+.zm-apps-t { font: 600 15px/1.25 var(--sans); color: var(--hb-ink); }
+.zm-apps-list, .zm-apps-page { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain; }
+.zm-apps-list { padding: 8px 10px 14px; display: flex; flex-direction: column; gap: 2px; }
+.zm-apps-list .aw-group { margin: 12px 6px 4px; }
+.zm-apps-list .aw-group:first-child { margin-top: 2px; }
+.zm-apps-list .aw-row { min-height: 52px; font-size: 15px; }
+.zm-apps-list:empty, .zm-apps-page:empty { display: none; }
+.zm-apps-page { padding: 16px; }
+/* Name and «Open» share the head when they fit; a long name pushes «Open» to its own line, never off the sheet. */
+.zm-apps-page .aw-pagehead { flex-wrap: wrap; }
+.zm-apps-page .aw-open { min-height: 44px; min-width: 96px; font-size: 15px; }
+.zm-apps-page .aw-facts { grid-template-columns: max-content minmax(0, 1fr); }
+.zm-apps-page .aw-factv, .zm-apps-page .aw-about { overflow-wrap: anywhere; }

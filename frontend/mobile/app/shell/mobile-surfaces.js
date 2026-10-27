@@ -53,7 +53,7 @@ export const MOBILE_SURFACES = [
   // The desktop's captions are untouched.
   // ── sheets: they slide up from the bottom edge, over the deck ──
   { id: "chat",     comp: ChatSheet,      target: "body", phase: "overlay", label: "Chat (bottom sheet)", shared: false },
-  { id: "menu",     comp: MenuSheet,      target: "body", phase: "overlay", label: "☰ Menu: account · energy · settings · voice · desktop", shared: false },
+  { id: "menu",     comp: MenuSheet,      target: "body", phase: "overlay", label: "☰ Menu: account · energy · apps · settings · voice · desktop", shared: false },
   { id: "settings", comp: SettingsSheet,  target: "body", phase: "overlay", label: "Small settings sheet (language · theme · captions · speaker)", shared: false },
   { id: "feedback", comp: FeedbackSheet,  target: "body", phase: "overlay", label: "Feedback (its own sheet, from the dock's button)", shared: false },
   // ── the Energy left, a thin line along the top edge (cloud only) ──

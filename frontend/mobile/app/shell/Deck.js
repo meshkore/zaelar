@@ -219,6 +219,20 @@ export class Deck {
     this._home = null;
     this._wireGestures();
     this._mountHome();
+    this._watchDoors();
+  }
+
+  // ── THE ONE DOOR a native surface opens a card through (V2-823): `hb:open-card`, the same document event the
+  // desktop host listens on (app/widgets/desktop.js `_watchCanvas`). A surface that hands an app to «the host» (the
+  // apps launcher in the ☰ menu) never learns which shell it is in; without this listener the phone would be the one
+  // host that ignores the door, and every button that uses it would be dead here without an error.
+  // A click is the operator's hand, so its cause defaults to "hand" — same as the desktop's.
+  _watchDoors() {
+    document.addEventListener("hb:open-card", (e) => {
+      const d = (e && e.detail) || {};
+      const id = String(d.id || "");
+      if (id) this.show(id, { by: String(d.by || "hand") }).catch(() => {});
+    });
   }
 
   // ── the host contract, part 1: state the brain and main.js read ───────────────────────────────────────────
