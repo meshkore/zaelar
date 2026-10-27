@@ -43,7 +43,7 @@ FILES = {
     'nucleo/mem_processor.py': 831,
     'voice/engine/llm/providers/nucleo.py': 997,
     'widgets/navegador/owner.py': 883,
-    'widgets/navegador/tasks.py': 829,
+    'widgets/navegador/tasks.py': 828,
 }
 
 FUNCTIONS = {

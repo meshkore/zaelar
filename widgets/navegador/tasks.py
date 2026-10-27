@@ -75,11 +75,8 @@ def _clock() -> str:
 def _notify(task_id: str) -> None:
     """A task change → refresh ONLY its card (SSE widget/data with the instance id). Best-effort.
 
-    V2-571 — a task that belongs to an ERRAND'S SHEET also refreshes that sheet's card: its PROCESS tab
-    embeds this browser (capture, wall, login), and without this notice the embedded view would stand
-    still between phase changes — a browser whose page moves and whose picture does not. The card's own
-    event stays: a sheetless task (manual browsing, an errand with no sheet) still has its monitor card.
-    """
+    A tab an errand drives also refreshes that errand's sheet (the wall/login it must act on, V2-571) and
+    its entry in the processes panel (capture, page, V2-822)."""
     try:
         from voice.observer import emit
         extra = {"id": inst_id(task_id), "src": f"worker:{task_id}"}   # V2-039: driven by the navigation worker
@@ -99,6 +96,8 @@ def _notify(task_id: str) -> None:
             emit("widget", "data", extra=extra2)
     except Exception:
         pass
+    from nucleo import process_view                    # V2-822: the panel's expanded entry shows this browser
+    process_view.notify_for_tab(task_id)
 
 
 def trace_of(task_id: str) -> str:

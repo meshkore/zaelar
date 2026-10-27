@@ -332,7 +332,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/runstate.py': 4,
     'nucleo/sandbox.py': 9,
     'nucleo/scheduler.py': 6,
-    'nucleo/sheets.py': 9,
+    'nucleo/sheets.py': 8,
     'nucleo/sparks.py': 2,
     'nucleo/spec.py': 12,
     'nucleo/surfaces.py': 1,

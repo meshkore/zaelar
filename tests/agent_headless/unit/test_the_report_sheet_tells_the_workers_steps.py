@@ -10,6 +10,10 @@ The cause was not the worker: every line reached the record. Only the RESULTS sh
 never again — zero `widget data documento` events in those two minutes. Now one door (`sheets.notify_process`) tells
 whichever card shows the errand's process, on a phase, a declared plan and a step done; and the process view carries
 the plan the worker declared with how much of it is done — its words, never steps we invent.
+
+V2-822 — the process left the cards: it lives in the processes panel, under the running process's row, and the
+document card only says it is being created. The same door now tells the PANEL (SSE `task process` with the errand's
+id) on a phase, a declared plan and a step done — for every errand, whatever its surface — and tells no card.
 """
 from __future__ import annotations
 
@@ -47,30 +51,28 @@ def _cards(emitted) -> list:
     return [x.get("id") for kind, label, x in emitted if kind == "widget" and label == "data"]
 
 
-def test_a_new_line_on_a_report_errand_tells_the_document_card(emitted):
-    assert sheets.record_phase(_rec(), "Leyendo tus mensajes enviados", 150)
-    assert _cards(emitted) == ["documento"], "the document sheet must hear that its process moved"
+def _panel(emitted) -> list:
+    return [x.get("id") for kind, label, x in emitted if kind == "task" and label == "process"]
 
 
-def test_the_results_sheet_is_still_told_and_a_silent_errand_tells_nobody(emitted):
-    sheets.record_phase(_rec(surface="lista"), "Recorriendo la página", 150)
-    assert len(_cards(emitted)) == 1 and _cards(emitted)[0] != "documento"
-    emitted.clear()
-    sheets.record_phase(_rec(surface="silenciosa"), "x", 150)
-    assert _cards(emitted) == []
+@pytest.mark.parametrize("surface", ["informe", "lista", "silenciosa"])
+def test_a_new_line_tells_the_processes_panel_and_no_card(surface, emitted):
+    assert sheets.record_phase(_rec(surface=surface), "Leyendo tus mensajes enviados", 150)
+    assert _panel(emitted) == ["t9"], "the panel must hear that this errand's process moved"
+    assert _cards(emitted) == [], "a card shows its deliverable, never the process (V2-822)"
 
 
 @pytest.mark.parametrize("lang", sorted(PLANS))
-def test_a_declared_plan_and_a_step_done_move_the_card(lang, emitted, monkeypatch):
+def test_a_declared_plan_and_a_step_done_move_the_panel(lang, emitted, monkeypatch):
     from nucleo import dispatch
     from nucleo.workers import reports
     rec = _rec()
     monkeypatch.setattr(dispatch, "_SESSIONS", {"t9": rec})
     reports.session_plan("t9", "|".join(PLANS[lang]))
-    assert "documento" in _cards(emitted), "the plan reaches the card the moment it is declared"
+    assert "t9" in _panel(emitted), "the plan reaches the panel the moment it is declared"
     emitted.clear()
     reports.session_progress("t9", PLANS[lang][0], done=1)
-    assert "documento" in _cards(emitted), "a step done moves the card"
+    assert "t9" in _panel(emitted), "a step done moves the panel"
 
 
 @pytest.mark.parametrize("lang", sorted(PLANS))

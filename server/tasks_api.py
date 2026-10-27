@@ -44,6 +44,21 @@ async def tasks(scope: str = "live", all: str = ""):
     return JSONResponse({"tasks": rows, "scope": scope}, headers={"Cache-Control": "no-cache"})
 
 
+@router.get("/api/tasks/{key}/process")
+async def task_process(key: str):
+    """What ONE running process is doing — the processes panel's entry, collapsed or expanded (V2-822).
+
+    Derived from the dispatcher's live record on every read (`nucleo.process_view`), never stored; `key` is the
+    errand's session id or its durable row id. A finished or unknown errand answers `alive: false`."""
+    try:
+        from nucleo import process_view
+        rec = process_view.of(key)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"task_process({key}) failed: {e}")
+        rec = {"alive": False}
+    return JSONResponse(rec, headers={"Cache-Control": "no-cache"})
+
+
 @router.post("/api/tasks/reopen")
 async def tasks_reopen(payload: dict | None = None):
     """«Ver resultados» on a finished row — put that task's report back on the canvas (V2-728).

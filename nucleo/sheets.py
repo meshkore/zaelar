@@ -229,6 +229,11 @@ def sheet_harvest(sheet: str = "", sessions=(), live_states=()) -> dict:
     want = str(sheet or "").strip()
     if want:
         rows = [r for r in rows if sheet_of(r) == want]
+    return harvest_for(rows)
+
+
+def harvest_for(rows) -> dict:
+    """The harvest summed over these live records — the sheet's and the processes panel's ONE reading (V2-822)."""
     if not rows:
         return {}
     try:
@@ -267,6 +272,11 @@ def sheet_browser(sheet: str = "", sessions=(), live_states=()) -> dict:
     want = str(sheet or "").strip()
     if want:
         rows = [r for r in rows if sheet_of(r) == want]
+    return browser_for(rows)
+
+
+def browser_for(rows) -> dict:
+    """The browser driving any of these live records — the sheet's and the processes panel's ONE reading (V2-822)."""
     if not rows:
         return {}
     try:
@@ -462,24 +472,17 @@ def record_phase(rec, phase: str, phases_kept: int = 0) -> bool:
 
 
 def notify_process(rec) -> None:
-    """Let the card that shows this errand's PROCESS know it changed — a new line, a declared plan, a step done.
+    """Tell the processes panel that this errand's PROCESS changed — a new line, a declared plan, a step done.
 
-    `widgets/store.py` emits `widget data` on SAVE, and there is nothing to save here: the process is a view of the
-    live registry, not card data. Without this notice the card stays where it was painted — a progress panel that
-    does not advance. V2-820: only the results sheet was told; a REPORT errand's document sheet (`opens_doc`) never
-    was, so its process view said «Preparando… · Aún no hay pasos que contar» for the whole errand while the worker
-    had declared a five-step plan and narrated every step (measured: 0 `widget data documento` in two minutes of
-    phases). Never raises."""
-    surface = getattr(rec, "surface", "")
+    V2-822 — the process has ONE home, the running process's entry in the processes panel, and it reads the live
+    record (`nucleo/process_view.py`); nothing is stored, so this notice is what makes it move. Before, the notice
+    re-rendered the CARD that embedded the process (the results sheet's «Proceso» tab, the document's process view,
+    V2-820); those views are gone — a card shows only its deliverable — so no card is told any more. Never raises."""
     try:
-        from voice.observer import emit as _emit_w
-        if surfaces.opens_sheet(surface):
-            from widgets.results import data as _sheet3
-            _emit_w("widget", "data", extra={"id": _sheet3.instance_id(sheet_of(rec)), "src": "worker"})
-        elif surfaces.opens_doc(surface):
-            _emit_w("widget", "data", extra={"id": "documento", "src": "worker"})
-    except Exception:  # noqa: BLE001
-        pass
+        from voice.observer import emit as _emit_p
+        _emit_p("task", "process", extra={"id": str(getattr(rec, "task_id", "") or "")})
+    except Exception as e:  # noqa: BLE001 — a missed notice costs one stale frame, never the errand
+        __import__("logging").getLogger(__name__).debug("process notice failed: %s", e)
 
 
 def recheck_rows(sheet: str, correction: str, *, relayed: bool = False) -> int:
