@@ -124,3 +124,37 @@ def test_disarm_without_the_transport_check_the_self_hosted_case_goes_red(monkey
     """Mutate the guard the fail-open test claims to protect, and see that test fail."""
     monkeypatch.setattr(vi, "is_livekit_cloud", lambda url: True)
     assert vi.room_options("bvc", SELF_HOSTED, load=_load_ok) != {}, "disarm did not land"
+
+
+class _Stop(Exception):
+    pass
+
+
+def _run_entrypoint_until_connect(monkeypatch):
+    """Run the real entrypoint up to `ctx.connect()` and return the order in which preload and connect happened."""
+    import asyncio
+    from voice.engine.pipeline import agent
+    order = []
+    monkeypatch.setattr(agent, "setup_console_logging", lambda: None)
+    monkeypatch.setattr(vi, "preload", lambda mode, url, **_: order.append("preload") or True)
+
+    class Ctx:
+        async def connect(self):
+            order.append("connect")
+            raise _Stop
+
+    with pytest.raises(_Stop):
+        asyncio.run(agent.entrypoint(Ctx()))
+    return order
+
+
+def test_the_plugin_is_registered_before_the_room_connects(monkeypatch):
+    """The FFI initialises a filter for a room only at connect: registering it after is code 209, unfiltered."""
+    assert _run_entrypoint_until_connect(monkeypatch) == ["preload", "connect"]
+
+
+def test_preload_has_the_same_gates_as_the_filter():
+    assert vi.preload("bvc", CLOUD, load=_load_ok) is True
+    assert vi.preload("off", CLOUD, load=_load_ok) is False
+    assert vi.preload("bvc", SELF_HOSTED, load=_load_ok) is False
+    assert vi.preload("bvc", CLOUD, load=_load_missing) is False

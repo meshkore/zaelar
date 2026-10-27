@@ -17,6 +17,13 @@ project — a self-hosted `livekit-server` cannot serve them. So when the settin
 Cloud, the plugin is missing, or it cannot load on this platform, the session starts exactly as with `off` and ONE
 warning per process says why. A voice session that does not come up because of an optional filter would be a far
 worse failure than the noise it was meant to remove.
+
+ORDER MATTERS: register the plugin BEFORE the room connects (`preload`, called right before `ctx.connect()`).
+Importing the plugin registers it with the FFI, and the FFI initialises (authenticates) every registered filter
+for a room once, at connect time. A plugin registered after connect is never initialised for that room, so the
+stream's filter fails with «noise cancellation was not initialized for this connection» (code 209) and the
+session runs unfiltered. Newer FFI builds re-run that step for rooms already connected; ours does not, and the
+order is right on every version.
 """
 from __future__ import annotations
 
@@ -72,6 +79,14 @@ def noise_filter(mode: str, livekit_url: str, *, load=_plugin):
     except Exception as e:   # ImportError when not installed, OSError/RuntimeError when the native lib cannot load
         _warn_once("plugin", "livekit-plugins-noise-cancellation unavailable (%s: %s)", type(e).__name__, e)
         return None
+
+
+def preload(mode: str, livekit_url: str, *, load=_plugin) -> bool:
+    """Register the plugin with the FFI so the next room connect initialises it. Call BEFORE `ctx.connect()`.
+
+    Same gates and same fail-open as `noise_filter`; True when the plugin is registered. Idempotent: the import is
+    cached, so every session after the first pays nothing."""
+    return noise_filter(mode, livekit_url, load=load) is not None
 
 
 def room_options(mode: str, livekit_url: str, *, load=_plugin) -> dict:
