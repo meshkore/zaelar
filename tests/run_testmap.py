@@ -2014,6 +2014,26 @@ DOMAINS: list[dict] = [
         {"id": "3.134", "title": "A clear stop order stops the running errand on the first turn in any wording; a "
                                  "stop dragged from an earlier turn still never kills (V2-807 T-14)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_clear_stop_order_stops_the_errand.py"]},
+        # V2-820 — «no hay que crear una app, hay que crear un documento» stopped the app build and started nothing;
+        # «no mires WhatsApp, mira el correo» never reached the running errand (the promise pass opened his mail card).
+        # The stop question answers stop · replace · steer · keep: a sure replace stops X AND the turn carries Y with
+        # X's goal; a sure steer relays his words to the one running errand before any repair pass. Disarmed
+        # 2026-10-27 (replace not an end · no replacement · steer off · turn_after blocks it) → red.
+        {"id": "3.139", "title": "A correction of the running errand is one act: «not X, Y» stops X and starts Y with X's "
+                                 "goal carried; «look there, not here» reaches X (V2-820)", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_replaced_errand_starts_the_one_he_named.py"]},
+        # V2-820 — a lens on his card stood in for a document errand twice (the catalogue rung's mail_folder, the
+        # promise pass's show_view) and, presented over a closed card, opened his mail. Disarmed 2026-10-27 → red.
+        {"id": "3.140", "title": "A view on a card is not an errand whose deliverable has its own box: talking about a "
+                                 "card's content, or an errand that will read it, does not open it (V2-820)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_view_is_not_the_deliverable.py"]},
+        # V2-820 — a report errand's process said «Preparando… · Aún no hay pasos que contar» for two minutes while the
+        # worker had declared a plan and narrated: only the results sheet was told a line arrived. Disarmed 2026-10-27
+        # (no documento notice · plan dropped · plan not rendered) → red.
+        {"id": "3.141", "title": "A report errand's process view moves with the worker and shows the steps it declared, "
+                                 "the done ones ticked and the current one marked (V2-820)", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_the_report_sheet_tells_the_workers_steps.py",
+                      "tests/browser/unit/documento/test_the_process_shows_the_workers_plan.py"]},
         # V2-692 — segunda ejecución en vivo del encargo (2026-09-14). UNA orden suya («organiza una reunión
         # con este contacto») y tuvo que conducirla entera a mano: autorizar el envío cuatro veces, avisar de
         # que había llegado la respuesta, decir que la aceptara — y al final no había reunión ni en nuestra
