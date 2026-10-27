@@ -5779,6 +5779,17 @@ DOMAINS: list[dict] = [
                                  "daemon that declares it · nowhere); with nowhere, a sign-in BLOCKS the process (not "
                                  "failed) and he is told in his language, by voice and in the chat (V2-822)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_login_with_no_window_blocks_the_process.py"]},
+        # V2-823 — the apps window. Disarmed (a single click opens; the double click only selects; the page paints
+        # an owner nobody declared; the rail without its icon; about() inventing an owner; connectors read by
+        # `family` instead of `serves`; the about route left unmounted) → each red.
+        {"id": "4.315", "title": "The apps window: the rail's corner icon opens it over the desk (the rail stays usable), "
+                                 "one click shows the app's page, a double click or «Open» opens the app through "
+                                 "hb:open-card and closes it, and the page shows only the fields declared — RENDERED (V2-823)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_apps_window_shows_a_page_per_app.py"]},
+        {"id": "4.316", "title": "An app's page (widgets/about.py) carries only what its manifest declares; its connectors "
+                                 "are the live inventory read with serves(); every shipped app declares owner, licence "
+                                 "and its connector families, and its «what it does» in es+en (V2-823)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_an_app_page_carries_only_what_its_manifest_declares.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",
