@@ -22,7 +22,6 @@
 from __future__ import annotations
 
 import os
-import re
 
 from loguru import logger
 
@@ -142,14 +141,17 @@ def _headers(base_url: str) -> dict:
 # through mediated egress, the worker names the task it serves in `X-Zaelar-Task` (the CLI sends
 # `ANTHROPIC_CUSTOM_HEADERS` on every request), and egress can add the usage up per task. Talking to a provider
 # directly, nothing is sent: the header is for egress and no provider needs to see it.
-_TASK_ID_SHAPE = re.compile(r"^[\w.:-]{1,80}$")
+def _a_plain_token(task_id: str) -> bool:
+    """1-80 characters, letters/digits and `_.:-` only — what can ride a header unescaped."""
+    t = task_id or ""
+    return 0 < len(t) <= 80 and all(c.isalnum() or c in "_.:-" for c in t)
 
 
 def task_header_env(base_url: str, task_id: str) -> dict:
     """`{"ANTHROPIC_CUSTOM_HEADERS": "X-Zaelar-Task: <id>"}` when `base_url` is mediated egress and the id is a
     plain token; `{}` otherwise. Pure apart from reading where egress is."""
     egress = root()
-    if not egress or not (base_url or "").startswith(egress) or not _TASK_ID_SHAPE.match(task_id or ""):
+    if not egress or not (base_url or "").startswith(egress) or not _a_plain_token(task_id):
         return {}
     return {"ANTHROPIC_CUSTOM_HEADERS": f"X-Zaelar-Task: {task_id}"}
 

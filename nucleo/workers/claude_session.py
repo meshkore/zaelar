@@ -159,6 +159,19 @@ def _user_msg(text: str) -> bytes:
                        ensure_ascii=False) + "\n").encode("utf-8")
 
 
+def _mark_the_worker_env(env: dict, task_id: str) -> None:
+    """The worker's own markers: for the orphan sweep at boot and the per-task bridge auth (§v2·D), and — through
+    mediated egress — the task every model call serves, so usage adds up per task."""
+    env["ZAELAR_WORKER"] = "1"
+    env["ZAELAR_TASK_ID"] = task_id
+    try:
+        from nucleo import llm_egress as _egress
+        for _k, _v in _egress.task_header_env(env.get("ANTHROPIC_BASE_URL", ""), task_id).items():
+            env.setdefault(_k, _v)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"worker[{task_id}]: no task header for egress: {e!r}")
+
+
 class ClaudeCodeSession(WorkerBackend):
     name = "claude_code"
 
@@ -278,16 +291,7 @@ class ClaudeCodeSession(WorkerBackend):
                 env.setdefault(_k, _v)
         except Exception:
             pass
-        # marcadores para el barrido de huérfanos al arrancar (§v2·D) + auth de bridges por-tarea (§v2·D).
-        env["ZAELAR_WORKER"] = "1"
-        env["ZAELAR_TASK_ID"] = spec.task_id or ""
-        # Through mediated egress, every model call names the task it serves (usage adds up per task).
-        try:
-            from nucleo import llm_egress as _egress
-            for _k, _v in _egress.task_header_env(env.get("ANTHROPIC_BASE_URL", ""), spec.task_id or "").items():
-                env.setdefault(_k, _v)
-        except Exception as e:  # noqa: BLE001
-            logger.debug(f"worker[{self._task_id}]: no task header for egress: {e!r}")
+        _mark_the_worker_env(env, spec.task_id or "")
         if spec.token:
             env["ZAELAR_TASK_TOKEN"] = spec.token
         cwd = spec.cwd or _ZAELAR
