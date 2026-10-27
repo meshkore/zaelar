@@ -31,6 +31,13 @@ def _as_text(content) -> str:
     if isinstance(content, str):
         return content
     if isinstance(content, list):
+        # Two list shapes reach here, and they are joined differently. The engine's own probe channel returns its
+        # reply as a list of SENTENCES (`["Listo."]` — `nucleo/flash/probe_api.py` joins them with a space for the
+        # wall), and until 2026-10-27 this dropped every plain string: each order the action map resolved («Sal
+        # de pantalla completa» → «Listo.» in 3 ms) was recorded as a mute turn, the tester asked «¿me has oído?»
+        # and the judge scored a silence the product never had. A provider's PARTS concatenate as before.
+        if all(isinstance(part, str) for part in content):
+            return " ".join(part.strip() for part in content if part.strip())
         return "".join(
             part.get("text") or "" for part in content
             if isinstance(part, dict) and (part.get("type") in (None, "text") or "text" in part))
