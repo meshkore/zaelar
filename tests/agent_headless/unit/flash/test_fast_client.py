@@ -53,7 +53,7 @@ def _patch_client(monkeypatch, chunks, recorder):
 
 # ── ModelSpec ────────────────────────────────────────────────────────────────────────────────────────────
 def test_modelspec_local_vs_cloud():
-    local = ModelSpec(model="qwen2.5:14b", provider="ollama")
+    local = ModelSpec(model="qwen3.8:27b", provider="ollama")
     assert local.is_local()
     assert local.resolved_api_key() == "ollama"
     assert "11434" in local.resolved_base_url()
@@ -135,7 +135,7 @@ def test_local_spec_sets_keep_alive(monkeypatch):
 
     async def run():
         async for _ in FastClient().stream([{"role": "user", "content": "x"}],
-                                           spec=ModelSpec(model="qwen2.5:14b", provider="ollama")):
+                                           spec=ModelSpec(model="qwen3.8:27b", provider="ollama")):
             pass
 
     asyncio.run(run())
@@ -202,9 +202,9 @@ def test_tool_call_fired_on_early_return(monkeypatch):
 # ── spec_from_config ────────────────────────────────────────────────────────────────────────────────────
 def test_spec_from_config_reads_v2(monkeypatch):
     monkeypatch.setattr("config.v2.fast_model_spec",
-                        lambda: {"provider": "ollama", "model": "qwen2.5:14b", "base_url": "", "api_key": ""})
+                        lambda: {"provider": "ollama", "model": "qwen3.8:27b", "base_url": "", "api_key": ""})
     spec = fc.spec_from_config()
-    assert spec.model == "qwen2.5:14b"
+    assert spec.model == "qwen3.8:27b"
     assert spec.provider == "ollama"
     assert spec.is_local()
 

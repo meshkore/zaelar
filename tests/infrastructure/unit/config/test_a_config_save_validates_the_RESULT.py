@@ -73,7 +73,7 @@ def test_an_endpoint_left_behind_is_refused_by_name(api):
 def test_a_model_saved_alone_is_still_checked_against_the_STANDING_provider(api):
     """The mirror image of the first case, and the old check missed it for the same reason: with no provider
     in the patch it returned early, so a model from another vendor could be written under the current one."""
-    r = api.post("/api/config/v2", json={"section": "fast", "patch": {"model": "qwen2.5:14b-instruct"}})
+    r = api.post("/api/config/v2", json={"section": "fast", "patch": {"model": "qwen3.8:27b"}})
     assert r.status_code == 400, r.json()
     assert "not served by" in r.json()["error"]
 

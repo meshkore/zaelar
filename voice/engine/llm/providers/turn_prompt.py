@@ -51,7 +51,7 @@ async def compose_the_prompt(*, brain, emit, operator_text, self, text) -> dict:
     if timings["recall_fired"]:
         # TIME-BOX del recall (regla dura "nunca lento"): el retriever suele cerrar en ~0.4-1.5s, pero en el
         # turno vivo puede dispararse a 4s+ (recarga del modelo de embedding tras un desalojo por el CORAZÓN
-        # qwen2.5:14b, o contención de Metal con STT/TTS). El recall está en el CAMINO CRÍTICO del turno (su
+        # the local LLM, o contención de Metal con STT/TTS). El recall está en el CAMINO CRÍTICO del turno (su
         # bloque alimenta el prompt), así que un pico lo paga el usuario en tiempo real. Lo acotamos: si no
         # cierra dentro del presupuesto, el turno SIGUE SIN el bloque durable — el ESTADO (nombre/misión/
         # conversación reciente) YA va en el prompt desde el caché (µs), así que la degradación es suave, no

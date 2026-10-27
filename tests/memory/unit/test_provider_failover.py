@@ -209,13 +209,13 @@ def test_the_heart_keeps_its_own_titular_at_the_front(monkeypatch):
     the wrong reasons and failed only in the FULL suite. It asserted a LOCAL titular stays in front while (a)
     `_endpoint_key` was the real resolver, so whether the fallbacks existed at all depended on another test having
     imported `server.common` and loaded the credential store, and (b) the local gate was the real one, so the
-    answer depended on whether THIS machine had `qwen2.5:7b-instruct` pulled. Neither is what this test is about."""
+    answer depended on whether THIS machine had `qwen3.8:27b` pulled. Neither is what this test is about."""
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
     monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: True)
     monkeypatch.setattr(MP, "_url", lambda: "http://localhost:11434/v1")
-    monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:7b-instruct")
+    monkeypatch.setattr(MP, "_model", lambda: "qwen3.8:27b")
     rungs = MP._rung_chain()
-    assert rungs[0] == ("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+    assert rungs[0] == ("http://localhost:11434/v1", "qwen3.8:27b")
     assert rungs[1] == (_OAI, "gpt-4.1-mini"), "y el failover del operador va justo detrás"
 
 
@@ -296,9 +296,9 @@ def test_ready_asks_the_ROOT_for_tags_not_the_openai_path(monkeypatch):
     """`/api/tags` hangs off the root; the chat calls use the OpenAI-compatible `/v1`. Asking `/v1/api/tags` 404s,
     which fail-closed would read as «model absent» — the local titular would never be used on a healthy machine."""
     memllm.reset_local_probe()
-    fake, calls = _tags(["qwen2.5:7b-instruct"])
+    fake, calls = _tags(["qwen3.8:27b"])
     monkeypatch.setattr("urllib.request.urlopen", fake)
-    assert memllm.local_titular_ready("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+    assert memllm.local_titular_ready("http://localhost:11434/v1", "qwen3.8:27b")
     assert calls == ["http://localhost:11434/api/tags"]
 
 
@@ -308,17 +308,17 @@ def test_the_gate_asks_whether_the_MODEL_is_there_not_just_the_server(monkeypatc
     memllm.reset_local_probe()
     fake, _ = _tags(["embeddinggemma:latest"])
     monkeypatch.setattr("urllib.request.urlopen", fake)
-    assert not memllm.local_titular_ready("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+    assert not memllm.local_titular_ready("http://localhost:11434/v1", "qwen3.8:27b")
 
 
 def test_a_tagless_config_matches_latest_but_two_real_tags_never_match(monkeypatch):
-    """`embeddinggemma` and `embeddinggemma:latest` are the same model; `qwen2.5:7b` and `qwen2.5:14b` are NOT, and
+    """`embeddinggemma` and `embeddinggemma:latest` are the same model; `qwen3.8:27b` and `qwen3.8:27b-q8_0` are NOT, and
     treating them as equal would silently run a different model than the config names."""
     memllm.reset_local_probe()
-    fake, _ = _tags(["embeddinggemma:latest", "qwen2.5:14b-instruct"])
+    fake, _ = _tags(["embeddinggemma:latest", "qwen3.8:27b-q8_0"])
     monkeypatch.setattr("urllib.request.urlopen", fake)
     assert memllm.local_titular_ready("http://localhost:11434", "embeddinggemma")
-    assert not memllm.local_titular_ready("http://localhost:11434", "qwen2.5:7b-instruct")
+    assert not memllm.local_titular_ready("http://localhost:11434", "qwen3.8:27b")
 
 
 def test_the_probe_FAILS_CLOSED_when_the_server_does_not_answer(monkeypatch):
@@ -330,7 +330,7 @@ def test_the_probe_FAILS_CLOSED_when_the_server_does_not_answer(monkeypatch):
         raise OSError("connection refused")
 
     monkeypatch.setattr("urllib.request.urlopen", boom)
-    assert not memllm.local_titular_ready("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+    assert not memllm.local_titular_ready("http://localhost:11434/v1", "qwen3.8:27b")
 
 
 def test_the_verdict_is_cached_but_NEVER_latched(monkeypatch):
@@ -338,20 +338,20 @@ def test_the_verdict_is_cached_but_NEVER_latched(monkeypatch):
     the vector space for 300s — the defect V2-103 traced 51.6% of vector-less rows to. Non-stop means recovery
     must need no restart, so the cache has a TTL and `reset_local_probe` exists."""
     memllm.reset_local_probe()
-    fake, calls = _tags(["qwen2.5:7b-instruct"])
+    fake, calls = _tags(["qwen3.8:27b"])
     monkeypatch.setattr("urllib.request.urlopen", fake)
     for _ in range(4):
-        memllm.local_titular_ready("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+        memllm.local_titular_ready("http://localhost:11434/v1", "qwen3.8:27b")
     assert len(calls) == 1, f"la sonda se repitió {len(calls)} veces dentro del TTL"
     memllm.reset_local_probe()
-    memllm.local_titular_ready("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+    memllm.local_titular_ready("http://localhost:11434/v1", "qwen3.8:27b")
     assert len(calls) == 2, "tras invalidar la caché debe volver a sondear"
 
 
 def test_a_DEAD_local_titular_is_stepped_over_and_the_chain_starts_at_the_titular(monkeypatch):
     memllm.reset_local_probe()
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
-    monkeypatch.setattr(memllm, "resolve", lambda t: ("http://localhost:11434/v1", "qwen2.5:7b-instruct", "local", False))
+    monkeypatch.setattr(memllm, "resolve", lambda t: ("http://localhost:11434/v1", "qwen3.8:27b", "local", False))
     monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: False)
     chain = memllm.chain("rem")
     # A local model that is not there is an ordinary fact of a self-hosted machine, so it is stepped over and
@@ -362,10 +362,10 @@ def test_a_DEAD_local_titular_is_stepped_over_and_the_chain_starts_at_the_titula
 def test_a_LIVE_local_titular_stays_in_front(monkeypatch):
     memllm.reset_local_probe()
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
-    monkeypatch.setattr(memllm, "resolve", lambda t: ("http://localhost:11434/v1", "qwen2.5:7b-instruct", "local", False))
+    monkeypatch.setattr(memllm, "resolve", lambda t: ("http://localhost:11434/v1", "qwen3.8:27b", "local", False))
     monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: True)
     chain = memllm.chain("rem")
-    assert chain[0][1] == "qwen2.5:7b-instruct" and chain[1][0] == _OAI, chain
+    assert chain[0][1] == "qwen3.8:27b" and chain[1][0] == _OAI, chain
 
 
 def test_the_chain_is_NEVER_empty(monkeypatch):
@@ -373,32 +373,32 @@ def test_the_chain_is_NEVER_empty(monkeypatch):
     exhausted», a true statement that hides the real cause. Keeping the titular lets the actual error surface."""
     memllm.reset_local_probe()
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "local")
-    monkeypatch.setattr(memllm, "resolve", lambda t: ("http://localhost:11434/v1", "qwen2.5:7b-instruct", "local", False))
+    monkeypatch.setattr(memllm, "resolve", lambda t: ("http://localhost:11434/v1", "qwen3.8:27b", "local", False))
     monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: False)
     assert len(memllm.chain("rem")) == 1
 
 
 def test_the_HEART_steps_over_a_dead_local_titular_only_if_there_is_somewhere_to_go(monkeypatch):
     monkeypatch.setattr(MP, "_url", lambda: "http://localhost:11434/v1")
-    monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:7b-instruct")
+    monkeypatch.setattr(MP, "_model", lambda: "qwen3.8:27b")
     monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: False)
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
     assert MP._rung_chain()[0] == (_OAI, "gpt-4.1-mini")
     # No credentialed fallback anywhere → the local titular is all there is, and it must still be attempted.
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "local")
-    assert MP._rung_chain() == [("http://localhost:11434/v1", "qwen2.5:7b-instruct")]
+    assert MP._rung_chain() == [("http://localhost:11434/v1", "qwen3.8:27b")]
 
 
 # ── a model named WITHOUT its endpoint (measured 2026-08-20 in every sandboxed use_cases round) ────────────────
-# `MEM_PROCESSOR_MODEL=qwen2.5:3b` sat in the operator's env file with no matching `MEM_PROCESSOR_URL`. The env
+# `MEM_PROCESSOR_MODEL=qwen3.8:27b` sat in the operator's env file with no matching `MEM_PROCESSOR_URL`. The env
 # fallback applies whenever the store has no value, and a fresh workspace (every sandbox, every new self-host) has
 # no store — so a LOCAL Ollama tag became the titular of a CLOUD endpoint and every distillation paid a 404 before
 # relaying. What is asserted is the SHAPE rule, not the env var: the same pair is equally impossible whichever
 # layer produced each half.
 @pytest.mark.parametrize("url,model,incoherent", [
-    (_AIML, "qwen2.5:3b", True),                        # the measured case
+    (_AIML, "qwen3.8:27b", True),                        # the measured case
     (_DS, "qwen3.6:27b-mlx", True),                     # any Ollama tag at any cloud endpoint
-    ("http://localhost:11434/v1", "qwen2.5:3b", False),  # the pair the tag is FOR
+    ("http://localhost:11434/v1", "qwen3.8:27b", False),  # the pair the tag is FOR
     ("http://127.0.0.1:11434", "qwen3.6:27b-mlx", False),
     (_AIML, "deepseek/deepseek-v4-flash", False),        # broker form: vendor/model
     (_AIML, "openai/gpt-4.1-mini", False),
@@ -416,9 +416,9 @@ def test_the_HEART_skips_the_impossible_pair_instead_of_paying_the_404(monkeypat
     memllm.reset_local_probe()
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
     monkeypatch.setattr(MP, "_url", lambda: _AIML)
-    monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:3b")
+    monkeypatch.setattr(MP, "_model", lambda: "qwen3.8:27b")
     rungs = MP._rung_chain()
-    assert (_AIML, "qwen2.5:3b") not in rungs, "un par imposible no se intenta, se salta"
+    assert (_AIML, "qwen3.8:27b") not in rungs, "un par imposible no se intenta, se salta"
     assert rungs[0] == (_OAI, "gpt-4.1-mini"), "y la escritura entra por el failover del operador"
 
 
@@ -428,16 +428,16 @@ def test_the_impossible_pair_is_KEPT_when_there_is_nowhere_to_relay(monkeypatch)
     memllm.reset_local_probe()
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "local")   # no cloud credential anywhere
     monkeypatch.setattr(MP, "_url", lambda: _AIML)
-    monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:3b")
-    assert MP._rung_chain() == [(_AIML, "qwen2.5:3b")]
+    monkeypatch.setattr(MP, "_model", lambda: "qwen3.8:27b")
+    assert MP._rung_chain() == [(_AIML, "qwen3.8:27b")]
 
 
 def test_a_catalog_task_skips_it_too(monkeypatch):
     """The trap is in the config layer, not in the write path, so REM/paraphrase can fall into it identically."""
     memllm.reset_local_probe()
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
-    monkeypatch.setattr(memllm, "resolve", lambda t: (_AIML, "qwen2.5:3b", "k", False))
-    assert (_AIML, "qwen2.5:3b") not in [(u, m) for u, m, _k, _dt in memllm.chain("rem")]
+    monkeypatch.setattr(memllm, "resolve", lambda t: (_AIML, "qwen3.8:27b", "k", False))
+    assert (_AIML, "qwen3.8:27b") not in [(u, m) for u, m, _k, _dt in memllm.chain("rem")]
 
 
 def test_the_incoherent_pair_is_reported_ONCE_not_once_per_write(monkeypatch, caplog):
@@ -446,10 +446,10 @@ def test_the_incoherent_pair_is_reported_ONCE_not_once_per_write(monkeypatch, ca
     memllm.reset_local_probe()
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
     monkeypatch.setattr(MP, "_url", lambda: _AIML)
-    monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:3b")
+    monkeypatch.setattr(MP, "_model", lambda: "qwen3.8:27b")
     said = []
     monkeypatch.setattr(memllm.logger, "warning", lambda msg, *a, **k: said.append(str(msg)))
     for _ in range(5):
         MP._rung_chain()
     assert len(said) == 1, f"debería decirse una vez, se dijo {len(said)}"
-    assert "qwen2.5:3b" in said[0] and _AIML in said[0], "y tiene que traer el PAR, no solo la queja"
+    assert "qwen3.8:27b" in said[0] and _AIML in said[0], "y tiene que traer el PAR, no solo la queja"

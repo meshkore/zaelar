@@ -24,6 +24,13 @@ from .env import ZAELAR_ROOT, env
 from .profile import PROFILE, pick
 
 
+def _local_llm_default() -> str:
+    """The local LLM tag is DATA in `config/models.default.json` (§local.llm, V2-824), never a literal here: the old
+    outdated local default outlived its model by a year. Fail-soft to an empty string (= «provider default»)."""
+    from config import models as _table
+    return _table.local_llm_model()
+
+
 def _llm_provider_default() -> str:
     # BRAIN (hermes|duo|direct) wins when set; else the profile's llm default,
     # overridable by ZAELAR_LLM_PROVIDER.
@@ -111,7 +118,7 @@ class Settings:
 
     # --- LOCAL profile endpoints/models (on-machine, no per-token cost) ------
     local_llm_url: str = env("ZAELAR_LOCAL_LLM_URL", "http://localhost:11434/v1")  # Ollama /v1
-    local_llm_model: str = env("ZAELAR_LOCAL_LLM_MODEL", "qwen2.5:3b")
+    local_llm_model: str = env("ZAELAR_LOCAL_LLM_MODEL", _local_llm_default())
     tts_device: str = env("ZAELAR_TTS_DEVICE", "auto")   # auto|metal|fastapi (auto: Metal on Apple Silicon)
     kokoro_url: str = env("ZAELAR_KOKORO_URL", "http://localhost:8880/v1")          # Kokoro-FastAPI (CPU fallback)
     kokoro_mlx_model: str = env("ZAELAR_KOKORO_MLX_MODEL", "mlx-community/Kokoro-82M-bf16")  # Metal

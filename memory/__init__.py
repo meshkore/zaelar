@@ -12,8 +12,9 @@ Pieces (built throughout V2-002):
   - `db.py`          — SQLite connection (WAL) + sqlite-vec loading + migrations.
   - `schema.py`      — DDL: state · memories · vec_memories · fts_memories · edges · episodic · journal.
   - `queue.py`       — async queue: ALL writes enter here.
-  - `writer.py`      — SINGLE writer -> DB; local embeddings on insert.
-  - `embeddings.py`  — local embeddings client (Ollama embeddinggemma 768 · fastembed fallback).
+  - `writer.py`      — SINGLE writer -> DB; embeddings on insert (deferred, never swapped, when the titular is down).
+  - `embeddings.py`  — embeddings client (cloud titular `text-embedding-3-small` 768 · Ollama `embeddinggemma` as the
+                       free local option · fastembed/hash safety nets — never mixed: `reembed.py` seals the space).
   - `retriever.py`   — hot path: vec ∥ fts -> RRF -> weighted score -> graph_expand.
   - `state.py`       — fixed state table (µs read, no search).
   - `graph.py`       — edges (link/expand).

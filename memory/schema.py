@@ -6,11 +6,12 @@ la extensión correspondiente está disponible en la conexión (sqlite-vec puede
 viene en la amalgama estándar de SQLite). `db.py` decide qué crear según capacidades y lleva la versión de
 schema en `PRAGMA user_version`.
 
-`EMBED_DIM` es la dimensión del vector (embeddinggemma → 768). El schema de `vec_memories` se formatea con
+`EMBED_DIM` es la dimensión del vector (768: text-embedding-3-small at 768 via `dimensions`, embeddinggemma
+native). El schema de `vec_memories` se formatea con
 esta constante para que un cambio de modelo de embeddings sea un solo sitio.
 """
 
-# Dimensión del embedding (embeddinggemma 768; Matryoshka permite truncar, pero fijamos 768 por defecto).
+# Embedding dimension (768 for the titular AND the local option; both are matryoshka, 768 is what we ask for).
 EMBED_DIM = 768
 
 # Versión del schema. Súbela al añadir/alterar tablas y añade la migración correspondiente en db.py.

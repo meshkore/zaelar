@@ -438,8 +438,18 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-R2 · The voice brain is a non-reasoner, model per invocation, and the provider order is
   CONFIGURATION** (`config/v2.json`, managed by the UI) — never a rule in a document. — since 2026-08-19 · nodes
   2.54.
-- **CRIT-R3 · Embeddings have no failover model** (a stand-in answers in another vector space); the fall is made
-  visible. — since 2026-09-23 · nodes 10.52.
+- **CRIT-R3 · Embeddings have no failover model** (a stand-in answers in another vector space; the only legitimate
+  row would be the SAME model through another door); the fall is DEFERRED and made visible: the pill is written,
+  marked `embed_pending`, FTS carries the read, REM repairs it. — since 2026-09-23 · nodes 10.52, 1.2.
+- **CRIT-R11 · Changing the embedding model is a MIGRATION through one door** (`memory/reembed.migrate`: pills AND
+  paraphrases re-embedded, seal follows, no foreign vector left; fired by the panel and the profiles, never by a
+  boot — an existing install keeps its sealed space until the user changes the model on purpose). — since
+  2026-10-27 · nodes 1.2.
+- **CRIT-R12 · Semantic-dedup thresholds belong to ONE embedding model** (`memory/dedup_thresholds.py`); a model
+  without a measured row gets exact/slot dedup only, and a row is written only from `tests/memory/benchmarks/calibrate_dedup.py`
+  on a copy of a real database. — since 2026-10-27 · nodes 1.3.
+- **CRIT-R13 · No Ollama tag outside the table's `local` block** (`config/models.default.json`); profiles and local
+  fallbacks READ it. — since 2026-10-27 · nodes 8.2.
 - **CRIT-R4 · No language, no agent**: until the picker locks a language the agent is stopped; after ANY reset it
   comes up listening. — since 2026-09-24 · nodes 4.217, 8.4.
 - **CRIT-R5 · The voice has a stand-in**: the models table's `tts.failover` is built beside the titular; a titular

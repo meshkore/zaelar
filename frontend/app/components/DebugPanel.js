@@ -115,7 +115,7 @@ function brainName(engine) {
   return "FlashBrain";
 }
 
-// Column 3: the actual model serving this turn (e.g. "qwen2.5:14b-instruct", "x-ai/grok-4-fast-non-reasoning") —
+// Column 3: the actual model serving this turn (a local Ollama tag or a cloud model id) —
 // a flat dark chip, deliberately NOT styled like the kind pill, colored by locality (local Ollama vs cloud API).
 function modelChip(d) {
   if (!d.model) return null;

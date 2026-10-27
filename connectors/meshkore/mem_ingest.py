@@ -54,7 +54,13 @@ def _url() -> str:
 
 
 def _model() -> str:
-    return os.getenv("MESHKORE_MEMORY_MODEL") or os.getenv("MEM_PROCESSOR_MODEL") or "qwen2.5:14b-instruct"
+    # The local tag is DATA (`config/models.default.json` §local.llm, V2-824), the same model the `local` profile
+    # names for the memory HEART — this fallback carried an outdated literal tag for a year after the fact.
+    explicit = os.getenv("MESHKORE_MEMORY_MODEL") or os.getenv("MEM_PROCESSOR_MODEL")
+    if explicit:
+        return explicit
+    from config import models as _table
+    return _table.local_llm_model()
 
 
 def _key() -> str:

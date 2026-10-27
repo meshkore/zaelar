@@ -37,9 +37,11 @@ def test_requirements_local_vs_cloud():
     loc = profiles.requirements("local")
     assert loc["needs_ollama"] is True
     assert loc["needs_local_accel"] is True
-    # the required models come from the package ITSELF (fast + embed + CORE)
-    assert any("qwen2.5" in m for m in loc["ollama_models"])
-    assert "embeddinggemma" in loc["ollama_models"]
+    # the required models come from the package ITSELF (fast + embed + CORE), and the package comes from the
+    # TABLE's local block (V2-824) — no tag is spelled in this file either
+    from config import models as table
+    assert table.local("llm")["model"] in loc["ollama_models"]
+    assert table.local("embeddings")["model"] in loc["ollama_models"]
 
     cloud = profiles.requirements("cloud")
     assert cloud["needs_ollama"] is False
@@ -58,6 +60,8 @@ def test_apply_writes_both_stores(tmp_path, monkeypatch):
     # avoid the heavy voice-alignment work (voices/language) of the real update
     monkeypatch.setattr(settings, "effective", lambda: {"knobs": [], "free_text": [], "voices_by_provider": {}})
 
+    from memory import reembed as _reembed
+    monkeypatch.setattr(_reembed, "migrate", lambda *, reason="": {"ok": True, "action": "none"})
     res = profiles.apply("local")
     assert res["profile"] == "local"
     assert res["applied"]["v2"]["ok"] is True
@@ -78,12 +82,34 @@ def test_apply_writes_both_stores(tmp_path, monkeypatch):
     assert profiles.active() == "cloud"
 
 
+def test_no_profile_spells_a_model_name(tmp_path):
+    """V2-824: both packages are READ from `config/models.default.json`. A literal here is a copy of a fact, and
+    a copy of a fact is a fact that will disagree — this file carried outdated local tags and a `fastembed` embedding
+    provider for a year after the table had moved on."""
+    import re
+    from pathlib import Path
+    from config import models as table
+    src = Path(profiles.__file__).read_text(encoding="utf-8")
+    code = re.sub(r'"""[\s\S]*?"""', "", src)                       # prose may NAME the old mistake; code may not
+    code = "\n".join(line for line in code.splitlines() if not line.lstrip().startswith("#"))
+    assert "fastembed" not in code and not re.search(r"qwen[\d.]*:", code)
+    loc, cloud = profiles.get("local"), profiles.get("cloud")
+    assert loc["v2"]["fast"]["model"] == table.local("llm")["model"]
+    assert loc["v2"]["fast"]["base_url"] == table.local("llm")["base_url"], "a local model travels WITH its endpoint"
+    assert loc["v2"]["memory"]["embed_model"] == table.local("embeddings")["model"]
+    assert loc["v2"]["memory"]["mem_processor_model"] == table.local("llm")["model"]
+    assert cloud["v2"]["memory"]["embed_provider"] == table.titular("embeddings")["provider"]
+    assert cloud["v2"]["memory"]["embed_model"] == table.titular("embeddings")["model"]
+
+
 def test_apply_never_persists_a_secret(tmp_path, monkeypatch):
     import config.settings as settings
     import config.v2 as v2
     monkeypatch.setattr(settings, "SETTINGS_FILE", tmp_path / "settings.json")
     monkeypatch.setattr(v2, "_PATH", tmp_path / "v2.json")
     monkeypatch.setattr(settings, "effective", lambda: {"knobs": [], "free_text": [], "voices_by_provider": {}})
+    from memory import reembed as _reembed
+    monkeypatch.setattr(_reembed, "migrate", lambda *, reason="": {"ok": True, "action": "none"})
     profiles.apply("cloud")
     # the package sets api_key="" → it never writes a secret; the public view confirms this
     assert v2.public("fast")["api_key_set"] is False

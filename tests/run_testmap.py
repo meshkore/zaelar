@@ -61,6 +61,11 @@ DOMAINS: list[dict] = [
             # guarded is not the call: it is that the dim is the one requested, that the credential is named
             # by the table, and that a provider outage defers the vector instead of changing the space.
             "tests/memory/unit/test_the_space_comes_from_the_cloud.py",
+            # V2-824 (2026-10-27): no cross-model failover — the outage is DEFERRED end to end (pill written,
+            # marker, FTS carries the read, REM repairs); changing the model is a MIGRATION through one door
+            # (pills + paraphrases re-embedded, seal follows, no foreign vector left, fired by the panel/profile).
+            "tests/memory/unit/test_an_embedding_outage_defers_and_rem_repairs.py",
+            "tests/memory/unit/test_changing_the_embedding_model_is_a_migration.py",
             "tests/memory/integration/test_rerank.py", "tests/memory/unit/test_graph_ppr.py",
             "tests/memory/unit/test_rerank_abs.py",
             "tests/memory/unit/test_rerank_local_load_budget.py",
@@ -88,6 +93,9 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_locomo_name_swaps.py",
             "tests/memory/integration/test_realistic_session.py",
             "tests/memory/unit/test_writer_dedup.py",
+            # V2-824: the semantic-dedup thresholds are PER embedding model; an uncalibrated model (the cloud
+            # titular, on purpose) keeps exact/slot dedup only; `tests/memory/benchmarks/calibrate_dedup.py` measures, never writes.
+            "tests/memory/unit/test_dedup_thresholds_are_per_model.py",
             "tests/memory/unit/test_writer_paraphrase.py",
             # V2-565: a spoken correction reaches the slotless pill it corrects (offer → whitelist → chokepoint).
             "tests/memory/unit/test_a_correction_reaches_the_pill_it_corrects.py",

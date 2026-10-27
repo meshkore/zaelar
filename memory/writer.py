@@ -10,7 +10,6 @@ Las funciones son SÍNCRONAS y operan sobre `db.get_db()` (serializado por su RL
 asyncio: la serialización de orden la da la cola; la seguridad de la conexión la da el lock del `Database`.
 """
 import json
-import os
 import re
 import struct
 
@@ -23,30 +22,27 @@ from . import embeddings as _emb
 REINFORCE_STEP = 0.1
 
 # Dedup SEMÁNTICO al insertar (V2-013 · T125): antes de crear un recuerdo DURABLE sin `slot`, se busca por
-# SIGNIFICADO (embedding) si YA existe uno casi idéntico; si la distancia L2 (vectores normalizados) es ≤ este
-# umbral → se REFUERZA el existente en vez de duplicar. Calibrado con embeddinggemma vía el test bot: el MISMO
-# hecho en distintos fraseos cae ≤0.51; hechos que solo comparten ENTIDAD (misma persona, info distinta) ≥0.80.
-# 0.45 = umbral CONSERVADOR: fusiona solo paráfrasis muy próximas (evita el falso positivo que perdía info —
-# "Laura es mi jefa" vs "Laura me pidió el informe" NO deben fusionarse). Preferimos un casi-duplicado (inocuo) a
-# una fusión que pierde información. Configurable/desactivable (`MEM_DEDUP_MAX_DIST`/`MEM_SEMANTIC_DEDUP`).
+# SIGNIFICADO (embedding) si YA existe uno casi idéntico; si la distancia L2 (vectores normalizados) es ≤ el
+# umbral → se REFUERZA el existente en vez de duplicar. Preferimos un casi-duplicado (inocuo) a una fusión que
+# pierde información ("Laura es mi jefa" vs "Laura me pidió el informe" NO deben fusionarse).
 #
-# BACKEND-DEPENDIENTE (hallazgo auditoría 2026-07-26): el umbral 0.45 es la geometría de UN modelo (embeddinggemma)
-# — otro backend no comparte esa escala de distancias. Medido en vivo con `fastembed` (el backend ACTIVO hoy,
-# `config/v2.json §memory.embed_provider`): frases COMPLETAMENTE NO RELACIONADAS ("Te quiero, ánimo con el libro."
-# vs. "El técnico de la caldera viene el jueves por la mañana.") caían a distancia ≤0.45 y se FUSIONABAN — el
-# mensaje nuevo se perdía por completo, reforzando el viejo en su lugar. Justo la fusión-con-pérdida que el diseño
-# dice evitar. Sin una calibración propia por backend (mismo estudio que produjo 0.45/0.51/0.80 para
-# embeddinggemma), el dedup semántico solo se activa con el backend para el que SÍ está calibrado; con cualquier
-# otro cae a dedup EXACTO/por-slot (determinista, sin falsos positivos) — un casi-duplicado inocuo vale más que
-# perder un dato.
-SEMANTIC_DEDUP_MAX_DIST = float(os.getenv("MEM_DEDUP_MAX_DIST", "0.45"))
-_SEMANTIC_DEDUP_CALIBRATED_BACKENDS = {"ollama"}   # el único backend con el estudio de distancias detrás del umbral
+# THE THRESHOLD IS GEOMETRY, AND GEOMETRY BELONGS TO ONE MODEL (audit 2026-07-26, V2-824). 0.45 was measured on
+# `embeddinggemma` (same fact in other words ≤0.51; same entity, other fact ≥0.80); measured live on a fastembed
+# backend the same 0.45 fused two completely unrelated sentences and the new one was lost. So the number is no
+# longer here: `memory/dedup_thresholds.py` holds a row PER MODEL, and a model without a row (the cloud titular
+# included, until `python -m tests.memory.benchmarks.calibrate_dedup` measures it) gets NO semantic dedup — the write falls to the
+# exact-text and slot dedup below, deterministic and without false positives. `MEM_DEDUP_MAX_DIST` is the
+# operator's hand calibration for the active model; `MEM_SEMANTIC_DEDUP=0` turns it off everywhere.
+from . import dedup_thresholds as _thresholds
+
+
+def semantic_dedup_max_dist() -> float | None:
+    """The insert-time threshold for the ACTIVE embedding model, or None when it is not calibrated (→ off)."""
+    return _thresholds.writer_max_dist()
 
 
 def _semantic_dedup_on() -> bool:
-    if os.getenv("MEM_SEMANTIC_DEDUP", "1").strip().lower() in ("0", "false", "no", "off"):
-        return False
-    return _emb.active_backend() in _SEMANTIC_DEDUP_CALIBRATED_BACKENDS
+    return semantic_dedup_max_dist() is not None
 
 
 _WS = re.compile(r"\s+")
@@ -490,10 +486,15 @@ def _get_or_create_concept(db, name: str) -> int | None:
         return None
 
 
-def _find_semantic_dup(db, vec: list[float], trust: str = "") -> int | None:
+def _find_semantic_dup(db, vec: list[float], trust: str = "", max_dist: float | None = None) -> int | None:
     """Vecino más cercano DURABLE y válido por SIGNIFICADO. Devuelve su id si la distancia ≤ umbral, si no None.
     Best-effort: cualquier fallo del backend vectorial → None (se inserta normal). Solo dentro de la MISMA clase
-    de confianza (2026-09-05): un casi-duplicado no confiable jamás refuerza un linaje confiable, ni al revés."""
+    de confianza (2026-09-05): un casi-duplicado no confiable jamás refuerza un linaje confiable, ni al revés.
+    `max_dist` = the ACTIVE model's calibrated threshold (`memory/dedup_thresholds.py`); None → no row → None."""
+    if max_dist is None:
+        max_dist = semantic_dedup_max_dist()
+    if max_dist is None:
+        return None
     try:
         rows = db.query(
             "SELECT memory_id, distance FROM vec_memories WHERE embedding MATCH ? ORDER BY distance LIMIT 5",
@@ -502,10 +503,14 @@ def _find_semantic_dup(db, vec: list[float], trust: str = "") -> int | None:
     except Exception:
         return None
     for r in rows:
-        if r["distance"] is None or r["distance"] > SEMANTIC_DEDUP_MAX_DIST:
+        if r["distance"] is None or r["distance"] > max_dist:
             break                               # ordenado por distancia: si el mejor ya no cuela, ninguno
+        # A dedup target is a PILL: a concept hub, a conversation row or a synthesised insight is never «the
+        # same fact said differently» (the REM pass excludes the same kinds). Found by V2-824's calibrated-model
+        # test, where a hub landed at distance 0 and the echo was folded into the hub instead of the pill.
         m = db.query_one(
             "SELECT id FROM memories WHERE id=? AND valid=1 AND level IN ('mid','long') "
+            "AND kind NOT IN ('conv','concept','insight') "
             "AND COALESCE(json_extract(meta, '$.trust'), '') = ?",
             (r["memory_id"], trust),
         )

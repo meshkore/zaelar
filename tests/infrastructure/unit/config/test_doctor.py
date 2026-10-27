@@ -20,9 +20,9 @@ def test_credentials_only_report_presence(monkeypatch):
 
 
 def test_ollama_model_match_by_tag_and_base():
-    models = ["qwen2.5:7b-instruct", "embeddinggemma:latest"]
-    assert doctor._has_ollama_model(models, "qwen2.5:7b-instruct") is True
-    assert doctor._has_ollama_model(models, "qwen2.5") is True          # bare name matches the tag
+    models = ["qwen3.8:27b", "embeddinggemma:latest"]
+    assert doctor._has_ollama_model(models, "qwen3.8:27b") is True
+    assert doctor._has_ollama_model(models, "qwen3.8") is True          # bare name matches the tag
     assert doctor._has_ollama_model(models, "embeddinggemma") is True   # :latest tag matches the bare name
     assert doctor._has_ollama_model(models, "llama3") is False
 

@@ -3,7 +3,7 @@
 # and becomes a WIDGET AGENT: given a batch of incoming messages from any platform, already published on the bus as
 # connector.msg, it decides whether each one deserves the operator's attention and whether it is addressed to the
 # operator. Encapsulates the classification that previously lived loose in connectors/messaging (the design's loose
-# "qwen2.5:3b").
+# local-model default).
 #
 # PRIVACY (hard invariant): triage runs with a LOCAL model by default (Ollama), so nothing personal leaves the
 # machine. The classifier implementation (prompt + few-shot + defensive parsing) remains in

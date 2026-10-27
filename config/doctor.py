@@ -123,8 +123,8 @@ def ollama(timeout: float = 2.0) -> dict:
 
 
 def _has_ollama_model(models: list[str], want: str) -> bool:
-    """Is `want` (e.g. 'qwen2.5:7b-instruct' or 'embeddinggemma') among the models? Matches by tag prefix (a
-    `qwen2.5:7b-instruct` satisfies 'qwen2.5', and conversely a bare name matches any tag)."""
+    """Is `want` (e.g. 'qwen3.8:27b' or 'embeddinggemma') among the models? Matches by tag prefix (a
+    `qwen3.8:27b` satisfies 'qwen3.8', and conversely a bare name matches any tag)."""
     w = (want or "").strip().lower()
     wbase = w.split(":")[0]
     for m in models:

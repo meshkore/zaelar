@@ -1,7 +1,7 @@
 """«El paso de si quiero una instalación local o remota es absurdo» (V2-671, 2026-09-11).
 
 MEASURED on the operator's own install, right after a factory reset: his engine came back up on
-`qwen2.5:14b-instruct` over Ollama with `whisper_local` + `kokoro_local`, instead of the canonical table's
+an outdated local Qwen tag over Ollama with `whisper_local` + `kokoro_local`, instead of the canonical table's
 `deepseek-v4-pro` + `deepgram` + `elevenlabs`. Nothing in the reset did that. The chain was:
 
   factory reset dropped `wizard_done`  →  the first-run wizard fired  →  it recommended `local` (Apple

@@ -135,7 +135,9 @@ voice turn: the FlashBrain reads a cached state block and does on-demand recall 
 - **Schema** — tables `state · memories · vec_memories · fts_memories · edges · episodic · journal`.
 - **Queue + writer** — a single writer (`nucleo/memory_agent.py`); embeddings computed at insert time. The queue
   consumer starts in the server lifespan (`ZAELAR_MEMORY`, default 1).
-- **Embeddings** — `embeddinggemma` (768-dim) via Ollama, fallback fastembed, deterministic degradation.
+- **Embeddings** — the table's titular (OpenAI `text-embedding-3-small`, 768 dims) with `embeddinggemma` via Ollama as
+  the free local option; no cross-model failover (a provider outage DEFERS the vector, REM repairs it); changing the
+  model is a migration (`memory/reembed.py::migrate`); dedup thresholds per model (`memory/dedup_thresholds.py`).
 - **Retriever** — sqlite-vec vector search + FTS5 keyword → **RRF** (k=60) → score `α·rel + β·rec + γ·imp + δ·use` →
   `graph_expand` over `edges`.
 - **State / graph / consolidator** — a fixed `state` table (µs reads); graph edges; a consolidator (Ebbinghaus decay
@@ -544,8 +546,8 @@ widget (last bullets).
   "gate":"nucleo"}`. The connectors (`connectors/whatsapp`, `connectors/telegram`) are STATELESS: they only PUBLISH
   `connector.msg` / `connector.status` to the bus and drain `msg.mark_read` (`connectors/messaging/ingest.py`).
   Triage + store live INSIDE the widget owner: `widgets/mensajeria/owner.py` subscribes to the bus, triages with an
-  internal `triage_agent` (a **LOCAL** model — `qwen2.5:3b` via Ollama — enforcing the privacy invariant that nothing
-  personal leaves the machine; the classifier impl lives in `connectors/messaging/triage.py`), dumps message content
+  internal `triage_agent` (by default the table's `§triage` cloud model; in the `local` profile the table's local
+  model via Ollama, so nothing personal leaves the machine; the classifier impl lives in `connectors/messaging/triage.py`), dumps message content
   to `memory/` (kind `msg`), surfaces the relevant via `voice/proactive` + `[SISTEMA]`, and on a read/clear action
   publishes `msg.mark_read` so the right connector marks it read in its app. The supervisor `"gate"` is a GENERAL
   mechanism: any backed widget can require a brain mode.
@@ -862,8 +864,8 @@ client: happy path, busy rejection, error status, missing config).
 zaelar reads the operator's **personal** WhatsApp, Telegram and Email, unified behind ONE `mensajeria` widget
 (§Widget-apps). The connectors are **STATELESS** in v2 «Colmena»: they only PUBLISH `connector.msg` /
 `connector.status` to the bus and drain `msg.mark_read` + **`msg.reply`** (`connectors/messaging/ingest.py`); triage +
-store live inside the `mensajeria` widget owner (backed), which classifies with a **LOCAL** model (`qwen2.5:3b` via
-Ollama — nothing personal leaves the machine) and dumps content to `memory/`. Read + mark-read + **RESPONDER**
+store live inside the `mensajeria` widget owner (backed), which classifies with the `§triage` model (the table's
+local model via Ollama in the `local` profile — nothing personal leaves the machine) and dumps content to `memory/`. Read + mark-read + **RESPONDER**
 (replies are sent on the operator's confirmation).
 
 - `connectors/whatsapp/` — reads the operator's WhatsApp (QR-linked device) via a **VENDORED Baileys bridge**

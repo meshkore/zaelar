@@ -35,10 +35,14 @@ from loguru import logger
 from . import db as _db
 from . import writer as _writer
 
-# Umbral CALIBRADO contra la BD real (2026-07-20): los ecos-paráfrasis de una misma tarea ("Reserva la cita
-# ITV…" × 8 variantes) puntúan 0.82-0.90 en embeddinggemma — a 0.92 no fusionaba NADA. 0.86 + la guarda de
-# números en conflicto (dos hechos con cifras/fechas DISTINTAS jamás se fusionan) da el equilibrio.
-SEM_DEDUP_THRESHOLD = float(os.getenv("ZAELAR_REM_DEDUP_SIM", "0.86"))
+# The cosine threshold of `semantic_dedup` is PER EMBEDDING MODEL (V2-824): it lives in
+# `memory/dedup_thresholds.py`, keyed by the model whose space the vectors are in. For `embeddinggemma` it was
+# calibrated against the real database (2026-07-20: the echoes of one task, «Reserva la cita ITV…» × 8 variants,
+# score 0.82-0.90; at 0.92 nothing merged; 0.86 + the conflicting-numbers guard is the balance). A model without
+# a row — the cloud titular, until `python -m tests.memory.benchmarks.calibrate_dedup` measures it — SKIPS this pass: a threshold
+# borrowed from another geometry merges facts that are not echoes. `ZAELAR_REM_DEDUP_SIM` is the operator's
+# hand calibration for the active model.
+from . import dedup_thresholds as _thresholds
 MIN_GROUP = 4          # nº mínimo de píldoras de un concepto para merecer síntesis
 MAX_GROUPS = 8         # cap de grupos sintetizados por sueño (coste acotado)
 HEURISTIC_ALERT_PCT = 50.0
@@ -149,7 +153,7 @@ def _drop_foreign_vectors(db, limit: int) -> int:
     (cosine 1.0000 against a recomputation from their own text) inside an index sealed
     `ollama:embeddinggemma:768`. The consequence was measured on the same rows: `semantic_dedup` can never
     merge them, because its threshold is calibrated on embeddinggemma (0.82-0.90 between echoes of one fact,
-    see SEM_DEDUP_THRESHOLD) while hash collisions between those same sentences top out at 0.788. So the
+    see `memory/dedup_thresholds.py`) while hash collisions between those same sentences top out at 0.788. So the
     operator's memory holds eight live copies of one taste, each decaying alone, none with the weight to reach
     the passive block. The threshold is not what is wrong here — the vectors are, and this is where they die.
 
@@ -525,7 +529,7 @@ def _sim_table(ids: list[int], vecs: dict[int, list[float]]):
         return lambda a, b: _cos(vecs[a], vecs[b])
 
 
-def semantic_dedup(threshold: float = SEM_DEDUP_THRESHOLD, cap: int = 1500) -> int:
+def semantic_dedup(threshold: float | None = None, cap: int = 1500) -> int:
     """Fusiona durables casi-idénticos por SIGNIFICADO: los ecos de una misma tarea/hecho dichos de N formas
     ("Reserva la cita ITV…" × 8) colapsan en el de mayor peso; el resto queda `valid=0, superseded_by` (histórico
     intacto, el sueño ligero los podará de los índices). SOLO sin `slot` (los con slot ya supersedan exacto) y
@@ -533,10 +537,19 @@ def semantic_dedup(threshold: float = SEM_DEDUP_THRESHOLD, cap: int = 1500) -> i
     cuarentena — `remember_external`, mensajes de peers) NO entran, en ninguna dirección (2026-09-05): un eco no
     confiable jamás invalida una píldora confiable, y su cáscara jamás hereda aristas de un linaje confiable —
     el mismo filtro que `_concept_groups` ya aplica a la síntesis; entre ellas tampoco se fusionan (las gobierna
-    el decay). O(n²) acotado por `cap`; las similitudes salen de UNA matmul (`_sim_table`)."""
+    el decay). O(n²) acotado por `cap`; las similitudes salen de UNA matmul (`_sim_table`).
+
+    `threshold=None` (the REM cycle) → the ACTIVE model's calibrated cosine (`memory/dedup_thresholds.py`); a
+    model nobody calibrated → the pass is SKIPPED and says so, instead of merging with another model's number."""
     db = _db.get_db()
     if not db.vec_available:
         return 0
+    if threshold is None:
+        threshold = _thresholds.rem_min_sim()
+        if threshold is None:
+            logger.info("REM: semantic dedup skipped — no calibrated threshold for the active embedding model "
+                        f"«{_thresholds.active_model() or 'none'}» (run `python -m tests.memory.benchmarks.calibrate_dedup`)")
+            return 0
     rows = db.query(
         "SELECT m.id, m.text, m.weight, m.access_count, m.pinned, m.kind, v.embedding FROM memories m "
         "JOIN vec_memories v ON v.memory_id = m.id "

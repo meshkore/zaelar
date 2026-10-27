@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
+from loguru import logger
 
 router = APIRouter()
 
@@ -31,6 +32,31 @@ _CLOUD_LOCKED_V2_SECTIONS = frozenset({"fast", "code_agent", "memory", "triage",
 
 # PROVIDER catalog per piece (hints for UI dropdowns). It is not exhaustive and does not force anything — the user
 # can type a model/base_url manually; this only speeds up selection. Cloud vs local is marked.
+
+def _table_row(kind: str, name: str) -> dict:
+    """A titular or a `local` block entry for the catalogue — tolerant (the catalogue must render even if a row is
+    missing), and it SAYS what failed."""
+    try:
+        from config import models as _table
+        return _table.titular(name) if kind == "titular" else _table.local(name)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"config catalogue: models table {kind} «{name}» unreadable ({str(e)[:120]})")
+        return {}
+
+
+def _titular(service: str) -> dict:
+    return _table_row("titular", service)
+
+
+def _local_row(name: str) -> dict:
+    return _table_row("local", name)
+
+
+# The local tags are DATA (`config/models.default.json` §local, V2-824): this catalogue carried outdated local
+# literals for a year after the model was gone, in three places.
+_LOCAL_LLM = _local_row("llm")
+_LOCAL_EMBED = _local_row("embeddings")
+
 _PROVIDER_CATALOG = {
     "fast": {                       # FlashBrain — NON-reasoner, per invocation
         # CLOSED ON PURPOSE (2026-08-12, operator rule): the FlashBrain model is CHOSEN from a list, not typed, and
@@ -66,8 +92,8 @@ _PROVIDER_CATALOG = {
              "base_url": "https://api.groq.com/openai/v1", "key_env": "GROQ_API_KEY", "cloud": True,
              "models": ["llama-3.3-70b-versatile"]},
             {"id": "ollama", "label": "Ollama (local/free — slow, offline fallback)",
-             "base_url": "http://localhost:11434/v1", "key_env": "", "cloud": False,
-             "models": ["qwen2.5:14b-instruct"]},
+             "base_url": _LOCAL_LLM.get("base_url") or "http://localhost:11434/v1", "key_env": "", "cloud": False,
+             "models": [_LOCAL_LLM.get("model") or ""]},
         ],
         "closed_models": True,      # the UI renders a dropdown, not a text field
         "note": "NON-reasoners only (the voice turn must close fast) and only benchmark-endorsed ones. "
@@ -151,8 +177,9 @@ _PROVIDER_CATALOG = {
             {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
              "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
              "models": ["deepseek/deepseek-v4-flash", "google/gemini-2.5-flash", "openai/gpt-4.1-mini"]},
-            {"id": "ollama", "label": "Ollama (local — only if local usage is accepted)", "base_url": "http://localhost:11434/v1",
-             "key_env": "", "cloud": False, "models": ["qwen2.5:7b-instruct", "qwen2.5:3b"]},
+            {"id": "ollama", "label": "Ollama (local — only if local usage is accepted)",
+             "base_url": _LOCAL_LLM.get("base_url") or "http://localhost:11434/v1",
+             "key_env": "", "cloud": False, "models": [_LOCAL_LLM.get("model") or ""]},
         ],
         # Updated 2026-08-09: the previous label ("RULE: memory ALWAYS OpenAI") was OVERRULED by benchmark §12.3
         # and by the single-API-account rule. Choose with data, not by provider reputation.
@@ -169,8 +196,9 @@ _PROVIDER_CATALOG = {
              "key_env": "XAI_API_KEY", "cloud": True, "models": ["grok-4.20-0309-non-reasoning"]},
             {"id": "openai", "label": "OpenAI", "base_url": "https://api.openai.com/v1",
              "key_env": "OPENAI_API_KEY", "cloud": True, "models": ["gpt-4o-mini"]},
-            {"id": "ollama", "label": "Ollama (local — PRIVATE, nothing leaves the machine)", "base_url": "http://localhost:11434/v1",
-             "key_env": "", "cloud": False, "models": ["qwen2.5:3b"]},
+            {"id": "ollama", "label": "Ollama (local — PRIVATE, nothing leaves the machine)",
+             "base_url": _LOCAL_LLM.get("base_url") or "http://localhost:11434/v1",
+             "key_env": "", "cloud": False, "models": [_LOCAL_LLM.get("model") or ""]},
         ],
         "note": "⚠️ PRIVACY: in external mode, personal messages LEAVE to the cloud (that is why it used to be local). "
                 "Simple classification task (no tool-routing) → grok is fine. Operator accepted the tradeoff (battery).",
@@ -190,14 +218,22 @@ _PROVIDER_CATALOG = {
                 "pulse_turns=0 → friction only; N → also every N turns.",
     },
     "memory_embed": {
+        # The TITULAR is the table's cloud row (the one space that exists identically on a laptop and in a
+        # container); Ollama is the free, fully local option; fastembed/hash are safety nets, never a choice to
+        # recommend. Changing the model from here is a MIGRATION: `set_v2` fires `memory/reembed.migrate` (V2-824).
         "providers": [
-            {"id": "auto", "label": "Auto (ollama→fastembed→hash)", "cloud": False},
-            {"id": "ollama", "label": "Ollama (local)", "cloud": False, "models": ["embeddinggemma", "bge-m3"]},
+            {"id": "openai", "label": "OpenAI (cloud — the default)", "cloud": True,
+             "key_env": _titular("embeddings").get("key_env") or "OPENAI_API_KEY",
+             "models": [_titular("embeddings").get("model") or ""]},
+            {"id": "ollama", "label": "Ollama (local, free)", "cloud": False,
+             "models": [_LOCAL_EMBED.get("model") or ""]},
+            {"id": "auto", "label": "Auto (cloud→ollama→fastembed→hash)", "cloud": False},
             {"id": "fastembed", "label": "fastembed (local CPU)", "cloud": False},
-            {"id": "openai", "label": "OpenAI (cloud)", "cloud": True, "key_env": "OPENAI_API_KEY"},
             {"id": "voyage", "label": "Voyage (cloud)", "cloud": True, "key_env": "VOYAGE_API_KEY"},
         ],
-        "note": "Changing the embedding REQUIRES re-embed (memory/reembed.py). Local by default.",
+        "note": "Changing the embedding model is a MIGRATION: every vector is recomputed and the space resealed "
+                "(memory/reembed.py). The semantic dedup thresholds are per model; a model without a calibration "
+                "keeps exact/slot dedup only.",
     },
     "memory_rerank": {
         "providers": [
@@ -448,12 +484,41 @@ async def set_v2(payload: dict | None = None):
         return JSONResponse({"ok": False, "error": bad}, status_code=400)
     try:
         from config import v2
+        before = v2.get(section) if section == "memory" else None
         v2.set(section, patch)
-        return JSONResponse({"ok": True, "section": section, "config": v2.public(section)})
+        out = {"ok": True, "section": section, "config": v2.public(section)}
+        if section == "memory":
+            # Changing the embedding model is a MIGRATION, not a config edit (V2-824): the vectors in the database
+            # live in the OLD model's space, so the one door that moves the space re-embeds everything and reseals
+            # the signature. In the background — a re-embed of a real memory takes minutes and this is an HTTP
+            # request — and only when one of the keys that define the space actually changed.
+            from config import profiles as _profiles
+            after = v2.get("memory")
+            moved = {k: (before.get(k), after.get(k)) for k in _profiles.EMBEDDING_KEYS
+                     if (before or {}).get(k) != after.get(k)}
+            if moved:
+                out["embedding_migration"] = _start_embedding_migration(moved)
+        return JSONResponse(out)
     except KeyError as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "error": str(e)[:160]}, status_code=500)
+
+
+def _start_embedding_migration(moved: dict) -> dict:
+    """Fire `memory/reembed.migrate` on its own thread and say so. The report lands in the log and in
+    `health_state`; the HTTP caller gets what moved and that the migration started."""
+    import threading
+
+    def _run():
+        try:
+            from memory import api as _memapi
+            _memapi.migrate_embeddings(reason="panel: " + ", ".join(f"{k} {a!r}→{b!r}" for k, (a, b) in moved.items()))
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"embedding migration failed to start: {str(e)[:160]}")
+
+    threading.Thread(target=_run, name="embedding-migration", daemon=True).start()
+    return {"started": True, "moved": {k: list(v) for k, v in moved.items()}}
 
 
 @router.post("/api/config/credential")
