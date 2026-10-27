@@ -493,8 +493,11 @@ writing a rule that reads the operator's WORDS. A disarm can leave stale bytecod
 ## Our failure is not a provider outage
 
 The exception decides whose fault it is (an HTTP status is theirs, a bare Python error is ours), the SAME request
-hands over to the fallback in the connection loop, and embeddings have no fallback (CRIT-R1, CRIT-R3).
-`.meshkore/docs/criteria.md` §6.
+hands over to the fallback in the connection loop, and embeddings have no fallback (CRIT-R1, CRIT-R3). An
+embedding outage is DEFERRED (pill written, `embed_pending`, FTS carries the read, REM repairs); changing the
+embedding model is a MIGRATION through `memory/reembed.migrate` (CRIT-R11); the semantic-dedup thresholds belong
+to one model and an uncalibrated model gets exact/slot dedup only (CRIT-R12); the only place an Ollama tag is
+written is the table's `local` block (CRIT-R13). `.meshkore/docs/criteria.md` §6.
 
 ## The chat column is the conversation
 

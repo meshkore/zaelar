@@ -118,8 +118,9 @@ _DEFAULTS: dict[str, dict] = {
         "providers": [],
     },
     # Memory — RETRIEVAL models (embedding + reranker), MODEL-AGNOSTIC (V2-030). Same as `fast`/`code_agent`:
-    # DEFAULTS that memory reads; local by default (self-sufficient with our GPU/CPU), ready for cloud/external APIs
-    # by changing only the `*_provider`. Details in `zaelar-memory.md §Retrieval`.
+    # DEFAULTS that memory reads, from the table (`config/models.default.json`): the embeddings titular is a cloud
+    # provider, the reranker is off; the free local option is the table's `local` block. Details in
+    # `zaelar-memory.md §Retrieval`.
     "memory": {
         # LONG-recall reranker (off-hot-path, fail-open). Moves the correct item from top-10 to top-1/3.
         # DEFAULT `local` (V2-030): jina-reranker-v2-multilingual en CPU sube recall@1 41.6→56.2% y recall@3
@@ -130,12 +131,13 @@ _DEFAULTS: dict[str, dict] = {
         "rerank_top_n": 20,                    # nº de candidatos del tope que se reordenan
         "rerank_blend": 0.85,                  # peso del rerank vs score original (recencia/importancia)
         "rerank_api_key": "",                  # secret (redacted); empty = OPENAI_API_KEY from env
-        # Memory embedding (Phase 3: abstraction; default remains local, without automatic re-embed).
+        # Memory embedding. Changing any of the three keys below moves the vector SPACE: the panel and the profiles
+        # fire the migration door (`memory/reembed.migrate`, V2-824); a boot never re-embeds on its own.
         # TITULAR = a CLOUD provider (`openai` = its `/embeddings` protocol, not necessarily its host). It is
         # the only backend that exists identically on a laptop and inside a container, which is the rule: LOCAL
         # has to measure what the CLOUD measures. 'ollama' remains available for GPU self-hosters.
         "embed_provider": _t("embeddings", "provider"),   # 'openai' (cloud, default) | 'ollama' | 'fastembed' | 'hash' | 'auto'
-        "embed_model": _t("embeddings", "model"),         # changing it REQUIRES a re-embed (memory/reembed.py) — never mix spaces
+        "embed_model": _t("embeddings", "model"),         # changing it is a MIGRATION (memory/reembed.migrate) — never mix spaces
         "embed_base_url": _t("embeddings", "base_url"),   # OpenAI-compatible endpoint; empty = OpenAI
         "embed_api_key": "",                   # secret (redacted); empty = credential PER ENDPOINT (provider_keys)
         # The write HEART (mem_processor): distills each turn into pills. It runs OFF-HOT-PATH (async queue) →
@@ -185,7 +187,7 @@ _DEFAULTS: dict[str, dict] = {
         "rem_api_key": "",                               # secret (redacted); empty = key by endpoint
         "rem_every_hours": 24,                           # deep-sleep cadence (min 1h)
     },
-    # Messaging triage (WhatsApp/Telegram relevance classifier). ⚠️ Previously LOCAL (qwen2.5:3b) for PRIVACY
+    # Messaging triage (WhatsApp/Telegram relevance classifier). ⚠️ Previously LOCAL (an Ollama model) for PRIVACY
     # (nothing personal left the machine). The operator requested ZERO local execution (battery) → moved to
     # EXTERNAL; the personal message now DOES leave to the cloud (tradeoff explicitly accepted 2026-07-17). Simple
     # classification task (no tool-routing) → grok is fine and uses xAI credit. Configurable per piece.

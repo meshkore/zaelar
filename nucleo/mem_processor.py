@@ -88,7 +88,7 @@ def _config_url() -> str:
 
 
 # Último recurso si `config/v2.py` no se puede importar NI hay env: tiene que ser el MISMO par que el default de
-# `config §memory` (2026-08-09). Antes caía a Ollama local (`qwen2.5:7b-instruct` @ 11434), que en cualquier
+# `config §memory` (2026-08-09). Antes caía a un modelo Ollama local (@ 11434), que en cualquier
 # instalación sin Ollama —toda la nube, y la mayoría de self-hosts— significaba fallar en cada turno y escribir
 # por la heurística lossy en silencio. Un default que solo funciona en la máquina del que lo escribió no es
 # un default. Ollama sigue siendo una OPCIÓN, apuntando `mem_processor_base_url` a localhost:11434 a mano.
@@ -166,7 +166,7 @@ def _rung_chain() -> list[tuple[str, str]]:
                             f"writing through {extra[0][1]}")
         elif memllm.pair_incoherent(*titular) and extra:
             # A model named WITHOUT its endpoint (an Ollama tag pointed at a broker) can NEVER answer — see
-            # `memllm.pair_incoherent`. Measured on this very path 2026-08-20: `MEM_PROCESSOR_MODEL=qwen2.5:3b`
+            # `memllm.pair_incoherent`. Measured on this very path 2026-08-20: a local `MEM_PROCESSOR_MODEL` tag
             # from the env file, the cloud default for the URL, and a 404 paid on every distillation of every
             # sandboxed round. Skipped instead of attempted, and said ONCE — the chain still writes, which is
             # the whole point of the operator's non-stop rule.

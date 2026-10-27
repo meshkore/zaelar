@@ -7,9 +7,11 @@ always-available one, resolved lazily and cached:
      `text-embedding-3-small`, 768 dims requested via `dimensions`). It is the only one that runs identically
      on a laptop and inside a container, which is the rule: *local must measure what a container
      deployment measures*. Chosen by measurement, not by catalogue — the numbers are in that row's `why`.
-  2. **Ollama** — `embeddinggemma`. NO LONGER THE DEFAULT: it is a local server, it does not exist in the
-     container, and an install using it measured something other than a container deployment did. Kept because databases are
-     sealed with its signature and because a self-hoster with a GPU may prefer it (chosen in the panel).
+  2. **Ollama** — the FREE, FULLY LOCAL option (`config/models.default.json` §local.embeddings: `embeddinggemma`,
+     768 dims). Not the default: it is a local server, it does not exist in a container, and an install using it
+     measured something other than a container deployment did. Chosen in the panel (`memory.embed_provider=ollama`)
+     or by env (`ZAELAR_EMBED_BACKEND=ollama` + `ZAELAR_EMBED_MODEL=embeddinggemma`). It is ANOTHER SPACE: moving
+     an indexed database onto it is a migration (`memory/reembed.py::migrate`), never a failover.
   3. **fastembed** — ONNX-Runtime, no server. A safety net, NOT a titular: its default model
      (`BAAI/bge-small-en-v1.5`) is ENGLISH ONLY and scores 7/12 on Spanish recall where the titular scores 12.
   4. **deterministic hashing** — feature-hashing into `EMBED_DIM` dims, L2-normalised. ALWAYS available (no
@@ -127,10 +129,23 @@ def _ollama_host() -> str:
     return os.getenv("ZAELAR_EMBED_HOST") or os.getenv("OLLAMA_HOST") or "http://localhost:11434"
 
 
+def _table_model(which: str) -> str:
+    """The model NAME from the table (`services.embeddings` titular or the `local.embeddings` block), fail-soft to
+    the literal the table carried the day this was written. `memory/` does not import `nucleo/`; `config/` is fine."""
+    try:
+        from config import models as _table
+        if which == "local":
+            return str(_table.local("embeddings").get("model") or "") or "embeddinggemma"
+        return str(_table.titular("embeddings").get("model") or "") or "text-embedding-3-small"
+    except Exception:  # noqa: BLE001
+        return "embeddinggemma" if which == "local" else "text-embedding-3-small"
+
+
 def _ollama_model() -> str:
-    # store (UI) > env > default. Cambiar el modelo EXIGE re-embed (memory/reembed.py) — no mezclar espacios.
+    # store (UI) > env > the table's local block. Changing the model is a MIGRATION (memory/reembed.py::migrate)
+    # — never mix spaces.
     return (str(_mem_cfg().get("embed_model") or "").strip()
-            or os.getenv("ZAELAR_EMBED_MODEL") or "embeddinggemma")
+            or os.getenv("ZAELAR_EMBED_MODEL") or _table_model("local"))
 
 
 def _ollama_embed(texts: list[str], *, timeout: float | None = None) -> list[list[float]] | None:
@@ -139,7 +154,7 @@ def _ollama_embed(texts: list[str], *, timeout: float | None = None) -> list[lis
     global _ollama_timeout
     try:
         # keep_alive: mantén el modelo de embedding RESIDENTE en Ollama. El CORAZÓN de memoria
-        # (`qwen2.5:14b`, off-hot-path tras cada turno) puede DESALOJAR embeddinggemma de la VRAM Metal → el
+        # (the local LLM, off-hot-path tras cada turno) puede DESALOJAR embeddinggemma de la VRAM Metal → el
         # siguiente recall pagaría la RECARGA del modelo (~4s, medido en el turno vivo). Con keep_alive largo,
         # el embedding de la query en la ruta caliente no paga reload. Configurable (ZAELAR_EMBED_KEEP_ALIVE).
         _payload = {"model": _ollama_model(), "input": texts,
@@ -292,9 +307,10 @@ def _cloud_base_url() -> str:
 
 
 def _cloud_model() -> str:
-    # store (panel) > env > default. Changing the model REQUIRES a re-embed (memory/reembed.py) — never mix spaces.
+    # store (panel) > env > the table's titular. Changing the model is a MIGRATION (memory/reembed.py::migrate)
+    # — never mix spaces.
     return (str(_mem_cfg().get("embed_model") or "").strip()
-            or os.getenv("ZAELAR_EMBED_MODEL") or "text-embedding-3-small")
+            or os.getenv("ZAELAR_EMBED_MODEL") or _table_model("titular"))
 
 
 def _cloud_key() -> str:

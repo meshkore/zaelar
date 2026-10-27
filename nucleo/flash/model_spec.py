@@ -97,8 +97,14 @@ class ModelSpec:
         Aun así aquí se sigue devolviendo "" para DeepSeek, y a propósito: el camino que apaga el razonamiento es
         `thinking:{"type":"disabled"}` (ver `stream`), que funciona en los DOS endpoints, así que no hace falta un
         segundo mecanismo que mantener sincronizado. `reasoning_effort:"minimal"` NO sirve — medido, sigue razonando.
+
+        OLLAMA also gets `"none"` (V2-824): the table's local LLM (`qwen3.8:27b`) thinks by default, and Ollama's
+        OpenAI-compatible `/v1/chat/completions` controls thinking through `reasoning_effort` (`"none"` requests no
+        thinking output; a model without a thinking mode resolves an unknown effort to its default, so the field is
+        harmless there). Checked against docs.ollama.com/api/openai-compatibility on 2026-10-27, not measured on the
+        tag itself — see the `local._doc` of `config/models.default.json`.
         """
-        return "none" if self._is_gemini() else ""
+        return "none" if (self._is_gemini() or self.is_local()) else ""
 
 
 

@@ -59,6 +59,18 @@ con menos RAM unificada. qwen3 = desactivar "thinking" antes de considerarla. ge
 
 ---
 
+### Nota 2026-10-27 (V2-824) — el perfil `local` ya no nombra `qwen2.5:*`
+
+Los tags de arriba son el REGISTRO de lo medido y se quedan tal cual. Lo que cambia es lo que el perfil `local`
+declara hoy: `config/models.default.json` §local.llm = **`qwen3.8:27b`** (ollama.com/library, comprobado ese día:
+18 GB, tools, 256K ctx, thinking ON por defecto y apagable por petición con `reasoning_effort:"none"`, que el
+cliente rápido ya manda a Ollama). **No está re-benchmarkeado**: los únicos números locales que existen son los de
+esta sección (familia 14B: ~45 % de tool-calling, 0,3-2 s TTFT caliente, 27 s / timeout 45 s con STT/TTS en la
+misma GPU) y el descarte de qwen3 por thinking (8-78 s). Hasta medir el tag nuevo, esas cifras son el techo
+conocido de la familia, no una promesa sobre este modelo. Alternativas con tools y menos peso (`bonsai-2` 2b-27b,
+`nimble` 9b) igual de sin medir. Embeddings locales: `embeddinggemma` sigue siendo el medido (§7, §8) y el único
+con umbrales de dedup calibrados; `embeddinggemma-2` (más nuevo, 768 dims) no está calibrado.
+
 ## 2. Capa rápida (FlashBrain) — modelos CLOUD vía AIMLAPI (research 2026-07-08)
 
 ⚠️ **Los TTFT de abajo son de la API NATIVA (artificialanalysis.ai / proveedor), NO de AIMLAPI.** AIMLAPI añade un

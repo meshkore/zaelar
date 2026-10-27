@@ -138,6 +138,8 @@ DECLARED_SURFACE = {
     # 2026-10-26 (V2-809): an upload streamed to disk is adopted by rename, never read into memory.
     "episode_inbox", "adopt_episode",
     "consolidate", "DEFAULT_BUDGET_TOKENS",
+    # V2-824: the one door a change of embedding model goes through (panel + profiles call it here, not reembed).
+    "migrate_embeddings",
 }
 
 #: Public in practice but NOT declared in `__all__` — real drift, measured 2026-08-23 and frozen as-is on

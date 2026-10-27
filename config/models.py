@@ -11,6 +11,7 @@ exactly the kind of silence this table exists to eliminate.
 from __future__ import annotations
 
 import json
+import logging
 import os
 from typing import Any
 
@@ -83,3 +84,42 @@ def enabled(name: str, default: bool = True) -> bool:
 def retired() -> dict:
     """What was removed and why. Exposed so a guard can verify that it has not returned."""
     return {k: v for k, v in (_table().get("retired") or {}).items() if k != "_"}
+
+
+# ── the LOCAL block (V2-824) ──────────────────────────────────────────────────────────────────────────────────
+# What the `local` profile and every local fallback read. Not a rung of any service: the services above have to
+# run in a container and Ollama does not, so the on-machine option lives in its own block, and this is the ONLY
+# place an Ollama tag is written. A module that needs "the local model" asks here instead of carrying a literal
+# that goes stale the day the library moves (the previous local defaults outlived their model by a year).
+
+def local(name: str) -> dict:
+    """One entry of the `local` block (`llm` or `embeddings`). Fails loudly like `service()`."""
+    block = _table().get("local") or {}
+    row = block.get(name)
+    if not row or not isinstance(row, dict):
+        raise KeyError(f"«{name}» no está en el bloque `local` de models.default.json — añádelo ahí, no en el código")
+    return {k: v for k, v in row.items() if k not in ("why", "_doc")}
+
+
+def local_field(name: str, field: str) -> str:
+    """One field of the `local` block, TOLERANT: a caller that only needs a default must not take the process down
+    when the table is unreadable — the loud failure belongs to startup (`service()`). It is the ONE tolerant door,
+    and it says what failed instead of answering «nothing» in silence."""
+    try:
+        return str(local(name).get(field) or "")
+    except Exception as e:  # noqa: BLE001
+        logging.getLogger("zaelar.config.models").warning(
+            "models table: local.%s.%s unreadable (%s) — falling back to the provider default", name, field, e)
+        return ""
+
+
+def local_llm_model() -> str:
+    return local_field("llm", "model")
+
+
+def local_llm_base_url() -> str:
+    return local_field("llm", "base_url")
+
+
+def local_embedding_model() -> str:
+    return local_field("embeddings", "model")

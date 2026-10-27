@@ -7,6 +7,13 @@
 import os
 from pathlib import Path
 
+
+def _local_llm_model() -> str:
+    """The local tag is DATA (`config/models.default.json` §local.llm, V2-824) — this module carried a literal
+    outdated tag for a year after the model was gone. Fail-soft to empty = the endpoint's own default."""
+    from config import models as _table
+    return _table.local_llm_model()
+
 _HERE = Path(__file__).resolve().parent
 
 
@@ -44,7 +51,7 @@ def triage_url() -> str:
 
 
 def triage_model() -> str:
-    return os.getenv("WA_TRIAGE_MODEL") or os.getenv("ZAELAR_LOCAL_LLM_MODEL", "qwen2.5:3b")
+    return os.getenv("WA_TRIAGE_MODEL") or os.getenv("ZAELAR_LOCAL_LLM_MODEL") or _local_llm_model()
 
 
 def triage_key() -> str:

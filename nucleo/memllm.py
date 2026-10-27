@@ -250,7 +250,7 @@ def local_titular_ready(url: str, model: str) -> bool:
         with urllib.request.urlopen(req, timeout=3.0) as r:
             names = [str((m or {}).get("name") or "") for m in (json.loads(r.read().decode()).get("models") or [])]
         want = (model or "").strip()
-        # `embeddinggemma` and `embeddinggemma:latest` are the same model; `qwen2.5:7b` and `qwen2.5:14b` are not,
+        # `embeddinggemma` and `embeddinggemma:latest` are the same model; `qwen3.8:27b` and `qwen3.8:27b-q8_0` are not,
         # so the tag is only ignored when the CONFIG omitted it.
         ready = any(n == want or (":" not in want and n.split(":")[0] == want) for n in names)
     except Exception as e:  # noqa: BLE001
@@ -279,7 +279,7 @@ def pair_incoherent(url: str, model: str) -> bool:
     This is the SHAPE of the trap a config falls into when a model is named without its endpoint: the two halves
     come from different layers (a profile, an env var, the store, a default) and nothing checks that they describe
     the same provider. Measured 2026-08-20 in every sandboxed `use_cases` round — ~8-10 per round: a stale
-    `MEM_PROCESSOR_MODEL=qwen2.5:3b` in the operator's env file beat the checked-in cloud default, because the env
+    a local `MEM_PROCESSOR_MODEL` tag in the operator's env file beat the checked-in cloud default, because the env
     fallback applies whenever the store has no value and a fresh workspace has no store. Every distillation paid a
     404 to AIMLAPI first; before the failover chain existed (2026-08-19) it paid three and then wrote through the
     lossy heuristic, silently.

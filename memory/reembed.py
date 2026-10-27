@@ -11,8 +11,15 @@ mañana). Pero los vectores de `vec_memories` viven en el ESPACIO del modelo que
   - `reembed()`        — recalcula TODOS los vectores con el backend actual; si cambió la dim, recrea `vec_memories`.
                          Job de MANTENIMIENTO (no hot path). Tras correrlo, re-sella la firma.
 
-No se dispara re-embed automático (decisión del ciclo V2-030: solo abstracción + reranker). `check()` se llama en
-el arranque para AVISAR; el operador/dev corre `reembed()` a conciencia cuando cambia el modelo.
+  - `migrate()`        — THE ONE DOOR for a change of embedding model (V2-824): re-embeds every pill AND every
+                         paraphrase in the new space, reseals the signature, clears the stale `embed_pending`
+                         markers and verifies no foreign vector is left. Fired by the panel (`server/config_api.py`
+                         when `memory.embed_*` changes) and by `config/profiles.apply` (local ↔ cloud).
+
+Nothing migrates on its own: `check()` runs at boot to WARN, and an existing database keeps its sealed space until
+the user changes the model on purpose. A boot that finds the signatures apart is a misconfiguration to say out
+loud (a missing key demotes the backend, and migrating INTO a fallback space would be the V2-103 defect on
+purpose), never a reason to rewrite the memory.
 """
 from __future__ import annotations
 
@@ -163,11 +170,121 @@ def reembed(batch: int = 128) -> dict:
                 done += 1
             except Exception as e:
                 logger.debug("re-embed: fallo en id=%s: %s", r["id"], e)
+                # COUNTABLE, not silent: the row stays without a vector and REM's repair pass picks it up.
+                _writer._mark_embed_pending(db, r["id"], "migration")
+    paraphrases = _reembed_paraphrases(db, batch)
+    if paraphrases.get("ok") is False:
+        return {"ok": False, "reason": paraphrases.get("reason"), "reindexed": done, "total": total}
     stamp()
-    logger.info("re-embed OK: %d/%d vectores reindexados", done, total)
-    return {"ok": True, "reindexed": done, "total": total, "signature": signature()}
+    logger.info("re-embed OK: %d/%d vectores reindexados (+%d paráfrasis)", done, total, paraphrases.get("reindexed", 0))
+    return {"ok": True, "reindexed": done, "total": total, "paraphrases": paraphrases.get("reindexed", 0),
+            "signature": signature()}
 
 
-if __name__ == "__main__":  # `python -m memory.reembed` → re-embed manual de mantenimiento
+def _reembed_paraphrases(db, batch: int = 128) -> dict:
+    """The paraphrase channel lives in ITS OWN vector table (`vec_paraphrases`, V2-031 T2) and the old re-embed
+    left it in the previous model's space — a third of the RRF fusing foreign vectors after every migration.
+    Same contract as the pill loop: abort WITHOUT stamping if the backend degrades."""
+    try:
+        rows = db.query("SELECT id, text FROM paraphrase_index")
+    except Exception:  # noqa: BLE001
+        return {"ok": True, "reindexed": 0}
+    db.execute("DROP TABLE IF EXISTS vec_paraphrases")
+    db.execute(_schema.vec_paraphrases_ddl(_emb.dim()))
+    done = 0
+    for i in range(0, len(rows), batch):
+        chunk = rows[i:i + batch]
+        vecs = _emb.embed_batch([r["text"] for r in chunk])
+        if _emb.last_degraded:
+            logger.error("re-embed ABORTED on the paraphrases at %d/%d: backend degraded — not sealed", done, len(rows))
+            return {"ok": False, "reason": "backend degraded while re-embedding the paraphrases", "reindexed": done}
+        for r, v in zip(chunk, vecs):
+            try:
+                db.execute("INSERT INTO vec_paraphrases (id, embedding) VALUES (?, ?)", (r["id"], _writer._pack(v)))
+                done += 1
+            except Exception as e:  # noqa: BLE001
+                logger.debug("re-embed: paraphrase %s failed: %s", r["id"], e)
+    return {"ok": True, "reindexed": done}
+
+
+def _forget_space_verdicts() -> None:
+    """A migration moves the space, so every cached answer about it is stale: the backend resolution in
+    `embeddings` (so the NEW config resolves) and the `space_ok()` verdict both callers consult."""
+    global _SPACE_CACHE
+    _emb.reset()
+    _SPACE_CACHE = (0.0, True, None)
+
+
+def migration_needed() -> dict:
+    """Pure check, no side effect beyond resolving the backend: does the ACTIVE space differ from the sealed one
+    while vectors exist? `check()` says the same thing with a warning; this one is for a caller deciding."""
+    cur, stored, n = signature(), stored_signature(), _vec_count()
+    return {"needed": bool(stored and stored != cur and n), "signature": cur, "stored": stored, "vectors": n}
+
+
+def migrate(*, reason: str = "") -> dict:
+    """Changing the embedding model is a MIGRATION, not a failover (V2-824). This is the one door.
+
+    Steps, in order: forget the cached verdicts → compare the active signature with the sealed one → when they
+    differ and vectors exist, `reembed()` (drops and recreates BOTH vector tables, so nothing from the old space
+    can survive by construction), then clear the `embed_pending` markers of rows that now carry a vector, then
+    count what is still foreign (`rem._drop_foreign_vectors`, which must find nothing). A database with no
+    vectors is only stamped. Same signature → nothing to do.
+
+    A degraded backend ABORTS without stamping (`reembed()` already does) — the old seal stays, the writer keeps
+    deferring and `check()` keeps warning, which is the honest state: half a migration is worse than none."""
+    _forget_space_verdicts()
+    need = migration_needed()
+    cur, stored, n = need["signature"], need["stored"], need["vectors"]
+    report: dict = {"ok": True, "from": stored, "to": cur, "vectors": n, "reason": reason}
+    if stored == cur:
+        report["action"] = "none"
+        return report
+    if not n:
+        stamp(cur)
+        _forget_space_verdicts()
+        report["action"] = "stamped"
+        return report
+    logger.warning("memoria: MIGRACIÓN del espacio de embeddings %s → %s (%d vectores) — %s", stored, cur, n, reason)
+    rep = reembed()
+    report.update({k: rep.get(k) for k in ("reindexed", "total", "paraphrases", "reason") if k in rep})
+    if not rep.get("ok"):
+        report.update({"ok": False, "action": "aborted"})
+        _report(report)
+        return report
+    _forget_space_verdicts()
+    db = _db.get_db()
+    from . import rem as _rem
+    report["pending_cleared"] = _rem._clear_stale_pending(db)
+    report["foreign_left"] = _rem._drop_foreign_vectors(db, 1_000_000)
+    report["action"] = "migrated"
+    report["ok"] = report["foreign_left"] == 0
+    _report(report)
+    return report
+
+
+def _report(report: dict) -> None:
+    """Say it where the operator looks: the log, the bus and the health light (amber only when it went wrong)."""
+    logger.info("memoria: migración de embeddings → %s", report)
+    try:
+        import bus
+        bus.emit_sync("memory.reembed", dict(report))
+    except Exception as e:  # noqa: BLE001
+        logger.debug("migration report: bus emit failed: %s", e)
+    if not report.get("ok"):
+        try:
+            from voice import health_state
+            health_state.record("memory", "degraded",
+                                f"embedding migration {report.get('from')} → {report.get('to')} did not finish: "
+                                f"{report.get('reason') or report.get('action')} — the old space is still sealed")
+        except Exception as e:  # noqa: BLE001
+            logger.debug("migration report: health light failed: %s", e)
+
+
+if __name__ == "__main__":  # `python -m memory.reembed` → the migration door, by hand (`--force` = re-embed anyway)
     import json
-    print(json.dumps(reembed(), ensure_ascii=False, indent=2))
+    import sys
+    if "--force" in sys.argv:
+        print(json.dumps(reembed(), ensure_ascii=False, indent=2))
+    else:
+        print(json.dumps(migrate(reason="manual"), ensure_ascii=False, indent=2))

@@ -124,7 +124,7 @@ Zaelar brings no model of its own and holds no key of yours in the repo. Every p
 | **FlashBrain** | the voice and chat turn | DeepSeek `deepseek-flash` | OpenAI `gpt-4.1-mini` | `DEEPSEEK_API_KEY` |
 | **Brain Worker** | browses and executes, via Claude Code | Z.AI `glm-5.3` | DeepSeek | `Z_AI_API_KEY` |
 | **Memory** | distils every turn; nightly consolidation | DeepSeek | OpenAI | `DEEPSEEK_API_KEY` |
-| **Embeddings** | the semantic space of the memory | OpenAI `text-embedding-3-small` | — | `OPENAI_API_KEY` |
+| **Embeddings** | the semantic space of the memory | OpenAI `text-embedding-3-small` (768 dims) | — (none, by design) | `OPENAI_API_KEY` |
 | **Speech-to-text** | streaming transcription | Deepgram | Mistral Voxtral | `DEEPGRAM_API_KEY` |
 | **Text-to-speech** | the voice you hear | Inworld | ElevenLabs | `INWORLD_API_KEY` |
 
@@ -140,6 +140,28 @@ OpenAI, Perplexity, Tavily or Brave — whichever keys you have.
 | Text-to-speech — Kokoro | `scripts/install-tts-mac.sh` | `scripts/install-tts-win.ps1` |
 
 Then choose them in ⚙ settings. Every key and how to check it: `./zaelar doctor`.
+
+**Prefer to keep the memory's embeddings on your machine?** The free, fully local option is Google's
+`embeddinggemma` through [Ollama](https://ollama.com) (768 dims, multilingual):
+
+```bash
+ollama pull embeddinggemma
+```
+
+then pick **Ollama (local, free)** under *Memory · embeddings* in ⚙ settings, or set
+`ZAELAR_EMBED_BACKEND=ollama` and `ZAELAR_EMBED_MODEL=embeddinggemma`. Three things worth knowing:
+
+- **Embeddings have no stand-in.** A different model is a different vector space, so a second model would not
+  answer the same question — it would corrupt recall and dedup. When the provider is down, memories are still
+  written (marked `embed_pending`), search falls back to keywords, and the nightly REM pass re-embeds them.
+- **Changing the embedding model is a migration, not a setting.** Choosing another model re-embeds your whole
+  memory in the new space and reseals it (`memory/reembed.py`); until you change it, an existing install keeps
+  the space it was indexed with.
+- **Semantic dedup is calibrated per model.** `embeddinggemma` has measured thresholds; a model without them
+  keeps exact and slot dedup only. `python -m tests.memory.benchmarks.calibrate_dedup --db <copy of zaelar.db>` measures a new one.
+
+The whole on-machine stack (local speech + a local chat model + local embeddings) is the `local` profile, read
+from the `local` block of [`config/models.default.json`](config/models.default.json).
 
 ## Commands
 

@@ -7,31 +7,101 @@ they were. This module UNIFIES them: profile name → the COMPLETE set of coordi
 applicable in one step (`apply`).
 
 **The profile only moves DEFAULTS.** Per-component override (env/UI) remains valid — that is what makes HYBRIDS
-possible (e.g. `local` + `ZAELAR_LLM_PROVIDER=aimlapi` on a weak machine). `apply` writes to the SAME stores as the
-UI (`settings.json` + `v2.json`), so nothing is hardcoded in code and everything remains manually configurable
+possible (e.g. `local` + a cloud FlashBrain on a weak machine). `apply` writes to the SAME stores as the UI
+(`settings.json` + `v2.json`), so nothing is hardcoded in code and everything remains manually configurable
 afterwards.
 
+**No model name lives in this file (V2-824).** Both packages are READ from `config/models.default.json`: the
+`cloud` profile from the services' titulars, the `local` profile from the table's `local` block. A copy of a
+fact is a fact that will disagree — this module carried its own outdated local tags and a `fastembed` embedding
+provider for a year after the table had moved on, and re-applying a profile wrote those stale values into the
+operator's `config/v2.json` on every pass.
+
 Two built-in profiles:
-  - **local** — voice and memory ON THE MACHINE (whisper + kokoro + Ollama FlashBrain + Ollama embeddings + local
-    rerank + local HEART). Zero cloud keys for voice/memory. (SlowBrain = `claude` CLI still needs its auth.)
-  - **cloud** — everything through cloud providers (voxtral/deepgram + cartesia/elevenlabs + AIMLAPI FlashBrain +
-    cloud embed/rerank/proc). Keys only, no local models. **= deploy target.** `remote` = ALIAS of `cloud`.
+  - **local** — voice and memory ON THE MACHINE (whisper + kokoro + the table's local LLM for the FlashBrain and
+    the memory HEART + the table's local embeddings + local rerank). Zero cloud keys for voice/memory. (The Brain
+    Worker = coding-agent CLI still needs its auth.)
+  - **cloud** — everything through cloud providers (the table's titulars: STT/TTS, FlashBrain, embeddings, HEART).
+    Keys only, no local models. **= the default and the deploy target.** `remote` = ALIAS of `cloud`.
 """
 from __future__ import annotations
 
+
 # Profile → coordinated package. `voice` = what the engine sees (materialized as ZAELAR_* through settings.json).
 # `v2` = patch by config/v2.py section. An EMPTY value means "provider default" (we do not force it).
-def _fast_from_table() -> dict:
-    """The voice titular, straight from `config/models.default.json`. Fails SOFT on purpose: a profile that
-    cannot be built must not take the wizard down with it, and an empty dict here simply leaves the live
-    default alone — which is the safe side, since the live default comes from the same table."""
+#
+# Every reader below fails SOFT on purpose: a profile that cannot be built must not take the wizard or the ⚙ down
+# with it, and an empty dict simply leaves the live default alone — which is the safe side, since the live default
+# comes from the same table.
+def _row(kind: str, name: str) -> dict:
+    """A titular (`kind="titular"`) or a `local` block entry, tolerant — and it SAYS what failed."""
     try:
         from config import models as _tabla
-        t = _tabla.titular("voice_brain")
-        return {"provider": t.get("provider", ""), "model": t.get("model", ""),
-                "base_url": t.get("base_url", ""), "api_key": ""}
-    except Exception:  # noqa: BLE001
+        return _tabla.titular(name) if kind == "titular" else _tabla.local(name)
+    except Exception as e:  # noqa: BLE001
+        import logging
+        logging.getLogger("zaelar.config.profiles").warning(
+            "profiles: models table %s «%s» unreadable (%s) — the profile leaves that default alone", kind, name, e)
         return {}
+
+
+def _titular(service: str) -> dict:
+    return _row("titular", service)
+
+
+def _local(name: str) -> dict:
+    return _row("local", name)
+
+
+def _fast_from_table() -> dict:
+    """The voice titular, straight from the table (V2-750 — READ, never copied: a hand-aligned copy drifted the
+    moment the table moved and kept writing a two-versions-old model into the operator's `config/v2.json`)."""
+    t = _titular("voice_brain")
+    if not t:
+        return {}
+    return {"provider": t.get("provider", ""), "model": t.get("model", ""),
+            "base_url": t.get("base_url", ""), "api_key": ""}
+
+
+def _fast_local_from_table() -> dict:
+    """The local LLM, from the table's `local` block, WITH its endpoint. ⚠️ `base_url` is not optional here, and
+    its absence was a real latent bug until 2026-08-19: a profile that names a local model and leaves the endpoint
+    wherever it was sends an Ollama tag to a cloud provider — HTTP 400 on every call, silently."""
+    row = _local("llm")
+    if not row:
+        return {}
+    return {"provider": row.get("provider", "ollama"), "model": row.get("model", ""),
+            "base_url": row.get("base_url", ""), "api_key": ""}
+
+
+def _memory_cloud_from_table() -> dict:
+    """Embeddings = the table's titular (`services.embeddings`), the one space that exists identically on a laptop
+    and in a container. The reranker follows its own row (OFF by default so local and cloud measure the same)."""
+    emb = _titular("embeddings")
+    rr = _titular("reranker")
+    return {"embed_provider": emb.get("provider", "") or "openai", "embed_model": emb.get("model", ""),
+            "embed_base_url": emb.get("base_url", ""),
+            "rerank_provider": rr.get("provider", "") or "off",
+            # empty = the table's `memory_writer` titular, which `config/v2.py` already reads
+            "mem_processor_model": "", "mem_processor_base_url": ""}
+
+
+def _memory_local_from_table() -> dict:
+    """Memory on the machine: the local embeddings (another SPACE — applying this over an indexed database is a
+    migration, see `apply`) and the local LLM as the HEART, with its endpoint (same trap as `_fast_local_from_table`).
+
+    Ollama as the write titular is the operator's rule for a LOCAL install (2026-08-19), and it is safe to declare
+    even on a machine that has never pulled the model: `nucleo/memllm.local_titular_ready` steps over a local
+    titular that is not answering, so the write lands on the cloud stand-in instead of on the heuristic. TRADE-OFF
+    worth knowing before choosing this profile: a local distiller runs on the SAME GPU as local STT/TTS and has been
+    measured to cut the voice (15-29 s) — which is why it is a profile the operator picks, never a default."""
+    emb = _local("embeddings")
+    llm = _local("llm")
+    return {"embed_provider": emb.get("provider", "") or "ollama", "embed_model": emb.get("model", ""),
+            "embed_base_url": "",
+            "rerank_provider": "local",
+            "mem_processor_model": llm.get("model", ""),
+            "mem_processor_base_url": llm.get("base_url", "")}
 
 
 _PROFILES: dict[str, dict] = {
@@ -41,24 +111,8 @@ _PROFILES: dict[str, dict] = {
                    "Ideal en Apple Silicon / GPU. El agente de código (SlowBrain) sí usa Claude.",
         "voice": {"stt_provider": "whisper_local", "tts_provider": "kokoro_local"},
         "v2": {
-            "fast": {"provider": "ollama", "model": "qwen2.5:14b-instruct", "base_url": "", "api_key": ""},
-            # ⚠️ `mem_processor_base_url` is NOT optional here, and its absence was a real latent bug until
-            # 2026-08-19: this profile set a LOCAL model name and left the endpoint untouched, so picking «Local»
-            # while the endpoint pointed at a cloud provider sent `qwen2.5:7b-instruct` to DeepSeek — HTTP 400 on
-            # every write, every turn silently on the lossy regex heuristic. A profile is a COORDINATED package;
-            # naming a model without its endpoint is the same "compatible in the protocol, not in the catalogue"
-            # trap the provider rule warns about.
-            #
-            # Ollama as the write titular is the operator's rule for a LOCAL install (2026-08-19), and it is safe to
-            # declare here even on a machine that has never pulled the model: `nucleo/memllm.local_titular_ready`
-            # steps over a local titular that is not answering, so the write lands on DeepSeek V4 Flash direct
-            # instead of on the heuristic. TRADE-OFF worth knowing before choosing this profile: a local distiller
-            # runs on the SAME GPU as local STT/TTS and has been measured to cut the voice (15-29 s) — which is why
-            # it is a profile the operator picks, never a default.
-            "memory": {"embed_provider": "ollama", "embed_model": "embeddinggemma",
-                       "rerank_provider": "local",
-                       "mem_processor_model": "qwen2.5:7b-instruct",
-                       "mem_processor_base_url": "http://localhost:11434/v1"},
+            "fast": _fast_local_from_table(),
+            "memory": _memory_local_from_table(),
         },
         "engine_profile": "local",
     },
@@ -68,25 +122,8 @@ _PROFILES: dict[str, dict] = {
                    "claves de API. Es el perfil del despliegue en servidor.",
         "voice": {"stt_provider": "deepgram", "tts_provider": "inworld"},
         "v2": {
-            # Named a two-versions-old model until 2026-08-19, which stopped being the titular on 2026-08-02, so
-            # anyone who picked this profile in the wizard was silently overwriting the live default with a
-            # two-versions-old model — a profile is a shortcut to the RECOMMENDED setup, and one that ships a stale
-            # model is worse than one that ships nothing.
-            #
-            # V2-657: aligned to the canonical model table (config/models.default.json §voice_brain, V2-500) —
-            # DeepSeek DIRECT. The old value here was the broker, with a rationale («the cloud's secrets lack
-            # the direct key») that stopped being true once deployments pinned `FAST_*` to the direct
-            # endpoint and passed `DEEPSEEK_API_KEY` — so re-applying the profile
-            # kept writing a stale broker label into the operator's `config/v2.json`, and observability
-            # printed that name on every turn while the traffic went elsewhere.
-            # V2-750 — READ from the table, not copied from it. The comment above says «aligned to the
-            # canonical model table» and it was aligned by HAND, so it drifted the moment the table moved:
-            # promoting V4.1-Flash left this profile writing `deepseek-v4-pro` into the operator's
-            # `config/v2.json` on every re-apply, which is the exact failure the two paragraphs above
-            # describe, one model later. A copy of a fact is a fact that will disagree.
             "fast": _fast_from_table(),
-            "memory": {"embed_provider": "fastembed", "embed_model": "",
-                       "rerank_provider": "local", "mem_processor_model": ""},
+            "memory": _memory_cloud_from_table(),
         },
         "engine_profile": "remote",
     },
@@ -97,7 +134,7 @@ _ALIASES = {"remote": "cloud"}
 # `"remote"`. TWO defaults for one idea, in two files, and the disagreement was not theoretical: a factory
 # reset dropped `wizard_done`, the first-run wizard fired, applied `local` because that was the recommendation
 # on an Apple Silicon machine with Ollama running, and `apply()` rewrote settings.json AND v2.json together —
-# so the operator's engine came back up on qwen2.5:14b instead of the table's titular, with the paid voice
+# so the operator's engine came back up on a local model instead of the table's titular, with the paid voice
 # stack swapped underneath it. The checkbox that promised to preserve his install had preserved it for about
 # twenty seconds.
 #
@@ -105,6 +142,16 @@ _ALIASES = {"remote": "cloud"}
 # deployments — that is the point of having one table. `local` stays a deliberate opt-in from the ⚙ for
 # someone who wants models on their own machine, never something a detector decides for them.
 DEFAULT = "cloud"
+
+def _embedding_keys() -> tuple:
+    """The keys of `§memory` whose change moves the EMBEDDING SPACE — derived from the section itself (every
+    `embed_*` key that is not a secret), so a new one is covered the day it is declared. Writing any of them is
+    not a config edit: it is a migration of every vector in the database (V2-824), through `reembed.migrate`."""
+    from config import v2 as _v2
+    return tuple(k for k in _v2.set_keys("memory") if k.startswith("embed_") and not k.endswith("api_key"))
+
+
+EMBEDDING_KEYS = _embedding_keys()
 
 
 def deployment() -> str:
@@ -190,7 +237,11 @@ def requirements(name: str) -> dict:
 def apply(name: str) -> dict:
     """Apply the profile to STORES (settings.json + v2.json) — one coordinated lever. Does NOT touch secrets (keys
     are managed separately). Returns `{profile, applied}`. Idempotent. Per-component overrides the user sets AFTER
-    still win (stores are the layer the UI edits manually)."""
+    still win (stores are the layer the UI edits manually).
+
+    If the profile moves the EMBEDDING space (`local` ↔ `cloud`), the memory is migrated through the one door
+    (`memory/reembed.migrate`, V2-824): the vectors are recomputed in the new space and the signature resealed. A
+    database with no vectors is only stamped. The report lands in `applied["embedding_migration"]`."""
     n = canon(name)
     p = _PROFILES[n]
     applied: dict = {}
@@ -205,12 +256,16 @@ def apply(name: str) -> dict:
         applied["voice"] = {"ok": False, "error": str(e)[:200]}
 
     # 2) ROUTING/MEMORY axis → config/v2.py (by section; declared keys only, whitelisted by v2.set)
+    embedding_moved = False
     try:
         from config import v2
+        before = {k: v2.get("memory").get(k) for k in EMBEDDING_KEYS}
         for section, patch in p["v2"].items():
             v2.set(section, patch)
         # the profile's default brain is always «Colmena» itself
         v2.set("flags", {"brain": "nucleo"})
+        after = {k: v2.get("memory").get(k) for k in EMBEDDING_KEYS}
+        embedding_moved = before != after
         applied["v2"] = {"ok": True, "sections": list(p["v2"].keys()) + ["flags"]}
     except Exception as e:  # noqa: BLE001
         applied["v2"] = {"ok": False, "error": str(e)[:200]}
@@ -225,6 +280,14 @@ def apply(name: str) -> dict:
         applied["engine_profile"] = p["engine_profile"]
     except Exception as e:  # noqa: BLE001
         applied["engine_profile"] = {"error": str(e)[:200]}
+
+    # 4) the embedding SPACE moved → migrate the memory (synchronous: this is an operator gesture, not a turn)
+    if embedding_moved:
+        try:
+            from memory import api as _memapi
+            applied["embedding_migration"] = _memapi.migrate_embeddings(reason=f"profile {n}")
+        except Exception as e:  # noqa: BLE001
+            applied["embedding_migration"] = {"ok": False, "error": str(e)[:200]}
 
     return {"profile": n, "applied": applied}
 

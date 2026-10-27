@@ -47,8 +47,8 @@ def test_defaults(v2):
 
 
 def test_set_persists_and_reads_back(v2):
-    v2.set("fast", {"model": "qwen2.5:14b", "provider": "ollama"})
-    assert v2.get("fast")["model"] == "qwen2.5:14b"
+    v2.set("fast", {"model": "qwen3.8:27b", "provider": "ollama"})
+    assert v2.get("fast")["model"] == "qwen3.8:27b"
     assert v2.get("fast")["provider"] == "ollama"
     # and persist it to disk
     assert v2._PATH.exists()

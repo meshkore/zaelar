@@ -45,8 +45,9 @@ configurable providers: cloud by default so that every deployment measures the s
   default, because write quality is the number-one lever of recall and the measured external models win it
   clearly; and because a default that only exists on a laptop (a local Ollama server) would make a laptop measure
   something different from a container. **Which model is chosen by the benchmark, not by provider reputation**
-  (`zaelar-model-benchmarks.md §12.3`). The **local option** (qwen / embeddinggemma via Ollama) stays available by
-  config (`§memory.mem_processor_*`, `§memory.embed_*`) for whoever prioritises privacy/offline use. When the
+  (`zaelar-model-benchmarks.md §12.3`). The **local option** (the table's `local` block — one Ollama chat model for
+  the HEART and `embeddinggemma` for the embeddings) stays available by config (`§memory.mem_processor_*`,
+  `§memory.embed_*`, or the `local` profile) for whoever prioritises privacy/offline use. When the
   HEART runs on DeepSeek it uses the **direct** endpoint (`api.deepseek.com`), which honours
   `thinking:{"type":"disabled"}` where a broker may ignore it.
 - **Insertion through an async queue — it may be slow.** Every source writes into a **queue**; only the queue
@@ -455,9 +456,11 @@ failure does not bring sleep down):
    signature enforcement leaves them like that when the model is mismatched/degraded) → the semantic index
    **self-repairs** every night. Configurable budget (**`§memory.rem_repair_limit` / `ZAELAR_REM_REPAIR_LIMIT`,
    default 1,000 per sleep**, large enough to drain a backlog of several hundred in one night; no LLM involved).
-2. **`semantic_dedup()`** — dedup by MEANING (cosine over the already computed vectors, **no LLM**; threshold 0.86,
-   CALIBRATED against a real database, + a **conflicting-figures guard**: two facts with different numbers/dates
-   are never merged): paraphrase echoes of the same task ("ITV appointment on the 23rd" × 8) collapse into 1 — it
+2. **`semantic_dedup()`** — dedup by MEANING (cosine over the already computed vectors, **no LLM**; the threshold is
+   **per embedding model** — `memory/dedup_thresholds.py`, 0.86 CALIBRATED against a real database for
+   `embeddinggemma`, and NO row yet for the cloud titular, so on it this pass is **skipped** and says so — + a
+   **conflicting-figures guard**: two facts with different numbers/dates are never merged): paraphrase echoes of
+   the same task ("ITV appointment on the 23rd" × 8) collapse into 1 — it
    transfers edges and invalidates the rest with `valid=0 + superseded_by` (history intact). **Complemented by a
    SYNCHRONOUS exact dedup at write time** (`writer.insert_memory`, `LOWER(text)=LOWER(?)` over the current rows
    without a slot) — the consolidator's exact dedup only runs hourly, a window wide enough for the same literal
@@ -524,9 +527,28 @@ ENDPOINT — a key sent to the wrong endpoint must be impossible by construction
 > (`memory/reembed.py`), never a config edit; the space signature lives in `<db>.embedsig`. The only honest
 > stand-in would be the SAME model behind another door. So when the provider is unavailable the failure is made
 > **VISIBLE** — amber in the memory box, saying that new memories are stored WITHOUT a vector (marked
-> `embed_pending`, repaired by REM) and that search by meaning drops to lexical — instead of hiding it behind a
-> substitute that would poison recall silently. `test_the_embeddings_row_still_declares_NO_stand_in` (node 2.77)
-> turns red the day someone "fixes" the table.
+> `embed_pending`, repaired by REM) and that search by meaning drops to lexical (FTS5 + the paraphrase channel,
+> which is lexical in that window too) — instead of hiding it behind a substitute that would poison recall
+> silently. `test_the_embeddings_row_still_declares_NO_stand_in` (node 2.77) turns red the day someone "fixes"
+> the table, and `test_an_embedding_outage_defers_and_rem_repairs.py` (node 1.2) walks the whole path: pill
+> written, marker set, FTS carries the read, REM repairs when the titular is back, signature never moved.
+
+> 🔁 **Changing the embedding model is a MIGRATION, through one door (V2-824).** `memory/reembed.py::migrate()`
+> is fired when `memory.embed_provider` / `embed_model` / `embed_base_url` change — from the panel
+> (`POST /api/config/v2`, in the background) or from a profile (`config/profiles.apply`, `local` ↔ `cloud`). It
+> re-embeds every pill AND every paraphrase (`vec_paraphrases` was left in the old space before), reseals
+> `<db>.embedsig`, clears the stale `embed_pending` markers and counts the foreign vectors left (must be 0). A
+> degraded provider ABORTS without resealing. Nothing migrates on its own: a boot that finds the signatures
+> apart WARNS (`check()`) and the writer keeps deferring — an existing install keeps its sealed space until the
+> user changes the model on purpose. By hand: `python -m memory.reembed` (`--force` to re-embed regardless).
+
+> 📏 **The dedup thresholds belong to ONE model (V2-824).** The writer's insert-time distance and REM's cosine
+> are geometry in one model's space, declared per model in `memory/dedup_thresholds.py` (`embeddinggemma`: 0.45 /
+> 0.86, measured). A model with no row — the cloud titular, on purpose — gets **no semantic dedup**: the writer
+> keeps exact-text and slot dedup (deterministic, no false positives) and REM skips the pass. The number for a
+> new model comes ONLY from `python -m tests.memory.benchmarks.calibrate_dedup --db <copy of a real zaelar.db>`, which measures
+> echoes of one fact (pill vs its stored paraphrase) vs same-entity different facts (two pills about one concept)
+> vs negations, and prints a suggestion; a human writes the row.
 
 **The memory uses an LLM in TWO places, both for WRITING and both off the hot path. READING never uses an LLM**
 (retriever sqlite-vec + FTS5 + RRF + CPU reranker) — that is the invariant that makes the latency of these models
@@ -1180,14 +1202,15 @@ list` showing something does not mean the memory uses it. The memory has TWO mod
 separate:
 
 1. **Embeddings (the retriever's vectors)** — `memory/embeddings.py`, config `§memory.embed_provider/embed_model`.
-   Default: the cloud provider declared in `config/models.default.json` §embeddings; Ollama `embeddinggemma` as a
-   panel option; `fastembed`→`hash` as safety nets (the space is never mixed silently,
-   `writer.py::_embed_sig_ok()`). **It takes no part in writing/reasoning about what is remembered** — it only turns
-   text into a vector for semantic search.
+   Default: the cloud provider declared in `config/models.default.json` §embeddings (`text-embedding-3-small`,
+   768); Ollama `embeddinggemma` (the table's `local` block) as the free local option from the panel or
+   `ZAELAR_EMBED_BACKEND=ollama`; `fastembed`→`hash` as safety nets (the space is never mixed silently,
+   `writer.py::_embed_sig_ok()`; changing it is a migration, `reembed.py::migrate`). **It takes no part in
+   writing/reasoning about what is remembered** — it only turns text into a vector for semantic search.
 2. **Writing/synthesis (reasoning about what to store or summarise)** — the HEART (`nucleo/mem_processor.py`) and the
    REM synthesis (`nucleo/memllm.py`, including the fidelity gate `verify_insight_grounded`). Defaults in
    `config/models.default.json` (§memory_writer, §memory_rem): a DeepSeek Flash model through the direct endpoint
-   with OpenAI `gpt-4.1-mini` as stand-in; a local model (qwen via Ollama) can be configured instead.
+   with OpenAI `gpt-4.1-mini` as stand-in; the table's local model (§local.llm, via Ollama) can be configured instead.
 
 **What EACH test layer runs, concretely:**
 
@@ -1239,7 +1262,8 @@ the distiller conversation context so a correction without a subject is attribut
   marked `meta.embed_pending` instead of inserting a vector from ANOTHER space (the REM phase repairs it) — vector
   spaces are never mixed silently.
 - `memory/embeddings.py` — embeddings client (cloud provider by default · Ollama `embeddinggemma` option · fastembed
-  and hashing safety nets).
+  and hashing safety nets). `memory/reembed.py` — the space signature and the MIGRATION door; `memory/dedup_thresholds.py`
+  — the per-model dedup thresholds; `tests/memory/benchmarks/calibrate_dedup.py` — measures them on a copy of a real database.
 - `memory/retriever.py` — hot path: vec ∥ fts ∥ paraphrases → RRF → weighted score → rerank → graph_expand.
 - `memory/state.py` — fixed table (µs read, no search).
 - `memory/graph.py` (+ `memory/graph_ppr.py`) — edges (link/expand, multi-hop PPR).

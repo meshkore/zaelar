@@ -50,7 +50,7 @@ __all__ = [
     "critical_facts", "salient_long", "map", "viewer",
     "load_episode", "register_episode", "write_episode", "list_episodes", "migrate_inbox",
     "episode_inbox", "adopt_episode",
-    "consolidate", "DEFAULT_BUDGET_TOKENS",
+    "consolidate", "migrate_embeddings", "DEFAULT_BUDGET_TOKENS",
 ]
 
 # Stopwords (articles/prepositions/POSSESSIVES) ignored when performing GRANULAR forgetting by content tokens:
@@ -775,3 +775,11 @@ def consolidate(**kwargs) -> dict:
 # Facade access on purpose (memory-boundary contract): `nucleo/workflows/` never touches memory internals. The
 # table's functions live in `memory/workflows_store.py` (V2-778 F1); the facade keeps their names.
 from .workflows_store import workflow_forget, workflow_hit, workflow_upsert, workflows_for  # noqa: E402,F401
+
+
+def migrate_embeddings(*, reason: str = "") -> dict:
+    """Move the memory to the ACTIVE embedding model's space (V2-824): the one door a change of model goes
+    through — re-embed pills and paraphrases, reseal the signature, leave no foreign vector. Synchronous and
+    slow (a whole memory); callers outside a maintenance context run it on their own thread."""
+    from . import reembed as _reembed
+    return _reembed.migrate(reason=reason)

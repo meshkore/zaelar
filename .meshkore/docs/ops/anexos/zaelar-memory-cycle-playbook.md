@@ -35,7 +35,7 @@ multilingual `change` signal, lineage collapse by slot alias, worker writes thro
 `heal_slots`. DB/progress/catalogue are ISOLATED per corpus → running one never touches the other. Extra step
 types: `worker_write`, `slot_count`, `heal_slots`. `python -m …runner --corpus v2 --fresh --range 0 N`.
 
-Requires **local Ollama** (CORE `qwen2.5:*`, embeddings `embeddinggemma`). An **ISOLATED** DB
+Requires **local Ollama** (the table's `§local.llm` as CORE, embeddings `embeddinggemma`). An **ISOLATED** DB
 (`memory/_data/zaelar.membot.db`, gitignored) — never the real profile. JSON report + progress in
 `.meshkore/logs/membot/`. The GOLD pass is long (the dimension-K scale cases seed thousands of embeddings);
 launch it with `python -u` (unbuffered) to watch progress, and check that it is not stuck on I/O (0% CPU
@@ -73,7 +73,7 @@ harder anchor.
 
 ## KNOWN phenomena (not to be mistaken for bugs)
 
-1. **CORE non-determinism**: qwen2.5 (even at temperature 0) canonicalises the same input with different
+1. **CORE non-determinism**: the local CORE model (even at temperature 0) canonicalises the same input with different
    wording between runs → anchor on the stable token + bridged queries. This is where flaky cases come from.
 2. **Recall at scale**: with hundreds of memories the LOCAL embedding (embeddinggemma) loses precision → a
    SAVED fact may not surface without lexical overlap. It is a model limit, not a bug (the same limit appears in

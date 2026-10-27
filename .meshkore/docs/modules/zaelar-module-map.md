@@ -86,8 +86,9 @@ start with `make run` → `python -m server`.
   registry) and `change: none|update|correction` (a change signal from the multilingual processor ITSELF → the
   anti-garble gate consumes it; the es/en regexes remain a backstop, not the only mechanism). Tables
   `state·memories·vec_memories·fts_memories·edges·episodic·journal` · queue + writer (single writer, embeddings on
-  insert) · embeddings (embeddinggemma 768 via Ollama, fastembed fallback; provider configurable via
-  `memory.embed_*` + `memory/reembed.py` with a model signature) · retriever (sqlite-vec + FTS5 → RRF k=60 → score
+  insert) · embeddings (OpenAI `text-embedding-3-small` 768 titular, `embeddinggemma` via Ollama as the local
+  option, no cross-model failover; provider configurable via `memory.embed_*`, a change is a migration through
+  `memory/reembed.py::migrate` with a model signature; dedup thresholds per model in `memory/dedup_thresholds.py`) · retriever (sqlite-vec + FTS5 → RRF k=60 → score
   α·rel+β·rec+γ·imp+δ·use → local cross-encoder **reranker** `memory/rerank.py` → graph_expand) · graph ·
   consolidator (LIGHT sleep: Ebbinghaus decay PER WINDOW + dedup + prune_invalid + eviction by weight, pinned rows
   untouchable) · **`memory/rem.py`** (DEEP sleep, the daily «REM phase» — repairs `embed_pending` vectors + SEMANTIC

@@ -25,9 +25,9 @@ status: current
 - **LiveKit server (native binary)** — `make install-livekit` (macOS Homebrew · Linux get.livekit.io · Windows
   release binary on PATH). The core runs on the native `livekit-server`; **Docker is only a fallback** if the
   binary is missing.
-- **Ollama** — for the LOCAL model paths: memory embeddings (`embeddinggemma`, `ollama pull embeddinggemma`; fallback
-  `nomic-embed-text`), the local messaging triage classifier (`qwen2.5:3b`), and an optional local FlashBrain model.
-  Cloud model routing does not need it. Ollama is a system service, not a pip package.
+- **Ollama** — ONLY for the optional `local` profile (`config/models.default.json` §local): the free local embeddings
+  (`ollama pull embeddinggemma`) and one local chat model for the FlashBrain / memory HEART / messaging triage. The
+  default routing is cloud providers and does not need it. Ollama is a system service, not a pip package.
 - **Node ≥ 18 + Claude Code CLI** (`npm i -g @anthropic-ai/claude-code`, authenticated) — used by the on-demand
   widget generator (`widgets/generator.py`) AND the SlowBrain code-agent tier (`nucleo/agentes/`, `claude -p`).
   zaelar auto-discovers `claude` on PATH/nvm/homebrew. (Codex is an alternative code-agent adapter.)
@@ -99,7 +99,8 @@ the voice engine as the provider `voice/engine/llm/providers/nucleo.py`. **SlowB
 **Memory** (`memory/`) is a single local SQLite file `zaelar.db` (`memory/_data/`, WAL) — sqlite-vec vector search +
 FTS5 keyword + RRF fusion + a small graph + Ebbinghaus-style forgetting. It absorbed the old file inbox as an
 **episodic** layer: `POST /api/files/upload` (`memory/server_api.py`) writes the bytes into the memory data-dir plus
-a searchable summary. Embeddings come from `embeddinggemma` via Ollama (fallback fastembed).
+a searchable summary. Embeddings come from the table's titular (OpenAI `text-embedding-3-small`, 768 dims);
+`embeddinggemma` via Ollama is the free local option, chosen on purpose and migrated into (`memory/reembed.py`).
 
 **No external profile seed.** The memory starts empty and grows from conversation. A file such as
 `~/.hermes/memories/USER.md`, if present on a machine, is personal and **must never be committed**.
@@ -192,7 +193,7 @@ during the test and observability can be compared against the DB.
 | TTS | **Deepgram Aura-2** | free-tier | **kokoro** (free·local), cartesia, elevenlabs |
 | Brain | **nucleo** («Colmena», own, in-process) | — | direct/local (OpenAI-compatible baselines). NO reasoning models on the voice layer |
 | Fast model | per invocation (`config/v2`) | depends on provider | local Ollama (free) · AIMLAPI/Grok (cloud) — non-reasoning mandatory |
-| Memory embeddings | embeddinggemma (Ollama) | **yes·local** | fastembed (fallback) |
+| Memory embeddings | OpenAI `text-embedding-3-small` 768 (the table) | — | embeddinggemma (Ollama, free local option — a migration, not a failover) |
 | VAD/turn | LiveKit (Silero + turn-detector) | yes·local | — |
 | WebRTC TURN | Cloudflare/STUN | yes | — |
 | Widget code-gen / SlowBrain | Claude Code headless | — | Codex |

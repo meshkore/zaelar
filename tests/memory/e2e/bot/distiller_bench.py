@@ -113,7 +113,6 @@ CANDIDATES: dict[str, tuple[str, str]] = {
     "glm-4.7":                  (AIML, "zhipu/glm-4.7"),
     "ministral-8b":             (AIML, "mistralai/ministral-8b-2512"),
     "llama-3.3-70b":            (AIML, "meta-llama/llama-3.3-70b-versatile"),
-    "qwen2.5-7b-turbo":         (AIML, "Qwen/Qwen2.5-7B-Instruct-Turbo"),
     # DIRECT (without the broker hop; own keys)
     "llama-3.3-70b@groq":       (GROQ, "llama-3.3-70b-versatile"),
     "grok-4.20-nonreason@xai":  (XAI, "grok-4.20-0309-non-reasoning"),
@@ -124,9 +123,8 @@ CANDIDATES: dict[str, tuple[str, str]] = {
     # local model is genuinely zero, and payment is reflected in the other two columns (latency and GPU). A
     # candidate not `pull`ed on the machine is skipped with a warning instead of scoring 0 — an absent model
     # is not a bad model, and counting it as such would dirty the report for anyone who lacks it.
-    "qwen3.6-27b@ollama":       (OLLAMA, "qwen3.6:27b-mlx"),
-    "qwen2.5-7b@ollama":        (OLLAMA, "qwen2.5:7b-instruct"),
-    "qwen2.5-14b@ollama":       (OLLAMA, "qwen2.5:14b-instruct"),
+    "qwen3.8-27b@ollama":       (OLLAMA, "qwen3.8:27b"),
+    "qwen3.8-27b-mlx@ollama":   (OLLAMA, "qwen3.8:27b-mlx"),
 }
 
 # $ per 1M tokens (input, output). PUBLISHED rate from the provider serving that id — web-verified on

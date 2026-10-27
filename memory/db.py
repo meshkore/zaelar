@@ -106,9 +106,10 @@ class Database:
             for stmt in _schema.BASE_DDL:
                 self.conn.execute(stmt)
             if self.vec_available:
-                # provider-driven dim (V2-031): vec table is created with the ACTIVE embedding dim (embeddinggemma
-                # 768 / bge-m3·e5-large 1024...). IF NOT EXISTS preserves the existing one -> a model change requires
-                # `memory/reembed.py` (drop+recreate), flagged by `reembed.check()` at startup. Lazy import.
+                # provider-driven dim (V2-031): vec table is created with the ACTIVE embedding dim (768 for the
+                # titular and for embeddinggemma / 1024 for bge-m3·e5-large...). IF NOT EXISTS preserves the existing
+                # one -> a model change is a MIGRATION (`memory/reembed.py::migrate`, drop+recreate+reseal), and a
+                # mismatch is flagged by `reembed.check()` at startup. Lazy import.
                 from . import embeddings as _emb
                 self.conn.execute(_schema.vec_memories_ddl(_emb.dim()))
                 self.conn.execute(_schema.vec_paraphrases_ddl(_emb.dim()))  # V2-031 T2

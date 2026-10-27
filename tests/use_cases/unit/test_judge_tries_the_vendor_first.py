@@ -8,7 +8,7 @@ which the operator's provider order (direct → broker → last resort) had put 
 
 The subtle half is the model name: the broker catalogues `deepseek/deepseek-v4-flash` and the vendor answers to
 `deepseek-v4-flash`. Sending the prefixed name to the vendor returns a 404 that looks exactly like an outage —
-the same trap that made a stale `qwen2.5:3b` config look like a dead model on the engine side the same day.
+the same trap that made a stale local-model config look like a dead model on the engine side the same day.
 """
 from __future__ import annotations
 

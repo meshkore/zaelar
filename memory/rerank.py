@@ -1,6 +1,6 @@
 """memory/rerank.py — RE-RANKING del recall largo, MODEL-AGNOSTIC (V2-030).
 
-El retriever híbrido (`memory/retriever.py`) recupera candidatos por vector (embeddinggemma local) + FTS y los
+El retriever híbrido (`memory/retriever.py`) recupera candidatos por vector (the active embedding model) + FTS y los
 funde con RRF. A ESCALA (cientos de recuerdos) el embedding local plano ordena "borroso": la respuesta suele estar
 en el top-10 pero no en el top-1/3 (medido en `scale_eval`). Un **reranker** vuelve a puntuar cada candidato
 LEYENDO query+recuerdo juntos → sube el correcto. Es la mayor palanca de recall por el menor coste.
