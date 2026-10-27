@@ -32,7 +32,7 @@ def test_the_driver_is_told_once_per_change_and_never_reads_it_out():
     d.sees(_screen_line(["youtube"], {"youtube"}, "es"))
     d.sees(_screen_line(["youtube"], {"youtube"}, "es"))      # unchanged: not repeated
     d.sees(_screen_line(["youtube"], set(), "es"))
-    notes = [m["content"] for m in d.history if m["role"] == "system"][1:]
+    notes = [m["content"] for m in d.history if "pantalla" in m["content"] and m["content"] != "persona"]
     assert len(notes) == 2, notes
     assert "a pantalla completa)" in notes[0] and "nada está a pantalla completa" in notes[1]
     assert all("no lo leas en voz alta" in n for n in notes)
@@ -43,3 +43,12 @@ def test_the_round_folds_the_seeded_card_in_before_the_first_line():
     src = Path("tests/use_cases/e2e/agent/run.py").read_text()
     assert '_canvas_acts.append({"cat": "widget", "label": "show", "id": str(_seeded["card"]), "t_ms": 0})' in src
     assert "driver.sees(_screen_line(_canvas_said, _maxed, scenario.locale))" in src
+
+
+def test_the_screen_rides_with_what_zaelar_just_said():
+    """A trailing system aside was ignored by the drive model; the screen goes in the same message."""
+    d = _driver()
+    d.hears("Vale, hecho.")
+    d.sees(_screen_line(["youtube"], set(), "es"))
+    assert d.history[-1]["role"] == "user"
+    assert d.history[-1]["content"].startswith("Vale, hecho.") and "nada está a pantalla completa" in d.history[-1]["content"]

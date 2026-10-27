@@ -374,11 +374,18 @@ class Driver:
         if not screen or screen == getattr(self, "_last_screen", ""):
             return
         self._last_screen = screen
+        print(f"  pantalla· {screen}")          # what the tester was shown, beside what it then said
         if (getattr(self.scenario, "locale", "es") or "es") == "us":
             note = f"(What your screen shows now — you can see it; do not read it aloud: {screen})"
         else:
             note = f"(Lo que ves ahora en tu pantalla — lo estás viendo; no lo leas en voz alta: {screen})"
-        self.history.append({"role": "system", "content": note})
+        # Beside what zaelar just said, in the same message: a trailing system aside was measured IGNORED by the
+        # drive model (told «nada está a pantalla completa», it answered «sigue en pantalla completa todavía»).
+        last = self.history[-1] if self.history else None
+        if last and last.get("role") == "user":
+            last["content"] = f"{last['content']}\n\n{note}"
+        else:
+            self.history.append({"role": "system", "content": note})
 
     def reply(self, *, nudge: str = "") -> str:
         """Next line. `nudge` (from the watchdog) is injected as a system aside when the conversation looks
