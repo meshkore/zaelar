@@ -2200,7 +2200,6 @@
  "memory.part_turns": "Turns in the recent record",
  "memory.part_todo": "Tasks",
  "memory.part_errands": "Errands",
- "memory.part_paraphrases": "Paraphrases",
  "memory.see_graph": "See how they relate",
  "memory.related_title": "Related to",
  "memory.related_shared": "{n} shared",
@@ -2298,5 +2297,6 @@
  "memory.concepts_line": "{concepts} concepts · {relations} relations",
  "memory.part_since": "Since",
  "memory.other_stores": "Other stores",
- "memory.apps_rest": "{n} more apps"
+ "memory.apps_rest": "{n} more apps",
+ "memory.part_paraphrases": "Paraphrases"
 }
