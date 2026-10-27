@@ -335,7 +335,7 @@ def test_process_identity_has_ONE_owner():
 # ── 2026-10-27, refactor2710-00: the PACKAGE ratchet ─────────────────────────────────────────────────────────
 # The per-file table above caught god files but not god PACKAGES: `nucleo/flash` grew to 176 files and 37k lines
 # one small, under-the-ceiling module at a time, and nothing went red. The deep refactor (V2-826) is measured
-# against these totals — the same line count `tools/import_graph.py --summary` prints, bucketed by its
+# against these totals — the same line count `python -m tests.infrastructure.import_graph --summary` prints, bucketed by its
 # `package_of`. Edit DOWNWARD when a section lands (that edit is the section's exit); a new bucket is red until
 # someone writes its number here on purpose.
 _PACKAGE_CEILINGS: dict[str, int] = {
@@ -457,7 +457,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
 
 
 def _package_totals() -> dict[str, int]:
-    from tools.import_graph import package_of, product_modules
+    from tests.infrastructure.import_graph import package_of, product_modules
 
     totals: dict[str, int] = {}
     for _name, (path, src) in product_modules().items():

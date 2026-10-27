@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """The engine's import graph, one command away (refactor2710-00 T-01).
 
-Per product module: lines, fan-in (product importers), the importers themselves, how many times its dotted name
-appears in `tests/`, and whether its header carries a dated incident. Every later refactor2710 section is
+A measuring instrument of the tests, not product code — it lives under `tests/`. Per product module: lines, fan-in
+(product importers), the importers themselves, how many times its dotted name appears in `tests/`, and whether its
+header carries a dated incident. Every later refactor2710 section is
 measured against a run of this script, so it reads the tree only — no imports, no side effects.
 
-    ./.venv/bin/python tools/import_graph.py out.json            # full rows
-    ./.venv/bin/python tools/import_graph.py out.json --summary  # + package totals and orphans on stdout
+    ./.venv/bin/python -m tests.infrastructure.import_graph out.json            # full rows
+    ./.venv/bin/python -m tests.infrastructure.import_graph out.json --summary  # + package totals and orphans on stdout
 """
 
 from __future__ import annotations
@@ -18,7 +19,7 @@ import json
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 PACKAGES = ("nucleo", "voice", "server", "widgets", "memory", "search", "rules", "bus", "observability",
             "connectors", "library", "config")
 SKIP_PARTS = {".venv", "__pycache__", "_user", "_data"}
