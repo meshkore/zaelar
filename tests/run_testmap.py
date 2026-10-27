@@ -5790,6 +5790,14 @@ DOMAINS: list[dict] = [
                                  "are the live inventory read with serves(); every shipped app declares owner, licence "
                                  "and its connector families, and its «what it does» in es+en (V2-823)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_an_app_page_carries_only_what_its_manifest_declares.py"]},
+        # V2-823 phone. Disarmed (the Deck deaf to hb:open-card; a tap on a row opens instead of showing the page; the
+        # shared page painting an undeclared owner; «Open» leaving the menu up; the ☰ without its entry; the dock's
+        # `.zm-menu` rule unscoped so the sheet falls out of the screen) → each red.
+        {"id": "4.317", "title": "The phone's apps launcher lives in the ☰ menu: its «Apps» entry lists the apps (System · "
+                                 "Custom), a tap shows the app's page with only the declared fields (the desk's page "
+                                 "module), «Open» puts the app on the deck through hb:open-card and closes the menu; "
+                                 "every control ≥ 44px — RENDERED at 375px (V2-823)",
+            "ch": UNIT, "paths": ["tests/browser/unit/mobile/test_the_menu_holds_the_apps_launcher.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",
