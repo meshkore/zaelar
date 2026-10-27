@@ -74,3 +74,19 @@ def test_quien_factura_es_quien_llama(monkeypatch):
     assert llm_egress.bills_upstream() is False
     _mediado(monkeypatch)
     assert llm_egress.bills_upstream() is True
+
+
+def test_a_worker_call_through_egress_names_its_task(monkeypatch):
+    """Through mediated egress, a worker's model calls carry the task id, so usage can be added up per task."""
+    monkeypatch.setenv("ZAELAR_GATEWAY_URL", "https://egress.example/v1")
+    base = "https://egress.example/p/deepseek_anthropic"
+    assert llm_egress.task_header_env(base, "t_9f3a:2") == {"ANTHROPIC_CUSTOM_HEADERS": "X-Zaelar-Task: t_9f3a:2"}
+
+
+def test_a_direct_provider_call_never_gets_the_task_header(monkeypatch):
+    """Talking to the provider directly — no egress, or a base that is not egress — nothing is added."""
+    assert llm_egress.task_header_env("https://api.deepseek.com/anthropic", "t1") == {}
+    monkeypatch.setenv("ZAELAR_GATEWAY_URL", "https://egress.example/v1")
+    assert llm_egress.task_header_env("https://api.z.ai/api/anthropic", "t1") == {}
+    # an id that is not a plain token never becomes a header line
+    assert llm_egress.task_header_env("https://egress.example/p/zai_anthropic", "a\nX-Evil: 1") == {}

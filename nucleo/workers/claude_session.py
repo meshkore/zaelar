@@ -101,6 +101,7 @@ _STREAM_LIMIT = int(os.getenv("WORKER_STREAM_LIMIT", str(16 * 1024 * 1024)))
 # root, vision flags), plus the process basics the CLI needs and the ONE credential its tier resolved.
 _DEV_ENV_KEEP = ("PATH", "HOME", "TMPDIR", "LANG", "LC_ALL", "TERM", "SHELL", "USER", "LOGNAME",
                  "PYTHONPATH", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_MODEL",
+                 "ANTHROPIC_CUSTOM_HEADERS",
                  "NO_PROXY", "HTTP_PROXY", "HTTPS_PROXY")
 
 
@@ -280,6 +281,13 @@ class ClaudeCodeSession(WorkerBackend):
         # marcadores para el barrido de huérfanos al arrancar (§v2·D) + auth de bridges por-tarea (§v2·D).
         env["ZAELAR_WORKER"] = "1"
         env["ZAELAR_TASK_ID"] = spec.task_id or ""
+        # Through mediated egress, every model call names the task it serves (usage adds up per task).
+        try:
+            from nucleo import llm_egress as _egress
+            for _k, _v in _egress.task_header_env(env.get("ANTHROPIC_BASE_URL", ""), spec.task_id or "").items():
+                env.setdefault(_k, _v)
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"worker[{self._task_id}]: no task header for egress: {e!r}")
         if spec.token:
             env["ZAELAR_TASK_TOKEN"] = spec.token
         cwd = spec.cwd or _ZAELAR

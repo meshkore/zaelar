@@ -22,6 +22,7 @@
 from __future__ import annotations
 
 import os
+import re
 
 from loguru import logger
 
@@ -134,6 +135,23 @@ def _headers(base_url: str) -> dict:
     something a model writes to be able to change which provider is billed."""
     p = provider_of(base_url)
     return {"X-Zaelar-Provider": p} if p else {}
+
+
+# ── WHICH TASK A WORKER CALL SERVES ─────────────────────────────────────────────────────────────────────────
+# A Brain Worker re-reads its whole context on every step, so one errand is many calls. When those calls go
+# through mediated egress, the worker names the task it serves in `X-Zaelar-Task` (the CLI sends
+# `ANTHROPIC_CUSTOM_HEADERS` on every request), and egress can add the usage up per task. Talking to a provider
+# directly, nothing is sent: the header is for egress and no provider needs to see it.
+_TASK_ID_SHAPE = re.compile(r"^[\w.:-]{1,80}$")
+
+
+def task_header_env(base_url: str, task_id: str) -> dict:
+    """`{"ANTHROPIC_CUSTOM_HEADERS": "X-Zaelar-Task: <id>"}` when `base_url` is mediated egress and the id is a
+    plain token; `{}` otherwise. Pure apart from reading where egress is."""
+    egress = root()
+    if not egress or not (base_url or "").startswith(egress) or not _TASK_ID_SHAPE.match(task_id or ""):
+        return {}
+    return {"ANTHROPIC_CUSTOM_HEADERS": f"X-Zaelar-Task: {task_id}"}
 
 
 # ── EVERY PAID CALL, NOT JUST CHAT (2026-10-23) ─────────────────────────────────────────────────────────────
