@@ -231,7 +231,17 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=0, help="0 = pick a free random port and keep it (default)")
     ap.add_argument("--hold", type=int, default=90, help="seconds to keep the console alive after the run")
     ap.add_argument("--no-open", action="store_true")
-    asyncio.run(run(ap.parse_args()))
+    ap.add_argument("--sandbox", action="store_true",
+                    help="talk to a throwaway engine with its own LiveKit server, never the operator's live one")
+    args = ap.parse_args()
+    if not args.sandbox:
+        asyncio.run(run(args))
+        return
+    from tests.platform.voice_sandbox import voice_sandbox
+    with voice_sandbox(lang=config.TESTER_LANG) as eng:
+        config.ZAELAR_URL = eng.base_url      # every reader takes it at call time: token, /events, /api/status
+        print(f"  ▸ voice sandbox: engine {eng.base_url} · LiveKit {eng.livekit_url}")
+        asyncio.run(run(args))
 
 
 if __name__ == "__main__":

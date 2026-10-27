@@ -4624,6 +4624,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/browser/unit/navegador/test_a_form_with_his_details_goes_only_to_a_site_he_named.py']},
         {"id": "2.615", "title": "A sandbox never reaches his messaging accounts: WhatsApp/Telegram sessions inside the throwaway workspace, its own WA bridge port (his live bridge on :3111 was reusable), every messaging connector off",
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_never_reaches_his_messaging_accounts.py']},
+        {"id": "2.819", "title": "A voice sandbox never reaches his LiveKit: its engine points at a loopback LiveKit server of its own (never :7880, where it would be a second worker for his sessions), with no engine id",
+            "ch": UNIT, "paths": ['tests/platform/tests/test_a_voice_sandbox_never_reaches_his_livekit.py']},
         {"id": "2.815", "title": "A use-case sandbox boots beside the operator's running engine: it takes its own one-engine lock inside its throwaway workspace (it owns no voice slot, port or connector the lock guards)",
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_boots_beside_the_running_engine.py']},
         {"id": "2.816", "title": "A use-case sandbox calls the models with the operator's keys: his credential store is lent into the sandbox's own store (mode 600, same precedence over .env) and taken back when it stops — an empty store made every round measure the relay",
