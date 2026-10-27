@@ -15,29 +15,38 @@ handed over a bus (a worker started by a listener) is gated at the publisher, wh
 """
 from __future__ import annotations
 
+import functools
+import inspect
 from contextlib import contextmanager
 from contextvars import ContextVar
+from typing import NamedTuple
 
-#: door → the funnel (module:function) that asks before acting. One entry per effect that leaves the turn.
-DOORS: dict[str, str] = {
-    "worker.spawn": "nucleo.flash.escalate:escalate_to_slowbrain",
-    "worker.inject": "nucleo.dispatch:inject_soon",
-    "worker.stop": "nucleo.dispatch:cancel_soon",
-    "worker.answer": "nucleo.worker_api:answer_active_soon",
-    "widget.data": "widgets.server_api:brain_action",
-    "web.login": "nucleo.flash.web_auth:start",
-    "music": "connectors.music:control",
-    "cron.create": "nucleo.scheduler:create",
-    "cron.cancel": "nucleo.scheduler:cancel",
-    "rules.write": "rules.shape:write",
-    "cluster.send": "connectors.meshkore:dispatch_tag",
-    "architect.send": "connectors.architect:dispatch_tag",
-    "messaging.tag": "connectors.messaging:dispatch_tag",
-    "speech.out_of_band": "voice.proactive:notify",
-    "speech.speaker": "voice.proactive:speaker",
-    "tasks.intake": "nucleo.batch:intake",
-    "memory.ingest": "nucleo.memory_agent.ingest:ingest_utterance",
-}
+
+class Door(NamedTuple):
+    name: str
+    funnel: str          # module:function — the one place that asks before the effect
+
+
+#: Every effect that leaves the turn, with the funnel that must ask. One record per door.
+DOORS: dict[str, Door] = {d.name: d for d in (
+    Door("worker.spawn", "nucleo.flash.escalate:escalate_to_slowbrain"),
+    Door("worker.inject", "nucleo.dispatch_soon:inject_soon"),
+    Door("worker.stop", "nucleo.dispatch_soon:cancel_soon"),
+    Door("worker.answer", "nucleo.worker_api:answer_active_soon"),
+    Door("widget.data", "widgets.server_api:brain_action"),
+    Door("web.login", "nucleo.flash.web_auth:start"),
+    Door("music", "connectors.music:control"),
+    Door("cron.create", "nucleo.scheduler:create"),
+    Door("cron.cancel", "nucleo.scheduler:cancel"),
+    Door("rules.write", "rules.shape:write"),
+    Door("cluster.send", "connectors.meshkore:dispatch_tag"),
+    Door("architect.send", "connectors.architect:dispatch_tag"),
+    Door("messaging.tag", "connectors.messaging:dispatch_tag"),
+    Door("speech.out_of_band", "voice.proactive:notify"),
+    Door("speech.speaker", "voice.proactive:speaker"),
+    Door("tasks.intake", "nucleo.batch:intake"),
+    Door("memory.ingest", "nucleo.memory_agent.ingest:ingest_utterance"),
+)}
 
 #: The door a dry turn still lets through when its caller asked to keep what he says (`ingest=True`, the default of
 #: the text channel): his words reach memory, nothing reaches anyone else.
@@ -59,6 +68,36 @@ def passes(door: str, **what) -> bool:
                        **{k: (v if isinstance(v, (str, int, float, bool)) or v is None else str(v)[:200])
                           for k, v in what.items()}})
     return not blocked
+
+
+def door(name: str, *, neutral=None):
+    """A funnel that asks at its own threshold: `@consequence.door("cron.create", neutral=...)`. Closed, the funnel
+    does not run and returns `neutral(*args, **kwargs)` (or `neutral` itself when it is not callable) — what the
+    caller reads when the effect did not happen. A funnel that must validate BEFORE it decides (escalate refuses
+    some commissions) asks `passes()` inside its body instead."""
+    if name not in DOORS:
+        raise KeyError(f"undeclared consequence door: {name!r}")
+
+    def _neutral(args, kwargs):
+        return neutral(*args, **kwargs) if callable(neutral) else neutral
+
+    def wrap(fn):
+        what = lambda args: {"arg": str(args[0])[:200]} if args else {}   # noqa: E731 — what the ledger shows
+        if inspect.iscoroutinefunction(fn):
+            @functools.wraps(fn)
+            async def run(*args, **kwargs):
+                if not passes(name, **what(args)):
+                    return _neutral(args, kwargs)
+                return await fn(*args, **kwargs)
+        else:
+            @functools.wraps(fn)
+            def run(*args, **kwargs):
+                if not passes(name, **what(args)):
+                    return _neutral(args, kwargs)
+                return fn(*args, **kwargs)
+        run.__door__ = name
+        return run
+    return wrap
 
 
 def dry() -> bool:

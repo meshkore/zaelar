@@ -27,6 +27,7 @@ Credentials are never typed by us, in either channel. That is the whole point of
 from __future__ import annotations
 
 import logging
+from nucleo import consequence as _consequence
 
 logger = logging.getLogger("zaelar.flash.web_auth")
 
@@ -41,6 +42,7 @@ def _emit(label: str, text: str = "", **extra) -> None:
         pass
 
 
+@_consequence.door("web.login", neutral="dry")
 def start(site: str) -> str:
     """Open the REAL browser window so the operator can sign in to `site`. Returns the task id, or "".
 
@@ -54,9 +56,6 @@ def start(site: str) -> str:
     site = (site or "").strip()
     if not site:
         return ""
-    from nucleo import consequence as _consequence
-    if not _consequence.passes("web.login", site=site):
-        return "dry"
     try:
         from widgets.navegador import tasks as navtasks
 

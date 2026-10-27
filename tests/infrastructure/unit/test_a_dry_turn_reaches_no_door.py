@@ -4,7 +4,7 @@ The text channel and the decision bank run the SAME voice turn as the microphone
 turn but `nucleo.consequence`: every effect that leaves a turn passes one funnel, every funnel asks
 `consequence.passes(<door>)`, and `dry_turn()` closes them all. Two things are held here:
 - every door in the table names a funnel whose source asks for THAT door — a funnel that stops asking is a door left
-  open in every dry run (disarm: delete the `passes("cron.create", …)` line in `nucleo/scheduler.py` → red);
+  open in every dry run (disarm: delete the `@consequence.door("cron.create", …)` line over `nucleo/scheduler.create` → red);
 - inside a dry turn the funnels do nothing and the ledger names what each would have done.
 """
 from __future__ import annotations
@@ -20,10 +20,10 @@ from nucleo import consequence
 
 @pytest.mark.parametrize("door", sorted(consequence.DOORS))
 def test_every_door_is_asked_by_its_funnel(door):
-    module, func = consequence.DOORS[door].split(":")
+    module, func = consequence.DOORS[door].funnel.split(":")
     fn = getattr(importlib.import_module(module), func)
-    src = inspect.getsource(inspect.unwrap(fn))
-    assert f'passes("{door}"' in src, f"{module}.{func} no longer asks consequence.passes({door!r}) — the door is open"
+    asks = getattr(fn, "__door__", None) == door or f'passes("{door}"' in inspect.getsource(inspect.unwrap(fn))
+    assert asks, f"{module}.{func} no longer asks door {door!r} (decorator or `passes`) — the door is open"
 
 
 def test_an_undeclared_door_is_refused():

@@ -21,10 +21,6 @@ from nucleo import consequence
 
 _SESSIONS: dict = {}
 
-#: Canvas events a turn emits that the text channel reports as tags.
-_CANVAS = ("show", "close", "fullscreen", "unfullscreen", "minimize", "arrange")
-
-
 def _brain(sid: str):
     from voice.engine.llm.providers.nucleo import NucleoLLM
     if sid not in _SESSIONS:
@@ -55,9 +51,11 @@ async def _drive(brain, text: str) -> str:
 
 
 def _tags(events: list[dict]) -> list[dict]:
+    """The canvas steps the turn emitted (the events the screen acts on), as the text channel reports them."""
+    canvas = ("show", "close", "fullscreen", "unfullscreen", "minimize", "arrange")
     out = []
     for e in events:
-        if e.get("kind") == "widget" and e.get("label") in _CANVAS:
+        if e.get("kind") == "widget" and e.get("label") in canvas:
             out.append({"action": e["label"], "extra": {"id": e.get("id") or ""}})
     return out
 

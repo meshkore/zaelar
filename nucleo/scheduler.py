@@ -24,6 +24,7 @@ import re
 import time
 
 from memory import journal as _journal
+from nucleo import consequence as _consequence
 
 _KIND = "scheduled"
 
@@ -325,6 +326,8 @@ def next_cron(expr: str, after: float) -> float | None:
 
 
 # ── CRUD for scheduled tasks (backed by memory.journal) ───────────────────────────────────────────
+@_consequence.door("cron.create", neutral=lambda prompt="", schedule="", *_a, **_k: {
+    "ok": True, "id": None, "schedule": None, "error": None, "display": schedule, "dry": True})
 def create(prompt: str, schedule: str, name: str = "", repeat: str = "",
            now: float | None = None, origin: str = "cron") -> dict:
     """Schedule a task. Return {'ok':bool,'id':int|None,'schedule':dict|None,'error':str|None,'display':str}.
@@ -334,9 +337,6 @@ def create(prompt: str, schedule: str, name: str = "", repeat: str = "",
     NOT paint it back as a system task — it is already on screen as the appointment it belongs to. Everything
     else defaults to `cron`: the operator said «avísame cada lunes» and there is nothing else showing it.
     """
-    from nucleo import consequence as _consequence
-    if not _consequence.passes("cron.create", prompt=prompt[:200], schedule=schedule, name=name):
-        return {"ok": True, "id": None, "schedule": None, "error": None, "display": schedule, "dry": True}
     now = time.time() if now is None else now
     # `repeat` inherited from the Hermes brief: if provided, force interval recurrence.
     spec = schedule
@@ -478,14 +478,12 @@ def mark_fired(entry: dict, now: float | None = None) -> dict | None:
     return nxt
 
 
+@_consequence.door("cron.cancel", neutral=True)
 def cancel(ref: str) -> bool:
     """Cancel a task by name (or numeric id). Return True if any task was canceled."""
     ref = (ref or "").strip()
     if not ref:
         return False
-    from nucleo import consequence as _consequence
-    if not _consequence.passes("cron.cancel", ref=ref):
-        return True
     hit = False
     for e in _scheduled(_journal.list_entries(status="pending")):
         d = e["detail"]

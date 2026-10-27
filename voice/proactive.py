@@ -14,6 +14,7 @@ import threading
 import time
 
 from loguru import logger
+from nucleo import consequence as _consequence
 
 _speaker = None            # async callable(text) -> None, set by the live voice session (voice/engine entrypoint)
 _ephemeral_speaker = None  # async callable(text) -> None — same TTS, but NEVER added to conversation history
@@ -118,6 +119,7 @@ def has_voice() -> bool:
     return _speaker is not None
 
 
+@_consequence.door("speech.speaker")
 def speaker():
     """The live session's OUT-OF-BAND speaker (`session.say`), or None if there is no session.
 
@@ -128,9 +130,6 @@ def speaker():
 
     FlashBrain's neutral LEAD-IN no longer passes through here: since V2-529 (2026-08-31), it is audio within the
     response utterance (`voice/engine/speech/filler_audio.py`)."""
-    from nucleo import consequence as _consequence
-    if _speaker is not None and not _consequence.passes("speech.speaker"):
-        return None
     return _speaker
 
 
@@ -155,6 +154,7 @@ def ephemeral_speaker():
     return _ephemeral_speaker
 
 
+@_consequence.door("speech.out_of_band", neutral=False)
 async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify",
                  key: str = "", opens_window: bool = True, carry: bool = True, about: str = "") -> bool:
     """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises.
@@ -171,9 +171,6 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     `carry=False` — a message that must NOT ride the conversation when it cannot be said: it stays on screen (the
     event above) and that is all. A worker's interim `say` is that kind (demo pass 2026-09-28: «On the monitors: a
     Philips… no price confirmed yet» appended to the answers about Apple's chart and the music). `about`: dialog._place"""
-    from nucleo import consequence as _consequence
-    if not _consequence.passes("speech.out_of_band", title=title[:80], text=text[:200], kind=kind):
-        return False
     text = (text or "").strip()
     if not text:
         return False

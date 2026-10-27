@@ -475,6 +475,19 @@ def _qualified(rows: list[dict]) -> list[str]:
     return out
 
 
+def _rows_already_named(widget_id, action, ref, given, idx, payload, field) -> "RefResult | None":
+    """The reference needs no search: the model ALREADY gave an id that really exists (respected, never overwritten),
+    or several row numbers for an action that takes them at once («4,5,6» → the declared `items`)."""
+    if given and any(i["id"] == given for i in idx):
+        return RefResult(True, payload)
+    several = _several_rows(widget_id, action, ref or given, idx)
+    if several:
+        payload.pop(field, None)
+        payload["items"] = several
+        return RefResult(True, payload)
+    return None
+
+
 def _several_rows(widget_id: str, action: str, ref: str, idx: list[dict]) -> str:
     """«4,5,6» — several row numbers — for an action whose manifest declares the plural `items` key (`youtube`
     `remove`: «bórrame los tres últimos»). Every number must be a row that exists; otherwise "" and the single-row
@@ -523,15 +536,9 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
 
     idx = [i for i in _ref_index(widget_id) if i.get("field") == field]
 
-    # If the model ALREADY gave an id that really EXISTS, respect it (do not overwrite it).
     given = str(payload.get(field) or "").strip()
-    if given and any(i["id"] == given for i in idx):
-        return RefResult(True, payload)
-    several = _several_rows(widget_id, action, ref or given, idx)
-    if several:                                   # «4,5,6» names three rows the action can take at once
-        payload.pop(field, None)
-        payload["items"] = several
-        return RefResult(True, payload)
+    if (named_rows := _rows_already_named(widget_id, action, ref, given, idx, payload, field)) is not None:
+        return named_rows
 
     # Text to search for: the model's explicit ref, or —if it did not give one— what it put in the id field (often an
     # invented description/value that sometimes matches by text, e.g. the task title), or his own words.

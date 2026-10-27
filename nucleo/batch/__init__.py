@@ -21,6 +21,7 @@ from __future__ import annotations
 import asyncio
 
 from loguru import logger
+from nucleo import consequence as _consequence
 
 #: Strong references to the list tasks we start — an asyncio task nobody holds can be collected mid-run.
 _TASKS: set = set()
@@ -71,14 +72,12 @@ def _spawn(coro) -> None:
     task.add_done_callback(_TASKS.discard)
 
 
+@_consequence.door("tasks.intake")
 async def intake(text: str, *, origin: str = "voz", said=()) -> dict | None:
     """{ack} when `text` is a list and it was started; None otherwise (run today's turn)."""
     from . import detect, runner
-    from nucleo import consequence as _consequence
     try:
         if not detect.could_be_a_list(text):
-            return None
-        if not _consequence.passes("tasks.intake", text=text[:200]):
             return None
         line = receipt(said)
         if not line:
