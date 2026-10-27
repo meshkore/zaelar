@@ -528,6 +528,9 @@ async def brain_action(wid: str, action: str, payload: dict) -> dict:
         if _inst and isinstance(payload, dict) and not payload.get("sheet") and not payload.get("q"):
             payload = {**payload, "q": _inst}
     wid = _safe(wid)
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("widget.data", widget=wid, action=str(action)):
+        return {"ok": True, "dry": True}
     try:
         from voice.observer import emit as _emit
         from widgets import provenance as _prov

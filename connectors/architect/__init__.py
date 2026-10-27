@@ -14,6 +14,9 @@
 async def dispatch_tag(action: str, extra: dict):
     """Route a [[architect.*]] tag emitted by the brain (voice, chat or deep turns — never cluster turns)."""
     from connectors.architect import service
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("architect.send", action=action):
+        return
     if action == "architect.ask":
         await service.ask(extra.get("project") or "", extra.get("request") or "")
     elif action == "architect.new":

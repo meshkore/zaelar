@@ -57,6 +57,9 @@ def set_loop(loop) -> None:
 async def ingest_utterance(text: str, *, role: str = "operator", channel: str = "voice") -> dict:
     """`channel` — how the line arrived: "voice" (STT) or "typed" (chat / paste). It reaches the distiller's input
     and every row's `meta.source`, so a pasted document is read as one and a typed value is never stamped «voice»."""
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("memory.ingest", channel=channel):
+        return {"dry": True}
     home = _HOME_LOOP
     try:
         here = asyncio.get_running_loop()

@@ -54,6 +54,9 @@ def start(site: str) -> str:
     site = (site or "").strip()
     if not site:
         return ""
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("web.login", site=site):
+        return "dry"
     try:
         from widgets.navegador import tasks as navtasks
 

@@ -334,6 +334,9 @@ def create(prompt: str, schedule: str, name: str = "", repeat: str = "",
     NOT paint it back as a system task — it is already on screen as the appointment it belongs to. Everything
     else defaults to `cron`: the operator said «avísame cada lunes» and there is nothing else showing it.
     """
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("cron.create", prompt=prompt[:200], schedule=schedule, name=name):
+        return {"ok": True, "id": None, "schedule": None, "error": None, "display": schedule, "dry": True}
     now = time.time() if now is None else now
     # `repeat` inherited from the Hermes brief: if provided, force interval recurrence.
     spec = schedule
@@ -480,6 +483,9 @@ def cancel(ref: str) -> bool:
     ref = (ref or "").strip()
     if not ref:
         return False
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("cron.cancel", ref=ref):
+        return True
     hit = False
     for e in _scheduled(_journal.list_entries(status="pending")):
         d = e["detail"]

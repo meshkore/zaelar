@@ -623,7 +623,8 @@ def take_pending_injects(tid) -> list[str]:
 # ── entradas SÍNCRONAS marshaladas al loop of the server (the calls the FlashBrain from the job-thread, §v3·D/O) ──
 def inject_soon(which: str, message: str) -> None:
     """Fire-and-forget: inyecta a the(s) session(es) of `which`, in the loop dueno. NUNCA is await-ea in the turn."""
-    if _LOOP is None:
+    from nucleo import consequence as _consequence
+    if _LOOP is None or not _consequence.passes("worker.inject", which=which, message=message[:200]):
         return
     try:
         asyncio.run_coroutine_threadsafe(inject(which, message), _LOOP)
@@ -634,6 +635,9 @@ def inject_soon(which: str, message: str) -> None:
 def cancel_soon(which: str) -> list[str]:
     """Fire-and-forget: resuelve `which` and MATA in the loop dueno. Devuelve the tid that VA a kill (for the voice)."""
     tids = resolve_sessions(which)   # lectura de dict (barata); la cancelación real va al loop dueño
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("worker.stop", which=which, tids=",".join(tids)):
+        return tids
     _qwait.forget(which)             # a stop he ordered also stops an errand waiting for the quota's reset
     if _LOOP is not None and tids:
         def _do():

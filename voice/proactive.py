@@ -128,6 +128,9 @@ def speaker():
 
     FlashBrain's neutral LEAD-IN no longer passes through here: since V2-529 (2026-08-31), it is audio within the
     response utterance (`voice/engine/speech/filler_audio.py`)."""
+    from nucleo import consequence as _consequence
+    if _speaker is not None and not _consequence.passes("speech.speaker"):
+        return None
     return _speaker
 
 
@@ -168,6 +171,9 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     `carry=False` — a message that must NOT ride the conversation when it cannot be said: it stays on screen (the
     event above) and that is all. A worker's interim `say` is that kind (demo pass 2026-09-28: «On the monitors: a
     Philips… no price confirmed yet» appended to the answers about Apple's chart and the music). `about`: dialog._place"""
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("speech.out_of_band", title=title[:80], text=text[:200], kind=kind):
+        return False
     text = (text or "").strip()
     if not text:
         return False

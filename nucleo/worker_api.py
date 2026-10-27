@@ -583,6 +583,9 @@ def answer_active_soon(text: str) -> bool:
     the job thread. Return True if there WAS an ask to answer (so voice can confirm)."""
     if not has_pending_ask():
         return False
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("worker.answer", text=text[:200]):
+        return True
     try:
         import asyncio
 

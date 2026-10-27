@@ -4626,6 +4626,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_never_reaches_his_messaging_accounts.py']},
         {"id": "2.819", "title": "A voice sandbox never reaches his LiveKit: its engine points at a loopback LiveKit server of its own (never :7880, where it would be a second worker for his sessions), with no engine id",
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_voice_sandbox_never_reaches_his_livekit.py']},
+        {"id": "2.820", "title": "A dry turn reaches no consequence door: every effect that leaves a turn (worker, data-op, login, music, reminder, rule, cluster/messaging send, out-of-band speech, task list, memory) is one declared door whose funnel asks `consequence.passes`; `dry_turn()` closes them and the ledger names what each would have done",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/test_a_dry_turn_reaches_no_door.py']},
         {"id": "2.815", "title": "A use-case sandbox boots beside the operator's running engine: it takes its own one-engine lock inside its throwaway workspace (it owns no voice slot, port or connector the lock guards)",
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_boots_beside_the_running_engine.py']},
         {"id": "2.816", "title": "A use-case sandbox calls the models with the operator's keys: his credential store is lent into the sandbox's own store (mode 600, same precedence over .env) and taken back when it stops — an empty store made every round measure the relay",

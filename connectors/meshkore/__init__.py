@@ -43,6 +43,9 @@ def init(brain):
 
 async def dispatch_tag(action: str, extra: dict):
     """Route a [[cluster.*]] tag emitted by the brain (from any turn — voice OR cluster). No-op if not wired."""
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("cluster.send", action=action):
+        return
     b = _bridge
     if b is not None:
         await b.dispatch(action, extra)

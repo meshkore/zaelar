@@ -119,6 +119,9 @@ def control(action: str, query: str = "", uri: str = "", percent: int = 0, prefe
     """Execute ONE music action against the active provider. `action`: play|pause|resume|next|previous|stop|
     volume_up|volume_down|set_volume|seek. FlashBrain facade — fail-safe, never raises."""
     action = (action or "play").strip().lower()
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("music", action=action, query=query[:120]):
+        return MusicResult(ok=True, action=action, reason="dry")
     if action == "play" and (query or uri):
         return _play(query, uri, prefer)
     prov = _for_control(prefer)

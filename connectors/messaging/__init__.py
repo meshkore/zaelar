@@ -21,6 +21,9 @@ async def dispatch_tag(action: str, extra: dict) -> None:
     read:N / dismiss:N / clear -> same mutation as the unified widget buttons (apply_action over the unified store).
     The action does NOT need to know the platform: item N already carries its `platform`, and each connector drains
     its part of `pending_read` (actual mark-read on its platform). Never raises."""
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("messaging.tag", action=action):
+        return
     try:
         from widgets.mensajeria import data
         name = action.split(".", 1)[1] if "." in action else action

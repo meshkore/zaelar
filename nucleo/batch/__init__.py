@@ -74,8 +74,11 @@ def _spawn(coro) -> None:
 async def intake(text: str, *, origin: str = "voz", said=()) -> dict | None:
     """{ack} when `text` is a list and it was started; None otherwise (run today's turn)."""
     from . import detect, runner
+    from nucleo import consequence as _consequence
     try:
         if not detect.could_be_a_list(text):
+            return None
+        if not _consequence.passes("tasks.intake", text=text[:200]):
             return None
         line = receipt(said)
         if not line:

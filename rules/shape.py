@@ -154,6 +154,9 @@ def write(sentence: str, context: str = "", *, chat=None) -> dict:
     import rules
     s = " ".join(str(sentence or "").split()).strip()
     out = {"op": "none", "stored": [], "removed": [], "doubt": [], "listed": [], "say": ""}
+    from nucleo import consequence as _consequence
+    if s and not _consequence.passes("rules.write", sentence=s[:200]):
+        return {**out, "op": "dry"}
     if not s:
         return out
     p = plan(s, context, chat=chat)
