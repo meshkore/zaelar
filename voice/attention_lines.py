@@ -9,10 +9,14 @@ from __future__ import annotations
 
 import asyncio
 import time
+from typing import TYPE_CHECKING
 
 from loguru import logger
 
 from voice.attention_judge import _as_judgement
+
+if TYPE_CHECKING:  # `voice.attention` imports this module back: the name is for the annotation only
+    from voice.attention import Verdict
 
 # ── V2-812 T-03 · THE LINE IS STILL JUDGED INSIDE THE WINDOW ───────────────────────────────────────────────
 # Measured in a car (session e52cd845, «always», 30 s window): 68 of 68 lines admitted, about half of them talk
