@@ -2033,10 +2033,23 @@ DOMAINS: list[dict] = [
         # V2-820 — a report errand's process said «Preparando… · Aún no hay pasos que contar» for two minutes while the
         # worker had declared a plan and narrated: only the results sheet was told a line arrived. Disarmed 2026-10-27
         # (no documento notice · plan dropped · plan not rendered) → red.
-        {"id": "3.141", "title": "A report errand's process view moves with the worker and shows the steps it declared, "
-                                 "the done ones ticked and the current one marked (V2-820)", "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/test_the_report_sheet_tells_the_workers_steps.py",
-                      "tests/browser/unit/documento/test_the_process_shows_the_workers_plan.py"]},
+        # V2-822 — the process left the cards: the same door now tells the PROCESSES PANEL (never a card) on a line,
+        # a declared plan and a step done, for every surface.
+        {"id": "3.141", "title": "An errand's process moves with the worker: every line, declared plan and step done "
+                                 "tells the processes panel (and no card), and the record carries the worker's own "
+                                 "plan and how far it is (V2-820 · V2-822)", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_the_report_sheet_tells_the_workers_steps.py"]},
+        # V2-822 — the operator's report: a document errand opened the results sheet and the messaging card on the way.
+        # Disarmed (the gate call dropped from worker_act) → the document errand opened three cards, the list two → red.
+        {"id": "3.143", "title": "An errand opens only its DELIVERABLE: a document errand opens exactly the document "
+                                 "(the worker's shows of the results sheet or the messaging card are refused with the "
+                                 "way through), a list errand opens its results sheet (V2-822)", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_an_errand_opens_only_its_deliverable.py"]},
+        # V2-822 — disarmed (`of` ignoring the durable row id) → red.
+        {"id": "3.144", "title": "A running process's record is READ from the live registry by either id (session or "
+                                 "durable row) and served at /api/tasks/<id>/process; not live → alive false (V2-822)",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_the_process_record_is_read_from_the_live_registry.py"]},
         # V2-820 T-06 — a request cut by his own «¿Te parece bien?» (barge-in before its first word): the model answered
         # the whole from the window, the brief judged the tag alone and CRIT-K34 annulled the errand as `answered`; the
         # composed answer then got «Perdona, se me ha ido» glued on (a stale reply read as mute). Disarmed 2026-10-27
@@ -3230,8 +3243,8 @@ DOMAINS: list[dict] = [
         # `documento` al encargar (proceso en vivo derivado del registro del dispatcher, papel blanco al
         # entregar), la hoja de resultados NO se abre ni se siembra para ese encargo, y el puente de
         # búsqueda rechaza con ruido una query vacía (el silencio mandó al worker al navegador 4 minutos).
-        {"id": "4.143", "title": "Un INFORME se entrega como documento: superficie informe, proceso en vivo, "
-                                 "papel blanco, y la hoja de resultados fuera del camino",
+        {"id": "4.143", "title": "Un INFORME se entrega como documento: superficie informe, «creándose» mientras "
+                                 "trabaja (V2-822), papel blanco, y la hoja de resultados fuera del camino",
             "ch": UNIT, "paths": [
                 "tests/agent_headless/unit/test_a_report_errand_opens_the_document_sheet.py",
                 "tests/agent_headless/unit/workers/test_an_empty_search_query_refuses_loudly.py",
@@ -5417,10 +5430,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_delegate_that_renames_the_action_is_read.py"]},
         {"id": "4.241", "title": "A listing priced in dollars or pounds is a listing (the extractor reads $, US $ and cents in <sup>)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_dollar_price_is_a_price.py"]},
-        {"id": "4.29", "title": "Contrato de PANTALLA de la hoja de proceso RENDERIZADO (pestaña activa, fases en "
-                                "orden, loader ANIMANDO, salto al primer resultado, historia al acabar)",
-            "ch": UNIT, "live": True,
-            "cmd": "./.venv/bin/python tests/browser/e2e/results/render_process_tab.py"},
         # V2-234 — V2-223 hizo que lo extraído llegara al cerebro; nadie miró QUÉ tres filas llegaban. `items[:3]`
         # en orden de DOM, y los enlaces de categoría salen antes que las fichas de producto en cualquier listado,
         # así que el corte se comía el resultado por construcción: el turno describió «categorías de portátiles,
@@ -5740,6 +5749,19 @@ DOMAINS: list[dict] = [
         # carried across a repaint) → each red.
         {"id": "4.309", "title": "A scroller starts below its header: the results sheet's header and tab bar sit OUTSIDE the one scroller (the panel, data-hb-scroller), so a scrolled list never shows through them; both hosts' ctx.top()/ctx.scroll() move the declared scroller; a data refresh keeps the offset — RENDERED in the real desktop card and the 375 px deck (V2-821)",
             "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_scroller_starts_below_its_header.py"]},
+        # V2-822 — the results sheet's «Proceso» tab retired (it replaces node 4.29's rendered contract). Disarmed
+        # (`process` back in TABS; the browser painted whenever a tab is driven) → each red.
+        {"id": "4.310", "title": "The results sheet shows only its deliverable: no process tab, the Results tab carries "
+                                 "the loader while the errand works, and the errand's page shows on the sheet only when "
+                                 "it needs HIM (a wall, a login with its button, a question) — RENDERED (V2-822)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_the_sheet_shows_only_its_deliverable.py"]},
+        # V2-822 — disarmed (the entry always collapsed; the entry not mounted under the live row; the toggle
+        # re-fetching instead of repainting) → each red.
+        {"id": "4.311", "title": "The processes panel tells a running process collapsed (the plan ✓ ▸ · around its step, "
+                                 "whether the page needs him) and expanded (whole plan, page capture, harvest, narration "
+                                 "newest first) from ONE record — on the desktop's processes tab and the phone's menu "
+                                 "at 375 px (V2-822)",
+            "ch": UNIT, "paths": ["tests/browser/unit/chat/test_the_rail_tells_a_running_process.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",

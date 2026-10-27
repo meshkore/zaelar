@@ -289,7 +289,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   `.meshkore/docs/architecture/zaelar-brain-worker-doctrine.md`.
 - **CRIT-E4 · The rungs, cheapest first**: a declared widget action, then the network (an agent), then the
   browser, which is the LAST resort; a delivered hunt is not re-hunted; one widget per errand, the browser inside
-  the sheet's process tab. — since 2026-09-21 · nodes 2.84, 2.43, 4.109.
+  its process entry in the processes panel (V2-822). — since 2026-09-21 · nodes 2.84, 2.43, 4.109.
 - **CRIT-E5 · A report is a DOCUMENT**, and a fast listing pass serves the turn or hands off with its sheet inside
   its budget — a turn is never left mute. — since 2026-09-29 · nodes 4.143, 2.43, 2.171.
 - **CRIT-E6 · An errand with a third party offers the model NO tools**: it returns one JSON object and the engine
@@ -319,7 +319,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   opens no empty sheet (`surfaces.own_card`); the worker delivers into the card its end state names, in batches.
   — since 2026-10-24 · nodes 3.93, 4.263, 2.797 · `nucleo/flash/escalation_guard.py`, `widgets/musica/curated.py`.
 - **CRIT-E16 · One errand, one card, and a resumed errand keeps it.** Starting an errand opens no card: its card is its
-  deliverable (the sheet, whose process tab embeds the browser), opened when the surface is sealed or when the first rows
+  deliverable (the sheet; its browser is told in the processes panel, CRIT-E21), opened when the surface is sealed or when the first rows
   land; when he must act in the page (a wall, a login) the errand's sheet is raised — opened then if it had none — and the
   browser's monitor card is only for a tab no errand drives or an errand whose deliverable is not a sheet; a refresh never
   restores an errand's tab beside its card. A resumed or relayed errand reopens the sheet of its DURABLE row (`task_uid`),
@@ -347,7 +347,8 @@ below is the first kind, or it names the mechanism that replaced the second.
   would be annulled as a fragment or a backstop would rebuild a brief, a verdict over the rows completes it
   (`nucleo/flash/resume_turn.py`), never a phrase table, and no backstop then rebuilds an errand from the window. A
   browser card's title is the errand's name (`navegador.tasks.set_title`). — since 2026-10-26 · nodes 2.807.
-- **CRIT-E20 · A report's process view moves with the worker and shows the steps it declared.** Whichever card shows an errand's process (the results sheet for `lista`/`item`, the document sheet for `informe`) is told on every recorded line, declared plan and step done (`sheets.notify_process`); the document sheet's process carries the worker's own plan and how much of it is done, ticked and marked on the card — its words, never steps the engine invents — and «no steps to tell» only while it has neither a plan nor a line. — since 2026-10-27 · nodes 3.141 · `nucleo/sheets.py`, `nucleo/workers/reports.py`, `widgets/documento/`.
+- **CRIT-E20 · An errand's process moves with the worker, in ONE place.** Every recorded line, declared plan and step done tells the processes panel (`sheets.notify_process` → SSE `task process`), never a card; the record carries the worker's own plan and how much of it is done — its words, never steps the engine invents. — since 2026-10-27 (V2-820, moved to the panel by V2-822) · nodes 3.141 · `nucleo/sheets.py`, `nucleo/workers/reports.py`.
+- **CRIT-E21 · An errand opens only its deliverable; its progress lives in the processes panel.** When the errand's surface names a card (`surfaces.deliverable_card`: the results sheet for `lista`/`item`, the document for `informe`, the viewer for `imagenes`), a worker's `show_widget` of any other card is refused at the one door (`deliverable_gate`, before `_exec_allow`) with the way through — read it without opening it, deliver into the deliverable; reads and writes are untouched. The results sheet has no process tab: its Results tab carries the loader while the errand works and the errand's page shows on it only when the page needs HIM (a wall, a login, a question); the document card shows «being created» (or «not written» when the errand ended without it) and points to the panel. The running process's entry in the processes panel — the desktop's tab and the phone's menu — paints ONE record (`GET /api/tasks/<id>/process`, `nucleo/process_view.py`, derived from the live registry): collapsed, the plan around its step (✓ ▸ ·) and whether the page needs him; expanded by him, the whole plan, the page and its capture, the harvest and the narration newest first. — since 2026-10-27 · nodes 3.143, 3.144, 4.310, 4.311, 4.143 · `nucleo/deliverable_gate.py`, `nucleo/process_view.py`, `frontend/app/components/ProcessEntry.js`, `widgets/results/widget.js`, `widgets/documento/widget.js`.
 - **CRIT-E13 · A worker's request is never his click.** On a self-hosted engine every mutation is the operator's
   unless it is a named worker door (`/api/worker/*`, the agent report, the browser bridge, memory with the per-task
   token, search); it is admitted for his screen's per-boot HttpOnly cookie or a process the engine did not spawn,
