@@ -12,6 +12,7 @@ from voice.engine.llm.providers import nucleo as _p, turn_errands as _turn_erran
 from nucleo.turn import promise_kept as _promise_kept   # a promise ends ran, repaired or said undone (V2-790)
 from voice.engine.llm.providers import promise_backstop as _promise_backstop   # promise → escalation (V2-049)
 from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one said (2.643)
+from nucleo.flash import stop_decision as _stop_decision   # V2-820: a replace stops X and starts Y in one act
 
 
 async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _dialog, _escalate_mod, _filler_audio, _gate_ms, _op_text, _prev_pending, _router, _shown_ids, _start_web_auth, _t_entry, _t_stream0, _tool_fired, _turn_tools, acted, aside, attention, brain, clarify, confirm_state, data_done, deduped, emit, escalate_req, first_ms, first_turn, images_req, listing_req, llm_metrics, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, spec, speech, spoken_text, style_fired, system, t0, text, timings, worker_acted) -> dict:
@@ -262,13 +263,13 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
         except Exception:
             pass
 
-    # Escala DESPUÉS de que el texto del turno rápido va camino de TTS. NO escala si ya se dirigió a un worker
-    # vivo (inject/stop/answer) este turno.
-    if escalate_req["v"] is not None and not worker_acted["v"]:
+    # Escalates after the TTS; not when the turn addressed a live worker (inject/answer/stop) — save a REPLACE (V2-820).
+    _replacing = _stop_decision.start_beside_the_stop(_brief, escalate_req, _op_text, worker_acted, emit=emit)
+    if escalate_req["v"] is not None and (not worker_acted["v"] or _replacing):
         req = escalate_req["v"] or _op_text
         # V2-038 §v3·G: si una tarea MUY parecida ya está EN CURSO, esto es un REFINAMIENTO → se INYECTA a esa
         # sesión (no se descarta como antes, ni se abre otra). Reemplaza el dedup-descartar de V2-029.
-        if _p._similar_pending(req, _prev_pending):
+        if not _replacing and _p._similar_pending(req, _prev_pending):
             try:
                 from nucleo import dispatch as _disp3
                 _disp3.inject_soon(req, req)

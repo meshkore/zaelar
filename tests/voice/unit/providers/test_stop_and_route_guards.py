@@ -92,7 +92,7 @@ def test_el_guarda_no_mata_a_quien_acaba_de_contestar():
     and that happened in the session in the very same millisecond. The response wins, since it is non-destructive."""
     body = _vts.read(NUCLEO)
     i = body.index('elif name == "stop_worker":')
-    block = body[i:i + 5200]     # through past `cancel_soon`, which it must precede
+    block = body[i:body.index("cancel_soon", i) + 20]     # through past `cancel_soon`, which it must precede
     assert 'worker_acted["v"] == "answer"' in block, "falta el guarda: se puede volver a matar al que contestas"
     assert "_says_stop(text)" in block, "falta el guarda de orden explícita"
     # Both must come BEFORE resolving and killing.

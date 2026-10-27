@@ -690,6 +690,7 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
                     emit("brain", "🛑 stop_worker(todo) RETENIDO (varias tareas distintas, sin 'todo' "
                          "explícito)", text=text[:100], role="system")
                     return
+        worker_acted["stopped"] = _stop_decision.goals_of(_w)   # V2-820: a replace carries what it stopped
         tids = _d.cancel_soon(_w)
         if _w == "todo":     # «para todo y quédate tranquilo» → además LIMPIA las marcas de trabajo
             from nucleo import reset as _reset_mod

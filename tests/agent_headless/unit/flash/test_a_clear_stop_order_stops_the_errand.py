@@ -113,7 +113,7 @@ def test_the_question_is_asked_only_while_an_errand_runs(monkeypatch):
     monkeypatch.setattr(jev, "enabled", lambda: False, raising=False)
     with_worker = _tb.build("para esa tarea", has_workers=True, last_reply="¿La paro?")
     assert sd.KEY in with_worker and "¿La paro?" in with_worker[sd.KEY]["instructions"]
-    assert set(with_worker[sd.KEY]["criteria"]) == {"stop", "keep"}
+    assert set(with_worker[sd.KEY]["criteria"]) == {"stop", "replace", "steer", "keep"}   # V2-820
     assert sd.KEY not in _tb.build("para esa tarea", has_workers=False)
 
 
@@ -123,4 +123,4 @@ def test_both_doors_and_the_text_channel_read_the_verdict():
     from nucleo.flash import post_stream_settle, probe_mirrors
     assert "_stop_decision.ordered(brief" in inspect.getsource(_calls._t_stop_worker)
     assert "_stop_decision.repair(" in inspect.getsource(post_stream_settle.settle_what_is_pending)
-    assert "_stop_decision.ordered(_tbrief" in inspect.getsource(probe_mirrors.mirror_the_voice_backstops)
+    assert "_stop_decision.text_action(_tbrief" in inspect.getsource(probe_mirrors.mirror_the_voice_backstops)   # V2-820

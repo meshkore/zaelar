@@ -240,8 +240,8 @@ async def mirror_the_voice_backstops(*, _akp, _cw, _hw, _router, _rt, _sp, _tbri
         try:
             from nucleo import dispatch as _disp0
             from . import router as _router1
-            if _disp0.has_active() and _stop_decision.ordered(_tbrief, grammar=_router1.looks_like_stop_work(text)):
-                action = "stop_worker"
+            if _disp0.has_active():    # a stop/replace ends it, a steer reaches it (V2-820)
+                action = _stop_decision.text_action(_tbrief, grammar=_router1.looks_like_stop_work(text)) or action
         except Exception:
             pass
 

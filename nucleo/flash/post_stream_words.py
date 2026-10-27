@@ -12,6 +12,7 @@ from nucleo.flash import card_commission as _cardc_ws
 from nucleo.flash import note_backstop as _nb    # the dated-note backstop's one decision, both channels
 from nucleo.flash import post_stream as _pst
 from nucleo.flash import second_pass as _second_pass   # a question the state answers, composed (2026-10-21)
+from nucleo.flash import stop_decision as _stop_decision   # V2-820: a correction of the running errand reaches it
 from nucleo.flash import reminder_backing as _rback   # promise → job, claim → checked (both halves)
 from nucleo.flash import verdict_card as _vcard     # a sure close that an inner order outranks is not owed
 from nucleo.turn import split_by_errand as _sbe   # a sentence about several errands goes part by part (2.643)
@@ -20,7 +21,7 @@ from nucleo.turn import promise_kept as _pk      # a promise ends ran, repaired 
 
 async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
     spoken_text = "".join(spoken).strip()
-
+    _stop_decision.steer(_brief, _router.operator_words(operator_text, text), worker_acted=worker_acted, emit=emit, escalate_req=escalate_req)  # V2-820: first
     # GUARD DETERMINISTA de SHOW puro (V2-023, ampliado 2026-07-14). "muéstrame el de mensajería" / "abre la
     # agenda" / "muéstrame el widget de fútbol": si el modelo rápido ESCALÓ (→ widget basura) o disparó
     # web_search (las palabras-tema «fútbol/resultados» ceban la búsqueda, hallazgo del test post-P1/P2) una

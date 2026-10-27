@@ -17,6 +17,7 @@ from nucleo.workers import quota_wait as _qwait   # the worker chain asleep: wha
 from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one is said (2.643)
 from nucleo.flash.delivery_repeat import wants_words as _ww   # a question without «?» is in the brief (2.604)
 from nucleo.turn import commission_words as _commission_words   # his sentence reaches the errand's sheet (2.630)
+from nucleo.flash import stop_decision as _stop_decision   # V2-820: a replace stops X and starts Y in one act
 
 
 async def _escalated_with_its_data_ops(task_ids: list, tool_calls: list, text: str, brief) -> dict:
@@ -112,6 +113,22 @@ def _launch(reqs: list, _surf: dict, *, trace_id: str, brief, text: str, derived
             for _r in reqs]
 
 
+def _stop_and_replace(tool_calls: list, text: str, operator_text: str, *, brief, trace_id: str, spoken) -> dict:
+    """The stop branch of this channel: cancel what the model's `which` (or his text) names; on a sure `replace`
+    (V2-820) the errand that takes its place starts too, with the stopped goal carried — the voice doors' twin."""
+    from nucleo import dispatch as _disp
+    which = next((t["args"].get("which") for t in tool_calls if t["name"] == "stop_worker"), None)
+    acted = {"v": "stop", "stopped": _stop_decision.goals_of(str(which) if which else text)}   # before the cancel
+    _disp.cancel_soon(str(which) if which else text)
+    out = {"executed": "stop"}
+    rep = {"v": next((str(t["args"].get("request") or "") for t in tool_calls if t["name"] == "escalate_to_slowbrain"),
+                     "")}
+    if _stop_decision.start_beside_the_stop(brief, rep, operator_text, acted):
+        out["replaced_by"] = _launch([rep["v"]], {}, trace_id=trace_id, brief=brief, heard=operator_text,
+                                     text=spoken if isinstance(spoken, str) else "")
+    return out
+
+
 def an_inline_act_settles_the_commission(action: str, tool_calls: list, *, brief, operator_text: str, spoken) -> str:
     """The voice's commission gate (`escalation_guard.settle_commission`), on this channel too: a turn that ACTED on
     a card and also escalated, read `handle_inline` by its brief with no promise in the reply, does not launch the
@@ -194,11 +211,9 @@ async def execute_what_was_decided(*, _kind, _r, _res, _tbrief, _trace_id, _wind
                 from nucleo import worker_api as _wapi
                 _wapi.answer_active_soon(str(_ans))
                 return_extra_exec = {"executed": "answer"}
-            elif action == "stop_worker":
-                from nucleo import dispatch as _disp
-                _which = next((t["args"].get("which") for t in tool_calls if t["name"] == "stop_worker"), None)
-                _disp.cancel_soon(str(_which) if _which else text)   # resuelve which del modelo, o del texto (bulk→todas)
-                return_extra_exec = {"executed": "stop"}
+            elif action == "stop_worker":   # the model's `which`, else his text (bulk → all); a replace starts Y (V2-820)
+                return_extra_exec = _stop_and_replace(tool_calls, text, operator_text, brief=_tbrief, trace_id=_trace_id,
+                                                      spoken=spoken)
             # EL TRASPASO DE INICIO DE SESIÓN (V2-176, 2026-08-20 — mismo agujero que describe el bloque de cron de
             # abajo, y por la misma razón). `authenticate_web` y `login_done` se resolvían aquí a una ETIQUETA y nada
             # más: la voz llamaba a sus dos closures y este canal —el que usan los casos de uso— no ejecutaba nada.
