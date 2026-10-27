@@ -68,3 +68,19 @@ def test_run_py_GUARDA_el_dato_que_ya_tenia_en_la_mano():
     asigna = [n for n in ast.walk(fn) if isinstance(n, ast.Subscript)
               and isinstance(n.slice, ast.Constant) and n.slice.value == "turn_actions"]
     assert asigna, "lo que pidió el cerebro no llega al informe de mecanismo"
+
+
+def test_an_order_the_action_map_ran_is_shown_as_acted_not_as_nothing():
+    """video-exit-fullscreen-unnamed__es (2026-10-27): the map took the card out of full screen with no model, and
+    the judge, shown «t0→(ninguna)», scored «claimed success without acting»."""
+    txt = _texto(J.mechanism_facts({"turn_actions": [
+        {"turn": 0, "pedido": [], "action": "canvas:unfullscreen", "mapa": True, "ejecutado": "canvas:unfullscreen"}]}))
+    assert "t0→(mapa de acciones, sin modelo) [ejecutó canvas:unfullscreen]" in txt
+    assert "t0→(ninguna)" not in txt
+
+
+def test_run_py_marks_a_map_hit_as_executed():
+    from pathlib import Path
+    src = Path("tests/use_cases/e2e/agent/run.py").read_text()
+    assert 'if res.get("actionmap") and scenario.channel == "probe":' in src
+    assert '_act["mapa"] = True' in src

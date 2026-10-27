@@ -621,13 +621,17 @@ def mechanism_facts(mech: dict) -> str:
     # deducir del texto de la respuesta, y esa deducción confunde dos hechos con dueños distintos.
     _ta = mech.get("turn_actions") or []
     if _ta:
-        _tr = " · ".join(f"t{a.get('turn')}→" + (", ".join(a.get("pedido") or []) or "(ninguna)")
+        _tr = " · ".join(f"t{a.get('turn')}→"
+                         + ("(mapa de acciones, sin modelo)" if a.get("mapa")
+                            else (", ".join(a.get("pedido") or []) or "(ninguna)"))
                          + (f" [ejecutó {a['ejecutado']}]" if a.get("ejecutado") else "")
                          for a in _ta[:14])
         lines.append(f"· LO QUE PIDIÓ EL CEREBRO, turno a turno: {_tr}. Es lo que el modelo PIDIÓ, no lo "
                      f"que ocurrió: una herramienta pedida puede fallar o ser rechazada (mira las "
                      f"operaciones de widget). Un turno con «(ninguna)» no llamó a nada, así que si hacía "
-                     f"falta una acción, ahí no se intentó siquiera.")
+                     f"falta una acción, ahí no se intentó siquiera. Un turno «(mapa de acciones, sin modelo)» "
+                     f"es una frase conocida que el motor EJECUTÓ sin preguntar a ningún modelo: sí actuó, y lo "
+                     f"que hizo es lo que dice «ejecutó».")
     # V2-400 — el flujo tocó el techo del lector: el informe entero sale de un flujo RECORTADO.
     _cap = mech.get("event_stream_at_cap") or {}
     if _cap:

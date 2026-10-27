@@ -235,6 +235,12 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         _act = {"turn": turn, "pedido": _pedido, "action": str(res.get("action") or "")}
         if res.get("executed"):
             _act["ejecutado"] = res.get("executed")
+        # An order the ACTION MAP ran asked no tool of any model, and it DID act (the probe only reports a map hit
+        # that ran). Without this mark the judge read «t0→(ninguna)» as «claimed without acting» over a card the
+        # map had just taken out of full screen (video-exit-fullscreen-unnamed__es, 2026-10-27).
+        if res.get("actionmap") and scenario.channel == "probe":
+            _act["mapa"] = True
+            _act.setdefault("ejecutado", str(res.get("action") or ""))
         turn_actions.append(_act)
         note("zaelar", reply_text)
         print(f"  zaelar  · {reply_text[:160]}")
