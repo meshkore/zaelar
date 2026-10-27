@@ -43,18 +43,28 @@ def product_modules() -> dict[str, tuple[str, str]]:
     return mods
 
 
-def imports_of(src: str) -> set[str]:
+def imports_of(src: str, name: str, is_package: bool) -> set[str]:
+    """Absolute names this module imports. A relative `from . import x` / `from ..y import z` is resolved against
+    the module's own package — skipping it marks every module reached only that way as an orphan."""
     out: set[str] = set()
     try:
         tree = ast.parse(src)
     except SyntaxError:
         return out
+    here = name.split(".") if is_package else name.split(".")[:-1]
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             out.update(a.name for a in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            out.add(node.module)
-            out.update(f"{node.module}.{a.name}" for a in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                base = here[: len(here) - (node.level - 1)] if node.level - 1 <= len(here) else []
+                module = ".".join(base + ([node.module] if node.module else []))
+            else:
+                module = node.module or ""
+            if not module:
+                continue
+            out.add(module)
+            out.update(f"{module}.{a.name}" for a in node.names)
     return out
 
 
@@ -79,8 +89,8 @@ def package_of(path: str) -> str:
 def build() -> list[dict]:
     mods = product_modules()
     importers: dict[str, set[str]] = collections.defaultdict(set)
-    for name, (_path, src) in mods.items():
-        for imp in imports_of(src):
+    for name, (path, src) in mods.items():
+        for imp in imports_of(src, name, path.endswith("__init__.py")):
             target = resolve(imp, mods)
             if target and target != name:
                 importers[target].add(name)
