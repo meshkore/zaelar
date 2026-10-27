@@ -6750,6 +6750,8 @@ DOMAINS: list[dict] = [
                                   "tests/use_cases/unit/test_multiflow.py"]},
         {"id": "10.134", "title": "An order the action map answers is heard by the use-case tester: the runner joins the probe's list of sentences (it dropped every plain string, so each map hit read as a mute turn)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_action_map_reply_is_heard_by_the_tester.py"]},
+        {"id": "10.135", "title": "The tester sees its own screen: after each turn the round tells the driver which cards are open and which is at full screen, once per change (it guessed «sigue igual» over a card already out of full screen)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_tester_sees_its_screen.py"]},
         # Las fechas de un caso son SIEMPRE relativas a hoy (norma del operador). El trinquete existe porque el
         # defecto no se ve leyendo: el catálogo pedía reservas para «el puente de mayo» con el reloj en agosto,
         # o sea casos imposibles por construcción que el tablero contaba como fallos del agente.

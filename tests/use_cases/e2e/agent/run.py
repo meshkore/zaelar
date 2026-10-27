@@ -117,6 +117,19 @@ def seed_outcome(*, sown: int, landed: bool, asked_ok: bool, waited: float, prob
             "unverifiable": bool(probe) and not asked_ok and not landed}
 
 
+def _screen_line(open_cards, maxed, locale: str) -> str:
+    """The person's screen in one line: the open cards, the one at full screen marked. "" when nothing is known."""
+    cards = [str(c) for c in (open_cards or []) if str(c or "").strip()]
+    us = (locale or "es") == "us"
+    if not cards:
+        return "nothing is open on the screen" if us else "no hay nada abierto en la pantalla"
+    mark = " (full screen)" if us else " (a pantalla completa)"
+    shown = ", ".join(c + (mark if c in (maxed or ()) else "") for c in cards)
+    if not any(c in (maxed or ()) for c in cards):
+        shown += " — nothing is at full screen" if us else " — nada está a pantalla completa"
+    return ("open on the screen: " if us else "abierto en la pantalla: ") + shown
+
+
 def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: bool = False,
                   provisional: str = "") -> dict:
     """`sandboxed` says whether the engine under test is a throwaway one. It decides whether the
@@ -150,6 +163,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     pending_nudge = ""
     _canvas_said: list = []
     _canvas_acts: list = []
+    try:   # the card a scene seeds at FULL SCREEN starts that way (`card_seed.MAXIMIZED`)
+        from . import card_seed as _cs0
+        _maxed = ({_cs0.card_for(scenario.id)} if scenario.id.split("__")[0] in _cs0.MAXIMIZED else set())
+    except Exception:  # noqa: BLE001
+        _maxed = set()
     # Multi-flow scenarios need concurrency measured WHILE it happens (see ConcurrencyTracker's docstring):
     # a post-hoc event dump can show N tasks existed but never that two overlapped in time.
     concurrency = verifymod.ConcurrencyTracker() if scenario.concurrent_tasks else None
@@ -201,6 +219,14 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         probe_client.reset(session)      # the real request starts with a CLEAN window
 
     errands = errandmod.step(scenario, config.SANDBOX_DB) if sandboxed else {}   # V2-781 T517, after the reset
+    # A seeded card was opened by a canvas REPORT, which `canvas_now` rightly never folds in: the round adds it as
+    # its own `show`, or the next report would tell the engine the card had closed and the tester would be told
+    # an empty screen.
+    _seeded = (errands or {}).get("card") or {}
+    if _seeded.get("seeded") and _seeded.get("card"):
+        _canvas_acts.append({"cat": "widget", "label": "show", "id": str(_seeded["card"]), "t_ms": 0})
+        _canvas_said = [str(_seeded["card"])]
+        driver.sees(_screen_line(_canvas_said, _maxed, scenario.locale)) if hasattr(driver, "sees") else None
     busmod.step_started(scenario, "turns", detail=f"presupuesto {scenario.turns} turnos")
     utterance = driver.opening()
     note("tester", utterance)
@@ -257,6 +283,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             from . import card_seed as _cs
             if (_fs := _cs.after_turn(scenario.id, _cs.card_for(scenario.id), res.get("action"))):
                 probe_client._post("/api/canvas/state", _fs)
+                _maxed = {str(c.get("id") or "") for c in (_fs.get("layout") or []) if c.get("max")}
+            # …and the PERSON sees that screen: the tester sits in front of it (driver.sees).
+            if hasattr(driver, "sees"):
+                driver.sees(_screen_line(_canvas_said, _maxed, scenario.locale))
         except Exception:  # noqa: BLE001 — a canvas report never costs the round
             pass
 

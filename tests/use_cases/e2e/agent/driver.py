@@ -363,6 +363,23 @@ class Driver:
     def hears(self, zaelar_text: str) -> None:
         self.history.append({"role": "user", "content": zaelar_text or "(sin respuesta)"})
 
+    def sees(self, screen: str) -> None:
+        """What the person's screen shows after the turn — said once per change, as a silent aside.
+
+        The person sits in front of the screen; the driver did not. Told «Ya está» after the card really left
+        full screen, the Spanish tester improvised «sigue igual» in two rounds running (2026-10-27,
+        video-exit-fullscreen-unnamed__es), the agent then «fixed» a screen that was already right, and the judge
+        scored the product for the tester's guess. The round already knows what the desktop shows."""
+        screen = (screen or "").strip()
+        if not screen or screen == getattr(self, "_last_screen", ""):
+            return
+        self._last_screen = screen
+        if (getattr(self.scenario, "locale", "es") or "es") == "us":
+            note = f"(What your screen shows now — you can see it; do not read it aloud: {screen})"
+        else:
+            note = f"(Lo que ves ahora en tu pantalla — lo estás viendo; no lo leas en voz alta: {screen})"
+        self.history.append({"role": "system", "content": note})
+
     def reply(self, *, nudge: str = "") -> str:
         """Next line. `nudge` (from the watchdog) is injected as a system aside when the conversation looks
         like it's drifted — e.g. correcting a wrong assumption zaelar made — without breaking the persona."""
