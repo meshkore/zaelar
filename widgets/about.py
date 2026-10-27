@@ -22,7 +22,8 @@
 from __future__ import annotations
 
 import asyncio
-import re
+import logging
+from datetime import date
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -31,8 +32,23 @@ from . import registry, runtime
 
 router = APIRouter()
 
-_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_LICENCE = re.compile(r"^[A-Za-z0-9.+-]{1,40}$")
+_log = logging.getLogger(__name__)
+
+
+def _iso_date(value) -> str:
+    """The value when it is a real calendar date (YYYY-MM-DD), else "": a malformed field is dropped, never shown."""
+    v = str(value or "").strip()
+    try:
+        return v if len(v) == 10 and date.fromisoformat(v) else ""
+    except ValueError:
+        _log.debug("apps page: %r is not a calendar date, the field is dropped", v)
+        return ""
+
+
+def _licence_id(value) -> str:
+    """An SPDX-like licence id (letters, digits, «.+-», ≤40) or "": free text is not a licence."""
+    v = str(value or "").strip()
+    return v if 0 < len(v) <= 40 and all(c.isalnum() or c in ".+-" for c in v) else ""
 
 
 def _text(key: str, fallback: str) -> str:
@@ -54,7 +70,8 @@ def _connectors(families) -> list[dict] | None:
         from connectors import registry as _conn
         rows = _conn.descriptors()
         serves = _conn.serves
-    except Exception:  # noqa: BLE001 — an inventory that cannot be read lists nothing, it does not invent
+    except Exception as e:  # noqa: BLE001 — an inventory that cannot be read lists nothing, it does not invent
+        _log.info("apps page: the connector inventory could not be read: %s", e)
         return []
     out, seen = [], set()
     for d in rows:
@@ -78,11 +95,11 @@ def about(widget_id: str) -> dict | None:
     owner = str(w.get("owner") or "").strip()
     if owner:
         page["owner"] = owner
-    created = str(w.get("created") or "").strip()
-    if _DATE.match(created):
+    created = _iso_date(w.get("created"))
+    if created:
         page["created"] = created
-    licence = str(w.get("licence") or "").strip()
-    if _LICENCE.match(licence):
+    licence = _licence_id(w.get("licence"))
+    if licence:
         page["licence"] = licence
     native = str(w.get("description") or "").strip()
     text = _text(f"widgets.{wid}.about", native).strip()
@@ -92,8 +109,8 @@ def about(widget_id: str) -> dict | None:
     if conns is not None:
         page["connectors"] = conns
     fk = w.get("forked_from")
-    if isinstance(fk, dict) and _DATE.match(str(fk.get("date") or "")):
-        page["forked"] = str(fk["date"])
+    if isinstance(fk, dict) and _iso_date(fk.get("date")):
+        page["forked"] = _iso_date(fk.get("date"))
     return page
 
 
