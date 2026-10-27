@@ -9,6 +9,10 @@ needs him), or, when he opens it, the browser's page and capture, how much it ha
 Rendered in Chromium against the real ChatWall, store, stylesheets and Spanish bundle (desktop), and the real
 MenuSheet at 375 px (the phone, which has no processes tab: its menu carries the same entry).
 Disarm: `paintEntry` ignoring `open` (always collapsed) → red.
+
+V2-822 (the operator's decision 1): the entry's LAST line says what the process waits on him for — «waiting for you
+to sign in» while a window is open for him, «blocked: … without the daemon …» when no window can reach him.
+Disarm: `paintWait` not called → red.
 """
 from __future__ import annotations
 
@@ -50,7 +54,7 @@ def _listening(port: int) -> bool:
         return False
 
 
-def _page(pw, port, width, hits):
+def _page(pw, port, width, hits, rec=None):
     pg = pw.chromium.launch().new_page(viewport={"width": width, "height": 800})
     errors: list[str] = []
     pg.on("pageerror", lambda e: errors.append(str(e)))
@@ -58,7 +62,7 @@ def _page(pw, port, width, hits):
 
     def process(route):
         hits.append(route.request.url.split("/api/tasks/")[1].split("/")[0])
-        route.fulfill(status=200, content_type="application/json", body=json.dumps(_REC))
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(rec or _REC))
 
     def tasks(route):
         scope = route.request.url.split("scope=")[-1].split("&")[0]
@@ -87,6 +91,8 @@ _READ = """() => [...document.querySelectorAll('.pe')].map(n => ({
     shot: (n.querySelector('.pe-shot img') || {src: ''}).src,
     stats: [...n.querySelectorAll('.pe-stat span')].map(s => s.innerText),
     lines: [...n.querySelectorAll('.pe-line')].map(s => s.innerText),
+    wait: [...n.querySelectorAll('.pe-need[data-wait]')].map(x => [x.dataset.wait, x.innerText]),
+    lastIsWait: !!(n.querySelector('.pe-toggle') || {}).previousElementSibling?.dataset?.wait,
     h: Math.round(n.getBoundingClientRect().height)}))"""
 
 
@@ -106,6 +112,8 @@ def _check_collapsed_then_expanded(pg, hits):
     assert c["steps"] == [["done", "✓\n" + _PLAN[1]], ["now", "▸\n" + _PLAN[2]], ["next", "·\n" + _PLAN[3]]], \
         f"collapsed = the plan around the step it is on: {c['steps']}"
     assert c["need"], "collapsed still says the page needs him"
+    assert c["wait"] == [["auth", _ES["chat.procAwaitingAuth"]]] and c["lastIsWait"], \
+        f"the last line says it waits for him to sign in: {c['wait']}"
     assert not (c["shot"] or c["stats"] or c["lines"]), "collapsed shows no capture, harvest or narration"
     assert c["toggle"] == _ES["chat.procMore"]
     before = len(hits)
@@ -117,6 +125,7 @@ def _check_collapsed_then_expanded(pg, hits):
     assert e["stats"][:2] == [_ES["chat.procTally.pages"], _ES["chat.procTally.rows"]], e["stats"]
     assert e["lines"][0] == _REC["phases"][-1], "the narration reads newest first"
     assert e["toggle"] == _ES["chat.procLess"] and e["h"] > c["h"]
+    assert e["wait"] == c["wait"] and e["lastIsWait"], "expanded, the wait is still its last line"
     assert set(hits) <= {"7", "row-7"}, hits
     assert not pg._errors, pg._errors
     pg.click(".pe-toggle")                                              # leave it as he found it
@@ -152,3 +161,22 @@ def test_the_phone_menu_carries_the_same_entry(server):
         _check_collapsed_then_expanded(pg, hits)
         width = pg.evaluate("() => document.documentElement.scrollWidth")
         assert width <= 375, f"the phone scrolls sideways ({width}px)"
+
+
+def test_a_blocked_process_says_why_on_its_last_line(server):
+    """No window can reach him (no display, no daemon): the entry says it is blocked and why, in his language."""
+    from playwright.sync_api import sync_playwright
+    rec = {**_REC, "browser": {**_REC["browser"], "awaiting_login": False, "blocked": "no_window"}}
+    with sync_playwright() as pw:
+        pg = _page(pw, server, 375, [], rec)
+        pg.evaluate("async () => {" + _CSS + """
+            const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = '/frontend/mobile/app/styles.css';
+            document.head.append(l);
+            const store = await import('/frontend/app/core/store.js?v=2');
+            const m = await import('/frontend/mobile/app/shell/MenuSheet.js?v=2');
+            document.body.append(m.MenuSheet());
+            store.startTask('7', 'Documento con tu estilo'); store.setMobileMenuOpen(true); }""")
+        pg.wait_for_selector(".pe .pe-need[data-wait]", timeout=5000)
+        c = pg.evaluate(_READ)[0]
+        assert c["wait"] == [["blocked", _ES["chat.procBlockedNoWindow"]]] and c["lastIsWait"], c["wait"]
+        assert not pg._errors, pg._errors

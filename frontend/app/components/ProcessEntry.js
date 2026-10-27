@@ -3,7 +3,7 @@
 //
 // The operator (2026-10-27): an errand's work happens in the background, the card he asked for is the only card it
 // opens, and its progress lives in ONE place — here, under the running process's row. Collapsed it is three or four
-// lines (the plan around the step it is on: ✓ done · ▸ now · · next, and whether the page needs him); expanded, by
+// lines (the plan around the step it is on: ✓ done · ▸ now · · next, and what it waits on him for); expanded, by
 // his click, it is everything the results sheet's «Proceso» tab used to show: the whole plan, the browser's page and
 // capture, how much it has looked at, and the narration, newest first.
 //
@@ -93,7 +93,28 @@ function paintPlan(box, rec, all){
   box.appendChild(ul);
 }
 
-function needsHim(br){ return !!(br && (br.wall || br.awaiting_login || br.question)); }
+// What the process is waiting on HIM for, as its LAST line (V2-822, the operator's decision 1). Read from the record,
+// never guessed: `blocked` (it needs his sign-in and no browser window can reach him — no display where the engine
+// runs and no daemon connected that can open one), `awaiting_login` (a window is open for him and the process
+// watches it), or a wall/question on the page. "" = it is not waiting on him.
+function waitsOnHim(br){
+  if(!br) return "";
+  if(br.blocked) return "blocked";
+  if(br.awaiting_login) return "auth";
+  return (br.wall || br.question) ? "page" : "";
+}
+const WAIT_TEXT = {
+  blocked: ["chat.procBlockedNoWindow", "Bloqueado: hace falta iniciar sesión y desde aquí no puedo abrirte un navegador."],
+  auth:    ["chat.procAwaitingAuth", "Esperando a que te autentiques en la ventana que te abrí."],
+  page:    ["chat.procNeedsYou", "La página necesita que actúes en ella."],
+};
+function paintWait(node, br){
+  const why = waitsOnHim(br);
+  if(!why) return;
+  const line = elem("div","pe-need", tt(WAIT_TEXT[why][0], null, WAIT_TEXT[why][1]));
+  line.dataset.wait = why;
+  node.appendChild(line);
+}
 
 function paintBrowser(box, br){
   if(!br || !br.task_id) return;
@@ -124,9 +145,7 @@ export function paintEntry(node, rec, open){
   if(!rec || !rec.alive) return;
   const br = rec.browser || {};
   paintPlan(node, rec, open);
-  if(!open){
-    if(needsHim(br)) node.appendChild(elem("div","pe-need", tt("chat.procNeedsYou", null, "La página necesita que actúes en ella.")));
-  } else {
+  if(open){
     paintBrowser(node, br);
     paintHarvest(node, rec.harvest || {});
     const lines = Array.isArray(rec.phases) ? rec.phases.filter(x => String(x || "").trim()) : [];
@@ -137,6 +156,7 @@ export function paintEntry(node, rec, open){
       node.appendChild(log);
     }
   }
+  paintWait(node, br);
   const more = elem("button","hb-btn hb-btn--ghost hb-btn--sm pe-toggle",
                     open ? tt("chat.procLess", null, "Menos") : tt("chat.procMore", null, "Ver detalle"));
   more.type = "button";
