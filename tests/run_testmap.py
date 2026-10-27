@@ -2024,8 +2024,11 @@ DOMAINS: list[dict] = [
             "paths": ["tests/agent_headless/unit/flash/test_a_replaced_errand_starts_the_one_he_named.py"]},
         # V2-820 — a lens on his card stood in for a document errand twice (the catalogue rung's mail_folder, the
         # promise pass's show_view) and, presented over a closed card, opened his mail. Disarmed 2026-10-27 → red.
-        {"id": "3.140", "title": "A view on a card is not an errand whose deliverable has its own box: talking about a "
-                                 "card's content, or an errand that will read it, does not open it (V2-820)",
+        # T-05: the next turn (T61) the verdict's surface was unsure and the escalation itself declared `informe`; the
+        # same lens took the errand again and nothing ran. Replayed (es) both channels; red at v3.96, disarms red.
+        {"id": "3.140", "title": "A view on a card is not an errand whose deliverable has its own box (the sure verdict, "
+                                 "else the surface the escalation declared): talking about a card's content, or an "
+                                 "errand that will read it, does not open it (V2-820)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_view_is_not_the_deliverable.py"]},
         # V2-820 — a report errand's process said «Preparando… · Aún no hay pasos que contar» for two minutes while the
         # worker had declared a plan and narrated: only the results sheet was told a line arrived. Disarmed 2026-10-27

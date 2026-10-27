@@ -298,7 +298,7 @@ def _as_tool_request(got: dict, operator_text: str) -> dict | None:
 
 
 async def commission_call(commission: str, *, brief, operator_text: str, spec, window=None,
-                          pictures: bool = False) -> dict | None:
+                          pictures: bool = False, declared_surface: str = "") -> dict | None:
     """The DECISION of `before_worker`, the same for both channels: `{"kind": "call"|"read", …}` or None (the worker
     keeps the errand). Each channel carries it out its own way — the voice runs it, the probe records the call."""
     from nucleo import danger as _danger
@@ -321,7 +321,9 @@ async def commission_call(commission: str, *, brief, operator_text: str, spec, w
     # V2-820 — a lens on his card is not an errand whose deliverable has its own box (a document, pictures): the worker
     # keeps it, and his card stays where he left it.
     from nucleo.flash import canvas_visibility as _cvis_v
-    got = _cvis_v.unless_a_view(got, brief) if got and got.get("kind") == "call" else got
+    # The deliverable is what the escalation itself declared (`surface`), not only the verdict's sure reading.
+    got = (_cvis_v.unless_a_view(got, brief, declared=declared_surface) if got and got.get("kind") == "call"
+           else got)
     if (not got or got.get("kind") != "call") and pictures:
         # Demo pass 66, B1: the catalogue named the viewer and the pass still sent «find me the wallpaper cosmic
         # eye…» to a worker. An empty viewer's only way to hold anything is the picture search.
@@ -338,7 +340,10 @@ async def probe_instead_of_a_worker(tool_calls: list, commission: str, *, brief,
     three reds escalated a two-field send to a worker the voice channel would never have launched. A read, or
     nothing, keeps the errand as it was. Never raises."""
     try:
-        got = await commission_call(commission, brief=brief, operator_text=operator_text, spec=spec, window=window)
+        _declared = next((str((t.get("args") or {}).get("surface") or "") for t in tool_calls
+                          if t.get("name") == "escalate_to_slowbrain"), "")
+        got = await commission_call(commission, brief=brief, operator_text=operator_text, spec=spec, window=window,
+                                    declared_surface=_declared)
     except Exception as e:  # noqa: BLE001 — a model call that broke is SAID on the trace, never «no commission»
         try:
             from voice.observer import emit
@@ -425,7 +430,9 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
     the two rungs before this one found no OPEN card. Never raises: a second pass never breaks a turn."""
     try:
         got = await commission_call(str(escalate_req.get("v") or ""), brief=brief, operator_text=operator_text,
-                                    spec=spec, window=window, pictures=images_req is not None)
+                                    spec=spec, window=window, pictures=images_req is not None,
+                                    declared_surface=str((escalate_req.get("surface") or {})
+                                                         .get(escalate_req.get("v"), "") or ""))
         if not got:
             return ""
         _tool = _as_tool_request(got, operator_text) if got["kind"] == "call" and images_req is not None else None

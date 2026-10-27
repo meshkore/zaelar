@@ -88,3 +88,46 @@ def test_the_promise_pass_does_not_keep_a_report_promise_with_a_lens(text, actio
                                                            "mensajeria", spec=None, brief=_brief(**REPORT),
                                                            outcome=outcome))
     assert got is None and outcome.get("kind") == pk.JUDGED
+
+
+# --- the next live turn (2026-10-27 11:23:54, T61): the verdict unsure, the escalation itself declared the document ---
+#: his answer to «¿WhatsApp, correo o los dos?», verbatim; the model's escalation carried `surface = informe`.
+T61 = ("Solo solo de solo de correo, en WhatsApp nunca escribo algo tan largo, y si lo hago últimamente ha sido "
+       "porque he utilizado la IA. Así que céntrate en el correo y en los mensajes enviados.")
+T61_BRIEF = {surfaces.SURFACE_KEY: ("informe", 0.42), tb.CANVAS_KEY: ("neither", 0.96)}
+
+
+def test_an_unsure_verdict_takes_the_deliverable_the_escalation_declared():
+    b = _brief(**T61_BRIEF)
+    assert cv.a_view_is_not_the_deliverable("mensajeria", "mail_folder", b, declared="informe")
+    assert not cv.a_view_is_not_the_deliverable("mensajeria", "mail_folder", b), "nothing declared → today"
+    assert not cv.a_view_is_not_the_deliverable("mensajeria", "mail_folder", b, declared="lista"), "a list may be it"
+    sure_list = _brief(**{surfaces.SURFACE_KEY: ("lista", 0.95), tb.CANVAS_KEY: ("neither", 0.9)})
+    assert not cv.a_view_is_not_the_deliverable("mensajeria", "mail_folder", sure_list, declared="informe"), \
+        "a sure verdict is read as today"
+    asked = _brief(**dict(T61_BRIEF, **{tb.CANVAS_KEY: ("show", 0.95)}))
+    assert not cv.a_view_is_not_the_deliverable("mensajeria", "mail_folder", asked, declared="informe")
+
+
+def test_t61_replayed_the_worker_keeps_the_errand_on_both_channels(monkeypatch):
+    """Red on the released behaviour: `before_worker` ran `mensajeria:mail_folder {sent}`, cleared the escalation
+    («🎯 acción declarada en vez de un worker») and the reply «voy con el correo enviado…» had nothing behind it."""
+    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda b, t: "mensajeria")
+
+    async def _view(*a, **k):
+        return {"kind": "call", "widget_id": "mensajeria", "action": "mail_folder", "payload": {"folder": "sent"}}
+    monkeypatch.setattr(act_repair, "call_or_read_for_commission", _view)
+    commission = "Analizar su ESTILO DE ESCRITURA usando EXCLUSIVAMENTE los correos ENVIADOS…"
+    # voice: the escalation the model made, its surface recorded per request (`tool_executor_calls`)
+    esc = {"v": commission, "more": [], "surface": {commission: "informe"}}
+    ran: list = []
+    got = asyncio.run(card_commission.before_worker(
+        esc, {"v": None}, brief=_brief(**T61_BRIEF), operator_text=T61, spec=None, emit=lambda *a, **k: None,
+        present=lambda *a, **k: None, apply_widget_data=lambda *a: ran.append(a)))
+    assert got == "" and not ran, "no view ran in its place"
+    assert esc["v"] == commission, "the escalation survives: the worker starts"
+    # text channel: the same declaration read from the model's tool call
+    calls = [{"name": "escalate_to_slowbrain", "args": {"request": commission, "surface": "informe"}}]
+    assert not asyncio.run(card_commission.probe_instead_of_a_worker(
+        calls, commission, brief=_brief(**T61_BRIEF), operator_text=T61, spec=None))
+    assert [c["name"] for c in calls] == ["escalate_to_slowbrain"]

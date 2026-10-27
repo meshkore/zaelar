@@ -204,7 +204,7 @@ def present_for_call(widget_id: str, action: str, *, brief=None, card: str = "",
     return False
 
 
-def a_view_is_not_the_deliverable(widget_id: str, action: str, brief=None) -> bool:
+def a_view_is_not_the_deliverable(widget_id: str, action: str, brief=None, declared: str = "") -> bool:
     """Is this call a VIEW (a lens, `data.read`) standing in for an errand whose deliverable has its OWN box — a
     document to read, pictures to look at — on a turn that did not ask to see the card? Then it is not the errand.
 
@@ -213,9 +213,16 @@ def a_view_is_not_the_deliverable(widget_id: str, action: str, brief=None) -> bo
     rung took `mensajeria:mail_folder {folder: sent}` instead of the worker, and because a lens over a closed card
     is presented (`present_for_call`), his mail card opened. Talking ABOUT a card's content, or an errand that will
     read it, is not an order to look at it. Read from the verdict and the action's declaration, never from words.
-    A sure `canvas = show` (he asked to see it) or a view of the deliverable's own box is never refused."""
+    A sure `canvas = show` (he asked to see it) or a view of the deliverable's own box is never refused.
+
+    The deliverable is the verdict's surface when it is sure and, when it is not, the one the escalation itself
+    declares (`declared` — the `surface` the model wrote on its own `escalate_to_slowbrain`). Measured on the next
+    live turn (2026-10-27 11:23:54, T61): he answered «solo de correo… céntrate en el correo y en los mensajes
+    enviados»; the model escalated with `surface = informe` and a document `done_when`, the verdict's surface was
+    unsure (informe 0.52 → read 0.42), and with only the verdict to go by the same `mail_folder {sent}` stood in
+    for the errand again — «voy con el correo enviado…», and nothing ran."""
     wid = str(widget_id or "").split("::", 1)[0].strip().lower()
-    if not wid or brief is None:
+    if not wid or (brief is None and not str(declared or "").strip()):
         return False
     try:
         from widgets import effects as _fx
@@ -223,11 +230,13 @@ def a_view_is_not_the_deliverable(widget_id: str, action: str, brief=None) -> bo
             return False
         from nucleo import surfaces as _sf
         from nucleo.flash import turn_brief as _tb
-        verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
+        verb, info = _tb.read(brief, _tb.CANVAS_KEY, "") if brief is not None else ("", None)
         if info is not None and str(verb or "") == "show":
             return False
-        surface, s_info = _tb.read(brief, _sf.SURFACE_KEY, "", min_confidence=0.7)
-        surface = _sf.normalize(surface) if s_info is not None else ""
+        surface, s_info = (_tb.read(brief, _sf.SURFACE_KEY, "", min_confidence=0.7) if brief is not None
+                           else ("", None))
+        # the verdict when it is sure (today's reading, untouched); unsure, the escalation's own declaration
+        surface = _sf.normalize(surface if s_info is not None and surface else declared)
         return bool(surface) and _sf.not_a_sheet(surface) and _sf.normalize(wid) != surface   # its own box is it
     except Exception as e:  # noqa: BLE001 — unreadable: today's path
         from loguru import logger
@@ -235,11 +244,12 @@ def a_view_is_not_the_deliverable(widget_id: str, action: str, brief=None) -> bo
         return False
 
 
-def unless_a_view(got, brief, outcome: dict | None = None):
+def unless_a_view(got, brief, outcome: dict | None = None, declared: str = ""):
     """`got` (a rung's or a pass's call), or None when it is a view that is not the deliverable — said on the timeline,
     and a promise pass's outcome recorded as JUDGED: there was nothing to run on the card (V2-820). Never raises."""
     try:
-        if not got or not a_view_is_not_the_deliverable(got.get("widget_id"), got.get("action"), brief):
+        if not got or not a_view_is_not_the_deliverable(got.get("widget_id"), got.get("action"), brief,
+                                                         declared=declared):
             return got
         from voice.observer import emit
         emit("brain", "🔁 la segunda pasada no dio llamada", text=f"{got.get('widget_id')}: a view is not the errand",
