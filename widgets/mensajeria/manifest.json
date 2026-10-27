@@ -11,6 +11,9 @@
     "h": 420
   },
   "version": "0.7.0",
+  "owner": "Zaelar",
+  "licence": "SUL-1.0",
+  "connector_families": ["mensajeria"],
   "kind": "backed",
   "backend": {
     "owner": "owner.py",

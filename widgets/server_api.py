@@ -12,8 +12,10 @@ from fastapi.responses import FileResponse, JSONResponse
 from loguru import logger
 
 from . import runtime
+from .about import router as _about_router
 
 router = APIRouter()
+router.include_router(_about_router)   # V2-823 — GET /widgets/{wid}/about, the apps window's page
 from widgets import paths as _paths
 
 HERE = _paths.BUILTIN_ROOT

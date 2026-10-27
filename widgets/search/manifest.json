@@ -2,6 +2,8 @@
   "id": "search",
   "screens": "shared",
   "version": "0.1.0",
+  "owner": "Zaelar",
+  "licence": "SUL-1.0",
   "title": "Búsqueda / Tiempo",
   "description": "Widget transitorio estilo Jarvis: muestra en vivo qué fuentes consulta (cilindro giratorio), pasa a la siguiente si una falla, va mostrando resultados y llega a una conclusión; luego se desvanece. Primera capacidad: el tiempo.",
   "whenToUse": "Cuando el usuario pregunta por el tiempo/clima/temperatura. FRONTERA con `results`: esto es solo el CARTEL DE PROGRESO mientras se busca (las fuentes que se consultan, y se desvanece); los resultados, propuestas o el informe se ENSEÑAN en `results`, nunca aquí.",
