@@ -464,8 +464,16 @@ async def answered_from_state(verdict: dict | None, operator_text: str, window: 
         return ""
 
 
-async def speak_answered_from_state(verdict: dict | None, operator_text: str, window: list, spec, *, send, spoken: list) -> None:
-    """`answered_from_state`, said: the voice turn's one call, so the turn keeps a single branch for it."""
+async def speak_answered_from_state(verdict: dict | None, operator_text: str, window: list, spec, *, send, spoken: list,
+                                    said: str = "") -> str:
+    """`answered_from_state`, said: the voice turn's one call, so the turn keeps a single branch for it.
+
+    Returns the turn's reply as it now stands — `said` plus the answer (V2-820 T-06). The caller read its reply before
+    this pass; kept stale, a turn whose model only called the tool stayed «mute», the annulled commission no longer
+    counted as handled, and the mute backstop glued «Perdona, se me ha ido» after the answer just composed (a live
+    session, 2026-10-27). What was said is the reply, whoever composed it."""
     if ans := await answered_from_state(verdict, operator_text, window, spec):
         send(ans)
         spoken.append(" " + ans)
+        return "".join(spoken).strip() or said
+    return said

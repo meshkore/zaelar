@@ -135,8 +135,8 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
             acted=bool(acted["widget"] or data_done["v"] or listing_req["v"]
                        or music_req["v"] or search_req["v"]),
             anything_running=bool(_has_workers), emit=emit)
-        await _second_pass.speak_answered_from_state(_settled, operator_text, list(brain._window), spec, spoken=spoken,
-                                                     send=lambda t: send(speech.sanitize(t, drop_metadata=False)))
+        spoken_text = await _second_pass.speak_answered_from_state(_settled, operator_text, list(brain._window), spec,   # V2-820 T-06
+            spoken=spoken, said=spoken_text, send=lambda t: send(speech.sanitize(t, drop_metadata=False)))   # said = reply
 
     # BACKSTOP PROMESA-SIN-ACCIÓN UNIFICADO 2026-07-19 (mar de testing): ante fraseo CORTÉS/subjuntivo
     # («¿podrías…?», «deberías…», «sería genial que hicieras…», «me haría falta…») el modelo CHARLA una promesa

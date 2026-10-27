@@ -423,9 +423,22 @@ def ask(operator_text: str, *, turn_id=None, **kw):
             return None
         handle = _jev.ask_many(operator_text.strip(), questions, name="jev-turn-brief",
                                question_id="turn-brief")
-        return stamp(handle, turn_id=turn_id, open_ids=kw.get("open_ids"))
+        handle = stamp(handle, turn_id=turn_id, open_ids=kw.get("open_ids"))
+        if isinstance(handle, dict):
+            handle["judged"] = operator_text.strip()     # V2-820 T-06: the sentence the verdicts are about
+        return handle
     except Exception:  # noqa: BLE001 — a classifier may never break a turn
         return None
+
+
+def judged_text(handle, fallback: str = "") -> str:
+    """The sentence this brief's verdicts were asked about, or `fallback` (V2-820 T-06).
+
+    Usually the admitted sentence. After a turn his own barge-in cut before it said a word, it is the WHOLE of what he
+    is owed an answer for (`accumulator.whole_turn`) — and a guard that reads the turn's words to decide what it could
+    have asked for must read the same words the verdict did, or the two judge different turns."""
+    got = handle.get("judged") if isinstance(handle, dict) else None
+    return str(got) if got else (fallback or "")
 
 
 def stamp(handle, *, turn_id=None, open_ids=None):

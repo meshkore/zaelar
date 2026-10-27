@@ -576,3 +576,48 @@ def unanswered_by(brain, text: str) -> None:
             acc.unanswered(text)
     except Exception:  # noqa: BLE001
         pass
+    try:   # V2-820 T-06 — what he said is still owed an answer: the next turn's verdict reads it with its own words
+        said, whole = getattr(brain, "_judged_turn", None) or ("", "")
+        t = (text or "").strip()
+        if t:
+            # The cancel branch holds the COMPOSED turn (his words first, the system notes after, V2-666): the
+            # sentence the verdict judged is what was owed, notes never are.
+            owed = whole if (said and whole and t.startswith(said)) else t
+            brain._cut_unanswered = (owed, time.time())
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def whole_turn(brain, text: str, *, now: float | None = None) -> str:
+    """The sentence this turn's VERDICT must judge: `text`, preceded by the turn cut before it said a word (V2-820 T-06).
+
+    The model is handed the dialog window, and a turn cancelled by his own barge-in leaves its words there unanswered
+    (`dialog.push_user`, «cancelling the reply does not erase the sentence»). So the model answers BOTH; the turn
+    brief, fired on the admitted sentence alone, judged only the tail. Measured on a live session (2026-10-27):
+    a full errand request was cut by his own «¿Te parece bien?»; the model escalated the request, the brief read the tag
+    alone as question · tell · handle_inline (0.94-0.96), and CRIT-K34 annulled the commission as `answered`. Judged
+    whole, the same words read `order` (0.60-0.82) — the verdict was right about what it was shown, it was shown half.
+    That is `turn_brief`'s own A2 rule («two different requests, one verdict»), one turn later: a verdict judges what
+    the model answers. The cut words count only while they could still be one sentence with these (`MAX_GAP_S`, the
+    accumulator's own «lo de antes era otra cosa»), and a sentence the acoustic layer handed back longer is not
+    doubled. Consumed by the first turn that reads it. Never raises: on any failure the verdict judges `text`."""
+    t = (text or "").strip()
+    try:
+        cut = getattr(brain, "_cut_unanswered", None)
+        brain._cut_unanswered = None
+        whole = t
+        if cut and t:
+            owed, at = cut
+            now = time.time() if now is None else now
+            owed = (owed or "").strip()
+            if owed and (now - float(at or 0.0)) <= MAX_GAP_S:
+                if _grows(owed, t) or _norm_text(owed) == _norm_text(t):
+                    whole = t                               # the same sentence, handed back longer
+                elif _grows(t, owed):
+                    whole = owed                            # a shorter piece of what was already said
+                else:
+                    whole = f"{owed} {t}"
+        brain._judged_turn = (t, whole)
+        return whole
+    except Exception:  # noqa: BLE001 — a verdict's input may never break a turn
+        return t

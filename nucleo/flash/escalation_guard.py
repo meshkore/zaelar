@@ -178,7 +178,10 @@ def drop_if_fragment(escalate_req: dict, *, operator_text: str, brief=None,
     leaving the commission exactly where it is.
     """
     try:
-        if not escalate_req.get("v") or not is_a_fragment(operator_text, brief=brief,
+        from nucleo.flash import turn_brief as _tb
+        # V2-820 T-06 — the turn's words as the verdict read them: a «vale» after his own cut request is not the
+        # whole of what the model was answering, and the commission came from the cut words.
+        if not escalate_req.get("v") or not is_a_fragment(_tb.judged_text(brief, operator_text), brief=brief,
                                                           last_reply=last_reply):
             return False
         if emit:

@@ -12,9 +12,15 @@ from voice.engine.llm.providers import nucleo as _p
 
 
 async def admit_the_turn(*, attention, brain, emit, first_turn, text) -> dict:
-    from nucleo.flash import turn_brief as _turn_brief
+    from nucleo.flash import turn_brief as _turn_brief, accumulator as _acc
+    # V2-820 T-06 — the verdict judges what the model answers: a turn his own barge-in cut before its first word is
+    # still in the window, so it is part of THIS turn's sentence for the brief too (`accumulator.whole_turn`).
+    _judged = _acc.whole_turn(brain, text)
+    if _judged != (text or "").strip():
+        emit("brain", "🧩 el turno cortado sin respuesta entra en el veredicto", text=_judged[:160], role="system",
+             extra={"cat": "flash", "tail": (text or "")[:80]})
     _brief = canvas_h = _turn_brief.ask_for_turn(
-        text, running_goals=_p._show_target._running_goals(),
+        _judged, running_goals=_p._show_target._running_goals(),
         last_reply=getattr(brain, "_last_reply", "") or "",
         turn_id=f"{id(brain):x}-{getattr(brain, '_acc_gen', 0)}")
 

@@ -2037,6 +2037,14 @@ DOMAINS: list[dict] = [
                                  "the done ones ticked and the current one marked (V2-820)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_the_report_sheet_tells_the_workers_steps.py",
                       "tests/browser/unit/documento/test_the_process_shows_the_workers_plan.py"]},
+        # V2-820 T-06 — a request cut by his own «¿Te parece bien?» (barge-in before its first word): the model answered
+        # the whole from the window, the brief judged the tag alone and CRIT-K34 annulled the errand as `answered`; the
+        # composed answer then got «Perdona, se me ha ido» glued on (a stale reply read as mute). Disarmed 2026-10-27
+        # (no cut mark · brief on the tail · fragment guard on the tail · stale reply) → red.
+        {"id": "3.142", "title": "A request his own barge-in cut is judged WHOLE by the next turn's verdict (es/en), and "
+                                 "an answer composed from the state is the reply — never followed by the mute apology "
+                                 "(V2-820)", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_request_cut_by_its_own_tag_is_judged_whole.py"]},
         # V2-692 — segunda ejecución en vivo del encargo (2026-09-14). UNA orden suya («organiza una reunión
         # con este contacto») y tuvo que conducirla entera a mano: autorizar el envío cuatro veces, avisar de
         # que había llegado la respuesta, decir que la aceptara — y al final no había reunión ni en nuestra
