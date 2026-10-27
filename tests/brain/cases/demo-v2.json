@@ -44,7 +44,7 @@
   "id": "demo-v2-play-video-number-2",
   "lang": "en",
   "phrase": "Play video number 2.",
-  "source": "demo script v2 V2",
+  "source": "demo script v2 V2 · the card holds the list the demo had on screen (fixture, 2026-10-28)",
   "screen": {
    "open": [
     "youtube"
@@ -67,17 +67,49 @@
   "forbid": [
    "worker",
    "second-card"
-  ]
+  ],
+  "widgets": {
+   "youtube": {
+    "list": [
+     {
+      "videoId": "aaaaaaaaaa1",
+      "title": "Starship Flight 1"
+     },
+     {
+      "videoId": "aaaaaaaaaa2",
+      "title": "Starship Flight 2"
+     },
+     {
+      "videoId": "aaaaaaaaaa3",
+      "title": "Starship Flight 3"
+     },
+     {
+      "videoId": "aaaaaaaaaa4",
+      "title": "Starship Flight 4"
+     },
+     {
+      "videoId": "aaaaaaaaaa5",
+      "title": "Starship Flight 5"
+     },
+     {
+      "videoId": "aaaaaaaaaa6",
+      "title": "Starship Flight 6"
+     }
+    ],
+    "pos": 0
+   }
+  }
  },
  {
   "id": "demo-v4-exit-fullscreen",
   "lang": "en",
   "phrase": "Exit fullscreen.",
-  "source": "demo script v2 V4 · demo results v4: «exit fullscreen» is deterministic",
+  "source": "demo script v2 V4 · demo results v4: «exit fullscreen» is deterministic · the player was at full screen (the fixture lacked it until 2026-10-28)",
   "screen": {
    "open": [
     "youtube"
-   ]
+   ],
+   "maximized": "youtube"
   },
   "expect": "unfullscreen",
   "forbid": [
@@ -147,7 +179,7 @@
   "id": "demo-i3-open-the-second-one",
   "lang": "en",
   "phrase": "Open the second one.",
-  "source": "demo script v2 I3 · demo results pass 1: it opened an agenda appointment instead → `imagenes.select` descriptor (f3cc34e9)",
+  "source": "demo script v2 I3 · demo results pass 1: it opened an agenda appointment instead → `imagenes.select` descriptor (f3cc34e9) · the card holds the list the demo had on screen (fixture, 2026-10-28)",
   "screen": {
    "open": [
     "imagenes"
@@ -170,7 +202,22 @@
   "forbid": [
    "worker",
    "second-card"
-  ]
+  ],
+  "widgets": {
+   "imagenes": {
+    "items": [
+     {
+      "title": "Fuji at dawn"
+     },
+     {
+      "title": "Fuji from Lake Kawaguchi"
+     },
+     {
+      "title": "Fuji in winter"
+     }
+    ]
+   }
+  }
  },
  {
   "id": "demo-i3-open-the-second-one-model-picks-the-wrong-card",
@@ -434,7 +481,7 @@
   "id": "demo-w2-highlight-the-second-one",
   "lang": "en",
   "phrase": "Highlight the second one.",
-  "source": "demo script v2 W2 · demo results v4: highlights Mount Baldy",
+  "source": "demo script v2 W2 · demo results v4: highlights Mount Baldy · the card holds the list the demo had on screen (fixture, 2026-10-28)",
   "screen": {
    "open": [
     "map"
@@ -457,7 +504,28 @@
   "forbid": [
    "worker",
    "second-card"
-  ]
+  ],
+  "widgets": {
+   "map": {
+    "places": [
+     {
+      "name": "Griffith Observatory",
+      "lat": 34.1184,
+      "lon": -118.3004
+     },
+     {
+      "name": "Santa Monica Pier",
+      "lat": 34.0094,
+      "lon": -118.4973
+     },
+     {
+      "name": "The Getty",
+      "lat": 34.078,
+      "lon": -118.4741
+     }
+    ]
+   }
+  }
  },
  {
   "id": "demo-e2-open-the-most-important-one",
@@ -775,7 +843,7 @@
   "id": "demo-v3-make-it-bigger-is-fullscreen-not-a-replay",
   "lang": "en",
   "phrase": "can you make it bigger, like full screen",
-  "source": "demo run-full71 V3 (2026-09-30): the model went fullscreen and a repair pass («abrió la tarjeta y prometió más — la llamada, en una segunda pasada») fired youtube:play_result of the video already playing",
+  "source": "demo run-full71 V3 (2026-09-30): the model went fullscreen and a repair pass («abrió la tarjeta y prometió más — la llamada, en una segunda pasada») fired youtube:play_result of the video already playing · the player holds the video that was playing (fixture, 2026-10-28)",
   "screen": {
    "open": [
     "youtube"
@@ -814,7 +882,20 @@
   "forbid": [
    "data-op",
    "worker"
-  ]
+  ],
+  "widgets": {
+   "youtube": {
+    "list": [
+     {
+      "videoId": "bbbbbbbbbb1",
+      "title": "Starship Flight 5 — full launch"
+     }
+    ],
+    "pos": 0,
+    "videoId": "bbbbbbbbbb1",
+    "paused": false
+   }
+  }
  },
  {
   "id": "demo-e1-did-inworld-send-me-something-is-a-search",

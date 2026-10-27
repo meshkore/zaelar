@@ -475,6 +475,20 @@ def _qualified(rows: list[dict]) -> list[str]:
     return out
 
 
+def _several_rows(widget_id: str, action: str, ref: str, idx: list[dict]) -> str:
+    """«4,5,6» — several row numbers — for an action whose manifest declares the plural `items` key (`youtube`
+    `remove`: «bórrame los tres últimos»). Every number must be a row that exists; otherwise "" and the single-row
+    resolution answers as before. The plural key is the widget's own declaration, not a word this module reads."""
+    parts = [p.strip() for p in str(ref or "").split(",")]
+    if len(parts) < 2 or not all(p.isdigit() for p in parts):
+        return ""
+    spec = ((runtime.get(widget_id) or {}).get("actions") or {}).get(action) or {}   # read just above, by `id_field_for_action`
+    if "items" not in (spec.get("payload") or {}):
+        return ""
+    ids = {str(i.get("id")) for i in idx}
+    return ",".join(parts) if all(p in ids for p in parts) else ""
+
+
 def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
             order: str = "") -> RefResult:
     """Resolve a natural-language reference to the real item id for `action`. Returns a `RefResult`:
@@ -512,6 +526,11 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None,
     # If the model ALREADY gave an id that really EXISTS, respect it (do not overwrite it).
     given = str(payload.get(field) or "").strip()
     if given and any(i["id"] == given for i in idx):
+        return RefResult(True, payload)
+    several = _several_rows(widget_id, action, ref or given, idx)
+    if several:                                   # «4,5,6» names three rows the action can take at once
+        payload.pop(field, None)
+        payload["items"] = several
         return RefResult(True, payload)
 
     # Text to search for: the model's explicit ref, or —if it did not give one— what it put in the id field (often an

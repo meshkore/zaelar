@@ -56,13 +56,13 @@ def _brief_of(events: list[dict]) -> dict:
     return out
 
 
-def run_repeated(cases: list[dict], times: int) -> tuple[list[dict], dict]:
+def run_repeated(cases: list[dict], times: int, channel: str = "probe") -> tuple[list[dict], dict]:
     """Each case `times` times, live. A case holds only at N of N; the spread of decisions says where it wanders."""
     rows = []
     for case in cases:
         got, why, ms, reds = [], [], [], []
         for _ in range(times):
-            out = harness.run_case(case, live=True)
+            out = harness.run_case(case, live=True, channel=channel)
             got.append(out.decision or (f"(none: {out.error[:60]})" if out.error else "(none)"))
             why.append(out.failures(case))
             ms.append(out.ms)
@@ -79,10 +79,10 @@ def run_repeated(cases: list[dict], times: int) -> tuple[list[dict], dict]:
                   "wandering": [f"{r['id']} {r['ok']}/{r['times']}" for r in rows if r["ok"] < r["times"]]}
 
 
-def run(cases: list[dict]) -> tuple[list[dict], dict]:
+def run(cases: list[dict], channel: str = "probe") -> tuple[list[dict], dict]:
     rows = []
     for case in cases:
-        out = harness.run_case(case)
+        out = harness.run_case(case, channel=channel)
         why = out.failures(case)
         rows.append({"id": case["id"], "lang": case["lang"], "phrase": case["phrase"], "expect": case["expect"],
                      "also_expected": list(case.get("also", ())), "decision": out.decision, "all": out.all_decisions,
@@ -98,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--live", action="store_true", help="the real fast model and Jev instead of the recorded ones")
     ap.add_argument("--repeat", type=int, default=7, help="with --live: runs per case (a case holds only at N of N)")
     ap.add_argument("--only", help="case ids starting with this prefix")
+    ap.add_argument("--channel", choices=("probe", "pipeline"), default="probe",
+                    help="the text channel's own turn, or the voice turn driven typed and dry (refactor2710-01)")
     args = ap.parse_args(argv)
     cases = harness.load_cases(live=args.live)
     if args.only:
@@ -108,7 +110,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"no case {args.case!r}", file=sys.stderr)
             return 2
     if args.live:
-        rows, axes = run_repeated(cases, max(1, args.repeat))
+        rows, axes = run_repeated(cases, max(1, args.repeat), channel=args.channel)
         for r in rows:
             mark = "✅" if r["ok"] == r["times"] else "❌"
             print(f"{mark} {r['ok']}/{r['times']}  {r['id']:<58} {r['decisions']}", flush=True)
@@ -117,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
             with open(args.json, "w", encoding="utf-8") as fh:
                 json.dump({"axes": axes, "rows": rows}, fh, ensure_ascii=False, indent=2, default=str)
         return 0 if not axes["wandering"] else 1
-    rows, axes = run(cases)
+    rows, axes = run(cases, channel=args.channel)
     for r in rows:
         mark = "✅" if r["ok"] else ("🟡" if r["open"] else "❌")
         print(f"{mark} {r['id']:<58} {r['decision']:<32} {r['ms']:>7.0f} ms")

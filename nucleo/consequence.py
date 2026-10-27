@@ -39,9 +39,9 @@ DOORS: dict[str, str] = {
     "memory.ingest": "nucleo.memory_agent.ingest:ingest_utterance",
 }
 
-#: Doors a dry turn still lets through when its caller asked to keep what he says (`ingest=True`, the default of the
-#: text channel): his words reach memory, nothing reaches anyone else.
-KEPT_WHEN_INGESTING = frozenset({"memory.ingest"})
+#: The door a dry turn still lets through when its caller asked to keep what he says (`ingest=True`, the default of
+#: the text channel): his words reach memory, nothing reaches anyone else.
+MEMORY_DOOR = "memory.ingest"
 
 _blocked: ContextVar[frozenset] = ContextVar("consequence_blocked", default=frozenset())
 _ledger: ContextVar[list | None] = ContextVar("consequence_ledger", default=None)
@@ -68,7 +68,7 @@ def dry() -> bool:
 @contextmanager
 def dry_turn(*, ingest: bool = True):
     """Run what is inside with every door closed (but memory, when `ingest`), and yield the ledger it fills."""
-    closed = frozenset(DOORS) - (KEPT_WHEN_INGESTING if ingest else frozenset())
+    closed = frozenset(d for d in DOORS if not (ingest and d == MEMORY_DOOR))
     ledger: list = []
     t1, t2 = _blocked.set(closed), _ledger.set(ledger)
     try:

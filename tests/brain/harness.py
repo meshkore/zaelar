@@ -94,8 +94,8 @@ def validate(case: dict) -> None:
     for f in case.get("forbid", ()):
         if f not in FORBIDS:
             raise ValueError(f"{case['id']}: forbid {f!r} is not one of {FORBIDS}")
-    if not isinstance(case["screen"], dict) or set(case["screen"]) - {"open"}:
-        raise ValueError(f"{case['id']}: screen must be {{'open': [...]}}")
+    if not isinstance(case["screen"], dict) or set(case["screen"]) - {"open", "maximized"}:
+        raise ValueError(f"{case['id']}: screen must be {{'open': [...], 'maximized'?: id}}")
     model = case.get("model")
     if model is not None:
         if set(model) - {"say", "tools"}:
@@ -315,7 +315,7 @@ class Isolated:
         self._patched: list[tuple[Any, str, Any]] = []
 
     def _set(self, obj, name, value):
-        self._patched.append((obj, name, getattr(obj, name)))
+        self._patched.append((obj, name, getattr(obj, name, None)))
         setattr(obj, name, value)
 
     def __enter__(self) -> "Isolated":
@@ -417,7 +417,8 @@ class Isolated:
     # ── per-case seeding ──
     def seed(self, case: dict) -> None:
         from memory import api as memapi
-        memapi.set_state({"open_widgets": [str(w) for w in case["screen"].get("open") or []]})
+        memapi.set_state({"open_widgets": [str(w) for w in case["screen"].get("open") or []],
+                          "maximized_widget": str(case["screen"].get("maximized") or "")})
         memory = case.get("memory") or {}
         if memory.get("state"):
             memapi.set_state(dict(memory["state"]))
@@ -435,8 +436,16 @@ class Isolated:
         from config import connectors as _conns           # isolated in __enter__: never the install's file
         for c in CONNECTOR_IDS:
             _conns.set(c, {"enabled": c in (case.get("connectors") or [])})
-        from nucleo import canvas_focus
+        # The SCREEN's own report of what it shows: a typed turn has no browser to send it, and the voice turn reads
+        # it (`server.voice_api.open_instances`) where the memory state's set is not enough (minimise «that», the card
+        # in front). Seeded from the same `screen.open` as the state, so both views agree.
+        from server import canvas_api
+        self._set(canvas_api.canvas_state, "_last_inst", [str(w) for w in case["screen"].get("open") or []])
+        from nucleo import canvas_focus, done_ops
+        from nucleo.flash import bulk_close
         canvas_focus._reset()
+        done_ops.reset()          # the voice turn RUNS a case's ops (dry at the door): the last case's working card
+        bulk_close.reset()        # and kept cards are process state, and a bulk close spared them in the next case
         if case.get("focus"):                           # the card his previous turn acted on, as the event funnel leaves it
             canvas_focus._state["previous"], canvas_focus._state["current"] = [(2, str(case["focus"]))], [(2, str(case["focus"]))]
         if self.live:
@@ -453,7 +462,7 @@ def _relative_day(spec: str) -> _dt.date:
 
 
 # ── run ───────────────────────────────────────────────────────────────────────────────────────────────────
-def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False) -> Outcome:
+def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False, channel: str = "probe") -> Outcome:
     """One case, fully isolated, through the headless turn. Never raises for a product failure: the
     outcome carries it, so a run over the whole bank reports every red instead of stopping at the first."""
     import time as _time
@@ -465,18 +474,32 @@ def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False) -> Outc
         n0 = len(observer._events)
         t0 = _time.time()
         sid = f"bank:{case['id']}"
-        if case.get("history"):                         # the turns before this one, as the conversation window holds them
-            sess = probe._session(sid, execute=False)
-            sess.window[:] = [{"role": t["role"], "content": t["text"]} for t in case["history"]]
-            sess.seeded = True
+        # `channel`: "probe" is the text channel's own turn; "pipeline" is the voice turn driven typed and dry
+        # (`nucleo/cli/turn.py`, refactor2710-01) — the bank measures both until the probe is retired.
+        from nucleo.cli import turn as cli_turn
+        if channel == "pipeline":
+            run_turn, window = cli_turn.run_turn, None
+            if case.get("history"):
+                brain = cli_turn._brain(sid)
+                window = brain._window
+                brain._seeded = True
+        else:
+            run_turn, window = probe.run_turn, None
+            if case.get("history"):
+                sess = probe._session(sid, execute=False)
+                window = sess.window
+                sess.seeded = True
+        if window is not None:                          # the turns before this one, as the conversation window holds them
+            window[:] = [{"role": t["role"], "content": t["text"]} for t in case["history"]]
         try:
             res = asyncio.run(asyncio.wait_for(
-                probe.run_turn(case["phrase"], sid=sid, ingest=False, execute=False), timeout_s))
+                run_turn(case["phrase"], sid=sid, ingest=False, execute=False), timeout_s))
         except Exception as e:  # noqa: BLE001
             out.error = f"{type(e).__name__}: {e}"[:300]
             res = {}
         finally:
             probe._SESSIONS.pop(sid, None)
+            cli_turn.reset(sid)
         out.ms = (_time.time() - t0) * 1000
         out.events = [dict(e) for e in observer._events[n0:]]
         if res.get("ok") is False and not out.error:
