@@ -27,7 +27,7 @@ TESTER_IDENTITY = _env("TESTER_IDENTITY", "tester")               # LiveKit part
 AIMLAPI_BASE = _env("TESTER_AIMLAPI_BASE", "https://api.aimlapi.com/v1")
 TESTER_KEY = _env("TESTER_AIMLAPI_KEY") or _env("AIMLAPI_KEY")     # dedicated tester key; falls back to zaelar's
 # What the tester says, DeepSeek direct — an id its GET /models lists (2026-10-27). Its own variable: the old
-# TESTER_DRIVE_MODEL named AIMLAPI models («openai/gpt-4o-mini»), which DeepSeek answers 400.
+# TESTER_DRIVE_MODEL named AIMLAPI-routed ids, which DeepSeek answers 400.
 DRIVE_MODEL = _env("TESTER_DEEPSEEK_DRIVE_MODEL", "deepseek-flash")
 
 # Z.AI (GLM) — competent judge/reasoning. Key in .meshkore/credentials/tester.env (⚠ needs balance / recharge).
