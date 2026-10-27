@@ -34,7 +34,8 @@ BUNDLES = ENGINE / "i18n" / "genesis"
 
 #: Key PREFIXES where «tarea»/«task» means the OPERATOR's own task and is therefore correct. The memory viewer's
 #: agenda card (V2-808) counts HIS appointments and to-dos; the agent's own work on that card is «encargos».
-_HIS_OWN = ("widgets.agenda.", "reset.confirm.body", "memory.store_agenda")
+_HIS_OWN = ("widgets.agenda.", "reset.confirm.body", "memory.store_agenda",
+            "memory.part_todo")   # the agenda card's count of HIS to-dos (V2-808 overview)
 
 _ES = re.compile(r"\btareas?\b", re.I)
 _EN = re.compile(r"\btasks?\b", re.I)

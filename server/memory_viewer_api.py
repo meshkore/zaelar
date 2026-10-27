@@ -32,13 +32,16 @@ router = APIRouter()
 #: What a connector writes into the messaging data dir — the same prefixes its media sweep owns.
 # The stored-file prefixes are declared once, where the files are written (`widgets/mensajeria/media.py`).
 _MEDIA_PREFIXES = _media.PREFIXES
-#: The file types the overview totals, by the prefix/type of each stored file.
-_FILE_TYPES = {"img": "images", "tg": "images", "vid": "videos", "aud": "audio",
-               "doc": "documents", "eml": "documents", "up": "documents"}
 #: A browser widget's PROFILE is its browsing session (cookies, sign-ins, cache), not data it keeps for him.
 _NOT_APP_DATA = ("profile",)
 #: Days of the per-store series.
 SERIES_DAYS = 30
+
+
+def _file_type(name: str) -> str:
+    """The overview's type for a stored file, read from its declared media type (the file name's extension)."""
+    kind = (mimetypes.guess_type(name)[0] or "").split("/")[0]
+    return {"image": "images", "video": "videos", "audio": "audio"}.get(kind, "documents")
 
 
 def _is_image(name: str) -> bool:
@@ -213,7 +216,7 @@ def _files(media: list[dict], eps: list[dict]) -> dict:
     types: dict[str, dict] = {}
     daily: dict[str, int] = {}
     for r in media:
-        t = "images" if r["kind"] == "img" else _FILE_TYPES.get(r["kind"], "other")
+        t = _file_type(r["name"])
         g = types.setdefault(t, {"n": 0, "bytes": 0})
         g["n"] += 1; g["bytes"] += r["bytes"]
         d = date.fromtimestamp(r["mtime"]).isoformat()
