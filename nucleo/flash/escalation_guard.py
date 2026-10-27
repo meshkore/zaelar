@@ -211,11 +211,20 @@ def a_question_the_state_answers(brief) -> bool:
     four minutes failing to find what the turn's own record held. The reply PROMISED, so the gate below kept the
     commission. A question is not an errand: what it asks is answered from the turn's own state — any question,
     in any language, about anything the state holds — and the promise is honoured by that answer, not by a worker.
-    Read from the verdict, never from the words."""
+    Read from the verdict, never from the words.
+
+    …and only when what he gets back is SAID (2026-10-27). «Give me the carbonara recipe» read question · tell ·
+    handle_inline as well, with `errand_surface = informe`: a written thing to read. Annulled as «answered», it was
+    composed from the STATE alone — «I don't have a carbonara recipe stored here, want me to search the web?» — and
+    a search the turn never needed ran for minutes. A turn whose surface is something to LOOK at (a document, a
+    list, one item, pictures, a new card) is not answered by the state: it goes on to the rung that writes it."""
+    from nucleo import surfaces as _sf
     from nucleo.flash import turn_brief as _tb
     return (_tb.read(brief, _tb.REQUEST_KEY, "")[0] == "question"
             and _tb.read(brief, _tb.WORDS_KEY, "")[0] == "tell"
-            and _tb.read(brief, _tb.ESCALATE_KEY, "")[0] == "handle_inline")
+            and _tb.read(brief, _tb.ESCALATE_KEY, "")[0] == "handle_inline"
+            and _sf.normalize(_tb.read(brief, _sf.SURFACE_KEY, "")[0])
+            not in (_sf.LIST, _sf.ITEM, _sf.DOC, _sf.IMAGES, _sf.WIDGET))
 
 
 def covered_by_live_work(commission: str, *, anything_running: bool) -> bool:

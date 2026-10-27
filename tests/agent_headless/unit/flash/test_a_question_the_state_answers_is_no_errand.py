@@ -67,3 +67,20 @@ def test_both_channels_wire_it():
     text = open("nucleo/flash/card_commission.py", encoding="utf8").read()
     assert "answered_from_state(_settled" in voice, "the voice settles and never composes the answer"
     assert "answered_from_state(" in text, "the text channel spends the worker the voice would not"
+
+
+@pytest.mark.parametrize("surface", ["informe", "lista", "item", "imagenes", "widget"])
+def test_a_question_whose_answer_is_something_to_look_at_is_not_answered_from_the_state(brief, surface):
+    """«Give me the carbonara recipe» (2026-10-27): question · tell · handle_inline with `errand_surface = informe`.
+    Annulled as ANSWERED it was composed from the state alone — «I don't have a carbonara recipe stored here» — and a
+    web search ran for minutes. Something to LOOK at goes on to the rung that writes it."""
+    brief["errand_surface"] = surface
+    v, req = _settle()
+    assert v["disposition"] != eg.ANSWERED and req["v"] is not None, surface
+
+
+@pytest.mark.parametrize("surface", ["voz", "silenciosa", ""])
+def test_a_question_whose_answer_is_said_is_still_answered_from_the_state(brief, surface):
+    brief["errand_surface"] = surface
+    v, _ = _settle()
+    assert v["disposition"] == eg.ANSWERED, surface
