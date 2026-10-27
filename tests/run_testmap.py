@@ -5702,6 +5702,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/connectors/unit/messaging/test_his_own_voice_note_plays.py"]},
         {"id": "4.307", "title": "A conversation is named by ONE resolver: his contact (by conversation, phone or address), then the platform's display name, then the bare id — in every list, the header and the voice lookup; a non-phone id is never read as a phone; his own name never titles a chat (V2-819)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_chat_is_named_by_his_contacts.py"]},
+        # V2-819 design, approved 2026-10-27 — disarmed (wave under the meta line, clip under the box, thumbnails under it, time printed twice) → each red.
+        {"id": "4.308", "title": "A voice note's waveform runs across the top of its bubble (as wide as it, scrubbable) with play, duration and date/time below; the attach clip sits beside the text box; an attached picture waits as a thumbnail above it — RENDERED at desktop and 375 px (V2-819)",
+            "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_voice_note_and_the_composer_are_laid_out_as_he_asked.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",

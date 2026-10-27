@@ -416,9 +416,13 @@ function injectStyles(){
   .hb-msg .attchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .hb-msg .attchip button{border:0;background:transparent;cursor:pointer;color:var(--hb-muted-2,#9aa7b8)}
   .hb-msg .attbtn{display:inline-flex;align-items:center;padding:5px 9px;color:var(--hb-muted,#6b7b92)}
+  .hb-msg .composemain > .attbtn{flex:0 0 auto;align-self:flex-end}
+  /* A picture waiting to be sent is a thumbnail above the box, its ✕ in the corner. */
+  .hb-msg .attchip.attthumb{position:relative;padding:0;border-radius:10px;overflow:hidden;width:72px;height:72px;max-width:none}
+  .hb-msg .attchip.attthumb img{width:72px;height:72px;border-radius:0;display:block}
+  .hb-msg .attchip.attthumb button{position:absolute;top:3px;right:3px;width:20px;height:20px;padding:0;border-radius:50%;
+    background:rgba(0,0,0,.55);color:#fff;font-size:11px;line-height:20px}
   .hb-msg .attbtn.busy{opacity:.5}
-  .hb-msg .composetools{display:flex;align-items:flex-start;gap:8px;margin-top:6px}
-  .hb-msg .composetools .attrow{margin:0}
   .hb-msg .cxnewbt{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--hb-muted,#6b7b92)}
   .hb-msg .cxtag svg{vertical-align:-2px}
   /* «Nuevo chat» / «Nuevo grupo» on a platform's chat list. */
@@ -487,12 +491,16 @@ function injectStyles(){
   .hb-msg .mediaw video.mvid{max-width:260px;max-height:200px;border-radius:10px;background:#000}
   /* V2-616 F5 — the custom player: wide, FIXED width whatever the clip's length (fixed bar COUNT, not one
      derived from duration), a real drag-to-seek surface instead of the tiny native scrubber. */
-  .hb-msg .maudio{display:flex;align-items:center;gap:8px;width:100%;min-width:220px;box-sizing:border-box}
+  .hb-msg .maudio{display:flex;flex-direction:column;align-items:stretch;gap:4px;width:100%;min-width:220px;box-sizing:border-box}
+  .hb-msg .mameta{display:flex;align-items:center;gap:8px}
+  .hb-msg .mawhen{margin-left:auto;font-size:10.5px;opacity:.6;font-variant-numeric:tabular-nums}
+  .hb-msg .tbrow.out .mawhen{color:rgba(255,255,255,.85);opacity:1}
+  .hb-msg .tbubble.hasaudio{min-width:240px}
   .hb-msg .mapbtn{flex:0 0 auto;width:32px;height:32px;border-radius:50%;border:0;cursor:pointer;
     background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);font-size:12px;display:flex;align-items:center;justify-content:center}
   .hb-msg .mapbtn:hover{filter:brightness(1.08)}
-  .hb-msg .mawave{flex:1 1 auto;min-width:0;height:30px;display:flex;align-items:center;gap:2.5px;cursor:pointer;touch-action:none}
-  .hb-msg .mabar{flex:1 1 0;min-width:2px;max-width:4px;border-radius:2px;background:var(--hb-muted-2,#9aa7b8);opacity:.5}
+  .hb-msg .mawave{flex:0 0 auto;width:100%;min-width:0;height:30px;display:flex;align-items:center;gap:2.5px;cursor:pointer;touch-action:none}
+  .hb-msg .mabar{flex:1 1 0;min-width:2px;border-radius:2px;background:var(--hb-muted-2,#9aa7b8);opacity:.5}
   .hb-msg .mabar.played{background:var(--hb-accent,#3D6FE0);opacity:1}
   .hb-msg .matime{flex:0 0 auto;font-size:11px;color:var(--hb-muted-2,#9aa7b8);font-variant-numeric:tabular-nums}
   .hb-msg .tbrow.out .mapbtn{background:rgba(255,255,255,.28)}
@@ -823,7 +831,10 @@ function _waveBarHeight(seed, i){
   return 24 + (h % 76); // 24-99, as a percentage of the wave's own height
 }
 
-function audioPlayer(url){
+// V2-819 (approved design, 2026-10-27) — the waveform runs across the TOP of the bubble, as wide as the bubble and
+// scrubbable; below it, one meta line: play, the duration, and the message's date and time (`when`, when the caller
+// hands it over so the bubble does not print it twice).
+function audioPlayer(url, when){
   const wrap = el("div","maudio");
   const btn = document.createElement("button");
   btn.type="button"; btn.className="mapbtn"; btn.textContent="▶"; btn.title=tt("play", null, "Reproducir");
@@ -841,7 +852,10 @@ function audioPlayer(url){
   // still waits for the operator's own play/seek, same "never autoplay" contract the old native player had).
   const au = document.createElement("audio");
   au.className="maud"; au.preload="metadata"; au.src=url; au.style.display="none";
-  wrap.append(btn, wave, time, au);
+  const meta = el("div","mameta");
+  meta.append(btn, time);
+  if(when) meta.append(el("span","mawhen", when));
+  wrap.append(wave, meta, au);
 
   const fmt = (s)=>{ s = Math.max(0, Math.floor(s || 0)); return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); };
   const refresh = ()=>{
@@ -878,7 +892,7 @@ function audioPlayer(url){
   return wrap;
 }
 
-function mediaBlock(it){
+function mediaBlock(it, when){
   const list = it.media || [];
   if(!list.length){
     // Downloaded once and later removed from this device by the media window: say where it still is.
@@ -899,7 +913,10 @@ function mediaBlock(it){
       const v=document.createElement("video"); v.className="mvid"; v.controls=true; v.preload="metadata"; v.src=url;
       w.appendChild(v);
     } else if(t==="audio"||t==="ptt"){
-      w.appendChild(audioPlayer(url));
+      // The bubble's date and time go on the player's own meta line — only for the first clip, and the caller
+      // learns it (`usedWhen`) so the bubble does not print them a second time.
+      w.appendChild(audioPlayer(url, w.usedWhen ? "" : (when || "")));
+      if(when) w.usedWhen = true;
     } else {
       const a=document.createElement("a"); a.className="mdoc"; a.href=url; a.target="_blank"; a.rel="noopener";
       a.textContent="📄 "+((u&&u.name)||tt("document_alt", null, "documento"));
@@ -1130,13 +1147,15 @@ function attachControls(ctx, files, onChange){
   const paint = ()=>{
     row.replaceChildren();
     files.forEach((f, i)=>{
-      const chip = el("span","attchip");
-      if(f.type === "image" && String(f.url||"").startsWith("/widgets/")){
-        const img = document.createElement("img"); img.src = f.url; img.alt = ""; chip.appendChild(img);
+      const pic = f.type === "image" && String(f.url||"").startsWith("/widgets/");
+      const chip = el("span","attchip" + (pic ? " attthumb" : ""));
+      if(pic){
+        const img = document.createElement("img"); img.src = f.url; img.alt = f.original || f.name; chip.appendChild(img);
+        chip.title = f.original || f.name;
       } else {
         chip.appendChild(actionIcon(f.type === "video" ? "video" : (f.type === "audio" ? "mic" : "file")));
+        chip.appendChild(el("span", null, f.original || f.name));
       }
-      chip.appendChild(el("span", null, f.original || f.name));
       const x = el("button", null, "✕"); x.title = tt("attach_remove", null, "Quitar");
       x.onclick = ()=>{ files.splice(i, 1); paint(); onChange(); };
       chip.appendChild(x);
@@ -1275,11 +1294,12 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
     }
   };
   side.append(send, save);
-  main.append(box, side);
-  const tools = el("div","composetools"); tools.append(att.btn, att.input, att.row);
+  // V2-819 (approved design, 2026-10-27): the clip sits BESIDE the text on the same row, and what he attaches waits
+  // ABOVE the box — a picture as a thumbnail — before it is sent.
+  main.append(att.btn, att.input, box, side);
   if(_sendNote[key]) wrap.appendChild(el("div","composeerr", _sendNote[key]));
+  wrap.appendChild(att.row);
   wrap.appendChild(main);
-  wrap.appendChild(tools);
   const c = data.composing;
   if(c && activeChat && c.platform === activeChat.platform && String(c.chatId) === String(activeChat.chatId))
     _playCompose(c, box, send);
@@ -1356,7 +1376,8 @@ function messageRow(it, ctx, rerender, isGroup){
   const bubble = el("div","tbubble"+(urgente && !outgoing?" urg":""));
   if(isGroup && !outgoing) bubble.appendChild(el("div","tbfrom", it.from!=null?it.from:"?"));
 
-  const media = mediaBlock(it);
+  const when = fmtWhen(it.ts);
+  const media = mediaBlock(it, when);
   const bareLabel = media && isBareMediaLabel(it.body);
   const {title, rest: _rest} = splitBody(displayBody(it.body, it.mediaType));
   const rest = markupText(_rest);
@@ -1375,8 +1396,8 @@ function messageRow(it, ctx, rerender, isGroup){
     more.onclick=()=>{ expanded ? _expanded.delete(key) : _expanded.add(key); rerender(); };
     bubble.appendChild(more);
   }
-  const when = fmtWhen(it.ts);
-  if(when) bubble.appendChild(el("span","tbwhen", when));
+  if(when && !(media && media.usedWhen)) bubble.appendChild(el("span","tbwhen", when));
+  if(media && media.usedWhen) bubble.classList.add("hasaudio");
   stack.appendChild(bubble);
 
   if(actionable) stack.appendChild(messageActions(it, ctx));
