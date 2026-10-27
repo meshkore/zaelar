@@ -124,3 +124,38 @@
 .ew-go{flex:0 0 auto;min-height:32px;padding:0 12px;border-radius:9px;border:0;cursor:pointer;
   background:var(--hb-accent);color:var(--hb-bg);font:600 0.8125rem/1 inherit}
 .ew-x{flex:0 0 auto;width:28px;height:28px;border:0;background:transparent;color:var(--hb-muted);cursor:pointer}
+
+/* ---------- PROCESS ENTRY (V2-822) — what a running process is doing, under its row in the processes panel ----------
+   Mounted by BOTH shells (the desktop's processes tab, the phone's menu), so its CSS lives here. Tokens only.
+   Collapsed: the plan window (✓ done · ▸ now · · next) and whether the page needs him; expanded: the page and its
+   capture, the harvest funnel, the narration newest first. components/ProcessEntry.js. */
+.pe{min-width:0}
+.pe:empty{display:none}
+.pe-plan{display:flex;flex-direction:column;gap:1px;margin-top:var(--sp-1)}
+.pe-step{display:flex;gap:var(--sp-2);font-size:var(--fs-caption);line-height:1.45;color:var(--hb-muted-2)}
+.pe-step b{flex:0 0 12px;text-align:center;font-weight:600}
+.pe-step span{min-width:0;overflow-wrap:anywhere}
+.pe-step.done{color:var(--hb-muted)}
+.pe-step.now{color:var(--hb-ink);font-weight:600}
+.pe-step.now b{color:var(--hb-accent2)}
+.pe-need{margin-top:var(--sp-1);padding:var(--sp-1) var(--sp-2);border-radius:var(--hb-r-s);font-size:var(--fs-caption);
+  color:var(--hb-warn-ink);background:var(--hb-warn-bg);border:1px solid var(--hb-warn-border)}
+.pe-toggle{margin-top:var(--sp-1);padding-left:0}
+.pe-page{margin-top:var(--sp-2)}
+.pe-shot{border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-m);overflow:hidden;background:var(--hb-bg);
+  aspect-ratio:1280/800;display:flex;align-items:center;justify-content:center;color:var(--hb-muted-2);
+  font-size:var(--fs-caption)}
+.pe-shot img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
+.pe-url{font-size:var(--fs-micro);color:var(--hb-muted-2);margin-top:var(--sp-1);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.pe-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:var(--sp-1);margin-top:var(--sp-2)}
+.pe-stat{border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-s);padding:var(--sp-1) var(--sp-2);background:var(--hb-bg)}
+.pe-stat b{display:block;font-size:var(--fs-ui);font-weight:700;color:var(--hb-ink)}
+.pe-stat span{display:block;font-size:var(--fs-micro);color:var(--hb-muted);line-height:1.3}
+.pe-stat.dim b{color:var(--hb-muted-2)}
+.pe-stat.cut b{color:var(--hb-muted);font-weight:600}
+.pe-logt{margin-top:var(--sp-2)}
+.pe-log{display:flex;flex-direction:column;gap:2px;margin-top:var(--sp-1);max-height:240px;overflow:auto}
+.pe-line{font-size:var(--fs-caption);line-height:1.45;color:var(--hb-muted);padding-left:var(--sp-2);
+  border-left:2px solid var(--hb-line-subtle);overflow-wrap:anywhere}
+.pe-line.now{color:var(--hb-ink);border-left-color:var(--hb-accent2)}

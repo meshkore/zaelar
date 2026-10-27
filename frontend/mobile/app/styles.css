@@ -558,3 +558,12 @@ html.zm-kbd[data-kbd="sheet"] .zm-sheet.open { top: var(--zm-vvt, 0px); bottom: 
 .zm-scroll.zm-scroll.zm-scroll :has(> textarea) {
   height: auto;
 }
+
+/* V2-822 — the running processes, at the top of the menu (the phone's processes view): the same ProcessEntry the
+   desktop's processes tab draws, from the same record (its own CSS is in core/shared-surfaces.css). */
+.zm-procs:empty { display: none; }
+.zm-procs { padding: 4px 16px 10px; border-bottom: 1px solid var(--hb-line-subtle); margin-bottom: 4px; }
+.zm-procs-t { font: 700 11px/1.2 var(--sans); letter-spacing: .04em; text-transform: uppercase; color: var(--hb-muted-2); margin: 6px 0; }
+.zm-proc { padding: 8px 0; }
+.zm-proc + .zm-proc { border-top: 1px solid var(--hb-line-subtle); }
+.zm-proc > b { display: block; font: 600 14px/1.3 var(--sans); color: var(--hb-ink); overflow-wrap: anywhere; }

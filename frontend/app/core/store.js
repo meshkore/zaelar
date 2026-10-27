@@ -402,6 +402,12 @@ export const fetchTasks = async () => {
   } catch (_) {}
 };
 
+// V2-822 — a running process MOVED (a line, a declared plan, a step done, the page its browser is on). Bumped by
+// every SSE `task` event that names one; the processes panel's entries re-read their ONE record when it moves
+// (components/ProcessEntry.js). A counter, not data: the record lives on the server and is never copied here.
+export const [processRev, setProcessRev] = createSignal(0);
+export const bumpProcess = () => setProcessRev(n => n + 1);
+
 // V2-728 — the FOUR lists behind the «Procesos» tab. One signal each rather than one shared list filtered four
 // ways: they are four different queries against the table (live · finished · recurring · scheduled) with
 // different lifetimes, and a single cache would make switching sub-tabs show the previous one's rows for a

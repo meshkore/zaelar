@@ -25,6 +25,7 @@ import { CLOSE_ICON, PAPERCLIP_ICON, TRASH_ICON, MESSAGE_SQUARE_ICON, ACTIVITY_I
 import { renderMarkdownLite } from "../lib/markdown-lite.js?v=1";
 import { t } from "../core/i18n.js?v=1";
 import { groupGoogle } from "./ConnectorWizard.js?v=6";
+import { ProcessEntry } from "./ProcessEntry.js?v=1";
 
 // V2-561/V2-526 — stable family order, matching connectors/registry.py's descriptors() order; any family
 // not listed (a catalog-only wishlist family) sorted after, alphabetically, so one nobody expects does not
@@ -292,6 +293,8 @@ export function ChatWall() {
         // the name would be the same text twice, a few pixels apart.
         (note && note !== title) ? h("div", { class: "cw-proc-note" }, note) : null,
         h("div", { class: "cw-proc-meta" }, meta),
+        // V2-822 — the process's ONE home: its plan and, expanded by him, its page, harvest and narration.
+        ProcessEntry(task.session || task.id),
       ),
     );
   };
@@ -396,7 +399,7 @@ export function ChatWall() {
   // what a running task looks like. `startedAt` is the one field whose units differ (the table stores epoch
   // SECONDS, the chip milliseconds), and it is converted here rather than in four places.
   const taskToChip = (r) => ({
-    id: r.id, title: r.title || r.goal || "", note: r.note || r.phase || "",
+    id: r.id, session: r.session || "", title: r.title || r.goal || "", note: r.note || r.phase || "",
     startedAt: r.started_at ? r.started_at * 1000 : null,
     pct: typeof r.pct === "number" ? r.pct : -1, stepTag: "",
     waiting: r.state === "waiting" || r.waiting_on === "user", paused: !!r.paused,

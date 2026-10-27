@@ -16,13 +16,15 @@ import path from "node:path";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "../../../..");
-const src = readFileSync(path.join(root, "widgets/results/widget.js"), "utf8");
+// V2-822 — the grid moved with the process: from the results sheet's «Proceso» tab to the running process's entry
+// in the processes panel (frontend/app/components/ProcessEntry.js). Same rule, same snippet, new home.
+const src = readFileSync(path.join(root, "frontend/app/components/ProcessEntry.js"), "utf8");
 
 // The widget's ACTUAL SNIPPET —`TALLY` and `paintHarvest` exactly as they are— is extracted instead of rewriting
 // the rule here. A test that reimplements what it measures always passes: it measures its own copy.
 const i = src.indexOf("const TALLY = [");
-const j = src.indexOf("function paintProcess(");
-assert.ok(i > 0 && j > i, "no encuentro TALLY/paintHarvest en widgets/results/widget.js — ¿se renombró?");
+const j = src.indexOf("// The plan the worker DECLARED");
+assert.ok(i > 0 && j > i, "no encuentro TALLY/paintHarvest en frontend/app/components/ProcessEntry.js — ¿se renombró?");
 
 // Minimal DOM: what is measured is the resulting TREE, so nodes only need to expose their class and text.
 const shim = `

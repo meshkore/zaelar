@@ -24,6 +24,7 @@ import * as api from "../../../app/services/api.js?v=2";
 import { t } from "../../../app/core/i18n.js?v=1";
 import { accountLink } from "../../../app/core/account-link.js?v=1";
 import * as daemon from "../../../app/services/daemon.js?v=3";
+import { ProcessEntry } from "../../../app/components/ProcessEntry.js?v=1";
 
 // The daemon poll runs here too: the desktop starts it from the setup surface, which this shell does not
 // mount. Without this the row would always read "not connected", which is a wrong answer rather than a
@@ -65,6 +66,18 @@ export function MenuSheet() {
     ),
 
     h("div", { class: "zm-rows" },
+      // ── RUNNING PROCESSES (V2-822). The phone has no processes tab, and since the cards stopped telling their
+      //    errand's progress (a card shows only its deliverable), this is where a running process is told: the
+      //    same entry the desktop's processes tab draws, from the same record. Absent when nothing runs.
+      h("div", { class: "zm-procs" }, () => {
+        const live = (store.tasks() || []).filter(x => !x.done && !x.internal);
+        if (!live.length) return null;
+        return [h("div", { class: "zm-procs-t" }, () => t("chat.procMobileTitle")),
+                ...live.map(x => h("div", { class: "zm-proc" },
+                  h("b", null, (x.title || x.note || "").trim() || t("chat.working")),
+                  ProcessEntry(x.id)))];
+      }),
+
       // ── ACCOUNT — cloud only. On self-host there is no account behind this, so the row is not rendered at all
       //    rather than rendered and dead: a control that does nothing teaches the operator to distrust the others.
       () => store.cloudProfile()
