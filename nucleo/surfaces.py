@@ -197,3 +197,17 @@ def opens_doc(surface: str) -> bool:
     must NOT start treating a report errand as a list errand — that is the exact confusion this value exists
     to remove."""
     return (surface or "") == DOC
+
+
+#: The card each deliverable surface IS (V2-822). Only these surfaces name a card of their own; `widget`, `voz`
+#: and `silenciosa` deliver into his own card, by voice, or nowhere, so they bind nothing here.
+_DELIVERABLE_CARD = {LIST: "results", ITEM: "results", DOC: "documento", IMAGES: "imagenes"}
+
+
+def deliverable_card(surface: str) -> str:
+    """The base card id an errand of this surface delivers into, or "" when its surface names no card.
+
+    V2-822 — an errand's work happens in the background and its DELIVERABLE is the one card it opens on his screen:
+    the steps it takes to get there (reading a card, a page, a list it builds for itself) open nothing. The progress
+    of those steps is told in the processes panel, never by putting the cards the worker reads in front of him."""
+    return _DELIVERABLE_CARD.get(surface or "", "")
