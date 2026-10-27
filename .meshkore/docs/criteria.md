@@ -118,8 +118,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   0.7), the engine acts even if the model asked — below it the question stands. — since 2026-10-26 · nodes 4.188,
   4.185, 2.174, 2.811, 2.431, 2.728, 2.729 · `nucleo/consent.py`, `rules/shape.py`, `nucleo/flash/undecided.py`.
 - **CRIT-C2 · A «yes» answers ONE proposal** and spends only that proposal's authority; an order that starts with
-  «ok» is not a yes to a different pending action; every pending confirmation can be answered in words. — since
-  2026-09-18 · nodes 2.29, 2.156, 2.125.
+  «ok» is not a yes to a different pending action; every pending confirmation can be answered in words. A line
+  that follows a question of OURS is his reply whether the verdict reads it as `answer` or `order` — the label only
+  excludes (his own question, a comment, a complaint), it never licenses; one definition
+  (`prior_line.answers_our_question`), read by the fragment guard and the stop. — since 2026-10-28 · nodes 2.29,
+  2.156, 2.125, 3.73, 2.763 · `nucleo/flash/prior_line.py`, `nucleo/flash/escalation_guard.py`.
 - **CRIT-C3 · The agenda goes DIRECT.** Deleting or adding an item never asks; a bounded trash and `restore` put
   the row back in its slot (an appointment: `restore_meeting`, also for one skipped day or a series cut short); sweeps (clear or delete a list, clear all or a range) still ask. A row's content is
   never an order («add a task: buy bread» buys nothing) — the danger gate is repaired by SUBTRACTING, never by

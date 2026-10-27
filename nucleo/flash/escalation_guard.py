@@ -156,13 +156,9 @@ def is_a_fragment(operator_text: str, *, brief=None, last_reply: str = "") -> bo
     from . import router_guards as _rg
     if not _rg.too_thin_to_commission(operator_text):
         return False
-    try:
-        from nucleo.flash import canvas_license as _lic, turn_brief as _tb
-        kind, _info = _tb.read(brief, _tb.REQUEST_KEY, "")
-        if str(kind or "") == "answer" and _lic.answered_an_offer(last_reply):
-            return False                  # he is answering us: the errand is ours, not his to repeat
-    except Exception:  # noqa: BLE001 — a classifier may never break a turn
-        pass
+    from nucleo.flash import prior_line as _prior
+    if _prior.answers_our_question(brief, last_reply):
+        return False                      # he is answering us: the errand is ours, not his to repeat
     return True
 
 

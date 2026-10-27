@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import asyncio
 
+from loguru import logger
+
 from nucleo import consequence
 
 
@@ -24,8 +26,8 @@ def inject_soon(which: str, message: str) -> None:
         return
     try:
         asyncio.run_coroutine_threadsafe(dispatch.inject(which, message), dispatch._LOOP)
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001 — fire-and-forget, but never in silence
+        logger.warning(f"inject_soon({which!r}): could not reach the registry loop: {e!r}")
 
 
 @consequence.door("worker.stop", neutral=_resolve)
@@ -41,6 +43,6 @@ def cancel_soon(which: str) -> list[str]:
                 dispatch.cancel_session(t)
         try:
             dispatch._LOOP.call_soon_threadsafe(_do)
-        except Exception:
-            pass
+        except Exception as e:  # noqa: BLE001 — fire-and-forget, but never in silence
+            logger.warning(f"cancel_soon({which!r}): could not reach the registry loop: {e!r}")
     return tids
