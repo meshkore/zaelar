@@ -64,6 +64,8 @@ import time
 import unicodedata
 from dataclasses import dataclass, field
 
+from loguru import logger
+
 # ── VÁLVULAS ────────────────────────────────────────────────────────────────────────────────────────────────────
 # **NO hay válvula de TIEMPO, y es deliberado.** Un fragmento abandonado se queda sin respuesta porque eso es lo
 # correcto, no un descuido que haya que tapar con un temporizador — norma del operador con su propio ejemplo:
@@ -584,8 +586,8 @@ def unanswered_by(brain, text: str) -> None:
             # sentence the verdict judged is what was owed, notes never are.
             owed = whole if (said and whole and t.startswith(said)) else t
             brain._cut_unanswered = (owed, time.time())
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001 — fail-soft: the next turn is judged on its own words only
+        logger.debug(f"unanswered_by: the cut turn could not be owed to the next verdict: {e}")
 
 
 def whole_turn(brain, text: str, *, now: float | None = None) -> str:

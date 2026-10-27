@@ -13,6 +13,8 @@ import time
 
 import pytest
 
+from tests.waiting import port_listening
+
 pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import sync_playwright
 
@@ -33,12 +35,7 @@ def page():
     port = _free_port()
     srv = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"],
                            cwd=_ENGINE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    for _ in range(50):
-        try:
-            socket.create_connection(("127.0.0.1", port), 0.2).close()
-            break
-        except OSError:
-            time.sleep(0.1)
+    port_listening(port)
     try:
         with sync_playwright() as pw:
             browser = pw.chromium.launch()
