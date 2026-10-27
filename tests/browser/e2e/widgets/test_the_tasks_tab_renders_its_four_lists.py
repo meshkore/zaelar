@@ -217,8 +217,9 @@ def test_the_page_has_no_errors(seen):
 
 
 def test_the_old_name_lands_on_the_new_tab(seen):
-    """`setChatTab('procesos')` — what the voice router still answers — must open «Tareas», not «Chat»."""
-    assert "tab-tareas" in seen["live"]["wallClass"], seen["live"]["wallClass"]
+    """`setChatTab('procesos')` — what the voice router still answers — must open the processes tab, not «Chat»
+    (the tab was renamed «Tareas» → «Procesos»: the agent's own work is a process; his tasks are the agenda's)."""
+    assert "tab-procesos" in seen["live"]["wallClass"], seen["live"]["wallClass"]
 
 
 def test_the_panel_is_actually_PAINTED(seen):
@@ -227,10 +228,11 @@ def test_the_panel_is_actually_PAINTED(seen):
     assert seen["live"]["panelVisible"], json.dumps(seen["live"])[:400]
 
 
-def test_there_are_four_top_tabs_and_crons_is_not_one_of_them(seen):
+def test_the_processes_tab_is_a_top_tab_and_crons_is_not_one(seen):
+    # The count of top tabs is not this test's business (Apps joined them); what it pins is that the agent's work
+    # has its own top tab and the crons live inside it, not beside it.
     tabs = [x.lower() for x in seen["live"]["tabs"]]
-    assert len(tabs) == 4, tabs
-    assert any("tarea" in x or "task" in x for x in tabs), tabs
+    assert any(x.startswith(("proceso", "job", "process")) for x in tabs), tabs
     assert not any(x.startswith("cron") for x in tabs), tabs
 
 
