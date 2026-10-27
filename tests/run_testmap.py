@@ -3150,6 +3150,8 @@ DOMAINS: list[dict] = [
         {"id": "4.181", "title": "Un sinónimo en el payload NO es un campo que falta: la puerta única renombra "
                                  "al manifiesto antes de juzgar («message» por «text» perdía el mensaje)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_synonym_in_the_payload_never_loses_the_call.py"]},
+        {"id": "4.303", "title": "The text a model writes lands in the field the action declares as its text: an empty `text_field` takes the ONE undeclared field holding text (a recipe written into `content` left the document empty); two candidates move nothing, a declared text is never overwritten",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_text_lands_in_the_field_the_action_declares.py"]},
         {"id": "4.178", "title": "Un resultado PARECE un resultado: la foto entera (no una banda recortada), foto "
                                  "izquierda y datos derecha, el enlace a la ficha original SIEMPRE EN LA FICHA "
                                  "(V2-703 lo movió), y el expediente se abre sin esperar al servidor",

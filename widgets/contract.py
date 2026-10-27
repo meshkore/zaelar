@@ -277,6 +277,7 @@ def fold_aliases(widget_id: str, action: str, payload: dict | None) -> dict:
                 if val is not None and str(val).strip():
                     folded[key] = val
                     break
+        folded.update(_fold_text_field(widget_id, action, declared, {**pl, **folded}))
         if not folded:
             return pl
         try:
@@ -288,6 +289,27 @@ def fold_aliases(widget_id: str, action: str, payload: dict | None) -> dict:
         return {**pl, **folded}
     except Exception:  # noqa: BLE001
         return pl
+
+
+def _fold_text_field(widget_id: str, action: str, declared: dict, pl: dict) -> dict:
+    """The action's declared FREE-TEXT field, filled from the one undeclared field that carries text.
+
+    Measured 2026-10-27 (docs-single-recipe-not-a-list__es): «Dame la receta de la carbonara» — the model wrote the
+    whole recipe into `documento:show {title, content}`. The action declares its text as `body`
+    (`"text_field": "body"`), `content` is declared nowhere, and the sheet opened EMPTY: «Te la abro» over nothing,
+    then a worker spent minutes rewriting what had just been dropped. The alias table above is a word list and only
+    shrinks; this rule reads no words. An action that names its text field, that field empty, and exactly ONE
+    undeclared field holding text: that text is the field's. Two candidates is ambiguity and nothing moves."""
+    try:
+        field = str(_spec(widget_id, action).get("text_field") or "").strip()
+    except Exception as e:  # noqa: BLE001 — an unreadable declaration folds nothing, and says so
+        from loguru import logger
+        logger.debug(f"contract: text_field of {widget_id}:{action} unreadable — {e!r}")
+        field = ""
+    if not field or str(pl.get(field) if pl.get(field) is not None else "").strip():
+        return {}
+    loose = [k for k, v in pl.items() if k not in declared and isinstance(v, str) and v.strip()]
+    return {field: pl[loose[0]]} if len(loose) == 1 else {}
 
 
 def guard(widget_id: str, action: str, payload: dict | None) -> dict | None:
