@@ -3807,6 +3807,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_days_before_are_read_from_the_record.py"]},
         {"id": "2.759", "title": "A question the verdict reads as question · tell · handle_inline is answered from the turn's state, never delegated: a fourth commission disposition (ANSWERED) annuls even a promised worker and a second pass composes the answer — saying so, by day or thing, when the state does not hold it; both channels (manual session 374a2ae2)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_question_the_state_answers_is_no_errand.py"]},
+        {"id": "2.817", "title": "A text the commission pass chooses to WRITE reaches the card written on the text channel too: `card_commission.written` composes a `_compose` call before it reaches the card (it arrived title-only, the sheet refused it and the reply read «just the title»)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_composed_text_reaches_the_card_written_on_both_channels.py"]},
         {"id": "2.760", "title": "A request joins its open flow BEFORE anything is opened: a fast pass is a flow from its launch (sheet minted first), the sentence that finishes a cancelled fragment re-runs into ITS sheet, a live worker takes a refinement by injection, an off-topic turn in between does not hide the flow (V2-784, demo 2026-10-21 19:23)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_request_joins_its_open_flow.py"]},
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",

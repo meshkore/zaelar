@@ -72,7 +72,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     so they cannot diverge: the same widget and action with DIFFERENT payloads yes (two pasted links), an
     exact duplicate no (the double quote), and a different action on the same widget neither (the listing).
     """
-    from nucleo.flash import data_ops as _rg, frontend as _fe
+    from nucleo.flash import card_commission as _cc, data_ops as _rg, frontend as _fe
     from widgets import actions as _wa, row_lens as _row_lens
     from nucleo.flash import agenda_said_day as _sday, reply_or_forward as _rof, verdict_card as _vcard  # noqa: F401
     todas = [t.get("args") or {} for t in (tool_calls or []) if t.get("name") == "widget_data"]
@@ -91,7 +91,7 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     for a in admitidas:
         wid = _rg.one_open_instance(str(a.get("widget_id") or "").strip().lower())   # V2-773: as the voice rail
         act = str(a.get("action") or "").strip()
-        pl = a.get("payload") if isinstance(a.get("payload"), dict) else {}
+        pl = await _cc.written(a.get("payload") if isinstance(a.get("payload"), dict) else {}, text)   # compose first
         # THE ITEM REFERENCE TRAVELS (V2-463). The tool declares `item` as its own argument («natural-language
         # natural language, never an invented id»), and this path DROPPED it: it only passed `payload`, so
         # «ponme la 1, la del Spider» reached the widget as a select without an item—three failures measured

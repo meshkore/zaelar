@@ -346,10 +346,34 @@ async def probe_instead_of_a_worker(tool_calls: list, commission: str, *, brief,
     if not got or got.get("kind") not in ("call", "compose"):
         return False
     # a composed text is recorded as the card's call with its title — the probe decides, it does not write a page
-    payload = got["payload"] if got["kind"] == "call" else {"title": got["title"], "_compose": True}
+    payload = (got["payload"] if got["kind"] == "call"
+               else {"title": got["title"], "_compose": True, "_brief": got.get("brief", "")})
     tool_calls.append({"name": "widget_data", "args": {"widget_id": got["widget_id"], "action": got["action"],
                                                        "payload": payload, "_repair": True}})
     return True
+
+
+async def written(pl: dict, text: str) -> dict:
+    """A `compose` decision written BEFORE it reaches the card, as the voice rail does (`compose_rung.run`).
+
+    Measured 2026-10-27 (docs-single-recipe-not-a-list__us): the text channel recorded the commission pass's
+    `compose_into_card` as `documento:show {title, _compose}` — no body. Executed, the sheet refused it («'body'
+    vacío»), a repair rewrote it a moment later, and the reply had already read the empty sheet: «I don't have the
+    recipe text itself — just the title». The two channels ran one rung two ways. Any other call, and a composition
+    that fails, is returned as it came, so the card's own refusal is what gets said."""
+    if not pl.get("_compose") or str(pl.get("body") or "").strip():
+        return pl
+    from nucleo.flash import compose_rung as _compose
+    title = str(pl.get("title") or "").strip()
+    try:
+        body = await _compose.compose({"title": title, "brief": str(pl.get("_brief") or "")}, text, None)
+    except Exception as e:  # noqa: BLE001 — the card refuses an empty body itself, and that is said
+        from loguru import logger
+        logger.warning(f"card_commission: composition failed — {type(e).__name__}: {e}")
+        body = ""
+    if not body:
+        return pl
+    return {k: v for k, v in pl.items() if not str(k).startswith("_")} | {"title": title, "body": body}
 
 
 async def probe_escalation(tool_calls: list, action: str, spoken: str, *, text: str, brief, operator_text: str,
