@@ -70,7 +70,7 @@ export function MenuSheet() {
       //    errand's progress (a card shows only its deliverable), this is where a running process is told: the
       //    same entry the desktop's processes tab draws, from the same record. Absent when nothing runs.
       h("div", { class: "zm-procs" }, () => {
-        const live = (store.tasks() || []).filter(x => !x.done && !x.internal);
+        const live = store.liveProcesses();      // the same reading as the dock's count (V2-822)
         if (!live.length) return null;
         return [h("div", { class: "zm-procs-t" }, () => t("chat.procMobileTitle")),
                 ...live.map(x => h("div", { class: "zm-proc" },

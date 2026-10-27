@@ -567,3 +567,12 @@ html.zm-kbd[data-kbd="sheet"] .zm-sheet.open { top: var(--zm-vvt, 0px); bottom: 
 .zm-proc { padding: 8px 0; }
 .zm-proc + .zm-proc { border-top: 1px solid var(--hb-line-subtle); }
 .zm-proc > b { display: block; font: 600 14px/1.3 var(--sans); color: var(--hb-ink); overflow-wrap: anywhere; }
+
+/* V2-822 — the live process count rides the ☰ (the menu is the phone's processes view): ProcessCount.js, its look in
+   core/shared-surfaces.css (`.pcount`). Placed on the button's top-right corner so the dock's seven controls keep
+   their geometry; it takes no tap of its own — tapping it is tapping ☰. */
+.zm-menu { position: relative; }
+.zm-menu .pcount { position: absolute; top: 1px; right: -3px; gap: 3px; padding: 0 2px; cursor: inherit;
+  pointer-events: none; }
+.zm-menu .pcount-n { font-size: 0.75rem; }
+.zm-menu .pcount-bar { height: 11px; }

@@ -19,8 +19,8 @@
 //
 // THE LEFT CLUSTER (V2-666, operator 2026-09-11): the chevron that opens/closes the chat panel sits at the
 // bar's LEFT edge (it used to live among the right-side tools) — «la flechita que abre el menú de la
-// izquierda va a la izquierda». Right beside it, a live count of RUNNING PROCESSES (store.tasks(), the exact
-// feed the chat's own "Procesos" tab reads — NOT every widget show/close/minimize, which produces no
+// izquierda va a la izquierda». Right beside it, a live count of RUNNING PROCESSES (ProcessCount.js since V2-822 —
+// the same component and the same number the phone's dock shows — read from the feed the chat's own "Procesos" tab reads — NOT every widget show/close/minimize, which produces no
 // process at all): a bare number with a small pulsing bar, deliberately not a circle-plus-number badge,
 // which would read as a notification rather than a gauge of ongoing work. Clicking the chevron opens the
 // chat (same gesture as the 💬 icon on the eye's lid); clicking the count opens it straight onto Procesos.
@@ -44,8 +44,9 @@
 import { t } from "../core/i18n.js?v=1";
 import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
-import { chatOpen, setChatOpen, setChatTab, openChatFrom, orbDock, setOrbDock, agentState, agentLive, screenState, tasks } from "../core/store.js?v=2";
+import { chatOpen, setChatOpen, setChatTab, openChatFrom, orbDock, setOrbDock, agentState, agentLive, screenState } from "../core/store.js?v=2";
 import * as power from "../services/power.js?v=1";
+import { ProcessCount } from "./ProcessCount.js?v=1";
 
 function injectStyles(){
   if(document.getElementById("wrail-css")) return;
@@ -153,34 +154,12 @@ function injectStyles(){
      Clicking the chevron opens the chat (same gesture as the 🤖/💬 icons on the eye's lid); clicking the
      count opens it straight onto the Procesos tab. Hidden entirely at zero — an idle "0" is dead chrome. */
   #wrail .wr-left{flex:none;display:flex;align-items:center;gap:2px}
-  #wrail .wr-proc{display:none;flex:none;align-items:center;gap:6px;height:40px;padding:0 10px 0 6px;
-    border-radius:var(--hb-r-m,10px);border:none;cursor:pointer;background:transparent;color:var(--hb-ink,#F2F4F7);
-    transition:background var(--hb-t-fast,120ms) ease}
-  #wrail .wr-proc.on{display:flex}
-  #wrail .wr-proc:hover{background:var(--hb-hover,#242A34)}
-  #wrail .wr-proc:focus-visible{outline:none;box-shadow:var(--hb-focus-ring,0 0 0 2px var(--hb-accent,#9B7CFF))}
-  #wrail .wr-proc-n{font:700 0.9375rem/1 var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif)}
-  #wrail .wr-proc-bar{width:3px;height:15px;border-radius:2px;background:var(--hb-line,rgba(255,255,255,.10));
-    position:relative;overflow:hidden;flex:none}
-  #wrail .wr-proc-bar i{position:absolute;left:0;right:0;bottom:0;height:100%;border-radius:2px;
-    background:var(--hb-accent,#9B7CFF);transform-origin:50% 100%;animation:wrProcPulse 1.15s ease-in-out infinite}
-  @keyframes wrProcPulse{0%,100%{transform:scaleY(.28)}50%{transform:scaleY(1)}}
-  /* V2-747 — STOPPING, and it is not instant. Operator, 2026-09-21: «si cuando yo paro el agente tarda unos
-     segundos o incluso medio minuto en pararse, pon el iconito este donde sale el 1 y el loader, cámbialo,
-     ponlo en un amarillo parpadeando o algo así que se vea que se está parando». AMBER, the same ink the ⏻
-     already uses for «pausing» and for the same reason: nothing is broken, something is on its way. The bar
-     keeps moving —there IS still work— and the WHOLE control blinks, which is the part that says «wait».
-     Once stopped the jobs are FROZEN, not gone, so the gauge stays and the blink stops: a still amber, which
-     reads as «held» and is the honest picture of a hibernating job. */
-  #wrail .wr-proc.pausing{color:var(--hb-warn-ink,#e8b673);animation:wrProcPausing 1.1s ease-in-out infinite}
-  #wrail .wr-proc.pausing .wr-proc-bar i{background:var(--hb-warn-ink,#e8b673)}
-  #wrail .wr-proc.held{color:var(--hb-warn-ink,#e8b673);opacity:.75}
-  #wrail .wr-proc.held .wr-proc-bar i{background:var(--hb-warn-ink,#e8b673);animation:none;transform:scaleY(.4)}
-  @keyframes wrProcPausing{0%,100%{opacity:1}50%{opacity:.35}}
-  @media (prefers-reduced-motion:reduce){
-    #wrail .wr-proc.pausing{animation:none}
-    #wrail .wr-proc-bar i{animation:none}
-  }
+  /* V2-822 — the process count is ProcessCount.js (.pcount, in core/shared-surfaces.css): the same component the
+     phone's dock mounts. Here it only wins back what the bar's own button rule (an id selector) takes from it:
+     hidden at zero, its own width and gap, and its ink per face. */
+  #wrail .pcount{display:none;width:auto;height:40px;gap:6px;padding:0 10px 0 6px;color:var(--hb-ink,#F2F4F7)}
+  #wrail .pcount.on{display:flex}
+  #wrail .pcount.pausing,#wrail .pcount.held{color:var(--hb-warn-ink,#e8b673)}
   /* chips flow LEFT→RIGHT and scroll among themselves; tools mirror them on the right */
   #wrail .wr-chips{display:flex;flex-direction:row;gap:6px;align-items:center;justify-content:flex-start;
     flex:1 1 0;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none}
@@ -369,14 +348,9 @@ export function WidgetRail(){
   // widget open/close/minimize, which produces none — store.tasks() is exactly the "Procesos" tab's own
   // feed, V2-608 F7). A bare number + a pulsing bar, never a circle: a circle+number reads as a
   // notification, and this is a live gauge, not something to dismiss.
-  const proc=document.createElement("button"); proc.className="wr-proc";
-  const procN=document.createElement("span"); procN.className="wr-proc-n";
-  const procBar=document.createElement("span"); procBar.className="wr-proc-bar";
-  procBar.innerHTML="<i></i>";
-  proc.append(procN,procBar);
-  // V2-728 — one click lands on «Procesos ▸ En curso», which is what the number counts. `setChatTab` picks
-  // the sub-tab itself (it is the one door that knows the vocabulary), so this does not name it twice.
-  proc.onclick=(e)=>{ e.stopPropagation(); openChatFrom("bar", "procesos"); };
+  // V2-822 — the count is ONE component both shells mount (ProcessCount.js), reading ONE number
+  // (`store.liveProcessCount`). One click lands on «Procesos ▸ En curso», which is what it counts.
+  const proc=ProcessCount({ onOpen: ()=>openChatFrom("bar", "procesos"), cls: "wr-proc" });
   const chips=document.createElement("div"); chips.className="wr-chips";
   const tools=document.createElement("div"); tools.className="wr-tools";
   // V2-623 — the bar's CENTRE: the swap button + the slot the ONE #orb canvas is reparented into (Orb.js owns
@@ -436,17 +410,6 @@ export function WidgetRail(){
   // difference between «still working» and «on its way down». Three faces, one gauge: running (accent,
   // pulsing), STOPPING (amber, blinking — `pausing` is the server's own word for «a turn is in flight and
   // the stop is waiting for it»), and HELD (amber, still) once the switch is off and the work is frozen.
-  createEffect(()=>{
-    const n=(tasks()||[]).filter(x=>!x.internal).length;
-    const stopping=!!store.pausing(), off=!store.agentLive();
-    proc.classList.toggle("on", n>0);
-    proc.classList.toggle("pausing", n>0 && stopping);
-    proc.classList.toggle("held", n>0 && off && !stopping);
-    if(n>0){
-      procN.textContent=String(n);
-      proc.title=t(stopping?"rail.processesStopping":off?"rail.processesHeld":"rail.processes",{n});
-    }
-  });
   hide.onclick=()=>{ const d=desk(); if(d){ d.minimizeAll(); refresh(el); } };
   show.onclick=()=>{ const d=desk(); if(d){ d.revealAll();  refresh(el); } };
   // The two bulk layouts are DIFFERENT gestures and used to be one: `compact` closes the gaps and leaves every

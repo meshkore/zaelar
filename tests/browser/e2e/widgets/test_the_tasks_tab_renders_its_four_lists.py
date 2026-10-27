@@ -102,7 +102,7 @@ READ = """() => {
     rowMetas: [...document.querySelectorAll('.cw-tasklist .cw-proc-meta')].map(e => e.textContent.trim()),
     glyphs: [...document.querySelectorAll('.cw-tasklist .cw-proc-dot')].map(e => e.textContent.trim()),
     empty: (document.querySelector('.cw-tasks .cw-empty') || {}).textContent || '',
-    railCount: (document.querySelector('.wr-proc-n') || {}).textContent || '',
+    railCount: (document.querySelector('.wr-proc .pcount-n') || {}).textContent || '',
     asked: window.__asked || [],
     resultBtns: [...document.querySelectorAll('.cw-tasklist .cw-proc-row.hist .cron-b')].map(e => e.textContent.trim()),
     reopened: window.__reopened || [],

@@ -412,6 +412,8 @@ export function routeEvent(desktop, d) {
       else if (d.label === "plan" && d.id) store.noteTask(d.id, d.text);
       else if (d.label === "🏷️ encargo nombrado" && d.id) store.retitleTask(d.id, d.text);  // the settled NAME (V2-530)
       if (d.id) store.bumpProcess();   // V2-822: the processes panel re-reads the entry of a process that moved
+      // V2-822: a process began or ended → the count every screen shows re-reads the engine's live board, once a burst
+      if (d.label === "start" || d.label === "end" || d.label === "cancel") store.reconcileTasksSoon();
     } else if (d.kind === "memory") {                                             // memory.updated / .query (bridged from the bus)
       // The central memory mutated (write/reinforce/pin/link/state/episode/consolidate) or was READ (query). A
       // mutation → bump so the 🧠 map refetches ONLY if open (gated on store.memOpen), real-time, zero polling.

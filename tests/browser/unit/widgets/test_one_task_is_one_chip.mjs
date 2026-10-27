@@ -16,7 +16,11 @@ globalThis.localStorage = {
   setItem: (k, v) => mem.set(k, String(v)),
   removeItem: k => mem.delete(k),
 };
-globalThis.fetch = async () => ({ ok: true, json: async () => ({}), text: async () => "" });
+// The engine's live board as the stub serves it. V2-822: a `start`/`end` event makes the store re-read the board, so
+// the stub answers with the board this replay is at — an empty `{}` would say «nothing runs» and clear every chip.
+let board = [];
+globalThis.fetch = async (u) => ({ ok: true, json: async () => (String(u).startsWith("/api/tasks") ? { tasks: board } : {}),
+                                   text: async () => "" });
 globalThis.document = { documentElement: { lang: "en", setAttribute(){}, style: { setProperty(){} } },
                         querySelectorAll: () => [], querySelector: () => null,
                         addEventListener(){}, createElement: () => ({ style:{}, classList:{ add(){}, remove(){} },
@@ -37,6 +41,7 @@ const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 const row = (n, title) => ({ id: `48ac70-${n}`, session: String(n), state: "running", title });
 
 // three errands, born from their SSE events
+board = [row(1, "Find three 27-inch 4K monitors"), row(2, "Bitcoin summary"), row(3, "Trip")];
 push({ kind: "task", label: "start", id: "1", text: "Thinking…" });
 push({ kind: "task", label: "🏷️ encargo nombrado", id: "1", text: "Find three 27-inch 4K monitors" });
 push({ kind: "task", label: "start", id: "2", text: "Thinking…" });
@@ -49,6 +54,7 @@ assert.equal(live().length, 3, `a reconcile made twins: ${JSON.stringify(live().
 assert.deepEqual(live().map(t => t.id).sort(), ["1", "2", "3"], "the chips keep the id the events name");
 
 // the trip is cancelled: its own event clears its only chip
+board = [row(1, "Find three 27-inch 4K monitors"), row(2, "Bitcoin summary")];
 push({ kind: "task", label: "end", id: "3" });
 await sleep(1200);
 assert.equal(live().length, 2);

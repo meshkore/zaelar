@@ -238,7 +238,7 @@ def run(url):
         pg.wait_for_timeout(150)
         proc_busy = pg.evaluate("""() => { const p = document.querySelector('#wrail .wr-proc');
           return { onClass: p.classList.contains('on'), visible: getComputedStyle(p).display !== 'none',
-                   n: (p.querySelector('.wr-proc-n') || {}).textContent }; }""")
+                   n: (p.querySelector('.pcount-n') || {}).textContent }; }""")
         check("one running process shows as the number 1, visibly",
               proc_busy["onClass"] and proc_busy["visible"] and proc_busy["n"] == "1", json.dumps(proc_busy))
         # Clicking the count opens the chat straight onto the Procesos tab — not just "opens chat".

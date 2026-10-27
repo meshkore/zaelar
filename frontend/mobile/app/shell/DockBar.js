@@ -10,7 +10,8 @@
 //
 // ── THE COMPOSITION (2026-10-24, operator): SEVEN controls around the orb, three a side plus feedback.
 //
-//   ☰ menu     → store.mobileMenuOpen              account · energy · settings · voice · desktop
+//   ☰ menu     → store.mobileMenuOpen              running processes · account · energy · settings · voice
+//                                                 (+ the live process count on the ☰, V2-822)
 //   💬 chat    → store.chatOpen                    the conversation
 //   🤖 wake    → attention_mode                    the wake word, the desktop orb's 🤖
 //   ◉  ORB     → the switch (below), 74px, mic INSIDE
@@ -55,6 +56,7 @@ import * as mic from "../../../app/services/mic.js?v=1";
 import { t } from "../../../app/core/i18n.js?v=1";
 import { OrbMini } from "./OrbMini.js?v=3";
 import * as power from "../../../app/services/power.js?v=1";
+import { ProcessCount } from "../../../app/components/ProcessCount.js?v=1";
 
 const SW = `viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"`;
 const MIC_ON  = `<svg ${SW}><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>`;
@@ -108,11 +110,14 @@ export function DockBar() {
     // navigation, the PIPS above this bar (one per open card, the current one lit) and the side swipe; closing the
     // chat or a sheet is what shows the cards. Its slot went to the WAKE WORD, which the phone did not have.
     h("div", { class: "zm-side" },
+      // V2-822 — the ☰ also carries the live count of RUNNING PROCESSES (ProcessCount.js, the same component and the
+      // same number as the desktop's bar): the menu is the phone's processes view, so tapping the count is tapping ☰.
       h("button", {
-        class: () => cls(store.mobileMenuOpen()),
-        "aria-label": () => t("mobile.menu"),
+        class: () => cls(store.mobileMenuOpen()) + " zm-menu",
+        "aria-label": () => (store.liveProcessCount() > 0
+          ? t("mobile.menu_processes", { n: store.liveProcessCount() }) : t("mobile.menu")),
         onClick: () => { const v = !store.mobileMenuOpen(); store.setMobileMenuOpen(v); api.uiEvent("mobile:menu", { state: v ? "open" : "close" }); },
-      }, raw(MENU)),
+      }, raw(MENU), ProcessCount({ as: "span" })),
 
       h("button", {
         class: () => cls(store.chatOpen()),

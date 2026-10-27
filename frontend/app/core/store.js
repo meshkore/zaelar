@@ -402,6 +402,16 @@ export const fetchTasks = async () => {
   } catch (_) {}
 };
 
+// V2-822 — THE number of running processes, ONE reading for every screen that shows it (the desktop's bar and the
+// phone's dock): his commissions that are alive, never the engine's internal ones and never a chip settling after
+// its end. The chips come from the engine's live board (`/api/tasks?scope=live`, the same rows the processes panel
+// lists) and move with its SSE `task` events; `reconcileTasksSoon` re-reads that board when a process starts or
+// ends, so an event-built chip (which cannot know whether its task is internal) never inflates the count.
+export const liveProcesses = () => (tasks() || []).filter(x => !x.done && !x.internal);
+export const liveProcessCount = () => liveProcesses().length;
+let _reconcileTimer = null;
+export const reconcileTasksSoon = () => { clearTimeout(_reconcileTimer); _reconcileTimer = setTimeout(fetchTasks, 400); };
+
 // V2-822 — a running process MOVED (a line, a declared plan, a step done, the page its browser is on). Bumped by
 // every SSE `task` event that names one; the processes panel's entries re-read their ONE record when it moves
 // (components/ProcessEntry.js). A counter, not data: the record lives on the server and is never copied here.

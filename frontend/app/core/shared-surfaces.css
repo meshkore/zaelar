@@ -159,3 +159,25 @@
 .pe-line{font-size:var(--fs-caption);line-height:1.45;color:var(--hb-muted);padding-left:var(--sp-2);
   border-left:2px solid var(--hb-line-subtle);overflow-wrap:anywhere}
 .pe-line.now{color:var(--hb-ink);border-left-color:var(--hb-accent2)}
+
+/* ---------- PROCESS COUNT (V2-822) — the live number of running processes, the same on both shells ----------
+   components/ProcessCount.js; mounted by the desktop's bar (a button) and the phone's dock (riding ☰). A bare number
+   and a small bar that pulses — never a circle-plus-number badge, which reads as a notification (V2-666). Hidden at
+   zero. STOPPING (V2-747): amber and blinking while the ⏻ waits for a turn in flight; HELD: amber and still once the
+   switch is off and the work is frozen, not gone. Tokens only. */
+.pcount{display:none;flex:none;align-items:center;gap:6px;padding:0 10px 0 6px;border:none;cursor:pointer;
+  border-radius:var(--hb-r-m);background:transparent;color:var(--hb-ink);transition:background var(--hb-t-fast) ease}
+.pcount.on{display:flex}
+button.pcount:hover{background:var(--hb-hover)}
+button.pcount:focus-visible{outline:none;box-shadow:var(--hb-focus-ring)}
+.pcount-n{font:700 0.9375rem/1 var(--sans)}
+.pcount-bar{width:3px;height:15px;border-radius:2px;background:var(--hb-line);position:relative;overflow:hidden;flex:none}
+.pcount-bar i{position:absolute;left:0;right:0;bottom:0;height:100%;border-radius:2px;background:var(--hb-accent);
+  transform-origin:50% 100%;animation:pcountPulse 1.15s ease-in-out infinite}
+@keyframes pcountPulse{0%,100%{transform:scaleY(.28)}50%{transform:scaleY(1)}}
+.pcount.pausing{color:var(--hb-warn-ink);animation:pcountStopping 1.1s ease-in-out infinite}
+.pcount.pausing .pcount-bar i{background:var(--hb-warn-ink)}
+.pcount.held{color:var(--hb-warn-ink);opacity:.75}
+.pcount.held .pcount-bar i{background:var(--hb-warn-ink);animation:none;transform:scaleY(.4)}
+@keyframes pcountStopping{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){ .pcount.pausing{animation:none} .pcount-bar i{animation:none} }
