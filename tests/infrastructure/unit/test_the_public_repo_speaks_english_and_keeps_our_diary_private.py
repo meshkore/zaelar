@@ -115,7 +115,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/errands/party.py': 4,
     'nucleo/errands/verify.py': 1,
     'nucleo/errands/wake.py': 2,
-    'nucleo/flash/accumulator.py': 37,
+    'nucleo/input/stt.py': 37,
     'nucleo/flash/answer_guards.py': 12,
     'nucleo/flash/canvas_license.py': 1,
     'nucleo/flash/canvas_visibility.py': 1,

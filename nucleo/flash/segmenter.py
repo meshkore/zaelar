@@ -26,7 +26,7 @@ necesitan un modelo**. De los 89 fragmentos reales, los que iban a medias acaban
 «para que», «los») o en coma. Eso es una regla léxica, determinista, de coste cero y latencia cero.
 
 The model (layer 2, `judge()`, V2-102) is reserved for the genuinely ambiguous case — called from
-`nucleo/flash/accumulator.py::offer()` ONLY when this layer 1 says incomplete, so most turns still spend no
+`nucleo/input/stt.py::offer()` ONLY when this layer 1 says incomplete, so most turns still spend no
 token at all. No longer opt-in: `judge_enabled()` is ON by default (kill-switch `ZAELAR_TURN_JUDGE=0`) — see
 the section below.
 
@@ -239,7 +239,7 @@ def should_hold(text: str, *, held_s: float = 0.0) -> tuple[bool, str]:
     it — `HOLD_MAX` in `voice/endpointing.py`, **2.2s by default**, always below `MAX_HOLD_S` (6s) — so the
     semantic veto never gets to wait long enough for `MAX_HOLD_S` to matter. "The acoustics remain the ceiling"
     (the invariant above) is true, but the ceiling doing the actual work is LiveKit's, not this function's. The
-    FULL fragment chain (V2-096, `nucleo/flash/accumulator.py`) doesn't use it either, and there it's deliberate:
+    FULL fragment chain (V2-096, `nucleo/input/stt.py`) doesn't use it either, and there it's deliberate:
     that layer replaced "delay with a ceiling" with "accumulate with no clock" (see the accumulator module's
     docstring) precisely because a fixed ceiling covered less than half the real pauses measured. Conclusion: no
     need to wire `should_hold` in anywhere new — `HOLD_MAX`'s 2.2s already keeps the promise this docstring

@@ -60,7 +60,7 @@ FUNCTIONS = {
     'nucleo/dispatch_session.py::_run_session': 203,
     'nucleo/dispatch_session_steps.py::build_what_it_runs_with': 132,
     'nucleo/errands/wake.py::wake': 153,
-    'nucleo/flash/accumulator.py::Accumulator._offer': 129,   # 2026-10-22: `offer` → wrapper + `_offer`
+    'nucleo/input/stt.py::Accumulator._offer': 129,   # 2026-10-22: `offer` → wrapper + `_offer`
     'nucleo/flash/fast_client.py::FastClient._stream_inner': 267,
     'nucleo/flash/listing_turn.py::run': 121,
     'nucleo/flash/live_blocks.py::navegador_lines': 147,

@@ -411,7 +411,7 @@ mensajes personales SALEN a la nube.
 
 ### 9.6 Turn-completeness judge (`config §memory.turn_complete_*`, V2-102, 2026-08-16)
 
-`nucleo/flash/segmenter.py::judge` — the safety net for a fragment `nucleo/flash/accumulator.py`'s lexical
+`nucleo/flash/segmenter.py::judge` — the safety net for a fragment `nucleo/input/stt.py`'s lexical
 layer can't confidently call complete. The ONE `memllm` task where latency is genuinely user-visible mid-
 conversation (every other task here — REM, i18n — runs off-schedule, not mid-turn), so the endpoint choice
 matters more than for any other task on this page.

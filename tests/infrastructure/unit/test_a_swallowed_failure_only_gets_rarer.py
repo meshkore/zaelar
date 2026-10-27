@@ -209,7 +209,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/errands/proposals.py': 1,
     'nucleo/errands/wake.py': 8,
     'nucleo/errands/watch.py': 7,
-    'nucleo/flash/accumulator.py': 2,
+    'nucleo/input/stt.py': 2,
     'nucleo/flash/act_repair.py': 19,
     'nucleo/flash/addressed.py': 1,
     'nucleo/flash/agenda_claims.py': 1,

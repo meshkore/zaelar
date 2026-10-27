@@ -184,7 +184,7 @@ def open_typed_door(*, _emit, _on_session_loop, session):
 def _route_typed(txt: str, *, _emit, session) -> None:
     """Turns run in the order he STARTED them: a sentence he began saying before this text is still a
     turn-to-be, and its end-of-turn would interrupt this one (`typed_order`, 2026-10-22)."""
-    from voice.engine.pipeline import typed_order as _order
+    from nucleo.input import typed as _order
     _since = _ag.time.monotonic()
     if _order.must_wait(_since):
         _emit("brain", "⏸ texto en espera: la voz empezó antes", text=txt, role="system", extra={"cat": "flash"})
@@ -205,7 +205,7 @@ def _inject_typed(txt: str, *, _emit, session) -> None:
 
 async def _typed_after_voice(txt: str, since: float, *, _emit, session) -> None:
     """Hold a typed order until the utterance that began before it is a turn, then queue it behind that turn."""
-    from voice.engine.pipeline import typed_order as _order
+    from nucleo.input import typed as _order
     while _order.must_wait(since, _ag.time.monotonic()):
         await _ag.asyncio.sleep(0.1)
     _emit("brain", "▶️ texto en cola tras la voz", text=txt, role="system",
@@ -300,7 +300,7 @@ def _on_user_state(ev, *, _busy, _emit, _onset, sm) -> None:
             _attn_onset.note_speech_onset()
         except Exception:
             pass
-        from voice.engine.pipeline import typed_order as _order_on
+        from nucleo.input import typed as _order_on
         _order_on.note_onset()
     elif new == "listening":
         _emit("vad", "… fin de voz", role="user", extra={"edge": "off"})
@@ -311,7 +311,7 @@ def _on_user_state(ev, *, _busy, _emit, _onset, sm) -> None:
             _attn_end.note_speech_end()
         except Exception:
             pass
-        from voice.engine.pipeline import typed_order as _order_end
+        from nucleo.input import typed as _order_end
         _order_end.note_end()
 
 
@@ -399,7 +399,7 @@ def _on_item(ev, *, _emit) -> None:
     item = ev.item
     role, text = getattr(item, "role", None), getattr(item, "text_content", None)
     if role == "user":
-        from voice.engine.pipeline import typed_order as _order
+        from nucleo.input import typed as _order
         _order.note_committed()   # whatever he was saying is a turn now: a typed order held behind it may go
     # V2-773 — already on the wall because the voice could not say it (reply_wall.surface): not twice.
     if role == "assistant" and text and not _ag._reply_wall.already_surfaced(text):

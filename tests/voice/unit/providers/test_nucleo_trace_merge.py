@@ -8,8 +8,8 @@ import asyncio
 
 import pytest
 
-from nucleo.flash import accumulator as acc_mod
-from nucleo.flash.accumulator import Accumulator
+from nucleo.input import stt as acc_mod
+from nucleo.input.stt import Accumulator
 from voice import trace
 from voice.engine.llm.providers.nucleo import (
     NucleoLLM, _begin_or_adopt_trace, _close_flow_now, _flow_should_close, _merge_target,

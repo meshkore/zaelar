@@ -92,6 +92,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   discarded fragment whose words still travel, in order, in the text the turn runs with (or in the buffer still
   held) is not a loss: `Accumulator.offer` returns no `dropped`, so no timeline line and no spoken notice. A
   fragment that reaches no turn is still reported and rescued. — since 2026-10-24 · nodes 2.795.
+- **CRIT-V17 · A typed line is complete by construction.** Each channel says at its own door when what it carries is
+  finished (`nucleo/input`); the phrase accumulator (`nucleo/input/stt.py`) runs on speech only, so a line he finished
+  with Enter is one turn with every sentence — nothing peeled, held or dropped, no gap notice in a text chat. — since
+  2026-10-27 · nodes 2.818 · `nucleo/input/__init__.py::of_turn`, `voice/engine/llm/providers/turn_fragment.py`.
 - **CRIT-V14 · The microphone is conditioned per platform, and the agent-side filter is one setting that fails
   open.** A phone or tablet opens its mic with the full profile (echo cancellation + noise suppression + gain
   control), a desktop Mac with «isolate» (echo cancellation only, so macOS Voice Isolation works without the

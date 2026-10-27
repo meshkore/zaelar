@@ -16,7 +16,7 @@ import asyncio
 
 import pytest
 
-from nucleo.flash import accumulator as acc
+from nucleo.input import stt as acc
 from voice.engine.llm.providers.acc_notices import _acc_notice_plan
 
 HELD = {"es": "Entonces, quiero que me organices ese viaje con una propuesta, vamos dos adultos, dos niños, quiero",
