@@ -211,3 +211,14 @@ def deliverable_card(surface: str) -> str:
     the steps it takes to get there (reading a card, a page, a list it builds for itself) open nothing. The progress
     of those steps is told in the processes panel, never by putting the cards the worker reads in front of him."""
     return _DELIVERABLE_CARD.get(surface or "", "")
+
+
+#: Surfaces whose deliverable is NO card at all (V2-822, the operator's decision 3): the answer is told (`voz`) or
+#: something just gets done (`silenciosa`). An errand of these opens nothing on his screen. `widget` is not here:
+#: that errand builds or fills a card of his, and opening it is its delivery.
+_NO_CARD = frozenset({VOICE, SILENT})
+
+
+def delivers_no_card(surface: str) -> bool:
+    """Does an errand of this surface deliver into NO card (told, or silent)? Then no card of its opens."""
+    return (surface or "") in _NO_CARD

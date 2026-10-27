@@ -68,3 +68,24 @@ def test_an_errand_whose_surface_names_no_card_is_not_this_gates_business(shown,
     rec = _rec("widget")                                                # it builds/fills a card of his
     assert _act(monkeypatch, rec, "show_widget", {"id": "agenda"})["ok"] is True
     assert shown == ["agenda"]
+
+
+# ── V2-822, the operator's decision 3: a question is not a process, and an errand told by voice opens no card ──
+
+@pytest.mark.parametrize("surface", ["voz", "silenciosa"])
+def test_an_errand_that_delivers_no_card_opens_nothing(shown, monkeypatch, surface):
+    """«¿Cuándo paso la revisión del coche?» escalated to a worker: the answer is TOLD. The cards the worker reads on
+    the way (the agenda, the mail) stay closed — it may read them, never put them in front of him."""
+    rec = _rec(surface)
+    outs = [_act(monkeypatch, rec, "show_widget", {"id": w}) for w in ("agenda", "mensajeria", "results")]
+    assert shown == [], f"an errand told by voice put {shown} on his screen"
+    assert all(o["ok"] is False and "read_widget" in o["error"] for o in outs), "the worker is told the way through"
+
+
+def test_a_told_errand_still_opens_the_card_its_end_state_names(shown, monkeypatch):
+    """When what he asked for IS a state of a card (the player playing), that card is the deliverable."""
+    rec = _rec("voz")
+    rec.done_when = {"widget": "youtube", "field": "playing", "is": "true"}
+    assert _act(monkeypatch, rec, "show_widget", {"id": "youtube"})["ok"] is True
+    assert _act(monkeypatch, rec, "show_widget", {"id": "agenda"})["ok"] is False
+    assert shown == ["youtube"], shown
