@@ -217,16 +217,17 @@ def test_el_encargo_siguiente_estrena_su_historia_y_la_del_anterior_SIGUE():
         "…y el viejo conserva el suyo: estrenar dejó de significar borrar")
 
 
-# ── the operator's click on «Process» must PERSIST ───────────────────────────────────────────────────────────
+# ── V2-822: the sheet has NO process tab — the process lives in the processes panel ─────────────────────────
 
-def test_el_operador_puede_quedarse_en_la_pestana_de_proceso():
-    """`process` was missing from `_TABS`, so the click returned `ok:false` and was not saved. The tab was rendered
-    anyway (the widget switches immediately), and on the next data refresh —which arrives with EVERY phase during
-    a live order— the derived state switched it back to Results."""
+def test_the_sheet_has_no_process_tab_and_says_where_the_process_is():
+    """The results sheet shows its deliverable only; «proceso» by voice is refused with the way there (the processes
+    panel), and a stale persisted `process` tab falls back to the derived one instead of painting nothing."""
     sheet.apply_action("present", {"title": "Hoteles", "items": [{"title": "Bécquer"}]})
-    assert sheet.apply_action("tab", {"tab": "process"})["ok"] is True
-    assert sheet.view_data().get("tab") == "process"
-    assert sheet.apply_action("tab", {"tab": "proceso"})["tab"] == "process"
+    for said in ("process", "proceso"):
+        out = sheet.apply_action("tab", {"tab": said})
+        assert out["ok"] is False and "processes panel" in out["error"], out
+    assert sheet.apply_action("tab", {"tab": "sources"})["ok"] is True
+    assert sheet.view_data().get("tab") == "sources"
 
 
 def test_una_pestana_inventada_sigue_rechazandose():

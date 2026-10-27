@@ -92,7 +92,9 @@ _MAX_PART_LINES = 20
 # was rendered (the widget switches it immediately), and on the next data refresh, which arrives with each phase
 # during a live task, the derived state carried it back to Results. An unsaved click does not fail noisily: it fails
 # by pulling the operator away from where they chose to look (V2-227 C).
-_TABS = ("process", "results", "summary", "sources", "criteria")
+# V2-822 — and «process» is no longer one: an errand's progress lives in the processes panel (the running process's
+# entry), never inside its deliverable. The alias below still reads «proceso» so the refusal can say where it went.
+_TABS = ("results", "summary", "sources", "criteria")
 
 #: WHAT KIND OF THING the sheet found. This is CONTENT, not layout — which is the whole reason it is allowed to
 #: come from outside. `widgets/presentation.py` rule 1 says the surface owns the layout and whoever fills it must
@@ -476,7 +478,7 @@ def view_data(q: str = "") -> dict:
     data["counts"] = _counts(data)
     data["progress"] = _progress(data, _safe_sheet(q))
     data["harvest"] = _harvest(data, _safe_sheet(q))
-    data["browser"] = _browser(data, _safe_sheet(q))     # V2-571: the process tab embeds the errand's browser
+    data["browser"] = _browser(data, _safe_sheet(q))     # V2-571/822: what the browser needs HIM to do (wall, login)
     data["identity"] = _identity()                       # V2-601 T-10: rides the payload; widget.js may not fetch
     return data
 

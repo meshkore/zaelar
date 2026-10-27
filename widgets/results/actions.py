@@ -230,9 +230,12 @@ def _a_layout(action, payload, sheet) -> dict:
 def _a_tab(action, payload, sheet) -> dict:
     tab = str(payload.get("tab") or payload.get("name") or "").strip().lower()
     tab = _d._TAB_ALIASES.get(tab, tab)
+    if tab == "process":                     # V2-822: the progress lives in the processes panel, not in the sheet
+        return {"ok": False, "error": "the sheet has no process tab: what the errand is doing is in the processes "
+                                      "panel — show_panel procesos"}
     if tab not in _d._TABS:
         return {"ok": False,
-                "error": f"pestaña «{tab}» desconocida (process · results · summary · sources · criteria)"}
+                "error": f"pestaña «{tab}» desconocida (results · summary · sources · criteria)"}
     data = _d.view_data(sheet)
     data["tab"] = tab
     if tab != "results":

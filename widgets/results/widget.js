@@ -23,14 +23,14 @@
 //
 // SECURITY: item text is web/3rd-party-sourced → built with textContent ONLY (never innerHTML).
 
-// V2-227 scope C — PROCESS comes FIRST, and this is not a preference about ordering: the sheet opens BEFORE there is a
-// single result, so the first tab is the only one that has anything to show during the first few minutes.
-// The operator's request was literal: "if the worker takes a while, the user gets bored and the experience is poor.
-// They need to see IN REAL TIME what is happening."
+// V2-822 — there is no PROCESS tab any more. The sheet is the errand's DELIVERABLE and shows only that; what the
+// errand is doing while it works lives in ONE place, the running process's entry in the processes panel (operator,
+// 2026-10-27: «simplificar las tarjetas y mover la información del proceso al rail de procesos»). While it works,
+// the Results tab carries the loader, and an empty list says where the steps are.
 // The LABELS are resolved per paint (`tabLabel`), never stored in this table: a module-level constant is built
 // once, at IMPORT time, so its text would freeze in whatever language happened to be active the first time this
 // module loaded and would survive every later switch (V2-694). The table keeps only the ids, which are data.
-const TABS = [{id: "process"}, {id: "results"}, {id: "summary"}, {id: "sources"}, {id: "criteria"}];
+const TABS = [{id: "results"}, {id: "summary"}, {id: "sources"}, {id: "criteria"}];
 
 // Source state → how it is phrased and colored. The vocabulary is closed in the backend; here it is only translated.
 // The distinction matters: "could not enter" and "entered but was capped at 50" are VERY different outcomes.
@@ -406,25 +406,15 @@ function injectStyles(){
   .hb-results .hr-dot.bad{background:var(--hb-risk,#e5484d)}
   .hb-results .hr-dot.idle{background:var(--hb-accent,#3D6FE0);animation:hrpulse 1.8s ease-in-out infinite}
   @keyframes hrpulse{0%,100%{opacity:1}50%{opacity:.3}}
-  /* ── PROCESS (V2-227 C) ── the loader animates via CSS, NEVER via a JS timer: an interval freezes with
-     the tab in the background and survives a render that disconnects it, and both things leave a loader that
-     is in the DOM and lies. The hr-spin class genuinely spins while it exists. */
+  /* ── THE LOADER (V2-227 C) ── animates via CSS, NEVER via a JS timer: an interval freezes with the tab in the
+     background and survives a render that disconnects it, and both things leave a loader that is in the DOM
+     and lies. The hr-spin class genuinely spins while it exists. */
   /* Sizes in em rather than px: they scale with the row's typography, so the loader does not become too small if the
      scale changes — which is exactly what the raw-magnitude ratchet monitors. */
   .hb-results .hr-spin{width:1em;height:1em;flex:none;border-radius:50%;
     border:2px solid var(--hb-neutral,#c2ccda);border-top-color:var(--hb-accent,#3D6FE0);
     animation:hrspin .8s linear infinite}
   @keyframes hrspin{to{transform:rotate(360deg)}}
-  .hb-results .hr-steps{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s4)}
-  .hb-results .hr-step{display:flex;align-items:baseline;gap:var(--s2);font-size:var(--f-body);
-    color:var(--hb-muted,#5f6b7c);line-height:1.45}
-  /* The LAST line with the worker alive is what is happening NOW: it is read first without having to count rows. */
-  .hb-results .hr-step.now{color:var(--hb-ink,#16202c);font-weight:500}
-  .hb-results .hr-bullet{width:.42em;height:.42em;flex:none;border-radius:50%;
-    background:var(--hb-neutral,#c2ccda);transform:translateY(-2px)}
-  .hb-results .hr-step.now .hr-bullet{background:var(--hb-accent,#3D6FE0)}
-  .hb-results .hr-steptext{flex:1;min-width:0;overflow-wrap:anywhere}
-  .hb-results .hr-note{margin-top:var(--s4);font-size:var(--f-small,12px);color:var(--hb-muted,#5f6b7c)}
   .hb-results .hr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:var(--s2);
     margin-bottom:var(--s4)}
   .hb-results .hr-stat{border:var(--line);border-radius:var(--r-md);padding:var(--s2) var(--s3) 9px;
@@ -458,13 +448,10 @@ function injectStyles(){
   .hb-results a.hr-rej-t:hover{text-decoration:underline}
   .hb-results .hr-rej-w{color:var(--hb-muted-2,#8b98ac);font-size:var(--f-sm,12px)}
 
-  /* ── PROCESS · EMBEDDED BROWSER (V2-571) ─────────────────────────────────────────────────────────────────
-     The operator's redesign: the browser and the sheet are ONE flow, so the capture renders INSIDE the process
-     tab (top-left), with the search FILTERS beside it and the event feed below, newest first. Flex with wrap
-     rather than a fixed grid: on a narrow card the filters drop below the capture instead of strangling it. */
-  .hb-results .hr-proc{display:flex;flex-wrap:wrap;gap:var(--s3);margin-bottom:var(--s3);align-items:flex-start}
-  .hb-results .hr-proc-nav{flex:2 1 380px;min-width:0}
-  .hb-results .hr-proc-side{flex:1 1 200px;min-width:0}
+  /* ── THE BROWSER NEEDS HIM (V2-571 · V2-822) ────────────────────────────────────────────────────────────
+     Not progress — a REQUEST: a wall, a login, a question the page put to him. Only then does the errand's page
+     show on its sheet, above whatever tab he is on, because he has to act on it. */
+  .hb-results .hr-proc{margin-bottom:var(--s3)}
   .hb-results .hr-navview{position:relative;border:var(--line);border-radius:var(--r-md);overflow:hidden;
     background:var(--hb-bg-soft,#fbfdff);aspect-ratio:1280/800}
   .hb-results .hr-navimg{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
@@ -1089,7 +1076,11 @@ function paintResults(panel, data, ctx, nav){
   const total = items.length;
   const all = items.slice(0, 24);
   if(!all.length){
-    panel.appendChild(elem("div","hr-empty", data.note || tt("no_results", null, "Sin resultados todavía.")));
+    // V2-822 — an errand still working says so, and where its steps are: the processes panel, not this card.
+    const working = !!(data.progress && data.progress.alive);
+    panel.appendChild(elem("div","hr-empty" + (working ? " working" : ""), working
+      ? tt("working_empty", null, "Buscando… Lo que va haciendo se ve en Procesos.")
+      : (data.note || tt("no_results", null, "Sin resultados todavía."))));
     return;
   }
 
@@ -1294,82 +1285,16 @@ function paintCriteria(panel, data){
   });
 }
 
-// ── PROCESS ── what is happening while it happens (V2-227 scope C).
-//
-// It is a VIEW of the live log, not sheet data: `progress` arrives derived in each `view_data` and nobody stores it.
-// The phrases already arrive ready to read from scope B ("entering booking.com…"), so nothing is interpreted here —
-// they are painted in ORDER, newest at the bottom, which is how something advancing is read.
-//
-// The loader ANIMATES via CSS rather than JS on purpose: a timer-based animation freezes with the tab in the
-// background and survives a render that disconnects it, and both things leave a loader in the DOM that lies.
-// This is the lesson of the mobile orb (18/08): 741 frames inside a disconnected canvas, zero pixels, and
-// a green test that only counted that the element existed.
-// THE HARVEST in numbers (V2-296). The account below says WHAT it is doing; this says HOW MUCH it has done — and it was
-// the one thing the tab could not say. The browser now calculates all these figures on each extraction
-// (`widgets/browser/act_api._hand_over`) and they were wasted in a sentence.
-//
-// It is a FUNNEL and is read in that order: how much was examined → what was collected → what fell out at each cut → what remains
-// → what reached the conversation. The three pillars (pages, records, candidates) are ALWAYS painted, including zero,
-// because "0 records read" is information and precisely distinguishes a page that yielded nothing from one that nobody
-// read — the same reason `progress.found(0)` does not stay silent. Rejections appear only when there are any:
-// a row "0 repeated" takes up the same space as one that says something.
-// `sub` = this one SUBTRACTS. Found by RENDERING it (2026-08-24), which is the only way it was going to show
-// up: every geometry check passed — nothing clipped, nothing overflowing, clean reflow 6→3→2 columns — and the
-// screenshot still read wrong. Seven identical boxes turn one subtraction into five independent-looking stats:
-// "40 records · 9 repeated · 4 unnamed · 5 without a price · 22 candidates" gives no hint that the last number is
-// what the others left behind. The ORDER was carrying that meaning, and the order does not survive the reflow —
-// at 360px the grid wraps to two columns and "22 candidates" lands beside "5 without a price" looking like its peer.
-// A leading minus restores the arithmetic in one character, whatever the grid does with the boxes.
-const TALLY = [
-  {k:"pages",    always:true},
-  {k:"rows",     always:true},
-  {k:"repeated", sub:true},
-  {k:"unnamed",  sub:true},
-  {k:"hollow",   sub:true},
-  {k:"kept",     always:true},
-  {k:"offered"},
-];
-
-function tallyLabel(k){
-  switch(k){
-    case "pages":    return tt("tally_pages", null, "páginas miradas");
-    case "rows":     return tt("tally_rows", null, "fichas leídas");
-    case "repeated": return tt("tally_repeated", null, "repetidas");
-    case "unnamed":  return tt("tally_unnamed", null, "sin nombre");
-    case "hollow":   return tt("tally_hollow", null, "sin precio ni tel.");
-    case "kept":     return tt("tally_kept", null, "candidatos");
-    case "offered":  return tt("tally_offered", null, "en la conversación");
-    default:         return k;
-  }
-}
-
-function paintHarvest(panel, harvest){
-  // `{}` means "we do not know" and nothing is painted: a grid of zeroes would claim that it was examined and empty.
-  if(!harvest || !Object.keys(harvest).length) return;
-  const grid = elem("div","hr-stats");
-  TALLY.forEach(({k, always, sub})=>{
-    const n = Number(harvest[k] || 0);
-    if(!n && !always) return;
-    const box = elem("div","hr-stat" + (!n ? " dim" : "") + (sub ? " cut" : ""));
-    // U+2212 MINUS SIGN, not a hyphen: it aligns with the digits and reads as arithmetic, not as a dash.
-    box.appendChild(elem("b","", (sub ? "\u2212" : "") + String(n)));
-    box.appendChild(elem("span","", tallyLabel(k)));
-    grid.appendChild(box);
-  });
-  if(grid.childNodes.length) panel.appendChild(grid);
-}
-
-// ── PROCESS · the errand's BROWSER, embedded (V2-571) ────────────────────────────────────────────────────────
-// The operator's redesign: a browser task and its results sheet are ONE flow, so the separate navegador card no
-// longer opens for an errand — its capture, its wall and its login handoff render HERE, in the tab that already
-// tells the process. Right of the capture: the FILTERS the search runs with (hard criteria + the corrections
-// given along the way), because that is what the operator checks the page against. The capture refreshes by SSE
-// (the task registry notifies this sheet's card on every view change), never by polling.
-// `data.browser` is DERIVED per read and `{}` once the errand ends: a frozen capture pretending to be a live
-// browser would lie, so the finished tab keeps only its persisted event history.
+// ── THE BROWSER NEEDS HIM (V2-571 · V2-822) ──────────────────────────────────────────────────────────────────
+// A browser task and its results sheet are ONE flow (V2-571), so the separate navegador card does not open for an
+// errand. Its PROGRESS — the capture, the page, the narration — lives in the processes panel (V2-822); what stays
+// here is only what the page needs HIM to do: a wall, a login handoff, a question. Then the page shows on the sheet
+// he is looking at, above the tab, with the button. `data.browser` is DERIVED per read and `{}` once the errand
+// ends; the capture refreshes by SSE (the task registry notifies this sheet's card), never by polling.
+function needsHim(br){ return !!(br && br.task_id && (br.wall || br.awaiting_login || br.question)); }
 function paintBrowser(panel, data, ctx){
   const br = data.browser || {};
-  if(!br.task_id) return false;
+  if(!needsHim(br)) return false;
   const wrap = elem("div","hr-proc");
   const nav = elem("div","hr-proc-nav");
   const view = elem("div","hr-navview");
@@ -1418,64 +1343,11 @@ function paintBrowser(panel, data, ctx){
     nav.appendChild(q);
   }
   wrap.appendChild(nav);
-
-  // The filters, only when there ARE any: an empty side column would just strangle the capture.
-  const c = data.criteria || {};
-  const filt = [].concat(Array.isArray(c.hard) ? c.hard : [], Array.isArray(c.changes) ? c.changes : []);
-  if(filt.length){
-    const side = elem("div","hr-proc-side hr-cgrp hard");
-    side.appendChild(elem("div","hr-cgt",tt("filters", null, "Filtros")));
-    const ul = elem("ul","hr-clist");
-    filt.slice(0, 14).forEach(x=>ul.appendChild(elem("li","", String(x))));
-    side.appendChild(ul);
-    wrap.appendChild(side);
-  }
   panel.appendChild(wrap);
   return true;
 }
 
-function paintProcess(panel, data, ctx){
-  const pr = data.progress || {};
-  const harvest = data.harvest || {};
-  const br = data.browser || {};
-  const lines = Array.isArray(pr.phases) ? pr.phases.filter(x=>String(x||"").trim()) : [];
-  const alive = !!pr.alive;
-
-  if(!lines.length && !alive && !br.task_id && !Object.keys(harvest).length){
-    panel.appendChild(elem("div","hr-empty",
-      tt("process_empty_1", null, "Aquí se ve lo que va haciendo mientras trabaja: el navegador que conduce, en qué web entra, qué filtro ")
-      + tt("process_empty_2", null, "aplica, cuántos resultados encuentra. Todavía no hay ninguna tarea en marcha.")));
-    return;
-  }
-
-  const head = elem("div","hr-state");
-  head.appendChild(elem("span", alive ? "hr-spin" : "hr-dot ok"));
-  head.appendChild(elem("span","", alive ? (pr.label || tt("working", null, "Trabajando…")) : tt("finished", null, "Terminado")));
-  panel.appendChild(head);
-
-  paintBrowser(panel, data, ctx);
-  paintHarvest(panel, harvest);
-
-  // The events read NEWEST FIRST (V2-571, operator: «en orden cronológicamente invertido»): under the browser,
-  // the first line is what is happening NOW — nobody scrolls a growing list to its bottom to find the present.
-  const list = elem("div","hr-steps");
-  lines.slice().reverse().forEach((text, i)=>{
-    const row = elem("div","hr-step" + (alive && i === 0 ? " now" : ""));
-    row.appendChild(elem("span","hr-bullet"));
-    row.appendChild(elem("span","hr-steptext", String(text)));
-    list.appendChild(row);
-  });
-  panel.appendChild(list);
-
-  // When it FINISHES, the tab is not emptied: it remains as a history of what happened (C5). Emptying it would erase the only
-  // explanation of why the result is what it is.
-  if(!alive && lines.length){
-    panel.appendChild(elem("div","hr-note",tt("history_note", null, "Esto es lo que hizo para llegar aquí (lo último, arriba).")));
-  }
-}
-
-
-const PAINT = {process: paintProcess, results: paintResults, summary: paintSummary,
+const PAINT = {results: paintResults, summary: paintSummary,
                sources: paintSources, criteria: paintCriteria};
 
 // Is this paint a NAVIGATION or a data refresh? It matters for scroll: "View detail →" lives at the end of a card, so
@@ -1494,7 +1366,12 @@ function navigated(el, data, cur){
 // is exactly what draws attention ("3 sites did not let me in").
 function tabCount(id, data){
   const c = data.counts || {}, s = data.summary || {};
-  if(id === "results") return c.shown ? {n: c.shown} : null;
+  // While the errand works, the Results tab carries the loader (V2-822: the process tab that used to is gone):
+  // when the first rows land the list is what he reads, and this is what still says «I am working».
+  if(id === "results"){
+    const alive = !!(data.progress && data.progress.alive);
+    return (c.shown || alive) ? {n: c.shown || 0, spin: alive} : null;
+  }
   if(id === "sources") return c.sources ? {n: c.sources, bad: !!c.sources_failed} : null;
   if(id === "criteria"){
     const crit=data.criteria||{};
@@ -1502,17 +1379,6 @@ function tabCount(id, data){
     return n ? {n} : null;
   }
   if(id === "summary") return s.explored ? {n: s.explored} : null;
-  if(id === "process"){
-    // With the task ALIVE, the tab shows a LOADER instead of a number (operator, 2026-08-20): when the first
-    // result arrives, the sheet jumps automatically to the list, and from there the only thing saying "I am still working"
-    // is this button — a phase counter cannot distinguish "it is at twelve" from "it got stuck at twelve". The number returns
-    // when it finishes, which is when it DOES provide information: how many steps it took to get there. It spins via CSS
-    // (`hr-spin`), never via a JS timer.
-    const pr = data.progress || {};
-    if(pr.alive) return {spin: true};
-    const n = (pr.phases||[]).length;
-    return n ? {n} : null;
-  }
   return null;
 }
 
@@ -1532,7 +1398,6 @@ function tt(key, params, fb){
 
 function tabLabel(id){
   switch(id){
-    case "process":  return tt("tab_process", null, "Proceso");
     case "results":  return tt("tab_results", null, "Resultados");
     case "summary":  return tt("tab_summary", null, "Sumario");
     case "sources":  return tt("tab_sources", null, "Fuentes");
@@ -1606,15 +1471,9 @@ export function render(el, data, ctx){
   // him: "una línea que no necesito para nada" between the title and the tabs of every sheet). Auditing a
   // session is SUMMARY work, so the strip lives at the bottom of that tab — see paintSummary().
 
-  // ACTIVE TAB — derived when the operator has not chosen one, yielding the two halves they requested:
-  //   · the sheet opens in PROCESS while a task is alive and there is still nothing to put in the list;
-  //   · as soon as the first result arrives, the derived value switches to "results" and the sheet JUMPS AUTOMATICALLY (C3).
-  // If the operator clicked a tab, `data.tab` is persisted and RULES: the automatic jump cannot
-  // pull them away from what they decided to look at.
-  const _hasItems = ((data.items || []).length > 0);
-  const _live = !!(data.progress && data.progress.alive);
-  let cur = TABS.some(t=>t.id===data.tab) ? data.tab
-          : (!_hasItems && (_live || ((data.progress||{}).phases||[]).length) ? "process" : "results");
+  // ACTIVE TAB — the one he chose (`data.tab`, persisted, it RULES), else Results: the deliverable is what the sheet
+  // shows; the work behind it is in the processes panel (V2-822).
+  let cur = TABS.some(t=>t.id===data.tab) ? data.tab : "results";
   const bar = elem("div","hr-tabs");
   bar.setAttribute("role","tablist");     // a strip that scrolls sideways — the phone never wraps it
   const panel = elem("div","hr-panel");
@@ -1622,6 +1481,7 @@ export function render(el, data, ctx){
 
   const paint = (moved)=>{
     panel.textContent="";
+    paintBrowser(panel, data, ctx);          // only when the page needs HIM (a wall, a login, a question)
     (PAINT[cur] || paintResults)(panel, data, ctx, nav);
     bar.querySelectorAll(".hr-tab").forEach(b=>b.classList.toggle("on", b.dataset.tab===cur));
     if(moved && ctx && ctx.top) ctx.top();
@@ -1644,8 +1504,8 @@ export function render(el, data, ctx){
     const b=elem("button","hr-tab"); b.type="button"; b.dataset.tab=t.id;
     b.appendChild(document.createTextNode(tabLabel(t.id)));
     const c=tabCount(t.id, data);
+    if(c && c.n) b.appendChild(elem("span","hr-n"+(c.bad?" bad":""), String(c.n)));
     if(c && c.spin) b.appendChild(elem("span","hr-spin hr-tspin"));
-    else if(c) b.appendChild(elem("span","hr-n"+(c.bad?" bad":""), String(c.n)));
     b.addEventListener("click", ()=>{
       if(cur===t.id) return;
       cur=t.id;

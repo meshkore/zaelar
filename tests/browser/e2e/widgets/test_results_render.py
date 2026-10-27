@@ -130,8 +130,9 @@ def test_the_header_stays_a_thin_band_and_results_start_high(results_tab):
     assert 0 < results_tab["first_result_y"] <= 160, results_tab["first_result_y"]
 
 
-def test_the_five_tabs_are_still_there_and_the_results_still_paint(results_tab):
-    assert results_tab["tabs"] == ["process", "results", "summary", "sources", "criteria"]
+def test_the_four_tabs_are_there_and_the_results_still_paint(results_tab):
+    # V2-822: no «process» tab — the errand's progress lives in the processes panel, not in its deliverable.
+    assert results_tab["tabs"] == ["results", "summary", "sources", "criteria"]
     assert results_tab["cards"] == 2, "removing chrome must not remove content"
 
 
