@@ -5736,6 +5736,10 @@ DOMAINS: list[dict] = [
         # V2-819 design, approved 2026-10-27 — disarmed (wave under the meta line, clip under the box, thumbnails under it, time printed twice) → each red.
         {"id": "4.308", "title": "A voice note's waveform runs across the top of its bubble (as wide as it, scrubbable) with play, duration and date/time below; the attach clip sits beside the text box; an attached picture waits as a thumbnail above it — RENDERED at desktop and 375 px (V2-819)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_voice_note_and_the_composer_are_laid_out_as_he_asked.py"]},
+        # V2-821 — disarmed (the sheet's sticky header back on the card's padded scroller; the scroll offset not
+        # carried across a repaint) → each red.
+        {"id": "4.309", "title": "A scroller starts below its header: the results sheet's header and tab bar sit OUTSIDE the one scroller (the panel, data-hb-scroller), so a scrolled list never shows through them; both hosts' ctx.top()/ctx.scroll() move the declared scroller; a data refresh keeps the offset — RENDERED in the real desktop card and the 375 px deck (V2-821)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_scroller_starts_below_its_header.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",

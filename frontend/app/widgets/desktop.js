@@ -24,6 +24,12 @@ import * as store from "../core/store.js?v=2";
 const _screens = () => import("../services/screens.js?v=1");
 const _device = () => import("../services/api.js?v=2").then((m) => m.DEVICE).catch(() => "");
 
+// V2-821 — which element scrolls a card: the region its widget declares, else the card's own scroller.
+function _scrollerOf(card){
+  if(!card) return null;
+  return card.querySelector(".hb-scroll [data-hb-scroller]") || card.querySelector(".hb-scroll");
+}
+
 function injectStyles(){
   if(document.getElementById("hb-desk-css"))return;
   const s=document.createElement("style"); s.id="hb-desk-css"; s.textContent=`
@@ -886,10 +892,14 @@ export class Desktop {
         // Called ONLY when NAVIGATING — opening a record, changing tabs, returning to the list — never on a data
         // refresh: resetting scroll whenever new results arrive would take what the operator is reading out of
         // their hands, precisely while the sheet is filling live.
-        top:()=>{ const sc=w.card && w.card.querySelector(".hb-scroll"); if(sc) sc.scrollTop=0; },
+        // V2-821 — the scroller is the one the widget DECLARES ([data-hb-scroller]) when it has a fixed header of its
+        // own, and the card's otherwise. A header that must stay put lives OUTSIDE the scroller (a flex column whose
+        // body is the only scroller); the alternative, sticky against this padded .hb-scroll, let the list show
+        // through the padding band above the header.
+        top:()=>{ const sc=_scrollerOf(w.card); if(sc) sc.scrollTop=0; },
         // V2-591 — voice-driven scroll: the widget REQUESTS, the canvas moves its own scroller (same ownership
         // rule as top(): the scroller is card chrome). A page is ~80% of the viewport so context survives.
-        scroll:(where)=>{ const sc=w.card && w.card.querySelector(".hb-scroll"); if(!sc) return;
+        scroll:(where)=>{ const sc=_scrollerOf(w.card); if(!sc) return;
           const page=Math.max(120, Math.round(sc.clientHeight*0.8));
           if(where==="top") sc.scrollTop=0;
           else if(where==="bottom") sc.scrollTop=sc.scrollHeight;

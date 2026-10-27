@@ -74,7 +74,7 @@ function injectStyles(){
     --line:1px solid var(--hb-line,#e3e8f0);
     font-family:var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
     color:var(--hb-ink,#0d1622);font-size:var(--f-body);line-height:1.62;
-    width:100%;min-width:0;display:flex;flex-direction:column}
+    width:100%;min-width:0;display:flex;flex-direction:column;height:100%;min-height:0;box-sizing:border-box}
   /* Every COMPARED number uses tabular figures. On a surface whose job is stacking prices and scores, variable-width
      digits force rereading to know which is greater. */
   .hb-results .hr-price,.hb-results .hr-score,.hb-results .hr-pp,.hb-results .hr-n,
@@ -84,13 +84,22 @@ function injectStyles(){
     font-size:var(--f-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;
     color:var(--hb-muted-2,#9aa7b8)}
 
-  /* ── STICKY HEADER ──────────────────────────────────────────────────────────────────────────────────────────
-     A ten-result sheet is scrolled, and with the header in flow the tabs disappeared upward exactly when they were
-     needed most (look at the last card and jump to Sources). The card provides scrolling (.hb-scroll from canvas);
-     here we only stick to its edge. The OPAQUE background is not decoration: without it, cards would read underneath
-     the title while scrolling. */
-  .hb-results .hr-top{position:sticky;top:0;z-index:5;background:var(--hb-bg,#fff);
-    padding-top:2px;margin:-2px 0 0}
+  /* ── THE HEADER STAYS PUT BECAUSE IT IS NOT IN THE SCROLLER (V2-821) ────────────────────────────────────────
+     A ten-result sheet is scrolled, and the tabs have to stay where they are while it is (look at the last card and
+     jump to Sources). Until V2-821 that was done with position:sticky against the CARD's scroller, and the card's
+     scroller is padded: sticky holds at the CONTENT edge, so the padding band above the header was a window the
+     list scrolled through («canal, email, no, whatsapp» peeking over the tabs), and the tabs' bottom margin was a
+     second, transparent band under them. The operator: the content went behind the header and showed through it.
+     So the root is a flex column that fills the card — the header is a flex:none band and the PANEL is the only
+     scroller, starting exactly at the tab line. Nothing can pass behind a header that is not over the scroller.
+     The panel declares itself with data-hb-scroller, which is how the hosts' ctx.top()/ctx.scroll() find it. */
+  .hb-results .hr-top{flex:none;background:var(--hb-bg,#fff)}
+  .hb-results .hr-panel{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain;
+    padding:var(--s4) var(--s2) var(--sp-4,16px);margin:0 calc(-1 * var(--s2)) calc(-1 * var(--sp-4,16px))}
+  /* (The negative margins hand the panel part of the host's gutter on the sides and all of it at the bottom, so a
+     card's hover shadow and the last row reach the card edge as they did when the card itself scrolled. The bottom
+     is written with the host's OWN inset token and fallback (.hb-scroll pads with var(--sp-4,16px)): one pixel more
+     and the card's scroller would scroll again, behind the panel.) */
   .hb-results .hr-hd{font-size:var(--f-md);font-weight:650;letter-spacing:-.01em;margin:0;word-break:break-word}
   .hb-results .hr-sub{font-size:var(--f-sm);color:var(--hb-muted-2,#9aa7b8);margin:var(--s1) 0 0}
   /* With the TASK already in the card header, the subtitle is the sheet's first line: no top margin. */
@@ -124,7 +133,7 @@ function injectStyles(){
     background:color-mix(in srgb,var(--hb-ok,#1f9d55) 14%,transparent)}
 
   /* ── TABS ── the active underline continues the bottom line, instead of becoming a separate box. */
-  .hb-results .hr-tabs{display:flex;gap:2px;border-bottom:var(--line);margin:var(--s3) 0 var(--s4);
+  .hb-results .hr-tabs{display:flex;gap:2px;border-bottom:var(--line);margin:var(--s3) 0 0;
     overflow-x:auto;scrollbar-width:none}
   .hb-results .hr-tabs::-webkit-scrollbar{display:none}
   .hb-results .hr-tab{flex:none;display:inline-flex;align-items:center;gap:var(--s1);border:none;background:none;
@@ -1568,10 +1577,14 @@ export function render(el, data, ctx){
   injectStyles();
   data = data || {};
   el.className = "hb-results";
+  // The panel is the sheet's scroller (V2-821) and it is rebuilt on every render, so a data refresh would throw the
+  // operator back to the top of what he is reading. Its offset is carried over unless this paint is a NAVIGATION.
+  const _was = el.querySelector(":scope > .hr-panel");
+  const _wasTop = _was ? _was.scrollTop : 0;
   el.textContent = "";
 
-  // Title and tabs live together in a STICKY header: with several dozen results the sheet scrolls and tabs must stay
-  // there (looking at the last card and jumping to Sources is a normal case).
+  // Title and tabs live together in a FIXED header, outside the scroller: with several dozen results the sheet
+  // scrolls and tabs must stay there (looking at the last card and jumping to Sources is a normal case).
   const top = elem("div","hr-top");
   // THE TITLE IS SAID ONCE. If the card already carries the TASK in its header (canvas marks it with
   // `data-host-title` when the manifest declares `live_title`), repeating it here in larger body text was the same
@@ -1581,7 +1594,7 @@ export function render(el, data, ctx){
     top.appendChild(elem("div","hr-hd", data.title || tt("name", null, "Resultados")));
   }
   if(data.subtitle){
-    // The header is STICKY: every line it occupies is taken away from results throughout scrolling. A real subtitle
+    // The header is FIXED: every line it occupies is taken away from results throughout scrolling. A real subtitle
     // ("8 real listings from Levante (SUV, ~5.00 m long...), from coches.net and coches.com. Ordered by...") reached
     // three lines. Bound to TWO on screen and keep the full text in the tooltip: control space without losing data,
     // which is different from clipping it.
@@ -1605,6 +1618,7 @@ export function render(el, data, ctx){
   const bar = elem("div","hr-tabs");
   bar.setAttribute("role","tablist");     // a strip that scrolls sideways — the phone never wraps it
   const panel = elem("div","hr-panel");
+  panel.setAttribute("data-hb-scroller", "");   // the hosts' ctx.top()/ctx.scroll() move THIS, not the card (V2-821)
 
   const paint = (moved)=>{
     panel.textContent="";
@@ -1646,7 +1660,9 @@ export function render(el, data, ctx){
 
   top.appendChild(bar);
   el.append(top, panel);
-  paint(navigated(el, data, cur));
+  const _moved = navigated(el, data, cur);
+  paint(_moved);
+  if(!_moved && _wasTop) panel.scrollTop = _wasTop;
 
   // V2-591 — a voice scroll request, applied ONCE per push (the token guards the re-render loop: every data
   // refresh re-runs render, and without it one order would scroll on every refresh of a live sheet). The

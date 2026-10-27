@@ -27,7 +27,7 @@ import { initTheme } from "../../app/services/theme.js?v=2";
 import { initI18n, t } from "../../app/core/i18n.js?v=1";
 import { submitChat } from "../../app/components/ChatWall.js?v=5";
 
-import { Deck } from "./shell/Deck.js?v=4";
+import { Deck } from "./shell/Deck.js?v=5";
 import { initKeyboard } from "./shell/keyboard.js?v=2";
 import { MOBILE_SURFACES } from "./shell/mobile-surfaces.js?v=4";
 

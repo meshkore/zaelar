@@ -68,6 +68,13 @@ const X_ICO = `<svg ${SW}><path d="M6 6l12 12"/><path d="M18 6 6 18"/></svg>`;
 const OWNS_SIDEWAYS = 'input[type="range"],[role="slider"],canvas,video,iframe,[data-hpan],[contenteditable="true"],'
   + '[draggable="true"],.leaflet-container,.maplibregl-map,.mapboxgl-map,.gm-style';
 
+// V2-821 — which element scrolls a card: the region its widget declares, else the card's own scroller (desktop.js
+// has the same rule; a member one host forgets silently no-ops on the other).
+function scrollerOf(w) {
+  if (!w || !w.scroll) return null;
+  return w.scroll.querySelector("[data-hb-scroller]") || w.scroll;
+}
+
 function injectStyles() {
   if (document.getElementById("zm-deck-css")) return;
   const s = document.createElement("style");
@@ -695,11 +702,13 @@ export class Deck {
         // network call from inside widget.js. Already imported at the top of this file for the shell's own chrome.
         t: tr,
         get lang() { return store.lang(); },
-        top: () => { try { w.scroll.scrollTop = 0; } catch (_) {} },
+        // V2-821 — same contract as the desktop host: the scroller is the region the widget declares
+        // ([data-hb-scroller], a fixed header above it), else the card's own.
+        top: () => { try { const sc = scrollerOf(w); if (sc) sc.scrollTop = 0; } catch (_) {} },
         // V2-591 — same contract as the desktop host (a ctx member implemented in one host silently no-ops
         // on the phone): page ≈ 80% of the card's scroller.
         scroll: (where) => { try {
-          const sc = w.scroll; if (!sc) return;
+          const sc = scrollerOf(w); if (!sc) return;
           const page = Math.max(120, Math.round(sc.clientHeight * 0.8));
           if (where === "top") sc.scrollTop = 0;
           else if (where === "bottom") sc.scrollTop = sc.scrollHeight;
