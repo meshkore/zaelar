@@ -8,8 +8,9 @@ whatever size the panel had then. The new graph is one <canvas> sized to its sec
 style or a node count would be green on a graph drawn off-screen.
 
 Also rendered here, because each is a claim about what reaches the screen or the server:
-  * the overview paints its headline figures and charts and one card per store with the server's totals, and a
-    card opens to its 30 days and its breakdown — no word about the machine on screen (V2-814, V2-815);
+  * the overview is ONE plain page — totals, charts, breakdown — that prints each store total exactly once, lets the
+    document scroll (no fixed layer, no inner scroller: a full-page capture stitches it) and says nothing about the
+    machine (V2-814, V2-816). Disarm in-file: a breakdown that repeats a total is caught;
   * the «Cards» tab paints exactly the cards the server sent, says «shown / total» when the store is bigger,
     and its concept maps paint one circle per concept (V2-815);
   * past the budget the graph says it shows only its top level; «Image» saves a PNG of the view (V2-815);
@@ -133,7 +134,7 @@ def _api(route, asked: list):
     route.fulfill(status=200, content_type="application/json", body=json.dumps(body))
 
 
-def _open(browser, port, *, width=1440, height=940, mutate=None):
+def _open(browser, port, *, width=1440, height=940, mutate=None, mutate_glob="**/components/memory/graph-view.js*"):
     pg = browser.new_page(viewport={"width": width, "height": height})
     errors: list[str] = []
     asked: list[str] = []
@@ -144,7 +145,7 @@ def _open(browser, port, *, width=1440, height=940, mutate=None):
     pg.route("**/api/i18n/bundle/*", lambda r: r.fulfill(
         status=200, content_type="application/json", body=json.dumps({"strings": _ES})))
     if mutate:
-        pg.route("**/components/memory/graph-view.js*", mutate)
+        pg.route(mutate_glob, mutate)
     pg.goto(f"http://127.0.0.1:{port}/", wait_until="domcontentloaded")
     pg.evaluate("""async () => {
         for (const h of ['/frontend/app/core/palette.css', '/frontend/app/core/components.css',
@@ -153,12 +154,12 @@ def _open(browser, port, *, width=1440, height=940, mutate=None):
         const i18n = await import('/frontend/app/core/i18n.js?v=1');
         await i18n.loadBundle('es'); await i18n.applyLang('es');
         const store = await import('/frontend/app/core/store.js?v=2');
-        const mm = await import('/frontend/app/components/MemoryMap.js?v=4');
+        const mm = await import('/frontend/app/components/MemoryMap.js?v=6');
         document.body.append(mm.MemoryMap());
         store.setMemOpen(true);
         window.__store = store;
     }""")
-    pg.wait_for_selector(".memmap.open .mv-store", timeout=8000)
+    pg.wait_for_selector(".memmap.open .mv-row", timeout=8000)
     pg._errors, pg._asked = errors, asked
     return pg
 
@@ -191,30 +192,64 @@ def _assert_fills_and_centred(p: dict) -> None:
     assert span > 0.55, f"the graph does not fill its panel (span {span:.2f}): {p}"
 
 
-def test_the_overview_paints_one_card_per_store_with_the_servers_totals(browser_and_port):
+#: Each store total the fixture carries, as the Spanish page prints it. Each must appear on the overview ONCE.
+_TOTALS = ["239", "112", "179.456", "1440", "396", "17.255", "2453"]
+
+
+def _overview_text(pg) -> str:
+    return pg.locator(".mv-overview").inner_text()
+
+
+def _duplicates(text: str) -> dict:
+    import re
+    return {n: c for n in _TOTALS if (c := len(re.findall(rf"(?<![\d.]){re.escape(n)}(?![\d.])", text))) != 1}
+
+
+def test_the_overview_is_one_plain_page_that_says_each_figure_once(browser_and_port):
     b, port = browser_and_port
     pg = _open(b, port)
-    cards = pg.locator(".mv-store")
-    assert cards.count() == len(_STATS["stores"])
     assert pg.locator(".mv-tabs .hb-tab").all_inner_texts() == ["Resumen", "Tarjetas", "Grafo"]
-    assert pg.locator(".mv-kpi").count() == 5 and "179.456" in pg.locator(".mv-kpis").inner_text()
+    assert pg.locator(".mv-totals .mv-kpi").count() == 7
     assert pg.locator(".mv-act-col").count() == 30, "the activity chart has one column per day"
-    assert "Viajes" in pg.locator(".mv-top").inner_text(), "the concepts most present are listed"
+    assert "Viajes" in pg.locator(".mv-charts").inner_text(), "the concepts most present are listed"
     assert pg.locator(".mv-split > i").count() == 3, "the space is split between messages, files and apps"
-    msgs = pg.locator(".mv-store[data-store=messages]")
-    assert "179.456" in msgs.inner_text() and "Telegram" not in msgs.inner_text(), "closed: the total, not the detail"
-    msgs.locator(".mv-store-face").click()
-    opened = msgs.inner_text()
-    assert "Telegram" in opened and "165.511" in opened and "últimos 30 días" in opened.lower(), opened
-    assert msgs.locator(".mv-spark > i").count() == 30
-    files = pg.locator(".mv-store[data-store=files]")
-    files.locator(".mv-store-face").click()
-    assert "Vídeos" in files.inner_text() and "300" in files.inner_text(), files.inner_text()
-    text = pg.locator(".memmap").inner_text().lower()
+    text = _overview_text(pg)
+    assert "Telegram" in text and "165.511" in text and "Vídeos" in text, "the breakdown says what each store is made of"
+    assert not _duplicates(text), f"a figure is printed more than once (or not at all): {_duplicates(text)}"
+    # a plain page: the DOCUMENT scrolls, nothing is fixed, no inner scroller — a full-page capture stitches it
+    flow = pg.evaluate("""() => ({doc: document.documentElement.classList.contains('mv-doc'),
+        pos: getComputedStyle(document.querySelector('.memmap')).position,
+        tall: document.documentElement.scrollHeight > window.innerHeight,
+        scrollers: [...document.querySelectorAll('.memmap *')].filter((e) => { const o = getComputedStyle(e).overflowY;
+          return (o === 'auto' || o === 'scroll') && e.scrollHeight > e.clientHeight + 1 && e.offsetParent; }).length})""")
+    assert flow == {"doc": True, "pos": "absolute", "tall": True, "scrollers": 0}, flow
+    pg.click(".mv-tabs .hb-tab[data-tab=graph]")
+    assert pg.evaluate("() => document.documentElement.classList.contains('mv-doc')") is False, "the graph keeps the overlay"
+    lower = text.lower()
     for word in ("dispositivo", "núcleos", "nodos", "navegador", "data\n"):
-        assert word not in text, f"the overview speaks of {word!r}"
-    assert "null" not in text and "undefined" not in text
+        assert word not in lower, f"the overview speaks of {word!r}"
+    assert "null" not in lower and "undefined" not in lower
     assert not pg._errors, pg._errors
+    pg.close()
+
+
+def test_a_breakdown_that_repeats_a_total_is_caught(browser_and_port):
+    """The disarm: serve overview.js with the messages panel printing the store total again — the check must see it."""
+    b, port = browser_and_port
+    src = (ENGINE / "frontend/app/components/memory/overview.js").read_text(encoding="utf-8")
+    good = '.map(([k, v]) => row(platform(k), num(v), share(v, msg.total), ACCENT.messages)), "messages"),'
+    assert src.count(good) == 1, "the line this disarm replaces moved — update the disarm"
+    bad = src.replace(good, '.map(([k, v]) => row(platform(k), num(v), share(v, msg.total), ACCENT.messages))'
+                            '.concat([row("total", num(msg.total))]), "messages"),')
+    landed = []
+
+    def mutate(route):
+        landed.append(route.request.url)
+        route.fulfill(status=200, content_type="text/javascript", body=bad)
+
+    pg = _open(b, port, mutate=mutate, mutate_glob="**/components/memory/overview.js*")
+    assert landed, "the mutated module was never served"
+    assert "179.456" in _duplicates(_overview_text(pg))
     pg.close()
 
 

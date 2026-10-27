@@ -21,14 +21,24 @@ import * as api from "../services/api.js?v=2";
 import { CLOSE_ICON } from "../lib/icons.js?v=1";
 import { t } from "../core/i18n.js?v=1";
 import { currentTier } from "./memory/budget.js?v=1";
-import { Overview } from "./memory/overview.js?v=3";
+import { Overview } from "./memory/overview.js?v=5";
 import { GraphView } from "./memory/graph-view.js?v=3";
 import { CardsView } from "./memory/cards-view.js?v=1";
 
 const TABS = ["overview", "cards", "graph"];
 
+// The overview is a plain page: while it is on, the DOCUMENT scrolls instead of the overlay (memory-viewer.css,
+// `html.mv-doc`), so a full-page capture stitches one clean page. The cards and the graph keep the fixed overlay:
+// they are canvases sized to the window.
+const docFlow = (on) => {
+  const root = document.documentElement;
+  if (on === root.classList.contains("mv-doc")) return;
+  root.classList.toggle("mv-doc", on);
+  if (on) window.scrollTo(0, 0);
+};
+
 function ensureStyles() {
-  const href = new URL("./memory/memory-viewer.css?v=3", import.meta.url).href;
+  const href = new URL("./memory/memory-viewer.css?v=5", import.meta.url).href;
   if ([...document.querySelectorAll("link[rel=stylesheet]")].some((l) => l.href === href)) return;
   const l = document.createElement("link");
   l.rel = "stylesheet"; l.href = href;
@@ -58,14 +68,15 @@ export function MemoryMap() {
       bodyEl.append(views[tab].el);
     }
     if (current !== tab) return;
+    docFlow(tab === "overview");
     views[tab].el.hidden = false;
     views[tab].activate();
   }
 
   createEffect(() => {
     const open = store.memOpen();
-    if (open) { if (!current) show("overview"); else views[current]?.activate(); }
-    else if (current && views[current]) views[current].deactivate();
+    if (open) { if (!current) show("overview"); else { docFlow(current === "overview"); views[current]?.activate(); } }
+    else { docFlow(false); if (current && views[current]) views[current].deactivate(); }
   });
 
   // Live deltas — only the visible tab, only while open, debounced: a burst of writes is one refresh.
