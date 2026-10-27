@@ -13,6 +13,8 @@
 //   ⊞ show all      — bring back everything that was hidden
 //   ▦ repack        — close the gaps, KEEPING every card at the size he made it (`Desktop.compact`)
 //   ⤢ fit on screen — shrink into equal cells so everything fits at once (`Desktop.arrange`)
+// and, last in the corner (V2-823), the APPS launcher: it opens the apps window (AppsWindow.js) over the desk —
+// the list of apps with a page each. A launcher's grid of dots, not a square, so it never reads as a layout tool.
 // Hide/show are two buttons rather than one flipping toggle: a glyph that changes meaning under you has to be
 // read before it can be used. And the last two are genuinely different gestures — collapsing them meant
 // «optimiza los huecos» also flattened a sheet he had deliberately enlarged.
@@ -46,6 +48,7 @@ import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import { chatOpen, setChatOpen, setChatTab, openChatFrom, orbDock, setOrbDock, agentState, agentLive, screenState } from "../core/store.js?v=2";
 import * as power from "../services/power.js?v=1";
+import { APPS_ICON } from "../lib/icons.js?v=1";
 import { ProcessCount } from "./ProcessCount.js?v=1";
 
 function injectStyles(){
@@ -172,6 +175,8 @@ function injectStyles(){
      DOM and alternate by visibility — the 4.19 lesson: a re-created canvas renders blank with no error. */
   #wrail .wr-orb{flex:none;display:flex;align-items:center;gap:2px}
   #wrail .wr-orbl,#wrail .wr-orbr{display:flex;align-items:center;gap:2px}
+  /* V2-823 — the apps launcher says it is open the way the swap does: accent ink on an accent wash. */
+  #wrail .wr-apps.on{color:var(--hb-accent,#9B7CFF);background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 16%,transparent)}
   #wrail .wr-swap.on{color:var(--hb-accent,#9B7CFF);background:color-mix(in srgb,var(--hb-accent,#9B7CFF) 16%,transparent)}
   #wrail .orbic{width:36px;height:36px}
   /* V2-792 §9 (operator, 2026-10-25): the same language as the eye and the phone — LILAC on/open, GREY off/closed.
@@ -343,6 +348,7 @@ export function WidgetRail(){
   const show=mk("wr-show",ICONS.show);   // bring back everything that was hidden
   const comp=mk("wr-compact",ICONS.comp);// close the gaps, KEEPING every card's size
   const fitA=mk("wr-fitall",ICONS.fit);  // shrink to fit: everything on screen at once
+  const apps=mk("wr-apps",APPS_ICON);    // V2-823 — the apps window (a toggle: a second click closes it)
   const left=document.createElement("div"); left.className="wr-left";
   // V2-666 — the RUNNING-PROCESS count (background flows the brain is actually carrying out, not every
   // widget open/close/minimize, which produces none — store.tasks() is exactly the "Procesos" tab's own
@@ -417,8 +423,10 @@ export function WidgetRail(){
   // Collapsing them meant «optimiza los huecos» also flattened the sheet he had deliberately enlarged.
   comp.onclick=()=>{ const d=desk(); if(d){ d.compact(); refresh(el); } };
   fitA.onclick=()=>{ const d=desk(); if(d){ d.arrange(); refresh(el); } };
+  apps.onclick=(e)=>{ e.stopPropagation(); store.setAppsWindowOpen(!store.appsWindowOpen()); };
+  createEffect(()=>{ apps.classList.toggle("on", !!store.appsWindowOpen()); });
   left.append(fold,proc);
-  tools.append(hide,show,comp,fitA);
+  tools.append(hide,show,comp,fitA,apps);
   el.append(left,chips,orbzone,tools);
   el.classList.add("on");   // V2-619: visible from birth — the bar never hides, widgets or none
   document.addEventListener("hb:canvas-changed",()=>refresh(el));
@@ -433,7 +441,8 @@ export function WidgetRail(){
   paintFold();
   // Tooltips read the i18n bundle, which loads async — repaint once shortly after mount so they land translated.
   const titles=()=>{ comp.title=t("rail.compact"); fitA.title=t("rail.fitAll");
-                     hide.title=t("rail.hideAll"); show.title=t("rail.showAll"); };
+                     hide.title=t("rail.hideAll"); show.title=t("rail.showAll");
+                     apps.title=t("rail.apps"); apps.setAttribute("aria-label", t("rail.apps")); };
   setTimeout(()=>{ titles(); paintFold(); paintSwap(); refresh(el); }, 800);
   titles();
   return el;

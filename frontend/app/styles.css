@@ -1483,6 +1483,64 @@ body.dbg-open .trw{right:calc(18px + var(--dbg-w))}
 body.dbg-open .statuspanel,body.dbg-open .cronpanel{right:calc(18px + var(--dbg-w))}
 body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 
+/* ── Apps window (V2-823): a WINDOW over the desk, never a full screen — the desk stays visible around it and the
+   rail under it stays usable (its apps icon is the toggle). The list is the left column, the page the right one.
+   Buttons, toolbar, section titles and badges are the house kit (core/components.css); only the layout is here. */
+.appswin{position:fixed;left:0;right:0;top:0;bottom:var(--wrail-h,58px);z-index:9500;display:none;
+  align-items:center;justify-content:center;padding:var(--sp-5,24px);box-sizing:border-box;
+  background:color-mix(in srgb,#000 22%,transparent)}
+.appswin.open{display:flex}
+.aw-shell{display:flex;flex-direction:column;width:min(880px,100%);height:min(560px,100%);min-height:0;
+  background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:var(--hb-r-l);box-shadow:var(--hb-shadow-2);
+  overflow:hidden;color:var(--hb-ink)}
+.aw-head{border-radius:var(--hb-r-l) var(--hb-r-l) 0 0}
+.aw-headicon{display:flex;width:18px;height:18px;color:var(--hb-muted)}
+.aw-headicon svg{width:18px;height:18px}
+.aw-body{display:flex;flex:1 1 auto;min-height:0}
+.aw-list{flex:0 0 230px;overflow-y:auto;padding:var(--sp-3,12px) var(--sp-2,8px);box-sizing:border-box;
+  border-right:1px solid var(--hb-line-subtle);background:var(--hb-bg-soft);display:flex;flex-direction:column;gap:2px}
+.aw-list .aw-group{margin:var(--sp-3,12px) var(--sp-2,8px) var(--sp-1,4px)}
+.aw-list .aw-group:first-child{margin-top:0}
+.aw-row{display:flex;align-items:center;gap:var(--sp-3,12px);width:100%;min-height:40px;padding:0 var(--sp-2,8px);
+  box-sizing:border-box;border:1px solid transparent;border-radius:var(--hb-r-m);background:transparent;
+  color:var(--hb-ink);cursor:pointer;text-align:left;font:500 var(--fs-ui) var(--sans);
+  transition:background var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
+.aw-row:hover{background:var(--hb-hover)}
+.aw-row:focus-visible{outline:none;box-shadow:var(--hb-focus-ring)}
+.aw-row.is-selected{background:color-mix(in srgb,var(--hb-accent) 14%,var(--hb-bg-soft));
+  border-color:color-mix(in srgb,var(--hb-accent) 40%,transparent);font-weight:700}
+.aw-icon{flex:none;display:flex;align-items:center;justify-content:center;width:28px;height:28px;
+  border-radius:var(--hb-r-s);background:var(--hb-bubble);color:var(--hb-accent)}
+.aw-icon svg{width:16px;height:16px}
+.aw-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aw-page{flex:1 1 auto;min-width:0;overflow-y:auto;padding:var(--sp-5,24px);box-sizing:border-box}
+.aw-pagehead{display:flex;align-items:center;gap:var(--sp-4,16px);margin-bottom:var(--sp-4,16px)}
+.aw-bigicon{flex:none;display:flex;align-items:center;justify-content:center;width:56px;height:56px;
+  border-radius:var(--hb-r-l);background:var(--hb-bubble);border:1px solid var(--hb-line-subtle);color:var(--hb-accent)}
+.aw-bigicon svg{width:28px;height:28px}
+.aw-titles{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:var(--sp-2,8px);flex-wrap:wrap}
+.aw-title{margin:0;font-size:1.25rem;font-weight:700;line-height:1.25;color:var(--hb-ink);
+  overflow:hidden;text-overflow:ellipsis}
+.aw-open{flex:none}
+.aw-forked{margin:0 0 var(--sp-3,12px)}
+.aw-facts{display:grid;grid-template-columns:max-content 1fr;gap:var(--sp-2,8px) var(--sp-4,16px);margin:0 0 var(--sp-2,8px)}
+.aw-fact{display:contents}
+.aw-factk{color:var(--hb-muted);font-size:var(--fs-caption);font-weight:600}
+.aw-factv{margin:0;color:var(--hb-ink);font-size:var(--fs-ui)}
+.aw-sec{margin-top:var(--sp-5,24px)}
+.aw-about{margin:0;color:var(--hb-ink);font-size:var(--fs-ui);line-height:var(--hb-lh,1.55)}
+.aw-conns{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:var(--sp-2,8px)}
+.aw-conn{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-3,12px);
+  padding:var(--sp-2,8px) var(--sp-3,12px);border:1px solid var(--hb-line-subtle);border-radius:var(--hb-r-m);
+  background:var(--hb-bg-soft)}
+.aw-connn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:640px){
+  .appswin{padding:var(--sp-2,8px)}
+  .aw-list{flex-basis:160px}
+  .aw-hint{display:none}
+  .aw-page{padding:var(--sp-4,16px)}
+}
+
 /* ── Secret vault (V2-060): centered NATIVE modal with backdrop ─────────────────────────────────────── */
 .vault-modal{position:fixed;inset:0;z-index:9600;display:none;align-items:center;justify-content:center;
   background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}

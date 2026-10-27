@@ -24,6 +24,7 @@
 //             decir "el widget de X" jamás resuelve a una de estas superficies (ver widgets/runtime.py::identify).
 //             `null` = superficie no dirigible por voz (transitoria/andamiaje); no entra al resolver de nombres.
 import { Alert } from "../components/Alert.js?v=2";
+import { AppsWindow } from "../components/AppsWindow.js?v=1";
 import { BenchmarksPanel } from "../components/BenchmarksPanel.js?v=1";
 import { BootOverlay } from "../components/BootOverlay.js?v=2";
 import { ChatWall } from "../components/ChatWall.js?v=6";
@@ -103,6 +104,14 @@ export const SYSTEM_SURFACES = [
     toggle: "store.chatTab = apps (ChatWall's Apps tab)", label: "Apps — the widget catalogue (System · Custom)",
     name: "Apps", aliases: ["apps", "widgets", "mis apps", "mis widgets", "las apps", "los widgets", "lista de apps", "lista de widgets", "catalogo de apps", "catálogo de apps", "catalogo de widgets", "catálogo de widgets", "las aplicaciones", "mis aplicaciones", "lista de aplicaciones", "widgets disponibles", "apps disponibles", "my apps", "my widgets", "app list", "widget list", "app catalog", "widget catalog", "the applications",
       "catalogo de aplicaciones", "catálogo de aplicaciones", "apps customizadas", "widgets customizados", "apps personalizadas", "widgets personalizados", "mis apps customizadas", "mis widgets customizados"] },
+  // V2-823 — the APPS WINDOW: the launcher the rail's corner opens over the desk (list on the left, a page per
+  // app on the right; one click shows the page, a double click opens the app and closes the window). Its data is
+  // the catalogue the Apps tab reads plus `/widgets/<id>/about`; opening goes through `hb:open-card`. Not
+  // voice-addressable in v1 — «the apps» already names the wall's Apps tab above, and a second surface answering
+  // to it would be a near-miss of that one.
+  { id: "apps-window", comp: AppsWindow, target: "body", phase: "overlay", kind: "modal",
+    toggle: "store.appsWindowOpen (the rail's apps icon, bottom-right)", label: "Apps window — a page per app",
+    name: null, aliases: null },
   { id: "status",     comp: StatusPanel,  target: "body", phase: "overlay", kind: "panel",
     toggle: "store.statusOpen (◉)", label: "System status panel",
     name: "Status", aliases: ["estado", "estado del sistema", "status", "panel de estado", "salud del sistema",

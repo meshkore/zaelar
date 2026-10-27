@@ -675,6 +675,10 @@ export const [energyNoticeClosed, setEnergyNoticeClosed] = createSignal("");
 export const [statusOpen, setStatusOpen] = createSignal(false);            // status panel visible?
 export const [status, setStatus]         = createSignal({ overall: "unknown", items: [] });
 
+// ---- the APPS WINDOW (V2-823): the launcher opened from the rail's corner — list on the left, a page per app ----
+// Only whether it is open lives here; the list and the page are read when it opens (components/AppsWindow.js).
+export const [appsWindowOpen, setAppsWindowOpen] = createSignal(false);
+
 // ---- the LOCAL DAEMON (V2-575 P1: 🖥 icon + full-screen setup) ----
 // Only whether the screen is OPEN lives here. Everything the screen shows comes from `services/daemon.js`,
 // which owns the poll — the same split `update/watch.js` has, so the store never holds a stale copy of
