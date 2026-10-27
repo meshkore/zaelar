@@ -2041,9 +2041,11 @@ DOMAINS: list[dict] = [
             "paths": ["tests/agent_headless/unit/test_the_report_sheet_tells_the_workers_steps.py"]},
         # V2-822 — the operator's report: a document errand opened the results sheet and the messaging card on the way.
         # Disarmed (the gate call dropped from worker_act) → the document errand opened three cards, the list two → red.
+        # V2-822 decision 3 — disarmed (`delivers_no_card` always False) → the told errand opened three cards → red.
         {"id": "3.143", "title": "An errand opens only its DELIVERABLE: a document errand opens exactly the document "
                                  "(the worker's shows of the results sheet or the messaging card are refused with the "
-                                 "way through), a list errand opens its results sheet (V2-822)", "ch": UNIT,
+                                 "way through), a list errand opens its results sheet, and an errand told by voice or "
+                                 "done silently opens NO card (only the one its end state names) (V2-822)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_an_errand_opens_only_its_deliverable.py"]},
         # V2-822 — disarmed (`of` ignoring the durable row id) → red.
         {"id": "3.144", "title": "A running process's record is READ from the live registry by either id (session or "
@@ -2296,8 +2298,6 @@ DOMAINS: list[dict] = [
                                   # diagnosticaba él solo y gastaba dos vueltas; en dos casos la ronda se
                                   # acabó antes de que se recuperara.
                                   "tests/browser/unit/navegador/test_a_half_loaded_page_is_not_empty.py",
-            # sin mapear hasta el 2026-08-21: el muro de login en la NUBE cierra en limpio en vez de dar vueltas
-            "tests/browser/unit/navegador/test_cloud_login_bailout.py",
             "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py",
             # 2026-08-20: dos filtros enumeraban a mano subconjuntos de los estados de una tarea, y un estado
             # que no estaba en ninguno era una tarea que el estado vivo NO MENCIONABA — ni viva ni terminada.
@@ -5760,8 +5760,25 @@ DOMAINS: list[dict] = [
         {"id": "4.311", "title": "The processes panel tells a running process collapsed (the plan ✓ ▸ · around its step, "
                                  "whether the page needs him) and expanded (whole plan, page capture, harvest, narration "
                                  "newest first) from ONE record — on the desktop's processes tab and the phone's menu "
-                                 "at 375 px (V2-822)",
+                                 "at 375 px; its LAST line says what it waits on him for (signing in, or blocked with "
+                                 "no window) (V2-822)",
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_the_rail_tells_a_running_process.py"]},
+        # V2-822 decision 5 — disarmed (`tab: process` refused again) → red.
+        {"id": "4.312", "title": "«Proceso» said to the results sheet opens the processes panel through the sheet's own "
+                                 "declared `tab` action, and the sheet stays on its tab (V2-822)",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_saying_process_opens_the_panel.py"]},
+        # V2-822 decision 4 — disarmed (the SSE router not re-reading the board on start; the dock without the count)
+        # → each red.
+        {"id": "4.313", "title": "The live count of running processes is ONE number on the desktop's bar and the phone's "
+                                 "dock (the engine's live board, settled after an SSE start), and a tap opens the "
+                                 "processes view — RENDERED at 1280 and 375 px (V2-822)",
+            "ch": UNIT, "paths": ["tests/browser/unit/mobile/test_the_process_count_is_one_number.py"]},
+        # V2-822 decision 1 — replaces the 2026-08-03 cloud bail-out (which FAILED the tasks). Disarmed (`reach()`
+        # never `here`/`daemon`; the block written as a failure) → each red.
+        {"id": "4.314", "title": "Where a browser window for him can open is ONE answer (a display here · a connected "
+                                 "daemon that declares it · nowhere); with nowhere, a sign-in BLOCKS the process (not "
+                                 "failed) and he is told in his language, by voice and in the chat (V2-822)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_login_with_no_window_blocks_the_process.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",
