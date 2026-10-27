@@ -5,7 +5,9 @@
 #   * `GET /api/memory/viewer/stats` — one card per store: its total, a breakdown (sources, types, sizes) and its
 #     last 30 days. COUNTs and a directory walk (cached), never a row;
 #   * `GET /api/memory/viewer/graph|concept|timeline` — the concept graph, aggregated by `memory.viewer` and
-#     bounded by the node budget the client sends; a concept is numbers and related concepts, never text.
+#     bounded by the node budget the client sends; a concept is numbers and related concepts, never text;
+#   * `GET /api/memory/viewer/cards` — the «Cards» tab (V2-815): the newest cards of each layer, capped per layer
+#     and cut on the server, so a growing store never grows what the browser paints.
 #
 # Nothing here says anything about the machine it runs on: the viewer talks about what is stored, not where.
 # Each store is read through its owner where the owner has a read (memory, the message archive, the widget
@@ -294,6 +296,12 @@ async def viewer_graph(days: int = 30, layers: str = "short,long", lanes: str = 
 @router.get("/api/memory/viewer/concept")
 async def viewer_concept(key: str, days: int = 30, layers: str = "short,long", lanes: str = "own"):
     return await asyncio.to_thread(memapi.viewer.concept, key, days=days, layers=layers, lanes=lanes)
+
+
+@router.get("/api/memory/viewer/cards")
+async def viewer_cards(limit: int = 100):
+    """The «Cards» tab: the newest cards per layer, bounded and cut on the server (`memory.viewer.cards`)."""
+    return JSONResponse(await asyncio.to_thread(memapi.viewer.cards, limit), headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/api/memory/viewer/timeline")

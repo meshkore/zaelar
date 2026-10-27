@@ -1,15 +1,18 @@
-"""The memory viewer never returns a stored row, and never a whole store (V2-808, V2-814).
+"""The memory viewer never returns a whole store (V2-808, V2-814, V2-815).
 
 The viewer is a MONITOR of the brain: totals, sizes, the last 30 days of each store, and how the memory relates
 concepts. One install is one person, but his store grows — weeks of conversation, an import of thousands of
 messages — so the contract, endpoint by endpoint:
 
-  * no endpoint returns a stored row: the row lists of the first viewer (facts, conversation, messages, files,
-    apps, system) are retired, and a concept is numbers and related concepts — never a memory's text;
+  * the row lists of the first viewer (facts, conversation, messages, files, apps, system) are retired; the
+    graph, a concept and the totals never carry a memory's text;
+  * the one tab that shows memories as cards («Cards», restored by V2-815) gets the NEWEST few per layer, capped
+    on the server whatever the client asks, each text cut, and its concept maps a ring of at most 24 concepts;
   * totals are COUNTs that agree with what is stored; files are totalled by TYPE with their size; each store
     carries its last 30 days;
   * a browser widget's profile is its browsing session, not data it keeps: it is not counted as app data;
-  * the graph is aggregated on the server and never has more nodes than the budget (itself clamped);
+  * the graph is aggregated on the server and never has more nodes than the budget (itself clamped); when the
+    window does not fit, only its top level — the concepts — is sent, and the reply says so;
   * the old `/api/memory/map` is bounded too.
 
 Fixture: 200.000 memories and 200.000 archived messages written straight into a temporary database — the size
@@ -177,3 +180,31 @@ def test_the_old_map_is_bounded_too(big):
     assert body["counts"]["short"] + body["counts"]["long"] == N, "its totals are COUNTs, not the page"
     assert "state" in body
     assert secs < 2, f"the bounded map took {secs:.2f}s"
+
+
+def test_the_cards_are_capped_and_cut(big):
+    from memory.viewer import CARDS_CAP, CARD_TEXT
+    body, secs = _timed(big, "/api/memory/viewer/cards?limit=1000000")
+    for layer in ("short", "long"):
+        cards = body["layers"][layer]
+        assert 0 < len(cards) <= CARDS_CAP, (layer, len(cards))
+        assert all(len(c["text"]) <= CARD_TEXT for c in cards)
+        assert "meta" not in cards[0], "a card carries what it paints, not the row"
+        assert len(body["concept_graph"][layer]["nodes"]) <= 24
+    assert body["counts"]["short"] + body["counts"]["long"] == N, "the header's totals are COUNTs, not the page"
+    newest = body["layers"]["long"][0]["updated"]
+    assert all(c["updated"] <= newest for c in body["layers"]["long"]), "the newest come first"
+    assert "edges" not in body
+    assert secs < 5, f"the cards took {secs:.2f}s"
+
+
+def test_past_the_budget_only_the_top_level_is_drawn(monkeypatch):
+    from memory import viewer
+    pills = [{"id": i, "level": "long", "kind": "fact", "w": 0.5, "created": i, "c": [f"c{i % 20}", f"c{(i + 1) % 20}"]}
+             for i in range(60)]
+    monkeypatch.setattr(viewer, "_window", lambda days, lanes: pills)
+    fits = viewer.graph(days=0, budget=200)                 # 20 concepts + 60 memories = 80 ≤ 200
+    assert fits["collapsed"] is False and len(fits["concepts"]) == 20 and len(fits["memories"]) == 60
+    top = viewer.graph(days=0, budget=50)                    # 80 > 50 → concepts only
+    assert top["collapsed"] is True and top["memories"] == [] and len(top["concepts"]) == 20
+    assert top["links"], "the top level keeps how the concepts relate"

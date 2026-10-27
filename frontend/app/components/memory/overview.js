@@ -1,7 +1,8 @@
 // ============================================================================
-// memory/overview.js — the «Overview» tab (V2-808, V2-814): one card per store the brain keeps, with its total
-// and a one-line breakdown. A card opens IN PLACE to show its last 30 days and its breakdown (sources, types,
-// sizes). Totals only: no stored row is ever listed, and nothing about the machine is printed.
+// memory/overview.js — the «Overview» tab (V2-808, V2-814, V2-815): the figures and charts of the brain — a row of
+// headline numbers, the last 30 days of activity stacked by store, the concepts most present, how the space is
+// split — and one card per store with its total, a sparkline and a one-line breakdown. A card opens IN PLACE to
+// show its last 30 days and its breakdown (sources, types, sizes). Nothing about the machine is printed.
 // Every number comes from `/api/memory/viewer/stats`: COUNTs on the server, never the length of a list.
 // ============================================================================
 import { h } from "../../core/dom.js?v=2";
@@ -90,6 +91,79 @@ function bars(daily) {
     ...daily.map((v) => h("i", { class: v ? "" : "is-zero", style: { height: Math.max(3, (v / max) * 100) + "%" } })));
 }
 
+const miniBars = (daily) => h("span", { class: "mv-spark mv-spark--mini", "aria-hidden": "true" },
+  ...daily.map((v) => h("i", { class: v ? "" : "is-zero", style: { height: Math.max(8, (v / Math.max(1, ...daily)) * 100) + "%" } })));
+
+// ── the charts above the cards ──────────────────────────────────────────────────────────────────────────────
+const ACTIVITY = ["memories", "conversation", "messages", "files"];
+
+function kpis(stores, concepts) {
+  const by = Object.fromEntries(stores.map((s) => [s.key, s]));
+  const mem = by.memories || {}, msg = by.messages || {}, fil = by.files || {}, app = by.apps || {};
+  const space = (Number(msg.bytes) || 0) + (Number(fil.bytes) || 0) + (Number(app.total) || 0);
+  const items = [
+    [t("memory.kpi_memories"), num(mem.total), t("memory.kpi_week", { n: num(mem.week || 0) })],
+    [t("memory.kpi_concepts"), num(mem.parts?.concepts || concepts), t("memory.kpi_relations", { n: num(mem.parts?.relations) })],
+    [t("memory.kpi_conversations"), num(by.conversation?.total), t("memory.kpi_days", { n: num(by.conversation?.parts?.days) })],
+    [t("memory.kpi_messages"), num(msg.total), t("memory.kpi_week", { n: num(msg.week || 0) })],
+    [t("memory.kpi_space"), bytes(space), t("memory.kpi_files", { n: num(fil.total) })],
+  ];
+  return h("div", { class: "mv-kpis" }, ...items.map(([k, v, sub]) =>
+    h("div", { class: "hb-card mv-kpi" }, h("span", { class: "mv-kpi-k" }, k), h("b", { class: "mv-kpi-v" }, v),
+      h("span", { class: "mv-kpi-sub" }, sub))));
+}
+
+function activity(stores) {
+  const series = ACTIVITY.map((k) => stores.find((s) => s.key === k)).filter((s) => s?.daily);
+  if (!series.length) return null;
+  const days = series[0].daily.length;
+  // each store is scaled to its own peak: a message flood must not flatten the memories next to it
+  const peak = series.map((s) => Math.max(1, ...s.daily));
+  const cols = [];
+  for (let d = 0; d < days; d++) {
+    const day = new Date(Date.now() - (days - 1 - d) * 86400000);
+    const tip = [day.toLocaleDateString(), ...series.map((s) => `${t("memory.store_" + s.key)}: ${num(s.daily[d])}`)].join("\n");
+    cols.push(h("div", { class: "mv-act-col", title: tip },
+      ...series.map((s, i) => h("i", { style: { height: (s.daily[d] / peak[i]) * (100 / series.length) + "%",
+                                                  background: `var(${ACCENT[s.key]})` } }))));
+  }
+  const first = new Date(Date.now() - (days - 1) * 86400000);
+  return h("div", { class: "hb-card mv-chart" },
+    h("div", { class: "mv-chart-head" }, h("p", { class: "hb-sectitle" }, t("memory.activity_title")),
+      h("div", { class: "mv-legend-row" }, ...series.map((s) => h("span", {},
+        h("i", { style: { background: `var(${ACCENT[s.key]})` } }), `${t("memory.store_" + s.key)} · ${num(sum(s.daily))}`)))),
+    h("div", { class: "mv-act" }, ...cols),
+    h("div", { class: "mv-act-axis" }, h("span", {}, date(first / 1000)), h("span", {}, t("memory.today"))));
+}
+
+function topConcepts(concepts, goTo) {
+  if (!concepts?.length) return null;
+  const top = concepts.slice(0, 10), max = Math.max(1, ...top.map((c) => c.count));
+  const cap = (x) => (x ? x.charAt(0).toLocaleUpperCase() + x.slice(1) : "");
+  return h("div", { class: "hb-card mv-chart" },
+    h("div", { class: "mv-chart-head" }, h("p", { class: "hb-sectitle" }, t("memory.top_concepts")),
+      h("button", { class: "hb-btn hb-btn--ghost hb-btn--sm", type: "button", onClick: () => goTo("graph") }, t("memory.see_graph"))),
+    h("ol", { class: "mv-top" }, ...top.map((c, i) => h("li", {},
+      h("span", { class: "mv-top-name" }, cap(c.label)), h("span", { class: "mv-top-n" }, num(c.count)),
+      h("span", { class: "mv-fill" }, h("i", { style: { width: Math.max(4, (c.count / max) * 100) + "%",
+        background: `var(${["--hb-accent", "--hb-accent2", "--hb-ok", "--hb-warn", "--hb-risk"][i % 5]})` } }))))));
+}
+
+function spaceSplit(stores) {
+  const by = Object.fromEntries(stores.map((s) => [s.key, s]));
+  const parts = [["messages", Number(by.messages?.bytes) || 0], ["files", Number(by.files?.bytes) || 0],
+                 ["apps", Number(by.apps?.total) || 0]].filter(([, b]) => b > 0);
+  const all = parts.reduce((a, [, b]) => a + b, 0);
+  if (!all) return null;
+  return h("div", { class: "hb-card mv-chart" },
+    h("div", { class: "mv-chart-head" }, h("p", { class: "hb-sectitle" }, t("memory.space_title")),
+      h("b", {}, bytes(all))),
+    h("div", { class: "mv-split" }, ...parts.map(([k, b]) => h("i", { title: `${t("memory.store_" + k)} · ${bytes(b)}`,
+      style: { width: (b / all) * 100 + "%", background: `var(${ACCENT[k]})` } }))),
+    h("div", { class: "mv-legend-row" }, ...parts.map(([k, b]) => h("span", {},
+      h("i", { style: { background: `var(${ACCENT[k]})` } }), `${t("memory.store_" + k)} · ${bytes(b)} · ${Math.round((b / all) * 100)}%`))));
+}
+
 function opened(s, goTo) {
   const rows = breakdown(s);
   return h("div", { class: "mv-store-more" },
@@ -103,7 +177,7 @@ function opened(s, goTo) {
 }
 
 export function Overview({ goTo }) {
-  let grid, sub, timer = null;
+  let grid, sub, charts, timer = null, concepts = null;
   const open = new Set();
   let last = null;
 
@@ -120,17 +194,23 @@ export function Overview({ goTo }) {
           h("i", { class: "mv-store-dot" })),
         h("span", { class: "mv-store-total" }, total(s)),
         h("span", { class: "mv-store-detail" }, detail(s)),
+        s.daily && !isOpen ? miniBars(s.daily) : null,
         h("span", { class: "mv-store-note " + nt.cls }, nt.text)),
       isOpen ? opened(s, goTo) : null);
   }
 
   function paint() {
     if (!last) return;
-    grid.replaceChildren(...(last.stores || []).map(card));
+    const stores = last.stores || [];
+    charts.replaceChildren(kpis(stores, concepts?.length || 0),
+      h("div", { class: "mv-charts" }, ...[activity(stores), topConcepts(concepts, goTo), spaceSplit(stores)].filter(Boolean)));
+    grid.replaceChildren(...stores.map(card));
   }
 
   async function load() {
-    const body = await api.memoryViewer("stats");
+    const [body, g] = await Promise.all([api.memoryViewer("stats"),
+                                         api.memoryViewer("graph", { days: 0, budget: 50, lanes: "own" })]);
+    concepts = g?.concepts || concepts;
     if (!body) { sub.textContent = t("memory.load_error"); return; }
     last = body;
     const stores = body.stores || [];
@@ -143,6 +223,8 @@ export function Overview({ goTo }) {
 
   const el = h("div", { class: "mv-overview" },
     h("div", { class: "mv-ov-title" }, h("h2", {}, () => t("memory.ov_title")), h("p", { class: "mv-muted", ref: (x) => (sub = x) })),
+    h("div", { class: "mv-ov-charts", ref: (x) => (charts = x) }),
+    h("p", { class: "hb-sectitle mv-ov-stores" }, () => t("memory.stores_title")),
     h("div", { class: "mv-stores", ref: (x) => (grid = x) }));
 
   let loaded = false;

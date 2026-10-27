@@ -1,4 +1,5 @@
-"""The memory viewer's graph PAINTS inside its panel, centred, at desktop and phone width (V2-808, V2-814). Rendered.
+"""The memory viewer's graph PAINTS inside its panel, centred, at desktop and phone width (V2-808, V2-814, V2-815).
+Rendered.
 
 The operator's screenshot of the old 🧠 map: the concept maps («Corto plazo» / «Largo plazo») sat pushed into the
 bottom-right corner of the panel instead of filling it. The old map scaled a DOM world once, at open time, against
@@ -7,8 +8,11 @@ whatever size the panel had then. The new graph is one <canvas> sized to its sec
 style or a node count would be green on a graph drawn off-screen.
 
 Also rendered here, because each is a claim about what reaches the screen or the server:
-  * the overview paints one card per store with the server's totals, and a card opens to its 30 days and its
-    breakdown — two tabs only, no stored row and no word about the machine on screen (V2-814);
+  * the overview paints its headline figures and charts and one card per store with the server's totals, and a
+    card opens to its 30 days and its breakdown — no word about the machine on screen (V2-814, V2-815);
+  * the «Cards» tab paints exactly the cards the server sent, says «shown / total» when the store is bigger,
+    and its concept maps paint one circle per concept (V2-815);
+  * past the budget the graph says it shows only its top level; «Image» saves a PNG of the view (V2-815);
   * the graph asks the server for the DEVICE's node budget, and the layout worker reports it has settled;
   * the device tier rule (phone / laptop / big screen).
 
@@ -39,6 +43,18 @@ _CONCEPTS = ["viajes", "trabajo", "familia", "ocio", "finanzas", "salud", "comid
              "agenda", "estudios", "mascotas"]
 
 
+def _cards() -> dict:
+    card = lambda i, lv: {"id": i, "level": lv, "kind": "fact", "text": f"recuerdo {i}", "importance": 0.5,  # noqa: E731
+                          "weight": 0.4, "access_count": 2, "last_access": 1793000000, "ttl_days": None,
+                          "pinned": 0, "created": 1793000000, "updated": 1793000000}
+    ring = {"nodes": [{"key": c, "label": c, "count": 20 - i} for i, c in enumerate(_CONCEPTS[:8])],
+            "links": [{"a": _CONCEPTS[i], "b": _CONCEPTS[i + 1], "weight": 2} for i in range(7)], "total": 31}
+    return {"state": {"language": "es"}, "layers": {"short": [card(i, "short") for i in range(12)],
+                                                    "long": [card(100 + i, "long") for i in range(40)]},
+            "counts": {"short": 12, "long": 5000, "concepts": 31, "edges": 90, "total": 5043},
+            "concept_graph": {"short": ring, "long": ring}}
+
+
 def _graph(budget: int) -> dict:
     concepts = [{"key": c, "label": c, "count": 40 - 3 * i, "short": 5, "last": 1793000000}
                 for i, c in enumerate(_CONCEPTS)]
@@ -53,7 +69,7 @@ def _graph(budget: int) -> dict:
     return {"concepts": concepts, "links": links, "memories": mems,
             "total": {"concepts": 12, "memories": 900, "nodes": 912},
             "shown": {"concepts": 12, "memories": len(mems), "nodes": 12 + len(mems)}, "budget": budget,
-            "scanned": 900, "capped": False, "layer_counts": {"short": 120, "long": 780, "messages": 600}}
+            "scanned": 900, "capped": False, "collapsed": False, "layer_counts": {"short": 120, "long": 780, "messages": 600}}
 
 
 _DAILY = [d % 9 for d in range(30)]
@@ -107,7 +123,7 @@ def _api(route, asked: list):
     asked.append(url)
     path = url.split("/api/memory/viewer/")[-1].split("?")[0]
     q = dict(p.split("=", 1) for p in url.split("?", 1)[1].split("&")) if "?" in url else {}
-    body = {"stats": _STATS, "graph": _graph(int(q.get("budget", 300))),
+    body = {"stats": _STATS, "cards": _cards(), "graph": _graph(int(q.get("budget", 300))),
             "timeline": {"days": [{"day": f"2026-10-{d:02d}", "own": d % 7, "messages": 3} for d in range(1, 27)]},
             "concept": {"key": q.get("key", ""), "label": q.get("key", ""), "count": 24, "short": 6, "last": 1793000000,
                         "related": [{"key": "finanzas", "count": 5}],
@@ -137,7 +153,7 @@ def _open(browser, port, *, width=1440, height=940, mutate=None):
         const i18n = await import('/frontend/app/core/i18n.js?v=1');
         await i18n.loadBundle('es'); await i18n.applyLang('es');
         const store = await import('/frontend/app/core/store.js?v=2');
-        const mm = await import('/frontend/app/components/MemoryMap.js?v=3');
+        const mm = await import('/frontend/app/components/MemoryMap.js?v=4');
         document.body.append(mm.MemoryMap());
         store.setMemOpen(true);
         window.__store = store;
@@ -180,7 +196,11 @@ def test_the_overview_paints_one_card_per_store_with_the_servers_totals(browser_
     pg = _open(b, port)
     cards = pg.locator(".mv-store")
     assert cards.count() == len(_STATS["stores"])
-    assert pg.locator(".mv-tabs .hb-tab").all_inner_texts() == ["Resumen", "Grafo"]
+    assert pg.locator(".mv-tabs .hb-tab").all_inner_texts() == ["Resumen", "Tarjetas", "Grafo"]
+    assert pg.locator(".mv-kpi").count() == 5 and "179.456" in pg.locator(".mv-kpis").inner_text()
+    assert pg.locator(".mv-act-col").count() == 30, "the activity chart has one column per day"
+    assert "Viajes" in pg.locator(".mv-top").inner_text(), "the concepts most present are listed"
+    assert pg.locator(".mv-split > i").count() == 3, "the space is split between messages, files and apps"
     msgs = pg.locator(".mv-store[data-store=messages]")
     assert "179.456" in msgs.inner_text() and "Telegram" not in msgs.inner_text(), "closed: the total, not the detail"
     msgs.locator(".mv-store-face").click()
@@ -318,3 +338,36 @@ def test_a_layout_that_pulls_a_hub_with_every_spring_at_once_is_caught(browser_a
     assert len(lines) == len(bad.split("\n")) - 2, "the velocity cap this disarm removes moved"
     got = _run_worker(b, port, "\n".join(lines))
     assert got["firstBad"] >= 0, f"the disarmed layout stayed finite — the check proves nothing: {got}"
+
+
+def test_the_cards_tab_paints_what_the_server_sent_and_says_how_much_more_there_is(browser_and_port):
+    b, port = browser_and_port
+    pg = _open(b, port)
+    pg.click(".mv-tabs .hb-tab[data-tab=cards]")
+    pg.wait_for_selector(".mv-cards .mm-node[data-mid]", timeout=8000)
+    assert pg.locator(".mv-cards .mm-node[data-mid]").count() == 52, "12 short + 40 long, no more"
+    heads = pg.locator(".mv-cards .mm-zcount").all_inner_texts()
+    assert "40 / 5000" in heads, f"a capped layer says shown / total: {heads}"
+    assert any("cards?" in u and "limit=" in u for u in pg._asked), "the device's row limit reaches the server"
+    pg.click(".mv-cards .mm-mode:nth-child(2)")
+    assert pg.locator(".mv-cards .mm-cnode").count() == 16, "one circle per concept, both layers"
+    assert not pg._errors, pg._errors
+    pg.close()
+
+
+def test_the_graph_says_when_it_shows_only_its_top_level_and_saves_an_image(browser_and_port):
+    b, port = browser_and_port
+    pg = _open(b, port)
+    _graph_painted(pg)
+    assert "recuerdos" in pg.locator(".mv-showing").inner_text()
+    with pg.expect_download(timeout=8000) as dl:
+        pg.get_by_role("button", name="Imagen").click()
+    assert dl.value.suggested_filename.endswith(".png")
+    pg.route("**/api/memory/viewer/graph*", lambda r: r.fulfill(status=200, content_type="application/json",
+             body=json.dumps({**_graph(300), "memories": [], "collapsed": True,
+                              "shown": {"concepts": 12, "memories": 0, "nodes": 12}})))
+    pg.click(".mv-seg button[data-days='7']")
+    pg.wait_for_function("() => document.querySelector('.mv-showing').textContent.includes('nivel superior')",
+                         timeout=8000)
+    assert not pg._errors, pg._errors
+    pg.close()

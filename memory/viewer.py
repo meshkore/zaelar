@@ -22,6 +22,10 @@ from . import db as _db
 SCAN_CAP = 20000
 #: Node budget bounds — the client's device tier picks a value inside them.
 BUDGET_MIN, BUDGET_MAX = 50, 3000
+#: Concepts drawn at most once the graph collapses to its top level — past this the labels are noise.
+CONCEPT_CAP = 400
+#: Cards the «Cards» tab gets per layer at most, and the characters of one card's text.
+CARDS_CAP, CARD_TEXT = 300, 280
 #: Seconds the window aggregation is reused (several calls for one screen — graph, then a concept page).
 _CACHE_S = 10.0
 
@@ -141,9 +145,10 @@ def _layers(layers) -> set[str]:
 def graph(*, days: int = 30, layers: str = "short,long", lanes: str = "own", budget: int = 300) -> dict:
     """The concept graph of a window, bounded by `budget` nodes (concepts + memories).
 
-    Concepts: the most used first, at most a sixth of the budget (≥ 8, ≤ 300). Memories: the heaviest pills of
-    the shown concepts fill the rest. Concept↔concept links count the pills two concepts share, over the WHOLE
-    window (not only the shown pills), strongest first, at most six per shown concept."""
+    Everything fits → every concept AND every memory of the window is drawn. It does not fit → only the TOP level
+    is drawn: the concepts (the most used first, at most `budget` and `CONCEPT_CAP`), no memory dots, and
+    `collapsed` says so. Concept↔concept links count the pills two concepts share, over the WHOLE window (not only
+    the shown pills), strongest first, at most six per shown concept."""
     budget = clamp_budget(budget)
     lys = _layers(layers)
     pills = [p for p in _window(max(0, int(days or 0)), _lanes(lanes)) if p["level"] in lys]
@@ -159,14 +164,16 @@ def graph(*, days: int = 30, layers: str = "short,long", lanes: str = "own", bud
             last[c] = max(last.get(c, 0), p["created"])
         for a, b in combinations(p["c"], 2):
             pair[(a, b)] = pair.get((a, b), 0) + 1
-    k = min(len(count), max(8, budget // 6), 300)
+    n_attached = sum(1 for p in pills if p["c"])
+    collapsed = len(count) + n_attached > budget
+    k = min(len(count), budget, CONCEPT_CAP) if collapsed else len(count)
     top = [c for c, _ in sorted(count.items(), key=lambda kv: (-kv[1], kv[0]))[:k]]
     shown = set(top)
     concepts = [{"key": c, "label": c, "count": count[c], "short": short.get(c, 0), "last": last.get(c, 0)}
                 for c in top]
     links = sorted(([a, b, w] for (a, b), w in pair.items() if a in shown and b in shown),
                    key=lambda x: -x[2])[: 6 * max(1, k)]
-    room = max(0, budget - k)
+    room = 0 if collapsed else max(0, budget - k)
     attached = [p for p in pills if any(c in shown for c in p["c"])]
     attached.sort(key=lambda p: (-p["w"], -p["created"]))
     mems = [{"id": p["id"], "c": [c for c in p["c"] if c in shown], "level": p["level"], "kind": p["kind"],
@@ -180,6 +187,7 @@ def graph(*, days: int = 30, layers: str = "short,long", lanes: str = "own", bud
         "budget": budget,
         "scanned": len(pills),
         "capped": len(pills) >= SCAN_CAP,
+        "collapsed": collapsed,
     }
 
 
@@ -213,3 +221,30 @@ def concept(key: str, *, days: int = 30, layers: str = "short,long", lanes: str 
         "last": max((p["created"] for p in mine), default=0),
         "related": [{"key": c, "count": w} for c, w in sorted(related.items(), key=lambda kv: -kv[1])[:8]],
     }
+
+
+def cards(limit: int = 100) -> dict:
+    """The «Cards» tab (V2-815): the newest cards of each layer, the state, and one small concept map per layer.
+
+    Bounded three ways: at most `limit` (≤ `CARDS_CAP`) cards per layer, each text cut at `CARD_TEXT`, and each
+    concept map a ring of at most 24 concepts. The totals are COUNTs, so the header can say «shown / total»."""
+    from . import api as _api
+    n = max(1, min(int(limit or 100), CARDS_CAP))
+    body = _api.map(n)
+    keep = ("id", "level", "kind", "text", "importance", "weight", "access_count", "last_access", "ttl_days",
+            "pinned", "created", "updated")
+    for layer in ("short", "long"):
+        body["layers"][layer] = [{**{k: m.get(k) for k in keep}, "text": (m.get("text") or "")[:CARD_TEXT]}
+                                 for m in body["layers"][layer]]
+    body.pop("edges", None)
+    cg = {}
+    for layer in ("short", "long"):
+        g = graph(days=0, layers=layer, budget=BUDGET_MIN)
+        top = g["concepts"][:24]
+        shown = {c["key"] for c in top}
+        cg[layer] = {"nodes": [{"key": c["key"], "label": c["label"], "count": c["count"]} for c in top],
+                     "links": [{"a": l["a"], "b": l["b"], "weight": l["w"]} for l in g["links"]
+                               if l["a"] in shown and l["b"] in shown][:72],
+                     "total": g["total"]["concepts"]}
+    body["concept_graph"] = cg
+    return body

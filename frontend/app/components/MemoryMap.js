@@ -1,12 +1,13 @@
 // ============================================================================
 // MemoryMap — the 🧠 memory viewer (V2-808, V2-814): a full-screen overlay that MONITORS the brain.
 //
-//   Overview · Graph
+//   Overview · Cards · Graph
 //
-// A monitor, not a browser: the overview totals every store the agent keeps (each card opens to its last 30 days
-// and its breakdown), the graph shows how the memory relates concepts. No stored row — a fact, a turn of the
-// conversation, a message, a file — is ever listed here, and nothing about the machine is ever printed. What the
-// canvas draws is still bounded by what THIS device can draw (memory/budget.js); that bound is internal.
+// The overview gives the figures and charts of every store the agent keeps (each card opens to its last 30 days
+// and its breakdown); «Cards» is the original map of the memory (state · short · long, and its concept maps),
+// restored by the operator's request (V2-815) and capped to the newest cards this device can paint; the graph
+// shows how the memory relates concepts. Nothing about the machine is ever printed. What each tab draws is
+// bounded by what THIS device can draw (memory/budget.js); that bound is internal.
 // Toggled by the 🧠 icon (store.memOpen); the tabs build lazily on first visit.
 //
 // LIVE: `memory.updated` (bridged by the server onto SSE) bumps store.memBump and carries the touched ids in
@@ -20,13 +21,14 @@ import * as api from "../services/api.js?v=2";
 import { CLOSE_ICON } from "../lib/icons.js?v=1";
 import { t } from "../core/i18n.js?v=1";
 import { currentTier } from "./memory/budget.js?v=1";
-import { Overview } from "./memory/overview.js?v=2";
-import { GraphView } from "./memory/graph-view.js?v=2";
+import { Overview } from "./memory/overview.js?v=3";
+import { GraphView } from "./memory/graph-view.js?v=3";
+import { CardsView } from "./memory/cards-view.js?v=1";
 
-const TABS = ["overview", "graph"];
+const TABS = ["overview", "cards", "graph"];
 
 function ensureStyles() {
-  const href = new URL("./memory/memory-viewer.css?v=2", import.meta.url).href;
+  const href = new URL("./memory/memory-viewer.css?v=3", import.meta.url).href;
   if ([...document.querySelectorAll("link[rel=stylesheet]")].some((l) => l.href === href)) return;
   const l = document.createElement("link");
   l.rel = "stylesheet"; l.href = href;
@@ -39,7 +41,8 @@ export function MemoryMap() {
   const views = {};
   let current = "", bodyEl, tabsEl, bumpT = null;
 
-  const make = (tab) => (tab === "graph" ? GraphView({ tier }) : Overview({ goTo: show }));
+  const make = (tab) => (tab === "graph" ? GraphView({ tier }) : tab === "cards" ? CardsView({ tier })
+    : Overview({ goTo: show }));
 
   async function show(tab) {
     if (!TABS.includes(tab)) tab = "overview";
@@ -74,7 +77,9 @@ export function MemoryMap() {
   });
   createEffect(() => {
     const p = store.memPulse();
-    if (p && store.memOpen() && views.graph) views.graph.pulse(p.ids || []);
+    if (!p || !store.memOpen()) return;
+    if (views.graph) views.graph.pulse(p.ids || []);
+    if (views.cards) views.cards.pulse(p);
   });
 
   const close = () => store.setMemOpen(false);

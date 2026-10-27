@@ -56,7 +56,7 @@ function layout(g, myRun) {
           let dx = x[j] - x[i], dy = y[j] - y[i];
           let d2 = dx * dx + dy * dy;
           if (d2 < 1) { dx = (i - j) * 0.01 + 0.5; dy = 0.5; d2 = 1; }
-          const f = (-1800 * alpha) / d2;
+          const f = (-900 * alpha) / d2;
           vx[i] += dx * f; vy[i] += dy * f; vx[j] -= dx * f; vy[j] -= dy * f;
         }
       }
@@ -96,7 +96,7 @@ function layout(g, myRun) {
       }
       // gravity + integrate
       for (let i = 0; i < n; i++) {
-        vx[i] -= x[i] * 0.004 * alpha; vy[i] -= y[i] * 0.004 * alpha;
+        vx[i] -= x[i] * 0.008 * alpha; vy[i] -= y[i] * 0.008 * alpha;
         vx[i] *= FRICTION; vy[i] *= FRICTION;
         // a velocity cap: one bad tick can push a node far, never to Infinity (a canvas refuses non-finite input)
         if (!(Math.abs(vx[i]) < 400)) vx[i] = Number.isFinite(vx[i]) ? Math.sign(vx[i]) * 400 : 0;

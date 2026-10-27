@@ -12,6 +12,12 @@
 // ended up pushed into the bottom-right corner. Level of detail: memory dots are skipped while they would be
 // sub-pixel, labels only appear for the biggest concepts or once a node is large enough on screen. The layout
 // runs in a Worker (`force-worker.js`) and stops when it settles; the canvas repaints only while something moves.
+//
+// The look (V2-815, for sharing): a night-sky canvas, concepts coloured by the COMMUNITY they form (label
+// propagation over the concept links, so related concepts share a hue), glowing hubs, edges that blend the two
+// colours they join, memories as small stars. While every concept AND memory of the window fits the device's
+// node budget, all of them are drawn; past it the server sends only the top level (the concepts) and the
+// toolbar says so. «Image» saves the current view as a PNG.
 // ============================================================================
 import { h } from "../../core/dom.js?v=2";
 import * as store from "../../core/store.js?v=2";
@@ -38,9 +44,9 @@ const cap = (s) => (s ? s.charAt(0).toLocaleUpperCase(store.lang() || "en") + s.
 
 export function GraphView({ tier }) {
   const st = {
-    days: 30, layers: new Set(["short", "long"]), data: null,
+    days: 0, layers: new Set(["short", "long"]), data: null,
     nodes: [], drawLinks: [], pos: null, view: { k: 1, tx: 0, ty: 0 }, autoFit: true,
-    selected: "", hover: -1, timeline: [], brushFrom: -1, settled: true, pulses: new Map(),
+    selected: "", hover: -1, labels: true, hues: null, timeline: [], brushFrom: -1, settled: true, pulses: new Map(),
   };
   let canvas, section, aside, footer, showingEl, chipsEl, periodEl, bars, brushBox, worker, raf = 0, colors = [];
   let active = false;
@@ -69,7 +75,7 @@ export function GraphView({ tier }) {
     d.concepts.forEach((c, i) => {
       idx.set(c.key, nodes.length);
       nodes.push({ id: "c:" + c.key, hub: true, key: c.key, label: cap(c.label), count: c.count, rank: i,
-                   r: 9 + 17 * Math.sqrt(c.count / maxC), color: i % PALETTE.length });
+                   r: 10 + 26 * Math.sqrt(c.count / maxC), color: i % PALETTE.length });
     });
     const links = [], drawLinks = [];
     const maxW = Math.max(1, ...d.links.map((l) => l.w));
@@ -92,6 +98,7 @@ export function GraphView({ tier }) {
         if (o != null) links.push({ s: o, t: i, len: 140, k: 0.004 });
       }
     }
+    communities(nodes, d.links, idx);
     st.nodes = nodes; st.drawLinks = drawLinks;
     st.pos = new Float32Array(nodes.length * 2);
     const seeds = nodes.map((n) => { const p = prev.get(n.id); return { r: n.r, hub: n.hub, x: p?.[0], y: p?.[1] }; });
@@ -102,6 +109,42 @@ export function GraphView({ tier }) {
     st.settled = false;
     startWorker({ nodes: seeds, links });
   }
+
+  // Label propagation over the concept links: a concept takes the community its links weigh most towards.
+  function communities(nodes, links, idx) {
+    const hubs = nodes.filter((n) => n.hub);
+    const lab = hubs.map((_, i) => i);
+    const adj = hubs.map(() => []);
+    for (const l of links) {
+      const a = idx.get(l.a), b = idx.get(l.b);
+      if (a == null || b == null) continue;
+      adj[a].push([b, l.w]); adj[b].push([a, l.w]);
+    }
+    for (let it = 0; it < 10; it++) {
+      let moved = false;
+      for (let i = 0; i < hubs.length; i++) {
+        const score = new Map();
+        for (const [j, w] of adj[i]) score.set(lab[j], (score.get(lab[j]) || 0) + w);
+        let best = lab[i], bw = score.get(lab[i]) || 0;
+        for (const [l, w] of score) if (w > bw || (w === bw && l < best)) { best = l; bw = w; }
+        if (best !== lab[i]) { lab[i] = best; moved = true; }
+      }
+      if (!moved) break;
+    }
+    // One hue per concept, spread by the golden angle; inside a small community the hues stay close, so related
+    // concepts read as one family. One community spanning everything (a dense memory) would paint it all one
+    // colour: past a third of the concepts a community does not pull hues at all.
+    const members = new Map();
+    for (let i = 0; i < hubs.length; i++) members.set(lab[i], [...(members.get(lab[i]) || []), i]);
+    const base = new Map([...members.keys()].map((l, i) => [l, (200 + i * 137.508) % 360]));
+    st.hues = hubs.map((_, i) => {
+      const group = members.get(lab[i]);
+      if (group.length > Math.max(3, hubs.length / 3)) return (200 + i * 137.508) % 360;
+      return (base.get(lab[i]) + group.indexOf(i) * 18) % 360;
+    });
+    nodes.forEach((n, i) => { n.color = n.hub ? i : nodes[idx.get(n.key)].color; });
+  }
+  const hsl = (h, l = 62, a = 1) => `hsla(${h.toFixed(0)},88%,${l}%,${a})`;
 
   function startWorker(payload) {
     if (!worker) {
@@ -148,30 +191,60 @@ export function GraphView({ tier }) {
   function readColors() {
     const cs = getComputedStyle(section);
     colors = PALETTE.map((v) => cs.getPropertyValue(v).trim() || "#999");
-    return { bg: cs.getPropertyValue("--canvas").trim() || "#16191E", ink: cs.getPropertyValue("--hb-ink").trim() || "#eee" };
+  }
+  const SKY = { top: "#0d1224", bottom: "#05070d", ink: "#eef2ff", halo: "rgba(5,7,13,.85)" };
+
+  // The night sky behind the graph, for the saved image only: on screen the panel paints the same sky in CSS
+  // (memory-viewer.css), so a frame never repaints thousands of stars. Seeded: the same field every time.
+  function sky(c, W, H) {
+    const g = c.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, SKY.top); g.addColorStop(1, SKY.bottom);
+    c.fillStyle = g; c.fillRect(0, 0, W, H);
+    const v = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.1, W / 2, H / 2, Math.max(W, H) * 0.7);
+    v.addColorStop(0, "rgba(90,110,255,.10)"); v.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = v; c.fillRect(0, 0, W, H);
+    let seed = 7;
+    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+    c.fillStyle = "#ffffff";
+    for (let i = 0; i < Math.round((W * H) / 2600); i++) {
+      c.globalAlpha = 0.08 + rnd() * 0.25;
+      c.fillRect(rnd() * W, rnd() * H, rnd() < 0.9 ? 1 : 1.6, rnd() < 0.9 ? 1 : 1.6);
+    }
+    c.globalAlpha = 1;
   }
 
-  function draw() {
-    if (!canvas || !st.pos) return;
-    const c = canvas.getContext("2d");
-    const dpr = window.devicePixelRatio || 1;
-    const { bg, ink } = readColors();
+  function draw(target, scale = 1) {
+    const cv = target || canvas;
+    if (!cv || !st.pos) return;
+    const c = cv.getContext("2d");
+    const dpr = target ? scale : (window.devicePixelRatio || 1);
+    readColors();
     const font = getComputedStyle(section).fontFamily;
-    const always = canvas.clientWidth < 600 ? 5 : 10;   // labels shown at any zoom: fewer on a phone
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    const always = W < 600 ? 8 : 40;   // labels shown at any zoom: fewer on a phone
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    c.clearRect(0, 0, canvas.width, canvas.height);
+    c.clearRect(0, 0, W, H);
+    if (target) sky(c, W, H);
     const { k, tx, ty } = st.view;
     c.setTransform(dpr * k, 0, 0, dpr * k, dpr * tx, dpr * ty);
-    const P = st.pos, N = st.nodes;
+    const P = st.pos, N = st.nodes, hue = (n) => st.hues?.[n.color] ?? 210;
     const now = performance.now();
-    // edges (under everything)
+    c.globalCompositeOperation = "lighter";
+    // edges: a curve whose colour runs from one concept's hue to the other's
     for (const l of st.drawLinks) {
       const a = N[l.s], b = N[l.t];
       const ax = P[2 * l.s], ay = P[2 * l.s + 1], bx = P[2 * l.t], by = P[2 * l.t + 1];
       const sel = st.selected && (a.key === st.selected || (l.hub && b.key === st.selected));
-      c.strokeStyle = colors[a.color];
-      c.globalAlpha = l.hub ? (sel ? 0.85 : 0.42) : 0.22;
-      c.lineWidth = (l.hub ? l.w * (sel ? 1.5 : 1) : l.w) / Math.max(0.6, k);
+      if (l.hub) {
+        const g = c.createLinearGradient(ax, ay, bx, by);
+        const al = sel ? 0.9 : (st.selected ? 0.18 : 0.45);
+        g.addColorStop(0, hsl(hue(a), 62, al)); g.addColorStop(1, hsl(hue(b), 62, al));
+        c.strokeStyle = g;
+        c.lineWidth = l.w * (sel ? 1.6 : 1) / Math.max(0.6, k);
+      } else {
+        c.strokeStyle = hsl(hue(a), 70, st.selected && a.key !== st.selected ? 0.05 : 0.16);
+        c.lineWidth = l.w / Math.max(0.6, k);
+      }
       c.beginPath();
       c.moveTo(ax, ay);
       if (l.hub) {                                 // a gentle curve: the bend is perpendicular to the chord
@@ -180,52 +253,94 @@ export function GraphView({ tier }) {
       } else c.lineTo(bx, by);
       c.stroke();
     }
-    c.globalAlpha = 1;
-    // memory dots — level of detail: below ~1.5 px on screen a dot is a one-pixel square, not an arc
-    const px = 1.5 / k;
+    // memories: small stars — a dot plus a faint glow once they are big enough on screen
+    const px = 1.2 / k;
     for (let i = 0; i < N.length; i++) {
       const n = N[i];
       if (n.hub) continue;
-      c.fillStyle = colors[n.color];
-      c.globalAlpha = n.level === "short" ? 0.95 : 0.7;
-      if (n.r < px) c.fillRect(P[2 * i] - px / 2, P[2 * i + 1] - px / 2, px, px);
-      else { c.beginPath(); c.arc(P[2 * i], P[2 * i + 1], n.r, 0, Math.PI * 2); c.fill(); }
+      const x = P[2 * i], y = P[2 * i + 1], hh = hue(n);
+      const dim = st.selected && n.key !== st.selected ? 0.35 : 1;
+      if (n.r * k >= 2.5) {
+        c.fillStyle = hsl(hh, 65, 0.16 * dim);
+        c.beginPath(); c.arc(x, y, n.r * 2.6, 0, Math.PI * 2); c.fill();
+      }
+      c.fillStyle = hsl(hh, n.level === "short" ? 82 : 70, 0.9 * dim);
+      if (n.r < px) c.fillRect(x - px / 2, y - px / 2, px, px);
+      else { c.beginPath(); c.arc(x, y, n.r, 0, Math.PI * 2); c.fill(); }
       const p = st.pulses.get(n.mid);
       if (p && p > now) {
-        c.globalAlpha = 0.9; c.strokeStyle = ink; c.lineWidth = 1.5 / k;
-        c.beginPath(); c.arc(P[2 * i], P[2 * i + 1], n.r + 4 / k, 0, Math.PI * 2); c.stroke();
+        c.strokeStyle = SKY.ink; c.lineWidth = 1.5 / k;
+        c.beginPath(); c.arc(x, y, n.r + 4 / k, 0, Math.PI * 2); c.stroke();
       }
     }
-    c.globalAlpha = 1;
-    // concepts
+    // concepts: a wide halo, then a bright core
     for (let i = 0; i < N.length; i++) {
       const n = N[i];
       if (!n.hub) continue;
-      const x = P[2 * i], y = P[2 * i + 1], col = colors[n.color];
+      const x = P[2 * i], y = P[2 * i + 1], hh = hue(n);
       const sel = n.key === st.selected;
-      const g = c.createRadialGradient(x, y, n.r * 0.6, x, y, n.r * (sel ? 3.6 : 2.6));
-      g.addColorStop(0, col); g.addColorStop(1, "transparent");
-      c.globalAlpha = sel ? 0.42 : 0.18;
-      c.fillStyle = g; c.beginPath(); c.arc(x, y, n.r * (sel ? 3.6 : 2.6), 0, Math.PI * 2); c.fill();
-      c.globalAlpha = 1;
+      const dim = st.selected && !sel ? 0.55 : 1;
+      const R = n.r * (sel ? 4.2 : 3.2);
+      const g = c.createRadialGradient(x, y, 0, x, y, R);
+      g.addColorStop(0, hsl(hh, 60, 0.55 * dim)); g.addColorStop(0.35, hsl(hh, 55, 0.18 * dim)); g.addColorStop(1, hsl(hh, 50, 0));
+      c.fillStyle = g; c.beginPath(); c.arc(x, y, R, 0, Math.PI * 2); c.fill();
+    }
+    c.globalCompositeOperation = "source-over";
+    for (let i = 0; i < N.length; i++) {
+      const n = N[i];
+      if (!n.hub) continue;
+      const x = P[2 * i], y = P[2 * i + 1], hh = hue(n);
+      const sel = n.key === st.selected;
+      const core = c.createRadialGradient(x - n.r * 0.3, y - n.r * 0.3, n.r * 0.1, x, y, n.r);
+      core.addColorStop(0, hsl(hh, 92)); core.addColorStop(1, hsl(hh, 52));
+      c.fillStyle = core;
+      c.beginPath(); c.arc(x, y, n.r, 0, Math.PI * 2); c.fill();
       if (sel) {
-        c.strokeStyle = col; c.globalAlpha = 0.75; c.lineWidth = 2 / k;
-        c.beginPath(); c.arc(x, y, n.r + 6 / k, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1;
+        c.strokeStyle = hsl(hh, 80); c.lineWidth = 2 / k;
+        c.beginPath(); c.arc(x, y, n.r + 7 / k, 0, Math.PI * 2); c.stroke();
       }
-      c.fillStyle = col; c.strokeStyle = bg; c.lineWidth = 3 / k;
-      c.beginPath(); c.arc(x, y, n.r, 0, Math.PI * 2); c.fill(); c.stroke();
-      // labels — level of detail: the biggest few always, the rest once they are big enough on screen
-      if (n.rank < always || n.r * k >= 12 || sel || i === st.hover) {
-        c.fillStyle = ink;
-        c.font = `${sel ? 700 : 600} ${13 / k}px ${font}`;
+    }
+    // labels — the biggest few always, the rest once they are big enough on screen
+    if (st.labels) {
+      for (let i = 0; i < N.length; i++) {
+        const n = N[i];
+        if (!n.hub) continue;
+        const sel = n.key === st.selected;
+        if (!(n.rank < always || n.r * k >= 12 || sel || i === st.hover)) continue;
+        const x = P[2 * i], y = P[2 * i + 1];
+        c.font = `${sel || n.rank < 3 ? 700 : 600} ${(n.rank < 3 ? 15 : 13) / k}px ${font}`;
         c.textAlign = "center"; c.textBaseline = "top";
         const text = `${n.label} · ${num(n.count)}`;
-        c.strokeStyle = bg; c.lineWidth = 4 / k; c.lineJoin = "round";   // a halo: legible over the dots
+        c.strokeStyle = SKY.halo; c.lineWidth = 4 / k; c.lineJoin = "round";
         c.strokeText(text, x, y + n.r + 6 / k);
+        c.fillStyle = sel ? hsl(hue(n), 85) : SKY.ink;
         c.fillText(text, x, y + n.r + 6 / k);
       }
     }
+    if (target) return;
     if ([...st.pulses.values()].some((u) => u > now)) schedule();
+  }
+
+  // «Image»: the current view at 2× on an off-screen canvas, with a small signature, saved as a PNG.
+  function exportPng() {
+    if (!st.nodes.length) return;
+    const W = canvas.clientWidth, H = canvas.clientHeight, S = 2;
+    const off = document.createElement("canvas");
+    off.width = W * S; off.height = H * S;
+    draw(off, S);
+    const c = off.getContext("2d");
+    c.setTransform(S, 0, 0, S, 0, 0);
+    c.font = `600 13px ${getComputedStyle(section).fontFamily}`;
+    c.textAlign = "right"; c.textBaseline = "bottom"; c.fillStyle = "rgba(238,242,255,.55)";
+    c.fillText(t("memory.export_signature", { n: num(st.data?.total?.concepts || 0) }), W - 16, H - 12);
+    off.toBlob((b) => {
+      if (!b) return;
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(b);
+      a.download = `zaelar-memory-${new Date().toISOString().slice(0, 10)}.png`;
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    }, "image/png");
   }
 
   function paintEmpty(msg) {
@@ -291,8 +406,8 @@ export function GraphView({ tier }) {
     const p = await api.memoryViewer("concept", conceptParams(key));
     if (!p || key !== st.selected) return;
     const colorOf = (k) => {
-      const i = (st.data?.concepts || []).findIndex((x) => x.key === k);
-      return `var(${PALETTE[Math.max(0, i) % PALETTE.length]})`;
+      const i = st.nodes.findIndex((n) => n.hub && n.key === k);
+      return i >= 0 && st.hues ? hsl(st.hues[i], 50) : "var(--hb-accent)";
     };
     detailHead.replaceChildren(
       h("p", { class: "hb-sectitle" }, t("memory.detail_kicker")),
@@ -321,7 +436,9 @@ export function GraphView({ tier }) {
       chip("short", t("memory.layer_short", { n: num(lc.short) }), st.layers.has("short"), () => toggleLayer("short")),
       chip("long", t("memory.layer_long", { n: num(lc.long) }), st.layers.has("long"), () => toggleLayer("long")),
     );
-    showingEl.textContent = d ? t("memory.showing", { n: num(d.concepts.length) }) : "";
+    showingEl.textContent = !d ? "" : d.collapsed
+      ? t("memory.showing_top", { n: num(d.concepts.length), total: num(d.total?.nodes || 0) })
+      : t("memory.showing_all", { n: num(d.concepts.length), m: num(d.memories.length) });
     if (emptyEl && st.nodes.length) emptyEl.hidden = true;
   }
   const chip = (kind, text, on, fn) => h("button", { class: `mv-layer mv-layer--${kind}`, type: "button",
@@ -380,6 +497,10 @@ export function GraphView({ tier }) {
       h("div", { class: "mv-layers", role: "group", "aria-label": () => t("memory.layers_label"), ref: (x) => (chipsEl = x) }),
       h("span", { class: "hb-toolbar-spacer" }),
       h("p", { class: "mv-showing", ref: (x) => (showingEl = x) }),
+      h("button", { class: "hb-btn hb-btn--ghost hb-btn--sm", type: "button", "aria-pressed": "true",
+                    onClick: (e) => { st.labels = !st.labels; e.currentTarget.setAttribute("aria-pressed", String(st.labels)); schedule(); } },
+        () => t("memory.labels_toggle")),
+      h("button", { class: "hb-btn hb-btn--sm", type: "button", onClick: exportPng }, () => t("memory.export_png")),
     ),
     h("div", { class: "mv-graph-body" },
       h("section", { class: "mv-canvas-wrap", "aria-label": () => t("memory.graph_label"), ref: (x) => (section = x) },

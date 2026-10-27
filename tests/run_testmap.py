@@ -139,9 +139,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/memory/unit/test_recall_says_where_each_line_came_from.py"]},
         # V2-808: the memory viewer shows every store, totalled by COUNTs, and never returns a whole one — every
         # list has a server cap and a cursor, the graph is aggregated and bounded by the device's node budget.
-        {"id": "1.11", "title": "The memory viewer is a monitor: no stored row ever leaves it, totals are COUNTs by type and day, a browser profile is not app data, the graph is bounded by the node budget (V2-808, V2-814)",
+        {"id": "1.11", "title": "The memory viewer never returns a whole store: totals are COUNTs by type and day, the cards are capped and cut, a browser profile is not app data, the graph is bounded by the node budget and collapses to its concepts past it (V2-808, V2-814, V2-815)",
             "ch": HTTP, "paths": ["tests/memory/e2e/test_the_memory_viewer_never_returns_a_whole_store.py"]},
-        {"id": "1.12", "title": "The memory graph PAINTS inside its panel, centred, at desktop and phone width; its layout stays finite and stops when it settles (V2-808, rendered)",
+        {"id": "1.12", "title": "The memory viewer PAINTS: overview figures and charts, the cards the server sent, the graph centred in its panel at desktop and phone width, an image export; its layout stays finite and stops when it settles (V2-808, V2-815, rendered)",
             "ch": UNIT, "paths": ["tests/browser/unit/memory/test_the_memory_graph_paints_inside_its_panel.py"]},
     ]},
     {"id": "2", "name": "FLASHBRAIN (nucleo)", "nodes": [
