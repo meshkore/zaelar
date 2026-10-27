@@ -124,20 +124,17 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
             tasks.finish(task_id, "done", "Ya tenías sesión iniciada.")
         await _o._resume_paused_tasks()                              # resume OTHER tasks paused by login (if any)
         return
-    if _o._in_container():
-        # 2026-08-03: in a headless container (cloud) there is no display → the "headed" relaunch below ALWAYS
-        # silently degrades to headless (`_ensure_page`), and the task waits for a login that can never happen —
-        # previously this looped forever (voice AND widget hung, observed live with Wallapop). Stop here, BEFORE
-        # trying, with a clear message instead of a phantom attempt.
-        msg = (f"Para entrar en {site or url} hace falta iniciar sesión, y eso todavía no lo puedo hacer desde la "
-               "nube — necesitaría abrir una ventana de navegador que aquí no existe. Instala la versión local "
-               "(desde GitHub) si quieres usar sitios que exigen iniciar sesión.")
-        await _o._fail_paused_tasks(msg)
-        try:
-            from voice import proactive
-            await proactive.notify("navegador", msg, speak=True)
-        except Exception:
-            pass
+    # V2-822 — WHERE the window for him can open is one question with one answer (`nucleo/browser_window.py`): on a
+    # machine with a display it opens here; with no display, only on his computer through a connected daemon that
+    # declares it can; otherwise nowhere, and the process is BLOCKED with that state instead of waiting for a window
+    # that cannot exist (2026-08-03: it looped forever on a headless relaunch that silently stayed headless).
+    from nucleo import browser_window
+    reach = browser_window.reach()
+    if not reach:
+        await _block_for_no_window(task_id, site or url)
+        return
+    if reach == browser_window.DAEMON:
+        await _authenticate_on_daemon(task_id, url, site)
         return
     _o._auth_active = site
     auth_memory.checkpoint_auth_pending(site, task_id, goal)       # durable breadcrumb (survives crash/restart)
@@ -166,6 +163,43 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
     except Exception:
         pass
     _o._arm_login_watch(task_id, site)                               # WATCH the window → auto-detect login
+
+
+async def _block_for_no_window(task_id: str, site: str) -> None:
+    """No window can reach him (no display here, no daemon connected that can open one): the task that needs his
+    sign-in and the tasks paused behind it are BLOCKED — a live state, not a failure. Their entry in the processes
+    panel says why, and he is told once, in his language, in the chat and by voice."""
+    from . import tasks
+    for tid in [task_id, *[t for t in list(_o._auth_resume) if t != task_id]]:
+        if not tid or tasks.is_cancelled(tid):
+            continue
+        tasks.set_login_wait(tid, False, blocked="no_window")
+    _o._auth_resume.clear()
+    tasks.milestone(task_id, f"⛔ {site}: hace falta iniciar sesión y aquí no hay ventana — bloqueada")
+    try:
+        from voice import proactive
+        await proactive.notify("navegador", _o._say().login_needs_daemon.replace("{site}", str(site)), speak=True)
+    except Exception:
+        pass
+
+
+async def _authenticate_on_daemon(task_id: str, url: str, site: str) -> None:
+    """The window opens on his computer through the connected daemon; this task waits for his sign-in there. The
+    daemon's side reports it done through the same `auth_done` a local window ends with."""
+    from nucleo import browser_window
+    from . import tasks
+    _o._auth_active = site
+    tasks.set_status(task_id, "needs_input")
+    tasks.set_phase(task_id, "esperando tu inicio de sesión", True)
+    if not await browser_window.open_on_daemon(url, task_id):
+        await _block_for_no_window(task_id, site or url)
+        return
+    tasks.set_login_wait(task_id, True)
+    try:
+        from voice import proactive
+        await proactive.notify("navegador", _o._say().login_opened, speak=True)
+    except Exception:
+        pass
 
 
 async def _begin_login(task_id: str, site: str, login_url: str, goal: str = "", plan: str = "") -> None:
@@ -309,31 +343,6 @@ async def _resume_paused_tasks() -> None:
         _t = _o.asyncio.create_task(_o._automate(goal, (info or {}).get("plan", ""), tid))
         _o._running.add(_t)
         _t.add_done_callback(_o._running.discard)
-
-
-def _in_container() -> bool:
-    """Are we running in a headless container (cloud), without a display for a real window? Same accessor as
-    `nucleo/workers/providers.py::_is_container()` — the local Claude Code license and the login window share the same
-    limitation: neither exists inside a container."""
-    try:
-        from config import doctor
-        return bool(doctor.hardware().get("container"))
-    except Exception:
-        return False
-
-
-async def _fail_paused_tasks(message: str) -> None:
-    """Cleanly close the task that requested login + tasks paused waiting for it — sibling of `_resume_paused_tasks`,
-    for cases where login CANNOT be resolved in this environment (instead of leaving them hanging forever waiting for
-    a login that will never happen)."""
-    from . import tasks
-    items = list(_o._auth_resume.items())
-    _o._auth_resume.clear()
-    for tid, _info in items:
-        if tasks.is_cancelled(tid):
-            continue
-        tasks.set_login_wait(tid, False)
-        tasks.finish(tid, "failed", message)
 
 
 # Only STRONG login intent for detecting "sign-in required" (not ambiguous text like "my account"/"enter", which also

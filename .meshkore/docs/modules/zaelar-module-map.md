@@ -274,5 +274,6 @@ files from growing back.
 | Mobile shell (PWA) | `.meshkore/docs/modules/zaelar-mobile-shell.md` |
 | Update channel | `.meshkore/docs/modules/zaelar-update-channel.md` |
 | Local daemon: build/release, threat model | `.meshkore/docs/ops/zaelar-daemon-build.md`, `.meshkore/docs/security/zaelar-daemon-security.md` |
+| Where a browser window for him can open — a display here, a connected daemon that declares `browser.auth` (registered by its transport), or nowhere (a sign-in then BLOCKS the process and says why) | `nucleo/browser_window.py` (its docstring is the reference) |
 | Config tabs + connector registry, widget naming | `.meshkore/docs/architecture/zaelar-config-connectors-v2083.md`, `.meshkore/docs/architecture/zaelar-widget-naming-v2082.md` |
 | Memory re-verification cycle | `.meshkore/docs/ops/anexos/zaelar-memory-cycle-playbook.md` |

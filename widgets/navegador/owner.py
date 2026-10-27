@@ -868,8 +868,8 @@ class TaskBrowser:
 # V2-778 F1 — moved to `owner_login.py`, imported back under their names (that module reads this one).
 from .owner_login import (  # noqa: E402,F401
     _login_url_for, _click_login_affordance, _reach_login, _cookie_fingerprint, _authenticate, _begin_login,
-    _arm_login_watch, _is_logged_in, _login_watch, _auth_done, _resume_paused_tasks, _in_container,
-    _fail_paused_tasks, _LOGIN_STRICT_RE, _find_login_affordance, _already_authenticated, _probe_logged_in,
+    _arm_login_watch, _is_logged_in, _login_watch, _auth_done, _resume_paused_tasks,
+    _LOGIN_STRICT_RE, _find_login_affordance, _already_authenticated, _probe_logged_in,
     _login_site_of)
 
 

@@ -306,6 +306,7 @@ def browser_for(rows) -> dict:
         "shot_rev": int(best.get("shot_rev") or 0),
         "wall": str(best.get("wall") or ""),
         "awaiting_login": bool(best.get("awaiting_login")),
+        "blocked": str(best.get("blocked") or ""),          # V2-822: why it cannot go on from here (`no_window`)
         "question": str(best.get("question") or ""),
     }
 

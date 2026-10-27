@@ -79,21 +79,18 @@ def _notify(task_id: str) -> None:
     its entry in the processes panel (capture, page, V2-822)."""
     try:
         from voice.observer import emit
-        extra = {"id": inst_id(task_id), "src": f"worker:{task_id}"}   # V2-039: driven by the navigation worker
         _tid = trace_of(task_id)                                       # V2-044: chain to the phrase that requested the task
-        if _tid:
-            extra["trace"] = _tid
-            extra["span"] = f"web:{task_id}"
-        emit("widget", "data", extra=extra)
         with _lock:
             _sheet = str((_tasks.get(task_id) or {}).get("sheet") or "")
+        ids = [inst_id(task_id)]
         if _sheet:
             from widgets.results import data as _results
-            extra2 = {"id": _results.instance_id(_sheet), "src": f"worker:{task_id}"}
+            ids.append(_results.instance_id(_sheet))
+        for cid in ids:                                                # V2-039: driven by the navigation worker
+            extra = {"id": cid, "src": f"worker:{task_id}"}
             if _tid:
-                extra2["trace"] = _tid
-                extra2["span"] = f"web:{task_id}"
-            emit("widget", "data", extra=extra2)
+                extra.update(trace=_tid, span=f"web:{task_id}")
+            emit("widget", "data", extra=extra)
     except Exception:
         pass
     from nucleo import process_view                    # V2-822: the panel's expanded entry shows this browser
@@ -489,13 +486,16 @@ def set_phase(task_id: str, phase: str, active: bool = True) -> None:
     _notify(task_id)
 
 
-def set_login_wait(task_id: str, on: bool) -> None:
-    """The card waits for the operator to sign in in the visible window (shows an 'I'm in' button)."""
+def set_login_wait(task_id: str, on: bool, *, blocked: str = "") -> None:
+    """The card waits for him to sign in in the visible window. `blocked` (V2-822, `no_window`): no window can reach
+    him — a LIVE state the panel names, `needs_input` with no question (his next words are not its answer)."""
     with _lock:
         t = _tasks.get(task_id)
         if not t:
             return
         t["awaiting_login"] = bool(on)
+        if blocked:
+            t.update(blocked=str(blocked), status="needs_input", phase_active=False)
     _notify(task_id)
     if on:
         _raise_for_him(task_id, "login")

@@ -322,6 +322,8 @@ class LangSpec:
     # The browser's own login ceremony — `widgets/navegador/owner.py`.
     login_opened: str = ("")
     login_not_saved: str = ""
+    # V2-822 — no browser window can reach him (no display here, no connected daemon that can open one).
+    login_needs_daemon: str = ""
     # V2-682 — THE INTRODUCTION MUST NOT ASK A QUESTION THIS LANGUAGE DOES NOT HAVE. The phase's goal list
     # was hardcoded «cómo prefiere que le hables (tú/usted)», so an ENGLISH conversation was asked «"tú" or
     # "usted", which do you prefer?» — three times in one session (2026-09-12, 20:08). English has no T–V

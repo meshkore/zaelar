@@ -160,6 +160,7 @@
  "widget_partial_failed": ", but one didn't go through: {reason}",
  "login_opened": "I've opened the login for you. Sign in with your account; the moment I see you're in, I'll carry on by myself.",
  "login_not_saved": "Your {site} session didn't stick. Shall we try signing in again?",
+ "login_needs_daemon": "To carry on at {site} you need to sign in, and I can't open a browser for you from here: without the daemon installed on your computer to authenticate sessions, I can't continue. I've left it blocked in Processes.",
  "treatment_question": "",
  "login_left_halfway": "You left the sign-in at {site} halfway through earlier. If you want, we can pick it up.",
  "login_already_in": "You were already signed in at {site}, no need to log in. Carrying on.",

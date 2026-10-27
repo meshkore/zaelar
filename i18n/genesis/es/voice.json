@@ -160,6 +160,7 @@
  "widget_partial_failed": ", pero una no: {reason}",
  "login_opened": "Te abrí el login. Entra con tu cuenta; en cuanto vea que estás dentro, sigo yo solo.",
  "login_not_saved": "No me quedó guardada la sesión de {site}. ¿Reintentamos el inicio de sesión?",
+ "login_needs_daemon": "Para seguir en {site} tienes que iniciar sesión, y desde aquí no puedo abrirte un navegador: sin el daemon instalado en tu ordenador para autenticar sesiones no puedo continuar. La dejo bloqueada en Procesos.",
  "treatment_question": "cómo prefiere que le hables (tú/usted)",
  "login_left_halfway": "Antes dejaste a medias el inicio de sesión en {site}. Si quieres, lo retomamos.",
  "login_already_in": "Ya estabas dentro de {site}, no hace falta iniciar sesión. Sigo.",
