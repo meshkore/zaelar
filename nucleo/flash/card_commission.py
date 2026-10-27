@@ -318,6 +318,10 @@ async def commission_call(commission: str, *, brief, operator_text: str, spec, w
                                                     may_read=may_read,
                                                     verdict_action=_v_act if _base_card(_v_card) == _base_card(card)
                                                     else "")
+    # V2-820 — a lens on his card is not an errand whose deliverable has its own box (a document, pictures): the worker
+    # keeps it, and his card stays where he left it.
+    from nucleo.flash import canvas_visibility as _cvis_v
+    got = _cvis_v.unless_a_view(got, brief) if got and got.get("kind") == "call" else got
     if (not got or got.get("kind") != "call") and pictures:
         # Demo pass 66, B1: the catalogue named the viewer and the pass still sent «find me the wallpaper cosmic
         # eye…» to a worker. An empty viewer's only way to hold anything is the picture search.

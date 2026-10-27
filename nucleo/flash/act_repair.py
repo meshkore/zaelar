@@ -20,7 +20,7 @@ that fail, zero on every other.
 from __future__ import annotations
 
 import json, re
-from . import commission_keep as _keep   # a commission whose deliverable is a sheet keeps its worker
+from . import canvas_visibility as _cvis, commission_keep as _keep   # a sheet keeps its worker; a lens is no report
 from nucleo.turn import promise_kept as _pk   # V2-790: with `outcome`, the pass may also answer `cannot_do`
 from .repair_grounding import in_his_lang as _in_his_lang, session_lang as _session_lang  # noqa: F401 — pass 102/141
 
@@ -276,7 +276,7 @@ async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: s
     model, with the action named. Bounded like the others: one card, its declared action, the caller's gate."""
     if _answered_a_question(brief, reply) or _keep.keeps_the_worker(brief, widget_id):   # T529 · 2026-10-14
         return None
-    got = await call_for_promise(operator_text, reply, widget_id, spec, window=window, **({"outcome": outcome} if outcome is not None else {}))
+    got = _cvis.unless_a_view(await call_for_promise(operator_text, reply, widget_id, spec, window=window, **({"outcome": outcome} if outcome is not None else {})), brief, outcome)   # V2-820
     # V2-781 T518: «make it last until one» — the promise pass read «I'll open it so you can see it» and picked
     # `open_meeting` with the verdict at `agenda:move_meeting` 0.98. The verdict completes the model (CRIT-K2): a
     # view the pass chose over a real op the verdict names is asked once more, for that op.

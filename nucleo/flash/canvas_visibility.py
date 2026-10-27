@@ -204,6 +204,56 @@ def present_for_call(widget_id: str, action: str, *, brief=None, card: str = "",
     return False
 
 
+def a_view_is_not_the_deliverable(widget_id: str, action: str, brief=None) -> bool:
+    """Is this call a VIEW (a lens, `data.read`) standing in for an errand whose deliverable has its OWN box — a
+    document to read, pictures to look at — on a turn that did not ask to see the card? Then it is not the errand.
+
+    V2-820, measured: «¿podrías crear un widget que leyera mis mensajes enviados… y fuera componiendo un archivo que
+    describiera cómo escribo?» — the brief read `errand_surface = informe` (0.93) and `canvas` unsure; the catalogue
+    rung took `mensajeria:mail_folder {folder: sent}` instead of the worker, and because a lens over a closed card
+    is presented (`present_for_call`), his mail card opened. Talking ABOUT a card's content, or an errand that will
+    read it, is not an order to look at it. Read from the verdict and the action's declaration, never from words.
+    A sure `canvas = show` (he asked to see it) or a view of the deliverable's own box is never refused."""
+    wid = str(widget_id or "").split("::", 1)[0].strip().lower()
+    if not wid or brief is None:
+        return False
+    try:
+        from widgets import effects as _fx
+        if _fx.DATA_READ not in _fx.of(wid, str(action or "").strip()):
+            return False
+        from nucleo import surfaces as _sf
+        from nucleo.flash import turn_brief as _tb
+        verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
+        if info is not None and str(verb or "") == "show":
+            return False
+        surface, s_info = _tb.read(brief, _sf.SURFACE_KEY, "", min_confidence=0.7)
+        surface = _sf.normalize(surface) if s_info is not None else ""
+        return bool(surface) and _sf.not_a_sheet(surface) and _sf.normalize(wid) != surface   # its own box is it
+    except Exception as e:  # noqa: BLE001 — unreadable: today's path
+        from loguru import logger
+        logger.debug(f"canvas_visibility: view check for {wid}:{action} skipped — {e!r}")
+        return False
+
+
+def unless_a_view(got, brief, outcome: dict | None = None):
+    """`got` (a rung's or a pass's call), or None when it is a view that is not the deliverable — said on the timeline,
+    and a promise pass's outcome recorded as JUDGED: there was nothing to run on the card (V2-820). Never raises."""
+    try:
+        if not got or not a_view_is_not_the_deliverable(got.get("widget_id"), got.get("action"), brief):
+            return got
+        from voice.observer import emit
+        emit("brain", "🔁 la segunda pasada no dio llamada", text=f"{got.get('widget_id')}: a view is not the errand",
+             role="system", extra={"cat": "flash", "widget": got.get("widget_id"), "action": got.get("action"),
+                                   "why": "view_not_deliverable"})
+        if outcome is not None:
+            from nucleo.turn import promise_kept as _pk
+            outcome["kind"] = _pk.JUDGED
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.debug(f"canvas_visibility: unless_a_view failed — {e!r}")
+    return None
+
+
 def _say(emit, label: str, extra: dict) -> None:
     """Emit on the stream the caller gave, or the observer's. A broken stream is logged, never raised."""
     from loguru import logger
