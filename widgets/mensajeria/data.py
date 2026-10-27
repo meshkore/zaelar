@@ -17,6 +17,7 @@ from . import drafts as _drafts
 from . import held as _held
 from . import outbound as _outbound
 from . import sent as _sent
+from . import names as _names   # V2-819: one resolver names every conversation the card shows
 # The READ side lives in views.py since V2-624 (the architecture ratchet's extraction, along the real seam:
 # name resolution, the thread/activity views, peek, the autoresponder previews, and — since V2-626 — the
 # open reference and the effective notify policy). One direction only —
@@ -192,7 +193,7 @@ def view_data(q: str = "") -> dict:
         active = None
         thread_meta = None
 
-    return {
+    return _names.apply({
         "platforms": db.get("platforms", {}),
         "updated": db.get("updated", ""),
         "items": items,
@@ -220,6 +221,8 @@ def view_data(q: str = "") -> dict:
         "draft": db.get("draft") or None,
         # V2-776 L2 — what this card SENT (and what is still leaving), the rows `send_to`'s postcondition reads.
         "sent": _sent.rows(db),
+        # V2-819 — the card's own sends and their outcome: it clears the box on «sent» and keeps his text otherwise.
+        "outbox": _sent.outbox_view(db),
         # V2-680 — one draft PER CONVERSATION, keyed by `_draft_key`. Before this there was exactly one
         # draft in the whole widget, so starting a reply to a second conversation silently destroyed the
         # first. The widget reads its own screen's key out of this map; `draft` above stays the most recent.
@@ -247,7 +250,7 @@ def view_data(q: str = "") -> dict:
         "media_days": _media.days(db),
         # The email section as a mail client (mailbox.py): folders, the current folder's rows, what is open.
         "mailbox": _mailbox.view(db),
-    }
+    })
 
 
 _BRING_BACK_MAX = 2
@@ -419,8 +422,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
 # first use (a module `__getattr__`: that module reads this one's names, and nothing left here calls it).
 def __getattr__(name: str):
     if name == "answer_action":
-        from widgets.mensajeria import answers as _answers
-        return _answers.answer_action
+        from widgets.mensajeria import card_send as _card   # V2-819: the card's Send is vetoed first, then answers
+        return _card.answer_action
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 

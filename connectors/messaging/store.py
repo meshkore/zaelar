@@ -94,6 +94,23 @@ def _media_entries(m: dict) -> list[dict]:
     return urls
 
 
+def with_media(m: dict) -> dict:
+    """The message with its downloaded files as `media` entries the card can play — for EVERY direction.
+
+    V2-819: the bridge downloads a voice note the operator sends from his phone exactly as it downloads one he
+    receives, and hands over the same `mediaUrls`. Only the INBOUND door turned those paths into `media`; the
+    outbound one (`record_outbound`) passed them through raw, so his own voice notes reached the thread as a bare
+    «audio» label with nothing to play. One function, both doors."""
+    if not isinstance(m, dict) or not (m.get("hasMedia") or m.get("mediaUrls")) or m.get("media"):
+        return m
+    out = dict(m)
+    out["mediaType"] = str(m.get("mediaType") or "")
+    media = _media_entries(m)
+    if media:
+        out["media"] = media
+    return out
+
+
 def _now() -> str:
     return time.strftime("%H:%M:%S")
 
@@ -272,10 +289,10 @@ def upsert_items(platform: str, new_items: list[dict]) -> dict:
         except (TypeError, ValueError):
             entry["ts"] = time.time()
         if m.get("hasMedia") or m.get("mediaUrls"):
-            entry["mediaType"] = str(m.get("mediaType") or "")
-            media = _media_entries(m)
-            if media:
-                entry["media"] = media
+            withm = with_media(m)
+            entry["mediaType"] = withm.get("mediaType", "")
+            if withm.get("media"):
+                entry["media"] = withm["media"]
         items.append(entry)
         fresh.append(entry)
     if not added:
@@ -376,6 +393,7 @@ def record_outbound(platform: str, chat_id, msg: dict, name: str = "") -> dict:
     it. The items are dropped WITHOUT enqueuing mark-read: the app they came from already knows."""
     db = load()
     th = _thread()
+    msg = with_media(msg)
     added = th.append(db, platform, chat_id, msg, "out", name=name)
     _to_archive([msg], platform, chat_id, direction="out", chat_name=name)
     try:

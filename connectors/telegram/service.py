@@ -500,12 +500,26 @@ async def _drain_replies() -> None:
             # Telegram does NOT run its URL auto-detection over. The operator measured it on the Meet
             # link: «sale el embedding conforme ha reconocido el link pero no es clicable». Our text is
             # prose a model wrote for a human, never markup; an underscore in it is an underscore.
-            await _send(chat_id, text, files, reply_to=reply_to)
-            logger.info(f"Telegram: respuesta enviada a {chat_id}")
-            _note(f"[SISTEMA] Telegram enviado a {r.get('to') or chat_id}. Confírmaselo al operador de forma natural.")
+            sent = await _send(chat_id, text, files, reply_to=reply_to)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"Telegram: fallo al enviar a {chat_id}: {e}")
+            # V2-819 — the card that sent it hears it too: its row keeps his text and says why.
+            ingest.publish_send_failed({**r, "platform": "telegram"}, str(e))
             _note(f"[SISTEMA] No se pudo enviar el Telegram a {r.get('to') or chat_id} ({e}). Avísale al operador.")
+            continue
+        logger.info(f"Telegram: respuesta enviada a {chat_id}")
+        _note(f"[SISTEMA] Telegram enviado a {r.get('to') or chat_id}. Confírmaselo al operador de forma natural.")
+        # V2-819 — and the card that sent it hears it LEFT: the echo carries the order's `ref`, under the same id
+        # the account's own outgoing event gives it, so the two land on one row. Outside the try: failing to
+        # record a message is not failing to send it.
+        try:
+            ingest.publish_msg_out("telegram", {
+                "chatId": chat_id, "messageId": f"{chat_id}:{getattr(sent, 'id', 0)}", "ref": r.get("ref") or "",
+                "from": "", "body": text, "timestamp": _sent_ts(sent),
+                **({"media": store.media_refs(store.sendable(files)),
+                    "mediaType": store.kind_of(files[0])} if files else {})})
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"Telegram: enviado, pero no pude registrar la conversación: {e}")
 
 
 async def _drain_sends() -> None:

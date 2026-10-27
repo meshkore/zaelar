@@ -393,6 +393,9 @@ function injectStyles(){
      and the send button sits to its RIGHT rather than on a row underneath, so growing the box never pushes
      the button off the bottom of the card. */
   .hb-msg .composemain{display:flex;gap:9px;align-items:stretch}
+  /* V2-819 — a send that did not leave says so where he wrote it; his text stays in the box. */
+  .hb-msg .composeerr{color:var(--hb-risk,#e5484d);font-size:12.5px;margin:0 0 7px}
+  .hb-msg .cxava{width:22px;height:22px;border-radius:50%;object-fit:cover;flex:0 0 auto;margin-right:6px;vertical-align:middle}
   .hb-msg .composebox{flex:1 1 auto;min-width:0;box-sizing:border-box;resize:vertical;min-height:112px;
     font:inherit;font-size:14px;line-height:1.45;color:var(--hb-ink,#0d1622);background:var(--hb-hover,#eef3f9);
     border:1px solid var(--hb-line,#eef1f6);border-radius:10px;padding:9px 11px}
@@ -1065,6 +1068,25 @@ const _draftFiles = {};   // key -> [{name,url,type,original}] attached in the c
 const _newForm = {};      // platform -> "chat" | "group" | null — the «Nuevo» form open on that platform's list
 const _draftLocal = {};   // key -> text not yet round-tripped to the server (keystroke buffer, per screen)
 let _draftTimer = null;
+// V2-819 — a send from his own hand is answered. `_sending[key]` is the order on its way ({ref, text}): the box keeps
+// his text, locked, until the outbox row `ref` (data.outbox) says «sent»; a refusal or a failure unlocks it with the
+// reason in `_sendNote[key]`. Before, the box was emptied the moment the order was QUEUED, and nothing that happened
+// after that ever reached the card — a send that never left looked exactly like one that did.
+const _sending = {};
+const _sendNote = {};
+function _newRef(){ return "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+// The words for why a send did not leave: the server's code mapped to his language, its own sentence otherwise.
+function _sendFailText(res, platform){
+  const label = (PLAT[platform] || {}).label || platform || "";
+  const code = res && (res.error || res.state);
+  if(!res) return tt("send_offline", null, "El agente no ha contestado: no se ha enviado nada.");
+  if(code === "not_connected") return tt("send_not_connected", {platform: label}, `${label} no está conectado, así que no se ha enviado.`);
+  if(code === "empty") return tt("send_empty", null, "No hay nada escrito que enviar.");
+  if(code === "no_target") return tt("send_no_target", null, "No sé a qué conversación va: ábrela y vuelve a enviarlo.");
+  if(code === "unconfirmed") return tt("send_unconfirmed", {platform: label}, `${label} todavía no ha confirmado el envío: puede que no haya salido.`);
+  const why = String((res && (res.reason || res.message)) || "").trim();
+  return tt("not_sent", null, "No se ha enviado") + (why ? ": " + why : "");
+}
 
 function _composeKey(targetPayload, activeChat){
   if(targetPayload && (targetPayload.messageId != null || targetPayload.n != null))
@@ -1162,6 +1184,7 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
   box.placeholder = tt("compose_ph", null, "Escribe tu respuesta… (o dila por voz y aparecerá aquí)");
   box.rows = 5;                       // the operator's own minimum — a reply is written, not tweeted
   box.value = (key in _draftLocal) ? _draftLocal[key] : serverText;
+  box.dataset.keep = "compose:" + key;      // V2-819: focus and caret survive a repaint (see _captureWhere)
 
   // Reply / reply-all, above the box. Only for a mail whose original really had other recipients.
   if(others.length){
@@ -1192,13 +1215,30 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
                                       type: /\.(jpe?g|png|webp|gif|heic)$/i.test(n) ? "image" : "document"}));
   }
   const files = _draftFiles[key];
-  const syncBtn = () => { send.disabled = !box.value.trim() && !files.length; };
+  const syncBtn = () => { send.disabled = !!_sending[key] || (!box.value.trim() && !files.length); };
+  // V2-819 — the order on its way settles from the state: its outbox row says sent (the box empties), or failed /
+  // unconfirmed (his text comes back, unlocked, with the reason).
+  const going = _sending[key];
+  if(going){
+    const row = (data.outbox || []).find(r => r && r.ref === going.ref);
+    if(row && row.state === "sent"){
+      delete _sending[key]; delete _draftLocal[key]; _draftFiles[key] = []; files.length = 0;
+      box.value = "";
+    } else if(row && row.state !== "queued"){
+      delete _sending[key]; _draftLocal[key] = going.text; box.value = going.text;
+      _sendNote[key] = _sendFailText(row, row.platform);
+    } else {
+      box.value = going.text; box.readOnly = true;
+      send.textContent = tt("sending", null, "Enviando…");
+    }
+  }
   syncBtn();
 
   const payload = () => ({...targetPayload, reply_all: replyAll, files: files.map(f=>f.name)});
   const att = attachControls(ctx, files, ()=>{ syncBtn(); ctx.action("draft", {...payload(), text: box.value}); });
   box.addEventListener("input", () => {
     _draftLocal[key] = box.value;
+    if(_sendNote[key]){ delete _sendNote[key]; const n = wrap.querySelector(".composeerr"); if(n) n.remove(); }
     syncBtn();
     clearTimeout(_draftTimer);
     _draftTimer = setTimeout(() => { ctx.action("draft", {...payload(), text: box.value}); }, 500);
@@ -1215,22 +1255,29 @@ function composeBar(ctx, data, targetPayload, activeChat, rerender, mailItem){
   };
   send.onclick = async () => {
     const text = box.value;
-    if(!text.trim() && !files.length) return;
+    if(_sending[key] || (!text.trim() && !files.length)) return;
     clearTimeout(_draftTimer);
-    send.disabled = true;
-    delete _draftLocal[key];
-    // The box's CURRENT value is what gets sent — never a value cached from an earlier keystroke or from
-    // voice dictation alone: an edit made by hand after dictating is the operator's real final word.
-    await ctx.action("draft", {...payload(), text});
-    // The send NAMES its conversation (V2-680): with a draft per conversation, a bare send_draft would
-    // reach for the most recently TOUCHED one, which is not necessarily the screen this button is on.
-    await ctx.action("send_draft", {...targetPayload});
-    _draftFiles[key] = [];
+    // ONE order, carrying what is in the box and naming the conversation it is for. It used to be two (`draft`,
+    // then a bare `send_draft {}` that sent «the most recent draft», whichever conversation that was), and the box
+    // was emptied before anything was known. Now the box keeps his text until the outbox row says it left.
+    const ref = _newRef();
+    _sending[key] = {ref, text};
+    delete _sendNote[key];
+    const chat = activeChat ? {platform: activeChat.platform, chatId: activeChat.chatId} : null;
     rerender();
+    const res = await ctx.action("send_draft", {...targetPayload, ...(chat ? {chat} : {}), ref, box_key: key, text,
+                                                reply_all: replyAll, files: files.map(f=>f.name)});
+    if(!res || res.ok === false || (res.error && !res.ok)){
+      delete _sending[key];
+      _draftLocal[key] = text;
+      _sendNote[key] = _sendFailText(res, (chat || mailItem || {}).platform || (mailItem ? "email" : ""));
+      rerender();
+    }
   };
   side.append(send, save);
   main.append(box, side);
   const tools = el("div","composetools"); tools.append(att.btn, att.input, att.row);
+  if(_sendNote[key]) wrap.appendChild(el("div","composeerr", _sendNote[key]));
   wrap.appendChild(main);
   wrap.appendChild(tools);
   const c = data.composing;
@@ -1304,6 +1351,7 @@ function messageRow(it, ctx, rerender, isGroup){
   const actionable = !outgoing && it.n != null;
 
   const row = el("div","tbrow"+(outgoing?" out":""));
+  row.dataset.rowKey = key;
   const stack = el("div","tbstack");
   const bubble = el("div","tbubble"+(urgente && !outgoing?" urg":""));
   if(isGroup && !outgoing) bubble.appendChild(el("div","tbfrom", it.from!=null?it.from:"?"));
@@ -1558,6 +1606,9 @@ function platformChatRows(platform, rows, ctx){
     row.appendChild(lead);
     const main = el("div","tmain");
     const head = el("div","thead");
+    if(c.photo && String(c.photo).match(/^(\/widgets\/|data:image\/)/)){
+      const ph = document.createElement("img"); ph.className = "cxava"; ph.src = c.photo; ph.alt = ""; head.appendChild(ph);
+    }
     head.appendChild(el("span","tfrom", c.name));
     const count = c.unread || c.pending || 0;
     if(count) head.appendChild(el("span","tcount", String(count)));
@@ -1662,6 +1713,7 @@ function platformChats(platform, v, ctx){
   search.type = "search";
   search.placeholder = tt("chats_search", null, "Buscar un chat");
   search.value = _chatQuery[platform] || "";
+  search.dataset.keep = "chatsearch:" + platform;
   search.oninput = ()=>{ _chatQuery[platform] = search.value; fill(); };
   bar.appendChild(search);
   box.appendChild(bar);
@@ -1752,8 +1804,14 @@ function threadView(active, items, data, ctx, rerender, meta){
   // The chat's name comes from an INBOUND message: with outbound ones in the thread (V2-546) the first row can
   // be the operator's own, and naming the conversation after himself is how a thread stops being recognisable.
   const inbound = items.filter(it=> it.dir !== "out");
-  const name = (inbound.find(it=>it.group)||{}).group || (inbound.find(it=>it.from)||{}).from
+  // V2-819 — a one-to-one chat is named by the server's ONE resolver (`names.py`: his contact first, then the
+  // platform's own display name), so the header says what the list says; a group keeps its subject.
+  const resolved = meta && !meta.isGroup ? meta.name : "";
+  const name = resolved || (inbound.find(it=>it.group)||{}).group || (inbound.find(it=>it.from)||{}).from
     || (PLAT[active.platform]||{}).label || tt("chat", null, "Chat");
+  if(meta && meta.photo && String(meta.photo).match(/^(\/widgets\/|data:image\/)/)){
+    const ph = document.createElement("img"); ph.className = "cxava"; ph.src = meta.photo; ph.alt = ""; hd.appendChild(ph);
+  }
   hd.appendChild(el("b","thdname", name));
   // V2-616 F2/F3 — the operator: the name goes on the LEFT, "volver" moves to the far RIGHT as a real
   // button, never a bare underlined link (`margin-left:auto` on the LAST child, same pattern the connectors
@@ -1771,6 +1829,10 @@ function threadView(active, items, data, ctx, rerender, meta){
   // three-page mail to three lines behind a «mostrar más», hid the subject, showed neither the recipients
   // nor who was copied, and put an urgency stripe down the side of the one thing he had opened on purpose.
   const list = el("div","tl" + (active.platform === "email" ? " mpane" : ""));
+  // V2-819 — this scroller is THIS conversation's: a repaint keeps him where he was in it, and a chat (not a mail,
+  // whose latest letter is read from its top) opens on its latest message, the way every messaging app does.
+  list.dataset.scrollKey = "thread:" + active.platform + ":" + active.chatId;
+  if(active.platform !== "email") list.dataset.open = "bottom";
   if(active.platform === "email"){
     const who = {chatId: active.chatId};
     items.forEach(it=> list.appendChild(mailLetter(it, ctx, who)));
@@ -2142,6 +2204,11 @@ function draftEditor(d, key, mb, data, ctx, act, rerender){
   }
   const box = el("textarea","mdbody");
   box.value = d.text || "";
+  // V2-819 — the focused field keeps focus and caret through a repaint; a saved draft's fields have no buffer of
+  // their own (a new one has `_newMail`), so theirs keep the typed value too.
+  const tag = "draft:" + (key || "new") + ":";
+  [[toIn, "to"], [subjIn, "subject"], [box, "body"]].forEach(([n, f]) => { if(!n) return;
+    n.dataset.keep = tag + f; if(!fresh) n.dataset.keepValue = "1"; });
   box.placeholder = tt("draft_ph", null, "Escribe el mensaje…");
   pane.appendChild(box);
   if(!fresh && (d.files || []).length) pane.appendChild(el("div","mdfiles", "📎 " + d.files.join(", ")));
@@ -2222,7 +2289,94 @@ function tt(key, params, fb){
   return s;
 }
 
+// ── WHERE HE IS survives a repaint (V2-819) ─────────────────────────────────────────────────────────────────
+// The host repaints this card on EVERY store write (desktop.js `refreshData`), and this card writes the store
+// itself while he types: the composer's autosave (`draft`, half a second after the last key). Each repaint rebuilt
+// the card from nothing, so the thread's list came back scrolled to its top and the box he was typing in lost its
+// focus — measured by the operator in a WhatsApp chat: he scrolled to the latest message, started writing, and
+// the conversation jumped up under his hands. The class is «a repaint moves him», so it is fixed at the one door
+// every repaint goes through, not in the composer:
+//   · a scroller says what it is (`data-scroll-key`) and how it OPENS (`data-open="bottom"`: a chat opens on its
+//     latest message); a repaint of the SAME scroller keeps him where he was — on the bottom if he was there
+//     (new messages then stay in view), else on the same row (`data-row-key`) at the same offset;
+//   · a text field that should keep its focus says so (`data-keep`): the focused one gets focus and caret back.
+//     Its VALUE is each field's own buffer's job (`_draftLocal`, `_chatQuery`, `_newMail`), never restored here —
+//     except where a field has no buffer of its own (`data-keep-value`).
+const _PIN_PX = 24;
+
+function _captureWhere(root){
+  const w = {focus: null, scroll: {}};
+  try{
+    const a = document.activeElement;
+    if(a && root.contains(a) && a.dataset && a.dataset.keep){
+      w.focus = {key: a.dataset.keep, s: a.selectionStart, e: a.selectionEnd, top: a.scrollTop,
+                  value: a.dataset.keepValue != null ? a.value : null};
+    }
+    root.querySelectorAll("[data-scroll-key]").forEach(sc => {
+      const atBottom = sc.scrollHeight - sc.scrollTop - sc.clientHeight <= _PIN_PX;
+      let anchor = null;
+      if(!atBottom){
+        const top = sc.getBoundingClientRect().top;
+        for(const r of sc.querySelectorAll("[data-row-key]")){
+          const b = r.getBoundingClientRect();
+          if(b.bottom > top){ anchor = {key: r.dataset.rowKey, off: b.top - top}; break; }
+        }
+      }
+      w.scroll[sc.dataset.scrollKey] = {top: sc.scrollTop, atBottom, anchor};
+    });
+  }catch(_){ /* a capture that fails leaves the repaint as it always was */ }
+  return w;
+}
+
+// A scroller that opened (or stayed) on its bottom follows what grows under it — a picture that finishes loading,
+// a voice note whose length arrives — until HE scrolls away from the bottom.
+function _followBottom(sc){
+  sc.__hbPinned = true;
+  sc.scrollTop = sc.scrollHeight;
+  if(sc.__hbFollow) return;
+  sc.__hbFollow = true;
+  sc.addEventListener("scroll", () => {
+    if(sc.__hbPinning) return;
+    sc.__hbPinned = sc.scrollHeight - sc.scrollTop - sc.clientHeight <= _PIN_PX;
+  }, {passive: true});
+  const repin = () => { if(sc.__hbPinned){ sc.__hbPinning = true; sc.scrollTop = sc.scrollHeight;
+    requestAnimationFrame(() => { sc.__hbPinning = false; }); } };
+  sc.addEventListener("load", repin, true);
+  sc.addEventListener("loadedmetadata", repin, true);
+  requestAnimationFrame(repin);            // a card painted before its first layout has no height to scroll yet
+}
+
+function _restoreWhere(root, w){
+  try{
+    root.querySelectorAll("[data-scroll-key]").forEach(sc => {
+      const was = w.scroll[sc.dataset.scrollKey];
+      if(was ? was.atBottom : sc.dataset.open === "bottom"){ _followBottom(sc); return; }
+      if(!was) return;
+      if(was.anchor){
+        const r = Array.from(sc.querySelectorAll("[data-row-key]")).find(x => x.dataset.rowKey === was.anchor.key);
+        if(r){ sc.scrollTop += (r.getBoundingClientRect().top - sc.getBoundingClientRect().top) - was.anchor.off; return; }
+      }
+      sc.scrollTop = was.top;
+    });
+    if(w.focus){
+      const f = Array.from(root.querySelectorAll("[data-keep]")).find(x => x.dataset.keep === w.focus.key);
+      if(f){
+        if(w.focus.value != null && f.value !== w.focus.value) f.value = w.focus.value;
+        f.focus({preventScroll: true});
+        try{ if(w.focus.s != null) f.setSelectionRange(Math.min(w.focus.s, f.value.length), Math.min(w.focus.e, f.value.length)); }catch(_){}
+        f.scrollTop = w.focus.top || 0;
+      }
+    }
+  }catch(_){ /* never let bookkeeping break the card */ }
+}
+
 export function render(root, data, ctx){
+  const where = _captureWhere(root);
+  _paint(root, data, ctx);
+  _restoreWhere(root, where);
+}
+
+function _paint(root, data, ctx){
   _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   _LANG = (ctx && ctx.lang) || "en";
   injectStyles();

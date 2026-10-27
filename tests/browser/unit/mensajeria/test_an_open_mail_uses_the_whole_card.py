@@ -445,8 +445,8 @@ def test_choosing_reply_all_carries_it_into_the_draft(_page):
     _page.locator(".composebox").fill("A todos")
     _page.locator(".compose .bt-primary").click()
     _page.wait_for_timeout(120)
-    drafts = _calls(_page, "draft")
-    assert drafts and drafts[-1][1].get("reply_all") is True, drafts
+    sends = _calls(_page, "send_draft")      # V2-819: the send itself carries the choice, in one order
+    assert sends and sends[-1][1].get("reply_all") is True, sends
 
 
 def test_a_plain_reply_stays_a_plain_reply(_page):
@@ -455,8 +455,8 @@ def test_a_plain_reply_stays_a_plain_reply(_page):
     _page.locator(".composebox").fill("Solo a ti")
     _page.locator(".compose .bt-primary").click()
     _page.wait_for_timeout(120)
-    drafts = _calls(_page, "draft")
-    assert drafts and drafts[-1][1].get("reply_all") is False, drafts
+    sends = _calls(_page, "send_draft")      # V2-819: the send itself carries the choice, in one order
+    assert sends and sends[-1][1].get("reply_all") is False, sends
 
 
 def test_the_selector_NAMES_who_a_reply_all_would_copy(_page):
@@ -481,5 +481,5 @@ def test_the_choice_does_not_follow_him_to_the_next_mail(_page):
     _page.locator(".composebox").fill("Otra cosa")
     _page.locator(".compose .bt-primary").click()
     _page.wait_for_timeout(120)
-    drafts = _calls(_page, "draft")
-    assert drafts and drafts[-1][1].get("reply_all") is False, drafts
+    sends = _calls(_page, "send_draft")      # V2-819: the send itself carries the choice, in one order
+    assert sends and sends[-1][1].get("reply_all") is False, sends

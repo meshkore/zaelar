@@ -249,6 +249,9 @@ def _a_cancel_send(action, payload) -> dict:
 
 
 def _a_send_draft(action, payload) -> dict:
+    from . import card_send as _card
+    if _card.is_card_send(payload):     # V2-819: the card's own Send — its text, its conversation, answered
+        return _card.send(payload)
     db = _d.load_db()
     # A send names WHICH conversation whenever the widget's own button fires it; a bare voice «envíalo»
     # names nothing and gets the most recent draft, which is what it meant before drafts were per

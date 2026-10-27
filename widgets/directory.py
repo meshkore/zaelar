@@ -340,3 +340,75 @@ def note_many(platform: str, msgs) -> int:
         except Exception:
             continue
     return n
+
+
+# ── naming a conversation (V2-819) ─────────────────────────────────────────────────────────────────────
+#: The WhatsApp address suffixes whose digits ARE a phone number. A `@lid` (linked identity) and a `@g.us`
+#: (group) carry digits that are not a phone, and reading them as one could put a contact's name on a stranger.
+_PHONE_JID = ("@s.whatsapp.net", "@c.us")
+
+
+def _phone_of(platform: str, chat_id) -> str:
+    """The phone number a conversation's id carries, or "". Only where the id IS a number: a WhatsApp phone
+    JID or a bare «+34 600…». A Telegram id is an account number, never a phone."""
+    cid = str(chat_id or "").strip()
+    if not cid:
+        return ""
+    if "@" in cid:
+        return _digits(cid.split("@", 1)[0]) if _norm(platform) == "whatsapp" and cid.endswith(_PHONE_JID) else ""
+    if _norm(platform) == "telegram" and not cid.startswith("+"):
+        return ""
+    return _digits(cid) if re.fullmatch(r"\+?[\d\s().-]{7,}", cid) else ""
+
+
+def _photo(contact: dict) -> str:
+    """A picture the card can draw without a fetch of its own: same-origin or inline. A remote URL is left out
+    rather than handed to a widget that must never reach the network (widgets/validator.py)."""
+    a = str((contact or {}).get("avatar") or "").strip()
+    return a if a.startswith(("/widgets/", "data:image/")) else ""
+
+
+def namer(people: list[dict] | None = None):
+    """ONE resolver for the name and picture of the other side of a conversation, for every list and header
+    that shows one. Contacts are read ONCE per call to `namer()` — a view names dozens of rows.
+
+        name = namer()
+        name("whatsapp", "34600111222@s.whatsapp.net", fallback="Mamá ❤")  ->  {"name": "mama", "photo": ""}
+
+    Order, each step only when the previous one has nothing:
+      1. the contact that already holds this conversation (a channel learned or set on it);
+      2. the contact whose phone (or address, for mail) is the one this conversation's id carries;
+      3. the platform's own display name (`fallback`: pushname, Telegram name, a mail's display name);
+      4. the bare id, without its transport suffix.
+    A contact match must be UNIQUE: two rows holding the same number is an ambiguity, and the platform's own
+    name is then more honest than either of them."""
+    if people is None:
+        try:
+            from .contactos import data as _cd
+            people = _cd.visible(_cd.load_db())
+        except Exception:  # noqa: BLE001
+            people = []
+    people = [c for c in people if isinstance(c, dict) and c.get("kind") != "group" and str(c.get("name") or "").strip()]
+
+    def _one(hits: list[dict]) -> dict | None:
+        uniq = {id(c): c for c in hits}
+        return next(iter(uniq.values())) if len(uniq) == 1 else None
+
+    def resolve(platform: str, chat_id, fallback: str = "") -> dict:
+        p, cid = _norm(platform), str(chat_id or "").strip()
+        hit = None
+        if p and cid:
+            hit = _one([c for c in people for ch in c.get("channels") or []
+                        if _norm(ch.get("platform")) == p and str(ch.get("chatId") or "") == cid])
+            if hit is None and p == "email" and "@" in cid:
+                hit = _one([c for c in people if any(_norm(a) == _norm(cid) for a in _emails(c))])
+            if hit is None:
+                tel = _phone_of(p, cid)
+                if tel:
+                    hit = _one([c for c in people if any(_same_phone(tel, t) for t in _phones(c))])
+        if hit is not None:
+            return {"name": str(hit.get("name")).strip(), "photo": _photo(hit), "contactId": str(hit.get("id") or "")}
+        name = str(fallback or "").strip() or cid.split("@", 1)[0]
+        return {"name": name, "photo": "", "contactId": ""}
+
+    return resolve

@@ -84,7 +84,7 @@ def resolve_reply_target(db: dict, n=None, mid: str | None = None) -> dict | Non
 
 
 def enqueue_reply(db: dict, target: dict, text: str, cc: list | None = None,
-                  attachments: list | None = None, not_before: float = 0.0) -> None:
+                  attachments: list | None = None, not_before: float = 0.0, ref: str = "") -> None:
     """The one place a reply/draft actually gets queued for the connector to send for real. A real item
     ALWAYS carries `messageId` (set on ingestion, by every connector) — including one resolved via `reply`'s
     own chat-grouping fallback, which never goes through `_renumber` and so never has `n` set either, which
@@ -104,6 +104,8 @@ def enqueue_reply(db: dict, target: dict, text: str, cc: list | None = None,
         "attachments": [str(a) for a in (attachments or []) if str(a).strip()],
         # V2-800 — a reply he asked to send LATER waits in the queue until then (`take_pending_reply`).
         **({"not_before": float(not_before), "at": time.time(), "scheduled": True} if not_before else {}),
+        # V2-819 — the card's send names itself, so the connector's echo or failure settles ITS outbox row.
+        **({"ref": str(ref)} if ref else {}),
     })
     if target.get("messageId") is not None:
         db.setdefault("pending_read", []).append(_d._key(target))

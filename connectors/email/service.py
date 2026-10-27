@@ -286,6 +286,7 @@ async def _drain_replies(mb) -> None:
             import time as _t
             ingest.publish_msg_out(PLATFORM, {
                 "chatId": to, "messageId": f"sent:{_t.time():.0f}:{(in_reply_to or to)[:60]}",
+                "ref": r.get("ref") or "",       # V2-819: the card that sent it hears it left
                 "from": "", "body": text, "timestamp": _t.time()})
             try:
                 from voice import brain_notes
@@ -297,6 +298,7 @@ async def _drain_replies(mb) -> None:
                 await asyncio.to_thread(mb.mark_seen, [uid])
         else:
             logger.warning(f"Email: fallo al enviar a {to}: {info}")
+            ingest.publish_send_failed({**r, "platform": PLATFORM}, str(info))   # V2-819: and the card hears why
             try:
                 from voice import brain_notes
                 brain_notes.push(f"[SISTEMA] No se pudo enviar el email a {to} ({info}). Avísale al operador.")

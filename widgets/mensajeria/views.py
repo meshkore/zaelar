@@ -55,7 +55,9 @@ def _find_chat_by_name(db: dict, name: str):
     if not want:
         return None
     from . import data as _d
-    for pool in (_group_chats(_d._visible_items(db)), _known_chats(db)):
+    from . import names as _names
+    # The names he SEES are the names he says (V2-819): the pools are named by the same resolver as the card.
+    for pool in (_names.rows(_group_chats(_d._visible_items(db))), _names.rows(_known_chats(db))):
         hit = next((c for c in pool
                     if want in _norm_txt(c.get("name")) or _norm_txt(c.get("name")) in want), None)
         if hit is not None:

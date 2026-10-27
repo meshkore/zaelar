@@ -106,6 +106,11 @@ def append(db: dict, platform, chat_id, msg: dict, direction: str = "in", name: 
             # Same message again: keep the read state we already had (a later re-delivery must not
             # resurrect an unread mark the operator already cleared) but let content/media fill in.
             entry["read"] = bool(prev.get("read")) or entry["read"]
+            # …and FILL IN, never empty: a re-delivery that carries no media (the card's own echo of a send, a
+            # history page that never downloads) must not strip the player off a message that had one (V2-819).
+            for f in ("media", "mediaType"):
+                if prev.get(f) and not entry.get(f):
+                    entry[f] = prev[f]
             msgs[i] = entry
             th["touched"] = time.time()
             return False
@@ -196,6 +201,7 @@ def meta(db: dict, platform, chat_id) -> dict:
         "complete": bool(th.get("complete")),
         "can_load_more": not bool(th.get("complete")),
         "isGroup": bool(th.get("isGroup")),
+        "name": str(th.get("name") or ""),
     }
 
 

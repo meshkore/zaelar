@@ -326,12 +326,33 @@ async def _drain_replies() -> None:
         if not chat_id or not (text or files):
             continue
         try:
-            await _send(chat_id, text, files, reply_to=r.get("messageId") or None)
-            logger.info(f"WhatsApp: respuesta enviada a {chat_id}")
-            _note(f"[SISTEMA] WhatsApp enviado a {r.get('to') or chat_id}. Confírmaselo al operador de forma natural.")
+            res = await _send(chat_id, text, files, reply_to=r.get("messageId") or None)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"WhatsApp: fallo al enviar a {chat_id}: {e}")
+            # V2-819 — and the card that sent it hears it too: its row keeps his text and says why.
+            ingest.publish_send_failed({**r, "platform": PLATFORM}, str(e))
             _note(f"[SISTEMA] No se pudo enviar el WhatsApp a {r.get('to') or chat_id} ({e}). Avísale al operador.")
+            continue
+        logger.info(f"WhatsApp: respuesta enviada a {chat_id}")
+        _note(f"[SISTEMA] WhatsApp enviado a {r.get('to') or chat_id}. Confírmaselo al operador de forma natural.")
+        _echo_sent(r, chat_id, text, files, res)
+
+
+def _echo_sent(r: dict, chat_id: str, text: str, files: list, res: dict | None) -> None:
+    """V2-819 — a reply that LEFT joins its conversation now, under the id WhatsApp gave it (the phone's own echo
+    of the same message then lands on the same row), and carries the order's `ref` so the card that sent it
+    knows. Outside the send's try on purpose: failing to RECORD a message is not failing to SEND it."""
+    try:
+        import time as _t
+        mid = (res or {}).get("messageId") or f"sent:{_t.time():.0f}"
+        _published.add(mid)
+        ingest.publish_msg_out(PLATFORM, {
+            "chatId": chat_id, "messageId": mid, "ref": r.get("ref") or "", "from": "", "body": text,
+            "timestamp": _t.time(),
+            **({"media": store.media_refs(store.sendable(files)),
+                "mediaType": store.kind_of(files[0])} if files else {})})
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"WhatsApp: enviado, pero no pude registrar la conversación: {e}")
 
 
 def _jid(handle: str) -> str:

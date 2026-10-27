@@ -76,6 +76,7 @@ class _Owner:
         self._history_sub = None          # V2-546: older messages a connector went and fetched
         self._chats_sub = None            # one page of a platform's chat list
         self._mailbox_sub = None          # one page of a mail folder, or one message read whole
+        self._failed_sub = None           # V2-819: a send that did not leave, with the reason
         self._task: asyncio.Task | None = None
         self._triage_task: asyncio.Task | None = None
         # NOTE (V2-607): the in-memory `_seen` set that used to live here is gone. It claimed to stop resurrecting
@@ -101,6 +102,8 @@ class _Owner:
             self._chats_sub = bus.subscribe(ingest.TOPIC_CHATS)
         if self._mailbox_sub is None:
             self._mailbox_sub = bus.subscribe(ingest.TOPIC_MAILBOX)
+        if self._failed_sub is None:
+            self._failed_sub = bus.subscribe(ingest.TOPIC_SEND_FAILED)
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self._consume())
         logger.info("mensajeria owner started (triage in widget; stateless connectors)")
@@ -113,7 +116,7 @@ class _Owner:
             self._triage_task.cancel()
             self._triage_task = None
         for sub in (self._msg_sub, self._status_sub, self._out_sub, self._read_sub, self._history_sub,
-                    self._chats_sub, self._mailbox_sub):
+                    self._chats_sub, self._mailbox_sub, self._failed_sub):
             try:
                 if sub is not None:
                     sub.close()
@@ -121,6 +124,7 @@ class _Owner:
                 pass
         self._msg_sub = self._status_sub = None
         self._out_sub = self._read_sub = self._history_sub = self._chats_sub = self._mailbox_sub = None
+        self._failed_sub = None
 
     # Bus consumption: incoming messages + status.
     async def _consume(self) -> None:
@@ -141,7 +145,8 @@ class _Owner:
             # operator answered from his phone should reach the conversation and clear the chat in the same
             # tick it would otherwise have been surfaced in, not one tick later as a notification he has
             # already dealt with.
-            for what, fn in (("outbound", self._apply_outbound), ("read", self._apply_external_reads),
+            for what, fn in (("outbound", self._apply_outbound), ("failed", self._apply_send_failures),
+                             ("read", self._apply_external_reads),
                              ("history", self._apply_history), ("chats", self._apply_chats),
                              ("mailbox", self._apply_mailbox),
                              ("media", self._sweep_media), ("queues", self._flush_queues)):
@@ -172,13 +177,19 @@ class _Owner:
                 continue
             body = dict(ev)
             body["from"] = ev.get("from") or ev.get("senderName") or ""
-            msgstore.record_outbound(platform, ev.get("chatId"), body,
-                                     name=ev.get("chatName") or "")
+            # V2-819 — in a one-to-one chat, the bridge names a message HE sent after its sender: himself. That is
+            # not the conversation's name, and storing it titled the chat with his own name.
+            chat_name = ev.get("chatName") or ""
+            if not ev.get("isGroup") and chat_name and chat_name == (ev.get("senderName") or ""):
+                chat_name = ""
+            msgstore.record_outbound(platform, ev.get("chatId"), body, name=chat_name)
             # V2-616 — INFO, the far end of the same trace the connector's own log line starts: the operator
             # reported his own reply never reaching the widget, and the whole pipeline was silent on success
             # end to end. This confirms the message actually landed in the store, not just that the bus saw it.
             logger.info(f"mensajeria: outbound {platform} message joined its thread ({ev.get('chatId')})")
             _record_left(ev)
+            if ev.get("ref"):
+                _settle(ev.get("ref"), True)
             # V2-693 — and the directory learns WHO that conversation is. The connector resolved a handle
             # into a chat id to make this send; that mapping exists nowhere else, and dropping it is what
             # let one person become two contacts.
@@ -188,6 +199,16 @@ class _Owner:
                     directory.note_reached(platform, ev.get("chatId"), str(ev.get("contactId")))
                 except Exception as e:  # noqa: BLE001
                     logger.debug(f"mensajeria: no pude anotar el contacto del envío: {e}")
+
+    def _apply_send_failures(self) -> None:
+        """V2-819 — `msg.send_failed` had publishers and no reader: a send that did not leave was told to nobody.
+        It settles the card's outbox row (the card keeps his text and says why) and the brain hears it once."""
+        for ev in self._drain(self._failed_sub):
+            ev = ev if isinstance(ev, dict) else {}
+            reason = str(ev.get("reason") or "")
+            logger.warning(f"mensajeria: a {ev.get('platform')} send did not leave ({ev.get('ref')}): {reason[:120]}")
+            if ev.get("ref"):
+                _settle(ev.get("ref"), False, reason)
 
     def _apply_external_reads(self) -> None:
         for ev in self._drain(self._read_sub):
@@ -371,6 +392,9 @@ class _Owner:
             data.apply_action(action, payload or {})
         except Exception as e:
             logger.warning(f"mensajeria handle {action!r}: {e}")
+            # V2-819 — a send the card is waiting on is answered even when applying it broke.
+            if (payload or {}).get("ref") and action == "send_draft":
+                _settle(payload["ref"], False, f"{type(e).__name__}")
             return
         self._flush_queues()
 
@@ -477,6 +501,17 @@ async def stop() -> None:
 
 async def handle(action: str, payload: dict) -> None:
     await _OWNER.handle(action, payload)
+
+
+def _settle(ref, ok: bool, reason: str = "") -> None:
+    """Settle the card's outbox row for the send `ref` (V2-819). Never raises: bookkeeping is not the send."""
+    try:
+        from . import sent as _sent
+        db = msgstore.load()
+        if _sent.outbox_settle(db, ref, ok, reason):
+            msgstore.save(db)
+    except Exception as e:  # noqa: BLE001
+        logger.info(f"mensajeria: outbox row {ref} not settled ({type(e).__name__}: {e})")
 
 
 def _record_left(ev: dict) -> None:

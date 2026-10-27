@@ -126,30 +126,34 @@ def test_typing_enables_send_and_queues_a_draft_call(_page):
     assert not _page.locator(".compose .bt-primary").is_disabled()
 
 
-def test_clicking_send_sends_the_boxs_own_text_via_draft_then_send_draft(_page):
+def test_clicking_send_sends_the_boxs_own_text_in_one_order(_page):
+    """V2-819 — ONE order carrying the box's text and its target. It used to be `draft` then a bare `send_draft`,
+    and the second sent «the most recent draft» — whichever conversation that was."""
     _mount(_page, _base())
     _open_email_lens(_page)
     _page.get_by_text("Reunión de mañana").click()
     _page.locator(".composebox").fill("Perfecto a las 10")
     _page.locator(".compose .bt-primary").click()
+    _page.wait_for_function("() => window.__calls.some(c => c[0] === 'send_draft')", timeout=5000)
     calls = _page.evaluate("() => window.__calls")
-    names = [c[0] for c in calls]
-    assert "draft" in names and "send_draft" in names
-    draft_call = next(c for c in calls if c[0] == "draft")
-    assert draft_call[1]["text"] == "Perfecto a las 10"
-    assert draft_call[1]["n"] == 1 and draft_call[1]["messageId"] == "uid-ana"
+    assert "draft" not in [c[0] for c in calls]
+    send = next(c for c in calls if c[0] == "send_draft")
+    assert send[1]["text"] == "Perfecto a las 10" and send[1]["ref"]
+    assert send[1]["n"] == 1 and send[1]["messageId"] == "uid-ana"
 
 
 def test_the_compose_bar_also_renders_inside_an_open_thread_with_no_target_id(_page):
-    """A thread reply addresses the CONVERSATION, not a specific message — the server resolves it from
-    `active_chat` alone (V2-611's `_resolve_target`), so the widget sends no n/messageId at all here."""
+    """A thread reply addresses the CONVERSATION, not a specific message: the order names the chat it is for
+    (V2-819 — never «whatever is open on the server» or «the most recent draft»), and no n/messageId."""
     _mount(_page, _base(items=[_WA_ITEM], active_chat=_WA_ACTIVE, active_items=[_WA_ITEM]))
     assert _page.locator(".composebox").count() == 1
     _page.locator(".composebox").fill("Nos vemos luego")
     _page.locator(".compose .bt-primary").click()
-    draft_call = next(c for c in _page.evaluate("() => window.__calls") if c[0] == "draft")
-    assert "n" not in draft_call[1] or draft_call[1].get("n") is None
-    assert draft_call[1]["text"] == "Nos vemos luego"
+    _page.wait_for_function("() => window.__calls.some(c => c[0] === 'send_draft')", timeout=5000)
+    send = next(c for c in _page.evaluate("() => window.__calls") if c[0] == "send_draft")
+    assert "n" not in send[1] or send[1].get("n") is None
+    assert send[1]["text"] == "Nos vemos luego"
+    assert send[1]["chat"] == {"platform": _WA_ACTIVE["platform"], "chatId": _WA_ACTIVE["chatId"]}
 
 
 def test_an_outgoing_mail_gets_no_compose_bar(_page):
