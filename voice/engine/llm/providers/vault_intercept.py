@@ -41,3 +41,18 @@ async def try_vault_intercept(text: str, first_turn: bool, send, emit) -> tuple[
         send(speech.sanitize(v.line, drop_metadata=False))
         return True, ""
     return False, v.text
+
+
+async def vault_first(text: str, first_turn: bool, emit, event_ch) -> tuple[bool, str]:
+    """The vault BEFORE anything reads his words (refactor2710-01): a secret said inside a request is redacted
+    here, so neither the brief, the memory heart nor the prompt — nor the window after them — ever holds it (the
+    voice turn used to run it after composing the prompt, and the model read the IBAN back). When the whole turn
+    was the secret or a vault setting, its line is said on the turn's own channel and the turn ends."""
+    lines: list = []
+    done, text = await try_vault_intercept(text, first_turn, lines.append, emit)
+    if done:
+        from livekit.agents import utils
+        from livekit.agents.llm import ChatChunk, ChoiceDelta
+        for line in lines:
+            event_ch.send_nowait(ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=line)))
+    return done, text

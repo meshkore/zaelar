@@ -458,15 +458,9 @@ class NucleoLLMStream(llm.LLMStream):
         if 'text' in _blk:
             text = _blk['text']
 
-        # The VAULT before anything reads his words (refactor2710-01): a secret said inside a request is redacted
-        # here, so neither the brief, the memory heart nor the prompt — nor the window after them — ever holds it.
-        from voice.engine.llm.providers.vault_intercept import try_vault_intercept
-        _vault_lines: list = []
-        _vault_done, text = await try_vault_intercept(text, first_turn, _vault_lines.append, emit)
-        if _vault_done:                             # the whole turn was the secret (or a vault setting): say it, end
-            for _vault_line in _vault_lines:
-                self._event_ch.send_nowait(
-                    ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=_vault_line)))
+        # The VAULT before anything reads his words (refactor2710-01) — `vault_intercept.vault_first`.
+        _vault_done, text = await _vault_first(text, first_turn, emit, self._event_ch)
+        if _vault_done:
             return
 
         # JEV TURN BRIEF (V2-726 F1, moved here by A2): ONE call carrying every question this turn
@@ -993,7 +987,8 @@ from voice.engine.llm.providers import turn_prompt as _turn_prompt  # noqa: E402
 from voice.engine.llm.providers import turn_tools as _turn_tools_mod  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_admit as _turn_admit  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_failure as _turn_failure  # noqa: E402 — V2-778 F1, imports this module back
-from voice.engine.llm.providers import turn_fragment as _turn_fragment  # noqa: E402 — V2-778 F1, imports this module back
+from voice.engine.llm.providers import turn_fragment as _turn_fragment  # noqa: E402
+from voice.engine.llm.providers.vault_intercept import vault_first as _vault_first  # noqa: E402 — V2-778 F1, imports this module back
 
 
 # V2-778 F1 — moved to `pending_confirm.py`, imported back under their names (that module reads this one).
