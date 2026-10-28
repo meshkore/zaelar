@@ -18,7 +18,7 @@ import pytest
 
 from nucleo import dispatch
 from nucleo import dispatch_confirm as dc
-from nucleo.flash import delivery, live_blocks
+from nucleo.flash import live_blocks
 from nucleo.turn import errands_of_a_turn as E
 from nucleo.turn import named_errand
 
@@ -40,7 +40,6 @@ def three(monkeypatch):
         "request": GAME, "kind": "code", "trusted": True, "context": {}, "sheet": "", "ts": time.time(),
         "question": "Si no te he entendido mal, me pides que te CONSTRUYA una tarjeta nueva. ¿La hago?"}})
     monkeypatch.setattr(delivery, "_speaks_en", lambda: False)
-    delivery.forget_announced()
     _rows(monkeypatch, ROWS)
 
 

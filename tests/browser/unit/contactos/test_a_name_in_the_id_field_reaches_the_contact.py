@@ -45,27 +45,6 @@ def test_a_real_new_handle_still_replaces(ct):
     assert next(ch for ch in _rowan(ct)["channels"] if ch["platform"] == "telegram")["handle"] == "@rowan_sf"
 
 
-def test_the_name_in_contactId_is_resolved_on_the_text_path(ct, monkeypatch):
-    """Through `widget_data_turn.execute` — the path the list runner takes — with the real resolver."""
-    from nucleo.flash import widget_data_turn as wdt
-    from nucleo.flash import frontend as fe
-    from widgets import actions as wa
-    import widgets.server_api as sa
-    seen = {}
-
-    async def _brain_action(wid, act, pl):
-        seen["pl"] = pl
-        return ct.apply_action(act, pl)
-    monkeypatch.setattr(sa, "brain_action", _brain_action)
-    monkeypatch.setattr(fe, "action_mode", lambda w, a: wa.FAST)
-    calls = [{"name": "widget_data", "args": {"widget_id": "contactos", "action": "set_channel",
-                                               "payload": {"contactId": "Rowan", "platform": "telegram",
-                                                           "handle": "@Rowan", "preferred": True}}}]
-    asyncio.run(wdt.execute(calls, "use his Telegram"))
-    assert seen["pl"]["contactId"] == _rowan(ct)["id"], seen
-    assert _rowan(ct)["preferred"] == "telegram"
-
-
 def test_a_lone_initial_in_a_strangers_name_does_not_tie_with_him(ct):
     """Demo pass INIT, 2026-09-28, with the operator's 2,693 synced contacts: «Rowan» came back AMBIGUOUS
     against «Rebecca H», «Caroline N Farhat» and «uno-e» — each lone letter sat inside «rowan»."""

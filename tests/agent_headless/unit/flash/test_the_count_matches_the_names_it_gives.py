@@ -39,33 +39,3 @@ def test_the_english_engine_says_it_in_english(monkeypatch):
     monkeypatch.setattr(VT, "_lang", lambda: "en")
     s = _spoken(["A", "B", "C", "D", "E"])
     assert "and 2 more" in s and "…" not in s
-
-
-# ── the model spoke a promise while its own search already delivered (V2-469, round 8) ───────────────────
-def test_a_spoken_promise_gets_the_delivery_appended():
-    """Round 8, turn 0: the model said “I’m going to search for real videos…” while execute() had already put 5
-    titled hits in the list — the user had to ASK for the titles, and next turn the model DENIED having
-    searched (“they were already there in your list”). A list-search that added items names them in the same turn:
-    if the model already spoke, the outcome is appended."""
-    parte = {"executed": "play_video", "accion": "list", "ok": True, "added": ["A", "B", "C", "D", "E"]}
-    out = VT.ensure_delivery_named("Voy a buscar vídeos reales y de personas de verdad.", parte)
-    assert out.startswith("Voy a buscar vídeos reales")
-    assert "5 resultados" in out and "«A»" in out and "y 2 más" in out
-
-
-def test_a_failed_search_appends_the_honest_outcome_too():
-    """The promise must not stand alone over nothing: «no he podido buscarlos» rides along."""
-    parte = {"executed": "play_video", "accion": "list", "ok": False, "message": "no encontré vídeos de eso."}
-    out = VT.ensure_delivery_named("Voy a buscar ahora mismo.", parte)
-    assert "No he podido buscarlos" in out
-
-
-def test_a_non_list_turn_is_left_alone():
-    parte = {"executed": "play_video", "accion": "play", "ok": True, "title": "X"}
-    assert VT.ensure_delivery_named("Te lo pongo.", parte) == "Te lo pongo."
-
-
-def test_an_empty_spoken_returns_the_canned_line_alone():
-    parte = {"executed": "play_video", "accion": "list", "ok": True, "added": ["A"]}
-    out = VT.ensure_delivery_named("", parte)
-    assert out.startswith("Tienes 1 resultado ")

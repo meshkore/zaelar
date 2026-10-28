@@ -131,20 +131,6 @@ def test_a_day_view_answers_with_that_days_rows_and_their_hours(tmp_path, monkey
     assert [m["title"] for m in got["meetings"]] == ["Dental checkup"] and got["meetings"][0]["startTime"] == "11:30"
 
 
-def test_the_text_channel_says_the_ops_answer_in_words(monkeypatch):
-    from nucleo.flash import second_pass, widget_data_turn as wdt
-    seen = {}
-
-    async def _collect(sys2, user, spec, max_tokens=240):
-        seen["sys"] = sys2
-        return "Next Thursday you have the dental checkup with Dr Ruiz at 11:30."
-    monkeypatch.setattr(second_pass, "collect", _collect)
-    out = asyncio.run(wdt.answer_in_words(PARTE, "What do I have next Thursday?"))
-    assert out.startswith("Next Thursday") and "11:30" in seen["sys"] and "Dr Ruiz" in seen["sys"]
-    assert asyncio.run(wdt.answer_in_words(PARTE, "Move the dentist to Friday")) == "", "an order is not asked"
-    assert asyncio.run(wdt.answer_in_words({**PARTE, "answers": []}, "What do I have?")) == ""
-
-
 def test_a_reply_that_holds_the_act_for_a_go_ahead_is_not_carried_out(brief):
     """`ask_first` means the model has NOT done it and waits for his word (`reply_promise.CHOICES`): a read of the card
     plus a reply that holds the act is a question, never a licence to act — only a SURE order or a promise to act is

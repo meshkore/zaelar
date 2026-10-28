@@ -42,18 +42,6 @@ def test_the_tool_offers_the_queue_and_both_channels_decide_it_once():
     assert router.decide("play_video", {"query": "x", "action": "queue"}).payload["action"] == "queue"
 
 
-def test_the_queue_reaches_queue_search_and_names_what_plays(rail, monkeypatch):
-    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "en", raising=False)
-    parte = asyncio.run(VT.execute("Maradona videos", "queue"))
-    assert rail == {"wid": "youtube", "action": "queue_search", "payload": {"query": "Maradona videos"}}
-    assert parte["accion"] == "queue" and parte["ok"] is True
-    said = VT.spoken_for(parte, "Done.")
-    assert "Maradona best goals" in said and "4 videos in the queue" in said and "Maradona in Napoli" in said
-    # The model's own promise keeps its words and gets the fact appended — a promise never stands alone.
-    out = VT.ensure_delivery_named("I'll line up a few Maradona videos and start the first one.", parte)
-    assert out.startswith("I'll line up") and "Playing «Maradona best goals»" in out
-
-
 def test_a_failed_queue_is_said_as_a_failure(rail, monkeypatch):
     monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "en", raising=False)
     said = VT.spoken_for({"executed": "play_video", "accion": "queue", "ok": False, "message": ""}, "Done.")

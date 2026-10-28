@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from nucleo.flash import asked_fact_hold as H
-from nucleo.flash import delivery, live_blocks
+from nucleo.flash import live_blocks
 
 COMMISSION = "Find me an original pressing of 'The Dark Side of the Moon' in good condition for under $70."
 ASKED = "prices look fine, but are any of them actually original pressings? and what condition are they in"
@@ -35,7 +35,6 @@ def _window(*his):
 def vinyl(monkeypatch):
     monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: (COMMISSION, ROWS[:n]))
     monkeypatch.setattr(delivery, "_speaks_en", lambda: True)
-    delivery.forget_announced()
     return monkeypatch
 
 

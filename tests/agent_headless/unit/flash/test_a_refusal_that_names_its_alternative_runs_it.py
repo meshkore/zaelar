@@ -88,8 +88,6 @@ def test_a_refusal_without_redirect_keeps_todays_correction(client, monkeypatch)
     assert got is None and seen == ["clear_list"] and not client.calls
 
 
-def test_both_channels_unpack_the_action_that_ran():
+def test_the_turn_unpacks_the_action_that_ran():
     voice = (ENGINE / "nucleo/flash/data_ops.py").read_text("utf-8")
-    text = (ENGINE / "nucleo/flash/widget_data_turn.py").read_text("utf-8")
     assert "payload, res, action_name = (*_fixed, action_name)[:3]" in voice
-    assert "pl, res, act = (*_fixed, act)[:3]" in text

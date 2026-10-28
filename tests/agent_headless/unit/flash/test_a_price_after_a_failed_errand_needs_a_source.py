@@ -26,7 +26,3 @@ def failed(monkeypatch):
     monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: ("", []))
     amount_gate.note_search({"results": []})
 
-
-def test_his_own_number_is_not_a_price_backing_a_thousandfold_one(failed):
-    assert amount_gate.amount_digits("17 mil pesos") == "17000"
-    assert not amount_gate.backed("17000", {"17", "256"})

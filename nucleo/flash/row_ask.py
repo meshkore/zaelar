@@ -81,10 +81,3 @@ def asks(heard: str, items: list[dict]) -> list[tuple[dict, set[str]]]:
                 out.append((item, content_stems(c) - content_stems(item.get("title"))))
     return out
 
-
-def fact_asked(item: dict, stems: set[str]) -> dict | None:
-    """The row's fact whose label is what the clause asks about, or None."""
-    for f in item.get("facts") or []:
-        if isinstance(f, dict) and stems & content_stems(f.get("label")):
-            return f
-    return None

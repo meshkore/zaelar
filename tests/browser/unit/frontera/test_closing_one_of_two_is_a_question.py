@@ -265,24 +265,6 @@ def test_every_closing_path_iterates_ids():
     assert n == 3, "the three closing paths must loop over `ids`, not read `id`"
 
 
-# ── V2-773 — a data-op on a base id lands on its one open instance; a close takes every card named ─────────
-def test_a_data_op_on_the_base_id_lands_on_the_one_open_instance():
-    """Demo, «Open the most interesting one» over a worker's sheet `results::9194df-1`: the model called
-    `widget_data(widget_id="results")` — the only name it has — and the op ran on the EMPTY base sheet
-    («no encuentro ese resultado en la hoja»). One instance open: that one. Several: the base, as before."""
-    assert instances.data_target("results", ["results::9194df-1", "map"]) == "results::9194df-1"
-    assert instances.data_target("results", ["results::a", "results::b"]) == "results", "two sheets: today's path"
-    assert instances.data_target("results::a", ["results::a", "results::b"]) == "results::a"
-    assert instances.data_target("map", ["results::a"]) == "map"
-    src_v = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
-    src_t = (Path(__file__).resolve().parents[4] / "nucleo/flash/widget_data_turn.py").read_text("utf-8")
-    # V2-778 F4-33: both channels now call ONE helper, which is where the instance is resolved
-    for src, ch in ((src_v, "voice"), (src_t, "text")):
-        assert "one_open_instance(" in src, f"{ch}: the data-op must land on the instance"
-    src_d = (Path(__file__).resolve().parents[4] / "nucleo/flash/data_ops.py").read_text("utf-8")
-    assert "_inst_dt.data_target(wid, _open_inst())" in src_d
-
-
 def test_a_close_takes_every_card_the_sentence_names():
     """Demo, «Close the map and the results»: the map closed and the rest became «Which one exactly?». The
     other open cards the sentence NAMES — by their own id, name or aliases — close with it."""

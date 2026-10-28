@@ -40,12 +40,6 @@ def search_backing(now: float | None = None) -> str:
     return _LAST_SEARCH["text"] if ((now or time.time()) - _LAST_SEARCH["at"]) <= SEARCH_BACKING_S else ""
 
 
-def amount_digits(amount: str) -> str:
-    """The digits an amount names, with «mil» read as ×1000 («17 mil pesos» is 17000, not the «17» of iPhone 17)."""
-    digits = "".join(c for c in str(amount or "") if c.isdigit())
-    return digits + "000" if (digits and _MIL_RE.search(str(amount or ""))) else digits
-
-
 def backed(digits: str, backing: set[str]) -> bool:
     """Exact digits, or — from three digits up — the leading digits of a backing figure («1079» in «1.079,00»)."""
     if not digits or digits in backing:

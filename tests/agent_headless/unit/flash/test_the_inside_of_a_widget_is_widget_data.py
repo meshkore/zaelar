@@ -78,13 +78,6 @@ def test_the_catalogs_the_tool_cites_actually_exist_in_the_resources_block():
         "the names the tool now cites must be the ones the resources block really prints"
 
 
-def test_mensajeria_open_declares_name_as_its_primary_key():
-    """widget_data's `item` convention lands a natural reference in the action's FIRST payload key
-    (V2-467). For a voice open, that primary is the NAME."""
-    from nucleo.flash.widget_data_turn import _primera_clave
-    assert _primera_clave("mensajeria", "open") == "name"
-
-
 # ── The execution guard that was undoing the model's correct choice ─────────────────────────────────────────
 
 def test_a_pure_show_may_run_a_declared_VIEW_action():

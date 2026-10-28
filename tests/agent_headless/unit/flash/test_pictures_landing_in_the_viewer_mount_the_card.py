@@ -60,12 +60,7 @@ def test_the_door_lets_the_filling_show_through_and_names_its_action(monkeypatch
                       emit=lambda k, l, extra: got.append((k, l, extra))) is False, "an open viewer is not raised again"
 
 
-def test_the_two_emitters_name_the_action():
+def test_the_picture_search_mounts_through_the_one_door():
     img = (ENGINE / "nucleo/flash/image_turn.py").read_text(encoding="utf-8")
     assert 'emit("widget", "show"' not in img, "the picture search emits through the one door now"
     assert 'present("imagenes", reason="producer-mount", action="show"' in img
-    wdt = (ENGINE / "nucleo/flash/widget_data_turn.py").read_text(encoding="utf-8")
-    i = wdt.index('_emit("widget", "show"')
-    line = wdt[i:wdt.index("\n", i)]
-    assert '"action": act' in line, "the data-op show says which action put the card up"
-    assert "is_open(wid)" in wdt[max(0, i - 200):i], "a card already in front of him is not raised over a lens"

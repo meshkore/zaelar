@@ -45,8 +45,7 @@ def test_a_lens_that_is_the_whole_answer_is_unchanged(asked):
     assert "EL REGISTRO" in out and asked == []
 
 
-def test_both_channels_compose_through_the_one_door():
-    from nucleo.flash import post_stream_words, widget_data_turn
-    for mod in (post_stream_words, widget_data_turn):
-        src = inspect.getsource(mod)
-        assert "op_answer_system(" in src and "answered=True" not in src, mod.__name__
+def test_the_turn_composes_through_the_one_door():
+    from nucleo.flash import post_stream_words
+    src = inspect.getsource(post_stream_words)
+    assert "op_answer_system(" in src and "answered=True" not in src
