@@ -34,8 +34,7 @@ def _a_rsvp_meeting(action, payload, db, _extra) -> dict:
     # which is a note the operator takes about the OTHER party («el dentista ya me lo ha confirmado»);
     # this one travels to Google and tells the organizer. Two facts, two doors.
     #
-    # Deliberately NOT offering «propose another time»: the operator scoped this to yes/no («yo por
-    # ahora no haría la funcionalidad de proponer otra hora, pero sí diría si sí o si no»).
+    # Deliberately NOT offering «propose another time»: the operator scoped this to yes/no for now.
     _ans = _d._strip_accents(str(payload.get("answer") or payload.get("rsvp") or "").strip().lower())
     _yes = ("accepted", "accept", "yes", "si", "acepto", "aceptar", "voy", "asisto", "confirmo")
     _no = ("declined", "decline", "no", "rechazo", "rechazar", "no voy", "no asisto")

@@ -5,7 +5,7 @@
 #
 from datetime import datetime
 
-from .tasklists import plannable as _plannable
+from .task_read import plannable as _plannable
 
 
 def _m(hhmm: str) -> int:

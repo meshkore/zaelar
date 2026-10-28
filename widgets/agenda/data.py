@@ -12,6 +12,7 @@ from . import gcal, sweep
 from .reminders import _cancel_reminder, _schedule_reminder  # noqa: F401  (V2-705)
 from .details import _apply_details, _norm_attendees, _norm_status  # noqa: F401
 from . import edit, planner, recur, tasklists
+from widgets.agenda import task_read as _task_read_m
 
 
 # `_strip_accents` lives with the spoken-date resolver (V2-744); re-exported because tests reach it here.
@@ -35,8 +36,8 @@ DB_VERSION = 2
 
 def _migrate(db: dict, from_v: int) -> dict:
     # v0 → v1: pre-versioning files are already the current shape; just adopt the version field.
-    # v1 → v2 (V2-744): tasks live in NUMBERED LISTS; a task without a `listId` joins «General» (`tasklists.migrate`).
-    return tasklists.migrate(db)
+    # v1 → v2 (V2-744): tasks live in NUMBERED LISTS; a task without a `listId` joins «General» (`task_read.migrate`).
+    return _task_read_m.migrate(db)
 
 
 def load_db() -> dict:
@@ -114,7 +115,7 @@ def view_data(q: str = "") -> dict:
 
         # The TAREAS section: the operator's lists, numbered as the screen numbers them; all at once because a
         # widget cannot fetch (V2-744).
-        "tasks": tasklists.view(db),
+        "tasks": _task_read_m.view(db),
 
         "warnings": plan.get("warnings", []),
         "coaching": plan.get("coaching", []),
