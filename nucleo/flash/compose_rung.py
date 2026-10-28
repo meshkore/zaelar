@@ -103,7 +103,7 @@ async def run(got: dict, *, commission: str, operator_text: str, spec, window=No
     try:
         from nucleo.flash import canvas_visibility as _cvis, data_ops as _ops
         wid, action = got["widget_id"], got["action"]
-        _cvis.present(wid, reason="turn-order", src="flash", emit=_emit)
+        _cvis.present(wid, reason="turn-order", src="flash", emit=_emit, text=operator_text)
         res = await _ops.dispatch_and_report(wid, action, {"title": got["title"], "body": body}, text=operator_text)
         if isinstance(res, dict) and res.get("ok") is False:
             raise RuntimeError(str(res.get("error") or res)[:200])

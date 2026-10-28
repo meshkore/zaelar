@@ -155,19 +155,29 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         if _txw._direct_action.order_is_inside(_brief, _sid):
             emit("brain", "🪟 show de una tarjeta ya abierta — la orden es una acción DENTRO",
                  text=_sid, role="system", extra={"cat": "flash", "kind_diag": "show_inside_card"})
-            extra["src"] = "flash"
-            emit("widget", action, extra=extra)
+            _cross_the_door(action, extra, text=text, brief=_brief, emit=emit)
             return
+    # V2-039: the order comes from the FlashBrain; the event carries the phrase that caused it (2026-08-09).
+    if not _cross_the_door(action, extra, text=text, brief=_brief, emit=emit, log_text=(text or "").strip()[:160]):
+        deduped["v"] = True
+        return False                  # the canvas door vetoed it: what was not done is not recorded as done
     acted["widget"] = True
     if action == "show" and extra.get("id"):
         # V2-776 — WHICH card: without it a tag show skipped the after-show repair (empty Markets, demo v7).
         acted["widget_id"] = acted.get("widget_id") or str(extra.get("id"))
     if action == "close":
-        acted["closed"] = True                   # el backstop de cierre corto no re-cierra (ver post-stream)
+        acted["closed"] = True                   # the short-close backstop does not close it again (post-stream)
         _txw._canvas_lic.note_operator_close(str(extra.get("id") or ""))   # V2-650b: reopen needs his words
-    extra["src"] = "flash"                       # V2-039: procedencia — esta orden viene del FlashBrain
-    # Canvas order log (2026-08-09, operator's request): the event carries the SENTENCE behind it.
-    emit("widget", action, text=(text or "").strip()[:160], extra=extra)
+
+
+def _cross_the_door(action: str, extra: dict, *, text: str, brief, emit, log_text: str = "") -> bool:
+    """A canvas tag of the FlashBrain's turn, through the one canvas door (`nucleo.acts.canvas.apply`)."""
+    from nucleo.acts import canvas_turn
+    from nucleo.acts import canvas
+    fields = {k: v for k, v in (extra or {}).items() if k not in ("id", "src")}
+    src = str((extra or {}).get("src") or "") if str((extra or {}).get("src") or "").startswith("recall:") else "flash"
+    return canvas.apply(action, str((extra or {}).get("id") or ""), src=src, text=log_text, emit=emit,
+                        request=canvas_turn.request_of(brief, _txw._bnotes.operator_half(text)), **fields)
 
 
 def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *, _apply_widget_data, _brief, _frontend, _request_data_confirm, _spawn, _tag_emit, _turn_op_tasks, acted, brain, data_done, deduped, emit, escalate_req, text) -> None:
@@ -305,12 +315,12 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
         try:
             from widgets import effects as _fx
             if _fx.carries(wid, action_name, _fx.PRESENT_MOUNT):
-                _txw._cvis.present(wid, reason="producer-mount", action=action_name, src="flash", emit=emit)
+                _txw._cvis.present(wid, reason="producer-mount", action=action_name, src="flash", emit=emit, text=text, brief=_brief)
             # A LENS on a closed card brings the card (V2-773 final pass, C2: `agenda:show_day` changed a day
             # nobody could see). A write is not this: it may run behind the screen on purpose.
             elif (_fx.carries(wid, action_name, _fx.DATA_READ) and not _txw._cvis.is_open(wid)
                   and not _txw._canvas_lic.closing_turn(_brief, wid)):   # V2-773 E5: a close never brings the card
-                _txw._cvis.present(wid, reason="turn-order", action=action_name, src="flash", emit=emit)
+                _txw._cvis.present(wid, reason="turn-order", action=action_name, src="flash", emit=emit, text=text, brief=_brief)
         except Exception:
             pass
     elif mode == _wactions.CONFIRM:

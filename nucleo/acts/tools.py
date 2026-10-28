@@ -35,7 +35,8 @@ def widget_data(args: dict, c) -> None:
         if _pic:
             c._tool_fired.add("show_images")
             c.images_req["v"] = _pic
-            _x._tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=c.emit)
+            _x._tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=c.emit, text=c.operator_text,
+                             brief=c._brief)
             c.emit("brain", "🖼️ fotos → visor imagenes (un show vacío del visor es la búsqueda)",
                  text=_pic["query"][:80], role="system")
             return
@@ -123,7 +124,8 @@ def show_images(args: dict, c) -> None:
     if "show_images" not in c._tool_fired:
         c._tool_fired.add("show_images")
         c.images_req["v"] = _x._tx._image_turn.request_from([{"name": c.name, "args": args}])
-        _x._tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=c.emit)
+        _x._tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=c.emit, text=c.operator_text,
+                             brief=c._brief)
         c.emit("brain", "🖼️ fotos → visor imagenes", text=c.images_req["v"]["query"][:80], role="system")
 
 

@@ -261,8 +261,8 @@ def _settle_unrun(_d, rec, key) -> None:
             from widgets.results import data as _sheet
             sid = _d.sheet_of(rec)
             if sid and not (_sheet.view_data(sid).get("items") or []):
-                from voice.observer import emit
-                emit("widget", "close", extra={"id": _sheet.instance_id(sid), "src": f"worker:{key}"})
+                from nucleo.acts import canvas
+                canvas.apply("close", _sheet.instance_id(sid), src=f"worker:{key}")
         elif _d.surfaces.opens_doc(surf):
             _d._docsheet.doc_close(rec)
     except Exception as e:  # noqa: BLE001

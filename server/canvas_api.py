@@ -13,6 +13,7 @@ import time
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 from loguru import logger
+from nucleo.acts import canvas as _door
 from voice.observer import emit
 
 router = APIRouter()
@@ -78,10 +79,10 @@ async def canvas_state(payload: dict):
         # with no named cause is `client`, never promoted to his hand. See `voice/canvas_src.py`.
         from voice import canvas_src
         by = canvas_src.causes((payload or {}).get("by"))
-        for wid in (now - prev):
-            emit("widget", "show", extra={"id": wid, "src": canvas_src.of(by.get(wid))})
+        for wid in (now - prev):          # reports of what the screen already did: the door records, never vetoes
+            _door.apply("show", wid, src=canvas_src.of(by.get(wid)), emit=emit)
         for wid in (prev - now):
-            emit("widget", "close", extra={"id": wid, "src": canvas_src.of(by.get(wid))})
+            _door.apply("close", wid, src=canvas_src.of(by.get(wid)), emit=emit)
         # V2-609 — WHICH card is at full screen, if any. It is not geometry (the brain does not care about
         # coordinates, which is why `layout` goes to sys_kv): it is «what the operator has in front of them»,
         # the same class of fact `open_widgets` exists for. Without it «sal de pantalla completa» named no
@@ -258,6 +259,14 @@ def _live_canvas_instances() -> list:
     return seen
 
 
+@router.post("/api/canvas/reconcile")
+async def canvas_reconcile(payload: dict):
+    """The screen's drift from the engine's list, as the browser reconciled it on reconnect (V2-825 F5)."""
+    got = {k: [str(x) for x in (payload or {}).get(k) or []][:20] for k in ("orphans", "extra", "missing")}
+    emit("widget", "reconcile", text=" · ".join(f"{k} {len(v)}" for k, v in got.items()), extra={**got, "src": "client:restore"})
+    return JSONResponse({"ok": True})
+
+
 @router.post("/api/canvas/arrange")
 async def canvas_arrange():
     """Aligns every open card into a grid — the OS-style window snap, invocable by API (V2-464).
@@ -266,7 +275,7 @@ async def canvas_arrange():
     the same SSE rail every other canvas command travels. Exists for the use-case recorder (a video where the
     cards land tidy without a hand on the mouse) and for anything else that can POST — the operator asked for
     it by analogy with the desktop-arrange gesture of macOS/Windows."""
-    return JSONResponse(emit("widget", "arrange", extra={"src": "api"}))
+    return JSONResponse(_door.apply("arrange", src="api", emit=emit))
 
 
 def _open_elsewhere(dev: str) -> list:
