@@ -14,9 +14,10 @@ from nucleo.flash import unchecked_provenance as _pst_up   # 2026-10-14: no clai
 from nucleo.flash import row_claims as _pst_rc   # 2026-10-14: a claim about a row that no source carries is corrected aloud
 from nucleo.flash import blocked_channel_receipt as _pst_bcr   # V2-604: a blocked channel's pasted link is said
 from nucleo.flash import stop_decision as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
+from nucleo.turn import reply as _reply   # refactor2710-03: the mouth speaks the verdict
 
 
-async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _dialog, _filler_audio, _langs, _prev_pending, _r, _resolve_confirm, _router, _shown_ids, acted, aside, brain, clarify, confirm_state, data_done, emit, escalate_req, had_pending_confirm, llm_metrics, music_req, operator_text, search_req, send, speech, spoken_text, style_fired, text, worker_acted) -> dict:
+async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _dialog, _filler_audio, _langs, _prev_pending, _r, _resolve_confirm, _router, _shown_ids, _turn_op_tasks=(), acted, aside, brain, clarify, confirm_state, data_done, emit, escalate_req, had_pending_confirm, llm_metrics, music_req, operator_text, search_req, send, speech, spoken_text, style_fired, text, worker_acted) -> dict:
     if had_pending_confirm and not confirm_state["handled"]:
         try:
             verdict = _pst._wconfirm.answers_pending(text, _brief)
@@ -139,6 +140,9 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         _ack_allowed = _style_ack.confirm_short_actions()
     except Exception:
         _ack_allowed = True
+    # refactor2710-03 — what the turn's data-ops ENDED in is said from their verdicts (`nucleo/turn/reply.py`).
+    if escalate_req["v"] is None and search_req["v"] is None:
+        spoken_text = await _reply.after_acts(_turn_op_tasks if data_done["v"] else (), spoken_text, send, speech)
     if data_done["v"] and not spoken_text and _ack_allowed \
             and escalate_req["v"] is None and search_req["v"] is None:
         try:

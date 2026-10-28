@@ -267,6 +267,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             _tag_emit("show", {"id": _re["show"]})
         elif _re["ask"]:
             clarify["msg"] = _say().ask_which_item.format(cands=_re["ask"])
+        elif not _re.get("escalate"):   # refactor2710-03: nothing like it and no worker — the verdict is `asked`
+            clarify["msg"] = _say().ask_which_item_bare
         emit("brain", _re["label"], role="system", text=_re["text"], extra=_re["extra"])
 
     if recall_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \

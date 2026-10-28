@@ -106,7 +106,6 @@ class _ClienteMudoQuePideVideo(_ClienteQuePideVideo):
 
 
 
-@pytest.mark.xfail(reason="refactor2710-03: the mouth speaks the verdict", strict=True)
 def test_a_mute_video_turn_names_what_it_loaded(monkeypatch, tmp_path):
     """The model calls `play_video` and says nothing: the reply has to name what loaded. The old text channel patched
     it after the fact (V2-383); the voice turn's words stream before the player answers, so this is the mouth saying

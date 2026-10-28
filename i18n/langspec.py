@@ -394,6 +394,16 @@ class LangSpec:
     work_started: str = ""
     op_failed: str = ""
     op_unknown: str = ""
+    # refactor2710-03 — the mouth speaks the verdict: ONE line per verdict of `nucleo/turn/reply.py`. `{object}` is
+    # what the act named (a title, a queue), `{reason}` the act's own sentence for why not. A promise is a START.
+    reply_started: str = ""
+    reply_met: str = ""
+    reply_unmet: str = ""
+    reply_unverifiable: str = ""
+    reply_undeclared: str = ""
+    reply_cannot: str = ""
+    reply_asked: str = ""
+    reply_skipped: str = ""
     # V2-771 — a message that hands over SEVERAL tasks is a list (`nucleo/batch`). On receipt he hears that it
     # is a list and that work started — never the list read back to him, and no count: the count needs the
     # split (~5 s) and the receipt must not wait for it. The report comes ONCE, at

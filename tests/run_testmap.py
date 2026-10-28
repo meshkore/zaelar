@@ -4537,6 +4537,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_an_event_survives_the_one_pipeline.py']},
         {"id": "2.827", "title": "What the old text channel's reply door said after the model's words is the mouth's: rows a waiting reply owes and the cut of an amount no source carries are strict xfails for refactor2710-03; the line for an errand that just died already holds on the one turn",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_what_the_old_reply_door_said_is_the_mouths.py']},
+        {"id": "2.850", "title": "The mouth says the verdict (refactor2710-03): an acting turn's last words come from what its acts ended in, one i18n key per verdict; `met` names its object, `unmet`/`cannot`/`asked` are always said, a promise is a start",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_mouth_says_the_verdict.py']},
         {"id": "2.828", "title": "His commissioning sentence travels with the request to the errand it opens (was 2.630, the old channel's `commission_words`) — strict xfail for refactor2710-02",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_his_commissioning_words_travel_with_the_request.py']},
         {"id": "2.821", "title": "The decision bank runs on the VOICE turn, typed and dry (`nucleo/cli/turn.py`): a recorded case decides there what the voice turn decides, and every door it meets is closed in the ledger",

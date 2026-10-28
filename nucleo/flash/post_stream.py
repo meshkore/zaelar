@@ -163,6 +163,7 @@ async def run(*, FastClient, _apply_widget_data, _ask_waiting, _auth_pending, _b
         _resolve_confirm=_resolve_confirm,
         _router=_router,
         _shown_ids=_shown_ids,
+        _turn_op_tasks=_turn_op_tasks,
         acted=acted,
         aside=aside,
         brain=brain,
