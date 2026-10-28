@@ -7,7 +7,7 @@ broker. This module:
   - opens the connection in **WAL** (`synchronous=NORMAL`) so reads can happen while writes happen,
   - loads the **sqlite-vec** extension (best-effort -> `Database.vec_available`; if missing, memory degrades to
     FTS/keyword-only search without breaking),
-  - creates the schema (`memory/schema.py`) idempotently and tracks the version in `PRAGMA user_version`.
+  - creates the schema (`memory/schema/`) idempotently and tracks the version in `PRAGMA user_version`.
 
 **Concurrency**: zaelar is one process with two loops (uvicorn + LiveKit job-thread). The ONLY writer is the queue
 (`memory/writer.py`); readers (retriever/state) go direct. We share ONE connection (`check_same_thread=False`)
@@ -114,7 +114,7 @@ class Database:
                 self.conn.execute(_schema.vec_paraphrases_ddl(_emb.dim()))  # V2-031 T2
             if self.fts_available:
                 self.conn.execute(_schema.FTS_MEMORIES)
-                self.conn.execute(_schema.FTS_TASKS)     # V2-728 — standalone, see schema.py
+                self.conn.execute(_schema.FTS_TASKS)     # V2-728 — standalone, see memory/schema/ledgers.py
             # v1->v2 (V2-013): memory is a PILL — add `slot`/`meta` if missing (idempotent, non-destructive ALTER;
             # SQLite has no ADD COLUMN IF NOT EXISTS -> inspect existing columns first).
             cols = {r[1] for r in self.conn.execute("PRAGMA table_info(memories)").fetchall()}
@@ -126,7 +126,7 @@ class Database:
             # v4->v5 (V2-111 §9.2): bi-temporal columns + one-time backfill. `valid_at` defaults to `created`
             # for rows written before this column existed — the honest assumption ("we learned it when we
             # wrote it") rather than leaving it NULL, which would make `as_of()` silently skip old rows.
-            # `invalidated_at` is NOT backfilled (see schema.py comment: no reliable source for it).
+            # `invalidated_at` is NOT backfilled (see memory/schema/memories.py: no reliable source for it).
             had_valid_at = "valid_at" in cols
             for name, stmt in _schema.MEMORIES_V5_COLUMNS:
                 if name not in cols:
