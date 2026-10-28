@@ -94,3 +94,20 @@ def test_disarm_a_family_dropped_from_the_door_turns_the_contract_red(monkeypatc
     with pytest.raises(AssertionError):
         assert set(R.FAMILIES) == set(FAMILIES)
     assert not R.reach("mail").known
+
+
+def test_every_measurement_leaves_one_event_on_the_timeline(monkeypatch):
+    """V2-826 §2b: a measurement nobody can see did not happen. One `spec`/`reach` event per call, family `worker`
+    (the spec kind's family, mirrored by the Master), carrying the family, the value and how long it took."""
+    from voice import observer
+    seen = []
+    monkeypatch.setattr(observer, "emit", lambda kind, label, **kw: seen.append((kind, label, kw.get("extra"))))
+    monkeypatch.setitem(R.FAMILIES, "mail", lambda p: R.Reach(family="mail", provider="email",
+                                                              earliest="2025-09-01T10:00:00+00:00", source="x"))
+    R.reach("mail")
+    R.reach("carrier_pigeon")
+    assert [(k, label) for k, label, _ in seen] == [("spec", "reach")] * 2
+    first, second = seen[0][2], seen[1][2]
+    assert first["family"] == "mail" and first["earliest"] == "2025-09-01T10:00:00+00:00" and first["ms"] >= 0
+    assert second["detail"] == "family_not_declared" and not second["known"]
+    assert observer._CAT.get("spec") == "worker", "the event's kind must keep a family the viewer and Master read"

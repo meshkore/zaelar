@@ -13,6 +13,8 @@ declares and routes; the step that reads it against a spec lives with the worker
 """
 from __future__ import annotations
 
+import logging
+import time
 from dataclasses import asdict, dataclass
 
 
@@ -48,12 +50,24 @@ def _messaging(provider: str) -> Reach:
 FAMILIES = {"mail": _mail, "cloud_files": _cloud_files, "messaging": _messaging}
 
 
+def _said(r: Reach, t0: float) -> Reach:
+    """Every measurement leaves one `spec`/`reach` event (family `worker`, beside the spec it is read against): the
+    connector family, the value, why it is missing, and how long the resource took to answer."""
+    try:
+        from voice.observer import emit
+        emit("spec", "reach", extra={**r.as_dict(), "ms": round((time.monotonic() - t0) * 1000)})
+    except Exception as e:  # noqa: BLE001 — the timeline is a witness; the answer goes back to the worker anyway
+        logging.getLogger("zaelar.connectors.reach").debug(f"reach event not emitted: {e!r}")
+    return r
+
+
 def reach(family: str, provider: str = "") -> Reach:
     fam = (family or "").strip().lower()
+    t0 = time.monotonic()
     fn = FAMILIES.get(fam)
     if fn is None:
-        return Reach(family=fam, provider=provider, known=False, detail="family_not_declared")
+        return _said(Reach(family=fam, provider=provider, known=False, detail="family_not_declared"), t0)
     try:
-        return fn(provider)
+        return _said(fn(provider), t0)
     except Exception as e:  # noqa: BLE001 — a measurement that fails is an answer, never a crash in a worker
-        return Reach(family=fam, provider=provider, detail=f"{type(e).__name__}")
+        return _said(Reach(family=fam, provider=provider, detail=f"{type(e).__name__}"), t0)

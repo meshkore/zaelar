@@ -5988,6 +5988,9 @@ DOMAINS: list[dict] = [
                                 "archive's oldest row); an undeclared family says so, a dead resource is a fact, not a "
                                 "crash (refactor2710-13 T-02)",
             "ch": UNIT, "paths": ["tests/connectors/unit/test_every_connector_family_declares_its_reach.py"]},
+        {"id": "5.67", "title": "An observability event survives a refactor: the (kind, label) pairs connectors/ and "
+                                "server/ emit may move between files, never vanish (V2-826 §2b, refactor2710-13)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_an_event_survives_a_move.py"]},
         {"id": "5.4", "title": "Architect", "ch": UNIT, "paths": ["tests/connectors/unit/architect/test_architect.py"]},
         {"id": "5.5", "title": "WhatsApp: normalización y allowlist", "ch": UNIT, "paths": [
             "tests/connectors/unit/whatsapp/test_allowlist_contract.py",
