@@ -22,8 +22,8 @@ def build():
     # STABLE multilingual model (turbo_v2_5 by default) + language LOCK to the operator's language. Accent drift
     # (English/Portuguese over Castilian Spanish) was addressed in V2-035: (1) native CASTILIAN voice (not the plugin's
     # default Anglo voice), (2) explicit `language` set to the active language → the model does not "guess" or drift.
-    # EGRESS: a mediated deployment speaks through egress with its own credential (`nucleo.llm_egress`).
-    from nucleo import llm_egress
+    # EGRESS: a mediated deployment speaks through egress with its own credential (`nucleo.energy.egress`).
+    from nucleo.energy import egress as llm_egress
     base_url, api_key = llm_egress.route_url(llm_egress.base_of("elevenlabs"), SETTINGS.elevenlabs_api_key or "")
     kwargs = dict(
         model=SETTINGS.elevenlabs_model or "eleven_turbo_v2_5",

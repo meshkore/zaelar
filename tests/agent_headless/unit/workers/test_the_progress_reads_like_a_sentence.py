@@ -23,12 +23,12 @@ def _spanish_instance(monkeypatch):
 
 # ── B1: la frase nombra el SITIO y la COSA ───────────────────────────────────────────────────────────────────
 @pytest.mark.parametrize("cmd,expected", [
-    ("-m nucleo.nav_cli navigate https://www.booking.com/searchresults?ss=Sevilla", "entrando en booking.com…"),
-    ("-m nucleo.nav_cli click \"Buscar\"", "pulsando «Buscar»…"),
-    ("-m nucleo.nav_cli type \"Sevilla\" --submit", "escribiendo «Sevilla»…"),
-    ("-m nucleo.nav_cli scroll down", "recorriendo la página…"),
-    ("-m nucleo.nav_cli extract --limit 14", "recogiendo lo que hay en la página…"),
-    ("-m nucleo.mem_cli recall \"el coche del operador\"", "buscando «el coche del operador» en la memoria…"),
+    ("-m nucleo.cli.nav navigate https://www.booking.com/searchresults?ss=Sevilla", "entrando en booking.com…"),
+    ("-m nucleo.cli.nav click \"Buscar\"", "pulsando «Buscar»…"),
+    ("-m nucleo.cli.nav type \"Sevilla\" --submit", "escribiendo «Sevilla»…"),
+    ("-m nucleo.cli.nav scroll down", "recorriendo la página…"),
+    ("-m nucleo.cli.nav extract --limit 14", "recogiendo lo que hay en la página…"),
+    ("-m nucleo.cli.mem recall \"el coche del operador\"", "buscando «el coche del operador» en la memoria…"),
 ])
 def test_a_bridge_command_becomes_a_sentence(cmd, expected):
     assert _tool_phase("Bash", {"command": cmd}) == expected
@@ -42,7 +42,7 @@ def test_a_snapshot_REF_is_never_shown_to_the_operator():
     """The browser identifies elements by snapshot ref (`ref12`), which is the right way to drive the
 page and the opposite of readable: «clicking «ref12»» says less than «clicking on the page» and also
 shows the operator our plumbing."""
-    assert _tool_phase("Bash", {"command": "-m nucleo.nav_cli click ref12"}) == "pulsando en la página…"
+    assert _tool_phase("Bash", {"command": "-m nucleo.cli.nav click ref12"}) == "pulsando en la página…"
 
 
 def test_the_url_is_reduced_to_its_HOST_even_when_it_arrives_decorated():
@@ -55,7 +55,7 @@ entire decoration, which is developer text the operator should never have had to
 def test_hbnote_still_sets_its_OWN_phase():
     """Sensitivity, and the contract V2-048 established: the worker report is RICHER than anything
 we can derive from the tool, so overwriting it with a generic phase loses information."""
-    assert _tool_phase("Bash", {"command": "python -m nucleo.agent_report phase \"aplicando el filtro\""}) == ""
+    assert _tool_phase("Bash", {"command": "python -m nucleo.cli.report phase \"aplicando el filtro\""}) == ""
 
 
 def test_an_unknown_tool_still_says_something():
@@ -131,8 +131,8 @@ def test_the_loop_beats_on_a_TIMER_not_every_tick():
 heartbeat exists to make readable."""
     import inspect
 
-    from nucleo import loop
-    src = inspect.getsource(loop.Loop._supervise_workers if hasattr(loop, "Loop") else loop)
+    from nucleo.pulse import loop, workers
+    src = inspect.getsource(workers)
     assert "_BEAT_SECS" in src and "self._last_beat[tid] = now" in src
     assert loop._BEAT_SECS >= 5
 
@@ -141,8 +141,8 @@ def test_the_beat_is_forgotten_when_the_task_dies():
     """A task-indexed dictionary that nobody prunes is a leak, and this loop lives as long as the process does."""
     import inspect
 
-    from nucleo import loop
-    assert "self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}" in inspect.getsource(loop)
+    from nucleo.pulse import workers
+    assert "self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}" in inspect.getsource(workers)
 
 
 # ── the doctrine, made into a test ───────────────────────────────────────────────────────────────────────────

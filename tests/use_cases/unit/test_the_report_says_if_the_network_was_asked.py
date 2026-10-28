@@ -22,20 +22,20 @@ def _mech(**extra) -> dict:
 
 def test_lo_DICE_cuando_el_worker_pregunto_a_la_red():
     txt = mechanism_facts(_mech(worker_bridges={
-        "read": True, "sessions": 1, "by_bridge": {"mesh_cli": 1, "nav_cli": 2}, "errors": {}}))
-    assert "mesh_cli" in txt and "PREGUNTÓ A LA RED" in txt
+        "read": True, "sessions": 1, "by_bridge": {"cli.mesh": 1, "cli.nav": 2}, "errors": {}}))
+    assert "cli.mesh" in txt and "PREGUNTÓ A LA RED" in txt
 
 
 def test_una_ronda_rapida_por_la_red_no_es_una_ronda_floja():
     """Without this phrase, a round that resolves in seconds because the network helped it reads as little work."""
     txt = mechanism_facts(_mech(worker_bridges={
-        "read": True, "sessions": 1, "by_bridge": {"mesh_cli": 1}, "errors": {}}))
+        "read": True, "sessions": 1, "by_bridge": {"cli.mesh": 1}, "errors": {}}))
     assert "NO es haber hecho menos trabajo" in txt
 
 
 def test_lo_DICE_cuando_NO_la_consulto_y_no_lo_convierte_en_falta():
     txt = mechanism_facts(_mech(worker_bridges={
-        "read": True, "sessions": 1, "by_bridge": {"nav_cli": 4}, "errors": {}}))
+        "read": True, "sessions": 1, "by_bridge": {"cli.nav": 4}, "errors": {}}))
     assert "NO consultó la red" in txt
     assert "No lo puntúes por sí solo" in txt, (
         "un hecho de mecanismo convertido en reproche de conducta es como se fabrica un defecto falso")
@@ -63,11 +63,11 @@ def test_los_ERRORES_de_puente_se_siguen_diciendo_PERO_SIN_ATRIBUIR():
     arguments, file errors”) that it never received—only counters had reached it.
     """
     txt = mechanism_facts(_mech(worker_bridges={
-        "read": True, "sessions": 1, "by_bridge": {"nav_cli": 1, "mesh_cli": 1},
-        "errors": {"nav_cli": 1, "mesh_cli": 1}, "sessions_with_exit2": 1}))
+        "read": True, "sessions": 1, "by_bridge": {"cli.nav": 1, "cli.mesh": 1},
+        "errors": {"cli.nav": 1, "cli.mesh": 1}, "sessions_with_exit2": 1}))
 
     assert "Exit code 2" in txt, "el hecho tiene que seguir llegando al juez"
-    assert "nav_cli" in txt and "mesh_cli" in txt, "y con los puentes que había en esa sesión"
+    assert "cli.nav" in txt and "cli.mesh" in txt, "y con los puentes que había en esa sesión"
     # The part that prevents the false defect: the honest number is SESSIONS, and the limitation is written down.
     assert "1 sesión(es)" in txt, "vuelve a contar puentes en vez de sesiones rotas"
     assert "NO una atribución" in txt

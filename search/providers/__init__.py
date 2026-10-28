@@ -59,7 +59,7 @@ PROVIDERS: dict[str, Provider] = {
 
 
 #: USD per paid request, an upper-bound estimate used for metering — re-verify against each provider's pricing. Read
-#: by `nucleo.energy_meter._SEARCH_USD_PER_REQUEST` (which adds the catch-all row), so a provider declared above
+#: by `nucleo.energy.meter._SEARCH_USD_PER_REQUEST` (which adds the catch-all row), so a provider declared above
 #: without a row here is metered at the catch-all, loudly (`test_energy_coverage`).
 USD_PER_REQUEST: dict[str, float] = {
     "perplexity": 0.005,         # Sonar, incl. the synthesised answer

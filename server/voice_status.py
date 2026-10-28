@@ -272,8 +272,8 @@ async def the_rest_and_the_light(*, SETTINGS, brain, has, health_state, items) -
     # ── Crons (proactivity · OWN orchestrator loop, nucleo/) ─────────────────────────────────────────────────
     if brain == "nucleo":
         try:
-            from nucleo import loop as nucleo_loop
-            from nucleo import scheduler
+            from nucleo.pulse import loop as nucleo_loop
+            from nucleo.pulse import scheduler
             running = nucleo_loop.is_running()
             n = len(scheduler.list_jobs(active_only=True))
             cron_detail = (_t("status.detail.cron_running_" + ("one" if n == 1 else "many"), "loop running · {n} scheduled task(s)", n=n)

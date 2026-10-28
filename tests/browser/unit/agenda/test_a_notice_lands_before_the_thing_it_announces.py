@@ -62,7 +62,7 @@ def test_the_door_bounds_a_one_off_and_leaves_a_cadence_alone():
 
 def test_add_reminder_is_the_agendas_own_action(monkeypatch):
     """The standalone notice is `add_reminder` of the agenda: no moment → asked; a moment → on the scheduler."""
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     from widgets.agenda import data
     made = []
     monkeypatch.setattr(scheduler, "create", lambda prompt, when, name="", repeat="":

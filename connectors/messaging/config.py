@@ -33,7 +33,7 @@ def triage_key() -> str:
     any-non-empty-string sentinel).
 
     The last step used to be a hand-rolled `if "x.ai" … elif "openai.com" …`, and it is exactly the drift
-    `nucleo/provider_keys.py` was created to end — its own docstring names the four files that had already
+    `nucleo/energy/keys.py` was created to end — its own docstring names the four files that had already
     diverged; this was a FIFTH, never migrated. Measured on the operator's engine 2026-08-31: §triage pointed at
     `https://api.deepseek.com`, an endpoint this chain did not know, so it sent the literal string `local` as the
     bearer token. DeepSeek answered `401 Authentication Fails, Your api key: ****ocal is invalid` — and because
@@ -43,7 +43,7 @@ def triage_key() -> str:
     k = _cfg("api_key") or os.getenv("MSG_TRIAGE_KEY") or os.getenv("WA_TRIAGE_KEY", "")
     if k:
         return k
-    from nucleo import provider_keys
+    from nucleo.energy import keys as provider_keys
     return provider_keys.key_for_endpoint(triage_url(), default="local")
 
 

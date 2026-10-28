@@ -17,7 +17,7 @@ def ag(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     from widgets.agenda import data as d
     made = []
-    from nucleo import scheduler as S
+    from nucleo.pulse import scheduler as S
     monkeypatch.setattr(S, "create", lambda prompt, stamp, **k: made.append(stamp) or {"ok": True, "id": str(len(made)),
                                                                                        "display": stamp})
     monkeypatch.setattr(S, "supersede_loose_notices", lambda *a, **k: None)

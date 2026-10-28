@@ -54,7 +54,7 @@ data — it could try to make zaelar run commands, read/write files, or use tool
   permission profile**, deny-all by default (`workers`/`code`/`repo`/`execute`/`deploy`, all off) — a
   zero-permission cluster is byte-identical to the tool-less path above. If the operator grants `code` at
   connect-time, the cluster turn can reach `escalate_to_slowbrain` → a **dev-worker `kind`** (`nucleo/dispatch/`)
-  scoped to a disposable cwd + `Bash` ONLY to `nucleo/git_cli.py` (a bridge that clones/commits/pushes
+  scoped to a disposable cwd + `Bash` ONLY to `nucleo/cli/git.py` (a bridge that clones/commits/pushes
   **exclusively** to the operator-authorized repo, re-verifying the real git `origin` on every commit and push, not
   just at `clone`). A granted `code` permission is STILL not enough by itself: a **guard of objective-ownership**
   (`perms.gate_dev_by_objective`) additionally requires the operator to have set `capsule.objective` for that
@@ -63,7 +63,7 @@ data — it could try to make zaelar run commands, read/write files, or use tool
   `Grep` are confined to the dev-worker's temp cwd by a real Claude Code `PreToolUse` hook,
   `nucleo/dev_worker_guard.py` (`--settings`, the official mechanism), that DENIES any resolved path (symlinks
   followed) outside `ZAELAR_DEV_WORKER_ROOT`; the settings file lives OUTSIDE the workdir so the worker itself can't
-  tamper with it. `nucleo/sandbox.py::dev_worker_rlimits()` additionally caps memory/nproc/fsize for the subprocess
+  tamper with it. `nucleo/cli/sandbox.py::dev_worker_rlimits()` additionally caps memory/nproc/fsize for the subprocess
   (no CPU/wall limit — a legitimate session can run minutes, already governed by dispatch's own lifecycle). On
   macOS/Darwin the memory limit is best-effort (`RLIMIT_AS` is a no-op there; `NPROC`/`FSIZE` do apply). The
   path-jail hook is the portable protection on every platform; the rlimits are defense-in-depth, strongest on Linux.
@@ -246,7 +246,7 @@ it, and the machine it runs on is the boundary. That assumption stops holding in
 processes behind ONE hostname, each holding a different person's data**. There, "whichever process the edge
 happened to pick answered" is not a routing detail; it is the wrong process answering.
 
-`nucleo/account_routing.is_account_routing_machine()` says whether this process is in that shape (two env reads,
+`nucleo/energy/routing.is_account_routing_machine()` says whether this process is in that shape (two env reads,
 default false). When it is, `server/ingress.py` admits a request only after this process has ESTABLISHED that the
 request's session belongs to it. Every other case refuses:
 

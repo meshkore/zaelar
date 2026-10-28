@@ -110,7 +110,7 @@ class _StepsMixin:
         """`click_at`/`type_at`: act on a point of the screenshot (the VISION route), gated like every other route
         that reaches the mouse or the keyboard."""
         x, y = float(args.get("x", 0)), float(args.get("y", 0))
-        # V2-711 T1 — the VISION route (the one `nav_cli` recommends for forms) is gated too: the element under
+        # V2-711 T1 — the VISION route (the one `cli.nav` recommends for forms) is gated too: the element under
         # the pixel is resolved BEFORE the mouse moves.
         if action == "click_at":
             ok, why = await self._may_act(page, None, at=(x, y))

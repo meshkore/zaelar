@@ -26,7 +26,7 @@ never told zaelar otherwise.
 siempre Idealista para pisos" or "prefiero PcComponentes a Amazon", that preference is a real, durable memory
 pill (written the normal way, by the standard conversational ingest — nothing here writes to memory) and
 MUST override the catalog entry below for that category. `directive_block()`'s own text tells the worker to
-check memory FIRST via `mem_cli recall` before falling back to this catalog — so the override lives entirely
+check memory FIRST via `cli.mem recall` before falling back to this catalog — so the override lives entirely
 in the PROMPT, not in a second data source that could drift out of sync with this one. This file never
 becomes stale by an operator's personal taste; it only goes stale if a whole category's best-known site
 changes for everyone (in which case a dev edits it here, same as any other genetic default).
@@ -185,7 +185,7 @@ def directive_block(locale: str | None = None) -> str:
         "SITIOS DE CONFIANZA POR CATEGORÍA. ANTES de usar este catálogo, comprueba si el operador tiene una "
         "preferencia YA GUARDADA para esta categoría (p.ej. «usa siempre Idealista para pisos», «prefiero "
         "PcComponentes a Amazon») con "
-        "`python -m nucleo.mem_cli recall \"sitio preferido para <categoría>\"` — SI la hay, esa preferencia "
+        "`python -m nucleo.cli.mem recall \"sitio preferido para <categoría>\"` — SI la hay, esa preferencia "
         "MANDA sobre el catálogo de abajo, sin excepción. Si NO la hay, usa el catálogo (SIEMPRE primero, "
         "incluso si el operador ha nombrado un negocio concreto — búscalo DENTRO del sitio de confianza antes "
         "de ir a su web propia; solo salta directo a la web propia de un negocio si genuinamente no aparece "

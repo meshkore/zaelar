@@ -76,7 +76,7 @@ async def _run_widget(wid: str, fn: str, caller):
         return {"error": f"widget '{wid}' failed: {type(e).__name__}: {e}"}
 
 
-# PUBLIC facade for other domains (nucleo/worker_api, Susurro...): run a widget hook with the SAME isolation (bounded
+# PUBLIC facade for other domains (nucleo/cli/worker_api, Susurro...): run a widget hook with the SAME isolation (bounded
 # pool + timeout) without importing private functions from this module.
 MISSING = _MISSING
 

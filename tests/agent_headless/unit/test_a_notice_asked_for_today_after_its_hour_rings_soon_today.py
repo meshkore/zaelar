@@ -2,7 +2,7 @@
 
 `remember-and-remind-deadline` (ES + __us, Wednesday 2026-10-14 ~12:00): «recuérdamelo el miércoles», said on the
 Wednesday itself with the default 09:00 behind us. The agenda refused the notice as past (EN) and the model's tag
-was moved to NEXT Wednesday, after the Thursday deadline (ES). `nucleo.notice_today` is the one rule both doors
+was moved to NEXT Wednesday, after the Thursday deadline (ES). `nucleo.pulse.notice_today` is the one rule both doors
 use: today and gone → the next full hour at least 15 min ahead; a day already behind us is not moved.
 """
 from __future__ import annotations
@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-from nucleo import notice_today as NT
+from nucleo.pulse import notice_today as NT
 
 
 def _ts(d, hh, mm=0):

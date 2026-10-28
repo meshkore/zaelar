@@ -20,7 +20,7 @@ import pathlib
 
 import pytest
 
-from nucleo import llm_egress
+from nucleo.energy import egress as llm_egress
 
 ENGINE = pathlib.Path(__file__).resolve().parents[4]
 TABLE = ENGINE / "config" / "models.default.json"

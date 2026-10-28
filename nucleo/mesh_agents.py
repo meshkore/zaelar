@@ -438,7 +438,7 @@ def _note_answer(agent: dict, status: int, data) -> None:
     if not aid:
         return
     try:
-        from nucleo import source_outcomes as so
+        from nucleo.workers import source_outcomes as so
         if status == 0 and isinstance(data, dict) and data.get("transport") == "timeout":
             so.note(aid, so.TIMEOUT, kind="agent")
         elif status == 200:
@@ -623,7 +623,7 @@ def _failing_last(agents: list[dict]) -> list[dict]:
     """V2-798 · candidates whose newest recorded outcome is a failure go AFTER the rest — reordered, never dropped:
     an agent that timed out yesterday is still asked when it is the only one, and its record expires on its own."""
     try:
-        from nucleo import source_outcomes as so
+        from nucleo.workers import source_outcomes as so
         return sorted(agents, key=lambda a: so.is_failing(str(a.get("agent_id") or "")))   # stable sort
     except Exception:  # noqa: BLE001
         return agents

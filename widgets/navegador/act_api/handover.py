@@ -65,7 +65,7 @@ def _hand_over(task_id: str, items: list) -> None:
         # checked is a lie of ours; the no-errand branch of the note says so.
         goal = str((_t.get(task_id) or {}).get("goal") or "").strip()[:70]
         if not goal:
-            # A tab opened through `nav_cli` by a non-`kind=web` errand is named after the TASK and has no goal of
+            # A tab opened through `cli.nav` by a non-`kind=web` errand is named after the TASK and has no goal of
             # its own; its errand does.
             try:
                 from nucleo import dispatch as _disp

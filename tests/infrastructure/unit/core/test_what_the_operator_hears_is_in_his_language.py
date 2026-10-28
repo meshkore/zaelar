@@ -533,7 +533,7 @@ def test_the_retired_ones_stay_retired():
 def test_a_worker_asking_his_permission_asks_in_his_language():
     """Demo pass 2026-09-28, an English session: «Hey, the … process is asking: El worker quiere hacer
     «delete_file» en el widget «archivos» (acción irreversible). ¿Lo autorizas?»."""
-    from nucleo import worker_policy as wp
+    from nucleo.cli import worker_policy as wp
     p = {"widget_id": "archivos", "action": "delete_file"}
     en, es = _in("en", lambda: wp._confirm_question("widget_data", p)), _in("es", lambda: wp._confirm_question("widget_data", p))
     assert "delete_file" in en and "archivos" in en and "autorizas" not in en.lower()

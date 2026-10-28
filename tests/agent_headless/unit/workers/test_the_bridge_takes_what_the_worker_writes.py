@@ -24,7 +24,7 @@ import sys
 
 import pytest
 
-from nucleo import nav_cli, worker_bridge
+from nucleo.cli import nav as nav_cli, bridge as worker_bridge
 
 
 # ── the CLI was wrong: a direction is a legitimate way to write it ────────────────────────────────────────────
@@ -55,7 +55,7 @@ def test_nonsense_still_fails_AND_says_both_ways_to_write_it():
 def test_the_whole_command_runs_end_to_end():
     """`_scroll_amount` being right is not the same as it being WIRED: the parser has to use it as the type.
     Run the real CLI — with no server it fails on the connection, never on the argument."""
-    out = subprocess.run([sys.executable, "-m", "nucleo.nav_cli", "scroll", "down"],
+    out = subprocess.run([sys.executable, "-m", "nucleo.cli.nav", "scroll", "down"],
                          capture_output=True, text=True, timeout=60)
     assert "invalid int value" not in (out.stdout + out.stderr)
 
@@ -84,7 +84,7 @@ def test_an_unknown_prog_still_says_something_useful():
 def test_the_bridge_prints_the_hint_when_the_argument_is_missing():
     """The measured failure, end to end. Asserted on the real process because the whole point is what reaches
     the worker's stderr — a hint that exists and is not printed is V2-186 again."""
-    out = subprocess.run([sys.executable, "-m", "nucleo.worker_bridge", "act"],
+    out = subprocess.run([sys.executable, "-m", "nucleo.cli.bridge", "act"],
                          capture_output=True, text=True, timeout=60)
     assert out.returncode == 2
     err = out.stderr
@@ -95,7 +95,7 @@ def test_the_bridge_prints_the_hint_when_the_argument_is_missing():
 
 def test_the_hint_lands_BETWEEN_the_complaint_and_the_usage():
     """A worker reads top-down: the way out has to arrive before the wall of syntax it is already staring at."""
-    out = subprocess.run([sys.executable, "-m", "nucleo.worker_bridge", "act"],
+    out = subprocess.run([sys.executable, "-m", "nucleo.cli.bridge", "act"],
                          capture_output=True, text=True, timeout=60)
     err = out.stderr
     assert err.index("required") < err.index("use_tool") < err.index("usage:")

@@ -176,7 +176,7 @@ async def _run_session(task: "Task") -> None:
             prompt += trusted_blocks(getattr(rec, "surface", ""))
         if resume and (kind == "web" and trusted):
             prompt = ("REANUDAS una gestión que YA empezaste (no arranques de cero): la pestaña sigue donde la "
-                      "dejaste y los datos que ya reuniste están en memoria (consúltalos con mem_cli recall). Haz "
+                      "dejaste y los datos que ya reuniste están en memoria (consúltalos con cli.mem recall). Haz "
                       "`look` PRIMERO para ver dónde te quedaste y CONTINÚA desde ahí hasta terminar.\n\n") + prompt
         if _brief_bg is not None:
             # V2-301 — the compositor continues pensando: the worker starts YA and the address le arrives inyectada.

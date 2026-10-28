@@ -219,9 +219,9 @@ def _read_image(path: Path) -> tuple[str, str]:
     buf = io.BytesIO()
     im.save(buf, "JPEG", quality=85)
     url_img = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
-    from nucleo import energy_meter, llm_egress
+    from nucleo.energy import egress as llm_egress, meter as energy_meter
     from nucleo.memory_agent.processor import llm
-    from nucleo.provider_keys import key_for_endpoint
+    from nucleo.energy.keys import key_for_endpoint
     why = "no image-reading model is configured"
     for rung in _image_rungs():
         base, model = rung.get("base_url") or "", rung.get("model") or ""

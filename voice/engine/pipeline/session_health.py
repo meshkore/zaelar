@@ -24,7 +24,7 @@ def on_session_dead(error, emit) -> None:
     except Exception:
         pass
     try:
-        from nucleo import homeostasis
+        from nucleo.pulse import homeostasis
         homeostasis.request_recycle(f"voice session died: {reason}")
     except Exception:
         pass

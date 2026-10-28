@@ -45,7 +45,7 @@ def test_a_screenshot_that_IS_there_is_offered_with_its_absolute_path(shots):
 def test_the_CLI_says_nothing_about_a_view_when_there_is_none():
     """The half that turns the fix into behaviour: an empty `shot` must produce NO instruction. If the printer
     ever prints the line anyway, the worker is sent to read `""` and we are back to a failed Read."""
-    from nucleo import nav_cli
+    from nucleo.cli import nav as nav_cli
     buf = io.StringIO()
     with redirect_stdout(buf):
         nav_cli._print_state({"ok": True, "url": "https://example.com", "title": "x", "shot": ""})
@@ -55,7 +55,7 @@ def test_the_CLI_says_nothing_about_a_view_when_there_is_none():
 
 def test_the_CLI_does_offer_the_view_when_the_shot_is_real():
     """Sensitivity: without this, «never print VISTA» would pass the test above and blind the vision path."""
-    from nucleo import nav_cli
+    from nucleo.cli import nav as nav_cli
     buf = io.StringIO()
     with redirect_stdout(buf):
         nav_cli._print_state({"ok": True, "url": "https://example.com", "title": "x",
@@ -67,7 +67,7 @@ def test_the_CLI_does_offer_the_view_when_the_shot_is_real():
 def test_a_look_that_produced_no_capture_SAYS_so():
     """`look` exists to produce a capture, so returning none is a failure of the thing asked for — not «nothing
     to report». With `ok` and silence the worker reads success and loses the vision path without knowing."""
-    from nucleo import nav_cli
+    from nucleo.cli import nav as nav_cli
     buf = io.StringIO()
     with redirect_stdout(buf):
         nav_cli._print_state({"ok": True, "url": "https://example.com", "title": "x", "shot": "",
@@ -79,7 +79,7 @@ def test_a_look_that_produced_no_capture_SAYS_so():
 def test_a_plain_snapshot_without_a_shot_stays_quiet():
     """Sensitivity: `snapshot` never promised a capture, so warning there would be noise on every text step.
     `viewport` is what marks an answer as coming from `look`."""
-    from nucleo import nav_cli
+    from nucleo.cli import nav as nav_cli
     buf = io.StringIO()
     with redirect_stdout(buf):
         nav_cli._print_state({"ok": True, "url": "https://example.com", "title": "x", "shot": ""})

@@ -171,7 +171,7 @@ def keys() -> list[str]:
 def _worker_state() -> tuple[bool, bool]:
     """(workers active, a worker is waiting for an answer). Unknown reads as «no», the escalating answer."""
     try:
-        from nucleo import dispatch as _dispatch, worker_api as _wapi
+        import nucleo.dispatch as _dispatch, nucleo.cli.worker_api as _wapi
         return bool(_dispatch.has_active()), bool(_wapi.has_pending_ask())
     except Exception:  # noqa: BLE001
         return False, False

@@ -131,7 +131,7 @@ def balance(service: str, refresh: bool = False) -> dict:
         return {"state": "unknown", "detail": say("status.bal.no_balance_api", "the provider does not expose a balance")}
     # A key egress stands in for is this instance's egress credential, not the provider's: probing the provider
     # with it answers 401 and would paint a wallet this instance does not hold as broken.
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     if llm_egress.mediated() and any(e in llm_egress._STANDS_IN_FOR for e in envs):
         return {"state": "unknown", "detail": say("status.bal.held_by_egress",
                                                    "paid through this deployment's egress, not with a key of this instance")}

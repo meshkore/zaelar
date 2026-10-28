@@ -43,7 +43,7 @@ def test_an_existing_database_gains_the_state_columns(tmp_path, monkeypatch):
 
 
 def test_the_pulse_beat_writes_the_workers_state_into_its_row(fresh_db, monkeypatch):
-    from nucleo.loop import OrchestratorLoop
+    from nucleo.pulse.loop import OrchestratorLoop
 
     async def _noop(*a, **k):
         return None

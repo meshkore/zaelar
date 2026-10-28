@@ -19,7 +19,8 @@ import pytest
 @pytest.fixture
 def harness(monkeypatch):
     from memory import api as memapi
-    from nucleo import dispatch, rehydrate
+    from nucleo import dispatch
+    from nucleo.pulse import rehydrate
     clock = [1_000_000.0]
     writes = []
     monkeypatch.setattr(dispatch, "time", types.SimpleNamespace(time=lambda: clock[0]))

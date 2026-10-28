@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from nucleo import scheduler
+from nucleo.pulse import scheduler
 from nucleo.workers import providers, quota_wait
 
 GOAL = "Find me a used surfboard, around 6 feet, for under $275."

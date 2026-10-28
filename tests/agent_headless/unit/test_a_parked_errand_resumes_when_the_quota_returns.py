@@ -9,8 +9,8 @@ import pytest
 
 import bus
 from memory import db as memdb
-from nucleo import loop as nloop
-from nucleo import scheduler, sparks
+from nucleo.pulse import loop as nloop
+from nucleo.pulse import scheduler, sparks
 from nucleo.workers import providers, quota_wait
 
 GOAL = "Find car and bike events around Los Angeles on October 17-18"

@@ -24,7 +24,7 @@ tick beyond a local-file check.
 
 ## Voice search — the honest v1 scope, stated so nobody assumes more
 
-`search` matches a date range (parsed by `connectors.photos.service`, PAST-oriented — `nucleo/scheduler.py`'s
+`search` matches a date range (parsed by `connectors.photos.service`, PAST-oriented — `nucleo/pulse/scheduler.py`'s
 parser is FUTURE-only, built for reminders) and a trip label the operator gave a batch, or a filename. It does
 NOT recognize what is IN a photo — no "this is Morocco" from pixels. The manifest's `usage` says so, so the
 FlashBrain never claims a capability this widget does not have (V2-547's "an undeclared capability is invented

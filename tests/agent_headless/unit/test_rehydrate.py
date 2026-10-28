@@ -26,7 +26,7 @@ import pytest
 from memory import api as memapi
 from memory import db as memdb
 from memory import embeddings as mememb
-from nucleo import rehydrate as R
+from nucleo.pulse import rehydrate as R
 
 # The REAL lost goal, verbatim from the escalation event.
 VELEROS = ('Busca en Wallapop (el operador dice "Gualapop", es Wallapop) veleros en venta en España con un mínimo '

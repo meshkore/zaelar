@@ -7,7 +7,7 @@ kinds of «ongoing» already existed and none of them can hold that:
   · the TURN — seconds.
   · the WORKER SESSION (`nucleo/workers/session.py`) — minutes, in RAM; a restart buries it
     (`rehydrate.py` calls anything older than `STALE_S` archaeology).
-  · the CRON (`nucleo/scheduler.py`) — fires a prompt at a time and carries no state of its own.
+  · the CRON (`nucleo/pulse/scheduler.py`) — fires a prompt at a time and carries no state of its own.
   · the HARNESS GOAL (`nucleo/circuit/harness.py`) — the right shape, capped at five minutes, RAM, and its only
     verifier reads whether a widget is empty.
 

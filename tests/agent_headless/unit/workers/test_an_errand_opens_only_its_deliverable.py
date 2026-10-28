@@ -17,7 +17,8 @@ import types
 
 import pytest
 
-from nucleo import docsheet, sheets, worker_api
+from nucleo import docsheet, sheets
+from nucleo.cli import worker_api
 
 
 @pytest.fixture

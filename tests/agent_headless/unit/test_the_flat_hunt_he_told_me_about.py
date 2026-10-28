@@ -117,7 +117,7 @@ class _Worker(WorkerBackend):
         # would be the test writing to a box the product never reads.
         from nucleo.sheets import sheet_id_for
         sheet = sheet_id_for(tid)
-        # What a real worker does through `python -m nucleo.widget_cli data results …`.
+        # What a real worker does through `python -m nucleo.cli.widget data results …`.
         sheetdata.apply_action("criteria", {"sheet": sheet, "criteria": {
             "goal": "piso de alquiler en Gràcia", "hard": ["hasta 1.200 €/mes", "en Gràcia"]}})
         sheetdata.apply_action("rejected", {"sheet": sheet, "rejected": REJECTED})

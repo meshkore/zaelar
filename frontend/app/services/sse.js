@@ -435,7 +435,7 @@ export function routeEvent(desktop, d) {
         }).catch(() => {});
       }
     } else if (d.kind === "pulse") {                                              // orchestrator loop.tick (~1 Hz)
-      // The server's own HEARTBEAT (nucleo/loop.py, bridged in server/__init__.py) → one beat of the orb's ECG.
+      // The server's own HEARTBEAT (nucleo/pulse/loop.py, bridged in server/__init__.py) → one beat of the orb's ECG.
       // At rest it marks the real rhythm (only checking crons/processes); tasks and turns speed it up (Ecg.js).
       store.pushPulse({ kind: "tick", n: d.n });
     } else if (d.kind === "brain" && d.wall) {

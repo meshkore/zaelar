@@ -13,7 +13,7 @@ from __future__ import annotations
 import pytest
 
 from nucleo import mesh_agents as m
-from nucleo import source_outcomes as so
+from nucleo.workers import source_outcomes as so
 
 MEASURED_LATENCY_S = 14.2
 

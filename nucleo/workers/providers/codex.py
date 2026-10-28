@@ -15,7 +15,7 @@ vocabulario nativo al NORMALIZADO `WorkerEvent`, igual que `claude_session` hace
 Diferencias de FONDO con Claude Code, que el operador debe conocer (no son detalles de implementación):
 
 1. **NO hay allowlist de tools.** Claude Code acota `Bash` a los puentes (`--allowedTools "Bash(python -m
-   nucleo.mem_cli:*)"…`), que es el invariante del ESCRITOR ÚNICO de la memoria. Codex no tiene ese eje: tiene
+   nucleo.cli.mem:*)"…`), que es el invariante del ESCRITOR ÚNICO de la memoria. Codex no tiene ese eje: tiene
    MODOS de sandbox (`read-only` / `workspace-write` / `danger-full-access`). Para trabajar headless hace falta
    `workspace-write` (verificado: en ese modo ejecuta comandos SIN pedir aprobación, que en headless nadie daría),
    y eso es un shell COMPLETO. Un worker de Codex tiene por tanto MÁS radio de acción que uno de Claude Code.

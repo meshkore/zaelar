@@ -33,7 +33,7 @@ def test_the_path_is_not_truncated(monkeypatch):
     """Regression on the first version: slicing a fixed 3 characters off porcelain ate the first letter of
     every path ("ests/…"), which silently broke the `tests/` exclusion — every round would have read dirty."""
     import subprocess
-    out = " M widgets/navegador/tasks.py\n?? tests/use_cases/unit/test_x.py\nM  nucleo/loop.py\n"
+    out = " M widgets/navegador/tasks.py\n?? tests/use_cases/unit/test_x.py\nM  nucleo/pulse/loop.py\n"
 
     class _P:
         stdout = out
@@ -44,7 +44,7 @@ def test_the_path_is_not_truncated(monkeypatch):
     monkeypatch.setattr(subprocess, "run", _run)
     config._CODE_STAMP = None
     st = config.code_stamp()
-    assert st["dirty"] == ["nucleo/loop.py", "widgets/navegador/tasks.py"], st["dirty"]
+    assert st["dirty"] == ["nucleo/pulse/loop.py", "widgets/navegador/tasks.py"], st["dirty"]
     assert st["n_dirty"] == 2
     config._CODE_STAMP = None
 

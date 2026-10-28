@@ -159,7 +159,7 @@ export const memoryViewer = (path, params = {}) => {
     .then((r) => (r.ok ? r.json() : null)).catch(() => null);
 };
 
-// ---- proactive tasks/reminders (loop orquestador propio, nucleo/scheduler.py) ----
+// ---- proactive tasks/reminders (loop orquestador propio, nucleo/pulse/scheduler.py) ----
 export const cronList = () => fetch("/api/cron").then(json).catch(() => ({ jobs: [] }));
 export const cronAction = (action, ref) => postJSON("/api/cron/" + action, { ref }).then(json).catch(() => ({ ok: false }));
 export const cronCreate = (body) => postJSON("/api/cron/create", body).then(json).catch(() => ({ ok: false }));

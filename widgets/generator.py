@@ -382,7 +382,7 @@ def _run_agent_once(prompt: str, token: str = "", *, target: str) -> tuple[bool,
             obj = _json.loads(stdout)
             usage = obj.get("usage") or {}
             if usage:
-                from nucleo import energy_meter as _energy
+                from nucleo.energy import meter as _energy
                 _energy.report_worker_usage(
                     base_url=base_url,
                     model=obj.get("model") or model,

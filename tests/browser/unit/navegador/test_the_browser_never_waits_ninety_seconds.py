@@ -22,7 +22,7 @@ loaded, and the action continues to count as what it was.
 """
 import inspect
 
-from nucleo import nav_cli
+from nucleo.cli import nav as nav_cli
 from widgets.navegador import owner
 
 

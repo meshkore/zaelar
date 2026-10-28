@@ -1,7 +1,8 @@
 """Tests of the Brain Workers substrate (V2-038): contract, dispatch registration/resolution, and act policy."""
 import asyncio
 
-from nucleo import dispatch, worker_api
+from nucleo import dispatch
+from nucleo.cli import worker_api
 from nucleo.workers import WorkerEvent, WorkerSpec, get_backend
 from nucleo.workers.session import SessionRecord
 
@@ -81,20 +82,20 @@ def test_tool_step_native_tools():
 
 def test_tool_step_bridges_from_bash():
     # browser: URL, numeric ref, and typed text
-    nav = _tool_step("Bash", {"command": 'python -m nucleo.nav_cli navigate "https://sitios.dgt.es/cita"'})
+    nav = _tool_step("Bash", {"command": 'python -m nucleo.cli.nav navigate "https://sitios.dgt.es/cita"'})
     assert nav["where"] == "navegador" and nav["action"] == "navigate" and "sitios.dgt.es" in nav["target"]
-    clk = _tool_step("Bash", {"command": ".venv/bin/python -m nucleo.nav_cli click 12"})
+    clk = _tool_step("Bash", {"command": ".venv/bin/python -m nucleo.cli.nav click 12"})
     assert clk["where"] == "navegador" and clk["action"] == "click" and clk["target"] == "[12]"
-    typ = _tool_step("Bash", {"command": 'python -m nucleo.nav_cli type 7 "moto enduro" --submit'})
+    typ = _tool_step("Bash", {"command": 'python -m nucleo.cli.nav type 7 "moto enduro" --submit'})
     assert typ["action"] == "type" and "moto enduro" in typ["target"]
     # memory: recall (query) and remember (slot)
-    rc = _tool_step("Bash", {"command": 'python -m nucleo.mem_cli recall "ubicación del operador"'})
+    rc = _tool_step("Bash", {"command": 'python -m nucleo.cli.mem recall "ubicación del operador"'})
     assert rc["where"] == "memoria" and rc["action"] == "recall" and "ubicación" in rc["target"]
-    rm = _tool_step("Bash", {"command": 'python -m nucleo.mem_cli remember --slot itv.cita "cita el martes"'})
+    rm = _tool_step("Bash", {"command": 'python -m nucleo.cli.mem remember --slot itv.cita "cita el martes"'})
     assert rm["action"] == "guarda" and "[itv.cita]" in rm["target"]
     # zaelar (worker_bridge) and agent_report (None → does not duplicate the hbnote phase)
-    assert _tool_step("Bash", {"command": "python -m nucleo.worker_bridge ask '¿matrícula?'"})["where"] == "zaelar"
-    assert _tool_step("Bash", {"command": "python -m nucleo.agent_report phase 'buscando'"}) is None
+    assert _tool_step("Bash", {"command": "python -m nucleo.cli.bridge ask '¿matrícula?'"})["where"] == "zaelar"
+    assert _tool_step("Bash", {"command": "python -m nucleo.cli.report phase 'buscando'"}) is None
 
 
 def test_every_place_maps_to_a_known_kind():
@@ -171,7 +172,7 @@ def test_claude_session_pause_resume_real_process():
 # The policy returned the SAME phrase for everything, "action not permitted for a worker"; the worker believed it
 # and abandoned its only fallback: the search was left without a search engine.
 def test_a_malformed_call_is_not_reported_as_a_forbidden_capability():
-    from nucleo.worker_api import deny_reason
+    from nucleo.cli.worker_api import deny_reason
     msg = deny_reason("web_search", {"query": "velero 42 pies"})
     assert "DESCONOCIDA" in msg, "un nombre de tool en el hueco de la acción es una llamada MAL ESCRITA"
     assert "use_tool" in msg and '"tool":"web_search"' in msg, "tiene que decir la forma CORRECTA"
@@ -179,21 +180,21 @@ def test_a_malformed_call_is_not_reported_as_a_forbidden_capability():
 
 
 def test_an_actually_forbidden_tool_says_so_and_offers_the_way_out():
-    from nucleo.worker_api import deny_reason
+    from nucleo.cli.worker_api import deny_reason
     msg = deny_reason("use_tool", {"tool": "authenticate_web"})
     assert "no se presta" in msg and "ask_user" in msg
     assert "DESCONOCIDA" not in msg, "esto sí es una prohibición real, no un error de forma"
 
 
 def test_a_tool_outside_the_lendable_catalogue_names_what_is_lendable():
-    from nucleo.worker_api import deny_reason, _PRESTABLE_TOOLS
+    from nucleo.cli.worker_api import deny_reason, _PRESTABLE_TOOLS
     msg = deny_reason("use_tool", {"tool": "play_music"})
     assert all(t in msg for t in _PRESTABLE_TOOLS)
 
 
 def test_the_deny_message_lists_the_real_action_vocabulary():
     """The message must not become outdated relative to what the policy actually allows."""
-    from nucleo import worker_api as W
+    from nucleo.cli import worker_api as W
     msg = W.deny_reason("noexiste", {})
     for a in W._KNOWN_ACTS:
         assert a in msg, a
@@ -209,7 +210,7 @@ def test_the_deny_message_lists_the_real_action_vocabulary():
 # Measured: 704 s, 256 steps, 39 captures, ~$0.20 in xAI tokens → €0 billed.
 def test_the_energy_report_is_not_gated_by_the_ui_concern(monkeypatch):
     """The two concerns are SEPARATE: a CANCELLED session paints no second end row, and its tokens are billed."""
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     from tests.agent_headless.unit.workers import session_door as door
     billed = []
     monkeypatch.setattr(energy_meter, "report_worker_usage", lambda **kw: billed.append(kw))
@@ -224,7 +225,7 @@ def test_partial_usage_survives_a_worker_that_never_says_goodbye(monkeypatch):
     """The final `result`'s `usage` does not exist if we kill the process, so it accumulates message by message. The
     `result` takes precedence when it arrives (the CLI already provides the sum); the partial is the MINIMUM reported
     when it does not. Read from what the session bills."""
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     from tests.agent_headless.unit.workers import session_door as door
     billed = []
     monkeypatch.setattr(energy_meter, "report_worker_usage", lambda **kw: billed.append(kw))

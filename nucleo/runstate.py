@@ -187,7 +187,7 @@ def blocks_new_work(*, who: str = "") -> bool:
             return True
         # Opening a worker is the most expensive thing the engine starts, so it asks the energy lease too:
         # without a usable lease a cloud machine opens nothing new (always admits without a cloud account).
-        from nucleo import energy_lease
+        from nucleo.energy import lease as energy_lease
         return not energy_lease.check("worker")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"runstate: interruptor ILEGIBLE ({e!r}) — {who or 'quien pregunta'} no abre trabajo nuevo")
@@ -312,7 +312,7 @@ async def start(src: str = "operator") -> dict:
         resumed = dispatch.resume_all()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"runstate.start: los workers no se pudieron reanudar: {e!r}")
-    # V2-516: STARTING the agent also revives a dead HEARTBEAT (nucleo/loop.py). The lifespan starts it
+    # V2-516: STARTING the agent also revives a dead HEARTBEAT (nucleo/pulse/loop.py). The lifespan starts it
     # exactly once and never retries, so any import-time failure leaves the engine up with no pulse — crons
     # silent, ECG flat — and before this, the operator's ⏻, the one gesture that should fix a stopped state
     # (feedback: visible state over silent state), did nothing. Measured 2026-08-31: a syntax-broken instant
@@ -321,7 +321,7 @@ async def start(src: str = "operator") -> dict:
     try:
         from config.v2 import active_brain
         if active_brain() == "nucleo" and os.getenv("ZAELAR_LOOP", "1") == "1":
-            from nucleo import loop as _loop
+            from nucleo.pulse import loop as _loop
             if not _loop.is_running():
                 _loop.start()
                 logger.info(f"runstate.start: heartbeat was DOWN — revived by {src}")

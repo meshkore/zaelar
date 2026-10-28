@@ -32,7 +32,6 @@ class SessionRecord:
     # A RELAY inherits it: one commission, one row across provider changes.
     uid: str = ""
     title: str = ""               # V2-530 — the NAME, beside the BRIEF; readers fall back to `goal`
-    heard: str = ""               # his commissioning sentence (Request.heard): what the errand's sheet judges rows by
     kind: str = "generic"
     backend: str = ""
     label: str = ""
@@ -48,6 +47,7 @@ class SessionRecord:
     parent_task_id: str = ""
     depth: int = 0
     trace_id: str = ""            # V2-044: trace of the phrase that originated the session (chains all its events)
+    heard: str = ""               # his commissioning sentence (Request.heard): what the errand's sheet judges rows by
     nav_task: str = ""            # kind=web: associated browser task ID (card) — set by dispatch
     # V2-259 — this errand's SHEET (`results::<sheet>`), sealed ONCE by `dispatch._sheet_open`. Not `task_id`:
     # `escalate._seq` repeats across restarts, and a new errand reopened (= DELETED) the old `results--1` sheet.

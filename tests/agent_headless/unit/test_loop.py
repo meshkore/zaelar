@@ -1,4 +1,4 @@
-"""Tests for nucleo/loop.py (V2-005 · T70/T74/T76) — the heartbeat: fires overdue items, sparks, consolidates, emits to the bus."""
+"""Tests for nucleo/pulse/loop.py (V2-005 · T70/T74/T76) — the heartbeat: fires overdue items, sparks, consolidates, emits to the bus."""
 import asyncio
 import time
 
@@ -6,8 +6,8 @@ import pytest
 
 import bus
 from memory import db as memdb
-from nucleo import loop as nloop
-from nucleo import scheduler, sparks
+from nucleo.pulse import loop as nloop
+from nucleo.pulse import scheduler, sparks
 
 
 @pytest.fixture

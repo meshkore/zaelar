@@ -99,7 +99,7 @@ def test_the_reconciler_settles_orphans_and_only_worker_rows(fresh_db):
 
 def test_the_pulse_runs_the_reconciler(fresh_db):
     """The wiring, not the function: a reconciler nobody calls is how the ghosts of 2026-09-27 survived."""
-    from nucleo.loop import OrchestratorLoop
+    from nucleo.pulse.loop import OrchestratorLoop
     boot = T._boot_id()
     _row(f"{boot}-7", age_s=600)
 
@@ -115,7 +115,7 @@ def test_a_finished_worker_still_speaking_its_delivery_is_not_an_orphan(fresh_db
     (still in `_SESSIONS`, its row not yet closed). The pulse read only LIVE statuses, settled the row as «failed
     — nobody was carrying it», and the FlashBrain told him the finished search had failed and ran it again."""
     from types import SimpleNamespace
-    from nucleo.loop import OrchestratorLoop
+    from nucleo.pulse.loop import OrchestratorLoop
     boot = T._boot_id()
     _row(f"{boot}-8", age_s=600, state="running")
     rec = SimpleNamespace(uid=f"{boot}-8", status="done", task_id=8, kind="web", backend="", goal="x")

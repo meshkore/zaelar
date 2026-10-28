@@ -16,7 +16,7 @@ def _c() -> AsyncOpenAI:
     global _client
     # Asked on EVERY step, not only when the client is built: the client is cached for the life of the process,
     # so the egress gate in `llm_egress.route` below would otherwise see the first call and none of the rest.
-    from nucleo import energy_lease, llm_egress
+    from nucleo.energy import lease as energy_lease, egress as llm_egress
     if not llm_egress.is_local_endpoint(_f._base_url()):
         energy_lease.admit("llm")
     if _client is None:
@@ -24,7 +24,7 @@ def _c() -> AsyncOpenAI:
         if not key:
             raise RuntimeError("no NAVEGADOR_AGENT_API_KEY/AIMLAPI_KEY para el automatizador del navegador")
         # EGRESS (T304): the system's most frequent caller (one per navigation step) goes through mediated keys.
-        from nucleo import llm_egress
+        from nucleo.energy import egress as llm_egress
         base, key, extra = llm_egress.route(_f._base_url(), key)
         if not key:
             raise RuntimeError("sin credencial para el automatizador del navegador")
@@ -41,7 +41,7 @@ def _meter(resp, model: str) -> None:
     """Report to Energy the cost of one call in this loop — the system's most frequent caller (one per navigation
     step). Best-effort: metering must never bring down a running task."""
     try:
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         u = getattr(resp, "usage", None)
         _energy.report_llm_usage(
             base_url=_f._base_url(), model=model,

@@ -69,7 +69,7 @@ def _task_rows(now: float) -> list[dict]:
 def _energy_stopped(r: dict) -> bool:
     """Did the energy lease stop this errand? Its refusal mark or the gateway's code in how it ended."""
     try:
-        from nucleo import energy_lease
+        from nucleo.energy import lease as energy_lease
         text = f"{r.get('outcome') or ''} {r.get('error_class') or ''}"
         return str(r.get("state") or "") == "failed" and (energy_lease.is_refusal(text) or _ENERGY_CODE in text)
     except Exception as e:  # noqa: BLE001

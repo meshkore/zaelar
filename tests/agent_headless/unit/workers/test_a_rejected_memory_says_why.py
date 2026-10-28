@@ -23,7 +23,7 @@ import urllib.error
 
 import pytest
 
-from nucleo import mem_cli
+from nucleo.cli import mem as mem_cli
 
 
 def _falla(codigo: int, cuerpo: dict | None, monkeypatch):

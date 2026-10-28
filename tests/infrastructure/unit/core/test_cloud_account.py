@@ -1,4 +1,4 @@
-from nucleo import cloud_account
+from nucleo.energy import account as cloud_account
 
 
 def test_is_cloud_account_false_by_default(monkeypatch):

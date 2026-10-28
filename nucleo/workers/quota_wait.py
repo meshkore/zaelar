@@ -88,7 +88,7 @@ def _key(goal: str) -> str:
 
 def _parked_jobs() -> list[dict]:
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
         return _sched.pending_carrying("resume_errand")
     except Exception as e:  # noqa: BLE001
         logger.debug(f"quota_wait: journal unreadable ({type(e).__name__})")
@@ -113,7 +113,7 @@ def park(goal: str, context: dict | None = None) -> float:
     if _PARKS.get(k, 0) >= MAX_PARKS:
         return 0.0
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
         ctx = {f: str((context or {}).get(f) or "") for f in ("kind", "sheet", "surface", "task_uid")}
         when = time.strftime("%Y-%m-%d %H:%M", time.localtime(until + FIRE_MARGIN_S))
         made = _sched.create("", when, name=_lang().worker_chain_job_name.format(goal=goal[:60]))
@@ -186,7 +186,7 @@ def forget(which: str = "") -> int:
     bulk = not str(which or "").strip() or bool(q & {"todo", "todos", "todas", "everything"})
     n = 0
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
         for e in _parked_jobs():
             words = set(re.findall(r"\w{4,}", _key(e["detail"]["resume_errand"])))
             if bulk or (q & words):

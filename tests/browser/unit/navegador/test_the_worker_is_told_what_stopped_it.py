@@ -1,4 +1,4 @@
-"""nucleo/nav_cli.py — what the bridge ANNOTATES for the worker must be PRINTED (V2-167 · V2-186).
+"""nucleo/cli/nav.py — what the bridge ANNOTATES for the worker must be PRINTED (V2-167 · V2-186).
 
 Two fixes traveled over HTTP and died one line short of their reader:
 
@@ -7,7 +7,7 @@ Two fixes traveled over HTTP and died one line short of their reader:
   · **V2-186** put `hint`/`stalled_s` there — this page has not moved for minutes.
 
 And `_print_state`, which is the ONLY view the worker has of the page (the web worker's prompt only gives it
-`nucleo.nav_cli`), printed `msg`, URL, TITLE, VIEW, and ELEMENTS. Neither of the two fields. Measured over four
+`nucleo.cli.nav`), printed `msg`, URL, TITLE, VIEW, and ELEMENTS. Neither of the two fields. Measured over four
 rounds: fourteen captures of the same page in twenty minutes, a full run against Booking's wall, and
 a task in `done` while the operator heard «it still hasn't signaled».
 
@@ -20,7 +20,7 @@ from __future__ import annotations
 import io
 from contextlib import redirect_stdout
 
-from nucleo import nav_cli
+from nucleo.cli import nav as nav_cli
 
 
 def _printed(res: dict) -> str:
@@ -117,7 +117,7 @@ def _nav_cli_stderr(argv):
     import contextlib
     import io
 
-    from nucleo import nav_cli
+    from nucleo.cli import nav as nav_cli
     buf = io.StringIO()
     with contextlib.redirect_stderr(buf):
         try:

@@ -189,7 +189,7 @@ def reset_all() -> dict:
     # the trail said it was in flight. A reset is an order, not a crash.
     try:
         from nucleo import dispatch as _dispatch
-        from nucleo import rehydrate as _rehydrate
+        from nucleo.pulse import rehydrate as _rehydrate
         _rehydrate.forget()
         _dispatch._WEB_RESUME.clear()
         _dispatch._resume_persist()

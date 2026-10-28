@@ -4,7 +4,7 @@ The text channel and the decision bank run the SAME voice turn as the microphone
 turn but `nucleo.consequence`: every effect that leaves a turn passes one funnel, every funnel asks
 `consequence.passes(<door>)`, and `dry_turn()` closes them all. Two things are held here:
 - every door in the table names a funnel whose source asks for THAT door — a funnel that stops asking is a door left
-  open in every dry run (disarm: delete the `@consequence.door("cron.create", …)` line over `nucleo/scheduler.create` → red);
+  open in every dry run (disarm: delete the `@consequence.door("cron.create", …)` line over `nucleo/pulse/scheduler.create` → red);
 - inside a dry turn the funnels do nothing and the ledger names what each would have done.
 """
 from __future__ import annotations
@@ -43,7 +43,7 @@ def test_a_dry_turn_closes_every_door_but_memory_when_ingesting():
 
 
 def test_inside_a_dry_turn_the_funnels_do_nothing(monkeypatch):
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     from nucleo.acts import errand as escalate
     from widgets import server_api
 

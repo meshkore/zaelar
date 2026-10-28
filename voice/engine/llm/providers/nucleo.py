@@ -346,7 +346,7 @@ class NucleoLLMStream(llm.LLMStream):
         _ask_waiting = False
         if not first_turn:
             try:
-                from nucleo import worker_api as _wapi0
+                from nucleo.cli import worker_api as _wapi0
                 _ask_waiting = _wapi0.has_pending_ask()
             except Exception:
                 _ask_waiting = False

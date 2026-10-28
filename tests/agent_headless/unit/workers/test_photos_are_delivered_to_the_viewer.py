@@ -22,7 +22,7 @@ def _recipe() -> str:
 def test_la_receta_nombra_el_visor_y_como_llegar_a_el():
     r = _recipe()
     assert "imagenes" in r, "un destino que no se nombra no existe para el worker (V2-219)"
-    assert "widget_cli data imagenes show" in r, (
+    assert "cli.widget data imagenes show" in r, (
         "nombrar el destino sin decir el comando deja al worker descubriéndolo a golpes")
 
 
@@ -38,7 +38,7 @@ def test_y_NO_se_lleva_por_delante_la_hoja():
     """The half that upholds the rule. Without this, «photos to the viewer» would end up sending hotel photos there
     and leaving the sheet —where things are compared— without its image column."""
     r = _recipe()
-    assert "widget_cli data results present" in r, "la hoja sigue siendo el sitio de una LISTA que comparar"
+    assert "cli.widget data results present" in r, "la hoja sigue siendo el sitio de una LISTA que comparar"
     assert "results detail" in r, "…y de UNA ficha con sus datos"
     assert "su `image`" in r, "una ficha de la hoja sigue pudiendo llevar foto"
 

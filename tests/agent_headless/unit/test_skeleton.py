@@ -13,7 +13,7 @@ def test_import_tree():
         "nucleo",
         "nucleo.flash", "nucleo.flash.router", "nucleo.llm.fast_client",
         "nucleo.flash.frontend", "nucleo.flash.procs", "nucleo.acts.errand",
-        "nucleo.loop", "nucleo.dispatch", "nucleo.memory_agent",
+        "nucleo.pulse.loop", "nucleo.dispatch", "nucleo.memory_agent",
         "nucleo.agentes", "nucleo.agentes.base", "nucleo.agentes.claude_code", "nucleo.agentes.codex",
     ]:
         importlib.import_module(mod)

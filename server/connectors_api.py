@@ -45,7 +45,7 @@ async def architect_connect(payload: dict):
     url = str((payload or {}).get("url") or "").strip()
     if url:
         patch["url"] = url
-    from nucleo import cloud_account as _acct
+    from nucleo.energy import account as _acct
     if _acct.is_cloud_account():
         # A hosted engine is not the person's computer: loopback here is the engine's own container, where no
         # daemon runs. It needs the daemon's public HTTPS address, and it is saved only once that daemon answers —

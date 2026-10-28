@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import jev, llm_egress
+from nucleo import jev
+from nucleo.energy import egress as llm_egress
 
 GW = "https://egress.example"
 # The provider's own address — the suite points `jev.ENDPOINT` at a local stub, so it is pinned here.
@@ -76,7 +77,7 @@ def test_an_embedding_through_egress_names_its_client(mediated, monkeypatch):
     from memory import embeddings
     monkeypatch.setattr(embeddings, "_cloud_key", lambda: "k")
     monkeypatch.setattr(embeddings, "_cloud_base_url", lambda: "https://api.openai.com/v1")
-    from nucleo import energy_lease
+    from nucleo.energy import lease as energy_lease
     monkeypatch.setattr(energy_lease, "check", lambda *_a, **_k: True)
     seen: dict = {}
     _capture(monkeypatch, seen)

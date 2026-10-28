@@ -4575,7 +4575,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_worker_backend_names_its_session.py']},
         {"id": "2.835", "title": "An errand that asks for what the resource cannot hold is said, not retried: the worker's first step reads the declared window (brief or escalation) against `connectors.reach`; a gap ends the errand before any worker spawns, in his language, with the reason on its row and the verdict `cannot`; no window or an unknown reach starts the worker (V2-825 F6, refactor2710-09)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_an_impossible_window_is_said_not_retried.py']},
-        {"id": "2.899", "title": "The worker bridge has no product importer and is alive: it is the CLI a worker runs (`python -m nucleo.worker_bridge ask|act|say|wait|decide`) — in the worker's allowlist, taught by the prompt, runnable as a module (refactor2710-09)",
+        {"id": "2.834", "title": "Every CLI a worker runs lives in `nucleo/cli/` and answers `-h`, and every `-m nucleo.<module>` the product writes (prompts, allow-list, shims) resolves — a moved CLI otherwise fails as «command not found» (refactor2710-10)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/test_every_cli_a_worker_runs_starts.py']},
+        {"id": "2.836", "title": "The pulse keeps its period and order after the split into `nucleo/pulse/` (loop + workers/flows/due parts): one beat runs every step in the same order and ends with `loop.tick`; the loop sleeps `tick_s` (1 s) between beats (refactor2710-10)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/test_the_pulse_keeps_its_period_and_order.py']},
+        {"id": "2.837", "title": "The pulse's, the energy's and the CLIs' events survive the move out of the top of nucleo/: the (kind, label) pairs and kinds emitted by nucleo/pulse, nucleo/energy, nucleo/cli and workers/source_outcomes are frozen at the flat files' set (V2-826 §2b, refactor2710-10)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/test_a_pulse_or_energy_event_survives_a_move.py']},
+        {"id": "2.899", "title": "The worker bridge has no product importer and is alive: it is the CLI a worker runs (`python -m nucleo.cli.bridge ask|act|say|wait|decide`) — in the worker's allowlist, taught by the prompt, runnable as a module (refactor2710-09)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_the_worker_bridge_is_a_live_cli.py']},
         {"id": "2.638", "title": "A past errand he names by a word only its TITLE has is that errand: «el de Gràcia» over Gràcia/Sant Antoni picks without the chooser, accent-folded; shared words, both names, or a goal-only word («last month») stay a question (flat-hunt-recall, 2026-10-14)",
             "ch": UNIT, "paths": ['tests/memory/unit/test_a_past_errand_named_by_its_own_word_is_reopened.py']},
@@ -5870,7 +5876,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/connectors/unit/messaging/test_brief_connector_state.py"]},
         # 2026-08-31: el triaje llevaba horas fallando contra DeepSeek con `triaje falló: 'choices'`, y el
         # operador se fue a mirar su SALDO. No era saldo: `triage_key()` tenía su propia copia del mapa
-        # endpoint→clave (la QUINTA; el docstring de `nucleo/provider_keys.py` nombra las cuatro que ya habían
+        # endpoint→clave (la QUINTA; el docstring de `nucleo/energy/keys.py` nombra las cuatro que ya habían
         # divergido) y no conocía DeepSeek, así que mandaba la cadena literal `local` como token → 401. Dos
         # reglas: una sola lista la lee todo el mundo, y un 401/402/400 piden acciones DISTINTAS del operador,
         # así que no pueden leerse igual.
@@ -5937,7 +5943,7 @@ DOMAINS: list[dict] = [
         # error; la fecha se ordena newest-first con lo NO fechado al final (un `sort(reverse=True)` sobre una
         # tupla (has_date, date) invierte los DOS campos a la vez y deja lo no fechado PRIMERO — cazado
         # escribiendo este mismo test, no antes); y el parser de fechas PASADO (deliberadamente NO
-        # `nucleo/scheduler.py::parse_when`, que es solo futuro) quita la frase de fecha por ÍNDICE, nunca por
+        # `nucleo/pulse/scheduler.py::parse_when`, que es solo futuro) quita la frase de fecha por ÍNDICE, nunca por
         # sustitución de cadena — "año" pierde su tilde al normalizar y una sustitución por el texto sin
         # acentos nunca encuentra el original acentuado.
         {"id": "5.10", "title": "Fotos: la sesión del picker, el índice local, y el parser de fechas PASADO",

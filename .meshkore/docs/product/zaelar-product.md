@@ -54,8 +54,8 @@ that is fixed in System Settings, not in code.
   `voice/engine/llm/providers/nucleo.py`. **SlowBrain** (`nucleo/dispatch/` + `nucleo/memory_agent.py` +
   `nucleo/workers/`) runs async Brain Workers (Claude Code / Codex / Grok sessions) for memory/tools/reasoning
   off the voice path — reached by the FlashBrain calling `escalate_to_slowbrain`. The orchestrator loop
-  (`nucleo/loop.py`, ~1 Hz) + own cron (`nucleo/scheduler.py`, persisted in `memory.journal`) + panel
-  (`nucleo/cron_api.py`, the `/api/cron` panel) + `nucleo/sparks.py` own proactivity. **The FlashBrain model MUST
+  (`nucleo/pulse/loop.py`, ~1 Hz) + own cron (`nucleo/pulse/scheduler.py`, persisted in `memory.journal`) + panel
+  (`nucleo/pulse/cron_api.py`, the `/api/cron` panel) + `nucleo/pulse/sparks.py` own proactivity. **The FlashBrain model MUST
   be non-reasoning** on the voice path (a reasoner adds seconds of thinking latency; see §7 decisions).
 - **Widgets** — isolated visual layer in `widgets/` + browser window-manager `frontend/app/widgets/desktop.js`. One
   folder per widget (manifest + widget.js + data.py), per-widget JSON store, catalog-driven HTTP API.
@@ -100,7 +100,7 @@ make run                 # voice app with the nucleo brain (BRAIN=nucleo) → ht
 make test                # import/health check
 ```
 Self-contained: `zaelar/.venv` (cloned, APFS) + `zaelar/.env`. **Cron/proactivity runs on the nucleo orchestrator
-loop** (`nucleo/loop.py` + `nucleo/scheduler.py`, own cron persisted in `memory.journal`, panel `nucleo/cron_api.py`)
+loop** (`nucleo/pulse/loop.py` + `nucleo/pulse/scheduler.py`, own cron persisted in `memory.journal`, panel `nucleo/pulse/cron_api.py`)
 — in-process, no external agent, no launchd service.
 
 ## 4. Architecture & couplings (the contracts)

@@ -55,7 +55,7 @@ def test_a_blind_worker_is_told_to_use_our_search_once(session):
     told = [i.text for i in session._rec.injects]
     assert len(told) == 1, told
     # V2-782: the quoted form — a sentence the confinement guard lets through, no file to misplace.
-    assert 'worker_bridge act use_tool "<qué buscas>"' in told[0] and "busca.json" not in told[0]
+    assert 'cli.bridge act use_tool "<qué buscas>"' in told[0] and "busca.json" not in told[0]
 
 
 def test_an_ordinary_tool_error_moves_nothing(session):

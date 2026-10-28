@@ -4,7 +4,7 @@
 # RENDERS it, never knowing what the items are about. With nothing pushed it is an EMPTY SHEET, never invented data.
 #
 # HOW IT GETS FILLED (the only way):
-#   a Brain Worker →  python -m nucleo.widget_cli data results present '{"title": "...", "items": [...]}'
+#   a Brain Worker →  python -m nucleo.cli.widget data results present '{"title": "...", "items": [...]}'
 #   the FlashBrain →  tool widget_data(widget_id="results", action="present", payload={...})
 # Both land on apply_action() → store.save() → the SSE "widget changed" event → the card re-fetches view_data().
 # The payload is persisted, so it survives re-render, reconnect and restart.

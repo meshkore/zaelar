@@ -19,7 +19,7 @@ async def energy():
 
     On self-host it returns `cloud:false` and the frontend renders nothing: there is no balance to spend."""
     try:
-        from nucleo import account_limits, cloud_account, energy_lease, energy_meter
+        from nucleo.energy import limits as account_limits, account as cloud_account, lease as energy_lease, meter as energy_meter
         # The LEASE travels alongside the balance because they are the same question seen at two distances: the
         # balance is what the ACCOUNT has left, while the lease is what THIS machine may spend before asking again.
         # With the link down, only the second one is a locally verifiable fact.

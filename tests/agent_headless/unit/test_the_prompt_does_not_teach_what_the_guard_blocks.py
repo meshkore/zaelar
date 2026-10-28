@@ -4,7 +4,7 @@ Measured across the whole first US batch (2026-08-27): every one of the four rou
 errors — `Contains simple_expansion`, `Contains brace with quote character (expansion obfuscation)` — and in
 `cheapest-monitor__us` they cost the round: three navigations, ten searches, **zero structured products**.
 
-The cause was ours. `worker_bridge act` is how the worker ASKS for a web search, and the prompt taught it as
+The cause was ours. `cli.bridge act` is how the worker ASKS for a web search, and the prompt taught it as
 `act <action> <json>` with the JSON pasted on the command line — which is precisely what the gate blocks. The
 same prompt already taught the correct two-step `@file` form for the results sheet, and `read_payload` had
 grown `@file` support for `act` on that same day (V2-379); only the sentence that teaches it was left behind.
@@ -37,14 +37,14 @@ def _worker_prompt() -> str:
 def test_no_bridge_is_taught_with_inline_json():
     """`act <action> {json}` is the pattern the gate refuses. Any bridge shown that way is a trap we set."""
     text = _worker_prompt()
-    offenders = re.findall(r"worker_bridge act [^\n@]*\{", text)
+    offenders = re.findall(r"cli.bridge act [^\n@]*\{", text)
     assert not offenders, f"the prompt still teaches inline JSON to a bridge: {offenders}"
 
 
 def test_the_file_form_is_taught_instead():
     text = _worker_prompt()
-    assert "worker_bridge act" in text
-    assert "@" in text and re.search(r"worker_bridge act [^\n]*@", text), \
+    assert "cli.bridge act" in text
+    assert "@" in text and re.search(r"cli.bridge act [^\n]*@", text), \
         "the worker is never shown the `@file` form for the bridge it uses to ask for searches"
 
 
@@ -93,7 +93,7 @@ def test_the_double_ampersand_rule_survives():
 
 def test_the_cd_rejection_is_named_too_and_the_false_premise_is_answered():
     """`cd` blocked is the THIRD most common measured anomaly on the board (9 across two variants,
-    2026-08-28) — and the worker is not being careless. `python -m nucleo.nav_cli` LOOKS like it needs the
+    2026-08-28) — and the worker is not being careless. `python -m nucleo.cli.nav` LOOKS like it needs the
     repo root, so changing into it is a correct inference from what we showed it; the environment already
     carries the path, and nothing said so.
 
@@ -129,7 +129,7 @@ def test_and_it_says_there_is_no_way_around_it():
 # instructions and the sheet stays empty.
 def _sheet_recipe() -> str:
     text = _worker_prompt()
-    i = text.find("widget_cli data documento show")
+    i = text.find("cli.widget data documento show")
     assert i > 0, "the recipe that fills the reading sheet is not in the worker's prompt at all"
     return text[text.rfind("\n", 0, i) + 1: text.find("\n", i)]
 

@@ -9,7 +9,7 @@ keep working unchanged.
 from __future__ import annotations
 
 from nucleo.workers import brief as research
-from nucleo.source_outcomes import worker_line as _sources_line   # V2-798: what each source did lately
+from nucleo.workers.source_outcomes import worker_line as _sources_line   # V2-798: what each source did lately
 
 
 def _recent_conversation_block(limit: int = 8) -> str:
@@ -46,7 +46,7 @@ def _today_block() -> str:
     # VACÍA porque `date.today()` decía 2026-08-21 y toda fecha futura se leía como pasada.
     import time as _t
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
         _ahora = _t.localtime(_sched.time.time())
     except Exception:  # noqa: BLE001
         _ahora = _t.localtime()
@@ -67,15 +67,15 @@ _METHOD_BLOCK = (
     "aquí en adelante; «el de tal día» = esa fecha exacta; una cifra/precio/resultado = el VIGENTE. Distingue el "
     "PLANO: un widget con conector ES la fuente (la agenda ES el calendario de Google, mensajería ES el buzón, "
     "contactos ES el directorio): una cita se crea/cancela y un mensaje se manda CON el widget "
-    "(python -m nucleo.widget_cli), nunca conduciendo su web. Solo lo hecho en un SITIO sin conector (una reserva "
+    "(python -m nucleo.cli.widget), nunca conduciendo su web. Solo lo hecho en un SITIO sin conector (una reserva "
     "en una web, una suscripción, un pedido, un pago) se hace o deshace ALLÍ; después se refleja en el widget.\n"
     "2) PLANIFICA los pasos y LOCALIZA en memoria lo que necesites (dónde se reservó/contrató, la cita concreta, la "
-    "cuenta) con python -m nucleo.mem_cli recall \"<qué buscas>\".\n"
+    "cuenta) con python -m nucleo.cli.mem recall \"<qué buscas>\".\n"
     "3) EJECUTA la acción en la realidad con tus herramientas (navegador, etc.).\n"
     "4) REFLEJA en los widgets lo hecho FUERA, encadenado: si una gestión en un sitio externo afecta a un widget "
-    "(la reserva cancelada allí sale de la agenda, una lista se actualiza), hazlo con python -m nucleo.widget_cli "
+    "(la reserva cancelada allí sale de la agenda, una lista se actualiza), hazlo con python -m nucleo.cli.widget "
     "(LEE el widget primero con `read` y usa los ids REALES que te devuelve, nunca inventes ids); si afecta a un "
-    "hecho que zaelar recuerda, actualízalo con python -m nucleo.mem_cli remember. Un widget desactualizado (la "
+    "hecho que zaelar recuerda, actualízalo con python -m nucleo.cli.mem remember. Un widget desactualizado (la "
     "cita sigue en la agenda tras cancelarla fuera) es un fallo, no un detalle.\n"
     "4b) ENSÉÑALO EN PANTALLA siempre que la tarea produzca algo que se MIRA. Da igual el volumen: una LISTA de "
     "cualquier cosa (sitios, alojamientos, productos, anuncios, artículos, proyectos, ficheros, opciones, "
@@ -87,21 +87,21 @@ _METHOD_BLOCK = (
     "hoja ya existe y sirve para cualquier tema; programar un componente solo se justifica si el operador pidió "
     "FUNCIONALIDAD que no existe y que él maneja (un juego, un contador, una mini-app). Hazlo con la superficie "
     "genérica de presentación: "
-    "`python -m nucleo.widget_cli read results` (te devuelve su contrato y la forma EXACTA del payload) → "
+    "`python -m nucleo.cli.widget read results` (te devuelve su contrato y la forma EXACTA del payload) → "
     "entrégalo en DOS pasos, que es la ÚNICA forma probada que pasa los guardas:\n"
     "     (i)  escribe el JSON con tu tool Write a un fichero de RUTA RELATIVA en tu directorio de trabajo — "
     "`informe.json` a secas. NUNCA `/tmp/…` ni una ruta absoluta ni `TMP/`: fuera de tu directorio la escritura "
     "pide una aprobación que nadie te va a dar.\n"
-    "     (ii) `python -m nucleo.widget_cli data results present @informe.json`\n"
-    "   …y después `python -m nucleo.widget_cli show results`. **Nunca pegues el JSON en la línea de comandos ni "
+    "     (ii) `python -m nucleo.cli.widget data results present @informe.json`\n"
+    "   …y después `python -m nucleo.cli.widget show results`. **Nunca pegues el JSON en la línea de comandos ni "
     "uses un heredoc**: las comillas y las llaves los bloquea el guarda del shell. Y no te inventes un script "
     "propio para llamar a la API: el puente ya está permitido, úsalo tal cual. "
     "Ponlo en cuanto tengas resultados sólidos, y ve añadiendo con `data results append` según encuentres más: es "
     "mejor que el operador vea llenarse el informe que esperar callado al final. Cada item con su enlace REAL y, si "
     "el operador pidió verlo con fotos, su `image`. La voz final entonces es CORTA (2-3 frases: qué has encontrado "
     "y que está en pantalla) — el detalle ya lo está leyendo.\n"
-    "4c) SI LO QUE PIDIÓ SON LAS FOTOS, van al VISOR `imagenes`, no a la hoja (V2-457). La frontera es de QUÉ es la respuesta, no de si hay imágenes por medio: «enséñame fotos de X» se responde con las fotos, así que su sitio es el visor —una grande, miniaturas, y la FUENTE de cada una a la vista—; «búscame un hotel» se responde con hoteles, y ahí la foto es una columna de la ficha y se queda en la hoja. Mismos dos pasos y mismo puente: escribe el JSON a `fotos.json` y `python -m nucleo.widget_cli data imagenes show @fotos.json` (cada foto `{url, thumb, title, site, page, w, h}`), luego `show imagenes`. NUNCA vuelques un álbum en la hoja: es una tabla y se lee como una lista de enlaces, que es justo lo que el operador dijo que no quería ver.\n"
-    "4d) SI LO QUE PIDIÓ ES UNA SOLA COSA PARA LEER —una receta, un informe o resumen que escribes tú, unas instrucciones, un texto largo, un PDF— su sitio es la HOJA EN BLANCO `documento`, no la de resultados (V2-549). La frontera es la misma de siempre, de QUÉ es la respuesta: varias opciones que se comparan van a `results`; UNA cosa que se lee entera va a `documento`. Si te pidió UNA (una receta, no recetas), elige tú la mejor con tu criterio y ponla completa — devolverle la lista de candidatos es hacerle a él el trabajo que te encargó. Mismos dos pasos y mismo puente: escribe el JSON a `doc.json` y `python -m nucleo.widget_cli data documento show @doc.json` ({\"kind\":\"markdown\",\"title\":\"…\",\"source\":\"de dónde sale\",\"body\":\"# Título\\n\\ntexto markdown…\"}), luego `show documento`. Si es largo, primer `show` con la estructura y `data documento append @parte.json` por cada sección: mejor que lo vea crecer a que espere callado. El contrato entero lo tienes con `python -m nucleo.widget_cli read documento`.\n"
+    "4c) SI LO QUE PIDIÓ SON LAS FOTOS, van al VISOR `imagenes`, no a la hoja (V2-457). La frontera es de QUÉ es la respuesta, no de si hay imágenes por medio: «enséñame fotos de X» se responde con las fotos, así que su sitio es el visor —una grande, miniaturas, y la FUENTE de cada una a la vista—; «búscame un hotel» se responde con hoteles, y ahí la foto es una columna de la ficha y se queda en la hoja. Mismos dos pasos y mismo puente: escribe el JSON a `fotos.json` y `python -m nucleo.cli.widget data imagenes show @fotos.json` (cada foto `{url, thumb, title, site, page, w, h}`), luego `show imagenes`. NUNCA vuelques un álbum en la hoja: es una tabla y se lee como una lista de enlaces, que es justo lo que el operador dijo que no quería ver.\n"
+    "4d) SI LO QUE PIDIÓ ES UNA SOLA COSA PARA LEER —una receta, un informe o resumen que escribes tú, unas instrucciones, un texto largo, un PDF— su sitio es la HOJA EN BLANCO `documento`, no la de resultados (V2-549). La frontera es la misma de siempre, de QUÉ es la respuesta: varias opciones que se comparan van a `results`; UNA cosa que se lee entera va a `documento`. Si te pidió UNA (una receta, no recetas), elige tú la mejor con tu criterio y ponla completa — devolverle la lista de candidatos es hacerle a él el trabajo que te encargó. Mismos dos pasos y mismo puente: escribe el JSON a `doc.json` y `python -m nucleo.cli.widget data documento show @doc.json` ({\"kind\":\"markdown\",\"title\":\"…\",\"source\":\"de dónde sale\",\"body\":\"# Título\\n\\ntexto markdown…\"}), luego `show documento`. Si es largo, primer `show` con la estructura y `data documento append @parte.json` por cada sección: mejor que lo vea crecer a que espere callado. El contrato entero lo tienes con `python -m nucleo.cli.widget read documento`.\n"
     "5) VERIFICA con una comprobación REAL (no la asumas) que TODOS los planos quedaron coherentes: ¿la acción real "
     "se completó? ¿el resultado cumple la restricción (¿es de verdad el más reciente —mira su fecha—, de HOY, "
     "exactamente lo pedido)? ¿los widgets y la memoria reflejan ya lo hecho? Si algo no se puede certificar, "
@@ -111,7 +111,7 @@ _METHOD_BLOCK = (
     "1b) EL OBJETIVO MEDIBLE nace con el encargo (te llega como primer mensaje inyectado, «OBJETIVO MEDIBLE: …»): "
     "el motor lo comprueba solo contra la verdad del producto cuando termines, y si no se cumple te relanza "
     "diciéndote qué falta en vez de entregar algo a medias. Si al entender el encargo ves que la condición es "
-    "OTRA o más precisa, afínala con 'python -m nucleo.agent_report goal @objetivo.json'; nunca la retires. "
+    "OTRA o más precisa, afínala con 'python -m nucleo.cli.report goal @objetivo.json'; nunca la retires. "
     "Forma: {\"all\":[{\"widget\":\"agenda\",\"collection\":\"meetings\",\"where\":{\"title~\":\"X\"},"
     "\"expect\":\"present|absent\"}]} o {\"widget\":W,\"field\":\"campo\",\"is\"|\"has\":\"x\"} o "
     "{\"desktop\":\"wallpaper\",\"expect\":\"changed\"} — «where» es la misma expresión que `hbwidget rows`, "
@@ -130,7 +130,7 @@ _METHOD_BLOCK = (
 # `kind="web"` lo que `site_catalog.category_of` reconoce, y ese detector pide un verbo de RESERVA —
 # «resérvame hotel en Nueva York» → `hotel_booking`, pero «búscame el mejor hotel de Nueva York» → `None`, o
 # sea `generic`. Un hotel BUSCADO (que es como lo dice el operador) caía en el prompt genérico, que no
-# nombraba `mesh_cli` en ninguna línea: la red no es que se descartara, es que el worker no sabía que existe.
+# nombraba `cli.mesh` en ninguna línea: la red no es que se descartara, es que el worker no sabía que existe.
 #
 # Se arregla por el PROMPT y no por el enrutador a propósito. Ensanchar `category_of` para que una búsqueda
 # cuente como transaccional MUEVE a `kind="web"` encargos que hoy resuelve un worker genérico —y el propio
@@ -153,8 +153,8 @@ def _mesh_first_block(py: str = "python", *, browser: bool, goal: str = "") -> s
             "Si dice que no hay agente, o el resultado no vale, sigue con tu método normal — es lo normal: ")
     return (
         cabeza
-        + f"   {py} -m nucleo.mesh_cli find \"<el encargo, tal cual lo dijo el operador>\"\n"
-        + f"   {py} -m nucleo.mesh_cli serve \"<el encargo>\" --prompt \"<el encargo con FECHAS ABSOLUTAS>\"\n"
+        + f"   {py} -m nucleo.cli.mesh find \"<el encargo, tal cual lo dijo el operador>\"\n"
+        + f"   {py} -m nucleo.cli.mesh serve \"<el encargo>\" --prompt \"<el encargo con FECHAS ABSOLUTAS>\"\n"
         "   · EN EL IDIOMA DEL OPERADOR y con sus palabras: la red hace su propio análisis y en español encuentra "
         "igual («entradas de teatro en Madrid» devuelve un agente gratis con diez eventos reales).\n"
         "   · FECHAS ABSOLUTAS (2026-09-10), nunca «esta noche»: el agente resolvió esa expresión al año pasado "
@@ -213,7 +213,7 @@ def _known_route_line(goal: str) -> str:
 DOC_SURFACE_BLOCK = (
     "ENTREGA COMO INFORME (la superficie de este encargo es un DOCUMENTO): el operador pidió un ESCRITO y la "
     "hoja `documento` YA ESTÁ ABIERTA en su pantalla, enseñando tu progreso en vivo mientras trabajas — tus "
-    "fases de agent_report son lo que él lee ahí, repórtalas de verdad (qué fuente miras, qué acabas de "
+    "fases de cli.report son lo que él lee ahí, repórtalas de verdad (qué fuente miras, qué acabas de "
     "confirmar). La hoja de RESULTADOS NO está abierta para este encargo: NO entregues en `results` ni "
     "vuelques listas de candidatos — el paso 4b no aplica; aplica el 4d con `documento`. En cuanto tengas la "
     "estructura, primer `show` con el esqueleto del informe (título REAL confirmado del asunto, secciones) y "
@@ -242,10 +242,10 @@ def library_block() -> str:
             f"({shelves}) — es EXACTAMENTE lo que enseña el widget `archivos`, y NADA fuera de ese árbol aparece en "
             f"«sus archivos» (ni tu directorio de trabajo, ni el del navegador, ni Descargas del sistema). Para "
             f"GUARDAR un texto como fichero: escribe el JSON {{\"name\": \"…\", \"text\": \"…\"}} a `doc.json` y "
-            f"`python -m nucleo.widget_cli data archivos save_document @doc.json` — lo deja en documents/ y abre esa "
+            f"`python -m nucleo.cli.widget data archivos save_document @doc.json` — lo deja en documents/ y abre esa "
             f"carpeta en la tarjeta. Un fichero que ya tienes en disco (un PDF descargado) se copia dentro de "
-            f"`{root}/<carpeta>/` y luego `python -m nucleo.widget_cli data archivos refresh`. Si el texto ya está "
-            f"en la hoja `documento`, `python -m nucleo.widget_cli data documento save_to_library` lo guarda sin "
+            f"`{root}/<carpeta>/` y luego `python -m nucleo.cli.widget data archivos refresh`. Si el texto ya está "
+            f"en la hoja `documento`, `python -m nucleo.cli.widget data documento save_to_library` lo guarda sin "
             f"volver a traerlo.")
 
 
@@ -268,7 +268,7 @@ def errand_block() -> str:
     return ("SI EL ENCARGO DEPENDE DE QUE OTRA PERSONA CONTESTE (organizar una reunión, acordar una hora, "
             "pedir algo a un tercero), NO te quedes esperando: eso NO es tu trabajo y tu sesión se muere "
             "antes que la conversación. Manda el mensaje con "
-            "`python -m nucleo.widget_cli data mensajeria send_to @msg.json` incluyendo el campo "
+            "`python -m nucleo.cli.widget data mensajeria send_to @msg.json` incluyendo el campo "
             "`objective` con LO QUE HAY QUE CONSEGUIR en palabras del operador — ese campo es el que abre "
             "un ENCARGO durable, que el motor despierta solo cuando esa persona conteste, hoy o dentro de "
             "diez horas, y que apunta la cita y manda el enlace de Meet por su cuenta cuando se acuerde la "
@@ -340,41 +340,41 @@ def _build_prompt(request: str, context: str, trusted: bool, brief: dict | None 
               "y reportando el progreso como se indica abajo.)\n"
               "REPORTA TU PROGRESO de forma ESTRUCTURADA (zaelar lo enseña al operador y lo usa para responder "
               "'¿cómo va?'):\n"
-              "  1) AL EMPEZAR declara tu plan: python -m nucleo.agent_report plan \"paso1|paso2|paso3|…\" "
+              "  1) AL EMPEZAR declara tu plan: python -m nucleo.cli.report plan \"paso1|paso2|paso3|…\" "
               "(3-6 pasos concretos).\n"
-              "  2) AL COMPLETAR cada paso: python -m nucleo.agent_report progress \"<qué acabas de terminar>\" "
+              "  2) AL COMPLETAR cada paso: python -m nucleo.cli.report progress \"<qué acabas de terminar>\" "
               "--done <nº de pasos hechos>.\n"
-              "  3) Para una fase legible puntual: python -m nucleo.agent_report phase \"<qué haces ahora>\".\n"
+              "  3) Para una fase legible puntual: python -m nucleo.cli.report phase \"<qué haces ahora>\".\n"
               "Reporta de verdad (no lo olvides): sin reporte, el operador no ve avanzar la tarea. Es OBLIGATORIO: "
               "si pasas más de un minuto y medio sin reportar, el motor te pedirá el estado y tendrás que darlo "
               "antes de seguir. Si necesitas un "
-              "dato del usuario para seguir, pregúntaselo con 'python -m nucleo.worker_bridge ask \"<pregunta>\"' y "
-              "ESPERA su respuesta. Para BUSCAR en la web: 'python -m nucleo.worker_bridge act use_tool "
+              "dato del usuario para seguir, pregúntaselo con 'python -m nucleo.cli.bridge ask \"<pregunta>\"' y "
+              "ESPERA su respuesta. Para BUSCAR en la web: 'python -m nucleo.cli.bridge act use_tool "
               "\"<qué buscas>\"' — la consulta entre comillas, sin JSON ni ficheros. Para cualquier OTRA acción "
-              "con payload, usa 'python -m nucleo.worker_bridge act <accion> @<fichero>.json' — el JSON va por "
+              "con payload, usa 'python -m nucleo.cli.bridge act <accion> @<fichero>.json' — el JSON va por "
               "fichero, en DOS pasos: (i) escríbelo con tu tool Write a un fichero de RUTA RELATIVA en tu "
               "directorio (`aviso.json` a secas, nunca `/tmp/…` ni una ruta absoluta), (ii) pásalo con "
               "`@aviso.json`. **JAMÁS pegues un JSON en la línea de comandos**: el guarda del shell bloquea las "
               "llaves con comillas dentro y el comando no llega a ejecutarse. Si lo que hace falta es que zaelar AVISE "
               "MÁS TARDE (un recordatorio, un seguimiento), prográmalo de verdad con la MISMA forma: "
-              "'python -m nucleo.worker_bridge act schedule @aviso.json', con "
+              "'python -m nucleo.cli.bridge act schedule @aviso.json', con "
               "{\"when\":\"<cuándo>\",\"prompt\":\"<qué debe "
               "decir o hacer>\"} dentro del fichero — usa «mañana a las 9», «el miércoles a las 18:00», "
               "«every 30m» o un "
               "cron «0 9 * * 3», y si eso te devuelve un error, NO digas que lo has programado: dilo como "
               "está, sin programar. Cuando tengas que ELEGIR entre candidatos que YA tienes delante —cuál de estos "
               "cuarenta resultados cumple los criterios, cuál de estas rutas sirve— NO lo razones tú: "
-              "'python -m nucleo.worker_bridge decide @elige.json' con "
+              "'python -m nucleo.cli.bridge decide @elige.json' con "
               "{\"purpose\":\"<qué decides>\",\"evidence\":\"<los criterios>\",\"candidates\":"
               "{\"id\":\"<descripción>\"}} (o una lista). Es un clasificador, no un modelo que escribe: "
               "una sola petición para TODOS los candidatos, y te contesta `status` + `chosen`. "
               "`abstained` es «ninguno encaja» y es una RESPUESTA; `unavailable`/`disabled` significan que "
               "nadie eligió, así que ahí decides tú como siempre. Para LEER u OPERAR un widget del canvas "
               "(reflejar en la agenda/lista lo que has hecho en la realidad, o ENSEÑAR en pantalla un conjunto de "
-              "resultados): 'python -m nucleo.widget_cli read|data|show|close <widget>' (lee primero, usa ids "
+              "resultados): 'python -m nucleo.cli.widget read|data|show|close <widget>' (lee primero, usa ids "
               "reales). NUNCA reescribas el CÓDIGO de un widget para meterle datos: los datos entran por sus "
               "acciones declaradas, que ves con `read`. La MENSAJERÍA del operador (WhatsApp, Telegram y su "
-              "CORREO) se consulta por esa misma vía: 'python -m nucleo.widget_cli read mensajeria' te dice qué "
+              "CORREO) se consulta por esa misma vía: 'python -m nucleo.cli.widget read mensajeria' te dice qué "
               "canales están conectados y qué hay pendiente — NO existe ningún gmail_cli ni ninguna tool "
               "«gmail», y abrir el webmail en el navegador es el último recurso, nunca el primero.")
     if not trusted:
@@ -485,8 +485,8 @@ def _drawer_rules(py: str = "") -> str:
     _py = (py or "").strip()
     cab = (f"INTÉRPRETE: para CUALQUIER puente (`-m nucleo.…`) usa EXACTAMENTE `{_py}`, tal cual, siempre. Está "
            f"permitido y funciona. NO uses `python` a secas ni `python3` ni rutas relativas.\n") if _py else ""
-    _puente = f"`{_py} -m nucleo.nav_cli`" if _py else "`nucleo.nav_cli`"
-    _busca = f"`{_py} -m nucleo.worker_bridge`" if _py else "`nucleo.worker_bridge`"
+    _puente = f"`{_py} -m nucleo.cli.nav`" if _py else "`nucleo.cli.nav`"
+    _busca = f"`{_py} -m nucleo.cli.bridge`" if _py else "`nucleo.cli.bridge`"
     _abs = f"`{_py}` es absoluto" if _py else "el intérprete es absoluto"
     return (cab +
             "TU CAJÓN (reglas del shell donde corres; romperlas NO da error, pide una aprobación que aquí no va a "
@@ -627,32 +627,32 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         # ronda que acabó entregando cero. No era el modelo cabezota: hacía lo que aquí ponía.
         "CÓMO CONDUCIR (los comandos funcionan DESDE DONDE ESTÁS —el intérprete es absoluto y el resto viaja en "
         "el entorno—; el navegador ya tiene su pestaña asignada):\n"
-        f"• VER la página como un humano (VISIÓN): {py} -m nucleo.nav_cli look\n"
+        f"• VER la página como un humano (VISIÓN): {py} -m nucleo.cli.nav look\n"
         "     → imprime la ruta de un PNG; ÁBRELO con tu tool Read para VER la página, y actúa por coordenadas:\n"
-        f"• Click por coordenadas (visión):  {py} -m nucleo.nav_cli click_at <x> <y>\n"
-        f"• Escribir por coordenadas:        {py} -m nucleo.nav_cli type_at <x> <y> \"<texto>\" --submit\n"
-        f"• (alternativa DOM) elementos:     {py} -m nucleo.nav_cli snapshot   → luego click <ref> / type <ref> \"<txt>\"\n"
-        f"• Ir a una URL:                    {py} -m nucleo.nav_cli navigate \"<url>\"\n"
-        f"• Desplazar / extraer:             {py} -m nucleo.nav_cli scroll 800   ·   {py} -m nucleo.nav_cli extract\n"
+        f"• Click por coordenadas (visión):  {py} -m nucleo.cli.nav click_at <x> <y>\n"
+        f"• Escribir por coordenadas:        {py} -m nucleo.cli.nav type_at <x> <y> \"<texto>\" --submit\n"
+        f"• (alternativa DOM) elementos:     {py} -m nucleo.cli.nav snapshot   → luego click <ref> / type <ref> \"<txt>\"\n"
+        f"• Ir a una URL:                    {py} -m nucleo.cli.nav navigate \"<url>\"\n"
+        f"• Desplazar / extraer:             {py} -m nucleo.cli.nav scroll 800   ·   {py} -m nucleo.cli.nav extract\n"
         # VALORAR FICHA A FICHA sin perder el listado. Antes había que `navigate` a la ficha —que se lleva la
         # ÚNICA pestaña— y volver a buscar el listado: dos navegaciones por ficha, con los filtros de por
         # medio. `visit` abre la suya, la lee y la cierra. Se le dice PARA QUÉ sirve porque un verbo que el
         # prompt no explica se queda sin usar (misma lección que V2-219).
-        f"• MIRAR UNA FICHA sin perder el listado: {py} -m nucleo.nav_cli visit \"<url del anuncio>\"\n"
+        f"• MIRAR UNA FICHA sin perder el listado: {py} -m nucleo.cli.nav visit \"<url del anuncio>\"\n"
         "  → devuelve título + descripción de ESA ficha. Es como abrirla en otra pestaña y cerrarla: el\n"
         "    listado y tus filtros siguen donde estaban. Úsalo para COMPARAR candidatos uno a uno en vez de\n"
         "    decidir con el título de la lista; `navigate` a un anuncio te deja sin listado.\n"
         f"• Progreso ESTRUCTURADO (el operador lo VE y zaelar responde '¿cómo va?'): al empezar "
-        f"{py} -m nucleo.agent_report plan \"paso1|paso2|paso3\"  y al terminar cada paso "
-        f"{py} -m nucleo.agent_report progress \"<hecho>\" --done <n>\n"
-        f"• Fase legible puntual (tarjeta): {py} -m nucleo.agent_report phase \"<qué haces>\"\n"
-        f"• Preguntar al operador y ESPERAR su respuesta: {py} -m nucleo.worker_bridge ask \"<pregunta>\"\n"
-        f"• Leer un dato que zaelar ya sepa:  {py} -m nucleo.mem_cli recall \"<consulta>\" (lo DICHO, literal: mem_cli history \"<tema>\")\n"
+        f"{py} -m nucleo.cli.report plan \"paso1|paso2|paso3\"  y al terminar cada paso "
+        f"{py} -m nucleo.cli.report progress \"<hecho>\" --done <n>\n"
+        f"• Fase legible puntual (tarjeta): {py} -m nucleo.cli.report phase \"<qué haces>\"\n"
+        f"• Preguntar al operador y ESPERAR su respuesta: {py} -m nucleo.cli.bridge ask \"<pregunta>\"\n"
+        f"• Leer un dato que zaelar ya sepa:  {py} -m nucleo.cli.mem recall \"<consulta>\" (lo DICHO, literal: cli.mem history \"<tema>\")\n"
         # Entrada de CATÁLOGO, no una orden: el QUÉ y el PORQUÉ viven una sola vez, en «LO QUE AVERIGUAS SE
         # GUARDA» (V2-344). Dejar aquí también un motivo («para no volver a pedirlo») era media instrucción
         # suelta, y dos mitades en dos sitios es como una decisión se separa de sí misma sin avisar.
-        f"• GUARDAR un dato que reúnas: {py} -m nucleo.mem_cli remember \"<dato>\" --slot task.<algo>\n\n"
-        "⚠️ ESOS son TODOS los subcomandos de `nav_cli` que existen — snapshot, look, navigate, click, type, "
+        f"• GUARDAR un dato que reúnas: {py} -m nucleo.cli.mem remember \"<dato>\" --slot task.<algo>\n\n"
+        "⚠️ ESOS son TODOS los subcomandos de `cli.nav` que existen — snapshot, look, navigate, click, type, "
         "select_option, click_at, type_at, scroll, press, extract, visit. NO existen `automate`, `act` ni otro; "
         "invocarlos falla con «invalid choice» y quema un turno entero sin avanzar. `extract` NO lleva texto "
         "de argumento (solo `--limit N` opcional) y `scroll` lleva un número de píxeles, nunca la palabra "
@@ -676,9 +676,9 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         "3) RECONOCE primero, pregunta UNA vez, ejecuta después (para una GESTIÓN: reservar/pedir cita, rellenar y "
         "enviar un formulario, tramitar, contratar):\n"
         "   a. RECON: recorre el flujo hasta VER el formulario real y ENUMERA todos los datos que pedirá (matrícula, "
-        "fecha de matriculación, DNI, nombre, email, teléfono, estación, día/hora…). Consulta `mem_cli recall` lo que "
+        "fecha de matriculación, DNI, nombre, email, teléfono, estación, día/hora…). Consulta `cli.mem recall` lo que "
         "zaelar ya sepa.\n"
-        "   b. PIDE DE GOLPE lo que falte: una SOLA `worker_bridge ask` con TODOS los datos que te faltan a la vez "
+        "   b. PIDE DE GOLPE lo que falte: una SOLA `cli.bridge ask` con TODOS los datos que te faltan a la vez "
         "(no de uno en uno, no vayas y vengas). Espera la respuesta. NUNCA inventes valores.\n"
         # V2-652 — measured live (session 7f77e2cc): the worker typed the placeholder NIF «12345678Z» into
         # Hacienda's REAL form twice, the census validation refused, and it kept grinding the same modal for
@@ -700,7 +700,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         +
         "4) SOLO te detienen dos cosas: un CAPTCHA o un LOGIN/pago que exija credenciales que no tienes. Todo lo demás "
         "(entender la página, aceptar cookies, elegir en un desplegable/calendario, rellenar y enviar) lo resuelves TÚ "
-        "con visión — no es excusa para parar. Un muro de verdad NO se reintenta: la respuesta de `nav_cli` trae "
+        "con visión — no es excusa para parar. Un muro de verdad NO se reintenta: la respuesta de `cli.nav` trae "
         "`wall` cuando la página te ha parado (verificación anti-robot, captcha, error de carga), y en cuanto lo "
         "veas deja de darte contra él. Haz DOS cosas, en este orden: (a) vuelve al PASO 0 y prueba la red con ese "
         "encargo —un agente de la red no tiene captcha—, y (b) si tampoco, PÁRATE y dilo: qué sitio te bloqueó, con "
@@ -744,7 +744,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         # del que entregó — los 21 minutos de los dos primeros no dejaron rastro, y cada relanzamiento renavegó,
         # rebuscó y refiltró desde cero.
         #
-        # La capacidad estaba ENTERA: `mem_cli` viaja en los puentes, la ruta exige token por tarea y el gate de
+        # La capacidad estaba ENTERA: `cli.mem` viaja en los puentes, la ruta exige token por tarea y el gate de
         # precisión PASA hallazgos (probado: «Milanuncios: VW Golf VII 1.6 TDI 2018, 11.400 €» pasa; solo rechaza
         # preguntas reificadas). Lo que faltaba era PEDIRLO: la única orden fuerte de guardar —y decía literalmente
         # «aunque el flujo se reinicie», o sea la protección anti-relanzamiento— vivía dentro del punto 3, acotado
@@ -759,14 +759,14 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         f"LO QUE AVERIGUAS SE GUARDA, porque a ti pueden matarte y a la memoria no: si te relanzan con este mismo "
         f"encargo, lo que dejaste guardado es TODO lo que el siguiente encuentra — sin ello renavega, rebusca y "
         f"refiltra desde cero. Así que cada vez que confirmes un dato que te ha costado conseguir, guárdalo EN EL "
-        f"ACTO con {py} -m nucleo.mem_cli remember \"<el dato>\" --slot task.<algo>, y lo que guardas depende de "
+        f"ACTO con {py} -m nucleo.cli.mem remember \"<el dato>\" --slot task.<algo>, y lo que guardas depende de "
         f"lo que estés haciendo: en una GESTIÓN, cada dato del formulario según lo reúnes (matrícula, DNI, fecha…) "
         f"para no volver a pedírselo al operador; en una BÚSQUEDA, cada candidato que pase tu criterio con su "
         f"nombre y su precio, y el filtro exacto que ya te funcionó. Lo que NO se guarda es lo que HICISTE: «he "
         f"abierto coches.net» o «he aceptado las cookies» no es un hallazgo, es ruido, y llenar la memoria de eso "
         f"la estropea para todos.\n\n"
         # V2-257 — DÓNDE se ve lo que encuentra. Este prompt no nombraba la hoja ni una sola vez (medido:
-        # 0 ocurrencias de `widget_cli` y 0 de `results`), así que el worker no tenía forma de saber que existe —
+        # 0 ocurrencias de `cli.widget` y 0 de `results`), así que el worker no tenía forma de saber que existe —
         # mientras `dispatch._sheet_open` se la abría al operador delante, vacía, en cuanto encargaba. Nombrarla
         # tiene además un efecto colateral buscado: `_with_presentation` engancha sola los presupuestos de campo
         # de esa superficie al ver su id en el texto.
@@ -776,7 +776,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         "hallazgos; se le abrió delante en cuanto te encargó esto. ESCRIBE en esa hoja el INFORME de cierre "
         "—conclusión, criterios y en qué sitios entraste y qué pasó en cada uno— y NO las filas que ya sacaste "
         "con `extract`: cada extracción viaja sola a la hoja, y repetirla solo la ensucia.\n"
-        f"   {py} -m nucleo.widget_cli data results present @informe.json\n"
+        f"   {py} -m nucleo.cli.widget data results present @informe.json\n"
         "   · SIEMPRE desde fichero con `@`: pegar un JSON de verdad en la línea de comandos se rompe con el "
         "quoting del shell y se queda esperando una aprobación que nadie va a dar.\n\n"
         "8) CIERRE: cuando la gestión esté HECHA y VERIFICADA (cita confirmada, formulario enviado, dato certificado) "

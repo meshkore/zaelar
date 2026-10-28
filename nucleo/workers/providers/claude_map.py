@@ -57,8 +57,8 @@ def _map(self, obj: dict):
                 # pero rec.phase (el prompt "PROCESOS DE FONDO") SÍ se actualiza con la coarse.
                 yield self._ev("phase", label=lbl, quiet=bool(step))
             # EVERY tool_use is remembered by its id, not only the ones that paint a row (2026-09-28, demo
-            # pass 30): an `agent_report plan "…under $400…"` has no step, so its rejection fell back to
-            # `_last_step` and the log blamed the previous `nav_cli scroll down`, which had succeeded.
+            # pass 30): an `cli.report plan "…under $400…"` has no step, so its rejection fell back to
+            # `_last_step` and the log blamed the previous `cli.nav scroll down`, which had succeeded.
             self._steps().setdefault(str(block.get("id") or ""), {
                 "tool": name, "where": (step or {}).get("where", ""),
                 "cmd": str((tin or {}).get("command") or "")[:220]})

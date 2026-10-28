@@ -65,7 +65,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             and search_req["v"] is None and not acted["widget"] \
             and not data_done["v"] and not _auth_pending and len(text) <= 140:
         try:
-            from nucleo import worker_api as _wapi2
+            from nucleo.cli import worker_api as _wapi2
             if _wapi2.answer_active_soon(text):
                 worker_acted["v"] = "answer"
                 escalate_req["v"] = None        # respondía al worker, no pedía tarea nueva → no escalar

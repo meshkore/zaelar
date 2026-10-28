@@ -185,7 +185,7 @@ FTS_TASKS = (
 
 
 # V2-796: A NOTICE IS A ROW, and the row says how it ended (a reminder nobody heard used to vanish into the next
-# turn's prompt). `nucleo/notices.py` is the only writer. `dedupe_key` is UNIQUE so the same notice can never be
+# turn's prompt). `nucleo/pulse/notices.py` is the only writer. `dedupe_key` is UNIQUE so the same notice can never be
 # delivered twice (a restart re-firing a job, two doors announcing the same finish).
 #   · state  owed | spoken | pushed | shown | covered | seen | expired
 #   · channel  voice | push | screen | google (who took it)

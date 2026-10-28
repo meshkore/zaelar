@@ -80,7 +80,7 @@ def handle(err_text: str, *, role: str, stalled: bool = False, spec=None) -> dic
 
     # The energy lease refused the call before it left: no provider was asked, so there is nothing to mark,
     # no light to paint and no relay that could do better — every tier would be refused the same way.
-    from nucleo import energy_lease
+    from nucleo.energy import lease as energy_lease
     if energy_lease.is_refusal(err_text):
         return {"relay": None, "dry": False}
     relay = None

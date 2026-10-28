@@ -41,7 +41,7 @@ That single fact shapes the whole connector:
 ## The date-range parser
 
 `connectors/photos/service.py::_parse_date_hint` is deliberately a SEPARATE, small parser from
-`nucleo/scheduler.py::parse_when` — that one is strictly future-facing (reminders: "tomorrow", "next
+`nucleo/pulse/scheduler.py::parse_when` — that one is strictly future-facing (reminders: "tomorrow", "next
 Thursday") and returns a single point in time. This one is past-oriented (photos already taken) and returns
 a `(date_from, date_to)` range: "last year", "this year", "N years ago", a bare month (resolving to its most
 recent past occurrence unless a year is given), or a bare 4-digit year. Anything else is treated as a pure

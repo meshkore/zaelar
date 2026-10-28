@@ -69,10 +69,10 @@ def test_a_failed_command_is_marked_as_an_error_result():
 def test_bridge_commands_are_attributed_to_their_own_place():
     """A command that IS a bridge belongs to memory / the browser / zaelar, not to «system» — otherwise ALL of a
     Codex worker's work looks like an indistinguishable pile of commands."""
-    for cmd, where in ((".venv/bin/python -m nucleo.mem_cli recall 'coche'", "memoria"),
-                       ("python3 -m nucleo.nav_cli navigate https://example.com", "navegador"),
-                       ("python3 -m nucleo.widget_cli read agenda", "widget"),
-                       ("python3 -m nucleo.worker_bridge ask '¿sigo?'", "zaelar")):
+    for cmd, where in ((".venv/bin/python -m nucleo.cli.mem recall 'coche'", "memoria"),
+                       ("python3 -m nucleo.cli.nav navigate https://example.com", "navegador"),
+                       ("python3 -m nucleo.cli.widget read agenda", "widget"),
+                       ("python3 -m nucleo.cli.bridge ask '¿sigo?'", "zaelar")):
         evs = _map({"type": "item.started", "item": {"type": "command_execution", "command": cmd}})
         steps = [e for e in evs if e.type == "step"]
         assert steps and steps[0].data["where"] == where, cmd
@@ -81,7 +81,7 @@ def test_bridge_commands_are_attributed_to_their_own_place():
 def test_hbnote_does_not_produce_a_row():
     """`agent_report` sets its own phase, which is richer than any phase we could derive — duplicating it is noise."""
     evs = _map({"type": "item.started", "item": {
-        "type": "command_execution", "command": "python3 -m nucleo.agent_report phase 'leyendo fichas'"}})
+        "type": "command_execution", "command": "python3 -m nucleo.cli.report phase 'leyendo fichas'"}})
     assert not [e for e in evs if e.type in ("step", "phase")]
 
 

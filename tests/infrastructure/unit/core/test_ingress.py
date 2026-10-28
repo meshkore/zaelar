@@ -10,7 +10,7 @@ the probe leaves the process without traffic, and "secure but turned off" is not
 """
 import pytest
 
-from nucleo import account_routing as ar
+from nucleo.energy import routing as ar
 from server import ingress
 
 

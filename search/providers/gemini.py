@@ -67,7 +67,7 @@ def search(q: str, k: int = 5) -> dict:
             "contents": [{"parts": [{"text": q}]}],
             "tools": [{"google_search": {}}],
             "generationConfig": _budget.generation_config(_model())}
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     url, key = llm_egress.route_url(url, key)
     with httpx.Client(timeout=_TIMEOUT) as c:
         resp = c.post(url, headers={"x-goog-api-key": key, "Content-Type": "application/json"}, json=body)
@@ -78,7 +78,7 @@ def search(q: str, k: int = 5) -> dict:
         from loguru import logger
         logger.warning(f"gemini grounding: answer cut by the output budget ({_model()}); the chain asks the next index")
     if parsed["answer"] or parsed["results"] or parsed.get("cut"):     # a cut answer was still billed by Google
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         _energy.report_search_usage(provider="gemini")
     return {"query": q, "answer": parsed["answer"], "results": parsed["results"], "source": "gemini",
             "ai": bool(parsed["answer"])}

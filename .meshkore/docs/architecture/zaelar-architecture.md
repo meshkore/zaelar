@@ -86,7 +86,7 @@ NOT the browser UI — the user-facing audio I/O lives in `frontend/`.
 | `frontend/` | **client** (browser) | The whole UI: captures mic + camera, draws the orb (agent voice) and the mic spectrum, shows widgets on the canvas, text chat wall, ☾/☀ dark/light theme (dark default, one `--hb-*` CSS variable namespace shared with widgets). No business logic — a thin reactive shell (ES modules, no build). |
 | `server/` | server | FastAPI transport: serves the frontend, the WebRTC offer/ICE, `/events` SSE, settings, the widgets HTTP API, the first-run wizard (`/api/wizard/*`), the music connector control plane (`/api/spotify/*` OAuth + `/api/music/state`) and the **full-screen config area** (`/api/config*`: per-piece API/model + API balances). Composition root + entrypoint (`python -m server`); its lifespan also starts the LiveKit agent worker (embedded), the `nucleo/` loop, the widgets supervisor and the memory queue consumer. |
 | `voice/` | server | The voice **engine** (`voice/engine/`, LiveKit AgentSession): receives mic audio → STT → brain → TTS → back to the client. Turn-taking/VAD/barge-in are governed by LiveKit (VAD Silero + `allow_interruptions`), with a lexical semantic layer on top as the default turn-detector (closes a turn on SENTENCE END, not just acoustic silence — most turns need no model call at all) and a fragment accumulator (`nucleo/input/stt.py`) that holds a still-growing sentence across a pause of ANY length instead of acting on a half-finished thought. When the lexical layer can't confidently call a fragment complete, a fast LLM judge (`nucleo/flash/segmenter.py::judge`, any language, no per-language word list) gives a second opinion — resolving to act, a spoken clarifying question, or (still) accumulate. Top level = brain-agnostic contract: observer (SSE), prompt, `tag_protocol`, `brain_notes`, `proactive`, TTS/STT backends. |
-| `nucleo/` | server | zaelar's **own brain** (default `BRAIN=nucleo`). Two speeds: **FlashBrain** (`nucleo/flash/`, sub-second voice layer, non-reasoning model per-invocation) + **SlowBrain** (`nucleo/dispatch/` + `nucleo/memory_agent.py` + `nucleo/agentes/`, async Claude Code / Codex agents behind a `CodeAgent` interface). Orchestrator loop `nucleo/loop.py` (~1 Hz) + own cron `nucleo/scheduler.py` + panel `nucleo/cron_api.py` + `nucleo/sparks.py`. Exposed to the voice engine as provider `voice/engine/llm/providers/nucleo.py`. |
+| `nucleo/` | server | zaelar's **own brain** (default `BRAIN=nucleo`). Two speeds: **FlashBrain** (`nucleo/flash/`, sub-second voice layer, non-reasoning model per-invocation) + **SlowBrain** (`nucleo/dispatch/` + `nucleo/memory_agent.py` + `nucleo/agentes/`, async Claude Code / Codex agents behind a `CodeAgent` interface). Orchestrator loop `nucleo/pulse/loop.py` (~1 Hz) + own cron `nucleo/pulse/scheduler.py` + panel `nucleo/pulse/cron_api.py` + `nucleo/pulse/sparks.py`. Exposed to the voice engine as provider `voice/engine/llm/providers/nucleo.py`. |
 | `memory/` | server | **Central memory** — SQLite `zaelar.db` (sqlite-vec + FTS5 + RRF + graph + forgetting). Includes an episodic layer for files. |
 | `bus/` | server | In-process **event bus** (pub/sub, generalization of `voice/observer.py`) + durable SQLite log + SSE bridge. |
 | `widgets/` | server + client | Full-stack widgets: `widget.js` renders in the client, `data.py` serves data on the server, per-widget JSON store. Isolated from the voice core. |
@@ -116,7 +116,7 @@ drives the canvas through a thin tag contract (§2).
 │    (streams reply, parses tags, keeps them out of TTS)                   │
 │  • SlowBrain (nucleo/dispatch/ + memory_agent.py + agentes/) — async   │
 │    CodeAgent (Claude Code/Codex), reached via escalate_to_slowbrain      │
-│  • Loop nucleo/loop.py (~1 Hz) + cron nucleo/scheduler.py + sparks.py    │
+│  • Loop nucleo/pulse/loop.py (~1 Hz) + cron nucleo/pulse/scheduler.py + sparks.py    │
 │  • Memory: memory/ (SQLite zaelar.db). Persona/instructions injected     │
 │    each connect from widgets/brief.py + nucleo/flash/prompt.py           │
 └──────────────────────────────────────────────────────────────────────────┘
@@ -136,7 +136,7 @@ only thing that writes new code, and only under `widgets/<id>/`.
 
 > **Note:** these three layers describe how zaelar *thinks and acts*. **Machine health** — keeping the
 > process itself alive and unclogged (LiveKit engine, logs, capsules) — is maintained by a separate **autonomic
-> homeostasis layer** (`nucleo/homeostasis.py`, deterministic, no model) that lives beside the brain. See §5g.
+> homeostasis layer** (`nucleo/pulse/homeostasis.py`, deterministic, no model) that lives beside the brain. See §5g.
 
 ## 1b. Trust boundaries — voice/chat (trusted) vs cluster (UNTRUSTED)
 
@@ -173,12 +173,12 @@ Key invariants (full detail in `.meshkore/docs/security/zaelar-security.md`):
   the operator's prompt. **Permission-gated escalation:** the operator can grant a per-cluster permission profile
   (`connectors/meshkore/perms.py`+`store.py`, deny-all default) that lets a cluster turn reach
   `escalate_to_slowbrain` → a **dev-worker** (`nucleo/dispatch/`) scoped to a disposable cwd + `Bash` only to
-  `nucleo/git_cli.py` (clone/commit/push to the operator-authorized repo only, with the real git `origin`
+  `nucleo/cli/git.py` (clone/commit/push to the operator-authorized repo only, with the real git `origin`
   re-verified on every commit/push). This additionally requires the operator to have set an **objective** for that
   specific relationship (`capsule.objective`, `perms.gate_dev_by_objective`) — permission alone never suffices.
   Zero permission = byte-identical to the tool-less path above. **Filesystem jail:** `nucleo/dev_worker_guard.py`
   (a real Claude Code `PreToolUse` hook) denies Read/Write/Edit/Glob/Grep outside the worker's cwd (code-enforced,
-  not prompt convention); `nucleo/sandbox.py` adds resource rlimits on top (best-effort on macOS for the memory cap
+  not prompt convention); `nucleo/cli/sandbox.py` adds resource rlimits on top (best-effort on macOS for the memory cap
   specifically — see zaelar-security.md for the platform caveat).
 - Only `cluster.send`/`cluster.done` may fire from a cluster turn; `connect`/`disconnect` are operator-only.
 - **Third rule level — the conversation pact.** A cluster turn is governed by THREE hierarchical rule
@@ -500,7 +500,7 @@ zaelar emulates a human at **THREE levels, only two of which "think":**
 
 - **Mind = FlashBrain** (`nucleo/flash/`) — conducts the conversation, uses a model (§6).
 - **Conscience = Susurro** (`nucleo/susurro/`) — audits the conversation, uses a model (§5f).
-- **Autonomic = Homeostasis** (`nucleo/homeostasis.py`) — the autonomic nervous system: keeps the **MACHINE**
+- **Autonomic = Homeostasis** (`nucleo/pulse/homeostasis.py`) — the autonomic nervous system: keeps the **MACHINE**
   healthy, **NO model, fully deterministic**. It thinks about nothing; it watches vitals and heals.
 
 Homeostasis lives **BESIDE the brain, never inside it** — it is off the voice loop, started in the server lifespan
@@ -619,7 +619,7 @@ The brain (`nucleo/`) is zaelar's own, but its MODELS are pluggable behind a thi
 is woven through voice/widgets/frontend:
 - **FlashBrain model** = the fast voice-turn model, chosen **per invocation** from `config/v2.py` `fast` section
   (`FAST_PROVIDER`/`FAST_MODEL`/`FAST_BASE_URL`/`FAST_API_KEY`): a local Ollama model or a cloud model. The api-key is
-  resolved **by endpoint** in `nucleo/provider_keys.py` (aimlapi→`AIMLAPI_KEY`, x.ai→`XAI_API_KEY`,
+  resolved **by endpoint** in `nucleo/energy/keys.py` (aimlapi→`AIMLAPI_KEY`, x.ai→`XAI_API_KEY`,
   groq.com→`GROQ_API_KEY`, gemini→`GEMINI_API_KEY`, deepseek.com→`DEEPSEEK_API_KEY`, …), so switching provider only
   needs the matching key in the credential store — that single resolver is shared by every LLM-calling module in
   `nucleo/`, not reimplemented per caller. **The default is a non-reasoning DeepSeek V4 model on DeepSeek's direct
@@ -657,11 +657,11 @@ tier does in the background. Model routing changes apply on the next voice recon
 
 ## 7. Files map (the pieces)  ·  (see zaelar-modules.md for the full layout)
 - Voice core: `voice/engine/` (LiveKit AgentSession, providers), `voice/tag_protocol.py`, `voice/observer.py`, `server/` (entry: `server/__main__.py`, `python -m server`).
-- Brain: `nucleo/flash/` (FlashBrain) + `nucleo/websearch.py` (shared web search, §5b) + `nucleo/rails.py` + `nucleo/flash/music_flow.py` (RAILS, §5c) + `nucleo/dispatch/`/`nucleo/memory_agent.py`/`nucleo/agentes/` (SlowBrain, web search via native `WebSearch`/`WebFetch`) + `nucleo/loop.py`/`nucleo/scheduler.py`/`nucleo/cron_api.py`/`nucleo/sparks.py`; provider `voice/engine/llm/providers/nucleo.py`. Memory: `memory/` (SQLite). Bus: `bus/`.
+- Brain: `nucleo/flash/` (FlashBrain) + `nucleo/websearch.py` (shared web search, §5b) + `nucleo/rails.py` + `nucleo/flash/music_flow.py` (RAILS, §5c) + `nucleo/dispatch/`/`nucleo/memory_agent.py`/`nucleo/agentes/` (SlowBrain, web search via native `WebSearch`/`WebFetch`) + `nucleo/pulse/loop.py`/`nucleo/pulse/scheduler.py`/`nucleo/pulse/cron_api.py`/`nucleo/pulse/sparks.py`; provider `voice/engine/llm/providers/nucleo.py`. Memory: `memory/` (SQLite). Bus: `bus/`.
 - Widget circuit: `widgets/{runtime,server_api,brief,generator}.py`, `widgets/<id>/` (data.py + widget.js), `frontend/app/widgets/desktop.js`.
 - Music (§5d): `connectors/music/` (agnostic seam) + `connectors/spotify/` (Web API + OAuth PKCE) + `connectors/music/youtube_audio.py` (free fallback) + `widgets/musica/` (surface) + `server/spotify_api.py` (`/api/spotify/*` + `/api/music/state`).
 - Front: `frontend/` — ES-module app (`app/core` reactive store, `app/services` WebRTC/audio/VAD/STT/SSE engine, `app/components`, SSE + voice-command fast-path). `index.html` is a thin bootstrap. Solid-migration-ready.
-- Autonomic health (§5g): `nucleo/homeostasis.py` (the health supervisor — LiveKit engine recycle + log rotation + capsule eviction; no model, deterministic; `start(app)`/`stop()` in the lifespan) + `tests/infrastructure/unit/core/test_homeostasis.py`.
+- Autonomic health (§5g): `nucleo/pulse/homeostasis.py` (the health supervisor — LiveKit engine recycle + log rotation + capsule eviction; no model, deterministic; `start(app)`/`stop()` in the lifespan) + `tests/infrastructure/unit/core/test_homeostasis.py`.
 - Self-test: `tests/voice/e2e/mic/mic_selftest.py` (headless: injects speech, checks the server pipeline).
 - Runtime config: `config/settings.py` (GET/POST `/api/settings`) → `config/settings.json` (⚙ panel: STT/TTS/voice/language); `config/v2.py` = model routing (fast + code_agent) + `active_brain()`. Both gitignored where they persist state.
 
@@ -721,7 +721,7 @@ enforces it in both directions.
 > `web_search`). The RAM session registry in `dispatch.py` is the source of truth; the loop supervises
 > (stuck/timeout/relay asks).
 >
-> **Worker→widget bridge (`hbwidget`):** `nucleo/widget_cli.py` lets a worker `read`/`data`/`show`/`close` a
+> **Worker→widget bridge (`hbwidget`):** `nucleo/cli/widget.py` lets a worker `read`/`data`/`show`/`close` a
 > canvas widget — the `widget_data` action of `/api/worker/act` applies the data-op via `widgets.brain_action` under
 > the SAME canonical FAST/CONFIRM gate the FlashBrain uses (ESCALATE/undeclared → DENY: a worker never escalates a
 > data-op nor invents an action; it reads the widget first), provenance stamped `worker:<id>`. This closes the chained
@@ -807,7 +807,7 @@ half-up server.
    WhatsApp/Telegram reconnects (`connectors/messaging/supervisor.py::start()` only schedules its `_loop()` task,
    never awaits a connect inline), widget-generation resume, the FlashBrain/browser prewarm, the LiveKit
    `AgentServer` (`voice/engine/pipeline/agent.py::make_server`), and the **autonomic homeostasis supervisor**
-   (`nucleo/homeostasis.py::start(app)`, §5g — a sibling of the messaging and widgets supervisors:
+   (`nucleo/pulse/homeostasis.py::start(app)`, §5g — a sibling of the messaging and widgets supervisors:
    `start(app)`/`stop()`, off the voice loop, fail-open, gated by `ZAELAR_HOMEOSTASIS`). A strong ref goes on
    `app.state.<name>_task` so the GC can't drop it (same pattern for all of these). Note that the position of a
    `create_task(...)` call in the function does not matter by itself (it doesn't block either way) — what matters

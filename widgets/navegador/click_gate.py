@@ -13,7 +13,7 @@ only `click` (by `[ref]`) consulted `_DANGER_RE`:
     press       ("Enter")             → NOT gated
     type/type_at --submit             → NOT gated (`keyboard.press("Enter")` inside the typing helper)
 
-…and `nucleo/nav_cli.py`, the CLI a Brain Worker drives the browser with, RECOMMENDS the ungated one in its
+…and `nucleo/cli/nav.py`, the CLI a Brain Worker drives the browser with, RECOMMENDS the ungated one in its
 own usage text: «VISION flow (robust for forms)». The recommended path was the unguarded path.
 
 **It judged the LABEL, in one language.** Run against 30 real button labels, 21 walked through: «Reservar»,

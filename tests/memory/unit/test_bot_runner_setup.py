@@ -4,7 +4,7 @@ for two completely different reasons, both in the harness setup and neither in t
 
 1. `_setup_env()` never loaded `.meshkore/credentials/zaelar.env` (only `.env`) — `scale_eval.py` did
    (twin code, never mirrored). `DEEPSEEK_API_KEY` exists only in the credential store → unresolved →
-   `nucleo/provider_keys.py::key_for_endpoint` falls back to its `"local"` sentinel → DeepSeek returned 401 on every
+   `nucleo/energy/keys.py::key_for_endpoint` falls back to its `"local"` sentinel → DeepSeek returned 401 on every
    CORE call → silent heuristic fallback. Reproduced live by invoking this runner through its documented CLI.
 2. A fresh database did not set `state.language` — it inherited the product default `"en"` (85b4922, language
    startup 2026-08-14), and `mem_processor._render` reads it to decide which language to distill into. The corpus is

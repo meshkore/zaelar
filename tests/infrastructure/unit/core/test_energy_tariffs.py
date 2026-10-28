@@ -1,4 +1,4 @@
-"""Tariffs: the rates Energy is computed from (nucleo/energy_tariffs.py).
+"""Tariffs: the rates Energy is computed from (nucleo/energy/tariffs.py).
 
 THE RATCHET LIVES HERE. The defect these tests exist for was never a wrong number — it was that
 nothing tied a number to the provider actually running, so the STT was metered at Deepgram's rate while
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import energy_tariffs
+from nucleo.energy import tariffs as energy_tariffs
 
 # A deployment repo checked out alongside the engine may declare the same provider keys; when it does,
 # its config is read as TEXT (it is JavaScript) rather than kept as a hand copy here. Skipped when absent.
@@ -134,7 +134,7 @@ def test_the_lease_carries_the_tariffs(monkeypatch):
     """The coupling that holds everything together: the rates arrive piggybacked on the lease, the only
     periodic call the engine already makes. If someone stops reading them there, the central prices stop
     arriving and nobody notices — the engine keeps metering with stale ones."""
-    import nucleo.energy_lease as lease
+    import nucleo.energy.lease as lease
     src = Path(lease.__file__).read_text(encoding="utf-8")
     assert "energy_tariffs.update(" in src, (
         "energy_lease ya no adopta las tarifas de la respuesta del arriendo — el canal central está roto"

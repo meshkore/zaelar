@@ -309,7 +309,7 @@ def consolidate(limit: int = DEFAULT_LIMIT, lam: float = DECAY_LAMBDA_PER_DAY, s
     # memoria no importa `nucleo/*`» y a la línea siguiente importaba `nucleo.workers.ledger` (retirado en V2-728; hoy el hook poda la tabla `tasks`) — perezoso y
     # fail-open, pero un import inverso igual: el paquete dejaba de ser autónomo por una tarea de higiene que ni
     # siquiera es suya. Es el patrón que `rem.py` ya vive con sus hooks de LLM, y el llamante que lo inyecta
-    # (`nucleo/loop.py`) es el mismo que inyecta aquéllos.
+    # (`nucleo/pulse/loop.py`) es el mismo que inyecta aquéllos.
     #
     # **Sin hook, `workers_pruned` es None y NO 0**: cero dice «miré y no había nada que limpiar», None dice
     # «nadie me dio con qué mirar». Son hechos distintos y confundirlos es cómo una función se pierde en

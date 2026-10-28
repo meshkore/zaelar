@@ -78,7 +78,7 @@ def test_the_outgoing_body_carries_the_model_and_the_dims(monkeypatch):
 
 def test_the_credential_is_NAMED_by_the_table(monkeypatch):
     """Memory does not infer the key from the URL: it reads the `key_env` of its own row. Inferring it would
-    mean importing `nucleo/provider_keys`, and `memory/` does not import `nucleo/` (guarded by
+    mean importing `nucleo/energy/keys`, and `memory/` does not import `nucleo/` (guarded by
     `test_memory_owes_nucleo_nothing`)."""
     from config import models as table
 
@@ -155,7 +155,7 @@ def test_the_cloud_call_is_METERED_into_energy(monkeypatch):
     monkeypatch.setattr(emb, "_post_json", lambda url, body, headers, timeout: {
         "data": [{"index": 0, "embedding": [0.1] * 768}], "usage": {"prompt_tokens": 12, "total_tokens": 12}})
 
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     monkeypatch.setattr(energy_meter, "meter_openai_response",
                         lambda payload, *, base_url, model: billed.append((base_url, model, payload)))
     emb.reset()
@@ -171,7 +171,7 @@ def test_the_embedding_model_has_its_own_RATE(monkeypatch):
     """Without a row the catch-all applies, and for the cheapest model on the whole list that is ~100x the real
     price. A missing rate does not fail: it bills wrong, in the direction nobody checks."""
     from config import models as table
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
 
     row = table.rungs("embeddings")[0]
     rate_in, rate_out = energy_meter._rate_for(row["base_url"], row["model"])

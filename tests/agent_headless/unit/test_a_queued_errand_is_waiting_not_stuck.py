@@ -35,9 +35,9 @@ def test_a_commission_that_waits_names_what_it_waits_behind(monkeypatch):
 
 
 def test_the_loop_does_not_call_a_queued_errand_stuck(monkeypatch):
-    from nucleo import loop as _loop
+    from nucleo.pulse import loop as _loop, workers as _workers
     stuck: list = []
-    monkeypatch.setattr(_loop, "_emit", lambda topic, payload: stuck.append(topic) if topic == "worker.stuck" else None)
+    monkeypatch.setattr(_workers, "_emit", lambda topic, payload: stuck.append(topic) if topic == "worker.stuck" else None)
     rows = [{"id": "3", "status": "queued", "kind": "generic", "age_s": 400, "silent_s": 400, "backend": "x"}]
     monkeypatch.setattr(dispatch, "active_sessions", lambda: rows)
     lp = _loop.OrchestratorLoop()

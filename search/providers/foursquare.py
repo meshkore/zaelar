@@ -77,6 +77,6 @@ def places(q: str, near: str = "", k: int = 8) -> list[dict]:
         raise RuntimeError(f"foursquare places: HTTP {resp.status_code} {resp.text[:160]}")
     rows = parse(resp.json(), k)
     if rows:
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         _energy.report_search_usage(provider="foursquare")
     return rows

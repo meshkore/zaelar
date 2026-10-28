@@ -455,7 +455,7 @@ def _t_answer_worker(*, args, emit, worker_acted, fired=None):
     ans = (args.get("answer") or "").strip()
     if ans:
         try:
-            from nucleo import worker_api as _wapi
+            from nucleo.cli import worker_api as _wapi
             if _wapi.answer_active_soon(ans):
                 worker_acted["v"] = "answer"
                 fired is not None and fired.add("answer_worker")    # the close backstop reads it (three-tasks)

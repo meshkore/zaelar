@@ -16,7 +16,7 @@ remote client (V2-114 F3) has an exact target, and (c) the ratchet has something
 **What is deliberately OUTSIDE the contract**, and why:
   - `memory.vault*` — the secret vault is a different concern (crypto, passkeys, out-of-band reveal). It shares
     the SQLite file, not memory semantics. A memory replacement should not have to reimplement it.
-  - `memory.rem` / `memory.consolidator` / `memory.reembed` — the SLEEP axis. Orchestrated by `nucleo/loop.py`,
+  - `memory.rem` / `memory.consolidator` / `memory.reembed` — the SLEEP axis. Orchestrated by `nucleo/pulse/loop.py`,
     not by the turn. It is maintenance of the implementation, not something the agent asks for.
   - `memory.embeddings` / `memory.retriever` / `memory.writer` / `memory.db` — internals. If a replacement does
     not use sqlite-vec, none of this means anything to it.
@@ -122,7 +122,7 @@ BLESSED_INTERNAL_IMPORTS: dict[str, str] = {
     "memory.vault": "secret vault — its own subsystem (V2-060), not memory",
     "memory.vault_api": "the vault's FastAPI router",
     # ── server wiring: a router has to be imported to be mounted ──
-    # ── the SLEEP axis: orchestrated by nucleo/loop.py (~1 Hz), never by the turn ──
+    # ── the SLEEP axis: orchestrated by nucleo/pulse/loop.py (~1 Hz), never by the turn ──
     "memory.rem": "daily REM phase, orchestrated by the loop",
     "memory.reembed": "vector-space migration, verified at boot",
     # ── shared vocabulary/gates: pure stdlib, no DB ──

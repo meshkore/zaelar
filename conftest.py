@@ -378,7 +378,7 @@ def _the_rules_table_starts_empty():
 # re-points `ZAELAR_DB` owns its own file. Same family as the notice ledger and the rules table above.
 @_pytest5.fixture(autouse=True)
 def _a_tests_scheduled_jobs_leave_with_it():
-    """THE JOURNAL — every scheduled job and reminder (`nucleo.scheduler`, backed by `memory.journal`) — comes out of
+    """THE JOURNAL — every scheduled job and reminder (`nucleo.pulse.scheduler`, backed by `memory.journal`) — comes out of
     each test as it went in (2026-10-28). It is a table of the session's single test database: four «Reunión NN»
     reminders a test scheduled were still pending later, and `test_notice_ledger`'s loop fired them beside its own
     ITV reminder — red only in a folder run, green alone. Rows a test added are deleted after it; rows it found stay.

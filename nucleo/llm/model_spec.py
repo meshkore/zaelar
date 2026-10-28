@@ -2,7 +2,7 @@
 2026-08-17 modularization pass). `ModelSpec` and its two composers (`spec_from_config`, `available`) are pure
 provider-detection/URL/key resolution with zero I/O and zero coupling to the streaming client itself — the
 audit that led to this split found them a genuinely separable concern from `fast_client.py`'s actual HTTP/SSE
-transport code. Re-exported from `fast_client.py` (imported there by name across many callers: `nucleo/research.py`,
+transport code. Re-exported from `fast_client.py` (imported there by name across many callers: `nucleo/workers/brief.py`,
 `nucleo/llm/provider_chain.py`, `voice/engine/pipeline/agent.py`, etc. — none of them needed to change).
 
 Hard project rule (preserved from the original docstring): model PER INVOCATION, never a global model env
@@ -42,12 +42,12 @@ class ModelSpec:
             return "ollama"        # Ollama acepta cualquier no-vacío
         # Cloud without an explicit key → credential FROM THE ENVIRONMENT (power-user fallback). The KEY is a credential,
         # not model selection, so reading it from env does NOT violate "model per invocation". Inherited contract:
-        # Explicit FAST_API_KEY wins; otherwise resolve BY ENDPOINT (single resolver, `nucleo/provider_keys.py`).
+        # Explicit FAST_API_KEY wins; otherwise resolve BY ENDPOINT (single resolver, `nucleo/energy/keys.py`).
         import os
         fast = os.getenv("FAST_API_KEY")
         if fast:
             return fast
-        from nucleo.provider_keys import key_for_endpoint
+        from nucleo.energy.keys import key_for_endpoint
         return key_for_endpoint(self.resolved_base_url())
 
     def _is_aimlapi(self) -> bool:
