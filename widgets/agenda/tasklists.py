@@ -1,36 +1,20 @@
 """widgets/agenda/tasklists.py — the operator's OWN tasks, in numbered lists (V2-744).
 
-Operator, 2026-09-21: *«el widget de la agenda va a albergar tareas y agenda… quiero que haya una lista
-general de tareas y luego que el usuario pueda generar una lista para varias cosas… podemos generar una
-lista de la compra y eso tendrá un identificador y ese identificador lo podré compartir en el futuro con
-otro agente a través de la red de MeshKore»*. And the rule that governs the whole batch, in his words:
-*«a las tareas que yo hago las llamo procesos (jobs en inglés) y las separo de las tareas personales del
-operador que van en su agenda»* — so from V2-744 «tarea» means THIS, and the assistant's own work is a
-PROCESS everywhere the operator can read it.
+A general task list plus lists he makes for anything («la lista de la compra»), each with an id he can later share
+with another agent over MeshKore. From V2-744 «tarea» means HIS; the assistant's own work is a PROCESS (job).
 
 ## Three decisions worth writing down
 
-**ONE array, not two.** A list item and a planner task are both «something the operator has to do», so they
-share `db["tasks"]` and a task simply carries the `listId` it hangs from. The alternative — a second array
-for the new section — is the two-writers-of-one-fact defect this widget already has a monument to (see
-`system_tasks.py`: «THE AGENDA READS, IT DOES NOT DUPLICATE»), and it would have shown up the first time
-«márcame hecha la compra» found the row in the wrong table.
+**ONE array, not two.** A list item and a planner task share `db["tasks"]`; a task carries the `listId` it hangs
+from. A second array would be two writers of one fact (`system_tasks.py`: «THE AGENDA READS, IT DOES NOT DUPLICATE»).
 
-**The planner places only what says how long it takes.** The day planner turns a task into a block of time,
-and until now it invented `estimateMinutes: 30` for anything without one. With a shopping list in the same
-array that invention would fill the operator's working day with half-hour blocks called «pan» — so a task is
-plannable only when it carries a duration, an hour or a project. That is not a special case for lists: it is
-the V2-652 rule («a missing fact is a fact, not a slot for a default») applied to the one field the planner
-cannot work without.
+**The planner places only what says how long it takes** — a duration, an hour or a project; it never invents
+30 minutes for «pan» (V2-652: a missing fact is a fact, not a slot for a default).
 
-**The NUMBER is the screen position, and nothing else.** He asked for numbering so he can say «abre la lista
-número 3, coge el ítem número 2 y modifícalo». A stored, stable number would drift from what he is reading
-the moment anything is deleted — and the number only exists to point at the screen. So `no` is derived on
-every read, and the digest the brain sees is built from the same function the render is, which is the
-`index.py` lesson (two views of one card that disagreed about what «next» meant).
+**The NUMBER is the screen position, and nothing else.** `no` is derived on every read («abre la lista número 3»),
+and the brain's digest is built from the same function the render is (the `index.py` lesson).
 
-The list ID is a readable slug (`tl_la_compra`), not a random hex: it is the thing he will hand to another
-agent over the MeshKore cluster, and an identifier a human can read aloud survives that trip.
+The list ID is a readable slug (`tl_la_compra`): a human can read it aloud to hand it to another agent.
 """
 from __future__ import annotations
 

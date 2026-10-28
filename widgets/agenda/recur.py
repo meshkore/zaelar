@@ -1,18 +1,7 @@
 """widgets/agenda/recur.py — a REPEATING appointment: one row with a rule, expanded wherever it is read (V2-769).
 
-THE MEASUREMENT (operator's own agenda, 2026-09-25, session a96fdea7). He dictated two weekly appointments
-running until June 2027 — «llevar a Abril a flauta travesera» on Thursdays 15:30-16:15 and «piano de Abril» on
-Tuesdays 15:15-16:00. What the store held afterwards:
-
-    {"title": "Llevar a Abril a flauta travesera", "date": "2026-10-01", ..., "category": "recursiva",
-     "notes": "Todos los jueves de 15:30 a 16:15"}
-    {"title": "Piano de Abril", "date": "2026-09-22", ..., "category": "familia"}
-
-One date each. The first time the model had no field to say «every Thursday», so it smuggled the rule into
-`category` and `notes`. The second time it DID send it — `recurrence: "weekly", repeatUntil: "2027-06-30"` —
-and `add_meeting` dropped both keys without a word, the reply said «desde el 22 de septiembre hasta junio de
-2027», and the week after next was empty. His words: *«es un poco un desastre manejar una simple agenda… no
-solo poner un ítem un día, sino también hacerlo recursivo entre el período que yo te digo»*.
+THE MEASUREMENT (2026-09-25): two weekly appointments dictated «until June 2027» were stored as ONE date each —
+the rule smuggled into `category`/`notes`, or sent as `recurrence` and dropped by `add_meeting` without a word.
 
 THE SHAPE. A series is ONE meeting row carrying
 

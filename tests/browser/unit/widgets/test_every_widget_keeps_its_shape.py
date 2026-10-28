@@ -15,7 +15,7 @@ PY_MAX, JS_MAX = 400, 600
 
 #: Over the shape today, owned by a later pass (agenda: refactor2710-06 hands its rules over first). Only shrink.
 GRANDFATHERED = {
-    "agenda/actions.py": 634, "agenda/recur.py": 489, "agenda/tasklists.py": 551,
+    "agenda/recur.py": 489, "agenda/tasklists.py": 551,
 }
 #: widget → (Python lines, client lines), measured 2026-10-28 (results +4 from refactor2710-01, merged). Lower it when a
 #: widget shrinks; never raise it.
@@ -82,6 +82,7 @@ def test_a_grandfathered_file_only_shrinks_and_leaves_the_list_when_it_fits():
     assert not stale, f"these fit the shape now (or are gone): take them off GRANDFATHERED: {stale}"
 
 
-def test_disarm_an_oversize_file_is_named():
+def test_disarm_an_oversize_file_is_named(monkeypatch):
     assert _over({"x/data.py": PY_MAX + 1, "x/js/a.js": JS_MAX}) == [f"x/data.py: {PY_MAX + 1} > {PY_MAX}"]
-    assert _over({"agenda/actions.py": 635}) == ["agenda/actions.py: 635 > 634"]
+    monkeypatch.setitem(GRANDFATHERED, "x/old.py", 634)
+    assert _over({"x/old.py": 635}) == ["x/old.py: 635 > 634"]

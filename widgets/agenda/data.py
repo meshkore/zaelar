@@ -169,9 +169,11 @@ def radius(action: str, payload: dict | None = None) -> int | None:
 
 # The action handlers live in `actions.py` (which reads this module) (V2-778 F1-12).
 from .actions import (  # noqa: E402,F401
-    _a_drop_project, _a_add_meeting, _a_dedupe_meetings, _a_cancel_meeting, _a_set_reminder, _a_clear_range,
-    _a_clear_all, _a_move_meeting, _a_open_meeting, _a_update_meeting, _a_invite, _a_rsvp_meeting, _a_proposal,
-    _a_show_day, _a_find_free, _a_connection, _a_add_meeting_noticed, _a_restore_meeting)
+    _a_drop_project, _a_add_meeting, _a_dedupe_meetings, _a_cancel_meeting, _a_clear_range, _a_clear_all,
+    _a_move_meeting, _a_update_meeting, _a_restore_meeting)
+from .meeting_views import (  # noqa: E402,F401
+    _a_open_meeting, _a_invite, _a_rsvp_meeting, _a_proposal, _a_show_day, _a_find_free, _a_connection)
+from .notice_actions import _a_set_reminder, _a_add_meeting_noticed  # noqa: E402,F401
 from . import reminders  # noqa: E402  (the asked notice, V2-781 T513)
 from .notice import _a_add_reminder  # noqa: E402  (a notice with no appointment, refactor2710-06)
 
