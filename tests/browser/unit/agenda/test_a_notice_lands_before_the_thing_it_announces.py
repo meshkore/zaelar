@@ -60,6 +60,20 @@ def test_the_door_bounds_a_one_off_and_leaves_a_cadence_alone():
                                        "insurance", "2099-01-01 09:00")
 
 
+def test_add_reminder_is_the_agendas_own_action(monkeypatch):
+    """The standalone notice is `add_reminder` of the agenda: no moment → asked; a moment → on the scheduler."""
+    from nucleo import scheduler
+    from widgets.agenda import data
+    made = []
+    monkeypatch.setattr(scheduler, "create", lambda prompt, when, name="", repeat="":
+                        made.append((prompt, when)) or {"ok": True, "display": when})
+    out = data.apply_action("add_reminder", {"commitment": "renew the insurance"})
+    assert out.get("verdict") == "asked" and not made
+    out = data.apply_action("add_reminder", {"notice_at": "2099-03-04 09:00", "commitment": "renew the insurance"})
+    assert out.get("ok") and made == [("AVISA al operador, es el recordatorio que te pidió: renew the insurance",
+                                       "2099-03-04 09:00")]
+
+
 def test_offsets_read_only_iso_durations():
     assert notice.offset_s("-PT1H30M") == -5400 and notice.offset_s("P2D") == 172800
     assert notice.offset_s("-30m") is None and notice.offset_s("PT") is None and notice.offset_s("P1H") is None

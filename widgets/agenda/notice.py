@@ -104,3 +104,15 @@ def schedule(create, data: dict) -> tuple[dict, str]:
     if b["verdict"] != "met":
         return {"ok": False, "error": b["why"]}, b["verdict"]
     return create(prompt_for({"commitment": d.get("commitment") or raw}), b["at"], name=name), b["verdict"]
+
+
+def _a_add_reminder(action, payload, db, _extra) -> dict:
+    """The agenda's `add_reminder`: a notice with no appointment, its moment in `notice_at` (or `before` +
+    `commitment_at`). No moment → `asked`, never guessed from words."""
+    p = payload if isinstance(payload, dict) else {}
+    if not (p.get("notice_at") or p.get("before")):
+        return {"ok": False, "verdict": "asked", "error": "no moment to ring at: notice_at is missing"}
+    from nucleo import scheduler as _sched
+    r, verdict = schedule(_sched.create, {**p, "prompt": p.get("commitment") or p.get("prompt") or ""})
+    return {"ok": bool(r.get("ok")), "verdict": verdict, "display": r.get("display") or "",
+            **({} if r.get("ok") else {"error": r.get("error") or "not scheduled"})}
