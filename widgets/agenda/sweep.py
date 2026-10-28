@@ -1,18 +1,10 @@
 #
-# sweep.py — CLEARING A WINDOW OF THE CALENDAR, KEEPING WHAT HE NAMES (V2-693).
+# sweep.py — CLEARING A WINDOW OF THE CALENDAR, KEEPING WHAT HE NAMES (V2-693), and the bulk half of a cancellation.
 #
-# The sibling `clear_all` learned on 2026-08-14 that an intention with no action behind it cannot be gotten
-# right by the model. This is the same lesson one size down, measured on 2026-09-14 in his own words:
-# «limpia todo los items de esta semana, menos lo de mañana a las 15h y el inicio de instituto de lunes».
-#
-# The only bulk tool was `clear_all`, whose scope is EVERYTHING and forever, so the model reached for it and
-# then described a selective deletion it could not perform — and had the confirmation been answered yes, the
-# two appointments he asked to KEEP would have gone too, along with every future one. «Menos estos» is not a
-# nuance of «todo»: it is a different action.
-#
-# It lives in its own module because `data.py` sits on the 900-line ceiling and a ratchet is paid by
-# EXTRACTING, never by raising the number. The back-imports are lazy and one-directional: `data.py` calls in
-# here, nothing here is imported at `data.py`'s module level.
+# `clear_all` taught (2026-08-14) that an intention with no action behind it cannot be gotten right by the model; on
+# 2026-09-14 «limpia todo los items de esta semana, menos lo de mañana a las 15h» met the same wall one size down —
+# «menos estos» is not a nuance of «todo», it is a different action. Its own module because `data.py` sits on its
+# ceiling (a ratchet is paid by EXTRACTING); back-imports are lazy and one-directional (`data.py` calls in here).
 #
 from __future__ import annotations
 
@@ -63,10 +55,8 @@ def kept(m: dict, keep: list[dict]) -> bool:
         if "time" in k and str(m.get("startTime") or "") != k["time"]:
             continue
         if "title" in k and not _data._titles_overlap(k["title"], m.get("title")):
-            # `_titles_overlap` and NOT plain containment: it is this widget's OWN judgement (V2-473 round 6,
-            # reused by the twin settlement), it drops the filler words a person says, and it is what makes
-            # «el kickoff» find «Laura/Alex kickoff product intro». A containment test fails on that
-            # exact sentence, which is the one he actually said.
+            # `_titles_overlap`, NOT plain containment (V2-473 round 6): it drops the filler words a person says, so
+            # «el kickoff» finds «Laura/Alex kickoff product intro» — the sentence he actually said.
             continue
         return True
     return False
@@ -222,11 +212,9 @@ def _matches(db: dict, payload: dict) -> list[dict]:
         ftitle = textmatch.fold(m.get("title") or "")
         if not ftitle:
             continue
-        # A folded substring (his phrasing is usually a slice of the real title) OR a tolerant score over the
-        # floor (a typo, a C for a K). Substring stays because a 3-word slice of a 6-word title can fall under
-        # the score floor on length alone, and a slice is a deliberate, precise reference.
-        # V2-770 — and the other way round: the model's reference often CARRIES the title plus its own gloss
-        # («Clase de piano de Abril del martes 2026-10-06»), and a gloss is not a different appointment.
+        # A folded substring (his phrasing is a slice of the title; a 3-word slice of 6 can fall under the score floor
+        # on length alone) OR the tolerant score (a typo). V2-770 — and the other way round: the model's reference
+        # often CARRIES the title plus a gloss («Clase de piano de Abril del martes 2026-10-06»).
         if (fref in ftitle or (len(ftitle) >= 6 and f" {ftitle} " in f" {fref} ")
                 or textmatch.score(ref, m.get("title") or "") >= 0.72):
             out.append(m)
@@ -285,6 +273,35 @@ def dedupe_meetings(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     return res, stuck
 
 
+def every(payload: dict) -> bool:
+    """`all: true` — the order named EVERY match («quítalas todas», «kill all entries like this»); the words are not read here."""
+    return str(payload.get("all") or "").strip().lower() in ("true", "1", "yes", "y", "si", "sí")
+
+
+def cancel_every(db: dict, hits: list[dict], *, plural: bool = False) -> tuple[dict, list[dict]]:
+    """Delete `hits` — every one when the order was plural (live 2026-10-28: 176 one-day «Comedor» rows and four
+    turns of «quitarlas todas» answered with «which one?»), and the tail of `cancel_meeting` otherwise. One trash
+    entry holds the set (`restore_meeting` brings it all back); a row Google refuses STAYS (the `clear_range` lesson)."""
+    from . import data as _data, meeting_trash
+    gone, stuck = [], []
+    for m in hits:
+        if gcal.delete_google(m):
+            _data._cancel_reminder(m)
+            gone.append(m)
+        else:
+            stuck.append(m)
+    meeting_trash.put(db, "delete", gone)
+    db["meetings"] = [m for m in db.get("meetings", []) if m not in gone]
+    dates = sorted({str(m.get("date") or "") for m in gone})
+    res = {"ok": True, "removed": len(gone), "title": str((gone or hits)[0].get("title") or ""),
+           "date": dates[0] if dates else str(hits[0].get("date") or "")}
+    if plural:
+        res.update({"all": True, "until": dates[-1] if dates else "", "days": len(dates)})
+    if stuck:
+        res["failed"] = [m.get("title") for m in stuck]
+    return res, stuck
+
+
 def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     """Cancel the ONE appointment the payload names, IN PLACE, and answer `(result, stuck)`.
 
@@ -310,6 +327,8 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
                 if str(m.get("date") or "") >= _data._today()][:8]
         return {"ok": False, "error": "not_found",
                 "detail": "no appointment matches that title" + (f" (upcoming: {'; '.join(soon)})" if soon else "")}, []
+    if every(payload):                                     # the plural: the whole set, no question
+        return cancel_every(db, hits, plural=True)
     # V2-770 — «the whole series» is the series AND the days that were moved out of it (`edit.detach`): they are
     # the same appointment to him, and counting them as a second one made `whole` answer «ambiguous».
     _sers = [m for m in hits if isinstance(m.get("repeat"), dict)]
@@ -362,19 +381,7 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
             if not hits:
                 return {"ok": True, "removed": 1, "title": str(once[0].get("title") or ""), "date": _day,
                         "series_kept": True}, []
-    gone, stuck = [], []
-    for m in hits:
-        if gcal.delete_google(m):
-            _data._cancel_reminder(m)
-            gone.append(m)
-        else:
-            stuck.append(m)
-    meeting_trash.put(db, "delete", gone)
-    db["meetings"] = [m for m in db.get("meetings", []) if m not in gone]
-    res = {"ok": True, "removed": len(gone), "title": str((gone or hits)[0].get("title") or ""),
-           "date": str((gone or hits)[0].get("date") or "")}
+    res, stuck = cancel_every(db, hits)
     if payload.get("whole") and _ser and (_left := series_days.left_behind(db, _ser)):
         res["left"] = [f"{m.get('title')} {m.get('date')}" for m in _left][:6]   # said as a failure upstream
-    if stuck:
-        res["failed"] = [m.get("title") for m in stuck]
     return res, stuck

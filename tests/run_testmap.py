@@ -4522,6 +4522,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_started_errand_is_never_not_done.py']},
         {"id": "2.903", "title": "The stop backstop says «stopped» in his language: its two lines are `stopped_now` / `stopped_also` of the language pack, never a literal (refactor2710-99, use case docs-single-recipe-not-a-list__us, V2-694)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_stop_backstop_speaks_his_language.py']},
+        {"id": "2.916", "title": "An order in the PLURAL («quítalas todas», «kill all entries like this») cancels every appointment the title matches (`all: true`): one trash entry holds the set and restore_meeting brings it all back, Google is asked row by row and a refused row stays; without `all` the V2-705 question stands and an empty title never means «every» (live 2026-10-28 T11-T15, 176 rows)",
+            "ch": UNIT, "paths": ['tests/browser/unit/agenda/test_an_order_in_the_plural_cancels_every_match.py']},
         {"id": "2.914", "title": "«Close the widget.» over several open cards goes to the card his previous turn acted on while that turn is recent (canvas_focus.RECENT_S), and otherwise asks which one by their names — never a guess, never a claim (live 2026-10-28 T74-T76, operator's rule)",
             "ch": UNIT, "paths": ['tests/voice/unit/test_an_unnamed_close_goes_to_the_card_he_just_used.py']},
         {"id": "2.915", "title": "«Put some music» with no track: the player must end up sounding, so the door resumes what was sounding, else plays what he played last, else asks what to put on; a search for an empty string is never sent (live 2026-10-28 T65: «I couldn't find \"\"»)",

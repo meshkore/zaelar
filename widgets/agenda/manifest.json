@@ -142,13 +142,14 @@
     },
     "cancel_meeting": {
       "desc": "cancela/elimina una cita. Si se REPITE: `date` = anula SOLO ese día («este jueves no hay flauta»); `from` = la termina desde ese día («a partir de enero ya no hay piano»);",
-      "how": "`whole: true` = borra la serie; sin nada, pregunta. Se lleva sus copias idénticas (para dejar UNA de varias duplicadas: dedupe_meetings)",
+      "how": "`whole: true` = borra la serie; `all: true` = TODAS las citas que casen con el título cuando lo pide en plural («quítalas todas», «all entries like this», «toda la serie de comedor»); sin nada y con varias distintas, pregunta. Se lleva sus copias idénticas (para dejar UNA de varias duplicadas: dedupe_meetings)",
       "ref": "title",
       "payload": {
         "title": "string",
         "date": "YYYY-MM-DD (opcional, filtra por fecha)",
         "whole": "true para borrar TODA la serie de una cita que se repite (opcional)",
-        "from": "YYYY-MM-DD o «enero» — desde cuándo deja de repetirse (opcional)"
+        "from": "YYYY-MM-DD o «enero» — desde cuándo deja de repetirse (opcional)",
+        "all": "true = todas las que casen con el título (orden en plural); van a la papelera y restore_meeting las devuelve"
       }
     },
     "restore_meeting": {
