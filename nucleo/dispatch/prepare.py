@@ -262,7 +262,8 @@ async def _finalize_web(rec: "_d.SessionRecord", keep_open: bool = False) -> Non
         if items and rec.status != "cancelled":
             try:
                 from widgets.results import intake as _intake
-                _intake.push(items, sheet=_d.sheet_of(rec),
+                # `errand`: with no sheet of its own, this errand owns the shared sheet (V2-831)
+                _intake.push(items, sheet=_d.sheet_of(rec), errand=str(getattr(rec, "task_id", "") or ""),
                              source_url=str((navtasks.get(tid) or {}).get("url") or ""))
             except Exception:  # noqa: BLE001
                 pass

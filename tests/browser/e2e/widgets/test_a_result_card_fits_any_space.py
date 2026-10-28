@@ -78,7 +78,8 @@ _MEASURE = """(id) => {
   const firstRow = Object.values(rows)[0] || [];
   const lh = parseFloat(getComputedStyle(host.querySelector('.hr-card .hr-t')).lineHeight);
   return {
-    hostW: host.clientWidth, scrollW: host.scrollWidth,
+    // the GRID, not the host: the panel reaches into the host's gutter on purpose (V2-821, `.hr-panel` margins)
+    hostW: host.querySelector('.hr-grid').clientWidth, scrollW: host.querySelector('.hr-grid').scrollWidth,
     overflow: cards.some(c => c.getBoundingClientRect().right > host.getBoundingClientRect().right + 1),
     cols: firstRow.length,
     lh,

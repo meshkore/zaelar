@@ -164,10 +164,33 @@ export const CSS = `
     .hb-results .hr-card.split .hr-shot{aspect-ratio:16/10}
   }
   @container hrcard (max-width: 339px){
-    .hb-results .hr-card.split .hr-in{display:flex;flex-direction:column}
+    .hb-results .hr-card.split .hr-in,.hb-results .hr-card.k-video .hr-in{display:flex;flex-direction:column}
     .hb-results .hr-card.split .hr-shot{aspect-ratio:16/10}
   }
   .hb-results .hr-card.gallery .hr-shot{aspect-ratio:4/3}
+  /* A wide image measured on load (a brand's logo strip) sits inset in its plate, never blown up (V2-831). */
+  .hb-results .hr-shot.logo img{inset:24% 12%}
+
+  /* ── ITEM TEMPLATES (V2-831) ── what ONE card is, inside the list's layout ('itemKind'). An OFFER leads with
+     its price and has no plate; a VIDEO keeps its 16:9 thumbnail beside its text in every layout; a LINK shows
+     the site (icon + host) over a snippet. None of them ever paints a monogram plate. */
+  .hb-results .hr-card .hr-site{display:flex;align-items:center;gap:var(--s2);min-width:0}
+  .hb-results .hr-card .hr-logo{display:block;height:var(--sp-5,24px);max-width:60%;object-fit:contain;object-position:left center}
+  .hb-results .hr-card .hr-logo.sq{height:var(--hb-ctl-h-sm,32px);width:var(--hb-ctl-h-sm,32px);border-radius:var(--hb-r-s,8px)}
+  .hb-results .hr-card .hr-fav{position:relative;flex:none;display:grid;place-items:center;overflow:hidden;
+    width:var(--sp-4,16px);height:var(--sp-4,16px);border-radius:var(--sp-1,4px);
+    background:color-mix(in srgb,var(--hb-ink,#0d1622) 8%,var(--hb-bg-soft,#f4f6fa))}
+  .hb-results .hr-card .hr-fav svg{width:75%;height:75%;color:var(--hb-muted,#5f6b7c)}
+  .hb-results .hr-card .hr-fav img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}
+  .hb-results .hr-card .hr-host{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    font-size:var(--f-sm);color:var(--hb-muted-2,#9aa7b8)}
+  .hb-results .hr-card .hr-bigprice{font-size:var(--f-xl);font-weight:750;letter-spacing:-.02em;line-height:1.1;
+    font-variant-numeric:tabular-nums;color:var(--hb-ink,#0d1622);
+    white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  .hb-results .hr-card.k-video .hr-in{display:grid;grid-template-columns:minmax(calc(4 * var(--sp-6,32px)),42%) minmax(0,1fr);
+    align-items:start}
+  .hb-results .hr-card.k-video .hr-thumb{aspect-ratio:16/9}
+  .hb-results .hr-card.k-video .hr-thumb img{object-fit:cover}
 
   /* ── TEXT ── clamped to its lines, whole on expand. The clamp lives on a plain child ('.hr-cl'): a clamp
      declared on a flex item is dropped (the 2026-09 «four-line title» trap). */

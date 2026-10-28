@@ -3,19 +3,13 @@
 
 import { elem, tt } from "./shared.js";
 
-// ── installation and session identifiers ─────────────────────────────────────────────────────────────────────
-// They RIDE THE PAYLOAD now (`data.identity`, filled by data.py): the widget contract bans network in widget.js,
-// and this fetch was the violation that kept `make test-widgets` permanently red — under which a NEW violation in
-// any widget was invisible (V2-601 T-10). Same visible behavior: no identity → the strip removes itself.
-
+// Installation and session ids RIDE THE PAYLOAD (`data.identity`): widget.js may not fetch (V2-601 T-10).
 export function shortId(id){
   id = String(id||"");
   return id.length > 13 ? id.slice(0,8) + "…" : (id || "—");
 }
 
-// Identity strip: User · Session · Copy (bottom of the Summary tab since V2-538). The button copies BOTH FULL ids, in a format a code agent understands at a
-// glance. It is painted immediately (with "...") and filled when fetch returns; if there is no identity (endpoint
-// down), the strip removes itself instead of leaving an empty gap.
+// Identity strip (bottom of Summary, V2-538): the button copies BOTH full ids; no identity → no strip.
 export function identityStrip(id){
   id = (id && (id.user_id || id.session_id)) ? id : null;
   if(!id) return document.createDocumentFragment();     // no identity in the payload → no strip (as before)
@@ -67,7 +61,49 @@ export function photoPlate(url, alt){
   const img=photo(url, alt, "");
   // V2-797 — a dead photo keeps its plate AND says what it is: an empty light box read as a broken card.
   img.addEventListener("error",()=>{ box.classList.add("none"); if(!box.querySelector(".hr-mono")) box.appendChild(monogram(alt)); });
+  // V2-831 — a WIDE image (a brand's logo strip, «icon_wide/…/skyshowtime») is not a photo: measured on load, it
+  // sits inset in the plate as a logo instead of being blown up to the plate's width.
+  img.addEventListener("load",()=>{ if(isWide(img)) box.classList.add("logo"); });
   box.appendChild(img);
+  return box;
+}
+
+// A logo, not a photo: at least two and a half times as wide as it is tall (V2-831). Measured, never named.
+export function isWide(img){
+  return !!(img && img.naturalWidth && img.naturalHeight && img.naturalWidth >= 2.5 * img.naturalHeight);
+}
+
+// ── ITEM TEMPLATES (V2-831): ONE card drawn by what it is — `offer` (name, big price, ≤2 chips, a logo at most, never
+// a plate), `video` (16:9 thumbnail beside its text), `link` (site icon + host over a snippet). DECLARED in one word
+// (`kind` on the item or list); in a rows list inferred from the FIELDS. A photo layout infers nothing (V2-797 plates).
+export const ITEM_KINDS = ["offer", "video", "link"];
+
+export function itemKind(it, listKind, layout){
+  it = it || {};
+  const own = String(it.kind || "").trim().toLowerCase();
+  if(ITEM_KINDS.includes(own)) return own;
+  const k = String(listKind || "").trim().toLowerCase();
+  if(ITEM_KINDS.includes(k)) return k;
+  if(layout !== "rows" || (it.parts||[]).length || (it.blocks||[]).length) return "";
+  if(it.price) return "offer";
+  if(it.url && !it.score) return "link";
+  return "";
+}
+
+// The site's own icon, over the shell's LINK icon (`frontend/app/lib/icons.js` LINK_ICON, copied: widget.js cannot
+// import from frontend/app): a dead icon leaves the shared link mark, never an empty square.
+const LINK_PATHS = ["M9 17H7A5 5 0 0 1 7 7h2", "M15 7h2a5 5 0 1 1 0 10h-2", "M8 12h8"];
+function linkIcon(){
+  const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
+  for(const [k, v] of [["viewBox","0 0 24 24"],["fill","none"],["stroke","currentColor"],["stroke-width","2"],
+                       ["stroke-linecap","round"],["stroke-linejoin","round"],["aria-hidden","true"]]) svg.setAttribute(k, v);
+  LINK_PATHS.forEach(d => { const p = document.createElementNS(NS, "path"); p.setAttribute("d", d); svg.appendChild(p); });
+  return svg;
+}
+export function favicon(host){
+  const box = elem("span","hr-fav");
+  box.appendChild(linkIcon());
+  if(host){ const img = photo("https://" + host + "/favicon.ico", "", ""); box.appendChild(img); }
   return box;
 }
 
@@ -135,21 +171,11 @@ export function sourceLink(url, {wide=false}={}){
   return a;
 }
 
-// ── WHICH of the four list layouts ──────────────────────────────────────────────────────────────────────────
-// The surface decides, from the SHAPE of what it was given — `widgets/presentation.py` rule 1, which exists
-// because a guessed `columns:2` from outside once left three rich cards with an orphan. The sheet may declare
-// WHAT KIND OF THING it found (`kind`), which is content, not layout: saying "these are products" is a fact
-// about the results; saying "draw them in two columns" is a decision that belongs here.
+// ── WHICH of the four list layouts: decided from the SHAPE of the items; `kind` (what they ARE) is content.
 export const LAYOUTS = ["split", "gallery", "rows", "compare"];
 
-// ── THE TEMPLATES THE WORKER MAY ASK FOR (V2-703) ───────────────────────────────────────────────────────────
-// «tenemos varias que le ofrecemos al Brainworker para que elija la más adecuada para cada lista de resultados».
-//
-// This REVERSES presentation.py's rule 1 («the surface owns the layout»), by his explicit decision. The reason
-// the rule existed is still true, so it survives as a GUARD rather than as a veto: the worker names one of four
-// presets — never geometry, never a size — and an impossible choice falls back instead of breaking the screen.
-// The names are the worker's vocabulary; the classes below are the drawing. Keeping them separate is what lets
-// the sheet keep saying `card` the day the drawing changes.
+// ── THE TEMPLATES THE WORKER MAY ASK FOR (V2-703) — by the operator's decision the worker names one of these
+// presets (never geometry); an impossible choice falls back instead of breaking the screen.
 export const TEMPLATES = {card: "split", tile: "gallery", row: "rows", list: "rows", compare: "compare",
                    // the internal names are accepted too: sheets written before this vocabulary existed
                    split: "split", gallery: "gallery", rows: "rows"};
@@ -160,7 +186,12 @@ export function askedLayout(layout){
 
 export function layoutFor(items, kind, layout){
   const arr = Array.isArray(items) ? items.filter(Boolean) : [];
-  const withImg = arr.filter(it => it.image || (it.images||[]).length).length;
+  // V2-831 — A PHOTO LAYOUT NEEDS MOST OF THE LIST TO HAVE A PHOTO. It used to need ONE: a single wide logo among
+  // thirteen rows flipped the whole list to plates, and twelve of them painted a monogram. Rows that declare
+  // themselves an offer or a link carry no photo by template, so they do not vote for one.
+  const photos = arr.filter(it => (it.image || (it.images||[]).length)
+                                  && !["offer", "link"].includes(String(it.kind || "").trim().toLowerCase())).length;
+  const withImg = photos * 2 > arr.length;
   // WHAT THE WORKER ASKED FOR, if it can be honoured. A photo template over a list with no photos would draw a
   // column of empty plates, so it falls to the dense one — and `makeCard` degrades per-card too, because one
   // result missing its photo must not drag the other nine out of formation.
@@ -172,7 +203,8 @@ export function layoutFor(items, kind, layout){
   if(arr.some(it => (it.parts||[]).length)) return "compare";
   const k = String(kind||"").trim().toLowerCase();
   if(k === "plan") return "compare";
-  if(!withImg) return "rows";                       // nothing to show: a photo column of empty plates is worse
+  if(ITEM_KINDS.includes(k)) return "rows";        // offers, videos and links draw their own picture, if any
+  if(!withImg) return "rows";                       // a photo column of mostly empty plates is worse than none
   if(k === "document" || k === "link") return "rows";
   if(k === "place" || k === "media" || k === "photo") return "gallery";
   // A DECLARED product list is photo-left even when this particular batch came back thin: what a result is does

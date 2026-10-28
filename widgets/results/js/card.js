@@ -2,15 +2,11 @@
 // Moved verbatim out of widget.js (refactor2710-12); widget.js stays the entry exporting `render`.
 
 import { factsTable, renderBlocks, scoreBlock, scoreTag } from "./blocks.js";
-import { LAYOUTS, expandable, metaChips, photoPlate, sourceLink } from "./parts.js";
+import { LAYOUTS, expandable, favicon, hostOf, isWide, itemKind, metaChips, photo, photoPlate, sourceLink } from "./parts.js";
 import { elem, tt } from "./shared.js";
 
-// ── column distribution: decided by REAL WIDTH, not a guessed parameter ──────────────────────────────────────
-// The sheet used to have a fixed 620px width and the number of columns was eyeballed from content shape. Now the card
-// is resizable (and can go fullscreen), so available width rules: each column has a MINIMUM based on how rich the card
-// is and there is a column CAP so maximizing does not create eight confetti columns. Expressed in pure CSS
-// (`auto-fill` + `minmax` with a 100%/cap floor), so it reflows by itself when dragging the corner — without measuring
-// anything from JS or listening to resizes.
+// ── column distribution: by REAL WIDTH — a per-layout MINIMUM and a column CAP, in pure CSS (`auto-fill` +
+// `minmax`), so it reflows by itself when the card is resized or maximised.
 export function gridStyle(items, cap, layout){
   const rich = items.some(it => it && (
     (it.parts && it.parts.length) ||
@@ -20,50 +16,54 @@ export function gridStyle(items, cap, layout){
     (it.lines && it.lines.length > 4)
   ));
   const medium = !rich && items.some(it => it && ((it.lines && it.lines.length) || it.image || it.facts));
-  // ⚠️ A PHOTO TEMPLATE'S FLOOR COMES FROM THE TEMPLATE, NOT FROM THE DATA (V2-703). The `rich`/`medium`
-  // heuristic above counts `facts`, `blocks` and `images` — none of which the list card draws any more, so
-  // asking it how wide a card needs to be is asking about a card that is not on screen. It is the same defect
-  // V2-702 fixed one level down (a box whose aspect came from anything but its content) and it is why his pot,
-  // carrying seven facts, was sized as if all seven were being painted. The floors below are the width at which
-  // a plate plus a two-line title still reads; the heuristic survives only for `rows`, which really does draw
-  // whatever text it is given.
+  // A PHOTO TEMPLATE'S FLOOR COMES FROM THE TEMPLATE, NOT FROM THE DATA (V2-703): the list card no longer draws the
+  // facts the heuristic counts, so it only sizes `rows`.
   const min = layout === "split" ? 300 : layout === "gallery" ? 220 : rich ? 400 : medium ? 300 : 230;
   let maxCols = layout === "split" ? 4 : layout === "gallery" ? 5 : rich ? 2 : medium ? 3 : 4;
   const n = Number(cap);
   if(Number.isFinite(n) && n >= 1) maxCols = Math.min(maxCols, Math.floor(n));
   maxCols = Math.max(1, maxCols);
-  // The GAP comes from the SAME variable that paints it (`--s3`), not from a copied number here. Having it twice cost
-  // one column: when the grid rose from 12 to 14px, this calculation kept subtracting 12, so each track floor was 2px
-  // above what truly fit and `auto-fill` dropped from two columns to ONE on a 1,420px sheet. A two-pixel mismatch that
-  // appears as "maximize no longer uses the width".
+  // The GAP comes from the SAME variable that paints it (`--s3`): a copied 12px once dropped a column at 1,420px.
   const floor = `calc((100% - ${maxCols - 1} * var(--s3)) / ${maxCols})`;
   return `repeat(auto-fill,minmax(max(min(100%,${min}px),${floor}),1fr))`;
 }
 
 // ── one card ────────────────────────────────────────────────────────────────────────────────────────────────
-export function makeCard(it, isPrimary, choose, ctx, layout, nav){
+export function makeCard(it, isPrimary, choose, ctx, layout, nav, listKind){
   const parts = Array.isArray(it.parts) ? it.parts : [];
   const blocks = Array.isArray(it.blocks) ? it.blocks : [];
   const hasDetail = parts.length || blocks.length || it.score
                     || (Array.isArray(it.images) && it.images.length)
                     || (Array.isArray(it.facts) && it.facts.length);
-  // A composite card owns interactive children (per-piece links, "ver detalle") so it can't be an <a> — nesting
-  // links/buttons inside an anchor is invalid and swallows their clicks into the outer navigation. When it cannot
-  // be a link, the url is NOT dropped: it goes to the footer as an explicit control (see `sourceLink`).
+  // A composite card owns interactive children, so it can't be an <a>; its url goes to the footer (`sourceLink`).
   const asLink = it.url && !hasDetail;
   const card = document.createElement(asLink ? "a" : "div");
-  // ONE template (V2-797): the list's layout decides whether there is a plate, and EVERY card of a photo layout
-  // gets one — a missing photo becomes a monogram plate instead of a card of another shape, so the row keeps
-  // its formation. (It used to fall back to `rows` per card: split grids of mixed shapes.)
+  // ONE template per layout (V2-797): in a photo layout every card has a plate, a monogram when the photo is missing.
   const lay = LAYOUTS.includes(layout) ? layout : "rows";
   const photoLayout = lay === "split" || lay === "gallery";
-  card.className = "hr-card " + lay + (isPrimary ? " primary" : "");
+  // V2-831 — the ITEM's template, inside the list's layout (see `itemKind`): an offer or a link has no plate, a
+  // video has its 16:9 thumbnail in every layout.
+  const ik = itemKind(it, listKind, lay);
+  const pic = it.image || (Array.isArray(it.images) ? it.images[0] : "");
+  card.className = "hr-card " + lay + (ik ? " k-" + ik : "") + (isPrimary ? " primary" : "");
   if(asLink){ card.href = it.url; card.target = "_blank"; card.rel = "noopener noreferrer"; }
   const inner = elem("div","hr-in");
-  if(photoLayout) inner.appendChild(photoPlate(it.image || (Array.isArray(it.images) ? it.images[0] : ""), it.title));
+  if(ik === "video"){ const th = photoPlate(pic, it.title); th.classList.add("hr-thumb"); inner.appendChild(th); }
+  else if(photoLayout && !ik) inner.appendChild(photoPlate(pic, it.title));
   const body = elem("div","hr-body");
   // TITLE and SUBTITLE: whole in the data, clamped on screen, whole again on «Ver todo» and in the hover title.
   const txt = elem("div","hr-txt");
+  // The SITE row of an offer or a link: the brand's logo (an offer's image is its seller's mark, never a photo
+  // plate) or the page's icon and host.
+  if(ik === "offer" && pic){
+    const site = elem("div","hr-site"); const logo = photo(pic, "", "hr-logo");
+    logo.addEventListener("load", ()=>{ if(!isWide(logo)) logo.classList.add("sq"); });
+    site.appendChild(logo); txt.appendChild(site);
+  } else if(ik === "link"){
+    const host = hostOf(it.url);
+    const site = elem("div","hr-site"); site.append(favicon(host), elem("span","hr-host", host));
+    txt.appendChild(site);
+  }
   const tEl = elem("div","hr-t"); tEl.appendChild(elem("div","hr-cl", it.title || ""));
   tEl.title = it.full_title || it.title || "";
   txt.appendChild(tEl);
@@ -71,12 +71,13 @@ export function makeCard(it, isPrimary, choose, ctx, layout, nav){
                    sEl.title = it.subtitle; txt.appendChild(sEl); }
   body.appendChild(txt);
   expandable(card, txt);
+  if(ik === "offer" && it.price){ const bp = elem("div","hr-bigprice", it.price); bp.title = it.price; body.appendChild(bp); }
   // META: the rating, the badge that says why it leads, and the declared chips — one row that wraps, each chip
   // one line. The badge QUALIFIES the result, so it sits with the data, never beside the button.
   const meta = elem("div","hr-metarow");
   const sc = scoreTag(it.score); if(sc) meta.appendChild(sc);
   if(it.badge) meta.appendChild(elem("span","hr-badge", it.badge));
-  metaChips(it).forEach(c => meta.appendChild(c));
+  metaChips(it).slice(0, ik === "offer" ? 2 : 4).forEach(c => meta.appendChild(c));
   if(meta.childElementCount) body.appendChild(meta);
   // 80 lines (data.py's cap) so a full block of text — e.g. a song's lyrics — fits in one item's body, not just
   // a handful of spec-sheet bullets (2026-08-03). In the list they are bounded: the full block belongs to the
@@ -104,27 +105,17 @@ export function makeCard(it, isPrimary, choose, ctx, layout, nav){
 
   // ── the footer: open the record, and open the ORIGINAL page ──
   const foot = elem("div","hr-foot");
-  if(it.price){ const pr = elem("div","hr-price", it.price); pr.title = it.price; foot.appendChild(pr); }
+  if(it.price && ik !== "offer"){ const pr = elem("div","hr-price", it.price); pr.title = it.price; foot.appendChild(pr); }
   if(hasDetail && ctx){
     const btn=elem("button","hr-more",tt("see_detail", null, "Ver detalle →")); btn.type="button";
-    // NAVIGATE FIRST, PERSIST AFTER. This button used to do only the second half: it posted `detail` and waited
-    // for the server to push the new state back over SSE. The post landed (the sheet on disk says
-    // `view:"detail"`) and the screen never moved, because the push carried the STORAGE id (`results--7aadbb-1`)
-    // and the canvas indexes its cards by the CANVAS id (`results::7aadbb-1`) — so `refreshData` looked up a
-    // window that does not exist and returned. The operator read it as «el botón de ver los detalles no
-    // funciona», which is exactly what a working button looks like when nothing repaints.
-    // That id is fixed in `widgets/store.py`. This is the other half, and the one that makes the button
-    // independent of it: the tabs above have painted locally and persisted afterwards since V2-538 («the tab
-    // cannot blink while waiting for the server»), and opening a record is the same gesture. The item is
-    // already on screen, so there is nothing to fetch to draw it.
+    // NAVIGATE FIRST, PERSIST AFTER: the item is already on screen, so the record paints locally (like the tabs,
+    // V2-538) and the `detail` post only stores it — waiting on the SSE push once left a dead-looking button.
     btn.addEventListener("click", async (e)=>{ e.preventDefault(); e.stopPropagation();
       if(nav) nav("detail", it.title || "");
       btn.disabled=true;
       const r = await ctx.action("detail", { title: it.title || "" });
       btn.disabled=false;
-      // A REFUSED action has to SHOW — but it no longer un-navigates. The record IS painted and correct; what
-      // failed is storing that the operator is looking at it, so the brain's copy and a reload would disagree.
-      // Saying that is honest; snatching the page back would not be.
+      // A refused action SHOWS, but never un-navigates: the record is right, only storing the view failed.
       if(!r || r.ok===false){
         const why = (r && r.error) ? String(r.error) : tt("engine_silent", null, "el motor no respondió a la acción");
         if(nav) nav("detail", it.title || "", why);
@@ -134,14 +125,8 @@ export function makeCard(it, isPrimary, choose, ctx, layout, nav){
     });
     foot.appendChild(btn);
   }
-  // ⚠️ THE OUTBOUND LINK IS THE RECORD'S, NOT THE LIST'S (V2-703). «El botón de ver en Amazon es el que aparece
-  // en la ficha. […] Ni siquiera el botón de ver en Amazon en la propia lista de resultados.» A list row offers
-  // ONE way forward — open the record — and the record is where every door out of it lives.
-  //
-  // The exception is not an exception to that: a result with no record to open has nowhere else to put its link,
-  // and there the whole card is already the anchor (`asLink`). So the rule is exactly «when there is a detail
-  // button, there is no second button», and a result can never end up with no way out at all (V2-702's defect,
-  // which this must not reintroduce).
+  // THE OUTBOUND LINK IS THE RECORD'S (V2-703): a row with a record offers one way forward; a row without one is
+  // the anchor itself, or carries the link here — never a result with no way out.
   if(!asLink && !hasDetail){ const src = sourceLink(it.url); if(src) foot.appendChild(src); }
   if(foot.childElementCount) body.appendChild(foot);
 
