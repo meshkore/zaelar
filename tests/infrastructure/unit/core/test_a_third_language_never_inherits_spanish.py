@@ -67,7 +67,7 @@ def _blocked_channel():
 
 SURFACES = [
     (_music_seam, "I don't have a music account", "No tengo ninguna cuenta de música"),
-    (_youtube_audio, "Now playing X.", "Suena X."),
+    (_youtube_audio, "Now playing «X».", "Suena «X»."),
     (_spotify, "Connect your Spotify account first", "Necesito que conectes tu cuenta de Spotify"),
     (_planner, "{n} tasks planned", "{n} tareas planificadas"),
     (_recur, "every Mondays and Tuesdays (no end date)", "todos los lunes y martes (sin fecha de fin)"),

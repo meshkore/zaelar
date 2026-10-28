@@ -402,7 +402,8 @@
   "ask_more": "I couldn't pin down that song. Can you give me the artist or a few more words from the lyrics?",
   "audio_blocked": "The music is loaded but silent: this screen's browser will not let it play without a tap. Tap the music card once and you'll hear it.",
   "youtube": {
-   "play": "Now playing {label}.",
+   "play": "Now playing «{label}».",
+   "play_untitled": "The music is playing.",
    "pause": "Paused.",
    "resume": "Resuming.",
    "volume": "Volume at {n} percent.",
@@ -410,13 +411,13 @@
    "done": "Done.",
    "no_next": "Nothing else queued; tell me what to play.",
    "no_prev": "There is no previous track to go back to.",
-   "already": "{label} is already playing.",
-   "queued": "Got it, I'll play {label} next.",
+   "already": "«{label}» is already playing.",
+   "queued": "Got it, I'll play «{label}» next.",
    "seek": "There you go.",
    "seek_to": "At {t}."
   },
   "spotify": {
-   "play": "Now playing {label}.",
+   "play": "Now playing «{label}».",
    "resume": "Resuming.",
    "pause": "Paused.",
    "next": "Next track.",
@@ -430,9 +431,9 @@
    "error": "Spotify didn't respond just now.",
    "no_next": "There's nothing after this song in what's playing; tell me what to put on.",
    "no_prev": "There's no earlier song in what's playing.",
-   "play_on": "Now playing {label} on \"{device}\".",
+   "play_on": "Now playing «{label}» on \"{device}\".",
    "not_sounding": "I sent the music to \"{device}\", but it is not playing there.",
-   "already_on": "{label} is already playing on \"{device}\"."
+   "already_on": "«{label}» is already playing on \"{device}\"."
   }
  },
  "agenda": {
