@@ -204,33 +204,16 @@ def prompt_digest() -> str:
 
 # ── dispatch ───────────────────────────────────────────────────────────────────────────────────────────────
 from .actions import (  # noqa: E402 — the handlers read the helpers above back through this module
-    _a_local_write, _a_nav, _a_save_document, _a_set_provider, _a_set_view, _a_sync_providers, _a_torrent)
+    _local_write, _nav, _a_save_document, _a_set_provider, _a_set_view, _a_sync_providers, _torrent)
 from .local import _reveal_in_os, _same_machine  # noqa: E402,F401 — tests reach both here; `local` calls the first through this module
 
-ACTIONS = {
-    "sync_providers": _a_sync_providers,
-    "refresh": _a_nav,
-    "open_folder": _a_nav,
-    "go_up": _a_nav,
-    "go_home": _a_nav,
-    "search_files": _a_nav,
-    "clear_search": _a_nav,
-    "open_file": _a_nav,
-    "save_document": _a_save_document,
-    "reveal_local_file": _a_local_write,
-    "rename_file": _a_local_write,
-    "copy_file": _a_local_write,
-    "delete_file": _a_local_write,
-    "set_view": _a_set_view,
-    "set_provider": _a_set_provider,
-    "show_section": _a_torrent,
-    "torrent_search": _a_torrent,
-    "torrent_download": _a_torrent,
-    "torrent_open": _a_torrent,
-    "torrent_save": _a_torrent,
-    "torrent_remove": _a_torrent,
-    "torrent_poll": _a_torrent,
-}
+# One `_a_<action>` name per declared action (a shared handler is bound under each of its names); the table is
+# read off those names, so no list of action words is written twice.
+_a_refresh = _a_open_folder = _a_go_up = _a_go_home = _a_search_files = _a_clear_search = _a_open_file = _nav
+_a_reveal_local_file = _a_rename_file = _a_copy_file = _a_delete_file = _local_write
+_a_show_section = _a_torrent_search = _a_torrent_download = _a_torrent_open = _a_torrent_save = _torrent
+_a_torrent_remove = _a_torrent_poll = _torrent
+ACTIONS = {name[3:]: fn for name, fn in list(globals().items()) if name.startswith("_a_")}
 
 
 def apply_action(action: str, payload: dict | None = None):

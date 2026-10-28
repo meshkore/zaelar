@@ -121,12 +121,14 @@ _FILES = [
 
 # ── the contract with the brain ────────────────────────────────────────────────────────────────────────────
 def test_every_declared_action_is_handled_and_every_handled_one_is_declared():
-    # V2-764: the Torrents section's verbs live in `torrents.py` — the same widget, one more file.
-    src = (_WIDGET / "data.py").read_text(encoding="utf-8") + (_WIDGET / "torrents.py").read_text(encoding="utf-8")
-    handled = set(re.findall(r'act == "([a-z_]+)"', src))
-    for grp in re.findall(r"act in \(([^)]*)\)", src):
-        handled |= {x.strip().strip('"') for x in grp.split(",") if x.strip()}
-    assert set(_manifest()["actions"]) == handled
+    """Read at the door, not in the source: the dispatch table `apply_action` consults, and the catalog gate that
+    holds every widget to «declared == handled» (refactor2710-12 — the table is read off the `_a_<action>` names)."""
+    from widgets import validator
+    data = importlib.import_module("widgets.archivos.data")
+    assert set(_manifest()["actions"]) == set(data.ACTIONS)
+    assert all(callable(h) for h in data.ACTIONS.values())
+    assert validator._validate_actions_sync(_manifest(), (_WIDGET / "data.py").read_text(encoding="utf-8"),
+                                            str(_WIDGET)) is None
 
 
 def test_the_actions_that_NAVIGATE_are_view_actions():

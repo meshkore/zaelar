@@ -25,7 +25,7 @@ def _begin(act: str) -> dict:
     return db
 
 
-def _a_torrent(act: str, payload: dict) -> dict:
+def _torrent(act: str, payload: dict) -> dict:
     # V2-764 — the Torrents section (and the section switch itself) live in `torrents.py`.
     db = _d._load()
     res = _tor.handle(db, act, payload)
@@ -80,7 +80,7 @@ def _a_set_provider(act: str, payload: dict) -> dict:
     return {"ok": True, "provider": want, "count": len(db["entries"])}
 
 
-def _a_local_write(act: str, payload: dict) -> dict:
+def _local_write(act: str, payload: dict) -> dict:
     db = _begin(act)
     provider = db.get("provider") or "local"
     if provider != "local":
@@ -96,7 +96,7 @@ def _a_save_document(act: str, payload: dict) -> dict:
     return _save_document(_begin(act), payload)
 
 
-def _a_nav(act: str, payload: dict) -> dict:
+def _nav(act: str, payload: dict) -> dict:
     db = _begin(act)
     if (db.get("provider") or "local") == "local":
         return _handle_local_nav(db, act, payload)

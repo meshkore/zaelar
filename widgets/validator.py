@@ -326,17 +326,38 @@ def _table_actions(fn, tree) -> set[str]:
     V2-778 F1-12 turns the widgets' if-chains into this table, and without reading it the gate would have
     fail-opened on every converted widget — the contract check switched off without a sound. Only a dict
     literal whose every key is a string, and only when `apply_action` names `ACTIONS`: anything else is not
-    a dispatch this gate knows, and stays not counted."""
+    a dispatch this gate knows, and stays not counted.
+
+    The table may also be READ OFF the module's `_a_<action>` names (`ACTIONS = {n[3:]: f for n, f in
+    globals().items() if n.startswith("_a_")}`, refactor2710-12): then the handled actions are those names, bound
+    at module level by a `def`, an assignment or an import."""
     import ast
     if not any(isinstance(n, ast.Name) and n.id == "ACTIONS" for n in ast.walk(fn)):
         return set()
     for node in getattr(tree, "body", []):
-        if (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id == "ACTIONS" and isinstance(node.value, ast.Dict)
-                and node.value.keys and all(isinstance(k, ast.Constant) and isinstance(k.value, str)
-                                            for k in node.value.keys)):
+        if not (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "ACTIONS"):
+            continue
+        if (isinstance(node.value, ast.Dict) and node.value.keys
+                and all(isinstance(k, ast.Constant) and isinstance(k.value, str) for k in node.value.keys)):
             return {k.value for k in node.value.keys}
+        if isinstance(node.value, ast.DictComp):
+            return {name[3:] for name in _bound_names(tree) if name.startswith("_a_")}
     return set()
+
+
+def _bound_names(tree) -> set[str]:
+    """Every name bound at module level: `def`, assignment targets (chained ones too) and imports."""
+    import ast
+    out = set()
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef):
+            out.add(node.name)
+        elif isinstance(node, ast.Assign):
+            out |= {t.id for t in node.targets if isinstance(t, ast.Name)}
+        elif isinstance(node, ast.ImportFrom):
+            out |= {a.asname or a.name for a in node.names}
+    return out
 
 
 def _apply_action_names(src: str, wdir: str = "") -> set[str] | None:

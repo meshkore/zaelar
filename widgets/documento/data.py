@@ -207,13 +207,8 @@ def _stamp(db: dict) -> dict:
 from .actions import (  # noqa: E402 — the handlers read the helpers above back through this module
     _a_append, _a_clear, _a_goto, _a_save_to_library, _a_show)
 
-ACTIONS = {
-    "show": _a_show,
-    "append": _a_append,
-    "goto": _a_goto,
-    "clear": _a_clear,
-    "save_to_library": _a_save_to_library,
-}
+# The table is read off the `_a_<action>` names bound here, so no list of action words is written twice.
+ACTIONS = {name[3:]: fn for name, fn in list(globals().items()) if name.startswith("_a_")}
 
 
 def apply_action(action: str, payload: dict = None) -> dict:
