@@ -331,12 +331,10 @@ class OrchestratorLoop:
                     from nucleo import circuit as _circuit
                     _rec = dispatch.get_record(tid)
                     _v, _missing = _circuit.ending_note(_rec) if _rec is not None else ("", "")
-                    if _v == "met":
-                        note = " " + self._say("worker_end_state_met")
-                    elif _v == "unmet":
-                        note = " " + self._say("worker_end_state_unmet", missing=_missing[:160])
-                    elif _v == "unverifiable":
-                        note = " " + self._say("worker_end_state_unverifiable")
+                    from nucleo.circuit import verdict as _verdict
+                    _line = getattr(_verdict.of(_v), "line_key", "")      # each verdict declares its line
+                    if _line:
+                        note = " " + self._say(_line, missing=_missing[:160])
                 except Exception:  # noqa: BLE001
                     note = ""
                 await self._deliver("zaelar", self._say("worker_budget_killed", goal=goal) + note)

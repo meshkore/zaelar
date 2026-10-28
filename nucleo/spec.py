@@ -293,10 +293,15 @@ def gate_completion(brief, wid: str, action: str) -> str:
 SETTLED_S = 300.0                  # a met/unverifiable spec stays readable for five minutes (the pulse, the prompt)
 
 
+def _is_started(e: dict) -> bool:
+    from nucleo.circuit import verdict as _verdict
+    return _verdict.of(e.get("status")) is _verdict.STARTED     # what older rows stored as «open» included
+
+
 def _sweep(now: float) -> None:
     def keep(e: dict) -> bool:
         age = now - float(e.get("born") or 0)
-        return age < TTL_S if e.get("status") == "open" else (now - float(e.get("met_at") or e.get("born") or 0)) < SETTLED_S
+        return age < TTL_S if _is_started(e) else (now - float(e.get("met_at") or e.get("born") or 0)) < SETTLED_S
     _OPEN[:] = [e for e in _OPEN if keep(e)]
     del _OPEN[:-_MAX]
 
@@ -326,7 +331,7 @@ def open(done_when, *, text: str = "", source: str = "", widget: str = "", actio
     e = {"id": f"s{int(now * 1000) % 10_000_000}", "done_when": copy.deepcopy(done_when),
          "target": target_of(done_when), "text": str(text or "")[:300], "source": str(source or ""),
          "widget": str(widget or ""), "action": str(action or ""), "task_id": str(task_id or ""),
-         "trace": str(trace or ""), "born": now, "status": "open", "last": None, "checks": 0, "tries": 0}
+         "trace": str(trace or ""), "born": now, "status": "started", "last": None, "checks": 0, "tries": 0}
     _OPEN.append(e)
     del _OPEN[:-_MAX]
     if e["task_id"]:
@@ -338,12 +343,12 @@ def open(done_when, *, text: str = "", source: str = "", widget: str = "", actio
 def open_specs(now: float | None = None) -> list[dict]:
     """The end states still OWED (status open). `settled()` has the ones that just closed."""
     _sweep(time.time() if now is None else now)
-    return [e for e in _OPEN if e.get("status") == "open"]
+    return [e for e in _OPEN if _is_started(e)]
 
 
 def settled(now: float | None = None) -> list[dict]:
     _sweep(time.time() if now is None else now)
-    return [e for e in _OPEN if e.get("status") != "open"]
+    return [e for e in _OPEN if not _is_started(e)]
 
 
 def reset() -> None:

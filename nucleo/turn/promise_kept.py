@@ -46,7 +46,7 @@ CANNOT_TOOL = {
 }
 
 #: The pass's outcomes, as `outcome["kind"]` records them.
-CALL, CANNOT, JUDGED, SWALLOWED, STARTED = "call", "cannot", "judged", "swallowed", "started"
+CALL, JUDGED, SWALLOWED, CANNOT, STARTED = "call", "judged", "swallowed", "cannot", "started"   # last two: verdicts
 
 
 def _base(wid) -> str:

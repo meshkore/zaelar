@@ -12,6 +12,7 @@ oferta de parar, que se hace UNA vez (V2-454).
 """
 from __future__ import annotations
 
+from nucleo.circuit import verdict as _verdict
 from nucleo.flash.errand_sheet import rows_of_sheet
 
 def _short_note(note: str, limit: int = 110) -> str:
@@ -242,8 +243,7 @@ RECENT_MAX = 6
 RECENT_MAX_CHARS = 700
 _STATE_WORD = {"running": "EN MARCHA", "pending": "EN COLA", "waiting": "ESPERA TU RESPUESTA",
                "done": "HECHA", "failed": "FALLÓ", "cancelled": "CANCELADA"}
-_VERDICT_WORD = {"met": "comprobado en pantalla", "unverifiable": "sin comprobar", "gave_up": "sin terminar",
-                 "unmet": "no se cumplió"}
+_VERDICT_WORD = {"met": "comprobado en pantalla", "unverifiable": "sin comprobar", "unmet": "no se cumplió"}
 
 
 def _ago(secs: float) -> str:
@@ -297,7 +297,7 @@ def recent_lines(now: float | None = None) -> list[str]:
         name = _short_note(str(r.get("title") or r.get("goal") or "una petición"), 70)
         st = str(r.get("state") or "")
         bit = f"«{name}» · {_STATE_WORD.get(st, st)}"
-        if (v := _VERDICT_WORD.get(str(r.get("verdict") or ""))):
+        if (v := _VERDICT_WORD.get(getattr(_verdict.of(r.get("verdict")), "name", ""))):   # older rows: «gave_up»
             bit += f" ({v})"
         when = float(r.get("finished_at") or r.get("started_at") or r.get("created_at") or now)
         bit += f" · {_ago(now - when)}"

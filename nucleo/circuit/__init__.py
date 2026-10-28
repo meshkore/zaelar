@@ -1,4 +1,4 @@
-"""nucleo/circuit.py — one loop, one bound, one report (V2-776 L3).
+"""nucleo/circuit/ — one loop, one bound, one report (V2-776 L3).
 
 ## What this replaces
 
@@ -17,7 +17,7 @@ The pulse re-verifies every open spec (`nucleo/spec.py`'s ledger — inline acti
 worker's ending is JUDGED here, not by its own word; the retry bound is explicit, its own, and the operator's
 to set (genesis `circuit.retries`, overridable per install); an ending that cannot be read is a verdict of its
 own («unverifiable») that the mouth says as such; and what the operator hears at the end is the VERDICT:
-«done» only over `met`, «what is missing» over `gave_up`.
+«done» only over `met`, «what is missing» over `unmet` (`verdict.py` declares each value once).
 
 The V2-660 rule is kept verbatim: `None` (unreadable) is never failure and never opens a retry. The cure for
 unreadable is a readable widget (L2), never a guess.
@@ -30,11 +30,12 @@ from pathlib import Path
 
 from loguru import logger
 
-_GENESIS = Path(__file__).resolve().parent / "genesis.json"
+from nucleo.circuit import verdict as _verdict
+
+_GENESIS = Path(__file__).resolve().parents[1] / "genesis.json"
 RETRIES_DEFAULT = 2                 # «hemos probado dos o tres veces, no somos capaces» — the operator, 2026-09-29
 CHECK_EVERY_S = 5.0                 # an open spec is read at most this often by the pulse
 INLINE_GRACE_S = 20.0               # an inline action's end state is owed within this; past it, unmet is the verdict
-VERDICTS = ("met", "undeclared", "unverifiable", "unmet", "retrying", "gave_up", "skipped")  # [:3] = delivered
 
 
 # ── the bound is the operator's ────────────────────────────────────────────────────────────────────────────
@@ -179,17 +180,20 @@ def _emit(rec, verdict: str, *, missing: str = "", tries: int = 0) -> None:
     try:
         from nucleo import verify as _verify
         from voice.observer import emit
-        emit("task", {"met": "✅ circuito: estado final CUMPLIDO y verificado",
-                      "retrying": "🔁 circuito: sin cumplir → relanzada con lo que falta",
-                      "gave_up": "❌ circuito: sin cumplir y sin más intentos — se dice lo que falta",
-                      "unverifiable": "🫥 circuito: no verificable — se entrega como NO comprobado",
-                      "undeclared": "🤷 circuito: sin condición declarada — no se afirma nada",
-                      "skipped": "⏭ circuito: no se juzga (cancelada o relevada)"}.get(verdict, verdict),
+        label = {"met": "✅ circuito: estado final CUMPLIDO y verificado",
+                 "started": "🔁 circuito: sin cumplir → relanzada con lo que falta",
+                 "unmet": "❌ circuito: sin cumplir y sin más intentos — se dice lo que falta",
+                 "unverifiable": "🫥 circuito: no verificable — se entrega como NO comprobado",
+                 "undeclared": "🤷 circuito: sin condición declarada — no se afirma nada",
+                 "skipped": "⏭ circuito: no se juzga (cancelada o relevada)"}.get(verdict, verdict)
+        emit("task", label,
              text=_verify.describe(getattr(rec, "done_when", None)) or str(getattr(rec, "goal", "") or "")[:120],
              extra={"id": getattr(rec, "task_id", ""), "uid": getattr(rec, "uid", ""), "verdict": verdict,
                     "tries": tries, "missing": missing[:300], "cat": "circuit"})
     except Exception:  # noqa: BLE001
         pass
+    _verdict.emit(_verdict.of(verdict) or _verdict.UNDECLARED, text=missing, trace=str(getattr(rec, "trace_id", "") or ""),
+                  uid=str(getattr(rec, "uid", "") or ""), tries=tries)
 
 
 def verdict_of(rec, now: float | None = None) -> tuple[str, str]:
@@ -265,7 +269,7 @@ def _close(rec, relay_cap: int) -> str:
                 rec.result_summary = ""            # no delivery: the relay takes it over, without noise
                 rec.ok = False
                 rec.handoff = f"objetivo sin cumplir → retomada ({missing[:80]})"
-                verdict = "retrying"
+                verdict = "started"                # a relaunch is a new start (tries ≥ 1)
                 if entry is not None:
                     entry["tries"] = tries + 1
                     _spec.persist(entry["task_id"], entry)
@@ -273,25 +277,25 @@ def _close(rec, relay_cap: int) -> str:
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"worker[{rec.task_id}]: no pude relanzar por objetivo: {e}")
                 rec.ok = False
-                verdict = "gave_up"
+                verdict = "unmet"
         else:
             # No budget left: the operator hears the TRUTH — an errand nobody could finish is never delivered
             # as a finished one, and what it DID achieve is not thrown away.
             rec.ok = False
             rec.result_summary = (f"No he podido dejarlo terminado. Queda: {missing}."
                                   + (f" {rec.result_summary.strip()}" if rec.result_summary.strip() else ""))
-            verdict = "gave_up"
+            verdict = "unmet"                      # no tries left: what was «gave_up» (tries_left = 0)
             # …and ONE question, once (the operator, 2026-09-29: «acabar de definir mejor la request… después de
             # cada iteración»): the relaunch is PARKED on his answer through the confirm-gate's own register, so
             # his «sí» — with whatever he adds — is what launches it, and silence lets it expire.
             if entry is not None:
-                entry["status"] = "gave_up"
+                entry["status"], entry["tries_left"] = "unmet", 0
                 if bool(settings().get("ask_on_give_up", True)) and not entry.get("asked"):
                     if _park_retry(rec, missing):
                         entry["asked"] = True
                         rec.result_summary += " " + RETRY_QUESTION
                 _spec.persist(entry["task_id"], entry)
-    elif verdict == "met" and entry is not None and entry.get("status") == "open":
+    elif verdict == "met" and entry is not None and entry.get("status") == "started":
         entry["status"], entry["met_at"] = "met", time.time()
         _spec.persist(entry["task_id"], entry)
     rec.verdict = verdict
@@ -327,21 +331,11 @@ def ending_note(rec, now: float | None = None) -> tuple[str, str]:
 
 # ── the mouth ──────────────────────────────────────────────────────────────────────────────────────────────
 
-OUTCOMES = {
-    "met": "It is done, and you checked the result yourself.",
-    "undeclared": "It is done.",
-    "unverifiable": "The work was done, but you could NOT check the result yourself — say so plainly: done, "
-                    "unverified. Never say it is done as a fact.",
-    "gave_up": "It could not be completed. Say what is missing; do not dress it up.",
-    "unmet": "It could not be completed. Say what is missing.",
-}
-
-
 def outcome_line(verdict: str, ok: bool) -> str:
     """The outcome sentence the spoken delivery is built on — the verdict's, never the worker's `ok`."""
-    v = str(verdict or "")
-    if v in OUTCOMES:
-        return OUTCOMES[v]
+    v = _verdict.of(verdict)
+    if v is not None and v.instruction:
+        return v.instruction
     return "It is done." if ok else "It could not be completed."
 
 

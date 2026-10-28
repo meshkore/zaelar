@@ -260,9 +260,16 @@ def closed(rec, *, outcome: str = "") -> None:
     _ts.task_patch(uid, state=state, finished_at=int(time.time()), outcome=said,
                    error_class=str(getattr(rec, "error_class", "") or "") if state == "failed" else "",
                    # V2-776 M3 — the circuit's verdict (`circuit.close` set it on the record), never the worker's word
-                   verdict=str(getattr(rec, "verdict", "") or ""))
+                   verdict=_ending_verdict(rec))
     kept_result(rec)
     remembered(rec, state=state, outcome=said)
+
+
+def _ending_verdict(rec) -> str:
+    """Only an ENDING reaches the row's verdict (a relaunch is a new start, not how this one ended)."""
+    from nucleo.circuit import verdict as _verdict
+    v = _verdict.of(getattr(rec, "verdict", ""))
+    return v.name if v is not None and v.ending else ""
 
 
 def kept_result(rec) -> None:
