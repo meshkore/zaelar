@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 3580
+TOTAL = 3554
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -73,7 +73,6 @@ PER_FILE: dict[str, int] = {
     'i18n/init/detect.py': 1,
     'i18n/langspec.py': 10,
     'memory/_prompt.py': 75,
-    'memory/api.py': 26,
     'memory/consolidator.py': 33,
     'memory/embeddings.py': 66,
     'memory/episodic.py': 1,

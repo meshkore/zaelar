@@ -34,7 +34,6 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 FILES = {
     'connectors/email/mailbox.py': 816,
     'connectors/meshkore/bridge.py': 891,
-    'memory/api.py': 891,
     'nucleo/dispatch.py': 919,
     'nucleo/energy_meter.py': 812,
     'nucleo/flash/fast_client.py': 866,

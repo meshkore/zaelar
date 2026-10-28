@@ -162,7 +162,7 @@ UNDECLARED_PUBLIC = {
 def _public_names() -> set[str]:
     return {n for n in dir(memapi)
             if not n.startswith("_") and (callable(getattr(memapi, n)) or n == "DEFAULT_BUDGET_TOKENS")
-            and getattr(getattr(memapi, n), "__module__", "memory.api") == "memory.api"}
+            and getattr(getattr(memapi, n), "__module__", "memory.api").startswith("memory.api")}
 
 
 def test_declared_surface_is_frozen():
