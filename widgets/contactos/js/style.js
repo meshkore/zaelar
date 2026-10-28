@@ -216,4 +216,5 @@ export const CSS = `
   .hb-contactos .ctdrow:hover .ctchx{opacity:1}
   .hb-contactos .ctpick{border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;padding:3px 7px;
     font-size:12.5px;background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);font-family:inherit;max-width:100%}
+  .hb-contactos .ctnote{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);margin-top:7px;line-height:1.45}
   `;
