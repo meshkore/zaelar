@@ -404,10 +404,31 @@
     0.9
    ]
   },
+  "widgets": {
+   "map": {
+    "places": [
+     {
+      "name": "Mount Wilson",
+      "lat": 34.2236,
+      "lon": -118.0614
+     },
+     {
+      "name": "Mount Baldy",
+      "lat": 34.2889,
+      "lon": -117.6464
+     },
+     {
+      "name": "Big Bear Lake",
+      "lat": 34.2439,
+      "lon": -116.9114
+     }
+    ]
+   }
+  },
   "expect": "data-op map:select",
   "forbid": [
    "worker"
   ],
-  "open": "V2-776 B1: a CLAIM of completion («I've highlighted…») with no call — the verb table misses it and the screen verdict live was 0.78, under the repair's 0.8 write floor"
+  "note": "Was open until refactor2710-99 seeded the map its recording assumed (empty, there was no second place to select): V2-776 B1: a CLAIM of completion («I've highlighted…») with no call — the verb table misses it and the screen verdict live was 0.78, under the repair's 0.8 write floor"
  }
 ]
