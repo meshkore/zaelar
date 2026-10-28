@@ -174,12 +174,20 @@ def steer_target() -> str:
         return ""
 
 
-def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict | None = None) -> str:
+def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict | None = None,
+          acted: dict | None = None, data_done: dict | None = None) -> str:
     """Relay his correction to the running errand on a sure `steer` the model did not address; the errand reached or
-    "". Runs BEFORE any repair pass, so a promise to tell the process is kept here. Never raises."""
+    "". Runs BEFORE any repair pass, so a promise to tell the process is kept here. Never raises.
+
+    `acted` / `data_done` are the turn's own acts: words a card already carried out («set the first one as my
+    background» → the wallpaper, «move it half an hour later» → the meeting) are not a correction of the errand that
+    happens to be running. Demo sandbox 2026-10-28: both were relayed to the monitor errand beside the act, the worker
+    stopped to ask «which meeting? which image?», and his next order was read as the answer to that question (C6
+    closed nothing). One sentence is one order: an act on a card consumes it."""
     try:
         words = " ".join(str(text or "").split())
-        target = steer_target() if (words and not worker_acted.get("v") and steers(brief)) else ""
+        consumed = bool((acted or {}).get("widget")) or bool((data_done or {}).get("v"))
+        target = steer_target() if (words and not worker_acted.get("v") and not consumed and steers(brief)) else ""
         if not target:
             return ""
         from nucleo import dispatch as _dispatch

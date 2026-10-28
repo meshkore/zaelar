@@ -289,3 +289,23 @@ def test_the_disarm_a_steer_that_does_not_relay_lets_the_promise_pass_open_the_c
 def test_the_question_offers_the_four_answers():
     assert set(sd.question("")["criteria"]) == {"stop", "stop_all", "replace", "steer", "keep"}
     assert [c for c in sd.CHOICES if sd.ends(c)] == ["stop", "stop_all", "replace"]
+
+
+# ── steer: words a card already carried out are not a correction of the errand (demo sandbox 2026-10-28) ──────
+@pytest.mark.parametrize("text", ["set the first one as my background", "actually move it half an hour later",
+                                  "pon la primera de fondo", "muévela media hora más tarde"])
+@pytest.mark.parametrize("consumed", [{"acted": {"widget": True}}, {"data_done": {"v": True}}])
+def test_an_order_a_card_carried_out_is_never_relayed_to_the_errand(text, consumed, one_errand):
+    """B2 and C4: the wallpaper was set, the meeting moved — and the same words went to the monitor errand as a
+    «steer»; the worker stopped to ask which image, which meeting, and his next order answered THAT. One sentence,
+    one order: the act on the card consumed it."""
+    acted = {"v": None}
+    assert sd.steer(_brief("steer"), text, worker_acted=acted, **consumed) == ""
+    assert one_errand["injected"] == [] and acted["v"] is None
+
+
+def test_a_steer_nothing_carried_out_still_reaches_the_errand(one_errand):
+    acted = {"v": None}
+    assert sd.steer(_brief("steer"), STEER_BANK[1], worker_acted=acted, acted={"widget": False},
+                    data_done={"v": False}) == "7"
+    assert one_errand["injected"]
