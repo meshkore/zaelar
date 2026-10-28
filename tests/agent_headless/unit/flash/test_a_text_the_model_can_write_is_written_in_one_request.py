@@ -70,7 +70,8 @@ def test_the_turn_hands_the_writing_off_and_spends_no_worker(monkeypatch):
 
 
 def _wire_run(monkeypatch, body: str):
-    from nucleo.flash import canvas_visibility, data_ops, escalate
+    from nucleo.flash import canvas_visibility, data_ops
+    from nucleo.acts import errand as escalate
     ops, escalated = [], []
 
     async def _compose(*a, **k):

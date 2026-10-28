@@ -135,7 +135,11 @@ def test_the_voice_backstop_reads_the_classifier_and_says_when_it_does_not_escal
     assert "queja sobre lo ya hecho" in src, "the timeline has to show WHY nothing escalated"
 
 
-def test_the_worker_gate_reads_it_too():
-    import inspect
-    from nucleo import dispatch
-    assert "danger.is_dangerous(req)" in _vts.getsource(dispatch)
+@pytest.mark.parametrize("text", MEASURED)
+def test_the_worker_gate_lets_a_complaint_through_and_still_stops_an_order(text):
+    """The worker gate's door (`errand.class_of` → `asks_first`, read by `dispatch._run_session`): with no class
+    verdict, a complaint about a past act is no danger and starts nothing that asks; a real order still asks."""
+    from nucleo.acts import errand
+    assert errand.class_of(None, text) == "none"
+    assert errand.asks_first(errand.class_of(None, text), confirmed=False) is False
+    assert errand.asks_first(errand.class_of(None, "delete my account"), confirmed=False) is True

@@ -22,7 +22,7 @@ def rig(monkeypatch):
 
     import search.listing as LS
     import widgets.results.data as sheet
-    import nucleo.flash.escalate as esc
+    import nucleo.acts.errand as esc
     import voice.observer as obs
 
     def fake_search(q):

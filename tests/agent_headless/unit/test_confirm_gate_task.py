@@ -53,7 +53,7 @@ def test_the_live_state_carries_it():
 
 def test_a_yes_re_dispatches_the_SAME_request_with_confirmed_set(monkeypatch):
     sent: list = []
-    from nucleo.flash import escalate as esc
+    from nucleo.acts import errand as esc
     monkeypatch.setattr(esc, "escalate_to_slowbrain",
                         lambda req, context=None: sent.append((req, dict(context or {}))) or 1)
     dispatch.remember_confirm("9", "cancela mi suscripción a Netflix", _Task(context={"src": "probe"}))
@@ -69,7 +69,7 @@ def test_a_yes_re_dispatches_the_SAME_request_with_confirmed_set(monkeypatch):
 
 def test_a_no_drops_it_and_launches_nothing(monkeypatch):
     sent: list = []
-    from nucleo.flash import escalate as esc
+    from nucleo.acts import errand as esc
     monkeypatch.setattr(esc, "escalate_to_slowbrain", lambda req, context=None: sent.append(req) or 1)
     dispatch.remember_confirm("9", "paga la factura de la luz", _Task())
     out = dispatch.resolve_confirm(False)

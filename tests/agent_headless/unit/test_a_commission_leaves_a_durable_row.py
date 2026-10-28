@@ -98,7 +98,7 @@ class _SlowBackend(WorkerBackend):
 async def _commission(monkeypatch, request: str, *, ok: bool = True, release: bool = True,
                       inspect_live=None, context: dict | None = None):
     """Drive the real listener through one commission. Returns the rows seen live and after the close."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     gate = asyncio.Event()
     holder: dict = {}
     monkeypatch.setattr(dispatch, "get_backend",

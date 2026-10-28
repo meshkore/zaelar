@@ -58,7 +58,7 @@ def errands(monkeypatch):
         "request": GAME, "kind": "code", "trusted": True, "context": {}, "sheet": "", "ts": time.time(),
         "question": "If I've got this right, you're asking me to BUILD you a new card. Shall I?",
         "refinements": ["sweet. btw on the game one, can you make the jump a bit higher?"]}})
-    monkeypatch.setattr("nucleo.flash.escalate.escalate_to_slowbrain", lambda req, context=None: 1)
+    monkeypatch.setattr("nucleo.acts.errand.escalate_to_slowbrain", lambda req, context=None: 1)
 
 
 # ── the yardstick ────────────────────────────────────────────────────────────────────────────────────────────

@@ -63,7 +63,7 @@ def _verdict(monkeypatch, wanted_sources, calls):
 
 
 def _escalations(monkeypatch):
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     got = []
     monkeypatch.setattr(escalate, "escalate_to_slowbrain", lambda req, context=None: got.append((req, context)) or 1)
     return got

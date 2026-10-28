@@ -182,18 +182,9 @@ async def _prepare_web(rec: "_d.SessionRecord", req: str, reuse_tid: str = "") -
                 cont = navtasks.find_continuation(req)
             except Exception:
                 cont = None
-        # ONE TAB, ONE DRIVER (measured live 2026-08-21, `search-secondhand-monitor`). Three workers on the same
-        # errand were each handed nav task `t6`, and they drove it at once: 46, 27 and 7 actions interleaved on one
-        # page. The damage is not cosmetic — element refs are HANDED OUT PER LOOK (V2-248), so `click [29]` from the
-        # second worker landed on whatever the first had just turned the page into. On a checkout page that is not a
-        # dirty result, it is the wrong ACTION.
-        #
-        # The cause is two similarity judgements about the SAME pair of texts disagreeing: `find_duplicate` (Jaccard
-        # >= 0.60 on content words) said "different errands" and spawned three workers, while `find_continuation`
-        # (>= 2 shared stemmed subjects OR Jaccard >= 0.40) said "same browsing session" and gave them one tab. Both
-        # predicates are defensible on their own; what is never defensible is the combination, so the contradiction
-        # is resolved HERE, where it becomes physical. Continuation stays available for the case it was written for
-        # — the operator refining a task whose worker is gone — and stops being a way to share a live tab.
+        # ONE TAB, ONE DRIVER (search-secondhand-monitor, 2026-08-21: three workers drove nav task `t6` at once, and a
+        # ref handed out per look clicked what another had just changed). `find_duplicate` and `find_continuation` judged
+        # the same pair differently; the contradiction is resolved HERE, where it becomes physical: no shared live tab.
         if cont:
             _held = _d.record_by_nav_task(str(cont[0]))
             if _held is not None and _held is not rec and _held.status in _d.LIVE_SESSION_STATES:
