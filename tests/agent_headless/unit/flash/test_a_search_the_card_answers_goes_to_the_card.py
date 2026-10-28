@@ -65,12 +65,10 @@ def test_an_action_that_does_not_answer_keeps_the_search(verdict, card_pass):
     assert _run() is None and not card_pass
 
 
-def test_both_channels_ask_before_they_search():
+def test_the_turn_asks_before_it_searches():
     """The voice asks in the words phase, which runs before the light lanes where the web search is made."""
     words = open("nucleo/flash/post_stream_words.py", encoding="utf-8").read()
     post = open("nucleo/flash/post_stream.py", encoding="utf-8").read()
-    probe = open("nucleo/flash/probe_after.py", encoding="utf-8").read()
-    assert "voice_instead_of_a_search(" in words and "instead_of_a_search(" in probe
+    assert "voice_instead_of_a_search(" in words
     assert post.index("hold_the_model_to_its_words(") < post.index("run_the_light_lanes("), \
         "the card is asked BEFORE the web"
-    assert probe.index("instead_of_a_search(") < probe.index("_sr.fact_search, _sq")   # V2-782: the search is the service's

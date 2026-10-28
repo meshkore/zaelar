@@ -177,24 +177,18 @@ def test_nothing_maximized_is_reported_as_nothing(monkeypatch):
     assert written.get("maximized_widget") == ""
 
 
-# ── one decision, both channels ───────────────────────────────────────────────────────────────────────────
+# ── one decision, one door ────────────────────────────────────────────────────────────────────────────────
 
-def test_both_channels_resolve_the_target_through_the_same_function():
-    """The probe is a PARALLEL implementation of the voice path on purpose, and that is exactly how the two
-    drift. Both must call `show_target.fullscreen_target` — a second copy here would mean the probe reports
-    a decision the voice does not take (the trap V2-252 exists for)."""
+def test_the_voice_turn_resolves_the_target_through_the_one_function():
+    """The voice turn delegates to `show_target.fullscreen_dispatch`, which resolves through the ONE target
+    decision, `fullscreen_target`. The typed channel runs this same turn (`nucleo.cli.turn.run_turn`), so a
+    second copy of the decision anywhere would be a decision nothing else takes (the trap V2-252 exists for)."""
     root = Path(__file__).resolve().parents[4]
     voice = _vts.read(root / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    probe = _vts.read(root / "nucleo" / "flash" / "probe.py")
     shared = (root / "nucleo" / "flash" / "show_target.py").read_text(encoding="utf-8")
-    # V2-635 paid the provider's ratchet by moving the whole branch body into
-    # `show_target.fullscreen_dispatch` — the CHANNEL is what this guard follows (V2-555): the voice
-    # delegates to the dispatcher, the probe still resolves through fullscreen_target, and the shared
-    # module is the only place the target decision lives.
-    assert "fullscreen_dispatch(" in voice and "fullscreen_target(" in probe
+    assert "fullscreen_dispatch(" in voice
     assert "fullscreen_target(" in shared.split("def fullscreen_dispatch", 1)[1], \
         "the dispatcher must resolve through the ONE target decision"
-    for src, who in ((shared, "la voz (vía fullscreen_dispatch)"), (probe, "el probe")):
-        seg = src[src.index("fullscreen_widget"):]
-        seg = seg[:seg.index("fullscreen_target(")]
-        assert "identify(" not in seg, f"{who} vuelve a resolver el id por su cuenta"
+    seg = shared[shared.index("fullscreen_widget"):]
+    seg = seg[:seg.index("fullscreen_target(")]
+    assert "identify(" not in seg, "the voice path (via fullscreen_dispatch) resolves the id on its own again"

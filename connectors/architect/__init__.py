@@ -11,6 +11,9 @@
 #
 
 
+from nucleo import consequence as _consequence
+
+@_consequence.door("architect.send")
 async def dispatch_tag(action: str, extra: dict):
     """Route a [[architect.*]] tag emitted by the brain (voice, chat or deep turns — never cluster turns)."""
     from connectors.architect import service

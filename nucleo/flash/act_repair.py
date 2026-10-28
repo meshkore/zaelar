@@ -533,19 +533,6 @@ async def voice_after_search(operator_text: str, spoken_text: str, brief, spec, 
     return True
 
 
-def without_the_denial(spoken: str) -> str:
-    """`spoken` minus the sentences that deny an act the turn then carried out (the text channel can unsay)."""
-    kept = []
-    for p in re.split(r"(?<=[.!?])\s+", str(spoken or "").strip()):
-        if p and denies_the_act(p):
-            # «I can't set reminders myself, but I've got the date: …» — the half after «but» is the answer
-            m = re.search(r"[,;—-]\s*(?:but|pero|aunque)\s+(.*)$", p, re.I)
-            p = (m.group(1)[:1].upper() + m.group(1)[1:]) if m and not denies_the_act(m.group(1)) else ""
-        if p:
-            kept.append(p)
-    return " ".join(kept).strip()
-
-
 _SYS_COMMISSION = (
     "You are the brain of a voice assistant. The operator gave an ORDER that names the card «{wid}», "
     "and the turn was about to send it to a background process of SEVERAL MINUTES. Before spending "
@@ -778,23 +765,3 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
     except Exception:  # noqa: BLE001 — a repair must never take down a live turn
         return None
 
-
-async def probe_call_for_promise(operator_text: str, reply: str, spec=None, *, wait_s: float = 3.0,
-                                 window=None) -> dict | None:
-    """The text channel's mirror: it has no brief in flight, so it fires one and waits for it (bounded) —
-    only on the turn that already promised and called nothing. Same verdict, same repair, never raises."""
-    try:
-        import asyncio
-        from nucleo import jev as _jev
-        from nucleo.flash import build_decision as _bd, card_commission as _cc, turn_brief as _tb
-        handle = _tb.ask_for_turn(operator_text, last_reply="")
-        if handle is None:
-            return None
-        waited = 0.0
-        while not _jev._is_ready(handle) and waited < wait_s:
-            await asyncio.sleep(0.05)
-            waited += 0.05
-        wid = _cc.card_for_his_words(_bd.named_card(handle), operator_text)   # `named_or_catalogue`'s refusal too
-        return await call_for_promise(operator_text, reply, wid, spec=spec, window=window) if wid else None
-    except Exception:  # noqa: BLE001
-        return None

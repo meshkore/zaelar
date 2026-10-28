@@ -125,8 +125,6 @@ class LangSpec:
     # …and what he asked for while a widget was being built is applied to it afterwards (three-tasks, 2026-10-11).
     widget_changes_applied: str = ""
     widget_changes_not_applied: str = ("")
-    # …and a stop he ordered is acknowledged as DONE, never answered with the holding line (EN round 20:00).
-    worker_stopped: str = ""
     # …and a refinement passed to a running errand is confirmed NAMING that errand: the report's refinement got
     # the holding line, and he had to ask three more times whether it had landed (ES round 20:00).
     errand_refined: str = ""

@@ -42,7 +42,6 @@
  "errand_step_bare": "Ahora mismo: {step}.",
  "widget_changes_applied": "Y le he aplicado los cambios que me pediste mientras lo hacía.",
  "widget_changes_not_applied": "Los cambios que me pediste mientras lo hacía no los he podido aplicar; pídemelos otra vez y lo modifico.",
- "worker_stopped": "Hecho, la he parado.",
  "errand_refined": "Hecho, se lo paso a {what}.",
  "errand_relayed_next": "Se lo paso a {what}: lo comprueba primero y te cuento lo que encuentre antes de dar ningún paso.",
  "errands_each": "Por partes: {items}.",

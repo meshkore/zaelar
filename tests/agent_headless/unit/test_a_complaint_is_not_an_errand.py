@@ -15,8 +15,8 @@ operador»), and while that happened surfaces opened on his canvas — `navegado
 so his answer to «what did you do to my calendar» was a browser and a results sheet. His words, unprompted
 at i=10937: «Do not open a fucking widget for this.»
 
-The classifier behind all of it is `danger.is_dangerous`, read by THREE decision points — the voice
-backstop (`providers/nucleo.py`), the probe's mirror, and `dispatch._run_session`'s own gate — and it
+The classifier behind all of it is `danger.is_dangerous`, read by TWO decision points — the voice
+backstop (`providers/nucleo.py`, which the typed channel runs too) and `dispatch._run_session`'s own gate — and it
 matched the verb in a sentence whose grammar says the act is in the PAST and was not asked for.
 
 ## The fix is a subtraction, and it uses the technique already in that module
@@ -24,7 +24,7 @@ matched the verb in a sentence whose grammar says the act is in the PAST and was
 `danger.py` already strips a clause before looking for a verb, twice: `_REMINDER_RE` so «recuérdame
 pagar…» is not an order to pay, and `_AMOUNT_QUESTION_RE` so «¿cuánto hay que pagar?» is not either. This
 is the same shape for a third case — an accusation in the past tense, and a question about whether it
-happened. Fixing it at the classifier rather than at the backstop is deliberate: the three readers must
+happened. Fixing it at the classifier rather than at the backstop is deliberate: the readers must
 never disagree about whether something is an order.
 
 The clause ends at the next `. ! ? ; ,` — at the COMMA on purpose, so a turn that complains AND THEN orders
@@ -133,14 +133,6 @@ def test_the_voice_backstop_reads_the_classifier_and_says_when_it_does_not_escal
     assert "_danger_bk.is_dangerous(_op_text)" in src, "the backstop stopped reading the shared classifier"
     assert "_danger_bk.about_a_past_act(_op_text)" in src
     assert "queja sobre lo ya hecho" in src, "the timeline has to show WHY nothing escalated"
-
-
-def test_the_probe_mirror_reads_the_same_classifier():
-    """The text channel is the PARALLEL implementation of the voice turn: a fix wired into one and not the
-    other is something this codebase has already paid for four times."""
-    import inspect
-    from nucleo.flash import probe
-    assert "_danger_bk.is_dangerous(operator_text)" in _vts.getsource(probe)
 
 
 def test_the_worker_gate_reads_it_too():

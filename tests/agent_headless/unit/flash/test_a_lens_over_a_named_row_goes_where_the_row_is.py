@@ -48,8 +48,6 @@ def test_a_lens_that_declares_nothing_is_never_redirected(monkeypatch):
         ("show", {"query": "anna vacation"})
 
 
-def test_both_channels_run_it_where_data_ops_converge():
-    from nucleo.flash import tool_executor_widget_calls as voice, widget_data_turn as text
+def test_the_turn_runs_it_where_data_ops_converge():
+    from nucleo.flash import tool_executor_widget_calls as voice
     assert "_row_lens.retarget(" in inspect.getsource(voice._apply_widget_data)
-    assert "_row_lens.retarget(" in inspect.getsource(text.execute)
-    assert "row_lens" in inspect.getsource(text.plan_dry)

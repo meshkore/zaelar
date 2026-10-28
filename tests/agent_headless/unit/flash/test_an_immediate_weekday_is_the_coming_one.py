@@ -59,8 +59,6 @@ def test_the_move_destination_is_aligned_too():
     assert got["newDate"] == "2026-10-15"
 
 
-def test_both_channels_ask_it():
+def test_the_turn_asks_it():
     voice = (ENGINE / "nucleo/flash/tool_executor_widget_calls.py").read_text(encoding="utf-8")
-    text = (ENGINE / "nucleo/flash/widget_data_turn.py").read_text(encoding="utf-8")
     assert "_txw._said_day.payload(wid, action_name, payload, _txw._bnotes.operator_half(text))" in voice
-    assert "_sday.align(*_vcard.retarget(brief, wid, act, pl, _order), _order)" in text

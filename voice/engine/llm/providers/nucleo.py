@@ -126,7 +126,7 @@ from voice.engine.llm.providers import acc_notices as _accn
 from voice.engine.llm.providers import attention_turn as _attention_turn
 from nucleo.flash import harness_turn as _ht   # V2-661: what a turn OWES (shared with the probe)
 from nucleo.flash import reminder_guards as _rg   # its canned lines: holding, mute backstop, follow-up
-from nucleo.flash import accumulator as _acc_mod   # V2-776 D0: a turn that died unanswered is un-consumed
+from nucleo.input import stt as _acc_mod   # V2-776 D0: a turn that died unanswered is un-consumed
 from nucleo import surfaces as _surfaces_mod   # demo A1 2026-09-28: an errand nobody labelled takes the brief's surface
 
 _ACC_NUDGE_S = _accn._ACC_NUDGE_S
@@ -458,6 +458,11 @@ class NucleoLLMStream(llm.LLMStream):
         if 'text' in _blk:
             text = _blk['text']
 
+        # The VAULT before anything reads his words (refactor2710-01) — `vault_intercept.vault_first`.
+        _vault_done, text = await _vault_first(text, first_turn, emit, self._event_ch, brain)
+        if _vault_done:
+            return
+
         # JEV TURN BRIEF (V2-726 F1, moved here by A2): ONE call carrying every question this turn
         # reads AFTER the model — canvas verb, escalate pair, which action of which open card, and
         # what KIND of turn it is (which the filler used to ask on a second socket of its own).
@@ -717,10 +722,6 @@ class NucleoLLMStream(llm.LLMStream):
         # ever sees the text — moved to vault_intercept.py (2026-08-17 modularization pass, extraction step 1 of
         # the plan from this session's architecture audit). `send`/`emit` passed through as-is: `emit` may have
         # been locally overridden to a no-op above, and `send` is this closure's own turn-state accumulator.
-        from voice.engine.llm.providers.vault_intercept import try_vault_intercept
-        _vault_done, text = await try_vault_intercept(text, first_turn, send, emit)
-        if _vault_done:
-            return
 
         # V2-778 F1-10 — the tool executor lives in `nucleo/flash/tool_executor.py`; built here, after the last
         # rebinding of anything it captures (the vault intercept above may redact `text`).
@@ -887,7 +888,7 @@ class NucleoLLMStream(llm.LLMStream):
         # `voice/engine/llm/providers/turn_failure.py`.
         _blk = await _turn_failure.say_the_turn_failed(
             emit=emit, err_exc=err_exc, err_text=err_text, errored=errored, llm_metrics=llm_metrics, send=send,
-            spec=locals().get('spec'), stalled=stalled, first_turn=first_turn,
+            spec=locals().get('spec'), stalled=stalled, first_turn=first_turn, brain=brain, text=text,
         )
         if _blk.get('__return__'):
             return
@@ -986,7 +987,8 @@ from voice.engine.llm.providers import turn_prompt as _turn_prompt  # noqa: E402
 from voice.engine.llm.providers import turn_tools as _turn_tools_mod  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_admit as _turn_admit  # noqa: E402 — V2-778 F1, imports this module back
 from voice.engine.llm.providers import turn_failure as _turn_failure  # noqa: E402 — V2-778 F1, imports this module back
-from voice.engine.llm.providers import turn_fragment as _turn_fragment  # noqa: E402 — V2-778 F1, imports this module back
+from voice.engine.llm.providers import turn_fragment as _turn_fragment  # noqa: E402
+from voice.engine.llm.providers.vault_intercept import vault_first as _vault_first  # noqa: E402 — V2-778 F1, imports this module back
 
 
 # V2-778 F1 — moved to `pending_confirm.py`, imported back under their names (that module reads this one).

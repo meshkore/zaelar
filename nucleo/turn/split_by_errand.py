@@ -141,15 +141,6 @@ def each_line(spoken: str, turn_text: str) -> str:
     return lang.errands_each.format(items="; ".join(items)) if items else ""
 
 
-def each_said(spoken: str, turn_text: str) -> str:
-    """`spoken` with the per-errand sentence it owes; a bare ack («Done.») is REPLACED — it said nothing of any."""
-    line = each_line(spoken, turn_text)
-    if not line:
-        return spoken
-    from i18n import langs as _lg
-    return line if _is_bare(spoken, _lg.current_language()) else f"{str(spoken).strip()} {line}"
-
-
 def _is_bare(spoken, lang) -> bool:
     s = str(spoken or "").strip()
     return not s or s in set(lang.acks) | set(lang.data_acks) | {lang.data_ack}

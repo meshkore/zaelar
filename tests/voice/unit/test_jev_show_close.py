@@ -1,7 +1,8 @@
 """Jev canvas-verb pre-classifier (T-jev-show-close): the VERB before the model writes text.
 
-The contract under test: Jev names ONLY show / close / neither, and both channels share the
-verdict through `show_target.resolve_canvas_verb` — never a second implementation. A ready,
+The contract under test: Jev names ONLY show / close / neither, and the verdict is read through
+`show_target.resolve_canvas_verb` — never a second implementation. Since V2-726 F1 the question rides the
+turn's brief (`turn_brief.ask`), which is its one front door; the typed channel runs the same voice turn. A ready,
 confident verb is returned with `used=True`; anything else — disabled, slow, failed, unsure,
 unknown — falls back to "neither", i.e. today's path bit-for-bit. The TARGET is not decided
 here (that stays with `resolve_show` / close guards); a "neither" never vetoes them.
@@ -14,12 +15,14 @@ import pytest
 
 from nucleo import jev
 from nucleo.flash import show_target as st
+from nucleo.flash import turn_brief as tb
 
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
     monkeypatch.setenv("ZAELAR_JEV_TIMEOUT_MS", "900")
     monkeypatch.delenv("ZAELAR_JEV", raising=False)
+    monkeypatch.setenv("ZAELAR_JEV_HEDGE_MS", "0")
     yield
 
 
@@ -94,7 +97,7 @@ def test_an_unknown_choice_abstains_to_neither(monkeypatch):
 # ── disabled / keyless / failed: today's path, zero behavior change ──────────────────────
 def test_no_key_means_no_thread_and_no_verdict(monkeypatch):
     monkeypatch.setattr(jev, "_read_key", lambda: "")
-    assert st.ask_canvas_async("abre la agenda") is None
+    assert tb.ask("abre la agenda") is None
     assert jev.choose_sync("canvas", "abre la agenda", instructions=st.CANVAS_INSTRUCTIONS,
                            criteria=st.CANVAS_VERBS, question_id="canvas") is None
 
@@ -102,7 +105,7 @@ def test_no_key_means_no_thread_and_no_verdict(monkeypatch):
 def test_an_explicit_switch_disables_even_with_a_key(monkeypatch):
     monkeypatch.setattr(jev, "_read_key", lambda: "k")
     monkeypatch.setenv("ZAELAR_JEV", "0")
-    assert st.ask_canvas_async("abre la agenda") is None
+    assert tb.ask("abre la agenda") is None
 
 
 def test_a_failed_call_returns_none_and_logs_the_error(monkeypatch):
@@ -120,15 +123,15 @@ def test_a_failed_call_returns_none_and_logs_the_error(monkeypatch):
 
 # ── arm/fire: the async handle resolves through the SAME shared resolver ─────────────────
 def test_the_async_handle_resolves_through_the_shared_resolver(monkeypatch):
-    monkeypatch.setattr(jev, "_post_question", lambda *a: _canned("show"))
+    monkeypatch.setattr(jev, "_post_many", lambda *a: _canned("show"))
     monkeypatch.setattr(jev, "_read_key", lambda: "k")
     monkeypatch.setattr("voice.observer.emit", lambda *a, **k: None)
-    h = st.ask_canvas_async("muéstrame la agenda")
+    h = tb.ask("muéstrame la agenda")
     assert h is not None
     assert h["event"].wait(5), "the Jev thread never delivered"
     verb, info = st.resolve_canvas_verb(h)
     assert (verb, info["used"]) == ("show", True)
-    assert info["latency_ms"] >= 0
+    assert jev.peek(h)["_latency_ms"] >= 0, "a brief carries its latency on the handle, once for all its questions"
 
 
 # ── close_has_order: the one reader both [[close]] guards share ──────────────────────────
@@ -219,6 +222,6 @@ def test_a_disabled_jev_is_grammar_only(_isolated, monkeypatch):
     grammar path below runs exactly as before the change."""
     monkeypatch.setattr(jev, "_read_key", lambda: "k")
     monkeypatch.setenv("ZAELAR_JEV", "0")
-    assert st.ask_canvas_async("show me the agenda") is None
+    assert tb.ask("show me the agenda") is None
     _fake_catalogue(monkeypatch, "agenda")
     assert st.show_from_verb("show me the agenda", None) == (None, "none")

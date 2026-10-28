@@ -53,11 +53,10 @@ def test_a_garbled_id_is_a_missing_target():
 
 
 def test_every_show_path_reads_the_same_rule():
-    """The tag path and both text-channel paths call the shared helper — the voice tool path calls `resolve_show`."""
+    """The tag path calls the shared helper — the voice tool path calls `resolve_show`."""
     import inspect
-    from nucleo.flash import probe, probe_decide, tool_executor_widget_calls
-    for mod in (probe, probe_decide, tool_executor_widget_calls):
-        assert "named_or_guess(" in inspect.getsource(mod), mod.__name__
+    from nucleo.flash import tool_executor_widget_calls
+    assert "named_or_guess(" in inspect.getsource(tool_executor_widget_calls)
 
 
 def test_disarmed_a_guard_that_runs_first_turns_the_document_into_the_browser(monkeypatch):

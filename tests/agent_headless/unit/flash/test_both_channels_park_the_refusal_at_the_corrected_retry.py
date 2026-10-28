@@ -50,9 +50,7 @@ def test_a_corrected_call_refused_again_is_the_one_parked(monkeypatch):
     assert rec and rec["payload"] == {"item": "2", "to": "la luna"} and rec["message"] == again["message"]
 
 
-def test_both_channels_pass_a_refusal_through_that_seam():
+def test_the_turn_passes_a_refusal_through_that_seam():
     voice = (_ENGINE / "nucleo/flash/data_ops.py").read_text(encoding="utf-8")
-    text = (_ENGINE / "nucleo/flash/widget_data_turn.py").read_text(encoding="utf-8")
     assert "await corrected_retry(wid, action_name, payload, res, text, _run" in voice
-    assert "_rg.corrected_retry(wid, act, pl, res, text, _brain_action)" in text
     assert voice.count("_parked.remember(") == 2          # the refusal, and the corrected call's own result

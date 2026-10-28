@@ -85,14 +85,12 @@ def test_a_success_or_a_pool_timeout_never_costs_a_pass(client):
     assert client.calls == [], "no model call on a turn that did not fail"
 
 
-def test_both_channels_share_the_seam():
-    """V2-252: a rule installed in one of two branches is half a fix."""
+def test_the_turn_takes_the_seam():
+    """V2-252: the corrected retry lives where every data-op is dispatched."""
     from pathlib import Path
     root = Path(__file__).resolve().parents[3]
     assert "corrected_retry(" in (root / "nucleo/flash/data_ops.py").read_text("utf-8").split(
         "async def dispatch_and_report(")[1], "the voice path lost the retry"
-    assert "_rg.corrected_retry(" in (root / "nucleo/flash/widget_data_turn.py").read_text("utf-8"), \
-        "the text channel lost the retry"
 
 
 def test_the_pass_refuses_to_run_without_his_words(client):

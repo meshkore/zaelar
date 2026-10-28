@@ -5,7 +5,7 @@ exactly?» and the text channel's verdict rung (`direct_action.resolve`) turned 
 saying «Done.». «ok leave it. pause that for a sec»: the model asked «Which one — the music or the Dune trailer?» and the
 rung paused the video on 0.67. The text channel's own `widget_data` path never asked at all: it passed `which_card` no
 brief and no screen. Now the rung leaves a turn that asked, or a shared control the verdict did not settle
-(`undecided`), the players' bar (`PLAYER_SURE`) holds on the `widget_data` path, and the probe SAYS its question.
+(`undecided`), the players' bar (`PLAYER_SURE`) holds on the `widget_data` path.
 """
 from __future__ import annotations
 
@@ -92,14 +92,6 @@ def test_a_named_card_or_a_sure_verdict_still_completes(screen):
     assert DA.resolve("turn it down", brief=sure, operator_text="turn it down")["widget"] == "musica"
 
 
-def test_the_text_channel_asks_and_says_the_question():
-    src = (ENGINE / "nucleo/flash/probe_decide.py").read_text(encoding="utf-8")
-    assert "brief=_tbrief, ask_phrase=_player_control._ask_phrase(), operator_text=text)" in src
-    assert 'action, spoken = "clarify", _cd["ask"]' in src
-    mirrors = (ENGINE / "nucleo/flash/probe_mirrors.py").read_text(encoding="utf-8")
-    assert '"answer_worker", "clarify"))' in mirrors, "a turn that ASKED is decided: no rung, no backstop completes it"
-
-
 def test_a_question_the_verdict_is_sure_enough_to_answer_does_not_hold_the_order(screen):
     """2026-10-15, the operator's threshold («en un 70% continuamos»). Live bench E3: «…should I go ahead?» over an
     order read at 1.00 and `mensajeria:forward` at 0.77 — nothing was sent in 2 runs of 7. A question holds the rung
@@ -119,9 +111,9 @@ def test_a_question_the_verdict_is_sure_enough_to_answer_does_not_hold_the_order
     assert undecided.why(remark, "mensajeria", "forward", operator_text="did quinn get it?", model_words=asked) == "asked"
 
 
-def test_both_channels_let_a_sure_order_repair_over_a_question(screen):
+def test_a_sure_order_repairs_over_a_question(screen):
     """Live bench E3 (2026-10-15): «…what should the message say exactly?» over order 1.00 and `forward` 0.75 — the
-    promise repair of BOTH channels stood down on any question, and nothing was sent. The question holds the repair
+    promise repair stood down on any question, and nothing was sent. The question holds the repair
     only under the operator's bar (`undecided.a_question_holds`)."""
     from nucleo.flash import undecided
     screen["open"] = ["mensajeria"]
@@ -135,8 +127,6 @@ def test_both_channels_let_a_sure_order_repair_over_a_question(screen):
     assert undecided.a_question_holds(None, asked) is True
     assert undecided.a_question_holds(sure, "Sending it now.") is False
     import inspect
-    from nucleo.flash import probe_mirrors
     from nucleo.turn import split_by_errand
-    assert "a_question_holds(_tbrief, spoken)" in inspect.getsource(probe_mirrors)
     assert "_und.a_question_holds(brief, spoken)" in inspect.getsource(split_by_errand.holds_the_repair)
     assert "holds_the_repair(spoken_text, _op_text, _brief)" in (ENGINE / "nucleo/flash/post_stream_words.py").read_text()

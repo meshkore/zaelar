@@ -25,7 +25,6 @@ def test_agreement_and_absence():
     assert s.pick("informe", "") == "informe"
 
 
-def test_both_channels_pick():
+def test_the_voice_turn_picks():
     root = Path(__file__).resolve().parents[3]
     assert "_surfaces_mod.pick(escalate_req[\"surface\"].get(req, \"\")" in _vts.read(root / "voice/engine/llm/providers/nucleo.py")
-    assert ".pick(_surf.get(_r, \"\")" in _vts.read(root / "nucleo/flash/probe.py")

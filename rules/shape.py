@@ -18,6 +18,7 @@ from datetime import datetime
 from . import cascade as _cascade
 from . import scope as _scope
 from . import vocabulary as _vocab
+from nucleo import consequence as _consequence
 
 _SYSTEM = """You turn what the operator just said about how his assistant must behave into rows of a rules table.
 Answer with ONE JSON object and nothing else:
@@ -148,6 +149,8 @@ def plan(sentence: str, context: str = "", *, chat=None) -> dict:
     return parse(content or "", sentence)
 
 
+@_consequence.door("rules.write", neutral=lambda *_a, **_k: {
+    "op": "dry", "stored": [], "removed": [], "doubt": [], "listed": [], "say": ""})
 def write(sentence: str, context: str = "", *, chat=None) -> dict:
     """Understand his sentence and apply it to the table. Returns what happened, for the caller to say and emit:
     `{op, stored: [rows], removed: [rows], doubt: [rows], listed: [rows], say}`."""

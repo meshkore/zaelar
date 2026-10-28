@@ -91,23 +91,6 @@ async def rescue(spoken: str, *, data_done: bool, turn_text: str, metrics=None, 
     return None
 
 
-async def mirror_probe(tool_calls: list, tags: list, spoken: str, turn_text: str, metrics=None) -> None:
-    """The probe's half of the same decision (parallel impl, V2-252): the shown cards become goals and what
-    the turn owes is synthesized as an `escalate_to_slowbrain` call, so the rest of the probe path (action
-    classification, execution, ack) is the one a normal escalation takes. Never raises."""
-    try:
-        shown = [(t.get("extra") or {}).get("id") for t in (tags or []) if t.get("action") == "show"]
-        note_shown(shown, turn_text)
-        busy = any(t["name"] in ("escalate_to_slowbrain", "widget_data") for t in (tool_calls or []))
-        owed = await rescue(spoken, data_done=False, turn_text=turn_text,
-                            metrics=(None if tool_calls else metrics), may_escalate=not busy)
-        if owed:
-            tool_calls.append({"name": "escalate_to_slowbrain",
-                               "args": {"request": owed["request"], "surface": owed["surface"]}})
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"probe turn repairs skipped: {e}")
-
-
 def turn_handled(*, typed: bool, widget=False, data=False, worker=False, style=False, deduped=False,
                  aside=False, escalated=False, searched=False, music=False, video=False, images=False,
                  confirm=False) -> bool:

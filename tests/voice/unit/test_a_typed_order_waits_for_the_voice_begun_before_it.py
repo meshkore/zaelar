@@ -12,7 +12,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from voice.engine.pipeline import agent_events, typed_order as order
+from voice.engine.pipeline import agent_events
+from nucleo.input import typed as order
 
 
 @pytest.fixture(autouse=True)

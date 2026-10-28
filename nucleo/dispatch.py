@@ -620,30 +620,8 @@ def take_pending_injects(tid) -> list[str]:
     return out
 
 
-# ── entradas SÍNCRONAS marshaladas al loop of the server (the calls the FlashBrain from the job-thread, §v3·D/O) ──
-def inject_soon(which: str, message: str) -> None:
-    """Fire-and-forget: inyecta a the(s) session(es) of `which`, in the loop dueno. NUNCA is await-ea in the turn."""
-    if _LOOP is None:
-        return
-    try:
-        asyncio.run_coroutine_threadsafe(inject(which, message), _LOOP)
-    except Exception:
-        pass
-
-
-def cancel_soon(which: str) -> list[str]:
-    """Fire-and-forget: resuelve `which` and MATA in the loop dueno. Devuelve the tid that VA a kill (for the voice)."""
-    tids = resolve_sessions(which)   # lectura de dict (barata); la cancelación real va al loop dueño
-    _qwait.forget(which)             # a stop he ordered also stops an errand waiting for the quota's reset
-    if _LOOP is not None and tids:
-        def _do():
-            for t in tids:
-                cancel_session(t)
-        try:
-            _LOOP.call_soon_threadsafe(_do)
-        except Exception:
-            pass
-    return tids
+# ── entradas SÍNCRONAS marshaladas al loop of the server (§v3·D/O) — `nucleo/dispatch_soon.py`, re-exported
+from nucleo.dispatch_soon import cancel_soon, inject_soon  # noqa: E402,F401
 
 
 # ── MATAR (with cortesia) ─────────────────────────────────────────────────────────────────────────────────

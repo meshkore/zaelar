@@ -46,7 +46,7 @@
    "close",
    "worker"
   ],
-  "open": "V2-776 B1: a short close order naming a card that is NOT open closes the only card that is — the bank reproduces the session verbatim"
+  "open": "refactor2710-07: whether the thing he names is a card on screen is a brief verdict — live, Jev reads canvas=close 0.94 and the model closes too; with no brief the unnamed-close backstop takes the only card by design (never deaf to «ciérralo»)"
  },
  {
   "id": "session-3a9a082c-open-my-messages",
@@ -278,7 +278,7 @@
   "id": "session-3a9a082c-yes-do-it-the-fragment-guard-annuls-the-build",
   "lang": "en",
   "phrase": "Yes. Do it.",
-  "source": "operator session (anonymised) 12:50:53 (2026-09-27): answering «I can kick it off again from scratch, or drop it»; the model escalated the build, «escalada anulada — el turno es un fragmento» cancelled it, and the reply «I'll start that accountancy widget again now» promised work nothing was doing. GREEN on the probe channel: the annulling guard is in the VOICE provider, which joins the bank in B2 — then this case must stay green there too",
+  "source": "operator session (anonymised) 12:50:53 (2026-09-27): answering «I can kick it off again from scratch, or drop it»; the model escalated the build, «escalada anulada — el turno es un fragmento» cancelled it, and the reply «I'll start that accountancy widget again now» promised work nothing was doing. GREEN on the probe channel: the annulling guard is in the VOICE provider, which joins the bank in B2 — then this case must stay green there too · the offer he answered is in the window (fixture, 2026-10-28)",
   "screen": {
    "open": []
   },
@@ -316,7 +316,17 @@
    ]
   },
   "expect": "escalate",
-  "forbid": []
+  "forbid": [],
+  "history": [
+   {
+    "role": "user",
+    "text": "What happened with the accountancy widget?"
+   },
+   {
+    "role": "assistant",
+    "text": "It didn't finish. I can kick it off again from scratch, or drop it — which do you want?"
+   }
+  ]
  },
  {
   "id": "session-241154f0-play-something-by-madonna-promised-and-not-played",

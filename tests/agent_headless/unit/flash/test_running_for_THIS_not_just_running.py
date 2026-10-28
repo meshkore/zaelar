@@ -78,25 +78,13 @@ def test_a_date_in_common_is_not_a_topic_in_common():
                                  ["conseguir entradas el sábado para el Rey León"]) is True
 
 
-# ── and it is wired into BOTH channels ───────────────────────────────────────────────────────────────────────
-def test_both_channels_ask_the_new_question():
-    """Source guard. This predicate is useless in only one channel: voice and text have the same
-    duplicated gate, and this batch has already found two dead fixes caused by wiring only one side."""
-    import inspect
-
-    from nucleo.flash import probe
+# ── and it is wired into the voice turn (the typed channel runs it too) ─────────────────────────────────────
+def test_the_voice_turn_asks_the_new_question():
+    """Source guard: a predicate with no caller fixes nothing."""
     from voice.engine.llm.providers import nucleo as voice_nucleo
 
-    for mod, name in ((probe, "probe.py"), (voice_nucleo, "el provider de voz")):
-        src = _vts.getsource(mod)
-        assert "nothing_running_for" in src, f"{name} sigue preguntando solo «¿hay algo corriendo?»"
-
-
-def test_the_text_channel_can_read_WHAT_is_running():
-    """`has_active()` says WHETHER anything is running; to compare, we need to know WHAT. And if the registry cannot be read,
-    the empty list plus the conservative predicate preserve the previous behavior."""
-    from nucleo.flash import probe
-    assert isinstance(probe._running_goals(), list)
+    assert "nothing_running_for" in _vts.getsource(voice_nucleo), \
+        "the voice turn still only asks «is anything running?»"
 
 
 def test_the_predicate_is_reachable_from_the_router_facade():

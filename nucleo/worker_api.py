@@ -43,6 +43,7 @@ _MAX_DEPTH = 2
 _ACTS: dict[str, dict] = {}
 
 from nucleo.runtime_ids import next_seq as _next_seq
+from nucleo import consequence as _consequence
 
 
 def _own_sheet(rec) -> str:
@@ -578,6 +579,7 @@ async def answer_active(text: str) -> bool:
     return await answer(a["corr_id"], text)
 
 
+@_consequence.door("worker.answer", neutral=lambda *_a, **_k: has_pending_ask())
 def answer_active_soon(text: str) -> bool:
     """Fire-and-forget marshalled to the server loop (§v3·D/O): resolve the active ask. Called by FlashBrain from
     the job thread. Return True if there WAS an ask to answer (so voice can confirm)."""

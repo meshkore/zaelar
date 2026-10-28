@@ -6,7 +6,7 @@ a sentence about one of its rows:
   · the canvas verdict read `close` at 0.98 for «remove the third one in the list» / «quita el tercero» —
     its criterion said «remove a widget or card», and a ROW is not a card (fixed in its wording, measured live
     before and after: 0.98 close → 0.88 neither);
-  · the close backstop (voice `post_stream_lanes`, text `probe_mirrors`) reaches the only open card BY
+  · the close backstop (`post_stream_lanes`) reaches the only open card BY
     CONTEXT — `identify` answers `youtube` with `by_context` for any sentence when it is the one card open —
     and `quita` is a close verb. «Quita el tercero» therefore took the whole player off the screen.
 
@@ -58,11 +58,10 @@ def test_a_bare_close_names_no_row(said, queue):
     assert CG.names_a_row("youtube", said) is False
 
 
-def test_both_close_backstops_ask_it():
-    """The two channels' close backstops must agree — the rule is shared as a function, never copied — and so
-    does the verdict's own completion of a mute turn (`complete_canvas`, read by both)."""
-    for rel in ("nucleo/flash/post_stream_lanes.py", "nucleo/flash/probe_mirrors.py"):
-        assert "_closeg.unless_a_row(" in (ENGINE / rel).read_text(encoding="utf-8"), rel
+def test_the_close_backstop_asks_it():
+    """The turn's close backstop asks the shared rule — a function, never a copy — and so does the verdict's own
+    completion of a mute turn (`complete_canvas`)."""
+    assert "_closeg.unless_a_row(" in (ENGINE / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
     assert "_cg.keep_cards(" in (ENGINE / "nucleo/flash/card_close.py").read_text(encoding="utf-8")   # `complete_canvas`'s body
 
 

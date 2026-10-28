@@ -74,14 +74,14 @@ def test_one_knob_moves_both_channels(monkeypatch):
 
 def test_no_channel_composes_the_recall_inside_the_loop():
     """The class guard. `recall_query=` is the test path: in production it composes INLINE, and using it is
-    exactly the failure that brought down the engine. All three turn entry points pass through the guard."""
-    from nucleo.flash import probe, probe_api
+    exactly the failure that brought down the engine. Every turn entry point passes through the guard: the voice
+    turn (which the typed channel runs too) and the typed channel's HTTP face (`nucleo/cli/api.py`)."""
+    from nucleo.cli import api as cli_api
     from voice.engine.llm.providers import nucleo as voice_provider
 
     import ast
 
-    for mod, name in ((probe, "probe.run_turn"), (probe_api, "probe_api"),
-                      (voice_provider, "el provider de voz")):
+    for mod, name in ((cli_api, "nucleo.cli.api"), (voice_provider, "the voice provider")):
         from tests import voice_turn_source
         src = voice_turn_source.getsource(mod)     # V2-778 F1: the voice turn is read whole, moved blocks included
         assert "recall_budget" in src, f"{name} no pasa por la guarda con presupuesto"

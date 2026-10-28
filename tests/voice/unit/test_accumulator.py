@@ -24,7 +24,7 @@ import asyncio
 
 import pytest
 
-from nucleo.flash import accumulator as acc
+from nucleo.input import stt as acc
 
 
 async def _stub_incomplete(text: str) -> tuple[str, str]:

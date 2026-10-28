@@ -25,9 +25,5 @@ def test_nothing_on_screen_adds_nothing():
     assert "EN PANTALLA" not in st.compose_system("q", "q", {"results": [{"title": "x"}]}, "x", on_screen=[])
 
 
-def test_both_channels_pass_it():
-    import inspect
-    from nucleo.flash import probe
-    from voice.engine.llm.providers import nucleo as prov
+def test_the_voice_turn_passes_it():
     assert "on_screen=_cf_s.this_turn_cards()" in _vts.turn_source()
-    assert "on_screen=_cf_s.this_turn_cards()" in _vts.getsource(probe)

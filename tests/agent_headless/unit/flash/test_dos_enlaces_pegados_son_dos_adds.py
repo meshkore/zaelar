@@ -103,43 +103,6 @@ def _llamadas(*ops):
     return [{"name": "widget_data", "args": o} for o in ops]
 
 
-def test_el_canal_de_texto_despacha_los_DOS_enlaces(rail):
-    from nucleo.flash import widget_data_turn as WDT
-    parte = asyncio.run(WDT.execute(_llamadas(_op("youtube", "add", url="dQw4w9WgXcQ"),
-                                              _op("youtube", "add", url="9bZkp7q19f0"))))
-    assert len(rail) == 2, "dos enlaces pegados son dos adds"
-    assert [d["data"]["payload"]["url"] for d in rail] == ["dQw4w9WgXcQ", "9bZkp7q19f0"]
-    assert parte["executed"] == "widget_data" and len(parte["ops"]) == 2
-
-
-def test_lo_DESCARTADO_se_dice(rail):
-    """A report that only counts what went well is how a “Done.” that is not done survives."""
-    from nucleo.flash import widget_data_turn as WDT
-    dup = _op("agenda", "add_meeting", title="dentista")
-    parte = asyncio.run(WDT.execute(_llamadas(dup, dict(dup))))
-    assert len(rail) == 1
-    assert parte["descartadas"] == 1
-
-
-def test_una_accion_que_pide_PERMISO_sigue_sin_ejecutarse(monkeypatch, rail):
-    """The boundary that does NOT move: irreversible actions are CONFIRM and still require the operator’s yes."""
-    from widgets import actions as _wa
-
-    from nucleo.flash import widget_data_turn as WDT
-    monkeypatch.setattr("nucleo.flash.frontend.action_mode", lambda wid, act: _wa.CONFIRM)
-    parte = asyncio.run(WDT.execute(_llamadas(_op("agenda", "borrar_todo"))))
-    assert rail == []
-    assert parte["executed"] == "widget_data_skipped"
-
-
-def test_el_parte_conserva_la_forma_singular_de_antes(rail):
-    """The report and previous guards read `widget`/`act`: changing them to a list would break the
-    reading without warning."""
-    from nucleo.flash import widget_data_turn as WDT
-    parte = asyncio.run(WDT.execute(_llamadas(_op("youtube", "add", url="x"))))
-    assert parte["widget"] == "youtube" and parte["act"] == "add"
-
-
 # ── and VOICE uses the SAME criterion ────────────────────────────────────────────────────────────────────────
 
 def test_la_voz_decide_con_el_MISMO_guarda():

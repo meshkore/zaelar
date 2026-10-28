@@ -48,7 +48,7 @@ def test_no_meeting_in_the_window_or_no_shared_word_means_no_touch():
 
 def test_the_brains_door_aligns_a_send_before_it_leaves(monkeypatch):
     """`widgets.dispatch_tag` is the provider's door (every FAST data-op of the model passes here) and
-    `widget_data_turn` the probe's; both ask `meeting_time.align_payload` before the send runs."""
+    it asks `meeting_time.align_payload` before the send runs."""
     import widgets
     from widgets import server_api
     sent = {}
@@ -61,5 +61,3 @@ def test_the_brains_door_aligns_a_send_before_it_leaves(monkeypatch):
     asyncio.run(widgets.dispatch_tag("data", {"id": "mensajeria", "data": {"action": "send_to", "payload": {
         "contact": "Rowan", "platform": "telegram", "text": "Hey Rowan, our catch-up tomorrow is now at 5:00 PM."}}}))
     assert sent["payload"]["text"].endswith("now at 4:30 PM.")
-    probe = (ENGINE / "nucleo/flash/widget_data_turn.py").read_text("utf-8")
-    assert "meeting_time as _mt" in probe and "_mt.align_payload(" in probe, "the text channel takes the same door"

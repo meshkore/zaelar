@@ -225,16 +225,15 @@ def test_the_accent_is_the_signal_and_is_not_normalized_away():
     assert not router.asks_for_missing_detail("Te lo digo cuando lo tenga.")
 
 
-def test_both_promise_gates_consult_it_and_so_does_the_probe():
-    """Wired in BOTH channels: this class of defect survives by diverging between voice and probe."""
+def test_both_promise_gates_consult_it():
+    """Wired in both of the voice turn's promise gates; the typed channel runs this same turn
+    (`nucleo.cli.turn.run_turn`), so there is no second copy to diverge."""
     src = _vts.read(NUCLEO)
     assert "asks_for_missing_detail(spoken_text)" in src, \
         "the no-tool backstop in the turn body has to consult it"
     pb = NUCLEO.parent / "promise_backstop.py"
     assert "asks_for_missing_detail(spoken_text)" in pb.read_text(encoding="utf-8"), \
         "and so does the forced escalation, now that it lives in its own module"
-    probe = NUCLEO.parents[4] / "nucleo" / "flash" / "probe.py"
-    assert "asks_for_missing_detail(spoken)" in _vts.read(probe)
 
 
 def test_use_case_the_ghost_errand_of_2026_09_01():

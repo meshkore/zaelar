@@ -56,12 +56,11 @@ def test_a_write_on_either_side_keeps_the_model(world):
     assert _run()[0] == "" and not world["completed"]
 
 
-def test_both_channels_ask_the_rule():
+def test_the_turn_asks_the_rule():
     calls = open("nucleo/flash/tool_executor_widget_calls.py", encoding="utf-8").read()
-    turn = open("nucleo/flash/widget_data_turn.py", encoding="utf-8").read()
     assert calls.index("_txw._vcard.takes_the_view(") < calls.index("_txw._direct_action.completes(_brief, _cd["), \
         "before the same-card disagreement rule"
-    assert "_vcard.retarget(" in turn and "_other_view(" in open("nucleo/flash/verdict_card.py").read()
+    assert "_other_view(" in open("nucleo/flash/verdict_card.py").read()
 
 
 def test_the_text_channel_yields_a_lens_where_the_verdict_acts(monkeypatch):

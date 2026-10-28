@@ -4,7 +4,7 @@ Measured on a live session: «monta una lista de música para ambientar un cumpl
 → the model called the player's `play` with that sentence as its query, and «Cumpleaños Feliz» played. The brief's
 escalate question — now worded so that a collection put together to fit what he describes is background work
 (measured live: four domains at 0.88-0.98, every one-step play `handle_inline` at 1.00) — is the one paid reading
-of the whole turn. A player's one-shot play over a SURE commission verdict becomes the errand, on both channels; the
+of the whole turn. A player's one-shot play over a SURE commission verdict becomes the errand; the
 errand it starts opens no empty sheet when its end state is one of his own cards; a silent start says so.
 Nothing here names a domain: the verdict, the player table and the manifests carry it.
 """
@@ -75,12 +75,6 @@ def test_the_voice_turn_still_plays_a_one_step_order():
     tec._t_play_music(args={"action": "play", "query": "Madonna"}, music_req=music_req, _brief=inline,
                       _apply_widget_data=None, emit=None, text="pon algo de Madonna", esc=esc)
     assert music_req["v"] == {"query": "Madonna", "action": "play"} and esc["v"] is None
-
-
-def test_the_text_channel_takes_the_same_decision():
-    out = PC.probe_music({"action": "play", "query": LIST_ORDERS["en_songs"]}, [], brief=SURE,
-                         text=LIST_ORDERS["en_songs"])
-    assert out == {"action": "escalate", "music_req": None}
 
 
 def test_a_silent_start_says_so_once_and_a_spoken_one_says_nothing_more():

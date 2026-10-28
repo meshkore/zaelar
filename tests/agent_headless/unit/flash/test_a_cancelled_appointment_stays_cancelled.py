@@ -88,8 +88,8 @@ def test_an_old_cancellation_of_another_day_does_not_block_a_new_entry(agenda):
     assert nb.note_to_file(*FAREWELL, window=WINDOW_ES) is not None
 
 
-def test_both_channels_ask_the_one_decision():
+def test_the_voice_turn_asks_the_one_decision():
     from tests.voice_turn_source import getsource
-    from nucleo.flash import post_stream_words, probe_scheduling
-    for mod in (probe_scheduling, post_stream_words):
-        assert "note_backstop" in getsource(mod) and "note_to_file(" in getsource(mod)
+    from nucleo.flash import post_stream_words
+    src = getsource(post_stream_words)
+    assert "note_backstop" in src and "note_to_file(" in src

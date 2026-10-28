@@ -194,10 +194,8 @@ import pytest as _pt
 
 @_pt.mark.parametrize("ruta, funcion", [
     ("voice/engine/llm/providers/nucleo.py", "_run_inner"),
-    # F1 (2026-08-24): the probe was the two sibling copies of the voice ones — voice drifted, probe did not, and
-    # even so both are being removed: two correct implementations today are tomorrow's drift with the parity note
-    # covering it. From here, BOTH channels go through the same call.
-    ("nucleo/flash/probe.py", "run_turn"),
+    # F1 (2026-08-24): the old text channel had two sibling copies of the voice ones; since refactor2710-01 it
+    # is gone and the one turn goes through the same call.
 ])
 def test_ningun_canal_se_escribe_su_propia_precedencia(ruta, funcion):
     """WIRING guard using AST (not text: counting a string also counts prose that names it, and this

@@ -103,11 +103,9 @@ def test_match_spoken_retries_with_the_name_removed(monkeypatch):
     assert amap.match_spoken("Johnny eres tonto.") is None
 
 
-def test_the_fast_lane_and_the_probe_mirror_both_use_match_spoken():
+def test_the_fast_lane_uses_match_spoken():
     lane = (ENGINE / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
-    probe = (ENGINE / "nucleo/flash/probe_actionmap.py").read_text(encoding="utf-8")
-    assert "match_spoken(" in lane and "match_spoken(" in probe, \
-        "both channels must retry the lookup with the wake word stripped (V2-539 parallel-impl rule)"
+    assert "match_spoken(" in lane, "the turn's fast lane must retry the lookup with the wake word stripped"
 
 
 # ── 3 · the shared branch bodies act on the license ──────────────────────────────────────────────────────
@@ -158,7 +156,7 @@ def test_fullscreen_dispatch_routes_by_direction_and_discards_the_drag(monkeypat
             assert deduped["v"] is True
 
 
-# ── 4 · the provider and the probe carry the guards (source contracts) ───────────────────────────────────
+# ── 4 · the provider carries the guards (source contracts) ───────────────────────────────────
 
 def test_the_voice_provider_gates_model_closes_and_delegates_the_bodies():
     src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
@@ -176,19 +174,6 @@ def test_the_voice_provider_gates_model_closes_and_delegates_the_bodies():
         "the widget_data close (which EMPTIES the loaded video) needs the same license"
     assert "_video_turn.voice_execute(" in src and "_show_target.fullscreen_dispatch(" in src, \
         "the branch bodies live in the shared modules — one impl, both channels"
-
-
-def test_the_probe_channel_mirrors_all_three_guards():
-    src = _vts.read(ENGINE / "nucleo/flash/probe.py")
-    assert "close_guards" in src and 'if action == "close":' in src, "probe must drop unlicensed closes"
-    # V2-723: the probe passes the previous assistant line too — a bare «yes» licenses media only as the
-    # answer to something we asked, and a fact only one channel reads is a mirror that drifts.
-    # V2-741 adds the third argument: the turn's brief, so a verdict can overrule the verb table.
-    # This channel fires no brief yet, so the grammar still decides here — the parameter is asserted
-    # anyway, because a mirror that is missing an argument is exactly how the two channels drift.
-    assert "video_license(text, _last_assistant_line(sess.window), brief=" in src, \
-        "probe must gate play_video on the same license, with the same offer fact AND the same brief"
-    assert "fullscreen_license(text)" in src, "probe must route the fullscreen direction the same way"
 
 
 # ── 5 · minimize is a first-class canvas order ───────────────────────────────────────────────────────────

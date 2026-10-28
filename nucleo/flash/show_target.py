@@ -128,21 +128,6 @@ def _running_goals() -> list[str]:
         return []
 
 
-def classify_alias_call(tool_calls: list, text: str) -> str:
-    """V2-082, moved here from `probe.py`'s branch (ratchet, 2026-09-03, V2-567): the probe only CLASSIFIES
-    alias management (the provider is the one that writes manifests) — resolve the widget and report
-    `alias:add|remove:id`, or `clarify` when no widget can be located with certainty."""
-    _ma = next(t for t in tool_calls if t["name"] == "manage_widget_alias")
-    op = "remove" if str(_ma["args"].get("op") or "add").lower().startswith(("rem", "quit", "borr")) else "add"
-    try:
-        from widgets import runtime as _rta
-        awid = (_ma["args"].get("widget_id") or "").strip()
-        rid = awid if (awid and _rta.get(awid) is not None) else (_identify_ctx(_rta, awid or text) or "")
-    except Exception:
-        rid = ""
-    return f"alias:{op}:{rid}" if rid else "clarify"
-
-
 def model_named(wid_arg: str) -> str:
     """The card the model NAMED, when it is one we have: an exact catalog id, or an INSTANCE id verbatim (V2-773 —
     the model can only name one it was told about, and the alias resolver would read it as noise). "" otherwise —
@@ -254,12 +239,6 @@ def show_instance(rid: str, text: str = "", last_spoken: str = "") -> tuple[str,
     if out.get("ask"):
         return "", str(out["ask"]), ""
     return str(out.get("id") or rid), "", str(out.get("chose") or "")
-
-
-def last_assistant_line(window) -> str:
-    """The last thing THIS channel said — the probe's equivalent of the voice provider's `_last_spoken`."""
-    return next((str(m.get("content") or "") for m in reversed(list(window or []))
-                 if (m or {}).get("role") == "assistant"), "")
 
 
 def show_card(rid: str, text: str = "") -> str:
@@ -512,23 +491,6 @@ CANVAS_VERBS = {
     "neither": "the turn asks for nothing about showing, closing, resizing or arranging widgets — removing, "
                "skipping or moving ONE ITEM of a card's list (the third video, the one by X, a row) is neither",
 }
-
-
-def ask_canvas_async(text: str, *, context: str = "") -> dict | None:
-    """Fire-and-forget canvas-verb verdict for the hot path. Same handle shape `peek` reads;
-    None when there is nothing to wait for — the caller keeps today's path either way."""
-    import functools
-
-    from nucleo import jev as _jev
-    text = (text or "").strip()
-    if not text or not _jev.enabled():
-        return None
-    return _jev.ask_async(
-        text,
-        run=functools.partial(_jev.choose_sync, "canvas", text,
-                              instructions=CANVAS_INSTRUCTIONS, criteria=CANVAS_VERBS,
-                              context=context, question_id="canvas"),
-        name="jev-canvas")
 
 
 def resolve_canvas_verb(handle: dict | None, *, min_confidence: float | None = None):

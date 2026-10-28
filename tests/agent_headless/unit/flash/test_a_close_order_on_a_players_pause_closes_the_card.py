@@ -8,7 +8,6 @@ names this very action) and a player's stop/pause under a close verb that names 
 """
 from __future__ import annotations
 
-import asyncio
 import threading
 from pathlib import Path
 
@@ -38,11 +37,6 @@ def screen(monkeypatch):
     NT._PARKED.clear()
 
 
-class _Sess:
-    window: list = []
-    last_action = ""
-
-
 @pytest.mark.parametrize("text", [
     "Ah, vale, perfecto. Pues ahora cierra la música, que ya no la quiero.",
     "close the music, I don't want it any more",
@@ -68,23 +62,7 @@ def test_the_short_close_order_keeps_its_rule(screen):
     assert not CC.data_close("agenda", "close_meeting", "ya la puedes cerrar", brief=_brief("agenda:close_meeting", 0.99))
 
 
-def test_the_text_channel_closes_the_card_and_the_receipt_says_so(screen):
-    from nucleo.flash import probe_decide as PD
-    from nucleo.flash import router_guards as RG
-    from nucleo.flash import card_receipt as R
-    text = "Ah, vale, perfecto. Pues ahora cierra la música, que ya no la quiero."
-    calls = [{"name": "widget_data", "args": {"widget_id": "musica", "action": "pause", "payload": {}}}]
-    blk = asyncio.run(PD.name_the_action(_hard=None, _router=RG, _tbrief=_brief("musica:pause", 0.81), _vault_gate=None,
-                                         ingest=None, names=["widget_data"], sess=_Sess(), tags=[], text=text,
-                                         tool_calls=calls))
-    assert blk["action"] == "canvas:close:musica", blk
-    acts = R.acts_of_probe_turn(blk["action"], [], calls)
-    assert ("musica", R.CLOSE, "close") in acts, acts
-
-
-def test_both_channels_call_the_one_door():
-    probe = (ENGINE / "nucleo/flash/probe_decide.py").read_text(encoding="utf-8")
-    assert "_card_close.data_close(_wid, _act, text, brief=_tbrief)" in probe
+def test_the_voice_turn_calls_the_one_door():
     voice = (ENGINE / "nucleo/flash/tool_executor_widget_calls.py").read_text(encoding="utf-8")
     assert "_txw._card_close.data_close(wid, action_name, text, brief=_brief)" in voice
     assert "is_short_close_order" not in voice, "the short close reaches the voice rail through `data_close` only"

@@ -13,7 +13,7 @@ import asyncio
 import pytest
 
 from nucleo import dispatch
-from nucleo.flash import data_ops, widget_data_turn as W, worker_note_relay as R
+from nucleo.flash import data_ops, worker_note_relay as R
 
 HIS = "the King Seiko hi-beat sounds good, same check though — running and real photos. if it looks clean I'm in"
 CALL = {"name": "widget_data", "args": {"widget_id": "results::cfae00-ls1", "action": "progress",
@@ -35,17 +35,6 @@ def watch(monkeypatch):
         return {"ok": True}
     monkeypatch.setattr("widgets.server_api.brain_action", _brain_action)
     return sent, ran
-
-
-def test_the_text_channel_sends_his_words_and_says_what_follows(watch):
-    sent, ran = watch
-    parte = asyncio.run(W.execute([CALL], text=HIS))
-    assert sent == [("2", HIS)], sent
-    assert not ran, "the worker's summary is not written by the turn"
-    line = W.spoken_for(parte, "Done.")
-    assert "passed that on to «Find me a vintage automatic Seiko for under $450.»" in line, line
-    assert "checks that first" in line and line != "Done."
-    assert W.named_ack(parte, "Done.", HIS, asked=True) == line
 
 
 def test_the_voice_channel_relays_at_the_same_door(watch):

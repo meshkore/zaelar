@@ -17,7 +17,7 @@ ampliando sinónimos».
 ## Lo que se afirma aquí
 
 Que la pregunta se ha movido del VERBO a la LLAMADA — ¿trae esta acción contenido que la frase no menciona? —,
-que una acción sin datos pero CON consecuencia (`clear_all`) sigue bloqueada, que los dos canales pasan el
+que una acción sin datos pero CON consecuencia (`clear_all`) sigue bloqueada, que el turno de voz pasa el
 payload, y que cada veto queda contado en sombra para poder retirar el guarda con un número en vez de con una
 opinión.
 """
@@ -129,13 +129,11 @@ def test_un_widget_que_nadie_ha_escrito_hereda_el_comportamiento():
 
 # ── 4 · los dos canales, y la cuenta para poder retirarlo ───────────────────────────────────────────────
 
-def test_los_dos_canales_pasan_el_payload():
-    """Si solo lo pasa uno, el canal de texto vuelve a reportar una decisión que el producto no toma — que es
-    exactamente el falso verde que este guarda ya provocó una vez (V2-545)."""
+def test_the_voice_turn_passes_the_payload():
+    """The typed channel runs this same voice turn (`nucleo.cli.turn.run_turn`), so passing the payload here is
+    passing it on both — the false green this guard once caused (V2-545) has no second copy to come from."""
     voz = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    txt = _vts.read(ENGINE / "nucleo" / "flash" / "probe.py")
     assert "show_request_blocks_data_action(text, wid, action_name, payload)" in voz
-    assert "show_request_blocks_data_action(text, _wid, _act, _pl)" in txt
 
 
 def test_cada_veto_queda_contado_en_sombra_con_su_regla():

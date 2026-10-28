@@ -155,11 +155,3 @@ def test_a_pause_is_not_production_and_an_order_turn_still_plays():
     assert not close_answer.refuses(_brief(kind="answer", kconf=0.9), "musica", "pause")
     instances.clear_close_ask()
     assert _play_music(_brief(kind="order", kconf=0.9)) == {"query": "", "action": "resume"}
-
-
-def test_the_text_channel_mirrors_the_refusal():
-    from nucleo.flash import probe_decide
-    instances.note_close_ask(CAR)
-    calls = [{"name": "play_music", "args": {"action": "resume"}}]
-    assert probe_decide._answer_refuses_music(_brief(kind="answer", kconf=0.9), calls)
-    assert not probe_decide._answer_refuses_music(_brief(kind="order", kconf=0.9), calls)

@@ -77,13 +77,6 @@ def test_a_chat_session_opened_after_the_line_does_not_inherit_it():
     assert late == [], "a line said before this conversation existed is not part of it"
 
 
-def test_the_text_channel_drains_before_it_builds_the_prompt():
-    from pathlib import Path
-    src = (Path(__file__).resolve().parents[3] / "nucleo" / "flash" / "probe_before.py").read_text("utf-8")
-    assert "dialog.drain_spoken(sess.window" in src and src.index("dialog.drain_spoken(sess.window") < src.index(
-        "messages += dialog.prune_window(sess.window)")
-
-
 # ── demo pass 135: a report that crossed his exchange about another card goes ahead of it ──────────────────
 
 def _his_turn(card: str = "") -> None:

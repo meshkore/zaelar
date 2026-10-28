@@ -134,7 +134,7 @@ def test_the_ask_is_consents_second_question_and_not_a_new_one():
     assert v["candidates"] == cands and consent.asks(v)
 
 
-# ── and the half that a mapping test cannot reach: is the decision WIRED, on BOTH channels? ─────────────
+# ── and the half that a mapping test cannot reach: is the decision WIRED into the turn? ─────────────────
 # The lesson this repo keeps paying for: an integration shipped in an initiative marked done and never made
 # a call in its life, because every test built its verdict by hand. And the R3 class beside it — a rule that
 # only ever existed on one side (`close_guards.is_short_close_order` lived inline in the voice rail for two
@@ -143,7 +143,6 @@ import pathlib
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[3]
 _VOICE = _vts.read(_ENGINE / "voice/engine/llm/providers/nucleo.py")
-_PROBE = _vts.read(_ENGINE / "nucleo/flash/probe.py")
 
 
 def test_the_voice_rail_asks_WHOSE_order_before_dispatching_it():
@@ -159,20 +158,17 @@ def test_the_voice_rail_asks_WHOSE_order_before_dispatching_it():
     # for the same verdict is a second thing to translate and a second thing to fall out of step.
 
 
-def test_the_probe_takes_the_SAME_decision_and_does_not_copy_it():
-    """Both channels call the one function. A copied condition costs a marker and leaves two places to
-    edit — this repo's own ratchet vetoes a new mirror: «si dos canales necesitan la misma regla, extrae»."""
+def test_the_turn_takes_the_SHARED_decision_and_does_not_copy_it():
+    """The turn calls the one function. A copied condition costs a marker and leaves two places to edit — this
+    repo's own ratchet vetoes a new mirror: «si dos canales necesitan la misma regla, extrae»."""
     from nucleo.flash import frontend
     src = (_ENGINE / "nucleo/flash/frontend.py").read_text(encoding="utf-8")
     for fn in ("card_decision", "which_card", "absent_widget_misroute"):
         assert f"def {fn}" in src and callable(getattr(frontend, fn)), fn
-        assert f"def {fn}" not in _PROBE and f"def {fn}" not in _VOICE, (
-            f"`{fn}` was COPIED into a channel instead of shared — «si dos canales necesitan la misma "
+        assert f"def {fn}" not in _VOICE, (
+            f"`{fn}` was COPIED into the turn instead of shared — «si dos canales necesitan la misma "
             f"regla, extrae primero»")
-    assert "card_decision(" in _PROBE, "the text channel takes a different decision from the product"
-    # …and the guard that WAS copied, in both, until this pass: the probe's own comment said so.
-    assert "absent_widget_misroute(" in _PROBE and "absent_widget_misroute(" in _VOICE
-    assert "looks_like_bare_ref" not in _PROBE, "the duplicated condition survived in the probe"
+    assert "absent_widget_misroute(" in _VOICE
 
 
 def test_no_third_blocking_caller_was_added_to_serve_the_briefless_channel():

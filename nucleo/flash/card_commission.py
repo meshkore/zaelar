@@ -333,35 +333,6 @@ async def commission_call(commission: str, *, brief, operator_text: str, spec, w
     return got or None
 
 
-async def probe_instead_of_a_worker(tool_calls: list, commission: str, *, brief, operator_text: str, spec,
-                                    window=None) -> bool:
-    """The text channel's half (V2-252): a declared CALL the catalogue card takes is recorded as the turn's repaired
-    `widget_data`. Live bench, «send rowan a telegram with the new time» with the messages card closed: 4/7 — the
-    three reds escalated a two-field send to a worker the voice channel would never have launched. A read, or
-    nothing, keeps the errand as it was. Never raises."""
-    try:
-        _declared = next((str((t.get("args") or {}).get("surface") or "") for t in tool_calls
-                          if t.get("name") == "escalate_to_slowbrain"), "")
-        got = await commission_call(commission, brief=brief, operator_text=operator_text, spec=spec, window=window,
-                                    declared_surface=_declared)
-    except Exception as e:  # noqa: BLE001 — a model call that broke is SAID on the trace, never «no commission»
-        try:
-            from voice.observer import emit
-            emit("brain", "⚠️ commission call failed — the errand stays as it was", role="system",
-                 text=f"{type(e).__name__}: {e}"[:160], extra={"cat": "flash", "is_error": True})
-        except Exception:  # noqa: BLE001
-            pass
-        return False
-    if not got or got.get("kind") not in ("call", "compose"):
-        return False
-    # a composed text is recorded as the card's call with its title — the probe decides, it does not write a page
-    payload = (got["payload"] if got["kind"] == "call"
-               else {"title": got["title"], "_compose": True, "_brief": got.get("brief", "")})
-    tool_calls.append({"name": "widget_data", "args": {"widget_id": got["widget_id"], "action": got["action"],
-                                                       "payload": payload, "_repair": True}})
-    return True
-
-
 async def written(pl: dict, text: str) -> dict:
     """A `compose` decision written BEFORE it reaches the card, as the voice rail does (`compose_rung.run`).
 
@@ -383,42 +354,6 @@ async def written(pl: dict, text: str) -> dict:
     if not body:
         return pl
     return {k: v for k, v in pl.items() if not str(k).startswith("_")} | {"title": title, "body": body}
-
-
-async def probe_escalation(tool_calls: list, action: str, spoken: str, *, text: str, brief, operator_text: str,
-                           spec) -> tuple[str, str]:
-    """The text channel's escalation, before a worker is spent: `(action, spoken)`. An OPEN card the verdict names
-    gets one pass with its fields (V2-770, `act_repair`); otherwise the CLOSED catalogue card may take the call
-    (`probe_instead_of_a_worker`). A dangerous sentence takes neither. Never raises."""
-    try:
-        from nucleo import danger as _danger
-        from nucleo.flash import act_repair as _ar_esc, direct_action as _da_esc
-        if _danger.is_dangerous(operator_text):
-            return action, spoken
-        # A question the state answers is no errand (`escalation_guard.ANSWERED`) — the voice's gate, here too.
-        from nucleo.flash import escalation_guard as _eg, second_pass as _sp
-        from voice.observer import emit as _emit
-        _req = {"v": operator_text, "more": []}
-        _ans = await _sp.answered_from_state(_eg.settle_commission(
-            _req, brief=brief, operator_text=operator_text, reply=spoken or "", acted=False, anything_running=False,
-            emit=_emit), operator_text, [], spec)
-        if _ans:
-            tool_calls[:] = [t for t in tool_calls if t.get("name") != "escalate_to_slowbrain"]
-            return "chat", _ans
-        _owner, _owner_act = _da_esc.from_brief(brief)
-        if _owner:
-            _ar = await _ar_esc.call_for_promise_or_order(operator_text, spoken or text, _owner, _owner_act,
-                                                          spec=spec, brief=brief)
-            if _ar:
-                tool_calls.append({"name": "widget_data", "args": {"widget_id": _ar["widget_id"],
-                                   "action": _ar["action"], "payload": _ar["payload"], "_repair": True}})
-                return "widget_data", ""
-        elif await probe_instead_of_a_worker(tool_calls, spoken or text, brief=brief, operator_text=operator_text,
-                                             spec=spec):
-            return "widget_data", ""
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"card_commission: the probe's escalation pass failed — {type(e).__name__}: {e}")
-    return action, spoken
 
 
 async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_text: str, spec, emit,
@@ -473,8 +408,9 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
                  text=f"{got['widget_id']} ← {got['question'][:100]}", role="system",
                  extra={"cat": "flash", "widget": got["widget_id"], "question": got["question"][:200]})
             return "read"
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001 — a model call that broke is SAID on the trace, never «no commission»
+        emit("brain", "⚠️ commission call failed — the errand stays as it was", role="system",
+             text=f"{type(e).__name__}: {e}"[:160], extra={"cat": "flash", "is_error": True})
     return ""
 
 
@@ -598,28 +534,6 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
                     "suppressed": bool(acted.get("show_suppressed"))})
         return True
     except Exception:  # noqa: BLE001
-        return False
-
-
-async def probe_after_show(tool_calls: list, tags: list, spoken: str, *, brief, operator_text: str, spec,
-                           window=None) -> bool:
-    """The text channel's half of `after_show` (V2-252 parity). Demo pass 145, INIT: «Save Quinn and Rowan in my
-    contacts…» (a list step, so the text channel) came back as a SHOW of the contacts card and «I've opened it, though
-    there's nothing in it yet» — the voice channel repairs exactly that turn, this one never asked. The same decision;
-    its call joins the turn's tool calls. True when one was added. Never raises."""
-    try:
-        from voice.observer import emit
-        shown = [str((t.get("extra") or {}).get("id") or "") for t in (tags or []) if t.get("action") == "show"]
-        busy = {str((t.get("args") or {}).get("widget_id") or "").split("::", 1)[0] for t in tool_calls or ()
-                if t.get("name") == "widget_data"} | ({"*"} if any(t.get("name") == "escalate_to_slowbrain" for t in tool_calls or ()) else set())
-        wid = next((w for w in shown if w and "*" not in busy and w.split("::", 1)[0] not in busy), "")
-        if not wid:
-            return False
-        add = lambda w, a, p: tool_calls.append({"name": "widget_data", "args": {"widget_id": w, "action": a, "payload": p}})  # noqa: E731
-        return await after_show({"widget_id": wid}, brief=brief, operator_text=operator_text, spoken_text=spoken, spec=spec,
-                                emit=emit, present=lambda *a, **k: True, apply_widget_data=add, window=window)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"probe after-show skipped: {type(e).__name__}: {e}")
         return False
 
 

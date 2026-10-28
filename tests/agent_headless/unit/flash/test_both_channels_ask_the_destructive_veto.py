@@ -26,8 +26,6 @@ def test_both_verdict_card_doors_call_the_veto_first():
             f"{name}: the veto is asked before any other retarget"
 
 
-def test_each_channel_reaches_its_door_before_dispatching():
+def test_the_turn_reaches_its_door_before_dispatching():
     voice = (_FLASH / "tool_executor_widget_calls.py").read_text(encoding="utf-8")
-    text = (_FLASH / "widget_data_turn.py").read_text(encoding="utf-8")
     assert voice.index("_txw._vcard.takes_the_view(") < voice.index("_apply_widget_data(_cd[\"card\"], action_name, res.payload, ref)")
-    assert text.index("_vcard.retarget(") < text.index("await _brain_action(wid, act, pl)")

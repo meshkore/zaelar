@@ -158,35 +158,3 @@ def bounces(intent: str, book: dict) -> bool:
     «bien» mean «I'm fine» rather than an answer to something else."""
     return bool(((book.get("intents") or {}).get(intent) or {}).get("bounces"))
 
-
-def mirror(text: str, sess, trace_id: str, book: dict, *, bounce_pending: bool = False) -> dict | None:
-    """The PROBE channel's answer — the finished response dict, or None to fall through. Deterministic twin
-    of the voice lane (V2-539's rule: wire BOTH channels, or the probe hands out verdicts the product never
-    gives). It takes the FIRST phrase of the pool instead of a random one: a test channel that rolls dice
-    cannot be asserted on."""
-    try:
-        from nucleo import context_packs
-        if context_packs.active_ids():
-            return None                   # a guiding phase outranks the phrasebook — see the voice lane
-        intent = classify(text, book, bounce_pending=bounce_pending)
-        try:
-            sess.smalltalk_bounce = False   # see the voice lane: any turn takes the question out of the air
-        except Exception:  # noqa: BLE001
-            pass
-        if not intent:
-            return None
-        pool = list(((book.get("intents") or {}).get(intent) or {}).get("replies", ()) or ())
-        if not pool:
-            return None
-        phrase = pool[0]
-        try:
-            sess.smalltalk_bounce = bounces(intent, book)
-        except Exception:  # noqa: BLE001
-            pass
-        from nucleo.flash import dialog
-        dialog.push_user(sess.window, text)
-        sess.window.append({"role": "assistant", "content": phrase})
-        return {"ok": True, "reply": [phrase], "action": "smalltalk", "tool_calls": [], "tags": [],
-                "trace": trace_id, "intent": intent}
-    except Exception:  # noqa: BLE001 — the phrasebook must never be able to break a turn
-        return None

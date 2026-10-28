@@ -18,13 +18,10 @@ is CORRECT behaviour that another case in this suite scores as such.
 """
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from memory import db as memdb
 from memory import embeddings as mememb
-from nucleo.flash import probe
 from nucleo.flash import prompt
 from nucleo.flash import router_guards as g
 
@@ -33,9 +30,11 @@ HANDBACK = ('La forma más fiable ahora es que tú busques "farmacia" en Google 
             'y me pases el teléfono.')
 
 
-class _Handback:
-    async def stream(self, *_a, **_kw):
-        yield HANDBACK
+def _typed_turn(phrase: str):
+    """The whole turn (the voice turn, typed and dry) with the model answering HANDBACK and calling nothing."""
+    from tests.brain import harness as H
+    return H.run_case({"id": "v142", "lang": "es", "phrase": phrase, "source": "V2-142", "screen": {"open": []},
+                       "expect": "escalate", "model": {"say": HANDBACK}})
 
 
 @pytest.fixture(autouse=True)
@@ -83,25 +82,20 @@ def test_and_these_are_not(reply):
     assert g.hands_public_lookup_back(reply) is False
 
 
-def test_the_backstop_does_the_search_instead_of_just_forbidding_it(fresh_db, monkeypatch):
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _Handback)
+def test_the_backstop_does_the_search_instead_of_just_forbidding_it(monkeypatch):
     monkeypatch.setattr("nucleo.dispatch.has_active", lambda: False)
-    res = asyncio.run(probe.run_turn(
-        "¿puedes buscar tú el teléfono de esa, por favor? Para eso te pido ayuda.",
-        sid="t-v142-a", ingest=False))
-    probe._SESSIONS.pop("t-v142-a", None)
-    assert res["action"] == "escalate"
+    out = _typed_turn("¿puedes buscar tú el teléfono de esa, por favor? Para eso te pido ayuda.")
+    assert not out.error, out.error
+    assert out.action == "escalate", (out.action, out.reply)
 
 
-def test_but_not_while_something_is_already_running(fresh_db, monkeypatch):
+def test_but_not_while_something_is_already_running(monkeypatch):
     """With a live task the same sentence can be a suggestion while the work happens, and re-escalating would
     run it twice — the cost V2-123 measured."""
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _Handback)
     monkeypatch.setattr("nucleo.dispatch.has_active", lambda: True)
-    res = asyncio.run(probe.run_turn(
-        "¿puedes buscar tú el teléfono de esa, por favor?", sid="t-v142-b", ingest=False))
-    probe._SESSIONS.pop("t-v142-b", None)
-    assert res["action"] != "escalate"
+    out = _typed_turn("¿puedes buscar tú el teléfono de esa, por favor?")
+    assert not out.error, out.error
+    assert out.action != "escalate", (out.action, out.reply)
 
 
 # ── a running task is not part of the new request ───────────────────────────────────────────────────────────

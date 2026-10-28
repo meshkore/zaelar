@@ -115,8 +115,6 @@ def test_the_rung_runs_the_named_card_and_never_the_excluded_one(screen):
     assert U.why(_brief("youtube:volume_down", 0.6), "youtube", "volume_down", operator_text=text) == "shared"
 
 
-def test_both_channels_hand_his_words_to_the_card_decision():
-    probe = (ENGINE / "nucleo/flash/probe_decide.py").read_text(encoding="utf-8")
-    assert "ask_phrase=_player_control._ask_phrase(), operator_text=text)" in probe
+def test_the_voice_turn_hands_his_words_to_the_card_decision():
     voice = (ENGINE / "nucleo/flash/tool_executor_widget_calls.py").read_text(encoding="utf-8")
     assert "payload=payload, operator_text=_txw._bnotes.operator_half(text))" in voice
