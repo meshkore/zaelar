@@ -233,12 +233,15 @@ def at_full_screen() -> str:
         maxw = str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()
         if maxw:
             return maxw
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.debug(f"show_target: canvas report unreadable — {e}")
     try:
         from nucleo import canvas_focus as _cf
         return str(_cf.ordered_fullscreen() or "").strip()
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        from loguru import logger
+        logger.debug(f"show_target: ordered full screen unreadable — {e}")
         return ""
 
 

@@ -40,8 +40,8 @@ def test_a_selector_that_names_no_row_is_nothing_to_check():
     assert wh.goal_on(empty, "agenda", "actually move it half an hour later") is None
     assert wh.goal_on(empty, "agenda", "muévela media hora más tarde") is None
     named = {"all": [{"widget": "agenda", "collection": "meetings",
-                      "where": {"title~": "Catch up with Ethan", "startTime": ""}, "expect": "present"}]}
-    assert wh.goal_on(named, "agenda", "move catch up with ethan half an hour later")["all"] == named["all"]
+                      "where": {"title~": "Catch up with Rowan", "startTime": ""}, "expect": "present"}]}
+    assert wh.goal_on(named, "agenda", "move catch up with rowan half an hour later")["all"] == named["all"]
 
 
 def test_views_and_acts_that_leave_are_never_the_turns_writes():

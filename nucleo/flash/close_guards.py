@@ -73,8 +73,8 @@ def whole_canvas_close(text: str) -> bool:
     try:
         from voice import attention as _att
         return _att.hard_interrupt(text) == "close"
-    except Exception:  # noqa: BLE001 — an unreadable reader leaves the narrower grammar's verdict as it was
-        return False
+    except Exception as e:  # noqa: BLE001 — an unreadable reader leaves the narrower grammar's verdict as it was
+        return __import__("loguru").logger.debug(f"close_guards: whole-canvas reader unreadable — {e}") or False
 
 
 def is_short_close_order(text: str) -> bool:

@@ -50,7 +50,7 @@ def recipient_was_named(wid: str, action: str, payload: dict, operator_text: str
 def send_backed_by_verdict(brief, wid: str, action: str) -> bool:
     """An act that LEAVES, composed by a pass whose card came from his WORDS, runs only when the verdict puts the
     order on that card (`screen_action` target or `catalog_widget`, licence floor). A named recipient is not an
-    ordered send (node 2.926: a pass mailed Andrew over «save … in my contacts»). Fail-closed: no brief, no send."""
+    ordered send (node 2.926: a pass mailed Quinn over «save … in my contacts»). Fail-closed: no brief, no send."""
     try:
         from widgets import effects as _fx
         if not _fx.carries(wid, action, _fx.EXTERNAL_SEND):
@@ -65,7 +65,9 @@ def send_backed_by_verdict(brief, wid: str, action: str) -> bool:
             return True
         card, c_info = _tb.read(brief, _tb.CATALOG_KEY, "", min_confidence=_v.LICENCE)
         return bool(c_info) and str(card or "").split("::", 1)[0].strip().lower() == base
-    except Exception:  # noqa: BLE001 — unreadable: an act that leaves does not
+    except Exception as e:  # noqa: BLE001 — unreadable: an act that leaves does not
+        from loguru import logger
+        logger.debug(f"repair_grounding: verdict unreadable — {e}")
         return False
 
 

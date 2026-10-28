@@ -180,8 +180,8 @@ def _names_a_cards_act(brief) -> bool:
     try:
         from nucleo.flash import direct_action as _da, verdict_card as _vc
         return bool(_da.from_brief(brief)[1]) and _da._action_sure(brief, floor=_vc.SURE)
-    except Exception:  # noqa: BLE001 — unreadable: the steer stands as before
-        return False
+    except Exception as e:  # noqa: BLE001 — unreadable: the steer stands as before
+        return logger.debug(f"stop_decision: card verdict unreadable: {e!r}") or False
 
 
 def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict | None = None,

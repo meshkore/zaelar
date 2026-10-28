@@ -7,7 +7,6 @@ the verdict read the sentence as an order, and only a question's op had its data
 E3: «send the invoice to quinn…» — the model called `reply` (to the invoice's sender); the outward-act gate ran
 the verdict's `forward` with the reply's payload, which has no recipient, and the forward was refused. The person
 his sentence names, from the directory, fills an empty `contact`."""
-from tests import voice_turn_source as _vts
 import pathlib
 
 import pytest
@@ -15,12 +14,19 @@ import pytest
 ENGINE = pathlib.Path(__file__).resolve().parents[3]
 
 
-def test_find_free_is_declared_an_answer_and_the_turn_speaks_it():
+def test_find_free_is_declared_an_answer_and_the_turn_speaks_it(monkeypatch):
     from widgets import effects as fx
     assert fx.carries("agenda", "find_free", fx.OUTPUT_ANSWER)
-    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert "_answers = any(_fx_ans.carries(_w, _a, _fx_ans.OUTPUT_ANSWER)" in src
-    assert "if _answers or (_wi is not None" in src
+    from tests.voice.unit.test_a_question_answered_by_a_view_gets_its_answer import _ops_answer_door
+    slots = {"ok": True, "slots": ["15:00-15:45", "16:30-17:15"]}
+    said = _ops_answer_door(monkeypatch, slots, "agenda", "find_free", kind="order")   # an ORDER, not a question
+    assert said and "15:00-15:45" in said[0]["system"], "a declared answer is spoken whatever the verdict reads"
+    real = fx.carries
+    fx.carries = lambda w, a, eff: False if eff == fx.OUTPUT_ANSWER else real(w, a, eff)
+    try:                                            # disarm: without the declaration the order stays silent
+        assert _ops_answer_door(monkeypatch, slots, "agenda", "find_free", kind="order") == [], "disarm did not land"
+    finally:
+        fx.carries = real
 
 
 @pytest.fixture

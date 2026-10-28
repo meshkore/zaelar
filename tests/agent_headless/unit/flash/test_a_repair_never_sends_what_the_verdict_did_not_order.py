@@ -1,11 +1,11 @@
-# Demo pass in a sandbox, 2026-10-28 — INIT, list step «Save Ethan and Andrew in my contacts: Ethan's Telegram is
-# @ethan_demo, and Andrew's email is andrew@example.com.»:
+# Demo pass in a sandbox, 2026-10-28 — INIT, list step «Save Rowan and Quinn in my contacts: Rowan's Telegram is
+# @rowan_demo, and Quinn's email is quinn@example.com.»:
 #
 #     jev turn-brief   request_type=order · catalog_widget=contactos (1.00)
-#     widget data      contactos:add_contact {name: Ethan …}
+#     widget data      contactos:add_contact {name: Rowan …}
 #     brain            🔁 la orden era sobre otra tarjeta — la llamada, en una segunda pasada  ['contactos'] → mensajeria:send_to
-#     widget data      mensajeria:send_to {contact: Andrew, channel: email,
-#                        text: "Hi Andrew, just confirming your email address on my side: andrew@example.com. Best, Richard"}
+#     widget data      mensajeria:send_to {contact: Quinn, channel: email,
+#                        text: "Hi Quinn, just confirming your email address on my side: quinn@example.com. Best, Sam"}
 #
 # The turn wrote the contact — the order's card, which the verdict named at 1.00 — and the «order on another card»
 # pass still ran: its reader of the OTHER card is a grammar (`named_cards`), which read «Telegram» and «email» as
@@ -29,8 +29,8 @@ import pytest
 from nucleo.flash import act_repair as _ral, direct_action as _da, repair_grounding as _rg
 from nucleo.turn import brief as _tb
 
-EN = "Save Ethan and Andrew in my contacts: Ethan's Telegram is @ethan_demo, and Andrew's email is andrew@example.com."
-ES = "guarda a Ethan y a Andrew en mis contactos: el Telegram de Ethan es @ethan_demo y el correo de Andrew es andrew@example.com"
+EN = "Save Rowan and Quinn in my contacts: Rowan's Telegram is @rowan_demo, and Quinn's email is quinn@example.com."
+ES = "guarda a Rowan y a Quinn en mis contactos: el Telegram de Rowan es @rowan_demo y el correo de Quinn es quinn@example.com"
 C5 = "send rowan a telegram with the new time"
 
 
@@ -90,7 +90,7 @@ def _after_read(said: str, call: dict, *, brief=None, read="contactos", card="me
 
 
 _MAIL = {"widget_id": "mensajeria", "action": "send_to",
-         "payload": {"contact": "Andrew", "channel": "email", "text": "Hi Andrew, just confirming your email address."}}
+         "payload": {"contact": "Quinn", "channel": "email", "text": "Hi Quinn, just confirming your email address."}}
 
 
 @pytest.mark.parametrize("said", [EN, ES])

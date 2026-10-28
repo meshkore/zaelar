@@ -126,7 +126,7 @@ def test_a_read_for_an_order_on_another_card_carries_the_order_out(model, monkey
     m = model([("widget_data", {"widget_id": "mensajeria", "action": "send_to",
                                 "payload": {"contact": "Rowan", "text": "Moved to 16:30"}})])
     # The verdict of that turn put the order on the messaging card; a send the pass composes needs it (demo sandbox
-    # 2026-10-28: the same pass mailed Andrew over a «save my contacts» order — `send_backed_by_verdict`).
+    # 2026-10-28: the same pass mailed Quinn over a «save my contacts» order — `send_backed_by_verdict`).
     import threading
     from nucleo.turn import brief as _tb
     ev = threading.Event(); ev.set()

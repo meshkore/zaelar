@@ -252,7 +252,7 @@ def order_card_after_read(brief, operator_text: str, read_widget: str) -> str:
         if t_info and owner and _da._base_of(owner) == _da._base_of(read_widget):
             return ""
         # …and the CATALOGUE verdict is the same evidence for a card off screen (node 2.926: «save … in my contacts:
-        # … Telegram … email» wrote the contact, the grammar named the messages card, a pass mailed Andrew).
+        # … Telegram … email» wrote the contact, the grammar named the messages card, a pass mailed Quinn).
         card, c_info = _tb.read(brief, _tb.CATALOG_KEY, "", min_confidence=_v.LICENCE)
         if c_info and str(card or "") not in ("", "none") and _da._base_of(str(card)) == _da._base_of(read_widget):
             return ""
