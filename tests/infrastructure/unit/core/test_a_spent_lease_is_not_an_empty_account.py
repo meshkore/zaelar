@@ -363,7 +363,8 @@ def test_disarm_5xx_as_verdict_reds_its_test(_clean, monkeypatch):
                   .replace('if not isinstance(data, dict) or "ok" not in data:', 'if False:'))
     assert mutated.count("if False:") == 1 and "else {}" in mutated, "the mutation did not land"
     ns = {}
-    exec(compile(mutated, energy_lease.__file__, "exec"), energy_lease.__dict__, ns)
+    from nucleo.energy import lease_renewal      # `_request` lives there (refactor2710-10b); callers reach it via lease
+    exec(compile(mutated, lease_renewal.__file__, "exec"), lease_renewal.__dict__, ns)
     monkeypatch.setattr(energy_lease, "_request", ns["_request"])
     _expect_red(test_a_5xx_is_a_failed_renewal_not_a_verdict, _clean, monkeypatch)
 
