@@ -376,6 +376,20 @@ except Exception:                                  # never let the harness's own
     pass
 
 
+# refactor2710-99 — THE TURN'S RING OF LANDED WRITES STARTS EMPTY FOR EVERY TEST. `served_writes` is in-process short
+# memory (what landed, when); left over, one test's landed `play_result` made another test's unmet op read as «made good
+# by a later write» and its spoken correction went silent — green alone, red in a full run.
+import pytest as _pytest7
+
+
+@_pytest7.fixture(autouse=True)
+def _the_landed_writes_ring_is_empty():
+    from nucleo.flash import served_writes as _sw
+    _sw.reset()
+    yield
+    _sw.reset()
+
+
 # V2-806 — THE RULES TABLE STARTS EMPTY FOR EVERY TEST.
 #
 # The operator's standing rules are rows of ONE table in `zaelar.db`, and the suite's database is ONE temp file for

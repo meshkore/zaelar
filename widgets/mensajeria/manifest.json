@@ -70,7 +70,7 @@
   ],
   "actions": {
     "show_view": {
-      "desc": "FILTRA lo que se ve por CANAL y PERIODO y CONTESTA («solo los correos de hoy», «show me only today's emails», «los whatsapps de esta semana»): platform email|whatsapp|telegram + window_h en horas (24 = hoy). 'all' vuelve a la LISTA PRINCIPAL unificada (y cierra el chat abierto). Devuelve los chats que casan en `result.chats` para que respondas con sus nombres. Es obligatoria para eso — mostrar el widget de nuevo NO cambia la vista. `window_h` (HORAS) fija el CRITERIO de esa vista: enseña las CONVERSACIONES con actividad en esa ventana (72 = últimos 3 días; 0 lo quita) — queda fijado por plataforma hasta cambiarlo, y devuelve las que casan en `result.activity`",
+      "desc": "FILTRA lo que se ve por CANAL y PERIODO y CONTESTA («¿tengo whatsapps nuevos?», «do I have new WhatsApp messages?», «show me only today's emails»): platform email|whatsapp|telegram + window_h en horas (24 = hoy). 'all' vuelve a la LISTA PRINCIPAL unificada (y cierra el chat abierto). Devuelve los chats que casan en `result.chats` para que respondas con sus nombres. Es obligatoria para eso — mostrar el widget de nuevo NO cambia la vista. `window_h` (HORAS) fija el CRITERIO de esa vista: enseña las CONVERSACIONES con actividad en esa ventana (72 = últimos 3 días; 0 lo quita) — queda fijado por plataforma hasta cambiarlo, y devuelve las que casan en `result.activity`",
       "payload": {
         "platform": "string ('all' = lista principal | whatsapp | telegram | email)",
         "window_h": "number opcional (horas de la ventana de actividad; 72 = 3 días; 0 = quitar el criterio)"
@@ -107,7 +107,7 @@
     },
     "unread": {
       "ref": "from",
-      "desc": "Deja SIN LEER en su app real (WhatsApp, Telegram o correo) el mensaje N de la lista, o el que está ABIERTO si no dices cuál — «déjalo como no leído», «márcalo sin leer»",
+      "desc": "ESCRIBE en su app real: marca SIN LEER un mensaje ya leído (el N de la lista o el ABIERTO) — «déjalo como no leído», «mark it unread». NO contesta si hay mensajes nuevos ni sin leer: eso es show_view",
       "payload": {
         "from": "de quién es o de qué va («el de Inworld»)",
         "n": "opcional: número en la lista, solo si lo ves",
