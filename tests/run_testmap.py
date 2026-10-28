@@ -5997,6 +5997,10 @@ DOMAINS: list[dict] = [
         {"id": "5.67", "title": "An observability event survives a refactor: the (kind, label) pairs connectors/ and "
                                 "server/ emit may move between files, never vanish (V2-826 §2b, refactor2710-13)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_an_event_survives_a_move.py"]},
+        {"id": "5.68", "title": "A memory event survives a refactor: the (kind, label) pairs, kinds and memory.updated ops "
+                                "memory/ and nucleo/memory_agent/ emit may move between files, never vanish (V2-826 §2b, "
+                                "refactor2710-11)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_a_memory_event_survives_a_move.py"]},
         {"id": "5.4", "title": "Architect", "ch": UNIT, "paths": ["tests/connectors/unit/architect/test_architect.py"]},
         {"id": "5.5", "title": "WhatsApp: normalización y allowlist", "ch": UNIT, "paths": [
             "tests/connectors/unit/whatsapp/test_allowlist_contract.py",
