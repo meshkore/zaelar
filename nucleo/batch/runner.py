@@ -4,7 +4,7 @@ Storage is the task table (V2-728): the list is one visible row (`kind="lista"`)
 (`parent_id`, hidden — the board shows the commission, not its plumbing). A restart therefore loses nothing:
 `resume()` picks up every list that still has pending steps.
 
-Each step runs as an ORDINARY TURN of the text channel (`probe.run_turn(execute=True)`): the Jev brief, the
+Each step runs as an ORDINARY TURN of the text channel (`nucleo.cli.turn.run_turn(execute=True)`): the Jev brief, the
 real prompt, the model, the widgets, the workers — the whole machine, one step at a time, so each step sits
 well inside the per-turn limits the unsplit message collided with. All steps share one conversation session,
 so step 9 («Anna vacation») is read with steps 1-8 behind it.
@@ -417,7 +417,7 @@ async def run(uid: str, *, turn=None, ingest=None, notify=None, worker_wait_s: f
     """Run every pending step of a list in order, wait for its workers, close it and report. Idempotent over a
     restart: steps already done are skipped."""
     if turn is None:
-        from nucleo.flash.probe import run_turn as turn
+        from nucleo.cli.turn import run_turn as turn
     if ingest is None:
         from nucleo.memory_agent import ingest_utterance
 

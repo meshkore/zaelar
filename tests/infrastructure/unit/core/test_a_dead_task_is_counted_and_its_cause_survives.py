@@ -181,22 +181,18 @@ def test_la_orden_corta_de_cerrar_se_reconoce_igual_para_todos(frase, corto):
     assert g.is_short_close_order(frase) is corto
 
 
-def test_los_DOS_canales_llaman_a_la_misma_funcion_y_ninguno_la_copia():
-    """Vivía suelta en el raíl de voz desde 2026-07-16 y el canal de texto —el que conduce los casos de uso—
-    nunca la tuvo: contestaba «ciérralo» distinto del producto. Se EXTRAE, no se espeja: el propio trinquete
-    dice «si dos canales necesitan la misma regla, extrae primero», y copiarla habría costado una marca."""
+def test_the_voice_turn_calls_the_one_close_door_and_does_not_copy_the_rule():
+    """The short-close rule is EXTRACTED, not mirrored. The typed channel runs this same voice turn
+    (`nucleo.cli.turn.run_turn`), so the voice turn reaching the ONE data-op close door is both channels
+    reaching it."""
     voz = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    txt = _vts.read(ENGINE / "nucleo" / "flash" / "probe.py")
-    # V2-781: both channels reach it through the ONE data-op close door (`card_close.data_close`), which is the only
+    # V2-781: the turn reaches it through the ONE data-op close door (`card_close.data_close`), which is the only
     # caller of the short-close rule on the `widget_data` path.
-    assert "_card_close.data_close(" in voz and "_card_close.data_close(" in txt
+    assert "_card_close.data_close(" in voz
     door = _vts.read(ENGINE / "nucleo" / "flash" / "card_close.py")
     assert "is_short_close_order(operator_text)" in door
-    for canal, src in (("voz", voz), ("texto", txt)):
-        assert "len(text.split()) <= 5" not in src, (
-            f"el canal de {canal} reimplementa el límite en vez de llamarlo. ⚠️ Este assert encontró DOS sitios "
-            f"más de los que la extracción arregló: el backstop del cierre llevaba el mismo 5 suelto en ambos "
-            f"canales, sin nombre y sin nada que los hiciera moverse juntos.")
+    assert "len(text.split()) <= 5" not in voz, (
+        "the voice turn reimplements the limit instead of calling it")
 
 
 def test_el_limite_de_palabras_vive_en_UN_solo_sitio():

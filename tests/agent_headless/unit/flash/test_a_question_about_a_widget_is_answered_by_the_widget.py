@@ -157,14 +157,6 @@ def test_the_voice_provider_captures_and_resolves_the_read():
     assert 'and reveal_req["v"] is None and read_req["v"] is None:' in code
 
 
-def test_the_probe_mirrors_the_route():
-    probe = _code("nucleo/flash/probe.py")
-    assert 'elif "read_widget" in names:' in probe, "the probe must classify the turn as a read"
-    assert "_second.probe_light_routes(" in probe, "and run it through the shared light-route seam"
-    second = _code("nucleo/flash/second_pass.py")
-    assert "_wread.probe_answer(" in second
-
-
 def test_both_channels_end_in_the_SAME_module():
     """The invariant the two guards above exist for (V2-252): whatever each channel's plumbing looks like, the
     resolution, the read and the second pass's system prompt come from `widget_read` — not from two copies."""

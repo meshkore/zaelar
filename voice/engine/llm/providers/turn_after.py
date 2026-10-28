@@ -86,8 +86,8 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     _login_started = False
     if not _tool_handled and not acted["widget"]:
         try:
-            from nucleo.flash import router as _router
-            if _router.looks_like_login_request(text) and _start_web_auth(_router.login_site(text)):
+            from nucleo.flash import router as _router, web_auth as _wa_fb
+            if _router.looks_like_login_request(text) and _start_web_auth(_wa_fb.fallback_site(text)):
                 _login_started = True
                 emit("brain", "🔐 login por fallback (el modelo no disparó la tool)", text=text[:80], role="system")
         except Exception as e:  # noqa: BLE001

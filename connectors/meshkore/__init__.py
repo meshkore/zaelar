@@ -13,6 +13,7 @@
 # shadow a like-named function. Distinct names avoid that collision.
 #
 from connectors.meshkore.manager import MeshKoreManager
+from nucleo import consequence as _consequence
 
 _manager: MeshKoreManager | None = None
 _bridge = None
@@ -41,6 +42,7 @@ def init(brain):
     return _bridge
 
 
+@_consequence.door("cluster.send")
 async def dispatch_tag(action: str, extra: dict):
     """Route a [[cluster.*]] tag emitted by the brain (from any turn — voice OR cluster). No-op if not wired."""
     b = _bridge

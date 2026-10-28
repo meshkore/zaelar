@@ -106,7 +106,7 @@ def create_app() -> FastAPI:
     #   · brain IS nucleo and a mount fails → RAISE, so the boot dies where the smoke can see it.
     from config.v2 import active_brain
     if active_brain() == "nucleo":
-        from nucleo.flash.probe_api import router as flash_probe_router
+        from nucleo.cli.api import router as flash_probe_router
         routers.append(flash_probe_router)
         from nucleo.agent_api import router as agent_report_router   # V2-036: CC→FlashBrain reporting channel
         routers.append(agent_report_router)

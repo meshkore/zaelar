@@ -1,7 +1,7 @@
 """Self-contained LLM clients for the tester (independent of zaelar's voice path).
 
 Two providers, per the operator's model-routing directive (2026-07-07):
-  · DRIVE (what the tester says to zaelar) → DeepSeek via AIMLAPI (cheap, high-frequency).
+  · DRIVE (what the tester says to zaelar) → DeepSeek, direct (cheap, high-frequency). AIMLAPI is not used.
   · JUDGE (competent evaluation/reasoning) → GLM via Z.AI's coding-plan endpoint (Anthropic-compatible),
     with automatic FALLBACK to DeepSeek if Z.AI errors (no balance / quota exhausted).
 NEVER expensive AIMLAPI models (opus…) — burns the balance. Uses the DEDICATED tester keys."""
@@ -38,15 +38,18 @@ def _anota_corte(out: dict | None, motivo: str | None) -> None:
 
 def call(messages: list[dict], model: str | None = None, temperature: float = 0.0, max_tokens: int = 4000,
          out: dict | None = None) -> str:
-    """DeepSeek (AIMLAPI, OpenAI-compatible). Used for DRIVING and as the judge fallback."""
+    """DeepSeek directly (OpenAI-compatible). Used for DRIVING and as the judge fallback. AIMLAPI is not used."""
+    if not config.DEEPSEEK_KEY:
+        raise RuntimeError("no DeepSeek key for the tester (TESTER_DEEPSEEK_KEY / DEEPSEEK_API_KEY)")
     model = model or config.DRIVE_MODEL
     payload = {"model": model, "messages": messages, "max_tokens": max_tokens}
     if temperature is not None and not any(t in model.lower() for t in _NO_TEMP):
         payload["temperature"] = temperature
     req = urllib.request.Request(
-        config.AIMLAPI_BASE.rstrip("/") + "/chat/completions",
+        config.DEEPSEEK_BASE.rstrip("/") + "/chat/completions",
         data=json.dumps(payload).encode(),
-        headers={"Authorization": f"Bearer {config.TESTER_KEY}", "Content-Type": "application/json", "User-Agent": _UA},
+        headers={"Authorization": f"Bearer {config.DEEPSEEK_KEY}", "Content-Type": "application/json",
+                 "User-Agent": _UA},
     )
     with urllib.request.urlopen(req, timeout=180) as r:
         ch = json.loads(r.read())["choices"][0]

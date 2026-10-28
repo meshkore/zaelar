@@ -58,7 +58,7 @@ def _counts() -> dict[str, int]:
 
 #: Measured on 2026-10-16 with the widened predicate (was 1147 `pass`-only on 2026-10-01) — the TOTAL may only
 #: fall, and no file may exceed its own count.
-TOTAL = 1815
+TOTAL = 1741
 PER_FILE: dict[str, int] = {
     'bus/__init__.py': 5,
     'bus/log.py': 7,
@@ -233,7 +233,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/dispatch/registry.py': 2,
     'nucleo/dispatch/model.py': 3,
     'nucleo/dispatch/dedup_flow.py': 2,
-    'nucleo/dispatch/control.py': 8,
+    'nucleo/dispatch/control.py': 6,
     'nucleo/dispatch/confirm.py': 1,
     'nucleo/dispatch/listener.py': 7,
     'nucleo/dispatch/prepare.py': 13,
@@ -256,7 +256,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/errands/proposals.py': 1,
     'nucleo/errands/wake.py': 8,
     'nucleo/errands/watch.py': 7,
-    'nucleo/flash/accumulator.py': 2,
+    'nucleo/input/stt.py': 2,
     'nucleo/flash/act_repair.py': 19,
     'nucleo/flash/addressed.py': 1,
     'nucleo/flash/agenda_claims.py': 1,
@@ -276,7 +276,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/connector_canon.py': 1,
     'nucleo/flash/data_ops.py': 31,
     'nucleo/flash/death_line.py': 1,
-    'nucleo/flash/delivery.py': 4,
     'nucleo/flash/delivery_repeat.py': 2,
     'nucleo/flash/direct_action.py': 25,
     'nucleo/flash/errand_sheet.py': 5,
@@ -348,7 +347,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/video_turn.py': 2,
     'nucleo/flash/wall_lane.py': 1,
     'nucleo/flash/web_auth.py': 2,
-    'nucleo/flash/widget_data_turn.py': 7,
     'nucleo/flash/widget_read.py': 10,
     'nucleo/flash/words_only.py': 1,
     'nucleo/flash/write_outcome.py': 1,

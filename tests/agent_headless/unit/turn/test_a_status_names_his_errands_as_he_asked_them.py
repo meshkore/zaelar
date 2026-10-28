@@ -22,7 +22,6 @@ import pytest
 from nucleo import dispatch
 from nucleo.dispatch import confirm as dc
 from nucleo.flash import escalate as esc
-from nucleo.flash import probe_after
 from nucleo.turn import errands_of_a_turn as E
 from nucleo.turn import named_errand
 
@@ -62,7 +61,6 @@ def test_a_given_name_wins(errands, monkeypatch):
     monkeypatch.setattr(dispatch, "get_record", lambda tid: types.SimpleNamespace(
         label="Investigando…", title="Monitores de segunda mano hasta 150 €", goal=MONITOR))
     assert named_errand.spoken_name(named_errand.known()[0]) == "Monitores de segunda mano hasta 150 €"
-    assert probe_after._errand_names(["3"]) == ["Monitores de segunda mano hasta 150 €"]
 
 
 def test_his_sentence_is_never_parked_as_an_errand(monkeypatch):
@@ -76,9 +74,3 @@ def test_his_sentence_is_never_parked_as_an_errand(monkeypatch):
     tid = esc.escalate_to_slowbrain("buscar vuelos a Roma",
                                     context={"src": "probe", "asked": "¿Quieres que te busque vuelos a Roma?"})
     assert published[-1] == "escalate.offered", "a model-written errand offered with a question is still parked"
-
-
-def test_the_text_channel_marks_what_it_derived():
-    import inspect
-    src = inspect.getsource(probe_after.execute_what_was_decided)
-    assert "derived=(operator_text, _window_goal)" in src

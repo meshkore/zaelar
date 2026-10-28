@@ -17,7 +17,7 @@ import asyncio
 
 import pytest
 
-from nucleo.flash import accumulator as acc
+from nucleo.input import stt as acc
 
 HEAD = "Hey, Johnny. Show me some videos of the SpaceX"
 WHOLE = "Hey, Johnny. Show me some videos of the SpaceX Starship tests."

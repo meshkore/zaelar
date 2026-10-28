@@ -41,6 +41,5 @@ def test_an_unsure_inner_op_leaves_the_canvas_close_alone(brief):
     assert _complete(brief) == "" and brief["ran"] == []
 
 
-def test_the_text_channel_asks_the_same_rule():
-    assert "canvas_yields(_tbrief)" in open("nucleo/flash/probe_mirrors.py", encoding="utf-8").read()
+def test_the_voice_turn_asks_the_rule():
     assert "canvas_yields(brief)" in open("nucleo/flash/direct_action.py", encoding="utf-8").read()

@@ -52,6 +52,14 @@ def wire(monkeypatch):
 
     w = _Wire()
     monkeypatch.setattr(jev, "_post_question", w)
+    # The turn's brief (`turn_brief.ask`) carries N questions in ONE trip through `_post_many`; it counts as
+    # one call, and `questions` is what it carried.
+    monkeypatch.setenv("ZAELAR_JEV_HEDGE_MS", "0")
+
+    def _many(state, questions, timeout_s):
+        w.calls.append({"key": "brief", "state": state, "questions": questions, "criteria": {}})
+        return {"answers": {}}
+    monkeypatch.setattr(jev, "_post_many", _many)
     # `_post` is the request-type specialisation the filler test already fakes; route it through
     # the same spy so one counter sees every question.
     monkeypatch.setattr(jev, "_post", lambda state, t: w("request_type", state, "",
@@ -74,11 +82,13 @@ def test_the_filler_request_type_reaches_the_transport(wire):
 
 
 def test_the_canvas_verb_reaches_the_transport(wire):
-    from nucleo.flash import show_target as st
-    _settle(st.ask_canvas_async("abre mis mensajes"))
+    """Since V2-726 F1 the canvas verb rides the turn's brief, so the brief is its front door."""
+    from nucleo.flash import turn_brief as tb
+    _settle(tb.ask("abre mis mensajes"))
     assert len(wire.calls) == 1, "the canvas verb never asked Jev anything"
-    assert wire.calls[0]["key"] == "canvas"
-    assert set(wire.calls[0]["criteria"]) == {"show", "close", "fullscreen", "exit_fullscreen", "minimize", "arrange", "neither"}
+    canvas = wire.calls[0]["questions"].get(tb.CANVAS_KEY)
+    assert canvas, "the brief reached the transport without the canvas question"
+    assert set(canvas["criteria"]) == {"show", "close", "fullscreen", "exit_fullscreen", "minimize", "arrange", "neither"}
 
 
 def test_the_escalate_gate_reaches_the_transport(wire):
@@ -105,10 +115,10 @@ def test_the_live_integrations_are_exactly_these_four(wire):
     transport, and one that starts reaching it without being declared. Either is a §3.1 in the
     making — the first failure mode took a whole implementation to notice.
     """
-    from nucleo.flash import escalation_guard as eg, frontend as fe, show_target as st
+    from nucleo.flash import escalation_guard as eg, frontend as fe, turn_brief as tb
     fired = []
     for name, fn in (("filler", lambda: _settle(jev.request_async("open my messages"))),
-                     ("canvas", lambda: _settle(st.ask_canvas_async("abre mis mensajes"))),
+                     ("canvas", lambda: _settle(tb.ask("abre mis mensajes"))),
                      ("action", lambda: fe.repair_action("agenda", "inventada", "borra la cita")),
                      ("escalate", lambda: eg.judge_escalation("¿qué hora es?"))):
         before = len(wire.calls)
@@ -141,8 +151,8 @@ def test_the_retired_route_is_gone_from_the_engine(wire):
 def test_switched_off_reaches_nothing_at_all(wire, monkeypatch):
     """`ZAELAR_JEV=0` is the parity switch. It returns None — and so does a broken integration,
     which is why `assert ... is None` can never be the proof that something is wired."""
-    from nucleo.flash import show_target as st
+    from nucleo.flash import turn_brief as tb
     monkeypatch.setenv("ZAELAR_JEV", "0")
-    assert st.ask_canvas_async("abre mis mensajes") is None
+    assert tb.ask("abre mis mensajes") is None
     assert jev.request_async("open my messages") is None
     assert wire.calls == [], "something talked to Jev with the kill switch on"

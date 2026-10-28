@@ -1,12 +1,12 @@
-"""nucleo/flash/probe.py::run_turn — semantic recall must not search by the COMPLETE turn text when it
+"""The typed turn (`nucleo.cli.turn.run_turn`) — semantic recall must not search by the COMPLETE turn text when it
 carried a prepended [SYSTEM] note (2026-08-17, live audit against memory/_data/zaelar.db).
 
 Real case: a Telegram note about trading ("Near our tp1 we take out 20-30%...") was prepended to
 "QUE SABES DE MI ? PERSONA, FAMILIA, COSAS, PROPIEDADES" before building the recall query — the trading noise
 dominated the semantic vector and buried the family/car facts that DID exist in the long-term memory. The
-model responded without data in front of it and hallucinated a family member that no pill mentions. The same
-fix is mirrored in `voice/engine/llm/providers/nucleo.py` (the real voice provider); this test covers the test
-channel path (`probe.py`), which can be invoked without a LiveKit session.
+model responded without data in front of it and hallucinated a family member that no pill mentions. The typed
+channel runs the voice turn itself (`voice/engine/llm/providers/nucleo.py`) without a LiveKit session, so this
+test drives it there.
 
 2026-08-23 (F1): the query no longer travels as `recall_query=` to `build_flash_system` —that was the
 TEST COMPATIBILITY path, which composes recall INLINE and, with slow memory, blocked the entire process—
@@ -22,7 +22,6 @@ import pytest
 from memory import api as memapi
 from memory import db as memdb
 from memory import embeddings as mememb
-from nucleo.flash import probe
 from nucleo.flash import prompt as prompt_mod
 from voice import brain_notes
 
@@ -56,10 +55,11 @@ def fresh_db(tmp_path, monkeypatch):
 
 @pytest.fixture
 def probe_session():
+    from nucleo.cli import turn
     sid = "test-recall-notes"
     brain_notes.drain()  # clears any remnants from another test (global mailbox)
     yield sid
-    probe._SESSIONS.pop(sid, None)
+    turn.reset(sid)
     brain_notes.drain()
 
 
@@ -92,9 +92,10 @@ def test_recall_query_excludes_prepended_system_note(fresh_db, probe_session, mo
                       "SIMPLIFICADO): Near our tp1 we take out 20-30% of this trade and set breakeven ok?. "
                       "Están en el widget 'mensajeria' (di [[show:mensajeria]] para enseñárselo).")
 
-    res = asyncio.run(probe.run_turn("QUE SABES DE MI ? PERSONA, FAMILIA, COSAS, PROPIEDADES",
-                                     sid=probe_session, ingest=False))
-    assert res["ok"] is False  # the turn is deliberately cut off before calling the model (no network in the test)
+    from nucleo.cli import turn
+    asyncio.run(turn.run_turn("QUE SABES DE MI ? PERSONA, FAMILIA, COSAS, PROPIEDADES",
+                              sid=probe_session, ingest=False))
+    # the turn is deliberately cut off before calling the model (no network in the test)
 
     # The recall QUERY is ONLY the operator's question — the Telegram note does not travel in it.
     assert "QUE SABES DE MI" in captured["recall_query"]

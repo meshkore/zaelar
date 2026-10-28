@@ -70,8 +70,7 @@ def test_a_minimize_never_asks():
     assert CW.probe_action({"widget_id": "results", "mode": "minimize"}, "results", "minimiza los resultados")[1] == ""
 
 
-def test_both_tool_paths_read_the_question():
-    """The wiring: the text channel's action naming and the voice executor both pass through the asking door."""
-    from nucleo.flash import probe_decide, tool_executor_calls
-    assert "_close_which.probe_action(" in inspect.getsource(probe_decide.name_the_action)
+def test_the_tool_path_reads_the_question():
+    """The wiring: the turn's tool executor passes through the asking door."""
+    from nucleo.flash import tool_executor_calls
     assert "clarify=clarify" in inspect.getsource(tool_executor_calls._on_tool_call).split('name == "close_widget"', 1)[1][:400]

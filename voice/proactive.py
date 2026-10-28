@@ -9,13 +9,16 @@
 # whatever session is live right now, and no-op the voice half when none is (the UI half still fires).
 #
 import asyncio
+from contextvars import ContextVar
 import os
 import threading
 import time
 
 from loguru import logger
+from nucleo import consequence as _consequence
 
 _speaker = None            # async callable(text) -> None, set by the live voice session (voice/engine entrypoint)
+_TURN_SPEAKER: ContextVar = ContextVar("turn_speaker", default=None)   # a typed turn's own mouth — see `speaker()`
 _ephemeral_speaker = None  # async callable(text) -> None — same TTS, but NEVER added to conversation history
                             # (LiveKit `session.say(..., add_to_chat_ctx=False)`) — see `ephemeral_speaker()`
 _busy_probe = None         # callable() -> bool, True if the operator/bot is mid-turn right now (engine-provided)
@@ -127,7 +130,15 @@ def speaker():
     (`session.say(..., add_to_chat_ctx=True)`, the default) — correct here: this IS something genuinely to say.
 
     FlashBrain's neutral LEAD-IN no longer passes through here: since V2-529 (2026-08-31), it is audio within the
-    response utterance (`voice/engine/speech/filler_audio.py`)."""
+    response utterance (`voice/engine/speech/filler_audio.py`).
+
+    A typed turn (`nucleo/cli/turn.py`) has no session to speak through: its out-of-band line IS its reply, so the
+    channel lends its own collector for the turn (`_TURN_SPEAKER`) and nothing reaches a live session."""
+    lent = _TURN_SPEAKER.get()
+    if lent is not None:
+        return lent
+    if _speaker is not None and not _consequence.passes("speech.speaker"):
+        return None
     return _speaker
 
 
@@ -152,6 +163,21 @@ def ephemeral_speaker():
     return _ephemeral_speaker
 
 
+def _carry_to_the_next_turn(title: str, text: str, *, key: str, carry: bool) -> None:
+    """No live voice: the delivery becomes a [SISTEMA] note the agent says in its next turn (V2-220)."""
+    if not carry:
+        return
+    try:
+        from voice import brain_notes
+        # V2-666: «después de contestarle», never «primero» — the note rides BEHIND his words now
+        # (`brain_notes.compose_turn`), and its own wording must not undo that order.
+        brain_notes.push(f"[SISTEMA] Aviso para el operador ({title or 'zaelar'}): {text[:400]} "
+                         f"Díselo con tus palabras DESPUÉS de contestar a lo que te ha pedido — todavía no "
+                         f"lo sabe.", key=key)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"proactive notify (nota al cerebro) failed: {e}")
+
+
 async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify",
                  key: str = "", opens_window: bool = True, carry: bool = True, about: str = "") -> bool:
     """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises.
@@ -168,6 +194,15 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     `carry=False` — a message that must NOT ride the conversation when it cannot be said: it stays on screen (the
     event above) and that is all. A worker's interim `say` is that kind (demo pass 2026-09-28: «On the monitors: a
     Philips… no price confirmed yet» appended to the answers about Apple's chart and the music). `about`: dialog._place"""
+    lent = _TURN_SPEAKER.get()
+    if lent is not None:                  # a typed turn: its own receipt is its reply, not a delivery to anyone
+        if speak and (text or "").strip():
+            r = lent(text)
+            if asyncio.iscoroutine(r):
+                await r
+        return bool(speak)
+    if not _consequence.passes("speech.out_of_band", title=title[:80], text=text[:200], kind=kind):
+        return False
     text = (text or "").strip()
     if not text:
         return False
@@ -187,17 +222,7 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     # The note is an INSTRUCTION, never the bare phrase (V2-214): its reader is the AGENT at a later moment, so
     # handing it prose reads as something to file rather than something to say.
     if not (speak and _speaker is not None):
-        if not carry:
-            return False
-        try:
-            from voice import brain_notes
-            # V2-666: «después de contestarle», never «primero» — the note rides BEHIND his words now
-            # (`brain_notes.compose_turn`), and its own wording must not undo that order.
-            brain_notes.push(f"[SISTEMA] Aviso para el operador ({title or 'zaelar'}): {text[:400]} "
-                             f"Díselo con tus palabras DESPUÉS de contestar a lo que te ha pedido — todavía no "
-                             f"lo sabe.", key=key)
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"proactive notify (nota al cerebro) failed: {e}")
+        _carry_to_the_next_turn(title, text, key=key, carry=carry)
         return False
     # SPEECH GATE: the UI keeps the raw text (debug), but the SPEAKER only ever gets clean operator-facing prose.
     # If nothing speakable survives (pure metadata / markdown / empty), stay silent on voice — the UI already has it.

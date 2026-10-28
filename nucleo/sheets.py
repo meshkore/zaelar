@@ -405,8 +405,6 @@ def _sheet_open(rec, *, show: bool = True) -> None:
         _sheet.prune_sheets()          # the sheet persists deliberately; N instances cannot grow without a ceiling
     except Exception:  # noqa: BLE001
         pass
-    from nucleo.turn import commission_words as _cw
-    _cw.seed(_sid, getattr(rec, "goal", ""))     # his commissioning sentence: the door judges rows by it (2.630)
     if not show:
         return
     try:

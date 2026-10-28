@@ -283,10 +283,6 @@ def called(outcome: dict | None, call):
     return call
 
 
-def card_or(card: str, brief, model_calls=()) -> str:
-    return card or card_for_the_repair(brief, model_calls=model_calls)
-
-
 def card_and_outcome(card: str, brief, brain, data_done: dict) -> tuple[str, dict]:
     """The voice door: the verdict's card or the fallback one, and the turn's outcome record (`data_done`)."""
     return (card or card_for_the_repair(brief, model_calls=getattr(brain, "_turn_calls", None),
@@ -326,21 +322,3 @@ def say_after(reply: str, data_done: dict, *, acted, send, speech, window: list,
             window[-1]["content"] = (str(window[-1].get("content") or "") + " " + line).strip()
     return line
 
-
-def text_turn_end(spoken, *, action: str, outcome: dict | None, operator_text: str, model_calls=()):
-    """The text channel's end: still a plain reply after every mirror → a deferred promise becomes the `escalate`
-    action this channel executes (the voice door's twin), else the same honest line (or the pass's own).
-    Returns `(spoken, action)`."""
-    try:
-        from nucleo.turn import split_by_errand as _sbe
-        if action != "chat" or not isinstance(spoken, str) or not spoken.strip() or _sbe.routed(operator_text):
-            return spoken, action
-        if (operator_text or "").strip() and deferred_errand(spoken, outcome, acted=False, model_calls=model_calls):
-            if outcome is not None:
-                outcome["kind"] = STARTED
-            return spoken, "escalate"
-        from voice.observer import emit as _emit
-        line = close(spoken, outcome, acted=False, emit=_emit)
-        return ((spoken.rstrip() + " " + line) if line else spoken), action
-    except Exception:  # noqa: BLE001
-        return spoken, action

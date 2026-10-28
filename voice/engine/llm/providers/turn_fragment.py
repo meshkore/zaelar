@@ -11,8 +11,11 @@ from voice.engine.llm.providers import nucleo as _p
 
 
 async def hold_a_fragment(*, brain, emit, first_turn, text) -> dict:
-    if not first_turn:
-        from nucleo.flash import accumulator as _acc
+    from nucleo import input as _input
+    # A typed line is complete by construction (V2-825 F2): the accumulator is an STT instrument, so it never peels a
+    # «dangling» tail off a line he finished with Enter, and no gap-drop notice speaks into a text chat.
+    if not first_turn and not _input.of_turn(text).complete:
+        from nucleo.input import stt as _acc
         if getattr(brain, "_acc", None) is None:
             brain._acc = _acc.Accumulator()
         _n_before = len(brain._acc.fragments)

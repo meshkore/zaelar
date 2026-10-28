@@ -52,20 +52,28 @@ def test_an_empty_id_is_the_card_his_last_turn_acted_on(monkeypatch):
     assert show_target.close_target("") == "results::ab-1"
 
 
-def test_both_channels_route_it():
-    import inspect
-    from nucleo.flash import probe
-    from voice.engine.llm.providers import nucleo as prov
+def test_the_voice_turn_routes_it():
     assert 'name == "close_widget"' in _vts.turn_source()
-    assert '"close_widget" in names' in _vts.getsource(probe)
 
 
 def test_a_close_is_not_acknowledged_as_an_open():
-    """S4: «ok close the results» → «I've opened it, though there's nothing in it yet.»"""
-    import inspect
-    from nucleo.flash import probe
-    src = _vts.getsource(probe)
-    assert 'if _parts[1] == "show" else _lg.data_ack' in src
+    """S4: «ok close the results» → «I've opened it, though there's nothing in it yet.» Driven through the typed
+    channel, which runs the voice turn: the model closes the card and says nothing."""
+    import asyncio
+    from tests.brain import harness as H
+    text = "ok close the results"
+    case = {"id": "close", "lang": "en", "phrase": text, "source": "test", "screen": {"open": ["results"]},
+            "expect": "talk", "model": {"tools": [{"name": "close_widget",
+                                                   "args": {"widget_id": "results", "mode": "close"}}]}}
+    with H.Isolated("en") as iso:
+        iso.seed(case)
+        from nucleo.cli import turn
+        try:
+            res = asyncio.run(turn.run_turn(text, sid="close", ingest=False))
+        finally:
+            turn.reset("close")
+    assert res["action"].startswith("canvas:close"), res
+    assert "opened" not in res["reply"].lower(), res["reply"]
 
 
 def test_the_piece_named_closes_its_one_open_card(monkeypatch):

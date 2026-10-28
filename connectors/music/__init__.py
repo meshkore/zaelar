@@ -11,6 +11,7 @@ import logging
 
 from . import placement, registry
 from .base import MusicProvider, MusicResult, NowPlaying, Track
+from nucleo import consequence as _consequence
 
 logger = logging.getLogger("zaelar.music")
 
@@ -114,6 +115,7 @@ def _already(prov: "MusicProvider", query: str) -> "MusicResult | None":
                        extra={"noop": True, "device": np.device, "device_id": np.device_id, "sounding": True})
 
 
+@_consequence.door("music", neutral=lambda action="play", *_a, **_k: MusicResult(ok=True, action=str(action), reason="dry"))
 def control(action: str, query: str = "", uri: str = "", percent: int = 0, prefer: str = "",
             seconds: float = 0.0, relative: bool = False) -> MusicResult:
     """Execute ONE music action against the active provider. `action`: play|pause|resume|next|previous|stop|

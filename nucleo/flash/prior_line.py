@@ -41,13 +41,18 @@ def of(brain) -> str:
 
 
 def answers_our_question(brief, prior: str) -> bool:
-    """The turn is his ANSWER to a question we put to him: the brief's `request_type=answer` AND our prior line
-    asked something. Both halves, as `escalation_guard.is_a_fragment` documents: a yes is an answer only where
-    there was a question, and a question mark alone is not his answer."""
+    """The turn is his ANSWER to a question we put to him: our prior line asked something, and the brief does not
+    say the line is something else (a question of his own, a comment, a complaint) — `answer` and `order` both
+    reply. ONE definition, read by the fragment guard and by the stop. With no question of ours, nothing here.
+
+    The label only EXCLUDES; the fact that licenses is our question (bank case 3a9a082c: «Yes. Do it.» over our
+    «…or drop it — which do you want?» read as `order` at 0.53, and the guard annulled the errand he agreed to)."""
     try:
         from nucleo.flash import canvas_license as _lic, turn_brief as _tb
+        if not _lic.answered_an_offer(prior):
+            return False
         kind, _info = _tb.read(brief, _tb.REQUEST_KEY, "")
-        return str(kind or "") == "answer" and _lic.answered_an_offer(prior)
+        return bool(kind) and str(kind) not in ("question", "comment", "complaint")
     except Exception as e:  # noqa: BLE001 — a classifier may never break a turn
         logger.debug(f"prior_line: answer verdict unreadable: {e}")
         return False

@@ -4,7 +4,7 @@ Live run: «Ayer te pedí hacer una reserva en un restaurante. Te di mi nombre c
 debería estar en tu memoria permanente?» — brief `question` (unsure) · `tell` · `handle_inline` 1.00. The model said
 «Eso es lo que estoy comprobando ahora mismo…» and called nothing; the post-stream promise branch met «reserva» in
 `looks_like_escalate_task` and a web worker went looking for restaurants. V2-753 had put «only a confident
-handle_inline stops the escalation» in `promise_backstop`; this branch (and its text-channel mirror) lacked it.
+handle_inline stops the escalation» in `promise_backstop`; this branch lacked it.
 
 The variant here is another language and another domain on purpose: a hotel, in English.
 """
@@ -33,21 +33,10 @@ def _brief(escalate: str, conf: float) -> dict:
         tb.WORDS_KEY: {"choice": "tell", "confidence": 0.9}}}
 
 
-def _mirror(brief) -> dict:
-    from nucleo.flash import probe_mirrors as PM
-    return asyncio.run(PM.mirror_the_voice_backstops(
-        _akp=False, _cw=None, _hw=False, _router=__import__("nucleo.flash.router", fromlist=["x"]), _rt=None,
-        _sp=None, _tbrief=brief, action="chat", canvas_h=None,
-        dialog=__import__("nucleo.flash.dialog", fromlist=["x"]), names=[], operator_text=SAID,
-        sess=types.SimpleNamespace(window=[], last_action=""), spec=None, speech=None,
-        spoken=REPLY, tags=[], text=SAID, tool_calls=[]))
-
-
 @pytest.fixture(autouse=True)
 def _no_repair(monkeypatch):
     """The act repair is another lane (it asks a model); this file is about the word-table branch alone."""
     from nucleo.flash import act_repair
-    monkeypatch.setattr(act_repair, "probe_call_for_promise", lambda *a, **k: None)
     monkeypatch.setattr(act_repair, "call_for_promise_or_order", lambda *a, **k: None)
 
 
@@ -64,14 +53,6 @@ def test_a_confident_inline_refuses_the_word_table_and_anything_else_keeps_it():
     assert EG.word_tables(router, _brief("escalate", 0.95), SAID) == "go"
     assert EG.word_tables(router, None, SAID) == "go"                             # no brief: today's path
     assert EG.word_tables(router, None, "thanks, that's all") == ""               # no match: the lookback may try
-
-
-def test_the_text_channel_does_not_escalate_a_question_the_verdict_kept_inline():
-    assert _mirror(_brief("handle_inline", 1.0)).get("action", "chat") != "escalate"
-
-
-def test_the_text_channel_still_escalates_when_the_verdict_is_unsure():
-    assert _mirror(_brief("handle_inline", 0.3)).get("action") == "escalate"
 
 
 def test_the_voice_lane_asks_the_same_door_before_any_word_table():

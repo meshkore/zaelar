@@ -4,11 +4,10 @@ three-tasks-at-once (EN, 2026-10-14 02:44, sandbox 023306-en): «those are too s
 the game coming?» — the model sent the 27" floor to the monitor's worker (`send_to_worker`) and said nothing; the
 status line owed to the question answered the game alone («Here's where everything stands: Build a Super
 Mario-style … — under way, nothing new yet.»), so the refinement that DID land was never acknowledged. The status
-line now carries the errands the turn's own sends reached (`split_by_errand.status_with_refined`), in both channels.
+line now carries the errands the turn's own sends reached (`split_by_errand.status_with_refined`).
 """
 from __future__ import annotations
 
-import asyncio
 import threading
 import types
 
@@ -60,16 +59,6 @@ def test_a_refined_errand_the_status_already_names_is_not_said_twice():
     line = S.status_with_refined("how's the game and the monitor coming?", _brief(),
                                  ["Marketplace listings for used cheap monitor"])
     assert "passed that on" not in line, line
-
-
-def test_the_text_channel_says_both():
-    from nucleo.flash import probe_after
-    out = asyncio.run(probe_after.the_words_it_owes(
-        _hw=True, _parts=None, _show_chose="", action="send_to_worker", images_req=None,
-        return_extra_exec={"executed": "inject", "sent": 1, "to": ["Marketplace listings for used cheap monitor"]},
-        sess=types.SimpleNamespace(window=[]), spoken="", tags=[], text=HIS, video_req=None, brief=_brief()))
-    said = out["spoken"]
-    assert "Super Mario" in said and "used cheap monitor" in said, said
 
 
 def test_the_voice_channel_reads_the_sends_of_its_turn():

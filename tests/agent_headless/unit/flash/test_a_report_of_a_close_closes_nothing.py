@@ -42,7 +42,6 @@ def test_the_length_and_single_card_bounds_still_hold():
     assert _cg.the_only_card("please close that thing I opened this morning for me", OPEN, brief=sure) is None
 
 
-def test_both_channels_use_it():
-    for rel in ("nucleo/flash/post_stream_lanes.py", "nucleo/flash/probe_mirrors.py"):
-        src = (_ENGINE / rel).read_text(encoding="utf-8")
-        assert "the_only_card(" in src and "is_short_order(text) and len(" not in src, rel
+def test_the_voice_turn_uses_it():
+    src = (_ENGINE / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
+    assert "the_only_card(" in src and "is_short_order(text) and len(" not in src

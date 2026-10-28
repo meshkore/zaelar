@@ -8,11 +8,10 @@ eléctricos puros… Y el juego… El monitor ya está, ¿no?» was repaired int
 answer read back from it was «No hay nada en Resultados: ni listado de eléctricos, ni datos del juego, ni el monitor».
 
 The sentence's errand is read from his original asks (`named_errand`), and a results/document card owned by another
-errand is not where his order goes — in both channels' repair doors.
+errand is not where his order goes — in the repair door.
 """
 from __future__ import annotations
 
-import asyncio
 import time
 import types
 
@@ -20,7 +19,7 @@ import pytest
 
 from nucleo import dispatch
 from nucleo.dispatch import confirm as dc
-from nucleo.flash import act_repair, build_decision, card_commission
+from nucleo.flash import build_decision, card_commission
 from nucleo.turn import errands_of_a_turn as E
 from nucleo.turn import named_errand
 
@@ -60,16 +59,3 @@ def test_the_repair_doors_decline_the_monitor_sheet(monkeypatch):
     assert card_commission.named_or_catalogue({"x": 1}, ABOUT_THE_REPORT) == ""
     assert card_commission.named_or_catalogue({"x": 1}, ABOUT_THE_MONITOR) == "results"
 
-    from nucleo import jev
-    from nucleo.flash import turn_brief
-    monkeypatch.setattr(turn_brief, "ask_for_turn", lambda text, last_reply="": {"h": 1})
-    monkeypatch.setattr(jev, "_is_ready", lambda h: True)
-    called = []
-
-    async def _spy(*a, **k):
-        called.append(a)
-        return {"widget_id": "results", "action": "criteria", "payload": {}}
-    monkeypatch.setattr(act_repair, "call_for_promise", _spy)
-    assert asyncio.run(act_repair.probe_call_for_promise(ABOUT_THE_REPORT, "Le paso la instrucción.")) is None
-    assert not called, "the text channel's own door asks the same question"
-    assert asyncio.run(act_repair.probe_call_for_promise(ABOUT_THE_MONITOR, "Sigo buscando.")) is not None

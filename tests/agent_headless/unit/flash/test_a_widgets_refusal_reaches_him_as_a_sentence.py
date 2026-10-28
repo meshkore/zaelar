@@ -20,7 +20,6 @@ import asyncio
 import pytest
 
 from nucleo.flash import refusal_line as RL
-from nucleo.flash import widget_data_turn as WDT
 
 
 def _lang(monkeypatch, code: str):
@@ -70,24 +69,6 @@ def _show_with_only_a_query():
 
 def _says_spanish_or_debug(text: str) -> bool:
     return any(w in text for w in ("llegó", "hoja", "'body'", "vacío", "body"))
-
-
-def test_the_empty_document_is_said_in_english_and_the_reason_stays_in_the_log(rail, english):
-    parte = asyncio.run(WDT.execute(_show_with_only_a_query(), "Give me the carbonara recipe."))
-    assert parte["executed"] == "widget_data_failed"
-    assert not _says_spanish_or_debug(parte["message"]), parte["message"]
-    assert "'body'" in parte["fallidas"][0]["error"]                           # kept for us, not said to him
-    said = WDT.ensure_failure_named("I'll get it on screen for you.", parte)
-    assert not _says_spanish_or_debug(said), said
-    assert "the document came back empty" in said, said
-    mute = WDT.spoken_for(parte, "Done.")
-    assert mute.startswith("I couldn't:") and not _says_spanish_or_debug(mute), mute
-
-
-def test_the_same_refusal_keeps_spanish_in_a_spanish_session(rail, spanish):
-    parte = asyncio.run(WDT.execute(_show_with_only_a_query(), "Dame la receta de la carbonara."))
-    assert parte["message"] == "el documento ha llegado vacío, sin nada que enseñar."
-    assert WDT.spoken_for(parte, "Hecho.").startswith("No he podido:")
 
 
 def test_a_refusal_with_only_an_internal_reason_is_a_plain_generic_line(english):

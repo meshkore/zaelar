@@ -1,4 +1,4 @@
-"""An everyday agenda edit follows the verdict, in both channels (V2-781 T518, 2026-10-04).
+"""An everyday agenda edit follows the verdict (V2-781 T518, 2026-10-04).
 
 Measured on the EN pair `agenda-everyday-edits__us` (ES 13/13 on the same code):
   · «And make it last until one» — verdict `agenda:move_meeting` 0.98; the promise repair read «I'll open it so
@@ -85,17 +85,6 @@ def test_a_sure_order_for_a_lens_is_carried_out_after_the_read(brief):
     assert act_repair.same_card_order_after_read({"x": 1}, "documento", "The relevant part is…") == ""
 
 
-def test_the_probe_read_route_runs_the_op_instead_of_answering_in_words(brief, model):
-    from nucleo.flash import second_pass
-    m = model([CANCEL])
-    calls = [{"name": "read_widget", "args": {"widget_id": "agenda", "question": "piano occurrences"}}]
-    spoken, action = asyncio.run(second_pass.probe_light_routes(
-        "read_widget", ["read_widget"], calls, "There's no piano on Tuesday October 13",
-        "There's no piano on Tuesday October 13", None, lambda s: s, brief={"x": 1}, reply="Let me check."))
-    assert (spoken, action) == ("", "widget_data") and m.n == 1
-    assert calls[-1]["args"]["action"] == "cancel_meeting" and calls[-1]["args"]["_repair"] is True
-
-
 def test_a_view_the_promise_pass_picks_yields_to_the_verdicts_op(model, monkeypatch):
     from widgets import runtime as rt
     real = rt.get
@@ -140,35 +129,6 @@ def test_a_day_view_answers_with_that_days_rows_and_their_hours(tmp_path, monkey
     agenda.apply_action("add_meeting", {"title": "Piano", "date": "2026-10-07", "startTime": "17:00"})
     got = agenda.apply_action("show_day", {"day": "2026-10-08"})["result"]
     assert [m["title"] for m in got["meetings"]] == ["Dental checkup"] and got["meetings"][0]["startTime"] == "11:30"
-
-
-def test_the_text_channel_says_the_ops_answer_in_words(monkeypatch):
-    from nucleo.flash import second_pass, widget_data_turn as wdt
-    seen = {}
-
-    async def _collect(sys2, user, spec, max_tokens=240):
-        seen["sys"] = sys2
-        return "Next Thursday you have the dental checkup with Dr Ruiz at 11:30."
-    monkeypatch.setattr(second_pass, "collect", _collect)
-    out = asyncio.run(wdt.answer_in_words(PARTE, "What do I have next Thursday?"))
-    assert out.startswith("Next Thursday") and "11:30" in seen["sys"] and "Dr Ruiz" in seen["sys"]
-    assert asyncio.run(wdt.answer_in_words(PARTE, "Move the dentist to Friday")) == "", "an order is not asked"
-    assert asyncio.run(wdt.answer_in_words({**PARTE, "answers": []}, "What do I have?")) == ""
-
-
-def test_the_probes_owed_words_use_it_before_the_list(monkeypatch):
-    from nucleo.flash import probe_after, widget_data_turn as wdt
-
-    async def _words(parte, text, spec=None):
-        return "Next Thursday: the dental checkup at 11:30."
-    monkeypatch.setattr(wdt, "answer_in_words", _words)
-
-    class _Sess:
-        window, last_action = [], ""
-    out = asyncio.run(probe_after.the_words_it_owes(
-        _hw=False, _parts=None, _show_chose=False, action="widget_data", images_req=None, return_extra_exec=PARTE,
-        sess=_Sess(), spoken="", tags=[], text="What do I have next Thursday?", video_req=None))
-    assert out["spoken"] == "Next Thursday: the dental checkup at 11:30.", out
 
 
 def test_a_reply_that_holds_the_act_for_a_go_ahead_is_not_carried_out(brief):

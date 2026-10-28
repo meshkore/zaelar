@@ -64,19 +64,3 @@ def test_the_narration_is_said_in_the_instance_language(monkeypatch, code, want)
         assert _lines() == want
     finally:
         _rt.invalidate()
-
-
-def test_a_step_said_in_any_language_still_hides_the_empty_ones(monkeypatch):
-    """`step_line` used to translate es→en from a hard-coded table and say NOTHING in a third language; the
-    gate on steps that name nothing (queued, starting, thinking) now reads the same keys."""
-    from i18n import runtime as _rt
-    from nucleo.flash import step_line
-    from nucleo.workers import progress as P
-    for code in ("es", "en"):
-        monkeypatch.setenv("ZAELAR_LANGUAGE", code)
-        _rt.invalidate()
-        going = P.phrase({"where": "navegador", "action": "navigate", "target": "https://www.ferrari.com/x"})
-        assert step_line._phase_for(going, code) == going
-        for empty in (P.say("queued", "queued"), P.say("starting", "starting"), P.say("system_step", "x")):
-            assert step_line._phase_for(empty, code) == "", (code, empty)
-    _rt.invalidate()

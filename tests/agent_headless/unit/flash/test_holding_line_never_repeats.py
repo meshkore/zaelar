@@ -84,14 +84,10 @@ non-repetition: continuing to say the same thing four times would be the same de
     assert all(a != b for a, b in zip(said, said[1:])), said
 
 
-def test_the_chooser_is_wired_into_BOTH_channels():
-    """`probe.py` and the voice provider are parallel implementations of the same turn, and the provider only
-distinguished the FIRST wait from the others: from the third onward they were all identical."""
-    import inspect
-
-    from nucleo.flash import probe as _probe
+def test_the_chooser_is_wired_into_the_voice_turn():
+    """The provider once distinguished only the FIRST wait from the others: from the third onward they were all
+identical."""
     from voice.engine.llm.providers import nucleo as _provider
-    assert "holding_line(" in _vts.getsource(_probe.run_turn)
     # V2-661b: the voice channel calls it through `reminder_guards.holding_line_now`, which resolves the
     # LANGUAGE on the side of the door that may read it (the V2-569 dependency ratchet) — same chooser.
     assert "holding_line_now(" in _vts.getsource(_provider)

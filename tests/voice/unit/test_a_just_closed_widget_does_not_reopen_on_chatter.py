@@ -58,7 +58,7 @@ def test_the_window_expires(monkeypatch):
     assert lic.reopen_license("youtube", "bla bla bla") is True
 
 
-# ── 2 · every close door records, and both channels consult ──────────────────────────────────────────────
+# ── 2 · every close door records, and the turn consults ──────────────────────────────────────────────────
 
 def test_every_close_door_notes_the_operator_close():
     nucleo_src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
@@ -68,10 +68,9 @@ def test_every_close_door_notes_the_operator_close():
     assert "note_operator_close(" in exec_src, "the fast lane's close is operator-ordered too"
 
 
-def test_both_channels_consult_the_reopen_license():
-    for rel in ("voice/engine/llm/providers/nucleo.py", "nucleo/flash/probe.py"):
-        src = _vts.read(ENGINE / rel)
-        assert re.search(r"reopen_license\(_rid, text", src), rel
+def test_the_voice_turn_consults_the_reopen_license():
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
+    assert re.search(r"reopen_license\(_rid, text", src)
 
 
 def test_the_voice_guard_counts_the_turn_as_handled_not_void():

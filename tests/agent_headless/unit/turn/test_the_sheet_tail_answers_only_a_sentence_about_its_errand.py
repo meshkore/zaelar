@@ -18,7 +18,7 @@ import pytest
 
 from nucleo import dispatch
 from nucleo.dispatch import confirm as dc
-from nucleo.flash import delivery, live_blocks
+from nucleo.flash import live_blocks
 from nucleo.turn import errands_of_a_turn as E
 from nucleo.turn import named_errand
 
@@ -39,9 +39,6 @@ def three(monkeypatch):
     monkeypatch.setattr(dc, "_PENDING_CONFIRM", {"7": {
         "request": GAME, "kind": "code", "trusted": True, "context": {}, "sheet": "", "ts": time.time(),
         "question": "Si no te he entendido mal, me pides que te CONSTRUYA una tarjeta nueva. ¿La hago?"}})
-    monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: ("", 0, ""))
-    monkeypatch.setattr(delivery, "_speaks_en", lambda: False)
-    delivery.forget_announced()
     _rows(monkeypatch, ROWS)
 
 
@@ -58,38 +55,3 @@ def test_an_errand_is_named_by_his_ask_not_by_our_wrapper():
     hits = named_errand.named("¿Y el informe ese va bien? Lo quiero corto, con autonomía real y precio, para España.",
                               [dict(REPORT, parked=False), dict(MONITOR, parked=False)])
     assert [e["id"] for e in hits] == ["1"], "«real» is our template's word, not his monitor"
-
-
-def test_a_sentence_about_the_report_gets_no_monitor_rows(three):
-    out = delivery.apply_to_reply(WAIT, [], heard_now="¿Y el informe ese va bien? Lo quiero corto, con autonomía "
-                                                      "real y precio, para España.")
-    assert "Samsung" not in out and out == WAIT, out
-
-
-def test_a_sentence_about_the_monitor_gets_its_rows_once(three, monkeypatch):
-    out = delivery.apply_to_reply(WAIT, [], heard_now="¿Y lo del monitor cómo va? Que no pase de 150, y al menos "
-                                                      "27 pulgadas.")
-    assert "Samsung C27R500FH" in out, "a bare «27» is his criterion, not a row he named"
-    _rows(monkeypatch, ROWS + MORE)
-    again = delivery.apply_to_reply(WAIT, [], heard_now="Vale, guay, gracias.")
-    assert "ASUS" not in again and again == WAIT, "a sentence about no errand does not get the tail a second time"
-    asked = delivery.apply_to_reply(WAIT, [], heard_now="¿Y del monitor hay algo más?")
-    assert "ASUS" in asked, "asked about THAT errand, the new rows are owed"
-
-
-def test_a_row_he_picked_ends_the_offering(three):
-    out = delivery.apply_to_reply(WAIT, [], heard_now="Y el monitor sí, con el Samsung de 50 € me vale.")
-    assert out == WAIT, out
-
-
-def test_with_one_errand_a_sentence_naming_none_still_gets_new_rows(monkeypatch):
-    monkeypatch.setattr(dispatch, "pending_summaries", lambda: [dict(MONITOR)])
-    monkeypatch.setattr(dispatch, "get_record", lambda tid: types.SimpleNamespace(label=""))
-    monkeypatch.setattr(dc, "_PENDING_CONFIRM", {})
-    monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: ("", 0, ""))
-    monkeypatch.setattr(delivery, "_speaks_en", lambda: False)
-    delivery.forget_announced()
-    _rows(monkeypatch, ROWS)
-    assert "Samsung" in delivery.apply_to_reply(WAIT, [], heard_now="¿Cómo va?")
-    _rows(monkeypatch, ROWS + MORE)
-    assert "ASUS" in delivery.apply_to_reply(WAIT, [], heard_now="¿Y ahora?"), "one errand: it is the one he means"

@@ -198,6 +198,7 @@ def test_programar_DEJA_FILA_en_la_observabilidad(agenda, monkeypatch):
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda *a, **k: vistos.append((a, k)), raising=False)
     _act({"when": "mañana a las 9", "prompt": "llamar al fontanero"})
+    vistos = [v for v in vistos if v[0][:1] != ("consequence",)]   # the door's own event is not the reminder's row
     assert vistos, "programar en silencio es la mitad del problema que esto cierra"
     _, kw = vistos[0]
     assert kw.get("extra", {}).get("cron_id"), "la fila lleva el ID real, que es lo que permite comprobarlo"

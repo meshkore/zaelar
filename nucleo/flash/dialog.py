@@ -244,11 +244,6 @@ def sanitize_reply(text: str) -> str:
 
 
 
-def looks_degenerate(text: str) -> bool:
-    """Heurística: ¿la respuesta parece degenerada (empalme/repetición) ANTES de sanear? Para observabilidad."""
-    return bool(text) and sanitize_reply(text) != text.strip()
-
-
 # Extraído de `probe.py` en la pasada del trinquete (2026-09-02): escribe en la VENTANA, que es de este
 # módulo. `cap` se pasa porque el tope es del canal, no del diálogo.
 def remember_what_was_said(sess, text: str, cap: int) -> None:

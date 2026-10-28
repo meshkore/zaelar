@@ -9,9 +9,7 @@ three-tasks-at-once (2026-10-11 02:58), the game parked on «¿La hago?» / «Sh
   · ES «Vale, perfecto. Del monitor, que no pase de 150» → the model re-escalated the game and said «va en marcha»
     over an errand still parked.
 
-Mechanisms: the answer a reply OPENS with answers the parked errand it names (`confirm.opening_answer`); the turn's
-`send_to_worker` for OTHER errands still goes out beside a yes; a reply that asks again after a yes becomes the start
-line; an escalation that lands on a parked errand carries that errand's question.
+Mechanism pinned here: the answer a reply OPENS with answers the parked errand it names (`confirm.opening_answer`).
 """
 from __future__ import annotations
 
@@ -23,7 +21,6 @@ import pytest
 
 from nucleo import dispatch
 from nucleo.dispatch import confirm as dc
-from nucleo.flash import probe_after
 from nucleo.turn import confirm_gates as gates
 from nucleo.turn import errands_of_a_turn as E
 from widgets import confirm as wconfirm
@@ -74,28 +71,3 @@ def test_an_if_is_not_a_yes():
     assert wconfirm.opening_answer("si, dale") == "yes" and wconfirm.opening_answer("Sí, venga") == "yes"
     assert wconfirm.opening_answer("No, el juego déjalo") == "no"
     assert wconfirm.opening_answer("Intenta reservarlo, mejor") is None
-
-
-def test_the_monitor_refinement_beside_the_yes_still_goes_out():
-    sent = []
-    calls = [{"name": "send_to_worker", "args": {"which": "the platform game", "message": "add coins to the game"}},
-             {"name": "send_to_worker", "args": {"which": "the monitor hunt", "message": "at least 27 inches, used"}}]
-    E.send_beside_an_answer(calls, GAME, lambda c, t: sent.extend(c))
-    assert [c["args"]["which"] for c in sent] == ["the monitor hunt"]
-
-
-def test_the_reply_says_what_the_gate_did(monkeypatch):
-    sess = types.SimpleNamespace(window=[])
-    out = probe_after._true_to_the_gate("Building it takes a few minutes — shall I start it? Say the word.",
-                                        "confirm_task", {}, sess)
-    assert "shall I" not in out and out, out
-    claim = "Hecho, el tope de 150. Y el juego te lo construyo, va en marcha."
-    out = probe_after._true_to_the_gate(claim, "escalate", {"still_parked": "¿La hago?"}, sess)
-    assert out == claim + " ¿La hago?"
-    assert probe_after._true_to_the_gate("¿Seguro?", "escalate", {"still_parked": "¿La hago?"}, sess) == "¿Seguro?"
-
-
-def test_an_escalation_of_the_parked_errand_finds_its_question(parked):
-    again = "Build a playable platform game widget, Super Mario style, side-scrolling platformer with a character"
-    assert E.parked_question_for([again]) == Q
-    assert E.parked_question_for(["Write a report on electric cars"]) == ""

@@ -78,13 +78,6 @@ def test_the_catalogs_the_tool_cites_actually_exist_in_the_resources_block():
         "the names the tool now cites must be the ones the resources block really prints"
 
 
-def test_mensajeria_open_declares_name_as_its_primary_key():
-    """widget_data's `item` convention lands a natural reference in the action's FIRST payload key
-    (V2-467). For a voice open, that primary is the NAME."""
-    from nucleo.flash.widget_data_turn import _primera_clave
-    assert _primera_clave("mensajeria", "open") == "name"
-
-
 # ── The execution guard that was undoing the model's correct choice ─────────────────────────────────────────
 
 def test_a_pure_show_may_run_a_declared_VIEW_action():
@@ -158,15 +151,6 @@ def test_the_widget_whose_JOB_is_showing_may_run_the_action_that_shows():
     assert not router.show_request_blocks_data_action("enséñame más fotos de Roma", "imagenes", "add")
     # And the guard keeps doing its job on the same widget: emptying the viewer is not what «show me» means.
     assert router.show_request_blocks_data_action("enséñame las fotos", "imagenes", "clear")
-
-
-def test_the_probe_channel_mirrors_the_pure_show_guard():
-    """The probe reported `widget_data open {name:'Francisco'}` for the very sentence the voice rail turned
-    into a bare show: it mirrors several provider guards but had never mirrored this one, so the test
-    channel gave a FALSE GREEN on the defect it was being used to diagnose."""
-    src = _vts.read(ENGINE / "nucleo" / "flash" / "probe.py")
-    assert "show_request_blocks_data_action" in src, \
-        "a guard that only one of the two rails carries makes the probe report a decision the product never takes"
 
 
 def test_the_voice_rail_shows_the_card_AND_applies_the_view():

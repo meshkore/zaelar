@@ -4,7 +4,7 @@ Sandbox 20261014-120418-en: the build gate asked «Shall I build you a new card?
 fine, no need to build anything», and the model re-escalated the same recipe with no card to build. The «no»
 resolved the gate and the re-escalation was dropped as «the errand the answer resolved» — nothing wrote the recipe.
 After a «no» to a build, the same errand asked without the build still starts; a «yes», a «no» to anything that is
-not a build, and a re-send that is still a build stay dropped, as before. Both channels call this rule.
+not a build, and a re-send that is still a build stay dropped, as before. The turn calls this rule.
 """
 from __future__ import annotations
 
@@ -41,11 +41,3 @@ def test_the_voice_channel_keeps_it_too():
     req = {"v": AGAIN, "more": []}
     eot.keep_beside_an_answer(req, PARKED, declined=True)
     assert req["v"] == AGAIN
-
-
-def test_the_probe_channel_threads_the_answer():
-    from nucleo.flash import probe_after
-    calls = [{"name": "escalate_to_slowbrain", "args": {"request": AGAIN, "surface": "informe"}}]
-    kept, _surf, _left = probe_after._the_turns_errands(calls, "just the recipe, no need to build anything", "",
-                                                        resolved=PARKED, declined=True)
-    assert kept == [AGAIN]

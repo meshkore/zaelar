@@ -189,6 +189,9 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
                 ctx["origin_dev"] = _o
         except Exception as e:  # noqa: BLE001 — the errand still starts; its cards then open on the last screen
             logger.debug(f"escalate: no screen origin for the errand: {e!r}")
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("worker.spawn", request=req[:200], kind=str(ctx.get("kind") or "")):
+        return tid
     _emit_bus("escalate.requested", {"id": tid, "request": req, "context": ctx, "ts": time.time()})
     return tid
 

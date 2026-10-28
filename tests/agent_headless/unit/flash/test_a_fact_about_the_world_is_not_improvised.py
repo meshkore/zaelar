@@ -50,22 +50,6 @@ def test_an_empty_side_never_fires():
     assert not g.answer_needs_a_source("¿a qué hora abre el Prado?", "")
 
 
-def test_the_probe_turns_it_into_a_real_search():
-    """The half that makes it behaviour: the text channel must convert that turn into `search`, which is what
-    reuses the machinery already there (V2-022 + the composing pass of V2-135). Asserted against the SOURCE of
-    the turn, because the alternative is a live model call in a unit test — and a guard that is never wired is
-    the failure mode this repo has paid for twice (Susurro, REM)."""
-    import inspect
-
-    from nucleo.flash import probe
-    from tests import voice_turn_source as _vts   # V2-778 F1: the probe's turn is read whole
-    src = _vts.getsource(probe)
-    assert "answer_needs_a_source" in src
-    i = src.index("answer_needs_a_source")
-    # …and that it actually flips the turn, not just consults the guard.
-    assert 'action, _forced_search = "search", True' in src[i:i + 400]
-
-
 def test_the_voice_channel_is_left_out_ON_PURPOSE_and_says_why():
     """This repo's rule is «impl PARALELA — cablear en AMBOS», so a channel left out has to be an argued
     decision and not an oversight: voice EMITS the model's deltas as they arrive, so by the time the turn could

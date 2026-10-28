@@ -158,11 +158,6 @@ def test_the_voice_channel_wires_the_aside(monkeypatch):
     assert "if not _aside_turn:" in prov, "the hollow repairs must not fill a sanctioned silence"
 
 
-def test_the_probe_mirrors_the_aside():
-    probe = _src("nucleo/flash/probe.py")
-    assert '"aparte"' in probe, "parallel impl (V2-539): the probe backstop must honor the aside too"
-
-
 def test_the_prompt_teaches_the_aside_only_in_wakeword_mode():
     src = _src("nucleo/flash/style_directive.py")
     assert "[[aparte]]" in src

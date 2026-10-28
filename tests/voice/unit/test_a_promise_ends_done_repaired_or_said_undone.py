@@ -214,24 +214,3 @@ def test_a_backstop_that_routed_or_asked_owes_no_line(routed):
     assert not said
     pk.say_after("Lo hago ahora mismo.", {}, acted="", send=said.append, speech=speech, window=window, emit=None)
     assert said and window[-1]["content"].endswith(said[0].strip()), "the line is said AND kept in the window"
-
-
-def test_the_text_channel_says_it_through_the_same_door(client, silent_jev, youtube_in_front, monkeypatch):
-    from nucleo.flash import probe_mirrors, reply_promise
-    from widgets import runtime
-
-    async def _no_prefetch(*a, **k):
-        return None
-    monkeypatch.setattr(reply_promise, "prefetch", _no_prefetch)
-    monkeypatch.setattr(runtime, "get", lambda wid: {"actions": {"channel_videos": {"desc": "channel videos"}}})
-    say = "I can't sort its videos by date from here, so I haven't checked it."
-    client.answer = [("cannot_do", {"say": say})]
-    sess = SimpleNamespace(window=[], last_action=None)
-    said = "Opening its videos tab to check the date now."
-    out = asyncio.run(probe_mirrors.mirror_the_voice_backstops(
-        _akp=None, _cw=None, _hw=False, _router=__import__("nucleo.flash.router", fromlist=["x"]), _rt=None, _sp=None,
-        _tbrief=None, action="chat", canvas_h=None, dialog=SimpleNamespace(sanitize_reply=lambda s: s),
-        names=[], operator_text="Is that today's video?", sess=sess, spec=None,
-        speech=SimpleNamespace(sanitize=lambda s, **k: s), spoken=said, tags=[], text="Is that today's video?",
-        tool_calls=[]))
-    assert out["spoken"].endswith(say), out["spoken"]

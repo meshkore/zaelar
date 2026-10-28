@@ -86,12 +86,6 @@ def keep_beside_an_answer(escalate_req: dict, resolved: str | None, *, declined:
     escalate_req["v"], escalate_req["more"] = (rest[0] if rest else None), rest[1:]
 
 
-def within_the_pool(requests: list[str]) -> tuple[list[str], list[str]]:
-    """(what starts, what the pool cannot take this turn)."""
-    reqs = list(requests or [])
-    return reqs[:MAX_ERRANDS], reqs[MAX_ERRANDS:]
-
-
 def not_started_line(dropped: list[str]) -> str:
     """The sentence that names, in his language, the errands this turn did NOT start. "" when none."""
     items = [str(d).strip().rstrip(".")[:90] for d in (dropped or []) if str(d or "").strip()]
@@ -188,25 +182,3 @@ def words_for(operator_text: str, spoken: str) -> str:
     from nucleo.turn import our_question as _oq
     return _oq.without_its_answer(operator_text, spoken, quiet=True)
 
-
-def parked_question_for(requests: list[str]) -> str:
-    """The question of an errand still PARKED on him that one of this turn's requests IS ("" if none) — the request
-    will fold into it instead of starting, so the reply owes the question, not «va en marcha»."""
-    from nucleo.dispatch import confirm as _dc
-    for p in list((_dc._PENDING_CONFIRM or {}).values()):
-        if any(r and same_errand(r, str(p.get("request") or "")) for r in requests or []):
-            return str(p.get("question") or "")
-    return ""
-
-
-def send_beside_an_answer(tool_calls: list, resolved: str, send) -> None:
-    """The turn's `send_to_worker` calls that are NOT about the errand a yes just launched, sent with `send`.
-
-    EN 2026-10-11 02:58: «yeah go ahead with the game, and add coins… btw for the monitor it has to be at least 27
-    inches» carried a refinement of the monitor hunt beside the game's yes; the confirmation branch launched the
-    game (or meant to) and the monitor's message was never sent. The launched errand's own refinements travel with
-    it (`resolve_confirm`), so those are left out."""
-    others = [t for t in tool_calls or [] if t.get("name") == "send_to_worker"
-              and not same_errand(f"{t['args'].get('which') or ''} {t['args'].get('message') or ''}", resolved)]
-    if others and any(str(t["args"].get("message") or "").strip() for t in others):
-        send(others, "")

@@ -48,18 +48,11 @@ def test_the_delivered_face_carries_the_rows_and_forbids_inventing():
     assert "búscame un coche diésel por menos de 12 mil" in face, "la petición literal ancla la respuesta"
 
 
-def test_both_channels_call_the_SAME_face():
-    """The two-channels rule one level up: the CALL was wired twice and so was the WORDING, which drifts.
-
-    Two copies of a prompt do not fail with noise — the model just says something else in one channel. Since the
-    ratchet pass the whole sequence (fast pass → face → stream) is `listing_turn.voice_turn`, so what the two
-    channels share is a body, not a paragraph.
-    """
-    import inspect
-    from nucleo.flash import probe
+def test_the_voice_turn_calls_the_shared_face():
+    """The wording lives once: the whole sequence (fast pass → face → stream) is `listing_turn.voice_turn`, and the
+    turn calls that body instead of keeping its own copy of the face, which would drift without any noise."""
     from voice.engine.llm.providers import nucleo as voice_provider
-    for mod in (probe, voice_provider):
-        src = _vts.getsource(mod)
-        assert "voice_turn(" in src, f"{mod.__name__} no usa el cuerpo compartido"
-        assert "anuncios provisionales en su hoja" not in src, f"{mod.__name__} conserva una copia de la cara"
-        assert "ANUNCIOS ENCONTRADOS" not in src, f"{mod.__name__} conserva una copia de la cara entregada"
+    src = _vts.getsource(voice_provider)
+    assert "voice_turn(" in src, "the voice turn does not use the shared body"
+    assert "anuncios provisionales en su hoja" not in src, "the voice turn keeps a copy of the face"
+    assert "ANUNCIOS ENCONTRADOS" not in src, "the voice turn keeps a copy of the delivered face"

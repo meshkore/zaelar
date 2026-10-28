@@ -16,7 +16,6 @@ from __future__ import annotations
 import pytest
 
 from nucleo.flash import outgoing_lang as ol
-from nucleo.flash import widget_data_turn as wdt
 
 
 @pytest.fixture
@@ -48,10 +47,3 @@ def test_a_widgets_spanish_refusal_reads_as_spanish(said, english):
 ])
 def test_english_is_left_alone(said, english):
     assert ol.foreign_to_session(said) is False
-
-
-def test_the_wrapper_over_a_spoken_failure_comes_from_the_language_table(english):
-    out = wdt.ensure_failure_named("Skipping to the next one.",
-                                   {"executed": "widget_data_failed", "message": "There are no more videos."})
-    assert "No he podido" not in out
-    assert "I couldn't: There are no more videos." in out

@@ -51,7 +51,7 @@ FUNCTIONS = {
     'nucleo/dispatch/session.py::_run_session': 203,
     'nucleo/dispatch/session_steps.py::build_what_it_runs_with': 132,
     'nucleo/errands/wake.py::wake': 153,
-    'nucleo/flash/accumulator.py::Accumulator._offer': 129,   # 2026-10-22: `offer` → wrapper + `_offer`
+    'nucleo/input/stt.py::Accumulator._offer': 129,   # 2026-10-22: `offer` → wrapper + `_offer`
     'nucleo/flash/fast_client.py::FastClient._stream_inner': 267,
     'nucleo/flash/listing_turn.py::run': 121,
     'nucleo/flash/live_blocks.py::navegador_lines': 147,
@@ -73,7 +73,6 @@ FUNCTIONS = {
     'nucleo/flash/tool_executor_widget_calls.py::_apply_widget_data': 180,
     'nucleo/flash/tool_executor_widget_calls.py::_handle_widget_data_tool': 194,
     'nucleo/flash/tool_executor_widget_calls.py::_tag_emit': 186,
-    'nucleo/flash/widget_data_turn.py::execute': 154,
     'nucleo/loop.py::OrchestratorLoop._supervise_workers': 174,
     'nucleo/memory_agent/ingest_steps.py::file_the_atoms': 141,
     'nucleo/memory_agent/ingest_steps.py::gate_the_utterance': 164,

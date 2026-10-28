@@ -62,11 +62,10 @@ def test_the_answer_pass_runs_only_for_that_disposition(monkeypatch):
     assert "26 tasks" in out and calls and "ESTADO" in calls[0], "the pass is given the turn's state to answer from"
 
 
-def test_both_channels_wire_it():
+def test_the_turn_wires_it():
+    """One turn, typed or spoken (refactor2710-01): it settles and never composes the answer."""
     voice = open("nucleo/flash/post_stream_words.py", encoding="utf8").read()
-    text = open("nucleo/flash/card_commission.py", encoding="utf8").read()
-    assert "answered_from_state(_settled" in voice, "the voice settles and never composes the answer"
-    assert "answered_from_state(" in text, "the text channel spends the worker the voice would not"
+    assert "answered_from_state(_settled" in voice, "the turn settles and never composes the answer"
 
 
 @pytest.mark.parametrize("surface", ["informe", "lista", "item", "imagenes", "widget"])

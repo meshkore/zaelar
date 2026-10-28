@@ -68,8 +68,6 @@ def test_a_move_the_player_kept_is_still_receipted_as_playing(monkeypatch):
         f"Now playing: «{PSY['title']}»."
 
 
-def test_both_channels_read_the_outcome():
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
-    assert "await _tr.complete_probe_settled(" in probe
+def test_the_voice_turn_reads_the_outcome():
     settle = (ENGINE / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
     assert "await _pst_tr.voice_owed_settled(spoken_text)" in settle

@@ -267,18 +267,14 @@ def test_the_reopen_license_binds_to_a_proposal_about_that_card():
         lic._RECENT_CLOSES.clear()
 
 
-def test_both_channels_hand_over_what_we_said():
-    """A fact only one channel reads is a mirror that drifts (V2-539): the provider, the probe and the
-    arbiter's tap all pass the previous reply."""
+def test_the_turn_and_the_arbiter_hand_over_what_we_said():
+    """A fact only one reader reads is a mirror that drifts (V2-539): the provider and the arbiter's tap both
+    pass the previous reply."""
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     arb = (ENGINE / "nucleo/canvas_arbiter.py").read_text(encoding="utf-8")
     # 2026-10-22 — the line BEFORE his turn, frozen when the window is built; `_last_reply` is the reply being
     # streamed by the time a tool runs (`prior_line`).
     assert "last_reply=_prior_line.of(brain)" in prov
-    # V2-741 — the call gained the turn's brief so a verdict can overrule the verb table. This
-    # channel fires no brief yet, so the argument is what keeps the two from drifting apart.
-    assert "video_license(text, _last_assistant_line(sess.window), brief=" in probe
     assert 'role == "assistant"' in arb and "last_reply=str(_last_turn" in arb
 
 

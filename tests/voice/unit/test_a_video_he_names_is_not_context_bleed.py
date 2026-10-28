@@ -91,13 +91,6 @@ def test_voice_execute_runs_the_named_load():
     assert deduped["v"] is False
 
 
-def test_both_text_channel_doors_pass_the_query():
-    import inspect
-    from nucleo.flash import probe_companions, probe_decide
-    assert 'query=_probe._video_turn.request_from(tool_calls)["query"]' in inspect.getsource(probe_decide)
-    assert 'query=video_turn.request_from(tool_calls)["query"]' in inspect.getsource(probe_companions)
-
-
 # ── 2 · a refused close is not a close ───────────────────────────────────────────────────────────────────
 
 def test_a_close_the_canvas_route_refuses_is_not_claimed():
@@ -133,10 +126,3 @@ def test_the_voice_close_guard_answers_false(monkeypatch):
         text="Desde el principio.")
     assert out is False and deduped["v"] is True
     assert not any(a[0] == "widget" for a in rows), "the refused close must not reach the canvas"
-
-
-def test_the_text_channel_close_guard_answers_false():
-    import inspect
-    from nucleo.flash import probe
-    src = inspect.getsource(probe)
-    assert "if not _has_order:\n                return False" in src

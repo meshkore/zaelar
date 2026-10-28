@@ -46,10 +46,7 @@ def test_no_one_named_or_another_action_changes_nothing(stores):
     assert RF.forward_of("mensajeria", "reply", {"n": 9, "text": "x"}, _ORDER) is None, "an unresolved reply stays"
 
 
-def test_both_channels_ask_the_rule():
+def test_the_turn_asks_the_rule():
     calls = open("nucleo/flash/tool_executor_widget_calls.py", encoding="utf-8").read()
-    turn = open("nucleo/flash/widget_data_turn.py", encoding="utf-8").read()
     assert "_txw._rof.instead(" in calls and "_txw._rof.forward_of(" in calls, "the voice rail runs the forward"
-    assert "_vcard.retarget(brief, wid, act, pl, _order)" in turn, "the text channel runs the forward"
-    assert turn.index("_vcard.retarget(") < turn.index("_leave_gate.asked_if_leaving("), "before the gate asks"
     assert "_rof.forward_of(" in open("nucleo/flash/verdict_card.py", encoding="utf-8").read()

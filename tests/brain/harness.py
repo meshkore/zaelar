@@ -6,14 +6,10 @@ verdicts Jev would have returned, seeds the screen and the memory the turn needs
 question: given all that, what did you DECIDE? The answer is a line of a small grammar (`DECISIONS`) and the
 judge compares it to the line the case expects. Every case is deterministic or it is not in the bank.
 
-WHICH CHANNEL. The turn runs through `nucleo.flash.probe.run_turn`, the headless channel the use cases and
-the agent-headless corpus already drive: the real prompt, the real fast lanes (action map, presence, small
-talk), the real guards and the real decision seam, with `execute=False` so nothing spawns a worker or moves a
-card for real. The voice provider is a parallel implementation of the same turn (V2-539's standing lesson);
-the bank runs on the channel that can run headless TODAY, and joins the voice adapter the day B2 hands both
-channels to `nucleo/turn/`. Until then a case green here says «the shared seam decided right», and the
-wiring guards (`tests/agent_headless/unit/actionmap/…`) keep the two channels honest about carrying the
-same seam.
+WHICH CHANNEL. The turn runs through `nucleo.cli.turn.run_turn` — the VOICE turn itself, typed and dry
+(refactor2710-01): the real prompt, the real fast lanes, the real guards and the real decision seam, with every
+consequence door closed (`nucleo/consequence.py`) so nothing spawns a worker or moves a card for real. There is no
+second implementation of the turn any more, so a case green here is the microphone's turn deciding right.
 
 ISOLATION. Everything the turn touches is redirected before the first import that would cache a path:
 `ZAELAR_WORKSPACE`, `ZAELAR_DB`, the widget store's data dir, the observer's log dir, the language, and the
@@ -94,8 +90,8 @@ def validate(case: dict) -> None:
     for f in case.get("forbid", ()):
         if f not in FORBIDS:
             raise ValueError(f"{case['id']}: forbid {f!r} is not one of {FORBIDS}")
-    if not isinstance(case["screen"], dict) or set(case["screen"]) - {"open"}:
-        raise ValueError(f"{case['id']}: screen must be {{'open': [...]}}")
+    if not isinstance(case["screen"], dict) or set(case["screen"]) - {"open", "maximized"}:
+        raise ValueError(f"{case['id']}: screen must be {{'open': [...], 'maximized'?: id}}")
     model = case.get("model")
     if model is not None:
         if set(model) - {"say", "tools"}:
@@ -126,7 +122,7 @@ class Outcome:
     case_id: str
     decision: str = ""
     also: list[str] = field(default_factory=list)   # secondary mutations the turn also produced
-    action: str = ""                                # the probe's raw action string
+    action: str = ""                                # the typed channel's action string
     tool_calls: list = field(default_factory=list)
     tags: list = field(default_factory=list)
     reply: str = ""
@@ -184,7 +180,7 @@ def _widget_data_target(tool_calls: list) -> tuple[str, str]:
 
 
 def decision_of(res: dict, tool_calls: list) -> str:
-    """Map the probe's action vocabulary onto the bank's grammar. Unknown actions come back verbatim, so a
+    """Map the typed channel's action vocabulary onto the bank's grammar. Unknown actions come back verbatim, so a
     new mechanism shows up as a red case with its own name rather than as a silent `talk`."""
     a = str(res.get("action") or "")
     if a == "chat":
@@ -301,7 +297,7 @@ def brief_handle(case: dict):
 
 # ── isolation ─────────────────────────────────────────────────────────────────────────────────────────────
 _ENV_KEYS = ("ZAELAR_WORKSPACE", "ZAELAR_DB", "ZAELAR_JEV", "ZAELAR_EMBED_BACKEND", "MEMORY_RERANK",
-             "ZAELAR_LANGUAGE_GATE", "ZAELAR_LANGUAGE", "ZAELAR_LOG_DIR", "ZAELAR_TEST_EMBED_CLOUD")
+             "ZAELAR_LANGUAGE_GATE", "ZAELAR_LANGUAGE", "ZAELAR_LOG_DIR", "ZAELAR_TEST_EMBED_CLOUD", "BROWSER_SEARCH")
 
 
 class Isolated:
@@ -315,7 +311,7 @@ class Isolated:
         self._patched: list[tuple[Any, str, Any]] = []
 
     def _set(self, obj, name, value):
-        self._patched.append((obj, name, getattr(obj, name)))
+        self._patched.append((obj, name, getattr(obj, name, None)))
         setattr(obj, name, value)
 
     def __enter__(self) -> "Isolated":
@@ -326,6 +322,7 @@ class Isolated:
             "ZAELAR_WORKSPACE": os.path.join(self.tmp, "ws"),
             "ZAELAR_DB": os.path.join(self.tmp, "zaelar.db"),
             "ZAELAR_JEV": "1" if self.live else "0",
+            "BROWSER_SEARCH": "1" if self.live else "0",   # a recorded case never starts a real Chromium
             "ZAELAR_EMBED_BACKEND": "hash",
             "MEMORY_RERANK": "off",
             "ZAELAR_LANGUAGE_GATE": "0",
@@ -354,15 +351,15 @@ class Isolated:
             from nucleo import scheduler
             self._set(scheduler, "create", lambda prompt, stamp, name="": {"ok": True, "id": "bank-job"})
             self._set(scheduler, "cancel", lambda ref: None)
-            from nucleo.flash import fast_client, turn_brief, show_target, probe
+            from nucleo.flash import fast_client, turn_brief
             if self.live:
                 self._go_live()
             else:
                 self._set(fast_client, "FastClient", RecordedModel)
                 self._set(turn_brief, "ask_for_turn", lambda *a, **k: self._handle)
                 self._set(turn_brief, "ask", lambda *a, **k: self._handle)
-                self._set(show_target, "ask_canvas_async", lambda *a, **k: None)
-            probe._SESSIONS.clear()
+            from nucleo.cli import turn as cli_turn
+            cli_turn.reset()
         except Exception:
             self.__exit__(None, None, None)
             raise
@@ -390,8 +387,8 @@ class Isolated:
 
     def __exit__(self, *_exc) -> None:
         try:
-            from nucleo.flash import probe
-            probe._SESSIONS.clear()
+            from nucleo.cli import turn as cli_turn
+            cli_turn.reset()
         except Exception:  # noqa: BLE001
             pass
         for obj, name, old in reversed(self._patched):
@@ -417,7 +414,8 @@ class Isolated:
     # ── per-case seeding ──
     def seed(self, case: dict) -> None:
         from memory import api as memapi
-        memapi.set_state({"open_widgets": [str(w) for w in case["screen"].get("open") or []]})
+        memapi.set_state({"open_widgets": [str(w) for w in case["screen"].get("open") or []],
+                          "maximized_widget": str(case["screen"].get("maximized") or "")})
         memory = case.get("memory") or {}
         if memory.get("state"):
             memapi.set_state(dict(memory["state"]))
@@ -435,8 +433,20 @@ class Isolated:
         from config import connectors as _conns           # isolated in __enter__: never the install's file
         for c in CONNECTOR_IDS:
             _conns.set(c, {"enabled": c in (case.get("connectors") or [])})
-        from nucleo import canvas_focus
+        # The SCREEN's own report of what it shows: a typed turn has no browser to send it, and the voice turn reads
+        # it (`server.voice_api.open_instances`) where the memory state's set is not enough (minimise «that», the card
+        # in front). Seeded from the same `screen.open` as the state, so both views agree.
+        from server import canvas_api
+        self._set(canvas_api.canvas_state, "_last_inst", [str(w) for w in case["screen"].get("open") or []])
+        from nucleo import canvas_closes, canvas_focus, done_ops
+        from nucleo.flash import bulk_close, canvas_license
         canvas_focus._reset()
+        done_ops.reset()          # the voice turn RUNS a case's ops (dry at the door): the last case's working card
+        bulk_close.reset()        # and kept cards are process state, and a bulk close spared them in the next case
+        canvas_closes._reset_for_tests()       # …and so are the closes it made: the last case's close of a card
+        canvas_license._RECENT_CLOSES.clear()  # decided this one's (a bank that passes only in order measures the order)
+        from voice import observer
+        observer._dedup.clear()   # the flood filter swallowed this case's «close youtube» as a repeat of the last one's
         if case.get("focus"):                           # the card his previous turn acted on, as the event funnel leaves it
             canvas_focus._state["previous"], canvas_focus._state["current"] = [(2, str(case["focus"]))], [(2, str(case["focus"]))]
         if self.live:
@@ -468,23 +478,23 @@ def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False) -> Outc
     out = Outcome(case_id=case["id"], live=live)
     with Isolated(case["lang"], live=live) as iso:
         iso.seed(case)
-        from nucleo.flash import probe
         from voice import observer
         n0 = len(observer._events)
         t0 = _time.time()
         sid = f"bank:{case['id']}"
+        from nucleo.cli import turn as cli_turn
         if case.get("history"):                         # the turns before this one, as the conversation window holds them
-            sess = probe._session(sid, execute=False)
-            sess.window[:] = [{"role": t["role"], "content": t["text"]} for t in case["history"]]
-            sess.seeded = True
+            brain = cli_turn._brain(sid)
+            brain._window[:] = [{"role": t["role"], "content": t["text"]} for t in case["history"]]
+            brain._seeded = True
         try:
             res = asyncio.run(asyncio.wait_for(
-                probe.run_turn(case["phrase"], sid=sid, ingest=False, execute=False), timeout_s))
+                cli_turn.run_turn(case["phrase"], sid=sid, ingest=False, execute=False), timeout_s))
         except Exception as e:  # noqa: BLE001
             out.error = f"{type(e).__name__}: {e}"[:300]
             res = {}
         finally:
-            probe._SESSIONS.pop(sid, None)
+            cli_turn.reset(sid)
         out.ms = (_time.time() - t0) * 1000
         out.events = [dict(e) for e in observer._events[n0:]]
         if res.get("ok") is False and not out.error:

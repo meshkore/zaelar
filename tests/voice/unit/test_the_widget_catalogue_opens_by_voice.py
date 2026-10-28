@@ -9,7 +9,7 @@ There are three doors a voice order can come through, and each is pinned here:
 1. the ACTION MAP (whole-utterance phrases, no model) — the seed packs carry the phrases and validate;
 2. the model's `show_panel` tool — its description names the tab and the canon maps the argument onto it;
 3. the model's `show_widget` tool (it picks the wrong one: «apps» sounds like a thing to show) — the name
-   resolver names the SYSTEM surface `apps`, and the provider and its probe mirror both route that surface
+   resolver names the SYSTEM surface `apps`, and the provider routes that surface
    to the panel instead of asking «which widget?».
 
 And the neighbours that must NOT move, because a descriptor that steals a word from its neighbour is a defect
@@ -88,27 +88,21 @@ def test_the_video_cards_own_catalogue_is_not_this_one():
     assert runtime.identify("vuelve al catálogo")["system"] is None
 
 
-def test_the_provider_and_its_probe_route_the_surface_to_the_panel():
+def test_the_provider_routes_the_surface_to_the_panel():
     """Source anchors, because the branch lives in the middle of the provider's streaming loop: a named surface
-    that is a TAB of the wall is forwarded through ONE reader (`panel_canon.wall_tab_for`) in both channels."""
+    that is a TAB of the wall is forwarded through ONE reader (`panel_canon.wall_tab_for`)."""
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "elif _wall_tab_for(_sys, text):" in prov
     assert 'emit("panel", "open", extra={"tab": _wall_tab_for(_sys, text), "src": "flash"})' in prov
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
-    assert 'f"panel:{_wall_tab_for(_sys, text)}" if _wall_tab_for(_sys, text) else "clarify"' in probe
 
 
 def test_a_promise_to_open_the_tab_with_no_tool_opens_it():
     """Measured on the live engine after F1: «Te abro el panel de apps, que es donde salen los widgets que
-    tienes» with NO tool call. The promise backstop only knew CARDS; a named wall tab now opens too — in the
-    provider and in its mirror."""
+    tienes» with NO tool call. The promise backstop only knew CARDS; a named wall tab now opens too."""
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     seg = prov.split("elif _router.looks_like_show_strict(_op_text):")[1].split("elif _router.promises_music")[0]
     assert "_wall_tab_for(_identify_system(_op_text), _op_text)" in seg
     assert 'emit("panel", "open", extra={"tab": _wtab, "src": "flash"})' in seg
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
-    pseg = probe.split("elif _routerc.looks_like_show_strict(text):")[1].split("elif _routerc.promises_music")[0]
-    assert 'action = f"panel:{_wtab}"' in pseg
 
 
 @pytest.mark.parametrize("sid,phrase,tab", [
@@ -213,20 +207,15 @@ def test_the_voice_lane_opens_the_tab_and_records_the_exchange():
     assert brain._window[-1] == {"role": "assistant", "content": _lg.current_language().data_ack}
 
 
-def test_both_channels_try_the_lane_before_the_model():
+def test_the_turn_tries_the_lane_before_the_model():
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     lanes = prov.split("from voice.engine.llm.providers import fast_lane as _fast_lane")[1].split("return")[0]
     assert "_fast_lane.wall_tab(brain, text, emit" in lanes
-    probe = (ENGINE / "nucleo/flash/probe_actionmap.py").read_text(encoding="utf-8")
-    chain = probe.split("def try_fast_lanes")[1].split("\ndef ")[0]
-    assert "try_wall_tab(text" in chain
 
 
 def test_the_models_show_panel_apps_lands_on_custom_when_he_asked_for_his():
     """Measured: «¿Qué APPs tengo customizadas?» → `show_panel(panel='apps')` — the right tab, the wrong sub-tab.
-    His words refine the model's argument in both channels."""
+    His words refine the model's argument."""
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     seg = prov.split('elif name == "show_panel":')[1].split("elif name ==")[0]
     assert '_wall_tab_for("apps", _router.operator_words(operator_text, text))' in seg
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
-    assert 'action = "panel:" + _wall_tab_for("apps", text)' in probe

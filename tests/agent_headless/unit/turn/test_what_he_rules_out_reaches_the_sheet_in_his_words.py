@@ -15,7 +15,7 @@ import pytest
 
 from nucleo import dispatch
 from nucleo.dispatch import confirm as dc
-from nucleo.flash import delivery, escalate, live_blocks
+from nucleo.flash import escalate
 from nucleo.turn import his_spec_to_sheet as S
 from nucleo.workers import ended
 from widgets.results import data as sheet
@@ -61,18 +61,6 @@ def test_a_sheet_without_his_words_never_hears_an_exclusion(live):
     _seed("")
     S.carry(CORRECTION)
     assert _titles() == ROWS
-
-
-def test_the_text_channel_carries_it_before_the_tail_is_chosen(live, monkeypatch):
-    _seed(ASK)
-    monkeypatch.setattr(live_blocks, "any_live_task_rows",
-                        lambda n=3: (HOTEL["request"], [f"{t} — € 231" for t in _titles()[:n]]))
-    monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: ("", 0, ""))
-    monkeypatch.setattr(delivery, "_speaks_en", lambda: False)
-    delivery.forget_announced()
-    out = delivery.apply_to_reply("Vale, dame un momento que lo miro.", [], heard_now=CORRECTION)
-    assert "Hostel" not in out, out
-    assert "Hostel Ikigai" not in _titles()
 
 
 def test_the_spec_reader_says_it_in_plain_form():

@@ -17,14 +17,11 @@ break the case that measures exactly that.
 """
 from __future__ import annotations
 
-import asyncio
-
 import pytest
 
 from memory import db as memdb
 from memory import embeddings as mememb
 from nucleo import dispatch
-from nucleo.flash import probe
 from nucleo.flash import prompt
 from nucleo.flash import router_guards as g
 from nucleo.flash import site_catalog as sc
@@ -92,26 +89,23 @@ def test_the_catalog_has_a_destination_in_both_locales():
         assert entry is not None and entry.url
 
 
-class _PromisesToSearch:
-    async def stream(self, *_a, **_kw):
-        yield "Perfecto. Me pongo a buscar peluquerías en el barrio de Ruzafa, Valencia, y te digo cuál encuentro."
-
-
-def test_the_promise_after_the_missing_datum_now_starts_something(fresh_db, monkeypatch):
-    """The real turn: the operator finally gives the neighbourhood and zaelar says it is on it. Before this,
-    nothing fired — and two turns later it reported a task that had never existed."""
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _PromisesToSearch)
+def test_the_promise_after_the_missing_datum_now_starts_something(monkeypatch):
+    """The real turn (the voice turn, typed and dry): the operator finally gives the neighbourhood and zaelar says
+    it is on it. Before this, nothing fired — and two turns later it reported a task that had never existed."""
+    from tests.brain import harness as H
     monkeypatch.setattr("nucleo.dispatch.has_active", lambda: False)
-    sess = probe._session("t-v144")
-    sess.seeded = True
-    sess.window[:] = [
-        {"role": "user", "content": "Resérvame hora en la peluquería de siempre para el sábado por la mañana."},
-        {"role": "assistant", "content": "¿Cuál es el nombre?"},
-        {"role": "user", "content": "la de siempre, no me lo sé"},
-        {"role": "assistant", "content": "¿En qué ciudad vives?"}]
-    res = asyncio.run(probe.run_turn("En Valencia, por el barrio de Ruzafa.", sid="t-v144", ingest=False))
-    probe._SESSIONS.pop("t-v144", None)
-    assert res["action"] == "escalate"
+    out = H.run_case({
+        "id": "v144", "lang": "es", "phrase": "En Valencia, por el barrio de Ruzafa.", "source": "V2-144",
+        "screen": {"open": []}, "expect": "escalate",
+        "model": {"say": "Perfecto. Me pongo a buscar peluquerías en el barrio de Ruzafa, Valencia, y te digo cuál "
+                         "encuentro."},
+        "history": [
+            {"role": "user", "text": "Resérvame hora en la peluquería de siempre para el sábado por la mañana."},
+            {"role": "assistant", "text": "¿Cuál es el nombre?"},
+            {"role": "user", "text": "la de siempre, no me lo sé"},
+            {"role": "assistant", "text": "¿En qué ciudad vives?"}]})
+    assert not out.error, out.error
+    assert out.action == "escalate", (out.action, out.reply)
 
 
 def test_the_prompt_says_not_to_ask_for_what_it_can_look_up(fresh_db):

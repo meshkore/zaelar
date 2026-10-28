@@ -50,7 +50,3 @@ def test_a_refusal_still_reaches_the_verdict(spy):
 def test_a_claim_on_an_order_is_still_repaired(spy):
     """«none» also reads a report of something done («Hecho.»); over an ORDER that claim with no call is repaired."""
     assert _run("Hecho.", "none", kind="order")
-
-
-def test_the_text_channel_hands_the_brief():
-    assert "brief=_tbrief) if _ar_wid" in open("nucleo/flash/probe_mirrors.py", encoding="utf-8").read()

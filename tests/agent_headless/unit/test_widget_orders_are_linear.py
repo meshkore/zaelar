@@ -109,14 +109,11 @@ def test_but_a_licensed_or_absent_close_keeps_its_show(text):
     assert not router.show_contradicts_the_order(text)
 
 
-def test_both_channels_apply_the_guard():
-    """V2-539's lesson, again: voice and probe are parallel implementations of the same decision, and a rule
-    applied in one silently stops existing in the other — the probe carried this very rule IN PROSE while the
-    voice channel executed the spurious show. Both must call the shared guard."""
+def test_the_voice_turn_applies_the_guard():
+    """V2-539's lesson: a rule carried IN PROSE is not applied — the voice turn (which the typed channel runs too)
+    must call the shared guard."""
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
-    assert "show_contradicts_the_order" in voice, "the voice channel dropped the guard"
-    assert "show_contradicts_the_order" in probe, "the probe channel dropped the guard"
+    assert "show_contradicts_the_order" in voice, "the voice turn dropped the guard"
 
 
 # ── 3 · the fast close declines over live work ───────────────────────────────────────────────────────────

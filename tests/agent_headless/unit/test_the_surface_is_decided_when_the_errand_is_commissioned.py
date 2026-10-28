@@ -134,24 +134,17 @@ def test_the_router_does_not_normalize_it_here():
 def test_a_turn_with_THREE_errands_keeps_three_surfaces():
     """A turn can commission a list, a detail view, and a widget (V2-118). Keeping the first surface would
     give the other two the wrong screen from the very first second — that is why it travels per request and not in a
-    loose variable. Asserted on the source: the alternative is a call to a real model."""
-    import inspect
-
-    from nucleo.flash import probe
-    src = _vts.getsource(probe)
-    assert '_surf[_r] = str(_tc["args"].get("surface")' in src
-    assert '.pick(_surf.get(_r, "")' in src          # per request, then `surfaces.pick` with the brief (pass 51)
+    loose variable. Asserted on the voice turn's source (the typed channel runs it too): the alternative is a call
+    to a real model."""
+    src = _vts.turn_source()
+    assert 'escalate_req["surface"][req] = _sf' in src
+    assert '_surfaces_mod.pick(escalate_req["surface"].get(req, ""' in src   # per request, then the brief (pass 51)
 
 
-def test_BOTH_channels_carry_it():
-    """`probe` and the voice provider are PARALLEL implementations of the turn: wiring only one is the failure this
-    codebase has committed so many times that it has its own name in several docstrings."""
-    import inspect
-
-    from nucleo.flash import probe
+def test_the_voice_turn_carries_it():
+    """The voice turn is the one turn both inputs run: without the field there, nothing carries it."""
     from voice.engine.llm.providers import nucleo as vp
-    for mod in (probe, vp):
-        assert '"surface"' in _vts.getsource(mod), mod.__name__
+    assert '"surface"' in _vts.getsource(vp), vp.__name__
 
 
 def test_the_dispatcher_stamps_it_at_the_ONLY_door_they_all_pass_through():

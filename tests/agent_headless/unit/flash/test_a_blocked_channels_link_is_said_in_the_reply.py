@@ -79,9 +79,8 @@ def test_the_voice_rail_says_it_after_the_streamed_words(card, monkeypatch):
     assert len(sent) == 1 and "the channel you blocked" in sent[0] and said == "Added. " + sent[0]
 
 
-def test_both_channels_are_wired():
+def test_the_voice_turn_is_wired():
     from pathlib import Path
     root = Path(__file__).resolve().parents[4]
-    probe = (root / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     settle = (root / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
-    assert "_bcr.complete(" in probe and "await _pst_bcr.said_after(" in settle
+    assert "await _pst_bcr.said_after(" in settle

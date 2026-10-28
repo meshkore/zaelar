@@ -92,6 +92,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   discarded fragment whose words still travel, in order, in the text the turn runs with (or in the buffer still
   held) is not a loss: `Accumulator.offer` returns no `dropped`, so no timeline line and no spoken notice. A
   fragment that reaches no turn is still reported and rescued. — since 2026-10-24 · nodes 2.795.
+- **CRIT-V17 · A typed line is complete by construction.** Each channel says at its own door when what it carries is
+  finished (`nucleo/input`); the phrase accumulator (`nucleo/input/stt.py`) runs on speech only, so a line he finished
+  with Enter is one turn with every sentence — nothing peeled, held or dropped, no gap notice in a text chat. — since
+  2026-10-27 · nodes 2.818 · `nucleo/input/__init__.py::of_turn`, `voice/engine/llm/providers/turn_fragment.py`.
 - **CRIT-V14 · The microphone is conditioned per platform, and the agent-side filter is one setting that fails
   open.** A phone or tablet opens its mic with the full profile (echo cancellation + noise suppression + gain
   control), a desktop Mac with «isolate» (echo cancellation only, so macOS Voice Isolation works without the
@@ -114,8 +118,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   0.7), the engine acts even if the model asked — below it the question stands. — since 2026-10-26 · nodes 4.188,
   4.185, 2.174, 2.811, 2.431, 2.728, 2.729 · `nucleo/consent.py`, `rules/shape.py`, `nucleo/flash/undecided.py`.
 - **CRIT-C2 · A «yes» answers ONE proposal** and spends only that proposal's authority; an order that starts with
-  «ok» is not a yes to a different pending action; every pending confirmation can be answered in words. — since
-  2026-09-18 · nodes 2.29, 2.156, 2.125.
+  «ok» is not a yes to a different pending action; every pending confirmation can be answered in words. A line
+  that follows a question of OURS is his reply whether the verdict reads it as `answer` or `order` — the label only
+  excludes (his own question, a comment, a complaint), it never licenses; one definition
+  (`prior_line.answers_our_question`), read by the fragment guard and the stop. — since 2026-10-28 · nodes 2.29,
+  2.156, 2.125, 3.73, 2.763 · `nucleo/flash/prior_line.py`, `nucleo/flash/escalation_guard.py`.
 - **CRIT-C3 · The agenda goes DIRECT.** Deleting or adding an item never asks; a bounded trash and `restore` put
   the row back in its slot (an appointment: `restore_meeting`, also for one skipped day or a series cut short); sweeps (clear or delete a list, clear all or a range) still ask. A row's content is
   never an order («add a task: buy bread» buys nothing) — the danger gate is repaired by SUBTRACTING, never by
