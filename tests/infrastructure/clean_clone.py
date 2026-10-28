@@ -13,6 +13,10 @@ The packages and the freezers are FOUND in the clone (a package is a top-level f
 `tests`), so the check follows the tree instead of a list that goes stale. The interpreter is this one (its installed
 packages are the «minimum installed»); `--fresh-venv` builds a venv in the clone from `requirements.txt` instead,
 which needs the network and minutes. Exit code 0 only when every step passed; the summary says which one failed.
+
+The clone lives OUTSIDE the system temp dir (`--dest-root`, default `~/.cache/zaelar/clean-clone`). Measured on the first
+run: a clone under `$TMPDIR` shares its parent with every pytest `tmp_path`, so a test that runs pytest on a generated
+file (the watchdog's own) got that crowded temp dir as its rootdir, lost the repo's config and hit its 40 s wall.
 """
 from __future__ import annotations
 
@@ -26,6 +30,7 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
+DEST_ROOT = pathlib.Path("~/.cache/zaelar/clean-clone")
 
 
 def packages(tree: pathlib.Path) -> list[str]:
@@ -77,13 +82,16 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--remote", action="store_true", help="clone `--ref` of `origin` instead of this repo's history")
     ap.add_argument("--fresh-venv", action="store_true", help="install requirements.txt into a venv in the clone")
     ap.add_argument("--keep", action="store_true", help="leave the clone on disk and print where")
+    ap.add_argument("--dest-root", default=str(DEST_ROOT), help="where clones are made (never under the system temp)")
     ap.add_argument("--dry-run", action="store_true", help="print the plan against THIS tree and run nothing")
     a = ap.parse_args(argv)
     if a.dry_run:
         for name, cmd in plan(ROOT, sys.executable):
             print(f"{name:15} {' '.join(cmd)}")
         return 0
-    dest = pathlib.Path(tempfile.mkdtemp(prefix="zaelar-clean-clone-"))
+    root = pathlib.Path(a.dest_root).expanduser()
+    root.mkdir(parents=True, exist_ok=True)
+    dest = pathlib.Path(tempfile.mkdtemp(prefix="run-", dir=root))
     results, ok = [], True
     try:
         head = clone(dest / "engine", ref=a.ref, remote=a.remote)

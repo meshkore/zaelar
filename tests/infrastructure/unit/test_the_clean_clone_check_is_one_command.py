@@ -62,11 +62,11 @@ def test_a_failed_step_fails_the_check(monkeypatch, tmp_path):
     monkeypatch.setattr(cc, "clone", fake_clone)
     monkeypatch.setattr(cc.subprocess, "run", lambda cmd, cwd=None, **k: (calls.append(cmd[2] if len(cmd) > 2 else cmd),
                                                                          R(1 if "ruff" in cmd else 0))[1])
-    assert cc.main([]) == 1
+    assert cc.main(["--dest-root", str(tmp_path)]) == 1
     assert len(calls) == 4, "every step still runs, so one command reports every red"
 
 
-def test_the_disarm_the_same_run_with_every_step_green_passes(monkeypatch):
+def test_the_disarm_the_same_run_with_every_step_green_passes(monkeypatch, tmp_path):
     """The counter-case of the test above: the verdict follows the steps' exit codes, nothing else — all green, exit 0."""
     monkeypatch.setattr(cc, "clone", lambda dest, **k: (dest.mkdir(parents=True), (dest / "tests").mkdir(), "x")[2])
 
@@ -74,4 +74,13 @@ def test_the_disarm_the_same_run_with_every_step_green_passes(monkeypatch):
         returncode = 0
 
     monkeypatch.setattr(cc.subprocess, "run", lambda *a, **k: R())
-    assert cc.main([]) == 0
+    assert cc.main(["--dest-root", str(tmp_path)]) == 0
+
+
+def test_the_clone_is_never_made_under_the_system_temp():
+    """Measured on the first run: under `$TMPDIR` the clone shares its parent with every pytest `tmp_path`, and a test
+    that runs pytest on a generated file gets that crowded dir as its rootdir (the watchdog's own tests hit 40 s)."""
+    import tempfile
+    default = cc.DEST_ROOT.expanduser().resolve()
+    tmp = pathlib.Path(tempfile.gettempdir()).resolve()
+    assert tmp not in default.parents and default != tmp
