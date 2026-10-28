@@ -4601,6 +4601,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_voice_sandbox_never_reaches_his_livekit.py']},
         {"id": "2.820", "title": "A dry turn reaches no consequence door: every effect that leaves a turn (worker, data-op, login, music, reminder, rule, cluster/messaging send, out-of-band speech, task list, memory) is one declared door whose funnel asks `consequence.passes`; `dry_turn()` closes them and the ledger names what each would have done",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_a_dry_turn_reaches_no_door.py']},
+        {"id": "2.826", "title": "The one turn keeps what the old text channel emitted (only two mirrors retired, named) and every consequence door it reaches is a `consequence` event with door, verdict and trace — the typed turn leaves the same 🧾 row as the spoken one (V2-826 §2b)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/test_an_event_survives_the_one_pipeline.py']},
         {"id": "2.821", "title": "The decision bank runs on the VOICE turn, typed and dry (`nucleo/cli/turn.py`): a recorded case decides there what the voice turn decides, and every door it meets is closed in the ledger",
             "ch": UNIT, "paths": ['tests/brain/unit/test_the_bank_runs_on_the_voice_turn.py']},
         {"id": "2.823", "title": "The typed channel reports its act and never writes it into the brain: `brain._last_action` stays what the voice turn left («search» after a search), so «open it» resolves the same typed and spoken",
