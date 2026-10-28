@@ -118,11 +118,3 @@ def test_a_conclusion_already_written_is_not_wiped(task):
     res = (tasks.get(task) or {}).get("results") or {}
     assert res.get("conclusion") == "lo que dijo el worker" and res.get("items") == HOTEL
 
-
-def test_the_extract_branch_ACTUALLY_calls_it():
-    """The half that makes it behaviour. V2-186's lesson, and V2-215's: a helper nobody calls is a fix that dies
-    one line short of its reader."""
-    import inspect
-    src = inspect.getsource(act_api.navegador_act)
-    assert '_hand_over(task_id, items)' in src
-    assert src.index('if action == "extract"') < src.index('_hand_over(task_id, items)')

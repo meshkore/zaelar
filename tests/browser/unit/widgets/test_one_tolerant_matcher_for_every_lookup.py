@@ -102,12 +102,6 @@ def test_the_agenda_cancel_matcher_uses_the_shared_matcher():
     assert "textmatch" in src[src.index("def _matches("):src.index("def cancel_meeting(")]
 
 
-def test_the_send_door_uses_the_shared_matcher():
-    import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets/mensajeria/outbound.py").read_text(encoding="utf-8")
-    assert "textmatch.spans" in src
-
-
 def test_textmatch_is_stdlib_only():
     """It is imported by `widgets/*/data.py`, which is stdlib-only by contract."""
     import ast

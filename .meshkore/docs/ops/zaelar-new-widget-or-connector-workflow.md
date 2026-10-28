@@ -63,9 +63,9 @@ another screen MOVES it (the screen that had it stops and closes its copy); orde
 reach it wherever it plays. `runtime.output` ⇒ `"single"`, and the gate rejects the contradiction. The host does the
 moving (`voice/screens.py` + `frontend/app/services/screens.js`), so the widget's code never looks at other screens.
 Policy and its one rule: `widgets/screen_policy.py`; node 4.269 fails a built-in widget that does not declare it.
-**It is tested before the widget is declared done** — automatic (`python -m widgets.harness --two-screens <id>`, two
+**It is tested before the widget is declared done** — automatic (`python -m tests.widget_harness --two-screens <id>`, two
 real browsers; node 4.270 over the whole catalogue) and manual by the operator with a real computer and phone
-(`python -m widgets.harness --manual <id>`): `.meshkore/docs/ops/zaelar-two-screen-test.md`.
+(`python -m tests.widget_harness --manual <id>`): `.meshkore/docs/ops/zaelar-two-screen-test.md`.
 
 ---
 
@@ -263,7 +263,7 @@ There are **five classes**, and the fourth is the one most often missing.
 | **widget contract** | `tests/browser/unit/<id>/` | declared==handled · `view` · no credentials in payloads · `whenToUse` fits · `view_data` does not touch the network |
 | **rendering** | `tests/browser/e2e/widgets/test_<id>_render.py` | what no reading of the source can give you (see below) |
 | **LIVE** | the same directory, node `live: True` | the real round trip against the operator's account |
-| **two screens** | automatic: node 4.270 (the whole catalogue, nothing to write) + `widgets.harness --two-screens <id>`; manual: `widgets.harness --manual <id>` | the widget does what its `"screens"` says with the agent open on a computer AND a phone — `.meshkore/docs/ops/zaelar-two-screen-test.md` |
+| **two screens** | automatic: node 4.270 (the whole catalogue, nothing to write) + `tests.widget_harness --two-screens <id>`; manual: `tests.widget_harness --manual <id>` | the widget does what its `"screens"` says with the agent open on a computer AND a phone — `.meshkore/docs/ops/zaelar-two-screen-test.md` |
 
 **Rendering is not decoration.** `t()` returns the KEY when a translation is missing, and the key is truthy; a
 DOM handle written as `cond ? a : b` leaves a detached canvas with no error at all; a notice can exist in the DOM
@@ -423,7 +423,7 @@ WIDGET
 [ ] ref_index if there are ids · prompt_digest if relevant (bounded, and saying so)
 [ ] background: decided and written down · runtime{} if it produces
 [ ] screens: "shared" or "single" declared (single if it takes the device's sound/picture)
-[ ] two screens: `widgets.harness --two-screens <id>` green · the operator's manual pass (`--manual <id>`) done, written in notes.md
+[ ] two screens: `tests.widget_harness --two-screens <id>` green · the operator's manual pass (`--manual <id>`) done, written in notes.md
 [ ] widget.js: no fetch · no innerHTML · textContent · classes with their own prefix · theme via --hb-*
 
 WIRING  (the 16 points of §4, one by one)

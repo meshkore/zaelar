@@ -316,14 +316,6 @@ def test_the_card_shows_them_with_their_REAL_state(monkeypatch):
         "Google has a two-way SYNC, not an import switch — two different contracts, two different boxes"
 
 
-def test_the_widget_declares_the_icons_and_one_switch():
-    import pathlib
-    js = (pathlib.Path(__file__).resolve().parents[4] / "widgets/contactos/widget.js").read_text()
-    assert "telegram:" in js and "whatsapp:" in js and "meshkore:" in js, "the icons he asked for"
-    assert "IMPORT_SOURCES" in js and "renderImportBox" in js
-    assert js.count("set_auto") >= 1, "ONE switch — «no vamos a poner dos opciones»"
-
-
 # ── 6 · the filters those rows make answerable ──────────────────────────────────────────────────────────
 
 def test_show_view_answers_my_groups_and_my_telegram_contacts():

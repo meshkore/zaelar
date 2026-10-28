@@ -103,7 +103,3 @@ def surfaces() -> list[dict]:
         extra = {}
     return [{"id": sid, "name": s["name"], "aliases": list(s["aliases"]) + list(extra.get(sid, [])),
              "surface": "system"} for sid, s in SYSTEM_SURFACES.items()]
-
-
-def is_system_surface(sid: str) -> bool:
-    return str(sid or "") in SYSTEM_SURFACES

@@ -90,7 +90,8 @@ const norm = (u) => u
   .replace(/\{[^}]*\}/g, ":p")          // FastAPI path parameter
   .replace(/\?.*$/, "")                 // query string is not part of the route
   .replace(/\/+$/, "");
-const PY_SOURCES = ["widgets/server_api.py", "server/pages.py", "server/config_api.py", "server/voice_api.py",
+const PY_SOURCES = ["widgets/server_api.py", "widgets/client_files.py",   // refactor2710-12: widget.js + js/ routes
+                    "server/pages.py", "server/config_api.py", "server/voice_api.py",
                     "server/canvas_api.py",   // V2-778 F1: the canvas routes left voice_api.py
                     "server/run_api.py", "server/reset_api.py",   // refactor2710-13: voice_api sub-routers
                     "server/connectors_api.py",   // refactor2710-13: mounted by config_api

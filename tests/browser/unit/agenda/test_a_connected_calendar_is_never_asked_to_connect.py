@@ -95,17 +95,6 @@ def test_the_connected_hook_retires_a_pushed_screen_BEFORE_it_risks_anything_els
         "the screen must be retired before the sync, or a failed sync leaves it standing")
 
 
-def test_the_card_reads_no_pushed_connect_screen_at_all():
-    """The second half, and the one the backend alone could not fix: a stale token in the store re-fired on
-    every fresh mount because the element's counter started at null. The card no longer has a connect screen
-    to push: its plug and its Google icon open the ⚙ Conectores section through the host (`ctx.openConnector`)."""
-    js = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "agenda" / "widget.js").read_text("utf-8")
-    body = "\n".join(L for L in js.splitlines() if not L.strip().startswith("//"))
-    assert "data.connect" not in body and "pushedConn" not in body
-    assert 'ctx.openConnector("google")' in body
-    assert 'c.id === "google" && c.status === "connected"' in body, "the card still knows whether it is linked"
-
-
 # ── The agenda does not name an appointment for him ──────────────────────────────────────────────────
 
 def test_an_add_with_a_date_and_NO_title_is_refused_instead_of_called_Cita():

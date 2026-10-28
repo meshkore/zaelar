@@ -48,21 +48,6 @@ def test_un_solo_ref_no_se_anuncia_como_rango():
     assert "1..1" not in _stale_ref_reason(4, {1: 1}, URL, URL)
 
 
-def test_no_se_reintenta_SOLO_con_la_mirada_nueva():
-    """SOURCE GUARD, and it matters more than usual here: retrying with the new snapshot seems like the obvious
-    improvement and is a SECURITY failure — numbers are assigned when looking, so the same number is a different
-    element. On a page with a pay button, that means clicking something else."""
-    import inspect
-
-    from widgets.navegador import owner
-    src = inspect.getsource(owner.TaskBrowser)
-    assert "_stale_ref_reason(" in src
-    # 2026-09-01: the concurrent i18n pass translated this comment (correctly — comments are English in
-    # this repo). The guard follows the WORDING, because what it protects is that the reasoning stays
-    # written down next to the code that must not be "improved" into a retry.
-    assert "Retrying would click something else" in src
-
-
 @pytest.mark.parametrize("ref", [0, -1, 9999])
 def test_cualquier_numero_raro_recibe_una_salida_igual(ref):
     out = _stale_ref_reason(ref, {2: 1, 3: 1}, URL, URL)

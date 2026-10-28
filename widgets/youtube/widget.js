@@ -3,930 +3,128 @@
 // with postMessage (YouTube IFrame API, NO external library — only iframe messages). Contract: render(el, data, ctx).
 // No network from JS: the <iframe> is an element, not our own request.
 
+import { CSS } from "./js/style.js";
+import { Y } from "./js/state.js";
+import { ICON_PLUG, svgEl, el, _TABS, tabLabel, applyTabClass, tt } from "./js/shared.js";
+import { applyCmd, buildFrame, bindReporters } from "./js/player.js";
+import { renderConn, paintAccount } from "./js/conn.js";
+import { buildHomeHead, paintHomeHead, paintHome } from "./js/home.js";
+import { renderSubs } from "./js/channel.js";
+import { buildQueueBoxes, paintQueue, paintSavedLists } from "./js/lists.js";
+import { buildControls, paintPlayer } from "./js/controls.js";
+
 function injectStyles(){
   if(document.getElementById("hb-yt-css")) return;
-  const s = document.createElement("style"); s.id = "hb-yt-css"; s.textContent = `
-  /* ONE BOX (V2-717 applied here, 2026-09-29). The canvas window IS the frame: the root draws no border,
-     radius, background or padding of its own, and it switches the host scroller's inset and scroll OFF so
-     the bar sits flush under the window header and the content reaches the window's edges — operator:
-     «un marco que tiene la ventana y dentro otro espacio como de premarco… lo único que conseguimos es
-     perder espacio». The root fills the card (height:100%) and ONE inner region (.hb-yt-body) owns the
-     scroll, so the bar never scrolls away. Width stays the card's (anchored, 2026-09-05). */
-  .hb-scroll:has(> .hb-yt){overflow:hidden;padding:0}
-  .hb-yt{font-family:var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
-         color:var(--hb-ink,#F2F4F7);width:100%;height:100%;min-height:0;box-sizing:border-box;
-         display:flex;flex-direction:column}
-  .hb-yt button,.hb-yt input{font-family:inherit}
-  .hb-yt-body{flex:1 1 auto;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:var(--sp-3,12px);
-              padding:var(--sp-3,12px) var(--sp-4,16px) var(--sp-4,16px);box-sizing:border-box}
-  /* V2-636 - ONE header line: title left (ellipsis), channel/date right. Saves a vertical row. */
-  .hb-yt-tline{display:flex;align-items:baseline;gap:12px;min-width:0}
-  .hb-yt-title{font-size:14px;font-weight:700;color:var(--hb-ink,#0d1622);line-height:1.3;
-               white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1 1 auto;min-width:0}
-  .hb-yt-meta{font-size:12px;color:var(--hb-muted,#5b6b82);line-height:1.3;flex:0 1 auto;
-              white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hb-yt-meta .hb-yt-latest{color:var(--hb-accent,#3D6FE0);font-weight:600}
-  .hb-yt-blockmsg{font-size:12px;line-height:1.35;color:#8a5a00;background:rgba(240,170,20,.12);
-    border:1px solid rgba(240,170,20,.35);border-radius:8px;padding:6px 9px;margin:2px 0 4px}
-  .hb-yt-frame{position:relative;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden;
-               background:#000;flex:0 0 auto}
-  /* V2-638 - a library or torrent row plays in a plain <video>, filling the same frame the embed does so
-     the player looks identical whatever the source. object-fit:contain letterboxes rather than crops: a
-     film in the wrong aspect must not lose its edges. */
-  .hb-yt-video{position:absolute;inset:0;width:100%;height:100%;background:#000;object-fit:contain}
-  /* V2-636 - the PLAYER tab FILLS the card: the frame takes every spare pixel (YouTube letterboxes inside
-     the iframe) and the control bar below stays pinned and visible at ANY card size - the operator grew the
-     card and the buttons were CLIPPED under its bottom edge. Since the one-box pass the video also runs
-     EDGE TO EDGE: no inset and no radius around it, the title and the controls carry their own gutter.
-     connmode is excluded: the connector shelf is a list and must keep its scroll. */
-  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-body{overflow:hidden;padding:0;gap:0}
-  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-frame{flex:1 1 auto;min-height:140px;aspect-ratio:auto;
-    border-radius:0}
-  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-tline{padding:var(--sp-2,8px) var(--sp-4,16px)}
-  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-blockmsg{margin:0 var(--sp-4,16px) var(--sp-2,8px)}
-  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-ctrls{margin:0;padding:var(--sp-2,8px) var(--sp-3,12px)}
-  .hb-yt.hb-yt-t-player:not(.hb-yt-connmode) .hb-yt-hint{padding:0 var(--sp-4,16px) var(--sp-3,12px)}
-  .hb-yt-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-  .hb-yt-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-               color:var(--hb-muted-2,#9aa7b8);font-size:13px;text-align:center;padding:0 20px}
-  .hb-yt-loading{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
-                 justify-content:center;gap:10px;color:var(--hb-muted,#5b6b82);font-size:13px;text-align:center;
-                 padding:0 20px}
-  .hb-yt-spin{width:28px;height:28px;border-radius:50%;border:3px solid var(--hb-line,#eef1f6);
-              border-top-color:var(--hb-accent,#3D6FE0);animation:hbytspin .8s linear infinite}
-  @keyframes hbytspin{to{transform:rotate(360deg)}}
-  .hb-yt-ctrls{display:flex;align-items:center;gap:6px;flex-wrap:nowrap;flex:0 0 auto;
-               border-top:1px solid var(--hb-line,#eef1f6);padding-top:9px;margin-top:2px}
-  .hb-yt-cbtn{border:0;background:none;color:var(--hb-ink,#0d1622);cursor:pointer;padding:8px;
-              border-radius:9px;line-height:1;display:flex;flex:0 0 auto}
-  .hb-yt-cbtn svg{width:17px;height:17px;display:block}
-  .hb-yt-cbtn:hover{color:#f03;background:var(--hb-bg-soft,#fbfdff)}
-  .hb-yt-cbtn.main{width:38px;height:38px;border-radius:50%;background:#f03;color:#fff;
-                   align-items:center;justify-content:center;padding:0}
-  .hb-yt-cbtn.main svg{width:16px;height:16px}
-  .hb-yt-cbtn.main:hover{color:#fff;background:#f03;opacity:.88}
-  .hb-yt-btn{border:1px solid var(--hb-line,#eef1f6);background:var(--hb-bg-soft,#fbfdff);
-             color:var(--hb-ink,#0d1622);border-radius:9px;padding:7px 12px;font-size:13px;font-weight:600;
-             cursor:pointer;line-height:1}
-  .hb-yt-btn:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
-  .hb-yt-vol{margin-left:auto;font-size:12px;color:var(--hb-muted,#5b6b82);font-variant-numeric:tabular-nums}
-  .hb-yt-hint{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);line-height:1.35}
-  .hb-yt-unmute{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);display:none;
-                align-items:center;gap:6px;background:rgba(0,0,0,.6);color:#fff;font-size:12.5px;
-                font-weight:600;padding:6px 12px;border-radius:999px;cursor:pointer}
-  .hb-yt-unmute:hover{background:rgba(0,0,0,.75)}
-  /* No rule above the list: the bar's hairline already closes the band, and a second one drew a double line. */
-  .hb-yt-list{display:flex;flex-direction:column;gap:2px}
-  .hb-yt-listh{display:flex;align-items:center;gap:8px;font-size:var(--fs-ui,14px);font-weight:600;
-               color:var(--hb-ink,#0d1622);padding-bottom:4px}
-  .hb-yt-chip{font-size:11px;color:var(--hb-accent,#3D6FE0);border:1px solid var(--hb-line,#eef1f6);
-              border-radius:999px;padding:1px 8px;display:inline-flex;align-items:center;gap:5px;cursor:pointer}
-  .hb-yt-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;cursor:pointer;min-width:0}
-  .hb-yt-row:hover{background:var(--hb-bg-soft,#fbfdff)}
-  .hb-yt-row.playing .hb-yt-rowt{color:#f03;font-weight:700}
-  .hb-yt-rown{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);font-family:ui-monospace,Menlo,monospace;
-              min-width:16px;text-align:right;flex:0 0 auto}
-  .hb-yt-rowt{font-size:13px;color:var(--hb-ink,#0d1622);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-              flex:1;min-width:0}
-  .hb-yt-rowc{font-size:11.5px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;
-              text-overflow:ellipsis;max-width:32%;flex:0 1 auto}
-  .hb-yt-rowx{border:0;background:none;color:var(--hb-muted-2,#9aa7b8);font-size:14px;cursor:pointer;
-              padding:1px 6px;border-radius:6px;line-height:1;flex:0 0 auto}
-  .hb-yt-rowx:hover{color:var(--hb-risk,#e5484d)}
-  .hb-yt-addrow{display:flex;gap:6px;margin-top:4px}
-  .hb-yt-addinp{flex:1;min-width:0;box-sizing:border-box;border:1px solid var(--hb-line,#eef1f6);border-radius:8px;
-                padding:6px 9px;font-size:12.5px;background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622)}
-  .hb-yt-note{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);padding:1px 2px}
-  /* HOME (V2-596): the catalog screen — a grid of the queue's videos with thumbnails, the closest thing to a
-     YouTube home built from data WE hold (the connector-fed suggestions are the V2-596 initiative). It shows
-     when nothing is loaded, and the nav button under the header switches home <-> player without unmounting
-     the iframe (a video keeps playing while the operator browses; V2-092's stop still governs). Thumbnails are
-     <img> ELEMENTS pointing at YouTube's public thumb host — the same class of resource as the player iframe,
-     not a fetch from our JS. */
-  /* TABS (V2-632): the operator's redesign — top tabs instead of the home<->player toggle. The bar is the
-     ONE navigation surface; a tab click is a single state transition owned by selectTab (the V2-626 rule:
-     it also clears the connectors screen, so no face can stay stuck underneath another). */
-  /* THE ONE BAR (house standard, V2-715): the window header above already says «YouTube» with its mark,
-     so the bar carries no brand of its own — view tabs on the left, then margin-left:auto and the source
-     icons + the plug, pinned to the RIGHT edge (the red mark that used to lead the strip was that sentence
-     said a second time). Flush under the window header, one hairline under it, never a box. */
-  .hb-yt-nav{display:flex;align-items:center;gap:var(--sp-2,8px);flex:0 0 auto;min-width:0;box-sizing:border-box;
-             padding:var(--sp-2,8px) var(--sp-3,12px);border-bottom:1px solid var(--hb-line-subtle,rgba(255,255,255,.09))}
-  .hb-yt-tabs{display:flex;align-items:center;gap:2px;min-width:0;flex:0 1 auto;overflow-x:auto;scrollbar-width:none}
-  .hb-yt-tabs::-webkit-scrollbar{display:none}
-  .hb-yt-tab{border:0;background:none;color:var(--hb-muted,#A9B1BD);border-radius:999px;
-             padding:6px 12px;font-size:var(--fs-caption,13.8px);font-weight:600;cursor:pointer;
-             line-height:var(--hb-lh-tight,1.35);white-space:nowrap;flex:0 0 auto;
-             transition:background var(--hb-t-fast,120ms),color var(--hb-t-fast,120ms)}
-  .hb-yt-tab:hover{background:var(--hb-hover,rgba(255,255,255,.06));color:var(--hb-ink,#F2F4F7)}
-  .hb-yt-tab:focus-visible,.hb-yt-plug:focus-visible,.hb-yt-picon:focus-visible{outline:none;
-             box-shadow:var(--hb-focus-ring,0 0 0 2px #AE90FF)}
-  /* SELECTION is an accent-tinted chip with a ring and the label in ink at 700 (V2-690/691) — the one
-     «this is the face on screen» shape of the whole product. The inverted white pill it replaces was a
-     second filled language and the loudest thing on the card. */
-  .hb-yt-tab.on{background:color-mix(in srgb,var(--hb-accent,#AE90FF) 18%,transparent);
-                box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent,#AE90FF) 55%,transparent);
-                color:var(--hb-ink,#F2F4F7);font-weight:700}
-  .hb-yt-navright{margin-left:auto;display:flex;align-items:center;gap:var(--sp-2,8px);flex:0 0 auto}
-  /* The plug — the SAME control every connector widget wears (contactos' .ctplug): an icon, no word. */
-  .hb-yt-plug{width:var(--hb-ctl-h-sm,32px);height:var(--hb-ctl-h-sm,32px);flex:0 0 auto;padding:0;
-              border:1px solid var(--hb-line,rgba(255,255,255,.14));background:transparent;color:var(--hb-muted,#A9B1BD);
-              border-radius:var(--hb-r-s,8px);cursor:pointer;display:flex;align-items:center;justify-content:center}
-  .hb-yt-plug svg{width:15px;height:15px;display:block}
-  .hb-yt-plug:hover,.hb-yt-plug.on{border-color:var(--hb-accent,#AE90FF);color:var(--hb-accent,#AE90FF)}
-  /* INICIO's own head: what the grid below is, and a search box that carries the question on screen —
-     so the card works by hand as well as by voice (operator, 2026-09-29). Built ONCE, outside the grid
-     that is rebuilt per render, or an SSE repaint would eat what he is typing. */
-  .hb-yt-homehead{display:none;align-items:center;gap:var(--sp-3,12px);flex-wrap:wrap;min-width:0}
-  .hb-yt-hometitle{font-size:var(--fs-ui,14px);font-weight:600;color:var(--hb-ink,#F2F4F7);white-space:nowrap;
-                   display:flex;align-items:center;gap:var(--sp-2,8px)}
-  .hb-yt-homecount{font-weight:400;color:var(--hb-muted,#A9B1BD);font-variant-numeric:tabular-nums}
-  .hb-yt-search{margin-left:auto;flex:1 1 220px;max-width:420px;min-width:0;display:flex;align-items:center;
-                gap:var(--sp-2,8px);height:var(--hb-ctl-h-sm,32px);box-sizing:border-box;padding:0 4px 0 var(--sp-3,12px);
-                border:1px solid var(--hb-line,rgba(255,255,255,.14));border-radius:999px;
-                background:var(--hb-bg-soft,#272D35)}
-  .hb-yt-search:focus-within{border-color:var(--hb-accent,#AE90FF)}
-  .hb-yt-search input{flex:1 1 auto;min-width:0;border:0;outline:none;background:none;padding:0;
-                      color:var(--hb-ink,#F2F4F7);font-size:var(--fs-caption,13.8px)}
-  .hb-yt-search input::placeholder{color:var(--hb-muted,#A9B1BD)}
-  .hb-yt-sbtn{width:26px;height:26px;flex:0 0 auto;border:0;border-radius:999px;background:none;padding:0;
-              color:var(--hb-muted,#A9B1BD);cursor:pointer;display:flex;align-items:center;justify-content:center}
-  .hb-yt-sbtn svg{width:15px;height:15px;display:block}
-  .hb-yt-sbtn:hover{background:var(--hb-hover,rgba(255,255,255,.06));color:var(--hb-ink,#F2F4F7)}
-  .hb-yt-sbtn:focus-visible{outline:none;box-shadow:var(--hb-focus-ring,0 0 0 2px #AE90FF)}
-  .hb-yt-sbtn.go{color:var(--hb-ink,#F2F4F7)}
-  /* Placeholder (V2-632): with no video, the player tab still SHOWS where the video will live. */
-  .hb-yt-empt-ico{font-size:34px;opacity:.5;line-height:1}
-  /* Search band on the dashboard (V2-632): numbered result tiles + a per-tile «a la cola» button. */
-  .hb-yt-schead{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
-                color:var(--hb-ink,#0d1622)}
-  .hb-yt-rnum{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.62);color:#fff;font-size:11px;
-              font-weight:700;border-radius:6px;padding:2px 6px;font-family:ui-monospace,Menlo,monospace}
-  .hb-yt-radd{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.55);color:#fff;border:0;
-              border-radius:6px;font-size:11px;padding:2px 7px;cursor:pointer}
-  .hb-yt-radd:hover{background:var(--hb-accent,#3D6FE0)}
-  /* Queue rows carry a thumbnail now (V2-632): «que se intuya mejor de qué vídeo estamos hablando». */
-  .hb-yt-rimg{width:62px;aspect-ratio:16/9;object-fit:cover;border-radius:6px;flex:0 0 auto;
-              background:var(--hb-bg-soft,#0d1622)}
-  /* Subscriptions and saved lists get their own tabs (V2-632). */
-  .hb-yt-mylists{display:flex;flex-direction:column;gap:4px}
-  /* SUBSCRIPTIONS as CARDS (2026-09-29): picture, name, subscribers, videos — «otro tipo de cartas». The
-     subscription is OURS: the head says so, because «suscribirse» next to a YouTube logo reads as the
-     account's subscription, and it is not. */
-  .hb-yt-subs{display:flex;flex-direction:column;gap:var(--sp-3,12px)}
-  .hb-yt-sechead{display:flex;align-items:center;gap:var(--sp-2,8px);flex-wrap:wrap;min-width:0}
-  .hb-yt-sechead .hb-yt-hometitle{flex:0 0 auto}
-  .hb-yt-secnote{margin-left:auto;font-size:var(--fs-micro,12.75px);color:var(--hb-muted,#A9B1BD)}
-  .hb-yt-chgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:var(--sp-3,12px)}
-  .hb-yt-chcard{position:relative;display:flex;align-items:center;gap:var(--sp-3,12px);padding:var(--sp-3,12px);
-                border-radius:var(--hb-r-m,10px);background:var(--hb-bg-soft,#272D35);
-                border:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));cursor:pointer;min-width:0;
-                text-align:left;color:inherit;font:inherit;transition:background var(--hb-t-fast,120ms)}
-  .hb-yt-chcard:hover{background:var(--hb-bubble,#313740)}
-  .hb-yt-chcard:focus-visible{outline:none;box-shadow:var(--hb-focus-ring,0 0 0 2px #AE90FF)}
-  .hb-yt-av{width:56px;height:56px;border-radius:50%;flex:0 0 auto;object-fit:cover;background:var(--hb-bubble,#313740);
-            display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:var(--hb-muted,#A9B1BD)}
-  .hb-yt-av.lg{width:72px;height:72px;font-size:26px}
-  .hb-yt-chinfo{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 auto}
-  .hb-yt-chname{font-size:var(--fs-ui,14px);font-weight:600;color:var(--hb-ink,#F2F4F7);white-space:nowrap;
-                overflow:hidden;text-overflow:ellipsis}
-  .hb-yt-chhandle{font-size:var(--fs-micro,12.75px);color:var(--hb-muted,#A9B1BD);white-space:nowrap;overflow:hidden;
-                  text-overflow:ellipsis}
-  .hb-yt-chstats{font-size:var(--fs-micro,12.75px);color:var(--hb-muted,#A9B1BD);font-variant-numeric:tabular-nums}
-  .hb-yt-chacts{display:flex;align-items:center;gap:4px;margin-top:6px}
-  .hb-yt-chx{position:absolute;top:6px;right:6px}
-  /* The CHANNEL PAGE — its sections, its videos, paged; the loader while we look for what is new. */
-  .hb-yt-chpage{display:flex;flex-direction:column;gap:var(--sp-3,12px);min-width:0}
-  .hb-yt-crumb{align-self:flex-start;border:0;background:none;padding:2px 0;cursor:pointer;font:inherit;
-               font-size:var(--fs-caption,13.8px);font-weight:600;color:var(--hb-accent,#AE90FF)}
-  .hb-yt-crumb:focus-visible{outline:none;box-shadow:var(--hb-focus-ring,0 0 0 2px #AE90FF)}
-  .hb-yt-chhead{display:flex;align-items:center;gap:var(--sp-4,16px);flex-wrap:wrap;min-width:0}
-  .hb-yt-chhead .hb-yt-chname{font-size:var(--fs-title,17px);font-weight:700}
-  .hb-yt-chstatus{margin-left:auto;display:flex;align-items:center;gap:var(--sp-2,8px);
-                  font-size:var(--fs-micro,12.75px);color:var(--hb-muted,#A9B1BD)}
-  .hb-yt-chstatus .hb-yt-spin{width:14px;height:14px;border-width:2px}
-  .hb-yt-subtabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));
-                 padding-bottom:var(--sp-2,8px)}
-  .hb-yt-subtab{border:1px solid transparent;background:none;border-radius:999px;padding:4px 12px;cursor:pointer;
-                font:inherit;font-size:var(--fs-caption,13.8px);font-weight:600;color:var(--hb-muted,#A9B1BD)}
-  .hb-yt-subtab:hover{color:var(--hb-ink,#F2F4F7);background:var(--hb-hover,rgba(255,255,255,.06))}
-  .hb-yt-subtab.on{color:var(--hb-ink,#F2F4F7);border-color:color-mix(in srgb,var(--hb-accent,#AE90FF) 55%,transparent);
-                   background:color-mix(in srgb,var(--hb-accent,#AE90FF) 18%,transparent)}
-  .hb-yt-subtab:focus-visible{outline:none;box-shadow:var(--hb-focus-ring,0 0 0 2px #AE90FF)}
-  .hb-yt-vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:var(--sp-3,12px)}
-  .hb-yt-vgrid.shorts{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
-  .hb-yt-vgrid.shorts .hb-yt-tile img{aspect-ratio:9/16}
-  .hb-yt-dur{position:absolute;right:6px;bottom:6px;background:rgba(0,0,0,.72);color:#fff;
-             font-size:var(--fs-micro,12.75px);font-weight:600;border-radius:4px;padding:1px 5px;
-             font-variant-numeric:tabular-nums}
-  .hb-yt-thumb{position:relative;display:block}
-  .hb-yt-thumb img{display:block}
-  /* FRESHNESS flags: last 24 h and last 72 h, each with its OWN colour and its own WORD — a state is never
-     said by colour alone. Filled tints carry the dark ink (V2-691). */
-  .hb-yt-flag{position:absolute;left:6px;top:6px;border-radius:4px;padding:1px 6px;font-size:var(--fs-micro,12.75px);
-              font-weight:700;color:var(--canvas,#16191E);line-height:1.35}
-  .hb-yt-flag.d1{background:var(--hb-ok,#6FE0B0)}
-  .hb-yt-flag.d3{background:var(--hb-warn,#F2CE6B)}
-  .hb-yt-flag.live{background:var(--hb-risk,#FF8A92)}
-  .hb-yt-tilem{font-size:var(--fs-micro,12.75px);color:var(--hb-muted,#A9B1BD);white-space:nowrap;overflow:hidden;
-               text-overflow:ellipsis;font-variant-numeric:tabular-nums}
-  .hb-yt-more{align-self:center;margin-top:var(--sp-2,8px)}
-  .hb-yt-chmsg{color:var(--hb-muted,#A9B1BD);font-size:var(--fs-caption,13.8px);padding:var(--sp-5,24px) 0;
-               text-align:center;display:flex;align-items:center;justify-content:center;gap:var(--sp-2,8px)}
-  .hb-yt-chmsg .hb-yt-spin{width:16px;height:16px;border-width:2px}
-  .hb-yt-secmsg{color:var(--hb-muted-2,#9aa7b8);font-size:12.5px;padding:14px 6px;text-align:center}
-  .hb-yt-saverow{display:flex;gap:6px;margin-top:6px}
-  /* Connector SHELF (V2-632): the messaging igrid visual language, local copy (V2-557 isolation). */
-  .hb-yt-igrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:12px}
-  .hb-yt-ibox{display:flex;flex-direction:column;align-items:center;gap:7px;padding:16px 10px;cursor:pointer;
-              border:1px solid var(--hb-line,#eef1f6);border-radius:12px;background:var(--hb-bg-soft,#fbfdff)}
-  .hb-yt-ibox:hover{border-color:var(--hb-accent,#3D6FE0)}
-  .hb-yt-ibox.conn{border-color:var(--hb-accent2,#16B8A6)}
-  .hb-yt-ibox.off{opacity:.5;cursor:default}
-  .hb-yt-ibox.off:hover{border-color:var(--hb-line,#eef1f6)}
-  .hb-yt-iicon{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;
-               background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#eef1f6);font-weight:700;
-               font-size:17px;color:var(--hb-muted,#5b6b82)}
-  .hb-yt-iicon svg{width:24px;height:24px}
-  .hb-yt-ilabel{font-size:13px;font-weight:600;color:var(--hb-ink,#0d1622)}
-  .hb-yt-isub{font-size:11px;color:var(--hb-muted-2,#9aa7b8);text-align:center}
-  .hb-yt-shnote{font-size:12px;color:var(--hb-muted,#5b6b82);line-height:1.45;border:1px solid
-                var(--hb-line,#eef1f6);border-radius:10px;padding:10px 12px;background:var(--hb-bg-soft,#fbfdff)}
-  .hb-yt-home{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
-  .hb-yt-tile{position:relative;display:flex;flex-direction:column;gap:5px;cursor:pointer;border-radius:10px;padding:4px;min-width:0}
-  .hb-yt-tilex{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.5);color:#fff;border-radius:6px}
-  .hb-yt-tile:hover{background:var(--hb-bg-soft,#fbfdff)}
-  .hb-yt-tile img{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:8px;background:var(--hb-bg-soft,#0d1622)}
-  .hb-yt-tilet{font-size:12.5px;font-weight:600;color:var(--hb-ink,#0d1622);line-height:1.25;
-               display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  .hb-yt-tile.playing .hb-yt-tilet{color:#f03}
-  .hb-yt-tilec{font-size:11px;color:var(--hb-muted,#5b6b82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hb-yt-homemsg{grid-column:1/-1;color:var(--hb-muted-2,#9aa7b8);font-size:13px;text-align:center;padding:26px 12px}
-  .hb-yt-blocked{font-size:11px;color:var(--hb-muted-2,#9aa7b8);padding:2px 2px}
-  /* ACCOUNT layer (V2-597): platform icons in the nav row — bright = connected (click: its status screen),
-     dimmed = not connected (click: its step wizard). The messaging .dots pattern: every channel always
-     visible, never hidden and never disabled. */
-  .hb-yt-dots{display:flex;align-items:center;gap:4px}
-  .hb-yt-picon{width:var(--hb-icon-h,28px);height:var(--hb-icon-h,28px);border:0;background:none;padding:0;
-               border-radius:var(--hb-r-s,8px);cursor:pointer;opacity:.72;flex:0 0 auto;
-               display:flex;align-items:center;justify-content:center}
-  .hb-yt-picon:hover{opacity:1;background:var(--hb-hover,rgba(255,255,255,.06))}
-  .hb-yt-picon.on{opacity:1}
-  .hb-yt-picon svg{width:18px;height:18px;display:block}
-  /* Connect screens (V2-597): the step wizard / status card replaces the card faces while open. */
-  .hb-yt-conn{display:flex;flex-direction:column;gap:10px}
-  .hb-ytw-crumb{font-size:12px;color:var(--hb-accent,#3D6FE0);cursor:pointer;font-weight:600;
-                align-self:flex-start}
-  /* V2-603 — secondary actions under the primary button: the manual check (now a fallback, not the way the
-     flow completes) and the escape hatch to one's own OAuth app. Links, not buttons: a second button next to
-     «Conectar» reads as an equal choice, and neither of these is one. */
-  /* HOME suggestions band (V2-597): section header spanning the grid; tiles reuse .hb-yt-tile. */
-  .hb-yt-sughead{grid-column:1/-1;display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;
-                 color:var(--hb-ink,#0d1622);margin-top:2px}
-  .hb-yt-sugsub{font-weight:400;color:var(--hb-muted-2,#9aa7b8)}
-  /* V2-604 — the operator's OWN library, above everything that depends on a connector. */
-  .hb-yt-lib{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:2px 0 6px}
-  .hb-yt-libh{font-size:12px;font-weight:700;color:var(--hb-fg,#0f1720);margin-right:2px}
-  .hb-yt-libp{grid-column:1/-1;font-size:11px;color:var(--hb-muted-2,#9aa7b8);padding:0 0 8px}
-  .hb-yt-catch{grid-column:1/-1;border-top:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));margin-top:4px}
-  .hb-yt-catch:last-child{display:none}              /* a divider with nothing after it divides nothing */
-  /* View switching is CLASS-driven, never inline display (an inline style would beat the cinema rules
-     below). V2-632: one class per TAB — every face hidden by default, each tab shows its own with the
-     right display value. Cinema and connmode are declared AFTER and win by order at equal specificity. */
-  .hb-yt .hb-yt-blockmsg,
-  .hb-yt .hb-yt-frame,.hb-yt .hb-yt-tline,.hb-yt .hb-yt-ctrls,.hb-yt .hb-yt-hint,
-  .hb-yt .hb-yt-list,.hb-yt .hb-yt-addrow,.hb-yt .hb-yt-home,.hb-yt .hb-yt-blocked,.hb-yt .hb-yt-subs,
-  .hb-yt .hb-yt-mylists{display:none}
-  .hb-yt.hb-yt-t-inicio .hb-yt-home{display:grid}
-  .hb-yt.hb-yt-t-inicio .hb-yt-homehead{display:flex}
-  .hb-yt.hb-yt-t-inicio .hb-yt-blocked{display:block}
-  .hb-yt.hb-yt-t-player .hb-yt-frame{display:block}
-  .hb-yt.hb-yt-t-player .hb-yt-blockmsg{display:block}
-  .hb-yt.hb-yt-t-player .hb-yt-tline{display:flex}
-  /* The voice hint only teaches over an EMPTY player: beside a filled bar it is noise below the fold. */
-  .hb-yt.hb-yt-t-player:not(.hb-yt-hasvid) .hb-yt-hint{display:block}
-  .hb-yt.hb-yt-t-player .hb-yt-ctrls{display:flex}
-  .hb-yt.hb-yt-t-cola .hb-yt-list,.hb-yt.hb-yt-t-cola .hb-yt-addrow{display:flex}
-  .hb-yt.hb-yt-t-subs .hb-yt-subs{display:flex}
-  .hb-yt.hb-yt-t-listas .hb-yt-mylists{display:flex}
-  /* Connect mode (the 🔌 screen) hides every tab face — declared AFTER the tab rules on purpose: equal
-     specificity, so ORDER is what lets the shelf win over the active tab (measured: the queue rendered
-     underneath the shelf when this block sat first). */
-  .hb-yt.hb-yt-connmode .hb-yt-frame,.hb-yt.hb-yt-connmode .hb-yt-tline,
-  .hb-yt.hb-yt-connmode .hb-yt-ctrls,.hb-yt.hb-yt-connmode .hb-yt-hint,.hb-yt.hb-yt-connmode .hb-yt-list,
-  .hb-yt.hb-yt-connmode .hb-yt-addrow,.hb-yt.hb-yt-connmode .hb-yt-home,.hb-yt.hb-yt-connmode .hb-yt-subs,
-  .hb-yt.hb-yt-connmode .hb-yt-mylists,.hb-yt.hb-yt-connmode .hb-yt-blocked,
-  .hb-yt.hb-yt-connmode .hb-yt-blockmsg,.hb-yt.hb-yt-connmode .hb-yt-homehead{display:none}
-  .hb-yt:not(.hb-yt-connmode) .hb-yt-conn{display:none}
-  /* CINEMA (V2-596): inside a maximized/fullscreen card the video IS the screen — the frame fills the card and
-     the card-shaped furniture (title, controls, hint, playlist, add row) disappears. Without this, a voice
-     "maximize the video" grew the CARD while the player kept its 56% card ratio inside a black void. The host
-     sets .hb-cinema on the card (desktop.js) and its floating exit button restores everything; the unmute pill
-     stays, it is the one control the browser's autoplay policy makes necessary. */
-  .hb-win.hb-cinema .hb-yt,.hb-win:fullscreen .hb-yt{width:100%;height:100%;max-width:none;background:#000}
-  .hb-win.hb-cinema .hb-yt-body,.hb-win:fullscreen .hb-yt-body{padding:0;gap:0;overflow:hidden}
-  .hb-win.hb-cinema .hb-yt-homehead,.hb-win:fullscreen .hb-yt-homehead{display:none}
-  .hb-win.hb-cinema .hb-yt-frame,.hb-win:fullscreen .hb-yt-frame{display:block;aspect-ratio:auto;
-    flex:1 1 auto;min-height:0;border-radius:0}
-  .hb-win.hb-cinema .hb-yt-tline,.hb-win.hb-cinema .hb-yt-ctrls,
-  .hb-win.hb-cinema .hb-yt-hint,.hb-win.hb-cinema .hb-yt-list,.hb-win.hb-cinema .hb-yt-addrow,
-  .hb-win.hb-cinema .hb-yt-nav,.hb-win.hb-cinema .hb-yt-home,.hb-win.hb-cinema .hb-yt-blocked,
-  .hb-win.hb-cinema .hb-yt-blockmsg,.hb-win:fullscreen .hb-yt-blockmsg,
-  .hb-win.hb-cinema .hb-yt-conn,.hb-win.hb-cinema .hb-yt-subs,.hb-win.hb-cinema .hb-yt-mylists,
-  .hb-win:fullscreen .hb-yt-tline,.hb-win:fullscreen .hb-yt-ctrls,
-  .hb-win:fullscreen .hb-yt-hint,.hb-win:fullscreen .hb-yt-list,.hb-win:fullscreen .hb-yt-addrow,
-  .hb-win:fullscreen .hb-yt-nav,.hb-win:fullscreen .hb-yt-home,.hb-win:fullscreen .hb-yt-blocked,
-  .hb-win:fullscreen .hb-yt-conn,.hb-win:fullscreen .hb-yt-subs,.hb-win:fullscreen .hb-yt-mylists{display:none}
-  /* Cinema: the video is the screen — the frame must show whatever tab was active. */
-  .hb-win.hb-cinema .hb-yt-frame,.hb-win:fullscreen .hb-yt-frame{display:block}
-  `; document.head.appendChild(s);
+  const s = document.createElement("style"); s.id = "hb-yt-css"; s.textContent = CSS; document.head.appendChild(s);
 }
 
-// Control-bar icons - the music widget's visual language, duplicated locally on purpose (V2-557:
-// widget modules never import each other). Outline strokes for secondary controls, solid for the
-// main play/pause face; solid icons get their OWN attribute set (the V2-629 lesson: appending a
-// second fill to the outline tag leaves fill="none" winning).
-const _SW = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
-           'stroke-linejoin="round"';
-const _SF = 'viewBox="0 0 24 24" fill="currentColor" stroke="none"';
-const ICON_PREV     = `<svg ${_SW}><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>`;
-const ICON_NEXT     = `<svg ${_SW}><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>`;
-const ICON_PLAY     = `<svg ${_SF}><path d="M8 5v14l11-7z"/></svg>`;
-const ICON_PAUSE    = `<svg ${_SF}><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>`;
-const ICON_VOL_DOWN = `<svg ${_SW}><path d="M11 5 6 9H2v6h4l5 4V5z"/></svg>`;
-const ICON_VOL_UP   = `<svg ${_SW}><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>`;
-const ICON_MUTED    = `<svg ${_SW}><path d="M11 5 6 9H2v6h4l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>`;
-// The plug is contactos' ICO_PLUG stroke for stroke: one door to the connectors, one drawing of it.
-const ICON_PLUG     = `<svg ${_SW}><path d="M9 2v6"/><path d="M15 2v6"/><path d="M6 8h12v3a6 6 0 0 1-12 0z"/><path d="M12 17v5"/></svg>`;
-const ICON_SEARCH   = `<svg ${_SW}><circle cx="11" cy="11" r="7"/><line x1="20" y1="20" x2="16.2" y2="16.2"/></svg>`;
-const ICON_CLEAR    = `<svg ${_SW}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+// (Re)builds the card's skeleton — the nav, the player frame and every face's container (moved out of
+// render(), refactor2710-12 T-03; render() decides WHEN, exactly as before).
+function buildCard(root, data, ctx, v){
+  const {id, seq, loading, st, src, isStream, pkey, hasVid} = v;
+  root.className = "hb-yt";
+  root.textContent = "";
+  // HOME vs PLAYER (V2-596): with no video loaded the card IS the home catalog; with one, the nav button
+  // under the card header switches views WITHOUT unmounting the iframe (audio keeps playing while browsing —
+  // remounting would cut it, the same reason the mobile Deck hides instead of unmounting).
+  if(hasVid) root.classList.add("hb-yt-hasvid");
+  // V2-632 — default tab: a video on screen means the player; nothing loaded means the dashboard. A tab the
+  // operator already chose this page-life survives the rebuild (module-lived, like Y.screen) — EXCEPT that a
+  // video ARRIVING on a card that had none jumps to the player: «ponme el vídeo de X» means watching it,
+  // and leaving the dashboard up while it plays underneath is the confusion the redesign exists to end.
+  if(!Y.tab) Y.tab = hasVid ? "player" : "inicio";
+  if(hasVid && st && !st.key.slice(2) && !loading) Y.tab = "player";
+  // V2-753 — and the MIRROR, which was never written: a video LEAVING a card that had one goes back
+  // to the catalog. «Páralo, y vuelve al inicio» is one order, and `close` only did the first half —
+  // the player emptied and the card sat on the now-blank Reproductor tab, which is exactly what he
+  // reported twice: «y tampoco vuelves al inicio a ver el catálogo». Gated on the TRANSITION for the
+  // same reason the jump above is: clicking «Reproductor» on an empty card is his choice and stands.
+  if(!hasVid && st && st.key.slice(2) && !loading && Y.tab === "player") Y.tab = "inicio";
+  applyTabClass(root);
 
-function svgEl(markup){
-  const t = document.createElement("template");
-  t.innerHTML = markup.trim();
-  return t.content.firstElementChild;
-}
-
-function el(tag, cls, text){
-  const e = document.createElement(tag);
-  if(cls) e.className = cls;
-  if(text != null) e.textContent = String(text);
-  return e;
-}
-
-// The playlist plays one after another because the PLAYER tells us the video ENDED (YouTube IFrame API over
-// postMessage, `listening` handshake — same mechanism musica uses). The handler filters by the handshake `id`:
-// both this widget and musica's hidden audio player listen on the same window, and without the filter one
-// player's ending would advance the OTHER's queue.
-let _ytEnded = null;
-let _ytError = null;   // V2-401: the player refusing to play (onError) is reported back, never swallowed
-let _ytQuality = null; // V2-604: the quality levels the video really HAS, reported back once per video
-let _qSeen = "";       // last videoId whose levels were reported (infoDelivery repeats several times a second)
-// V2-791 — the SOUND the player really has. `muted` in the store is what was ORDERED; whether the browser let a
-// cross-origin player be unmuted without a gesture is only known from the player's own `infoDelivery.muted`.
-let _ytAudio = null;   // per-render reporter: (playerMuted, videoId) → `player_audio` when it disagrees with the store
-let _audioSent = "";   // last report sent, so a stream that repeats several times a second reports once
-let _soundAsked = 0;   // when an unMute was last posted: a player still muted inside this grace is not yet a verdict
-let _plNow = null;     // the current player element, for the one-shot gesture unlock
-let _unlockArmed = false;
-const _SOUND_GRACE_MS = 1500;
-// The page may give a cross-origin player sound only after a real gesture (sticky user activation). Without one,
-// trying to unmute an autoplaying video can pause it — so the card keeps it playing muted and says so instead.
-function pageMayPlaySound(){
-  try{ const ua = navigator.userActivation; return !ua || !!ua.hasBeenActive; }catch(_){ return true; }
-}
-// Any real gesture on the page unlocks sound: the player is unmuted in that same gesture, once.
-function armSoundUnlock(vol){
-  if(_unlockArmed || typeof document === "undefined") return;
-  _unlockArmed = true;
-  const go = () => {
-    _unlockArmed = false;
-    document.removeEventListener("pointerdown", go, true);
-    document.removeEventListener("keydown", go, true);
-    if(_plNow){ post(_plNow, "unMute", []); post(_plNow, "setVolume", [vol]); }
+  const nav = el("div", "hb-yt-nav");
+  const tabsBox = el("div", "hb-yt-tabs");
+  tabsBox.setAttribute("role", "tablist");              // a strip that scrolls sideways — the phone never wraps it
+  nav.appendChild(tabsBox);
+  const tabBtns = {};
+  const selectTab = (tid) => {
+    Y.tab = tid;
+    Y.screen = null; Y.connErr = "";                       // choosing a tab is ONE transition (V2-626)
+    applyTabClass(root);
+    paintTabs();
+    const cb = root.querySelector(".hb-yt-plug"); if(cb) cb.classList.remove("on");
+    root.classList.remove("hb-yt-connmode");
+    const connBox = root._hbYtEls && root._hbYtEls.conn; if(connBox) connBox.textContent = "";
+    if(ctx && ctx.top) ctx.top();
+    const bd = root._hbYtEls && root._hbYtEls.body; if(bd) bd.scrollTop = 0;
   };
-  document.addEventListener("pointerdown", go, true);
-  document.addEventListener("keydown", go, true);
-}
-if(typeof window !== "undefined" && !window.__hbYtWidgetBound){
-  window.__hbYtWidgetBound = true;
-  window.addEventListener("message", (ev) => {
-    if(typeof ev.data !== "string" || ev.data.indexOf("\"event\"") < 0) return;
-    let d; try{ d = JSON.parse(ev.data); }catch(_){ return; }
-    if(d.id !== "hb-youtube") return;
-    if(d.event === "onStateChange" && Number(d.info) === 0 && _ytEnded) _ytEnded();   // 0 = ENDED
-    // onError codes: 2 bad id · 5 HTML5 error · 100 removed · 101/150 embedding disabled by the owner.
-    // Without this, "This video is unavailable" on screen coexisted with a declared state that said
-    // playing — and /widgets/producing, the brain and the judge all believed the declared state (V2-401).
-    if(d.event === "onError" && _ytError) _ytError(d.info);
-    // V2-604 — the definition of the video. The results page does not publish it (measured: only 4K carries
-    // a badge at all), so the player is the ONLY honest source, and this is the only moment it exists. Read
-    // from the `infoDelivery` the player already sends because we asked to listen; reported ONCE per video,
-    // because that stream repeats several times a second and each report is a store write.
-    if(d.event === "infoDelivery" && d.info && d.info.availableQualityLevels && _ytQuality){
-      const vid = String(d.info.videoData && d.info.videoData.video_id || "");
-      const key = vid || "current";
-      if(key !== _qSeen){ _qSeen = key; _ytQuality(d.info.availableQualityLevels, vid); }
-    }
-    if(d.event === "infoDelivery" && d.info && typeof d.info.muted === "boolean" && _ytAudio){
-      _ytAudio(d.info.muted, String(d.info.videoData && d.info.videoData.video_id || ""));
-    }
-  });
-}
-function startListening(iframe){
-  try{ iframe.contentWindow.postMessage(JSON.stringify({event:"listening", id:"hb-youtube", channel:"widget"}), "*"); }catch(_){}
-}
-
-// The ONE funnel every control path goes through (applyState, applyCmd, applyCaptions and the render tail).
-// V2-638 — it now speaks to a plain <video> as well as to the YouTube embed, translating the IFrame API's
-// vocabulary into media-element operations. Teaching the funnel instead of the five call sites is what keeps
-// local/torrent playback from needing a parallel copy of every control (the V2-539 "wire both channels" trap,
-// avoided by having only one wire): pause, volume, seek and the queue jump all work unchanged.
-function post(target, func, args){
-  try{
-    if(!target) return;
-    if(String(target.tagName || "").toLowerCase() === "video"){
-      const a = args || [];
-      if(func === "playVideo"){ const p = target.play(); if(p && p.catch) p.catch(function(){}); }
-      else if(func === "pauseVideo") target.pause();
-      else if(func === "mute") target.muted = true;
-      else if(func === "unMute") target.muted = false;
-      else if(func === "setVolume") target.volume = Math.max(0, Math.min(100, Number(a[0]) || 0)) / 100;
-      else if(func === "seekTo") target.currentTime = Math.max(0, Number(a[0]) || 0);
-      // loadModule/unloadModule are captions: a local file carries no track list we can switch, so there is
-      // nothing honest to do — silently ignored rather than faked.
-      return;
-    }
-    if(!target.contentWindow) return;
-    if(func === "unMute") _soundAsked = Date.now();      // V2-791: the grace before a muted report is a verdict
-    target.contentWindow.postMessage(JSON.stringify({event:"command", func:func, args:args||[]}), "*");
-  }catch(_){}
-}
-
-// ── ACCOUNT layer (V2-597) ────────────────────────────────────────────────────────────────────────────────
-// Module-lived screen state (the module loads once, so it survives re-renders — the messaging pattern):
-// null = normal faces · {view:"shelf"} = the video SOURCES. Connecting one is the ⚙ Conectores section's job.
-let _screen = null;
-// V2-632 — the active TAB. Module-lived like _screen; "" = derive from data at build (video → player,
-// none → inicio). selectTab is the ONLY writer and also clears _screen (the V2-626 rule: choosing a surface
-// is ONE state transition — a connectors screen left open would silently sit on top of the chosen tab).
-let _tab = "";
-// Ids only: the LABEL is resolved per paint (`tabLabel`), because a module-level table is built once, at IMPORT
-// time, so its text would freeze in whatever language was active the first time this module loaded (V2-694).
-const _TABS = ["inicio", "player", "cola", "subs", "listas"];
-// V2-742 — the last `show_tab` order this card has already obeyed. A SEQUENCE and not a flag:
-// he can ask for the same face twice in a row, and a flag the card consumed cannot fire again.
-let _gotoSeq = 0;
-function tabLabel(id){
-  switch(id){
-    case "inicio": return tt("tab_home", null, "Inicio");
-    case "player": return tt("tab_player", null, "Reproductor");
-    case "cola":   return tt("tab_queue", null, "Cola");
-    case "subs":   return tt("tab_subs", null, "Suscripciones");
-    case "listas": return tt("tab_lists", null, "Listas");
-    default:       return id;
-  }
-}
-function applyTabClass(root){
-  _TABS.forEach((id) => root.classList.toggle("hb-yt-t-" + id, _tab === id));
-}
-let _syncAsked = 0;         // last time this card asked for a platform re-sync (guards against loops)
-let _connErr = "", _connErrTip = "";          // why a source on the shelf cannot open — never a stale stored one (V2-582)
-
-// Brand mark, inline SVG (simple-icons outline path, CC0) — never a CDN: widget.js touches no network.
-const _BRAND = {
-  youtube: {color: "#FF0000", path: "M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 " +
-    "12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 " +
-    "3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 " +
-    "2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"},
-};
-
-function brandIcon(pid, on){
-  const wrap = el("button", "hb-yt-picon" + (on ? " on" : ""));
-  const b = _BRAND[pid] || null;
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", b ? b.path : "M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20z");
-  path.setAttribute("fill", b ? b.color : "currentColor");
-  svg.appendChild(path);
-  wrap.appendChild(svg);
-  return wrap;
-}
-
-function fmtAge(ts){
-  if(!ts) return "";
-  const m = Math.max(0, Math.round((Date.now() / 1000 - Number(ts)) / 60));
-  if(m < 1) return tt("age_now", null, "ahora mismo");
-  if(m < 60) return tt("age_min", {n: m}, "hace " + m + " min");
-  return tt("age_hour", {n: Math.round(m / 60)}, "hace " + Math.round(m / 60) + " h");
-}
-
-// The SOURCES shelf (V2-632): every video source with its honest state. A usable one opens the ⚙ Conectores
-// section on it (2026-10-04) — the card no longer carries its own connect wizard or status screen.
-function renderConn(E, root, data, ctx){
-  const box = E.conn;
-  if(!box) return;
-  
-  root.classList.toggle("hb-yt-connmode", !!_screen);
-  const plug = root.querySelector(".hb-yt-plug"); if(plug) plug.classList.toggle("on", !!_screen);
-  if(root._hbYtPaintTabs) root._hbYtPaintTabs();
-  box.textContent = "";
-  if(!_screen) return;
-  const repaint = () => renderConn(E, root, data, ctx);
-
-  const back = () => {
-    if(root._hbYtSelectTab) root._hbYtSelectTab(_tab || "inicio");
-    else { _screen = null; repaint(); }
+  // The tabs' lit state has ONE painter: the chosen face wears .on, and while the connectors screen is open
+  // no face is on screen, so none is lit. Every tab stays a way OUT: a tap leaves the shelf and lands on that
+  // face at once (operator, 2026-10-26 — disabled tabs left him stuck until he found «Volver»).
+  const paintTabs = () => {
+    Object.keys(tabBtns).forEach((k) => tabBtns[k].classList.toggle("on", !Y.screen && k === Y.tab));
   };
-  const crumb = el("div", "hb-ytw-crumb", tt("back", null, "‹ Volver"));
-  crumb.addEventListener("click", back);
-  box.appendChild(crumb);
-
-  // THE SHELF (V2-632): every video source, live or not, with its honest state — the messaging igrid
-  // language. YouTube disabled says WHY (no OAuth client yet); a planned provider says it is not
-  // built. Nothing here pretends: a box that cannot open never wears an active face.
-  if(_screen.view === "shelf"){
-    const grid = el("div", "hb-yt-igrid");
-    const shelf = Array.isArray(data.connector_shelf) && data.connector_shelf.length
-      ? data.connector_shelf
-      : [{id: "youtube", label: "YouTube", state: "planned", connected: false, note: ""}];
-    const enabled = !!data.accounts_enabled;
-    shelf.forEach((rw) => {
-      const usable = rw.id === "youtube" && enabled;
-      const bx = el("button", "hb-yt-ibox" + (rw.connected ? " conn" : "") + (usable ? "" : " off"));
-      const ic = el("span", "hb-yt-iicon");
-      if(_BRAND[rw.id]){
-        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-        svg.setAttribute("viewBox", "0 0 24 24");
-        const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        path.setAttribute("d", _BRAND[rw.id].path);
-        path.setAttribute("fill", _BRAND[rw.id].color);
-        svg.appendChild(path); ic.appendChild(svg);
-      } else {
-        ic.textContent = (rw.label || rw.id || "?").slice(0, 1).toUpperCase();
-      }
-      bx.appendChild(ic);
-      bx.appendChild(el("span", "hb-yt-ilabel", rw.label || rw.id));
-      bx.appendChild(el("span", "hb-yt-isub",
-        rw.connected ? tt("st_connected", null, "Conectada")
-          : usable ? tt("st_disconnected", null, "Sin conectar — toca para conectarla")
-          : rw.state === "not-possible" ? tt("st_impossible", null, "No es posible")
-          : tt("st_soon", null, "No disponible aún")));
-      bx.addEventListener("click", () => {
-        if(usable){ ctx.openConnector(rw.id); return; }
-        // `rw.note` is the catalog's own wording (Castilian): the reason is said in HIS language, the note is the tooltip
-        _connErr = (rw.label || rw.id) + ": " + (rw.id === "youtube"
-            ? tt("why_impossible", null, "de momento no es posible conectar la cuenta — falta registrar el cliente OAuth.")
-            : rw.state === "not-possible" ? tt("st_impossible", null, "No es posible")
-            : tt("why_soon", null, "todavía no está construido."));
-        _connErrTip = rw.note || "";
-        repaint();
-      });
-      grid.appendChild(bx);
-    });
-    box.appendChild(grid);
-    if(_connErr) box.appendChild(el("div", "hb-yt-shnote", _connErr)).title = _connErrTip;
-  }
-}
-
-function halted(ctx){ return !!(ctx && ctx.running === false); }
-
-// V2-791 — sound ordered on a page that has had no gesture: unmuting an autoplaying cross-origin player now could
-// PAUSE it. It keeps playing muted, the card REPORTS the block (`player_audio` → `audio_blocked`), and the first
-// gesture anywhere on the page gives it sound. True when it is holding the player silent.
-function holdSilent(iframe, data){
-  if(pageMayPlaySound() || !iframe || !iframe.contentWindow) return false;
-  if(_ytAudio) _ytAudio(true, "");
-  armSoundUnlock(Number(data.volume != null ? data.volume : 70));
-  return true;
-}
-
-// Reassert desired state in the player (idempotent) — used when loading a new video.
-function applyState(iframe, data, ctx){
-  if(data.muted){ post(iframe, "mute", []); }
-  else if(holdSilent(iframe, data)){ post(iframe, "mute", []); }      // V2-791: no gesture yet (see holdSilent)
-  else { post(iframe, "unMute", []); post(iframe, "setVolume", [Number(data.volume != null ? data.volume : 70)]); }
-  // Captions re-asserted HERE, not only in applyCmd, or the choice silently drops on the next `load` (V2-590).
-  applyCaptions(iframe, data);
-  // With the agent stopped, ALWAYS pause, whatever saved state says: this is the last line of defense in case the
-  // store kept `paused:false` from before stop (or from an older engine version).
-  if(data.paused || halted(ctx)) post(iframe, "pauseVideo", []);
-  else post(iframe, "playVideo", []);
-}
-
-// Captions on/off (V2-590): both module names are sent — "captions" is the HTML5 player's, "cc" the
-// historical one — and the player ignores the one it does not know. No track is picked: the player's own
-// default/auto track is what a viewer gets clicking CC, and guessing a language here would override it.
-function applyCaptions(iframe, data){
-  if(data.captions){ post(iframe, "loadModule", ["captions"]); post(iframe, "loadModule", ["cc"]); }
-  else { post(iframe, "unloadModule", ["captions"]); post(iframe, "unloadModule", ["cc"]); }
-}
-
-// Apply the LAST command requested by voice/click (only when cmd_seq advances).
-function applyCmd(iframe, data, ctx){
-  const c = data.last_cmd || "";
-  // A command that would make the video play is ignored while the agent is stopped. The server already rejects them
-  // in the funnel (widgets/producers.py::gate), so this only covers already saved state — but pausing too much never
-  // hurts, while playing too much does.
-  if(halted(ctx) && (c === "play" || c === "load" || c === "restart" || c === "unmute"
-                     || c === "volume_up" || c === "set_volume"
-                     || c === "next" || c === "previous" || c === "play_item")){
-    post(iframe, "pauseVideo", []);
-    return;
-  }
-  const vol = Number(data.volume != null ? data.volume : 70);
-  if(c === "play") post(iframe, "playVideo", []);
-  else if(c === "pause") post(iframe, "pauseVideo", []);
-  else if(c === "mute") post(iframe, "mute", []);
-  // V2-791 — a voice order is no gesture: on a page that has had none, the block is REPORTED (holdSilent) rather
-  // than the store left claiming a sound the player cannot have; the next gesture on the page completes it.
-  else if(c === "unmute" || c === "volume_up" || c === "volume_down" || c === "set_volume"){
-    if(data.muted || !holdSilent(iframe, data)){ post(iframe, "unMute", []); post(iframe, "setVolume", [vol]); }
-  }
-  else if(c === "captions_on" || c === "captions_off"){ applyCaptions(iframe, data); }
-  else if(c === "restart"){ post(iframe, "seekTo", [0, true]); post(iframe, "playVideo", []); }
-  // A queue jump normally lands as a NEW videoId (card rebuild); when the target is the SAME video (a list
-  // with the current one repeated after a manual load) nothing rebuilds — treat it as a restart.
-  else if(c === "next" || c === "previous" || c === "play_item"){
-    post(iframe, "seekTo", [0, true]); post(iframe, "playVideo", []);
-  }
-}
-
-// ── i18n seam (V2-613 / V2-694): `ctx.t` for our own chrome, the literal as the FALLBACK ────────────────
-// The fallback is, byte for byte, the string that used to be hardcoded here — so a widget rendered outside the
-// engine (a render test, a headless DOM stub) shows exactly what it showed before, and only an engine with a
-// bundle loaded shows the operator's own language.
-let _T = null;
-function tt(key, params, fb){
-  try{
-    if(_T){ const s=_T("widgets.youtube."+key, params); if(s && s!=="widgets.youtube."+key) return s; }
-  }catch(_){}
-  let s = fb;
-  if(params) for(const k in params) s = s.split("{"+k+"}").join(String(params[k]));
-  return s;
-}
-
-// ── SUBSCRIPTIONS: cards and the channel page (2026-09-29) ─────────────────────────────────────────────────
-// Module-lived like _tab: which channel page this page-life has already refreshed («cada vez que entremos …
-// lanzar un pequeño query de actualización»), what is loading right now, and the last sync ask.
-let _chEntered = "";        // id of the channel page refreshed since he last walked in
-let _chBusy = "";           // "" | "refresh" | "more" | "tab" — drives the loader lines
-let _chSyncAsked = 0;
-const DAY = 86400;
-
-function hl(ctx){ const l = String((ctx && ctx.lang) || document.documentElement.lang || "en"); return l.slice(0, 2); }
-function fmtNum(n, ctx){
-  try{ return new Intl.NumberFormat(hl(ctx), {notation: "compact", maximumFractionDigits: 1}).format(n); }
-  catch(_){ return String(n); }
-}
-function relAge(ts, ctx){
-  if(!ts) return "";
-  const d = Math.max(0, Date.now() / 1000 - Number(ts));
-  const steps = [[60, "second", 1], [3600, "minute", 60], [DAY, "hour", 3600], [7 * DAY, "day", DAY],
-                 [30 * DAY, "week", 7 * DAY], [365 * DAY, "month", 30 * DAY], [Infinity, "year", 365 * DAY]];
-  const [, unit, div] = steps.find((x) => d < x[0]);
-  try{ return new Intl.RelativeTimeFormat(hl(ctx), {numeric: "auto"}).format(-Math.round(d / div), unit); }
-  catch(_){ return ""; }
-}
-function initial(name){ return String(name || "?").trim().slice(0, 1).toUpperCase() || "?"; }
-function avatar(url, name, big){
-  if(url){
-    const i = document.createElement("img");
-    i.className = "hb-yt-av" + (big ? " lg" : ""); i.alt = ""; i.loading = "lazy"; i.referrerPolicy = "no-referrer";
-    i.src = url;
-    return i;
-  }
-  return el("span", "hb-yt-av" + (big ? " lg" : ""), initial(name));
-}
-function statsLine(m, ctx){
-  const bits = [];
-  if(m.subscribers) bits.push(tt("ch_subs", {n: fmtNum(m.subscribers, ctx)}, "{n} suscriptores"));
-  if(m.videos) bits.push(tt("ch_videos", {n: fmtNum(m.videos, ctx)}, "{n} vídeos"));
-  return bits.join(" · ");
-}
-
-// One action that re-reads the card afterwards: the loader goes up BEFORE the request and comes down when
-// the answer is back, whatever it says — the store save that follows repaints the content itself.
-async function chAct(root, ctx, name, payload, busy){
-  if(!ctx || !ctx.action) return null;
-  _chBusy = busy || "";
-  if(busy) repaintSubs(root, ctx);
-  let r = null;
-  try{ r = await ctx.action(name, Object.assign({hl: hl(ctx)}, payload || {})); }catch(_){ r = null; }
-  _chBusy = "";
-  repaintSubs(root, ctx);
-  return r;
-}
-function repaintSubs(root, ctx){
-  const E = root._hbYtEls || {};
-  if(E.subsBox) renderSubs(E.subsBox, root, root._hbYtData || {}, ctx);
-}
-
-function renderSubs(box, root, data, ctx){
-  box.textContent = "";
-  const pg = data.channel_page || {};
-  if(pg.id){ renderChannelPage(box, root, pg, ctx); return; }
-  _chEntered = "";                                   // he left the page: walking in again refreshes it again
-
-  // `channel_cards` is view_data's enriched view; a snapshot without it (an older engine) still has the
-  // names he follows, and a name is a card.
-  const cards = Array.isArray(data.channel_cards) ? data.channel_cards
-    : (Array.isArray(data.channels) ? data.channels : []).filter((c) => c && c.name)
-        .map((c) => ({name: String(c.name), tried: true}));
-  const head = el("div", "hb-yt-sechead");
-  const ttl = el("div", "hb-yt-hometitle");
-  ttl.appendChild(el("span", "", tt("tab_subs", null, "Suscripciones")));
-  ttl.appendChild(el("span", "hb-yt-homecount", String(cards.length)));
-  head.appendChild(ttl);
-  head.appendChild(el("span", "hb-yt-secnote", tt("subs_ours", null, "Solo en Zaelar — no te suscribe en YouTube")));
-  box.appendChild(head);
-  if(!cards.length){
-    box.appendChild(el("div", "hb-yt-secmsg", tt("subs_none", null,
-      "No sigues a nadie todavía. Con un vídeo puesto, di «sigue a este canal» y guardo al autor — sin tocar ninguna cuenta.")));
-    return;
-  }
-  // Card facts are fetched once, lazily, for the channels that do not have them yet (bounded server-side).
-  if(cards.some((c) => !c.tried && (!c.resolved || !c.videos)) && ctx && ctx.action && Date.now() - _chSyncAsked > 60000){
-    _chSyncAsked = Date.now();
-    try{ ctx.action("sync_channels", {hl: hl(ctx)}); }catch(_){}
-  }
-  const grid = el("div", "hb-yt-chgrid");
-  cards.forEach((c) => {
-    const card = el("div", "hb-yt-chcard");
-    card.tabIndex = 0;
-    card.setAttribute("role", "button");
-    card.title = tt("open_channel", {name: c.name}, "Abrir el canal {name}");
-    card.appendChild(avatar(c.avatar, c.name));
-    const info = el("div", "hb-yt-chinfo");
-    info.appendChild(el("div", "hb-yt-chname", c.name));
-    if(c.handle) info.appendChild(el("div", "hb-yt-chhandle", c.handle));
-    const st = statsLine(c, ctx);
-    info.appendChild(el("div", "hb-yt-chstats",
-      st || (c.tried ? tt("ch_no_facts", null, "Sin datos del canal") : tt("ch_loading", null, "Buscando datos del canal…"))));
-    const acts = el("div", "hb-yt-chacts");
-    const vids = el("span", "hb-yt-chip", tt("videos_to_queue", null, "vídeos → cola"));
-    vids.title = tt("latest_to_queue", {name: c.name}, "Lo más reciente de {name}, a la cola");
-    vids.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if(ctx && ctx.action) ctx.action("channel_videos", {channel: c.name});
-      if(root._hbYtSelectTab) root._hbYtSelectTab("cola");
-    });
-    acts.appendChild(vids);
-    info.appendChild(acts);
-    card.appendChild(info);
-    const x = el("button", "hb-yt-rowx hb-yt-chx", "✕");
-    x.title = tt("unfollow", null, "Dejar de seguir");
-    x.setAttribute("aria-label", x.title);
-    x.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if(ctx && ctx.action) ctx.action("unfollow_channel", {channel: c.name});
-    });
-    card.appendChild(x);
-    const open = () => { chAct(root, ctx, "open_channel", {channel: c.name}, "refresh"); };
-    card.addEventListener("click", open);
-    card.addEventListener("keydown", (e) => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); open(); } });
-    grid.appendChild(card);
+  _TABS.forEach((tid) => {
+    const b = el("button", "hb-yt-tab" + (tid === Y.tab ? " on" : ""), tabLabel(tid));
+    b.dataset.tab = tid;
+    b.addEventListener("click", () => selectTab(tid));
+    tabBtns[tid] = b;
+    tabsBox.appendChild(b);
   });
-  box.appendChild(grid);
-}
-
-function sectionLabel(t){
-  switch(t){
-    case "videos":    return tt("ch_tab_videos", null, "Vídeos");
-    case "streams":   return tt("ch_tab_live", null, "En directo");
-    case "shorts":    return tt("ch_tab_shorts", null, "Shorts");
-    case "playlists": return tt("ch_tab_playlists", null, "Listas");
-    default:          return t;
-  }
-}
-
-function renderChannelPage(box, root, pg, ctx){
-  // Walking in = ONE refresh for what is new, with its loader up («Buscando últimos vídeos del canal»).
-  // Keyed on the channel id, so a click, a voice «ábreme el canal de X» and a reload all get exactly one.
-  if(_chEntered !== pg.id && !_chBusy){
-    _chEntered = pg.id;
-    setTimeout(() => chAct(root, ctx, "refresh_channel", {}, "refresh"), 0);
-    _chBusy = "refresh";
-  }
-  const m = pg.meta || {};
-  const wrap = el("div", "hb-yt-chpage");
-  const back = el("button", "hb-yt-crumb", pg.playlist ? tt("back_lists", null, "‹ Listas")
-                                                       : tt("back_subs", null, "‹ Suscripciones"));
-  back.addEventListener("click", () => {
-    if(pg.playlist) chAct(root, ctx, "channel_playlist", {playlist: ""}, "");
-    else chAct(root, ctx, "close_channel", {}, "");
+  root._hbYtSelectTab = selectTab;
+  root._hbYtTabBtns = tabBtns;
+  root._hbYtPaintTabs = paintTabs;
+  // RIGHT cluster (the header standard): the source icons, then the plug, pinned to the right edge.
+  const right = el("div", "hb-yt-navright");
+  const dots = el("div", "hb-yt-dots");
+  right.appendChild(dots);
+  const connBtn = el("button", "hb-yt-plug");
+  connBtn.appendChild(svgEl(ICON_PLUG));
+  connBtn.title = tt("sources_title", null, "Fuentes de vídeo / conectores");
+  connBtn.setAttribute("aria-label", tt("connectors", null, "Conectores"));
+  connBtn.addEventListener("click", () => {
+    if(Y.screen){ selectTab(Y.tab); return; }              // toggle off → back to the active tab
+    Y.screen = {view: "shelf"}; Y.connErr = "";
+    connBtn.classList.add("on");
+    paintTabs();
+    renderConn(root._hbYtEls || {}, root, root._hbYtData || {}, ctx);
   });
-  wrap.appendChild(back);
+  right.appendChild(connBtn);
+  nav.appendChild(right);
+  root.appendChild(nav);
+  // Everything under the bar lives in ONE scroll region, so the bar never scrolls away with the content.
+  const body = el("div", "hb-yt-body");
+  root.appendChild(body);
 
-  const head = el("div", "hb-yt-chhead");
-  head.appendChild(avatar(m.avatar, pg.name || m.title, true));
-  const info = el("div", "hb-yt-chinfo");
-  info.appendChild(el("div", "hb-yt-chname", pg.playlist ? (pg.playlist.title || pg.name) : (m.title || pg.name)));
-  const sub = [m.handle, statsLine(m, ctx)].filter(Boolean).join(" · ");
-  if(pg.playlist) info.appendChild(el("div", "hb-yt-chhandle", m.title || pg.name));
-  else if(sub) info.appendChild(el("div", "hb-yt-chhandle", sub));
-  head.appendChild(info);
-  const status = el("div", "hb-yt-chstatus");
-  if(_chBusy === "refresh"){
-    status.appendChild(el("span", "hb-yt-spin"));
-    status.appendChild(el("span", "", tt("ch_refreshing", null, "Buscando últimos vídeos del canal…")));
-  } else if(pg.refreshed_at){
-    const n = (pg.new_ids || []).length;
-    status.appendChild(el("span", "", n ? tt("ch_new_n", {n}, "{n} nuevos") + " · " + relAge(pg.refreshed_at, ctx)
-                                        : tt("ch_updated", {when: relAge(pg.refreshed_at, ctx)}, "Actualizado {when}")));
-    const rf = el("button", "hb-yt-sbtn");
-    rf.appendChild(el("span", "", "↻"));
-    rf.title = tt("ch_refresh", null, "Buscar vídeos nuevos");
-    rf.setAttribute("aria-label", rf.title);
-    rf.addEventListener("click", () => chAct(root, ctx, "refresh_channel", {}, "refresh"));
-    status.appendChild(rf);
-  }
-  head.appendChild(status);
-  wrap.appendChild(head);
+  const tline = el("div", "hb-yt-tline");           // V2-636: title left, channel/date right, ONE row
+  const title = el("div", "hb-yt-title", data.title || "YouTube");
+  tline.appendChild(title);
+  const meta = el("div", "hb-yt-meta", "");          // channel · publication date (verifiable, V2-057)
+  tline.appendChild(meta);
+  body.appendChild(tline);
+  // V2-634 — the playback-block banner: when the owner refuses embedding, the card SAYS what happened
+  // (a swap of our own pick, or the honest «only on YouTube» for a pasted link) instead of leaving the
+  // operator alone with the player's raw error screen. Filled per render from data.blocked_notice.
+  const blockMsg = el("div", "hb-yt-blockmsg", "");
+  body.appendChild(blockMsg);
 
-  if(!pg.playlist){
-    const tabs = el("div", "hb-yt-subtabs");
-    (pg.tabs || []).forEach((t) => {
-      const b = el("button", "hb-yt-subtab" + (t === pg.tab ? " on" : ""), sectionLabel(t));
-      b.dataset.section = t;
-      b.addEventListener("click", () => { if(t !== pg.tab) chAct(root, ctx, "channel_tab", {tab: t}, "tab"); });
-      tabs.appendChild(b);
-    });
-    wrap.appendChild(tabs);
-  }
+  const {frame, iframe, video, unmuteHint} = buildFrame(data, ctx, loading, isStream, src, id);
+  body.appendChild(frame);
+  const {homeTitle, sInp, sClr, home, blockedLine, conn} = buildHomeHead(root, ctx, body);
+  const {playBtn, muteBtn, vol} = buildControls(ctx, body);
+  const {listBox, subsBox, listsBox} = buildQueueBoxes(ctx, body);
 
-  const items = Array.isArray(pg.items) ? pg.items : [];
-  if(_chBusy === "tab" || (!items.length && (_chBusy === "refresh" || !pg.loaded))){
-    const msg = el("div", "hb-yt-chmsg");
-    msg.appendChild(el("span", "hb-yt-spin"));
-    msg.appendChild(el("span", "", _chBusy === "refresh" ? tt("ch_refreshing", null, "Buscando últimos vídeos del canal…")
-                                                         : tt("ch_loading_more", null, "cargando…")));
-    wrap.appendChild(msg);
-    box.appendChild(wrap);
-    return;
-  }
-  if(!items.length){
-    wrap.appendChild(el("div", "hb-yt-chmsg", tt("ch_empty", null, "El canal no tiene nada en esta sección.")));
-    box.appendChild(wrap);
-    return;
-  }
-  const isShorts = !pg.playlist && pg.tab === "shorts";
-  const grid = el("div", "hb-yt-vgrid" + (isShorts ? " shorts" : ""));
-  const now = Date.now() / 1000;
-  items.forEach((it) => {
-    const tile = el("div", "hb-yt-tile");
-    tile.tabIndex = 0;
-    tile.setAttribute("role", "button");
-    const th = el("div", "hb-yt-thumb");
-    const img = document.createElement("img");
-    img.loading = "lazy"; img.alt = "";
-    if(it.kind === "playlist") img.src = it.thumb || "";
-    else img.src = "https://i.ytimg.com/vi/" + encodeURIComponent(it.id) + (isShorts ? "/hqdefault.jpg" : "/mqdefault.jpg");
-    th.appendChild(img);
-    const age = it.ts ? now - Number(it.ts) : Infinity;
-    if(it.live) th.appendChild(el("span", "hb-yt-flag live", tt("flag_live", null, "EN DIRECTO")));
-    else if(age < DAY) th.appendChild(el("span", "hb-yt-flag d1", tt("flag_24h", null, "24 h")));
-    else if(age < 3 * DAY) th.appendChild(el("span", "hb-yt-flag d3", tt("flag_72h", null, "72 h")));
-    if(it.duration) th.appendChild(el("span", "hb-yt-dur", it.duration));
-    if(it.kind === "playlist" && it.count) th.appendChild(el("span", "hb-yt-dur", tt("n_videos", {n: it.count}, "{n} vídeos")));
-    if(it.kind !== "playlist"){
-      const addB = el("button", "hb-yt-radd", tt("to_queue", null, "+ cola"));
-      addB.title = tt("to_queue_hint", null, "Añadir a la cola sin reproducir");
-      addB.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if(ctx && ctx.action) ctx.action("add", {url: it.id});
-      });
-      th.appendChild(addB);
-    }
-    tile.appendChild(th);
-    tile.appendChild(el("div", "hb-yt-tilet", it.title || "—"));
-    const meta = [];
-    if(it.views) meta.push(tt("n_views", {n: fmtNum(it.views, ctx)}, "{n} visualizaciones"));
-    if(it.ts) meta.push(relAge(it.ts, ctx));
-    if(meta.length) tile.appendChild(el("div", "hb-yt-tilem", meta.join(" · ")));
-    const go = () => {
-      if(it.kind === "playlist"){ chAct(root, ctx, "channel_playlist", {playlist: it.id, title: it.title}, "tab"); return; }
-      if(ctx && ctx.action) ctx.action("load", {videoId: it.id, title: it.title || ""});
-      if(root._hbYtSelectTab) root._hbYtSelectTab("player");
-    };
-    tile.addEventListener("click", go);
-    tile.addEventListener("keydown", (e) => { if(e.key === "Enter"){ e.preventDefault(); go(); } });
-    grid.appendChild(tile);
-  });
-  wrap.appendChild(grid);
-  if(pg.has_more){
-    const more = el("button", "hb-yt-btn hb-yt-more", _chBusy === "more" ? tt("ch_loading_more", null, "cargando…")
-                                                                         : tt("ch_more", null, "Cargar más"));
-    more.disabled = _chBusy === "more";
-    more.addEventListener("click", () => chAct(root, ctx, "channel_more", {}, "more"));
-    wrap.appendChild(more);
-  }
-  box.appendChild(wrap);
+  root._hbYt = { id: id, key: pkey, seq: seq, loading: loading };   // "load" is already covered by new src → do not re-post as command
+  root._hbYtBuilt = true;
+  root._hbYtEls = { iframe: iframe, video: video, title: title, meta: meta, blockMsg: blockMsg, vol: vol,
+                    muteBtn: muteBtn, playBtn: playBtn, unmuteHint: unmuteHint,
+                    listBox: listBox, home: home, blockedLine: blockedLine, dots: dots, conn: conn,
+                    subsBox: subsBox, listsBox: listsBox, body: body,
+                    homeTitle: homeTitle, sInp: sInp, sClr: sClr };
 }
 
 export function render(root, data, ctx){
-  _T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
+  Y.T = (ctx && typeof ctx.t === "function") ? ctx.t : null;
   injectStyles();
   data = data || {};
   const id = data.videoId || "";
@@ -945,263 +143,7 @@ export function render(root, data, ctx){
   // (Re)build the card when the video changes, or when entering/leaving "searching" state (real bug 2026-07-23:
   // without this the card looked COMPLETELY empty while load searched YouTube, with no signal).
   if(!st || st.key !== pkey || st.loading !== loading || !root._hbYtBuilt){
-    root.className = "hb-yt";
-    root.textContent = "";
-    // HOME vs PLAYER (V2-596): with no video loaded the card IS the home catalog; with one, the nav button
-    // under the card header switches views WITHOUT unmounting the iframe (audio keeps playing while browsing —
-    // remounting would cut it, the same reason the mobile Deck hides instead of unmounting).
-    if(hasVid) root.classList.add("hb-yt-hasvid");
-    // V2-632 — default tab: a video on screen means the player; nothing loaded means the dashboard. A tab the
-    // operator already chose this page-life survives the rebuild (module-lived, like _screen) — EXCEPT that a
-    // video ARRIVING on a card that had none jumps to the player: «ponme el vídeo de X» means watching it,
-    // and leaving the dashboard up while it plays underneath is the confusion the redesign exists to end.
-    if(!_tab) _tab = hasVid ? "player" : "inicio";
-    if(hasVid && st && !st.key.slice(2) && !loading) _tab = "player";
-    // V2-753 — and the MIRROR, which was never written: a video LEAVING a card that had one goes back
-    // to the catalog. «Páralo, y vuelve al inicio» is one order, and `close` only did the first half —
-    // the player emptied and the card sat on the now-blank Reproductor tab, which is exactly what he
-    // reported twice: «y tampoco vuelves al inicio a ver el catálogo». Gated on the TRANSITION for the
-    // same reason the jump above is: clicking «Reproductor» on an empty card is his choice and stands.
-    if(!hasVid && st && st.key.slice(2) && !loading && _tab === "player") _tab = "inicio";
-    applyTabClass(root);
-
-    const nav = el("div", "hb-yt-nav");
-    const tabsBox = el("div", "hb-yt-tabs");
-    tabsBox.setAttribute("role", "tablist");              // a strip that scrolls sideways — the phone never wraps it
-    nav.appendChild(tabsBox);
-    const tabBtns = {};
-    const selectTab = (tid) => {
-      _tab = tid;
-      _screen = null; _connErr = "";                       // choosing a tab is ONE transition (V2-626)
-      applyTabClass(root);
-      paintTabs();
-      const cb = root.querySelector(".hb-yt-plug"); if(cb) cb.classList.remove("on");
-      root.classList.remove("hb-yt-connmode");
-      const connBox = root._hbYtEls && root._hbYtEls.conn; if(connBox) connBox.textContent = "";
-      if(ctx && ctx.top) ctx.top();
-      const bd = root._hbYtEls && root._hbYtEls.body; if(bd) bd.scrollTop = 0;
-    };
-    // The tabs' lit state has ONE painter: the chosen face wears .on, and while the connectors screen is open
-    // no face is on screen, so none is lit. Every tab stays a way OUT: a tap leaves the shelf and lands on that
-    // face at once (operator, 2026-10-26 — disabled tabs left him stuck until he found «Volver»).
-    const paintTabs = () => {
-      Object.keys(tabBtns).forEach((k) => tabBtns[k].classList.toggle("on", !_screen && k === _tab));
-    };
-    _TABS.forEach((tid) => {
-      const b = el("button", "hb-yt-tab" + (tid === _tab ? " on" : ""), tabLabel(tid));
-      b.dataset.tab = tid;
-      b.addEventListener("click", () => selectTab(tid));
-      tabBtns[tid] = b;
-      tabsBox.appendChild(b);
-    });
-    root._hbYtSelectTab = selectTab;
-    root._hbYtTabBtns = tabBtns;
-    root._hbYtPaintTabs = paintTabs;
-    // RIGHT cluster (the header standard): the source icons, then the plug, pinned to the right edge.
-    const right = el("div", "hb-yt-navright");
-    const dots = el("div", "hb-yt-dots");
-    right.appendChild(dots);
-    const connBtn = el("button", "hb-yt-plug");
-    connBtn.appendChild(svgEl(ICON_PLUG));
-    connBtn.title = tt("sources_title", null, "Fuentes de vídeo / conectores");
-    connBtn.setAttribute("aria-label", tt("connectors", null, "Conectores"));
-    connBtn.addEventListener("click", () => {
-      if(_screen){ selectTab(_tab); return; }              // toggle off → back to the active tab
-      _screen = {view: "shelf"}; _connErr = "";
-      connBtn.classList.add("on");
-      paintTabs();
-      renderConn(root._hbYtEls || {}, root, root._hbYtData || {}, ctx);
-    });
-    right.appendChild(connBtn);
-    nav.appendChild(right);
-    root.appendChild(nav);
-    // Everything under the bar lives in ONE scroll region, so the bar never scrolls away with the content.
-    const body = el("div", "hb-yt-body");
-    root.appendChild(body);
-
-    const tline = el("div", "hb-yt-tline");           // V2-636: title left, channel/date right, ONE row
-    const title = el("div", "hb-yt-title", data.title || "YouTube");
-    tline.appendChild(title);
-    const meta = el("div", "hb-yt-meta", "");          // channel · publication date (verifiable, V2-057)
-    tline.appendChild(meta);
-    body.appendChild(tline);
-    // V2-634 — the playback-block banner: when the owner refuses embedding, the card SAYS what happened
-    // (a swap of our own pick, or the honest «only on YouTube» for a pasted link) instead of leaving the
-    // operator alone with the player's raw error screen. Filled per render from data.blocked_notice.
-    const blockMsg = el("div", "hb-yt-blockmsg", "");
-    body.appendChild(blockMsg);
-
-    const frame = el("div", "hb-yt-frame");
-    let iframe = null;
-    let video = null;
-    let unmuteHint = null;
-    if(loading){
-      const box = el("div", "hb-yt-loading");
-      box.appendChild(el("div", "hb-yt-spin"));
-      box.appendChild(el("div", "", data.loading_query ? tt("searching_q", {q:data.loading_query}, `Buscando «${data.loading_query}»…`) : tt("searching", null, "Buscando…")));
-      frame.appendChild(box);
-    } else if(isStream){
-      // V2-638 — a file we hold (library) or one still arriving (torrent). Same element either way: the
-      // difference is only which route serves the bytes, and both answer Range, so seeking works on both.
-      // The src is set ONCE here and never re-assigned on a re-render (the V2-124/4.19 rule) — the rebuild
-      // key above is what changes it, by rebuilding the card.
-      video = document.createElement("video");
-      video.className = "hb-yt-video";
-      video.controls = true;
-      video.playsInline = true;
-      video.preload = "metadata";
-      video.title = data.title || "";
-      // Our own routes only — never an arbitrary origin (the mensajeria boundary, V2-620).
-      if(src.startsWith("/api/library/") || src.startsWith("/api/torrent/")) video.src = src;
-      if(!data.paused && !halted(ctx)){ try{ video.play().catch(function(){}); }catch(_){} }
-      const c1 = ctx;
-      video.addEventListener("ended", function(){ try{ c1.action("ended"); }catch(_){} });
-      frame.appendChild(video);
-    } else if(id){
-      iframe = document.createElement("iframe");
-      iframe.title = data.title || "YouTube";
-      iframe.allow = "autoplay; encrypted-media; fullscreen; picture-in-picture";
-      iframe.setAttribute("allowfullscreen", "");
-      // `autoplay` ONLY if the agent is running and the video was not paused. It used to be fixed to 1: when reloading
-      // with the agent stopped, the video started BEFORE any pause command arrived (the 700ms below) — the start was
-      // audible. Removing it from the `src` itself is the only way to avoid playing EVEN FOR AN INSTANT.
-      const auto = (!data.paused && !halted(ctx)) ? 1 : 0;
-      // cc_load_policy only when captions are wanted: the param covers the LOAD case robustly (a module
-      // loaded before the player is ready can be ignored); the live toggle goes through applyCaptions.
-      const cc = data.captions ? "&cc_load_policy=1" : "";
-      const params = "enablejsapi=1&rel=0&modestbranding=1&playsinline=1&autoplay=" + auto + "&mute=1" + cc
-                     + "&origin=" + encodeURIComponent(location.origin);
-      iframe.src = "https://www.youtube.com/embed/" + encodeURIComponent(id) + "?" + params;
-      const d0 = data, c0 = ctx;
-      iframe.addEventListener("load", function(){
-        startListening(iframe);
-        setTimeout(function(){ applyState(iframe, d0, c0); }, 700);
-      });
-      frame.appendChild(iframe);
-      // The browser requires a real TOUCH to give sound to an autoplay that started muted (voice-requested "unmute"
-      // does not count as a user gesture and audio may stay silently blocked). This button is a real click → unlock
-      // audio NOW, in the same gesture.
-      unmuteHint = el("div", "hb-yt-unmute", "");
-      unmuteHint.appendChild(el("span", "", "🔊"));
-      unmuteHint.appendChild(el("span", "", tt("tap_unmute", null, "Toca para activar el sonido")));
-      frame.appendChild(unmuteHint);
-    }
-    else {
-      // V2-632 — the PLACEHOLDER: with no video the player tab still shows WHERE the video will live
-      // (operator: «que se vea que ese es el lugar donde eso se va a representar»).
-      const ph = el("div", "hb-yt-empty");
-      const inner = el("div", "");
-      inner.appendChild(el("div", "hb-yt-empt-ico", "▶"));
-      inner.appendChild(el("div", "", tt("no_video_hint", null, "Sin vídeo — di «pon el vídeo de…» o busca desde Inicio.")));
-      ph.appendChild(inner);
-      frame.appendChild(ph);
-    }
-    body.appendChild(frame);
-
-    // INICIO's head (2026-09-29): the title of what the grid holds + a real search box. Built once here and
-    // only its TEXT refreshed per render, so a repaint mid-typing never eats the words (see the CSS note).
-    const homeHead = el("div", "hb-yt-homehead");
-    const homeTitle = el("div", "hb-yt-hometitle");
-    homeHead.appendChild(homeTitle);
-    const sForm = el("form", "hb-yt-search");
-    sForm.setAttribute("role", "search");
-    const sInp = el("input", "");
-    sInp.type = "search";
-    sInp.name = "q";
-    sInp.autocomplete = "off";
-    sInp.placeholder = tt("search_ph", null, "Buscar en YouTube…");
-    sInp.setAttribute("aria-label", tt("search_label", null, "Buscar vídeos"));
-    sForm.appendChild(sInp);
-    const sClr = el("button", "hb-yt-sbtn");
-    sClr.type = "button";
-    sClr.appendChild(svgEl(ICON_CLEAR));
-    sClr.title = tt("clear_results", null, "Quitar los resultados de búsqueda");
-    sClr.setAttribute("aria-label", sClr.title);
-    sClr.addEventListener("click", () => {
-      sInp.value = "";
-      const dd = root._hbYtData || {};
-      if(ctx && ctx.action && ((dd.search_results || []).length || dd.search_query)) ctx.action("clear_search", {});
-      sClr.style.display = "none";
-      sInp.focus();
-    });
-    sForm.appendChild(sClr);
-    const sGo = el("button", "hb-yt-sbtn go");
-    sGo.type = "submit";
-    sGo.appendChild(svgEl(ICON_SEARCH));
-    sGo.title = tt("search_go", null, "Buscar");
-    sGo.setAttribute("aria-label", sGo.title);
-    sForm.appendChild(sGo);
-    sInp.addEventListener("input", () => { sClr.style.display = sInp.value ? "" : "none"; });
-    sForm.addEventListener("submit", (e) => {
-      e.preventDefault();
-      const q = (sInp.value || "").trim();
-      if(!q || !ctx || !ctx.action) return;
-      sInp.blur();
-      ctx.action("search", {query: q});                  // the same data-op the voice uses; nothing plays
-    });
-    homeHead.appendChild(sForm);
-    body.appendChild(homeHead);
-    const home = el("div", "hb-yt-home");             // populated on every render, like the list below
-    body.appendChild(home);
-    const blockedLine = el("div", "hb-yt-blocked", "");
-    body.appendChild(blockedLine);
-    const conn = el("div", "hb-yt-conn");             // connect screens (V2-597), rebuilt per render
-    body.appendChild(conn);
-
-    // Click controls (mirror of what can also be requested by voice) - ICON buttons since V2-636
-    // («no sé si es necesario el texto Play en un botón de play»), the music widget's bar language.
-    const ctrls = el("div", "hb-yt-ctrls");
-    const icbtn = (cls, markup, titleTxt, action) => {
-      const b = el("button", "hb-yt-cbtn" + (cls ? " " + cls : ""));
-      b.appendChild(svgEl(markup));
-      b.title = titleTxt;
-      if(action) b.addEventListener("click", () => { if(ctx && ctx.action) ctx.action(action); });
-      return b;
-    };
-    ctrls.appendChild(icbtn("", ICON_PREV, tt("prev", null, "Anterior"), "previous"));
-    const playBtn = icbtn("main", ICON_PLAY, tt("play", null, "Play"));  // face + action follow data.paused on each render
-    ctrls.appendChild(playBtn);
-    ctrls.appendChild(icbtn("", ICON_NEXT, tt("next", null, "Siguiente"), "next"));
-    ctrls.appendChild(icbtn("", ICON_VOL_DOWN, tt("vol_down", null, "Bajar volumen"), "volume_down"));
-    ctrls.appendChild(icbtn("", ICON_VOL_UP, tt("vol_up", null, "Subir volumen"), "volume_up"));
-    const muteBtn = icbtn("", ICON_MUTED, tt("mute", null, "Silencio"));  // face/action are set on each render (toggle)
-    ctrls.appendChild(muteBtn);
-    const vol = el("div", "hb-yt-vol", "");
-    ctrls.appendChild(vol);
-    body.appendChild(ctrls);
-
-    body.appendChild(el("div", "hb-yt-hint", tt("voice_hint", null,
-      "Por voz: «pon el vídeo de…», «búscame vídeos de…» (salen en Inicio), «reproduce el tercero», «siguiente», «pausa», «sigue a este canal».")));
-
-    // The QUEUE (V2-366; V2-632 gives every row a thumbnail — «que se intuya mejor de qué vídeo hablamos»).
-    const listBox = el("div", "hb-yt-list");
-    body.appendChild(listBox);
-    const subsBox = el("div", "hb-yt-subs");             // V2-632: followed authors, OUR references
-    body.appendChild(subsBox);
-    const listsBox = el("div", "hb-yt-mylists");         // V2-632: saved lists
-    body.appendChild(listsBox);
-    const addRow = el("div", "hb-yt-addrow");
-    const addInp = el("input", "hb-yt-addinp");
-    addInp.placeholder = tt("add_ph", null, "Pega un enlace de YouTube o escribe un título…");
-    const addBtn = el("button", "hb-yt-btn", tt("add", null, "＋ Añadir"));
-    const doAdd = () => {
-      const v = (addInp.value || "").trim();
-      if(!v || !ctx || !ctx.action) return;
-      addInp.value = "";
-      ctx.action("add", {url: v});                       // the server tries link/id first, then searches by name
-    };
-    addBtn.addEventListener("click", doAdd);
-    addInp.addEventListener("keydown", (e) => { if(e.key === "Enter") doAdd(); });
-    addRow.appendChild(addInp); addRow.appendChild(addBtn);
-    body.appendChild(addRow);
-
-    root._hbYt = { id: id, key: pkey, seq: seq, loading: loading };   // "load" is already covered by new src → do not re-post as command
-    root._hbYtBuilt = true;
-    root._hbYtEls = { iframe: iframe, video: video, title: title, meta: meta, blockMsg: blockMsg, vol: vol,
-                      muteBtn: muteBtn, playBtn: playBtn, unmuteHint: unmuteHint,
-                      listBox: listBox, home: home, blockedLine: blockedLine, dots: dots, conn: conn,
-                      subsBox: subsBox, listsBox: listsBox, body: body,
-                      homeTitle: homeTitle, sInp: sInp, sClr: sClr };
+    buildCard(root, data, ctx, {id, seq, loading, st, src, isStream, pkey, hasVid});
   }
 
   // Dynamic refresh on EVERY render (title, verifiable metadata, mute-toggle button, volume).
@@ -1221,354 +163,18 @@ export function render(root, data, ctx){
     });
     if(root._hbYtPaintTabs) root._hbYtPaintTabs();
   }
-  // INICIO's head: the title says what the grid holds; the box carries the question being answered —
-  // unless he is typing in it right now, in which case his words win over the repaint.
-  if(E.homeTitle){
-    const nR = Array.isArray(data.search_results) ? data.search_results.length : 0;
-    E.homeTitle.textContent = "";
-    E.homeTitle.appendChild(el("span", "", (nR || data.adding) ? tt("results", null, "Resultados")
-                                                               : tt("home_title", null, "Inicio")));
-    if(nR) E.homeTitle.appendChild(el("span", "hb-yt-homecount", String(nR)));
-  }
-  if(E.sInp && document.activeElement !== E.sInp){
-    E.sInp.value = String(data.adding || data.search_query || "");
-    if(E.sClr) E.sClr.style.display = E.sInp.value ? "" : "none";
-  }
-
-  // ACCOUNT layer (V2-597) — the card asks for ONE platform re-sync when the cache is stale (the archivos
-  // needs_refresh pattern; local file reads server-side, no provider network) and paints the platform icons
-  // and the sources shelf.
-  // V2-603 F2 — the account layer is HIDDEN whole while no OAuth client exists anywhere (operator's
-  // directive, 2026-09-06: «until that is done I do not want the connector active, leave it deactivated and
-  // hidden»). Not a disabled button and not a wizard that dead-ends: no platform row, no connect screen, and
-  // no `sync_platforms` chatter either. The player itself is untouched — searching, playing and lists never
-  // depended on an account. `accounts_enabled` is DERIVED server-side, so this whole surface comes back on
-  // its own the day a client id exists.
-  if(!data.accounts_enabled){
-    if(E.dots){ E.dots.textContent = ""; E.dots.style.display = "none"; }
-    // V2-632: the SHELF survives the gate — the operator asked to SEE the sources, disabled and honest
-    // (its note included).
-    renderConn(E, root, data, ctx);
-  } else {
-  if(E.dots) E.dots.style.display = "";
-  if(data.platforms_stale && ctx && ctx.action && Date.now() - _syncAsked > 60000){
-    _syncAsked = Date.now();
-    try{ ctx.action("sync_platforms", {}); }catch(_e){}
-  }
-  if(E.dots){
-    E.dots.textContent = "";
-    const rows = Array.isArray(data.platforms) ? data.platforms : [];
-    const list = rows.length ? rows : [{id: "youtube", label: "YouTube", connected: false, app_configured: false}];
-    list.forEach((r) => {
-      const ic = brandIcon(r.id, !!r.connected);
-      ic.title = r.connected ? tt("dot_connected", {label: r.label || r.id}, "{label}: cuenta conectada")
-                             : tt("dot_disconnected", {label: r.label || r.id}, "{label}: sin conectar — toca para conectarla");
-      ic.setAttribute("aria-label", ic.title);
-      ic.addEventListener("click", () => ctx.openConnector(r.id));   // ⚙ Conectores, the one door
-      E.dots.appendChild(ic);
-    });
-  }
-  renderConn(E, root, data, ctx);
-  }
-  if(E.title) E.title.textContent = data.title || (id ? "YouTube" : tt("no_video", null, "Sin vídeo"));
-  if(E.blockMsg){
-    const bn = data.blocked_notice || {};
-    let msg = "";
-    if(bn.kind === "swapped")
-      msg = tt("blocked_swapped", {from: bn.from || "", to: bn.to || ""},
-               "«{from}» está bloqueado por su propietario para reproducirse aquí — pongo el siguiente: «{to}».");
-    else if(bn.kind === "explicit")
-      msg = tt("blocked_explicit", {from: bn.from || ""},
-               "Su propietario bloquea la reproducción fuera de YouTube — este vídeo solo puede verse allí.");
-    else if(bn.kind === "channel_blocked")     // a pasted link from a channel he blocked: it plays, and says so
-      msg = tt("blocked_channel_link", {channel: bn.channel || ""},
-               "Lo pongo porque lo has pegado tú, aunque es de «{channel}», un canal que tienes bloqueado.");
-    else if(bn.kind === "exhausted")
-      msg = tt("blocked_exhausted", {from: bn.from || ""},
-               "«{from}» está bloqueado por su propietario y no encontré sustituto — dime otra búsqueda.");
-    E.blockMsg.textContent = msg;
-    E.blockMsg.style.display = msg ? "" : "none";
-  }
-  if(E.meta){
-    const bits = [];
-    if(data.channel) bits.push(data.channel);
-    if(data.published) bits.push(data.latest ? tt("latest_date", {date: data.published}, "más reciente · {date}") : data.published);
-    E.meta.textContent = bits.join("  ·  ");
-    E.meta.style.display = bits.length ? "" : "none";
-  }
-  const vol0 = Number(data.volume != null ? data.volume : 70);
-  if(E.playBtn){
-    // ONE toggle, like the music bar: face shows what a click will DO (paused -> play triangle).
-    E.playBtn.textContent = "";
-    E.playBtn.appendChild(svgEl(data.paused ? ICON_PLAY : ICON_PAUSE));
-    E.playBtn.title = data.paused ? tt("play", null, "Play") : tt("pause", null, "Pausa");
-    E.playBtn.onclick = () => { if(ctx && ctx.action) ctx.action(data.paused ? "play" : "pause"); };
-  }
-  if(E.muteBtn){
-    E.muteBtn.textContent = "";
-    E.muteBtn.appendChild(svgEl(data.muted ? ICON_VOL_UP : ICON_MUTED));
-    E.muteBtn.title = data.muted ? tt("sound", null, "Sonido") : tt("mute", null, "Silencio");
-    E.muteBtn.onclick = () => {
-      // Direct `post` (does not go through the server: it is the REAL click that unlocks browser audio) is also gated
-      // — otherwise, with the agent stopped, this button would make the video play through the back door.
-      if(data.muted && !halted(ctx)){ post(PL, "unMute", []); post(PL, "setVolume", [vol0]); }
-      if(ctx && ctx.action) ctx.action(data.muted ? "unmute" : "mute");
-    };
-  }
-  if(E.unmuteHint){
-    // V2-791 — also while the browser keeps an ORDERED sound silent: the hint is the honest state of the player.
-    E.unmuteHint.style.display = (data.muted || (data.audio_blocked && data.videoId)) ? "flex" : "none";
-    E.unmuteHint.onclick = () => {
-      if(!halted(ctx)){ post(PL, "unMute", []); post(PL, "setVolume", [vol0]); }
-      if(ctx && ctx.action) ctx.action("unmute");
-    };
-  }
-  if(E.vol) E.vol.textContent = data.muted ? "—" : ((data.volume != null ? data.volume : 70) + "%");
-
-  // The queue advances because the player told us the video ended — refreshed every render so the callback
-  // always carries the CURRENT ctx. Gated on halted: a stopped agent starts no playback (V2-092).
-  _ytEnded = () => { if(ctx && ctx.action && !halted(ctx)) ctx.action("ended"); };
-  // V2-634: the report names WHICH video failed — the store swaps the current one for the next playable
-  // candidate, and a late onError for an already-replaced video must not be attributed to its successor.
-  _ytError = (code) => { if(ctx && ctx.action) ctx.action("player_error",
-      {code: String(code == null ? "unknown" : code), videoId: id || ""}); };
-  _ytQuality = (levels, vid) => {
-    if(ctx && ctx.action) ctx.action("player_quality", {levels: Array.isArray(levels) ? levels : [], videoId: vid || ""});
-  };
-  // V2-791 — the player's real sound against what the store says was ordered. Sound wanted and the player still
-  // muted past the grace → `audio_blocked` (the hint stays, the brain is told); heard → the flag clears.
-  _plNow = PL;
-  if(data.audio_blocked && !data.muted && data.videoId && !halted(ctx)) armSoundUnlock(vol0);
-  _ytAudio = (playerMuted, vid) => {
-    if(!ctx || !ctx.action || halted(ctx) || !data.videoId) return;
-    if(vid && vid !== data.videoId) return;
-    let report = null;
-    if(playerMuted && !data.muted && !data.audio_blocked){
-      if(Date.now() - _soundAsked < _SOUND_GRACE_MS && pageMayPlaySound()) return;
-      report = true;
-    } else if(!playerMuted && (data.audio_blocked || data.muted)){
-      report = false;
-    }
-    if(report === null) return;
-    const key = data.videoId + "|" + report + "|" + (data.cmd_seq || 0);
-    if(key === _audioSent) return;
-    _audioSent = key;
-    ctx.action("player_audio", {muted: report, videoId: data.videoId});
-  };
-
-  // The list rows, re-rendered on every render (text only; the iframe is never touched by this).
-  if(E.listBox){
-    E.listBox.textContent = "";
-    const lst = Array.isArray(data.list) ? data.list : [];
-    const filt = String(data.list_filter || "").trim().toLowerCase();
-    // V2-467 — the list NAME takes precedence over the generic label: if the operator called it “the afternoon
-    // one,” that is what must be shown on the card so they can verify at a glance that their request was followed.
-    const _nom = String(data.list_name || "").trim();
-    const _rot = _nom || tt("list", null, "Lista");
-    const head = el("div", "hb-yt-listh", lst.length ? (_rot + " · " + lst.length) : _rot);
-    if(filt){
-      const chip = el("span", "hb-yt-chip", tt("filter_chip", {q: filt}, "filtro: «{q}» ✕"));
-      chip.title = tt("clear_filter", null, "Quitar el filtro");
-      chip.addEventListener("click", () => { if(ctx && ctx.action) ctx.action("filter_list", {q: ""}); });
-      head.appendChild(chip);
-    }
-    E.listBox.appendChild(head);
-    if(data.adding) E.listBox.appendChild(el("div", "hb-yt-note", tt("searching_q", {q: data.adding}, "Buscando «{q}»…")));
-    const pos = Number(data.pos != null ? data.pos : -1);
-    let shown = 0;
-    lst.forEach((it, i) => {
-      const hay = ((it.title || "") + " " + (it.channel || "")).toLowerCase();
-      if(filt && hay.indexOf(filt) < 0) return;
-      shown++;
-      const row = el("div", "hb-yt-row" + (i === pos ? " playing" : ""));
-      row.appendChild(el("span", "hb-yt-rown", i === pos ? "▶" : String(i + 1)));
-      const th = document.createElement("img");                     // V2-632: the queue shows its faces
-      th.className = "hb-yt-rimg"; th.loading = "lazy"; th.alt = "";
-      if(it.videoId) th.src = "https://i.ytimg.com/vi/" + encodeURIComponent(it.videoId) + "/mqdefault.jpg";
-      row.appendChild(th);
-      row.appendChild(el("span", "hb-yt-rowt", it.title || it.url || "—"));
-      // V2-791 — with WHEN it was published: «which of these is today's?» is read at a glance
-      const sub = [it.channel, it.published].filter(Boolean).join(" · ");
-      if(sub) row.appendChild(el("span", "hb-yt-rowc", sub));
-      const x = el("button", "hb-yt-rowx", "✕");
-      x.title = tt("remove_from_list", null, "Quitar de la lista");
-      x.addEventListener("click", (e) => { e.stopPropagation(); if(ctx && ctx.action) ctx.action("remove", {item: String(i + 1)}); });
-      row.appendChild(x);
-      row.addEventListener("click", () => {
-        if(ctx && ctx.action) ctx.action("play_item", {item: String(i + 1)});
-        if(root._hbYtSelectTab) root._hbYtSelectTab("player");
-      });
-      E.listBox.appendChild(row);
-    });
-    if(lst.length && filt && !shown) E.listBox.appendChild(el("div", "hb-yt-note", tt("list_no_match", null, "Nada en la lista casa con el filtro.")));
-    if(!lst.length) E.listBox.appendChild(el("div", "hb-yt-note", tt("list_empty", null, "La lista está vacía: pega un enlace o dime «añade a la lista…».")));
-  }
-
-  // DASHBOARD (V2-596 → V2-632): the Inicio tab. Order is the operator's: the SEARCH band on top when a
-  // search is live (numbered — «reproduce el tercero» steers by voice), then what he watched recently, then
-  // the suggestions band (account-fed), then the enforced preferences line. The queue moved to its own tab.
-  // Text + <img> elements only; the thumb host is YouTube's public CDN, never a fetch from our JS.
-  if(E.home){
-    E.home.textContent = "";
-    const mkTile = (it, extras) => {
-      const tile = el("div", "hb-yt-tile");
-      const img = document.createElement("img");
-      img.loading = "lazy"; img.alt = "";
-      if(it.videoId) img.src = "https://i.ytimg.com/vi/" + encodeURIComponent(it.videoId) + "/mqdefault.jpg";
-      tile.appendChild(img);
-      (extras || []).forEach((x) => tile.appendChild(x));
-      tile.appendChild(el("div", "hb-yt-tilet", it.title || "—"));
-      if(it.channel) tile.appendChild(el("div", "hb-yt-tilec", it.channel));
-      return tile;
-    };
-    const goPlayer = () => { if(root._hbYtSelectTab) root._hbYtSelectTab("player"); };
-
-    // 1 — SEARCH RESULTS (V2-632): the dashboard's top band. Numbered so voice and eye share one index.
-    const res = Array.isArray(data.search_results) ? data.search_results : [];
-    if(data.adding){
-      const sh = el("div", "hb-yt-schead");
-      sh.appendChild(el("span", "", tt("searching_q", {q: data.adding}, "Buscando «{q}»…")));
-      E.home.appendChild(sh);
-    }
-    if(res.length){
-      // The query and its ✕ live in the search box of the head above (2026-09-29): the grid is only tiles.
-      res.forEach((it, i) => {
-        const addB = el("button", "hb-yt-radd", tt("to_queue", null, "+ cola"));
-        addB.title = tt("to_queue_hint", null, "Añadir a la cola sin reproducir");
-        addB.addEventListener("click", (e) => {
-          e.stopPropagation();
-          if(ctx && ctx.action) ctx.action("add_results", {items: String(i + 1)});
-        });
-        const tile = mkTile(it, [el("span", "hb-yt-rnum", String(i + 1)), addB]);
-        tile.addEventListener("click", () => {
-          if(ctx && ctx.action) ctx.action("play_result", {item: String(i + 1)});
-          goPlayer();
-        });
-        E.home.appendChild(tile);
-      });
-      E.home.appendChild(el("div", "hb-yt-catch"));
-    }
-
-    // 2 — RECENTLY WATCHED: the library's history is ours (V2-604); the dashboard shows the last few.
-    const hist = Array.isArray(data.history) ? data.history : [];
-    if(hist.length){
-      const hh = el("div", "hb-yt-schead");
-      hh.appendChild(el("span", "", tt("recent", null, "Vistos hace poco")));
-      const all = el("span", "hb-yt-chip", tt("all_history", null, "⏱ todo el historial → cola"));
-      all.title = tt("all_history_hint", null, "Carga el historial completo en la cola");
-      all.addEventListener("click", () => {
-        if(ctx && ctx.action) ctx.action("show_history", {});
-        if(root._hbYtSelectTab) root._hbYtSelectTab("cola");
-      });
-      hh.appendChild(all);
-      E.home.appendChild(hh);
-      hist.slice(0, 6).forEach((h) => {
-        const tile = mkTile(h);
-        tile.addEventListener("click", () => {
-          if(ctx && ctx.action) ctx.action("load", {videoId: h.videoId, title: h.title || ""});
-          goPlayer();
-        });
-        E.home.appendChild(tile);
-      });
-      E.home.appendChild(el("div", "hb-yt-catch"));
-    }
-
-    // 3 — SUGGESTIONS band (V2-597): account-fed, pulled only when asked. Unconnected, a quiet pointer to
-    // the shelf instead of an empty band pretending to be one.
-    const sug = Array.isArray(data.suggested) ? data.suggested : [];
-    const connectedAny = (Array.isArray(data.platforms) ? data.platforms : []).some((r) => r.connected);
-    if(sug.length || connectedAny || data.suggesting){
-      const sh = el("div", "hb-yt-sughead");
-      sh.appendChild(el("span", "", tt("subs_suggestions", null, "Sugerencias de tus suscripciones")));
-      const bits = [];
-      if(data.suggested_at) bits.push(fmtAge(data.suggested_at));
-      if(data.suggested_channels) bits.push(tt("n_channels", {n: data.suggested_channels}, "{n} canales"));
-      if(bits.length) sh.appendChild(el("span", "hb-yt-sugsub", "· " + bits.join(" · ")));
-      const rf = el("span", "hb-yt-chip", data.suggesting ? tt("loading", null, "buscando…") : tt("refresh", null, "↻ refrescar"));
-      rf.title = tt("refresh_hint", null, "Traer los vídeos recientes de tus suscripciones");
-      rf.addEventListener("click", () => { if(ctx && ctx.action && !data.suggesting) ctx.action("suggest", {}); });
-      sh.appendChild(rf);
-      E.home.appendChild(sh);
-      if(!sug.length && !data.suggesting)
-        E.home.appendChild(el("div", "hb-yt-homemsg",
-          tt("subs_empty", null, "Toca «refrescar» para traer los vídeos recientes de tus suscripciones.")));
-      sug.forEach((it) => {
-        const tile = mkTile(it);
-        tile.addEventListener("click", () => {
-          if(ctx && ctx.action) ctx.action("load", {videoId: it.videoId, title: it.title || ""});
-          goPlayer();
-        });
-        E.home.appendChild(tile);
-      });
-    }
-
-    // 4 — the enforced preferences, spelled out (V2-604): a filter he cannot SEE is one he cannot trust.
-    const prefs = data.prefs || {};
-    const notes = Array.isArray(data.prefs_notes) ? data.prefs_notes : [];
-    const pbits = [];
-    if(prefs.min_definition) pbits.push(tt("min_def", {n: prefs.min_definition}, "mínimo {n}p"));
-    if(prefs.captions === true) pbits.push(tt("cc_on", null, "subtítulos siempre"));
-    if(prefs.captions === false) pbits.push(tt("cc_off", null, "sin subtítulos"));
-    if(prefs.volume != null) pbits.push(tt("volume_n", {n: prefs.volume}, "volumen {n}"));
-    notes.forEach((n) => { const t = String(n && n.text || "").trim(); if(t) pbits.push(tt("note", {text: t}, "nota: {text}")); });
-    if(pbits.length) E.home.appendChild(el("div", "hb-yt-libp", pbits.join(" · ")));
-
-    if(!res.length && !hist.length && !sug.length && !connectedAny && !data.adding && !data.suggesting){
-      E.home.appendChild(el("div", "hb-yt-homemsg",
-        tt("home_empty", null, "No hay ningún vídeo cargado. Dime qué quieres ver, o «búscame vídeos de…» y elige de aquí.")));
-    }
-  }
+  paintHomeHead(E, data);
+  paintAccount(root, E, data, ctx);
+  paintPlayer(E, data, ctx, id, PL);
+  bindReporters(data, ctx, id, PL);
+  paintQueue(root, E, data, ctx);
+  paintHome(root, E, data, ctx);
 
   // SUBSCRIPTIONS tab — the channels as CARDS, and a click opens the channel's own PAGE (2026-09-29).
   if(E.subsBox) renderSubs(E.subsBox, root, data, ctx);
 
   // SAVED LISTS tab (V2-632).
-  if(E.listsBox){
-    E.listsBox.textContent = "";
-    const saved = Array.isArray(data.lists) ? data.lists : [];
-    E.listsBox.appendChild(el("div", "hb-yt-listh", tt("saved_lists_n", {n: saved.length}, "Listas guardadas · {n}")));
-    if(!saved.length){
-      E.listsBox.appendChild(el("div", "hb-yt-secmsg",
-        tt("lists_empty", null, "No hay listas guardadas. Monta una cola y di «guarda la lista como…».")));
-    }
-    saved.forEach((L) => {
-      const nom = String(L && L.name || "").trim();
-      if(!nom) return;
-      const row = el("div", "hb-yt-row");
-      row.appendChild(el("span", "hb-yt-rown", "≣"));
-      row.appendChild(el("span", "hb-yt-rowt", nom));
-      row.appendChild(el("span", "hb-yt-rowc", tt("n_videos", {n: Array.isArray(L.items) ? L.items.length : 0}, "{n} vídeos")));
-      const open = el("span", "hb-yt-chip", tt("open_to_queue", null, "abrir → cola"));
-      open.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if(ctx && ctx.action) ctx.action("open_list", {name: nom});
-        if(root._hbYtSelectTab) root._hbYtSelectTab("cola");
-      });
-      row.appendChild(open);
-      const x = el("button", "hb-yt-rowx", "✕");
-      x.title = tt("delete_list", null, "Borrar la lista guardada");
-      x.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if(ctx && ctx.action) ctx.action("delete_list", {name: nom});
-      });
-      row.appendChild(x);
-      E.listsBox.appendChild(row);
-    });
-    const saveRow = el("div", "hb-yt-saverow");
-    const inp = el("input", "hb-yt-addinp");
-    inp.placeholder = tt("save_queue_ph", null, "Guardar la cola actual como…");
-    const b = el("button", "hb-yt-btn", tt("save", null, "Guardar"));
-    const doSave = () => {
-      const v = (inp.value || "").trim();
-      if(!v || !ctx || !ctx.action) return;
-      inp.value = "";
-      ctx.action("save_list", {name: v});
-    };
-    b.addEventListener("click", doSave);
-    inp.addEventListener("keydown", (e) => { if(e.key === "Enter") doSave(); });
-    saveRow.appendChild(inp); saveRow.appendChild(b);
-    E.listsBox.appendChild(saveRow);
-  }
+  paintSavedLists(root, E, data, ctx);
 
   if(E.blockedLine){
     const blk = Array.isArray(data.blocked_channels) ? data.blocked_channels : [];
@@ -1595,12 +201,12 @@ export function render(root, data, ctx){
   //
   // V2-755 — and since the data layer now writes this rail for «ponme el sexto» too (a video SWAPPING
   // is an arrival the transition above cannot see), the order is refused in ONE case: the player's face
-  // with nothing in it. `goto_tab` is stored, `_gotoSeq` is module-lived, so a reload replays the last
+  // with nothing in it. `goto_tab` is stored, `Y.gotoSeq` is module-lived, so a reload replays the last
   // order against a card whose video is gone — and an empty Reproductor is exactly the dead end V2-753
   // spent an initiative getting him out of.
   const _goto = data.goto_tab;
-  if(_goto && _goto.seq && _goto.seq !== _gotoSeq){
-    _gotoSeq = _goto.seq;                       // consumed — a re-render must not fight his hands
+  if(_goto && _goto.seq && _goto.seq !== Y.gotoSeq){
+    Y.gotoSeq = _goto.seq;                       // consumed — a re-render must not fight his hands
     const stale = _goto.tab === "player" && !hasVid;
     if(_TABS.indexOf(_goto.tab) >= 0 && root._hbYtSelectTab && !stale) root._hbYtSelectTab(_goto.tab);
   }

@@ -189,7 +189,8 @@ def test_the_code_agent_is_told_a_shared_copy_may_be_mounted_twice_and_will_be_t
 
 
 def test_the_widget_harness_checks_it_and_carries_both_passes(tmp_path, monkeypatch):
-    from widgets import harness, paths
+    from tests import widget_harness as harness
+    from widgets import paths
     (tmp_path / "zz-h").mkdir()
     (tmp_path / "zz-h" / "manifest.json").write_text(json.dumps({"id": "zz-h", "title": "H"}), encoding="utf-8")
     monkeypatch.setattr(paths, "dir_for", lambda wid: str(tmp_path / wid))

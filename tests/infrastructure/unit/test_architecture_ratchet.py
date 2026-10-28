@@ -162,7 +162,6 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # hands last_status to every capture — the wall signal no needle can miss, measured on coches.net's two
     # bodies for the same 403). Inherent to the tab object (self/page); the WALL classification itself was
     # extracted instead (tasks.py → walls.py, 904→774, staying out of the table).
-    "widgets/navegador/owner.py": (1714, 43),
     # 2026-09-02: 1374 → 789, and 15 → 7 lazy imports. The ratchet asked for an extraction and got two:
     # `reminder_guards.py` (the 26 guards for a PROMISED dated notice — a closed set that nothing left
     # behind uses) and `text_norm.py` (the three text helpers BOTH halves need, which is why neither could
@@ -179,7 +178,6 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     "nucleo/flash/show_guard.py": (165, 4),
     # nucleo/flash/probe.py left the table with the text channel's own turn (refactor2710-01): the typed
     # channel runs the voice turn, so there is no second copy left to bound.
-    "widgets/results/data.py": (991, 5),
     "nucleo/flash/prompt.py": (834, 29),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
     # branch in the worker directive: inject before killing—directive prose, nothing extractable)
     # 26-09-11: V2-675 · −21 — the CRON line moved to `live_blocks.py` (same precedent as the browser and
@@ -354,7 +352,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "server": 5736,        # refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10092,             # refactor2710-01: +3, `typed_turn.py` (the typed front door) and the lent speaker
     "voice/engine/llm": 3900,   # refactor2710-01: +64, a failed turn keeps his words; the vault is a door
-    "widgets": 38666,           # refactor2710-01: +42, `payload_digest.py` (moved), the sheet.rebuild door, refs paid by extraction
+    "widgets": 38262,           # refactor2710-01 +42 (payload_digest, sheet.rebuild); refactor2710-12 split and condensed
 }
 
 #: A new file under `nucleo/` is born small. 300 lines, not the tree-wide 900 above: the refactor splits the brain
@@ -451,8 +449,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 173251, with refactor2710-11 and -13 merged). Never for growth in place.
-_TOTAL_MAX = 173251
+#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12). Never for growth in place.
+_TOTAL_MAX = 172847
 
 
 def test_the_total_only_shrinks():

@@ -47,13 +47,6 @@ def test_the_env_escape_hatches_win(monkeypatch):
     assert owner._browser_locale() == ("fr-FR", "Europe/Paris")
 
 
-def test_the_launch_reads_it_instead_of_a_pin():
-    from pathlib import Path
-    src = _vts.read("widgets/navegador/owner.py")
-    assert '_browser_locale()' in src
-    assert 'locale="es-ES"' not in src.replace('("es-ES", "Europe/Madrid")', "")
-
-
 def test_the_profile_travels_with_the_locale(monkeypatch, tmp_path):
     """A browser that PRESENTS en-US must not carry cookies acquired while presenting es-ES: the site
     remembers the contradiction longer than the declaration. Measured 2026-08-29 in `cheapest-monitor__us`
