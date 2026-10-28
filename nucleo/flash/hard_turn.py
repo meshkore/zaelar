@@ -91,26 +91,6 @@ async def say_receipt(emit, brain=None) -> str:
         return line
 
 
-def record(brain, said: str, reply: str) -> None:
-    """The hard close answered without a model: his line and our receipt enter the dialog window, like a model turn's
-    (V2-831 T-02 — «i said all» found a window where the close never happened). `_last_reply` too: it is the line
-    the next turn's brief is handed as what we just said."""
-    window = getattr(brain, "_window", None)
-    if not isinstance(window, list):
-        return
-    try:
-        from nucleo.flash import dialog as _dialog
-        try:
-            from voice.engine.llm.providers.nucleo import _WINDOW_MAX as cap
-        except Exception:  # noqa: BLE001
-            cap = 10
-        _dialog.record_turn_without_model(window, said, reply, cap=cap)
-        if window and window[-1].get("role") == "assistant":
-            brain._last_reply = window[-1].get("content") or ""
-    except Exception:  # noqa: BLE001 — a record never breaks the close it describes
-        pass
-
-
 async def names_an_act_on_screen(text: str, emit) -> bool:
     """A stop that NAMES an activity on a card («Stop showing me the Social tab») is an order about that card: the
     brief's `screen_action` verdict decides it, never the sentence's shape (CRIT-W10)."""
@@ -171,13 +151,15 @@ async def handle(text: str, hard: str, emit, brain=None) -> str | None:
     if hard == "close":
         # 3 · close every card he is not using, now, before anything else (V2-807 T-08: the card in use stays
         #     unless his words name it — `bulk_close`).
-        #     V2-831 T-02: «close all» QUANTIFIES the canvas — the grammar that matched it says so (`close_scope`),
-        #     and an explicit total spares nothing.
-        from nucleo.flash import bulk_close as _bulk
+        #     V2-831 T-02: an explicit total («close all») spares nothing — the grammar's own reading (`close_scope`).
+        from nucleo.flash import bulk_close as _bulk, dialog as _dialog
         from voice import interrupt_grammar as _grammar
         _bulk.close_all(emit, src="flash", text=text, scope=_grammar.close_scope(text))
         line = await say_receipt(emit, brain)  # V2-812 T-04: never a close in silence
-        record(brain, text, line)              # V2-831 T-02: …and never a close the conversation does not hold
+        try:                                   # V2-831 T-02: …and never one the conversation does not hold
+            _dialog.record_turn_without_model(brain, text, line)
+        except Exception as e:                 # noqa: BLE001 — the close already ran
+            emit("brain", "⚠️ close not recorded in the window", text=f"{type(e).__name__}: {e}"[:160], role="system")
     # 4 · V2-688 — and only THEN ask whether closing was the whole request. The closing clause is removed from what
     #     the model reads: handed «close all» against an already-empty canvas it re-emits it (the context-bleed shape
     #     V2-635 catalogued), and that second close would land on whatever this same sentence just asked to open.

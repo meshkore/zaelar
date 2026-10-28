@@ -24,10 +24,8 @@ closed nothing, in silence. When sparing would leave nothing to close, the spare
 in his language saying what it closed and what is still on screen, which the doors that have no model reply of their
 own (the hard interrupt, the action map) speak.
 
-AN EXPLICIT TOTAL SPARES NOTHING (V2-831 T-02). The spare is for a close that names no card and no total («close
-whatever you don't need»). «Close all» QUANTIFIES the canvas — the grammar that matched it already read so
-(`interrupt_grammar.close_scope`) — and the door that read it passes `scope="all"`: everything closes, the card in use
-included. Sparing it there turned «close all» into «close all but one», and he had to say it again.
+AN EXPLICIT TOTAL SPARES NOTHING (V2-831 T-02): «close all» quantifies the canvas, and the door whose grammar read it
+passes `scope="all"` — the spare is only for a close with no total («close whatever you don't need»).
 
 Every bulk-close door of a TURN goes through `close_all` (the verdict-driven fallback, the seeded action map, the
 hard interrupt). The reset endpoints do not: a reset is the lifecycle, not an order about cards.
@@ -116,10 +114,6 @@ def in_use(open_ids, text: str = "") -> list[str]:
     return spare
 
 
-#: The scope of a close whose words quantify the whole canvas — nothing is spared (V2-831 T-02).
-SCOPE_ALL = "all"
-
-
 def spare_for(opened, text: str = "", *, emit=None, src: str = "", scope: str = "") -> list[str]:
     """The cards a bulk close over `opened` keeps: the ones in use — unless keeping them leaves NOTHING to close,
     or his words closed them ALL (`scope="all"`).
@@ -127,7 +121,7 @@ def spare_for(opened, text: str = "", *, emit=None, src: str = "", scope: str = 
     V2-812 T-04: a close-all whose every open card is «in use» is an order about those very cards, so none is kept.
     Sparing exists to protect the draft among OTHER cards, never to turn «close everything» into a no-op."""
     spare = in_use(opened, text) if opened else []
-    if spare and scope == SCOPE_ALL:
+    if spare and scope == "all":
         if emit is not None:
             emit("brain", "🧷 bulk close: an explicit total — the card in use closes too", text=",".join(spare),
                  role="system", extra={"cat": "flash", "would_keep": spare, "src": src, "scope": scope})
@@ -154,9 +148,8 @@ def close_all(emit, *, src: str, text: str = "", said: str = "", extra: dict | N
     """Close every card he is not using. Returns the cards spared ([] = the bare close-all went out).
 
     `text` is his sentence (read to see whether it names a card in use); `said` is the phrase a caller already
-    attaches to its canvas events (the action map does), passed through unchanged. `scope="all"` is passed by the
-    door whose grammar read a quantified total — then nothing is spared. Each close crosses the canvas door with the
-    turn (`brief`, his sentence)."""
+    attaches to its canvas events (the action map does), passed through unchanged; `scope="all"` spares nothing. Each
+    close crosses the canvas door with the turn (`brief`, his sentence)."""
     from nucleo.acts import canvas_turn
     from nucleo.acts import canvas
     base = {k: v for k, v in (extra or {}).items() if k not in ("id", "src")}

@@ -142,28 +142,15 @@ _STOP_OBJECT_RE = re.compile(
 _AND_SPLIT_RE = re.compile(r"[.;!?\n]|\sy\s|\sand\s|\spero\s|\sbut\s", re.I)
 
 
-def _closes_the_whole_canvas(n: str) -> bool:
-    """True when SOME CLAUSE of the turn orders the whole canvas closed — verb and quantifier together."""
-    return any(True for _ in _closing_clauses(n))
-
-
-def close_scope(text: str) -> str:
-    """«all» when a closing clause QUANTIFIES the canvas («close all», «ciérralo todo», «close all the widgets») —
-    the total is explicit, nothing is to be spared; "" for a close that only names the cards or restricts them
-    («cierra los widgets», «close everything you don't need»). V2-831 T-02: the reading `hard_interrupt` already
-    made, returned instead of dropped, so the bulk close does not treat «close all» as a vague close."""
-    return "all" if any(_quantifies_the_canvas(c) for c in _closing_clauses(_norm(text))) else ""
-
-
-def _closing_clauses(n: str):
-    """The clauses of `n` that order the whole canvas closed, in order (none for a fullscreen subject)."""
+def _closes_the_whole_canvas(n: str, quantified: bool = False) -> bool:
+    """True when SOME CLAUSE orders the whole canvas closed — verb and quantifier (`quantified`: not a card noun alone)."""
     if _FULLSCREEN_RE.search(n):
-        return                             # a screen-state subject is never a close-all (V2-600)
+        return False                       # a screen-state subject is never a close-all (V2-600)
     for clause in _AND_SPLIT_RE.split(n):
         c = (clause or "").strip()
         if not c or not _CLOSE_VERB_RE.search(c):
             continue
-        if not (_ALL_RE.search(c) or _quantifies_the_canvas(c)):
+        if not (_ALL_RE.search(c) or _quantifies_the_canvas(c)) or (quantified and not _quantifies_the_canvas(c)):
             continue
         try:
             from nucleo.flash.close_guards import is_negated_or_narrated
@@ -171,7 +158,13 @@ def _closing_clauses(n: str):
                 continue                   # «do not close the widgets», or narrating one already done
         except Exception:  # noqa: BLE001
             pass                           # unreadable guard: the clause already carries verb + quantifier
-        yield c
+        return True
+    return False
+
+
+def close_scope(text: str) -> str:
+    """«all» when the close QUANTIFIES the canvas («close all»); "" when it names or restricts it (V2-831 T-02)."""
+    return "all" if _closes_the_whole_canvas(_norm(text), quantified=True) else ""
 
 
 def hard_interrupt(text: str) -> str | None:

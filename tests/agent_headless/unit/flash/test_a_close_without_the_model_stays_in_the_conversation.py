@@ -100,22 +100,24 @@ def test_the_window_stays_capped(monkeypatch):
 
 
 def test_with_no_receipt_the_engine_ack_closes_the_order():
-    win = [{"role": "assistant", "content": "hi"}]
-    dialog.record_turn_without_model(win, "close all", "", cap=10)
+    brain = _Brain()
+    dialog.record_turn_without_model(brain, "close all", "")
+    win = brain._window
     assert win[-2]["content"] == "close all" and win[-1]["role"] == "assistant" and win[-1]["content"]
+    assert brain._last_reply == win[-1]["content"]
 
 
 def test_disarmed_without_the_record_the_close_never_happened(monkeypatch):
     """RED proof: skip the record and the window still ends in the Dexter errand — what T12 read."""
     _spoken(monkeypatch)
-    real = hard_turn.record
-    hard_turn.record = lambda brain, said, reply: None
+    real = dialog.record_turn_without_model
+    dialog.record_turn_without_model = lambda brain, said, reply, cap=10: None
     try:
         brain, (events, emit) = _Brain(), _collect()
         asyncio.run(hard_turn.handle("close all", "close", emit, brain))
         assert brain._window[-2]["content"] == "continue with my dexter request", "the disarm did not land"
     finally:
-        hard_turn.record = real
+        dialog.record_turn_without_model = real
     bulk_close.reset()
     brain, (events, emit) = _Brain(), _collect()
     asyncio.run(hard_turn.handle("close all", "close", emit, brain))
