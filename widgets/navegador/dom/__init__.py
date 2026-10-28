@@ -1,15 +1,9 @@
-"""widgets/navegador/dom.py — DOM/accessibility snapshot + human-like input primitives (split out of owner.py,
-2026-08-17 modularization pass). Page-parametric functions with no module-global coupling: `page`/`h`/`mouse`
-are always passed explicitly by the caller (TaskBrowser, in owner.py). The one thing that made this NOT a clean
-move before this session's `owner.py` dead-code deletion: `_human_move`/`_human_click_at` used to fall back to
-owner.py's module-level `_mouse` when `mouse` was omitted — a fallback only the now-deleted module-level
-`agent_act()` ever relied on. With that gone, every surviving caller already passes `mouse` explicitly, so the
-parameter is required here and this file has zero dependency on owner.py.
+"""widgets/navegador/dom — DOM/accessibility snapshot + human-like input primitives. Page-parametric, with no
+module-global coupling: `page`/`h`/`mouse` are always passed explicitly by the caller (TaskBrowser, in owner.py),
+so this package has zero dependency on owner.py, which re-exports these names as bare names.
 
-Re-exported from owner.py, since TaskBrowser's methods (which stay there) reference these as bare names.
-
-A package since refactor2710-12: `describe` (the snapshot), `human` (mouse and keyboard) and `extract_js` (the
-listing extractor run in the page). This facade re-exports every name."""
+Modules: `describe` (the snapshot), `human` (mouse and keyboard) and `extract_js` (the listing extractor run in the
+page). This facade re-exports every name."""
 from __future__ import annotations
 
 import asyncio

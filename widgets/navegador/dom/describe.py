@@ -1,6 +1,5 @@
 """The page as the automator reads it: one line per interactive element (`[ref] role "name"`), described in
-bulk in the page. Moved out of `dom.py`; module names are read through the package (`_f.<name>`).
-"""
+bulk in the page. Names are read through the package (`_f.<name>`)."""
 from __future__ import annotations
 
 from widgets.navegador import dom as _f
@@ -36,9 +35,8 @@ async def _describe_el(h) -> tuple[str, str]:
     return role, " ".join((name or "").split())
 
 
-# BULK description (V2-036, performance fix #1): per-element `_describe_el` did ~7 `await`s each × up to 60 = hundreds
-# of round trips that HELD the GIL in the uvicorn loop → starving the voice audio pump (choppy). This JS computes
-# role+name+visibility for ALL interactive elements in ONE call.
+# BULK description (V2-036): ONE JS call computes role+name+visibility for ALL interactive elements; per-element awaits
+# (hundreds of round trips) held the GIL in the uvicorn loop and starved the voice audio pump.
 _JS_DESCRIBE = r"""
 els => els.map(e => {
   const tag = e.tagName ? e.tagName.toLowerCase() : '';

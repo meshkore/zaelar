@@ -1,18 +1,14 @@
-"""The in-page extractor of real LISTINGS from a results grid (`_JS_EXTRACT`), moved out of `dom.py`.
-
-It is ONE arrow function run in the page. Its text is held in two literals joined back into the same string: the
-card helpers (name, price, phone) here, the walk over the page's links and the row filter in `extract_js_rows.py`.
+"""The in-page extractor of real LISTINGS from a results grid (`_JS_EXTRACT`): ONE arrow function run in the page,
+held in two literals joined into the same string — the card helpers (name, price, phone) here, the walk over the
+page's links and the row filter in `extract_js_rows.py`.
 """
 from __future__ import annotations
 
 from widgets.navegador.dom.extract_js_rows import _JS_EXTRACT_ROWS
 
-# Extractor for real LISTINGS from a results grid (runs in the page) → {title,price,tel,url,image}.
-# Hardened (TASK 4): REQUIRE an actionable datum (see V2-240 — it used to require a PRICE, which is what a
-# SHOPPING errand leaves behind and nothing else does), EXCLUDE ads/tracking
-# (doubleclick/googleads/.../campaign utm), and **dedup by LISTING** (same /item/ or same pathname → 1 only, so
-# 30 links to the same listing collapse into one). Prioritize listing links (/item/, /p/, /producto, /anuncio).
-# The FINE relevance filtering (this is an enduro bike, not a "Moto G" phone) is done by the model in summarize.
+# Extractor for real LISTINGS from a results grid (runs in the page) → {title,price,tel,url,image}. REQUIRES an
+# actionable datum (V2-240: price or phone), EXCLUDES ads/tracking, and dedups by LISTING (same /item/ or pathname →
+# one). Listing links (/item/, /p/, /producto, /anuncio) first; FINE relevance is the model's, in summarize.
 _JS_EXTRACT_HELPERS = r"""
 (limit) => {
   const out=[], seen=new Map();   // listing key → ITS ROW (V2-324: keep the second complete anchor)

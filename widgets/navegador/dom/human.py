@@ -1,6 +1,5 @@
 """Human-like input: a curved mouse path with jitter, clicks on a handle or a point, typing with uneven delays.
-Moved out of `dom.py`; module names are read through the package (`_f.<name>`).
-"""
+Names are read through the package (`_f.<name>`)."""
 from __future__ import annotations
 
 import asyncio
@@ -31,12 +30,8 @@ async def _human_move(page, tx: float, ty: float, mouse: dict) -> None:
 
 
 async def _human_click_handle(page, h, mouse: dict) -> None:
-    # V2-247 — SCROLL INTO VIEW ES UNA CORTESÍA, NO EL CLIC. Traer el elemento a la vista existe para que el clic
-    # humano caiga donde el usuario lo vería; si no se puede (elemento tapado, dentro de un acordeón cerrado, sin
-    # layout, o despegado a mitad), el clic sigue siendo posible: `h.click()` de Playwright hace su propio scroll
-    # y su propia espera. Sin este `try`, un fallo de la CORTESÍA se llevaba por delante la acción entera y el
-    # worker lo leía como un callejón sin salida — medido por el arnés el 2026-08-21: tres
-    # `ElementHandle.scroll_into_view_if_needed` con Exit code 1 en un mismo worker, y ese worker muerto.
+    # V2-247 — scroll-into-view is a COURTESY, not the click: if it fails (covered, collapsed, no layout, detached),
+    # `h.click()` still does its own scroll and wait, so a failed courtesy must not kill the action.
     try:
         await h.scroll_into_view_if_needed(timeout=5000)
     except Exception:  # noqa: BLE001
