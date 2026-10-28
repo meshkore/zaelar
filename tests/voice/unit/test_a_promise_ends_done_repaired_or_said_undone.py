@@ -126,7 +126,8 @@ def test_no_card_and_an_owed_order_still_ends_honestly(monkeypatch):
     """refactor2710-03: the BRIEF says an act was owed (an order), never the words — the same three replies, read by
     the brief alone."""
     monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: "order" if b == "ORDER" else "")
-    for said in ("Lo hago ahora mismo: le quito el silencio.", "¿Cuál de los dos quieres que abra?", ""):
+    # a reply that ASKS him («¿Cuál de los dos quieres que abra?») ends as «asked», never «undone» (node 2.923)
+    for said in ("Lo hago ahora mismo: le quito el silencio.", "Ya está abierto el primero.", ""):
         assert pk.close(said, {}, acted=False, brief="ORDER"), said
         assert pk.close(said, {}, acted=False, brief=None) == "", "no order in the brief: nothing owed"
 
