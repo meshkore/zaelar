@@ -249,17 +249,73 @@ def test_a_yes_resolves_the_same_cluster_row_whatever_channel_it_came_from(chann
     assert not wc.pending()
 
 
-def test_the_agenda_invitation_is_decided_once_at_the_door_and_published_after():
-    """Kept as a FOLLOW-UP, not a second gate: `invite.run` executes what the door already decided through the
-    agenda's `consent_scope` — it never asks consent itself (its own refusals are a missing fact or a doubt)."""
-    import inspect
+STRANGER = {"who": "lena@example.org", "meeting": "Call with Rowan"}
+AGREED = {"who": "rowan@example.com", "meeting": "Call with Rowan"}
 
-    from widgets.agenda import invite
-    src = inspect.getsource(invite.run) + inspect.getsource(invite._mail_invitation)
-    assert "consent" not in src and "confirm" not in src
+
+def _invitation_scene(monkeypatch) -> list:
+    """A meeting with Rowan on his agenda (no calendar behind it), a mail account to send from; returns the outbox."""
+    import time
+
+    from connectors.email import config as mailcfg
+    from connectors.messaging import ingest
+    from widgets.agenda import data as agenda, gcal
+    db = agenda.load_db()
+    db["meetings"] = [{"id": "m1", "title": "Call with Rowan", "date": time.strftime("%Y-%m-%d",
+                       time.localtime(time.time() + 86400)), "startTime": "10:00", "endTime": "10:30",
+                       "attendees": ["rowan@example.com"]}]
+    wstore.save("agenda", db)
+    monkeypatch.setattr(gcal, "svc", lambda: None)
+    monkeypatch.setattr(mailcfg, "address", lambda: "me@example.com")
+    outbox = []
+    monkeypatch.setattr(ingest, "publish_send", outbox.append)
+    return outbox
+
+
+def _invite_after_the_door(monkeypatch):
+    """What runs once the door said yes, with his «ask» rule standing: every consent read is recorded."""
+    from widgets import confirm as wc
+    from widgets.agenda import data as agenda
+    consent.set_class("calendar.invite_new_party", "ask")
+    reads = []
+    for name in ("decide", "decide_act", "class_policy"):
+        real = getattr(consent, name)
+        monkeypatch.setattr(consent, name, lambda *a, _r=real, _n=name, **k: reads.append(_n) or _r(*a, **k))
+    monkeypatch.setattr(wc, "request", lambda *a, **k: reads.append("confirm.request"))
+    return agenda.apply_action("invite", STRANGER), reads
+
+
+def test_the_agenda_invitation_is_decided_once_at_the_door_and_published_after(monkeypatch):
+    """A FOLLOW-UP, not a second gate: the door decides by the call's class (a third party asks by default, a guest
+    already in the meeting does not, his rule moves it), and what runs after its yes never asks consent again."""
     from nucleo.flash import frontend
+    from widgets import actions as wa
+    outbox = _invitation_scene(monkeypatch)
     assert frontend._policy_key("agenda", "invite", {"consent_class": "calendar.invite_new_party"},
                                 {"who": "stranger@example.com"}) == "calendar.invite_new_party"
+    assert frontend.action_mode_now("agenda", "invite", STRANGER) == wa.CONFIRM, "a third party is his to grant"
+    assert frontend.action_mode_now("agenda", "invite", AGREED) == wa.FAST, "the guest already in it is not"
+    consent.set_class("calendar.invite_new_party", "allow")       # «invita a quien haga falta sin preguntarme»
+    assert frontend.action_mode_now("agenda", "invite", STRANGER) == wa.FAST
+    res, reads = _invite_after_the_door(monkeypatch)
+    assert res["ok"] and res["invited"] == ["lena@example.org"], res
+    assert [(o["to"], o["ics_method"]) for o in outbox] == [("lena@example.org", "REQUEST")]
+    assert reads == [], f"the invitation asked consent a second time: {reads}"
+
+
+def test_the_disarm_an_invitation_that_gates_itself_asks_twice(monkeypatch):
+    """Disarm: an `invite.run` that reads consent itself stops the invitation the door already let through."""
+    from widgets.agenda import invite
+    outbox = _invitation_scene(monkeypatch)
+    real = invite.run
+
+    def _second_gate(db, payload):
+        if consent.asks(consent.decide_act("calendar.invite_new_party")):
+            return {"ok": False, "error": "¿se la mando?"}
+        return real(db, payload)
+    monkeypatch.setattr(invite, "run", _second_gate)
+    res, reads = _invite_after_the_door(monkeypatch)
+    assert not res["ok"] and outbox == [] and reads, "the mutation did not take"
 
 
 def test_a_workers_booking_click_asks_by_default_and_his_rule_decides_it():
