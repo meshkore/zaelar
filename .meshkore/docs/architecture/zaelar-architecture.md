@@ -118,7 +118,7 @@ drives the canvas through a thin tag contract (§2).
 │    CodeAgent (Claude Code/Codex), reached via escalate_to_slowbrain      │
 │  • Loop nucleo/pulse/loop.py (~1 Hz) + cron nucleo/pulse/scheduler.py + sparks.py    │
 │  • Memory: memory/ (SQLite zaelar.db). Persona/instructions injected     │
-│    each connect from widgets/brief.py + nucleo/flash/prompt.py           │
+│    each connect from widgets/brief.py + nucleo/turn/prompt/              │
 └──────────────────────────────────────────────────────────────────────────┘
         │ POST /widgets/generate · /widgets/modify
         ▼
@@ -448,7 +448,7 @@ already in place: the widget generator (§5) creates code+storage+declared actio
 the pattern to make declarable; the brief is data-driven. Two named first-class concepts come out of it:
 
 - **BRAIN RULES** = the hardcoded primal genetics every agent is born with: the language lock + operating layer
-  (`nucleo/flash/prompt.py`), the per-tool "when yes/no" in `router.TOOLS` descriptions (§8), and the
+  (`nucleo/turn/prompt/`), the per-tool "when yes/no" in `router.TOOLS` descriptions (§8), and the
   deterministic invariant guards (`hard_interrupt`, `looks_like_*`, memory precision gates, `danger.py`).
   Versioned with the code; never edited by use.
 - **USER RULES** = per-user behaviour rules that live in the **STATE** (`state.rules`, born empty), recognized by

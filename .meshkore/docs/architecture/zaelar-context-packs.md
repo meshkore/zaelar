@@ -4,7 +4,7 @@
 kinds of prompt it is. Three of them already had a home; this is the fourth, and putting a phase instruction
 in one of the other three is a specific, repeatable defect.
 
-Code: `nucleo/turn/prompt/packs/`. Seam: `nucleo/flash/prompt.py::build_flash_system`.
+Code: `nucleo/turn/prompt/packs/`. Seam: `nucleo/turn/prompt/builder.py::build_flash_system` (the `packs` block of `builder.BLOCKS`).
 
 ---
 
@@ -14,7 +14,7 @@ Code: `nucleo/turn/prompt/packs/`. Seam: `nucleo/flash/prompt.py::build_flash_sy
 |---|---|---|---|
 | identity + resources | ALWAYS — it is what the agent IS | `_lang_lock` + `_flash_layer` | yes, it IS the stable prefix |
 | style directive | a preference the operator gave this session | `_directive_block` | no |
-| **phase context** | **a STRETCH of the relationship** | **`context_packs.compose()`** | **never** |
+| **phase context** | **a STRETCH of the relationship** | **`packs.compose()`** | **never** |
 | live state | this second | `live_state()` | never |
 
 The ordering in the composed prompt is: identity → memory/recall → **directive → packs** → live state.
@@ -103,7 +103,7 @@ pack: a lane that never reaches a model would never read the pack's text.
 
 A pack closing emits `kind="phase"` (family `flash`), with the reason and the turn count. It happens once per
 phase per install, which is exactly why it needs its own kind rather than being lost among the turn's rows.
-`context_packs.state()` reports what is registered and what is running.
+`packs.state()` reports what is registered and what is running.
 
 ---
 

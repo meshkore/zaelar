@@ -39,7 +39,7 @@ these → full workflow:
 - **Retriever / scoring** — `memory/retriever.py` (vec/FTS/RRF, weights α/β/γ/δ, graph_expand),
   `memory/embeddings/`.
 - **Read speeds** — `memory.state()`, `memory.recent_short()`, `memory.query()`; and the FlashBrain cache
-  `nucleo/flash/memory_cache.py` + `nucleo/flash/prompt.py` (`needs_recall`/`compose_recall`).
+  `nucleo/flash/memory_cache.py` + `nucleo/flash/recall_heuristics.py` (`needs_recall`) + `nucleo/turn/prompt/recall.py` (`compose_recall`).
 - **Consolidator / forgetting** — `memory/consolidator.py` (promote/dedup/decay/evict) and its trigger from
   `nucleo/pulse/loop.py`.
 - **Observability / viewer** — `memory/viewer.py` + `GET /api/memory/viewer/*` (`server/memory_viewer_api.py`),

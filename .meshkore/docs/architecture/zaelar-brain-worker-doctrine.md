@@ -110,7 +110,7 @@ and then stops being announced without stopping being true.
 
 ## 5. What the reasoning half is allowed to look like
 
-The worker prompt (`nucleo/dispatch_prompts.py`) is where breadth lives, and it must stay **method, not script**:
+The worker prompt (`nucleo/workers/prompts/`) is where breadth lives, and it must stay **method, not script**:
 
 - `_METHOD_BLOCK` — understand (including the implicit constraints) → plan and recall → act where it truly lives →
   reflect it in the widgets → **verify for real** → iterate until certified. Generalises because it names no domain.

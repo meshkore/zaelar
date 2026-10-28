@@ -798,7 +798,7 @@ survives a crash/restart to remind you that you left it halfway.
 
 ## Reading in the turn — THREE speeds (how requests come in and data goes back)
 
-When a voice/chat turn arrives, the FlashBrain composes its prompt in `nucleo/flash/prompt.py::build_flash_system`.
+When a voice/chat turn arrives, the FlashBrain composes its prompt in `nucleo/turn/prompt/builder.py::build_flash_system`.
 The memory enters through **three read paths with three different speeds, aligned with latency** (the voice turn
 NEVER does synchronous memory I/O on the event loop).
 

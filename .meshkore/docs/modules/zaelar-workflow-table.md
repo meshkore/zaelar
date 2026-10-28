@@ -50,7 +50,7 @@ That reasoning is about **routing** — which worker gets the task. This table n
 **3 · It is never carried in a prompt.** A table that had to be pasted into the context to be useful would
 cost more than the work it saves. The per-turn cost is one regex sweep plus one indexed SELECT. The only
 thing that ever reaches a prompt is **one line, and only when something is known** —
-`dispatch_prompts._known_route_line`, which names the agent that already served this kind of errand, or says
+`nucleo/workers/prompts/context.py::_known_route_line`, which names the agent that already served this kind of errand, or says
 the mesh is known empty so the worker does not make the trip. When nothing is known it writes nothing.
 
 ## TTL, and why the negative one is shorter
