@@ -65,6 +65,7 @@ _CAT = {
     # ── Brain Workers (ON) — ASYNC work: worker sessions, the internal Chromium they open for browsing,
     # and backed/background processes that run outside the turn. The browser belongs HERE (2026-08-09): to the
     # operator, “open the browser” is not its own family; it is what a worker does when needed.
+    "step": "worker",   # refactor2710-15: a step of an errand kept off his screen (a show that was not its deliverable)
     "task": "worker", "verdict": "worker", "worker_start": "worker", "navegador": "worker",
     "background": "worker", "backed": "worker",
     # `flow` = EXPLICIT flow closure (V2-090/observability): before this, "closed" was only ever INFERRED from the

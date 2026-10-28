@@ -14,20 +14,9 @@ from .when import _strip_accents
 
 
 # ── THE SAME COMMITMENT WRITTEN TWICE (V2-208) ────────────────────────────────────────────────────────────────
-# Measured on `remember-and-remind-deadline` (2026-08-20 14:39), from the sandbox's own `state.json`:
-#
-#     meetings = [«renovar el seguro del coche» 2026-08-27, «Renovar el seguro del coche» 2026-08-27]
-#
-# Two rows for one obligation, differing by an article and a capital letter. V2-194 fixed this for the BACKSTOP
-# (`router_guards.already_in_agenda`, which checks before dispatching) and the model's OWN data-op has no such
-# guard: two turns, two `add_meeting`, nobody comparing. The guard belongs HERE, next to the write, so every
-# writer present and future gets it — that is the same reasoning that put `already_in_agenda` next to its write
-# rather than inside the pure decision.
-#
-# Why the TIME is part of the key and not just the day: two viewings of the same flat at 10:00 and 17:00 are two
-# meetings, and a duplicate that is silently dropped is worse than a duplicate that is visible. So the rule is
-# narrow ON PURPOSE — same day, same time, same title once articles/case/punctuation are gone. A legitimate
-# repeat carries a different hour or a different title; what it never carries is the same three.
+# Two rows for one obligation, differing by an article and a capital letter: the guard belongs HERE, next to the
+# write, so every writer gets it. The TIME is part of the key on purpose (two viewings at 10:00 and 17:00 are two
+# meetings): same day, same time, same title once articles/case/punctuation are gone.
 # …plus the widget's own category nouns (V2-473 round 5): «Cita dentista con los niños» and «Dentista con
 # los niños» are the SAME commitment — the model re-titles on a retry and the dedup let both rows in, each
 # spawning its default reminder. The category noun of the widget itself is title noise, not identity.

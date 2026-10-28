@@ -213,12 +213,8 @@ def _goto(db: dict, tab: str) -> None:
     """Order the card to bring a face forward — the SAME rail `show_tab` writes (V2-742): a sequence, so the
     card obeys it once and a re-render never fights the operator's hands.
 
-    V2-755. Measured live (session 665e666a, 2026-09-23): he went back to the catalog with a video still
-    loaded and then said «Vale, ahora ponme el vídeo número seis». `play_result` fired, the sixth video
-    swapped into the player — and the card stayed on the catalog, because the auto-jump in `widget.js` only
-    fires when the card had NO video before (`!st.key.slice(2)`). Nothing on screen changed. He said «No lo
-    estás poniendo», then «Coge el vídeo número seis y reprodúcelo», then «No lo consigues», and the third
-    attempt was eaten by the re-emit guard because the action HAD run, twice, invisibly.
+    V2-755: a video swapped in while the card sat on the catalog changed nothing on screen, because the
+    auto-jump in `widget.js` only fires when the card had NO video before.
 
     So the rule the redesign already stated («a video ARRIVING means watching it, leaving the dashboard up
     while it plays underneath is the confusion this exists to end») is declared HERE, where the order is

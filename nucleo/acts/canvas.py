@@ -26,11 +26,11 @@ def apply(op: str, wid: str = "", *, src: str, text: str = "", role: str = "", r
         req = request if request is not None else _turn.request_for(extra)
         v = _arb.decide(op, wid, src, action=str(extra.get("action") or ""), **req)
         _turn._emit_verdict(op, wid, src, str(extra.get("action") or ""), v, shadow=False, brief=req.get("verdict"))
-        # an arbiter that broke fails open; a REPORT of what the screen already did is recorded, judged, never held
         if not v.allow and v.rule != "arbiter-error" and not canvas_src.is_report(src):
             return False
-    if emit is None:
-        from voice.observer import emit
+        if op == "show" and __import__("nucleo.circuit", fromlist=["x"]).a_step_not_a_show(src, wid, emit=emit):
+            return False       # refactor2710-15: an errand shows only its deliverable; its steps stay off his screen
+    emit = emit or __import__("voice.observer", fromlist=["emit"]).emit
     with _turn.judged():
         emit("widget", op, **({"text": text} if text else {}), **({"role": role} if role else {}), extra=fields)
     return True

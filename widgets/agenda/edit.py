@@ -1,23 +1,12 @@
 """widgets/agenda/edit.py — the everyday edits an appointment gets after it is written (V2-770).
 
-The agenda could create, move, rename and cancel. Walking the list of what a person actually does with a
-calendar, four ordinary things had no door, and a missing door is not a refusal the model can make — it is
-a promise it narrates (the V2-540 rule):
+Four ordinary edits had no door, and a missing door is a promise the model narrates (the V2-540 rule):
+  · open / close the DETAIL card by voice (`open_meeting` / `close_meeting`, a counter in `view`, honoured once);
+  · an END time («que dure hasta las cinco»), which `update_meeting` silently dropped;
+  · moving ONE day of a series: the series skips it and a single appointment holds the new day and hour;
+  · cutting a series from a date on («a partir de enero ya no hay piano»).
 
-  · «ábreme la cita del dentista» / «enséñame la ficha del piano» — the DETAIL card only opened on a click;
-    «ciérrala» had nothing to close. `open_meeting` / `close_meeting` push it the way `show_day` pushes a
-    day: a counter in `view`, honoured once by the card.
-  · «que dure hasta las cinco» — an END time could not be said at all: `move_meeting` kept the duration and
-    `update_meeting` silently dropped `endTime` (a key it knew and never read, so not even `ignored`).
-  · «este martes el piano es a las cinco», «el piano de este martes pásalo al miércoles» — ONE day of a
-    series could not move; the whole series moved with it. Now a dated move of a series detaches that day:
-    the series skips it and a single appointment holds the new day and hour.
-  · «a partir de enero ya no hay piano» — a series could only be cut by knowing the field (`until`).
-
-And one inconsistency: `cancel_meeting` found an appointment tolerantly («renovar seguro coche» →
-«Renovar el seguro del coche»), `move_meeting`/`update_meeting` by exact substring. The same reference now
-finds the same row whatever the verb (`find`).
-
+And one inconsistency: the same reference now finds the same row whatever the verb (`find`), tolerantly.
 `data.py` sits at its line ceiling; every piece lives here and it calls in.
 """
 from __future__ import annotations
@@ -27,6 +16,7 @@ import time as _t
 from datetime import date as _date
 
 from . import recur
+from widgets.agenda import series as _series_m
 from .when import _m2, _resolve_date, _resolve_time, _today
 
 #: The keys that say WHEN — present in an `update_meeting`, they are a reschedule and go through the one
@@ -123,7 +113,7 @@ def open_detail(db: dict, payload: dict) -> dict:
         return {"ok": False, "error": missing(db, payload)}
     m = hits[0]
     day = _day_of(m, payload)
-    if day and not recur.on(m, day):
+    if day and not _series_m.on(m, day):
         day = _day_of(m, {})
     _push(db, sel=day, open={"title": str(m.get("title") or ""), "date": day})
     touch(db, m)

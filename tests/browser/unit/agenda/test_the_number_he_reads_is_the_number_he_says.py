@@ -82,20 +82,21 @@ def test_every_task_action_resolves_against_rows_that_exist(two_lists, action, f
 
 
 def test_the_REAL_index_publishes_a_row_under_every_key_its_own_manifest_declares():
-    """Over `tasklists.ref_rows` itself, not a fixture. The fixture above proves the RESOLVER works given
+    """Over `task_read.ref_rows` itself, not a fixture. The fixture above proves the RESOLVER works given
     the right rows; this proves the widget hands them over — and that is the half that was broken. A fixture
     that hardcodes both fields cannot fail when the widget stops publishing one of them (measured: that
     disarm came back green, so this exists)."""
     from widgets.agenda import tasklists
+    from widgets.agenda import task_read as _task_read_m
     db = {"tasks": [{"id": "t1", "title": "Pan", "status": "todo", "listId": "tl_c"}],
           "taskLists": [{"id": "general", "name": "General", "builtin": True},
                         {"id": "tl_c", "name": "La compra"}]}
-    fields = {r["field"] for r in tasklists.ref_rows(db)}
+    fields = {r["field"] for r in _task_read_m.ref_rows(db)}
     declared = {refs.id_field_for_action("agenda", a)
                 for a in ("done", "drop", "snooze", "not_now", "update_task", "delete_task",
                           "clear_list", "rename_list", "delete_list")}
     assert declared <= fields, f"the manifest names {sorted(declared - fields)} and the index publishes none"
-    for r in tasklists.ref_rows(db):
+    for r in _task_read_m.ref_rows(db):
         assert isinstance(r.get("no"), int) and r["no"] >= 1, f"a row with no printed number: {r}"
 
 

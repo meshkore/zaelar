@@ -53,6 +53,7 @@ def test_every_task_verb_is_declared_where_the_model_can_pick_it():
                  "add_list", "rename_list", "clear_list", "delete_list", "show_tasks"):
         assert name in m["actions"], f"«{name}» is unreachable by voice"
     from widgets.agenda import tasklists
+    from widgets.agenda import task_read as _task_read_m
     # …and the other direction: a declared action nobody handles is a dead entry the gate rejects.
     for name in tasklists.ACTIONS:
         assert name in m["actions"], f"«{name}» is handled and undeclared"
@@ -152,8 +153,9 @@ def test_a_title_that_CONTAINS_a_number_is_not_a_position(ag):
     """«comprar 2 barras de pan» is a thing to do, not «item 2» — and reading it as a position would act on
     a row he never mentioned. The rule: it is a number only when the number is ALL that is left."""
     from widgets.agenda import tasklists
-    assert tasklists.number_in("comprar 2 barras de pan") is None
-    assert tasklists.number_in("el ítem 2") == 2
+    from widgets.agenda import task_read as _task_read_m
+    assert _task_read_m.number_in("comprar 2 barras de pan") is None
+    assert _task_read_m.number_in("el ítem 2") == 2
     ag.apply_action("add_list", {"name": "Casa"})
     ag.apply_action("add_task", {"title": "Pintar", "list": "casa"})
     ag.apply_action("add_task", {"title": "Comprar 2 barras de pan", "list": "casa"})

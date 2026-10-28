@@ -129,7 +129,8 @@ def test_the_list_comes_back_BEFORE_its_rows_or_they_are_homeless(ag, obra):
     ag.apply_action("delete_list", {"list": "Obra"})
     ag.apply_action("restore", {})
     from widgets.agenda import tasklists
-    assert _titles(ag, tasklists.GENERAL) == []
+    from widgets.agenda import task_read as _task_read_m
+    assert _titles(ag, _task_read_m.GENERAL) == []
 
 
 def test_he_can_name_which_removal_he_wants_back(ag, obra):
@@ -149,6 +150,7 @@ def test_restoring_twice_does_not_duplicate_the_row(ag, obra):
 
 def test_an_empty_trash_refuses_and_names_what_it_has(ag, obra):
     from widgets.agenda import tasklists
+    from widgets.agenda import task_read as _task_read_m
     db = ag.load_db()
     out = tasklists.apply("restore", {"what": "una lista que nunca existió"}, db)
     assert out["ok"] is False
@@ -161,6 +163,7 @@ def test_an_empty_trash_refuses_and_names_what_it_has(ag, obra):
 def test_the_trash_is_bounded(ag, obra):
     """It rides in the agenda's own store. An unbounded undo log is a store that grows for ever."""
     from widgets.agenda import tasklists
+    from widgets.agenda import task_read as _task_read_m
     db = ag.load_db()
     for i in range(tasklists.TRASH_MAX + 6):
         tasklists.apply("add_task", {"title": f"t{i}", "list": "Obra"}, db)
@@ -173,4 +176,5 @@ def test_the_way_back_is_declared_where_the_model_can_pick_it():
     m = json.loads((ENGINE / "widgets" / "agenda" / "manifest.json").read_text(encoding="utf-8"))
     assert "restore" in m["actions"]
     from widgets.agenda import tasklists
+    from widgets.agenda import task_read as _task_read_m
     assert "restore" in tasklists.ACTIONS
