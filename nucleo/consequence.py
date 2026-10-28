@@ -71,7 +71,38 @@ def passes(door: str, **what) -> bool:
     if ledger is not None:
         ledger.append(row)
     _observe(row)
+    if not blocked:
+        _note_reached(door)
     return not blocked
+
+
+#: The doors each turn (by its trace) went THROUGH, bounded: «did this turn start or reach an errand?» is read here,
+#: once, instead of from the flags each lane keeps (refactor2710-99: a worker started by a fallback lane was counted
+#: by none of them, and the turn said «not done» over a running errand).
+_REACHED: dict[str, set] = {}
+
+
+def _note_reached(door: str) -> None:
+    try:
+        from voice import trace as _trace
+        if (t := _trace.current()):
+            _REACHED.setdefault(t, set()).add(door)
+            while len(_REACHED) > 64:
+                _REACHED.pop(next(iter(_REACHED)))
+    except Exception as e:  # noqa: BLE001 — a turn that cannot be told apart reads as «nothing reached»
+        from loguru import logger
+        logger.debug(f"consequence: reach not noted — {e!r}")
+
+
+def reached(*doors: str, trace: str | None = None) -> bool:
+    """Did this turn (its trace, or `trace`) go through any of `doors` — the effect really allowed, not refused?"""
+    if trace is None:
+        try:
+            from voice import trace as _trace
+            trace = _trace.current() or ""
+        except Exception:  # noqa: BLE001
+            trace = ""
+    return bool(trace) and bool(_REACHED.get(trace, set()) & set(doors))
 
 
 def _observe(row: dict) -> None:

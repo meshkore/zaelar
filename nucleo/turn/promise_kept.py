@@ -298,12 +298,24 @@ def landed(call, outcome: dict, *, run, acted: dict, data_done: dict, escalate_r
     return None
 
 
+def an_errand_was_reached() -> bool:
+    """This turn STARTED a worker, injected into one or answered one — whatever lane did it (`consequence.reached`).
+    Then its verdict is `started`, never «not done» (refactor2710-99, docs-report-lands-as-document__es)."""
+    try:
+        from nucleo import consequence
+        return consequence.reached("worker.spawn", "worker.inject", "worker.answer")
+    except Exception as _e:  # noqa: BLE001
+        _log.debug(f"promise_kept: errand reach unreadable: {_e!r}")
+        return False
+
+
 def say_after(reply: str, data_done: dict, *, acted, send, speech, window: list, emit, turn=None) -> str:
     """The voice turn end: a deferred promise's errand started, else the honest line, said by the mouth
     (`nucleo/turn/reply.py`, verdict `cannot` or `unmet`) after what streamed and kept in the dialog window.
     `turn` = `(brief, model_calls, op_text, escalate)` of the voice turn, or None."""
     outcome = data_done.setdefault("promise", {}) if isinstance(data_done, dict) else None
     brief = turn[0] if turn else None
+    acted = acted or an_errand_was_reached()
     if turn and start_deferred(reply, outcome, acted=bool(acted), brief=brief, model_calls=turn[1], op_text=turn[2],
                                escalate=turn[3], emit=emit):
         return ""
