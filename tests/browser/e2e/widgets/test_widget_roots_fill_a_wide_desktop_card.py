@@ -33,6 +33,7 @@ sys.path.insert(0, ENGINE)
 # WIDGET catalog + real view_data() reused from the phone-render harness rather than re-invented — the same
 # discovery the operator already trusts to measure "every system widget", one CARD size apart.
 from tests.browser.e2e.mobile.render_widgets_on_a_phone import widget_ids, widget_data  # noqa: E402
+from widgets.client_files import SHARED_CLIENT_MODULES  # noqa: E402
 
 CARD_WIDTH = 900   # well past every old cap in the catalog (440-920px) — a card the operator deliberately widened
 MIN_FRACTION = 0.9  # the root must track the card, not merely be "somewhat wider than before"
@@ -75,7 +76,7 @@ def widths(playwright_available):
             path = r.request.url.split("://", 1)[1].split("/", 1)[1].split("?")[0]
             if path in ("page", ""):
                 return r.fulfill(status=200, body=PAGE, headers={"content-type": "text/html; charset=utf-8"})
-            if path.startswith("widgets/"):
+            if path.startswith("widgets/") or "/" + path in SHARED_CLIENT_MODULES:   # + the shell's icon set
                 fp = os.path.join(ENGINE, path)
             else:
                 return r.fulfill(status=404, body="")

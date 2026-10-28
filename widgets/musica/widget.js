@@ -29,8 +29,8 @@
 // The hidden YouTube-audio player is reused between re-renders (persistent `_ytHost`): rebuilding the view never
 // reloads the iframe, which would restart the song.
 //
-// ICONS are inline SVG in the SAME visual language as the app shell (frontend/app/lib/icons.js), duplicated
-// locally because widget.js cannot import from frontend/app.
+// ICONS are the app shell's own (frontend/app/lib/icons.js), imported through js/shared.js — the one app-shell file
+// a widget may import (widgets/client_files.py serves it).
 //
 
 import { albumView, artistView, searchView } from "./js/browse.js";

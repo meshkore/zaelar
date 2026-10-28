@@ -171,7 +171,7 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
   does the moving: a widget never detects other screens itself. Policy: `widgets/screen_policy.py`. Before calling it
   done: `python -m tests.widget_harness --two-screens <id>` (a desktop and a phone browser) and the operator's manual pass
   (`--manual <id>`) — `.meshkore/docs/ops/zaelar-two-screen-test.md`.
-- **Self-contained**: no external libraries, no CDN, no network from `widget.js`. Inject your `<style>` once (id-guarded).
+- **Self-contained**: no external libraries, no CDN, no network from `widget.js`. The ONE import from outside your folder is the app shell's icon set, written exactly `import * as I from "/frontend/app/lib/icons.js";` (any other spelling is refused by the gate) — use its glyphs instead of drawing your own. Inject your `<style>` once (id-guarded).
 - **Security**: any web/3rd-party/user text → build DOM with `textContent` (NEVER `innerHTML` for untrusted data).
 - **Class names must not collide with `frontend/app/styles.css`'s global classes** (checked by the generator's
   validation gate — see below). Scoping your rules under your own root wrapper (`.hb-msg .conn{...}`) does NOT

@@ -22,6 +22,9 @@ def served(url: str) -> dict:
     route module's own pieces, not through an HTTP client: a sync Playwright handler must not start an event loop."""
     from urllib.parse import parse_qs, urlsplit
     u = urlsplit(url)
+    if u.path in client_files.SHARED_CLIENT_MODULES:      # the app-shell modules a widget may import (V2-831 T-12)
+        return {"status": 200, "body": _ENGINE.joinpath(u.path.strip("/")).read_bytes(),
+                "headers": {"content-type": "text/javascript"}}
     parts = u.path.strip("/").split("/")                  # widgets/<id>/widget.js  ·  widgets/<id>/js/<name>
     v = "".join(c for c in (parse_qs(u.query).get("v") or [""])[0] if c.isalnum())[:32]
     rel = ["widget.js"] if parts[2:] == ["widget.js"] else ["js", client_files._safe(parts[-1])]
@@ -41,6 +44,8 @@ async def mount(pg, widget_id: str, origin: str = "http://zaelar.test") -> None:
     """Load `/widgets/<id>/widget.js` as a module in `pg` and expose its `render` as `window.render`."""
     for tail in ("widget.js*", "js/**"):            # only the client: the test's own routes (assets…) stay its own
         await pg.route(f"{origin}/widgets/{widget_id}/{tail}", _serve)
+    for url in client_files.SHARED_CLIENT_MODULES:
+        await pg.route(f"{origin}{url}*", _serve)
     await pg.evaluate("async id => { window.render = (await import(`/widgets/${id}/widget.js`)).render; }",
                       widget_id)
 

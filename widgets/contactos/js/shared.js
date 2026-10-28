@@ -23,9 +23,11 @@ export const CHANNELS = [
 // y nos llevan al sistema de conectores». The contract is written up in
 // `.meshkore/docs/conventions/zaelar-widget-header-standard.md`; the shape copied here is the agenda's
 // (V2-679), which copied messaging's. Icons, class names and behaviour are deliberately one-for-one.
+import * as I from "/frontend/app/lib/icons.js";
 export const SVG_NS = "http://www.w3.org/2000/svg";
 
-export function svgEl(paths, opts){
+export function svgEl(paths, opts){   // a provider mark's path data, or a shared icon's markup (lib/icons.js)
+  if(typeof paths === "string" && paths.startsWith("<svg")){ const t=document.createElement("template"); t.innerHTML=paths; const s=t.content.firstElementChild; s.setAttribute("aria-hidden","true"); return s; }
   const svg=document.createElementNS(SVG_NS,"svg");
   svg.setAttribute("viewBox","0 0 24 24"); svg.setAttribute("aria-hidden","true");
   svg.setAttribute("fill", (opts&&opts.fill) || "none");
@@ -38,10 +40,7 @@ export function svgEl(paths, opts){
   return svg;
 }
 
-export const ICO_PEOPLE = ["M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2","M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
-                    "M22 21v-2a4 4 0 0 0-3-3.87","M16 3.13a4 4 0 0 1 0 7.75"];
-export const ICO_PLUG   = ["M9 2v6","M15 2v6","M6 8h12v3a6 6 0 0 1-12 0z","M12 17v5"];
-export const ICO_SYNC   = ["M21 2v6h-6","M3 12a9 9 0 0 1 15-6.7L21 8","M3 22v-6h6","M21 12a9 9 0 0 1-15 6.7L3 16"];
+export const ICO_PEOPLE = I.USERS_ICON, ICO_PLUG = I.PLUG_ICON, ICO_SYNC = I.REFRESH_ICON;
 
 // The provider marks. Same source as the agenda's `CAL_SVG` so Google looks like Google in both.
 export const SRC_SVG = {
