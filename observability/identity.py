@@ -214,6 +214,13 @@ def note_real_activity() -> None:
         end_session("idle_timeout")
 
 
+def last_real_activity_ms() -> int | None:
+    """When REAL activity last happened (epoch ms), or None if never since the process started. Read-only: the idle
+    stop (`nucleo/idle_stop.py`) asks it, and asking never extends the clock."""
+    with _lock:
+        return _last_real_activity_ms["v"]
+
+
 def _agent_stopped() -> bool:
     """The server-side ⏻ switch (`nucleo/runstate`, V2-092). Fail-OPEN on purpose: a switch that cannot be read
     counts as RUNNING, because the cost of the two mistakes is not symmetric — wrongly refusing to open a session

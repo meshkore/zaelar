@@ -13,8 +13,11 @@ entries because it is the SAME app, so only the FIRST entry mounts them.
 """
 from __future__ import annotations
 
+import asyncio
 import importlib
 import inspect
+import os
+import threading
 from contextlib import asynccontextmanager
 
 from loguru import logger
@@ -31,13 +34,40 @@ async def start_the_engine(app) -> dict:
     return handles
 
 
+# THE STOP IS BOUNDED. A container platform sends a stop signal and kills the process a few seconds later if it is
+# still alive; an unbounded shutdown (a step waiting on a network close, a drain that never empties) turned every
+# stop into a kill. Each awaitable step gets STEP_TIMEOUT_S, and the whole shutdown gets a hard deadline after which
+# the process exits on its own with status 0 — the work a step could not finish in time is the work a kill would
+# have lost anyway, without the clean exit.
+STEP_TIMEOUT_S = float(os.getenv("ZAELAR_SHUTDOWN_STEP_S", "5"))
+DEADLINE_S = float(os.getenv("ZAELAR_SHUTDOWN_DEADLINE_S", "20"))
+
+
+def _arm_deadline(seconds: float) -> threading.Timer | None:
+    """From here on the process WILL end within `seconds`: a daemon timer that exits it if the shutdown (or a
+    non-daemon thread left behind) is still holding it. 0 disables it."""
+    if seconds <= 0:
+        return None
+
+    def _exit():
+        logger.warning(f"shutdown: still running after {seconds:.0f} s — exiting now")
+        os._exit(0)
+
+    t = threading.Timer(seconds, _exit)
+    t.daemon = True
+    t.start()
+    return t
+
+
 async def _stop(label: str, step) -> None:
     """One shutdown step — a zero-argument callable that imports what it needs and returns a coroutine or None. A
-    failure is said at debug level and never blocks the next step."""
+    failure or a timeout is said and never blocks the next step."""
     try:
         r = step()
         if inspect.isawaitable(r):
-            await r
+            await asyncio.wait_for(r, timeout=STEP_TIMEOUT_S)
+    except asyncio.TimeoutError:
+        logger.warning(f"shutdown: {label} did not finish in {STEP_TIMEOUT_S:.0f} s — moving on")
     except Exception as e:  # noqa: BLE001 — a shutdown step that fails must not stop the others
         logger.debug(f"shutdown: {label} failed: {e!r}")
 
@@ -99,4 +129,5 @@ async def lifespan(app):
     try:
         yield
     finally:
+        _arm_deadline(DEADLINE_S)
         await stop_the_engine(app, handles)
