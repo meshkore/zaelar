@@ -2980,6 +2980,11 @@
  {
   "id": "msg-es-mail-route",
   "lang": "es",
+  "connectors": [
+   "whatsapp",
+   "telegram",
+   "email"
+  ],
   "phrase": "Los correos de Amazon que vayan a Principal",
   "source": "V2-807 T-03 (2026-10-26): his mail criteria over the provider's categories are a verdict over what is declared, ES+EN",
   "screen": {
