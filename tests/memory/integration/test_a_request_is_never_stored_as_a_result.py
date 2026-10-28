@@ -76,6 +76,15 @@ def test_a_request_the_model_labels_a_result_is_stored_as_a_request(fresh_db, mo
     assert "result" not in kinds.values()
 
 
+def test_the_guard_is_what_keeps_it_out_disarm(fresh_db, monkeypatch):
+    """DISARM: with the grammar's demotion switched off, the same model reply lands as a `result` — so the test
+    above is held by `writer.distilled_kind`, not by the fixture."""
+    monkeypatch.setattr(writer, "distilled_kind", lambda raw: str(raw or "fact"))
+    _model_says(monkeypatch, _REQUESTS[0][1], "result")
+    _ingest(_REQUESTS[0][0])
+    assert _kinds().get(_REQUESTS[0][1]) == "result"
+
+
 def test_the_distiller_is_never_told_to_write_a_result():
     from nucleo.memory_agent.processor import distill_prompt
     assert 'kind="result"' not in distill_prompt._SYSTEM and "kind=result" not in distill_prompt._SYSTEM
@@ -103,6 +112,9 @@ def test_a_stored_request_is_shown_as_an_errand_not_as_something_known_about_him
     block, _op, stats = memapi.compose_state()
     known = block.split("[Lo que sabes de él")[1].split("[Encargos")[0]
     assert "capture su estilo" not in known and stats["errand_count"] == 1
+    errands = block.split("[Encargos")[1]
+    line = next(ln for ln in errands.splitlines() if "capture su estilo" in ln)
+    assert line.startswith("· pidió: ") and line.endswith("[sin resultado registrado]"), line
 
 
 def test_an_old_distilled_result_is_relabelled_a_request_and_a_circuit_result_is_kept(fresh_db):
@@ -117,3 +129,22 @@ def test_an_old_distilled_result_is_relabelled_a_request_and_a_circuit_result_is
     memdb.reset_db()
     kinds = {r["id"]: r["kind"] for r in memdb.get_db().query("SELECT id, kind FROM memories")}
     assert kinds[asked] == "request" and kinds[done] == "result"
+
+
+@pytest.mark.parametrize("verdict, kept", [("met", True), ("undeclared", False), ("unverifiable", False)])
+def test_a_finished_worker_writes_its_result_only_through_the_door(fresh_db, monkeypatch, verdict, kept):
+    """`workers/session.py` delivers a successful errand: its pill goes through `writer.result`, so a worker that
+    SAID it was done without a `met` verdict leaves no `result` behind."""
+    from types import SimpleNamespace
+    from nucleo.workers import session
+    monkeypatch.setattr(session, "operator_safe_summary", lambda s: s)
+    rec = SimpleNamespace(task_id=f"w-{verdict}", kind="web", goal="carpinteros en Soria", ok=True,
+                          verdict=verdict, result_summary="tres carpinteros en Soria")
+
+    async def scenario():
+        await memapi.start()
+        await session._deliver(rec)
+        await memqueue.get_queue().join()
+        await memapi.stop()
+    asyncio.run(scenario())
+    assert ("result" in _kinds().values()) is kept, _kinds()

@@ -55,7 +55,11 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
             t = (m.get("text") or "").strip().replace("\n", " ")
             if not t:
                 continue
-            (errands if m.get("kind") in _ERRAND_KINDS else salient).append(f"· {t[:140]}")
+            if m.get("kind") == "request":
+                # An ASK, never an outcome: what became of it lives in the task store, not in this pill.
+                errands.append(f"· pidió: {t[:140]} [sin resultado registrado]")
+            else:
+                (errands if m.get("kind") in _ERRAND_KINDS else salient).append(f"· {t[:140]}")
     except Exception:
         pass
     stats["salient_count"] = len(salient)
@@ -186,8 +190,8 @@ def _render(mission: str, sit: list[str], salient: list[str], errands: list[str]
             b += "\n[Lo que sabes de él, dalo por sabido sin buscar]\n" + "\n".join(salient)
         if errands:
             # Says what they ARE and nothing about what to do: «ignore» and «handle» are both measured failures.
-            b += ("\n[Encargos que te hizo en algún momento — NO son hechos sobre él, y pueden estar ya "
-                  "hechos o caducados. No empieces a trabajar en uno salvo que él lo saque en este turno]\n"
+            b += ("\n[Encargos que te hizo en algún momento — NO son hechos sobre él, y que lo pidiera no dice "
+                  "cómo acabó. No empieces a trabajar en uno salvo que él lo saque en este turno]\n"
                   + "\n".join(errands))
         parts.append(b)
     if convo:
