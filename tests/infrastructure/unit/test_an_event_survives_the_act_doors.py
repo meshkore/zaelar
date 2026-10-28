@@ -29,6 +29,9 @@ def _emitted() -> set:
             if not isinstance(n, ast.Call):
                 continue
             name = n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", "")
+            if name == "apply" and n.args and isinstance(n.args[0], ast.Constant) and isinstance(n.args[0].value, str):
+                pairs.add(("widget", n.args[0].value))   # through the one canvas door, which emits `widget/<op>`
+                continue
             if "emit" in name and len(n.args) > 1 and all(isinstance(a, ast.Constant) for a in n.args[:2]):
                 pairs.add((n.args[0].value, n.args[1].value))
     return pairs

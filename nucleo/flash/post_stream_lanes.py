@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from nucleo.flash import act_repair as _act_repair, escalation_guard as _eg, post_stream as _pst
 from nucleo.flash import close_answer as _close_answer
+from nucleo.acts import canvas_turn as _arbiter
+from nucleo.acts import canvas as _door
 from nucleo.turn import brief as _brief_q, reply as _reply
 
 
@@ -64,7 +66,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
                 pass
             acted["widget"] = True
             _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
-            _pst._cvis.present(_pw, reason="turn-order", src="flash", emit=emit)
+            _pst._cvis.present(_pw, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
             emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
             from nucleo.flash import card_commission as _cc_fill
             _fill = _cc_fill.search_to_fill(_pw, _op_text)    # demo pass 93, V1: an empty catalogue is its search
@@ -182,8 +184,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             acted["widget"] = True
             acted["closed"] = True
             for _cid in with_also_named(_t.get("ids") or [_t["id"] or _cw], text):
-                emit("widget", "close", extra={"id": _cid, "src": "flash"})
-                _pst._canvas_lic.note_operator_close(_cid)                     # V2-650b
+                if _door.apply("close", _cid, src="flash", emit=emit, request=_arbiter.request_of(_brief, operator_text or text)):
+                    _pst._canvas_lic.note_operator_close(_cid)                 # V2-650b
             emit("brain", "🙈 close por backstop (cerrar widget nombrado sin [[close]])",
                  text=_cw, role="system")
             # cerrar un widget NO es tarea de worker → cancela la escalada espuria (evita el bucle de 3 min)
@@ -234,7 +236,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         _after = await _act_repair.after_a_read(_brief, _op_text, _rw, "".join(spoken).strip(), spec=spec,
                                                 window=list(brain._window))    # V2-781 T518: or this same card
         if _after:
-            _pst._cvis.present(_after["widget_id"], reason="turn-order", src="flash", emit=emit)
+            _pst._cvis.present(_after["widget_id"], reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
             _apply_widget_data(_after["widget_id"], _after["action"], _after["payload"])
             acted["widget"] = True
             data_done["v"] = True
@@ -251,7 +253,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         _re = await _pst.asyncio.to_thread(_pst._trecall.voice_turn, reopen_req["v"], operator_text or text, _brief)
         acted["widget"], escalate_req["v"] = (False, operator_text or text) if _re.get("escalate") else (True, None)
         if _re["show"]:
-            _tag_emit("show", {"id": _re["show"]})
+            _tag_emit("show", {"id": _re["show"], "src": f"recall:{_re['show']}"})   # the reopened errand's sheet
         elif _re["ask"]:
             clarify["msg"] = _say().ask_which_item.format(cands=_re["ask"])
         elif not _re.get("escalate"):   # refactor2710-03: nothing like it, no worker — the verdict is `asked`
@@ -381,7 +383,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         # checks the claim against the widget's own declaration and refuses to raise an open card.
         if ok and str(_extra.get("surface") or "") == "widget":
             _pst._cvis.present(str(_extra.get("widget") or ""), reason="producer-mount",
-                          action=mq.get("action") or "", src="flash", emit=emit)
+                          action=mq.get("action") or "", src="flash", emit=emit, text=operator_text, brief=_brief)
         # No re-anunciar un no-op (F5): si la reproducción fue "ya suena eso", el modelo ya habló; no encajes
         # el "ya está sonando" salvo que el modelo callara.
         _is_noop = bool(_extra.get("noop"))

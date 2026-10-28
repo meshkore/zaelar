@@ -54,7 +54,8 @@ def _show(wid: str) -> None:
         # so the card this function exists to raise never opened, silently, and the ▶ button looked dead.
         # Every genuine cross-widget hand-off in the codebase (`nucleo/docsheet.py`, the FlashBrain's own
         # `src="flash"`, a worker's `src=f"worker:{tid}"`) names WHO is driving the show — never "user".
-        emit("widget", "show", extra={"id": wid, "src": "widget"})
+        from nucleo.acts import canvas
+        canvas.apply("show", wid, src="system:handoff", emit=emit)   # a card handing its content to another
     except Exception:  # noqa: BLE001 — raising a real card open must never fail on a log line
         pass
 

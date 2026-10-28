@@ -273,6 +273,12 @@ export class Deck {
     await this._load(w, baseId, q, providedData, fresh);
   }
 
+  /** After a reconnect the deck adopts the engine's list of cards (V2-825 F5): `core/reconcile.js`. */
+  async reconcile() {
+    const { reconcileScreen } = await import("../../../app/core/reconcile.js?v=1");
+    return reconcileScreen(this, { registry: this.cards, selector: ".zm-card[data-wid]", device: await _device() });
+  }
+
   close(id, { by = "code" } = {}) {
     this._noteBy(id, by);
     const w = this.cards.get(id); if (!w) return;

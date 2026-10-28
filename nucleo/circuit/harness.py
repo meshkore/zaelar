@@ -173,7 +173,7 @@ async def false_claim(spoken: str, *, data_done: bool) -> dict | None:
             # turn. The words already said it is in front of him; the card goes there through the one door.
             try:
                 from nucleo.flash import canvas_visibility as _cv
-                if _cv.present(str(g.get("target") or ""), reason="turn-order", src="harness"):
+                if _cv.present(str(g.get("target") or ""), reason="turn-order", src="system:harness"):
                     _emit("🪟 arnés: afirmó que estaba en pantalla y seguía en el dock — la presento", g,
                           extra={"claim": spoken[:160]})
             except Exception as e:  # noqa: BLE001
