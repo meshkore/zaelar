@@ -190,7 +190,8 @@ _CEILINGS: dict[str, tuple[int, int]] = {
 }
 
 #: No god file may be BORN either: any engine module NOT in the table stays under this. The largest unlisted
-#: file today is `connectors/meshkore/bridge.py` at 863, so 900 bounds the whole rest of the tree with margin.
+#: file was `connectors/meshkore/bridge.py` at 863 until refactor2710-13 split it into a package; 900 still bounds the
+#: rest of the tree with margin.
 _UNLISTED_MAX = 900
 
 #: The mirror annotation: the turn's decisions copied between the voice provider and probe, each marked «this
@@ -331,7 +332,7 @@ def test_process_identity_has_ONE_owner():
 _PACKAGE_CEILINGS: dict[str, int] = {
     "bus": 646,
     "config": 2525,
-    "connectors": 20323,        # refactor2710-01: +10, the consequence doors the connectors ask (music, messaging, mesh)
+    "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 9117,
     "nucleo (top)": 24277,      # refactor2710-01: +176, `consequence.py` (the door registry, each door an event) and `dispatch_soon.py` (moved)
@@ -351,7 +352,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "observability": 1005,
     "rules": 1211,              # refactor2710-01: +3, the rules.write door
     "search": 5474,
-    "server": 5783,
+    "server": 5736,        # refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10092,             # refactor2710-01: +3, `typed_turn.py` (the typed front door) and the lent speaker
     "voice/engine/llm": 3900,   # refactor2710-01: +64, a failed turn keeps his words; the vault is a door
     "widgets": 38666,           # refactor2710-01: +42, `payload_digest.py` (moved), the sheet.rebuild door, refs paid by extraction
@@ -457,8 +458,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 175448). Never for growth in place.
-_TOTAL_MAX = 175448
+#: 178503 → 175376, with refactor2710-13 merged). Never for growth in place.
+_TOTAL_MAX = 175376
 
 
 def test_the_total_only_shrinks():

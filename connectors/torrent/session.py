@@ -366,9 +366,3 @@ def list_active() -> list:
     return [status(rid) for rid in ids]
 
 
-def reset_for_tests():
-    """Drop all in-memory handles and the session — unit tests never touch a real session."""
-    global _session
-    with _lock:
-        _handles.clear()
-        _session = None

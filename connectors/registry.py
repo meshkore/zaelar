@@ -90,140 +90,60 @@ def _music() -> list[dict]:
                  "connected": False, "status": "error", "detail": str(e), "config": {}}, yt_row]
 
 
-def _files() -> list[dict]:
-    """Cloud file connectors (V2-557). One row per provider, each isolated like the rest: a broken import here
-    must not empty the whole Connectors tab. `browsable` travels because a connected provider whose granted
-    scope cannot list folders is NOT the same state as a connected one that can, and the tab is where the
-    operator can act on the difference."""
+#: The account connectors, ONE row per provider each, all built the same way by `_accounts`. Each source is
+#: isolated like the rest: a broken import here must not empty the whole Connectors tab. Status trichotomy:
+#: connected → off (app registered, not connected) → unconfigured (no client_id yet). The tab renders a
+#: PERMISSION selector, and the tiers live in the catalog while the connection state lives in the token store;
+#: merging here is what stops the form from offering an empty dropdown (the same mismatch the widget's own
+#: connect panel had before V2-557).
+#:   (package, family, shows the granted tier, shows `browsable`, error row: id, label, translated label)
+#: · files (V2-557): `browsable` travels because a connected provider whose granted scope cannot list folders
+#:   is NOT the same state as a connected one that can, and the tab is where the operator can act on it.
+#: · photos (V2-564): Google's Picker never hands back a standing feed of "the whole library" — see
+#:   `connectors/photos/providers.py` — so there is no browsable tier to show.
+#: · calendar (V2-679): family="agenda" on purpose — `widgets/agenda/data.py::calendars()` reads exactly this
+#:   family (or "calendar", both accepted), keyed by id "google", matching `connectors/calendar/providers.py`'s
+#:   registry id so this row REPLACES the widget's own "not built yet" placeholder instead of standing beside it.
+#: · contacts (V2-699): family="contactos" on purpose — `widgets/contactos/gcontacts.py::providers()` reads
+#:   exactly this family, keyed by its provider id; the same contract the calendar row settled.
+_ACCOUNTS = (
+    ("files", "archivos", True, True, ("files", "Cloud files", True)),
+    ("photos", "fotos", False, False, ("photos", "Photos", True)),
+    ("video", "video", True, False, ("youtube", "YouTube (account)", True)),
+    ("calendar", "agenda", True, False, ("google", "Google Calendar", False)),
+    ("contacts", "contactos", True, False, ("google-contacts", "Google Contacts", False)),
+)
+
+
+def _account(pkg: str, family: str, shows_tier: bool, shows_browsable: bool, fallback: tuple) -> list[dict]:
     try:
-        from connectors.files import oauth, providers
-        # The tab renders a PERMISSION selector, and the tiers live in the catalog while the connection state
-        # lives in the token store. Merging here is what stops the form from offering an empty dropdown — the
-        # same mismatch the widget's own connect panel had before this.
-        catalog = {c["id"]: c for c in providers.public_list()}
+        mod = __import__(f"connectors.{pkg}", fromlist=["oauth", "providers"])
+        catalog = {c["id"]: c for c in mod.providers.public_list()}
         out = []
-        for st in oauth.status():
+        for st in mod.oauth.status():
             cat = catalog.get(st["id"], {})
             connected = bool(st.get("connected"))
-            out.append({"id": st["id"], "label": st["label"], "family": "archivos", "auth": "oauth",
+            config = {"app_configured": bool(st.get("app_configured"))}
+            if shows_tier:
+                config.update(tier=st.get("tier") or "", tier_label=st.get("tier_label") or "")
+            if shows_browsable:
+                config["browsable"] = bool(st.get("browsable"))
+            config.update(tiers=cat.get("tiers") or [], default_tier=cat.get("default_tier") or "")
+            out.append({"id": st["id"], "label": st["label"], "family": family, "auth": "oauth",
                         "connected": connected,
                         "status": "connected" if connected else ("off" if st.get("app_configured")
                                                                  else "unconfigured"),
                         "detail": st.get("note") or "",
-                        "config": {"app_configured": bool(st.get("app_configured")),
-                                   "tier": st.get("tier") or "", "tier_label": st.get("tier_label") or "",
-                                   "browsable": bool(st.get("browsable")),
-                                   "tiers": cat.get("tiers") or [],
-                                   "default_tier": cat.get("default_tier") or ""}})
+                        "config": config})
         return out
     except Exception as e:
-        return [{"id": "files", "label": _label("files", "Cloud files"), "family": "archivos", "auth": "oauth",
-                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
+        cid, label, translated = fallback
+        return [{"id": cid, "label": _label(cid, label) if translated else label, "family": family,
+                 "auth": "oauth", "connected": False, "status": "error", "detail": str(e), "config": {}}]
 
 
-def _photos() -> list[dict]:
-    """Photo-library connectors (V2-564). Google's Picker never hands back a standing feed of "the whole
-    library" — see `connectors/photos/providers.py` — so `browsable` is always False here, unlike `_files()`,
-    where a connected provider CAN carry a browsable tier."""
-    try:
-        from connectors.photos import oauth, providers
-        catalog = {c["id"]: c for c in providers.public_list()}
-        out = []
-        for st in oauth.status():
-            cat = catalog.get(st["id"], {})
-            connected = bool(st.get("connected"))
-            out.append({"id": st["id"], "label": st["label"], "family": "fotos", "auth": "oauth",
-                        "connected": connected,
-                        "status": "connected" if connected else ("off" if st.get("app_configured")
-                                                                 else "unconfigured"),
-                        "detail": st.get("note") or "",
-                        "config": {"app_configured": bool(st.get("app_configured")),
-                                   "tiers": cat.get("tiers") or [],
-                                   "default_tier": cat.get("default_tier") or ""}})
-        return out
-    except Exception as e:
-        return [{"id": "photos", "label": _label("photos", "Photos"), "family": "fotos", "auth": "oauth",
-                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
-
-
-def _videoaccounts() -> list[dict]:
-    """Video-account connectors (V2-597). One row per provider (YouTube only in v1), isolated like the rest:
-    a broken import here must not empty the whole Connectors tab. Status trichotomy mirrors `_files()`:
-    connected → off (app registered, not connected) → unconfigured (no client_id yet)."""
-    try:
-        from connectors.video import oauth, providers
-        catalog = {c["id"]: c for c in providers.public_list()}
-        out = []
-        for st in oauth.status():
-            cat = catalog.get(st["id"], {})
-            connected = bool(st.get("connected"))
-            out.append({"id": st["id"], "label": st["label"], "family": "video", "auth": "oauth",
-                        "connected": connected,
-                        "status": "connected" if connected else ("off" if st.get("app_configured")
-                                                                 else "unconfigured"),
-                        "detail": st.get("note") or "",
-                        "config": {"app_configured": bool(st.get("app_configured")),
-                                   "tier": st.get("tier") or "", "tier_label": st.get("tier_label") or "",
-                                   "tiers": cat.get("tiers") or [],
-                                   "default_tier": cat.get("default_tier") or ""}})
-        return out
-    except Exception as e:
-        return [{"id": "youtube", "label": _label("youtube", "YouTube (account)"), "family": "video", "auth": "oauth",
-                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
-
-
-def _calendar() -> list[dict]:
-    """Calendar-account connectors (V2-679). family="agenda" on purpose: `widgets/agenda/data.py::calendars()`
-    reads exactly this family (or "calendar", both accepted), keyed by id "google" — matching
-    `connectors/calendar/providers.py`'s registry id so this row REPLACES the widget's own "not built yet"
-    placeholder instead of standing beside it."""
-    try:
-        from connectors.calendar import oauth, providers
-        catalog = {c["id"]: c for c in providers.public_list()}
-        out = []
-        for st in oauth.status():
-            cat = catalog.get(st["id"], {})
-            connected = bool(st.get("connected"))
-            out.append({"id": st["id"], "label": st["label"], "family": "agenda", "auth": "oauth",
-                        "connected": connected,
-                        "status": "connected" if connected else ("off" if st.get("app_configured")
-                                                                 else "unconfigured"),
-                        "detail": st.get("note") or "",
-                        "config": {"app_configured": bool(st.get("app_configured")),
-                                   "tier": st.get("tier") or "", "tier_label": st.get("tier_label") or "",
-                                   "tiers": cat.get("tiers") or [],
-                                   "default_tier": cat.get("default_tier") or ""}})
-        return out
-    except Exception as e:
-        return [{"id": "google", "label": "Google Calendar", "family": "agenda", "auth": "oauth",
-                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
-
-
-def _contacts() -> list[dict]:
-    """Address-book connectors (V2-699). family="contactos" on purpose: `widgets/contactos/gcontacts.py::
-    providers()` reads exactly this family, keyed by id "google" — matching
-    `connectors/contacts/providers.py`'s registry id so this row REPLACES the widget's own "not built yet"
-    placeholder instead of standing beside it. The same contract the calendar row settled in V2-679."""
-    try:
-        from connectors.contacts import oauth, providers
-        catalog = {c["id"]: c for c in providers.public_list()}
-        out = []
-        for st in oauth.status():
-            cat = catalog.get(st["id"], {})
-            connected = bool(st.get("connected"))
-            out.append({"id": st["id"], "label": st["label"], "family": "contactos", "auth": "oauth",
-                        "connected": connected,
-                        "status": "connected" if connected else ("off" if st.get("app_configured")
-                                                                 else "unconfigured"),
-                        "detail": st.get("note") or "",
-                        "config": {"app_configured": bool(st.get("app_configured")),
-                                   "tier": st.get("tier") or "", "tier_label": st.get("tier_label") or "",
-                                   "tiers": cat.get("tiers") or [],
-                                   "default_tier": cat.get("default_tier") or ""}})
-        return out
-    except Exception as e:
-        return [{"id": "google-contacts", "label": "Google Contacts", "family": "contactos", "auth": "oauth",
-                 "connected": False, "status": "error", "detail": str(e), "config": {}}]
+def _accounts() -> list[dict]:
+    return [row for spec in _ACCOUNTS for row in _account(*spec)]
 
 
 def _google() -> list[dict]:
@@ -255,8 +175,8 @@ def _google() -> list[dict]:
         if "calendar" in live:
             live.append("meet")                            # a connected calendar IS a usable Meet
         configured = bool(st.get("configured"))
-        # id "google-account", NOT "google": `_calendar()` already ships a row keyed "google" (its provider
-        # id, which `widgets/agenda/data.py::_CALENDARS` matches on). Two rows with one id is a collision the
+        # id "google-account", NOT "google": the calendar row (`_ACCOUNTS`) already ships one keyed "google" (its
+        # provider id, which `widgets/agenda/data.py::_CALENDARS` matches on). Two rows with one id is a collision the
         # tab resolves by showing whichever it saw last — the account row would have eaten the calendar card.
         return [{"id": "google-account", "label": _label("google-account", "Google (account)"),
                  "family": "infra", "auth": "oauth",
@@ -359,5 +279,4 @@ def serves(d: dict, family: str) -> bool:
 def descriptors() -> list[dict]:
     """Complete connector inventory with state + redacted config. Each source is isolated (a broken connector does
     not take down the registry)."""
-    return _with_families([*_messaging(), *_music(), *_files(), *_photos(), *_videoaccounts(), *_calendar(),
-                           *_contacts(), *_google(), *_architect(), *_meshkore()])
+    return _with_families([*_messaging(), *_music(), *_accounts(), *_google(), *_architect(), *_meshkore()])

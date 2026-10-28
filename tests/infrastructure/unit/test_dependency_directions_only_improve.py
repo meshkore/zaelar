@@ -92,7 +92,7 @@ _MOTOR_REACH: set[tuple[str, str]] = {
     ("nucleo/memllm.py", "voice.engine.core"),
     ("nucleo/sparks.py", "voice.engine.core"),
     ("nucleo/turn/vault_gate.py", "voice.engine.core"),
-    ("server/boot_halves.py", "voice.engine.pipeline.agent"),       # V2-778 F1: moved with the lifespan's start half
+    ("server/boot/surfaces.py", "voice.engine.pipeline.agent"),    # refactor2710-13: the voice worker starts in boot phase 3
     ("server/livekit_api.py", "voice.engine.core"),
     ("server/livekit_api.py", "voice.engine.core.config"),
     ("server/voice_api.py", "voice.engine.core.config"),

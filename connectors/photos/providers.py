@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from connectors.scope_tiers import Tiered
+
 
 @dataclass(frozen=True)
 class ScopeTier:
@@ -28,7 +30,7 @@ class ScopeTier:
 
 
 @dataclass(frozen=True)
-class PhotosProvider:
+class PhotosProvider(Tiered):
     id: str
     label: str
     authorize_url: str
@@ -39,16 +41,6 @@ class PhotosProvider:
     needs_client_secret: bool = False
     extra_auth_params: dict = field(default_factory=dict)
     note: str = ""
-
-    def tier(self, tier_id: str = "") -> ScopeTier:
-        wanted = (tier_id or "").strip() or self.default_tier
-        for t in self.tiers:
-            if t.id == wanted:
-                return t
-        for t in self.tiers:
-            if t.id == self.default_tier:
-                return t
-        return self.tiers[0]
 
 
 _GOOGLE_PHOTOS_TIERS = (

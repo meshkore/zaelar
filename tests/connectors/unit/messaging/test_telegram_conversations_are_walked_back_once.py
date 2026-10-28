@@ -87,5 +87,5 @@ def test_the_walk_can_be_switched_off(tg, monkeypatch):
 
 def test_the_telegram_session_is_named_zaelar():
     """The operator's «Active sessions» list names this session; it is Zaelar, not the library's default."""
-    src = open("connectors/telegram/service.py", encoding="utf-8").read()
+    src = open("connectors/telegram/service/__init__.py", encoding="utf-8").read()
     assert 'device_model="Zaelar Agent"' in src and 'system_version="Zaelar"' in src

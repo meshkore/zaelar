@@ -88,7 +88,7 @@ _EXENTOS: dict[str, str] = {
         "llamada, pero no abre ninguna conexión. Quien llama —y quien mide— es el call site.",
     "config/balances.py":
         "consulta SALDO de las cuentas de proveedor; no consume nada facturable.",
-    "server/config_api.py":
+    "server/config_catalog.py":   # the catalog moved out of config_api (refactor2710-13 T-03)
         "cataloga proveedores/modelos para la UI; nunca invoca un modelo.",
     "nucleo/workers/providers.py":
         "resuelve la cadena de endpoints; quien EJECUTA y mide es workers/session.py.",
