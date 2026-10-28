@@ -62,6 +62,14 @@ _FAILED = re.compile(r"^(?:FAILED|ERROR) (\S+::\S+|\S+\.py)")
 # Suites whose tests want a live service or a browser: excluded from --all on purpose, because a
 # skip-storm is not a green and a live-boundary run is a decision, not a default.
 _LIVE = ("/e2e/", "/integration/", "/benchmarks/", "/lab/")
+# …except a folder under one of those marks that needs nothing but a local Chromium: a render test mounts the real
+# widget/shell with every engine route mocked, so it is deterministic and belongs in the default sweep (V2-831
+# T-14 — 49 render reds sat on main because nothing ran them). ONE explicit entry, not a folder-name rule: its
+# suite must declare no live requirement in its `suite.json` (enforced by
+# `test_a_render_folder_in_the_default_sweep_needs_no_live_service`). Measured 2026-10-28: 414 tests, ~5.5 min
+# (widgets 299 · ~3 min; the other five 115 · ~2.5 min, 0 skipped).
+_RENDER = tuple(f"/tests/browser/e2e/{d}/" for d in
+                ("widgets", "chat", "feedback", "mensajeria", "mobile", "onboarding"))
 
 
 def label_of(path) -> str:
@@ -84,7 +92,7 @@ def leaf_dirs(roots: list[Path], *, include_live: bool) -> list[Path]:
             if "__pycache__" in path.parts:
                 continue
             rel = "/" + str(path.relative_to(ENGINE))
-            if not include_live and any(mark in rel for mark in _LIVE):
+            if not include_live and any(mark in rel for mark in _LIVE) and not any(r in rel for r in _RENDER):
                 continue
             found.add(path.parent)
     return sorted(found)
@@ -100,6 +108,23 @@ def leaf_dirs(roots: list[Path], *, include_live: bool) -> list[Path]:
 # this is a fast pre-check and the wide sweep stays the safety net before a commit lands.
 
 _SOURCE_SUFFIXES = (".py",)
+# A browser source has no import a test can name, but a render test names the FILE it loads (the path, or the
+# `/static/` URL the shell serves `frontend/` under) or the widget whose client it mounts (`mount(pg, "<id>")`,
+# `widgets/<id>/widget.js`, `widgets/<id>/js/`) — never a bare `widgets/<id>/`, which the Python tests of the same
+# widget name for its data files (measured: 34 tests for one agenda JS file, most of them Python).
+_BROWSER_SUFFIXES = (".js", ".css")
+
+
+def _browser_forms(rel: str) -> list[re.Pattern]:
+    """How a test names the browser file `rel` (V2-831 T-14): its path, its served URL, or its widget."""
+    forms = [re.compile(re.escape(rel) + r"\b")]
+    if rel.startswith("frontend/"):
+        forms.append(re.compile(re.escape("static/" + rel[len("frontend/"):]) + r"\b"))
+    if rel.startswith("widgets/") and rel.count("/") >= 2:
+        wid = rel.split("/")[1]
+        forms.append(re.compile(re.escape(f"widgets/{wid}/") + r"(widget\.js|js/)"))
+        forms.append(re.compile(rf"""mount\(\s*\w+\s*,\s*["']{re.escape(wid)}["']"""))
+    return forms
 
 
 def changed_files(base: str) -> list[str]:
@@ -133,6 +158,12 @@ def impacted_targets(base: str) -> tuple[list[Path], list[str]]:
         if rel.startswith("tests/") and path.name.startswith("test_") and rel.endswith(".py") and path.exists():
             picked.add(path)
             why.append(f"{rel} → itself (a changed test runs)")
+            continue
+        if rel.endswith(_BROWSER_SUFFIXES) and path.exists() and not rel.startswith("tests/"):
+            forms = _browser_forms(rel)
+            hits = [p for p, text in haystack.items() if any(f.search(text) for f in forms)]
+            picked.update(hits)
+            why.append(f"{rel} → {len(hits)} tests load it")
             continue
         if not rel.endswith(_SOURCE_SUFFIXES) or not path.exists():
             continue

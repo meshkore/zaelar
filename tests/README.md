@@ -35,6 +35,13 @@ With that one line fixed, **the whole deterministic suite is ~7 minutes and hang
 It runs chunk by chunk, serially, and prints a line per chunk as it goes. Exit code is 0 only when
 nothing failed and nothing hung. A JSON report lands in `tests/runs/watchdog-*.json`.
 
+**The widget renders are in the default sweep (V2-831 T-14).** `/e2e/`, `/integration/`, `/benchmarks/` and `/lab/`
+folders stay behind `--include-live` (real models, LiveKit, the network), except the folders listed in `_RENDER` in
+`tests/watchdog.py` — today the six Playwright folders of `tests/browser/e2e` (widgets, chat, feedback, mensajeria,
+mobile, onboarding: 414 tests, ~5.5 min): a local Chromium with every engine route mocked. A folder joins that entry only if its suite's `suite.json` declares no live requirement (node 7.80
+checks it). `--impacted` also follows browser files: a changed `.js`/`.css` selects the tests that name its path, its
+`/static/` URL, or the widget whose client they mount.
+
 **Tier0, before a commit (< 60 s): `make tier0`** — ruff F/E9, the syntax sweep, and every test the diff vs
 HEAD can reach, in ONE pytest (`--impacted HEAD --together`; measured 2026-10-02: 51 files, 32 s, where one
 pytest per file took 50 s of mostly startup). It is a pre-check; the wide sweep is the net.
@@ -48,7 +55,8 @@ use case (completable) lands there too, keyed `uc:<case>`. A developer drains th
 **The merge gate is LOCAL — nothing runs on GitHub** (operator's decision, 2026-10-28: no CI, no nightly; the only
 workflows left are the tag-driven ones — `release.yml` deploys the cloud, `daemon-artifacts.yml` builds the installers).
 `tests/gate.sh` is the gate: syntax sweep, ruff (F + E9), the deterministic sweep through `tests/watchdog.py` and the
-recorded decision bank — ~5 min on the operator's Mac. **When it runs is a choice, not a reflex**: not on every commit of
+recorded decision bank — ~11 min on the operator's Mac (~5.5 of them the browser renders; the gate refuses to run without
+Playwright, because skipped renders would read as a green). **When it runs is a choice, not a reflex**: not on every commit of
 an initiative (fourteen commits are not fourteen sweeps), but before a merge, and while developing only the cheap form
 `./tests/gate.sh --impacted origin/main` (seconds: what the diff can reach). A red found at merge time is the same red.
 The root `conftest.py` pins TZ, language, workspace, settings and the Google client dir, so the sweep does not depend
