@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 3515
+TOTAL = 3420
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -72,7 +72,7 @@ PER_FILE: dict[str, int] = {
     'frontend/mobile/icons/generate.py': 1,
     'i18n/init/detect.py': 1,
     'i18n/langspec.py': 10,
-    'memory/_prompt.py': 75,
+    'memory/_prompt/reads.py': 21,
     'memory/consolidator.py': 33,
     'memory/episodic.py': 1,
     'memory/graph_ppr.py': 2,
@@ -84,7 +84,6 @@ PER_FILE: dict[str, int] = {
     'memory/slots.py': 15,
     'memory/state.py': 41,
     'memory/vault_api.py': 1,
-    'memory/writer.py': 95,
     'nucleo/agent_report.py': 3,
     'nucleo/agentes/claude_code.py': 11,
     'nucleo/agentes/code.py': 15,
