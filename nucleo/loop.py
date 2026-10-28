@@ -431,7 +431,7 @@ class OrchestratorLoop:
         later turn) met is CLOSED here with an event, an expired one is retired. No voice: the delivery
         that met it already announced itself (V2-644); this is the ledger catching up, not a second mouth."""
         try:
-            from nucleo import harness
+            from nucleo.circuit import harness
             if harness.open_goals(now):
                 await harness.sweep(now)
         except Exception as e:  # noqa: BLE001

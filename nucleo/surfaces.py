@@ -125,7 +125,7 @@ def own_card(brief) -> str:
     sheet is opened beside it (V2-794). "" otherwise. Reads declared data only: the end-state verdict and the
     card's manifest `collections`."""
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         from widgets import rows as _rows
         base, _, coll = _spec.end_state_verdict(brief).partition(":")
         base = base.split("::", 1)[0].strip().lower()

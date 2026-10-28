@@ -39,7 +39,7 @@ def test_a_series_is_one_row_and_several_occurrences(ag):
 
 
 def test_a_spec_on_a_day_reads_the_occurrence(ag):
-    from nucleo import verify
+    from nucleo.circuit import verify
     assert verify.check({"widget": "agenda", "collection": "occurrences", "where": {"title~": "review", "date": _day(7)}}) is True
     assert verify.check({"widget": "agenda", "collection": "occurrences", "where": {"title~": "Rowan", "date": _day(3)}}) is True
     assert verify.check({"widget": "agenda", "collection": "occurrences", "where": {"title~": "Rowan", "date": _day(4)}}) is False

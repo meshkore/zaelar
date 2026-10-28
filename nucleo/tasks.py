@@ -111,7 +111,7 @@ def opened(rec, ctx: dict | None = None) -> str:
     # V2-776 L1 — the errand's END STATE is born here, where every commission is recorded: opened and persisted
     # when the escalation brought it, asked for once when it did not, and told to the worker either way.
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         _spec.born(rec, ctx)
     except Exception:  # noqa: BLE001
         pass
@@ -213,7 +213,7 @@ def _settle_inline_after_restart(uid: str, now: float) -> int:
     copy on the row — met if the screen shows it now, otherwise closed as interrupted. No voice: whatever this
     was about, the operator is in a different moment now, and a spoken correction would be about nothing."""
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         e = _spec.of_task(uid)
         if e and _spec.attest(dict(e), now=now) is True:
             from nucleo.request import model as _rq

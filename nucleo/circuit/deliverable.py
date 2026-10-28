@@ -43,7 +43,7 @@ def _end_state_cards(rec) -> set:
     """The cards the errand's own END STATE names (`done_when` clauses): when what he asked for is a state of a card
     (the player playing, a row on his list), that card IS the deliverable even if the result is also told."""
     try:
-        from nucleo import verify
+        from nucleo.circuit import verify
         _mode, clauses = verify._clauses(getattr(rec, "done_when", None) or {})
         return {str(c.get("widget") or "").split("::", 1)[0].strip().lower() for c in clauses if c.get("widget")}
     except Exception:  # noqa: BLE001 — an unreadable end state names no card

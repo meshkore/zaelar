@@ -33,7 +33,7 @@ def test_the_request_rows_writes_fit_the_budget(tmp_path, monkeypatch):
     memdb.reset_db()
     memdb.get_db()
     try:
-        from nucleo import spec as S
+        from nucleo.circuit import spec as S
         from nucleo.request import model as rq
         from nucleo.flash import task_block as tb
         now = int(time.time())

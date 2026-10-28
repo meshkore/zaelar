@@ -14,7 +14,7 @@ import time
 import pytest
 
 from memory import tasks_store as ts
-from nucleo import spec as S
+from nucleo.circuit import spec as S
 from nucleo import tasks as T
 from tests.agent_headless.unit.test_a_commission_leaves_a_durable_row import fresh_db  # noqa: F401 — fixture
 

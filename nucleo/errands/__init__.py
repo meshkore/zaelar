@@ -8,7 +8,7 @@ kinds of «ongoing» already existed and none of them can hold that:
   · the WORKER SESSION (`nucleo/workers/session.py`) — minutes, in RAM; a restart buries it
     (`rehydrate.py` calls anything older than `STALE_S` archaeology).
   · the CRON (`nucleo/scheduler.py`) — fires a prompt at a time and carries no state of its own.
-  · the HARNESS GOAL (`nucleo/harness.py`) — the right shape, capped at five minutes, RAM, and its only
+  · the HARNESS GOAL (`nucleo/circuit/harness.py`) — the right shape, capped at five minutes, RAM, and its only
     verifier reads whether a widget is empty.
 
 So this is the missing noun, and it is a RECORD rather than a process: it survives a restart because it is

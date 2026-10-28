@@ -11,7 +11,8 @@ from __future__ import annotations
 import pytest
 
 from memory import db as memdb
-from nucleo import circuit, spec
+from nucleo import circuit
+from nucleo.circuit import spec
 from nucleo import tasks as T
 
 GONE = {"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": "Cryptonite"}, "expect": "absent"}]}

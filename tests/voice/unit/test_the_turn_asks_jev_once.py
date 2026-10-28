@@ -74,7 +74,7 @@ def test_the_whole_brief_is_one_call(wire):
     # demo pass 2026-09-28 (R3/M1): does the order owe an answer in words — same trip
     # V2-776 L1: the end state the order leaves true, asked in the same trip whenever an open card declares one
     # (here both do: the player's `play` and the sheet's `layout`).
-    from nucleo import spec as _spec
+    from nucleo.circuit import spec as _spec
     from search import route as _search_route    # V2-782: which search module serves the turn — same trip
     from nucleo.flash import capability_gap as _gap  # V2-807 T-16: does the order ask for something no card declares
     assert asked == {tb.CANVAS_KEY, tb.REQUEST_KEY, tb.ESCALATE_KEY, tb.TARGET_KEY,

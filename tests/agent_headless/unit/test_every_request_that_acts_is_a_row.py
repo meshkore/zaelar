@@ -12,7 +12,8 @@ import pytest
 
 from memory import db as memdb
 from memory import tasks_store as ts
-from nucleo import circuit, spec
+from nucleo import circuit
+from nucleo.circuit import spec
 from nucleo.request import model as rq
 from nucleo import tasks as T
 
@@ -167,7 +168,7 @@ def test_an_ok_op_that_left_its_changed_value_as_it_was_is_a_replay_not_a_failur
     circuit said «I couldn't make it full screen». A widget that answered ok over an unchanged value replayed the
     same thing: unverifiable, never a correction."""
     import widgets
-    from nucleo import verify
+    from nucleo.circuit import verify
     from nucleo.flash import data_ops
 
     async def dispatch(tag, body):

@@ -184,7 +184,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/workers/claude_session.py': 91,
     'nucleo/workers/codex_session.py': 43,
     'nucleo/workers/generator_session.py': 18,
-    'nucleo/workers/goal.py': 2,
+    'nucleo/circuit/goal.py': 2,
     'nucleo/workers/grok_session.py': 62,
     'nucleo/workers/handoff.py': 2,
     'nucleo/workers/providers.py': 87,

@@ -1,4 +1,4 @@
-"""nucleo/spec.py — a request is born with its END STATE (V2-776 L1).
+"""nucleo/circuit/spec.py — a request is born with its END STATE (V2-776 L1).
 
 ## The incident
 
@@ -115,7 +115,7 @@ def bind_sheet(done_when, sheet: str):
         return done_when
     import copy
     dw = copy.deepcopy(done_when)
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     _mode, clauses = _verify._clauses(dw)
     for c in clauses:
         for key in ("widget", "canvas"):
@@ -128,7 +128,7 @@ def bind_sheet(done_when, sheet: str):
 def _snapshot(done_when) -> None:
     """A clause with `expect: changed` remembers what the value WAS at birth — the only honest reading of «set
     it as my background» when the phrase names an index, not a title."""
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     _mode, clauses = _verify._clauses(done_when)
     for c in clauses:
         if str(c.get("expect") or "").lower() == "changed" and "baseline" not in c:
@@ -149,7 +149,7 @@ def render(wid: str, action: str, payload: dict | None) -> dict | None:
     # an op that worked, and the circuit would have said so out loud. The op's own instance is what it changed.
     base, _, inst = str(wid or "").partition("::")
     if inst:
-        from nucleo import verify as _verify
+        from nucleo.circuit import verify as _verify
         for c in _verify._clauses(filled)[1]:
             for key in ("widget", "canvas"):
                 if str(c.get(key) or "").strip().lower() == base.strip().lower():
@@ -164,7 +164,7 @@ def render(wid: str, action: str, payload: dict | None) -> dict | None:
 def target_of(done_when) -> str:
     """The attestable target a spec names: `desktop:wallpaper`, `agenda:meetings`, `youtube:videoId`,
     `canvas:results`. The FIRST clause names it; what the phrase is about is one thing."""
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     _mode, clauses = _verify._clauses(done_when)
     for c in clauses:
         if c.get("desktop"):
@@ -308,7 +308,7 @@ def _sweep(now: float) -> None:
 
 def _emit(label: str, e: dict, **extra) -> None:
     try:
-        from nucleo import verify as _verify
+        from nucleo.circuit import verify as _verify
         from voice.observer import emit
         ex = {"id": e.get("id"), "target": e.get("target"), "source": e.get("source"),
               "task_id": e.get("task_id"), "status": e.get("status"), "cat": "spec", **extra}
@@ -323,7 +323,7 @@ def _emit(label: str, e: dict, **extra) -> None:
 def open(done_when, *, text: str = "", source: str = "", widget: str = "", action: str = "",
          task_id: str = "", trace: str = "", now: float | None = None) -> dict | None:  # noqa: A001
     """Remember one end state that is now owed. None when there is nothing readable to remember."""
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     if not _verify._clauses(done_when)[1]:
         return None
     now = time.time() if now is None else now
@@ -359,7 +359,7 @@ def attest(e: dict | None, *, now: float | None = None) -> bool | None:
     """Read the spec against the product now: True met (closed), False unmet (stays open), None unreadable."""
     if not e:
         return None
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     e["checks"] = int(e.get("checks") or 0) + 1
     try:
         out = _verify.check(e.get("done_when"), now)
@@ -499,7 +499,7 @@ async def _ask_once(rec, ctx: dict) -> None:
 
 
 def worker_line(done_when) -> str:
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     said = _verify.describe(done_when)
     if not said:
         return ""
@@ -559,7 +559,7 @@ def _sanitize(done_when: dict) -> dict | None:
     """Keep only the clauses the product can read: a rows clause needs a DECLARED collection; one over an
     undeclared collection of a card that declares `empty` becomes «the card is not empty» (what the model meant:
     something landed there). Nothing readable left → None, and the spec is honestly unverifiable at birth."""
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     from widgets import rows as _rows
     mode, clauses = _verify._clauses(done_when)
     kept: list[dict] = []
@@ -622,7 +622,7 @@ def _without_the_assistants_name(done_when: dict) -> dict | None:
     names = _assistant_names()
     if not names:
         return done_when
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     from nucleo.flash import presence as _presence
 
     def _is_name(v) -> bool:
@@ -707,7 +707,7 @@ def parse(text) -> dict | None:
         got = json.loads(m.group(0))
     except Exception:  # noqa: BLE001
         return None
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     if not isinstance(got, dict) or not _verify._clauses(got)[1]:
         return None
     got = _without_the_assistants_name(got)

@@ -23,7 +23,7 @@ from .session_notes import _PLACE, SessionNotes  # noqa: F401 — V2-778 F1: the
 from . import stall as _stall
 from .base import WorkerBackend, WorkerSpec
 from nucleo import errand_kind as _errand_kind
-from .goal import check_and_relay as _harness
+from nucleo.circuit.goal import check_and_relay as _harness
 from .relay import _say
 from .relay import relay_out_of_fuel as _relay_out_of_fuel
 from .relay import restart_stalled as _restart_stalled
@@ -116,7 +116,7 @@ class SessionRecord:
     # -1 = not reported (a task that is not an investigation, or a worker that did not say).
     considered: int = -1
     kept: int = -1
-    # V2-707 F2 — HOW SUCCESS IS MEASURED, in `nucleo/verify.py`'s grammar; the rule is in `workers/goal.py`.
+    # V2-707 F2 — HOW SUCCESS IS MEASURED, in `nucleo/circuit/verify.py`'s grammar; the rule is in `workers/goal.py`.
     # Empty = nothing declared, and then nothing is claimed: an absent condition is not a failed one.
     done_when: dict = field(default_factory=dict)
     goal_retried: bool = False

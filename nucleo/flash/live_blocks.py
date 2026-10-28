@@ -497,7 +497,7 @@ def harness_lines() -> list[str]:
     content is still missing must not be narrated as delivered by the next turn. Zero lines when none, and
     fail-open: a ledger that cannot be read costs the prompt nothing (extracted from `prompt.py`, V2-661)."""
     try:
-        from nucleo import harness
+        from nucleo.circuit import harness
         return list(harness.prompt_lines())
     except Exception:  # noqa: BLE001
         return []

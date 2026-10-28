@@ -91,7 +91,7 @@ async def agent_report(tid: str = Body(..., embed=True), token: str = Body("", e
         # V2-707 F2 — HOW SUCCESS IS MEASURED, declared by the worker itself at the start. `_finish` reads
         # it against the product's own truth before delivering, so a task cannot end by SAYING it is done.
         if isinstance(done_when, dict) and done_when:
-            from nucleo.workers.goal import session_goal
+            from nucleo.circuit.goal import session_goal
             session_goal(tid, done_when)
     except Exception:
         pass

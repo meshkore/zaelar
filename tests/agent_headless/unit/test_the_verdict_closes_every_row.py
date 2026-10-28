@@ -8,7 +8,8 @@ import pytest
 
 from memory import db as memdb
 from memory import tasks_store as ts
-from nucleo import circuit, spec
+from nucleo import circuit
+from nucleo.circuit import spec
 from nucleo.request import model as rq
 from nucleo import tasks as T
 from nucleo.batch import runner

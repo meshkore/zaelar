@@ -55,7 +55,7 @@ def test_the_delivery_hands_the_verdict_to_the_mouth(monkeypatch):
 
 def test_a_forced_ending_asks_the_circuit_for_the_end_state(monkeypatch):
     from nucleo.workers.session import SessionRecord
-    from nucleo import verify
+    from nucleo.circuit import verify
     rec = SessionRecord(task_id="t3", goal="g", done_when={"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": "x"}}]})
     monkeypatch.setattr(verify, "check", lambda dw, now=None: False)
     monkeypatch.setattr(verify, "missing", lambda dw, now=None: ["«agenda.meetings» no tiene ninguna fila con title~=x"])

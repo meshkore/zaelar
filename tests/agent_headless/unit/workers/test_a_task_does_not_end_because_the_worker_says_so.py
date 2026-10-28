@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import verify
+from nucleo.circuit import verify
 
 
 @pytest.fixture
@@ -133,7 +133,7 @@ def test_a_met_condition_names_no_gap(agenda):
 def _finished(rec, monkeypatch, escalations):
     """Drive the REAL harness over a record, with the escalation stubbed so nothing is launched."""
     from nucleo.flash import escalate as esc
-    from nucleo.workers import goal
+    from nucleo.circuit import goal
     monkeypatch.setattr(esc, "escalate_to_slowbrain",
                         lambda req, context=None: escalations.append((req, context or {})) or 1)
     goal.check_and_relay(rec, relay_cap=2)
@@ -212,7 +212,7 @@ def test_the_worker_declares_the_bar_and_it_lands_on_its_record():
     from nucleo.workers.session import SessionRecord
     dispatch._SESSIONS["tz"] = SessionRecord(task_id="tz", goal="x")
     try:
-        from nucleo.workers.goal import session_goal
+        from nucleo.circuit.goal import session_goal
         session_goal("tz", GONE)
         assert dispatch._SESSIONS["tz"].done_when == GONE
         session_goal("tz", {})                   # an empty re-declaration must not retire the bar
@@ -233,7 +233,7 @@ def test_the_worker_is_TOLD_it_can_declare_a_bar():
     from nucleo import dispatch_prompts
     block = dispatch_prompts._METHOD_BLOCK
     assert "agent_report goal" in block and "done_when" not in block.split("goal")[0][-200:]
-    # V2-776 L1: the condition is BORN with the errand (`nucleo/spec.py`, told as the first injected turn); the
+    # V2-776 L1: the condition is BORN with the errand (`nucleo/circuit/spec.py`, told as the first injected turn); the
     # worker refines it and never retires it. The old «no declares nada» exemption for searches and reports is
     # gone — an unreadable condition reads as None, never as a retry loop, so there is nothing to protect by
     # leaving the errand blind (pass 60: 4 workers, 0 conditions, all «It is done.» on their own word).

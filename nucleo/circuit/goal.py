@@ -1,4 +1,4 @@
-"""nucleo/workers/goal.py — a task does not end because the worker SAYS it ended (V2-707 F2).
+"""nucleo/circuit/goal.py — a task does not end because the worker SAYS it ended (V2-707 F2).
 
 The operator, 2026-09-16:
 
@@ -12,7 +12,7 @@ Until this existed, `session._finish` closed on `rec.ok` — which the worker se
 the exact class `.meshkore/context/principles.md` says to replace with a mechanism.
 
 The split: **the model writes the condition** (`hbnote goal`; it is the one that understood the errand) and
-**the engine checks it** (`nucleo/verify.py`) against the product's own truth. Freedom of reasoning, zero
+**the engine checks it** (`nucleo/circuit/verify.py`) against the product's own truth. Freedom of reasoning, zero
 freedom of consequence — the `party.py` shape again, this time over endings.
 
 Extracted from `_finish` rather than left inline for two reasons that are the same reason: `session.py` sits
@@ -55,7 +55,7 @@ def session_goal(tid, done_when: dict) -> None:
     r.done_when = dict(done_when)
     r.last_event_at = _time.time()
     try:
-        from nucleo import verify as _verify
+        from nucleo.circuit import verify as _verify
         from voice.observer import emit
         extra = {"id": str(tid), "done_when": r.done_when}
         if r.trace_id:

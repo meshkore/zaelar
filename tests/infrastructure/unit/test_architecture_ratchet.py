@@ -334,11 +334,11 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
-    "nucleo (top)": 22306,      # refactor2710-02: circuit.py and request_row.py moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
+    "nucleo (top)": 20971,      # refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
-    "nucleo/circuit": 452,      # refactor2710-02: born — circuit.py MOVED in, and `verdict.py`, the one verdict vocabulary
+    "nucleo/circuit": 1853,     # refactor2710-02: born — circuit, spec, harness, verify, deliverable_gate, workers/goal MOVED in; `verdict.py`
     "nucleo/context_packs": 568,
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
@@ -348,7 +348,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/request": 144,      # refactor2710-02: born — request_row.py MOVED in as `model.py`; `heard()`, his words for the errand
     "nucleo/susurro": 1386,
     "nucleo/turn": 2169,
-    "nucleo/workers": 6453,
+    "nucleo/workers": 6386,
     "nucleo/workflows": 315,
     "observability": 1005,
     "rules": 1211,              # refactor2710-01: +3, the rules.write door
@@ -426,12 +426,12 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/runstate.py",
     "nucleo/scheduler.py",
     "nucleo/sheets.py",
-    "nucleo/spec.py",
+    "nucleo/circuit/spec.py",
     "nucleo/susurro/apply.py",
     "nucleo/susurro/engine.py",
     "nucleo/tasks.py",
     "nucleo/turn/promise_kept.py",
-    "nucleo/verify.py",
+    "nucleo/circuit/verify.py",
     "nucleo/worker_api.py",
     "nucleo/workers/claude_session.py",
     "nucleo/workers/codex_session.py",

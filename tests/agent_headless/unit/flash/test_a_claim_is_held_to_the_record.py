@@ -17,7 +17,7 @@ import pytest
 
 from nucleo.flash import answer_guards as _ag, card_commission as _cc, reply_promise as _rp, second_pass as _sp
 from nucleo.flash import turn_brief as _tb
-from nucleo import spec as _spec
+from nucleo.circuit import spec as _spec
 
 
 def _brief(**verdicts):

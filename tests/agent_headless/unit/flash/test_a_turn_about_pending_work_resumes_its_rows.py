@@ -226,7 +226,7 @@ def test_an_errand_the_energy_lease_stopped_is_resumable_days_later():
 def test_a_confirmed_send_owes_its_end_state_and_a_send_that_did_not_happen_is_unmet():
     """A «yes» that leads to nothing must be impossible: the confirmed path (`dispatch_and_report(receipt=True)`)
     opens the action's declared end state, and `send_draft` now declares one — a sent row for that recipient."""
-    from nucleo import spec
+    from nucleo.circuit import spec
     from widgets.mensajeria import data
     _held_email()
     e = spec.open_for_action("mensajeria", "send_draft", {"contact": "hospitality@example.com"}, text="sí")
