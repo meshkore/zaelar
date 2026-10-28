@@ -302,12 +302,10 @@ def test_the_phase_is_watched_from_the_bus_and_not_from_the_voice_provider():
 
 def test_the_phrasebook_stands_aside_while_a_phase_is_guiding():
     """The operator's own «excepción al inicio»: during the introduction «hola» is not small talk, it is the
-    first move of a conversation that has somewhere to go. Both channels."""
+    first move of a conversation that has somewhere to go. One turn, typed or spoken (refactor2710-01)."""
     lane = _code(ENGINE / "voice/engine/llm/providers/fast_lane.py")
     m = re.search(r"async def small_talk\b.*?(?=\ndef |\nasync def |\Z)", lane, re.S)
     assert m and "context_packs . active_ids ( )" in m.group(0), "the voice lane answers during a phase"
-    mirror = _code(ENGINE / "nucleo/flash/smalltalk.py")
-    assert "context_packs . active_ids ( )" in mirror, "the probe mirror answers during a phase"
 
 
 def test_the_flag_starts_the_relationship_over_on_a_factory_reset():
