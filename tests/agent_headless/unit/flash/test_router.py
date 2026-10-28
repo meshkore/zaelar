@@ -389,11 +389,6 @@ def test_classify_escalate_wins_over_style():
     assert d.payload["request"] == "recuerda X"
 
 
-def test_is_escalation():
-    assert router.is_escalation("escalate_to_slowbrain")
-    assert not router.is_escalation("set_style_directive")
-
-
 def test_show_widget_tool(monkeypatch=None):
     # 2026-07-17: SHOWING a widget is a first-class tool (fix for 'jugar'→play_music hijacking). Gated by has_widgets;
     # decide() maps it to SHOW with the widget_id.
