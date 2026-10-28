@@ -15,7 +15,8 @@ import inspect
 import json
 import types
 
-from nucleo import mesh_cli, network_rows_gate as G, worker_api
+from nucleo import network_rows_gate as G
+from nucleo.cli import mesh as mesh_cli, worker_api
 
 TOYS = {"results": [{"title": "RENAULT 4 E-TECH 100% ELÉCTRICO 2025 GRIS escala 1:43", "price": "35.19"},
                     {"title": "Cable de carga eléctrico coche Toyota Urban Cruiser", "price": "229.22"}]}
@@ -24,7 +25,8 @@ TOYS = {"results": [{"title": "RENAULT 4 E-TECH 100% ELÉCTRICO 2025 GRIS escala
 def _push(monkeypatch, capsys) -> dict:
     sent = []
     monkeypatch.setenv("ZAELAR_TASK_ID", "5")
-    from nucleo import mesh_agents, widget_cli
+    from nucleo import mesh_agents
+    from nucleo.cli import widget as widget_cli
     monkeypatch.setattr(mesh_agents, "serve", lambda *a, **k: {"ok": True, "agent": "ebay-finder", "data": TOYS})
     monkeypatch.setattr(widget_cli, "_act", lambda action, payload: sent.append(payload) or {"ok": True})
     mesh_cli.main(["serve", "coches eléctricos para ciudad"])

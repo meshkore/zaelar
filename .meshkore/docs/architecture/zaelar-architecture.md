@@ -173,12 +173,12 @@ Key invariants (full detail in `.meshkore/docs/security/zaelar-security.md`):
   the operator's prompt. **Permission-gated escalation:** the operator can grant a per-cluster permission profile
   (`connectors/meshkore/perms.py`+`store.py`, deny-all default) that lets a cluster turn reach
   `escalate_to_slowbrain` → a **dev-worker** (`nucleo/dispatch/`) scoped to a disposable cwd + `Bash` only to
-  `nucleo/git_cli.py` (clone/commit/push to the operator-authorized repo only, with the real git `origin`
+  `nucleo/cli/git.py` (clone/commit/push to the operator-authorized repo only, with the real git `origin`
   re-verified on every commit/push). This additionally requires the operator to have set an **objective** for that
   specific relationship (`capsule.objective`, `perms.gate_dev_by_objective`) — permission alone never suffices.
   Zero permission = byte-identical to the tool-less path above. **Filesystem jail:** `nucleo/dev_worker_guard.py`
   (a real Claude Code `PreToolUse` hook) denies Read/Write/Edit/Glob/Grep outside the worker's cwd (code-enforced,
-  not prompt convention); `nucleo/sandbox.py` adds resource rlimits on top (best-effort on macOS for the memory cap
+  not prompt convention); `nucleo/cli/sandbox.py` adds resource rlimits on top (best-effort on macOS for the memory cap
   specifically — see zaelar-security.md for the platform caveat).
 - Only `cluster.send`/`cluster.done` may fire from a cluster turn; `connect`/`disconnect` are operator-only.
 - **Third rule level — the conversation pact.** A cluster turn is governed by THREE hierarchical rule
@@ -721,7 +721,7 @@ enforces it in both directions.
 > `web_search`). The RAM session registry in `dispatch.py` is the source of truth; the loop supervises
 > (stuck/timeout/relay asks).
 >
-> **Worker→widget bridge (`hbwidget`):** `nucleo/widget_cli.py` lets a worker `read`/`data`/`show`/`close` a
+> **Worker→widget bridge (`hbwidget`):** `nucleo/cli/widget.py` lets a worker `read`/`data`/`show`/`close` a
 > canvas widget — the `widget_data` action of `/api/worker/act` applies the data-op via `widgets.brain_action` under
 > the SAME canonical FAST/CONFIRM gate the FlashBrain uses (ESCALATE/undeclared → DENY: a worker never escalates a
 > data-op nor invents an action; it reads the widget first), provenance stamped `worker:<id>`. This closes the chained

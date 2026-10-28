@@ -11,7 +11,7 @@ from contextlib import redirect_stdout
 
 import pytest
 
-from nucleo import mesh_cli
+from nucleo.cli import mesh as mesh_cli
 
 
 def _misuse(argv):

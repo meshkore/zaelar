@@ -4589,7 +4589,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_worker_backend_names_its_session.py']},
         {"id": "2.839", "title": "An errand that asks for what the resource cannot hold is said, not retried: the worker's first step reads the declared window (brief or escalation) against `connectors.reach`; a gap ends the errand before any worker spawns, in his language, with the reason on its row and the verdict `cannot`; no window or an unknown reach starts the worker (V2-825 F6, refactor2710-09)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_an_impossible_window_is_said_not_retried.py']},
-        {"id": "2.830", "title": "The worker bridge has no product importer and is alive: it is the CLI a worker runs (`python -m nucleo.worker_bridge ask|act|say|wait|decide`) — in the worker's allowlist, taught by the prompt, runnable as a module (refactor2710-09)",
+        {"id": "2.830", "title": "The worker bridge has no product importer and is alive: it is the CLI a worker runs (`python -m nucleo.cli.bridge ask|act|say|wait|decide`) — in the worker's allowlist, taught by the prompt, runnable as a module (refactor2710-09)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_the_worker_bridge_is_a_live_cli.py']},
         {"id": "2.638", "title": "A past errand he names by a word only its TITLE has is that errand: «el de Gràcia» over Gràcia/Sant Antoni picks without the chooser, accent-folded; shared words, both names, or a goal-only word («last month») stay a question (flat-hunt-recall, 2026-10-14)",
             "ch": UNIT, "paths": ['tests/memory/unit/test_a_past_errand_named_by_its_own_word_is_reopened.py']},

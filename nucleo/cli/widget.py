@@ -1,4 +1,4 @@
-"""nucleo/widget_cli.py — `hbwidget`: the Brain Worker READS and OPERATES the canvas widgets (V2-061).
+"""nucleo/cli/widget.py — `hbwidget`: the Brain Worker READS and OPERATES the canvas widgets (V2-061).
 
 Sibling of `hbweb` (nav_cli), `hbmem` (mem_cli), `hbnote` (agent_report), and `hbask/hbact/hbsay` (worker_bridge). It
 talks over HTTP to the live server (`/api/worker/act`), using the session id + token from the environment
@@ -6,13 +6,13 @@ talks over HTTP to the live server (`/api/worker/act`), using the session id + t
 actions: after doing something in the real world (cancelling an appointment on a website), the worker REFLECTS the
 change in the local MIRROR (deletes the appointment from the calendar), and verifies it.
 
-    python -m nucleo.widget_cli read agenda                      # READ the widget: manifest + data + ITEMS with their ids
-    python -m nucleo.widget_cli data agenda drop '{"itemId":"m_itv_23jul"}'   # DATA-OP (uses REAL ids from `read`)
-    python -m nucleo.widget_cli data results present @informe.json           # LARGE PAYLOAD: from a file
-    python -m nucleo.widget_cli rows agenda list '{"collection":"meetings","where":{"date<":"2026-09-16"}}'
-    python -m nucleo.widget_cli rows agenda delete '{"collection":"meetings","where":{"title~":"crypto"}}'
-    python -m nucleo.widget_cli show agenda                      # shows the card on the canvas
-    python -m nucleo.widget_cli close agenda                     # closes the card
+    python -m nucleo.cli.widget read agenda                      # READ the widget: manifest + data + ITEMS with their ids
+    python -m nucleo.cli.widget data agenda drop '{"itemId":"m_itv_23jul"}'   # DATA-OP (uses REAL ids from `read`)
+    python -m nucleo.cli.widget data results present @informe.json           # LARGE PAYLOAD: from a file
+    python -m nucleo.cli.widget rows agenda list '{"collection":"meetings","where":{"date<":"2026-09-16"}}'
+    python -m nucleo.cli.widget rows agenda delete '{"collection":"meetings","where":{"title~":"crypto"}}'
+    python -m nucleo.cli.widget show agenda                      # shows the card on the canvas
+    python -m nucleo.cli.widget close agenda                     # closes the card
 
 PAYLOAD FROM FILE (`@path.json`, or `-` for stdin): ALWAYS use it when the payload is large or contains quotes,
 accents, URLs, or line breaks—in other words, any real report. Write the JSON to a file and pass it with `@`. Pasting
@@ -28,7 +28,7 @@ so the external mirror and every guard still apply; the friction is the RADIUS, 
 several come back asking, with the count and the names). The gate for a declared action is the catalog's:
 a FAST action is applied immediately; an
 IRREVERSIBLE (CONFIRM) action asks the operator for approval and returns a corr_id (wait for it with `python -m
-nucleo.worker_bridge wait <corr_id>`); an UNDECLARED action is DENIED (read it in the `read` manifest). Any response
+nucleo.cli.bridge wait <corr_id>`); an UNDECLARED action is DENIED (read it in the `read` manifest). Any response
 may carry ⟦NEW INSTRUCTIONS⟧ (piggyback, §v3·H).
 """
 from __future__ import annotations
@@ -75,7 +75,7 @@ def _report(res: dict) -> int:
         return 1
     if res.get("status") == "pending":
         print("PENDIENTE DE CONFIRMACIÓN del operador (acción irreversible). "
-              f"Espera la respuesta con: python -m nucleo.worker_bridge wait {res.get('corr_id', '')}")
+              f"Espera la respuesta con: python -m nucleo.cli.bridge wait {res.get('corr_id', '')}")
         return 0
     if res.get("result") is not None:
         print("OK: " + json.dumps(res["result"], ensure_ascii=False))
@@ -250,7 +250,7 @@ def main(argv: list[str]) -> int:
     print(f"comando desconocido: {cmd}\n"
           f"verbos: read <widget> · data <widget> <accion> [payload|@fichero|-] · "
           f"rows <widget> <list|put|patch|delete> [payload] · show <widget> · close <widget>\n"
-          f"ayuda:  python -m nucleo.widget_cli --help")
+          f"ayuda:  python -m nucleo.cli.widget --help")
     return 2
 
 

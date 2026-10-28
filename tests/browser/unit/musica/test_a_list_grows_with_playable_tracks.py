@@ -174,7 +174,7 @@ def test_the_end_state_holds_once_the_list_exists(monkeypatch):
 
 def test_a_worker_reaches_the_op_through_its_widget_door(monkeypatch):
     """The Brain Worker's door (`worker_api` → `brain_action`) is allowed to call it and the call lands on the card."""
-    from nucleo import worker_policy
+    from nucleo.cli import worker_policy
     from widgets import server_api
     _providers(monkeypatch, _Fake("youtube", "yt"))
     payload = {"widget_id": "musica", "action": "add_tracks",

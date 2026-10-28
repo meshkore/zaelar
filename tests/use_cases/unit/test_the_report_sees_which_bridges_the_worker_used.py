@@ -44,9 +44,9 @@ def test_sin_logs_no_INVENTA_nada(tmp_path):
 
 def test_cuenta_las_SESIONES_que_tocan_cada_puente(sesiones):
     d, add = sesiones
-    add("a", {"text": "python -m nucleo.nav_cli snapshot"})
-    add("b", {"text": "python -m nucleo.nav_cli click 3"})
-    add("c", {"text": "python -m nucleo.widget_cli read results"})
+    add("a", {"text": "python -m nucleo.cli.nav snapshot"})
+    add("b", {"text": "python -m nucleo.cli.nav click 3"})
+    add("c", {"text": "python -m nucleo.cli.widget read results"})
     r = V.worker_bridges(logs_dir=str(d))
     assert r["read"] is True and r["sessions"] == 3
     assert r["by_bridge"]["nav_cli"] == 2
@@ -56,8 +56,8 @@ def test_cuenta_las_SESIONES_que_tocan_cada_puente(sesiones):
 def test_marca_las_que_ADEMÁS_llevan_un_fallo(sesiones):
     """The signal V2-325 found: the bridge is touched and the session dies with `Exit code 2`."""
     d, add = sesiones
-    add("a", {"text": "python -m nucleo.widget_cli --help"}, {"text": "Exit code 2 comando desconocido: --help"})
-    add("b", {"text": "python -m nucleo.widget_cli read results"}, {"text": "ok"})
+    add("a", {"text": "python -m nucleo.cli.widget --help"}, {"text": "Exit code 2 comando desconocido: --help"})
+    add("b", {"text": "python -m nucleo.cli.widget read results"}, {"text": "ok"})
     r = V.worker_bridges(logs_dir=str(d))
     assert r["by_bridge"]["widget_cli"] == 2
     assert r["errors"]["widget_cli"] == 1

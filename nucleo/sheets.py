@@ -90,7 +90,7 @@ def sheet_for_nav_task(nav_task: str, sessions=()) -> str:
             return sheet_of(r)
     # V2-290 — AND BY THE ID OF THE ERRAND ITSELF, because not everyone driving the browser has a reserved tab.
     # `_prepare_web` creates the tab and stores `rec.nav_task` ONLY for `kind="web"`; any other errand that opens
-    # the browser falls back to `nucleo/nav_cli.py` — «`ZAELAR_NAV_TASK` o, si no, `ZAELAR_TASK_ID`» — so its tab
+    # the browser falls back to `nucleo/cli/nav.py` — «`ZAELAR_NAV_TASK` o, si no, `ZAELAR_TASK_ID`» — so its tab
     # is named after the TASK. That route did not exist here, and without it findings from that tab found no box.
     #
     # Measured in the 12:03 run, `search-buy-bicycle__es`: the research worker opened tab «3», extracted SEVEN real

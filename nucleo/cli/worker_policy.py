@@ -1,9 +1,9 @@
-"""nucleo/worker_policy.py — the pure ALLOW/CONFIRM/DENY policy for Brain Worker requests (split out of
+"""nucleo/cli/worker_policy.py — the pure ALLOW/CONFIRM/DENY policy for Brain Worker requests (split out of
 worker_api.py, 2026-08-17 modularization pass). This is the decision logic only: given an action + payload,
 what's allowed, what needs confirmation, what's denied, and why (in terms the worker can act on). No I/O, no
 FastAPI, no asyncio — everything here is independently unit-testable without the request/response plumbing
 that stays in worker_api.py (which re-exports these names; existing callers, including tests that do
-`from nucleo.worker_api import deny_reason, _PRESTABLE_TOOLS`, needed no changes)."""
+`from nucleo.cli.worker_api import deny_reason, _PRESTABLE_TOOLS`, needed no changes)."""
 from __future__ import annotations
 
 # ── policy by action (§v3·J) ────────────────────────────────────────────────────────────────────────────────

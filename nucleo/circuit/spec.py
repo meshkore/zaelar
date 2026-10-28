@@ -495,7 +495,7 @@ def worker_line(done_when) -> str:
         return ""
     return ("OBJETIVO MEDIBLE (nació con el encargo; el motor lo comprueba contra la verdad del producto al "
             f"acabar y te relanza con lo que falte): {said}. Si al entender el encargo ves que la condición es "
-            "otra, afínala con 'python -m nucleo.agent_report goal @objetivo.json'; nunca la retires.")
+            "otra, afínala con 'python -m nucleo.cli.report goal @objetivo.json'; nunca la retires.")
 
 
 async def _tell_worker(rec, e: dict, *, wait_s: float = 90.0) -> None:

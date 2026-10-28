@@ -168,7 +168,7 @@ and at the end a list of **Findings ordered by severity**.
    permission; check that without a granted permission NO cluster path reaches the `CodeAgent`/dev-worker
    (fail-closed by construction). The permission-gated path — `connectors/meshkore/perms.py`+`store.py`
    (per-cluster profile, deny-all default) — can open `escalate_to_slowbrain` to a bounded dev-worker (temporary
-   cwd + `Bash` only to `nucleo/git_cli.py`, authorised repo, re-verified on every commit/push). Also check the
+   cwd + `Bash` only to `nucleo/cli/git.py`, authorised repo, re-verified on every commit/push). Also check the
    objective guard (`perms.gate_dev_by_objective`): the `code` permission must NOT suffice on its own without a
    `capsule.objective` set by the operator (set through the operator-only tool `set_cluster_objective`). The
    dev-worker's Read/Write/Edit/Glob/Grep jail is real code (`nucleo/dev_worker_guard.py`, a PreToolUse hook),

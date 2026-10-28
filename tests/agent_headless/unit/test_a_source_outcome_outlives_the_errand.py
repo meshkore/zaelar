@@ -17,7 +17,7 @@ from __future__ import annotations
 import pytest
 
 from nucleo import dispatch_prompts as dp
-from nucleo import nav_cli
+from nucleo.cli import nav as nav_cli
 from nucleo import source_outcomes as so
 
 DAY = 24 * 3600

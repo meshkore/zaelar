@@ -1,7 +1,7 @@
-"""nucleo/mesh_cli.py — `hbmesh`: the bridge a Brain Worker uses to ask the mesh BEFORE opening a browser.
+"""nucleo/cli/mesh.py — `hbmesh`: the bridge a Brain Worker uses to ask the mesh BEFORE opening a browser.
 
-    python -m nucleo.mesh_cli find "hotel en Madrid esta noche 2 personas"
-    python -m nucleo.mesh_cli serve "hotel en Madrid" --prompt "hotel in Madrid check-in 2026-09-10 \\
+    python -m nucleo.cli.mesh find "hotel en Madrid esta noche 2 personas"
+    python -m nucleo.cli.mesh serve "hotel en Madrid" --prompt "hotel in Madrid check-in 2026-09-10 \\
                                                                 check-out 2026-09-11 for 2 guests"
 
 `find` only asks WHO could do it (cheap, ~1 s). `serve` finds and asks in one go, preferring the agent that
@@ -155,7 +155,7 @@ def _to_the_sheet(res) -> None:
     try:
         rows = _rows_in((res or {}).get("data")) if isinstance(res, dict) and res.get("ok") else []
         if rows and os.getenv("ZAELAR_TASK_ID"):
-            from nucleo import widget_cli
+            from nucleo.cli import widget as widget_cli
             from nucleo.network_rows_gate import MARK     # the bridge refuses it for a document errand
             widget_cli._act("widget_data", {"widget_id": "results", "action": "append",
                                             "payload": {"items": rows[:_MESH_ROWS_CAP], MARK: True}})

@@ -29,7 +29,7 @@ from nucleo import dispatch_prompts as dp
 
 
 def _header():
-    return dp._with_interpreter("usa python -m nucleo.nav_cli snapshot")
+    return dp._with_interpreter("usa python -m nucleo.cli.nav snapshot")
 
 
 def test_the_prompt_forbids_LEAVING_the_directory_not_just_cd():
@@ -190,7 +190,7 @@ def test_an_ordinary_step_result_is_left_alone():
 # through `_on_event`, the way a backend actually delivers one.
 #
 # The MEMORY bridge case is asserted by name because it is the one that cost the most: when the gate ate
-# `cd … && … -m nucleo.mem_cli recall`, the worker was left unable to read the operator's memory at all, and the
+# `cd … && … -m nucleo.cli.mem recall`, the worker was left unable to read the operator's memory at all, and the
 # chip says «memoria» only because the step is coloured by the bridge it used (`_PLACE`), which sent the finding
 # to the wrong owner for a while.
 def test_a_step_result_event_REACHES_the_recovery():

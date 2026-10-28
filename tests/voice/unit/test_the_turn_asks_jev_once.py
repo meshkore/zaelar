@@ -246,7 +246,7 @@ def test_the_escalate_question_carries_the_TRUE_worker_state(wire, monkeypatch):
     no. A worker is waiting for the operator's answer: no» on every turn — including the turns where
     one WAS waiting, which is exactly the shape that must not become a second worker."""
     import nucleo.dispatch as dispatch
-    import nucleo.worker_api as wapi
+    import nucleo.cli.worker_api as wapi
     monkeypatch.setattr(dispatch, "has_active", lambda: True)
     monkeypatch.setattr(wapi, "has_pending_ask", lambda: True)
     _settle(tb.ask_for_turn("enduro"))

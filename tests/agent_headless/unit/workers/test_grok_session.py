@@ -46,7 +46,7 @@ def test_a_grok_command_row_says_where_it_worked():
     drawer, and a worker that queries memory looked the same as one that deletes a file."""
     evs = _map({"type": "assistant", "message": {"content": [{
         "type": "tool_use", "id": "call-1", "name": "run_terminal_command",
-        "input": {"command": ".venv/bin/python -m nucleo.mem_cli recall 'velero'",
+        "input": {"command": ".venv/bin/python -m nucleo.cli.mem recall 'velero'",
                   "description": "consulta memoria"}}]}})
     step = next(e for e in evs if e.type == "step")
     assert step.data["where"] == "memoria" and step.data["action"] == "recall"

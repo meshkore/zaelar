@@ -93,7 +93,7 @@ def test_the_double_ampersand_rule_survives():
 
 def test_the_cd_rejection_is_named_too_and_the_false_premise_is_answered():
     """`cd` blocked is the THIRD most common measured anomaly on the board (9 across two variants,
-    2026-08-28) — and the worker is not being careless. `python -m nucleo.nav_cli` LOOKS like it needs the
+    2026-08-28) — and the worker is not being careless. `python -m nucleo.cli.nav` LOOKS like it needs the
     repo root, so changing into it is a correct inference from what we showed it; the environment already
     carries the path, and nothing said so.
 

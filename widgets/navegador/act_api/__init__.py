@@ -1,7 +1,7 @@
 """widgets/navegador/act_api: the BROWSER BRIDGE for Claude Code agents (V2-036 F3).
 
 Exposes the owner's `TaskBrowser` primitives (navigate/click/type/scroll/snapshot/extract) as a synchronous
-request/response API for the `nucleo/nav_cli.py` CLI (`hbweb`). It runs in the uvicorn loop, the same loop as the
+request/response API for the `nucleo/cli/nav.py` CLI (`hbweb`). It runs in the uvicorn loop, the same loop as the
 browser owner, so it calls `TaskBrowser` directly. Loopback: same trust model as the rest of the API.
 """
 import asyncio

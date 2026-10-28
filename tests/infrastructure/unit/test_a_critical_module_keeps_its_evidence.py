@@ -51,7 +51,7 @@ _CRITICAL = (
     "nucleo/errands/party.py",   # the highest-consequence mouth in the engine
     "widgets/rows.py",           # the generic data door, where the friction is the RADIUS
     "widgets/server_api.py",     # the single funnel every caller passes through
-    "nucleo/worker_policy.py",   # what a Brain Worker may do
+    "nucleo/cli/worker_policy.py",   # what a Brain Worker may do
 )
 
 

@@ -33,11 +33,11 @@ _SITE_RE = re.compile(r"\bsite:\s*([a-z0-9][a-z0-9.-]*\.[a-z]{2,})", re.I)
 PICTURES_BLOCK = (
     "ENTREGA COMO FOTOS (la superficie de este encargo es el VISOR `imagenes`): el operador está MIRANDO el visor "
     "con las fotos de antes y lo que pidió es que esas fotos sean las buenas. NO hay hoja de resultados para este "
-    "encargo: no escribas en `results`. Busca IMÁGENES, no páginas: `python -m nucleo.worker_bridge act use_tool "
+    "encargo: no escribas en `results`. Busca IMÁGENES, no páginas: `python -m nucleo.cli.bridge act use_tool "
     "\"<qué> site:<dominio oficial>\"` va al buscador de imágenes, y lo que devuelva DE ESE DOMINIO el motor lo "
     "pone él solo en el visor (lo verás en `viewer` del resultado). En cuanto `viewer.shown` traiga fotos del "
     "sitio oficial, TERMINA: di en una frase de dónde salen. Si el buscador no da nada del dominio, entra en su "
-    "sala de prensa con el navegador y entrega tú con `python -m nucleo.widget_cli data imagenes show @fotos.json` "
+    "sala de prensa con el navegador y entrega tú con `python -m nucleo.cli.widget data imagenes show @fotos.json` "
     "(cada foto `{url, thumb, title, site, page}`, `source` = el dominio). Nada de dar vueltas: dos búsquedas "
     "acotadas al sitio antes del navegador, no veinte.")
 

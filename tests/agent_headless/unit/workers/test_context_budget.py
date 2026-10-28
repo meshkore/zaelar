@@ -189,7 +189,7 @@ def test_the_workdir_is_outside_the_repo_and_carries_no_CLAUDE_md():
 
 def test_the_engine_root_is_the_engine_root_and_not_a_subpackage():
     """This was a real bug caught by smoke-testing: the module lives one level deeper than the file whose pattern it
-    copied, so two `dirname` calls pointed `PYTHONPATH` at `nucleo/` and `-m nucleo.nav_cli` stopped resolving —
+    copied, so two `dirname` calls pointed `PYTHONPATH` at `nucleo/` and `-m nucleo.cli.nav` stopped resolving —
     which would have left the worker with NO bridges at all, the very fault this module exists to prevent."""
     root = workdir._ENGINE_ROOT
     assert os.path.isdir(os.path.join(root, "nucleo")), f"{root} is not the engine root"

@@ -27,7 +27,7 @@ import sys
 
 import pytest
 
-_CLI = [sys.executable, "-m", "nucleo.widget_cli"]
+_CLI = [sys.executable, "-m", "nucleo.cli.widget"]
 
 
 def _correr(*args):
@@ -77,6 +77,6 @@ def test_sin_argumentos_sigue_siendo_un_error_de_uso():
 def test_el_HERMANO_que_sí_se_usa_se_comporta_igual():
     """`nav_cli` is the reference, not my idea: 81 of 332 sessions use it and it answers `--help` with 0. This test
     ties the two bridges together so they do not diverge again at the entry point."""
-    p = subprocess.run([sys.executable, "-m", "nucleo.nav_cli", "--help"],
+    p = subprocess.run([sys.executable, "-m", "nucleo.cli.nav", "--help"],
                        capture_output=True, text=True, timeout=30)
     assert p.returncode == 0

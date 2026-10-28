@@ -88,7 +88,7 @@ def test_sin_registro_no_hay_estado_que_corromper():
 def test_el_puente_MANDA_el_token_que_ya_tenia_en_el_entorno(monkeypatch):
     """Wiring guard: a check without anything feeding it is a fix that does not exist. `ZAELAR_TASK_TOKEN`
     was already present in the worker's environment (it is used by `mem_cli`); this gate was the only one that did not inspect it."""
-    from nucleo import agent_report
+    from nucleo.cli import report as agent_report
     enviado = {}
     monkeypatch.setenv("ZAELAR_TASK_ID", "w1")
     monkeypatch.setenv("ZAELAR_TASK_TOKEN", "tok-abc")

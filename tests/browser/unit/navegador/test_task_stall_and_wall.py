@@ -1062,7 +1062,7 @@ def test_walls_on_two_hosts_escalate_to_a_channel_switch():
 
 
 def test_the_streak_tells_the_worker_to_change_channel(capsys):
-    from nucleo import nav_cli
+    from nucleo.cli import nav as nav_cli
     nav_cli._print_state({"ok": True, "url": "https://www.bhphotovideo.com/c/1", "title": "403",
                           "wall": "el sitio nos ha bloqueado el acceso (respuesta 403)",
                           "wall_streak": {"n": 3, "sites": ["amazon.com", "bhphotovideo.com"]}})

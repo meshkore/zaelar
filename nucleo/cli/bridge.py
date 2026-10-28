@@ -1,13 +1,13 @@
-"""nucleo/worker_bridge.py — `hbask`/`hbact`/`hbsay`: bridges from the Brain Worker → FlashBrain/user (V2-038).
+"""nucleo/cli/bridge.py — `hbask`/`hbact`/`hbsay`: bridges from the Brain Worker → FlashBrain/user (V2-038).
 
 A Brain Worker (subprocess, any backend) invokes them through Bash to INTERACT while working — the
 request/response layer of the design (§v2·B, §v3·I). Same pattern as `hbnote`/`hbmem`/`hbweb`: communicates over HTTP
 with the live server, using the session id + token from the environment (`ZAELAR_TASK_ID` + `ZAELAR_TASK_TOKEN`, §v2·D). Fail-soft.
 
-    python -m nucleo.worker_bridge ask "¿la prefieres de enduro o de cross?"
-    python -m nucleo.worker_bridge wait <corr_id>            # retries the wait (does not exhaust the Bash timeout)
-    python -m nucleo.worker_bridge act use_tool '{"tool":"web_search","args":{"query":"precio moto enduro"}}'
-    python -m nucleo.worker_bridge say "voy a tardar un poco más, sigo filtrando"
+    python -m nucleo.cli.bridge ask "¿la prefieres de enduro o de cross?"
+    python -m nucleo.cli.bridge wait <corr_id>            # retries the wait (does not exhaust the Bash timeout)
+    python -m nucleo.cli.bridge act use_tool '{"tool":"web_search","args":{"query":"precio moto enduro"}}'
+    python -m nucleo.cli.bridge say "voy a tardar un poco más, sigo filtrando"
 
 Any response may carry ⟦NUEVAS INSTRUCCIONES⟧ (piggyback, §v3·H): if the operator refined the task
 ("also, green"), the worker learns about it here without depending on the engine's turn-taking.
@@ -74,7 +74,7 @@ def _poll_until(corr_id: str) -> int:
             print(f"(sin poder consultar: {res['error']})", file=sys.stderr)
             return 1
         time.sleep(_POLL_EVERY_S)
-    print(f"sin respuesta aún — reintenta la espera con: python -m nucleo.worker_bridge wait {corr_id}")
+    print(f"sin respuesta aún — reintenta la espera con: python -m nucleo.cli.bridge wait {corr_id}")
     return 0
 
 
@@ -197,7 +197,7 @@ def _hint_decide() -> str:
     reaches the command at all (V2-379). A capability the worker cannot invoke is a capability it
     will narrate instead of using.
     """
-    return ('python -m nucleo.worker_bridge decide @elige.json  ·  el fichero lleva\n'
+    return ('python -m nucleo.cli.bridge decide @elige.json  ·  el fichero lleva\n'
             '   {"purpose": "cuál de estos pisos cumple los criterios",\n'
             '    "evidence": "menos de 1000 €, 2 habitaciones, Chamberí",\n'
             '    "candidates": {"r1": "piso en Malasaña, 1200 €", "r2": "piso en Chamberí, 900 €"}}\n'

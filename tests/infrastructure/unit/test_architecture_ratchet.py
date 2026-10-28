@@ -419,7 +419,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/loop.py",
     "nucleo/memory_agent/gates.py",
     "nucleo/mesh_agents.py",
-    "nucleo/nav_cli.py",
+    "nucleo/cli/nav.py",
     "nucleo/notices.py",
     "nucleo/runstate.py",
     "nucleo/scheduler.py",
@@ -429,7 +429,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/susurro/engine.py",
     "nucleo/circuit/ledger.py",
     "nucleo/turn/promise_kept.py",
-    "nucleo/worker_api.py",
+    "nucleo/cli/worker_api.py",
 })
 
 

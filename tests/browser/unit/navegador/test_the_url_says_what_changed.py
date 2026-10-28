@@ -21,7 +21,7 @@ size filter, a sort order, or a next page—and for the listing that no one has 
 whether the change is the one requested: the worker knows that, since it is the one that made the request. Here,
 we state what the page says about itself.
 """
-from nucleo import nav_cli
+from nucleo.cli import nav as nav_cli
 from widgets.navegador.act_api import _with_url_change
 
 _ANTES = "https://es.wallapop.com/search?keywords=guitarra+ac%C3%BAstica&order_by=most_relevance"

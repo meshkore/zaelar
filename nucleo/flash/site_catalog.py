@@ -185,7 +185,7 @@ def directive_block(locale: str | None = None) -> str:
         "SITIOS DE CONFIANZA POR CATEGORÍA. ANTES de usar este catálogo, comprueba si el operador tiene una "
         "preferencia YA GUARDADA para esta categoría (p.ej. «usa siempre Idealista para pisos», «prefiero "
         "PcComponentes a Amazon») con "
-        "`python -m nucleo.mem_cli recall \"sitio preferido para <categoría>\"` — SI la hay, esa preferencia "
+        "`python -m nucleo.cli.mem recall \"sitio preferido para <categoría>\"` — SI la hay, esa preferencia "
         "MANDA sobre el catálogo de abajo, sin excepción. Si NO la hay, usa el catálogo (SIEMPRE primero, "
         "incluso si el operador ha nombrado un negocio concreto — búscalo DENTRO del sitio de confianza antes "
         "de ir a su web propia; solo salta directo a la web propia de un negocio si genuinamente no aparece "

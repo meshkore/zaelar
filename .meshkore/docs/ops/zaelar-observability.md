@@ -200,7 +200,7 @@ the wrong widget opens.
 | `widget · data:<action>` | `providers/nucleo.py::_apply_widget_data` | the DATA-OP itself (raise volume, maximize, mark done) with its `mode` (`fast`/`confirm`/`escalate`) + **the sentence** |
 | `widget · data` | `widgets/store.py::save()` | the EFFECT (the widget saved). Still marked as noise — it is a consequence, not an order |
 | `widget · action` | `widgets/server_api.py` | the operator pressing a button on the card (`src=user`) |
-| `widget · show\|close` | `nucleo/worker_api.py` | the same, requested by a Brain Worker (`src=worker:<id>`) |
+| `widget · show\|close` | `nucleo/cli/worker_api.py` | the same, requested by a Brain Worker (`src=worker:<id>`) |
 
 The trace chip on that same row jumps to the sentence's whole chain.
 

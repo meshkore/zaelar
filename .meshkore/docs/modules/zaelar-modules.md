@@ -783,7 +783,7 @@ tier) and delegates to `nucleo/flash/cluster.py` (**tools OFF in code** + identi
 operator PII). A peer can make zaelar reason + talk, never act **by default**. Conversation state lives in the
 per-peer **capsule** (`capsule.py`). A permission-gated mode extends this: an
 operator-granted per-cluster profile (`perms.py`+`store.py`) can open `escalate_to_slowbrain` to a scoped
-dev-worker (disposable cwd, `Bash` only to `nucleo/git_cli.py`, repo-authorized), additionally gated on an
+dev-worker (disposable cwd, `Bash` only to `nucleo/cli/git.py`, repo-authorized), additionally gated on an
 operator-set objective per relationship (`perms.gate_dev_by_objective`, set via the operator-only tool
 `set_cluster_objective`) — see `zaelar-security.md` for the full threat model; the dev-worker's filesystem jail
 is code-enforced (`nucleo/dev_worker_guard.py`, a real Claude Code PreToolUse hook).

@@ -17,7 +17,7 @@ A timeout here is our wait period expiring, not the action being cancelled: the 
 working. Repeating the command queues a second action on top of a busy browser — and the worker has no
 way to infer that, because «timed out» does not say whose deadline expired.
 """
-from nucleo import nav_cli
+from nucleo.cli import nav as nav_cli
 
 
 def test_un_timeout_dice_que_la_accion_puede_seguir_viva():

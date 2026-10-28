@@ -58,11 +58,11 @@ start with `make run` → `python -m server`.
   config, mixable], `session.py` [`WorkerSession` + `SessionRecord`], **`providers.py`** [a CHAIN of
   Anthropic-compatible endpoints + hand-over when a quota is exhausted]) = the INTERACTIVE async work layer.
   `nucleo/agentes/` (the one-shot `CodeAgent` interface — `worker/web/web_cc/otros.py` are **parked**; only their
-  widget-detection helpers are reused). **Worker bridges**: `nucleo/mem_cli.py` (`hbmem` — serial memory,
-  recall/remember over HTTP) · `nucleo/agent_report.py` + `nucleo/agent_api.py` (`hbnote` — phase report to the bus)
-  · **`nucleo/worker_bridge.py` + `nucleo/worker_api.py`** (`hbask`/`hbact`/`hbsay` — ask / request a tool / speak
+  widget-detection helpers are reused). **Worker bridges**: `nucleo/cli/mem.py` (`hbmem` — serial memory,
+  recall/remember over HTTP) · `nucleo/cli/report.py` + `nucleo/agent_api.py` (`hbnote` — phase report to the bus)
+  · **`nucleo/cli/bridge.py` + `nucleo/cli/worker_api.py`** (`hbask`/`hbact`/`hbsay` — ask / request a tool / speak
   to the user, a request/response plane, `/api/worker/act`, policy + piggyback + token) ·
-  `nucleo/nav_cli.py` + `widgets/navegador/act_api.py` (`hbweb` — drive the browser) · **`nucleo/widget_cli.py`**
+  `nucleo/cli/nav.py` + `widgets/navegador/act_api.py` (`hbweb` — drive the browser) · **`nucleo/cli/widget.py`**
   (`hbwidget` — READ/OPERATE a canvas widget: `read`/`data`/`show`/`close`, the `widget_data` action of
   `/api/worker/act` gated by the canonical catalog + worker provenance; the BRIDGE that reflects in the widgets what
   was done in the real world). `nucleo/danger.py` = the gate for irreversible actions. **`nucleo/susurro/`** =

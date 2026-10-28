@@ -98,7 +98,7 @@ dispatch_prompts._web_prompt()   step 0 — before the browser, ask the network
         │
         └─ Brain Worker runs:  hbmesh find "<errand>"   /   hbmesh serve "<errand>" --prompt "<ISO dates>"
                                        │
-                     nucleo/mesh_cli.py ──> nucleo/mesh_agents.py ──> Oracle ──> the agent
+                     nucleo/cli/mesh.py ──> nucleo/mesh_agents.py ──> Oracle ──> the agent
 ```
 
 `hbmesh` is allowlisted for workers in `nucleo/workers/providers/claude.py::_BRIDGES`, alongside `hbmem`,
@@ -151,7 +151,7 @@ operator data, and a peer can never spend the operator's money.
 | capability | where |
 |---|---|
 | Discovery through the Oracle (free agents only) | `nucleo/mesh_agents.py` |
-| Worker bridge `hbmesh` (`find` / `serve`) | `nucleo/mesh_cli.py` |
+| Worker bridge `hbmesh` (`find` / `serve`) | `nucleo/cli/mesh.py` |
 | «Ask the network before the browser» in every web errand | `nucleo/dispatch_prompts.py` |
 | Learned route cache (7-day TTL, never on `general`) | `mesh_agents.route_for` |
 | Paid agents: reported, never paid without authorisation | §1.4 |

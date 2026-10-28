@@ -1,16 +1,16 @@
-"""nucleo/agent_report.py — `hbnote`: CLI de REPORTE para los workers Claude Code (V2-036 · plan/progreso V2-059).
+"""nucleo/cli/report.py — `hbnote`: CLI de REPORTE para los workers Claude Code (V2-036 · plan/progreso V2-059).
 
 Un agente Claude Code headless lo invoca por Bash para contarle al FlashBrain qué está haciendo, para que el
 operador lo vea SIN esperar al final. Observabilidad ESTRUCTURADA (V2-059): además de la fase legible, el worker
 DECLARA su plan y REPORTA su progreso → el registro sabe en qué paso va y a qué % → lo ve el FlashBrain (para
 responder "¿cómo va?"), la UI (progreso) y el debug.
 
-    python -m nucleo.agent_report phase    "navegando a Wallapop y filtrando por enduro"
-    python -m nucleo.agent_report note     "he descartado 4 anuncios de trial"
-    python -m nucleo.agent_report plan      "leer la spec|editar data.py|reescribir widget.js|validar"
-    python -m nucleo.agent_report progress  "widget.js reescrito" --done 3
-    python -m nucleo.agent_report progress  "compilando"        --pct 80
-    python -m nucleo.agent_report goal '{"all":[{"widget":"agenda","collection":"meetings","where":{"title~":"Cryptonite"},"expect":"absent"}]}'
+    python -m nucleo.cli.report phase    "navegando a Wallapop y filtrando por enduro"
+    python -m nucleo.cli.report note     "he descartado 4 anuncios de trial"
+    python -m nucleo.cli.report plan      "leer la spec|editar data.py|reescribir widget.js|validar"
+    python -m nucleo.cli.report progress  "widget.js reescrito" --done 3
+    python -m nucleo.cli.report progress  "compilando"        --pct 80
+    python -m nucleo.cli.report goal '{"all":[{"widget":"agenda","collection":"meetings","where":{"title~":"Cryptonite"},"expect":"absent"}]}'
 
 DECLARA TU OBJETIVO AL EMPEZAR (`goal`). Es CÓMO SE MIDE que el encargo está hecho, leído contra la verdad
 del propio producto cuando termines: si no se cumple, se te relanza UNA vez diciéndote qué falta, en vez de

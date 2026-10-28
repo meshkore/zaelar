@@ -77,7 +77,7 @@ reads it and adds the catch-all row; the metering coverage gate fails otherwise)
 
 - **The two fact doors** (`web_search` on the voice channel, `post_stream_lanes`; and on the probe, `probe_after`) call
   `find(query, route="inline_fact", proposal="web_search")` and read `raw` (the chain's dict) for the composing pass.
-- **The worker** searches with `python -m nucleo.worker_bridge act use_tool "<query>"` — a quoted sentence, no JSON,
+- **The worker** searches with `python -m nucleo.cli.bridge act use_tool "<query>"` — a quoted sentence, no JSON,
   no file (the form the worker's confinement guard accepts). `worker_api` runs `find()` and returns the
   chain dict plus `route`, `candidates` (sheet rows), `pages` and `unshown`; the rows reach the errand's sheet as before.
 - **The status panel** (`/api/status`) carries one line, «Búsqueda · proveedores», from the LAST probe (primed once

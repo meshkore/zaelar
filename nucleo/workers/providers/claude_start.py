@@ -158,7 +158,7 @@ async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
         # topes de recursos (memoria/nproc/fsize, SIN límite de CPU/pared) — auditoría 2026-07-26, defensa en
         # profundidad además del guard de confinamiento de rutas (--settings, ver spec.extra_args).
         try:
-            from nucleo import sandbox as _sandbox
+            from nucleo.cli import sandbox as _sandbox
             preexec = _sandbox.dev_worker_rlimits()
         except Exception:
             preexec = None

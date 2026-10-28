@@ -64,7 +64,7 @@ def test_el_generico_recibe_el_INTERPRETE_bueno():
     p = dp._build_prompt(HOTEL, "", True, None)
     assert re.search(r"/[^\s]*python -m nucleo\.mesh_cli", p), (
         "el puente de la red queda con un intérprete relativo que el cajón no aprueba")
-    assert "\npython -m nucleo.mesh_cli" not in p
+    assert "\npython -m nucleo.cli.mesh" not in p
 
 
 def test_un_texto_NO_confiable_sigue_sin_puentes():

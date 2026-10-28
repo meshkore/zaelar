@@ -140,7 +140,7 @@ def test_the_recall_route_filters_by_lane_and_by_source(fresh_db):
 
 
 def test_mem_cli_history_reaches_the_conversation_lane(monkeypatch, capsys):
-    from nucleo import mem_cli
+    from nucleo.cli import mem as mem_cli
     sent = {}
 
     def _post(path, payload, timeout=20.0):

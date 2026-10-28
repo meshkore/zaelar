@@ -26,7 +26,7 @@ auditoría, tenía dos escapes de seguridad reales** — `git_cli.py` no re-veri
 `commit`/`push`, y el invariante documentado "guard de propiedad-de-objetivo: PENDIENTE" resultó ser CERO código
 (nada escribía nunca `capsule.objective`), por lo que el permiso `code` bastaba por sí solo para que un peer
 dirigiera un dev-worker. Ambos corregidos. Queda un **riesgo residual documentado, no cerrado**: el jail de
-Read/Write/Edit del dev-worker es convención de prompt, no un control de código — `nucleo/sandbox.py` existe pero
+Read/Write/Edit del dev-worker es convención de prompt, no un control de código — `nucleo/cli/sandbox.py` existe pero
 no está cableado a su subproceso (tarea P1 en la iniciativa de remediación).
 
 También se confirmó y arregló la causa raíz del incidente real del 2026-07-25/26 (Susurro F2 `worker_action` ↔ el
@@ -59,7 +59,7 @@ ELIMINADO y sustituido por el evaluador por modelo (V2-075) sin decirlo.
 
 | # | Severidad | Hallazgo | Fichero:línea | Fix | Commit |
 |---|---|---|---|---|---|
-| 1 | P0 | `git_cli.cmd_commit`/`cmd_push` no verificaban que el `origin` real del directorio fuera el repo autorizado — solo comprobaban que existiera `.git` (commit) o que la env var estuviera puesta (push). Un dev-worker podía apuntar `commit`/`push` a CUALQUIER repo git, incl. el del propio motor. | `nucleo/git_cli.py:61-75` (antes del fix) | `_verify_authorized_dir()` compara `git remote get-url origin` contra el repo autorizado en CADA `commit`/`push`, no solo al `clone`. +3 tests. | `f821f6e` |
+| 1 | P0 | `git_cli.cmd_commit`/`cmd_push` no verificaban que el `origin` real del directorio fuera el repo autorizado — solo comprobaban que existiera `.git` (commit) o que la env var estuviera puesta (push). Un dev-worker podía apuntar `commit`/`push` a CUALQUIER repo git, incl. el del propio motor. | `nucleo/cli/git.py:61-75` (antes del fix) | `_verify_authorized_dir()` compara `git remote get-url origin` contra el repo autorizado en CADA `commit`/`push`, no solo al `clone`. +3 tests. | `f821f6e` |
 | 2 | P0 | El permiso `code` concedido a un cluster bastaba por sí solo para habilitar `escalate_to_slowbrain` con `dev=True` — el invariante documentado "guard de propiedad-de-objetivo: PENDIENTE" era CERO código: `capsule.objective` existía en el schema pero nada lo escribía nunca. Un peer con `code` concedido podía dirigir unilateralmente el dev-worker hacia cualquier tarea dentro del repo autorizado. | `connectors/meshkore/bridge.py` (turno de cluster, antes del fix); `connectors/meshkore/capsule.py:44` | `perms.gate_dev_by_objective(ctx, objective)` degrada `dev=False` si `capsule.objective` está vacío, cableado en `bridge.py::_brain_turn`, con aviso 1× al operador. Efecto: dev-worker vía cluster queda INERTE hasta que exista un mecanismo para fijar el objetivo (no construido — ver remediación). +4 tests. | `8e8fad3` |
 | 3 | P0 | `widgets/gestiona-mensaje-recibido` (generado en sesión previa, sin commitear): manifest/UI decían "envía una respuesta real a Gonza por WhatsApp" con `confirm:true` (irreversible), pero `apply_action("reply")` solo escribía estado local — nunca tocaba `connectors.messaging`/`pending_reply`/`reply_message` (el mecanismo real). El operador podía confirmar "sí, envíasela" creyendo que se envió, sin que pasara nada. | `widgets/gestiona-mensaje-recibido/data.py:72-78`, `manifest.json:12` | Manifest/widget.js/notes.md reescritos: es un tracker/borrador LOCAL, honesto, sin `confirm` (reopen deshace siempre). Documentado que viola la regla dura "mensajería nueva va DENTRO de `mensajeria`". | `754e18d` |
 | 4 | P0 | Incidente real 2026-07-25/26: Susurro F2 `worker_action` re-escalaba en cadena vía el widget `ejecuta-accion-real` (un turno posterior que solo relataba progreso de una tarea YA escalada volvía a calificar como riesgo; el dedup de texto no siempre lo atrapaba) → load 5.86, ahogó voz/chat. Susurro estaba OFF desde entonces. | `nucleo/susurro/friction.py:97-112`, `nucleo/susurro/apply.py:89-134` | Circuit breaker determinista en `apply.py` (tope 3 `worker_action`/10min, avisa 1× al operador, re-notifica cada ≤30min si sigue abierto). No se tocó `friction.py` (su amplitud es intencional — precisión > recall, V2-046). Susurro REACTIVADO (`config/v2.json`). +1 test. | `b78dd59` |
@@ -68,7 +68,7 @@ ELIMINADO y sustituido por el evaluador por modelo (V2-075) sin decirlo.
 
 ## Hallazgos documentados, NO arreglados en código (backlog explícito)
 
-- **P1 — Dev-worker sin jail de filesystem code-enforced.** `nucleo/sandbox.py` (rlimits/env-scrubbed/timeout)
+- **P1 — Dev-worker sin jail de filesystem code-enforced.** `nucleo/cli/sandbox.py` (rlimits/env-scrubbed/timeout)
   existe pero no está cableado al subproceso interactivo del dev worker (`nucleo/dispatch.py` lanza `claude`
   directo). Combinado con el fix #1, ya no se puede push-ear a un repo arbitrario, pero un peer con permiso
   concedido aún podría inducir al worker a LEER ficheros fuera de su cwd (p.ej. `.env`, `config/*.json`).
@@ -171,7 +171,7 @@ la iniciativa de remediación:
 - **T-01 — jail de filesystem REAL para el dev-worker.** `nucleo/dev_worker_guard.py`: hook `PreToolUse` oficial
   de Claude Code (investigado contra la documentación oficial antes de implementar — `code.claude.com/docs/en/
   agent-sdk/hooks.md`, `sandboxing.md`, `permissions.md`) que deniega Read/Write/Edit/MultiEdit/Glob/Grep fuera
-  del cwd temporal del worker (resuelve symlinks, settings.json fuera del workdir). `nucleo/sandbox.py::
+  del cwd temporal del worker (resuelve symlinks, settings.json fuera del workdir). `nucleo/cli/sandbox.py::
   dev_worker_rlimits()` añade rlimits de memoria/nproc/fsize — **documentado con honestidad** que `RLIMIT_AS` NO
   se puede fijar en macOS/Darwin (`ValueError`, verificado empíricamente en esta misma máquina), así que la
   protección de memoria es real solo en Linux; la protección de RUTAS (la que de verdad importa contra

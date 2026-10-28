@@ -66,6 +66,6 @@ def test_un_directorio_ILEGIBLE_no_convierte_un_error_claro_en_una_excepcion(mon
 def test_los_DOS_puentes_miran_el_mismo_sitio():
     """The failure was not that the listing was missing; it was having it in one bridge and not the other."""
     from pathlib import Path
-    for f in ("nucleo/worker_bridge.py", "nucleo/widget_cli.py"):
+    for f in ("nucleo/cli/bridge.py", "nucleo/cli/widget.py"):
         src = Path(f).read_text(encoding="utf-8")
         assert "what_is_here()" in src, f"{f} no comparte el mecanismo"

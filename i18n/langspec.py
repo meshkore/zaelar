@@ -453,7 +453,7 @@ class LangSpec:
     # budget timeouts, spontaneous sparks, and messaging notices. Placeholders use `.format(...)`.
     worker_ask_named: str = ""
     worker_ask_generic: str = ""
-    # A worker's action that needs his yes (`nucleo/worker_policy.py`) — they were Spanish literals and reached
+    # A worker's action that needs his yes (`nucleo/cli/worker_policy.py`) — they were Spanish literals and reached
     # an English session as «El worker quiere hacer «delete_file»… ¿Lo autorizas?» (demo pass 2026-09-28).
     worker_confirm_channel: str = ""
     worker_confirm_widget: str = ""

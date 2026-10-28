@@ -67,7 +67,7 @@ def test_vacio_es_un_payload_vacio_y_no_un_error():
 def test_el_puente_lo_USA_y_enseña_el_motivo():
     """The plumbing: without this, the classification exists and the worker keeps reading «invalid» by itself."""
     from pathlib import Path
-    src = Path("nucleo/worker_bridge.py").read_text(encoding="utf-8")
+    src = Path("nucleo/cli/bridge.py").read_text(encoding="utf-8")
     assert "_bu.parse_payload(_raw)" in src
     assert 'payload JSON inválido ({_src}): {_perr}' in src
 
@@ -96,5 +96,5 @@ def test_un_json_roto_no_se_convierte_en_query():
 def test_el_cli_cablea_la_conversion():
     """Wiring check: the three above pass intact with the CLI call removed."""
     from pathlib import Path
-    src = Path("nucleo/worker_bridge.py").read_text(encoding="utf-8")
+    src = Path("nucleo/cli/bridge.py").read_text(encoding="utf-8")
     assert "bare_query_payload" in src

@@ -158,7 +158,7 @@ def test_web_prompt_has_verify_before_close():
 
 
 def test_web_prompt_warns_against_nonexistent_nav_cli_subcommands():
-    """V2-099 live finding (2026-08-17): the worker sometimes calls `nucleo.nav_cli automate`/`act`, neither
+    """V2-099 live finding (2026-08-17): the worker sometimes calls `nucleo.cli.nav automate`/`act`, neither
     of which exists (nav_cli's real set: snapshot/look/navigate/click/type/select_option/click_at/type_at/
     scroll/press/extract) — each guess burns a full turn on a CLI usage error instead of progress."""
     wp = dispatch._web_prompt("busca algo", "")

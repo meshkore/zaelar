@@ -110,7 +110,7 @@ def create_app() -> FastAPI:
         routers.append(flash_probe_router)
         from nucleo.agent_api import router as agent_report_router   # V2-036: CC→FlashBrain reporting channel
         routers.append(agent_report_router)
-        from nucleo.worker_api import router as worker_router          # V2-038: request/response worker plane
+        from nucleo.cli.worker_api import router as worker_router          # V2-038: request/response worker plane
         routers.append(worker_router)
         from search.api import router as search_router                 # V2-782: the search service's HTTP face
         routers.append(search_router)

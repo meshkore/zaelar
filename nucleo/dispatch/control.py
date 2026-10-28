@@ -84,7 +84,7 @@ def cancel_session(tid, *, reason: str = "operator") -> bool:
             pass
     _d._SESSIONS.pop(key, None)
     try:
-        from nucleo import worker_api
+        from nucleo.cli import worker_api
         worker_api.purge_task(key)   # §v3·L: el loop no debe relatar la pregunta de un muerto
     except Exception:
         pass

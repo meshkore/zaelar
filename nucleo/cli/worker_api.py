@@ -1,4 +1,4 @@
-"""nucleo/worker_api.py — REQUEST/RESPONSE blueprint for Brain Workers (V2-038, §v2·B + §v3·I/J/K).
+"""nucleo/cli/worker_api.py — REQUEST/RESPONSE blueprint for Brain Workers (V2-038, §v2·B + §v3·I/J/K).
 
 A worker (subprocess, any backend) talks to the live server over HTTP to REQUEST things that only the host/
 FlashBrain can do or that require a response:
@@ -28,10 +28,10 @@ router = APIRouter()
 
 # ── per-action policy (§v3·J) ───────────────────────────────────────────────────────────────────────────────
 # ALLOW/CONFIRM/DENY vocab, the prestable/deny tool sets, _KNOWN_ACTS, deny_reason(), classify_act() and
-# _confirm_question() moved to nucleo/worker_policy.py (2026-08-17 modularization pass) — pure decision
+# _confirm_question() moved to nucleo/cli/worker_policy.py (2026-08-17 modularization pass) — pure decision
 # logic, no I/O. Re-exported here so every existing call site (worker_api.classify_act(...), direct
-# `from nucleo.worker_api import deny_reason` in tests, etc.) keeps working unchanged.
-from nucleo.worker_policy import (  # noqa: F401 — re-export
+# `from nucleo.cli.worker_api import deny_reason` in tests, etc.) keeps working unchanged.
+from nucleo.cli.worker_policy import (  # noqa: F401 — re-export
     ALLOW, CONFIRM, DENY, _PRESTABLE_TOOLS, _DENY_TOOLS, _KNOWN_ACTS, deny_reason, classify_act,
     _confirm_question,
 )

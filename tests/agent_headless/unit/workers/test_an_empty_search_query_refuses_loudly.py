@@ -8,7 +8,7 @@ import asyncio
 
 import pytest
 
-from nucleo import worker_api
+from nucleo.cli import worker_api
 
 
 class _Rec:

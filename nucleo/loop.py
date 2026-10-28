@@ -42,8 +42,8 @@ _REPORT_SECS = float(os.getenv("ZAELAR_WORKER_REPORT_SECS", "90") or 90)
 _REPORTING_BACKENDS = frozenset({"claude_code", "codex", "grok_build"})
 #: What the pulse injects. Worker-facing prompt text, in the language of the worker prompts.
 REPORT_DEMAND = ("INFORME DE ESTADO OBLIGATORIO: llevas un rato sin decir dónde estás. Ahora mismo, antes de "
-                 "tu siguiente paso, ejecuta `python -m nucleo.agent_report phase \"<qué estás haciendo, en una "
-                 "frase>\"` y, si declaraste un plan, `python -m nucleo.agent_report progress \"<nota>\" --done "
+                 "tu siguiente paso, ejecuta `python -m nucleo.cli.report phase \"<qué estás haciendo, en una "
+                 "frase>\"` y, si declaraste un plan, `python -m nucleo.cli.report progress \"<nota>\" --done "
                  "<pasos hechos>`. Luego sigue.")
 
 
@@ -241,7 +241,8 @@ class OrchestratorLoop:
         (one at a time, with attribution, §v3·B/M), and warns of STUCK/TIMEOUT (never kills blindly §v3·Q7).
         Best-effort; a failure here never brings down the loop."""
         try:
-            from nucleo import dispatch, worker_api
+            from nucleo import dispatch
+            from nucleo.cli import worker_api
         except Exception:
             return
         # (1) coalesced projection RAM → STATE (source of truth = RAM; not per-event).

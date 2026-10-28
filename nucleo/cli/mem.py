@@ -1,13 +1,13 @@
-"""nucleo/mem_cli.py — MEMORY BRIDGE for SlowBrain Claude Code agents (V2-036).
+"""nucleo/cli/mem.py — MEMORY BRIDGE for SlowBrain Claude Code agents (V2-036).
 
 It is the "independent and SERIAL component" with which a headless Claude Code agent USES zaelar's memory without
 touching the DB directly (it preserves the SINGLE WRITER: it writes through the live process's queue). The agent
 invokes it through Bash:
 
-    python -m nucleo.mem_cli recall "moto de enduro del operador"        # REQUESTS a fact → prints the pills
-    python -m nucleo.mem_cli recall "carpinteros Lorena" --source messages   # only what others wrote him
-    python -m nucleo.mem_cli history --hours 24 "reserva restaurante"    # what WE said, verbatim, with session
-    python -m nucleo.mem_cli remember "el operador quiere una KTM 350" --slot goal.moto   # SAVES a fact
+    python -m nucleo.cli.mem recall "moto de enduro del operador"        # REQUESTS a fact → prints the pills
+    python -m nucleo.cli.mem recall "carpinteros Lorena" --source messages   # only what others wrote him
+    python -m nucleo.cli.mem history --hours 24 "reserva restaurante"    # what WE said, verbatim, with session
+    python -m nucleo.cli.mem remember "el operador quiere una KTM 350" --slot goal.moto   # SAVES a fact
 
 It communicates with the local server (http://localhost:43917, ZAELAR_BASE override) over HTTP — it NEVER opens the
 SQLite database in parallel, so the live process's "single writer" invariant is maintained. Serial by nature: one

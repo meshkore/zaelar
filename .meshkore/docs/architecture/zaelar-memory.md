@@ -688,7 +688,7 @@ or touch the database directly.
   writer; it auto-classifies if you do not set `level`. You can set `slot` (singular fact → exact supersede) and
   `meta`.
 - **Are you a Brain Worker (a headless process OUTSIDE the server)?** → talk HTTP to the live server:
-  `python -m nucleo.mem_cli recall "<query>"` (read) and `… remember "<fact>" [--slot x]` (write via
+  `python -m nucleo.cli.mem recall "<query>"` (read) and `… remember "<fact>" [--slot x]` (write via
   `remember_external`: per-task token + precision gates, no access to `state` or identity slots). It preserves the
   SINGLE WRITER — never open `zaelar.db` from a worker (the worker's Bash is restricted to these CLIs precisely for
   that reason).

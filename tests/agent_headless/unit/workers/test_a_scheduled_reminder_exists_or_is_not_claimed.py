@@ -20,7 +20,7 @@ import asyncio
 
 import pytest
 
-from nucleo import worker_api, worker_policy
+from nucleo.cli import worker_api, worker_policy
 
 
 class _Journal:

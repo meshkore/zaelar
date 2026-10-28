@@ -25,7 +25,7 @@ import os
 import pytest
 
 from nucleo import bridge_usage as BU
-from nucleo import worker_bridge as WB
+from nucleo.cli import bridge as WB
 
 
 # ── the shared reader ──────────────────────────────────────────────────────────────────────────────────────

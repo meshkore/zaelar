@@ -222,7 +222,7 @@ def test_the_worker_declares_the_bar_and_it_lands_on_its_record():
 
 
 def test_the_bridge_refuses_a_goal_that_is_not_JSON_and_says_the_shape(capsys):
-    from nucleo import agent_report
+    from nucleo.cli import report as agent_report
     assert agent_report.main(["goal", "{nope"]) == 2
     out = capsys.readouterr().out
     assert "no es JSON válido" in out and "expect" in out and "hbwidget read" in out

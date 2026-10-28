@@ -1,18 +1,18 @@
-"""nucleo/nav_cli.py — `hbweb`: CLI with which a Claude Code worker DRIVES zaelar's browser (V2-036 F3).
+"""nucleo/cli/nav.py — `hbweb`: CLI with which a Claude Code worker DRIVES zaelar's browser (V2-036 F3).
 
 The agent directs zaelar's Chromium step by step with ITS intelligence (not a cheap loop). The tab/task id comes from
 `ZAELAR_TASK_ID` (injected by the dispatcher). Each action returns the page STATE (URL, title, and interactive
 elements with their refs) so the agent can reason about the next step:
 
-    python -m nucleo.nav_cli look                          # VISION: PNG path (Read) + coordinates → click_at/type_at
-    python -m nucleo.nav_cli snapshot                      # interactive elements with [ref]
-    python -m nucleo.nav_cli navigate "https://es.wallapop.com/search?keywords=moto+enduro"
-    python -m nucleo.nav_cli click 12                      # click the [12] element from the LAST snapshot
-    python -m nucleo.nav_cli type 7 "moto enduro 250" --submit
-    python -m nucleo.nav_cli click_at 640 300              # VISION: click at capture pixels
-    python -m nucleo.nav_cli type_at 300 220 "7465JKY" --submit   # VISION: click at (x,y) and type
-    python -m nucleo.nav_cli scroll 800
-    python -m nucleo.nav_cli extract                       # listings/results from the current page (JSON)
+    python -m nucleo.cli.nav look                          # VISION: PNG path (Read) + coordinates → click_at/type_at
+    python -m nucleo.cli.nav snapshot                      # interactive elements with [ref]
+    python -m nucleo.cli.nav navigate "https://es.wallapop.com/search?keywords=moto+enduro"
+    python -m nucleo.cli.nav click 12                      # click the [12] element from the LAST snapshot
+    python -m nucleo.cli.nav type 7 "moto enduro 250" --submit
+    python -m nucleo.cli.nav click_at 640 300              # VISION: click at capture pixels
+    python -m nucleo.cli.nav type_at 300 220 "7465JKY" --submit   # VISION: click at (x,y) and type
+    python -m nucleo.cli.nav scroll 800
+    python -m nucleo.cli.nav extract                       # listings/results from the current page (JSON)
 
 VISION flow (robust for forms): `look` → Read the PNG → `click_at`/`type_at` by coordinates → `look` again.
 DOM flow: `snapshot` → choose a ref → `click`/`type` → new snapshot → repeat → `extract` at the end.
@@ -167,7 +167,7 @@ def _print_state(res: dict) -> None:
             _sites = ", ".join(_streak.get("sites") or [])
             print(f"⛔ RACHA DE MUROS: ya te han bloqueado {_streak.get('n')} veces en varios sitios ({_sites}). "
                   f"NO sigas navegando para conseguir estos datos: pídelos con la búsqueda web por el puente —\n"
-                  f'   python -m nucleo.worker_bridge act use_tool \'{{"tool":"web_search","args":{{"query":"<qué buscas>"}}}}\'\n'
+                  f'   python -m nucleo.cli.bridge act use_tool \'{{"tool":"web_search","args":{{"query":"<qué buscas>"}}}}\'\n'
                   f"   (los precios y fichas suelen venir en los propios resultados). Si de verdad necesitas la "
                   f"página, cambia a un dominio que NO esté en la lista de bloqueados.")
     if res.get("hint"):

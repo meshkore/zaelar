@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import agent_report
+from nucleo.cli import report as agent_report
 
 ENGINE = Path(__file__).resolve().parents[4]
 _CMD = re.compile(r"agent_report\s+(phase|note|plan|progress|goal|considered)\b(.*?)(?=agent_report|\n|`|$)")

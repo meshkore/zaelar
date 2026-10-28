@@ -80,7 +80,7 @@ def test_glob_without_path_field_allowed_by_default(tmp_path, monkeypatch):
 
 def test_unrelated_tool_untouched(tmp_path, monkeypatch):
     monkeypatch.setenv(guard._ROOT_ENV, str(tmp_path))
-    assert guard.check({"tool_name": "Bash", "tool_input": {"command": "python -m nucleo.git_cli clone repo"}}) is True
+    assert guard.check({"tool_name": "Bash", "tool_input": {"command": "python -m nucleo.cli.git clone repo"}}) is True
 
 
 def test_main_fail_open_on_malformed_json(monkeypatch, capsys):

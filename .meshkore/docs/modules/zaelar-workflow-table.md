@@ -84,8 +84,8 @@ positive one, *this source gave usable rows*. Those live in `nucleo/source_outco
 
 | door that observes it | outcome |
 |---|---|
-| `nucleo/nav_cli.py` — a response annotated with `wall` | `wall` (by host, `www.` stripped) |
-| `nucleo/nav_cli.py` — `extract` on a page | `served` (≥1 named row) or `extract_empty` |
+| `nucleo/cli/nav.py` — a response annotated with `wall` | `wall` (by host, `www.` stripped) |
+| `nucleo/cli/nav.py` — `extract` on a page | `served` (≥1 named row) or `extract_empty` |
 | `nucleo/mesh_agents.ask` | `served`, `empty` (with the agent's hint) or `timeout` (by agent id) |
 | `nucleo/workers/providers.note_tool_blindness` | `quota` for `search:<provider>`, until the provider's own reset time |
 
