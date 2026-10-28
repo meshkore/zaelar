@@ -444,6 +444,11 @@
    "say": "Your Tesla insurance renews on March 12, 2027.",
    "tools": []
   },
+  "memory": {
+   "pills": [
+    "The operator's Tesla insurance renews on March 12, 2027."
+   ]
+  },
   "expect": "talk",
   "forbid": [
    "worker",
