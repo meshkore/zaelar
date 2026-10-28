@@ -699,8 +699,6 @@ export function ChatWall() {
       () => (pend().length ? h("div", { class: "cw-att-tray" }, ...pend().map(attChip)) : null),
       h("input", { type: "file", class: "cw-att-input", accept: ACCEPT, multiple: true, ref: (el) => (fileEl = el),
                    onChange: () => { addFiles(fileEl.files); fileEl.value = ""; } }),
-      h("button", { class: "cw-clip", title: () => t("chat.attach"), "aria-label": () => t("chat.attach"),
-                    onClick: () => fileEl && fileEl.click() }, raw(PAPERCLIP_ICON)),
       h("textarea", {
         onPaste: onComposerPaste,
         // rows:3 — the composer is for WRITING (V2-619, operator: «ya de base debería tener dos o tres
@@ -708,11 +706,13 @@ export function ChatWall() {
         ref: el => (inputEl = el), rows: 3, placeholder: () => t("chat.messagePlaceholder"),
         onKeydown: e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } },
       }),
-      h("button", { class: () => "cw-send" + (canSend() && !attBusy() ? "" : " off"),
-                    disabled: () => !canSend() || attBusy(),
-                    title: () => t(!canSend() ? "chat.sendAgentOff" : attBusy() ? "chat.sendWaitFiles" : "chat.send"),
-                    onClick: send },
-        raw(SEND_SVG)),
+      // V2-831 T-03 — attach over send, ONE column right of the box: the text box keeps the whole width.
+      h("div", { class: "cw-actions" }, h("button", { class: "cw-clip", title: () => t("chat.attach"),
+          "aria-label": () => t("chat.attach"), onClick: () => fileEl && fileEl.click() }, raw(PAPERCLIP_ICON)),
+        h("button", { class: () => "cw-send" + (canSend() && !attBusy() ? "" : " off"),
+                      disabled: () => !canSend() || attBusy(),
+                      title: () => t(!canSend() ? "chat.sendAgentOff" : attBusy() ? "chat.sendWaitFiles" : "chat.send"),
+                      onClick: send }, raw(SEND_SVG))),
     ),
   );
 
