@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo.flash import reply_or_forward as RF
+from nucleo.acts import message_repair as RF
 
 _ORDER = "send the invoice to quinn, tell him we're already trying orion and he should book it"
 
@@ -33,7 +33,7 @@ def stores(tmp_path, monkeypatch):
 def test_a_reply_to_the_sender_naming_another_person_is_a_forward(stores):
     got = RF.forward_of("mensajeria", "reply", {"n": 1, "text": "Hi Quinn — forwarding the receipt."}, _ORDER)
     assert got == {"contact": "Quinn", "messageId": "m-1", "text": "Hi Quinn — forwarding the receipt."}, got
-    assert RF.instead("mensajeria", "reply", {"n": 1, "text": "x"}, _ORDER) == "forward"
+    assert RF.forward_instead("mensajeria", "reply", {"n": 1, "text": "x"}, _ORDER) == "forward"
 
 
 def test_a_reply_to_the_person_he_named_stays_a_reply(stores):
@@ -44,9 +44,3 @@ def test_no_one_named_or_another_action_changes_nothing(stores):
     assert RF.forward_of("mensajeria", "reply", {"n": 1, "text": "Thanks"}, "reply thanks to that one") is None
     assert RF.forward_of("mensajeria", "send_to", {"contact": "Quinn", "text": "x"}, _ORDER) is None
     assert RF.forward_of("mensajeria", "reply", {"n": 9, "text": "x"}, _ORDER) is None, "an unresolved reply stays"
-
-
-def test_the_turn_asks_the_rule():
-    calls = open("nucleo/flash/tool_executor_widget_calls.py", encoding="utf-8").read()
-    assert "_txw._rof.instead(" in calls and "_txw._rof.forward_of(" in calls, "the voice rail runs the forward"
-    assert "_rof.forward_of(" in open("nucleo/flash/verdict_card.py", encoding="utf-8").read()

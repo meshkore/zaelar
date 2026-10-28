@@ -21,7 +21,7 @@ import pytest
 @pytest.fixture
 def gate(monkeypatch):
     from nucleo import his_words, untrusted
-    from nucleo.flash import leave_gate
+    from nucleo.acts import message as leave_gate
     his_words.reset()
     monkeypatch.setattr(untrusted, "present", lambda: False)
     yield leave_gate
@@ -59,13 +59,14 @@ def test_the_meeting_invitation_leaves_and_its_guest_must_be_his(gate):
 
 
 def test_the_engine_never_turns_a_draft_into_a_send_to_somebody_he_did_not_name(gate, monkeypatch):
-    from nucleo.flash import direct_action, ordered_send, payload_fill, undecided
+    from nucleo.acts import message_repair as ordered_send
+    from nucleo.flash import direct_action, payload_fill, undecided
     monkeypatch.setattr(direct_action, "completes", lambda *_a, **_k: "send_to")
     monkeypatch.setattr(undecided, "sure_order", lambda *_a: True)
     monkeypatch.setattr(payload_fill, "person_fill", lambda *_a: {})
     pay = {"contact": "Quinn", "text": "the numbers are in"}
-    assert ordered_send.instead({}, "mensajeria", "draft", pay, "send the numbers to the team") is None
-    assert ordered_send.instead({}, "mensajeria", "draft", pay, "send the numbers to quinn") == ("send_to", pay)
+    assert ordered_send.ordered_instead({}, "mensajeria", "draft", pay, "send the numbers to the team") is None
+    assert ordered_send.ordered_instead({}, "mensajeria", "draft", pay, "send the numbers to quinn") == ("send_to", pay)
 
 
 @pytest.fixture

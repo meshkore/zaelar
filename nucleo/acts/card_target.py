@@ -38,9 +38,9 @@ def _screen_now() -> list[str]:
 
 def _players_floor(cards) -> float | None:
     """Two PLAYERS that both declare the control are a coin the verdict settles only when sure (`PLAYER_SURE`) —
-    the bar `player_control` already set for the player tools, now for the `widget_data` path too: «turn the volume
+    the bar `acts.media` already set for the player tools, now for the `widget_data` path too: «turn the volume
     down a bit» read `musica:volume_down` 0.78 and «pause that» `youtube:pause` 0.67, both run in silence (V2-781)."""
-    from nucleo.flash import player_control as _pc
+    from nucleo.acts import media as _pc
     players = set(_pc.CARD_OF_TOOL.values())
     return _pc.PLAYER_SURE if all(str(c).split("::", 1)[0] in players for c in cards) else None
 
@@ -207,7 +207,7 @@ def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = 
     Returns `{card, ask, label, text, extra}` — `card` is the widget to act on (unchanged when nothing
     moved), `ask` is the sentence to say INSTEAD of acting (empty when there is nothing to ask), and the
     rest is one observability event or nothing. It writes no state and speaks to nobody: the caller does.
-    `open_ids` is the screen when the brief carries none (see `player_control`); empty = the brief's set.
+    `open_ids` is the screen when the brief carries none (see `acts.media`); empty = the brief's set.
     """
     wid = (widget_id or "").strip().lower()
     route, alt = _fe.which_card(wid, action, open_ids=open_ids, brief=brief, payload=payload, min_confidence=min_confidence,

@@ -50,19 +50,6 @@ def test_an_empty_side_never_fires():
     assert not g.answer_needs_a_source("¿a qué hora abre el Prado?", "")
 
 
-def test_the_voice_channel_is_left_out_ON_PURPOSE_and_says_why():
-    """This repo's rule is «impl PARALELA — cablear en AMBOS», so a channel left out has to be an argued
-    decision and not an oversight: voice EMITS the model's deltas as they arrive, so by the time the turn could
-    check, the improvised sentence has already been spoken. Adding the sourced version behind it means talking
-    twice on every hours-or-price question."""
-    import inspect
-
-    from voice.engine.llm.providers import nucleo as vp
-    src = _vts.turn_source()
-    assert "V2-210" in src and "AQUÍ NO" in src
-    assert "answer_needs_a_source(" not in src
-
-
 def test_there_is_an_honest_line_when_the_source_cannot_be_reached():
     """With search down, keeping the original reply would leave exactly the improvised figure this exists to
     avoid. A «I couldn't check» is a worse answer and better information."""

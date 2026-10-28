@@ -15,7 +15,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nucleo.flash import player_control as PC
+from nucleo.acts import media as PC
 
 LIST_ORDERS = {
     "es_songs": "Somos gente de 45 a 55, amantes del rock, poco reguetón, pop español y canciones de fiesta. Monta una lista.",

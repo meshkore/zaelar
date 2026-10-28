@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import asyncio
 
-from nucleo import browser_search as BS, image_search as I
+from search import browser as BS, images as I
 
 
 def _falso(**por_motor):

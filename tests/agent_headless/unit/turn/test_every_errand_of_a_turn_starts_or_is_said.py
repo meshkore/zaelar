@@ -66,7 +66,7 @@ def test_the_voice_cap_records_what_it_drops():
 
 
 def test_the_voice_listing_lane_hands_a_different_hunt_to_the_escalations():
-    from nucleo.flash import listing_turn as LT
+    from nucleo.acts import search_listing as LT
     listing = {"v": {"query": "monitor de segunda mano", "price_max": None, "price_min": None, "condition": ""}}
     esc = {"v": REPORT_ES, "more": [GAME_ES], "surface": {}}
     assert LT.runs_alone(listing, {"v": None}, esc) is False

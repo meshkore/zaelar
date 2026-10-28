@@ -244,7 +244,7 @@ def test_the_same_failure_is_not_announced_twice_in_a_row(rails):
 def test_the_mute_backstop_rotates_instead_of_repeating_one_line():
     """Measured: «Perdona, ¿me lo repites?» four times in ninety seconds, answered with «Pero ¿por qué te lo
     tengo que repetir?». `holding_line` got this treatment in V2-189; this branch never did."""
-    from nucleo.flash import reminder_guards
+    from nucleo.turn import wait_lines as reminder_guards
     from voice.engine.core import langs
 
     lines = langs.current_language().mute_lines
@@ -258,7 +258,7 @@ def test_the_mute_backstop_rotates_instead_of_repeating_one_line():
 
 
 def test_after_every_variant_the_engine_admits_it_is_stuck_instead_of_apologising_again():
-    from nucleo.flash import reminder_guards
+    from nucleo.turn import wait_lines as reminder_guards
     from voice.engine.core import langs
 
     lang = langs.current_language()

@@ -1,4 +1,4 @@
-"""`player_outcome.settled` answers with what the player made of the move, not with what the card accepted.
+"""`acts.media.settled` answers with what the player made of the move, not with what the card accepted.
 
 The ES round of `build-a-video-playlist-from-links` (2026-10-11): the card accepted `next` (Rick loaded), the player
 refused it 1.0 s later and refused the PSY swap 0.6 s after that. A card on a screen is waited on — a refusal ends the
@@ -14,7 +14,7 @@ import time
 
 import pytest
 
-from nucleo.flash import player_outcome as PO
+from nucleo.acts import media as PO
 
 A = {"videoId": "aaaaaaaaaaa", "title": "First"}
 B = {"videoId": "bbbbbbbbbbb", "title": "Second"}

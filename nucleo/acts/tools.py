@@ -8,6 +8,8 @@ of `nucleo/flash/tool_executor_calls.py` is read through `_x`, looked up at call
 """
 from __future__ import annotations
 
+from nucleo.acts import search as _search
+
 
 def _calls():
     from nucleo.flash import tool_executor_calls
@@ -67,7 +69,7 @@ def web_search(args: dict, c) -> None:
 def search_listings(args: dict, c) -> None:
     _x = _calls()
     # V2-556 — UNA por turno; la forma de la petición es del módulo (`listing_turn.request_from`).
-    c.listing_req["v"] = c.listing_req["v"] or _x._tx._lt.request_from(args, c.text)
+    c.listing_req["v"] = c.listing_req["v"] or _search.request_from(args, c.text)
 
 
 def recall(args: dict, c) -> None:

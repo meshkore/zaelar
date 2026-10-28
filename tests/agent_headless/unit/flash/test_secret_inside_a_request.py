@@ -24,7 +24,7 @@ from memory import db as memdb
 from memory import embeddings as mememb
 from memory import secrets
 from nucleo import danger
-from nucleo.flash import vault_carrier as vc
+from nucleo.acts import memory as vc
 
 
 IBAN_TURN = ("Vale, aquí van: número de factura es 000123456789, el importe es 57,32€, "

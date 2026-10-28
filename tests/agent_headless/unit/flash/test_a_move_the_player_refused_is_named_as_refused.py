@@ -3,7 +3,7 @@
 `build-a-video-playlist-from-links` (ES): «Pasa al siguiente» → `youtube:next` returned ok with Rick Astley loaded, the
 transport receipt read the card at that instant and appended «Suena ahora «Rick Astley…»», and 1.0 s / 1.6 s later
 the player reported `player_error` 150 for Rick and then for the PSY swap — nothing played. The receipt now reads
-what the move ENDED in (`player_outcome.settled`) and names the refusal and its reason instead.
+what the move ENDED in (`acts.media.settled`) and names the refusal and its reason instead.
 
 Disarm: with `_outcome_line` returning "" the first test goes red (the old «Suena ahora» comes back); with the wire
 in `probe.py` back to the sync `complete_probe(` the last one goes red.
@@ -16,7 +16,7 @@ from pathlib import Path
 import pytest
 
 from i18n import langs
-from nucleo.flash import player_outcome as PO
+from nucleo.acts import media as PO
 from nucleo.turn import reply_receipts as RR
 
 

@@ -141,7 +141,7 @@ def test_an_inline_row_is_pruned_after_two_days_and_a_worker_row_is_not():
 
 
 def test_the_picture_search_is_a_row_like_any_op(monkeypatch):
-    from nucleo import browser_search
+    from search import browser as browser_search
     from nucleo.flash import image_turn
     from widgets import server_api
 

@@ -9,7 +9,7 @@ from types import SimpleNamespace as NS
 import pytest
 
 from i18n import langs
-from nucleo.flash import reminder_guards as rg
+from nucleo.turn import wait_lines as rg
 from nucleo.workers import providers, quota_wait
 
 EN = langs.spec("en")
