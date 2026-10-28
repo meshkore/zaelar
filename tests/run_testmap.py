@@ -4511,6 +4511,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_every_import_names_a_module_that_exists.py']},
         {"id": "2.896", "title": "A turn whose act WAS the words owes no «No lo he hecho»: a sure `wants_words = tell` with no errand is kept by the reply itself; an act to be done, an unsure reading or an errand keeps the receipt (refactor2710-99, use case docs-single-recipe-not-a-list__es)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_words_he_asked_for_carry_no_not_done.py']},
+        {"id": "2.902", "title": "A turn that started, injected into or answered an errand never says «not done»: what a turn went through is noted once by the consequence door, and the turn's end reads it — whatever lane started the worker (refactor2710-99, use case docs-report-lands-as-document__es)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_started_errand_is_never_not_done.py']},
         {"id": "2.894", "title": "A module faked in sys.modules is also what its package hands out (`from pkg import mod`), and both come back — the root conftest's monkeypatch, so a fake never depends on whether an earlier test imported the real one (refactor2710-99)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_a_faked_module_is_what_its_package_hands_out.py']},
         {"id": "2.900", "title": "An unsure end state never refuses a SURE action verdict: refusing a completion is a veto, so an end state below 0.85 cannot stop a sure screen_action from completing the model (msg-es-more-chats); an unsure action keeps the gate, a sure end state still refuses (refactor2710-99)",
