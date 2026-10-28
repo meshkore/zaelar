@@ -7,7 +7,7 @@ while everything the product shows to the **outside world stays English**.
 
 ## The three language axes (do NOT conflate them)
 
-1. **Outward / clusters** → **always English** (international image). `nucleo/flash/prompt.py`: text inside
+1. **Outward / clusters** → **always English** (international image). `nucleo/turn/prompt/`: text inside
    `[[cluster.send]]` defaults to English; only mirrors the peer's language if the peer wrote in it.
 2. **Operator ↔ agent** → the **operator's language** (`ZAELAR_LANGUAGE`), any code. Detected automatically on
    first run; overridable in ⚙.
@@ -51,7 +51,7 @@ i18n/genesis/<code>/                      the languages the repo SHIPS: en (= th
   `voice/attention.py` (STOP), `nucleo/flash/router_guards.py`, `nucleo/memory_agent/lang_marks.py`,
   `nucleo/flash/segmenter.py`, `nucleo/flash/reminder_promise.py`, `search/category_words.py`,
   `nucleo/flash/outgoing_lang.py`, `voice/engine/speech/say_numbers.py` — and the model-facing prompt prose
-  (`nucleo/dispatch_prompts.py`, `nucleo/research_prompts.py`), which no operator reads. A non-preset language
+  (`nucleo/workers/prompts/`), which no operator reads. A non-preset language
   falls back to the model for what those accelerate.
 
 ## Onboarding: the language is READY before the screen switches

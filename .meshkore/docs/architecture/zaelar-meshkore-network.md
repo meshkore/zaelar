@@ -94,7 +94,7 @@ classify», because that bucket mixes unrelated errands.
 ### 1.6 Where it enters the engine
 
 ```
-dispatch_prompts._web_prompt()   step 0 — before the browser, ask the network
+workers.prompts._web_prompt()    step 0 — before the browser, ask the network
         │
         └─ Brain Worker runs:  hbmesh find "<errand>"   /   hbmesh serve "<errand>" --prompt "<ISO dates>"
                                        │
@@ -152,7 +152,7 @@ operator data, and a peer can never spend the operator's money.
 |---|---|
 | Discovery through the Oracle (free agents only) | `nucleo/mesh_agents.py` |
 | Worker bridge `hbmesh` (`find` / `serve`) | `nucleo/cli/mesh.py` |
-| «Ask the network before the browser» in every web errand | `nucleo/dispatch_prompts.py` |
+| «Ask the network before the browser» in every web errand | `nucleo/workers/prompts/` |
 | Learned route cache (7-day TTL, never on `general`) | `mesh_agents.route_for` |
 | Paid agents: reported, never paid without authorisation | §1.4 |
 | Cluster channel (public + private, UNTRUSTED profile) | `zaelar-cluster-channel.md` |

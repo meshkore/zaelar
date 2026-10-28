@@ -25,16 +25,15 @@ start with `make run` → `python -m server`.
   to the engine as a `livekit.agents.llm.LLM` provider (`voice/engine/llm/providers/nucleo.py`, `BRAIN=nucleo` =
   default). `nucleo/flash/` = **FlashBrain**, the sub-second reflex (`router.py` classifies the input +
   `fast_client.py` fast non-reasoning model client **per invocation** + `frontend.py` frontend/widget manager +
-  `procs.py` process launcher + `escalate.py` escalation + `prompt.py` [assembles the turn prompt: composed STATE +
-  a TERSE resources layer, ~30 lines] + `memory_cache.py` [caches `memory.compose_state()` outside the turn + seeds
+  `procs.py` process launcher + `escalate.py` escalation + `memory_cache.py` [caches `memory.compose_state()` outside the turn + seeds
   the mission] + `prewarm.py` [warms FlashBrain + browser at startup] + `dialog.py` [conversational stability:
   break-loop + history pruning + anti-degeneration, SHARED by voice and probe] + `probe.py` [headless TEST channel,
   the third way of testing: `POST /api/flash/say`]). **Search** lives in its own `search/` package (`web.py` = the
   chain shared by both brains; `browser.py` = Google via a persistent Chromium; `nucleo.websearch` /
   `nucleo.browser_search` are aliases) — map in `zaelar-search.md`. **Latency — memory is NOT in the synchronous
   turn**: the STATE block (name/register/topics) comes from `memory_cache` (session cache, TTL + async refresh +
-  invalidation on `memory.updated`), and semantic recall (`prompt.compose_recall`) is **on demand**
-  (`prompt.needs_recall`) and **off the event loop** (`asyncio.to_thread`) — a chit-chat turn never triggers the
+  invalidation on `memory.updated`), and semantic recall (`nucleo/turn/prompt/recall.compose_recall`) is **on demand**
+  (`nucleo/flash/recall_heuristics.needs_recall`) and **off the event loop** (`asyncio.to_thread`) — a chit-chat turn never triggers the
   retriever. `nucleo/pulse/loop.py` (~1 Hz) + `nucleo/pulse/scheduler.py` (**the engine's OWN cron**, backed by
   `memory.journal`) + `nucleo/pulse/cron_api.py` (`/api/cron`, the ⏰ panel) + `nucleo/pulse/sparks.py` (double-gated sparks) =
   the **orchestrator loop** (scheduled tasks + proactivity + triggers the memory consolidator off the hot path +
@@ -214,12 +213,29 @@ Also declared in `cluster.yaml`: `i18n/` (multilingual runtime + language prepar
 user-visible build number and the reload signal), `daemon/` (the LOCAL daemon, not the shared MeshKore one),
 `tools/` (developer review aids), `files/` (the compatibility shim above) and `scripts/`.
 
+## The turn's prompt and the workers' briefs
+
+- `nucleo/turn/prompt/` — the voice turn's system message. `builder.py` writes the ORDER of the blocks once and
+  declares each block with the one truth it reads (`BLOCKS`; «CÓMO OPERAS» and the closing line read none, and say so);
+  `operating.py` the hard-coded prose and the resources; `live_state.py` what is true now (the screen, read once from
+  the canvas's report), with its readers `live_sheet` / `live_browser` / `live_browser_nav` / `live_record` /
+  `live_tasks` / `live_history`; `recall.py` the semantic recall; `catalogs.py` the connector facts and the connector
+  and panel canons; `packs/` the context packs by phase (`zaelar-context-packs.md`). Each block has a token budget for
+  an idle turn (`fast_client.est_tokens`), and `build_flash_system(timings=…)` reports `tok_<block>`.
+- `nucleo/workers/prompts/` — the briefs a Brain Worker reads: `build` (generic) and `web` (browser) compose `context`
+  (its moment), `surfaces` (where its result goes), `drawer` (the box it runs in) and `research`. The voice prompt never
+  imports them (node 2.891).
+- `nucleo/turn/task_recall.py` — a past errand he names: the ledger narrows (`circuit.ledger.search`), ONE chooser
+  decides (a lone candidate, a word only one title has, else Jev); the results sheets are read by the same chooser.
+
 ## A request's life and the spoken rules
 
 - `nucleo/spec.py` — a request is born with its END STATE (manifest `done_when`, the escalate call's `done_when`,
   the brief's `end_state`); RAM ledger + the task row's `spec` artifact.
-- `nucleo/circuit.py` — the pulse re-verifies every open spec; the bound is the operator's (genesis `circuit.retries`);
-  the verdict is what the mouth says.
+- `nucleo/circuit/` — the pulse re-verifies every open spec; the bound is the operator's (genesis `circuit.retries`);
+  the verdict is what the mouth says. `circuit.not_the_deliverable` is the one licence of an errand's show: the canvas
+  door asks it for every show that comes from an errand (`worker:<task>`, or `sheet:<sheet>` its search fills), and a
+  show that is not the deliverable is emitted as a `step` event (family `worker`) instead of a card (CRIT-E21).
 - `nucleo/request_row.py` — every request that acts is ONE `tasks` row (`kind=inline` included); `nucleo/tasks.py`
   maps a worker session onto that row.
 - `rules/` — every standing rule and preference is a scoped row; `rules.shape` writes it once from his words,
