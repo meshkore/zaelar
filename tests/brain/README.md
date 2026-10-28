@@ -105,7 +105,7 @@ measuring itself.
 ## Today, and every night (V2-778 F3-31)
 
 **2026-10-02 — 53 cases · 15 open · routed right 100 % of the live ones** (false workers 0, wrong card 0, unanswered 0).
-The same four numbers are published every night by `.github/workflows/nightly.yml` — in the run's summary, with
+The same four numbers come out of the local gate (`tests/gate.sh`, recorded model); the nightly on GitHub is gone (2026-10-28). With
 `brain.json` as an artifact — beside the memory's recall at scale and, when the repo holds an `OPENAI_API_KEY` secret,
 the memory battery on the real model. An `open` case that turns green is listed there by name: remove its mark.
 

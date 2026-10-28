@@ -217,10 +217,15 @@ which checks the conduct INTELLIGENCE (no re-introducing, phase, objective prese
 A wide pass always runs through the watchdog, never bare `pytest`:
 
 ```sh
-./.venv/bin/python tests/watchdog.py                          # everything deterministic (~7 min)
+./tests/gate.sh                                               # THE merge gate: syntax + ruff + sweep + recorded bank (~5 min)
+./tests/gate.sh --impacted origin/main                        # while developing: only what your diff reaches (seconds)
 ./.venv/bin/python tests/watchdog.py tests/voice/unit         # one folder
-./.venv/bin/python tests/watchdog.py --impacted origin/main   # only what your diff reaches
 ```
+
+**Nothing runs on GitHub** (operator's decision, 2026-10-28): no CI, no nightly. The gate is local and it runs when we
+decide — before a merge, not on every commit of an initiative. The decision bank runs RECORDED inside the gate (seconds,
+no key; it catches a circuit regression, not model drift) and LIVE only at the start and the end of a long initiative.
+Use cases are by request; the operator's real-voice pass is what covers them.
 
 Three layers catch a hang: the `faulthandler` dump — already inside pytest, **no new dependencies** — **names** the
 file, line and function of the hung test and cuts it off within seconds; a wall-clock limit per chunk covers what the

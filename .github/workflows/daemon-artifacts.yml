@@ -21,7 +21,6 @@ name: daemon artifacts
 on:
   push:
     tags: ["v*", "daemon-v*"]
-  pull_request:
     paths:
       - "daemon/**"
       - ".github/workflows/daemon-artifacts.yml"
