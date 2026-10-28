@@ -115,19 +115,6 @@ def test_it_fails_CLOSED_when_it_cannot_tell(monkeypatch):
 
 # ── el cableado: las dos capas están enchufadas donde deben ──────────────────────────────────────────────
 
-def test_the_refusal_lives_in_the_SINGLE_gateway_every_escalation_passes_through():
-    """Mismo argumento que puso `strip_system_notes` ahí, escrito en su propio comentario: un llamante nuevo
-    hereda la regla sin tener que acordarse."""
-    import re
-    from pathlib import Path
-    src = Path(__file__).resolve().parents[3] / "nucleo/flash/escalate.py"
-    text = re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
-    i, j = text.find("touches_the_engine("), text.find("_next_seq(")
-    assert i >= 0 and j > i, (
-        "el veto va ANTES de acuñar el id: el encargo no puede llegar a existir — ni ficha, ni hoja en el "
-        "canvas, ni nombre — porque la avería fue justo eso, el encargo visible mientras el modelo preguntaba")
-
-
 def test_the_tools_and_the_cwd_follow_the_ERRAND_not_its_kind():
     import re
     from pathlib import Path
@@ -140,27 +127,42 @@ def test_the_tools_and_the_cwd_follow_the_ERRAND_not_its_kind():
         "…y el repositorio entero tampoco se entrega por llamarse `code`")
 
 
-def test_a_YES_is_not_an_escape_hatch():
-    """La puerta del GASTO se levanta con un «sí»; ésta no. El operador dijo que el núcleo no se modifica,
-    sin condición — y un «sí» dicho sobre una pregunta mal entendida es exactamente cómo se colaría."""
-    import re
-    from pathlib import Path
-    src = Path(__file__).resolve().parents[3] / "nucleo/flash/escalate.py"
-    text = re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
-    i = text.find("touches_the_engine(")
-    assert i >= 0
-    assert "confirmed" not in text[max(0, i - 400):i], (
-        "un encargo confirmado no puede saltarse la frontera del núcleo")
+def _gateway(monkeypatch):
+    """The ONE gateway every escalation passes through, with its id mint and its bus recorded (nothing spawns)."""
+    from nucleo.acts import errand as gw
+    seen = {"minted": 0, "bus": []}
+
+    def mint(_name):
+        seen["minted"] += 1
+        return 900 + seen["minted"]
+    monkeypatch.setattr(gw, "_next_seq", mint)
+    monkeypatch.setattr(gw, "_emit_bus", lambda topic, payload: seen["bus"].append(topic))
+    return gw, seen
 
 
-def test_the_cluster_dev_channel_is_deliberately_outside_this_rule():
-    """Es NUESTRA herramienta de trabajo, no una interfaz del agente, y ya lleva su propio jail que falla
-    cerrado. Dicho explícito para que nadie lo cierre por inercia sin decidirlo."""
-    import re
-    from pathlib import Path
-    src = Path(__file__).resolve().parents[3] / "nucleo/flash/escalate.py"
-    text = re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
-    assert 'ctx0.get("kind") != "dev"' in text
+ENGINE_ORDER = "cambia el enrutado del motor para que abra la tarjeta buena"
+
+
+def test_the_refusal_comes_before_the_errand_exists(monkeypatch):
+    """The veto runs BEFORE the id is minted: the errand never exists — no row, no sheet, no name — because the
+    failure was exactly that, the errand visible while the model was still asking."""
+    gw, seen = _gateway(monkeypatch)
+    assert gw.escalate_to_slowbrain(ENGINE_ORDER) == 0
+    assert seen["minted"] == 0 and "escalate.requested" not in seen["bus"]
+
+
+def test_a_YES_is_not_an_escape_hatch(monkeypatch):
+    """The spending gate lifts on a «yes»; this one does not: a «yes» over a misheard question is how it would leak."""
+    gw, seen = _gateway(monkeypatch)
+    assert gw.escalate_to_slowbrain(ENGINE_ORDER, context={"confirmed": True, "asked": "¿me pongo?"}) == 0
+    assert seen["minted"] == 0
+
+
+def test_the_cluster_dev_channel_is_deliberately_outside_this_rule(monkeypatch):
+    """OUR working tool, not an interface of the agent, with its own jail that fails closed: said explicitly so
+    nobody closes it by inertia without deciding it."""
+    gw, seen = _gateway(monkeypatch)
+    assert gw.escalate_to_slowbrain(ENGINE_ORDER, context={"kind": "dev"}) > 0 and seen["minted"] == 1
 
 
 # V2-771 — measured live on a list of errands: «prepárame una comparativa de tres bicis eléctricas» was refused

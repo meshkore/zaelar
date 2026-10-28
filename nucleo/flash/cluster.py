@@ -32,7 +32,7 @@ def _gated_tools_and_handler(tool_names, escalate_ctx):
     of action concedida a a peer: `escalate_to_slowbrain` → a worker ACOTADO (the contexto `escalate_ctx` lleva
     trusted=False + dev/repo/execute, it enforcea `dispatch`). Sin duplicar router ni escalate."""
     from .router import TOOLS
-    from .escalate import escalate_to_slowbrain
+    from nucleo.acts.errand import escalate_to_slowbrain
     names = set(tool_names or ())
     tools = [t for t in TOOLS if t.get("function", {}).get("name") in names]
     if not tools:

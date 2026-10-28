@@ -47,7 +47,7 @@ def sesion(monkeypatch):
     """Real session with a fake backend and intercepted escalation: what is measured here is what `_finish`
     LEAVES WRITTEN in the record, which is what dispatch, the sheet, and the panel read."""
     lanzadas = []
-    from nucleo.flash import escalate as _esc
+    from nucleo.acts import errand as _esc
     monkeypatch.setattr(_esc, "escalate_to_slowbrain",
                         lambda goal, context=None, **kw: lanzadas.append((goal, context or {})), raising=False)
     rec = SessionRecord(task_id="t1", goal="un fontanero que pueda venir hoy", kind="web")
@@ -114,7 +114,7 @@ def test_un_relevo_SIN_a_donde_ir_es_una_muerte(sesion):
 def test_si_el_relanzamiento_FALLA_no_se_finge_un_relevo(sesion, monkeypatch):
     """Sensitivity. Marking the baton before knowing that someone took it would turn a silent death into
     a silent death AND without a warning: the operator would be left waiting for a handoff that never started."""
-    from nucleo.flash import escalate as _esc
+    from nucleo.acts import errand as _esc
     monkeypatch.setattr(_esc, "escalate_to_slowbrain",
                         lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no hay pool")), raising=False)
     rec = sesion._rec
@@ -188,7 +188,7 @@ def test_un_fallo_ANUNCIADO_no_se_entrega_como_tarea_completada(sesion, monkeypa
     if montaje == "sin_relevo":
         rec.provider_down = {"provider": "z.ai", "next": "", "text": "insufficient balance"}
     else:
-        from nucleo.flash import escalate as _esc
+        from nucleo.acts import errand as _esc
         monkeypatch.setattr(_esc, "escalate_to_slowbrain",
                             lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no hay pool")), raising=False)
         if montaje == "relevo_roto":

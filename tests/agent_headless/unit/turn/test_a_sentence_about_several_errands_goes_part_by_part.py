@@ -38,7 +38,7 @@ def injected(monkeypatch):
     monkeypatch.setattr(dispatch, "pending_summaries", lambda: [dict(GAME), dict(MONITOR)])
     monkeypatch.setattr(dispatch, "get_record", lambda tid: types.SimpleNamespace(label="", title=TITLES.get(tid, "")))
     monkeypatch.setattr(dc, "_PENDING_CONFIRM", {})
-    monkeypatch.setattr("nucleo.flash.escalate.pending", lambda: [])
+    monkeypatch.setattr("nucleo.acts.errand.pending", lambda: [])
     monkeypatch.setattr("nucleo.workers.ended.recently_ended_sessions", lambda **k: [dict(REPORT)])
     monkeypatch.setattr(dispatch, "inject_soon", lambda which, msg: out.append((which, msg)))
     yield out

@@ -43,7 +43,7 @@ def _three_tasks(monkeypatch):
         label="", title=TITLES.get(tid, ""), goal=""))
     monkeypatch.setattr(dispatch, "resolve_sessions", lambda which: ["3"] if "monitor" in str(which) else [])
     monkeypatch.setattr(dc, "_PENDING_CONFIRM", {})
-    monkeypatch.setattr("nucleo.flash.escalate.pending", lambda: [])
+    monkeypatch.setattr("nucleo.acts.errand.pending", lambda: [])
     monkeypatch.setattr("nucleo.workers.ended.recently_ended_sessions", lambda **k: [])
     yield
     S.forget()

@@ -217,7 +217,7 @@ def test_the_resume_really_fires_and_carries_the_goal(fresh_db):
     and real `sleep` — the only part untouched by tests with `schedule=False`."""
     import asyncio
 
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
 
     calls = []
 
@@ -312,7 +312,7 @@ def test_a_reset_does_not_let_the_next_boot_resurrect_the_work(fresh_db):
 def test_a_crash_resume_inherits_the_brief_instead_of_opening_a_harder_round(fresh_db):
     import asyncio
 
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
 
     calls = []
 
@@ -396,7 +396,7 @@ def test_the_interrupted_row_is_the_errands_own_not_a_new_boots(fresh_db):
 def test_the_resumed_worker_continues_the_same_row(fresh_db):
     import asyncio
 
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     calls = []
 
     async def _run():
