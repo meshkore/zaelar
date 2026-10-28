@@ -1,54 +1,41 @@
 """widgets/results/clean.py — how a pushed payload becomes the sheet's closed schema: the fields an item,
 a part, a source, a rejected row, the summary and the criteria may carry, their caps, and the word-boundary clip.
-
-Moved byte for byte out of `widgets/results/data.py` (refactor2710-12); `data` re-exports every name, so callers
-and tests keep saying `data._clean_item` / `data._MAX_ITEMS`.
+`data` re-exports every name (`data._clean_item`, `data._MAX_ITEMS`).
 """
 from .record import (  # noqa: F401
     _MAX_LINES, _clean_blocks, _clean_facts, _clean_images, _clean_lines, _clean_meta, _clean_score, _num)
 from .sheet_names import WIDGET_ID
 
 
-# Fields an item may carry. Anything else pushed is dropped — the payload comes from a worker that read the open
-# web, so we never let arbitrary keys through to the renderer (widget.js paints with textContent only, but the
-# schema is the contract and it stays closed).
+# Fields an item may carry; anything else is dropped. The payload comes from a worker that read the open web,
+# so the schema stays closed even though widget.js paints with textContent only.
 _ITEM_FIELDS = ("title", "subtitle", "price", "badge", "url", "image", "primary", "lines",
                 "parts", "images", "facts", "score", "blocks", "full_title", "meta")
-#: `full_title` — the title as the listing wrote it, kept when the card's slot clips it. «Premium 3-Seat Sofa –
-#: Excellent Condition – Only 6 Months Used» became «Premium 3-Seat Sofa – Excellent…» and the condition it carried
-#: was gone from every later turn (2026-10-14): the card paints `title`; a reader of the row reads both.
+#: `full_title` — the title as the listing wrote it, kept when the slot clips it: the card paints `title`,
+#: a reader of the row reads both, so what the clip cut is not lost to later turns.
 # A PART is one piece of a composite item (the hotel inside a holiday plan, the ferry, the restaurant). Same
 # closed-schema discipline; `kind` is the piece's role ("Hotel", "Ferry", "Restaurante") so the card can label it.
 _PART_FIELDS = ("kind", "title", "subtitle", "price", "url", "image", "lines", "facts")
 
 _MAX_ITEMS = 60          # a report the operator can actually read; widget.js renders the first 24 and says how many more
-# `lines` used to cap at 4 — fine for a spec-sheet bullet list, but a real request ("show me the lyrics to X") needs
-# a whole song's worth of text in ONE item's body (2026-08-03). Raised so a full block of text fits; still bounded
-# so a worker can't paste an entire scraped page into a card.
+# `_MAX_LINES` fits a whole block of text (a song's lyrics) in one item, still bounded so a worker can't paste
+# an entire scraped page into a card.
 _MAX_PARTS = 6           # a plan is a handful of pieces (hotel+ferry+restaurant), never a list in disguise
 _MAX_PART_LINES = 20
-# A SOURCE is a website/origin that was attempted, with what HAPPENED there. Status is a closed vocabulary because
-# color depends on it and, above all, reading does: "could not enter" and "entered but was capped at 50" are VERY
-# different outcomes, yet until today both counted as "nothing".
+# A SOURCE is an origin that was attempted, with what HAPPENED there. Status is a closed vocabulary because colour
+# and reading depend on it: "could not enter" and "entered but capped at 50" are different outcomes.
 _SOURCE_FIELDS = ("name", "url", "status", "detail", "found")
 _SOURCE_STATUS = ("ok", "partial", "auth", "blocked", "error", "pending")
 _MAX_SOURCES = 40
 _MAX_DETAIL_CHARS = 200
 
-# SUMMARY: global state + counts + what has been done. `explored`/`selected`/`discarded` are REPORTED by whoever is
-# working (only they know how many candidates were truly looked at); what can be derived is derived and labeled as
-# derived, never confused (see `_counts`).
+# SUMMARY: state + counts + what was done. `explored`/`selected`/`discarded` are REPORTED by the worker (only it
+# knows what it looked at); what can be derived is derived and labelled as such (see `_counts`).
 _SUMMARY_NUMS = ("explored", "selected", "discarded", "round")
 
-# THE ONES THAT DID NOT MAKE IT, by name (V2-728). Operator, 2026-09-20: *«me encuentra los 5 mejores y
-# otros 50 que ha descartado, pues todo eso tiene que quedar vinculado»*. Until now `discarded` was a COUNT
-# and nothing else, so «¿por qué no este?» and «enséñame los que tiraste» had no answer anywhere in the
-# system — the work had been done and thrown away. A rejection is worth keeping precisely when it is
-# ARGUED: the row is (what it was, where, why it lost), and a row with no `why` is not stored, because a
-# list of names with no reasons is not an audit, it is a longer list.
-#
-# Capped well above the kept list on purpose: discarding is most of the work, and the cap exists to bound
-# the sheet on disk, not to express an opinion about how much looking is enough.
+# REJECTED candidates, by name: (what, where, why it lost). A row with no `why` is not stored — names without
+# reasons are not an audit. Capped well above the kept list: the cap bounds the sheet on disk, not how much
+# looking is enough (V2-728).
 _REJECTED_FIELDS = ("title", "url", "why", "source")
 _MAX_REJECTED = 120
 _MAX_WHY_CHARS = 180
@@ -63,13 +50,9 @@ _MAX_CRIT = 14
 _MAX_CRIT_CHARS = 220
 
 
-# ── PRESENTATION QUALITY CONTROL (2026-08-10) ────────────────────────────────────────────────────────────────
-# Field budgets and rules live in `widgets/presentation.py` (shared by EVERY blank surface); they are only applied
-# here. Two things change compared with before:
-#   · clipping happens on WORD boundaries and is marked. The old `[:200]` cut a real worker warning
-#     ("⚠️ Llevar tu cadena...") into "⚠️ Llevar tu c": an amputated caveat misleads more than its absence.
-#   · a payload that breaks the card leaves a TRACE. A prompt is a request, not a guarantee: if a title contains
-#     three ideas, it is logged and returned in the action response, so the worker can correct it.
+# ── PRESENTATION QUALITY CONTROL ── budgets live in `widgets/presentation.py` (shared by every blank surface).
+# Clipping is on WORD boundaries and marked (an amputated caveat misleads more than its absence); a payload that
+# breaks the card is logged and returned in the action response so the worker can correct it.
 def _clip(text, key: str) -> str:
     try:
         from widgets import presentation
@@ -78,10 +61,8 @@ def _clip(text, key: str) -> str:
         return "" if text is None else str(text)[:220]
 
 
-# STORAGE caps for the card's slots (V2-797). They used to be LAYOUT budgets (title 34, subtitle 70): what the card
-# was assumed to fit, so every real listing name was cut on the server and reported as breaking the card. The card
-# now clamps to the space it really has and shows the whole text on expand; what is bounded here is only how much
-# one field may hold (`presentation.DEFAULTS`), on a word boundary and marked with "…".
+# STORAGE caps for the card's slots, not layout budgets: the card clamps to its real space and shows the whole
+# text on expand; here only how much one field may hold is bounded (`presentation.DEFAULTS`) (V2-797).
 _SLOT_CLIP_KEYS = {"title": "title", "subtitle": "subtitle", "price": "price", "badge": "badge"}
 
 

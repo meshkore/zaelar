@@ -1,17 +1,14 @@
 """widgets/results/derived.py — the fields of a sheet that are COMPUTED, never stored: `_counts` and
 `_identity` are derived on every read, and `_save` strips every derived field before it persists.
-
-Moved byte for byte out of `widgets/results/data.py` (refactor2710-12); `data` re-exports the three names.
+`data` re-exports the three names.
 """
 from .. import store
 from .sheet_names import sheet_key
 
 
 def _counts(data: dict) -> dict:
-    """DERIVED counts, intentionally separate from reported ones. "How many were explored" is only known by the
-    worker (reported in summary); "how many are on screen" and "how many sources" are known by the sheet. Mixing them
-    into one number would invent half of it: if nobody reported breadth, the summary SAYS so instead of showing the
-    number of cards as if it were the explored count."""
+    """DERIVED counts, kept apart from reported ones: only the worker knows how many it explored; the sheet knows
+    what is on screen. If nobody reported breadth, the summary SAYS so instead of passing the card count off as it."""
     items = data.get("items") or []
     sources = data.get("sources") or []
     summary = data.get("summary") or {}
@@ -29,11 +26,9 @@ def _counts(data: dict) -> dict:
 
 
 def _identity() -> dict:
-    """Install + session ids for the SUMMARY tab's audit strip (V2-538). Served IN the payload because the
-    widget contract bans network in widget.js — the strip's own fetch was the violation that kept
-    `make test-widgets` permanently red (V2-601 T-10). Fail-open to {}: no identity, no strip, as before.
-    (The engine import below is why `results` sits in the validator's curated `_STDLIB_EXEMPT`, with the
-    observer emit of `_audit` — this widget IS an engine surface, the errand sheet.)"""
+    """Install + session ids for the SUMMARY tab's audit strip, served IN the payload because widget.js may not
+    fetch (V2-538, V2-601 T-10). Fail-open to {}: no identity, no strip. The engine import is why `results` is in
+    the validator's `_STDLIB_EXEMPT`."""
     try:
         from observability import identity as _ident
         info = _ident.session_info() or {}

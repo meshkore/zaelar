@@ -1,7 +1,6 @@
 """widgets/results/merge.py — the sections delivered ALONGSIDE present/append (sources, summary, criteria,
 rejected) merged over what the sheet already holds, and the spoken tab names normalised to the declared tabs.
-
-Moved byte for byte out of `widgets/results/data.py` (refactor2710-12); `data` re-exports both names.
+`data` re-exports both names.
 """
 from .clean import (
     _MAX_REJECTED, _MAX_SOURCES, _MAX_STEPS, _clean_criteria, _clean_rejected, _clean_sources, _clean_summary)
