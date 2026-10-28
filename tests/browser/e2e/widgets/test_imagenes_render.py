@@ -14,6 +14,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import pathlib
 
 import pytest
 
@@ -38,7 +39,12 @@ _HTML = """<!doctype html><html data-theme="dark"><head><meta charset="utf-8"><s
 :root{--hb-bg:#0f1720;--hb-bg-soft:#16202b;--hb-ink:#e8eef6;--hb-muted:#9fb0c4;--hb-muted-2:#6f8299;
       --hb-line:#243244;--hb-accent:#2F6FEB;--hb-accent2:#16B8A6}
 body{margin:0;background:#0a1017;display:flex;justify-content:center;padding:20px}
+#host{width:__W__px;height:__H__px}
 </style></head><body><div id="host"></div></body></html>"""
+# The card the desktop gives the viewer is the size its manifest DECLARES: since V2-813 the viewer fills its host
+# (no box in a box), so a host with no height measured a collapsed stage, not the viewer.
+_SIZE = json.loads(pathlib.Path(_WIDGET).with_name("manifest.json").read_text(encoding="utf-8"))["size"]
+_HTML = _HTML.replace("__W__", str(_SIZE["w"])).replace("__H__", str(_SIZE["h"]))
 
 _MEDIR = """() => {
   const el = document.querySelector('.hb-imgv');

@@ -91,7 +91,9 @@ _CHROME = """() => {
   const chips = [...document.querySelectorAll('#wrail .wr-chip')];
   const on = chips.find(c => c.classList.contains('on'));
   const bar = on ? getComputedStyle(on, '::after') : null;
-  const ics = [...document.querySelectorAll('.tr .ic')];
+  // Only the members ON SCREEN: a control the product hides on purpose (the daemon button, `.daemonBtn.is-off`
+  // {display:none} until a local helper exists) is not a member of the tray the operator sees.
+  const ics = [...document.querySelectorAll('.tr .ic')].filter(e => cs(e).display !== 'none');
   const reset = document.querySelector('.tr .reset');
   const tr = document.querySelector('.tr');
   const root = getComputedStyle(document.documentElement);
