@@ -248,7 +248,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
         if _missed and _missed not in _ops_cards:
             from nucleo.flash import act_repair as _act_repair_oc
             _oc = await _act_repair_oc.call_after_read(_op_text, next(iter(_ops_cards)), _missed, spec=spec,
-                                                       window=list(brain._window))
+                                                       window=list(brain._window), brief=_brief)
             if _oc:
                 _pst._cvis.present_for_call(_oc["widget_id"], _oc["action"], brief=_brief, src="flash", emit=emit)   # V2-815
                 _apply_widget_data(_oc["widget_id"], _oc["action"], _oc["payload"])

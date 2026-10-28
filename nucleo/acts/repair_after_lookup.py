@@ -7,13 +7,16 @@ from nucleo.flash import act_repair as _ar
 
 
 async def call_after_read(operator_text: str, read_widget: str, widget_id: str, spec=None, *,
-                          window=None) -> dict | None:
+                          window=None, brief=None) -> dict | None:
     """The turn READ one card to get what an order on ANOTHER card needed — and the read path ends the turn with
     words only. `{widget_id, action, payload}` for the order, or None. Never raises.
 
     Demo pass 2026-09-28 (full20 C5): «send rowan a telegram with the new time» — the model read the agenda for the
     new time (sensible), and the read's answer pass, which has no tools, said «I can't send a Telegram, I don't have
-    any messaging tool available here». The order stood; this pass carries it out with what was read."""
+    any messaging tool available here». The order stood; this pass carries it out with what was read.
+
+    `brief` is the turn's verdict: a call that LEAVES the machine runs only when it backs the send
+    (`repair_grounding.send_backed_by_verdict`) — the card here came from his words, not from a verdict."""
     try:
         wid = str(widget_id or "").strip().lower()
         rid = str(read_widget or "").strip().lower()
@@ -41,6 +44,14 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
             action = str(args.get("action") or "").strip()
             if name == "widget_data" and str(args.get("widget_id") or "").strip().lower() == wid and action in declared:
                 payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
+                from nucleo.flash import repair_grounding as _rg
+                if not _rg.send_backed_by_verdict(brief, wid, action):
+                    _ar._note(wid, "an act that leaves, with no verdict ordering it on this card — not sent",
+                              action=action[:40], read=rid)
+                    return None
+                if not _rg.recipient_was_named(wid, action, payload, operator_text, window):
+                    _ar._note(wid, "envío a alguien que nadie nombró", action=action[:40], read=rid)
+                    return None
                 return {"widget_id": wid, "action": action, "payload": payload}
         _ar._note(wid, "tras leer, el modelo no hizo la llamada de la orden", read=rid)
         return None
@@ -92,7 +103,7 @@ async def after_a_read(brief, operator_text: str, read_widget: str, reply: str =
         from nucleo.flash import direct_action as _da
         other = _da.order_card_after_read(brief, operator_text, read_widget)
         if other:
-            return await _ar.call_after_read(operator_text, read_widget, other, spec, window=window)
+            return await _ar.call_after_read(operator_text, read_widget, other, spec, window=window, brief=brief)
         act = _ar.same_card_order_after_read(brief, read_widget, reply)
         if act:
             rid = str(read_widget or "").split("::")[0]
