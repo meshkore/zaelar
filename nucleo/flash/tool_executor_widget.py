@@ -48,9 +48,8 @@ def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, cr
             if not wid:
                 emit("brain", "⚠️ borrar: no identifiqué el widget", text=widget_id or turn_text[:80])
                 return
-            # GUARD cerrar≠borrar (V2-045, invariante V2-017): el modelo a veces llama a delete_widget para
-            # 'CIERRA el widget de X' (cerrar es reversible, borrar es PARA SIEMPRE). Si el turno dice cerrar y
-            # NO dice borrar, es un CLOSE → no abrir confirmación de borrado. Determinista (no depende del LLM).
+            # GUARD close≠delete (V2-045, invariant V2-017): delete_widget for «CIERRA el widget de X» — closing is
+            # reversible, deleting is FOREVER. A close turn without a delete verb is a CLOSE. Deterministic.
             from nucleo.flash import router as _router
             if _router.looks_like_close(turn_text):
                 _t = _close_target(wid, turn_text)

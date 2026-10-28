@@ -246,7 +246,7 @@ def _unlift(src: str) -> str:
         body = lines[start:fn.end_lineno]       # comments between the header and the first statement included
         ind = m["ind"]
         return _unlift("".join((ind + ln[4:]) if ln.strip() else ln for ln in body))   # module body at 4 spaces
-    return _LIFTED.sub(_back, src)
+    return _with_catalog(_LIFTED.sub(_back, src))
 
 
 #: Files whose function bodies F1 cut into called blocks: read with each block put back where it sat.
@@ -272,6 +272,44 @@ _SPLICED = {
          ("            # V2-778 F1 — saying what the brain may claim about the browser", "_lbn.say_the_browser_state(",
           ENGINE / "nucleo" / "flash" / "live_blocks_nav.py", "say_the_browser_state")], "_lb"),
 }
+
+
+#: refactor2710-05 — `_on_tool_call` dispatches through `nucleo.acts.tools.CATALOG`; a guard reads the arms put back
+#: as the `if name == …: … elif …` chain they were, at the dispatch line, with the context prefixes dropped.
+ACTS_TOOLS = ENGINE / "nucleo" / "acts" / "tools.py"
+_DISPATCH = "    arm = _acts.CATALOG.get(name)\n    if arm is not None:\n        return arm(args, _turn)\n"
+
+
+def _catalog_chain() -> str:
+    import ast as _ast
+    src = ACTS_TOOLS.read_text(encoding="utf-8")
+    lines = src.splitlines(True)
+    tree = _ast.parse(src)
+    order = [e.id for e in next(n for n in tree.body if isinstance(n, _ast.Assign) and getattr(n.targets[0], "id", "")
+                                == "CATALOG").value.generators[0].iter.elts]
+    fns = {n.name: n for n in tree.body if isinstance(n, _ast.FunctionDef)}
+    out, first = [], True
+    for name in order:
+        fn = fns[name]
+        body = [ln for ln in lines[fn.lineno:fn.end_lineno] if ln.strip() != "_x = _calls()"]
+        body = "".join(body)
+        body = re.sub(r"\bc\.", "", re.sub(r"\b_x\.", "", body))
+        out.append(f'    {"if" if first else "elif"} name == "{name}":\n' + "".join(
+            ("    " + ln) if ln.strip() else ln for ln in body.splitlines(True)))
+        first = False
+    return "".join(out)
+
+
+_DISPATCH_RE = re.compile(r"(?m)^(?P<ind>[ \t]*)arm = _acts\.CATALOG\.get\(name\)\n(?P=ind)if arm is not None:\n"
+                          r"(?P=ind)    return arm\(args, _turn\)\n")
+
+
+def _with_catalog(text: str) -> str:
+    """The dispatch line replaced by the arms it dispatches to, at its own indentation, each arm unlifted."""
+    def _back(m):
+        ind = m["ind"][4:]
+        return _unlift("".join((ind + ln) if ln.strip() else ln for ln in _catalog_chain().splitlines(True)))
+    return _DISPATCH_RE.sub(_back, text)
 
 
 def _spliced(path: Path, text: str) -> str:

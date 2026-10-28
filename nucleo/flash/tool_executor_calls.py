@@ -7,11 +7,14 @@ thin closure that stays in `build`, at CALL time — the same late binding a clo
 """
 from __future__ import annotations
 
+from types import SimpleNamespace as _SimpleNamespace
+
 from nucleo.flash import player_control as _player_control
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import resume_turn as _resume_turn   # V2-799
 from nucleo.flash import tool_executor as _tx
 from nucleo.turn import errands_of_a_turn as _eot
+from nucleo.acts import tools as _acts   # refactor2710-05: the tool catalogue as a dict
 from nucleo.turn import split_by_errand as _sbe   # a send beside a status question is said (2.644)
 
 
@@ -23,36 +26,21 @@ def a_search_is_his(query: str, operator_text: str, brief, overlap) -> bool:
 
 
 def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_by_tool, _data_ops_hechas, _finish_web_auth, _handle_widget_data_tool, _norm_nfkd, _request_cluster_confirm, _request_delete_confirm, _request_restore_confirm, _resolve_confirm, _router, _say, _says_stop, _show_guard_target, _show_target_instance, _spawn, _start_web_auth, _tag_emit, _tool_fired, _word_overlap, acted, brain, clarify, confirm_state, deduped, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, self, style_fired, text, worker_acted) -> None:
-    # NINGUNA tool se ejecuta desde un fragmento superado: mientras el modelo generaba, el operador siguió
-    # hablando, así que esta decisión se tomó sobre media frase. Abrir un widget o lanzar un worker con
-    # criterios a medias es peor que no hacer nada — el turno completo llega enseguida.
+    _turn = _SimpleNamespace(**locals())   # the turn's context, as every door in `acts.tools.CATALOG` reads it
+    # No tool runs from a superseded fragment: he kept talking, so it was decided on half a sentence.
     if self._superseded():
         emit("brain", "🧩 tool ignorada — la frase seguía", text=name, role="system",
              extra={"cat": "flash", "fragment": (getattr(self, "_turn_text", "") or "")[:120]})
         return
 
-    # Recorded AFTER the superseded gate on purpose: a tool that never ran is not something this turn did,
-    # so it must not weigh on the end-of-turn flow-merge decision (V2-123, `_merge_target`).
+    # Recorded AFTER the superseded gate: a tool that never ran must not weigh on the flow merge (V2-123).
     try:
         brain._turn_tools.add(name)
         brain._turn_calls.append({"name": name, "args": dict(args or {})})
     except Exception:
         pass
 
-    # ESCOTILLA de la selección progresiva (V2-096 F2): el modelo dice que le falta una familia. Se apunta
-    # para que el turno la RECOMPONGA con esa familia cargada — un viaje extra MEDIBLE en vez de una
-    # capacidad negada en silencio, que es el fallo que de verdad rompe una conversación. No es una tool
-    # real: no hace nada, solo marca.
-    if name == "need_capability":
-        _fam = str((args or {}).get("family") or "").strip()
-        if _fam:
-            self._need_family = _fam
-        emit("brain", "🔓 el modelo pide una familia que se había recortado", text=_fam, role="system",
-             extra={"cat": "flash", "family": _fam, "retry": True})
-        return
-
-    # Alimenta la capa `recent` del turno siguiente: una conversación que ya iba de widgets no debería
-    # perderlos porque el turno siguiente no los nombre.
+    # Feeds the next turn's `recent` layer: a conversation about widgets keeps them even unnamed.
     try:
         from nucleo.flash import tool_selection as _tsel2
         _fams = _tsel2.families_used([name])
@@ -61,163 +49,15 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
             brain._recent_tool_families = list(dict.fromkeys(list(_fams) + prev))[:3]
     except Exception:
         pass
-    if name == "widget_data":
-        # Demo pass 82, I1: `imagenes:show` with no pictures is the picture SEARCH (card_commission), not a data-op.
-        if images_req["v"] is None:
-            from nucleo.flash import card_commission as _cc
-            _pic = _cc.picture_search_for_empty_show(str(args.get("widget_id") or ""), str(args.get("action") or ""),
-                                                     args.get("payload"), operator_text or text)
-            if _pic:
-                _tool_fired.add("show_images")
-                images_req["v"] = _pic
-                _tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=emit)
-                emit("brain", "🖼️ fotos → visor imagenes (un show vacío del visor es la búsqueda)",
-                     text=_pic["query"][:80], role="system")
-                return
-        # V2-391 — VARIAS, no una: lo decide `data_ops` (ahí está el porqué y qué sigue bloqueado).
-        if not _tx._data_ops.admite_data_op(args, _data_ops_hechas, _brief):
-            return
-        _data_ops_hechas.append(args)     # y `_tool_fired` ya no lo lee nadie: la cuenta es esta
-        _handle_widget_data_tool(args)
-    elif name == "escalate_to_slowbrain":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_escalate_to_slowbrain(args=args, escalate_req=escalate_req, text=text)
-    elif name == "web_search":
-        q = (args.get("query") or "").strip() or text
-        # Demo pass 89, F2 «show me the part about proof of work»: beside the right documento:goto, the model emitted
-        # web_search «proveedores de internet fibra óptica Los Angeles» — not one word of his turn, in another
-        # language — and the reply was composed from those results («the document is about internet providers»).
-        # A search that shares NOTHING with his words, on a turn the verdict reads surely as an order on a card,
-        # is not his: it is dropped, and said on the timeline.
-        if not a_search_is_his(q, operator_text or text, _brief, _word_overlap):
-            emit("brain", "🔎 búsqueda descartada: no comparte ni una palabra con su frase (orden sobre una tarjeta)",
-                 text=q[:120], role="system", extra={"cat": "flash", "query": q[:200]})
-            return
-        # TURN-BLEED: el modelo a veces re-emite la búsqueda del turno ANTERIOR junto a la de este (visto:
-        # "precio bitcoin" colado en el turno "¿cuándo es el eclipse?"). Nos quedamos con la query que MÁS
-        # se parece al turno ACTUAL, no con la primera (que puede ser la vieja) → no buscamos lo que no es.
-        if search_req["v"] is None or _word_overlap(q, text) > _word_overlap(search_req["v"], text):
-            search_req["v"] = q
-    elif name == "search_listings":
-        # V2-556 — UNA por turno; la forma de la petición es del módulo (`listing_turn.request_from`).
-        listing_req["v"] = listing_req["v"] or _tx._lt.request_from(args, text)
-    elif name == "recall":
-        # V2-056: el MODELO decide recordar (V2-022 aplicado a la memoria). Se resuelve tras el stream,
-        # fuera del event loop; la heurística needs_recall queda como prefetch.
-        if recall_req["v"] is None:
-            recall_req["v"] = (args.get("query") or "").strip() or text
-    elif name == "read_widget":
-        # V2-668: el MODELO decide LEER lo que guarda un widget; tras el stream, sin abrir nada — hermana de recall.
-        if read_req["v"] is None:
-            read_req["v"] = {"widget_id": (args.get("widget_id") or "").strip(),
-                             "question": (args.get("question") or "").strip()}
-    elif name == "resume_task":   # V2-799: the model resumes pending rows by id; each from its own row
-        _resume_turn.from_tool(args, escalate_req=escalate_req, operator_text=operator_text, apply_widget_data=_apply_widget_data, emit=emit, acted=acted)
-    elif name == "reopen_task":
-        if reopen_req["v"] is None:
-            reopen_req["v"] = (args.get("query") or "").strip() or text
-    elif name == "reveal_secret":
-        # V2-060: el operador pide un SECRETO guardado. Se resuelve tras el stream; el valor NUNCA entra en
-        # un prompt del modelo → el provider lo entrega OUT-OF-BAND (voz/pantalla). Aquí solo se captura QUÉ.
-        if reveal_req["v"] is None:
-            reveal_req["v"] = (args.get("label") or "").strip() or text
-    elif name == "play_music":
-        return _t_play_music(args=args, music_req=music_req, _brief=_brief, _apply_widget_data=_apply_widget_data, esc=escalate_req,
-                             acted=acted, clarify=clarify, emit=emit, ask_phrase=_say().ask_which_item, text=operator_text)
-    elif name == "play_video":
-        # V2-045: VÍDEO = widget youtube (VER); una por turno. Cuerpo + LICENCIA V2-635 («Muy bien,
-        # señora.» recargaba el que sonaba) en `video_turn.voice_execute` — una impl, ambos canales.
-        if "play_video" not in _tool_fired:
-            _tool_fired.add("play_video")
-            _tx._video_turn.voice_execute(args, text, emit, _apply_widget_data, deduped,
-                                      last_reply=_prior_line.of(brain), brief=_brief)
-    elif name == "show_images":
-        # V2-457: FOTOS = visor `imagenes` (VER), tercera hermana de play_music/play_video. Una por
-        # turno; se EJECUTA tras el stream (buscar es red) y se dice allí si el modelo calló.
-        if "show_images" not in _tool_fired:
-            _tool_fired.add("show_images")
-            images_req["v"] = _tx._image_turn.request_from([{"name": name, "args": args}])
-            _tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=emit)
-            emit("brain", "🖼️ fotos → visor imagenes", text=images_req["v"]["query"][:80], role="system")
-    elif name == "show_widget":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_show_widget(
-            args=args, _brief=_brief, _router=_router, _say=_say, _show_guard_target=_show_guard_target,
-            _show_target_instance=_show_target_instance, _tag_emit=_tag_emit, _tool_fired=_tool_fired, acted=acted,
-            brain=brain, clarify=clarify, deduped=deduped, emit=emit, escalate_req=escalate_req, text=text)
-    elif name == "show_panel":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_show_panel(
-            args=args, _router=_router, _tool_fired=_tool_fired, acted=acted, emit=emit, operator_text=operator_text,
-            text=text)
-    elif name == "manage_widget_alias":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_manage_widget_alias(
-            args=args, _say=_say, _tool_fired=_tool_fired, acted=acted, clarify=clarify, emit=emit, text=text)
-    elif name == "close_widget":
-        # Each CARD once, not the tool once: «close the calendar and the messages» may be two calls.
-        if _tx._show_target.close_dispatch(args, _tag_emit, emit, text=_tx._bnotes.operator_half(text),
-                                       done=_closed_by_tool, clarify=clarify):
-            _tool_fired.add("close_widget")
-            acted["widget"] = True
-    elif name == "fullscreen_widget":
-        # BUG 2026-07-23: sin tool, el modelo confabulaba éxito. Cuerpo (resolución V2-609 + licencia y
-        # dirección V2-635: «pausa el vídeo» disparaba fullscreen; «minimiza» ya no cae en el toggle al
-        # revés) en `show_target.fullscreen_dispatch` — una decisión, ambos canales.
-        if "fullscreen_widget" not in _tool_fired:
-            _tool_fired.add("fullscreen_widget")
-            _tx._show_target.fullscreen_dispatch(args, text, _tag_emit, emit, deduped)
-    elif name == "arrange_canvas":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_arrange_canvas(_tool_fired=_tool_fired, acted=acted, emit=emit)
-    elif name == "reply_message":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_reply_message(
-            args=args, _apply_widget_data=_apply_widget_data, _say=_say, _tool_fired=_tool_fired, clarify=clarify)
-    elif name == "delete_widget":
-        _request_delete_confirm((args.get("widget_id") or "").strip(), text)
-    elif name == "restore_widget":
-        _request_restore_confirm((args.get("widget_id") or "").strip(), text)
-    elif name == "confirm_widget_delete":
-        confirm_state["handled"] = _t_confirm(args, operator_text or text, _resolve_confirm, clarify, emit)
-    elif name == "set_style_directive":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_set_style_directive(
-            args=args, _spawn=_spawn, brain=brain, emit=emit, style_fired=style_fired, text=text)
-    elif name == "authenticate_web":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_authenticate_web(
-            args=args, _start_web_auth=_start_web_auth, emit=emit, escalate_req=escalate_req, text=text)
-    elif name == "login_done":
-        _finish_web_auth()
-    elif name == "connect_cluster":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_connect_cluster(args=args, _request_cluster_confirm=_request_cluster_confirm)
-    elif name == "cluster_send":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_cluster_send(args=args, _spawn=_spawn, emit=emit)
-    elif name == "set_cluster_objective":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_set_cluster_objective(args=args, _say=_say, _spawn=_spawn, clarify=clarify, emit=emit)
-    elif name == "send_to_worker":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_send_to_worker(args=args, emit=emit, worker_acted=worker_acted, fired=_tool_fired)
-    elif name == "stop_worker":
-        _prior = _prior_line.of(brain)      # outside the call: a source guard unlifts a call with no nested parens
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_stop_worker(args=args, _norm_nfkd=_norm_nfkd, _say=_say, _says_stop=_says_stop, clarify=clarify,
-                              emit=emit, text=text, worker_acted=worker_acted, brief=_brief, prior=_prior)
-    elif name == "answer_worker":
-        # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
-        return _t_answer_worker(args=args, emit=emit, worker_acted=worker_acted, fired=_tool_fired)
+    arm = _acts.CATALOG.get(name)
+    if arm is not None:
+        return arm(args, _turn)
 
 
-# V2-778 F1 — the `escalate_to_slowbrain` arm of `_on_tool_call`, moved verbatim.
 def _t_escalate_to_slowbrain(*, args, escalate_req, text):
     req = (args.get("request") or "").strip() or text
-    # V2-227: la superficie declarada se guarda POR petición. Solo se puebla desde la llamada real
-    # del modelo; los caminos de respaldo de este fichero (el tag filtrado, los backstops) no la
-    # conocen y dejan que `surfaces.resolve()` la derive del kind — que es para lo que existe.
+    # V2-227: the declared surface is kept PER request, only from a real model call; fallbacks let
+    # `surfaces.resolve()` derive it.
     _sf = str(args.get("surface") or "").strip()
     if _sf:
         escalate_req["surface"][req] = _sf
@@ -225,23 +65,18 @@ def _t_escalate_to_slowbrain(*, args, escalate_req, text):
     if escalate_req["v"] is None:
         escalate_req["v"] = req
     elif (args.get("request") or "").strip():
-        # Una 2ª (3ª…) llamada del MODELO en el mismo turno = otra tarea. Se exige `request` propio:
-        # sin él la llamada cae a `text`, que es la MISMA frase, y duplicaríamos la tarea principal.
-        # El tope existe porque el destinatario es un pool de workers reales (`dispatch._max_parallel`,
-        # 3 por defecto): un modelo que se atasque enumerando no debe poder abrir una tarea por ítem.
+        # Another MODEL call this turn = another task, and it needs its own `request` (else it is the same
+        # sentence). Capped: the target is a pool of real workers (`dispatch._max_parallel`, 3 by default).
         if req not in escalate_req["more"] and req != escalate_req["v"]:
             # three-tasks-at-once: what the pool cannot take is KEPT, so the turn can say it did not start it.
             _full = len(escalate_req["more"]) >= _eot.MAX_ERRANDS - 1
             (escalate_req.setdefault("dropped", []) if _full else escalate_req["more"]).append(req)
 
 
-# V2-778 F1 — the `play_music` arm of `_on_tool_call`, moved verbatim.
 def _t_play_music(*, args, music_req, _brief=None, _apply_widget_data=None, acted=None, clarify=None, emit=None,
                   ask_phrase="", text="", esc=None):
-    # V2-041: una acción de música por turno. Ruta LIGERA como web_search: se resuelve tras el stream,
-    # FUERA del event loop.
-    # V2-812 T-05 — an answer to OUR «which one should I close?» carries that question's licence, not a player's: «Las
-    # dos.» resumed the music in the car session. Read from the brief and the manifest's `runtime.produce`.
+    # V2-041: one music action per turn, resolved after the stream. V2-812 T-05 — an answer to OUR «which
+    # one should I close?» carries that question's licence, not a player's («Las dos.» resumed the music).
     from nucleo.flash import close_answer as _close_answer
     if _close_answer.refuses(_brief, "musica", str(args.get("action") or "play").strip().lower()):
         if emit is not None:
@@ -256,8 +91,7 @@ def _t_play_music(*, args, music_req, _brief=None, _apply_widget_data=None, acte
             emit("brain", "⚖️ encargo, no reproducción: el veredicto lee el turno como trabajo de fondo", role="system",
                  text=f"play «{str(args.get('query') or '')[:80]}» → escalate", extra={"cat": "flash", "tool": "play_music"})
         return
-    # A CONTROL with the video open too: whose player? Asked once per turn, on its first music call — a control
-    # that follows a play of the same turn is about the music that play put on (the collapse below).
+    # A CONTROL with the video open too: whose player? Asked once, on the turn's first music call.
     if music_req["v"] is None and _apply_widget_data is not None and _player_control.voice_route(
             "play_music", args, brief=_brief, apply_widget_data=_apply_widget_data, acted=acted, clarify=clarify,
             emit=emit, ask_phrase=ask_phrase, operator_text=text):
@@ -267,11 +101,8 @@ def _t_play_music(*, args, music_req, _brief=None, _apply_widget_data=None, acte
     if music_req["v"] is None:
         music_req["v"] = _mq
     else:
-        # COLAPSO determinista de VARIAS play_music en un turno (V2-047 F4, sesión 23:15: el modelo
-        # no-razonador emite play Y queue a la vez para «luego pon X» → si gana el 'play' reproduce en
-        # vez de encolar). Con música YA sonando, un `queue` MANDA sobre un `play` (añades, no
-        # reemplazas); sin nada sonando, se queda la primera. Sobre el ESTADO del rail + la acción que
-        # el propio modelo eligió — no una tabla de palabras.
+        # Collapse of several play_music in one turn (V2-047 F4: play AND queue for «luego pon X»). With music
+        # already playing a `queue` wins over a `play`; otherwise the first stays. Rail state, not a word table.
         try:
             from nucleo import rails as _rails_m
             _playing = _rails_m.get("music.playing") is not None
@@ -279,36 +110,27 @@ def _t_play_music(*, args, music_req, _brief=None, _apply_widget_data=None, acte
             _playing = False
         if _playing and _mq["action"] == "queue" and music_req["v"].get("action") != "queue":
             music_req["v"] = _mq
-        # BUG real 2026-07-23: "pon música de Queen y súbele el volumen al máximo" — el modelo emite
-        # play(Queen) + volume_up en el MISMO turno; antes la 2ª se tiraba en silencio mientras el
-        # modelo SÍ decía "subo el volumen" (confabulación: la voz prometía algo que el código no
-        # hacía). Una 2ª llamada de CONTROL puro (sin query, verbo de ajuste) tras un play/queue NO se
-        # descarta: se guarda como `followup` y se ejecuta EN SECUENCIA tras el play (abajo).
+        # Real bug 2026-07-23: «pon música de Queen y súbele el volumen» → play + volume_up; the 2nd was dropped
+        # while the voice promised it. A pure CONTROL call after a play/queue is kept as `followup`, run after.
         elif (not _mq["query"] and _mq["action"] in
               ("volume_up", "volume_down", "pause", "resume", "stop", "next", "previous")):
             music_req["followup"] = _mq
 
 
-# V2-778 F1 — the `show_widget` arm of `_on_tool_call`, moved verbatim.
 def _t_show_widget(*, args, _brief, _router, _say, _show_guard_target, _show_target_instance, _tag_emit, _tool_fired, acted, brain, clarify, deduped, emit, escalate_req, text):
-    # MOSTRAR un widget (incl. JUEGOS) como TOOL de 1ª clase — más fiable que el tag [[show]] cuando la
-    # palabra colisiona con play_music/play_video ('juega al snake'). Converge en la MISMA ruta de canvas
-    # ([[show:id]], dedup/idempotente). Resuelve el id: exacto del catálogo o fuzzy con runtime.identify.
+    # show_widget as a first-class tool (more reliable than [[show]], e.g. games); same canvas path.
     if args.get("screen"):                # V2-792: «ponlo en el ordenador» — this turn's cards go to that screen
         from voice import screens as _scr
         _scr.send_turn_to(str(args.get("screen")))
     if "show_widget" not in _tool_fired:
         _tool_fired.add("show_widget")
         _wid = (args.get("widget_id") or "").strip()
-        # GUARD (V2-567): una orden de CERRAR no se contesta con un show. Medido en vivo: «Cierra los
-        # contactos» → el modelo llamó show_widget(mensajeria); contactos lo cerró el backstop, así que
-        # UNA orden produjo DOS mutaciones. El probe ya tenía la regla escrita («un canvas:show ESPURIO
-        # en un turno de cerrar SÍ debe corregirse») y este canal no la aplicaba. El show se descarta y
-        # el backstop de cierre de más abajo hace el cierre — una orden, una mutación. V2-750 — AND THE GRAMMAR ONLY PROPOSES BELOW. Measured (session b41925f6): «vamos a HACER una cosa, ábreme el WIDGET de vídeo» matched `hacer una cosa, abreme el widget` and built a duplicate video player called `entonces-vamos-cosa`, while this same turn's verdict said `catalog_widget=youtube` at 1.00 and nobody read it. `build_decision` composes that verdict with `build_or_use`: it VETOES a create over a card we already have, and REACHES the generator where no table of ours can read the script (zh/ja/hi 6/9 → 9/9, node 2.68).
+        # GUARD (V2-567): a CLOSE order is not answered with a show («Cierra los contactos» → show(mensajeria)
+        # made two mutations); the show is dropped, the close backstop closes. V2-750: grammar only PROPOSES;
+        # `build_decision` composes the verdict with `build_or_use` (zh/ja/hi 6/9 → 9/9, node 2.68).
         if _router.show_contradicts_the_order(text) or _tx._canvas_lic.closing_turn(_brief, _wid):
-            # V2-807 T-08 — a show of a card ALREADY open, on a close turn, is the model KEEPING it («close the
-            # others, keep the document»). Nothing is opened either way; the keep is remembered so the bulk close
-            # of the same sentence spares it.
+            # V2-807 T-08 — a show of an ALREADY open card on a close turn is the model KEEPING it; nothing
+            # opens, and the keep is remembered so the same sentence's bulk close spares it.
             from nucleo.flash import bulk_close as _bulk, canvas_visibility as _cvis_keep
             if _wid and _cvis_keep.is_open(_wid):
                 _bulk.note_kept(_wid)
@@ -317,32 +139,27 @@ def _t_show_widget(*, args, _brief, _router, _say, _show_guard_target, _show_tar
             else:
                 emit("brain", "🚧 show_widget descartado: la orden dice CERRAR, no abrir",
                      text=(_wid or "?")[:40], role="system")
-        # GUARD: CREAR un widget nuevo NO es show → escala al generador (el modelo elige show_widget para
-        # 'créame un widget de X' e `identify` devuelve un widget EXISTENTE equivocado). Backstop determinista.
+        # GUARD: CREATING a widget is not a show → escalate to the generator (deterministic backstop).
         elif (_bd := _tx._build_decision.decide(text, brief=_brief, proposed=_router.looks_like_create_widget(text)))[0]:
             if escalate_req["v"] is None:
                 escalate_req["v"] = text
             emit("brain", "🏗️ show_widget→CREATE: se escala al generador (no es un show)", text=_bd[1][:60], role="system")
         else:
             from widgets import runtime
-            # Resolver CON CERTEZA (V2-082) — the whole resolution lives in
-            # show_target.resolve_show since V2-650b (ratchet extraction, guard passed in).
+            # Resolve WITH CERTAINTY (V2-082) — in show_target.resolve_show since V2-650b.
             _res, _open, _recent = _tx._show_target.resolve_show(
                 _wid, text, brain._window, brain._last_action, _show_guard_target)
             _rid = _res.get("match") or ""
             _rid = _rid if (_rid and runtime.get(_rid.split("::", 1)[0]) is not None) else ""
             _sys = _res.get("system")
-            # V2-650b: a widget the operator JUST closed does not reopen over chatter — the
-            # model re-emitted its DISCARDED show and the card came back over nobody's order.
+            # V2-650b: a widget he JUST closed does not reopen over chatter (a re-emitted discarded show).
             if _rid and not _tx._canvas_lic.reopen_license(_rid, text, _open, _recent):
                 emit("brain", "🛡️ show de un widget recién cerrado sin pedirlo — ignorado "
                      "(context-bleed)", text=_rid, role="system")
                 deduped["v"] = True
             elif _rid:
-                # V2-300 — la BASE con una instancia viva delante resuelve a la INSTANCIA: en la
-                # ronda 24 el modelo mostró `results` con la hoja del encargo abierta al lado y el
-                # canvas abrió la caja PELADA, vacía. Misma decisión y mismo dueño que el cierre
-                # (`_close_target` → `instances.resolve_close`); con varias abiertas se pregunta.
+                # V2-300 — the BASE with a live instance resolves to the INSTANCE (round 24: an empty base beside the
+                # errand sheet). Same owner as close (`instances.resolve_close`); several open → ask.
                 _r2 = _show_target_instance(_rid, text, brain._last_spoken or "")
                 if _r2.get("ask"):
                     clarify["msg"] = _r2["ask"]
@@ -350,44 +167,34 @@ def _t_show_widget(*, args, _brief, _router, _say, _show_guard_target, _show_tar
                          role="system")
                 else:
                     _rid = _r2.get("id") or _rid
-                    # V2-605: the choice was FORCED (we had already asked and he did not pick) → the
-                    # ack has to name it, or an undisclosed decision costs the next three turns.
+                    # V2-605: a FORCED choice (asked, he did not pick) must be named in the ack.
                     acted["show_chose"] = str(_r2.get("chose") or "")
                     _tag_emit("show", {"id": _rid})
-                    # V2-209: QUÉ se abrió, no solo QUE se abrió. Sin el id, el ack de más abajo no
-                    # puede distinguir «aquí lo tienes» de «te lo abro y sigo con ello», que es la
-                    # diferencia entre informar y afirmar una entrega que no ha ocurrido.
+                    # V2-209: WHICH widget opened, so the ack tells «here it is» from claiming an undelivered delivery.
                     acted["widget_id"] = _rid
                     emit("brain", "🪟 show_widget → canvas", text=_rid, role="system",
                          extra={"empty": _tx._surface_is_empty(_rid)})
             elif _tx._wall_tab_for(_sys, text):
-                # It named the CHAT, or the widget catalogue (V2-761: «ábreme las apps») — two
-                # tabs of the native wall, not widgets → open the wall on that tab.
+                # It named the CHAT or the catalogue (V2-761: «ábreme las apps»): native wall tabs, not widgets.
                 emit("panel", "open", extra={"tab": _tx._wall_tab_for(_sys, text), "src": "flash"})
                 emit("brain", f"🗂️ show_widget→{_sys} (superficie de sistema)", role="system")
                 acted["widget"] = True
             else:
-                # V2-082: NO se fabrica un widget cuando no hay match. Si nombró una pieza de sistema o
-                # nada reconocible → se PREGUNTA con naturalidad, jamás se escala al generador ni se abre
-                # el "más parecido". (Crear solo con crea/genera/hazme/modifica, ya filtrado arriba.)
+                # V2-082: no match → ASK naturally; never fabricate a widget or open the «closest» one.
                 clarify["msg"] = (_say().open_no_such_piece if _sys is None
                                   else _say().open_system_piece)
                 emit("brain", "🤔 show_widget sin match → pregunto (no fabrico widget)",
                      text=str(_sys or "—"), role="system")
 
 
-# V2-778 F1 — the `show_panel` arm of `_on_tool_call`, moved verbatim.
 def _t_show_panel(*, args, _router, _tool_fired, acted, emit, operator_text, text):
-    # V2-079: abre el PANEL nativo lateral (ChatWall) en una pestaña por voz — 'enséñame los procesos',
-    # 'los crons', 'ábreme el chat'. NO es un widget del canvas: se emite un evento `panel` que el
-    # frontend (sse.js) traduce a store.setChatTab + setChatOpen. UI nativa e intocable.
+    # V2-079: opens the native side PANEL (ChatWall) on a tab by voice: a `panel` event, not a widget.
     if "show_panel" not in _tool_fired:
         _tool_fired.add("show_panel")
         _tab = _router._canon_panel(args.get("panel"))
         if _tab == "apps":      # V2-761: «¿qué apps tengo CUSTOMIZADAS?» → the Custom sub-tab
             _tab = _tx._wall_tab_for("apps", _router.operator_words(operator_text, text))
-        # 2026-08-10: también CIERRA. Antes solo abría, así que «cierra el chat» no tenía a dónde ir y
-        # el turno acababa en un «vale, cerrado» que era falso.
+        # 2026-08-10: it also CLOSES; before, «cierra el chat» ended in a false «vale, cerrado».
         _act = _router._canon_panel_action(args.get("action"))
         # The ONE door to connect a service: the ⚙ Conectores section opened on that connector alone.
         _cx = _router._canon_connector(args.get("connector")) if _tab == "conectores" and _act == "open" else ""
@@ -396,12 +203,9 @@ def _t_show_panel(*, args, _router, _tool_fired, acted, emit, operator_text, tex
         acted["widget"] = True     # cuenta como acción de UI (ack "nunca mudo" + no escala espurio)
 
 
-# V2-778 F1 — the `manage_widget_alias` arm of `_on_tool_call`, moved verbatim.
 def _t_manage_widget_alias(*, args, _say, _tool_fired, acted, clarify, emit, text):
-    # V2-082: añade/quita un NOMBRE/ALIAS de un widget por voz ("añade el alias WhatsApp a mensajería").
-    # Escritura QUIRÚRGICA del manifest (no regenera código), con guard de colisión. Resuelve el widget
-    # por id exacto o por nombre/alias (mismo resolver de certeza). Este bucle de tool-calls es SÍNCRONO
-    # (como _apply_widget_data) → la escritura va inline (I/O de fichero de ms, no un await).
+    # V2-082: add/remove a widget ALIAS by voice — a surgical manifest write with a collision guard; this
+    # tool loop is SYNCHRONOUS, so the file write goes inline.
     if "manage_widget_alias" not in _tool_fired:
         _tool_fired.add("manage_widget_alias")
         from widgets import aliases as _al, runtime as _rt_al
@@ -428,12 +232,9 @@ def _t_manage_widget_alias(*, args, _say, _tool_fired, acted, clarify, emit, tex
             emit("brain", f"🏷️ manage_widget_alias {_op} → {_rid}", text=_alias, role="system")
 
 
-# V2-778 F1 — the `arrange_canvas` arm of `_on_tool_call`, moved verbatim.
 def _t_arrange_canvas(*, _tool_fired, acted, emit):
-    # V2-588: «ordena los widgets» tenía TODO el tramo de abajo construido (botón ⤢, Desktop.arrange,
-    # POST /api/canvas/arrange, handler SSE) y NINGUNA cara hacia el modelo — que llegó a afirmar en
-    # vivo «no hay un botón en el front-end para eso» (falso) y a improvisar re-abriendo tarjetas.
-    # Acción del CANVAS entero: sin id que resolver, el mismo emit que el endpoint REST.
+    # V2-588: «ordena los widgets» had the whole path built and no tool, so the model said no such button
+    # existed. A whole-canvas action: the same emit as the REST endpoint.
     if "arrange_canvas" not in _tool_fired:
         _tool_fired.add("arrange_canvas")
         emit("widget", "arrange", extra={"src": "flash"})
@@ -441,10 +242,8 @@ def _t_arrange_canvas(*, _tool_fired, acted, emit):
         acted["widget"] = True
 
 
-# V2-778 F1 — the `reply_message` arm of `_on_tool_call`, moved verbatim.
 def _t_reply_message(*, args, _apply_widget_data, _say, _tool_fired, clarify):
-    # V2-051: responder un mensaje del buzón. Converge en la data-op `reply` de `mensajeria`
-    # (confirm:true) → el gate CONFIRM lee el borrador y pide OK antes de ENVIAR. Una por turno.
+    # V2-051: reply via `mensajeria`'s `reply` data-op (confirm:true → the gate asks before SENDING).
     if "reply_message" not in _tool_fired:
         _tool_fired.add("reply_message")
         try:
@@ -461,11 +260,8 @@ def _t_reply_message(*, args, _apply_widget_data, _say, _tool_fired, clarify):
             clarify["msg"] = _say().reply_which_message
 
 
-# V2-778 F1 — the `set_style_directive` arm of `_on_tool_call`, moved verbatim.
 def _t_set_style_directive(*, args, _spawn, brain, emit, style_fired, text):
-    # V2-046 A1 + V2-633 — the whole path (identity actions first, style FLAGS for the engine's
-    # mouths applied synchronously, rule text persisted off-loop) lives in
-    # `nucleo/flash/style_directive.py`, extracted paying the ratchet. True = identity consumed it.
+    # V2-046 A1 + V2-633 — the path lives in `nucleo/flash/style_directive.py`; True = identity took it.
     directive = (args.get("directive") or "").strip()
     if directive:
         style_fired["v"] = True
@@ -473,22 +269,16 @@ def _t_set_style_directive(*, args, _spawn, brain, emit, style_fired, text):
         if _styled.handle(directive, text, brain, emit, _spawn): return
 
 
-# V2-778 F1 — the `authenticate_web` arm of `_on_tool_call`, moved verbatim.
 def _t_authenticate_web(*, args, _start_web_auth, emit, escalate_req, text):
-    # Guard DETERMINISTA (V2-022): si además de entrar hay una TAREA ("entra en mi Gmail y BÓRRAME…"),
-    # no es un login → es una tarea con sesión → escala al navegador (que resuelve el login como parte
-    # de la tarea). authenticate_web es SOLO para login puro ("conéctame a Wallapop").
-    # V2-176: la DECISIÓN (cuál de los cuatro caminos es) vive en `nucleo/flash/web_auth.decide`,
-    # compartida con el canal de texto — la cadena estaba solo aquí, así que el otro canal no tenía
-    # ninguna. Los EFECTOS se quedan donde estaban: cada canal emite lo suyo y este además es el que
-    # tiene `escalate_req`.
+    # Deterministic guard (V2-022): login PLUS a TASK («entra en mi Gmail y BÓRRAME…») escalates to the
+    # browser; authenticate_web is ONLY a pure login. V2-176: the DECISION lives in `web_auth.decide`
+    # (shared with the text channel); the EFFECTS stay per channel.
     from nucleo.flash import web_auth as _wa_v
     _site = (args.get("site") or "").strip()
     _kind_v, _site_resolved = _wa_v.decide(_site, text)
     if _kind_v in (_wa_v.KIND_MUSIC, _wa_v.KIND_MESSAGING):
-        # INVARIANT (2026-07-16, V2-045): Spotify, WhatsApp, Telegram and email are never logged into through
-        # the browser. Since 2026-10-04 they are connected in ONE place, the ⚙ Conectores section opened on
-        # that connector (its guide, its QR) — the widgets no longer carry connect screens of their own.
+        # INVARIANT (2026-07-16, V2-045): Spotify, WhatsApp, Telegram and email are never logged into via the
+        # browser; since 2026-10-04 they connect in ONE place, the ⚙ Conectores section on that connector.
         from nucleo.flash.connector_canon import canon_connector as _cc
         _cx = _cc(_site) or _cc(text) or ("spotify" if _kind_v == _wa_v.KIND_MUSIC else "")
         emit("panel", "open", extra={"tab": "conectores", "src": "flash", **({"connector": _cx} if _cx else {})})
@@ -502,26 +292,15 @@ def _t_authenticate_web(*, args, _start_web_auth, emit, escalate_req, text):
         _start_web_auth(_site_resolved)
 
 
-# V2-778 F1 — the `connect_cluster` arm of `_on_tool_call`, moved verbatim.
 def _t_connect_cluster(*, args, _request_cluster_confirm):
-    # V2-064: la tubería real (bridge.dispatch/dispatch_tag) ya existía — lo que faltaba era esta tool
-    # PARA que el FlashBrain pudiera invocarla. No conecta directo: pide confirmación determinista
-    # primero (ver _request_cluster_confirm) — la descripción de la tool sola no bastó para que el
-    # modelo distinguiera una orden real de un texto pegado que solo mencionaba un cluster_id/token.
+    # V2-064: the pipe existed; this tool exposes it behind a deterministic confirm
+    # (`_request_cluster_confirm`): the description alone did not stop pasted text with an id/token.
     _ccid = (args.get("cluster_id") or "").strip()
     _ctok = (args.get("token") or "").strip()
-    # V2-086 — DOS clases de cluster. Antes la condición era `_ccid and _ctok`, así que un cluster
-    # PÚBLICO (MeshKore Commons: tokenless por diseño) se descartaba en silencio: la tool se llamaba,
-    # no pasaba nada y el operador no recibía ni un "no puedo". Ahora basta el cluster_id cuando el
-    # cluster es público; el token solo es obligatorio en los privados.
-    # ⚠️ THE NAME IS `_cluster_vis`, NOT `_cvis`, AND THAT IS THE WHOLE POINT (V2-758).
-    # `_cvis` is this module's alias for `nucleo.flash.canvas_visibility` (top of the file). Assigning
-    # to that name ANYWHERE in this function makes it LOCAL for the WHOLE function — so the three
-    # branches above that call `_cvis.present(...)` (show_images, the music guard, the messaging
-    # guard) raised `UnboundLocalError` before this line ever ran. Measured on his engine
-    # 2026-09-23: nine turns, every one of them reported to him as «Cerebro rápido caído — turno
-    # degradado» while DeepSeek was answering perfectly. A local that shadows a module alias is not
-    # a style problem: it silently kills every earlier use of that module in the same scope.
+    # V2-086 — two cluster classes: a PUBLIC one (MeshKore Commons, tokenless) needs only cluster_id;
+    # before, it was dropped silently. ⚠️ The name is `_cluster_vis`, NOT `_cvis` (V2-758): assigning a
+    # module alias's name makes it LOCAL to the whole function, so every earlier `_cvis.present(...)`
+    # raised UnboundLocalError — 2026-09-23: nine turns reported «Cerebro rápido caído», DeepSeek fine.
     _cluster_vis = (args.get("vis") or "").strip().lower()
     if _cluster_vis not in ("public", "private", ""):
         _cluster_vis = ""
@@ -538,13 +317,9 @@ def _t_connect_cluster(*, args, _request_cluster_confirm):
                                  vis=("public" if _cluster_vis == "public" else ""))
 
 
-# V2-778 F1 — the `cluster_send` arm of `_on_tool_call`, moved verbatim.
 def _t_cluster_send(*, args, _spawn, emit):
-    # V2-086: enviar al cluster, ahora como tool de 1ª clase (antes iba por widget_data sobre el
-    # widget `cluster-registro`, que ya no existe). Sale por el MISMO camino que el tag
-    # [[cluster.send]] → `bridge.dispatch_tag`, así que hereda el guard de salida (un secreto duro
-    # bloquea el envío) y el journal. No pide confirmación: es una comunicación normal que el
-    # operador acaba de pedir, como escribir en un chat.
+    # V2-086: a first-class tool, by the SAME path as [[cluster.send]] → `bridge.dispatch_tag` (outbound
+    # secret guard + journal). No confirm: a normal message he just asked for.
     _stext = (args.get("text") or "").strip()
     if _stext:
         _sto = (args.get("to") or "").strip()
@@ -571,13 +346,9 @@ def _t_cluster_send(*, args, _spawn, emit):
             emit("brain", "🛰 cluster_send sin cluster resuelto (¿varios o ninguno?)", role="system")
 
 
-# V2-778 F1 — the `set_cluster_objective` arm of `_on_tool_call`, moved verbatim.
 def _t_set_cluster_objective(*, args, _say, _spawn, clarify, emit):
-    # T-02 (auditoría 2026-07-26): antes NADA escribía nunca capsule.objective — el guard
-    # `perms.gate_dev_by_objective` (V2-076) dejaba el dev-worker de CUALQUIER cluster con permiso
-    # 'code' permanentemente inerte por falta de una vía para fijarlo. Sin confirm-gate (a diferencia
-    # de connect_cluster): esto es solo bookkeeping declarativo del operador, no toca la red ni
-    # ejecuta nada — reversible llamando de nuevo con objective vacío.
+    # T-02 (audit 2026-07-26): nothing wrote capsule.objective, so `perms.gate_dev_by_objective` (V2-076)
+    # kept every 'code' cluster's dev-worker inert. No confirm: declarative, reversible with an empty one.
     _ocluster = (args.get("cluster") or "").strip()
     _opeer = (args.get("peer") or "").strip()
     _oobjective = (args.get("objective") or "").strip()
@@ -596,10 +367,8 @@ def _t_set_cluster_objective(*, args, _say, _spawn, clarify, emit):
         clarify["msg"] = _say().objective_which_peer
 
 
-# V2-778 F1 — the `send_to_worker` arm of `_on_tool_call`, moved verbatim.
 def _t_send_to_worker(*, args, emit, worker_acted, fired=None):
-    # V2-038 (↓): refina/amplía un worker vivo → INYECTA (no relanza). Fire-and-forget marshalado al
-    # loop del server (§v3·O: nunca await de una op de worker en el turno).
+    # V2-038: refine a live worker → INJECT (no relaunch), fire-and-forget on the server loop (§v3·O).
     which = (args.get("which") or "").strip()
     msg = (args.get("message") or "").strip()
     if msg:
@@ -609,14 +378,11 @@ def _t_send_to_worker(*, args, emit, worker_acted, fired=None):
             worker_acted["v"] = "inject"
             fired is not None and fired.add("send_to_worker")    # the close backstop reads it (three-tasks)
             emit("brain", "↪️ inyección a worker", text=f"{which}: {msg}"[:120], role="system")
-            # Observability (V2-090 gap): this correction continues a LIVE task — its own dialogue
-            # exchange should show up INSIDE that task's flow instead of opening a fresh one. Only
-            # when the target is unambiguous (resolve_sessions picks exactly one): with several live
-            # sessions, forcing a merge would be guessing which one this belongs to.
+            # Observability (V2-090): a correction to a LIVE task joins that task's flow — only when exactly
+            # one session matches; with several, merging would be a guess.
             try:
-                # ⚠️ Found by ruff F821 (2026-09-05): `_trace` was never in scope here, so this
-                # whole merge — documented as working since V2-090 — died as a NameError inside
-                # this very except, every time. The audited fail-open class, live in the hot path.
+                # ⚠️ ruff F821 (2026-09-05): `_trace` was never in scope, so this merge died as a NameError
+                # inside this except every time — the fail-open class, live in the hot path.
                 from voice import trace as _trace
                 _targets = _d.resolve_sessions(which or "todo")
                 if len(_targets) == 1:
@@ -630,34 +396,23 @@ def _t_send_to_worker(*, args, emit, worker_acted, fired=None):
             _tx.logger.warning(f"send_to_worker falló: {e}")
 
 
-# V2-778 F1 — the `stop_worker` arm of `_on_tool_call`, moved verbatim.
 def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, worker_acted, brief=None,
                    prior: str = ""):
     which = (args.get("which") or "").strip()
-    # ── GUARD 1: NO SE MATA A QUIEN ACABAS DE CONTESTAR (2026-08-14, sesión b70a45d0) ──────────────
-    # El turno emitió `answer_worker` con la autorización que el worker llevaba 30 s esperando («Sí,
-    # autorizado: borra TODA la agenda») Y `stop_worker` detrás → la tarea murió `ok:False` con la
-    # respuesta ya entregada, y le dijo al operador «Vale, se lo digo» — falso al decirlo; la agenda
-    # nunca se vació. Contestar y matar en el MISMO turno es incoherente: gana la respuesta (no destructiva).
+    # ── GUARD 1: never stop the worker you just answered (2026-08-14, session b70a45d0) ──
+    # answer_worker («Sí, autorizado: borra TODA la agenda») + stop_worker killed the answered task and
+    # «Vale, se lo digo» was false. Answering and killing in one turn: the (non-destructive) answer wins.
     if worker_acted["v"] == "answer":
         emit("brain", "🛡️ stop_worker ignorado — este turno ACABA de responder al worker",
              text=f"{which or 'todo'}", role="system",
              extra={"cat": "flash", "kind_diag": "stop_after_answer"})
         return
-    # ── GUARD 2: MATAR EXIGE QUE EL OPERADOR LO HAYA DICHO ────────────────────────────────────────
-    # Mismo espíritu que el guarda de context-bleed de las data-ops (~L797), para lo irreversible:
-    # sin orden de parar EN el turno del operador, el `stop_worker` es arrastre del anterior. En la
-    # sesión, el stop nació de una queja de DOS TURNOS ANTES sobre widgets («los dos navegadores no se
-    # tenían que haber abierto»), cancelada por barge-in — el modelo la arrastró y la hizo un hachazo.
-    # OJO con «para»: en castellano es preposición mucho más a menudo que verbo («para nada», «para
-    # ti»), y por eso no entra suelto — de hecho «para» a secas solo calla la voz, nunca para tareas
-    # (regla del operador). Se piden formas inequívocas.
-    # …unless his turn ANSWERS a question we just put to him (demo 2026-10-22: «…running for 15 minutes now. Want
-    # me to stop it or keep going?» → «Yes, please» was refused here, and the search ran on). The order to stop
-    # was in OUR sentence; the model read his yes and chose the stop. That is not drag from an earlier turn.
-    # V2-807 T-14 — …and the turn's own verdict decides when it is sure (`stop_decision`): «para inmediatamente esa
-    # tarea que está en marcha» was refused here because the word table below did not list that word order. The
-    # table and the answer-to-our-question check are the fallback when no sure verdict exists.
+    # ── GUARD 2: stopping needs HIS order ──
+    # Like the data-op context-bleed guard, for the irreversible: no stop order in his turn = drag (that
+    # stop came from a complaint two turns earlier, cancelled by barge-in). «para» alone is a preposition
+    # and only hushes the voice, never stops tasks (operator's rule). …unless his turn ANSWERS our question
+    # (demo 2026-10-22: «Want me to stop it?» → «Yes, please» was refused). V2-807 T-14 — a sure verdict
+    # decides (`stop_decision`); the word table and the answer check are the fallback.
     from nucleo.request import stop as _stop_decision
     if not _stop_decision.ordered(brief, grammar=bool(_says_stop(text)
                                                      or _prior_line.answers_our_question(brief, prior))):
@@ -667,12 +422,9 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
         return
     try:
         from nucleo import dispatch as _d
-        # GUARD matar-TODO (sesión 23:15 2026-07-16, T49): ante «si solo es una tarea» el modelo llamó
-        # stop_worker(todo) y mató las DOS sesiones vivas — incluida la de la ITV que SÍ trabajaba
-        # (el operador se quejaba de VENTANAS duplicadas, no de procesos). Matar es irreversible →
-        # "todo" con VARIAS tareas de objetivos DISTINTOS exige que el operador lo haya dicho de
-        # verdad (todo/todas/ambos… en su turno, es/en); si no, se resuelve a la sesión que CASE con
-        # el texto (`resolve_sessions`) y, sin match claro, NO se mata nada (se pregunta).
+        # GUARD stop-ALL (session 23:15 2026-07-16, T49): «si solo es una tarea» → stop_worker(todo) killed
+        # BOTH live sessions. Irreversible: «todo» over distinct goals needs his explicit all/both; else the
+        # matching session (`resolve_sessions`), and with no clear match nothing is killed (ask).
         import re as _re_stop
         _w = which or "todo"
         if _w == "todo":
@@ -701,7 +453,6 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
         _tx.logger.warning(f"stop_worker falló: {e}")
 
 
-# V2-778 F1 — the `answer_worker` arm of `_on_tool_call`, moved verbatim.
 def _t_answer_worker(*, args, emit, worker_acted, fired=None):
     ans = (args.get("answer") or "").strip()
     if ans:

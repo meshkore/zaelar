@@ -4521,6 +4521,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_mouth_says_the_verdict.py']},
         {"id": "2.828", "title": "His commissioning sentence travels with the request to the ONE errand it opens, and reaches its sheet's row door (was 2.630; refactor2710-02 T-01)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_his_commissioning_words_travel_with_the_request.py']},
+        {"id": "2.860", "title": "The tool catalogue is a dict: every tool offered has ONE door in `acts.tools.CATALOG` (built from the arm functions, names written once), `router.tools` offers only what has a door, and a call runs through the door its name selects (refactor2710-05 T-01)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_tool_catalog_is_a_dict.py']},
         {"id": "2.829", "title": "One vocabulary for how a request ended: each of the eight verdicts declares delivered, rank, row state, line and event; older names read as it; a later op never improves a failed row; a non-ending is never settled; every settle emits with the row's trace (refactor2710-02 T-00)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_one_verdict_vocabulary.py']},
         {"id": "2.831", "title": "What the request and the circuit emit survives their move into nucleo/request and nucleo/circuit, and the verdict event carries the trace the consequence doors carry (V2-826 §2b, refactor2710-02)",
