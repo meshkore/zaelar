@@ -2,6 +2,12 @@
 keeps. Part of nucleo.workers.session; module names are read through _s."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import asyncio
+    from nucleo.workers.session import WorkerSession
+
 import time
 from dataclasses import dataclass, field
 

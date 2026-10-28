@@ -2,6 +2,11 @@
 Every package name is read through `_d`, so a patch of `dispatch.<name>` reaches the code here."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from nucleo.workers.session import SessionRecord
+
 import json as _json
 
 from nucleo import dispatch as _d

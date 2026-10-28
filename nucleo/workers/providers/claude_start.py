@@ -2,6 +2,11 @@
 spawned and its stream pumped. Part of providers.claude; module names are read through _c."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from nucleo.workers.base import WorkerSpec
+
 from loguru import logger
 import asyncio
 import glob

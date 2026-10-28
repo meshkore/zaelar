@@ -2,6 +2,11 @@
 spawned. Part of providers.grok; module names are read through _g."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from nucleo.workers.base import WorkerSpec
+
 from loguru import logger
 import glob
 import os

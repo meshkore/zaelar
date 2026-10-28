@@ -2,6 +2,11 @@
 pumped, a dead start's reason read from stderr. Part of providers.codex; module names are read through _x."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from nucleo.workers.base import WorkerSpec
+
 from loguru import logger
 import asyncio
 import glob

@@ -2,6 +2,11 @@
 result pill through `writer.result` (only a delivered verdict). Part of nucleo.workers.session (names through _s)."""
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from nucleo.workers.session import SessionRecord
+
 from loguru import logger
 
 from nucleo.workers import session as _s
