@@ -17,6 +17,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from connectors.scope_tiers import Tiered
+
 
 @dataclass(frozen=True)
 class ScopeTier:
@@ -27,7 +29,7 @@ class ScopeTier:
 
 
 @dataclass(frozen=True)
-class CalendarProvider:
+class CalendarProvider(Tiered):
     id: str
     label: str
     authorize_url: str
@@ -42,16 +44,6 @@ class CalendarProvider:
     #: registers its own Google OAuth client (same situation as the video connector). A client_id is not a
     #: secret for an installed app (PKCE protects the exchange), which is why this can ship in a public repo.
     builtin_client_id: str = ""
-
-    def tier(self, tier_id: str = "") -> ScopeTier:
-        wanted = (tier_id or "").strip() or self.default_tier
-        for t in self.tiers:
-            if t.id == wanted:
-                return t
-        for t in self.tiers:
-            if t.id == self.default_tier:
-                return t
-        return self.tiers[0]
 
 
 _GOOGLE_TIERS = (
