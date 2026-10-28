@@ -5,10 +5,12 @@ the spec/harness status, the repair pass's outcomes and a shape read from our ow
 `gave_up` ranked like `met` because the rank table did not know the word, and memory decided «delivered» by the
 position of a value in a tuple. Each verdict now declares what every reader needs from it, once.
 
-Disarm: make `verdict.keeps` always False → the rank test goes red; drop the emit from `request_row.settle` → the
+Disarm: make `verdict.keeps` always False → the rank test goes red; drop the emit from `circuit._settle_row` → the
 event test goes red.
 """
 from __future__ import annotations
+
+from nucleo import circuit
 
 import pytest
 
@@ -67,7 +69,7 @@ def test_a_settle_writes_the_declared_state_and_emits_with_the_rows_trace(rows, 
     monkeypatch.setattr(observer, "emit", lambda kind, label, text="", role="", extra=None: seen.append(
         {"kind": kind, "label": label, **(extra or {})}))
     rows["r1"] = {"id": "r1", "verdict": "", "trace_id": "t-row", "outcome": "agenda:add"}
-    request_row.settle("r1", "unverifiable", "agenda:add")
+    circuit.settle(row="r1", verdict="unverifiable", outcome="agenda:add")
     assert rows["r1"]["state"] == "done" and rows["r1"]["verdict"] == "unverifiable"
     got = [e for e in seen if e["kind"] == "verdict"]
     assert got and got[0]["verdict"] == "unverifiable" and got[0]["trace"] == "t-row" and got[0]["uid"] == "r1"
@@ -77,7 +79,7 @@ def test_a_non_ending_is_never_settled(rows):
     from nucleo.request import model as request_row
     rows["r2"] = {"id": "r2", "verdict": "", "state": "running"}
     for name in ("started", "asked", "skipped", "retrying", "nonsense"):
-        request_row.settle("r2", name)
+        circuit.settle(row="r2", verdict=name)
     assert rows["r2"] == {"id": "r2", "verdict": "", "state": "running"}
 
 

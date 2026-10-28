@@ -20,9 +20,9 @@ def docked(monkeypatch):
 
 
 def test_the_harness_does_not_count_a_docked_card_as_open(docked):
-    from nucleo.circuit import harness
-    assert harness._card_is_open("results") is False
-    assert harness._card_is_open("agenda") is True
+    from nucleo.circuit import verify
+    assert verify.card_on_screen("results") is False
+    assert verify.card_on_screen("agenda") is True
 
 
 def test_the_live_state_does_not_call_a_docked_card_open(docked):

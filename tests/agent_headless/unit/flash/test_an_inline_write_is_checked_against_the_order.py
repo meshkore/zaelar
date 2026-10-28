@@ -10,7 +10,7 @@ import inspect
 import pytest
 
 from nucleo.circuit import spec as _spec
-from nucleo.circuit import write_harness as wh
+from nucleo.circuit import compose as wh
 
 GOAL = {"all": [{"widget": "contactos", "collection": "contacts", "where": {"title~": "Quinn"}, "expect": "present"},
                 {"widget": "contactos", "collection": "contacts", "where": {"title~": "Rowan"}, "expect": "present"},
@@ -77,7 +77,8 @@ def test_a_met_end_state_calls_nothing(world, monkeypatch):
 
 def test_the_turn_checks_its_writes():
     from nucleo.flash import post_stream
-    assert "write_harness" in inspect.getsource(post_stream.run)
+    src = inspect.getsource(post_stream.run)
+    assert "nucleo.circuit.compose" in src and ".after_turn(" in src, "the turn no longer checks its writes"
 
 
 def test_a_rows_name_is_read_where_the_collection_declares_its_label(monkeypatch):
