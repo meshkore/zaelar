@@ -70,6 +70,8 @@ def run_repeated(cases: list[dict], times: int, channel: str = "probe") -> tuple
                 reds.append({"reply": out.reply[:240], "all": out.all_decisions, "calls": [(t.get("args") or {}).get("action") or t.get("name") for t in out.tool_calls][:6],
                              "brief": _brief_of(out.events)})
         ok = sum(1 for w in why if not w)
+        # Each case as it finishes: a stopped run still leaves every completed case behind.
+        print(f"{'✅' if ok == times else '❌'} {ok}/{times}  {case['id']}", file=sys.stderr, flush=True)
         rows.append({"id": case["id"], "phrase": case["phrase"], "expect": case["expect"], "ok": ok, "times": times,
                      "decisions": {d: got.count(d) for d in dict.fromkeys(got)}, "why": [w for w in why if w][:3],
                      "reds": reds[:4],
