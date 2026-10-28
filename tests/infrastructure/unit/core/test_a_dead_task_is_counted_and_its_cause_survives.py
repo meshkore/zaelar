@@ -120,14 +120,21 @@ def test_note_failure_returns_the_CAUSE_not_only_the_relay(monkeypatch):
     assert set_calls == ["relay-a"], "the failing rung is put on cooldown under its own name"
 
 
-def test_el_adaptador_ya_no_reclasifica_el_texto_para_decidir_si_avisa():
-    """El agujero exacto: `broken` lo reconoce `is_broken_request` y NO `classify_failure`, así que la
-    condición `if nxt is not None or classify_failure(...)` dejaba mudo un broken sin relevo."""
-    src = (ENGINE / "nucleo" / "workers" / "providers" / "claude.py").read_text(encoding="utf-8")
-    body = src[src.index("is_context_overflow"):src.index('yield self._ev("result"')]
-    codigo = "\n".join(l for l in body.splitlines() if not l.strip().startswith("#"))
-    assert "classify_failure" not in codigo, "sigue reconstruyendo una clasificación que ya venía hecha"
-    assert "if cause:" in codigo, "un kind reconocido tiene que producir chip, con o sin relevo"
+def test_the_adapter_no_longer_reclassifies_the_text_to_decide_whether_to_warn(monkeypatch):
+    """The exact hole: `broken` is recognised by `is_broken_request` and NOT by `classify_failure`, so the condition
+    `if nxt is not None or classify_failure(...)` left a broken request with no relay MUTE. Read through the stream
+    reader: a rejected request with no relay still produces its chip, carrying the cause `note_failure` computed."""
+    from nucleo.workers import providers as P
+    from nucleo.workers.providers.claude import ClaudeCodeSession
+    monkeypatch.setattr(P, "note_failure", lambda text, tier=None: {"kind": "broken", "provider": "relay-a",
+                                                                    "next": "", "detail": "x"})
+    s = ClaudeCodeSession()
+    s._tier = {"name": "relay-a", "base_url": "https://relay.example.test"}
+    text = "API Error: 400 [1210][Invalid API parameter, please check the documentation.]"
+    events = list(s._map({"type": "result", "subtype": "error", "is_error": True, "result": text}))
+    down = [e for e in events if e.type == "provider_down"]
+    assert down and down[0].data["kind"] == "broken" and down[0].data["next"] == "", [e.type for e in events]
+
 
 
 def test_un_broken_SIN_RELEVO_produce_causa(monkeypatch, tmp_path):

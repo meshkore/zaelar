@@ -9,6 +9,8 @@
 #
 # Run: .venv/bin/pytest tests/agent_headless/unit/workers/test_dev_worker_jail_fails_closed.py -q
 import re
+
+import pytest
 from pathlib import Path
 
 from nucleo.workers.providers.claude import _DEV_ENV_KEEP, _dev_env_allowlist
@@ -47,13 +49,18 @@ def test_the_allowlist_names_no_wildcard_secret_holder():
         assert "*" not in k and "KEY" not in k.upper().replace("ANTHROPIC_AUTH_TOKEN", ""), k
 
 
-def test_the_spawn_actually_filters_for_dev(monkeypatch):
-    """Wiring, not just the pure function (V2-199): the filter must sit in the spawn path, keyed on the DEV
-    kind — comment-stripped source, anchored on the call itself."""
-    src = _stripped("nucleo/workers/providers/claude.py")
-    i = src.index('if spec.kind == "dev":\n            env = _dev_env_allowlist(env)')
-    # …and it runs AFTER the tier credential landed in env, or the worker would start with no endpoint at all.
-    assert "env_for_worker" in src[:i], "the filter must run after the tier credential is resolved"
+@pytest.mark.parametrize("kind, leaks", [("dev", False), ("generic", True)])
+def test_the_spawn_actually_filters_for_dev(monkeypatch, kind, leaks):
+    """Wiring, not just the pure function (V2-199), read from what the spawn would launch: the DEV worker loses the
+    operator's keys and keeps the tier credential — so the filter runs AFTER the credential lands, or the worker
+    would start with no endpoint at all. Any other kind keeps its environment."""
+    from nucleo.workers.base import WorkerSpec
+    from tests.agent_headless.unit.workers.claude_spawn import spawn_of
+    env = spawn_of(monkeypatch, spec=WorkerSpec(task_id="t-dev", kind=kind), host_env={"DEEPSEEK_API_KEY": "sk-1"},
+                   chain_env={"ANTHROPIC_BASE_URL": "https://chain.example.test", "ANTHROPIC_AUTH_TOKEN": "tier"},
+                   tier={"name": "rung-1", "base_url": "https://chain.example.test"})["env"]
+    assert ("DEEPSEEK_API_KEY" in env) is leaks
+    assert env["ANTHROPIC_BASE_URL"] == "https://chain.example.test" and env["ANTHROPIC_AUTH_TOKEN"] == "tier"
 
 
 def test_a_failed_jail_write_starts_the_worker_with_zero_tools():

@@ -38,13 +38,13 @@ def test_el_prompt_y_la_allowlist_dicen_lo_MISMO():
     assert "Write" in reglas, "el prompt dejó de pedir Write y esta allowlist se quedó sin motivo"
 
 
-def test_con_deny_tools_sigue_SIN_NADA():
+def test_with_deny_tools_it_still_gets_NOTHING(monkeypatch):
     """Untrusted input (§v3·P): the upper gate is not touched — an untrusted worker does not gain a tool
-    because the one next to it needs it."""
-    import inspect
-    src = inspect.getsource(CS)
-    i = src.index("if spec.deny_tools:")
-    assert "tools: list[str] = []" in src[i:i + 160]
+    because the one next to it needs it. Read from what the spawn would launch."""
+    from nucleo.workers.base import WorkerSpec
+    from tests.agent_headless.unit.workers.claude_spawn import flag, spawn_of
+    argv = spawn_of(monkeypatch, spec=WorkerSpec(task_id="t-deny", deny_tools=True))["argv"]
+    assert flag(argv, "--allowedTools") == "" and flag(argv, "--tools") == "", argv
 
 
 # ── V2-698 — only the schemas of the tools it may use travel ───────────────────────────────────────────────
@@ -58,11 +58,13 @@ def test_the_built_in_names_behind_the_allowlist():
     assert CS.builtin_tool_names([]) == [], "no tools → `--tools \"\"`, which disables the whole set"
 
 
-def test_the_set_is_passed_beside_the_allowlist():
-    import inspect
-    src = inspect.getsource(CS)
-    i = src.index('cmd += ["--allowedTools"')
-    assert '"--tools"' in src[i:i + 900], "the allowlist travels and the built-in set does not"
+def test_the_set_is_passed_beside_the_allowlist(monkeypatch):
+    from tests.agent_headless.unit.workers.claude_spawn import flag, spawn_of
+    argv = spawn_of(monkeypatch)["argv"]
+    allowed, builtin = flag(argv, "--allowedTools"), flag(argv, "--tools")
+    assert allowed and builtin is not None, "the allowlist travels and the built-in set does not"
+    # Only the built-ins behind the allowlist travel: Read/Write by default, Bash because the bridges run through it.
+    assert builtin.split(",") == ["Bash", "Read", "Write"] and allowed.startswith("Read Write "), (allowed, builtin)
 
 
 def test_the_errand_allowlists_carry_write_too():

@@ -230,14 +230,14 @@ def test_partial_usage_survives_a_worker_that_never_says_goodbye():
 def test_the_stream_emits_usage_per_message_not_only_at_the_end():
     """Verified by polling the CLI: each `assistant` message carries its `usage`, and the `result`'s is the SUM
     (61.969+127 = 62.096). Without emitting it per message, killing a worker would still be free."""
-    import pathlib
-    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "providers" / "claude.py"
-    code = src.read_text(encoding="utf-8")
-    assert 'self._ev("usage"' in code
+    from nucleo.workers.providers.claude import ClaudeCodeSession
+    from nucleo.workers.providers.grok import GrokSession
+    s = ClaudeCodeSession()
+    msg = {"type": "assistant", "message": {"usage": {"input_tokens": 61969, "output_tokens": 127}, "content": []}}
+    usage = [e for e in s._map(msg) if e.type == "usage"]
+    assert usage and usage[0].data["usage"]["input_tokens"] == 61969
     # …and Grok inherits it, which is where the hole was found (it does not reimplement `_map`)
-    grok = (pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "providers" / "grok.py"
-            ).read_text(encoding="utf-8")
-    assert "def _map" not in grok
+    assert GrokSession._map is ClaudeCodeSession._map
 
 
 # ── a newly created widget must APPEAR on screen (2026-08-18) ──────────────────────────────────────────────────

@@ -20,8 +20,10 @@ import pytest
 from nucleo.workers.providers import spawned
 
 ENGINE = Path(__file__).resolve().parents[4]
-BACKENDS = ["nucleo/workers/providers/claude.py", "nucleo/workers/providers/codex.py",
-            "nucleo/workers/providers/grok.py"]
+#: The provider PACKAGE, not a list of files: a backend split into several modules is still covered, and a backend
+#: added later is covered without anyone remembering to list it (refactor2710-09).
+PROVIDERS = ENGINE / "nucleo" / "workers" / "providers"
+BACKENDS = ["claude", "codex", "grok"]
 
 
 def _calls(tree, name):
@@ -29,13 +31,33 @@ def _calls(tree, name):
             and (getattr(n.func, "attr", None) == name or getattr(n.func, "id", None) == name)]
 
 
-@pytest.mark.parametrize("path", BACKENDS)
-def test_the_backend_spawns_through_the_registry(path):
-    tree = ast.parse((ENGINE / path).read_text(encoding="utf-8"))
-    assert not _calls(tree, "create_subprocess_exec"), f"{path}: a bare spawn leaves the worker's session unnamed"
-    spawns = [c for c in _calls(tree, "spawn") if ast.unparse(c.func) == "_spawned.spawn"]
-    assert spawns, f"{path}: the worker CLI is not spawned through spawned.spawn"
+def _family(backend: str) -> list:
+    """The backend's module and the modules split out of it (`claude.py`, `claude_start.py`…)."""
+    return [p for p in sorted(PROVIDERS.glob("*.py")) if p.stem == backend or p.stem.startswith(backend + "_")]
+
+
+def test_no_provider_module_spawns_bare():
+    for p in sorted(PROVIDERS.glob("*.py")):
+        if p.stem == "spawned":
+            continue
+        tree = ast.parse(p.read_text(encoding="utf-8"))
+        assert not _calls(tree, "create_subprocess_exec"), f"{p.name}: a bare spawn leaves the worker's session unnamed"
+
+
+@pytest.mark.parametrize("backend", BACKENDS)
+def test_the_backend_spawns_through_the_registry(backend):
+    files = _family(backend)
+    assert files, f"no module for the {backend} backend"
+    spawns = [c for p in files for c in _calls(ast.parse(p.read_text(encoding="utf-8")), "spawn")
+              if ast.unparse(c.func).endswith("_spawned.spawn")]
+    assert spawns, f"{backend}: the worker CLI is not spawned through spawned.spawn"
     assert all(any(k.arg == "start_new_session" for k in c.keywords) for c in spawns)
+
+
+def test_the_claude_worker_opens_its_own_session(monkeypatch):
+    """At the door: the real `start` of the Claude Code worker spawns with a session of its own."""
+    from tests.agent_headless.unit.workers.claude_spawn import spawn_of
+    assert spawn_of(monkeypatch)["kw"].get("start_new_session") is True
 
 
 @pytest.fixture
