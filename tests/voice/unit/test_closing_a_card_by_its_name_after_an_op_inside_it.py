@@ -43,12 +43,10 @@ def test_a_card_that_is_not_open_is_not_closed(close_verdict):
     assert da.closes_the_named_card({}, "stop the map and close the map", [("map", "clear")]) == ""
 
 
-def test_both_channels_wire_it():
+def test_the_turn_wires_it():
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert "_direct_action.closes_the_named_card(_brief, _op_text, data_done.get(\"ops\"))" in voice
     assert 'data_done.setdefault("ops", []).append((wid, action_name))' in voice
-    assert "closes_the_named_card(_tbrief, operator_text, _ops)" in probe
 
 
 def test_the_in_card_guard_lets_the_named_close_through():
@@ -72,7 +70,4 @@ def test_tidying_the_screen_is_a_canvas_gesture_the_verdict_can_complete(monkeyp
     assert da.complete_canvas({"x": 1}, tag_emit=lambda a, x: ev.append(("tag", a)),
                               emit=lambda *a, **k: ev.append(a[:2]), operator_text="tidy up the screen") == "arrange"
     assert ("widget", "arrange") in ev and not any(e[0] == "tag" for e in ev)
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
-    # the text channel's mirror lives in `card_close.complete_canvas_mirror` since V2-781 (it also runs before the repair)
-    assert "_card_close.complete_canvas_mirror(" in probe
     assert 'if verb == "arrange":' in (ENGINE / "nucleo/flash/card_close.py").read_text(encoding="utf-8")

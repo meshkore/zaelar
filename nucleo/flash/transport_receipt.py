@@ -189,12 +189,6 @@ async def owed_settled(reply: str, ops, lang=None, *, min_wait: float = 0.0) -> 
         return owed(reply, ops, lang)
 
 
-async def complete_probe_settled(reply: str, action: str, parte) -> str:
-    """`complete_probe`, reading the outcome of a move (the text channel's ops have run; the player may not have)."""
-    line = await owed_settled(reply, ops_of_probe(action, parte))
-    return f"{str(reply or '').rstrip()} {line}".strip() if line else reply
-
-
 async def voice_owed_settled(reply: str) -> str:
     """`voice_owed` over the controls that did NOT fail (`canvas_focus.this_turn_acts` drops a refused one), read
     after the detached dispatch has landed and the player has answered."""

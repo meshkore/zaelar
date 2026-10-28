@@ -29,8 +29,6 @@ def test_the_verdict_completes_an_empty_reorder_turn_end_to_end(queue, monkeypat
     assert titles()[1:3] == [EN_QUEUE[2], EN_QUEUE[1]]
 
 
-def test_both_channels_hand_the_models_words_to_the_rung():
-    probe = (_ENGINE / "nucleo/flash/probe_mirrors.py").read_text(encoding="utf-8")
+def test_the_voice_turn_hands_the_models_words_to_the_rung():
     voice = (_ENGINE / "nucleo/flash/post_stream_words.py").read_text(encoding="utf-8")
-    assert "model_words=spoken if isinstance(spoken, str)" in probe
     assert "model_words=spoken_text" in voice

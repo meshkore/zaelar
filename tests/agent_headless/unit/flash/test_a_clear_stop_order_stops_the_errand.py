@@ -117,10 +117,9 @@ def test_the_question_is_asked_only_while_an_errand_runs(monkeypatch):
     assert sd.KEY not in _tb.build("para esa tarea", has_workers=False)
 
 
-def test_both_doors_and_the_text_channel_read_the_verdict():
-    """The wiring: the tool gate, the settle backstop and the text-channel mirror ask `stop_decision`."""
+def test_both_doors_read_the_verdict():
+    """The wiring: the tool gate and the settle backstop ask `stop_decision`."""
     import inspect
-    from nucleo.flash import post_stream_settle, probe_mirrors
+    from nucleo.flash import post_stream_settle
     assert "_stop_decision.ordered(brief" in inspect.getsource(_calls._t_stop_worker)
     assert "_stop_decision.repair(" in inspect.getsource(post_stream_settle.settle_what_is_pending)
-    assert "_stop_decision.text_action(_tbrief" in inspect.getsource(probe_mirrors.mirror_the_voice_backstops)   # V2-820

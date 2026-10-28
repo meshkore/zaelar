@@ -29,7 +29,7 @@ def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> No
     """Decide whether this turn opens a NEW trace or ADOPTS the one from a partially completed fragment chain (V2-096
     addendum, 2026-08-15). LiveKit closes a turn for EACH final STT segment, so a long sentence spoken without
     pauses used to open a new flow for each fragment — each cancelled by the next (barge-in) until the last one
-    completed. The ACCUMULATOR (`nucleo/flash/accumulator.py`) already knows whether a chain is in progress
+    completed. The ACCUMULATOR (`nucleo/input/stt.py`) already knows whether a chain is in progress
     (`.pending()`): while it has one, this turn is that same sentence growing → adopt its trace instead of opening
     a new one, without repeating the completeness judgment here (that is its job). A turn that starts a new chain
     (empty buffer) opens a trace with `begin()` as usual, and that id becomes the chain's until it is resolved

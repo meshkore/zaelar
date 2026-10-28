@@ -78,7 +78,7 @@ def test_no_named_card_no_model_call(client):
     assert _run("hola", "Voy", "") is None and not client.calls
 
 
-def test_both_channels_ask_for_the_call_before_the_promise_backstop_spends_a_worker():
+def test_the_turn_asks_for_the_call_before_the_promise_backstop_spends_a_worker():
     # V2-778 F1 moved the voice chain out of the provider: the repair lives in `post_stream_words`, the worker
     # backstop in `post_stream_lanes`, and `post_stream.run` calls the first before the second.
     run = _vts.read(ENGINE / "nucleo/flash/post_stream.py")
@@ -89,11 +89,6 @@ def test_both_channels_ask_for_the_call_before_the_promise_backstop_spends_a_wor
     assert "_cardc_ar.named_or_catalogue(_brief, _op_text)" in words, "the card must come from the turn's own verdict"
     lanes = _vts.read(ENGINE / "nucleo/flash/post_stream_lanes.py")
     assert 'emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)"' in lanes
-    # V2-770: the text channel asks with the operator's OWN words (not the turn text with notes glued on), and
-    # first against the card its verdict names — then, with none named, lets the repair find one.
-    probe = _vts.read(ENGINE / "nucleo/flash/probe_mirrors.py")
-    assert "_act_repair.call_for_promise_or_order(operator_text, spoken, _ar_wid," in probe
-    assert "_act_repair.probe_call_for_promise(operator_text, spoken, spec, window=" in probe
 
 
 def test_the_escalate_tool_says_a_torrent_is_not_an_errand():
@@ -168,7 +163,7 @@ def test_a_card_that_cannot_answer_still_takes_the_call(client, monkeypatch):
     assert [t["function"]["name"] for t in _Client.calls[-1]["tools"]] == ["widget_data"], "no read for a card that cannot answer"
 
 
-def test_an_order_reading_is_enough_to_ask_the_repair_in_both_channels():
+def test_an_order_reading_is_enough_to_ask_the_repair():
     """Demo pass 2026-09-28, W1: «put griffith observatory, mount baldy and the getty on a map» → «I'll pull those
     three up on the map for you.», no call; the wording table knew neither «I'll pull up» nor «I'll put», and no card
     was named. A turn the verdict reads as an ORDER now asks the repair, which finds the card through the late
@@ -182,13 +177,10 @@ def test_an_order_reading_is_enough_to_ask_the_repair_in_both_channels():
     # full44 M1 widened it: an English «pulling the chart up now» matched no (Spanish) promise form and the verdict
     # was unsure. The door is now any mute-of-tools turn that spoke and names a card; the pass judges the words.
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     i = prov.index("V2-764 — it PROMISED to act on a card")
     gate = prov[i:i + 1400]
     assert "if (_no_tool and spoken_text and not clarify[\"msg\"]" in gate
     assert "_router.promises_action(spoken_text) or" not in gate, "the door is a wording table again"
-    j = probe.index("mirror of the voice door")
-    assert "_routerc.promises_action(spoken)" not in probe[j - 300:j + 200]
 
 
 def test_a_sure_act_reading_is_an_order_even_when_the_request_type_is_unsure():

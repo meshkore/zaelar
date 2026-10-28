@@ -245,15 +245,13 @@ def test_a_list_that_cannot_be_split_is_still_run_as_one_step(monkeypatch):
     assert len(steps) == 1 and steps[0]["goal"] == "a long message"
 
 
-# ── wiring: the list goes FIRST in both channels ─────────────────────────────────────────────────────────
-def test_both_channels_ask_about_a_list_before_any_other_lane():
+# ── wiring: the list goes FIRST in the turn ─────────────────────────────────────────────────────────
+def test_the_voice_turn_asks_about_a_list_before_any_other_lane():
     voice = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
     i_list, i_rename, i_clamp = (voice.index("_fast_lane.task_list("), voice.index("_fast_lane.rename("),
                                  voice.index("attention.clamp_input("))
     i_handled = voice.index("_fast_lane.handled(")
     assert i_list < i_handled < i_rename < i_clamp
-    probe = _vts.read(ROOT / "nucleo/flash/probe.py")
-    assert probe.index("await _task_list(text, sess)") < probe.index("_lane = _fast_lanes(text, sess")
     assert "lists=False" in (ROOT / "nucleo/batch/runner.py").read_text()
 
 
@@ -294,18 +292,23 @@ def test_every_list_line_exists_in_spanish_and_english(field):
 
 
 def test_the_text_channel_receipt_is_a_string_like_every_other_reply(monkeypatch):
-    """Measured in the first live run: a list-shaped `reply` reached the harness as an empty line."""
-    from types import SimpleNamespace
-
-    from nucleo.flash import probe
+    """Measured in the first live run: a list-shaped `reply` reached the harness as an empty line. The typed turn
+    (`nucleo.cli.turn.run_turn`, the voice turn) must hand back the list's receipt as its reply."""
+    from tests.brain import harness as H
 
     async def fake_intake(text, **kw):
         return {"ack": "Got it."}
     monkeypatch.setattr(batch, "intake", fake_intake)
-    sess = SimpleNamespace(window=[])
-    got = asyncio.run(probe._task_list(LIST, sess))
-    assert got["reply"] == "Got it." and got["action"] == "task_list"
-    assert sess.window[-1] == {"role": "assistant", "content": "Got it."}
+    with H.Isolated("en"):
+        from nucleo.cli import turn
+        try:
+            got = asyncio.run(turn.run_turn(LIST, sid="test-list-receipt"))
+            window = list(turn._brain("test-list-receipt")._window)
+        finally:
+            turn.reset("test-list-receipt")
+    assert got["ok"] is True, got
+    assert window[-1] == {"role": "assistant", "content": "Got it."}
+    assert got["reply"] == "Got it.", got
 
 
 def test_a_courtesy_question_is_not_a_step_that_needs_him(monkeypatch):
@@ -399,13 +402,6 @@ def test_a_relayed_worker_is_over_when_its_durable_row_says_so(monkeypatch):
     assert runner._worker_state("91") == "failed"                 # the row closed: over, whatever RAM says
     monkeypatch.setattr(dispatch, "get_record", lambda tid: None)
     assert runner._worker_state("does-not-exist") == "done"       # a ghost is never waited on
-
-
-def test_a_list_step_never_drains_the_operators_notes():
-    """Errands case: the step after a refused search swallowed the refusal note meant for him and answered
-    about it. `lists=False` (a step) must leave `brain_notes` for his next turn."""
-    src = _vts.read(ROOT / "nucleo/flash/probe.py")
-    assert "_notes = _bn.drain() if lists else []" in src
 
 
 def test_a_worker_a_step_started_by_another_door_is_still_waited_for(monkeypatch):

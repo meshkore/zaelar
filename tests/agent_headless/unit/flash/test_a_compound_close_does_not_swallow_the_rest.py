@@ -27,12 +27,8 @@
 # that second close would land on whatever the same sentence had just asked to open. Leaving the clause in
 # would have turned one silent failure into an intermittent one, which is worse.
 #
-# ⚠️ NOT mirrored into the probe channel, deliberately, and the last test says why: the probe never had this
-# defect. It calls the model with the full text and only LABELS the action afterwards
-# (`probe.py`, «sin este espejo el probe daba veredictos FALSOS»), so the remainder always reached the model
-# there. V2-252's rule is that a behaviour fixed in one channel is fixed in both — there is nothing to fix in
-# the one that always worked, and stripping text before its model call would be a change with no defect
-# behind it.
+# The typed channel (`nucleo.cli.turn.run_turn`) runs this same voice turn, so there is no second copy to
+# keep in step.
 from __future__ import annotations
 
 import pytest
@@ -144,14 +140,3 @@ def test_the_voice_turn_actually_CONTINUES_on_what_it_is_handed_back():
     assert "if _cont is None:" in body and "text = _cont" in body, (
         "a turn that gets a remainder back has to go on with it")
 
-
-def test_the_probe_channel_is_left_alone_and_that_is_a_decision():
-    """V2-252 says a behaviour fixed in one channel is fixed in both. The probe never had this defect — it
-    calls the model with the full text and only labels the action afterwards — so there is nothing to mirror,
-    and this test exists so the absence reads as a decision rather than an omission."""
-    import pathlib
-    p = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "flash" / "probe.py"
-    src = p.read_text("utf-8")
-    assert "hard_interrupt" in src, "the probe still mirrors the DETECTION"
-    assert "close_all_remainder" not in src, (
-        "if the probe ever short-circuits before its model call, this fix has to travel with it")

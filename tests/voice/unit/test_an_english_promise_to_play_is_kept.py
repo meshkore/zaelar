@@ -4,7 +4,7 @@
 backstop only knew the Spanish forms («voy a poner algo de rock»), the act-repair door needs a card the catalogue
 names (it answered `none` with the music card open), so the reply stood alone. The grammar below reads the promise,
 gated on the music card being open or a music word in the turn, and takes the TITLE from the words — never the
-operator's whole sentence as a search. Both channels are wired (the provider and its probe mirror).
+operator's whole sentence as a search. The voice turn is wired (the typed channel runs it too).
 """
 from __future__ import annotations
 
@@ -60,15 +60,12 @@ def test_the_query_is_the_title_the_words_carry(reply, operator, query):
     assert rg.music_query(reply, operator) == query
 
 
-def test_both_channels_play_an_english_promise_before_any_worker():
+def test_the_turn_plays_an_english_promise_before_any_worker():
     """The provider's branch runs BEFORE the escalate/show branches (a song is on the player, not on the web) and
-    the probe mirrors it; both take the query from `music_query`, never the sentence whole."""
+    takes the query from `music_query`, never the sentence whole."""
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert 'promises_playback(spoken_text, _op_text, music_open=_direct_action.on_screen_now("musica"))' in prov
     head, tail = prov.split("elif _playback:", 1)
     assert 'emit("brain", "🪟 show por backstop de promesa' in head
     assert 'elif (_wt == "go" or _win_goal' in tail      # the escalate branch (V2-802 T-07)
     assert 'music_req["v"] = {"query": _router.music_query(spoken_text, _op_text), "action": "play"}' in tail
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
-    assert 'promises_playback(spoken, text, music_open=' in probe
-    assert 'music_req = {"action": "play", "query": _routerc.music_query(spoken, text)}' in probe

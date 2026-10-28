@@ -51,13 +51,3 @@ def test_the_voice_tool_without_a_number_reaches_the_card():
     tx._t_reply_message(args={"text": "Sí"}, _apply_widget_data=lambda w, a, p: calls.append((w, a, p)),
                         _say=lambda: None, _tool_fired=set(), clarify={})
     assert calls == [("mensajeria", "reply", {"text": "Sí"})]
-
-
-def test_the_text_channel_mirrors_the_tool():
-    from nucleo.flash import probe_decide
-    calls = [{"name": "reply_message", "args": {"text": "Sí"}}]
-    names = probe_decide._reply_as_card_call(["reply_message"], calls)
-    assert "widget_data" in names
-    assert calls[-1] == {"name": "widget_data",
-                         "args": {"widget_id": "mensajeria", "action": "reply", "payload": {"text": "Sí"}}}
-    assert "_reply_as_card_call(" in open("nucleo/flash/probe.py", encoding="utf-8").read(), "the text channel uses it"

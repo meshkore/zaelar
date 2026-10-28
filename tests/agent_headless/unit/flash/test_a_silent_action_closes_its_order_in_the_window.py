@@ -3,7 +3,7 @@
 «Play video number 2» played it and said nothing, so the window held «Play video number 2» and «Make it
 fullscreen» back to back — the shape that means «that one went unanswered». The model re-emitted
 `youtube:play_result {item: 2}`, the context-bleed guard dropped it, and the reply was «Sorry, I lost that»
-with no fullscreen. Both channels now close a silent action with the short ack.
+with no fullscreen. The turn now closes a silent action with the short ack.
 """
 from tests import voice_turn_source as _vts
 import pathlib
@@ -50,12 +50,6 @@ def test_a_dropped_replay_is_not_an_act():
     assert ht.turn_handled(typed=False, deduped=True), "the mute question: a voice turn may stay silent"
     assert not ht.turn_handled(typed=False, deduped=False, aside=False), "the ack question: nothing was done"
     assert ht.turn_handled(typed=False, deduped=False, aside=False, data=True)
-
-
-def test_the_text_channel_records_it_too():
-    src = _vts.read(ROOT / "nucleo/flash/probe.py")
-    assert re.search(r"sess\.window\.append\(\{\"role\": \"assistant\", \"content\": spoken\}\)\n\s+elif tags or "
-                     r"tool_calls:\n.*\n\s+dialog\.record_silent_action\(sess\.window, ", src), "text channel parity"
 
 
 def test_the_action_map_lane_records_it_too():

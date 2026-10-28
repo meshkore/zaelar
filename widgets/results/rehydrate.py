@@ -61,6 +61,10 @@ def sheet_from_task(task_id: str) -> dict:
     data.pop("tab", None)            # the tab he was on belonged to the session that is over
     data.pop("view", None)
     data.pop("focus", None)
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("sheet.rebuild", task=tid):      # a dry turn decides the reopen, writes nothing
+        return {"ok": True, "instance": instance_id(tid), "rebuilt": True, "title": str(data.get("title") or ""),
+                "dry": True}
     _lifecycle._save(data, tid)
     return {"ok": True, "instance": instance_id(tid), "rebuilt": True,
             "title": str(data.get("title") or "")}

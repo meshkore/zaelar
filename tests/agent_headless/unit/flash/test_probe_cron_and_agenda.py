@@ -1,11 +1,11 @@
-"""nucleo/flash/probe.py::run_turn — a reminder is only a reminder if something got SCHEDULED.
+"""The typed turn (`nucleo.cli.turn.run_turn`, the voice turn itself) — a reminder is only a reminder if something got SCHEDULED.
 
 `remember-and-remind-deadline` asks for two things in one breath: «apúntame que el jueves tengo que renovar el
 seguro del coche, y recuérdamelo el miércoles». They are two different subsystems (the agenda entry and the
 cron) and the case fails if either is missing — a spoken «te lo recuerdo» with nothing behind it is exactly the
 failure it hunts for.
 
-The probe channel is the one the use cases run on, and until V2-121 it only CAPTURED `[[cron.create]]` without
+The typed channel is the one the use cases run on, and until V2-121 it only CAPTURED `[[cron.create]]` without
 running it: the reminder could not exist in a run no matter how well the model emitted the tag. Nothing pinned
 that, so it broke silently. These tests pin the two properties that matter:
 
@@ -18,10 +18,9 @@ import asyncio
 
 import pytest
 
-from memory import db as memdb
-from memory import embeddings as mememb
 from nucleo import scheduler
-from nucleo.flash import probe
+from nucleo.cli import turn
+from tests.brain import harness as H
 
 
 class _CronTagClient:
@@ -31,6 +30,9 @@ class _CronTagClient:
         yield "Apuntado. Te aviso el miércoles por la mañana."
         yield ('[[cron.create]]{"schedule":"2026-09-02 09:00","prompt":"renovar el seguro del coche mañana",'
                '"name":"seguro-coche"}[[/cron.create]]')
+
+    async def complete(self, *_a, **_kw):
+        return ""
 
 
 class _CronPlusToolClient:
@@ -47,60 +49,56 @@ class _CronPlusToolClient:
         yield ('[[cron.create]]{"schedule":"2026-09-02 09:00","prompt":"renovar el seguro del coche mañana",'
                '"name":"seguro-coche"}[[/cron.create]]')
 
-
-@pytest.fixture(autouse=True)
-def _hash_backend(monkeypatch):
-    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
-    mememb.reset()
-    yield
-    mememb.reset()
-
-
-@pytest.fixture
-def fresh_db(tmp_path, monkeypatch):
-    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
-    memdb.reset_db()
-    memdb.get_db()
-    yield
-    memdb.reset_db()
+    async def complete(self, *_a, **_kw):
+        return ""
 
 
 @pytest.fixture
 def probe_session():
+    """The typed turn, isolated (temp workspace, database and widget store), with the REAL scheduler: what is
+    measured is that the tag reaches it. The harness stubs the scheduler; it is put back by hand INSIDE the isolation
+    (a `monkeypatch` would restore the stub after the harness has already restored the real one)."""
     sid = "test-cron-agenda"
-    yield sid
-    probe._SESSIONS.pop(sid, None)
-    for job in scheduler.list_jobs(active_only=True):
-        if job.get("name") == "seguro-coche":
-            scheduler.cancel("seguro-coche")
+    real_create, real_cancel = scheduler.create, scheduler.cancel
+    with H.Isolated("es"):
+        stub_create, stub_cancel = scheduler.create, scheduler.cancel
+        scheduler.create, scheduler.cancel = real_create, real_cancel
+        try:
+            yield sid
+        finally:
+            turn.reset(sid)
+            for job in scheduler.list_jobs(active_only=True):
+                if job.get("name") == "seguro-coche":
+                    scheduler.cancel("seguro-coche")
+            scheduler.create, scheduler.cancel = stub_create, stub_cancel
 
 
 def _scheduled_names():
     return [j.get("name") for j in scheduler.list_jobs(active_only=True)]
 
 
-def test_a_cron_tag_is_actually_scheduled_not_just_captured(fresh_db, probe_session, monkeypatch):
+def test_a_cron_tag_is_actually_scheduled_not_just_captured(probe_session, monkeypatch):
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _CronTagClient)
-    res = asyncio.run(probe.run_turn(
+    res = asyncio.run(turn.run_turn(
         "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles.",
         sid=probe_session, ingest=False, execute=True))
     assert res["ok"] is True
     assert "seguro-coche" in _scheduled_names()
 
 
-def test_booking_the_appointment_does_not_kill_the_reminder(fresh_db, probe_session, monkeypatch):
+def test_booking_the_appointment_does_not_kill_the_reminder(probe_session, monkeypatch):
     """The turn has ONE `action`; the cron runs outside it on purpose. If they competed, the half the model
     happened to emit last would silently win and the operator would get an agenda entry with no alert."""
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _CronPlusToolClient)
-    res = asyncio.run(probe.run_turn(
+    res = asyncio.run(turn.run_turn(
         "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles.",
         sid=probe_session, ingest=False, execute=True))
     assert res["ok"] is True
-    assert res["action"] == "widget_data"          # the tool took the turn's single action…
+    assert res["action"].startswith("widget_data"), res["action"]   # the tool took the turn's single action…
     assert "seguro-coche" in _scheduled_names()    # …and the reminder still got scheduled
 
 
-def test_an_absolute_date_is_expressible_in_one_go(fresh_db):
+def test_an_absolute_date_is_expressible_in_one_go():
     """The prompt tells the model to use YYYY-MM-DD HH:MM for a one-off on a named day, so the scheduler has
     to accept exactly that — and reject a date already past instead of firing at once.
 

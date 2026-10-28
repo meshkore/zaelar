@@ -4,18 +4,17 @@ Until 2026-10-04 seven widgets carried a connect screen of their own plus `conne
 «conecta mi Drive» had two plausible destinations (the files card's wizard or the Conectores tab) and the model picked
 one by luck — measured in the agenda (T12 routed its Google connector to MENSAJERÍA) and in the files card. Commit
 6a39a053 removed them; connecting, configuring and disconnecting live only in the Conectores section, reached the
-SAME way by voice (`show_panel panel='conectores' connector=…`), by text (the probe mirrors the decision as
-`panel:conectores:<id>`), by a known phrase (the action map) and by hand (`ctx.openConnector`).
+SAME way by voice or typed text (`show_panel panel='conectores' connector=…` — the typed channel runs the voice
+turn), by a known phrase (the action map) and by hand (`ctx.openConnector`).
 
 Three things are pinned here, each disarm-proved:
-  1. voice and text AGREE, and the connector argument — an id, a product name, a word in ES or EN — lands on the
+  1. the connector argument — an id, a product name, a word in ES or EN — lands on the
      catalog id the section knows (`nucleo/flash/connector_canon.py`), '' for garbage;
   2. no widget keeps a connect door (a ratchet over `widgets/*/manifest.json` and `actions.py`/`data.py`);
   3. a browser «login» to Spotify / WhatsApp / Telegram / email is redirected to the section and NEVER opens a browser.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 import re
 from pathlib import Path
@@ -23,7 +22,6 @@ from pathlib import Path
 import pytest
 
 from nucleo.flash import connector_canon as CC
-from nucleo.flash import probe_decide as PD
 from nucleo.flash import router
 from nucleo.flash import tool_executor_calls as TEC
 from nucleo.flash import web_auth
@@ -85,19 +83,7 @@ def test_the_vocabulary_is_the_catalogs_own():
     assert CC.canon_connector("google-contacts") == "google-contacts", "the live row with no manifest"
 
 
-# ── 1b. voice and text agree: the probe's decision is the voice turn's emit ───────────────────────────────────
-
-class _Sess:
-    window: list = []
-    last_action = ""
-    brief = None
-
-
-def _probe_action(text, calls):
-    blk = asyncio.run(PD.name_the_action(_hard=None, _router=router, _tbrief=None, _vault_gate=None, ingest=None,
-                                         names={c["name"] for c in calls}, sess=_Sess(), tags=[], text=text,
-                                         tool_calls=calls))
-    return blk.get("action", "")
+# ── 1b. the voice turn's `show_panel` arm opens the section on the canon's connector ─────────────────────────
 
 
 def _voice_panel_emit(args, text):
@@ -118,13 +104,9 @@ def _voice_panel_emit(args, text):
     ("conéctame Spotify", "spotify", "spotify"),
     ("link my Google Contacts", "google contacts", "google-contacts"),
 ])
-def test_voice_and_text_open_the_same_connector(text, connector, cid):
-    calls = [{"name": "show_panel", "args": {"panel": "conectores", "connector": connector}}]
-    assert _probe_action(text, calls) == f"panel:conectores:{cid}"
-    act, extra = _voice_panel_emit(calls[0]["args"], text)
+def test_the_voice_turn_opens_the_named_connector(text, connector, cid):
+    act, extra = _voice_panel_emit({"panel": "conectores", "connector": connector}, text)
     assert (act, extra["tab"], extra.get("connector")) == ("open", "conectores", cid)
-    # the two channels are one decision: the probe's label IS the voice event
-    assert _probe_action(text, calls) == f"panel:{extra['tab']}:{extra['connector']}"
 
 
 def test_the_known_phrase_door_describes_and_emits_the_same_event():
@@ -139,9 +121,7 @@ def test_the_known_phrase_door_describes_and_emits_the_same_event():
 
 
 def test_without_a_connector_the_section_opens_on_its_list():
-    calls = [{"name": "show_panel", "args": {"panel": "conectores"}}]
-    assert _probe_action("abre los conectores", calls) == "panel:conectores"
-    _act, extra = _voice_panel_emit(calls[0]["args"], "abre los conectores")
+    _act, extra = _voice_panel_emit({"panel": "conectores"}, "abre los conectores")
     assert extra["tab"] == "conectores" and "connector" not in extra
 
 
@@ -150,20 +130,18 @@ def test_closing_the_section_carries_no_connector():
     assert _act == "close" and "connector" not in extra
 
 
-def test_disarmed_a_canon_that_names_nothing_leaves_both_channels_on_the_list(monkeypatch):
-    """RED proof: with the canon returning '' both channels degrade to the bare list — the agreement test above is
-    measuring the canon, not a constant. Restored in `finally`, never left disarmed."""
-    calls = [{"name": "show_panel", "args": {"panel": "conectores", "connector": "Drive"}}]
-    saved = (router._canon_connector, PD._canon_connector)
+def test_disarmed_a_canon_that_names_nothing_leaves_the_voice_turn_on_the_list(monkeypatch):
+    """RED proof: with the canon returning '' the voice arm degrades to the bare list — the test above is measuring
+    the canon, not a constant. Restored in `finally`, never left disarmed."""
+    args = {"panel": "conectores", "connector": "Drive"}
+    saved = router._canon_connector
     try:
         router._canon_connector = lambda v: ""
-        PD._canon_connector = lambda v: ""
-        assert _probe_action("conecta mi Drive", calls) == "panel:conectores", "the probe did not read the canon"
-        _act, extra = _voice_panel_emit(calls[0]["args"], "conecta mi Drive")
+        _act, extra = _voice_panel_emit(args, "conecta mi Drive")
         assert "connector" not in extra, "the voice arm did not read the canon"
     finally:
-        router._canon_connector, PD._canon_connector = saved
-    assert _probe_action("conecta mi Drive", calls) == "panel:conectores:gdrive"   # green again
+        router._canon_connector = saved
+    assert _voice_panel_emit(args, "conecta mi Drive")[1].get("connector") == "gdrive"   # green again
 
 
 # ── 2. no widget keeps a connect door (ratchet) ───────────────────────────────────────────────────────────────
@@ -319,9 +297,8 @@ def test_disarmed_a_canon_that_names_nothing_leaves_the_section_on_its_list(monk
     assert [x for k, _a, x in got if k == "panel"][0]["connector"] == "whatsapp"
 
 
-def test_the_decision_is_still_shared_with_the_text_channel():
-    """The voice arm reads `web_auth.decide`, the probe's `authenticate_web` branch reads the same — the two channels
-    cannot drift on WHICH services are redirected (V2-176)."""
+def test_the_voice_arm_reads_the_shared_decision():
+    """The voice arm reads `web_auth.decide`, the one table of WHICH services are redirected (V2-176)."""
     import inspect
     assert "web_auth" in inspect.getsource(TEC._t_authenticate_web) and ".decide(" in inspect.getsource(TEC._t_authenticate_web)
     assert "connector_canon" in inspect.getsource(TEC._t_authenticate_web), "the arm no longer names the connector"

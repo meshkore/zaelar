@@ -1,8 +1,8 @@
-"""The close BACKSTOPS of both channels read his close words, never a card he told to stay (2026-10-14).
+"""The close BACKSTOP reads his close words, never a card he told to stay (2026-10-14).
 
-`post_stream_lanes` (voice) and `probe_mirrors` (text) completed a close the model did not make with
+`post_stream_lanes` (and the old text channel's mirror) completed a close the model did not make with
 `runtime.identify` over the WHOLE sentence: «close the video, I'll check the calendar later» matched `agenda`
-outright. `close_identify.identify` reads `naming.without_kept` and drops a kept match; both sites call it.
+outright. `close_identify.identify` reads `naming.without_kept` and drops a kept match; the backstop calls it.
 """
 from __future__ import annotations
 
@@ -33,7 +33,6 @@ def test_a_plain_close_still_reaches_its_card():
     assert close_identify.identify("cierra la agenda", THREE).get("match") == "agenda"
 
 
-@pytest.mark.parametrize("rel", ["nucleo/flash/probe_mirrors.py", "nucleo/flash/post_stream_lanes.py"])
-def test_both_backstops_read_the_shared_reader(rel):
-    src = (ENGINE / rel).read_text(encoding="utf-8")
+def test_the_backstop_reads_the_shared_reader():
+    src = (ENGINE / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
     assert "close_identify" in src and ".identify(text, _o" in src

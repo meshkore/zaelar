@@ -27,6 +27,7 @@ Credentials are never typed by us, in either channel. That is the whole point of
 from __future__ import annotations
 
 import logging
+from nucleo import consequence as _consequence
 
 logger = logging.getLogger("zaelar.flash.web_auth")
 
@@ -41,6 +42,7 @@ def _emit(label: str, text: str = "", **extra) -> None:
         pass
 
 
+@_consequence.door("web.login", neutral="dry")
 def start(site: str) -> str:
     """Open the REAL browser window so the operator can sign in to `site`. Returns the task id, or "".
 
@@ -126,3 +128,10 @@ def decide(site: str, text: str) -> tuple[str, str]:
     if _g.looks_like_web_task(text):
         return KIND_TASK, site
     return KIND_LOGIN, site or _g.login_site(text)
+
+
+def fallback_site(text: str) -> str:
+    """The site a login BACKSTOP may open (the model said it would connect and called nothing): the same decision as
+    the tool, so Spotify, the messaging accounts and a login inside a task never open a browser from it ("" then)."""
+    kind, site = decide("", text)
+    return site if kind == KIND_LOGIN else ""

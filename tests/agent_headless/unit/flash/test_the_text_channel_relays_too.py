@@ -86,46 +86,15 @@ def test_no_añade_una_excepcion_a_la_que_ya_hubo(monkeypatch):
     assert pf.handle(SIN_SALDO, role=pc.ROLE_VOICE)["relay"] is None
 
 
-# ── and have the TEXT channel apply it ───────────────────────────────────────────────────────────────────────
+# ── and have the turn apply it ────────────────────────────────────────────────────────────────────────────────
 # WIRING GUARD (V2-199), and this is the heart of the matter: the policy already existed and the channel did not apply it.
 # A test of the predicate would have passed three times while this was biting us.
 
-def _probe_src() -> str:
-    return _vts.read("nucleo/flash/probe.py")
-
-
-def test_el_canal_de_texto_REINTENTA_con_el_relevo():
-    src = _probe_src()
-    assert "_pfail.handle(" in src, "el canal de texto no usa la decisión compartida"
-    assert "spec = _pchain_err.spec_for(_nxt)" in src, "apunta el cooldown y devuelve, sin reintentar"
-    assert "continue" in src
-
-
-def test_reintenta_UNA_vez_y_no_entra_en_bucle():
-    """A broken provider cannot turn into a retry loop: one attempt, one relay, one retry."""
-    src = _probe_src()
-    assert "_relay_done = False" in src and "if _nxt and not _relay_done" in src
-
-
-def test_NO_reintenta_si_el_turno_ya_habia_dicho_algo():
-    """With a 402 the stream dies before the first delta, which is the real case. But if text or a
-    tool had already been emitted, repeating the turn would say it TWICE — and that is worse than losing the turn."""
-    src = _probe_src()
-    assert "_virgen = not raw and not buf and not tool_calls" in src
-    assert "and _virgen" in src
-
-
-def test_cuando_ni_asi_se_puede_lo_DICE(cadena):
-    """The response includes `sin_relevo` so whoever measures can distinguish «it broke» from «there was nobody to ask»."""
-    src = _probe_src()
-    assert '"sin_relevo": bool(_v.get("dry"))' in src
-
-
-def test_los_DOS_canales_usan_la_MISMA_decision():
-    """The structural fix, and what prevents a fourth time: the policy lives in one place and both read it."""
+def test_the_voice_turn_reads_the_ONE_decision():
+    """The structural fix, and what prevents a fourth time: the policy lives in one place and the turn — which
+    the typed channel runs too — reads it."""
     voz = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
     assert "provider_failure" in _vts.read(voz)
-    assert "provider_failure" in _probe_src()
 
 
 # ── and the cooldown lands on the one that FAILED, not the one that would be next ───────────────────────────
@@ -168,11 +137,10 @@ def test_sin_spec_se_comporta_como_antes(cadena):
     assert pf.handle(SIN_SALDO, role=pc.ROLE_VOICE)["relay"]["name"] == "aimlapi"
 
 
-def test_los_dos_canales_PASAN_el_spec():
-    """WIRING GUARD: the predicate can be perfect while both channels still fail to say who ran."""
+def test_the_voice_turn_PASSES_the_spec():
+    """WIRING GUARD: the predicate can be perfect while the turn still fails to say who ran."""
     voz = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
     assert "spec=spec)" in _vts.read(voz)
-    assert "role=_pchain_err.ROLE_VOICE, spec=spec)" in _probe_src()
 
 
 # ── V2-307: DOS escalones en el MISMO endpoint — el culpable se resuelve por (endpoint, MODELO) ──────────────
@@ -211,14 +179,9 @@ def test_a_pinned_model_outside_the_chain_still_matches_by_endpoint(monkeypatch)
     assert pf.tier_for(_SpecMM("deepseek-v5-experimental"), pc.ROLE_VOICE)["name"] == "ds-flash"
 
 
-def test_the_turn_STARTS_on_a_healthy_tier_when_the_pinned_titular_is_cooling(cadena, monkeypatch):
-    """The other half of V2-307: with the primary in cooldown, every turn burned a 402 before relaying. The
-    guard lives in the probe (source without comments) and the seam is public (`tier_available`), not `_store`."""
-    src = "\n".join(ln for ln in _vts.read("nucleo/flash/probe.py").splitlines()
-                    if not ln.strip().startswith("#"))
-    assert "tier_available(_t0)" in src, "el arranque del turno no consulta el cooldown del titular"
-    assert "_pc0._store" not in src, "la costura tiene que ser pública, no el _store privado (V2-112)"
-    # and the seam tells the truth:
+def test_the_cooldown_seam_tells_the_truth(cadena, monkeypatch):
+    """The other half of V2-307: with the primary in cooldown, every turn burned a 402 before relaying. The seam a
+    turn asks is public (`tier_available`), not `_store`, and it tells the truth."""
     pc._store.set("z.ai", __import__("time").time() + 600, "health")
     assert pc.tier_available(UNO) is False
     assert pc.tier_available(DOS) is True

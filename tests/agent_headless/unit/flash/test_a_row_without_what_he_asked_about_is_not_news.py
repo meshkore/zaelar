@@ -11,7 +11,7 @@ from __future__ import annotations
 import pytest
 
 from nucleo.flash import asked_fact_hold as H
-from nucleo.flash import delivery, live_blocks
+from nucleo.flash import live_blocks
 
 COMMISSION = "Find me an original pressing of 'The Dark Side of the Moon' in good condition for under $70."
 ASKED = "prices look fine, but are any of them actually original pressings? and what condition are they in"
@@ -33,31 +33,8 @@ def _window(*his):
 
 @pytest.fixture
 def vinyl(monkeypatch):
-    monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: ("", 0, ""))
     monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: (COMMISSION, ROWS[:n]))
-    monkeypatch.setattr(delivery, "_speaks_en", lambda: True)
-    delivery.forget_announced()
     return monkeypatch
-
-
-def test_rows_lacking_what_he_asked_are_held(vinyl):
-    vinyl.setattr(H, "_items", lambda: BARE)
-    out = delivery.apply_to_reply(WAIT, _window(COMMISSION, ASKED, "ok let me know"), heard_now="ok let me know")
-    assert "candidates on the results sheet" not in out, out
-    assert out == WAIT
-
-
-def test_a_row_that_verifies_it_is_delivered(vinyl):
-    vinyl.setattr(H, "_items", lambda: VERIFIED)
-    out = delivery.apply_to_reply(WAIT, _window(COMMISSION, ASKED, "ok let me know"), heard_now="ok let me know")
-    assert "DARK SIDE OF THE" in out, "the first row verifies pressing and condition"
-    assert "the Dark Side of the… — 45.37" not in out, "a «?» is not an answer"
-
-
-def test_with_nothing_asked_after_the_commission_the_tail_is_as_before(vinyl):
-    vinyl.setattr(H, "_items", lambda: BARE)
-    out = delivery.apply_to_reply(WAIT, _window(COMMISSION, "ok let me know"), heard_now="ok let me know")
-    assert "candidates on the results sheet" in out, out
 
 
 def test_what_he_asked_is_his_commission_said_again():

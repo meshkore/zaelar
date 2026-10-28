@@ -67,8 +67,6 @@ def test_took_the_close_runs_the_call(monkeypatch):
     assert CC.took_the_close("quita la agenda", {"id": "agenda"}, ran.append) is False and ran == []
 
 
-def test_both_channels_ask_the_same_guard():
+def test_the_voice_turn_asks_the_guard():
     voice = (ENGINE / "nucleo/flash/tool_executor_widget_calls.py").read_text(encoding="utf-8")
-    text = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     assert "_txw._close_cancel.inside_or_cancelled(_brief, _txw._bnotes.operator_half(text), extra," in voice
-    assert "_cic.inside_or_cancelled(_tbrief, operator_text, extra, lambda c: tool_calls.append(" in text

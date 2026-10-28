@@ -24,10 +24,6 @@ def test_sanitize_leaves_normal_text():
     assert dialog.sanitize_reply(good) == good
 
 
-def test_looks_degenerate_flags_splice_only():
-    assert dialog.looks_degenerate("Déjame comprobar Déjame comprobar") is True
-    assert dialog.looks_degenerate("Vale, ¿qué necesitas?") is False
-
 
 # ── break-loop ──────────────────────────────────────────────────────────────────────────────────────────
 def _win(*replies):

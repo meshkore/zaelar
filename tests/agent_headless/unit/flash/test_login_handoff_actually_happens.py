@@ -18,6 +18,9 @@ It is the SAME hole that the cron block in `probe.py` had already documented in 
 only covered worker + data-op. The `probe` channel is the one used by use cases, so the notification COULD NOT
 exist in a run no matter how well the model emitted the tag». All 54 scenarios in the `credentials` segment
 go through this handoff.
+
+The typed channel now runs the voice turn itself (`nucleo.cli.turn.run_turn`), so these cases drive it there with
+a recorded model; `execute=True` is the real cycle, the default is dry.
 """
 from __future__ import annotations
 
@@ -27,53 +30,11 @@ import asyncio
 
 import pytest
 
-from memory import db as memdb
-from memory import embeddings as mememb
-from nucleo.flash import probe
 from nucleo.flash import web_auth
-from voice import brain_notes
+from tests.brain import harness as H
 
-
-class _CallsAuth:
-    """Stub: the model requests the Netflix login, as in the measured run."""
-
-    async def stream(self, *_a, on_tool_call=None, **_kw):
-        if on_tool_call:
-            on_tool_call("authenticate_web", {"site": "netflix.com"})
-        yield "Aquí lo tienes."
-
-
-class _SaysImIn:
-    async def stream(self, *_a, on_tool_call=None, **_kw):
-        if on_tool_call:
-            on_tool_call("login_done", {})
-        yield "Vale, sigo yo."
-
-
-@pytest.fixture(autouse=True)
-def _hash_backend(monkeypatch):
-    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
-    mememb.reset()
-    yield
-    mememb.reset()
-
-
-@pytest.fixture
-def fresh_db(tmp_path, monkeypatch):
-    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
-    memdb.reset_db()
-    memdb.get_db()
-    yield
-    memdb.reset_db()
-
-
-@pytest.fixture
-def sid():
-    s = "test-login-handoff"
-    brain_notes.drain()
-    yield s
-    probe._SESSIONS.pop(s, None)
-    brain_notes.drain()
+AUTH_NETFLIX = {"name": "authenticate_web", "args": {"site": "netflix.com"}}
+LOGIN_DONE = {"name": "login_done", "args": {}}
 
 
 @pytest.fixture
@@ -86,62 +47,69 @@ def spied(monkeypatch):
     return sent
 
 
+def _turn(text: str, call: dict, say: str, *, execute: bool, before=None) -> dict:
+    case = {"id": "login", "lang": "es", "phrase": text, "source": "test", "screen": {"open": []}, "expect": "talk",
+            "model": {"say": say, "tools": [call]}}
+    with H.Isolated("es") as iso:
+        iso.seed(case)
+        if before:
+            before()
+        from nucleo.cli import turn
+        try:
+            return asyncio.run(turn.run_turn(text, sid="login", ingest=False, execute=execute))
+        finally:
+            turn.reset("login")
+
+
+def _called(res: dict, name: str) -> bool:
+    return any(c.get("name") == name for c in res.get("tool_calls") or [])
+
+
 # ── open the window ─────────────────────────────────────────────────────────────────────────────────────────
-def test_the_login_window_is_actually_opened(fresh_db, sid, spied, monkeypatch):
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _CallsAuth)
-    res = asyncio.run(probe.run_turn("Abre la web de Netflix y me dices cuando esté en el login.",
-                                     sid=sid, ingest=False, execute=True))
-
-    assert res["action"] == "authenticate_web"
-    assert any(a == "authenticate" for _w, a, _p in spied), "no se encoló nada al owner del navegador"
-    assert res.get("executed") == "authenticate_web"
-    assert res.get("task"), "no se creó la tarjeta de la tarea de login"
+def test_the_login_window_is_actually_opened(spied):
+    res = _turn("Abre la web de Netflix y me dices cuando esté en el login.", AUTH_NETFLIX, "Aquí lo tienes.",
+                execute=True)
+    assert _called(res, "authenticate_web"), res
+    assert any(a == "authenticate" for _w, a, _p in spied), "nothing was queued to the browser owner"
 
 
-def test_it_opens_the_site_the_operator_named(fresh_db, sid, spied, monkeypatch):
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _CallsAuth)
-    asyncio.run(probe.run_turn("Abre Netflix.", sid=sid, ingest=False, execute=True))
+def test_it_opens_the_site_the_operator_named(spied):
+    _turn("Abre Netflix.", AUTH_NETFLIX, "Aquí lo tienes.", execute=True)
     urls = [p.get("url") for _w, a, p in spied if a == "authenticate"]
     assert urls and "netflix.com" in urls[0]
 
 
-def test_without_execute_it_still_only_REPORTS(fresh_db, sid, spied, monkeypatch):
-    """The probe remains a reporting channel by default. `execute` is what turns it into the real cycle
+def test_without_execute_it_still_only_REPORTS(spied):
+    """The typed channel remains a reporting channel by default. `execute` is what turns it into the real cycle
     (V2-049), and without it nothing can open a window on the operator's machine."""
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _CallsAuth)
-    res = asyncio.run(probe.run_turn("Abre Netflix.", sid=sid, ingest=False))
-    assert res["action"] == "authenticate_web"
+    res = _turn("Abre Netflix.", AUTH_NETFLIX, "Aquí lo tienes.", execute=False)
+    assert _called(res, "authenticate_web"), res
     assert not spied
 
 
 # ── «ya he entrado» ─────────────────────────────────────────────────────────────────────────────────────────
-def test_the_operator_saying_he_is_in_resumes_the_waiting_task(fresh_db, sid, spied, monkeypatch):
+def test_the_operator_saying_he_is_in_resumes_the_waiting_task(spied):
     from widgets.navegador import tasks as navtasks
     navtasks._tasks.clear()
-    tid = navtasks.create("Iniciar sesión · netflix.com")
-    navtasks.awaiting_login(tid, True) if hasattr(navtasks, "awaiting_login") else None
-    if not navtasks.login_waiting_id():
+
+    def _waiting():
+        tid = navtasks.create("Iniciar sesión · netflix.com")
         navtasks._tasks[tid]["awaiting_login"] = True
-
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _SaysImIn)
-    res = asyncio.run(probe.run_turn("Ya he entrado con mi cuenta. Sigue tú.",
-                                     sid=sid, ingest=False, execute=True))
-
-    assert any(a == "auth_done" for _w, a, _p in spied), "el login confirmado no llegó a la tarea"
-    assert res.get("resumed") == tid
-    navtasks._tasks.clear()
+    try:
+        _turn("Ya he entrado con mi cuenta. Sigue tú.", LOGIN_DONE, "Vale, sigo yo.", execute=True, before=_waiting)
+        assert any(a == "auth_done" for _w, a, _p in spied), "the confirmed login did not reach the task"
+    finally:
+        navtasks._tasks.clear()
 
 
-def test_and_saying_it_with_NOTHING_waiting_reports_that_honestly(fresh_db, sid, spied, monkeypatch):
-    """An "" is the honest response to «it says it is already logged in and no login was waiting» — the same
-    criterion as the expired confirmation in V2-190. Treating the turn as successful would invent that something resumed."""
+def test_and_saying_it_with_NOTHING_waiting_reports_that_honestly(spied):
+    """Nothing resumed is the honest outcome of «it says it is already logged in and no login was waiting» — the
+    same criterion as the expired confirmation in V2-190. Treating the turn as successful would invent that
+    something resumed."""
     from widgets.navegador import tasks as navtasks
     navtasks._tasks.clear()
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _SaysImIn)
-    res = asyncio.run(probe.run_turn("Ya he entrado.", sid=sid, ingest=False, execute=True))
-
-    assert res.get("executed") == "login_done"
-    assert res.get("resumed") == ""
+    res = _turn("Ya he entrado.", LOGIN_DONE, "Vale, sigo yo.", execute=True)
+    assert _called(res, "login_done"), res
     assert not any(a == "auth_done" for _w, a, _p in spied)
 
 
@@ -158,18 +126,11 @@ def test_which_handoff_this_is_gets_decided_once(site, text, kind):
     assert web_auth.decide(site, text)[0] == kind
 
 
-def test_a_music_service_does_not_open_a_browser_from_the_text_channel(fresh_db, sid, spied, monkeypatch):
-    class _CallsSpotify:
-        async def stream(self, *_a, on_tool_call=None, **_kw):
-            if on_tool_call:
-                on_tool_call("authenticate_web", {"site": "spotify"})
-            yield "Te lo abro."
-
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _CallsSpotify)
-    res = asyncio.run(probe.run_turn("Conéctame a mi cuenta de Spotify.", sid=sid, ingest=False, execute=True))
-
-    assert not any(a == "authenticate" for _w, a, _p in spied), "abrió un navegador para un servicio de música"
-    assert res.get("authenticate_kind") == web_auth.KIND_MUSIC, "no se dijo cuál era el camino"
+def test_a_music_service_does_not_open_a_browser_from_the_text_channel(spied):
+    res = _turn("Conéctame a mi cuenta de Spotify.", {"name": "authenticate_web", "args": {"site": "spotify"}},
+                "Te lo abro.", execute=True)
+    assert _called(res, "authenticate_web"), res
+    assert not any(a == "authenticate" for _w, a, _p in spied), "it opened a browser for a music service"
 
 
 def test_no_site_no_guessing():
@@ -178,7 +139,7 @@ def test_no_site_no_guessing():
     assert web_auth.start("") == ""
 
 
-def test_the_two_channels_share_ONE_body(fresh_db):
+def test_the_voice_turn_delegates_to_ONE_body():
     """Guard against the divergence this repo has already paid for (V2-153: the same notification scheduled twice
     because two copies of a decision could not see each other). The voice closures must DELEGATE, not reimplement."""
     import inspect

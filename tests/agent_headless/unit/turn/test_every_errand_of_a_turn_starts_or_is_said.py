@@ -12,16 +12,11 @@ Measured on both twins. «Tengo tres cosas: un informe, un monitor barato de seg
     unrelated one it ordered in the same breath is still an order.
   · and the cap (three per turn, the worker pool) dropped a fourth errand silently.
 
-The rules live in ONE module both channels call (`nucleo/turn/errands_of_a_turn.py`): a listing hunt that is not
+The rules live in ONE module the turn calls (`nucleo/turn/errands_of_a_turn.py`): a listing hunt that is not
 one of the turn's escalations rides as one more errand; what a yes/no resolved is taken out, the rest stays; what
 the pool cannot take is NAMED back to him in his language.
 """
 from __future__ import annotations
-
-import asyncio
-import types
-
-import pytest
 
 from nucleo.turn import errands_of_a_turn as E
 
@@ -57,8 +52,6 @@ def test_an_answer_takes_out_the_errand_it_resolved_and_keeps_the_others():
 
 
 def test_what_the_pool_cannot_take_is_named():
-    kept, dropped = E.within_the_pool(["a1 informe", "b2 monitor", "c3 juego", "d4 vuelo"])
-    assert kept == ["a1 informe", "b2 monitor", "c3 juego"] and dropped == ["d4 vuelo"]
     line = E.not_started_line(["Buscar un vuelo a Lisboa para el viernes"])
     assert "vuelo a Lisboa" in line
 
@@ -90,73 +83,3 @@ def test_the_voice_answer_keeps_the_errands_beside_it():
     esc = {"v": GAME_EN_2, "more": [], "surface": {}}
     E.keep_beside_an_answer(esc, GAME_EN_1)
     assert esc["v"] is None and esc["more"] == []
-
-
-# ── the text channel, end to end through its executor ──────────────────────────────────────────────────────────
-
-@pytest.fixture
-def probe_exec(monkeypatch):
-    from nucleo.flash import escalate as esc_mod, probe as P, probe_companions as PC
-    from nucleo.turn import confirm_gates as G
-    started: list = []
-    monkeypatch.setattr(esc_mod, "escalate_to_slowbrain",
-                        lambda req, context=None: started.append((req, (context or {}).get("surface"))) or len(started))
-
-    async def _nothing(**kw):
-        return None
-
-    async def _no_companions(*a, **k):
-        return None
-    monkeypatch.setattr(P._probe_scheduling, "run_scheduling_backstops", _nothing)
-    monkeypatch.setattr(PC, "run", _no_companions)
-    answer = {"v": G.Answered()}
-    monkeypatch.setattr(G, "resolve_all", lambda text, **k: answer["v"])
-
-    def run(action, tool_calls, text):
-        from nucleo.flash import probe_after as PA
-        return asyncio.run(PA.execute_what_was_decided(
-            _kind=None, _r=None, _res=None, _tbrief=None, _trace_id="t", _window_goal="", action=action, execute=True,
-            images_req=None, music_req=None, operator_text=text, sess=types.SimpleNamespace(window=[]), spoken="",
-            tags=[], text=text, tool_calls=tool_calls, video_req=None))
-    return run, started, answer
-
-
-def test_the_text_channel_starts_the_listing_hunt_beside_the_escalations(probe_exec):
-    run, started, _ = probe_exec
-    calls = [{"name": "escalate_to_slowbrain", "args": {"request": REPORT_ES, "surface": "informe"}},
-             {"name": "search_listings", "args": {"query": "monitor de segunda mano"}},
-             {"name": "escalate_to_slowbrain", "args": {"request": GAME_ES, "surface": "widget"}}]
-    run("escalate", calls, "Oye, tengo tres cosas.")
-    reqs = [r for r, _s in started]
-    assert len(reqs) == 3 and any("monitor de segunda mano" in r for r in reqs), reqs
-    assert dict(started)[next(r for r in reqs if "monitor" in r)] == "lista"
-
-
-def test_the_text_channel_keeps_an_errand_beside_a_yes(probe_exec):
-    from nucleo.turn import confirm_gates as G
-    run, started, answer = probe_exec
-    answer["v"] = G.Answered(gate="task", yes=True, result={"request": GAME_EN_1, "ok": True})
-    calls = [{"name": "escalate_to_slowbrain", "args": {"request": MONITOR_EN, "surface": "lista"}},
-             {"name": "escalate_to_slowbrain", "args": {"request": GAME_EN_2, "surface": "widget"}}]
-    out = run("escalate", calls, "Cool. And make that one jump higher, okay?")
-    assert out["action"] == "confirm_task"
-    assert [r for r, _s in started] == [MONITOR_EN], "the yes relaunches the parked build; the monitor still starts"
-
-
-def test_the_text_channel_names_what_the_pool_did_not_take(probe_exec):
-    run, started, _ = probe_exec
-    calls = [{"name": "escalate_to_slowbrain", "args": {"request": r}}
-             for r in ("Informe de coches eléctricos", "Monitor barato usado", "Juego de plataformas",
-                       "Vuelo a Lisboa el viernes")]
-    out = run("escalate", calls, "cuatro cosas")
-    assert len(started) == 3
-    assert out["return_extra_exec"].get("not_started") == ["Vuelo a Lisboa el viernes"]
-
-
-def test_the_words_it_owes_say_what_did_not_start():
-    from nucleo.flash import probe_after as PA
-    out = asyncio.run(PA.the_words_it_owes(
-        _hw=True, _parts=None, _show_chose=None, action="escalate", images_req=None,
-        return_extra_exec={"executed": "escalate", "not_started": ["Vuelo a Lisboa el viernes"]},
-        sess=types.SimpleNamespace(window=[]), spoken="Voy con las cuatro.", tags=[], text="x", video_req=None))
-    assert out["spoken"].startswith("Voy con las cuatro.") and "Vuelo a Lisboa" in out["spoken"]

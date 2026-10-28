@@ -18,7 +18,7 @@ import types
 
 import pytest
 
-from nucleo.flash import accumulator as acc
+from nucleo.input import stt as acc
 from nucleo.flash import escalation_guard as eg
 from nucleo.flash import turn_brief as tb
 

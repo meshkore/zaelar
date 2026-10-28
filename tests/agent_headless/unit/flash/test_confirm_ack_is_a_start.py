@@ -27,54 +27,6 @@ import inspect
 from voice.engine.core import langs
 
 
-def _probe_ack_source() -> str:
-    from nucleo.flash import probe
-
-    return _vts.getsource(probe.run_turn)
-
-
-def test_a_YES_does_not_get_the_done_ack():
-    """The concrete assertion: `confirm_task` no longer shares a branch with `widget_data`."""
-    src = _probe_ack_source()
-    assert 'if action == "confirm_task":' in src
-    assert 'if action in ("widget_data", "confirm_task"):' not in src
-
-
-def test_a_yes_acknowledges_a_START_with_the_holding_line():
-    src = _probe_ack_source()
-    i = src.index('if action == "confirm_task":')
-    branch = src[i:src.index("elif action in (", i)]      # ONLY the yes branch, not the next one
-    assert "holding_line(" in branch          # «Okay, give me a moment to look at it.» — which is the truth
-    # the ASSIGNMENT, not the mention: the reason for the change is explained in a comment in that same branch, and
-    # searching for the standalone token would turn the comment into the failure
-    assert "spoken = _lg.data_ack" not in branch
-
-
-def test_but_a_NO_still_gets_it_because_a_NO_really_did_resolve():
-    """The other half, and the part that keeps this from becoming «never say done»: «no, leave it» REALLY resolves
-    something — the task is discarded— and there «Hecho.» is true."""
-    src = _probe_ack_source()
-    assert '"confirm_task_no"' in src
-    i = src.index('elif action in ("widget_data", "confirm_task_no"):')
-    assert "data_ack" in src[i:i + 900]
-
-
-def test_and_the_yes_no_split_happens_where_the_reply_is_classified():
-    """The property: the action name is decided by the operator's YES/NO, never by the success of the relaunch.
-
-    F1 (2026-08-24) moved classification to `nucleo/turn/confirm_gates.py` (the precedence of the three gates
-    is decided once, node 2.29), so the split no longer happens in this file: the probe receives
-    `_ans.yes` —which IS the classified response; for the task gate, `resolve_confirm` returns `ok` equal
-    to the operator's verdict— and only gives it a name. The first version of this guard matched the old literal
-    and went red on the fix, not the defect."""
-    src = _probe_ack_source()
-    assert '"confirm_task" if _ans.yes else "confirm_task_no"' in src
-    from nucleo.turn import confirm_gates as _g
-    import inspect as _i
-    assert "classify_reply" in _vts.getsource(_g._task_gate), \
-        "la clasificación del sí/no ya no vive en la puerta de tarea: ¿quién decide ahora el veredicto?"
-
-
 def test_the_holding_line_never_asserts_completion():
     """What makes this change a fix rather than moving the same problem elsewhere."""
     for code in ("es", "en"):

@@ -424,26 +424,8 @@ def _note_done(wid: str, action: str, payload: dict, res) -> None:
         pass
 
 
-_SECRET_KEY_RE = __import__("re").compile(r"pass|secret|token|key|auth|cred|cookie|session|otp|pin", __import__("re").I)
-
-
-def _payload_digest(payload) -> dict:
-    """What an action CARRIED, for the trace — scalars only, clipped, and never a field whose name says secret.
-
-    Demo pass 30 (2026-09-28, V6): the player reported `player_error` and the trace kept only the action's
-    NAME — not the code (101/150 = embedding refused by the owner) nor which video, so a correct fallback and
-    a broken player read the same from outside. The widget sends both; the event now keeps them."""
-    out: dict = {}
-    if not isinstance(payload, dict):
-        return out
-    for k, v in list(payload.items())[:12]:
-        if _SECRET_KEY_RE.search(str(k)):
-            continue
-        if isinstance(v, (str, int, float, bool)) or v is None:
-            out[str(k)[:40]] = v if not isinstance(v, str) else v[:120]
-        elif isinstance(v, (list, tuple)):
-            out[str(k)[:40]] = f"[{len(v)}]"
-    return out
+# What an action carried, for the trace — `widgets/payload_digest.py`, re-exported under its historical names.
+from widgets.payload_digest import _SECRET_KEY_RE, _payload_digest  # noqa: E402,F401
 
 
 _UPLOAD_MAX_BYTES = 64 * 1024 * 1024        # a phone video; more than that is not a message attachment
@@ -528,6 +510,9 @@ async def brain_action(wid: str, action: str, payload: dict) -> dict:
         if _inst and isinstance(payload, dict) and not payload.get("sheet") and not payload.get("q"):
             payload = {**payload, "q": _inst}
     wid = _safe(wid)
+    from nucleo import consequence as _consequence
+    if not _consequence.passes("widget.data", widget=wid, action=str(action)):
+        return {"ok": True, "dry": True}
     try:
         from voice.observer import emit as _emit
         from widgets import provenance as _prov

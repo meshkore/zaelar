@@ -126,14 +126,14 @@ def test_the_guard_still_fires_on_what_the_operator_actually_says():
     assert eg.escalation_text("búscame una moto de segunda mano en Wallapop", "")
 
 
-def test_both_channels_call_the_same_function_and_neither_reads_the_composed_turn():
+def test_the_turn_calls_the_shared_function_and_never_reads_the_composed_turn():
     """V2-252: this decision existed twice. A copy is how the two halves drift apart."""
-    for path in ("voice/engine/llm/providers/nucleo.py", "nucleo/flash/probe.py"):
-        from tests import voice_turn_source     # V2-778 F1: the voice turn is read whole, moved blocks included
-        src = voice_turn_source.read(path)
-        assert "escalation_guard" in src, f"{path} stopped going through the shared guard"
-        assert "looks_like_modify_widget(text)" not in src, (
-            f"{path} reads the composed turn again — that is the kickoff bug")
+    from tests import voice_turn_source     # V2-778 F1: the voice turn is read whole, moved blocks included
+    path = "voice/engine/llm/providers/nucleo.py"
+    src = voice_turn_source.read(path)
+    assert "escalation_guard" in src, f"{path} stopped going through the shared guard"
+    assert "looks_like_modify_widget(text)" not in src, (
+        f"{path} reads the composed turn again — that is the kickoff bug")
 
 
 # ── E · The model denied three capabilities it HAS, and had just used ─────────────────────────────────────
@@ -197,20 +197,28 @@ def test_the_repair_speaks_and_it_comes_from_the_language_table():
     spec = langs.spec("en")
     bad = ("I can't resize or maximize windows or widgets on your screen directly—I don't have control "
            "over your device's interface.")
-    out = asyncio.run(sp.probe_hollow_repairs("maximize the widget", bad, [], spec))
-    assert out != bad and spec.screen_denied_repair in out
+    said: list = []
+
+    def _repair(text, spoken, did_act):
+        return asyncio.run(sp.hollow_repairs(text, spoken, [], spec, did_act=did_act, covered=False,
+                                             speak=said.append, emit=lambda *a, **k: None))
+    out = _repair("maximize the widget", bad, did_act=False)
+    assert out != bad and spec.screen_denied_repair in out and said == [spec.screen_denied_repair]
     # It offers the one thing that WAS actually missing: which card.
     assert "which one" in spec.screen_denied_repair.lower()
     # And it leaves a healthy turn alone.
     ok = "I've maximized the images widget."
-    assert asyncio.run(sp.probe_hollow_repairs("maximize it", ok, [], spec)) == ok
+    said.clear()
+    assert _repair("maximize it", ok, did_act=True) == ok and said == []
 
 
 def test_the_voice_channel_repairs_it_too():
-    """V2-252 again: the seam is shared, so the branch has to live in it and not in one caller."""
-    src = open("nucleo/flash/second_pass.py", encoding="utf-8").read()
-    assert src.count("a_reply_denies_the_screen") == 2, (
-        "both `hollow_repairs` (voice) and `probe_hollow_repairs` (text) must carry the branch")
+    """V2-252 again: the branch lives in the turn's seam (`hollow_repairs`), not in one caller of it."""
+    import inspect
+
+    from nucleo.flash import second_pass as sp
+    assert "a_reply_denies_the_screen" in inspect.getsource(sp.hollow_repairs), (
+        "`hollow_repairs` must carry the branch")
 
 
 def test_the_prompt_AFFIRMS_the_capability_and_names_the_forbidden_sentence():

@@ -242,21 +242,6 @@ def done_spec(errand: dict, date: str, start: str, *, owed: bool) -> dict:
     return spec
 
 
-def note_owed(errand: dict, date: str, start: str) -> dict:
-    """Remember that this errand agreed a VIDEO call and could not send the link yet (V2-692e).
-
-    It rides `done_when`, which is already a round-tripped JSON column and is already the answer to «what
-    closes this errand» — and a link that was promised IS part of being done. `verify._VERIFIERS` keys on
-    (widget, has) and ignores everything else, so the extra fields cost that verifier nothing.
-
-    Without this the errand has no way back: it agreed, wrote the meeting with no conference because the
-    calendar was not linked, and then sat in `agreed` until the deadline and announced it was never
-    confirmed — AFTER the operator had connected and Google had minted the link. Measured on the live run
-    (2026-09-14): «no he recibido el enlace», and he was right that an explanation is not a finish.
-    """
-    return done_spec(errand, date, start, owed=True)
-
-
 def link_owed(errand: dict) -> str:
     """The conference link this errand promised and has not sent, once it exists. "" while it does not."""
     spec = errand.get("done_when") or {}

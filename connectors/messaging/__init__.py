@@ -15,6 +15,9 @@
 #
 
 
+from nucleo import consequence as _consequence
+
+@_consequence.door("messaging.tag")
 async def dispatch_tag(action: str, extra: dict) -> None:
     """Route a [[msg.*]] emitted by the brain (voice/chat/duo — never cluster turns: operator-only).
 

@@ -20,7 +20,6 @@ import pytest
 from memory import db as memdb
 from memory import embeddings as mememb
 from nucleo.flash import dialog
-from nucleo.flash import probe
 from nucleo.flash import router_guards as g
 
 
@@ -132,14 +131,17 @@ class _PromisesToSearch:
 
 
 def test_the_promise_to_search_now_actually_starts_something(fresh_db, monkeypatch):
+    from nucleo.cli import turn
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _PromisesToSearch)
     monkeypatch.setattr("nucleo.dispatch.has_active", lambda: False)
-    sess = probe._session("t-v143")
-    sess.seeded = True
-    sess.window[:] = [{"role": "user", "content": "Renueva mi cuota del gimnasio de este mes."},
-                      {"role": "assistant", "content": "¿Qué gimnasio?"},
-                      {"role": "user", "content": "el mío, el de siempre"},
-                      {"role": "assistant", "content": "¿Nombre o ciudad?"}]
-    res = asyncio.run(probe.run_turn("Vivo en Sevilla.", sid="t-v143", ingest=False))
-    probe._SESSIONS.pop("t-v143", None)
-    assert res["action"] == "escalate"
+    brain = turn._brain("t-v143")
+    brain._seeded = True
+    brain._window[:] = [{"role": "user", "content": "Renueva mi cuota del gimnasio de este mes."},
+                        {"role": "assistant", "content": "¿Qué gimnasio?"},
+                        {"role": "user", "content": "el mío, el de siempre"},
+                        {"role": "assistant", "content": "¿Nombre o ciudad?"}]
+    try:
+        res = asyncio.run(turn.run_turn("Vivo en Sevilla.", sid="t-v143", ingest=False))
+    finally:
+        turn.reset("t-v143")
+    assert res["action"] == "escalate", res

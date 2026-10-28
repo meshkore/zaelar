@@ -281,12 +281,16 @@ def test_a_bare_YES_survives_when_the_verdict_says_it_ANSWERS_US():
 
 
 def test_BOTH_halves_are_required():
-    """The verdict says it is an answer; `answered_an_offer` says there was a question. A «sí» is an
-    answer only where there was a question — the pairing `offer_of_media` already documents."""
+    """`answered_an_offer` says there was a question of OURS; the verdict may only say the line is something else.
+    A «sí» is an answer only where there was a question — and over our question it answers whether the brief
+    labels it `answer` or `order` (bank case 3a9a082c: «Yes. Do it.» at `order` 0.53 lost the errand he agreed to).
+    A question of HIS over our question is not his reply."""
     handle = _brief("answer", key=_tb.REQUEST_KEY, confidence=1.0)
     assert _eg.is_a_fragment("Sí.", brief=handle, last_reply="Vale, lo dejo.") is True
     order = _brief("order", key=_tb.REQUEST_KEY, confidence=1.0)
-    assert _eg.is_a_fragment("Sí.", brief=order, last_reply="¿Lo hago?") is True
+    assert _eg.is_a_fragment("Sí.", brief=order, last_reply="¿Lo hago?") is False
+    his_question = _brief("question", key=_tb.REQUEST_KEY, confidence=1.0)
+    assert _eg.is_a_fragment("Sí.", brief=his_question, last_reply="¿Lo hago?") is True
 
 
 def test_a_real_errand_is_never_called_a_fragment():

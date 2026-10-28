@@ -222,10 +222,3 @@ def test_all_three_light_routes_of_the_voice_channel_cover_their_seam():
     assert "_fa_w.note_work(brain, kind, target)" in src, "the voice channel must publish its work note"
     for call in ('_cover_work("widget"', '_cover_work("recall")', '_cover_work("search")'):
         assert call in src, f"the light route is not covered at its seam: {call}"
-
-
-def test_the_TEXT_channel_covers_nothing_on_purpose():
-    """The probe has no dead air to fill — its answer appears when it appears — so the parallel-implementation
-    rule (V2-252) deliberately does not reach this one, and that is written down instead of left as drift."""
-    src = inspect.getsource(__import__("nucleo.flash.probe", fromlist=["x"]))
-    assert "note_work" not in src, "a work cover in the text channel would be a mouth nobody asked for"

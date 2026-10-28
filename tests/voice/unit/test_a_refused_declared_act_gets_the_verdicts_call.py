@@ -64,21 +64,17 @@ def test_the_model_can_still_decline(model):
     assert _run() is None
 
 
-def test_both_channels_use_it():
-    for rel in ("voice/engine/llm/providers/nucleo.py", "nucleo/flash/probe.py"):
-        src = _vts.read(ENGINE / rel)
-        assert "call_for_promise_or_order(" in src, rel
-        assert "_act_repair.call_for_promise(operator_text, spoken, _ar_wid" not in src, rel
+def test_the_turn_uses_it():
+    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
+    assert "call_for_promise_or_order(" in src
+    assert "_act_repair.call_for_promise(operator_text, spoken, _ar_wid" not in src
 
 
 def test_an_escalation_to_an_open_card_gets_the_verdicts_call_too():
     """full44 E3: the model ESCALATED «forward the Inworld invoice to Quinn» with the receipt open and the verdict
     reading `mensajeria:forward`. The open-card pass asked «did you promise?» of the escalation text, got nothing,
     and a browser worker took the errand — its card sat on screen for the rest of the demo, and the mail went out
-    minutes later. Both channels now ask the verdict's call there too."""
+    minutes later. The turn now asks the verdict's call there too."""
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     i = voice.index("V2-770 — the rung fills ONE key")
     assert "call_for_promise_or_order(operator_text, str(escalate_req" in voice[i:i + 1200]
-    assert ".probe_escalation(" in _vts.read(ENGINE / "nucleo/flash/probe.py")
-    probe = _vts.read(ENGINE / "nucleo/flash/card_commission.py")      # the probe's escalation, extracted (2026-10-15)
-    assert "_ar_esc.call_for_promise_or_order(operator_text, spoken or text, _owner, _owner_act" in probe

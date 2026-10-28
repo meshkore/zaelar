@@ -141,18 +141,14 @@ def test_and_stays_out_of_turns_that_were_fine(q, a):
     assert not answer_guards.a_bare_ack_answers_a_question(q, a)
 
 
-def test_both_channels_wire_the_repair():
-    """V2-539's lesson yet again: a rule applied in one channel silently stops existing in the other. Since
-    V2-642 the voice channel consults the ONE seam (`second_pass.hollow_repairs`) that holds guard + repair;
-    the probe keeps its parallel wiring inline."""
+def test_the_voice_turn_wires_the_repair():
+    """Since V2-642 the voice turn (which the typed channel runs too) consults the ONE seam
+    (`second_pass.hollow_repairs`) that holds guard + repair."""
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert "hollow_repairs(" in voice, "the voice channel dropped the hollow-turn seam"
     assert "a_bare_ack_answers_a_question" in seam, "the seam dropped the bare-ack guard"
     assert "bare_ack_repair" in seam, "the seam detects but never repairs"
-    # V2-645: the probe stopped carrying a parallel impl — it wires through the seam's probe door.
-    assert "probe_hollow_repairs" in probe, "the probe dropped the shared post-turn repairs"
 
 
 # ── 2b · V2-587: a question is not answered with an EMPTY WAIT ───────────────────────────────────────────
@@ -187,29 +183,22 @@ def test_and_the_empty_wait_guard_stays_out_of_fine_turns(q, a):
     assert not answer_guards.an_empty_wait_answers_a_question(q, a, acted=False, anything_running=False)
 
 
-def test_both_channels_wire_the_empty_wait_repair():
-    """Same wiring rule as its sibling above — and the liveness read must fail SAFE (unreadable counts as
-    running). The voice side of both lives in `second_pass.hollow_repairs` since V2-642."""
+def test_the_seam_holds_the_empty_wait_repair():
+    """Same seam as its sibling above — and the liveness read must fail SAFE (unreadable counts as running).
+    Both live in `second_pass.hollow_repairs` since V2-642."""
     seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert "an_empty_wait_answers_a_question" in seam, "the seam dropped the empty-wait guard"
     assert "empty_wait_repair" in seam, "the seam detects but never repairs"
     assert "running = True" in seam, "the seam's liveness read no longer fails safe"
-    # V2-645: the probe wires the SAME repairs through the seam's probe-facing door (channel, not file).
-    assert "probe_hollow_repairs" in probe, "the probe dropped the shared post-turn repairs"
 
 
 # ── 3 · the fast lane confirms out loud ──────────────────────────────────────────────────────────────────
 
-def test_the_fast_lane_speaks_after_executing_and_the_probe_reply_carries_it():
-    """The ack comes AFTER the execute in the voice lane (it may never promise what did not happen), and the
-    probe's fast-lane reply carries the same ack for parity — a headless audit must see the confirmation the
-    operator hears."""
+def test_the_fast_lane_speaks_after_executing():
+    """The ack comes AFTER the execute in the voice lane (it may never promise what did not happen)."""
     lane = (ENGINE / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
     assert "pick_ack" in lane and "_speak_ack" in lane
     assert lane.index("execute(") < lane.index("await _speak_ack"), "the ack must follow the mutation"
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
-    assert "pick_ack" in probe, "the probe's fast lane answers silently again"
     provider = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "fast_lane.handled" in provider or "_fast_lane.handled" in provider, \
         "the voice provider no longer routes through the extracted fast lane"
@@ -383,9 +372,7 @@ def test_the_continuity_truth_is_deterministic_and_names_the_confirm_exit(monkey
     assert "ninguna tarea en marcha" in t and "?" in t
 
 
-def test_both_channels_wire_the_continuity_guard():
+def test_the_seam_holds_the_continuity_guard():
     seam = (ENGINE / "nucleo/flash/second_pass.py").read_text(encoding="utf-8")
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert "a_continuity_claim_over_nothing" in seam, "the seam dropped the continuity guard"
     assert "continuity_truth" in seam, "the seam detects but never says the state"
-    assert "probe_hollow_repairs" in probe, "the probe dropped the shared post-turn repairs"

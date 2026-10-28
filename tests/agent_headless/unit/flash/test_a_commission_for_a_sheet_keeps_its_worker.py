@@ -75,12 +75,12 @@ def test_without_a_sure_route_to_a_worker_it_repairs_as_before(repair_calls):
     assert repair_calls == ["navegador"] * 3
 
 
-def test_both_channels_hand_the_brief_to_the_rung():
-    from nucleo.flash import card_commission, post_stream_words     # the probe's escalation lives in card_commission
-    for mod in (card_commission, post_stream_words):
-        src = inspect.getsource(mod)
-        i = src.index("call_for_promise_or_order(operator_text")
-        assert "brief=" in src[i:i + 400], f"{mod.__name__}: the rung is called without the turn's brief"
+def test_the_turn_hands_the_brief_to_the_rung():
+    """One turn, typed or spoken (refactor2710-01): its escalation calls the rung with the turn's brief."""
+    from nucleo.flash import post_stream_words
+    src = inspect.getsource(post_stream_words)
+    i = src.index("call_for_promise_or_order(operator_text")
+    assert "brief=" in src[i:i + 400], "the rung is called without the turn's brief"
 
 
 def test_the_rule_itself():

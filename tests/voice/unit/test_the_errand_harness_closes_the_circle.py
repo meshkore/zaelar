@@ -172,13 +172,6 @@ def test_the_voice_channel_wires_the_harness_before_the_rescue_and_the_holding_l
     assert "_shown_ids.add(_pw)" in prov, "the promise-backstop show must register its card as a goal too"
 
 
-def test_the_probe_mirrors_goal_birth_and_the_false_claim():
-    probe = _src("nucleo/flash/probe.py")
-    assert "_ht_p.mirror_probe(" in probe
-    seam = _src("nucleo/flash/harness_turn.py")
-    assert "note_shown(" in seam and "rescue(spoken" in seam
-
-
 def test_the_prompt_and_the_heartbeat_read_the_ledger():
     # V2-661: the harness lines joined their two neighbours in `live_blocks` (same precedent as V2-276/V2-348).
     assert "harness_lines()" in _src("nucleo/flash/prompt.py")

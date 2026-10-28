@@ -9,14 +9,13 @@ Measured in `tres-tarjetas-y-el-video-por-alusion` (ES+EN, 2026-10-10), with the
   · EN «Actually close the top one too.» → `youtube:close` again, by card mass, over an unsure verdict.
   · ES «cierra la música, que ya está bien de fondo» → `play_music {stop}` → «Pausado.», twice.
 
-These drive the real decisions (the text channel's mirror, the shared `complete_canvas`, the text channel's
-`name_the_action`) with the brief shape `jev.ask_many` hands over, and measure the neighbourhood: «close the
+These drive the real decisions (the shared `complete_canvas` and the turn's close backstop over a music call) with
+the brief shape `jev.ask_many` hands over, and measure the neighbourhood: «close the
 calendar», «close the video» (V2-753: the player's content, not a card name), «apaga la música» (= stop the audio),
 «pausa la música y cierra la agenda» (two orders), a place on a canvas whose geometry is unknown (asked).
 """
 from __future__ import annotations
 
-import asyncio
 import threading
 
 import pytest
@@ -62,7 +61,7 @@ def _gesture(brief, text: str) -> list:
     return tags
 
 
-# ── the shared canvas gesture (voice `complete_canvas`, mirrored by the text channel) ─────────────────────────
+# ── the shared canvas gesture (the turn's `complete_canvas`) ────────────────────────────────────────────────
 
 def test_close_the_music_closes_the_music_over_a_verdict_naming_the_video(screen):
     assert _gesture(_brief("youtube:close"), "Nice, free Thursday. Close the music actually.") == [("close", "musica")]
@@ -98,96 +97,7 @@ def test_a_place_reads_only_as_a_place():
     assert CC.place_named("quita la de la derecha") == "right"
 
 
-# ── the text channel: the gesture runs BEFORE the promise repair, and an unknown place is asked ──────────────
-
-class _Sess:
-    window: list = []
-    last_action = ""
-
-
-class _Dialog:
-    @staticmethod
-    def sanitize_reply(s):
-        return s
-
-
-class _Speech:
-    @staticmethod
-    def sanitize(s, drop_metadata=False):
-        return s
-
-
-@pytest.fixture
-def mirror(monkeypatch, screen):
-    """The text channel's mirror block, with the two model passes replaced by recorders."""
-    from nucleo.flash import act_repair, card_commission, reply_promise
-    repaired = []
-
-    async def _noop(*a, **k):
-        return None
-
-    async def _repair(operator_text, reply, wid, *a, **k):
-        repaired.append(wid)
-        return {"widget_id": wid or "youtube", "action": "close", "payload": {}}
-
-    monkeypatch.setattr(reply_promise, "prefetch", _noop)
-    monkeypatch.setattr(act_repair, "call_for_promise_or_order", _repair)
-    monkeypatch.setattr(act_repair, "probe_call_for_promise", lambda *a, **k: _repair("", "", "youtube"))
-    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "youtube")
-
-    def run(text: str, brief, spoken: str = "Done."):
-        from nucleo.flash import probe_mirrors as PM
-        from nucleo.flash import router as R
-        tool_calls, tags = [], []
-        out = asyncio.run(PM.mirror_the_voice_backstops(
-            _akp=None, _cw=None, _hw=False, _router=R, _rt=None, _sp=None, _tbrief=brief, action="chat",
-            canvas_h=None, dialog=_Dialog, names=[], operator_text=text, sess=_Sess(), spec=None, speech=_Speech,
-            spoken=spoken, tags=tags, text=text, tool_calls=tool_calls))
-        return out, tool_calls, repaired
-    return run
-
-
-def test_the_text_channel_closes_the_music_instead_of_repairing_a_video_close(mirror):
-    out, calls, repaired = mirror("Nice, free Thursday. Close the music actually.", _brief("youtube:close"))
-    assert out["action"] == "canvas:close:musica", out
-    assert not calls and not repaired, (calls, repaired)
-
-
-def test_the_text_channel_asks_which_when_the_place_cannot_be_located(mirror, screen):
-    screen["open"] = ["youtube", "agenda"]
-    out, calls, repaired = mirror("Actually close the top one too.", _brief("youtube:close", 0.36,
-                                                                             canvas_conf=1.0, open_ids=screen["open"]))
-    assert out["action"] == "clarify", out
-    assert "youtube" in out["spoken"] and "agenda" in out["spoken"] and "{" not in out["spoken"], out["spoken"]
-    assert not calls and not repaired
-
-
-def test_the_text_channel_closes_the_top_card_when_the_layout_places_it(mirror, screen):
-    screen["open"] = ["youtube", "agenda"]
-    screen["layout"] = _layout(youtube=420, agenda=40)
-    out, calls, _ = mirror("Actually close the top one too.", _brief("youtube:close", 0.36, canvas_conf=1.0,
-                                                                     open_ids=screen["open"]))
-    assert out["action"] == "canvas:close:agenda", out
-    assert not calls
-
-
-def test_without_a_sure_canvas_close_the_repair_still_runs(mirror):
-    """The neighbour that must not move: a promise over a card with no canvas gesture is still repaired."""
-    out, calls, repaired = mirror("pause the trailer", _brief("youtube:pause", 0.97, canvas="neither"))
-    assert out["action"] == "widget_data" and repaired == ["youtube"], (out, repaired)
-
-
-# ── a player's stop dressed as «close the music» (the text channel's `play_music` branch) ────────────────────
-
-def _decide(text: str, action: str = "stop", brief=None, open_ids=THREE):
-    from nucleo.flash import probe_decide as PD
-    from nucleo.flash import router_guards as RG
-    calls = [{"name": "play_music", "args": {"action": action}}]
-    tags: list = []
-    blk = asyncio.run(PD.name_the_action(_hard=None, _router=RG, _tbrief=brief, _vault_gate=None, ingest=None,
-                                         names=["play_music"], sess=_Sess(), tags=tags, text=text, tool_calls=calls))
-    return blk, tags
-
+# ── a player's stop dressed as «close the music» (the turn's close backstop over a `play_music` call) ──────────
 
 @pytest.mark.parametrize("text", [
     "Vale, gracias. Oye, cierra la música, que ya está bien de fondo.",
@@ -195,9 +105,8 @@ def _decide(text: str, action: str = "stop", brief=None, open_ids=THREE):
     "close the music",
 ])
 def test_a_stop_of_the_music_his_words_close_is_the_cards_close(screen, text):
-    blk, tags = _decide(text)
-    assert blk["action"] == "canvas:close:musica" and not blk.get("music_req"), blk
-    assert tags and tags[0]["action"] == "close" and tags[0]["extra"]["id"] == "musica", tags
+    req = {"v": {"action": "stop", "query": ""}}
+    assert CC.music_keeps_its_turn(req, text) is False and req["v"] is None, (text, req)
 
 
 @pytest.mark.parametrize("text", [
@@ -208,9 +117,8 @@ def test_a_stop_of_the_music_his_words_close_is_the_cards_close(screen, text):
     "no cierres la música, solo páusala",     # a negated close
 ])
 def test_a_stop_that_is_not_a_card_close_stays_a_stop(screen, text):
-    blk, tags = _decide(text, brief=_brief("musica:stop", 0.95, canvas="neither"))
-    assert blk["action"] == "music" and blk["music_req"]["action"] == "stop", (text, blk)
-    assert not tags
+    req = {"v": {"action": "stop", "query": ""}}
+    assert CC.music_keeps_its_turn(req, text) is True and req["v"]["action"] == "stop", (text, req)
 
 
 def test_the_voice_close_backstop_is_not_held_by_the_stop_it_replaces(screen):
@@ -221,12 +129,10 @@ def test_the_voice_close_backstop_is_not_held_by_the_stop_it_replaces(screen):
     assert CC.music_keeps_its_turn({"v": None}, "cierra la música") is False
 
 
-def test_both_channels_call_the_one_helper():
+def test_the_turn_calls_the_one_helper():
     import pathlib
     root = pathlib.Path(__file__).resolve().parents[4]
-    for rel, needle in (("nucleo/flash/probe_mirrors.py", "_card_close.complete_canvas_mirror"),
-                        ("nucleo/flash/post_stream_lanes.py", "_card_close.music_keeps_its_turn"),
+    for rel, needle in (("nucleo/flash/post_stream_lanes.py", "_card_close.music_keeps_its_turn"),
                         ("nucleo/flash/post_stream_lanes.py", "_card_close.verdict_unless_named"),
-                        ("nucleo/flash/card_close.py", "verdict_unless_named(_da.from_brief(brief)[0]"),   # `complete_canvas`'s body
-                        ("nucleo/flash/player_control.py", "_card_close.player_close")):
+                        ("nucleo/flash/card_close.py", "verdict_unless_named(_da.from_brief(brief)[0]")):   # `complete_canvas`'s body
         assert needle in (root / rel).read_text(encoding="utf-8"), (rel, needle)

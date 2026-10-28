@@ -16,7 +16,7 @@ import pytest
 
 from nucleo import dispatch
 from nucleo import dispatch_confirm as dc
-from nucleo.flash import delivery, escalate, live_blocks
+from nucleo.flash import escalate
 from nucleo.turn import errands_of_a_turn as E, his_spec_to_sheet as S
 from nucleo.workers import ended
 from widgets.results import data as sheet
@@ -74,15 +74,6 @@ def test_a_finished_errand_still_hears_it(live, monkeypatch):
     monkeypatch.setattr(ended, "_live_goals", lambda: set())
     S.carry("Oye, me has dicho que el monitor era de 27 o más, y ahora me sacas un LG de 24 y un Asus de 23,8... "
             "eso no me vale.")
-    assert _titles() == ['Fujitsu P27-8 TE Pro 27" QHD']
-
-
-def test_the_text_channel_carries_it_before_the_tail_is_chosen(live, monkeypatch):
-    monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: (MONITOR["request"], [f"{t} — 50 €" for t in _titles()]))
-    monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: ("", 0, ""))
-    monkeypatch.setattr(delivery, "_speaks_en", lambda: False)
-    delivery.forget_announced()
-    delivery.apply_to_reply("Vale, dame un momento.", [], heard_now="Y el monitor, que sea de 27 al menos.")
     assert _titles() == ['Fujitsu P27-8 TE Pro 27" QHD']
 
 

@@ -107,11 +107,11 @@ flash-serve:
 
 # One-shot: inyecta un turno. Uso: make flash T="me llamo Alex y vivo en Soria"
 flash:
-	@$(PY) -m nucleo.flash.probe $(T)
+	@$(PY) -m nucleo.cli $(T)
 
-# REPL interactivo (Ctrl-D para salir; /reset limpia la ventana de conversación del probe).
+# REPL interactivo (Ctrl-D para salir; /reset limpia la ventana de conversación del canal tecleado).
 flash-repl:
-	@$(PY) -m nucleo.flash.probe
+	@$(PY) -m nucleo.cli
 
 # Solo el servidor LiveKit dev (para depurar el worker a mano contra él). Binario NATIVO si está; Docker si no.
 lk-server:

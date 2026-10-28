@@ -328,41 +328,6 @@ def test_the_field_names_the_model_invents_are_understood():
     assert row["repeat"]["days"] == [1] and row["repeat"]["until"] == UNTIL.isoformat() and not row.get("allDay")
 
 
-def test_the_text_channel_applies_the_same_write_rules(monkeypatch):
-    """The live use case ran on the TEXT channel, which executes data-ops through `widget_data_turn`, not
-    through `data_ops.dispatch_and_report` — a rule installed in one of two branches is half a fix."""
-    import widgets
-    import widgets.server_api as sapi
-    from nucleo.flash import widget_data_turn, write_outcome
-    from voice import brain_notes
-    write_outcome.reset()
-    seen = []
-    monkeypatch.setattr("voice.observer.emit", lambda kind, label="", **k: seen.append((kind, label, k)))
-
-    async def _brain(wid, act, pl):
-        return agenda.apply_action(act, pl)
-
-    async def _dispatch(tag, body):
-        d = body["data"]
-        return agenda.apply_action(d["action"], d["payload"])
-    monkeypatch.setattr(sapi, "brain_action", _brain)
-    monkeypatch.setattr(widgets, "dispatch_tag", _dispatch)
-    brain_notes.drain()
-
-    def _call(action, payload):
-        return [{"name": "widget_data", "args": {"widget_id": "agenda", "action": action, "payload": payload}}]
-    asyncio.run(widget_data_turn.execute(_call("add_task", {"title": "Tarea semanal de los jueves"}),
-                                         text="recursiva los jueves"))
-    asyncio.run(widget_data_turn.execute(
-        _call("add_meeting", {"title": "Flauta", "date": _next(3).isoformat(), "startTime": "15:30",
-                              "repeat": "weekly", "until": UNTIL.isoformat(), "colour": "azul"}),
-        text="créame una tarea recursiva los jueves de tres y media, llevar a Abril a flauta"))
-    assert not any(t.get("title") == "Tarea semanal de los jueves" for t in agenda.load_db()["tasks"])
-    assert "colour" in " ".join(str(n) for n in brain_notes.drain())
-    logged = [k["extra"] for kind, label, k in seen if label == "data:add_meeting"]
-    assert logged and logged[0]["payload"].get("repeat") == "weekly", "the order must be logged WITH its payload"
-
-
 def test_the_harness_does_not_call_the_engines_machinery_a_worker():
     """Every round carries `cat: worker` ticks; a case forbidding `worker` failed on a clean run."""
     from tests.use_cases.e2e.agent import verify

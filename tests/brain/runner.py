@@ -70,6 +70,8 @@ def run_repeated(cases: list[dict], times: int) -> tuple[list[dict], dict]:
                 reds.append({"reply": out.reply[:240], "all": out.all_decisions, "calls": [(t.get("args") or {}).get("action") or t.get("name") for t in out.tool_calls][:6],
                              "brief": _brief_of(out.events)})
         ok = sum(1 for w in why if not w)
+        # Each case as it finishes: a stopped run still leaves every completed case behind.
+        print(f"{'✅' if ok == times else '❌'} {ok}/{times}  {case['id']}", file=sys.stderr, flush=True)
         rows.append({"id": case["id"], "phrase": case["phrase"], "expect": case["expect"], "ok": ok, "times": times,
                      "decisions": {d: got.count(d) for d in dict.fromkeys(got)}, "why": [w for w in why if w][:3],
                      "reds": reds[:4],
@@ -98,10 +100,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--live", action="store_true", help="the real fast model and Jev instead of the recorded ones")
     ap.add_argument("--repeat", type=int, default=7, help="with --live: runs per case (a case holds only at N of N)")
     ap.add_argument("--only", help="case ids starting with this prefix")
+    ap.add_argument("--sample", type=float, default=0.0,
+                    help="a SWEEP: this fraction of the cases (e.g. 0.25), drawn with --seed — the full bank is for 99")
+    ap.add_argument("--seed", type=int, default=0, help="with --sample: the draw's seed, written down with the result")
     args = ap.parse_args(argv)
     cases = harness.load_cases(live=args.live)
     if args.only:
         cases = [c for c in cases if c["id"].startswith(args.only)]
+    if args.sample:
+        import random
+        k = max(1, round(len(cases) * args.sample))
+        cases = sorted(random.Random(args.seed).sample(cases, k), key=lambda c: c["id"])
+        print(f"sweep: {k} of the bank's cases, seed {args.seed}", file=sys.stderr)
     if args.case:
         cases = [c for c in cases if c["id"] == args.case]
         if not cases:

@@ -300,14 +300,3 @@ async def prepare(args: dict, operator_text: str, lang_lock: str, emit, channel:
         pass
     return compose_system(lang_lock, operator_text, wid or "", question, block, answered=bool(direct))
 
-
-async def probe_answer(args: dict, operator_text: str, lang_lock: str, emit, spec, collect, sanitize) -> str:
-    """The TEXT channel's whole `read_widget` turn: `prepare` + one collected second pass, sanitized. Returns the
-    spoken answer, or "" so the caller keeps whatever it had (the probe's own fail-soft convention)."""
-    sys2 = await prepare(args, operator_text, lang_lock, emit, channel="probe")
-    try:
-        out = await collect(sys2, operator_text, spec, max_tokens=220)
-        return sanitize(out or "").strip()
-    except Exception:                                    # noqa: BLE001 — a failed compose is not a failed turn
-        return ""
-

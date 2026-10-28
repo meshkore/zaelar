@@ -58,9 +58,7 @@ def _gesture(brief, text: str) -> list:
     return tags
 
 
-def test_both_channels_are_wired():
-    probe = (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8")
-    assert "_receipt.complete_probe(_delivery.apply_to_reply(" in probe
+def test_the_voice_turn_is_wired():
     settle = (ENGINE / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
     assert settle.count("_pst_receipt.voice_ack(") == 2
 

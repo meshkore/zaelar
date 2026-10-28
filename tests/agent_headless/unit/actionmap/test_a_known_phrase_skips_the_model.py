@@ -331,27 +331,18 @@ def test_the_engine_classifies_the_actionmap_kind():
     assert _CAT.get("actionmap") == "flash"
 
 
-# ── wiring guards: BOTH channels call the shared module (the parallel-impl rule) ─────────────────────────
+# ── wiring guard: the turn calls the shared module ───────────────────────────────────────────────────────
 
-def test_both_channels_are_wired():
+def test_the_voice_turn_is_wired():
     """The voice provider routes through the extracted lane (`fast_lane.py`, V2-572 ratchet payment), which
-    holds the actual `actionmap` import; the probe still wires it directly. Following the chain — not just
-    grepping the provider — is what keeps this from passing while the lane silently falls out of the path."""
+    holds the actual `actionmap` import. Following the chain — not just grepping the provider — is what keeps
+    this from passing while the lane silently falls out of the path. The typed channel runs this same turn."""
     from pathlib import Path
     root = Path(__file__).resolve().parents[4]
     provider = _vts.read(root / "voice/engine/llm/providers/nucleo.py")
     lane = (root / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
-    # Two files since V2-674: the call site in `probe.py`, the lane bodies in `probe_actionmap.py`.
-    probe = (_vts.read(root / "nucleo/flash/probe.py")
-             + (root / "nucleo/flash/probe_actionmap.py").read_text(encoding="utf-8"))
-    mirror = (root / "nucleo/flash/probe_actionmap.py").read_text(encoding="utf-8")
     assert "_fast_lane.handled" in provider, "voice: the provider no longer calls the fast lane"
     assert "from nucleo import actionmap" in lane, "voice: the fast lane lost the action map"
-    # The probe's mirror moved to probe_actionmap.py (2026-09-05 ratchet pass) — the guard follows the CHANNEL,
-    # both files, not one (V2-555: a guard pointed at a single file goes green the day the lane falls out).
-    assert "try_fast_lanes" in probe, "probe: the lane chain is no longer called"
-    assert "try_map(" in probe, "probe: the action-map mirror is no longer in the chain"
-    assert "from nucleo import actionmap" in mirror, "probe: action map not wired in the mirror"
 
 
 # ── (5) the lens grid, and a pack that can be UPGRADED (V2-545) ──────────────────────────────────────────
@@ -438,27 +429,6 @@ def test_an_upgrade_never_moves_what_the_operator_touched(fresh_map, monkeypatch
     assert _mapi.action_map_retarget_seed("es", "abre el whatsapp", body) is False
     _mapi.action_map_add("es", "una frase mia", body, source="learned")
     assert _mapi.action_map_retarget_seed("es", "una frase mia", json.dumps({"do": "show_widget", "widget": "agenda"})) is False
-
-
-def test_the_probe_channel_runs_the_action_when_asked_to_execute():
-    """The probe reported the mapped action and never ran it — correct while the map only spoke canvas verbs
-    (a show is meaningless headless), wrong the day it could drive a widget's DATA: a lens change reported but
-    not made is a decision the product does not take. A dry run still only reports."""
-    from pathlib import Path
-    root = Path(__file__).resolve().parents[4]
-    # The mirror's body lives in probe_actionmap.py since the 2026-09-05 ratchet pass; probe.py keeps the call.
-    src = (root / "nucleo" / "flash" / "probe_actionmap.py").read_text(encoding="utf-8")
-    i = src.index("from nucleo import actionmap as _amap")
-    window = src[i:i + 900]
-    assert "_amap.execute(" in window, "the probe must RUN the mapped action, not only describe it"
-    assert "and execute" in window, "and only when the caller asked for execution — a dry run stays dry"
-    assert "_amap_hit = None" in window, \
-        "an action that could not run must fall through to the model, like the voice rail's `and execute(...)`"
-    probe = (root / "nucleo" / "flash" / "probe_actionmap.py").read_text(encoding="utf-8")
-    # Anchored on the CALL, not the import: the import moved to the top of the file (2026-09-09, paying
-    # the hidden-coupling ratchet) and a window measured from it no longer contains the call.
-    assert "execute=execute" in probe[probe.index("try_map("):][:400], \
-        "probe.py must pass the caller's execute flag through to the mirror"
 
 
 def test_the_measured_media_orders_are_deterministic_now():

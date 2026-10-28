@@ -15,7 +15,7 @@ import pathlib
 
 import pytest
 
-from nucleo.flash import probe_api
+from nucleo.cli import api as probe_api
 
 ENGINE = pathlib.Path(__file__).resolve().parents[4]
 

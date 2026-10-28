@@ -14,7 +14,6 @@ import asyncio
 import inspect
 
 from nucleo.turn import vault_gate
-from tests import voice_turn_source as _vts   # V2-778 F1: the probe's turn is read whole
 
 
 class _Detected:
@@ -122,22 +121,17 @@ def test_an_unreadable_carrier_verdict_fails_CLOSED(monkeypatch):
 
 # ── and that NO channel keeps its copy ───────────────────────────────────────────────────────────────────────
 
-def test_both_channels_go_through_the_gate_and_neither_keeps_a_copy():
-    """The class's guard. Without it, the gate can be perfect while a channel continues deciding on its
-    own in silence — exactly the state this extraction found."""
-    from nucleo.flash import probe
+def test_the_turn_goes_through_the_gate_and_keeps_no_copy():
+    """The class's guard. Without it, the gate can be perfect while the turn continues deciding on its own in
+    silence — exactly the state this extraction found."""
     from voice.engine.llm.providers import vault_intercept
 
-    for mod, name in ((probe, "probe.run_turn"), (vault_intercept, "vault_intercept")):
-        src = inspect.getsource(mod)
-        assert "vault_gate" in src, f"{name} ya no pasa por la puerta compartida"
-        assert "secret_is_the_whole_turn" not in src, f"{name} recuperó su propia decisión de V2-141"
-        assert "_vr.detect" not in src, f"{name} volvió a detectar la config por su cuenta"
-        assert "vault_flow" not in src, f"{name} volvió a resolver el reveal por su cuenta"
-
-    # And the edge that truly matters for the reveal: the TEXT channel cannot even mention the value.
-    probe_src = _vts.getsource(probe)
-    assert ".value" not in probe_src.split("reveal_secret")[1][:600], "probe.py alcanza el valor descifrado"
+    src = inspect.getsource(vault_intercept)
+    name = "vault_intercept"
+    assert "vault_gate" in src, f"{name} ya no pasa por la puerta compartida"
+    assert "secret_is_the_whole_turn" not in src, f"{name} recuperó su propia decisión de V2-141"
+    assert "_vr.detect" not in src, f"{name} volvió a detectar la config por su cuenta"
+    assert "vault_flow" not in src, f"{name} volvió a resolver el reveal por su cuenta"
 
 
 # ── REVEALING a secret: same outcome, and a boundary that is NOT stylistic ──────────────────────────────────

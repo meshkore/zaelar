@@ -54,10 +54,7 @@ def test_both_seed_packs_carry_arrange_phrases_and_the_pack_version_moved():
         assert arr, f"{lang} pack has no arrange phrases"
 
 
-def test_both_channels_wire_the_tool():
-    """The parallel-implementation trap, pinned as everywhere else: voice AND probe must handle it."""
+def test_the_voice_turn_wires_the_tool():
+    """The typed channel runs the voice turn, so one handler covers both inputs."""
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
     assert 'name == "arrange_canvas"' in voice, "the voice channel dropped the handler"
-    assert '"arrange_canvas" in names' in probe, "the probe channel dropped the mirror"
-    assert '"canvas:arrange"' in probe, "the probe no longer reports/executes the canvas action"

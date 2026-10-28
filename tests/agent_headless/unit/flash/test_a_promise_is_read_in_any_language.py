@@ -70,9 +70,7 @@ def test_an_unsure_or_absent_verdict_leaves_the_tables_to_decide(monkeypatch):
     assert RG.promises_action(reply) is True
 
 
-def test_both_channels_ask_once_when_the_reply_is_final():
+def test_the_voice_turn_asks_once_when_the_reply_is_final():
     from pathlib import Path
-    root = Path(__file__).resolve().parents[4]
-    for rel in ("nucleo/flash/post_stream.py", "nucleo/flash/probe_mirrors.py"):
-        src = (root / rel).read_text("utf-8")
-        assert "reply_promise.prefetch(" in src, f"{rel} does not ask the verdict"
+    src = (Path(__file__).resolve().parents[4] / "nucleo/flash/post_stream.py").read_text("utf-8")
+    assert "reply_promise.prefetch(" in src, "the voice turn does not ask the verdict"

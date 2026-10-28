@@ -4,7 +4,7 @@ Live bench E3: «send the invoice to quinn, tell him we're already trying inworl
 1.00, `mensajeria:forward` at 0.79, and the model called `draft`: 2 of 7 runs sent nothing and said «Done.». The
 mirror of the voice rule that runs the verdict over a model call that LEAVES when nobody asked for it.
 
-Disarm: return None from `ordered_send.instead` → red; unwire it from `verdict_card.retarget` → the channel test red.
+Disarm: return None from `ordered_send.instead` → red; unwire it from `verdict_card.retarget` → the wiring test red.
 """
 from __future__ import annotations
 
@@ -60,12 +60,14 @@ def test_both_channels_ask_it():
 
 def test_a_dry_turn_reports_the_call_as_it_would_run():
     """The bank and the live bench run dry; their report must carry the engine's own resolution, or they measure the
-    model's raw call and stay blind to this rule (`widget_data_turn.plan_dry`)."""
-    from nucleo.flash import widget_data_turn
-    calls = [{"name": "widget_data", "args": {"widget_id": "mensajeria", "action": "draft",
-                                              "payload": {"text": "please book it"}}}]
-    widget_data_turn.plan_dry(calls, SAID, _brief("mensajeria:forward", 0.79))
-    assert calls[0]["args"]["action"] == "forward", calls
-    import inspect
-    from nucleo.flash import probe_after
-    assert "_probe._widget_data_turn.plan_dry(tool_calls, text, _tbrief)" in inspect.getsource(probe_after.execute_what_was_decided)
+    model's raw call and stay blind to this rule. Run through the typed turn (the voice turn, dry)."""
+    from tests.brain import harness as H
+    case = {"id": "ordered-send-dry", "lang": "en", "phrase": SAID, "source": "live bench E3",
+            "screen": {"open": ["mensajeria"]}, "expect": "data-op mensajeria:forward",
+            "widgets": {"contactos": {"contacts": [{"name": "Quinn", "email": "quinn@example.com"}]}},
+            "model": {"say": "", "tools": [{"name": "widget_data", "args": {
+                "widget_id": "mensajeria", "action": "draft", "payload": {"text": "please book it"}}}]},
+            "brief": {"screen_action": ["mensajeria:forward", 0.79], "request_type": ["order", 1.0]}}
+    out = H.run_case(case)
+    assert not out.error, out.error
+    assert out.decision == "data-op mensajeria:forward", (out.decision, out.tool_calls, out.reply)

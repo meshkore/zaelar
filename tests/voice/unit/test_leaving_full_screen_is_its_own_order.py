@@ -186,15 +186,6 @@ def test_the_voice_turn_runs_the_completion_before_the_close_backstop_and_marks_
     assert "_bnotes.operator_half(text)" in body, "it reads the composed turn instead of HIS words (V2-678)"
 
 
-def test_the_text_channel_reads_the_same_decision():
-    """V2-252 — one decision, both channels."""
-    src = _vts.read(ENGINE / "nucleo/flash/probe.py")
-    assert "fullscreen_exit_due as _fullscreen_exit_due" in src
-    assert "_fullscreen_exit_due(text, fired=False)" in src
-    assert 'action = f"canvas:unfullscreen:{_fx}"' in src
-    assert 'action = f"canvas:unfullscreen:{_frid}"' in src, "an explicit `off` is not mirrored in the text channel"
-
-
 # ── D · THE EVENT CARRIES THE DIRECTION TO THE SCREEN ───────────────────────────────────────────────────────
 def test_the_frontend_passes_the_direction_and_allows_an_unnamed_exit():
     src = (ENGINE / "frontend/app/services/sse.js").read_text(encoding="utf-8")

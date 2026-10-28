@@ -100,15 +100,3 @@ def test_a_today_tag_is_not_corrected_to_a_rolled_over_day(monkeypatch):
     _at(monkeypatch, TODAY)
     today = time.strftime("%Y-%m-%d 23:00", time.localtime(TODAY))
     assert R.safe_reminder_schedule(today, REPLY, ASK, W) == today
-
-
-def test_the_text_channel_says_the_date_passed(monkeypatch):
-    import asyncio
-    import types
-
-    from nucleo.flash import probe_after as PA
-    _at(monkeypatch, TODAY)
-    out = asyncio.run(PA.the_words_it_owes(
-        _hw=False, _parts=None, _show_chose=None, action="chat", images_req=None, return_extra_exec={},
-        sess=types.SimpleNamespace(window=W), spoken=REPLY, tags=[], text=ASK, video_req=None))
-    assert out["spoken"].startswith(REPLY) and "September 30th, 2026" in out["spoken"], out

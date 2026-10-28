@@ -71,12 +71,3 @@ def rail(monkeypatch):
     from nucleo.flash import verdict_card as _vc
     monkeypatch.setattr(_vc, "retarget", lambda brief, wid, act, pl, order: (wid, act, pl))
     return ran
-
-
-def test_the_text_channel_runs_the_next_it_was_dropping(rail):
-    from nucleo.flash import widget_data_turn as WDT
-    calls = [{"name": "widget_data", "args": _op("unmute")}, {"name": "widget_data", "args": _op("next")}]
-    parte = asyncio.run(WDT.execute(calls, text="súbele el volumen que lo tengo silenciado y pásate al siguiente",
-                                    brief=_brief(MEASURED)))
-    assert rail == [("youtube", "unmute"), ("youtube", "next")], rail
-    assert "descartadas" not in parte

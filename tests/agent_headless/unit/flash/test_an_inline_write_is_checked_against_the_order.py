@@ -75,10 +75,9 @@ def test_a_met_end_state_calls_nothing(world, monkeypatch):
     assert asyncio.run(wh.check(ORDER, [("contactos", "add_contact")], settle_s=0)) == 0 and world == []
 
 
-def test_both_channels_check_the_turns_writes():
-    from nucleo.flash import post_stream, widget_data_turn
+def test_the_turn_checks_its_writes():
+    from nucleo.flash import post_stream
     assert "write_harness" in inspect.getsource(post_stream.run)
-    assert "write_harness" in inspect.getsource(widget_data_turn.execute)
 
 
 def test_a_rows_name_is_read_where_the_collection_declares_its_label(monkeypatch):

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import asyncio
 import re
+from nucleo import consequence as _consequence
 
 
 def _pkg():
@@ -54,6 +55,7 @@ def set_loop(loop) -> None:
     _HOME_LOOP = loop
 
 
+@_consequence.door("memory.ingest", neutral={"dry": True})
 async def ingest_utterance(text: str, *, role: str = "operator", channel: str = "voice") -> dict:
     """`channel` — how the line arrived: "voice" (STT) or "typed" (chat / paste). It reaches the distiller's input
     and every row's `meta.source`, so a pasted document is read as one and a typed value is never stamped «voice»."""
