@@ -124,7 +124,8 @@ def main() -> None:
             totals[r["pkg"]] += r["lines"]
         for pkg, n in totals.most_common():
             print(f"  {pkg:28} {n:>7}")
-        orphans = [r["p"] for r in rows if not r["fanin"] and not r["p"].endswith("__init__.py")]
+        # `__main__.py` is an entry point by definition (`python -m server`), like a package's `__init__.py`.
+        orphans = [r["p"] for r in rows if not r["fanin"] and not r["p"].endswith(("__init__.py", "__main__.py"))]
         print(f"orphans (no product importer) {len(orphans)}")
 
 

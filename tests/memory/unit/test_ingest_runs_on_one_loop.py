@@ -86,6 +86,6 @@ def test_the_lifespan_wires_the_home_loop():
     """The marshal is only real if the server registers the loop (V2-199: the wiring is the fix)."""
     import re
     from pathlib import Path
-    src = _vts.read(Path(__file__).resolve().parents[3] / "server" / "__init__.py")
+    src = _vts.read(Path(__file__).resolve().parents[3] / "server" / "boot" / "surfaces.py")
     src = re.sub(r"(?m)#.*$", "", src)
     assert "_mem_agent.set_loop(_running_loop)" in src

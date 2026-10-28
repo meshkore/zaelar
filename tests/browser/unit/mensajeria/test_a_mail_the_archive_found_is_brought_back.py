@@ -36,7 +36,7 @@ def test_a_mail_the_card_already_holds_is_not_asked_again(md):
 
 
 def test_a_mail_brought_back_carries_its_files():
-    src = (ENGINE / "connectors/email/service.py").read_text("utf-8")
+    src = (ENGINE / "connectors/email/service/history.py").read_text("utf-8")
     i = src.index("async def _drain_history")
     assert '"media": store._media_entries(m)' in src[i:i + 2500]
 

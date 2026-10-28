@@ -222,6 +222,6 @@ def test_the_susurro_fallback_literal_matches_its_config_default():
 def test_but_the_CATALOGUE_still_offers_one():
     """The other edge, and it is not decorative symmetry: `engine/` is OSS, and anyone self-hosting it must be able
     to put OpenAI in their engine. If a future sweep also «cleans» the catalogue, this test stops it."""
-    fuente = (ENGINE / "server" / "config_api.py").read_text()
+    fuente = (ENGINE / "server" / "config_catalog.py").read_text()   # the catalogue left config_api (refactor2710-13)
     assert _OPENAI_RE.search(fuente), \
         "el catálogo dejó de ofrecer OpenAI: la norma prohíbe que CORRA solo, no que exista"

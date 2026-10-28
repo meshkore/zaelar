@@ -135,12 +135,6 @@ def ids() -> list[str]:
     return list(SERVICES.keys())
 
 
-def with_widget() -> list[GoogleService]:
-    """The services the operator can actually SEE. His own scoping question — «for now I guess we do not
-    have more widgets where applicable» — is this list, and it is derived rather than asserted."""
-    return [s for s in SERVICES.values() if s.widget]
-
-
 def public_list() -> list[dict]:
     """Redacted list for the Connectors tab. No endpoints, no credentials, no scopes of other owners."""
     return [{"id": s.id, "label": s.label, "widget": s.widget, "note": s.note,

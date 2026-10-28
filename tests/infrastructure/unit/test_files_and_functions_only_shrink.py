@@ -32,8 +32,6 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 # dad7f3bd) and stayed red through 114 commits — a ratchet nobody runs holds nothing. Re-measured at HEAD and
 # frozen there: every entry is today's size, down-only from here. The debt it names is unchanged and still owed.
 FILES = {
-    'connectors/email/mailbox.py': 816,
-    'connectors/meshkore/bridge.py': 891,
     'nucleo/dispatch.py': 919,
     'nucleo/energy_meter.py': 812,
     'nucleo/flash/fast_client.py': 866,
@@ -46,9 +44,6 @@ FILES = {
 
 FUNCTIONS = {
     'config/settings.py::update': 146,
-    'connectors/meshkore/bridge.py::ClusterBridge._brain_turn': 142,
-    'connectors/meshkore/bridge.py::ClusterBridge.dispatch': 171,
-    'connectors/meshkore/bridge.py::ClusterBridge.on_event': 203,
     'i18n/init/detect.py::lock': 132,
     'memory/writer/__init__.py::insert_memory': 151,
     'nucleo/actionmap/executor.py::execute': 144,
@@ -88,9 +83,6 @@ FUNCTIONS = {
     'nucleo/worker_api.py::_exec_allow': 293,
     'nucleo/workers/claude_session.py::ClaudeCodeSession._map': 145,
     'nucleo/workers/claude_session.py::ClaudeCodeSession.start': 145,
-    'server/__init__.py::_lifespan': 158,
-    'server/boot_halves.py::connectors_voice_and_health': 190,
-    'server/boot_halves.py::identity_bus_memory_and_workers': 226,
     'server/voice_status.py::brain_and_voice': 140,
     'server/voice_status.py::the_rest_and_the_light': 192,
     'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 705,

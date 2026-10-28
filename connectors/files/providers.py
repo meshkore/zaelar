@@ -31,6 +31,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from connectors.scope_tiers import Tiered
+
 
 @dataclass(frozen=True)
 class ScopeTier:
@@ -45,7 +47,7 @@ class ScopeTier:
 
 
 @dataclass(frozen=True)
-class FilesProvider:
+class FilesProvider(Tiered):
     id: str
     label: str
     authorize_url: str
@@ -59,18 +61,6 @@ class FilesProvider:
     # `access_type=offline` + `prompt=consent`; Microsoft gets the same effect from the `offline_access` scope.
     extra_auth_params: dict = field(default_factory=dict)
     note: str = ""
-
-    def tier(self, tier_id: str = "") -> ScopeTier:
-        """The named tier, or the default. Never raises — an unknown id from a stale config falls back rather
-        than taking the connector down."""
-        wanted = (tier_id or "").strip() or self.default_tier
-        for t in self.tiers:
-            if t.id == wanted:
-                return t
-        for t in self.tiers:
-            if t.id == self.default_tier:
-                return t
-        return self.tiers[0]
 
 
 _GOOGLE_TIERS = (

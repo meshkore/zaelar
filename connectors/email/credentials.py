@@ -41,18 +41,6 @@ def _core(provider_id: str, pwd: str) -> str:
     return pwd.replace("-", "") if (provider_id or "").lower() == "icloud" else pwd
 
 
-def looks_like_app_password(provider_id: str, raw) -> bool:
-    """True when the value could be this provider's app password. Providers with no published format always
-    answer True — absence of a rule is not evidence of a bad password."""
-    pwd = normalize(raw)
-    if not pwd or _URL_RE.match(pwd) or _EMAIL_RE.match(pwd):
-        return False
-    if (provider_id or "").lower() in _FIXED_16_LETTERS:
-        core = _core(provider_id, pwd)
-        return len(core) == 16 and core.isascii() and core.isalpha()
-    return True
-
-
 def diagnose(provider_id: str, address: str, raw) -> str | None:
     """A message naming what was pasted, or None when the value is plausible. User-facing product text (Spanish),
     like every other string this connector puts on the card."""

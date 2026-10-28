@@ -296,7 +296,7 @@ def test_the_phase_is_watched_from_the_bus_and_not_from_the_voice_provider():
     because `observer.turn_detail` is where a voice turn and a probe turn both close."""
     src = _code(ENGINE / "nucleo/context_packs/introduction.py")
     assert re.search(r'bus\s*\.\s*subscribe\s*\(\s*"turn\.completed"\s*\)', src)
-    boot = _code(ENGINE / "server/__init__.py")
+    boot = _code(ENGINE / "server/boot/brain.py")   # the brain phase of the boot (refactor2710-13)
     assert "_intro_pack . start ( )" in boot, "nothing starts the phase watcher at boot"
 
 

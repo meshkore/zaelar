@@ -38,7 +38,7 @@ def test_the_server_mounts_the_line_and_primes_once():
     from pathlib import Path
     root = Path(__file__).resolve().parents[3]
     assert "_search_api.status_item()" in (root / "server" / "voice_status.py").read_text(encoding="utf-8")
-    assert "_search_api.prime_cache" in (root / "server" / "boot_halves.py").read_text(encoding="utf-8")
+    assert "_search_api.prime_cache" in (root / "server" / "boot" / "surfaces.py").read_text(encoding="utf-8")
 
 
 def test_both_fact_doors_call_the_service():
