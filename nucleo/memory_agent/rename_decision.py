@@ -35,7 +35,7 @@ Absent, disabled, unsure → REFUSE the write. That is the opposite of this modu
 is deliberate:
 
   · refusing wrongly costs a rename that needs saying once more, and the EXPLICIT path is untouched —
-    `nucleo/flash/identity_actions` persists a rename the moment the model calls the tool, which is what
+    `nucleo/turn/identity` persists a rename the moment the model calls the tool, which is what
     worked correctly in this very session (`🏷️ zaelar se renombra Johnny`, +76.1 s).
   · granting wrongly costs what it cost here: his assistant renamed to a search term, the prompt
     telling the model an identity he never gave it, and the wake word moved out from under him — in

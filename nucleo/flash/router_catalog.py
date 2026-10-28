@@ -521,11 +521,9 @@ TOOLS: list[dict] = [
         "function": {
             "name": "set_style_directive",
             "description": (
-                "Sus REGLAS permanentes: cómo responder (tono, longitud, narrar), qué hacer sin preguntar o "
-                "preguntando antes (correos, reservas…), la regla de una tarjeta; QUITAR una ('olvida la regla "
-                "de…') o LISTARLAS ('¿qué reglas tengo?'). Su frase tal cual en `directive`: el sistema la "
-                "entiende y se la repite, tú no. TU NOMBRE va aquí: si te pide llamarte de otra forma, PUEDES. "
-                "Una orden puntual ('ponme música') o un filtro de tarjeta (youtube block_channel) NO lo es."
+                "Sus REGLAS permanentes: cómo responder, qué hacer sin preguntar o preguntando antes, la regla de "
+                "una tarjeta; QUITAR o LISTAR reglas. Su frase tal cual en `directive`. TU NOMBRE también: si te pide "
+                "llamarte de otra forma, PUEDES (`name`). Una orden puntual o un filtro de tarjeta NO lo es."
             ),
             "parameters": {
                 "type": "object",
@@ -535,7 +533,8 @@ TOOLS: list[dict] = [
                         "description": (
                             "Su frase sobre la regla, tal cual, en el idioma de la conversación."
                         ),
-                    }
+                    },
+                    "name": {"type": "string", "description": "Tu nuevo nombre, si te lo cambia."},
                 },
                 "required": ["directive"],
             },

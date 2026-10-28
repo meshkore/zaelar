@@ -1,105 +1,72 @@
-"""The assistant answers to the name it calls itself (V2-682 T-1).
+"""The assistant answers to the name it calls itself — and the name changes by a VERDICT, failing CLOSED (CRIT-V8).
 
-Measured on the operator's engine, 2026-09-12. Every kickoff of that day introduced the agent as «Johnny» —
-the name lived in a MEMORY PILL («desea que su asistente se llame Johnny»), which recall feeds to the model
-and the model obeys — while `state.assistant_name` was still «Zaelar», so `attention.wakewords()` answered
-only to «zaelar». The result, in his own words to a machine that had just told him what to call it:
+Measured on the operator's engine, 2026-09-12: every kickoff introduced the agent as «Johnny» from a memory pill while
+`state.assistant_name` was still «Zaelar», so «Hey, Johnny.» was ruled ambient thirty-five times. Then a regex read the
+rename from his sentence (V2-682) — and a regex reading a name is the class CRIT-V8 forbids. Since refactor2710-07 the
+brief's `identity_change` question decides WHETHER his turn renames the assistant (sure ≥ 0.85), and the NEW NAME is
+the model's declared argument (`set_style_directive.name`): absent, unsure or nameless → nothing changes. A rename
+then writes the structured fact the attention gate reads.
 
-    «Hey, Johnny.»                     → 🙉 ambient
-    «Hello. Johnny. How are you?»      → 🙉 ambient
-    «Hey, Johnny. Show me my agenda.»  → 🙉 ambient
-
-Thirty-five turns of one day. Nothing was broken: the rename had simply never gone through the structured
-door, because the model had no reason to call a tool about a name it already believed it had.
-
-The whole mechanism existed — detector, process-level apply, durable write (`identity_actions`, V2-... the
-9th) — behind ONE door the model chooses to open. This gives the operator's own sentence a deterministic
-lane, the V2-539/V2-674 shape, in both channels. It is language-neutral by construction: the regex was
-already bilingual, and a rename's failure mode (a deaf agent) is the same in every language.
+Disarm: lower `identity.SURE` to 0.0 and the unsure-verdict test goes red.
 """
 import asyncio
-from pathlib import Path
+import threading
 
 import pytest
 
-from nucleo.flash import identity_actions as ident
-
-ROOT = Path(__file__).resolve().parents[4]
+from nucleo.turn import identity
 
 
-# ── 1 · what is a rename order and what is not ───────────────────────────────────────────────────────
-@pytest.mark.parametrize("text,expected", [
-    ("llámate Johnny", "Johnny"),
-    ("Llámate Colmena.", "Colmena"),
-    ("te llamas Johnny", "Johnny"),
-    ("cámbiate el nombre a Colmena", "Colmena"),
-    ("cambia tu nombre a Nova", "Nova"),
-    ("el asistente debe llamarse Johnny", "Johnny"),
-    ("call yourself Johnny", "Johnny"),
-    ("your name is Nova", "Nova"),
-    ("the assistant should be called Johnny", "Johnny"),
-    # The operator's own sentence (2026-10-24): «que» there is the conjunction of «te he dicho que…», not a
-    # question word, and the word after the name is not part of it.
-    ("te he dicho que te llamas Johnny ahora", "Johnny"),
-    ("llámate johnny", "Johnny"),                 # one word, as speech-to-text may write it
-    ("a partir de ahora te llamas Maria Jose", "Maria Jose"),
-])
-def test_his_own_sentence_renames(text, expected):
-    assert ident.spoken_identity_order(text) == ("rename", expected)
+def _brief(choice, conf):
+    ev = threading.Event()
+    ev.set()
+    return {"event": ev, "result": {identity.KEY: {"choice": choice, "confidence": conf}}}
 
 
-@pytest.mark.parametrize("text", [
-    "¿cómo te llamas?",                  # a QUESTION about the name is not an order to change it
-    "¿te llamas Johnny?",                # …and this one WOULD have renamed it: the verb form is identical
-    "what's your name?",
-    "how do you call yourself",
-    "call yourself the best assistant in the world",   # a clause is not a name
-    "llámate el asistente más rápido del mundo",
-    "llámate como quieras",              # not a name — this would have renamed it «como quieras»
-    "call yourself whatever you want",
-    "Hey Johnny, how are you?",          # being ADDRESSED by a name is not a rename
-    "show me the agenda",
-    "te he dicho que te llamas johnny ahora",   # several lower-case words: not a name we can be sure of
-    "",
-])
-def test_what_never_renames(text):
-    assert ident.spoken_identity_order(text) is None
-
-
-# ── 2 · the property that matters: the gate then answers to it ───────────────────────────────────────
-def test_after_a_rename_the_gate_answers_to_the_new_name(monkeypatch):
-    """The incident's exact shape, reproduced end to end over the real attention gate."""
+@pytest.fixture
+def world(monkeypatch):
     from voice import attention
     monkeypatch.setattr(attention, "_state", dict(attention._state), raising=False)
-    assert not attention.has_wakeword("Hey, Johnny.")          # the deaf state of 2026-09-12
-    order = ident.spoken_identity_order("call yourself Johnny")
-    assert order is not None
-    ident.apply_rename_now(order[1])
-    try:
-        assert attention.has_wakeword("Hey, Johnny.")
-        assert attention.has_wakeword("Hey, Johnny. Show me my agenda.")
-        assert "johnny" in [w.lower() for w in attention.wakewords()]
-        assert "zaelar" in [w.lower() for w in attention.wakewords()], \
-            "the shipped name keeps working — a rename adds a name, it does not orphan the default"
-    finally:
-        attention.set_assistant_name("")
-
-
-def test_the_rename_is_written_where_the_gate_reads_it(monkeypatch):
-    """`state.assistant_name` is the structured fact `memory_cache` pushes into the gate. A pill is not."""
-    wrote = {}
+    wrote, events = {}, []
     import memory.api as mem
     monkeypatch.setattr(mem, "set_state", lambda fields: wrote.update(fields))
-    asyncio.run(ident.persist_rename("Johnny"))
-    assert wrote == {"assistant_name": "Johnny"}
+    from config import settings as cfg
+    monkeypatch.setattr(cfg, "update", lambda fields: wrote.update(fields))
+    yield wrote, (lambda *a, **k: events.append(a)), events
+    attention.set_assistant_name("")
 
 
-# ── 3 · the wiring, read in the voice turn (the typed channel runs it too) ─────────────────────────────
-def _stripped(p: Path) -> str:
-    from tests import voice_turn_source     # V2-778 F1: the voice turn is read whole, moved blocks included
-    return "\n".join(line.split("#", 1)[0] for line in voice_turn_source.read(p).splitlines())
+def test_a_sure_rename_verdict_with_the_models_name_renames(world):
+    wrote, emit, events = world
+    from voice import attention
+    assert not attention.has_wakeword("Hey, Johnny.")          # the deaf state of 2026-09-12
+    assert asyncio.run(identity.settle(_brief("rename", 0.95), "Johnny", emit)) == "rename"
+    assert wrote == {"assistant_name": "Johnny"}, "written where the gate reads it, never as a pill or a rule"
+    assert attention.has_wakeword("Hey, Johnny. Show me my agenda.")
+    assert "zaelar" in [w.lower() for w in attention.wakewords()], "the shipped name keeps working"
+    assert any(a[1] == "🏷️ zaelar se renombra" for a in events)
 
 
-def test_the_voice_channel_runs_the_lane():
-    src = _stripped(ROOT / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    assert "_fast_lane.rename(brain, text, emit" in src
+@pytest.mark.parametrize("brief,name", [
+    (_brief("rename", 0.7), "Johnny"),     # unsure: fails closed
+    (None, "Johnny"),                      # no verdict at all
+    (_brief("none", 0.99), "Johnny"),      # the brief says this is no rename
+    (_brief("rename", 0.95), ""),          # sure, but the model declared no name: nothing guessed from his words
+])
+def test_anything_short_of_a_sure_verdict_and_a_declared_name_renames_nothing(world, brief, name):
+    wrote, emit, _events = world
+    assert asyncio.run(identity.settle(brief, name, emit)) == ""
+    assert "assistant_name" not in wrote
+
+
+def test_the_attention_mode_is_a_verdict_too(world):
+    wrote, emit, _events = world
+    assert asyncio.run(identity.settle(_brief("attention_name_only", 0.9), "", emit)) == "smart"
+    assert wrote == {"attention_mode": "smart"}
+    assert asyncio.run(identity.settle(_brief("attention_always", 0.9), "", emit)) == "always"
+
+
+def test_the_question_rides_every_brief():
+    from nucleo.turn import brief
+    assert identity.KEY in brief.keys()
+    assert brief.build("llámate Johnny", open_ids=[])[identity.KEY]["criteria"] == identity.CHOICES

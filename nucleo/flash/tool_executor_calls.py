@@ -470,7 +470,7 @@ def _t_set_style_directive(*, args, _spawn, brain, emit, style_fired, text):
     if directive:
         style_fired["v"] = True
         from nucleo.flash import style_directive as _styled
-        if _styled.handle(directive, text, brain, emit, _spawn): return
+        if _styled.handle(directive, text, brain, emit, _spawn, name=(args.get("name") or "").strip()): return
 
 
 # V2-778 F1 — the `authenticate_web` arm of `_on_tool_call`, moved verbatim.

@@ -249,8 +249,8 @@ _SETTLE_S = 1.5
 
 
 async def _run_step(uid: str, row: dict, turn, ingest, *, sid: str = "", remember: bool = True) -> None:
-    ts = _store()
-    ts.task_patch(row["id"], state="running", started_at=int(time.time()))
+    ts, step_t0 = _store(), time.time()
+    ts.task_patch(row["id"], state="running", started_at=int(step_t0))
     _emit("📋 lista: paso", text=row["goal"], step=row["id"])
     before = _live_workers()
     # V2-776 K2 — a row Jev named `rule` («From now on…», «Confirm my orders…») is a RULE, not a turn: the
@@ -311,7 +311,7 @@ async def _run_step(uid: str, row: dict, turn, ingest, *, sid: str = "", remembe
     except Exception:  # noqa: BLE001
         pass
     # V2-781 — a step that names the assistant is judged on the store, not on «I'm Johnny now» (see `identity`).
-    ident = await _identity.settle(row["goal"])
+    ident = await _identity.settle(step_t0)
     if ident is not None and not ident["stored"]:
         state, note = "failed", f"assistant name not stored — «{ident['name']}» {ident.get('error', '')}".strip()
     fields = {"state": "running" if state == "waiting" else ("waiting" if state == "needs_you" else state),

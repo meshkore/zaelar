@@ -133,6 +133,7 @@ QUESTIONS = (
     (TARGET_KEY, lambda c: bool(c.get("open_ids")), lambda c: target_question(c.get("open_ids"))),
     (CATALOG_KEY, lambda c: not target_question(c.get("open_ids")), lambda _c: catalog_question()),
     (NAMES_KEY, lambda c: bool(c.get("open_ids")), lambda c: names_question(c.get("open_ids"))),
+    (("nucleo.turn.identity", "KEY"), None, lambda c: __import__("nucleo.turn.identity", fromlist=["x"]).question(c)),
 )
 
 
