@@ -38,7 +38,7 @@ def test_the_case_asks_naming_both_then_brings_back_the_one_he_names(locale):
 
         def _turn(text: str) -> dict:
             H.RecordedModel.load({"say": "", "tools": [{"name": "reopen_task", "args": {"query": query}}]})
-            return asyncio.run(turn.run_turn(text, sid=sid, ingest=False))
+            return asyncio.run(turn.run_turn(text, sid=sid, ingest=False, execute=True))   # the rebuild is the point
 
         try:
             first = _turn(opening)
