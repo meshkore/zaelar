@@ -121,34 +121,16 @@ def asks_him(reply: str) -> bool:
     return any(p.rstrip("»\"' ").endswith("?") for p in parts[-2:])
 
 
-def an_errand_is_live_for(op_text: str) -> bool:
-    """A worker is RUNNING on what his words name (its goal/title shares a content word with his turn): the request's
-    verdict is «started» — a status report about it owes no «not done» (live 2026-10-28: «continue with my Dexter
-    request» while the Dexter check ran → «I haven't done it — I couldn't carry it out from here»)."""
-    try:
-        from nucleo.dispatch import registry as _reg
-        words = {w.strip(".,;:!?¿¡«»\"'()").lower() for w in str(op_text or "").split()}
-        words = {w for w in words if len(w) > 3}
-        if not words:
-            return False
-        for row in _reg.active_sessions():
-            goal = f"{row.get('title') or ''} {row.get('goal') or ''}".lower()
-            if any(w in goal for w in words):
-                return True
-    except Exception as _e:  # noqa: BLE001 — an unreadable registry decides nothing
-        _log.debug(f"promise_kept: live errands unreadable: {_e!r}")
-    return False
-
-
-def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None, op_text: str = "") -> str:
+def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) -> str:
     """The words owed when the turn owed an act and nothing ran — "" when something ran or nothing was owed.
 
     · the pass declared it cannot  → its own sentence (or the i18n line);
     · the pass's call was swallowed by a guard → the i18n line (a claim over a discarded op is not «done»);
     · the pass read the turn and called nothing → nothing (its judgement stands);
-    · the reply asks HIM, or a worker already runs on what he named → nothing (asked / started);
+    · the reply asks HIM → nothing (asked); a worker already running on what he named was resumed from its ROW by
+      the turn's verdict over the pending rows (`resume_turn`), so the turn `acted` (started — V2-831 T-07);
     · no pass could run (no card) and the brief says an act was owed (`owed`) → the i18n line."""
-    if acted or words_were_the_act(brief) or asks_him(reply) or an_errand_is_live_for(op_text):
+    if acted or words_were_the_act(brief) or asks_him(reply):
         return ""
     kind = str((outcome or {}).get("kind") or "")
     if kind in (CALL, STARTED, JUDGED):
@@ -200,9 +182,9 @@ def owed(brief, *, open_ids=None) -> bool:
         return False
 
 
-def close(reply: str, outcome: dict | None, *, acted: bool, emit=None, brief=None, op_text: str = "") -> str:
+def close(reply: str, outcome: dict | None, *, acted: bool, emit=None, brief=None) -> str:
     """`honest_line`, said on the timeline when it is owed. Both channels call this at the end of the turn."""
-    line = honest_line(reply, outcome, acted=acted, brief=brief, op_text=op_text)
+    line = honest_line(reply, outcome, acted=acted, brief=brief)
     if line and emit is not None:
         try:
             emit("brain", "🤝 promesa cerrada — dice que no lo ha hecho", text=line[:160], role="system",
@@ -348,7 +330,7 @@ def say_after(reply: str, data_done: dict, *, acted, send, speech, window: list,
     if turn and start_deferred(reply, outcome, acted=bool(acted), brief=brief, model_calls=turn[1], op_text=turn[2],
                                escalate=turn[3], emit=emit):
         return ""
-    line = close(reply, outcome, acted=bool(acted), emit=emit, brief=brief, op_text=str(turn[2] or "") if turn else "")
+    line = close(reply, outcome, acted=bool(acted), emit=emit, brief=brief)
     if line:
         from nucleo.turn import reply as _reply
         verdict = "cannot" if str((outcome or {}).get("kind") or "") == CANNOT else "unmet"
