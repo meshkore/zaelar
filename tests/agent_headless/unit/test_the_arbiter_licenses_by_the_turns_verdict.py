@@ -64,6 +64,19 @@ def test_the_tap_reads_the_brief_off_its_events_and_the_verdict_event_carries_it
     assert v["verdict"] == {"canvas": {"choice": "close", "confidence": 0.87}} and v["source"] == "flash"
 
 
+def test_the_real_observer_hands_the_briefs_reads_to_the_arbiter(monkeypatch):
+    """Through `voice.observer.emit` itself: the brief's `jev read` events must reach the arbiter, or every live
+    verdict is judged on an empty brief — what happened until this was wired."""
+    import voice.observer as obs
+    seen = []
+    monkeypatch.setattr(arb, "_emit_verdict", lambda op, wid, src, action, v, **kw: seen.append((v.rule, kw.get("brief"))))
+    arb._reads.clear()
+    obs.emit("brain", "jev read canvas", role="system",
+             extra={"question": "canvas", "choice": "close", "confidence": 0.9, "trace": "T7·beef"})
+    obs.emit("widget", "close", extra={"id": "musica", "src": "flash", "trace": "T7·beef"})
+    assert seen and seen[-1][0] == "verdict-close" and seen[-1][1] == {"canvas": ("close", 0.9)}
+
+
 def test_disarm_without_the_verdict_licence_the_words_veto_the_ordered_close(monkeypatch):
     monkeypatch.setattr(arb, "_verdict_licence", lambda *a, **k: None)
     assert arb.decide("close", "musica", "flash", text=MUTE, verdict={"canvas": ("close", 0.99)}).rule == "close-drag"
