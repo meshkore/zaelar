@@ -154,6 +154,35 @@ def taken() -> list[Outcome]:
     return _NOTED.pop(_trace(), [])
 
 
+#: Turns that END on a question to the operator (V2-831 T-08), keyed by trace like `_NOTED` — but never popped by the
+#: mouth: `after_acts` reads `_NOTED` before the turn end asks «was anything owed?», and an `asked` line is not one
+#: the mouth adds (the question was already said, by the model or by the clarify door). Bounded to recent turns.
+_ASKED: dict[str, str] = {}
+_ASKED_MAX = 32
+
+
+def settle_asked(source: str) -> None:
+    """This turn ends asking HIM: `source` = "model" (its `[[ask]]` tag) or "clarify" (the clarify door's question).
+    Settles the circuit's `asked` verdict, with its event. Never raises."""
+    try:
+        tr = _trace()
+        _ASKED[tr] = str(source or "")
+        while len(_ASKED) > _ASKED_MAX:
+            _ASKED.pop(next(iter(_ASKED)))
+        V.emit(V.ASKED, text=str(source or ""), trace=tr, source=str(source or ""))
+    except Exception as e:  # noqa: BLE001 — a verdict that cannot be recorded never breaks the turn
+        logger.debug(f"reply: asked not settled — {e!r}")
+
+
+def asked() -> bool:
+    """Did this turn settle `asked`? Read, not consumed."""
+    try:
+        return _trace() in _ASKED
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"reply: asked unreadable — {e!r}")
+        return False
+
+
 def _notice_moved(said: str) -> list[Outcome]:
     """A notice this turn MOVED to ring soon today is `met` at the hour the live job rings, read back from the
     schedule (`notice_readback`) — "" when the words already said that hour."""

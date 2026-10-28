@@ -132,6 +132,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
     if clarify["msg"] and escalate_req["v"] is None and search_req["v"] is None:
         spoken_text = clarify["msg"]
         send(speech.sanitize(spoken_text, drop_metadata=False))
+        _reply.settle_asked("clarify")      # V2-831 T-08 — the turn ends on our question: its verdict is `asked`
 
     # Data-op despachada por tool sin frase hablada (el modelo fue directo a la tool) → ack corto (no mudo).
     # V2-038 (test post-P1/P2): dos data-ops seguidas con el MISMO "Hecho." disparaban el loop-detector — se

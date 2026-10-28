@@ -38,6 +38,11 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
     if action in ("unknown_tag_dropped",):
         _txw.logger.warning(f"unknown_tag_dropped: {(extra.get('text') or '')[:120]!r}")
         return
+    if action == "ask":
+        # V2-831 T-08 — the model declared that its reply asks him: the turn's verdict is `asked`, never «not done».
+        from nucleo.turn import reply as _reply
+        _reply.settle_asked("model")
+        return
     if action == "aparte":
         # V2-657 — sanctioned silence: a turn addressed to someone else in the room; resolved after the stream.
         aside["v"] = True

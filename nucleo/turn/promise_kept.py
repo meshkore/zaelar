@@ -112,13 +112,15 @@ def _not_kept_line() -> str:
         return ""
 
 
-def asks_him(reply: str) -> bool:
-    """The reply ENDS by putting a question to him (one of its last two sentences is a question): its verdict is
-    «asked», not «undone» — the next act is his (live 2026-10-28: «…20 chats with something pending… Which one do you
-    mean?» closed with «I haven't done it»; the agenda's «Which one exactly? I have A, B.» is the same shape)."""
-    import re
-    parts = [p.strip() for p in re.split(r"(?<=[.!?…])\s+", str(reply or "").strip()) if p.strip()]
-    return any(p.rstrip("»\"' ").endswith("?") for p in parts[-2:])
+def _asked() -> bool:
+    """The turn settled the circuit's `asked` verdict: the model declared its reply asks him (`[[ask]]`) or the
+    clarify door put our question (`reply.settle_asked`) — the next act is his (V2-831 T-08). Never read from a «?»."""
+    try:
+        from nucleo.turn import reply as _reply
+        return _reply.asked()
+    except Exception as _e:  # noqa: BLE001
+        _log.debug(f"promise_kept: asked verdict unreadable: {_e!r}")
+        return False
 
 
 def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) -> str:
@@ -127,10 +129,10 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     · the pass declared it cannot  → its own sentence (or the i18n line);
     · the pass's call was swallowed by a guard → the i18n line (a claim over a discarded op is not «done»);
     · the pass read the turn and called nothing → nothing (its judgement stands);
-    · the reply asks HIM → nothing (asked); a worker already running on what he named was resumed from its ROW by
+    · the turn settled `asked` (its `[[ask]]`, the clarify door) → nothing; a worker already running on what he named was resumed from its ROW by
       the turn's verdict over the pending rows (`resume_turn`), so the turn `acted` (started — V2-831 T-07);
     · no pass could run (no card) and the brief says an act was owed (`owed`) → the i18n line."""
-    if acted or words_were_the_act(brief) or asks_him(reply):
+    if acted or words_were_the_act(brief) or _asked():
         return ""
     kind = str((outcome or {}).get("kind") or "")
     if kind in (CALL, STARTED, JUDGED):
