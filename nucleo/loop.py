@@ -685,10 +685,10 @@ class OrchestratorLoop:
         try:
             from memory import rem as _rem
             if await asyncio.to_thread(_rem.due):
-                from . import memllm as _memllm
-                rep = await asyncio.to_thread(_rem.run, _memllm.synthesize_concept_groups,
-                                              _memllm.verify_insight_grounded,
-                                              _memllm.generate_paraphrases)
+                from nucleo.memory_agent.processor import llm_tasks as _tasks
+                rep = await asyncio.to_thread(_rem.run, _tasks.synthesize_concept_groups,
+                                              _tasks.verify_insight_grounded,
+                                              _tasks.generate_paraphrases)
                 _emit("loop.rem", {k: rep.get(k) for k in
                                    ("repaired", "paraphrased", "sem_deduped", "insights", "ms")})
                 hyg = rep.get("hygiene") or {}
@@ -711,10 +711,10 @@ class OrchestratorLoop:
         try:
             from connectors.messaging import digest as _digest
             if _digest.enabled():
-                from . import memllm as _memllm
+                from nucleo.memory_agent.processor import llm as _llm
                 rep = await asyncio.to_thread(
                     _digest.refresh_due,
-                    lambda system, user: _memllm.chat_sync("rem", system, user, max_tokens=700))
+                    lambda system, user: _llm.chat_sync("rem", system, user, max_tokens=700))
                 if rep.get("digested") or rep.get("failed"):
                     _emit("loop.chat_digest", rep)
         except Exception as e:  # noqa: BLE001

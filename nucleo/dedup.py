@@ -127,8 +127,8 @@ def about_a_live_errand(request: str, live: list[tuple[str, str]]) -> str:
         return ""
     menu = "\n".join(f"{i + 1}. {str(goal or '')[:160]}" for i, (_tid, goal) in enumerate(live))
     try:
-        from nucleo import memllm
-        raw = memllm.chat_sync("errand_scope", SCOPE_SYSTEM,
+        from nucleo.memory_agent.processor import llm
+        raw = llm.chat_sync("errand_scope", SCOPE_SYSTEM,
                                f"RUNNING ERRANDS:\n{menu}\n\nNEW REQUEST:\n{request[:400]}",
                                max_tokens=32, temperature=0.0, timeout=12.0)
     except Exception:  # noqa: BLE001

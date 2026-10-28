@@ -9,7 +9,7 @@ Reproduces the failures found after booking the vehicle inspection (2026-07-17),
           ('quiere que le reserve la cita') IS preserved.
 
 Two levels: (1) the direct deterministic GATE `_precision_reject_atom` (without an LLM or DB, exact precision);
-(2) the REAL write PATH with `mem_processor.process` mocked to inject the exact atom produced by the LLM
+(2) the REAL write PATH with `distill.process` mocked to inject the exact atom produced by the LLM
 in production → verifies that a rejected atom does NOT reach long-term memory and a valid one DOES. Isolated DB (tmp_path).
 """
 import asyncio
@@ -21,7 +21,7 @@ from memory import db as memdb
 from memory import embeddings as mememb
 from memory import queue as memqueue
 from nucleo import memory_agent
-from nucleo import mem_processor
+from nucleo.memory_agent.processor import distill, distill_config
 
 
 # ── (1) Direct deterministic GATE — the exact precision of each rule ────────────────────────────────────────
@@ -110,8 +110,8 @@ def _run_with_atoms(monkeypatch, utterance, atoms):
     """Ingests one turn through the REAL path, with the LLM processor returning `atoms` (the exact production atoms)."""
     async def _fake_process(text, *, state=None):
         return atoms
-    monkeypatch.setattr(mem_processor, "enabled", lambda: True)
-    monkeypatch.setattr(mem_processor, "process", _fake_process)
+    monkeypatch.setattr(distill_config, "enabled", lambda: True)
+    monkeypatch.setattr(distill, "process", _fake_process)
 
     async def scenario():
         await memapi.start()
@@ -170,8 +170,8 @@ def test_same_entity_refinement_collapses_e2e(fresh_db, monkeypatch):
 
     async def _seq(text, *, state=None):
         return next(calls)
-    monkeypatch.setattr(mem_processor, "enabled", lambda: True)
-    monkeypatch.setattr(mem_processor, "process", _seq)
+    monkeypatch.setattr(distill_config, "enabled", lambda: True)
+    monkeypatch.setattr(distill, "process", _seq)
 
     async def scenario():
         await memapi.start()

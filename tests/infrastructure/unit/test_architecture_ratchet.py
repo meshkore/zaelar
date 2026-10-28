@@ -180,7 +180,6 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # nucleo/flash/probe.py left the table with the text channel's own turn (refactor2710-01): the typed
     # channel runs the voice turn, so there is no second copy left to bound.
     "widgets/results/data.py": (991, 5),
-    "memory/api.py": (1026, 17),   # 2026-10-01 V2-778 F1: the workflows table → memory/workflows_store.py
     "nucleo/flash/prompt.py": (834, 29),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
     # branch in the worker directive: inject before killing—directive prose, nothing extractable)
     # 26-09-11: V2-675 · −21 — the CRON line moved to `live_blocks.py` (same precedent as the browser and
@@ -334,8 +333,8 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "config": 2525,
     "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
-    "memory": 9117,
-    "nucleo (top)": 24277,      # refactor2710-01: +176, `consequence.py` (the door registry, each door an event) and `dispatch_soon.py` (moved)
+    "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
+    "nucleo (top)": 22757,      # refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
@@ -344,7 +343,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
     "nucleo/flash": 31550,
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
-    "nucleo/memory_agent": 1951,  # refactor2710-01: +2, the memory.ingest door
+    "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
     "nucleo/susurro": 1386,
     "nucleo/turn": 2169,
     "nucleo/workers": 6455,
@@ -417,11 +416,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/input/stt.py",   # the phrase accumulator, MOVED from nucleo/flash/accumulator.py (refactor2710-01)
     "nucleo/jev.py",
     "nucleo/loop.py",
-    "nucleo/mem_processor.py",
-    "nucleo/memllm.py",
     "nucleo/memory_agent/gates.py",
-    "nucleo/memory_agent/ingest_steps.py",
-    "nucleo/memory_agent/lang_marks.py",
     "nucleo/mesh_agents.py",
     "nucleo/nav_cli.py",
     "nucleo/notices.py",
@@ -456,8 +451,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 174219, with refactor2710-13 merged). Never for growth in place.
-_TOTAL_MAX = 174219
+#: 178503 → 173251, with refactor2710-11 and -13 merged). Never for growth in place.
+_TOTAL_MAX = 173251
 
 
 def test_the_total_only_shrinks():

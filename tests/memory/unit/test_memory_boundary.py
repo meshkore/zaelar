@@ -1,4 +1,4 @@
-"""memory/contract.py — memory's boundary, with a ratchet (V2-114 F0).
+"""memory's boundary (`memory_contract.py`, beside this test) — memory's boundary, with a ratchet (V2-114 F0).
 
 Memory has to be reimplementable without the agent noticing, and that requires knowing where the agent comes in.
 Measured 2026-08-18: 84 of ~108 production imports already go through `memory.api`; the ~24 leaks live in few
@@ -18,7 +18,7 @@ import pathlib
 import re
 
 from memory import api as memapi
-from memory.contract import BLESSED_INTERNAL_IMPORTS, MemoryContract
+from tests.memory.unit.memory_contract import BLESSED_INTERNAL_IMPORTS, MemoryContract
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
@@ -35,7 +35,9 @@ def _submodules() -> set[str]:
     """The REAL submodules of `memory/`, read from disk. Needed because the dominant form in this repo is
     `from memory import db as memdb` (the submodule travels in the NAME list, not after a dot), so telling
     "imports the facade" apart from "imports internals" requires knowing which names are modules."""
-    return {p.stem for p in (REPO / "memory").glob("*.py") if p.stem != "__init__"}
+    root = REPO / "memory"
+    return ({p.stem for p in root.glob("*.py") if p.stem != "__init__"}
+            | {p.parent.name for p in root.glob("*/__init__.py")})   # a split module is a package
 
 
 def _production_files() -> list[pathlib.Path]:

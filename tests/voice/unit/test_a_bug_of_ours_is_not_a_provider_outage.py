@@ -301,12 +301,12 @@ def test_a_relayed_turn_is_not_marked_against_the_titular_twice():
 def _rows(monkeypatch, *, chain, serving, mem_status, mem_err=None, eng_err=None):
     """One `/api/status` render with the ladder and the memory heart stubbed."""
     from nucleo.flash import provider_chain as pc
-    from nucleo import mem_processor
+    from nucleo.memory_agent.processor import distill_config, distill_health
     from voice import health_state
     from server import voice_api
     monkeypatch.setattr(pc, "chain", lambda role=None: list(chain))
     monkeypatch.setattr(pc, "pick", lambda role=None: serving)
-    monkeypatch.setattr(mem_processor, "status", lambda: dict(mem_status))
+    monkeypatch.setattr(distill_health, "status", lambda: dict(mem_status))
     monkeypatch.setattr(health_state, "get",
                         lambda svc: (mem_err if svc == "memory" else eng_err if svc == "engine" else None))
     import asyncio
@@ -411,30 +411,30 @@ def test_every_ladder_line_has_its_string(lang):
 def test_the_heart_reports_the_rung_that_actually_served(monkeypatch):
     """It has relayed since 2026-08-19 and nothing outside `process()` could see it: `status()` reported the
     configured titular whoever answered."""
-    from nucleo import mem_processor as mp
-    monkeypatch.setattr(mp, "_model", lambda: "deepseek-flash")
-    monkeypatch.setattr(mp, "_url", lambda: "https://api.deepseek.com")
-    monkeypatch.setattr(mp, "_served_rung", ("https://api.openai.com/v1", "gpt-4.1-mini"), raising=False)
-    st = mp.status()
+    from nucleo.memory_agent.processor import distill_config, distill_health
+    monkeypatch.setattr(distill_config, "model", lambda: "deepseek-flash")
+    monkeypatch.setattr(distill_config, "url", lambda: "https://api.deepseek.com")
+    monkeypatch.setattr(distill_health, "served_rung", ("https://api.openai.com/v1", "gpt-4.1-mini"), raising=False)
+    st = distill_health.status()
     assert st["model"] == "deepseek-flash", "the configured titular must stay readable as itself"
     assert st["serving_model"] == "gpt-4.1-mini" and st["relayed"] is True
 
 
 def test_with_no_relay_the_heart_reports_itself(monkeypatch):
-    from nucleo import mem_processor as mp
-    monkeypatch.setattr(mp, "_model", lambda: "deepseek-flash")
-    monkeypatch.setattr(mp, "_url", lambda: "https://api.deepseek.com")
-    monkeypatch.setattr(mp, "_served_rung", None, raising=False)
-    st = mp.status()
+    from nucleo.memory_agent.processor import distill_config, distill_health
+    monkeypatch.setattr(distill_config, "model", lambda: "deepseek-flash")
+    monkeypatch.setattr(distill_config, "url", lambda: "https://api.deepseek.com")
+    monkeypatch.setattr(distill_health, "served_rung", None, raising=False)
+    st = distill_health.status()
     assert st["serving_model"] == "deepseek-flash" and st["relayed"] is False
 
 
 def test_the_heart_records_who_served_after_a_distillation():
     """The wiring: the global is set where the loop decides, not somewhere a refactor can drop it."""
-    src = _vts.read(ENGINE / "nucleo/mem_processor.py")
-    assert 'globals()["_served_rung"] = _served' in src, "nothing publishes the rung that served"
-    i = src.index('globals()["_served_rung"]')
-    assert src.index("if not _served:") < i, "the rung is published before the loop knows there was one"
+    src = _vts.read(ENGINE / "nucleo/memory_agent/processor/distill.py")
+    assert "health.served_rung = served" in src, "nothing publishes the rung that served"
+    i = src.index("health.served_rung = served")
+    assert src.index("served = (rung_url, rung_model)") < i, "the rung is published before a rung answered"
 
 
 # ── F · EMBEDDINGS: THE FALL IS SAID, THE SPACE IS NOT SWAPPED ───────────────────────────────────────────────

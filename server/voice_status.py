@@ -153,8 +153,8 @@ async def brain_and_voice(*, SETTINGS, active, has, health_state) -> dict:
 
 async def the_rest_and_the_light(*, SETTINGS, brain, has, health_state, items) -> dict:
     try:
-        from nucleo import mem_processor
-        _mp = mem_processor.status()
+        from nucleo.memory_agent.processor import distill_health
+        _mp = distill_health.status()
         mem_err = health_state.get("memory")
         # ONE LIGHT, FOURTEEN WRITERS (2026-09-10). `health_state["memory"]` is a key SHARED by the heart, REM,
         # the retriever, the embedding backend and the turn's recall budget — facts with nothing in common. This

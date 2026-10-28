@@ -86,8 +86,8 @@ _MOTOR_REACH: set[tuple[str, str]] = {
     ("nucleo/flash/video_turn.py", "voice.engine.core"),
     ("nucleo/homeostasis.py", "voice.engine.pipeline.agent"),
     ("nucleo/loop.py", "voice.engine.core"),
-    ("nucleo/mem_processor.py", "voice.engine.core"),
-    ("nucleo/memllm.py", "voice.engine.core"),
+    ("nucleo/memory_agent/processor/distill_prompt.py", "voice.engine.core"),
+    ("nucleo/memory_agent/processor/llm_tasks.py", "voice.engine.core"),
     ("nucleo/sparks.py", "voice.engine.core"),
     ("nucleo/turn/vault_gate.py", "voice.engine.core"),
     ("server/boot/surfaces.py", "voice.engine.pipeline.agent"),    # refactor2710-13: the voice worker starts in boot phase 3

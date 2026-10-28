@@ -34,8 +34,8 @@ def _rem_hooks(real: bool):
     only for explicit invocation, never in the default deterministic run (`--all`/`--target` without `--real`)."""
     if not real:
         return _deterministic_hook, None, None
-    from nucleo import memllm
-    return memllm.synthesize_concept_groups, memllm.verify_insight_grounded, memllm.generate_paraphrases
+    from nucleo.memory_agent.processor import llm_tasks
+    return llm_tasks.synthesize_concept_groups, llm_tasks.verify_insight_grounded, llm_tasks.generate_paraphrases
 
 
 def _clean_db() -> None:

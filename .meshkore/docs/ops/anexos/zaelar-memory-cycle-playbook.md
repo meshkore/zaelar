@@ -53,7 +53,7 @@ flip-flop between fresh runs; re-verifying in a loop would just churn).
 
 ### Classifying each ❌ (the key decision)
 
-- **(a) REAL memory bug** → fix the **CODE** as an improvement (`nucleo/mem_processor.py`,
+- **(a) REAL memory bug** → fix the **CODE** as an improvement (`nucleo/memory_agent/processor/distill.py`,
   `nucleo/memory_agent.py`, `memory/api.py`, `memory/retriever.py`, `memory/writer.py`, `memory/consolidator.py`,
   `nucleo/flash/*`). **NEVER soften the test.** Add a regression guard test.
 - **(b) FLAKY** (passed before on a fresh run, differs now with no code change → variable canonicalisation by

@@ -417,7 +417,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   and knows its channel (spoken or typed) and the assistant's own name; an identity claim rejected as «not about the
   operator» writes no trusted row (quarantined, like any rejected identity); «I already told you X» is not a fact;
   each row records its real channel; the words before a wake word count only when the paid STT could not hear them,
-  so our own voice is never his. — since 2026-10-26 · nodes 1.3, 4.209 · `nucleo/mem_processor.py`,
+  so our own voice is never his. — since 2026-10-26 · nodes 1.3, 4.209 · `nucleo/memory_agent/processor/distill.py`,
   `nucleo/memory_agent/`, `voice/engine/pipeline/agent_events.py`.
 - **CRIT-M9 · Inbound messages are their own lane, and recall says where each line came from.** A `msg` row is
   never promoted, never in the passive blocks, never ranked with his own facts (`query(lane="own")` is the

@@ -481,7 +481,7 @@ cálculo/charla). **Titular: `gpt-4o-mini`.** Tabla única — NO re-litigar est
 > Contexto: auditoría profunda 2026-07-19 (informe `~/.meshkore/tmp/auditoria-memoria-20260719.html`) + orden del
 > operador de elegir los modelos del módulo CON DATOS (catálogo AIMLAPI disponible, respetar descartes previos §9).
 > **Router interno del módulo**: cada tarea de LLM de la memoria es elegible POR CONFIG con key POR ENDPOINT —
-> `nucleo/memllm.py` (tareas `rem`, futuras) + `mem_processor` (tarea `distill`, su propia cola/semántica).
+> `nucleo/memory_agent/processor/llm.py` (tareas `rem`, futuras) + `mem_processor` (tarea `distill`, su propia cola/semántica).
 > Config: `config/v2.json §memory.{mem_processor_*, rem_*}`. Los benches son REPRODUCIBLES (scripts versionados).
 
 ### 12.1 DESTILADOR (CORAZÓN de escritura) — `tests/memory/e2e/bot/distiller_bench.py`
@@ -712,7 +712,7 @@ Quedaban DOS apuntando a `api.openai.com`, los dos con el defecto latente que ya
   De paso, su cliente manda ya el User-Agent de navegador como los demás; **comprobado que el UA por defecto de
   `aiohttp` SÍ pasa el Cloudflare de AIMLAPI** (HTTP 200) — el que se bloqueaba era el de `urllib`. Se manda igual
   porque el fail-open del Susurro es silencioso por diseño y no conviene depender de la política de un CDN.
-- **i18n init** (`nucleo/memllm.py::_DEFAULTS["i18n"]`, traducir el UI a un idioma nuevo) → apuntaba a `gpt-4o`
+- **i18n init** (`nucleo/memory_agent/processor/llm_routes.py::_DEFAULTS["i18n"]`, traducir el UI a un idioma nuevo) → apuntaba a `gpt-4o`
   directo. Aquí SÍ había que elegir modelo, así que se midió antes.
 
 **Sonda de i18n — al tamaño REAL del lote.** No es un bench de los de §12 (una tarea que se ejecuta una vez por

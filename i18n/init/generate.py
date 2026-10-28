@@ -4,7 +4,7 @@ i18n.init.generate — LLM translation of UI strings into a new language (V2-089
 INITIALIZATION only (never the hot path). Given a batch of {key: english} from any pack, translate to the target language and
 return {key: translated}, preserving {placeholders}, punctuation, emoji, and technical tokens. Off-hot-path, so
 quality wins over latency: a strong model (config §memory.i18n_model, default deepseek-v4-pro on the DIRECT
-broker) through the shared off-path caller (nucleo.memllm). Runs inside asyncio.to_thread so it doesn't block
+broker) through the shared off-path caller (nucleo.memory_agent.processor.llm). Runs inside asyncio.to_thread so it doesn't block
 the event loop. Why that model — and why NOT the memory's own deepseek — is argued in `nucleo/memllm.py`
 (`_DEFAULTS["i18n"]`): measured at the real batch size, not guessed.
 
@@ -78,8 +78,8 @@ def _parse(raw: str) -> dict:
 
 
 def _translate_batch_sync(code: str, batch: dict[str, str], register: str = "ui") -> dict[str, str]:
-    from nucleo import memllm
-    raw = memllm.chat_sync("i18n", _system(code, register), json.dumps(batch, ensure_ascii=False),
+    from nucleo.memory_agent.processor import llm
+    raw = llm.chat_sync("i18n", _system(code, register), json.dumps(batch, ensure_ascii=False),
                            max_tokens=4000, temperature=0.2, timeout=90.0)
     out = _parse(raw or "")
     return {k: out[k] for k in batch if k in out and isinstance(out[k], str) and out[k].strip()}

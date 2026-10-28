@@ -1,4 +1,4 @@
-"""memory/contract.py — memory's BOUNDARY, written as code (V2-114 F0).
+"""memory's BOUNDARY, written as code (V2-114 F0) — the surface `test_memory_boundary.py` holds the product to.
 
 Memory has to be able to evolve (and even be reimplemented) without the agent noticing. That requires knowing,
 without ambiguity, **what the agent asks of a memory**. This module declares it: it is executable documentation

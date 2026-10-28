@@ -182,8 +182,8 @@ _JUDGE_SYSTEM = (
 
 
 def _judge_sync(transcript: str) -> bool:
-    from nucleo import memllm
-    raw = memllm.chat_sync("errand_scope", _JUDGE_SYSTEM, transcript,
+    from nucleo.memory_agent.processor import llm
+    raw = llm.chat_sync("errand_scope", _JUDGE_SYSTEM, transcript,
                            max_tokens=6, temperature=0.0, timeout=20.0)
     return (raw or "").strip().lower().startswith(("yes", "sí", "si"))
 

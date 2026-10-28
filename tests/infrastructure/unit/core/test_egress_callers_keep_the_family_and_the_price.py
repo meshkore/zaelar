@@ -92,13 +92,14 @@ def mediated(monkeypatch):
 
 
 def test_memllm_sends_the_family_and_prices_by_the_provider(mediated, monkeypatch):
-    from nucleo import energy_meter, memllm
+    from nucleo import energy_meter
+    from nucleo.memory_agent.processor import llm
     sent, metered = {}, {}
-    monkeypatch.setattr(memllm, "_post_json", lambda url, payload, *, headers, timeout: (
+    monkeypatch.setattr(llm, "_post_json", lambda url, payload, *, headers, timeout: (
         sent.update(url=url, headers=headers) or {"choices": [{"message": {"content": "ok"}}], "usage": {}}))
     monkeypatch.setattr(energy_meter, "meter_openai_response", lambda p, *, base_url, model=None: metered.update(
         base_url=base_url))
-    out = memllm._attempt("https://api.openai.com/v1", "gpt-4.1-mini", "k", False,
+    out = llm._attempt("https://api.openai.com/v1", "gpt-4.1-mini", "k", False,
                           system="s", user="u", max_tokens=10, temperature=0, timeout=5)
     assert out == "ok"
     assert sent["url"].startswith("https://egress.example/v1")

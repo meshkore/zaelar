@@ -24,7 +24,7 @@ FOUR SEPARATE axes (previously merged into a single %, which hid where a model w
      `dest` correcto (state/short/long), `slot` canónico correcto Y —el error caro— `slot=None` en los hechos
      ADITIVOS (una alergia NO es `operator.diet`: si lo fuera, un cambio de dieta borraría la alergia), `change`
      (update/correction) y `kind` (intent) donde toca.
-  4. $/1k TURNS — with REAL provider tokens (`mem_processor.last_usage()`, captured by the module itself
+  4. $/1k TURNS — with REAL provider tokens (`distill.last_usage()`, captured by the module itself
      desde 2026-08-09) × tarifa publicada. NO estimados: el prompt del CORAZÓN son ~3.700 tokens de input FIJOS
      (system + 8 pares de few-shot), así que el coste lo domina el input y una estimación por chars se desvía.
 
@@ -68,7 +68,7 @@ os.environ.setdefault("MEM_PROCESSOR_RETRIES", "1")
 # Measured the same day: `qwen3.6-27b@ollama` returned «OK 143000ms, 2 pills», and those pills were from DeepSeek.
 os.environ["MEM_PROCESSOR_PIN_TITULAR"] = "1"
 
-from nucleo import mem_processor as mp  # noqa: E402
+from nucleo.memory_agent.processor import distill, distill_config, distill_health, llm_rungs  # noqa: E402
 
 # ── candidatos ──────────────────────────────────────────────────────────────────────────────────────────────
 # The AIMLAPI broker is an endpoint the engine already supports, so a winner living there requires no new endpoint
@@ -304,7 +304,7 @@ async def _one_case(case: dict, sem: asyncio.Semaphore) -> dict:
     async with sem:
         t0 = time.time()
         try:
-            atoms = await mp.process(case["text"], state=STATE)
+            atoms = await distill.process(case["text"], state=STATE)
         except Exception as e:  # noqa: BLE001  — process() no debería lanzar, pero un candidato roto no tumba el barrido
             return {"case": case["id"], "error": f"{type(e).__name__}: {e}"[:160], "ms": 0, "atoms": None}
         return {"case": case["id"], "atoms": atoms if isinstance(atoms, list) else None,
@@ -313,24 +313,24 @@ async def _one_case(case: dict, sem: asyncio.Semaphore) -> dict:
 
 async def run_model(name: str, url: str, model: str) -> dict:
     # Override processor routing (same real path, different model)
-    mp._config_url = lambda: url                     # type: ignore[assignment]
-    mp._model = lambda: model                        # type: ignore[assignment]
+    distill_config._config_url = lambda: url                     # type: ignore[assignment]
+    distill_config.model = lambda: model                        # type: ignore[assignment]
 
     # Capture EXACT usage per call (last_usage() is global and would be overwritten under concurrency)
     usages: list[dict] = []
-    _orig_record = mp._record_usage
+    _orig_record = distill.record_usage
 
     def _capture(u):                                  # noqa: ANN001
         if isinstance(u, dict):
             usages.append({k: u.get(k) for k in ("prompt_tokens", "completion_tokens")})
         _orig_record(u)
-    mp._record_usage = _capture                       # type: ignore[assignment]
+    distill.record_usage = _capture                       # type: ignore[assignment]
 
     sem = asyncio.Semaphore(6)
     try:
         results = await asyncio.gather(*[_one_case(c, sem) for c in CASES])
     finally:
-        mp._record_usage = _orig_record               # type: ignore[assignment]
+        distill.record_usage = _orig_record               # type: ignore[assignment]
 
     by_id = {r["case"]: r for r in results}
     comp_score = comp_total = 0.0
@@ -414,14 +414,14 @@ async def _preflight(names: list[str]) -> None:
     """1 SHORT call per candidate: distinguishes «the model is unsuitable» from «the id/endpoint/contract does not respond»."""
     for name in names:
         url, model = CANDIDATES[name]
-        mp._config_url = lambda u=url: u              # type: ignore[assignment]
-        mp._model = lambda m=model: m                 # type: ignore[assignment]
+        distill_config._config_url = lambda u=url: u              # type: ignore[assignment]
+        distill_config.model = lambda m=model: m                 # type: ignore[assignment]
         t0 = time.time()
-        atoms = await mp.process("Me llamo Marta y vivo en Lugo.", state=STATE)
+        atoms = await distill.process("Me llamo Marta y vivo en Lugo.", state=STATE)
         ms = round((time.time() - t0) * 1000)
         state = "OK" if isinstance(atoms, list) else "FALLO"
-        extra = f" ({len(atoms)} píldoras, in={mp.last_usage().get('prompt_tokens')})" if isinstance(atoms, list) else \
-                f" — {mp.status()['last_error'][:110]}"
+        extra = f" ({len(atoms)} píldoras, in={distill.last_usage().get('prompt_tokens')})" if isinstance(atoms, list) else \
+                f" — {distill_health.status()['last_error'][:110]}"
         print(f"  {state:5s} {name:26s} {ms:6d}ms{extra}", flush=True)
 
 
@@ -445,11 +445,11 @@ async def main() -> None:
     # installed. Reuse the SAME probe production uses to decide whether the local primary is available
     # (`nucleo/memllm.local_titular_ready`) — so the benchmark and engine cannot disagree about what «the model is
     # available» means.
-    from nucleo import memllm as _memllm
+    from nucleo.memory_agent.processor import distill, distill_config, distill_health, llm_rungs
     _kept: list[str] = []
     for n in names:
         _u, _m = CANDIDATES[n]
-        if _memllm.is_local_endpoint(_u) and not _memllm.local_titular_ready(_u, _m):
+        if llm_rungs.is_local_endpoint(_u) and not llm_rungs.local_titular_ready(_u, _m):
             print(f"⏭️  {n}: {_m} no está en este Ollama (o no responde) → SALTADO, no puntúa 0", file=sys.stderr)
             continue
         _kept.append(n)

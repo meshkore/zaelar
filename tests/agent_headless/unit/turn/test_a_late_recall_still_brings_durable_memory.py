@@ -102,11 +102,11 @@ def test_the_lexical_channel_never_calls_the_embedding_provider(monkeypatch):
 
 
 def test_the_hearts_titular_is_judged_by_the_heart_not_by_the_rows_colour(monkeypatch):
-    from nucleo import mem_processor
+    from nucleo.memory_agent.processor import distill_health
     from server import voice_api
     healthy = {"model": "deepseek-flash", "url": "https://api.deepseek.com", "fail_streak": 0,
                "last_error": "", "last_ok_ts": 0.0, "degraded": False}
-    monkeypatch.setattr(mem_processor, "status", lambda: healthy)
+    monkeypatch.setattr(distill_health, "status", lambda: healthy)
     health_state.record("memory", "degraded", "el recall no cerró en 0.8s — el turno sigue SIN memoria durable")
     payload = json.loads(bytes(asyncio.run(voice_api.status()).body).decode())
     row = next(it for it in payload["items"] if it["key"] == "memory")

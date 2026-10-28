@@ -57,12 +57,12 @@ def test_an_old_question_is_no_longer_the_conversation_s_last_word(monkeypatch):
 
 
 def test_both_distiller_calls_of_the_ingest_carry_the_frame():
-    """The wiring: every `mem_processor.process(...)` of the ingest step reads the FRAMED turn — a retry that
+    """The wiring: every `distill.process(...)` of the ingest step reads the FRAMED turn — a retry that
     went back to the bare text would undo it exactly when the provider hiccups."""
     tree = ast.parse((ENGINE / "nucleo/memory_agent/ingest_steps.py").read_text(encoding="utf-8"))
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
              and n.func.attr == "process" and isinstance(n.func.value, ast.Name)
-             and n.func.value.id == "mem_processor"]
+             and n.func.value.id == "distill"]
     assert len(calls) == 2
     for c in calls:
         arg = c.args[0]

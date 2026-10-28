@@ -68,8 +68,8 @@ def test_exact_repeat_across_two_real_turns_deduplicates(fresh_db, monkeypatch):
     async def fake_process(text, *, state=None):
         return [_atom("Su suegro se llama Pedro.")]
 
-    from nucleo import mem_processor
-    monkeypatch.setattr(mem_processor, "process", fake_process)
+    from nucleo.memory_agent.processor import distill
+    monkeypatch.setattr(distill, "process", fake_process)
 
     asyncio.run(_ingest_many([
         ("Ah, y mi suegro se llama Pedro", None),
@@ -105,8 +105,8 @@ def test_transient_ollama_hiccup_then_recovery_still_deduplicates(fresh_db, monk
     async def fake_process(text, *, state=None):
         return [_atom("Han cancelado el viaje a Ibiza.")]
 
-    from nucleo import mem_processor
-    monkeypatch.setattr(mem_processor, "process", fake_process)
+    from nucleo.memory_agent.processor import distill
+    monkeypatch.setattr(distill, "process", fake_process)
 
     asyncio.run(_ingest_many([
         ("cancelamos lo de Ibiza", None),
@@ -139,8 +139,8 @@ def test_several_turns_then_rem_structurally_improves_memory(fresh_db, monkeypat
         _, canonical = turns[call["i"]]
         return [_atom(canonical, level="mid", kind="fact", concepts=["musica"])]
 
-    from nucleo import mem_processor
-    monkeypatch.setattr(mem_processor, "process", fake_process)
+    from nucleo.memory_agent.processor import distill
+    monkeypatch.setattr(distill, "process", fake_process)
     asyncio.run(_ingest_many([(raw, None) for raw, _ in turns]))
 
     db = memdb.get_db()
@@ -195,9 +195,9 @@ def test_rem_runs_repeatedly_without_duplicating_insights(fresh_db, monkeypatch)
             return [_atom(batch[idx["i"]], level="mid", kind="fact", concepts=["musica"])]
         return fake_process
 
-    from nucleo import mem_processor
+    from nucleo.memory_agent.processor import distill
 
-    monkeypatch.setattr(mem_processor, "process", make_process(batch1))
+    monkeypatch.setattr(distill, "process", make_process(batch1))
     asyncio.run(_ingest_many([(t, None) for t in batch1]))
     memcons.consolidate()
     written1 = memrem.synthesize(lambda groups: [{"concept": "musica", "insight": "Le gusta la música clásica española."}],
@@ -206,7 +206,7 @@ def test_rem_runs_repeatedly_without_duplicating_insights(fresh_db, monkeypatch)
     db = memdb.get_db()
     insight_1 = db.query_one("SELECT id, text FROM memories WHERE slot='insight:musica' AND valid=1")
 
-    monkeypatch.setattr(mem_processor, "process", make_process(batch2))
+    monkeypatch.setattr(distill, "process", make_process(batch2))
     asyncio.run(_ingest_many([(t, None) for t in batch2]))
     memcons.consolidate()
     written2 = memrem.synthesize(

@@ -18,7 +18,7 @@ import re
 #: More than this is not a list somebody wrote for an assistant; it is a document. The cap bounds the cost of
 #: a runaway split, never a real list (his 12-section demo splits into ~25).
 MAX_STEPS = 40
-#: A step is a turn: the memory distiller reads 600 chars of a turn (`mem_processor._MAX_INPUT`), so a step
+#: A step is a turn: the memory distiller reads 600 chars of a turn (`distill_prompt.MAX_INPUT`), so a step
 #: longer than that would lose facts exactly the way the unsplit message did.
 MAX_STEP_CHARS = 560
 
@@ -119,7 +119,7 @@ def split(text: str, *, chat=None) -> tuple[list[dict], str]:
     """(steps, how). Blocking — call it in a thread. `how` is `model`, `sections` or `none`."""
     try:
         if chat is None:
-            from nucleo.memllm import chat_sync as chat
+            from nucleo.memory_agent.processor.llm import chat_sync as chat
         content = chat("batch_split", _SYSTEM, f"{_today_line()}\n\nMessage:\n{(text or '').strip()[:12000]}",
                        max_tokens=4000, temperature=0.1, timeout=90.0)
         steps = parse(content or "")

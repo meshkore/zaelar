@@ -162,13 +162,13 @@ def test_brief_three_turns_only_allergen(fresh_db):
 # the very party causing it.
 def _atom_processor(monkeypatch, atom: dict):
     """Replaces the CORE to exercise the LLM ATOM path (the MEM_PROCESSOR=0 heuristic does not touch it)."""
-    from nucleo import mem_processor as mp
+    from nucleo.memory_agent.processor import distill, distill_config
 
     async def _process(_t, state=None):
         return [dict(atom)]
 
-    monkeypatch.setattr(mp, "process", _process)
-    monkeypatch.setattr(mp, "enabled", lambda: True)
+    monkeypatch.setattr(distill, "process", _process)
+    monkeypatch.setattr(distill_config, "enabled", lambda: True)
 
 
 _CALATAYUD_ATOM = {

@@ -59,6 +59,12 @@ _EXENTOS: dict[str, str] = {
         "intento y existe precisamente para dejar de pagar el escalón caro antes: medirlo con el contador "
         "de Energy costaría más prosa que el gasto que declara. Si algún día sondeara con un prompt real, "
         "esta exención deja de valer y hay que reportarlo.",
+    "nucleo/memory_agent/processor/distill_config.py":
+        "where the write heart's titular endpoint is RESOLVED (a URL default); it calls nobody — `distill.py` "
+        "makes the call and meters it.",
+    "nucleo/memory_agent/processor/llm_routes.py":
+        "the off-hot-path tasks' route TABLE (base_url, model) as data; it calls nobody — `llm.py` makes the call and "
+        "meters it.",
     "nucleo/energy_meter.py":
         "ES el contador: aquí viven las tarifas, no un llamante que deba usarlas.",
     "nucleo/provider_keys.py":

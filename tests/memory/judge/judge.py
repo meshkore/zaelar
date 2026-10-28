@@ -20,7 +20,7 @@ import json
 
 from loguru import logger
 
-from nucleo import memllm
+from nucleo.memory_agent.processor import llm
 
 VERDICTS = ("correct", "stale", "wrong", "absent")
 
@@ -44,7 +44,7 @@ _SCHEMA = (
 
 def judge_recall(question: str, retrieved: str, ground_truth: str, *, model_override: str | None = None,
                  url_override: str | None = None) -> dict:
-    """REAL judgment (call to DeepSeek via `nucleo/memllm.chat_sync`, task `"rem"` — same cost profile as
+    """REAL judgment (call to DeepSeek via `nucleo/llm.chat_sync`, task `"rem"` — same cost profile as
     the rest of memory's off-hot-path tasks). Structured fail-open: if the model does not respond or the
     response cannot be parsed, verdict `"absent"` with `_error` — the calibrator run never crashes."""
     user = json.dumps({
@@ -52,7 +52,7 @@ def judge_recall(question: str, retrieved: str, ground_truth: str, *, model_over
         "recuperado_por_el_retriever": retrieved or "(nada — el retriever no devolvió resultados)",
         "hecho_vigente_segun_el_guion": ground_truth,
     }, ensure_ascii=False, indent=1)
-    content = memllm.chat_sync("rem", _SYSTEM + "\n\nFormato:\n" + _SCHEMA, user, max_tokens=300, timeout=60.0,
+    content = llm.chat_sync("rem", _SYSTEM + "\n\nFormato:\n" + _SCHEMA, user, max_tokens=300, timeout=60.0,
                                model_override=model_override, url_override=url_override)
     if not content:
         return {"veredicto": "absent", "razon": "el juez no respondió", "cita": "", "_error": "no_content"}
