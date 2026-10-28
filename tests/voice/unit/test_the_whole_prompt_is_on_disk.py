@@ -29,4 +29,4 @@ def test_a_failed_embedding_keeps_the_providers_words():
     assert "insufficient_quota" in E.last_error()
     root = Path(__file__).resolve().parents[3]
     assert "_note_failure(e)" in (root / "memory/embeddings.py").read_text("utf-8").split("def _cloud_embed(")[1]
-    assert "the provider said: {_why}" in (root / "memory/retriever.py").read_text("utf-8")
+    assert "the provider said: {_why}" in (root / "memory/retriever/recall.py").read_text("utf-8")
