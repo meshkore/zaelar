@@ -408,6 +408,9 @@ def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) ->
         tag_emit("fullscreen", {"id": rid, "on": False})
         emit("brain", "⤡ fullscreen_widget(off) → salir de pantalla completa", text=rid or "(la que esté)",
              role="system")
+        from nucleo.flash import fullscreen_nothing as _fsn
+        if not rid and _fsn.nothing_at_full_screen("canvas:unfullscreen:"):
+            _fsn.note_nothing()                           # the turn's close says so (node 2.717)
         return
     if not rid:
         return

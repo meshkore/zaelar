@@ -52,7 +52,13 @@ def test_a_reply_with_content_is_left_alone(canvas):
     assert FN.honest(reply, "canvas:unfullscreen:", lang=langs.spec("en")) == reply
 
 
-def test_the_text_channel_is_wired():
-    from pathlib import Path
-    probe = (Path(__file__).resolve().parents[4] / "nucleo/flash/probe.py").read_text(encoding="utf-8")
-    assert "_fsn.honest(" in probe
+def test_the_typed_turn_says_there_was_nothing_to_exit():
+    """The whole turn (the voice turn, typed): an empty canvas, the model calls `fullscreen_widget(mode=off)` and says
+    «Done.» — what he hears is that nothing was at full screen."""
+    from tests.brain import harness as H
+    case = {"id": "fsn-empty", "lang": "en", "phrase": "Exit full screen.", "source": "node 2.717",
+            "screen": {"open": []}, "expect": "unfullscreen",
+            "model": {"say": "Done.", "tools": [{"name": "fullscreen_widget", "args": {"mode": "off"}}]}}
+    out = H.run_case(case)
+    assert not out.error, out.error
+    assert "Nothing is at full screen" in out.reply, (out.action, out.reply)
