@@ -56,8 +56,19 @@ class _TypedTurn:
 
 
 async def _drive(brain, text: str) -> str:
+    """The turn, with its out-of-band speaker lent to the reply: what a lane says through `proactive.speaker()` (the
+    action map's ack, a rename's confirmation) is what this channel answers, never a line on a live session."""
+    from voice import proactive
     turn = _TypedTurn(brain, text)
-    await turn._run()
+
+    async def _say(line: str, *_a, **_k) -> None:
+        if line:
+            turn._said.append((" " if turn._said else "") + str(line))
+    token = proactive._TURN_SPEAKER.set(_say)
+    try:
+        await turn._run()
+    finally:
+        proactive._TURN_SPEAKER.reset(token)
     return "".join(turn._said).strip()
 
 

@@ -9,6 +9,7 @@
 # whatever session is live right now, and no-op the voice half when none is (the UI half still fires).
 #
 import asyncio
+from contextvars import ContextVar
 import os
 import threading
 import time
@@ -17,6 +18,7 @@ from loguru import logger
 from nucleo import consequence as _consequence
 
 _speaker = None            # async callable(text) -> None, set by the live voice session (voice/engine entrypoint)
+_TURN_SPEAKER: ContextVar = ContextVar("turn_speaker", default=None)   # a typed turn's own mouth — see `speaker()`
 _ephemeral_speaker = None  # async callable(text) -> None — same TTS, but NEVER added to conversation history
                             # (LiveKit `session.say(..., add_to_chat_ctx=False)`) — see `ephemeral_speaker()`
 _busy_probe = None         # callable() -> bool, True if the operator/bot is mid-turn right now (engine-provided)
@@ -119,7 +121,6 @@ def has_voice() -> bool:
     return _speaker is not None
 
 
-@_consequence.door("speech.speaker")
 def speaker():
     """The live session's OUT-OF-BAND speaker (`session.say`), or None if there is no session.
 
@@ -129,7 +130,15 @@ def speaker():
     (`session.say(..., add_to_chat_ctx=True)`, the default) — correct here: this IS something genuinely to say.
 
     FlashBrain's neutral LEAD-IN no longer passes through here: since V2-529 (2026-08-31), it is audio within the
-    response utterance (`voice/engine/speech/filler_audio.py`)."""
+    response utterance (`voice/engine/speech/filler_audio.py`).
+
+    A typed turn (`nucleo/cli/turn.py`) has no session to speak through: its out-of-band line IS its reply, so the
+    channel lends its own collector for the turn (`_TURN_SPEAKER`) and nothing reaches a live session."""
+    lent = _TURN_SPEAKER.get()
+    if lent is not None:
+        return lent
+    if _speaker is not None and not _consequence.passes("speech.speaker"):
+        return None
     return _speaker
 
 
