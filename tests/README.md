@@ -45,12 +45,25 @@ pytest per file took 50 s of mostly startup). It is a pre-check; the wide sweep 
 repeat appends an occurrence; a red after the task is `done` opens a new one marked as a regression. A failing
 use case (completable) lands there too, keyed `uc:<case>`. A developer drains the inbox one task at a time.
 
-**CI runs the wide sweep** (`.github/workflows/ci.yml`, V2-779 F0): the same `tests/watchdog.py` over every
-deterministic directory on a clean Linux clone. So a test that is green only on the operator's machine — his
-timezone, his keys, his Google client, the folder being called `engine/` — is red there. The root `conftest.py`
-pins TZ, language, workspace, settings and the Google client dir; a test that needs a credential DECLARES a
-placeholder (`monkeypatch.setenv`), never borrows the machine's. To reproduce CI locally: clone into a folder
-named `zaelar/` and run the watchdog under `env -i PATH=… HOME=$(mktemp -d) TZ=UTC`.
+**The merge gate is LOCAL — nothing runs on GitHub** (operator's decision, 2026-10-28: no CI, no nightly; the only
+workflows left are the tag-driven ones — `release.yml` deploys the cloud, `daemon-artifacts.yml` builds the installers).
+`tests/gate.sh` is the gate: syntax sweep, ruff (F + E9), the deterministic sweep through `tests/watchdog.py` and the
+recorded decision bank — ~5 min on the operator's Mac. **When it runs is a choice, not a reflex**: not on every commit of
+an initiative (fourteen commits are not fourteen sweeps), but before a merge, and while developing only the cheap form
+`./tests/gate.sh --impacted origin/main` (seconds: what the diff can reach). A red found at merge time is the same red.
+The root `conftest.py` pins TZ, language, workspace, settings and the Google client dir, so the sweep does not depend
+on the machine; a test that needs a credential DECLARES a placeholder (`monkeypatch.setenv`), never borrows the
+machine's. The final check of a long initiative runs once from a clean clone named `zaelar/` under
+`env -i PATH=… HOME=$(mktemp -d) TZ=UTC`.
+
+**The layers, and when each one runs** (so the suite never becomes the schedule):
+
+| layer | proves | cost | when |
+|---|---|---|---|
+| deterministic (unit + contracts + ratchets) | functions, wiring, doors, frozen prompts, ceilings, i18n, widget render | seconds (impacted) / ~5 min (all) | impacted while developing; all before a merge |
+| decision bank, recorded model | the circuit routes the 62 recorded phrases the same way (a circuit regression, not model drift) | ~10 s | inside the gate |
+| decision bank, live model (`--live --repeat N`) | the same with the models the cloud uses | ~80 min ×7 | once at the start and once at the end of a long initiative |
+| use cases (sandbox + judge) | a multi-turn errand end to end | ~2 min each | by request; the operator's real-voice pass covers what they cover |
 
 ### What catches a hang
 
