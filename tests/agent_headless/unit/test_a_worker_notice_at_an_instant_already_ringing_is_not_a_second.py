@@ -6,7 +6,7 @@ The worker's door asks the scheduler for the instant first; a live job there ans
 """
 from __future__ import annotations
 
-from nucleo import scheduler as S
+from nucleo.pulse import scheduler as S
 
 
 def test_the_same_instant_answers_with_the_live_job():

@@ -18,7 +18,7 @@ import asyncio
 
 import pytest
 
-from nucleo import scheduler
+from nucleo.pulse import scheduler
 from nucleo.cli import turn
 from tests.brain import harness as H
 

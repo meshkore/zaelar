@@ -93,7 +93,7 @@ def _setup_env():
     os.environ.setdefault("MEM_PROCESSOR", "1")   # Real configured LLM CORE — the system under evolution
     # Backend de embedding PINEADO explícito (no "auto") — V2-103 (2026-08-16) añadió un re-chequeo por TTL que
     # re-sondea Ollama cada 300s cuando el backend resuelto está degradado, y nada en este arnés vuelve a llamar
-    # a `memory/reembed.py::check()` (eso solo corre desde el tick de `nucleo/loop.py`, que este runner no
+    # a `memory/reembed.py::check()` (eso solo corre desde el tick de `nucleo/pulse/loop.py`, que este runner no
     # arranca). Una corrida `--fresh` puede tardar ~90 min: un hipo transitorio de Ollama a mitad deja una parte
     # del corpus embebida en un espacio vectorial y el resto en otro tras la recuperación — ambas resoluciones
     # son "sanas" en su momento, pero sqlite-vec compara distancias sin sentido entre espacios distintos. Un

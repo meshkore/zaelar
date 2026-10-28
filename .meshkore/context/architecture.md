@@ -12,6 +12,6 @@ status: stable
 2. **Brain («Colmena» = `nucleo/`)** — decides + acts. **FlashBrain** owns the sub-second voice turn (non-reasoning model, per-invocation); **SlowBrain** runs async Claude Code / Codex agents off the voice path (`escalate_to_slowbrain`). Loop (~1 Hz) + own cron + sparks own proactivity. Drives the canvas through a thin tag contract.
 3. **Compute** — one atomic headless agent per widget task: born → builds `widgets/<id>/` → exits. File tools only, scoped, hard timeout, output validated.
 
-**Ownership**: `memory/` (SQLite `zaelar.db`: vec + FTS5 + graph + forgetting) is the central memory; `bus/` is the in-process event bus; `server/` (FastAPI) is transport + composition root; `config/v2.py` owns model routing. Layers are independent — widgets never touch the voice core. Beside the brain sits a deterministic autonomic homeostasis layer (`nucleo/homeostasis.py`, no model) for machine health.
+**Ownership**: `memory/` (SQLite `zaelar.db`: vec + FTS5 + graph + forgetting) is the central memory; `bus/` is the in-process event bus; `server/` (FastAPI) is transport + composition root; `config/v2.py` owns model routing. Layers are independent — widgets never touch the voice core. Beside the brain sits a deterministic autonomic homeostasis layer (`nucleo/pulse/homeostasis.py`, no model) for machine health.
 
 **The slow lane** (`context/slow-lane.md`, V2-811): a second model seat for background work that can wait — off by default, adopted call site by call site, the route decided once and stored, never per item.

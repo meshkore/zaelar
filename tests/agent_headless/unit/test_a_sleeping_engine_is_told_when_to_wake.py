@@ -10,7 +10,8 @@ import asyncio
 
 import pytest
 
-from nucleo import scheduler, wake
+from nucleo import wake
+from nucleo.pulse import scheduler
 
 
 class _Client:

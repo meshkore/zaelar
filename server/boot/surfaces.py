@@ -177,7 +177,7 @@ def guardians(app, first_lifespan_entry: bool) -> None:
     # engine when safe, rotates logs, evicts dead capsules). Sibling of the brain, never part of it; deterministic,
     # no LLM; fail-open (a failure here never touches voice/chat). Needs `app` to recycle the embedded LiveKit worker.
     try:
-        from nucleo import homeostasis
+        from nucleo.pulse import homeostasis
         homeostasis.start(app)
     except Exception as e:
         logger.warning(f"homeostasis start failed (voice/chat unaffected): {e}")

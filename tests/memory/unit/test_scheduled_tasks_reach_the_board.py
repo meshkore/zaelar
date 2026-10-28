@@ -10,7 +10,7 @@ import pytest
 
 from memory import db as memdb
 from memory import tasks_store as ts
-from nucleo import scheduler
+from nucleo.pulse import scheduler
 from nucleo.circuit import ledger as T
 
 

@@ -51,11 +51,10 @@ def test_the_old_names_are_aliases_of_the_same_module_object():
     """`from nucleo import websearch` and `from search import web` are ONE module: a patch through either name
     reaches both, so the existing tests and callers keep measuring the product."""
     import nucleo
-    from nucleo import browser_search, image_search, listing_extract, listing_search, websearch
-    import search.browser, search.extract, search.images, search.listing, search.web  # noqa: E401
+    from nucleo import browser_search, listing_search, websearch
+    import search.browser, search.listing, search.web  # noqa: E401
     assert websearch is search.web and nucleo.websearch is search.web
-    assert listing_search is search.listing and listing_extract is search.extract
-    assert browser_search is search.browser and image_search is search.images
+    assert listing_search is search.listing and browser_search is search.browser
     assert websearch.search is search.web.search
 
 

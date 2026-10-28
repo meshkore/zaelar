@@ -131,8 +131,8 @@ def test_the_loop_beats_on_a_TIMER_not_every_tick():
 heartbeat exists to make readable."""
     import inspect
 
-    from nucleo import loop
-    src = inspect.getsource(loop.Loop._supervise_workers if hasattr(loop, "Loop") else loop)
+    from nucleo.pulse import loop, workers
+    src = inspect.getsource(workers)
     assert "_BEAT_SECS" in src and "self._last_beat[tid] = now" in src
     assert loop._BEAT_SECS >= 5
 
@@ -141,8 +141,8 @@ def test_the_beat_is_forgotten_when_the_task_dies():
     """A task-indexed dictionary that nobody prunes is a leak, and this loop lives as long as the process does."""
     import inspect
 
-    from nucleo import loop
-    assert "self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}" in inspect.getsource(loop)
+    from nucleo.pulse import workers
+    assert "self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}" in inspect.getsource(workers)
 
 
 # ── the doctrine, made into a test ───────────────────────────────────────────────────────────────────────────

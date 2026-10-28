@@ -107,8 +107,8 @@ and at the end a list of **Findings ordered by severity**.
    (`nucleo/agentes/`) async, consumes `escalate.requested` from the bus and delivers through `voice/proactive`
    (voice+UI); `nucleo/memory_agent.py` is the ONLY writer of `memory/`. Check that the SlowBrain never blocks
    the hot voice path and that the CodeAgent model is per invocation (`config/v2.py`, `code_agent` section).
-5. **Orchestrator loop + OWN cron**: `nucleo/loop.py` (~1 Hz) + `nucleo/scheduler.py` (cron backed by
-   `memory.journal`) + `nucleo/cron_api.py` (`/api/cron`) + `nucleo/sparks.py` (double-gated sparks) — scheduled
+5. **Orchestrator loop + OWN cron**: `nucleo/pulse/loop.py` (~1 Hz) + `nucleo/pulse/scheduler.py` (cron backed by
+   `memory.journal`) + `nucleo/cron_api.py` (`/api/cron`) + `nucleo/pulse/sparks.py` (double-gated sparks) — scheduled
    tasks + proactivity + triggers the memory consolidator off the hot path. One loop, mounted in the lifespan;
    look for double starts or paths that start it outside the lifespan.
 6. **Loop-agnostic turn coordination**: voice runs on the LiveKit job thread, uvicorn on another loop →

@@ -258,7 +258,7 @@ kept for the FlashBrain's «PROCESOS DE FONDO» prompt, but does not duplicate t
   with `{user, decision, tools, window, system_prompt, trace}`; it is the subscription seam for programmatic
   consumers (it depends on `ZAELAR_LOG_PROMPTS=1`, default ON — switching it off leaves the Susurro with only the
   loose signals).
-- **`homeostasis`** (`nucleo/homeostasis.py`) — the **autonomous layer** that keeps the MACHINE healthy (no model,
+- **`homeostasis`** (`nucleo/pulse/homeostasis.py`) — the **autonomous layer** that keeps the MACHINE healthy (no model,
   deterministic; it lives NEXT TO the brain, outside the voice loop, fail-open; gate `ZAELAR_HOMEOSTASIS`). It is
   the source of truth for «why was the engine degraded/recycled?». Labels: **`start`** (supervisor start),
   **`degraded`** (a red vital sign detected — e.g. the LiveKit engine reporting `wait_pc_connection timed out` /

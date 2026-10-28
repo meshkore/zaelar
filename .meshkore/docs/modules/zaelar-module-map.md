@@ -35,8 +35,8 @@ start with `make run` → `python -m server`.
   turn**: the STATE block (name/register/topics) comes from `memory_cache` (session cache, TTL + async refresh +
   invalidation on `memory.updated`), and semantic recall (`prompt.compose_recall`) is **on demand**
   (`prompt.needs_recall`) and **off the event loop** (`asyncio.to_thread`) — a chit-chat turn never triggers the
-  retriever. `nucleo/loop.py` (~1 Hz) + `nucleo/scheduler.py` (**the engine's OWN cron**, backed by
-  `memory.journal`) + `nucleo/cron_api.py` (`/api/cron`, the ⏰ panel) + `nucleo/sparks.py` (double-gated sparks) =
+  retriever. `nucleo/pulse/loop.py` (~1 Hz) + `nucleo/pulse/scheduler.py` (**the engine's OWN cron**, backed by
+  `memory.journal`) + `nucleo/cron_api.py` (`/api/cron`, the ⏰ panel) + `nucleo/pulse/sparks.py` (double-gated sparks) =
   the **orchestrator loop** (scheduled tasks + proactivity + triggers the memory consolidator off the hot path +
   reports by voice and UI; mounted in the lifespan with `BRAIN=nucleo`). `nucleo/dispatch/` (dispatcher: composes
   the prompt [context + task] → CodeAgent with a per-invocation model, consumes `escalate.requested` from the bus,
@@ -67,7 +67,7 @@ start with `make run` → `python -m server`.
   `/api/worker/act` gated by the canonical catalog + worker provenance; the BRIDGE that reflects in the widgets what
   was done in the real world). `nucleo/danger.py` = the gate for irreversible actions. **`nucleo/susurro/`** =
   **conversational self-audit «Susurro»** — plugged in ONLY through the bus (topic `turn.completed` + friction), a
-  configurable stronger model under `§susurro`, closed-catalog corrections. **`nucleo/homeostasis.py`** = the
+  configurable stronger model under `§susurro`, closed-catalog corrections. **`nucleo/pulse/homeostasis.py`** = the
   **AUTONOMOUS HEARTBEAT** — the third level, a SIBLING of the brain (not part of it): keeps the MACHINE healthy
   (recycles a degraded LiveKit engine when safe, rotates logs, evicts dead capsules), deterministic and with NO LLM,
   `start()/stop()` in the lifespan like the other supervisors.

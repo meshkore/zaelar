@@ -447,7 +447,7 @@ class LangSpec:
     # And from the third consecutive wait onward, the only honest fact available: how long it has been running. Without
     # inventing what point it has reached, and with a way out — something the operator can do with that information.
     filler_waited: str = ("")
-    # PROACTIVE DELIVERY (finding 2026-07-23: nucleo/loop.py, nucleo/sparks.py, and connectors/messaging/notify.py
+    # PROACTIVE DELIVERY (finding 2026-07-23: nucleo/pulse/loop.py, nucleo/pulse/sparks.py, and connectors/messaging/notify.py
     # spoke with fixed Spanish f-strings without going through this catalog — deaf to a language change). These are
     # SPOKEN phrases initiated by zaelar itself (the operator did not request them in this turn): worker questions,
     # budget timeouts, spontaneous sparks, and messaging notices. Placeholders use `.format(...)`.
@@ -472,7 +472,7 @@ class LangSpec:
     worker_stuck: str = ("")
     # CONFIRMATION TIMEOUT (2026-08-16): a pending irreversible-action confirmation the operator never answered
     # (`widgets/confirm.py`'s 90s TTL) must not just vanish — the task stays undone and the operator has no way
-    # to know unless told. Spoken/chatted once by `nucleo/loop.py::_supervise_confirms`, same proactive rails as
+    # to know unless told. Spoken/chatted once by `nucleo/pulse/loop.py::_supervise_confirms`, same proactive rails as
     # a stuck/timed-out worker above.
     confirm_expired: str = ("")
     spark_pending: str = ""

@@ -14,7 +14,7 @@ import time
 import pytest
 
 from nucleo import notice_today as NT
-from nucleo import scheduler as S
+from nucleo.pulse import scheduler as S
 from nucleo.flash import reminder_guards as R
 
 NOON = time.mktime((2026, 10, 14, 12, 0, 0, 0, 1, -1))     # Wednesday

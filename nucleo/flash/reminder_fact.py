@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import re as _re
 
-from nucleo import scheduler as _sched
+from nucleo.pulse import scheduler as _sched
 
 from .text_norm import _norm_txt
 

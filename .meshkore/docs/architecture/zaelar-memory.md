@@ -131,7 +131,7 @@ rings, from widest to narrowest:
    is literally a running process, not a fact to remember; (b) it only matters while it runs (nobody asks "what
    phase was yesterday's finished task in?", only "how is the current one going?"); (c) mixing it with durable
    memory would bloat the database with thousands of rows of transient progress. Two bridges connect it to rings
-   1-2 without persisting it whole: **upwards** — `nucleo/loop.py` projects the RAM registry into ring 1
+   1-2 without persisting it whole: **upwards** — `nucleo/pulse/loop.py` projects the RAM registry into ring 1
    (`state.sessions`, ~1 Hz) so the FlashBrain KNOWS there are tasks in progress and can send them follow-ups;
    **on completion** — ONLY the final result, if `ok=True`, is written as a normal durable pill via
    `memory_agent.remember()` (with provenance `meta.source="worker:<id>"`) — the process disappears, the FACT it
@@ -447,7 +447,7 @@ occupying vector space. It runs inside light sleep (`memory/consolidator.py::pru
 ### DEEP sleep — the REM phase (`memory/rem.py`)
 
 The classic consolidator is **LIGHT** sleep (cheap mechanics every hour: promote/exact dedup/decay/prune/evict). The
-**REM phase** is the **DEEP** cycle (daily by default), triggered by `nucleo/loop.py` after light sleep, in which
+**REM phase** is the **DEEP** cycle (daily by default), triggered by `nucleo/pulse/loop.py` after light sleep, in which
 the memory is **ORDERED, RELATED and SYNTHESISED** — all off the hot path and with every phase ISOLATED (one
 failure does not bring sleep down):
 

@@ -202,7 +202,7 @@ def test_a_subscription_never_returns_its_endpoint():
 
 # ── the loop: ⏻ and the one door ─────────────────────────────────────────────────────────────────────────────
 def test_the_loop_fires_a_reminder_to_the_phone_while_stopped_and_postpones_it_with_no_phone(monkeypatch):
-    from nucleo import loop as _loop, scheduler
+    from nucleo.pulse import loop as _loop, scheduler
     import time
     stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime(time.time() + 3600))
     job = scheduler.create("Recuerda: la ITV caduca el jueves", stamp, name="aviso: ITV", origin="cron")

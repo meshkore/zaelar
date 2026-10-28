@@ -5,7 +5,7 @@ The “self-evaluating pill” that the harness has been measuring over several 
 **without any scheduler entry existing**. It was not disobedience: tested in the code, the capability **did not
 exist**. `worker_policy._KNOWN_ACTS` had no scheduling action, so it was IMPOSSIBLE for the worker to do it.
 
-The FlashBrain path did work (`nucleo/scheduler.py`, 109 green tests across its two files): the
+The FlashBrain path did work (`nucleo/pulse/scheduler.py`, 109 green tests across its two files): the
 hole opened only when the task was ESCALATED to a worker.
 
 The harness set the bar and allows two acceptable outcomes: **the entry exists, or the pill does not say
@@ -40,7 +40,7 @@ class _Journal:
 
 @pytest.fixture
 def agenda(monkeypatch):
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     j = _Journal()
     monkeypatch.setattr(scheduler, "_journal", j, raising=False)
     return j
@@ -222,7 +222,7 @@ def test_la_TERCERA_puerta_al_scheduler_normaliza_como_las_otras_dos(agenda, mon
     RAW phrase inside, so when it rings the agent will read the operator their own words —
     and, worse, will read them as a request to note down, which is the loop this whole area exists to close.
     """
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
 
     creados: list[str] = []
     real = scheduler.create
@@ -239,7 +239,7 @@ def test_la_TERCERA_puerta_al_scheduler_normaliza_como_las_otras_dos(agenda, mon
 
 def test_y_un_prompt_que_YA_es_una_orden_al_agente_no_se_toca(agenda, monkeypatch):
     """The other direction: over-normalizing would wrap a legitimate command inside another command."""
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
 
     creados: list[str] = []
     real = scheduler.create

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 
-from nucleo import scheduler as _sched
+from nucleo.pulse import scheduler as _sched
 
 from . import notice_readback as _readback
 from . import reminder_guards as _rg

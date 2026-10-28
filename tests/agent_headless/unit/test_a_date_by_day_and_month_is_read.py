@@ -10,7 +10,7 @@ import time
 
 import pytest
 
-from nucleo import scheduler as S
+from nucleo.pulse import scheduler as S
 from nucleo.flash import reminder_guards as R
 
 NOW = time.mktime((2026, 10, 9, 23, 0, 0, 0, 1, -1))     # Friday 9 Oct 2026, 23:00

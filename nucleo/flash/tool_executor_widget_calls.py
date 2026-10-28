@@ -86,11 +86,11 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         return
     if action in ("cron.create", "cron.cancel"):
         # Proactividad PROPIA (V2-005): re-cableado al scheduler del loop orquestador (NO al cron de
-        # Hermes, que muere en V2-009). Persistido en memory.journal; lo dispara nucleo/loop.py.
+        # Hermes, que muere en V2-009). Persistido en memory.journal; lo dispara nucleo/pulse/loop.py.
         if action == "cron.create":
             cron_seen["v"] = True          # V2-146: el backstop de abajo no duplica lo que ya se pidió
         try:
-            from nucleo import scheduler as _sched
+            from nucleo.pulse import scheduler as _sched
             d = extra.get("data") or {}
             if action == "cron.create":
                 # V2-214 (impl PARALELA — cablear en AMBOS): las palabras del OPERADOR sobre su propia

@@ -1,7 +1,7 @@
 """Every `cli.report` command our own instructions name parses — and the measured mis-glued call does too
 (node 2.677).
 
-search-buy-boat-multicountry ES (2026-10-14, sandbox 093838-es): the status demand (`nucleo/loop.REPORT_DEMAND`)
+search-buy-boat-multicountry ES (2026-10-14, sandbox 093838-es): the status demand (`nucleo/pulse/loop.REPORT_DEMAND`)
 names `phase "<…>"` and `progress "<nota>" --done <pasos hechos>` in one sentence; the worker ran
 `cli.report phase "Buscando Lagoon 440 …" --done 1` and got exit code 2, so the report it was told to give never
 arrived. The test reads the instructions from the source (every string literal under `nucleo/`, adjacent literals

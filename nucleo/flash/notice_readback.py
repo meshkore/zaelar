@@ -15,7 +15,7 @@ import re
 import time
 
 from nucleo import notice_today as _nt
-from nucleo import scheduler as _sched
+from nucleo.pulse import scheduler as _sched
 
 logger = logging.getLogger(__name__)
 

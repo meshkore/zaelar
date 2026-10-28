@@ -96,7 +96,7 @@ def unbacked_claim_line(reply: str, lang_code: str = "") -> str:
     if not claims_a_set_reminder(reply):
         return ""
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
         if list(_sched.list_jobs(active_only=True)):
             return ""
     except Exception as e:  # noqa: BLE001 — the schedule could not be read: no claim can be checked, say nothing

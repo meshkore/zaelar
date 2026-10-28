@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import scheduler as S
+from nucleo.pulse import scheduler as S
 from nucleo.flash import reminder_fact as F
 from nucleo.flash import reminder_guards as R
 

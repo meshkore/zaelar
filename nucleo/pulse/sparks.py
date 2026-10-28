@@ -1,4 +1,4 @@
-"""nucleo/sparks.py — 🔥 sparks: spontaneous thought from the brain v2 (V2-005 · T73).
+"""nucleo/pulse/sparks.py — 🔥 sparks: spontaneous thought from the brain v2 (V2-005 · T73).
 
 A spark is a thought that zaelar has on its own (resuming a pending task, a gentle reminder) — NOT a
 response to an operator turn. The risk is NOISE: an annoying spark breaks trust. That is why the gate is

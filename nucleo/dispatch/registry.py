@@ -44,7 +44,7 @@ def active_sessions(now: float | None = None) -> list[dict]:
             # so that viaja in the proyeccion live and no in the entrega.
             "surface": r.surface,
             # SILENCIO real from the ultimo evento of the worker. Es it that of truth says if esta stalled — `age_s`
-            # only says if lleva rato trabajando, that no es it same (ver the detector in nucleo/loop.py).
+            # only says if lleva rato trabajando, that no es it same (ver the detector in nucleo/pulse/loop.py).
             "silent_s": int(now - (r.last_event_at or r.started)),
             "waiting_on": r.waiting_on, "ask": r.ask[:160] if r.ask else "",
             # V2-059: observabilidad estructurada — plan + progreso + ultimos pasos reales.

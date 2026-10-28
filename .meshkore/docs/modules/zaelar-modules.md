@@ -49,7 +49,7 @@ env-first). It runs at two speeds:
   `voice/tag_protocol.py` (side-effects) + `voice/speech.py`. Its model is chosen **per invocation** from
   `config/v2.py` `fast` section (`FAST_PROVIDER`/`FAST_MODEL`/`FAST_BASE_URL`/`FAST_API_KEY`) — a local Ollama model
   or an AIMLAPI/Grok cloud model (comparison in `.meshkore/docs/ops/zaelar-model-benchmarks.md`). It creates/cancels
-  cron via `nucleo/scheduler`. **Hard constraint: the voice model MUST be non-reasoning** (a reasoner adds 5s+ of
+  cron via `nucleo/pulse/scheduler`. **Hard constraint: the voice model MUST be non-reasoning** (a reasoner adds 5s+ of
   thinking latency to the real-time path). Reasoning belongs off the critical path — that is the SlowBrain.
   **Memory is OUT of the synchronous turn**: the STATE block (name/treatment/topics) comes from a
   per-session cache (`nucleo/flash/memory_cache.py` — TTL + async refresh + invalidation on the bus signal
@@ -92,8 +92,8 @@ env-first). It runs at two speeds:
   text BEFORE the gate and executes immediately (`[[close]]` / stop), so it can never be buried in a giant turn; and
   `attention.clamp_input` caps the turn length (`ZAELAR_FAST_MAX_INPUT`) while PRESERVING an explicit command clause
   instead of blindly truncating the tail. Signal to watch: the `ambient` event (see `zaelar-observability.md`).
-- **Orchestrator + cron** — `nucleo/loop.py` (~1 Hz) runs the orchestration; `nucleo/scheduler.py` is zaelar's OWN
-  cron backed by `memory.journal`; `nucleo/cron_api.py` exposes `/api/cron` (the ⏰ panel); `nucleo/sparks.py` fires
+- **Orchestrator + cron** — `nucleo/pulse/loop.py` (~1 Hz) runs the orchestration; `nucleo/pulse/scheduler.py` is zaelar's OWN
+  cron backed by `memory.journal`; `nucleo/cron_api.py` exposes `/api/cron` (the ⏰ panel); `nucleo/pulse/sparks.py` fires
   scheduled tasks + double-gated "sparks", triggers the memory consolidator off the hot path, and reports by voice +
   UI. All mounted in the server lifespan under `BRAIN=nucleo`.
 - **Rails (`nucleo/rails.py` + `nucleo/flash/music_flow.py`)** — the orchestration pattern for common
@@ -106,7 +106,7 @@ env-first). It runs at two speeds:
   while a run is live (`nucleo/flash/prompt._rails_directive` ← `rails.prompt_lines`) — zero prompt cost at rest.
   First rail = fuzzy music (`music_flow.py`, §Music connectors); the **widget circuit is the founding rail**
   (§Widgets).
-- **Homeostasis (`nucleo/homeostasis.py`)** — the **autonomic health supervisor**, a **sibling of the
+- **Homeostasis (`nucleo/pulse/homeostasis.py`)** — the **autonomic health supervisor**, a **sibling of the
   brain, not part of it**: it runs no model and does no reasoning; it keeps the **MACHINE** healthy, deterministically.
   Mounted in the server lifespan with `start(app)`/`stop()` (like the messaging/widgets supervisors), off the voice
   loop, fail-open, gated by env `ZAELAR_HOMEOSTASIS`. Binary rule (each resource is healthy or degraded→heal), THREE

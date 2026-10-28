@@ -231,7 +231,7 @@ def close_if_idle() -> bool:
     decision as `note_real_activity`, taken from the other side: THAT one can only fire when activity comes
     BACK, so a session nobody ever returns to (the operator walks away, a tab dies without `pagehide`) stayed
     open forever and read "EN CURSO" in the observability viewer with nothing happening inside it. The pulse calls this
-    (`nucleo/loop.py::tick`). It only ever CLOSES — it never opens a session and never touches the activity
+    (`nucleo/pulse/loop.py::tick`). It only ever CLOSES — it never opens a session and never touches the activity
     clock — so an idle machine closes once and then has nothing left to close.
 
     The clock counts from the LATER of the last real activity and this session's own start: `_last_real_activity_ms`

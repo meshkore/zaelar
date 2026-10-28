@@ -104,12 +104,6 @@ def run(code: str, *, lang: str = "python", stdin: str = "", timeout: float | No
             "elapsed_s": round(time.time() - t0, 2), "timed_out": timed_out, "workdir": wd}
 
 
-async def arun(code: str, **kwargs) -> dict:
-    """Async wrapper (runs `run` outside the event loop) for async callers such as the dispatcher."""
-    import asyncio
-    return await asyncio.to_thread(run, code, **kwargs)
-
-
 # ── rlimits for the INTERACTIVE dev-worker subprocess (audit 2026-07-26) ─────────────────────────────────────────
 # `_rlimits()` above is tuned for `run()` (a single-turn script, with short wall/CPU limits): an interactive dev-worker
 # (nucleo/workers/providers/claude.py, a session that may legitimately last minutes) must NOT inherit that short CPU/wall

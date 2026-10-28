@@ -21,11 +21,11 @@ import re as _re
 import time as _time
 
 # At MODULE level, not inside the function (V2-356's rule, inherited with the code it governs): the
-# hidden-coupling ratchet counts function-local imports, and there is no cycle to hide — `nucleo.scheduler`
+# hidden-coupling ratchet counts function-local imports, and there is no cycle to hide — `nucleo.pulse.scheduler`
 # imports nothing from `flash`. `safe_reminder_schedule` reads it as a module global, which is how the
 # 2026-09-02 split first went wrong: left behind in `router_guards`, it raised NameError inside a guard
 # whose own fail-soft `except` swallowed it, and the function silently echoed its input back.
-from nucleo import scheduler as _sched
+from nucleo.pulse import scheduler as _sched
 
 from .text_norm import _content_words, _norm_txt, clause_is_only_a_date
 from .reminder_fact import reminder_body, tidy_clause
@@ -64,7 +64,7 @@ def promises_a_dated_reminder(reply: str, operator_text: str = "", window=None) 
         return ""
     n, m = found
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
     except Exception:
         return ""
     # The reminder day is the one that follows the promise. Both halves of this exchange name TWO weekdays
@@ -152,7 +152,7 @@ def dated_note_backstop(reply: str, operator_text: str = "", window=None) -> dic
         clause = commitment_from_window(window, operator_text) if window else commitment_clause(operator_text)
         tail = _norm_txt(strip_note_lead(clause))
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
     except Exception:
         return None
     when = _sched.parse_when(tail)
@@ -254,7 +254,7 @@ def _asked_reminder_moment(operator_text: str) -> str:
     if not m:
         return ""
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
     except Exception:
         return ""
     return _sched.parse_when(n[m.end():]) or ""
@@ -435,7 +435,7 @@ def reminder_before(when: str, commitment: str, now=None) -> str:
         # test: pinning the scheduler's clock moved the inputs and left this one on the wall clock, so the
         # "fire promptly" branch answered with the REAL time and the assertions drifted by hours.
         try:
-            from nucleo import scheduler as _sched_clock
+            from nucleo.pulse import scheduler as _sched_clock
             now = _dt.datetime.fromtimestamp(_sched_clock.time.time())
         except Exception:
             now = _dt.datetime.now()
@@ -494,7 +494,7 @@ def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) ->
     # window it behaves exactly as before, so no existing caller changes behavior.
     clause = commitment_from_window(window, operator_text) if window else commitment_clause(operator_text)
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
     except Exception:
         return {"schedule": when, "prompt": _reminder_prompt(reminder_body(clause, window, reply, when), operator_text),
                 "name": "aviso"}

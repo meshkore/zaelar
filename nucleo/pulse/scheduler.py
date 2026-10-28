@@ -1,8 +1,8 @@
-"""nucleo/scheduler.py — the brain v2's OWN cron (V2-005 · T71).
+"""nucleo/pulse/scheduler.py — the brain v2's OWN cron (V2-005 · T71).
 
 Replaces **Hermes's native cron** (`brains/hermes/cron.py`, which dies with Hermes in V2-009). Scheduled tasks
 are **persisted in `memory.journal`** (continuity after restart) and triggered by the orchestrator loop
-(`nucleo/loop.py`, ~1 Hz). There is no external process or binary: triggering and delivery live in OUR process.
+(`nucleo/pulse/loop.py`, ~1 Hz). There is no external process or binary: triggering and delivery live in OUR process.
 
 `schedule` formats (the same ones shown by the cron brief; the parser is language-agnostic):
   - **one-time, relative**: `"30m"`, `"2h"`, `"1d"`, `"45s"` (also `"en 30m"`, `"in 2h"`, `"+1h"`).

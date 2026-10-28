@@ -311,7 +311,7 @@ def test_the_voice_relays_the_NAME_and_not_the_raw_brief():
     # Scanned WITHOUT comments: the explanatory comment beside the fix names the old expression, and a
     # substring guard cannot tell a citation from a call — this file's own sibling guards were bitten by
     # exactly that (V2-426).
-    lines = (ENGINE / "nucleo/loop.py").read_text(encoding="utf-8", errors="replace").splitlines()
+    lines = (ENGINE / "nucleo/pulse/workers.py").read_text(encoding="utf-8", errors="replace").splitlines()
     body = "\n".join(ln for ln in lines if not ln.strip().startswith("#"))
     assert 's.get("title") or s.get("goal")' in body, "the relay must prefer the errand's name"
     assert "goal[:40]" not in body, "a name read aloud with its last word amputated is worse than a longer one"

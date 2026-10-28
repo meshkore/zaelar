@@ -83,7 +83,7 @@ def create_app() -> FastAPI:
     # meshkore_router is NATIVE (a channel like voice/chat), so it is always mounted regardless of BRAIN.
     # messaging_router is the UI-managed connect/disconnect API for the messaging connectors (WhatsApp/Telegram):
     # the whole point is that a user connects them from the widget, never by editing .env.
-    # cron_router = the «Colmena» brain's OWN proactivity (nucleo/cron_api.py over nucleo/scheduler.py) — replaces
+    # cron_router = the «Colmena» brain's OWN proactivity (nucleo/cron_api.py over nucleo/pulse/scheduler.py) — replaces
     # Hermes' old /api/cron; the same frontend ⏰ panel consumes it.
     routers = [pages_router, voice_router, canvas_router, widgets_router, meshkore_router, messaging_router,
                files_router, memory_viewer_router,

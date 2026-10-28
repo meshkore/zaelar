@@ -4591,6 +4591,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_an_impossible_window_is_said_not_retried.py']},
         {"id": "2.834", "title": "Every CLI a worker runs lives in `nucleo/cli/` and answers `-h`, and every `-m nucleo.<module>` the product writes (prompts, allow-list, shims) resolves — a moved CLI otherwise fails as «command not found» (refactor2710-10)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_every_cli_a_worker_runs_starts.py']},
+        {"id": "2.836", "title": "The pulse keeps its period and order after the split into `nucleo/pulse/` (loop + workers/flows/due parts): one beat runs every step in the same order and ends with `loop.tick`; the loop sleeps `tick_s` (1 s) between beats (refactor2710-10)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/test_the_pulse_keeps_its_period_and_order.py']},
         {"id": "2.830", "title": "The worker bridge has no product importer and is alive: it is the CLI a worker runs (`python -m nucleo.cli.bridge ask|act|say|wait|decide`) — in the worker's allowlist, taught by the prompt, runnable as a module (refactor2710-09)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_the_worker_bridge_is_a_live_cli.py']},
         {"id": "2.638", "title": "A past errand he names by a word only its TITLE has is that errand: «el de Gràcia» over Gràcia/Sant Antoni picks without the chooser, accent-folded; shared words, both names, or a goal-only word («last month») stay a question (flat-hunt-recall, 2026-10-14)",
@@ -5964,7 +5966,7 @@ DOMAINS: list[dict] = [
         # error; la fecha se ordena newest-first con lo NO fechado al final (un `sort(reverse=True)` sobre una
         # tupla (has_date, date) invierte los DOS campos a la vez y deja lo no fechado PRIMERO — cazado
         # escribiendo este mismo test, no antes); y el parser de fechas PASADO (deliberadamente NO
-        # `nucleo/scheduler.py::parse_when`, que es solo futuro) quita la frase de fecha por ÍNDICE, nunca por
+        # `nucleo/pulse/scheduler.py::parse_when`, que es solo futuro) quita la frase de fecha por ÍNDICE, nunca por
         # sustitución de cadena — "año" pierde su tilde al normalizar y una sustitución por el texto sin
         # acentos nunca encuentra el original acentuado.
         {"id": "5.10", "title": "Fotos: la sesión del picker, el índice local, y el parser de fechas PASADO",

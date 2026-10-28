@@ -26,7 +26,7 @@ from pathlib import Path
 ENGINE = Path(__file__).resolve().parents[3]
 
 #: Measured 2026-10-19 at 295ff4ec (366 files). Lower these when you remove; never raise them.
-MAX_REGEXES = 532   # refactor2710-01: the old text channel went (was 543); V2-806: the spoken-rule parsers went
+MAX_REGEXES = 531   # refactor2710-10: an unread regex in asked_count went; refactor2710-01: the old text channel went (was 543); V2-806: the spoken-rule parsers went
 MAX_WORD_TABLES = 469  # refactor2710-12: two dispatch tables read off their handler names; refactor2710-01: the old text channel's reply door went; refactor2710-11: a guessed dimension row went (was 476)
 
 

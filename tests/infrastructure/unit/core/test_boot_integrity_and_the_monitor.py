@@ -53,7 +53,7 @@ def _stripped(path):
 def test_a_dead_session_records_alerts_and_asks_for_the_recycle(monkeypatch):
     """The three duties, exercised for real (session_health owns them since the newborn-size ratchet made
     agent.py pay by extracting): say it where the monitor looks, on the timeline, and to homeostasis."""
-    from nucleo import homeostasis as H
+    from nucleo.pulse import homeostasis as H
     from voice import health_state
     from voice.engine.pipeline import session_health
     emitted = []

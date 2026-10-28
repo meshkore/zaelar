@@ -12,7 +12,7 @@ import asyncio
 import time
 
 from nucleo import dispatch
-from nucleo import loop as L
+from nucleo.pulse import loop as L
 from nucleo.workers.session import SessionRecord
 
 

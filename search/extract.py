@@ -1,5 +1,5 @@
 """search/extract.py — structured LISTINGS out of a page, without a browser (V2-556; moved from
-`nucleo/listing_extract.py` by V2-782, alias kept).
+`nucleo/listing_extract.py` by V2-782).
 
 The missing middle tier of listing search: most marketplaces and stores publish their listings as
 schema.org structured data — JSON-LD blocks (`Product`, `Offer`, `Vehicle`, `Boat`,

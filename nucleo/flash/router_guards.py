@@ -19,9 +19,9 @@ import time as _time
 
 # V2-356 — at MODULE LEVEL, not inside the function: the hidden-coupling ratchet is explicit
 # ("more imports inside functions = more hidden cycles; fix it by EXTRACTING, not importing later") and
-# there is no cycle to hide here — `nucleo.scheduler` imports nothing from `flash`. The other six lazy imports in
+# there is no cycle to hide here — `nucleo.pulse.scheduler` imports nothing from `flash`. The other six lazy imports in
 # this file predate this and remain as they were: reducing the debt belongs to whoever touches it, not whoever passes by.
-from nucleo import scheduler as _sched
+from nucleo.pulse import scheduler as _sched
 # Re-exported so `router.asks_for_missing_detail` keeps working: it lives apart because it is the one guard
 # that must NOT normalize its input (see its own module).
 from nucleo.flash.clarifying import asks_for_missing_detail  # noqa: F401 — re-export

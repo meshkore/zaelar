@@ -41,7 +41,7 @@ these → full workflow:
 - **Read speeds** — `memory.state()`, `memory.recent_short()`, `memory.query()`; and the FlashBrain cache
   `nucleo/flash/memory_cache.py` + `nucleo/flash/prompt.py` (`needs_recall`/`compose_recall`).
 - **Consolidator / forgetting** — `memory/consolidator.py` (promote/dedup/decay/evict) and its trigger from
-  `nucleo/loop.py`.
+  `nucleo/pulse/loop.py`.
 - **Observability / viewer** — `memory/viewer.py` + `GET /api/memory/viewer/*` (`server/memory_viewer_api.py`),
   the bounded `memory/api.py::map`, the `memory.updated` SSE bridge in `server/__init__.py`,
   `frontend/app/components/MemoryMap.js` + `components/memory/`, `kind=memory` rows in `DebugPanel.js`.

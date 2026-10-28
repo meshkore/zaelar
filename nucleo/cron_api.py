@@ -2,15 +2,15 @@
 # HTTP surface for the «Colmena» cron — powers the UI ⏰ panel (frontend/app/components/CronPanel.js).
 #
 # v2 «Colmena» (V2-005/009): replaces the old Hermes `/api/cron` (brains/hermes/cron_api.py, retired).
-# The engine's OWN proactivity lives in `nucleo/scheduler.py` (tasks persisted in `memory.journal`,
-# fired by the orchestrator loop `nucleo/loop.py`). This router is only the MANUAL surface: list,
+# The engine's OWN proactivity lives in `nucleo/pulse/scheduler.py` (tasks persisted in `memory.journal`,
+# fired by the orchestrator loop `nucleo/pulse/loop.py`). This router is only the MANUAL surface: list,
 # create and delete scheduled tasks. Mounted under the brain whose loop actually fires them (V2-601
 # T-14: mounting it under a brain that does not run the loop is the V2-121 silent-alarm class).
 #
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from nucleo import scheduler
+from nucleo.pulse import scheduler
 
 router = APIRouter()
 

@@ -46,7 +46,7 @@ def _today_block() -> str:
     # VACÍA porque `date.today()` decía 2026-08-21 y toda fecha futura se leía como pasada.
     import time as _t
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
         _ahora = _t.localtime(_sched.time.time())
     except Exception:  # noqa: BLE001
         _ahora = _t.localtime()

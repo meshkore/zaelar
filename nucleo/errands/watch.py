@@ -2,7 +2,7 @@
 
 Watched FROM THE BUS, never from inside the messaging widget or a connector: the same choice the susurro
 and the action map made, and for the same reason — zero coupling, and one place that sees every platform
-at once. It is driven by the orchestrator loop's beat (`nucleo/loop.py`), so there is no second scheduler
+at once. It is driven by the orchestrator loop's beat (`nucleo/pulse/loop.py`), so there is no second scheduler
 and no task of its own to leak.
 
 ## Three signals, in the order they happen

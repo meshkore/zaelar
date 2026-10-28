@@ -15,7 +15,7 @@ import pytest
 from memory import db as memdb
 from memory import tasks_store as ts
 from nucleo import dispatch
-from nucleo import loop as L
+from nucleo.pulse import loop as L
 from nucleo.circuit import ledger as T
 from nucleo.workers import relay
 from nucleo.workers import stall as stall_mod

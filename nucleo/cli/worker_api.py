@@ -35,7 +35,6 @@ from nucleo.cli.worker_policy import (  # noqa: F401 — re-export
 _MAX_DEPTH = 2
 
 
-
 # ── in-flight request registry (corr_id → state) ────────────────────────────────────────────────────────────
 _ACTS: dict[str, dict] = {}
 
@@ -178,7 +177,7 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         if not when:
             return {"ok": False, "error": "falta `when`: cuándo. " + _CUANDO_VALE}
         try:
-            from nucleo import scheduler
+            from nucleo.pulse import scheduler
             # TWO parsers, in this order: `parse_schedule` understands machine forms («every 30m», a 5-field cron,
             # `YYYY-MM-DD HH:MM`) and `parse_when` translates spoken forms («mañana a las 9», «el miércoles a las
             # 18:00»). The worker writes as it speaks, so without the second almost all of its input would be rejected;
@@ -525,8 +524,6 @@ async def worker_act_poll(corr_id: str):
     return JSONResponse({"ok": True, "status": "pending", "injections": inj})
 
 
-
-
 # ── ask resolution (called by FlashBrain/provider when the operator responds) ──────────────────────────────
 def has_pending_ask() -> bool:
     return any(e["state"] == "pending" for e in _ACTS.values())
@@ -594,12 +591,6 @@ def answer_active_soon(text: str) -> bool:
         return True
     except Exception:
         return False
-
-
-def match_by_options(text: str) -> str | None:
-    """§v3·M/Q5: if the short response clearly matches the `options` of ANY pending ask, return its corr_id
-    (to route to that one, not the active one). Conservative placeholder: without declared options, None."""
-    return None
 
 
 def _clear_waiting(task_id: str, corr_id: str) -> None:

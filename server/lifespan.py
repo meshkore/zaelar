@@ -67,7 +67,7 @@ async def stop_the_engine(app, h: dict) -> None:
     await _stop("widget supervisor", _module_stop("widgets.supervisor"))
     await _stop("widget background", _module_stop("widgets.background"))
     await _stop("messaging supervisor", _module_stop("connectors.messaging.supervisor"))
-    await _stop("homeostasis", _module_stop("nucleo.homeostasis"))
+    await _stop("homeostasis", _module_stop("nucleo.pulse.homeostasis"))
     await _stop("whatsapp", _module_stop("connectors.whatsapp.service"))
     await _stop("telegram", _module_stop("connectors.telegram.service"))
     await _stop("email", _module_stop("connectors.email.service"))
@@ -79,7 +79,7 @@ async def stop_the_engine(app, h: dict) -> None:
     if h.get("slow_on"):
         await _stop("dispatcher", _module_stop("nucleo.dispatch"))
     if h.get("loop_on"):
-        await _stop("orchestrator loop", _module_stop("nucleo.loop"))
+        await _stop("orchestrator loop", _module_stop("nucleo.pulse.loop"))
     if h.get("susurro_on"):
         await _stop("susurro", _module_stop("nucleo.susurro"))
     await _stop("browser search", _module_stop("nucleo.browser_search"))

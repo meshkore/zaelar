@@ -12,7 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import listing_extract, listing_search
+from nucleo import listing_search
+from search import extract as listing_extract
 from nucleo.listing_search import ListingQuery
 
 

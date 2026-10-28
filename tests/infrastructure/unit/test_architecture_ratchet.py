@@ -332,7 +332,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
-    "nucleo (top)": 11656,      # refactor2710-10: the worker CLIs → nucleo/cli/, energy/accounting → nucleo/energy/; 09: dispatch* → nucleo/dispatch/, research → workers/brief
+    "nucleo (top)": 9861,      # refactor2710-10: the worker CLIs → nucleo/cli/, energy/accounting → nucleo/energy/, loop+scheduler+sparks+homeostasis → nucleo/pulse/; 09: dispatch* → nucleo/dispatch/, research → workers/brief
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
@@ -340,8 +340,9 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/context_packs": 568,
     "nucleo/dispatch": 2443,   # refactor2710-09 T-01: moved from top and split; target 1 200
     "nucleo/energy": 2269,       # refactor2710-10: born — meter, lease, tariffs, limits, routing, account, egress, keys MOVED from the top
+    "nucleo/pulse": 1808,        # refactor2710-10: born — loop split into loop/workers/flows/due/signals (same beat), scheduler, sparks, homeostasis MOVED
     "nucleo/errands": 2548,
-    "nucleo/cli": 2927,         # refactor2710-10: the worker CLIs MOVED in (nav, mesh, widget, mem, git, report, bridge, worker_api/policy, sandbox, usage); 01: born
+    "nucleo/cli": 2912,         # refactor2710-10: the worker CLIs MOVED in (nav, mesh, widget, mem, git, report, bridge, worker_api/policy, sandbox, usage); 01: born
     "nucleo/flash": 29062,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/, aliased at its old path
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
@@ -414,16 +415,15 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/tool_selection.py",
     "nucleo/flash/turn_brief.py",
     "nucleo/flash/widget_read.py",
-    "nucleo/homeostasis.py",
+    "nucleo/pulse/homeostasis.py",
     "nucleo/input/stt.py",   # the phrase accumulator, MOVED from nucleo/flash/accumulator.py (refactor2710-01)
     "nucleo/jev.py",
-    "nucleo/loop.py",
     "nucleo/memory_agent/gates.py",
     "nucleo/mesh_agents.py",
     "nucleo/cli/nav.py",
     "nucleo/notices.py",
     "nucleo/runstate.py",
-    "nucleo/scheduler.py",
+    "nucleo/pulse/scheduler.py",
     "nucleo/sheets.py",
     "nucleo/circuit/spec.py",
     "nucleo/susurro/apply.py",
@@ -447,7 +447,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; → 172727 with -09; → 172686 with -02/-02b merged in). Never for growth in place.
-_TOTAL_MAX = 172679
+_TOTAL_MAX = 172677
 
 
 def test_the_total_only_shrinks():

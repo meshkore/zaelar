@@ -13,7 +13,7 @@ import types
 
 import pytest
 
-from nucleo import scheduler as S
+from nucleo.pulse import scheduler as S
 from nucleo.flash import reminder_backing as B
 from nucleo.flash import reminder_guards as R
 from nucleo.flash import reminder_promise as P

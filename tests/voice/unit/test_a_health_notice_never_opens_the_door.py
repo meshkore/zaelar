@@ -4,7 +4,7 @@
 #
 # THE MEASUREMENT. Session c20ffd8e (2026-09-25), wake-word mode, the operator on the phone with somebody else.
 # For seven minutes every sentence was correctly discarded as ambient. Then the LiveKit worker stalled
-# (`job executor is unresponsive` ×3), `nucleo/homeostasis.py` could not recycle it with a voice live and SAID
+# (`job executor is unresponsive` ×3), `nucleo/pulse/homeostasis.py` could not recycle it with a voice live and SAID
 # so aloud — «El motor LiveKit se está atascando… si notas cortes, dime y lo reinicio» — through
 # `proactive.notify`, whose deliveries open the reply window (V2-655). His next sentence, «Yo no estoy hablando
 # contigo», landed in it and ran as an order; every reply re-opened the window and the chain lasted until he
@@ -39,7 +39,7 @@ def _clean(monkeypatch):
 
 # ── the notice stays on the screen ────────────────────────────────────────────────────────────────────────
 def test_a_health_alert_is_shown_and_never_spoken(monkeypatch):
-    from nucleo import homeostasis
+    from nucleo.pulse import homeostasis
     from voice import observer, proactive
     spoken, shown = [], []
 
@@ -57,7 +57,7 @@ def test_a_health_alert_is_shown_and_never_spoken(monkeypatch):
 def test_a_health_alert_opens_no_window(monkeypatch):
     """The whole chain, end to end in the attention module: the alert fires, the agent's mouth moves for some
     other reason, and his next cold sentence is still ambient."""
-    from nucleo import homeostasis
+    from nucleo.pulse import homeostasis
     from voice import observer
     monkeypatch.setattr(observer, "emit", lambda *a, **k: None)
     monkeypatch.setattr(homeostasis, "_alerted", set())

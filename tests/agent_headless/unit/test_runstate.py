@@ -189,7 +189,7 @@ def test_un_cron_no_dispara_pero_sigue_vencido(piezas, monkeypatch):
     """Exit BEFORE `mark_fired`, so the job remains due and fires as soon as the operator starts: stopping does not
     lose the reminder; it postpones it. A cron job speaking over a stopped agent is exactly the failure ⏻ exists to
     prevent."""
-    from nucleo import loop as nloop
+    from nucleo.pulse import loop as nloop
     marcados, entregados = [], []
     monkeypatch.setattr(nloop._scheduler, "due", lambda now=None: [{"id": "j1", "title": "riega",
                                                                    "detail": {"prompt": "riega las plantas"}}])

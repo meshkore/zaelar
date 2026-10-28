@@ -55,7 +55,7 @@ async def flush(now: float | None = None) -> bool:
     if not endpoint:
         _state["dirty"] = False
         return False
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     try:
         nxt = scheduler.next_due()
     except Exception as e:  # noqa: BLE001

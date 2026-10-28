@@ -20,7 +20,7 @@ WINDOW = [{"role": "user", "content": "When does the new Dexter season premiere?
 
 @pytest.fixture(autouse=True)
 def no_jobs(monkeypatch):
-    from nucleo import scheduler as S
+    from nucleo.pulse import scheduler as S
     monkeypatch.setattr(S, "list_jobs", lambda active_only=True: [])
 
 

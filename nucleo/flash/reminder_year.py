@@ -16,7 +16,7 @@ from __future__ import annotations
 import logging
 import time as _time
 
-from nucleo import scheduler as _sched
+from nucleo.pulse import scheduler as _sched
 
 logger = logging.getLogger(__name__)
 

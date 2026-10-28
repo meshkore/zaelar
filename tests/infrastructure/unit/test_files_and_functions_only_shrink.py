@@ -71,7 +71,7 @@ FUNCTIONS = {
     'nucleo/flash/tool_executor_widget_calls.py::_apply_widget_data': 180,
     'nucleo/flash/tool_executor_widget_calls.py::_handle_widget_data_tool': 194,
     'nucleo/flash/tool_executor_widget_calls.py::_tag_emit': 186,
-    'nucleo/loop.py::OrchestratorLoop._supervise_workers': 174,
+    'nucleo/pulse/workers.py::WorkersPulse._supervise_workers': 172,
     'nucleo/memory_agent/ingest_steps.py::file_the_atoms': 141,
     'nucleo/memory_agent/ingest_steps.py::gate_the_utterance': 164,
     'nucleo/research_prompts.py::to_prompt_block': 136,

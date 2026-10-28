@@ -12,7 +12,7 @@ import time
 import pytest
 
 from nucleo import notice_today as NT
-from nucleo import scheduler as S
+from nucleo.pulse import scheduler as S
 from nucleo.flash import notice_readback as NR
 from nucleo.flash import reminder_backing as B
 

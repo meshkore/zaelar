@@ -87,7 +87,7 @@ def test_the_voice_turn_backs_the_claim_before_the_model_repair():
 
 def test_the_cancellation_takes_its_notice(agenda, monkeypatch):
     """V2-473 — run for real against the isolated agenda: the claimed cancel is executed and its alarm goes with it."""
-    from nucleo import scheduler as S
+    from nucleo.pulse import scheduler as S
     from nucleo.flash import agenda_claims as ac
     from widgets import store
     from widgets.agenda import data as d
