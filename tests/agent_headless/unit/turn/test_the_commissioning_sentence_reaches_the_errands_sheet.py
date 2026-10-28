@@ -74,8 +74,5 @@ def test_a_sheet_that_already_holds_his_words_keeps_them():
     assert category_gate.asked_of(sid) == "busco un monitor de 27"
 
 
-def test_both_ends_are_wired():
-    from nucleo.flash import probe_after
-    assert "_commission_words.note(reqs, heard)" in inspect.getsource(probe_after._launch)
-    assert "heard=operator_text" in inspect.getsource(probe_after.execute_what_was_decided)
+def test_the_sheet_end_is_wired():
     assert "_cw.seed(_sid" in inspect.getsource(sheets._sheet_open)

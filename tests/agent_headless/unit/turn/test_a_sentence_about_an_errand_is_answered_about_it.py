@@ -12,6 +12,8 @@ Measured on the probe channel, ES and EN, with a report, a monitor hunt and a ga
   · EN — «stop it and try another way, yeah» stopped the worker, and the reply asked the same stop-or-wait question
     again, «4 min» for «3 min».
 
+(The cases measured the old text channel; the typed channel now runs the voice turn, so the lanes below are its.)
+
 Every door below reads the same yardstick: which errands does the sentence NAME (`nucleo/turn/named_errand.py`).
 """
 from __future__ import annotations
@@ -108,10 +110,9 @@ def test_the_receipt_is_a_line_said_once(monkeypatch):
     assert batch.assistant_lines([{"role": "user", "content": "x"}, {"role": "assistant", "content": "y"}]) == ["y"]
 
 
-def test_both_channels_hand_the_lane_what_was_already_said():
+def test_the_voice_turn_hands_the_lane_what_was_already_said():
     import pathlib
     root = pathlib.Path(__file__).resolve().parents[4]
-    assert "said=batch.assistant_lines(sess.window)" in (root / "nucleo/flash/probe.py").read_text(encoding="utf-8")
     assert "said=batch.assistant_lines(brain._window)" in (
         root / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
 
@@ -130,7 +131,7 @@ def test_a_question_about_everything_still_gets_everything(errands):
     assert "informe" in line and "monitor" in line
 
 
-# ── 3. an offer he answered is not asked again; a stop is said as done ──────────────────────────────────────
+# ── 3. an offer he answered is not asked again ──────────────────────────────────────────────────────────
 def test_the_stop_offer_is_made_once(monkeypatch):
     from nucleo.flash import delivery, live_blocks
     monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: ("", []))
@@ -141,17 +142,6 @@ def test_the_stop_offer_is_made_once(monkeypatch):
     assert "stop it and try another way" in first
     again = delivery.apply_to_reply("Alright, give me a moment to look into that.", [])
     assert "stop it" not in again, "he already answered that offer"
-
-
-def test_a_stop_he_ordered_is_said_as_done(monkeypatch):
-    from i18n import langs
-    from nucleo.flash import probe_after as PA
-    out = asyncio.run(PA.the_words_it_owes(
-        _hw=True, _parts=None, _show_chose=None, action="stop_worker", images_req=None,
-        return_extra_exec={"executed": "stop"}, sess=types.SimpleNamespace(window=[]), spoken="", tags=[],
-        text="stop it and try another way, yeah. no point waiting forever.", video_req=None,
-        brief=_brief(wants_words="act", request_type="order")))
-    assert out["spoken"] == langs.current_language().worker_stopped
 
 
 # ── 4. a refinement of one errand does not get another errand's rows ────────────────────────────────────────
@@ -181,10 +171,8 @@ def test_a_no_about_another_errand_leaves_the_parked_one_waiting(errands, monkey
     assert gates.resolve_all("No, leave it").yes is False, "a plain no still answers at once"
 
 
-# ── 6. a refinement passed to a running errand is confirmed naming it ───────────────────────────────────────
-def test_a_refinement_is_confirmed_naming_its_errand(monkeypatch):
-    from i18n import langs
-    from nucleo.flash import probe_after as PA
+# ── 6. a refinement passed to a running errand reaches the errand it names ──────────────────────────────────
+def test_a_refinement_reaches_the_errand_it_names(monkeypatch):
     sessions = {}
     # the kinds the round's registry carried: the report ran as `generic`, the marketplace hunt as `research` —
     # and «informe» is a `research` hint, so the kind used to send the report's refinement to the monitor
@@ -194,14 +182,5 @@ def test_a_refinement_is_confirmed_naming_its_errand(monkeypatch):
         rec.status, rec.label = "running", label
         sessions[tid] = rec
     monkeypatch.setattr(dispatch, "_SESSIONS", sessions)
-    monkeypatch.setattr(dispatch, "inject_soon", lambda which, msg: None)
-    calls = [{"name": "send_to_worker", "args": {"which": "informe", "message": "sin híbridos, solo eléctricos puros"}}]
     assert dispatch.resolve_sessions("informe") == ["1"], "the errand's own word beats a kind hint"
     assert dispatch.resolve_sessions("el estudio") == ["3"], "with no word naming one, the kind still decides"
-    got = PA._send_each(calls, "del informe quítame los híbridos")
-    assert got["to"] == [REPORT["request"]], "the placeholder label is not a name"
-    out = asyncio.run(PA.the_words_it_owes(
-        _hw=True, _parts=None, _show_chose=None, action="send_to_worker", images_req=None, return_extra_exec=got,
-        sess=types.SimpleNamespace(window=[]), spoken="", tags=[], text="del informe quítame los híbridos",
-        video_req=None, brief=_brief(wants_words="act", request_type="order")))
-    assert out["spoken"] == langs.current_language().errand_refined.format(what=f"«{REPORT['request']}»")
