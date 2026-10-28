@@ -4521,6 +4521,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_tool_catalog_is_a_dict.py']},
         {"id": "2.829", "title": "One vocabulary for how a request ended: each of the eight verdicts declares delivered, rank, row state, line and event; older names read as it; a later op never improves a failed row; a non-ending is never settled; every settle emits with the row's trace (refactor2710-02 T-00)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_one_verdict_vocabulary.py']},
+        {"id": "2.886", "title": "An errand sent without a done_when is born with the end state the brief already read, rendered from the template a card on screen declares; none otherwise (refactor2710-06 T-03)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_errand_is_born_with_the_end_state_the_brief_read.py"]},
         {"id": "2.885", "title": "Stopping EVERY running errand needs the brief's sure stop_all: anything less stops the one his words name or asks which, never a word in his sentence (refactor2710-06 T-03)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_stopping_every_errand_needs_a_sure_verdict.py"]},
         {"id": "2.884", "title": "An errand asks before it starts by its class (the brief's errand_class, the money vocabulary only without a verdict), through consent.decide_act: money and accounts ask, his yes clears it, his standing never refuses (refactor2710-06 T-03)",

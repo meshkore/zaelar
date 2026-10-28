@@ -55,8 +55,7 @@ def strip_system_notes(text: str) -> str:
 
 
 def _refuse(req: str, reason: str) -> None:
-    """La negativa VIAJA: al operador por la vía proactiva (que ya sabe hablar y ya sabe degradar a nota
-    escrita si no hay voz) y a la línea de tiempo, para que «no pasó nada» nunca sea la única evidencia."""
+    """The refusal TRAVELS: to him by the proactive path and to the timeline — «nothing happened» is never the only trace."""
     try:
         from voice.observer import emit
         emit("task", "blocked", role="system", text=req[:120],
@@ -74,8 +73,7 @@ def _refuse(req: str, reason: str) -> None:
 
 
 def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
-    """Queue the INTENT of a SlowBrain turn for `request`. Returns a task id. STUB in V2-004:
-    records + publishes `escalate.requested`; SlowBrain executes it asynchronously starting in V2-006/V2-007."""
+    """Queue a Brain Worker errand for `request` (records it, publishes `escalate.requested`); its task id, 0 if refused."""
     req = strip_system_notes(request)
     if not req:
         # Only system notes: he asked for nothing, so there is no task (it was the worker chasing the worker).
@@ -162,7 +160,7 @@ def _reasks_a_parked_errand(asked: str, req: str) -> bool:
 
 
 def finish(tid: int, summary: str = "") -> None:
-    """Mark an escalation as resolved (the SlowBrain return will call this in V2-007)."""
+    """Mark an escalation as resolved."""
     t = _tasks.get(tid)
     if t:
         t["done"] = True
@@ -213,6 +211,21 @@ def target_question(_ctx=None) -> dict:
     """The brief's question: which errand (if any) his words are for."""
     return {"instructions": "Which ongoing errand, if any, are the operator's words addressed to?",
             "criteria": dict(_TARGETS)}
+
+
+def done_when_from_brief(brief) -> dict | None:
+    """The errand's end state when the model gave none: the brief's END verdict (already paid in the turn) rendered
+    from the template a card on screen declares for it. None when there is no sure verdict or no such template — the
+    spec then infers it once (`circuit.spec.born`)."""
+    from nucleo.circuit import spec as _spec
+    target = _spec.end_state_verdict(brief)
+    for wid in (brief or {}).get("open_ids") or [] if target else []:
+        base = str(wid or "").split("::", 1)[0].strip().lower()
+        for name, act in (_spec._manifest(base).get("actions") or {}).items():
+            tpl = act.get(_spec.TEMPLATE_KEY) if isinstance(act, dict) else None
+            if isinstance(tpl, (dict, list)) and _spec.target_of(tpl) == target:
+                return _spec.render(base, name, {})
+    return None
 
 
 CLASS_KEY = "errand_class"

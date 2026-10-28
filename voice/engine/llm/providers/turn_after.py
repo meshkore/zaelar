@@ -39,14 +39,9 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
             spoken_text = _p._say().still_on_it if _prev_pending else _p._say().say_again
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
-    # push_user (no append pelado): si el turno ANTERIOR se canceló por solape, su frase ya está registrada y
-    # ésta suele ser su versión acumulada por el STT → se sustituye en vez de duplicar el prefijo.
-    # fix08 (6d19df41): the window keeps HIS words (`operator_text`, captured before the notes), NOT the
-    # composed turn. Notes are ONE-SHOT (`brain_notes.drain`): the model sees them THIS turn and the reply
-    # records what was said; persisting them in the window turned them into permanent context, and every later
-    # turn re-read them as pending news ("meanwhile, on the Scarborough search..." with the worker at 0%). The
-    # barge-in path above still stores the composed text: that turn never answered, so its notes were never
-    # consumed and must stay visible.
+    # push_user, not a bare append: a turn cancelled by an overlap is replaced by its accumulated STT version. The window
+    # keeps HIS words (fix08): notes are one-shot, and kept in the window they read as pending news on every later
+    # turn. The barge-in path above keeps the composed text: that turn never answered, so its notes stay visible.
     _dialog.push_user(brain._window, operator_text)
     if spoken_text:
         # Guarda la respuesta SANEADA (anti-degeneración V2-032): si el modelo empalmó/repitió, no reinyectamos
@@ -95,17 +90,9 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
         except Exception as e:  # noqa: BLE001
             _p.logger.warning(f"login fallback skipped: {e}")
 
-    # BUFFER CONVERSACIONAL de CORTO (V2-013 T131): guardamos el par turno↔respuesta como working set EFÍMERO
-    # (`kind='conv'`, TTL corto, importancia baja) — alimenta la ruta de lectura entera de CORTO (T146,
-    # `recent_short`) para que el FlashBrain vea "de qué hablábamos", pero NO es un recuerdo durable. El
-    # CORAZÓN que DESTILA lo memorable (nombre, hechos, preferencias) es `memory_agent.ingest_utterance`
-    # (arriba, off-hot-path). El consolidador (V2-019) poda este buffer por TTL. Reemplaza el write crudo 0.3
-    # a ciegas que inflaba la memoria. Best-effort: la memoria no está en el camino crítico de tiempo real.
-    # V2-049: se escribe TAMBIÉN en los turnos que ESCALAN (antes se excluían con `escalate_req is None`) — así
-    # el turno que LANZA la tarea (y el dato que el operador soltó en él: matrícula, email…) entra en
-    # `recent_window` y el worker lo VE en su bloque de CONVERSACIÓN RECIENTE. Ese hueco hacía que el worker
-    # investigara sin el dato y lo re-preguntara (bug ITV 17-jul). Si escaló sin hablar, guardamos igual el
-    # turno del operador (con lo que dijera zaelar, aunque sea un filler).
+    # SHORT conversational buffer (V2-013 T131): the turn↔reply pair as an EPHEMERAL working set (`kind='conv'`, short
+    # TTL) so the next turn sees «what we were talking about»; what is memorable is distilled by `ingest_utterance`.
+    # V2-049: written on ESCALATING turns too, so the worker sees the datum he gave in the turn that launched it.
     if spoken_text or escalate_req["v"] is not None:
         try:
             from memory import api as memory
@@ -288,7 +275,8 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
             _escalate_mod.escalate_to_slowbrain(
                 req, context={"src": "voice", "surface": _p._surfaces_mod.pick(escalate_req["surface"].get(req, ""),
                                                                            _p._surfaces_mod.from_brief(_brief)),
-                              "done_when": (escalate_req.get("done_when") or {}).get(req),   # V2-776 L1
+                              "done_when": ((escalate_req.get("done_when") or {}).get(req)   # V2-776 L1
+                                            or _escalate_mod.done_when_from_brief(_brief)),   # else the brief's END
                               "heard": _heard,     # his sentence, to the ONE errand it commissions (two: neither)
                               "errand_class": _escalate_mod.class_verdict(_brief),   # the consent class it carries
                               "asked": spoken_text})   # V2-655: si el turno pidió permiso, se APARCA
