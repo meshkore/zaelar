@@ -19,15 +19,54 @@ def test_the_capture_writes_the_whole_prompt_beside_the_excerpt(tmp_path, monkey
     assert rec["window"] == [{"role": "user", "content": "hi"}]
 
 
-def test_a_failed_embedding_keeps_the_providers_words():
-    """The same pass ran every recall on FTS alone and the diagnostic said «key, quota or network»; the response
-    body said `insufficient_quota`. The failure keeps it, and the retriever's line says it. (The paid call itself
-    is stubbed by the suite's conftest — no test reaches the network — so the recording seam is what is tested.)"""
-    from pathlib import Path
+def test_a_failed_embedding_keeps_the_providers_words(monkeypatch):
+    """Demo pass R1's second half: the embeddings call was failing and nothing said why — the provider's reply
+    body said `insufficient_quota`. Checked at the DOOR: a loopback provider answers 429 with that body, the real
+    cloud call (pooled connection, `_post_json`) fails, `last_error()` keeps the provider's words, and the
+    retriever's «recall on FTS only» event carries them. No network, no real memory."""
+    import threading
+    from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
     from memory import embeddings as E
+    from memory import reembed
     from memory.embeddings import cloud
-    cloud._note_failure(RuntimeError("You have no credits remaining (insufficient_quota)"))
-    assert "insufficient_quota" in E.last_error()
-    root = Path(__file__).resolve().parents[3]
-    assert "_note_failure(ex)" in (root / "memory/embeddings/cloud.py").read_text("utf-8").split("def _cloud_embed(")[1]
-    assert "the provider said: {_why}" in (root / "memory/retriever/recall.py").read_text("utf-8")
+    from memory.retriever import recall
+    from voice import observer
+
+    class _NoCredit(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers["Content-Length"]))
+            out = b'{"error": {"message": "You have no credits remaining", "code": "insufficient_quota"}}'
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(out)))
+            self.end_headers()
+            self.wfile.write(out)
+
+        def log_message(self, *a):
+            pass
+
+    srv = ThreadingHTTPServer(("127.0.0.1", 0), _NoCredit)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    try:
+        monkeypatch.setattr(E, "_cloud_embed", E._GENUINE_CLOUD_EMBED)      # the suite stubs the network out
+        monkeypatch.setattr(E, "_mem_cfg", lambda: {"embed_provider": "openai", "embed_model": "text-embedding-3-small",
+                                                    "embed_base_url": f"http://127.0.0.1:{srv.server_port}/v1",
+                                                    "embed_api_key": "test-key"})
+        monkeypatch.setattr(cloud, "_HTTP", None)
+        monkeypatch.setitem(cloud._LAST_ERROR, "v", "")
+        E.reset()
+        assert E._cloud_embed(["¿cuándo vence el seguro?"]) is None
+        assert "insufficient_quota" in E.last_error()
+
+        seen = []
+        monkeypatch.setattr(observer, "emit", lambda kind, label, text="", role="", extra=None: seen.append(text))
+        monkeypatch.setattr(reembed, "signature", lambda: "openai:text-embedding-3-small:768")
+        monkeypatch.setattr(reembed, "stored_signature", lambda: "openai:text-embedding-3-small:768")
+        monkeypatch.setattr(recall, "_wrong_space_last", 0.0)
+        recall._warn_wrong_space()
+        assert seen and "the provider said:" in seen[0] and "insufficient_quota" in seen[0], seen
+    finally:
+        srv.shutdown()
+        srv.server_close()
+        E.reset()
