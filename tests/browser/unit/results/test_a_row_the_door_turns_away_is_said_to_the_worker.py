@@ -15,7 +15,7 @@ from contextlib import redirect_stdout
 
 import pytest
 
-from nucleo import nav_cli
+from nucleo.cli import nav as nav_cli
 from widgets.navegador import act_api
 from widgets.results import category_gate, data as sheet_data
 

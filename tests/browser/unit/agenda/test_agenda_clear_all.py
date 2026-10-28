@@ -169,7 +169,7 @@ def test_an_empty_payload_writes_nothing_and_says_why(agenda):
 
 @pytest.fixture
 def sched_log(monkeypatch):
-    from nucleo import scheduler as S
+    from nucleo.pulse import scheduler as S
     calls = {"created": [], "cancelled": []}
     monkeypatch.setattr(S, "create", lambda prompt, schedule, name="", repeat="", now=None, origin="cron": (
         calls["created"].append({"prompt": prompt, "schedule": schedule, "name": name})

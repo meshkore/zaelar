@@ -14,7 +14,7 @@ import re
 #: Our plumbing: the sheet contract, our tools and clis, our card ids, the hard-criteria column the worker fills.
 PLUMBING_RE = re.compile(
     r"\b(contrato de la hoja|sheet contract|herramienta de zaelar|zaelar tool|cli|payload|widget_data|results::|"
-    r"widget_cli|nav_cli|mesh_cli|agent_report|criterios duros|requisitos duros|hard (?:criteria|requirements?)|"
+    r"cli\.(?:widget|nav|mesh|report|mem|bridge)|criterios duros|requisitos duros|hard (?:criteria|requirements?)|"
     r"criteri(?:a|os) (?:registered|registrados|written|escritos|set|fijados))\b"
     r"|«(?:results|documento|navegador|widget)(?:::[^»]*)?»", re.I)
 

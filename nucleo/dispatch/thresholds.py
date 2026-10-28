@@ -2,7 +2,7 @@
 
 Extraido of `dispatch.py` for pagar the trinquete of arquitectura, with the same criterion and the same precedente
 that `dispatch_confirm.py` and `dispatch_prompts.py`: son constantes without a sola dependencia of the record, and the
-leen TRES sites distintos —the supervisor of `nucleo/loop.py`, the cara live of `nucleo/flash/live_blocks.py` and
+leen TRES sites distintos —the supervisor of `nucleo/pulse/loop.py`, the cara live of `nucleo/flash/live_blocks.py` and
 `dispatch.pending_summaries()`—. Se re-exportan from `dispatch` because ese continues siendo the contrato publico and
 there is callers that the importan by there; esto es a mudanza, no a cambio of interfaz.
 

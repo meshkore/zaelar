@@ -30,12 +30,12 @@ def _day(n: int) -> str:
 
 
 def _live():
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     return sorted((j["name"], j["schedule"]) for j in scheduler.list_jobs(active_only=True))
 
 
 def test_the_appointments_notice_retires_the_loose_one_at_the_same_instant():
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     d = _day(9)
     agenda.apply_action("add_meeting", {"title": "Dentista de los niños", "date": d, "startTime": "15:00"})
     scheduler.create("AVISA al operador, es el recordatorio que te pidió: Mejor", f"{d} 12:00", name="aviso")
@@ -45,7 +45,7 @@ def test_the_appointments_notice_retires_the_loose_one_at_the_same_instant():
 
 
 def test_a_loose_notice_at_another_instant_or_from_long_ago_stays():
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     d = _day(9)
     scheduler.create("AVISA: otra cosa", f"{d} 12:30", name="aviso")
     old = scheduler.create("AVISA: lo de antes", f"{d} 12:00", name="aviso")
@@ -56,7 +56,7 @@ def test_a_loose_notice_at_another_instant_or_from_long_ago_stays():
 
 
 def test_a_named_job_is_never_retired():
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     d = _day(9)
     scheduler.create("Recuérdale la reunión", f"{d} 12:00", name="reunión con Ana")
     assert scheduler.supersede_loose_notices(f"{d} 12:00") == []

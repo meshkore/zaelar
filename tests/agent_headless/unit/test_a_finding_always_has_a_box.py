@@ -11,7 +11,7 @@ TWO cracks in sequence, and fixing only one leaves the entire failure in place:
 
   1. **The tab is not always named the same way.** `dispatch._prepare_web` creates the tab and stores `rec.nav_task`
      ONLY for `kind="web"`. Any other errand that opens the browser —the bicycle RESEARCH one, for example— falls
-     through to the `nucleo/nav_cli.py` fallback (`ZAELAR_NAV_TASK` or, if not, `ZAELAR_TASK_ID`), so its tab is named
+     through to the `nucleo/cli/nav.py` fallback (`ZAELAR_NAV_TASK` or, if not, `ZAELAR_TASK_ID`), so its tab is named
      after the TASK. `sheet_for_nav_task` only matched by `nav_task`, and that route did not exist. Two ways of naming
      the same thing in two different places is how the crack was born.
 

@@ -6,7 +6,7 @@ This is the last rail before the engine presses a button on a real website in th
 
 **One of four routes was gated.** `owner.py::agent_act` reached the mouse and the keyboard by four paths and
 only `click` (by `[ref]`) consulted `_DANGER_RE` — `click_at` (vision), `press` and `type --submit` did not.
-And `nucleo/nav_cli.py`, the CLI a Brain Worker drives the browser with, RECOMMENDS the ungated one in its
+And `nucleo/cli/nav.py`, the CLI a Brain Worker drives the browser with, RECOMMENDS the ungated one in its
 own usage text: «VISION flow (robust for forms)». The recommended path was the unguarded path.
 
 **It judged the LABEL.** Against 30 real button labels, 21 walked through — «Reservar», «Confirmar reserva»,

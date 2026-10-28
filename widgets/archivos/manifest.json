@@ -231,5 +231,5 @@
   "origin": "builtin",
   "live_title": true,
   "security": "standard",
-  "worker_guide": "Para buscar torrents desde un worker: `python -m nucleo.widget_cli data archivos torrent_search @q.json` con {\"query\":\"lo que sea\"} (deja el catálogo en pantalla), y para bajar uno `python -m nucleo.widget_cli data archivos torrent_download @d.json` con {\"item\": 2}. La lista completa se lee con `python -m nucleo.widget_cli data archivos` (clave `torrents`)."
+  "worker_guide": "Para buscar torrents desde un worker: `python -m nucleo.cli.widget data archivos torrent_search @q.json` con {\"query\":\"lo que sea\"} (deja el catálogo en pantalla), y para bajar uno `python -m nucleo.cli.widget data archivos torrent_download @d.json` con {\"item\": 2}. La lista completa se lee con `python -m nucleo.cli.widget data archivos` (clave `torrents`)."
 }

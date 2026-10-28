@@ -69,7 +69,7 @@ def _capture(monkeypatch, *, cloud: bool, sid="s-live", events=None, status=200)
             return _Resp(status)
 
     monkeypatch.setattr(fb.httpx, "AsyncClient", lambda **k: _Client())
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     from observability import identity, flows
     monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: cloud)
     monkeypatch.setattr(fb, "_control_plane_url", lambda: "https://cp.example")

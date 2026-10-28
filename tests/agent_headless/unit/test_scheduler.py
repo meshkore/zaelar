@@ -4,7 +4,7 @@ import time
 import pytest
 
 from memory import db as memdb
-from nucleo import scheduler
+from nucleo.pulse import scheduler
 
 
 @pytest.fixture

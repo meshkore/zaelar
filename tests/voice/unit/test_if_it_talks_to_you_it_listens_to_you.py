@@ -183,7 +183,7 @@ def test_the_ambient_verdict_carries_the_window_so_the_client_can_keep_the_ring_
 def test_the_relay_no_longer_opens_the_window_before_its_own_TTS():
     import re
     from pathlib import Path
-    src = Path(__file__).resolve().parents[3] / "nucleo/loop.py"
+    src = Path(__file__).resolve().parents[3] / "nucleo/pulse/loop.py"
     text = re.sub(r"(?m)#.*$", "", src.read_text(encoding="utf-8"))
     assert "attention.note_directed()" not in text, (
         "anchoring before a 10-20s relayed question let it consume its own window; the delivery path arms "

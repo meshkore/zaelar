@@ -1,4 +1,4 @@
-"""server/notices_api.py — the HTTP face of `nucleo/notices.py` and Web Push (V2-796).
+"""server/notices_api.py — the HTTP face of `nucleo/pulse/notices.py` and Web Push (V2-796).
 
   · `GET  /api/push/key`          — the VAPID public key a browser subscribes with (`applicationServerKey`).
   · `POST /api/push/subscribe`    — store a browser's PushSubscription (idempotent per endpoint).
@@ -14,14 +14,14 @@ from __future__ import annotations
 from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
 
-from nucleo import notices
+from nucleo.pulse import notices
 
 router = APIRouter()
 
 
 @router.get("/api/push/key")
 def push_key() -> dict:
-    from nucleo import webpush
+    from nucleo.pulse import webpush
     try:
         return {"ok": True, "key": webpush.public_key()}
     except Exception as e:  # noqa: BLE001 — no key means no push; the UI then hides its offer

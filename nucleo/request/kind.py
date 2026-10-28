@@ -123,7 +123,7 @@ def classify_kind(request: str) -> str:
     # live (the La Mella session, 2026-09-09): «revisa las conversaciones/grupos de mensajería… y extrae la
     # cifra exacta a pagar» fell through to the money branch below («a pagar» → moves_money) and spawned a
     # kind="web" worker — a browser + a results sheet for an errand whose only data source is the messaging
-    # widget's own store/archive (read with `widget_cli read mensajeria`, per the worker doctrine). Narrow on
+    # widget's own store/archive (read with `cli.widget read mensajeria`, per the worker doctrine). Narrow on
     # purpose: it needs BOTH a read verb and a messaging-source noun; «paga la factura y avísame por
     # WhatsApp» keeps its browser (no read verb on the messaging noun), and a named external site already
     # returned web in the branches above this one.

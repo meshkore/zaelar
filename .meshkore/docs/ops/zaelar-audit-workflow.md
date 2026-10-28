@@ -107,8 +107,8 @@ and at the end a list of **Findings ordered by severity**.
    (`nucleo/agentes/`) async, consumes `escalate.requested` from the bus and delivers through `voice/proactive`
    (voice+UI); `nucleo/memory_agent.py` is the ONLY writer of `memory/`. Check that the SlowBrain never blocks
    the hot voice path and that the CodeAgent model is per invocation (`config/v2.py`, `code_agent` section).
-5. **Orchestrator loop + OWN cron**: `nucleo/loop.py` (~1 Hz) + `nucleo/scheduler.py` (cron backed by
-   `memory.journal`) + `nucleo/cron_api.py` (`/api/cron`) + `nucleo/sparks.py` (double-gated sparks) — scheduled
+5. **Orchestrator loop + OWN cron**: `nucleo/pulse/loop.py` (~1 Hz) + `nucleo/pulse/scheduler.py` (cron backed by
+   `memory.journal`) + `nucleo/pulse/cron_api.py` (`/api/cron`) + `nucleo/pulse/sparks.py` (double-gated sparks) — scheduled
    tasks + proactivity + triggers the memory consolidator off the hot path. One loop, mounted in the lifespan;
    look for double starts or paths that start it outside the lifespan.
 6. **Loop-agnostic turn coordination**: voice runs on the LiveKit job thread, uvicorn on another loop →
@@ -168,7 +168,7 @@ and at the end a list of **Findings ordered by severity**.
    permission; check that without a granted permission NO cluster path reaches the `CodeAgent`/dev-worker
    (fail-closed by construction). The permission-gated path — `connectors/meshkore/perms.py`+`store.py`
    (per-cluster profile, deny-all default) — can open `escalate_to_slowbrain` to a bounded dev-worker (temporary
-   cwd + `Bash` only to `nucleo/git_cli.py`, authorised repo, re-verified on every commit/push). Also check the
+   cwd + `Bash` only to `nucleo/cli/git.py`, authorised repo, re-verified on every commit/push). Also check the
    objective guard (`perms.gate_dev_by_objective`): the `code` permission must NOT suffice on its own without a
    `capsule.objective` set by the operator (set through the operator-only tool `set_cluster_objective`). The
    dev-worker's Read/Write/Edit/Glob/Grep jail is real code (`nucleo/dev_worker_guard.py`, a PreToolUse hook),

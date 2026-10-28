@@ -21,7 +21,7 @@ def test_dev_context_scoped_params():
     assert p is not None
     assert p["repo"] == "meshkore/algo"
     # git ONLY through the bridge, never bare Bash
-    assert any("nucleo.git_cli" in t for t in p["tools"])
+    assert any("nucleo.cli.git" in t for t in p["tools"])
     assert not any(t == "Bash" or t.startswith("Bash(git") for t in p["tools"])
     # no memory bridges + scoped repo
     assert p["env"]["ZAELAR_NO_BRIDGE_TOOLS"] == "1"
@@ -31,7 +31,7 @@ def test_dev_context_scoped_params():
 
 def test_dev_prompt_scopes_to_repo_and_bridge():
     pr = dispatch._dev_prompt("haz el backtester", "meshkore/algo").lower()
-    assert "meshkore/algo" in pr and "git_cli" in pr
+    assert "meshkore/algo" in pr and "cli.git" in pr
     assert "temporal" in pr or "aislada" in pr              # makes the cwd isolation clear
 
 

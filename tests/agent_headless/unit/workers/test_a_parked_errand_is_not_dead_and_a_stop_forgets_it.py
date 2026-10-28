@@ -6,7 +6,8 @@ import time
 
 import pytest
 
-from nucleo import dispatch, scheduler
+from nucleo import dispatch
+from nucleo.pulse import scheduler
 from nucleo.workers import ended, providers, quota_wait
 from nucleo.workers.session import SessionRecord
 from voice import brain_notes

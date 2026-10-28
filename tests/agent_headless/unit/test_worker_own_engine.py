@@ -32,8 +32,8 @@ def test_an_engine_knows_its_own_address(monkeypatch, port, host, expected):
 
 # Every bridge a worker uses to talk back. If one stops honouring `ZAELAR_BASE`, handing it out stops working
 # for that bridge ALONE — which is the failure mode that hides best, because the other five keep behaving.
-BRIDGES = ["nucleo.nav_cli", "nucleo.mem_cli", "nucleo.worker_bridge",
-           "nucleo.agent_report", "nucleo.widget_cli"]
+BRIDGES = ["nucleo.cli.nav", "nucleo.cli.mem", "nucleo.cli.bridge",
+           "nucleo.cli.report", "nucleo.cli.widget"]
 
 
 @pytest.mark.parametrize("mod", BRIDGES)

@@ -323,7 +323,7 @@ def _warn_live_work() -> None:
     for t in work[:5]:
         goal = str(t.get("goal") or t.get("phase") or "?")[:70]
         _say(f"      · {goal}")
-    _say("    zaelar picks resumable work back up on the next start (see nucleo/rehydrate.py).")
+    _say("    zaelar picks resumable work back up on the next start (see nucleo/pulse/rehydrate.py).")
 
 
 def cmd_stop(keep_livekit: bool = False, grace: float = 6.0) -> int:

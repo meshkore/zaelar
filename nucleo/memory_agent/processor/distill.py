@@ -146,7 +146,7 @@ async def _through_rungs(rungs: list[tuple[str, str]], payload: dict) -> tuple[l
 async def _post(rung_url: str, payload: dict, timeout_s: float) -> dict:
     import aiohttp
 
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     url = rung_url.rstrip("/") + "/chat/completions"
     # EGRESS (T304): with mediated egress neither the destination nor the credential is the provider's.
     base, tok, extra = llm_egress.route(rung_url, cfg.endpoint_key(rung_url))
@@ -178,7 +178,7 @@ def record_usage(usage: dict | None, *, base_url: str | None = None, model: str 
         _last_usage = {}
         return
     _last_usage = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
-    from nucleo import energy_meter as _energy
+    from nucleo.energy import meter as _energy
     _energy.meter_openai_response({"usage": usage}, base_url=base_url or cfg.url(), model=model or cfg.model())
 
 

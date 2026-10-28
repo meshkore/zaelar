@@ -84,7 +84,7 @@ def test_the_guard_bites_on_the_shape_it_forbids():
 
 @pytest.fixture
 def mediated(monkeypatch):
-    from nucleo import energy_lease, llm_egress
+    from nucleo.energy import lease as energy_lease, egress as llm_egress
     monkeypatch.setattr(llm_egress, "mediated", lambda: True)
     monkeypatch.setattr(energy_lease, "admit", lambda *_a, **_k: None)
     monkeypatch.setenv("ZAELAR_GATEWAY_URL", "https://egress.example")
@@ -92,7 +92,7 @@ def mediated(monkeypatch):
 
 
 def test_memllm_sends_the_family_and_prices_by_the_provider(mediated, monkeypatch):
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     from nucleo.memory_agent.processor import llm
     sent, metered = {}, {}
     monkeypatch.setattr(llm, "_post_json", lambda url, payload, *, headers, timeout: (
@@ -108,7 +108,7 @@ def test_memllm_sends_the_family_and_prices_by_the_provider(mediated, monkeypatc
 
 
 def test_fast_client_complete_meters_by_the_provider(monkeypatch):
-    from nucleo import energy_lease, energy_meter
+    from nucleo.energy import lease as energy_lease, meter as energy_meter
     from nucleo.llm import fast_client
     monkeypatch.setattr(energy_lease, "admit", lambda *_a, **_k: None)
     metered = {}

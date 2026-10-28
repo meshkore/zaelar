@@ -817,12 +817,12 @@ def mechanism_facts(mech: dict) -> str:
     # al producto — que es la clase de falso defecto que ya costó seis acusaciones.
     _usados = {k: v for k, v in (_wb.get("by_bridge") or {}).items() if v}
     if _wb.get("read"):
-        if "mesh_cli" in _usados:
-            lines.append("· ✅ EL WORKER PREGUNTÓ A LA RED (`mesh_cli`) antes de buscar por su cuenta. Es el "
+        if "cli.mesh" in _usados:
+            lines.append("· ✅ EL WORKER PREGUNTÓ A LA RED (`cli.mesh`) antes de buscar por su cuenta. Es el "
                          "camino barato y sin navegador que el producto quiere primero: si la red le sirvió, "
                          "que la ronda sea rápida NO es haber hecho menos trabajo.")
         elif _usados:
-            lines.append(f"· ℹ️ El worker NO consultó la red (`mesh_cli`); usó {', '.join(sorted(_usados))}. Es "
+            lines.append(f"· ℹ️ El worker NO consultó la red (`cli.mesh`); usó {', '.join(sorted(_usados))}. Es "
                          f"un hecho sobre el mecanismo, no una falta de conducta: puede que no hubiera agente "
                          f"para este encargo. No lo puntúes por sí solo.")
         else:

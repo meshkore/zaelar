@@ -348,7 +348,7 @@ class Isolated:
             self._set(_conns, "_PATH", Path(self.tmp) / "connectors.json")
             from nucleo.actionmap import store as amstore
             amstore.invalidate()
-            from nucleo import scheduler
+            from nucleo.pulse import scheduler
             self._set(scheduler, "create", lambda prompt, stamp, name="": {"ok": True, "id": "bank-job"})
             self._set(scheduler, "cancel", lambda ref: None)
             from nucleo.flash import turn_brief

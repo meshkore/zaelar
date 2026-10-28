@@ -10,7 +10,7 @@ import types
 
 import pytest
 
-from nucleo import worker_api
+from nucleo.cli import worker_api
 from nucleo.workers import search_budget
 
 

@@ -39,7 +39,7 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
         if asked:
             # An ASKED notice for today whose hour is gone rings soon today, never next week (2026-10-14),
             # and never after the item it announces.
-            from nucleo import notice_today as _nt
+            from nucleo.pulse import notice_today as _nt
             when = _nt.ring_at(when, _t.time(), before=target)
             if when > target:
                 return "", "el aviso caería después de la cita"
@@ -58,7 +58,7 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
     prompt = (_langs.words("agenda.remind_prompt_at", default="").format(title=title, date=date, time=said) if said
               else _langs.words("agenda.remind_prompt", default="").format(title=title, date=date))
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
         # `origin="agenda"` keeps this notice OUT of the calendar's system-task band (V2-728): it already
         # has a place on screen — the appointment it belongs to — and painting it again would show the
         # operator two things where he wrote one.
@@ -109,7 +109,7 @@ def asked_instant(raw, date: str, start: str, resolve_date) -> str:
     elif day and not re.match(r"^\d{4}-\d{2}-\d{2}$", day.strip()):
         # A phrase with no day of its own («el mismo día por la mañana», «ese día», «the same day») is the item's
         # day: the resolver falls back to TODAY, and «por la mañana» read as «mañana» rang TOMORROW (V2-781 pair 3).
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
         day = (_sched.parse_when(_sched._RE_MORNING_NOUN.sub(" ", folded)) or "")[:10]
     day = day or date
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", str(day)):
@@ -140,7 +140,7 @@ def _cancel_reminder(meeting: dict) -> None:
     if not ref:
         return
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
         _sched.cancel(ref)
     except Exception:  # noqa: BLE001 — an orphan alarm fires a ghost: say so
         __import__("logging").getLogger("zaelar.agenda").warning(f"could not cancel notice {ref}", exc_info=True)

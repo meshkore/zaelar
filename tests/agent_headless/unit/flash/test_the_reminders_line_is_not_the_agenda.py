@@ -6,7 +6,7 @@ from nucleo.flash import live_blocks
 
 
 def test_the_line_is_marked_partial_and_sorted(monkeypatch):
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     jobs = [{"name": "aviso: Later", "prompt": "Remind «Later» on 2026-09-30 at 10:00", "next_run": "2026-09-30 08:00",
              "schedule": "2026-09-30 08:00"},
             {"name": "aviso: Sooner", "prompt": "Remind «Sooner» on 2026-09-29 at 09:00", "next_run": "2026-09-29 07:00",

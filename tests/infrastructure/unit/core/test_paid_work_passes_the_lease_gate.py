@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import account_limits, energy_lease
+from nucleo.energy import limits as account_limits, lease as energy_lease
 
 ENGINE = Path(__file__).resolve().parents[4]
 
@@ -106,7 +106,7 @@ def test_a_denied_boot_lease_stops_even_while_the_request_is_in_flight(monkeypat
 # ── the doors ───────────────────────────────────────────────────────────────────────────────────────────────
 
 def _route_refuses():
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     with pytest.raises(energy_lease.OutOfEnergy):
         llm_egress.route("https://api.deepseek.com", "k")
     assert llm_egress.route("http://localhost:11434/v1", "ollama")[0].startswith("http://localhost")
@@ -226,7 +226,7 @@ def test_the_state_is_recorded_once_and_a_lease_or_a_top_up_clears_it(monkeypatc
 
 
 def test_the_account_url_has_one_home(monkeypatch):
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     monkeypatch.delenv("ZAELAR_USER_ID", raising=False)
     assert cloud_account.account_url() == ""
     monkeypatch.setenv("ZAELAR_USER_ID", "u1")
@@ -240,9 +240,9 @@ def test_the_account_url_has_one_home(monkeypatch):
 
 _METERS = ("report_llm_usage(", "meter_openai_response(", "report_search_usage(", "report_worker_usage(",
            "report_decision_usage(")
-_DOORS = ("energy_lease", "llm_egress.route(", "_keys.key(", "blocks_new_work")
+_DOORS = ("energy_lease", "energy.lease", "llm_egress.route(", "_keys.key(", "blocks_new_work")
 _EXEMPT = {
-    "nucleo/energy_meter.py": "IS the meter.",
+    "nucleo/energy/meter.py": "IS the meter.",
     "nucleo/workers/session_finish.py": "reads a worker's usage AFTER it ran; the worker was opened through "
                                  "`runstate.blocks_new_work`, which asks the lease.",
     "widgets/generator.py": "meters a widget generation's worker; generations are opened through dispatch / "

@@ -296,7 +296,7 @@ def test_a_self_hosted_engine_reveals_an_unplayable_local_file_in_place(data, mo
     duplicate on the SAME disk. Self-host: reveal it, never silently fetch a copy."""
     from library import paths as lib_paths
     (lib_paths.dir_for("video") / "pelicula.mkv").write_bytes(b"x")           # .mkv: video, unplayable
-    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account", lambda: False)
+    monkeypatch.setattr("nucleo.energy.account.is_cloud_account", lambda: False)
     monkeypatch.setattr(data, "_reveal_in_os", lambda p: True)
     out = data.apply_action("reveal_local_file", {"fileId": "video/pelicula.mkv"})
     assert out["ok"], out
@@ -308,7 +308,7 @@ def test_a_cloud_hosted_engine_refuses_to_reveal_anything_naming_why(data, monke
     open a window on a remote server nobody is looking at, so it is refused, by name, instead."""
     from library import paths as lib_paths
     (lib_paths.dir_for("video") / "pelicula.mkv").write_bytes(b"x")
-    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account", lambda: True)
+    monkeypatch.setattr("nucleo.energy.account.is_cloud_account", lambda: True)
     out = data.apply_action("reveal_local_file", {"fileId": "video/pelicula.mkv"})
     assert out["ok"] is False and "nube" in out["error"]
 
@@ -318,7 +318,7 @@ def test_reveal_local_file_is_refused_on_a_cloud_PROVIDER_regardless_of_where_th
     not whether the engine itself is self-hosted — a cloud-drive row must be refused even mid-self-host."""
     svc = _switch_to_cloud(data, _Svc(entries=_FILES), monkeypatch)
     svc.calls.clear()
-    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account", lambda: False)
+    monkeypatch.setattr("nucleo.energy.account.is_cloud_account", lambda: False)
     out = data.apply_action("reveal_local_file", {"fileId": "f1"})
     assert out["ok"] is False and "gdrive" in out["error"]
     assert not svc.calls, "a refused reveal must never round-trip to the cloud provider"
@@ -327,12 +327,12 @@ def test_reveal_local_file_is_refused_on_a_cloud_PROVIDER_regardless_of_where_th
 def test_every_local_row_carries_whether_this_is_the_same_machine(data, monkeypatch):
     from library import paths as lib_paths
     (lib_paths.dir_for("documents") / "a.txt").write_text("x")
-    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account", lambda: False)
+    monkeypatch.setattr("nucleo.energy.account.is_cloud_account", lambda: False)
     data.apply_action("open_folder", {"folderId": "shelf:documents"})
     rows = data.view_data()["entries"]
     assert rows and rows[0]["same_machine"] is True
 
-    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account", lambda: True)
+    monkeypatch.setattr("nucleo.energy.account.is_cloud_account", lambda: True)
     data.apply_action("refresh", {})
     rows = data.view_data()["entries"]
     assert rows and rows[0]["same_machine"] is False
@@ -340,7 +340,7 @@ def test_every_local_row_carries_whether_this_is_the_same_machine(data, monkeypa
 
 def test_an_unreadable_same_machine_signal_defaults_to_the_safe_no(data, monkeypatch):
     """A broken/unimportable signal must never grant an OS-shell-out affordance nobody asked to expose."""
-    monkeypatch.setattr("nucleo.cloud_account.is_cloud_account",
+    monkeypatch.setattr("nucleo.energy.account.is_cloud_account",
                         lambda: (_ for _ in ()).throw(RuntimeError("boom")))
     assert data._same_machine() is False
 

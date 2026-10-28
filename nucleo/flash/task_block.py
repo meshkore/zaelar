@@ -93,7 +93,7 @@ def pending_task_lines() -> list[str]:
                     bit += " — SIN paso reportado aún"
                 # V2-131 — «llevo un rato intentándolo y parece que se está demorando» dicho al ARRANCAR, y
                 # después seis turnos de «sigue en marcha» sobre una tarea que no había emitido nada. El
-                # supervisor de `nucleo/loop.py` SÍ sabía que estaba encallada (`silent_s`, umbral compartido)
+                # supervisor de `nucleo/pulse/loop.py` SÍ sabía que estaba encallada (`silent_s`, umbral compartido)
                 # y lo decía por su cuenta; aquí nunca llegaba, así que el cerebro solo veía «arrancó hace N
                 # segundos» y tenía que adivinar qué cuenta como mucho. Se le da el HECHO, como con «SIN paso
                 # reportado aún»: la instrucción vaga («si lleva MUCHO, sé honesto») pedía un juicio con el

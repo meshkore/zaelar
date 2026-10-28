@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import energy_meter
+from nucleo.energy import meter as energy_meter
 
 ENGINE = Path(__file__).resolve().parents[4]
 TABLE = ENGINE / "config" / "models.default.json"
@@ -43,7 +43,7 @@ def _rungs() -> list[tuple[str, str, dict]]:
             if not rung or rung.get("provider") in _NO_TOKENS:
                 continue
             # STT/TTS are priced per minute / per 1k characters in the TARIFF table (authored in the
-            # master, `nucleo/energy_tariffs.py`), not per token — they carry no model name here.
+            # master, `nucleo/energy/tariffs.py`), not per token — they carry no model name here.
             if not rung.get("model"):
                 continue
             out.append((name, kind, rung))
@@ -57,14 +57,14 @@ def test_the_model_has_an_explicit_rate(service, kind, rung):
     assert rate != energy_meter._FALLBACK_RATE_USD, (
         f"{service}.{kind} names «{model}» and the meter has NO row for it, so it bills at the punitive "
         f"catch-all {energy_meter._FALLBACK_RATE_USD} $/1M. Add its real price (from the provider's own "
-        f"pricing page, never from memory) to `_MODEL_RATES` in nucleo/energy_meter.py."
+        f"pricing page, never from memory) to `_MODEL_RATES` in nucleo/energy/meter.py."
     )
 
 
 def test_no_rate_is_written_twice():
     """A repeated key in the literal keeps the LAST value and silently voids the first — which is exactly
     how `deepseek-v4-pro` kept a stale price while its corrected row sat right there, unread."""
-    source = (ENGINE / "nucleo" / "energy_meter.py").read_text(encoding="utf-8")
+    source = (ENGINE / "nucleo" / "energy" / "meter.py").read_text(encoding="utf-8")
     for table in ("_MODEL_RATES", "_RATES_PER_1M_TOKENS_USD", "_CACHED_READ_RATES_USD"):
         start = source.index(f"{table}:")
         body = source[start:source.index("\n}", start)]

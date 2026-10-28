@@ -1,7 +1,7 @@
 """The triage's key comes from the SHARED endpoint map, and its failures say what actually happened.
 
 Real cost, 2026-08-31. The operator's §triage pointed at `https://api.deepseek.com`. `triage_key()` carried its
-own hand-rolled `if "x.ai" … elif "openai.com" …` chain — a FIFTH copy of the map `nucleo/provider_keys.py` was
+own hand-rolled `if "x.ai" … elif "openai.com" …` chain — a FIFTH copy of the map `nucleo/energy/keys.py` was
 created to end (its docstring names the four that had already diverged, and warns in as many words that an
 unknown endpoint "resolves the key to ''/'local' and fails auth SILENTLY"). DeepSeek was not in that chain, so
 every batch went out with the literal string `local` as its bearer token and came back:
@@ -52,7 +52,7 @@ def test_an_endpoint_the_map_does_not_know_still_falls_back_to_local():
 def test_every_endpoint_the_shared_map_knows_resolves_here_too(monkeypatch):
     """The point of the shared list: adding an endpoint THERE is enough. If this file grew its own copy again,
     a provider added to `provider_keys` would silently keep failing auth here."""
-    from nucleo import provider_keys
+    from nucleo.energy import keys as provider_keys
     for needle, env_name in provider_keys._ENDPOINTS:
         monkeypatch.setenv(env_name, f"key-for-{env_name}")
         monkeypatch.setattr(config, "triage_url", lambda n=needle: f"https://api.{n}/v1")

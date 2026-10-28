@@ -85,7 +85,7 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         if action == "cron.create":
             cron_seen["v"] = True          # V2-146: el backstop de abajo no duplica lo que ya se pidió
         try:
-            from nucleo import scheduler as _sched
+            from nucleo.pulse import scheduler as _sched
             d = extra.get("data") or {}
             if action == "cron.create":
                 # refactor2710-06 T-06: the notice's slots decide; the agenda bounds the consequence, no words read

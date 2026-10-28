@@ -192,7 +192,7 @@ code collaboration ("help me port this algorithm") actually executable, without 
 3. **The dev-worker itself** (`nucleo/dispatch/`, `kind="dev"`) — a Brain Worker session (same substrate as any
    other, see `zaelar-modules.md`/the Brain Workers page) but with the NARROWEST scope in the system:
    - A TEMPORARY, dedicated working directory, deleted when done.
-   - `Bash` **only** to the `nucleo/git_cli.py` bridge — never an open Bash. That bridge clones/commits/pushes
+   - `Bash` **only** to the `nucleo/cli/git.py` bridge — never an open Bash. That bridge clones/commits/pushes
      EXCLUSIVELY to the repo the operator authorized, **re-verifying the real `origin` on every operation** (not
      only at clone time).
    - **No memory bridges** (`ZAELAR_NO_BRIDGE_TOOLS`) — a cluster dev-worker never reads/writes the operator's
@@ -218,7 +218,7 @@ code collaboration ("help me port this algorithm") actually executable, without 
 | 8 | Health evaluator (model) | Rephrased loops, dead ends, drifting from the objective | `evaluator.py` |
 | 9 | Permission profile (deny-all) | A real action without the operator's EXPLICIT authorization | `perms.py`+`store.py` |
 | 10 | Objective guard | Permission granted but no direction approved by the operator | `perms.gate_dev_by_objective` |
-| 11 | Bounded, re-verified git bridge | Push/commit to a repo other than the authorized one | `nucleo/git_cli.py` |
+| 11 | Bounded, re-verified git bridge | Push/commit to a repo other than the authorized one | `nucleo/cli/git.py` |
 | 12 | Filesystem jail (real hook) | Reading/writing outside the worker's working directory | `nucleo/dev_worker_guard.py` |
 
 ## References

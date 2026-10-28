@@ -23,7 +23,7 @@ from pathlib import Path
 from fastapi import APIRouter, Body
 from loguru import logger
 
-from nucleo import cloud_account
+from nucleo.energy import account as cloud_account
 
 router = APIRouter()
 

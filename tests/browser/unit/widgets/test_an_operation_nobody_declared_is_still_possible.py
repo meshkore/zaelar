@@ -206,7 +206,7 @@ def test_the_worker_bridge_carries_the_refusals_ACTIONABLE_half(agenda):
     count nor the names nor the fact that answering is the way through. Same lesson as V2-203 at the bridge
     next door: for a worker, a message with no way out is a message that stops it."""
     import types
-    from nucleo import worker_api
+    from nucleo.cli import worker_api
     rec = types.SimpleNamespace(task_id="t1", trace_id="", goal="", sheet="", surface="")
 
     gate = asyncio.run(worker_api._exec_allow(

@@ -24,7 +24,7 @@ import sys
 
 import pytest
 
-from nucleo.nav_cli import _hint_for
+from nucleo.cli.nav import _hint_for
 
 
 def _pista(verbo: str) -> str:
@@ -76,7 +76,7 @@ def test_el_CLI_REAL_la_imprime_y_ANTES_del_usage():
     """The real path, not the predicate: `_hint_for` can be perfect and not be wired in. And order matters —
     a worker reads from top to bottom, so the output has to arrive before the syntax wall it is already looking at
     (this is the contract of `bridge_usage.guided`)."""
-    r = subprocess.run([sys.executable, "-m", "nucleo.nav_cli", "navigate"],
+    r = subprocess.run([sys.executable, "-m", "nucleo.cli.nav", "navigate"],
                        capture_output=True, text=True)
     assert r.returncode == 2
     err = r.stderr

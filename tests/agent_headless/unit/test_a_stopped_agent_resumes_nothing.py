@@ -8,7 +8,7 @@ pulsado ⏻— y aun así:
     19:18:56 | dispatch: tarea 1 dirigida por BRIEF · kind=research
     19:18:56 | worker[1]: ClaudeCodeSession start (model=glm-5.3, tools=33, …)
 
-Un Brain Worker de verdad, gastando dinero de verdad, sobre un agente apagado. `nucleo/rehydrate.py` no
+Un Brain Worker de verdad, gastando dinero de verdad, sobre un agente apagado. `nucleo/pulse/rehydrate.py` no
 consultaba el interruptor en ninguna línea, y la puerta que sí lo consulta —`dispatch.run_listener`— llega
 seis segundos TARDE: para entonces el rastro ya está borrado y una vida de `RESUME_CAP` ya está quemada, así
 que un rechazo correcto allí destruye el trabajo interrumpido en silencio.
@@ -20,7 +20,7 @@ import asyncio
 import pytest
 
 from memory import db as memdb
-from nucleo import rehydrate as R
+from nucleo.pulse import rehydrate as R
 from nucleo import runstate
 
 
@@ -150,7 +150,7 @@ def test_the_three_spending_doors_all_ask_the_SAME_question():
     from pathlib import Path
     root = Path(__file__).resolve().parents[3]
     for rel, why in (("nucleo/dispatch/__init__.py", "el chokepoint de TODO Brain Worker"),
-                     ("nucleo/rehydrate.py", "la resurrección de encargos al arrancar"),
+                     ("nucleo/pulse/rehydrate.py", "la resurrección de encargos al arrancar"),
                      ("widgets/server_api.py", "el relanzamiento de generaciones de widget")):
         text = re.sub(r"(?m)#.*$", "", _vts.read(root / rel))   # a split file reads with its pieces (F1-11)
         assert "runstate.blocks_new_work(" in text, f"{rel} ({why}) no pasa por la puerta única"

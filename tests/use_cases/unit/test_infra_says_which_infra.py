@@ -254,7 +254,7 @@ def test_un_puente_que_no_contesta_tampoco_mide_una_busqueda():
     r = {"run": {"mechanism_report": {
         "page_journey": {"read": True, "n_pages": 0},
         "worker_outcome": {"navigations": 0},
-        "worker_bridges": {"read": True, "by_bridge": {"nav_cli": 1}, "sessions_with_exit2": 1},
+        "worker_bridges": {"read": True, "by_bridge": {"cli.nav": 1}, "sessions_with_exit2": 1},
     }}, "verdict": {"overall": 2}}
     assert _state(2, r) == "INFRA"
     assert "puente del navegador no contestó" in r["_infra_reason"]
@@ -263,6 +263,6 @@ def test_un_puente_que_no_contesta_tampoco_mide_una_busqueda():
     r2 = {"run": {"mechanism_report": {
         "page_journey": {"read": True, "n_pages": 0},
         "worker_outcome": {"navigations": 0},
-        "worker_bridges": {"read": True, "by_bridge": {"mem_cli": 2}, "sessions_with_exit2": 0},
+        "worker_bridges": {"read": True, "by_bridge": {"cli.mem": 2}, "sessions_with_exit2": 0},
     }}, "verdict": {"overall": 2}}
     assert _state(2, r2) != "INFRA"

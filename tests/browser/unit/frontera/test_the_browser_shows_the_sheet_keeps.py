@@ -4,7 +4,7 @@ WHAT WAS MEASURED, and it is a structural failure, not an extraction-quality iss
 `surface = LIST` (`nucleo.surfaces._BY_KIND`), and `LIST ∈ SHEET`, so `dispatch._sheet_open()` OPENS the results sheet
 in front of the operator as soon as the errand is created. And nobody wrote to it. The THREE paths through which the
 browser finds something —`act_api._hand_over`, `owner._automate`, `dispatch._finalize_web`— ended at
-`navegador.tasks.set_results()`, which writes the CARD; and the WEB worker prompt did not mention `widget_cli` or
+`navegador.tasks.set_results()`, which writes the CARD; and the WEB worker prompt did not mention `cli.widget` or
 `results` even once (counted over the rendered text itself). In other words: the sheet opened empty by
 construction while findings piled up in the card.
 
@@ -178,7 +178,7 @@ def test_the_web_worker_prompt_names_the_sheet():
     """Counted over the RENDERED text, not the intention: before V2-257 both counts were 0."""
     from nucleo import dispatch_prompts
     p = dispatch_prompts._web_prompt("busca fontaneros en Madrid centro", "")
-    assert "widget_cli data results present" in p, "el worker no tiene forma de saber que la hoja existe"
+    assert "cli.widget data results present" in p, "el worker no tiene forma de saber que la hoja existe"
     assert re.search(r"TARJETA[^.]*monitor", p), "…ni de saber que la tarjeta NO es donde se enseñan los hallazgos"
     assert "PRESENTACIÓN (control de calidad" in p, (
         "naming the sheet hooks its presentation rules in by itself (`presentation.directive_for`); if this "

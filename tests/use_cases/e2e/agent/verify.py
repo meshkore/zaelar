@@ -2670,7 +2670,7 @@ def worker_bridges(*, since: float = 0.0, logs_dir: str = "") -> dict:
         except OSError:
             continue
         out["sessions"] += 1
-        for puente in ("nav_cli", "widget_cli", "mem_cli", "agent_report", "worker_bridge", "mesh_cli"):
+        for puente in ("cli.nav", "cli.widget", "cli.mem", "cli.report", "cli.bridge", "cli.mesh"):
             if puente in texto:
                 out["by_bridge"][puente] = out["by_bridge"].get(puente, 0) + 1
                 # `Exit code 2` en la misma sesión que el puente: no prueba que sea SUYO, pero es la señal que

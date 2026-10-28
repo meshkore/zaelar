@@ -20,7 +20,7 @@ from tests.use_cases.e2e.agent.verify import _error_gist
 _TB = ("Traceback (most recent call last): "
        'File "<frozen runpy>", line 198, in _run_module_as_main '
        'File "<frozen runpy>", line 88, in _run_code '
-       'File "/Users/x/engine/nucleo/nav_cli.py", line 412, in <module> ' + "relleno " * 30 +
+       'File "/Users/x/engine/nucleo/cli/nav.py", line 412, in <module> ' + "relleno " * 30 +
        "TypeError: Page.goto() expected str, got NoneType")
 
 

@@ -221,7 +221,7 @@ def env_for_worker() -> dict:
     # hours) that is ~3 minutes before the worker gives up and the chain can relay (measured 2026-09-28, the demo's
     # monitor search). Three retries still ride out a blip; a dead tier is handed on in seconds.
     # EGRESS: a mediated deployment hands the worker egress's address and its own credential, never a provider key.
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     base, tok = llm_egress.route_url(t["base_url"], tok)
     out = {"ANTHROPIC_BASE_URL": base, "ANTHROPIC_AUTH_TOKEN": tok, "CLAUDE_CODE_MAX_RETRIES": "3"}
     out.update(vision_env(t))
@@ -242,7 +242,7 @@ def worker_sees() -> bool:
 def vision_env(tier: dict | None) -> dict:
     """`ZAELAR_NAV_VISION=0` SOLO si este escalón declara que su modelo no lee imágenes.
 
-    Va por env porque el que necesita saberlo es `nucleo/nav_cli.py`, que corre como SUBPROCESO del worker y por
+    Va por env porque el que necesita saberlo es `nucleo/cli/nav.py`, que corre como SUBPROCESO del worker y por
     tanto hereda su entorno — el mismo canal por el que ya viajan `ZAELAR_TASK_ID` y el token de los puentes. Y se
     resuelve AQUÍ, que es el único sitio donde ya se sabe qué escalón sirve la sesión: preguntárselo al CLI o
     deducirlo del nombre del modelo serían dos sitios más donde equivocarse.

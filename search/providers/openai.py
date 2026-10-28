@@ -62,7 +62,7 @@ def search(q: str, k: int = 5) -> dict:
     body = {"model": _model(), "tools": [{"type": "web_search_preview"}],
             "instructions": f"{_SYSTEM} Today is {_dt.date.today().isoformat()}.",
             "input": q, "max_output_tokens": 500}
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     url, key = llm_egress.route_url(_ENDPOINT, key)
     with httpx.Client(timeout=_TIMEOUT) as c:
         resp = c.post(url, headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"}, json=body)
@@ -70,7 +70,7 @@ def search(q: str, k: int = 5) -> dict:
         raise RuntimeError(f"openai web_search: HTTP {resp.status_code} {resp.text[:160]}")
     parsed = parse(resp.json(), k)
     if parsed["answer"] or parsed["results"]:
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         _energy.report_search_usage(provider="openai")
     return {"query": q, "answer": parsed["answer"], "results": parsed["results"], "source": "openai",
             "ai": bool(parsed["answer"])}

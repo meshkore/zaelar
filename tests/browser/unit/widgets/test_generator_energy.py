@@ -23,7 +23,7 @@ def test_run_agent_reports_worker_usage_from_json_output(monkeypatch, tmp_path):
     monkeypatch.setattr(generator, "_find_claude", lambda: "/usr/bin/claude")
     stdout = '{"result": "done", "model": "glm-5.2", "usage": {"input_tokens": 1200, "output_tokens": 340}}'
     monkeypatch.setattr(generator.subprocess, "Popen", lambda *a, **kw: _FakeProc(stdout))
-    with patch("nucleo.energy_meter.report_worker_usage") as report:
+    with patch("nucleo.energy.meter.report_worker_usage") as report:
         ok, err = generator._run_agent("build me a widget", target=str(tmp_path))
     assert ok is True
     assert err == ""
@@ -39,7 +39,7 @@ def test_run_agent_survives_non_json_stdout(monkeypatch, tmp_path):
     the energy-reporting best-effort block must never turn a successful generation into a failure."""
     monkeypatch.setattr(generator, "_find_claude", lambda: "/usr/bin/claude")
     monkeypatch.setattr(generator.subprocess, "Popen", lambda *a, **kw: _FakeProc("not json at all"))
-    with patch("nucleo.energy_meter.report_worker_usage") as report:
+    with patch("nucleo.energy.meter.report_worker_usage") as report:
         ok, err = generator._run_agent("build me a widget", target=str(tmp_path))
     assert ok is True
     report.assert_not_called()
@@ -49,7 +49,7 @@ def test_run_agent_skips_energy_report_without_usage_field(monkeypatch, tmp_path
     monkeypatch.setattr(generator, "_find_claude", lambda: "/usr/bin/claude")
     stdout = '{"result": "done"}'
     monkeypatch.setattr(generator.subprocess, "Popen", lambda *a, **kw: _FakeProc(stdout))
-    with patch("nucleo.energy_meter.report_worker_usage") as report:
+    with patch("nucleo.energy.meter.report_worker_usage") as report:
         ok, err = generator._run_agent("build me a widget", target=str(tmp_path))
     assert ok is True
     report.assert_not_called()

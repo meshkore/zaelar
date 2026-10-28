@@ -42,9 +42,9 @@ Every topic is ALSO persisted in `zaelar.db·events` by `bus/log.py` (when `ZAEL
 | `memory.updated` | `memory/queue`, `api._emit`, prompt(query) | SSE bridge (coalesced), `memory_cache` (sink) | `{op, ids}` |
 | `escalate.requested` / `escalate.done` | `nucleo/flash/escalate` | `nucleo/dispatch` (sole consumer) | `{id, request, context{trace}}` |
 | `worker.spawned/phase/result/say/done/error/cancelled` | `nucleo/workers/session` | log/UI | per session |
-| `worker.ask` / `worker.say` | `nucleo/worker_api` | log/loop | `{id, question, corr_id}` |
-| `worker.stuck` / `worker.budget_nudge` / `worker.budget_kill` | `nucleo/loop` (supervisor) | log, **Susurro (friction)** | `{id, age_s}` |
-| `loop.tick` / `loop.scheduled_fired` / `loop.spark` / `loop.consolidated` | `nucleo/loop` | pulse SSE / log | |
+| `worker.ask` / `worker.say` | `nucleo/cli/worker_api` | log/loop | `{id, question, corr_id}` |
+| `worker.stuck` / `worker.budget_nudge` / `worker.budget_kill` | `nucleo/pulse/loop` (supervisor) | log, **Susurro (friction)** | `{id, age_s}` |
+| `loop.tick` / `loop.scheduled_fired` / `loop.spark` / `loop.consolidated` | `nucleo/pulse/loop` | pulse SSE / log | |
 | `connector.msg` / `connector.status` / `msg.mark_read` / `msg.reply` | `connectors/messaging/ingest` | owner of `mensajeria`, consumers | |
 | `susurro.finding` | `nucleo/susurro` | dev-loop (test→fix cron) | structured finding |
 
@@ -53,7 +53,7 @@ Every topic is ALSO persisted in `zaelar.db·events` by `bus/log.py` (when `ZAEL
 (forensic turn_detail: system+window+tools+**decision**), `widget`/`backed`/`background`, `music`, `search`,
 `task` (phase/dedup/resume), `rail` (incl. `fail` → `sin_resolver`), `vad` (barge-in/false interruption),
 `alert`+`error` (degraded turn), `ambient`, `memory`, `timing`, `trace` (root), `susurro`, `homeostasis`
-(the autonomous MACHINE-health layer, `nucleo/homeostasis.py`; labels
+(the autonomous MACHINE-health layer, `nucleo/pulse/homeostasis.py`; labels
 `start`/`degraded`/`recycle`/`rotate`/`evict`/`alert`).
 
 **Agent-to-agent conversation pact.** The cluster bridge (`connectors/meshkore/bridge.py`) emits channel observer
@@ -70,7 +70,7 @@ is enforced for real by a throttle in `cluster.send` (`capsule.cadence_wait`). D
 **Startup gates** (lifespan; pattern `active_brain()=="nucleo" and os.getenv(X,"1")=="1"`):
 `ZAELAR_MEMORY` · `ZAELAR_LOOP` · `ZAELAR_SLOWBRAIN` · `ZAELAR_BUS_LOG` (default 0) · `MESHKORE_AUTORECONNECT` ·
 **`ZAELAR_SUSURRO` + config `susurro.enabled`** · **`ZAELAR_HOMEOSTASIS`** (the autonomous machine-health
-layer, `nucleo/homeostasis.py`).
+layer, `nucleo/pulse/homeostasis.py`).
 
 **Per piece:** `MEM_PROCESSOR` (the HEART) · `BROWSER_SEARCH` · `MESHKORE_MEMORY` · `ZAELAR_LOG_PROMPTS`
 (forensic turn_detail capture; ⚠️ the Susurro needs it — with it off, the Susurro degrades to loose signals) ·

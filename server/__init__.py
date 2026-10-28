@@ -47,7 +47,7 @@ from server.memory_viewer_api import router as memory_viewer_router  # V2-808: e
 from memory.vault_api import router as vault_router    # operator encrypted-secrets vault (V2-060)
 from update.api import router as update_router      # V2-553: the update channel (build number + «reload?»)
 from observability.api import router as obs_router    # flows/sessions/identity (correlation id, 2026-08-09)
-from nucleo.cron_api import router as cron_router  # «Colmena» brain's own proactivity (V2-005/009; ⏰ panel)
+from nucleo.pulse.cron_api import router as cron_router  # «Colmena» brain's own proactivity (V2-005/009; ⏰ panel)
 from .wizard_api import router as wizard_router  # first-run wizard: local/cloud profiles + detector (V2-040)
 from .spotify_api import router as spotify_router  # Spotify music connector (OAuth PKCE + state), V2-041
 from .config_api import router as config_router  # full-screen configuration area + API balances (V2-043)
@@ -83,7 +83,7 @@ def create_app() -> FastAPI:
     # meshkore_router is NATIVE (a channel like voice/chat), so it is always mounted regardless of BRAIN.
     # messaging_router is the UI-managed connect/disconnect API for the messaging connectors (WhatsApp/Telegram):
     # the whole point is that a user connects them from the widget, never by editing .env.
-    # cron_router = the «Colmena» brain's OWN proactivity (nucleo/cron_api.py over nucleo/scheduler.py) — replaces
+    # cron_router = the «Colmena» brain's OWN proactivity (nucleo/pulse/cron_api.py over nucleo/pulse/scheduler.py) — replaces
     # Hermes' old /api/cron; the same frontend ⏰ panel consumes it.
     routers = [pages_router, voice_router, canvas_router, widgets_router, meshkore_router, messaging_router,
                files_router, memory_viewer_router,
@@ -110,7 +110,7 @@ def create_app() -> FastAPI:
         routers.append(flash_probe_router)
         from nucleo.agent_api import router as agent_report_router   # V2-036: CC→FlashBrain reporting channel
         routers.append(agent_report_router)
-        from nucleo.worker_api import router as worker_router          # V2-038: request/response worker plane
+        from nucleo.cli.worker_api import router as worker_router          # V2-038: request/response worker plane
         routers.append(worker_router)
         from search.api import router as search_router                 # V2-782: the search service's HTTP face
         routers.append(search_router)

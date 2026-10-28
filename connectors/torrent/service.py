@@ -27,11 +27,11 @@ logger = logging.getLogger("zaelar.torrent")
 def enabled() -> bool:
     """The operator's switch (`config/connectors.json`), default ON — except in a hosted account.
 
-    V2-778 F0-6: when `nucleo.cloud_account.is_cloud_account()` is true the machine that would seed is not the
+    V2-778 F0-6: when `nucleo.energy.account.is_cloud_account()` is true the machine that would seed is not the
     operator's own, so the client is OFF there whatever the switch says, unless the deployment sets
     `ZAELAR_TORRENT_IN_CLOUD=1`. Self-host is unchanged."""
     try:
-        from nucleo import cloud_account as _acct
+        from nucleo.energy import account as _acct
         if _acct.is_cloud_account() and os.getenv("ZAELAR_TORRENT_IN_CLOUD", "").strip() != "1":
             return False
     except Exception:  # noqa: BLE001 — the accessor is a plain env read; never let it break the switch
@@ -50,7 +50,7 @@ def available() -> bool:
 
 def unavailable_reason() -> str:
     try:
-        from nucleo import cloud_account as _acct
+        from nucleo.energy import account as _acct
         if _acct.is_cloud_account() and os.getenv("ZAELAR_TORRENT_IN_CLOUD", "").strip() != "1":
             # Not «switched off in the settings»: there is no switch the person could turn on here.
             return "las descargas no están disponibles en un agente alojado: solo en tu propio ordenador"

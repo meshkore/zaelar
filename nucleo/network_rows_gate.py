@@ -1,7 +1,7 @@
 """A network agent's rows never open a results sheet for an errand whose deliverable is a DOCUMENT.
 
 three-tasks-at-once (ES, 2026-10-11 11:34, sandbox 113401-es): the car REPORT's worker asked the network «coches
-eléctricos ciudad», the oracle handed it a shopping agent, and `mesh_cli serve` pushed that agent's eight rows —
+eléctricos ciudad», the oracle handed it a shopping agent, and `cli.mesh serve` pushed that agent's eight rows —
 a 1:43 Renault 4 toy, two charging cables, a wall poster, a remote-control car — into a results sheet it opened
 for the report, titled «Informe sobre coches eléctricos urbanos». From then on every prompt carried a sheet NAMED
 as the report and full of toys, beside the real report in `documento`; asked «¿el informe en qué punto está?», the
@@ -12,7 +12,7 @@ sheet is refused, and only for an errand whose surface is a document and not a s
 """
 from __future__ import annotations
 
-#: The payload key `mesh_cli` sets on its automatic push. It never reaches the widget.
+#: The payload key `cli.mesh` sets on its automatic push. It never reaches the widget.
 MARK = "from_network"
 
 

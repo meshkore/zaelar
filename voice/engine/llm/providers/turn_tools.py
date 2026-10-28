@@ -33,7 +33,7 @@ async def choose_the_tools(*, _router, brain, emit, first_turn, had_pending_conf
         _auth_pending = False
     # V2-038: ofrece send/stop_worker solo si hay Brain Workers vivos, y answer_worker solo si alguno espera.
     try:
-        from nucleo import dispatch as _dispatch, worker_api as _wapi
+        import nucleo.dispatch as _dispatch, nucleo.cli.worker_api as _wapi
         _has_workers = _dispatch.has_active()
         _ask_pending = _wapi.has_pending_ask()
     except Exception:

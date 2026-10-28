@@ -5,7 +5,7 @@
 # Claude Code YA restringe Write/Edit al cwd+subcarpetas by defecto (frontera of working-directory of the own
 # CLI), but Read/Glob/Grep NO have esa frontera — a dev-worker could read secretos outside of su cwd (.env,
 # config/*.json, memory/_data/zaelar.db) and, if the permission 'code' of the cluster incluye a repo authorized, filtrarlos
-# escribiendolos DENTRO of the own workdir and comiteandolos al repo (nucleo/git_cli.py already re-verifica that the repo
+# escribiendolos DENTRO of the own workdir and comiteandolos al repo (nucleo/cli/git.py already re-verifica that the repo
 # sea the authorized, but eso no impedia the LECTURA inicial of the secreto).
 #
 # Este module es a hook PreToolUse (https://code.claude.com/docs/in/agent-sdk/hooks.md): Claude Code it invoca
@@ -24,7 +24,7 @@ import os
 import sys
 
 # What tools have a field of path and CUÁL — conservative: only is comprueban these; any another tool (incluida
-# Bash, already acotada by --allowedTools a only `nucleo.git_cli`) pasa without touch.
+# Bash, already acotada by --allowedTools a only `nucleo.cli.git`) pasa without touch.
 _PATH_FIELDS = {
     "Read": ("file_path",),
     "Write": ("file_path",),

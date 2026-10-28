@@ -90,7 +90,7 @@ def test_the_not_yet_line_exists_in_both_shipped_languages():
 # ── a worker never runs the operator's own controls of a card ───────────────────────────────────────────────────
 
 def test_a_declared_operator_control_is_refused_to_a_worker():
-    from nucleo import worker_policy as WP
+    from nucleo.cli import worker_policy as WP
     from widgets import runtime
     flagged = [(w["id"], a) for w in runtime.catalog() for a, s in (w.get("actions") or {}).items()
                if isinstance(s, dict) and s.get("worker") is False]
@@ -102,7 +102,7 @@ def test_a_declared_operator_control_is_refused_to_a_worker():
 
 
 def test_an_undeclared_flag_keeps_todays_path():
-    from nucleo import worker_policy as WP
+    from nucleo.cli import worker_policy as WP
     from nucleo.flash import frontend as fe
     acts = fe.declared_actions("agenda")
     name = next(a for a, s in acts.items() if isinstance(s, dict) and "worker" not in s)

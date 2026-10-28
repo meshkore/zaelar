@@ -224,7 +224,7 @@ def test_the_bridge_route_still_points_at_the_bridge():
     """Caught in a live run, one day after `_with_wall` was added: the helper had been inserted BETWEEN
     `@router.post("/api/navegador/act")` and `navegador_act`, so FastAPI registered the annotator as the
     endpoint. It takes one dict and returns it unchanged, so the route answered 200 with the request echoed
-    back — no `ok`, no `error` — and `nav_cli` turned that into «ERROR: desconocido» for every action a Brain
+    back — no `ok`, no `error` — and `cli.nav` turned that into «ERROR: desconocido» for every action a Brain
     Worker tried. Every unit test still passed: nothing here had ever asserted WHICH function the path
     resolves to, and a decorator does not care what follows it."""
     from widgets.navegador.act_api import router
@@ -1062,11 +1062,11 @@ def test_walls_on_two_hosts_escalate_to_a_channel_switch():
 
 
 def test_the_streak_tells_the_worker_to_change_channel(capsys):
-    from nucleo import nav_cli
+    from nucleo.cli import nav as nav_cli
     nav_cli._print_state({"ok": True, "url": "https://www.bhphotovideo.com/c/1", "title": "403",
                           "wall": "el sitio nos ha bloqueado el acceso (respuesta 403)",
                           "wall_streak": {"n": 3, "sites": ["amazon.com", "bhphotovideo.com"]}})
     out = capsys.readouterr().out
     assert "web_search" in out, out
-    assert "worker_bridge" in out, "the instruction names the bridge, not just the tool"
+    assert "cli.bridge" in out, "the instruction names the bridge, not just the tool"
     assert "amazon.com" in out and "bhphotovideo.com" in out, "the streak names the walled sites"

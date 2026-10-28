@@ -209,7 +209,7 @@ def keep_as_suggestion(request: str) -> bool:
     if not (request or "").strip():
         return False
     try:
-        from nucleo import cloud_account
+        from nucleo.energy import account as cloud_account
         if not cloud_account.is_cloud_account():
             return False
         import asyncio

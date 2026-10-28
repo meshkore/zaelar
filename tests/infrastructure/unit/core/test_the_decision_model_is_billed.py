@@ -42,7 +42,7 @@ _ANSWER = {"answers": {"request_type": {"choice": "question", "confidence": 0.9,
 @pytest.fixture
 def metered():
     calls = []
-    with patch("nucleo.energy_meter.report_decision_usage",
+    with patch("nucleo.energy.meter.report_decision_usage",
                side_effect=lambda **kw: calls.append(kw)):
         yield calls
 
@@ -81,6 +81,6 @@ def test_metering_can_never_break_a_verdict():
     to take down the piece that decides what the operator asked for."""
     with patch("nucleo.jev._read_key", return_value="k"), \
          patch("urllib.request.urlopen", return_value=_Resp(_ANSWER)), \
-         patch("nucleo.energy_meter.report_decision_usage", side_effect=RuntimeError("boom")):
+         patch("nucleo.energy.meter.report_decision_usage", side_effect=RuntimeError("boom")):
         payload = jev._post_question("request_type", "hola", "inst", {"question": "d"}, 1.0)
     assert payload == _ANSWER

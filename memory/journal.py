@@ -2,7 +2,7 @@
 
 Central memory already declares the `journal` table (V2-002 · schema.py): id · title · status
 (`pending`|`in_progress`|`done`) · detail · created · updated. This module is its **access face** (direct CRUD, hot
-path — sub-ms sqlite, no queue): used by the **orchestrator-loop scheduler** (`nucleo/scheduler.py`) to back
+path — sub-ms sqlite, no queue): used by the **orchestrator-loop scheduler** (`nucleo/pulse/scheduler.py`) to back
 scheduled tasks ("own cron" replacing Hermes's), and available for SlowBrain task-continuity journal (V2-006/007).
 
 `detail` stores a free JSON blob (for the scheduler: `{"kind":"scheduled","schedule":{...},"prompt":...}`). It is

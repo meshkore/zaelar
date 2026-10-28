@@ -107,10 +107,10 @@ async def _summarize(peer: str, prev: str, inbound: str, outbound: str) -> str |
     t0 = time.time()
     try:
         if not local:                     # the energy lease gate: a remote distiller is paid work
-            from nucleo import energy_lease
+            from nucleo.energy import lease as energy_lease
             energy_lease.admit("llm")
         to = aiohttp.ClientTimeout(total=_TIMEOUT)
-        from nucleo import llm_egress
+        from nucleo.energy import egress as llm_egress
         base, key, extra = llm_egress.route(_url(), _key())
         async with aiohttp.ClientSession(timeout=to) as s:
             async with s.post(base.rstrip("/") + "/chat/completions",
@@ -121,7 +121,7 @@ async def _summarize(peer: str, prev: str, inbound: str, outbound: str) -> str |
         # Reported because the endpoint is CONFIGURABLE and because this distiller is triggered by an external PEER,
         # not the operator: it is the only paid system call whose pace is set by someone outside. Without measuring
         # it, a chatty peer could drive paid usage without leaving a trace.
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         _energy.meter_openai_response(data, base_url=url, model=_model())
     except Exception as e:  # noqa: BLE001
         logger.debug(f"cluster→memoria: sintetizador no disponible/falló ({_model()}): {e} → merge determinista")

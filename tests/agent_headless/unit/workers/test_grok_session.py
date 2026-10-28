@@ -46,7 +46,7 @@ def test_a_grok_command_row_says_where_it_worked():
     drawer, and a worker that queries memory looked the same as one that deletes a file."""
     evs = _map({"type": "assistant", "message": {"content": [{
         "type": "tool_use", "id": "call-1", "name": "run_terminal_command",
-        "input": {"command": ".venv/bin/python -m nucleo.mem_cli recall 'velero'",
+        "input": {"command": ".venv/bin/python -m nucleo.cli.mem recall 'velero'",
                   "description": "consulta memoria"}}]}})
     step = next(e for e in evs if e.type == "step")
     assert step.data["where"] == "memoria" and step.data["action"] == "recall"
@@ -127,7 +127,7 @@ def test_bash_stays_pinned_to_the_bridges(monkeypatch):
     assert set(_BRIDGE_TOOLS) <= set(allows), "every bridge rule is allowed, from the single source"
     assert not [a for a in allows if a == "Bash" or a.startswith("Bash(") and a not in _BRIDGE_TOOLS], allows
     assert not [a for a in argv if "dangerously" in a or "bypassPermissions" in a], argv
-    assert any("mem_cli" in r for r in _BRIDGE_TOOLS)          # the single source still includes the bridges
+    assert any("cli.mem" in r for r in _BRIDGE_TOOLS)          # the single source still includes the bridges
 
 
 def test_registry_sends_untrusted_work_to_grok_because_it_can_contain_it(monkeypatch):

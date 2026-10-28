@@ -1,5 +1,5 @@
 """nucleo/llm/provider_chain.py — PROVIDER CHAIN for the CLUSTER BRAIN, with automatic failover
-(2026-08-03). Sibling of `nucleo/workers/providers.py` (same idea, same data shape), but for the
+(2026-08-03). Sibling of `nucleo/workers/providers/` (same idea, same data shape), but for the
 MODEL tier of the off-voice channel (V2-069 “one mind”) instead of the `claude` CLI used by brain workers — hence
 a separate module rather than forcing both cases into one: here a tier is a `ModelSpec` (base_url/api_key/model
 from `FastClient`), while there it is an Anthropic-compatible endpoint for `ANTHROPIC_BASE_URL`.
