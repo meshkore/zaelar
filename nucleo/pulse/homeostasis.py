@@ -21,17 +21,14 @@ log = logging.getLogger(__name__)
 
 # ── config (infra, not UI — env-overridable for power users/tests) ──────────────────────────────────────────────
 _PERIOD_S = float(os.getenv("HOMEOSTASIS_PERIOD_S", "60"))       # heartbeat period
+# The thresholds the pure decisions default to live with them (no import cycle in either order):
+from nucleo.pulse.homeostasis_policy import (  # noqa: E402
+    _CAP_MAX, _CAP_TTL_S, _IDLE_S, _LK_THRESHOLD, _LK_WINDOW_S, _LOG_CAP_BYTES)
 
-_LK_WINDOW_S = float(os.getenv("HOMEOSTASIS_LK_WINDOW_S", "180"))    # window for counting engine marks
-_LK_THRESHOLD = int(os.getenv("HOMEOSTASIS_LK_THRESHOLD", "3"))      # marks in the window = degraded
-_IDLE_S = float(os.getenv("HOMEOSTASIS_IDLE_S", "120"))             # idle = no timeline write for N s
 _RECYCLE_COOLDOWN_S = float(os.getenv("HOMEOSTASIS_RECYCLE_COOLDOWN_S", "600"))  # at most one recycle per 10 min
 
-_LOG_CAP_BYTES = int(os.getenv("HOMEOSTASIS_LOG_CAP_BYTES", str(64 * 1024 * 1024)))  # 64 MB
 _LOG_KEEP = int(os.getenv("HOMEOSTASIS_LOG_KEEP", "3"))             # rotated files to keep
 
-_CAP_MAX = int(os.getenv("HOMEOSTASIS_CAPSULE_MAX", "200"))         # cap on live capsules
-_CAP_TTL_S = float(os.getenv("HOMEOSTASIS_CAPSULE_TTL_S", str(30 * 24 * 3600)))  # concluded+old → evict (30d)
 
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 _LOG_DIR = os.getenv("ZAELAR_LOG_DIR") or os.path.join(_REPO_ROOT, ".meshkore", "logs")

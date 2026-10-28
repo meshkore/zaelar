@@ -4,7 +4,6 @@ The journal, `_board` and `_KIND` live in `scheduler` (`_m`).
 """
 from __future__ import annotations
 
-from nucleo.pulse import scheduler as _m
 
 
 def create_unless_ringing(prompt: str, schedule: str, name: str = "") -> dict:
@@ -60,3 +59,7 @@ def supersede_loose_notices(display: str, *, within_s: float = 180.0, now: float
     except Exception:  # noqa: BLE001 — a notice too many is better than a lost one
         return gone
     return gone
+
+
+# Last, so either import order works: `_m` is only read at call time.
+from nucleo.pulse import scheduler as _m  # noqa: E402

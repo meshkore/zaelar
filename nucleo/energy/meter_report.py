@@ -4,7 +4,6 @@ import functools
 
 from loguru import logger
 
-from nucleo.energy import meter as _m
 
 
 def _fire_and_forget(energy: float, kind: str, meta: dict | None = None) -> None:
@@ -187,3 +186,7 @@ def report_search_usage(*, provider: str) -> None:
     if not _m.enabled():
         return
     _m._fire_and_forget(_m.search_cost_to_energy(provider=provider), "search", {"provider": provider})
+
+
+# Last, so either import order works: `_m` is only read at call time.
+from nucleo.energy import meter as _m  # noqa: E402

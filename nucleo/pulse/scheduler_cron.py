@@ -4,7 +4,6 @@ Regexes and bounds live in `scheduler` (`_m`).
 """
 from __future__ import annotations
 
-from nucleo.pulse import scheduler as _m
 
 
 def parse_schedule(spec: str, now: float | None = None) -> dict | None:
@@ -136,3 +135,7 @@ def next_cron(expr: str, after: float) -> float | None:
             return float(t)
         t += 60
     return None
+
+
+# Last, so either import order works: `_m` is only read at call time.
+from nucleo.pulse import scheduler as _m  # noqa: E402

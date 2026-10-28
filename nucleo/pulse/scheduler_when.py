@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import re
 
-from nucleo.pulse import scheduler as _m
 
 
 def _day_and_month(n: str, hh: int, mi: int, now: float) -> str | None:
@@ -114,3 +113,7 @@ def parse_when(text: str, now: float | None = None) -> str:
                 return _m.time.strftime("%Y-%m-%d %H:%M", _m.time.localtime(ts))
         return ""
     return ""
+
+
+# Last, so either import order works: `_m` is only read at call time.
+from nucleo.pulse import scheduler as _m  # noqa: E402

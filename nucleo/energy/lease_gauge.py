@@ -6,7 +6,6 @@ import time
 
 from loguru import logger
 
-from nucleo.energy import lease as _m
 
 
 def _gauge_from_lease(data: dict) -> None:
@@ -69,3 +68,7 @@ def _gauge_knows() -> bool:
     except Exception as e:  # noqa: BLE001 — unreadable means «ask», the safe side for a display
         logger.debug(f"energy_lease: gauge state unreadable: {e!r}")
         return False
+
+
+# Last, so either import order works: `_m` is only read at call time.
+from nucleo.energy import lease as _m  # noqa: E402

@@ -9,7 +9,6 @@ import time
 from loguru import logger
 import httpx
 
-from nucleo.energy import lease as _m
 from nucleo.energy import tariffs as energy_tariffs
 
 
@@ -206,3 +205,7 @@ def _maybe_resume() -> None:
             _m._schedule(runstate.start(src=_m.STOP_SRC))
     except Exception as e:  # noqa: BLE001
         logger.warning(f"energy_lease: no se pudo reanudar tras renovar: {e}")
+
+
+# Last, so either import order works: `_m` is only read at call time.
+from nucleo.energy import lease as _m  # noqa: E402

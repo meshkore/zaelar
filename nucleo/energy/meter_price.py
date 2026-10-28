@@ -2,7 +2,6 @@
 # are read through `_m.` at call time, so patching `energy_meter.<name>` still governs these.
 from loguru import logger
 
-from nucleo.energy import meter as _m
 
 
 def _is_local_endpoint(base_url: str) -> bool:
@@ -155,3 +154,7 @@ def decision_cost_to_energy(*, provider: str = "typesafe") -> float:
     """Pure. Energy units for ONE round trip of the decision model."""
     raw_usd = _m._DECISION_USD_PER_REQUEST.get((provider or "").lower(), _m._DECISION_USD_PER_REQUEST[""])
     return (raw_usd * _m.MARGIN_MULTIPLIER) / _m.EUR_PER_ENERGY_UNIT
+
+
+# Last, so either import order works: `_m` is only read at call time.
+from nucleo.energy import meter as _m  # noqa: E402

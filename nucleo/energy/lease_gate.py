@@ -6,7 +6,6 @@ import time
 
 from loguru import logger
 
-from nucleo.energy import lease as _m
 
 
 def is_refusal(err) -> bool:
@@ -44,3 +43,7 @@ def admit(kind: str = "") -> None:
     """`check()` for a caller that must not proceed on a no: raises `OutOfEnergy`."""
     if not _m.check(kind):
         raise _m.OutOfEnergy(f"{_m.REFUSAL_MARK} for {kind or 'paid work'}")
+
+
+# Last, so either import order works: `_m` is only read at call time.
+from nucleo.energy import lease as _m  # noqa: E402
