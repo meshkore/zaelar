@@ -4,7 +4,8 @@ Every reader of a verdict leaves one `jev read <question>` row in the timeline â
 on its kind, label and `extra` keys. 07 moved the reading door (`nucleo/turn/verdicts.read` over `nucleo/jev`), so this
 pins the row the old `jev.read` emitted: same kind, same label, same text, same extra, one per (call, question).
 
-Disarm: rename the label in `nucleo/jev._emit_read` and the frozen-shape test goes red.
+Disarm: rename the label in `nucleo/jev._emit_read` and the frozen-shape test goes red; point `_engine_root` back at
+`nucleo/` and the key test goes red.
 """
 from __future__ import annotations
 
@@ -54,3 +55,10 @@ def test_an_unsure_verdict_says_why_and_one_row_per_call_and_question(events):
     kind, label, kw = events[0]
     assert label == f"jev read {brief.REQUEST_KEY}" and kw["extra"]["used"] is False
     assert kw["text"].startswith("order -> ") and kw["extra"]["why"] != "used"
+
+
+def test_the_key_is_read_from_the_engine_root():
+    """When `jev.py` became a package its root moved one folder down: the key file was looked for under `nucleo/`, no
+    key was found, and every brief went silent (measured on battery seed 2707: 30 of 30 reds with an empty brief)."""
+    root = jev._engine_root()
+    assert (root / "nucleo" / "jev" / "__init__.py").is_file(), root
