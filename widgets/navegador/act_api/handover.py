@@ -112,6 +112,7 @@ def _note_body(task_id: str, goal: str, _sin_encargo: bool, items: list, ordered
     # THE HARVEST in numbers (V2-296): counted in ONE place, where both halves of each cut are alive, and guarded
     # against counting the same page twice by `_HANDED`.
     try:
+        from widgets.navegador import tasks as _t
         _t.tally(task_id, pages=1, rows=len(items), repeated=repeated, unnamed=len(unnamed),
                  hollow=len(hollow), kept=len(priced), offered=len(head))
     except Exception:  # noqa: BLE001
