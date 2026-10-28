@@ -44,11 +44,6 @@ def _recur():
     return recur.describe({"freq": "weekly", "days": [0, 1], "interval": 1}, langs.current_code())
 
 
-def _lookup_intent():
-    from nucleo.flash import reminder_fact
-    return reminder_fact.lookup_intent("¿cuándo abre?")
-
-
 def _origin_label():
     from search.result import Candidate
     return Candidate(title="T", origin="web").to_row()["facts"][0]
@@ -76,7 +71,6 @@ SURFACES = [
     (_spotify, "Connect your Spotify account first", "Necesito que conectes tu cuenta de Spotify"),
     (_planner, "{n} tasks planned", "{n} tareas planificadas"),
     (_recur, "every Mondays and Tuesdays (no end date)", "todos los lunes y martes (sin fecha de fin)"),
-    (_lookup_intent, "first check what he asked you", "comprueba primero lo que te pidió"),
     (_origin_label, {"label": "Origin", "value": "web search"}, {"label": "Origen", "value": "búsqueda web"}),
     (_song_hint, "2 songs", "2 canciones"),
     (_youtube_notice, "«V» can't be played here", "«V» no se puede reproducir aquí"),

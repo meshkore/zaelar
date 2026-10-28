@@ -93,16 +93,12 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
             from nucleo import scheduler as _sched
             d = extra.get("data") or {}
             if action == "cron.create":
-                # V2-214 (impl PARALELA — cablear en AMBOS): las palabras del OPERADOR sobre su propia
-                # obligación se envuelven en un «AVÍSALE»; una orden ya dirigida al agente se deja igual.
-                from nucleo.flash import router_guards as _rg_cron
-                r = _sched.create(
-                    _rg_cron.safe_reminder_prompt((d.get("prompt") or d.get("task") or "").strip()),
-                    _rg_cron.safe_reminder_schedule((d.get("schedule") or d.get("when") or "").strip(), "", text, brain._window),
-                    name=(d.get("name") or "").strip(), repeat=str(d.get("repeat") or ""))
+                # refactor2710-06 T-06: the notice's slots decide; the agenda bounds the consequence, no words read
+                from widgets.agenda import notice as _notice
+                r, verdict = _notice.schedule(_sched.create, d)
                 emit("cron", "⏰ tarea programada" if r.get("ok") else "⚠️ schedule no reconocido",
                      text=r.get("display") or r.get("error") or "", role="system",
-                     extra={"ok": bool(r.get("ok")), "op": action})
+                     extra={"ok": bool(r.get("ok")), "op": action, "verdict": verdict})
             else:
                 _sched.cancel(extra.get("name") or d.get("name") or "")
                 emit("cron", "🗑️ tarea cancelada", role="system", extra={"ok": True, "op": action})

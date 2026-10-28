@@ -441,18 +441,6 @@ from nucleo.flash.answer_guards import (  # noqa: F401 — re-export, not a loca
     a_continuity_claim_over_nothing, an_empty_wait_answers_a_question, answer_needs_a_source,
 )
 
-# ── the PROMISED-REMINDER guards (moved to reminder_guards.py, 2026-09-02 ratchet pass) ───────────────────────
-# 26 guards that form a closed set: they reference each other and the shared text helpers above, and nothing
-# that stayed here uses any of them — which is why the dependency runs one way and nothing is imported back.
-# Re-exported so every existing call site keeps working unchanged (`router.py` re-exports several of these by
-# name from this module, and the tests reach them as `router_guards.X`): the same compatibility contract this
-# file's own docstring describes for the split that created it.
-from .reminder_guards import (  # noqa: F401 — re-export, not a local use
-    _AGENT_IMPERATIVE_RE, _FIRST_PERSON_DUTY_RE, _NOTE_ASK_RE, _PROMPT_S,
-    _REMIND_ASK_RE, _REMIND_DET, _REMIND_NOUN, _REMIND_VERB_RE, _asked_reminder_moment,
-    _reminder_prompt, already_in_agenda, commitment_clause, commitment_from_window,
-    promises_a_dated_reminder, reminder_before, safe_reminder_prompt, safe_reminder_schedule, strip_note_lead,
-)
 
 
 # A TURN TOO THIN TO COMMISSION A WORKER (fix03, session 6d19df41, 2026-09-18).

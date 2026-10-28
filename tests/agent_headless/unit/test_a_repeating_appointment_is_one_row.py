@@ -149,14 +149,6 @@ def test_the_whole_series_goes_when_he_says_so():
     assert _days("Piano de Abril") == []
 
 
-def test_the_promise_backstop_sees_a_series_on_its_later_days():
-    """The dated-note backstop wrote «piano de abril todos los» beside the series: it compared first days only."""
-    from nucleo.flash import reminder_guards
-    _piano()
-    later = (TUE + dt.timedelta(weeks=3)).isoformat()
-    assert reminder_guards.already_in_agenda({"title": "piano de Abril", "date": later}) is True
-
-
 def test_clearing_one_week_leaves_the_other_weeks():
     _piano()
     wk = TUE + dt.timedelta(weeks=4)

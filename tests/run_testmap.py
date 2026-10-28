@@ -233,9 +233,6 @@ DOMAINS: list[dict] = [
             # V2-145: the brain narrated what the browser «was doing» from the clock, while that task had
             # opened nothing at all — the truth lived in tasks.py and never reached the prompt.
             "tests/agent_headless/unit/flash/test_browser_progress_is_stated.py",
-            # V2-146: «te avisaré el miércoles» con scheduled_jobs vacío — el modelo prometía en prosa
-            # y no emitía la tag; el backstop resuelve el día por posición y se niega si es ambiguo.
-            "tests/agent_headless/unit/flash/test_promised_reminder_backstop.py",
             # V2-209: abrir una tarjeta NO es entregar un resultado. «Aquí lo tienes» es un ack NUESTRO y
             # lo decía sobre una tarea de navegador todavía trabajando (`book-hotel-night-known__es` 13:49).
             "tests/agent_headless/unit/flash/test_opening_a_card_is_not_delivering.py",
@@ -246,10 +243,6 @@ DOMAINS: list[dict] = [
             # V2-213: un muro dice ADÓNDE ir. El catálogo tenía UN sitio por categoría, así que ante un
             # muro no había, literalmente, ningún sitio escrito al que mandar al worker.
             "tests/agent_headless/unit/flash/test_a_wall_names_where_to_go_next.py",
-            # V2-214: el aviso existía y su CONTENIDO estaba roto — la tag del propio modelo metía la
-            # frase del operador («el jueves tengo que renovar…») y el cron se lo entrega al agente como
-            # un «apunta esto». El backstop ya componía la forma segura; la otra puerta no.
-            "tests/agent_headless/unit/flash/test_the_cron_hands_back_an_instruction.py",
             # V2-147: preguntó EN QUÉ WEB teniendo el motor la respuesta — el catálogo de sitios llega
             # al worker y nunca ha estado a la vista del prompt que decide si preguntar.
             "tests/agent_headless/unit/flash/test_never_ask_which_website.py",
@@ -4288,10 +4281,6 @@ DOMAINS: list[dict] = [
         {"id": "2.254", "title": "A worker's notice at an instant already ringing is not a second notice — the premiere "
                                  "rang twice at 09:00 (V2-781 pair 3)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_worker_notice_at_an_instant_already_ringing_is_not_a_second.py"]},
-        {"id": "2.395", "title": "A notice asked for about something to FIND OUT rings with the answer the conversation "
-                                 "gave — the premiere's prompt was his own question cut at «cuándo se estrena» "
-                                 "(V2-781 pair 3); ES + EN, both channels (one backstop)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_notice_after_a_lookup_carries_the_fact.py"]},
         {"id": "2.401", "title": "An appointment's title says what, never when — «… a las diez de la» outlived the move to "
                                  "17:00; the hour it carried becomes the start, numbers in a name stay (2026-10-10)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_title_says_what_not_when.py"]},
@@ -4523,6 +4512,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_his_commissioning_words_travel_with_the_request.py']},
         {"id": "2.829", "title": "One vocabulary for how a request ended: each of the eight verdicts declares delivered, rank, row state, line and event; older names read as it; a later op never improves a failed row; a non-ending is never settled; every settle emits with the row's trace (refactor2710-02 T-00)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_one_verdict_vocabulary.py']},
+        {"id": "2.881", "title": "A standalone notice is bounded by its slots, never by his words: never after the thing it announces, an hour gone today rings soon, a day gone schedules nothing, the job tells the agent to notify (refactor2710-06 T-06)",
+            "ch": UNIT, "paths": ['tests/browser/unit/agenda/test_a_notice_lands_before_the_thing_it_announces.py']},
         {"id": "2.880", "title": "What the act doors emit survives their fold into nucleo/acts, and the fact door's search row carries what came back (V2-826 §2b, refactor2710-06)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_an_event_survives_the_act_doors.py']},
         {"id": "2.831", "title": "What the request and the circuit emit survives their move into nucleo/request and nucleo/circuit, and the verdict event carries the trace the consequence doors carry (V2-826 §2b, refactor2710-02)",
@@ -4621,8 +4612,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_a_notice_asked_for_today_after_its_hour_rings_soon_today.py']},
         {"id": "2.711", "title": "The agenda's asked notice («apúntalo el jueves y avísame el miércoles», said on the Wednesday at noon) rings today at the next full hour, through add_meeting and set_reminder; never after the item, and a day gone is still refused (remember-and-remind-deadline EN)",
             "ch": UNIT, "paths": ['tests/browser/unit/agenda/test_a_notice_asked_for_today_rings_today_not_next_week.py']},
-        {"id": "2.712", "title": "The model's cron.create notice never lands a week past the deadline nor in the past: today 09:00 at noon → 13:00 today, not next Wednesday, in both channels; the prose backstop says the same instant (remember-and-remind-deadline ES)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_models_notice_tag_never_jumps_past_the_deadline.py']},
         {"id": "2.713", "title": "A notice moved to ring soon today is said at the time the LIVE job rings, read back from the schedule, once, in the session language and in both channels; nothing owed when the reply says it or no job exists (remember-and-remind-deadline)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_moved_notice_is_said_at_the_time_it_rings.py']},
         {"id": "2.714", "title": "The notice_on gate never counts a job on or after the deadline it announces: said on the Wednesday, next week's Wednesday fails and today's passes (remember-and-remind-deadline ES + __us)",
@@ -4653,16 +4642,6 @@ DOMAINS: list[dict] = [
         {"id": "2.421", "title": "A case whose opening points at the screen gets that screen seeded first — the blocked-"
                                  "channel rounds ran on an empty player and measured the tester's invention",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_deictic_case_gets_its_scene.py"]},
-        {"id": "2.410", "title": "A spoken promise of a dated reminder is ONE job in English too — «I'll set that reminder for "
-                                 "October 30» and «I've still got that reminder set» left scheduled_jobs empty "
-                                 "(find-a-future-release-and-remind-me EN, 2026-10-10); a claimed reminder with no job owes "
-                                 "a correction; negations and questions schedule nothing; both channels",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_promised_reminder_in_english_is_scheduled.py"]},
-        {"id": "2.411", "title": "A reminder keeps the YEAR the conversation said and a day gone by schedules nothing — "
-                                 "«September 30th» asked on Oct 11 rang 2027-09-30 while the search had said «September "
-                                 "30th, 2026» (find-a-future-release-and-remind-me EN, 2026-10-11); the reply says the date "
-                                 "passed; the job carries the verified fact; the model's own tag too; ES + EN",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_keeps_the_year_the_conversation_said.py"]},
         {"id": "2.250", "title": "An all-day item he writes rings at 09:00 that day (operator, 2026-10-10) — «set a reminder "
                                  "for that day» wrote Dexter's premiere with no notice (V2-781 pair 3)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_an_all_day_item_rings_at_nine_that_day.py"]},

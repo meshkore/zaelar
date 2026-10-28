@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 2448   # refactor2710-06 T-05: measured after the search door (listing_turn went)
+TOTAL = 2443   # refactor2710-06: measured after the search door and the reminder rails
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -141,7 +141,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/prompt.py': 119,
     'nucleo/llm/provider_chain.py': 43,
     'nucleo/flash/recall_heuristics.py': 30,
-    'nucleo/flash/reminder_guards.py': 7,
     'nucleo/flash/router.py': 2,
     'nucleo/flash/router_catalog.py': 6,
     'nucleo/flash/router_guards.py': 11,
