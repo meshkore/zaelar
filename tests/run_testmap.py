@@ -4516,6 +4516,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_prompt_events_survive_the_move.py']},
         {"id": "2.891", "title": "The voice turn's prompt never loads a worker's brief: the briefs live in nucleo/workers/prompts/, the dispatcher takes them from there, and importing the voice prompt builder loads none of them (refactor2710-08 T-04)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_voice_prompt_never_reads_a_worker_brief.py']},
+        {"id": "2.893", "title": "An errand shows only its deliverable: every show that comes from an errand (worker or the sheet its search fills) is licensed at the canvas door by the Request's surface — document → documento, list → results, told → nothing — and a step is a `step` event, never a card (refactor2710-15, Master feedback 30e302f2)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_the_deliverable_decides_the_surface.py']},
         {"id": "2.892", "title": "Every block of the voice prompt is declared with the one truth it reads (`builder.BLOCKS`; «CÓMO OPERAS» and the closing line read none, and say so) and has a token budget per block that only goes down; an idle turn pays nothing for what is not there (refactor2710-08 T-01/T-05)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_each_prompt_block_has_a_token_budget.py']},
         {"id": "2.850", "title": "The mouth says the verdict (refactor2710-03): an acting turn's last words come from what its acts ended in, one i18n key per verdict; `met` names its object, `unmet`/`cannot`/`asked` are always said, a promise is a start",
