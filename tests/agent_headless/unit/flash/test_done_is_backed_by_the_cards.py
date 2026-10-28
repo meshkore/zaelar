@@ -46,6 +46,19 @@ def test_done_over_an_errand_this_turn_just_started_is_not_said():
     assert reply_receipts.bare_ack(_lang().data_ack, None, beside=True) == _lang().done_just_started
 
 
+@pytest.mark.parametrize("said", ["ok book it, call it catch up with Rowan", "vale, resérvalo, llámalo ponerme al día con Rowan"])
+def test_an_end_state_another_request_left_open_never_unsays_this_turns_ack(said):
+    """Demo sandbox 2026-10-28, C2/C3: an INIT «remember» item had inferred three agenda tasks nobody asked for, the
+    spec stayed open and unmet all session, and the slot found and the meeting booked were both acked with «It isn't
+    on the card yet». With this turn's words, only the end states THIS sentence owes are read."""
+    spec.open({"widget": "agenda", "collection": "tasks", "where": {"title~": "Tesla insurance renewal"}},
+              text="Remember these future responsibilities even when they are not on the calendar", widget="agenda")
+    assert reply_receipts.bare_ack(_lang().data_ack, {"agenda"}) == _lang().done_not_on_card, "without his words: as before"
+    assert reply_receipts.bare_ack(_lang().data_ack, {"agenda"}, said=said) == _lang().data_ack
+    spec.open(BODY, text=said, widget="documento")
+    assert reply_receipts.bare_ack(_lang().data_ack, {"documento"}, said=said) == _lang().done_not_on_card, "its own stays"
+
+
 def test_a_write_on_another_card_is_judged_by_that_card_only():
     spec.open(BODY, text="give me the carbonara recipe", widget="documento")
     assert reply_receipts.bare_ack(_lang().data_ack, {"agenda"}) == _lang().data_ack
