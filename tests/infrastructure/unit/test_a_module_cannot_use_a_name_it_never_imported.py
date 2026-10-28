@@ -81,9 +81,11 @@ def _loaded_while_importing(tree: ast.Module) -> set[str]:
     loads: set[str] = set()
 
     def collect(node: ast.AST) -> None:
-        for x in ast.walk(node):
-            if isinstance(x, ast.Name) and isinstance(x.ctx, ast.Load):
-                loads.add(x.id)
+        # Through `walk`, so a lambda inside a decorator (`@door(…, neutral=lambda action="play": …)`) has its
+        # body skipped too: only its defaults run at definition time.
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            loads.add(node.id)
+        walk(node)
 
     def walk(node: ast.AST) -> None:
         for child in ast.iter_child_nodes(node):
