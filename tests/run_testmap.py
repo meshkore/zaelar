@@ -7401,6 +7401,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/brain/unit/test_the_bank.py"]},
         {"id": "11.4", "title": "The live bench: a case seeds what a card holds, and going live puts the keys and the model routing back",
             "ch": UNIT, "paths": ["tests/brain/unit/test_the_live_bench.py"]},
+        {"id": "11.6", "title": "A bank case can seed what the agent already remembers (`memory.pills`): the turn's recall brings it, "
+                                "with no seed it does not, and a malformed list is refused (refactor2710-99)",
+            "ch": UNIT, "paths": ["tests/brain/unit/test_a_case_can_seed_what_is_remembered.py"]},
         {"id": "11.5", "title": "A patch the bank puts on never outlives it: a module imported while `FastClient` was the recorded model gets the real class back on exit, with the sweep disarmed the copy stays (refactor2710-99, debt #101)",
             "ch": UNIT, "paths": ["tests/brain/unit/test_a_bank_patch_never_outlives_the_bank.py"]},
         {"id": "11.2", "title": "El banco mide el PRODUCTO: tres desarmes (mapa de acciones, cierre, veredicto) "

@@ -103,8 +103,11 @@ def validate(case: dict) -> None:
         if not (isinstance(verdict, list) and len(verdict) == 2 and isinstance(verdict[1], (int, float))):
             raise ValueError(f"{case['id']}: brief[{key!r}] must be [choice, confidence]")
     memory = case.get("memory") or {}
-    if set(memory) - {"agenda", "state"}:
-        raise ValueError(f"{case['id']}: memory fixtures are 'agenda' and 'state'")
+    if set(memory) - {"agenda", "state", "pills"}:
+        raise ValueError(f"{case['id']}: memory fixtures are 'agenda', 'state' and 'pills'")
+    if memory.get("pills") and not (isinstance(memory["pills"], list)
+                                    and all(isinstance(p, str) and p.strip() for p in memory["pills"])):
+        raise ValueError(f"{case['id']}: memory.pills is a list of the sentences the case takes as remembered")
     for turn in case.get("history") or ():
         if not (isinstance(turn, dict) and set(turn) == {"role", "text"} and turn["role"] in ("user", "assistant")):
             raise ValueError(f"{case['id']}: a history turn is {{role: user|assistant, text}}")
@@ -437,6 +440,12 @@ class Isolated:
         memory = case.get("memory") or {}
         if memory.get("state"):
             memapi.set_state(dict(memory["state"]))
+        # What the case takes as already REMEMBERED (a recording that answers «your Tesla insurance renews on…» assumed
+        # the agent knew it): written into this case's isolated memory, so the live turn recalls it for real.
+        if memory.get("pills"):
+            from memory import writer as memwriter
+            for text in memory["pills"]:
+                memwriter.insert_memory(str(text), kind="fact", level="long")
         for row in memory.get("agenda") or []:
             from widgets.agenda import data as agenda
             day = _relative_day(str(row.get("day", "+0")))
