@@ -76,8 +76,18 @@ def goal_on(done_when, card: str, order: str = "") -> dict | None:
     kept = [c for c in _verify._clauses(done_when)[1]
             if _verify.kind_of(c) == "rows" and _base(c.get("widget")) == card
             and str(c.get("expect") or "present") == "present"
-            and all(" ".join(str(v).lower().split()) in said for v in (c.get("where") or {}).values() if isinstance(v, str))]
+            and _names_a_row(c) and all(" ".join(str(v).lower().split()) in said
+                                        for v in (c.get("where") or {}).values() if isinstance(v, str))]
     return {"all": kept} if kept else None
+
+
+def _names_a_row(clause: dict) -> bool:
+    """A row clause OWES a row only when some value of its `where` names one. An empty selector (`title~=""`, demo
+    sandbox 2026-10-28, C4 «actually move it half an hour later») matches no row and is contained in every sentence,
+    so the spec read «unmet», and the one repair pass moved the meeting AGAIN — 16:30 to 17:00, the only row the model
+    could name. A selector that names nothing is not an end state; it is nothing to check."""
+    where = clause.get("where") if isinstance(clause.get("where"), dict) else {}
+    return any(str(v).strip() for v in where.values() if isinstance(v, (str, int, float)))
 
 
 async def check(order: str, writes: list, *, spec=None, settle_s: float = SETTLE_S) -> int:
