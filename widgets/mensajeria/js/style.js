@@ -28,34 +28,31 @@ export const CSS = `
   .hb-msg.full > .thread > .mdet,
   .hb-msg.full > .thread > .tl{flex:1 1 auto;min-height:0;overflow:auto;max-height:none}
   .hb-msg.full > .thread > .compose{flex:0 0 auto}
-  /* V2-611 redesign — the header is its OWN band, visually separated from the content below it (the
-     operator's ask: "que se delimiten mejor las secciones"), and every icon in it is a real, bigger button
-     with its own hover/click target — not a bare glyph floating in the row. */
-  .hb-msg .hd{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 14px;padding:2px 2px 14px;
-    border-bottom:1px solid var(--hb-line,#eef1f6)}
-  .hb-msg .hd b{font-size:17px} .hb-msg .hd .sub{font-size:12px;color:var(--hb-muted-2,#7d8a9c)}
+  /* V2-611 — the header is its OWN band, separated from the content by a hairline; every icon a real button. */
+  .hb-msg .hd{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2,8px);margin:0 0 var(--sp-3,12px);
+    padding:0 0 var(--sp-2,8px);border-bottom:1px solid var(--hb-line-subtle,#eef1f6)}
+  /* V2-831 T-04 — the crumb is the CONTENT's title, one step under the window's own name (the header standard:
+     14/600), not a 17 px headline competing with the card chrome above it. */
+  .hb-msg .hd b{font-size:14px;font-weight:600} .hb-msg .hd .sub{font-size:12px;color:var(--hb-muted-2,#7d8a9c)}
   .hb-msg .hdtitle{cursor:pointer;border-radius:8px;padding:4px 7px;margin:-4px -7px}
   .hb-msg .hdtitle:hover{background:var(--hb-hover,#eef3f9)}
-  .hb-msg .dots{display:flex;gap:4px;margin-left:auto}
-  /* V2-616 — a second cluster (connectors ⚙/🔌/Limpiar), set apart from the channel dots by a divider and
-     its own left padding rather than sharing the plain .hd gap every other pair of icons uses. */
-  .hb-msg .hdactions{display:flex;align-items:center;gap:4px;padding-left:10px;margin-left:6px;
+  .hb-msg .dots{display:flex;gap:2px;margin-left:auto}
+  .hb-msg .hdactions{display:flex;align-items:center;gap:2px;padding-left:var(--sp-2,8px);margin-left:var(--sp-1,4px);
     border-left:1px solid var(--hb-line,#e3e8f0)}
-  .hb-msg .picon{display:inline-flex;align-items:center;justify-content:center;opacity:.4;flex:0 0 auto;
-    width:34px;height:34px;border-radius:10px;cursor:pointer}
-  .hb-msg .picon svg{width:20px;height:20px}
+  /* V2-831 T-04 — ONE icon scale for the whole bar: 32 px targets, 18 px glyphs (node 4.321 measures it). */
+  .hb-msg .picon,.hb-msg .hdbtn,.hb-msg .homebtn{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
+    width:32px;height:32px;border-radius:9px;padding:0;cursor:pointer}
+  .hb-msg .picon svg,.hb-msg .hdbtn svg,.hb-msg .homebtn svg{width:18px;height:18px;display:block}
+  .hb-msg .picon{opacity:.4}
   .hb-msg .picon:hover{background:var(--hb-hover,#eef3f9);opacity:.7}
   .hb-msg .picon.on{opacity:1}
   .hb-msg .picon.on:hover{opacity:1;background:var(--hb-hover,#eef3f9)}
-  .hb-msg .picon.filt{background:var(--hb-hover,#eef3f9);box-shadow:inset 0 0 0 1.5px currentColor}
+  .hb-msg .picon.filt{background:color-mix(in srgb,currentColor 18%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,currentColor 55%,transparent)}
   .hb-msg .pdot{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
     font-size:9.5px;font-weight:700;color:#fff;background:var(--hb-neutral,#3a4a5c);opacity:.5;flex:0 0 auto}
   .hb-msg .pdot.on{opacity:1;background:var(--hb-accent2,#16B8A6)}
-  .hb-msg .gear{border:0;background:transparent;color:var(--hb-muted,#3a4757);cursor:pointer;font-size:17px;
-    width:34px;height:34px;border-radius:10px;line-height:1}
-  .hb-msg .gear:hover,.hb-msg .gear.active{background:var(--hb-hover,#eef3f9);color:var(--hb-accent,#3D6FE0)}
-  .hb-msg .clr{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);border-radius:8px;padding:6px 11px;font-size:12.5px;cursor:pointer;color:var(--hb-muted,#3a4757)}
-  .hb-msg .clr:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
+  .hb-msg .hdbtn{border:0;background:transparent;color:var(--hb-muted,#3a4757)}
+  .hb-msg .hdbtn:hover,.hb-msg .hdbtn.active{background:var(--hb-hover,#eef3f9);color:var(--hb-accent,#3D6FE0)}
 
   /* Settings. */
   .hb-msg .settings{border:1px solid var(--hb-line,#eef1f6);border-radius:11px;padding:11px 12px;margin-bottom:11px;background:var(--hb-bg-soft,#fbfdff)}
@@ -121,15 +118,13 @@ export const CSS = `
   .hb-msg .mdet{padding:2px 2px 10px}
   /* WHERE AM I (2026-10-26): the house + title are lit on the home; inside a section they dim and the
      section's name follows as the current crumb. Outline icons, the same stroke as every action icon. */
-  .hb-msg .homebtn{border:0;background:transparent;color:var(--hb-muted-2,#7d8a9c);width:32px;height:32px;
-    border-radius:9px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;margin-right:-4px}
-  .hb-msg .homebtn svg{width:18px;height:18px}
+  .hb-msg .homebtn{border:0;background:transparent;color:var(--hb-muted-2,#7d8a9c);margin-right:-4px}
   .hb-msg .homebtn:hover{background:var(--hb-hover,#eef3f9);color:var(--hb-ink,#0d1622)}
   .hb-msg .homebtn.on{color:var(--hb-accent,#3D6FE0);background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 14%,transparent)}
   .hb-msg .hd .hdtitle{color:var(--hb-muted,#5f6b7c);font-weight:600}
   .hb-msg .hd .hdtitle.on{color:var(--hb-accent,#3D6FE0);font-weight:700}
   .hb-msg .hdsep,.hb-msg .msep{color:var(--hb-muted-2,#9aa7b8);font-size:14px}
-  .hb-msg .hd .hdsec{font-size:17px;color:var(--hb-ink,#0d1622)}
+  .hb-msg .hd .hdsec{font-size:14px;font-weight:600;color:var(--hb-ink,#0d1622)}
   .hb-msg .hd .hdcur{font-size:14px;font-weight:600;color:var(--hb-muted,#5f6b7c)}
   /* The MAIL CLIENT (V2-807 T-01): ONE left rail — Compose, the Inbox opening into the categories the provider
      sorts it by, every other folder — each with the provider's own unread figure; the list beside it. The rail

@@ -5761,6 +5761,10 @@ DOMAINS: list[dict] = [
         {"id": "4.319", "title": "The client JavaScript only shrinks: no widgets/ or frontend/ .js file is born over 400 "
                                  "lines, the 12 listed never grow, and the client total only goes down (refactor2710-99 #106)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_client_js_only_shrinks.py"]},
+        {"id": "4.321", "title": "The messaging header is ONE compact bar for every channel — one icon size, the plug and "
+                                 "settings as labelled stroke icons — and the chat list's search shares its row with "
+                                 "the kind filters and new chat / new group (V2-831 T-04) — RENDERED",
+            "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_header_is_one_compact_bar.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",

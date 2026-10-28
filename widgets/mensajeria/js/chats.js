@@ -159,11 +159,12 @@ export function platformChats(platform, v, ctx){
     formSlot.replaceChildren();
     if(_newForm[platform]) formSlot.appendChild(newForm(platform, mode, ctx, ()=>{ _newForm[platform] = null; formSlot.replaceChildren(); }));
   };
-  const iconBtn = (icon, label)=>{ const b = el("button","bt cxnewbt"); b.append(actionIcon(icon), el("span", null, label)); return b; };
+  // V2-831 T-04 — new chat / new group: icons at the END of the one toolbar row, the word in tooltip + aria-label.
+  const iconBtn = (icon, label)=>{ const b = el("button","cxnewbt"); b.type = "button"; b.title = label;
+    b.setAttribute("aria-label", label); b.append(actionIcon(icon)); return b; };
   const nc = iconBtn("pencil", tt("new_chat", null, "Nuevo chat")); nc.onclick = ()=> openForm("chat");
   const ng = iconBtn("users", tt("new_group", null, "Nuevo grupo")); ng.onclick = ()=> openForm("group");
   nb.append(nc, ng);
-  box.append(nb, formSlot);
   if(_newForm[platform]) formSlot.appendChild(newForm(platform, _newForm[platform], ctx, ()=>{ _newForm[platform] = null; formSlot.replaceChildren(); }));
   const bar = el("div","cxbar");
   const chips = el("div","cxchips");
@@ -189,15 +190,14 @@ export function platformChats(platform, v, ctx){
       b.classList.add("on"); fill(); };
     chips.appendChild(b);
   });
-  bar.appendChild(chips);
   const search = el("input","cxsearch");
   search.type = "search";
   search.placeholder = tt("chats_search", null, "Buscar un chat");
   search.value = _chatQuery[platform] || "";
   search.dataset.keep = "chatsearch:" + platform;
   search.oninput = ()=>{ _chatQuery[platform] = search.value; fill(); };
-  bar.appendChild(search);
-  box.appendChild(bar);
+  bar.append(search, chips, nb);
+  box.append(bar, formSlot);
   box.appendChild(listBox);
   fill();
   if(v.error) box.appendChild(el("div","cxnote", tt("chats_error", null, "La app no me ha dado más chats: ") + v.error));

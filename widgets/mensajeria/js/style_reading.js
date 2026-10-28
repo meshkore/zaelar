@@ -90,10 +90,7 @@ export const READING_CSS = `  /* V2-680 retired .mdsubj/.mdmeta/.mdfrom/.mdwhen/
   .hb-msg .attchip.attthumb button{position:absolute;top:3px;right:3px;width:20px;height:20px;padding:0;border-radius:50%;
     background:rgba(0,0,0,.55);color:#fff;font-size:11px;line-height:20px}
   .hb-msg .attbtn.busy{opacity:.5}
-  .hb-msg .cxnewbt{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--hb-muted,#6b7b92)}
   .hb-msg .cxtag svg{vertical-align:-2px}
-  /* «Nuevo chat» / «Nuevo grupo» on a platform's chat list. */
-  .hb-msg .cxnew{display:flex;gap:6px;margin:0 0 6px}
   .hb-msg .newform{display:flex;flex-direction:column;gap:6px;border:1px solid var(--hb-line,#e3e8f0);
     border-radius:10px;padding:10px;margin:0 0 8px}
   .hb-msg .newform input,.hb-msg .newform textarea{box-sizing:border-box;width:100%;border:1px solid var(--hb-line,#e3e8f0);
@@ -200,13 +197,23 @@ export const READING_CSS = `  /* V2-680 retired .mdsubj/.mdmeta/.mdfrom/.mdwhen/
 
   /* CHAT LIST of a platform: what the real app shows first — every conversation, newest first, a kind filter,
      a name search and «Cargar más». */
-  .hb-msg .cxbar{display:flex;flex-direction:column;gap:6px;margin:2px 0 6px}
-  .hb-msg .cxchips{display:flex;gap:6px;flex-wrap:wrap}
+  /* V2-831 T-04 — ONE toolbar row: search pill · kind chips · new chat/group icons; wraps only on a narrow card. */
+  .hb-msg .cxbar{display:flex;align-items:center;flex-wrap:wrap;gap:var(--sp-2,8px);margin:0 0 var(--sp-2,8px)}
+  .hb-msg .cxsearch{flex:1 1 180px;min-width:140px;max-width:300px;box-sizing:border-box;height:32px;
+    border:1px solid var(--hb-line,#e3e8f0);border-radius:999px;padding:0 12px;font-size:13px;
+    background:var(--hb-bg-soft,#fbfdff);color:var(--hb-ink,#26313d)}
+  .hb-msg .cxsearch:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}  /* selected chip: accent tint + ring */
+  .hb-msg .cxchips{display:flex;gap:4px;flex-wrap:wrap}
   .hb-msg .cxchip{border:1px solid var(--hb-line,#e3e8f0);background:transparent;color:var(--hb-muted,#6b7b92);
-    border-radius:999px;font-size:12px;padding:3px 10px;cursor:pointer}
-  .hb-msg .cxchip.on{background:var(--hb-ink,#26313d);border-color:var(--hb-ink,#26313d);color:var(--hb-bg,#fff)}
-  .hb-msg .cxsearch{width:100%;box-sizing:border-box;border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;
-    padding:6px 10px;font-size:13px;background:var(--hb-bg,#fff);color:var(--hb-ink,#26313d)}
+    border-radius:999px;font-size:12px;height:28px;padding:0 11px;cursor:pointer}
+  .hb-msg .cxchip:hover{color:var(--hb-ink,#26313d)}
+  .hb-msg .cxchip.on{background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,transparent);border-color:transparent;
+    box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent,#3D6FE0) 55%,transparent);color:var(--hb-ink,#26313d)}
+  .hb-msg .cxnew{display:flex;gap:2px;margin-left:auto}
+  .hb-msg .cxnewbt{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;
+    border-radius:9px;background:transparent;color:var(--hb-muted,#3a4757);cursor:pointer}
+  .hb-msg .cxnewbt svg{width:18px;height:18px;display:block}
+  .hb-msg .cxnewbt:hover{background:var(--hb-hover,#eef3f9);color:var(--hb-accent,#3D6FE0)}
   .hb-msg .cxtag{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);font-weight:400}
   .hb-msg .trow.cxarch{opacity:.6}
   .hb-msg .cxmore{display:block;margin:8px auto 2px;font-size:12.5px;padding:5px 14px}
@@ -254,8 +261,6 @@ export const READING_CSS = `  /* V2-680 retired .mdsubj/.mdmeta/.mdfrom/.mdwhen/
   .hb-msg .ibox .iicon svg{width:24px;height:24px}
   .hb-msg .ibox .ilabel{font-size:13px;font-weight:600;color:var(--hb-ink,#0d1622);text-align:center}
   .hb-msg .ibox .isub{font-size:11px;color:var(--hb-muted-2,#9aa7b8)}
-  .hb-msg .connbtn{border:0;background:transparent;color:var(--hb-muted,#3a4757);cursor:pointer;font-size:17px;width:34px;height:34px;border-radius:10px;line-height:1}
-  .hb-msg .connbtn:hover,.hb-msg .connbtn.active{background:var(--hb-hover,#eef3f9);color:var(--hb-accent,#3D6FE0)}
   .hb-msg .conns{display:flex;flex-wrap:wrap;gap:6px}
   .hb-msg .conns .ok{font-size:11px;color:var(--hb-muted,#5b6b82);display:flex;align-items:center;gap:5px;border:1px solid var(--hb-line,#e3e8f0);border-radius:999px;padding:3px 9px}
   .hb-msg .conns .ok .lk{color:var(--hb-muted-2,#9aa7b8);cursor:pointer;text-decoration:underline}

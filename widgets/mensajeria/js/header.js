@@ -1,5 +1,4 @@
 // js/header.js — The dashboard header of the card: home, title and section crumb, the channel dots, connectors/settings/clear.
-// Moved verbatim out of widget.js (refactor2710-12).
 import { S, ORDER, PLAT, selectPlatform, tt } from "./state.js";
 import { brandIcon, el, iconButton } from "./dom.js";
 import { mailWhere } from "./mailrail.js";
@@ -8,19 +7,13 @@ import { mailWhere } from "./mailrail.js";
 export function _paintHeader(root, data, ctx, items, platforms, connectedCount, rerender){
   // Header: title + counter, connected icons only, connectors, settings, clear.
   const hd=el("div","hd");
-  // WHERE AM I (the operator, 2026-10-26: «ahora mismo no sé si estoy en la home o en alguno de los apartados»).
-  // A house at the left of the title, lit together with the title while the home is on screen; inside a channel
-  // the house and «Mensajes» dim and the channel's name follows them as the current section — the same
-  // breadcrumb every other screen of this card carries.
+  // WHERE AM I (2026-10-26): the house + title lit on the home; inside a channel they dim and its name follows.
   const home = !S.platFilter;
   const homeBtn = iconButton("home", tt("home", null, "Inicio"), "homebtn" + (home ? " on" : ""));
   homeBtn.onclick=()=>{ selectPlatform(null); ctx.top(); ctx.action("show_view",{platform:"all"}); rerender(); };
   hd.appendChild(homeBtn);
-  // V2-616 — this title used to repeat the CATALOG name ("Mensajería"), which the outer card chrome
-  // already says (V2-082's header). What this line actually names is the SCREEN underneath it — the
-  // unified inbox — so it reads "Mensajes" now, the operator's own suggestion. The click behavior is
-  // unchanged: from V2-610, the way BACK to the dashboard, always, from any screen (a platform lens, a
-  // wizard, the connectors list, an open thread or mail).
+  // V2-616 — names the SCREEN (the unified inbox), not the catalog the card chrome already says; a click is the
+  // way back to it from any screen (V2-610).
   const title=el("b","hdtitle",tt("title", null, "Mensajes")); title.title=tt("title_hint", null, "Ver la bandeja unificada de todos tus canales");
   title.onclick=()=>{ selectPlatform(null); ctx.top(); ctx.action("show_view",{platform:"all"}); rerender(); };
   if(home) title.classList.add("on");
@@ -37,9 +30,7 @@ export function _paintHeader(root, data, ctx, items, platforms, connectedCount, 
     if(S.platFilter === "email" && data.mailbox) hd.append(el("span","hdsep","›"), el("span","hdcur", mailWhere(data.mailbox)));
   }
   const dots=el("div","dots");
-  // V2-521: every channel is VISIBLE up here — connected bright, unconnected dimmed (the operator's ask:
-  // seeing the catalogue at a glance). A bright icon toggles that platform's lens; a dimmed one opens that
-  // connector's own wizard screen — the same door the voice takes (V2-570).
+  // V2-521: every channel is visible — a bright one toggles its lens, a dimmed one opens its connector (V2-570).
   ORDER.forEach(pl=>{
     const on=(platforms[pl]||{}).status==="connected";
     const ic=brandIcon(pl, on);
@@ -47,13 +38,8 @@ export function _paintHeader(root, data, ctx, items, platforms, connectedCount, 
     if(on){
       ic.title=(PLAT[pl]||{}).label+(S.platFilter===pl?tt("dot_clear_filter", null, ": quitar filtro"):tt("dot_only_channel", null, ": ver solo este canal"));
       if(S.platFilter===pl) ic.classList.add("filt");
-      // Same door as the voice (V2-543): apply locally for an instant repaint AND stamp the server view, so
-      // the next voice order and the next SSE repaint agree with what the click just did.
-      // V2-610 — a click here is a NAVIGATION order («llévame a WhatsApp»), and a navigation order must
-      // leave wherever it was, not just change what the list underneath would show. Before this, clicking
-      // a platform icon while the Conectores screen was open changed `S.platFilter` and called `show_view`
-      // but never cleared `_screen`, so `showChannels` stayed true and the click was invisible — the
-      // operator kept seeing Conectores no matter which platform he tapped (reported live 2026-09-07).
+      // Same door as the voice (V2-543): repaint locally AND stamp the server view. A click is a NAVIGATION
+      // order (V2-610): it leaves whatever screen was open (`ctx.top()`), not only the list underneath.
       ic.onclick=()=>{ const next=(S.platFilter===pl ? "all" : pl); selectPlatform(S.platFilter===pl ? null : pl);
         ctx.top(); ctx.action("show_view",{platform:next}); rerender(); };
     } else {
@@ -63,20 +49,34 @@ export function _paintHeader(root, data, ctx, items, platforms, connectedCount, 
     dots.appendChild(ic);
   });
   hd.appendChild(dots);
-  // V2-616 — the operator: the platform icons and the settings/connectors icons "no pueden estar al mismo
-  // nivel ni pegados a lo que son secciones o diferentes plataformas". `.hdactions` is a second cluster with
-  // its own divider, so it reads as a DIFFERENT kind of control from the row of channel icons beside it.
+  // V2-616 — `.hdactions` is a second cluster with its own divider: a different kind of control from the channels.
   const actions=el("div","hdactions");
-  const connBtn=el("button","connbtn","🔌"); connBtn.title=tt("channels_btn", null, "Canales / conectores");
+  // V2-831 T-04 — every control of this cluster is the SAME stroke-icon button as the channel icons beside it (one
+  // target size, one glyph size): the plug used to be a 🔌 emoji nearly invisible on the dark ground, and ⚙ a text
+  // glyph a size smaller than everything around it.
+  const connBtn=hdButton(ICO_PLUG, tt("channels_btn", null, "Canales / conectores"), "connbtn");
   connBtn.onclick=()=>ctx.openConnector(S.platFilter || "");
   actions.appendChild(connBtn);
-  const gear=el("button","gear"+(S.settingsOpen?" active":""),"⚙"); gear.title=tt("settings", null, "Ajustes");
+  const gear=hdButton(ICO_GEAR, tt("settings", null, "Ajustes"), "gear"+(S.settingsOpen?" active":""));
   gear.onclick=()=>{ S.settingsOpen=!S.settingsOpen; rerender(); };
   actions.appendChild(gear);
   if(items.length){
-    const clr=el("button","clr",tt("clear", null, "Limpiar")); clr.title=tt("mark_all_read", null, "Marcar todo como leído");
+    const clr=hdButton(ICO_READ, tt("mark_all_read", null, "Marcar todo como leído"), "clr");
     clr.onclick=()=>ctx.action("clear"); actions.appendChild(clr);
   }
   hd.appendChild(actions);
   root.appendChild(hd);
+}
+
+// The cluster's stroke icons (24-unit paths, drawn in currentColor like the channel row's marks).
+const ICO_PLUG = ["M9 2v6", "M15 2v6", "M6 8h12v3a6 6 0 0 1-12 0z", "M12 17v5"];
+const ICO_GEAR = ["M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z",
+  "M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"];
+const ICO_READ = ["M18 6 7 17l-5-5", "m22 10-7.5 7.5L13 16"];
+
+function hdButton(paths, label, cls){
+  const b=el("button","hdbtn"+(cls?" "+cls:"")); b.type="button"; b.title=label; b.setAttribute("aria-label", label);
+  b.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '+
+    'stroke-linejoin="round" aria-hidden="true">'+paths.map(d=>`<path d="${d}"/>`).join("")+'</svg>';
+  return b;
 }
