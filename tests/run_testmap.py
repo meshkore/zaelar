@@ -6389,6 +6389,11 @@ DOMAINS: list[dict] = [
         {"id": "7.78", "title": "A live or paused worker does not rewrite the memory state every second: the change key is "
                                 "the session projection with the clock frozen",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_live_worker_does_not_rewrite_the_state_every_second.py"]},
+        {"id": "7.79", "title": "The clean-clone check is one command (`python -m tests.infrastructure.clean_clone`): a clone with "
+                                "none of this machine's state runs ruff, compileall of every package it FINDS, every event "
+                                "freezer it FINDS and tests/infrastructure under the watchdog; one red step fails the "
+                                "command and the rest still run (refactor2710-99)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_the_clean_clone_check_is_one_command.py"]},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.15", "title": "The feedback button reaches someone (self-host never talks to the account route), and every report "
