@@ -248,6 +248,21 @@
     0.95
    ]
   },
+  "widgets": {
+   "imagenes": {
+    "items": [
+     {
+      "title": "Fuji at dawn"
+     },
+     {
+      "title": "Fuji from Lake Kawaguchi"
+     },
+     {
+      "title": "Fuji in winter"
+     }
+    ]
+   }
+  },
   "expect": "data-op imagenes:select",
   "forbid": [
    "worker",
