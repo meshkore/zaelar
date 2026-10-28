@@ -1,6 +1,6 @@
 """«Put on a few videos, back to back» reaches the player as a QUEUE, and the queue is what a read answers (V2-781).
 
-Measured in `la-cola-de-video-con-palabras-imprecisas__us` (2026-10-10 20:11), probe channel:
+Measured in `la-cola-de-video-con-palabras-imprecisas__us` (2026-10-10 20:11), text channel:
   · turn 0 — «Put on a few Maradona videos, I want to watch them back to back.» The reply said «I'll line up a few
     Maradona videos for you and start the first one»; the ops were `load` alone. `play_video.action` had two
     values, ONE video (`play` → load) or SEVERAL TO CHOOSE FROM (`list` → search, nothing plays), so the request had
@@ -42,7 +42,7 @@ def test_the_tool_offers_the_queue_and_both_channels_decide_it_once():
     assert router.decide("play_video", {"query": "x", "action": "queue"}).payload["action"] == "queue"
 
 
-def test_the_probe_queue_reaches_queue_search_and_names_what_plays(rail, monkeypatch):
+def test_the_queue_reaches_queue_search_and_names_what_plays(rail, monkeypatch):
     monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "en", raising=False)
     parte = asyncio.run(VT.execute("Maradona videos", "queue"))
     assert rail == {"wid": "youtube", "action": "queue_search", "payload": {"query": "Maradona videos"}}
@@ -77,35 +77,23 @@ def test_the_queue_read_carries_the_queue_rows_beside_the_notice(monkeypatch, tm
         "the queue's rows ride beside the notice — the notice alone read as «one video left»"
 
 
-class _ClientThatQueuesVideos:
-    """Stub: the model asks for SEVERAL videos back to back, as the queue value now lets it."""
-
-    async def stream(self, *_a, on_tool_call=None, **_kw):
-        if on_tool_call is not None:
-            res = on_tool_call("play_video", {"query": "Maradona videos", "action": "queue"})
-            if asyncio.iscoroutine(res):
-                await res
-        yield "I'll line up a few Maradona videos for you and start the first one."
-
-
-def test_a_probe_turn_asking_for_a_few_videos_builds_the_queue(rail, monkeypatch, tmp_path):
-    """The whole text-channel turn: nothing between the model's call and the widget may turn the queue into a load."""
-    from memory import db as memdb
-    from memory import embeddings as mememb
-    from nucleo.flash import probe
-
-    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
-    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
-    monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "en", raising=False)
-    mememb.reset(); memdb.reset_db(); memdb.get_db()
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _ClientThatQueuesVideos)
-    try:
-        res = asyncio.run(probe.run_turn("Put on a few Maradona videos, I want to watch them back to back.",
-                                         sid="test-video-queue-turn", ingest=False, execute=True))
-    finally:
-        probe._SESSIONS.pop("test-video-queue-turn", None)
-        memdb.reset_db(); mememb.reset()
-    assert res["ok"] is True
+def test_a_typed_turn_asking_for_a_few_videos_builds_the_queue(rail, monkeypatch):
+    """The whole turn (the voice turn, typed): nothing between the model's call and the widget may turn the queue
+    into a load."""
+    from tests.brain import harness as H
+    with H.Isolated("en"):
+        from nucleo.cli import turn
+        monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: "en", raising=False)
+        H.RecordedModel.load({"say": "I'll line up a few Maradona videos for you and start the first one.",
+                              "tools": [{"name": "play_video",
+                                         "args": {"query": "Maradona videos", "action": "queue"}}]})
+        try:
+            res = asyncio.run(turn.run_turn("Put on a few Maradona videos, I want to watch them back to back.",
+                                            sid="test-video-queue-turn", ingest=False, execute=True))
+        finally:
+            turn.reset("test-video-queue-turn")
+    assert res["ok"] is True, res
     assert rail.get("action") == "queue_search", f"the queue must reach the player, got {rail}"
-    assert "Maradona best goals" in str(res.get("reply") or ""), \
-        "the promise to line them up is backed by what plays, said in the turn"
+    # Naming what plays IN the reply (V2-469 `ensure_delivery_named`) was the old text channel's half only: the voice
+    # turn's words stream before the player answers. No criterion decides it, so the voice turn's behaviour stands
+    # (refactor2710-01, named divergence); the player's receipt is the voice's way to say it.

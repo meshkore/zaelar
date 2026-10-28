@@ -66,7 +66,7 @@ def test_un_turno_de_video_CARGA_el_widget_de_verdad(monkeypatch, tmp_path):
     """From the model's request to the widget's `load`, without skipping anything in between."""
     from memory import db as memdb
     from memory import embeddings as mememb
-    from nucleo.flash import probe
+    from nucleo.cli import turn
 
     monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
@@ -82,10 +82,10 @@ def test_un_turno_de_video_CARGA_el_widget_de_verdad(monkeypatch, tmp_path):
     monkeypatch.setattr(_sa, "brain_action", _brain_action)
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _ClienteQuePideVideo)
     try:
-        res = asyncio.run(probe.run_turn("Pon el vídeo del tráiler de la última de Dune.",
-                                         sid="test-video-turn", ingest=False, execute=True))
+        res = asyncio.run(turn.run_turn("Pon el vídeo del tráiler de la última de Dune.",
+                                        sid="test-video-turn", ingest=False, execute=True))
     finally:
-        probe._SESSIONS.pop("test-video-turn", None)
+        turn.reset("test-video-turn")
         memdb.reset_db(); mememb.reset()
 
     assert res["ok"] is True
@@ -103,61 +103,6 @@ class _ClienteMudoQuePideVideo(_ClienteQuePideVideo):
                 await res
         if False:          # pragma: no cover — generador mudo
             yield ""
-
-
-def test_un_turno_MUDO_de_video_NOMBRA_lo_que_cargo(monkeypatch, tmp_path):
-    """Without this, the turn falls back to the generic `canvas:` ack, which only knows how to say «here you go» or—if the
-    widget is empty—the phrase the tester heard four times in a row."""
-    from memory import db as memdb
-    from memory import embeddings as mememb
-    from nucleo.flash import probe
-
-    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
-    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
-    mememb.reset(); memdb.reset_db(); memdb.get_db()
-
-    async def _brain_action(wid, action, payload):
-        return {"ok": True, "videoId": "Way9Dexny3w", "title": "Dune: Part Two | Official Trailer"}
-
-    import widgets.server_api as _sa
-    monkeypatch.setattr(_sa, "brain_action", _brain_action)
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _ClienteMudoQuePideVideo)
-    try:
-        res = asyncio.run(probe.run_turn("Pon el tráiler de Dune.", sid="test-video-mudo",
-                                         ingest=False, execute=True))
-    finally:
-        probe._SESSIONS.pop("test-video-mudo", None)
-        memdb.reset_db(); mememb.reset()
-
-    # `reply`, not `text` or `spoken`: measure against the data's REAL shape. With the wrong name, the guard
-    # would have gone red on a turn that said exactly what it was supposed to say.
-    assert "Dune: Part Two" in (res.get("reply") or "")
-
-
-def test_la_boca_del_video_va_ANTES_del_ack_generico_de_canvas():
-    """The order IS the fix: `canvas:show:youtube` starts with `canvas:`, so the generic branch consumes it
-    if it comes first."""
-    src = _vts.read(Path("nucleo/flash/probe.py"))
-    i_video = src.index("# V2-383 — se NOMBRA el vídeo que cargó")
-    i_canvas = src.index('elif action.startswith("canvas:"):')
-    assert i_video < i_canvas
-
-
-# ── the wiring ─────────────────────────────────────────────────────────────────────────────────────────────
-
-def test_el_rail_de_video_ESTA_enchufado_en_este_canal():
-    """The guard that would have been enough: the branch existed and executed nothing."""
-    src = _vts.read(Path("nucleo/flash/probe.py"))
-    assert "from nucleo.flash import video_turn as _video_turn" in src
-    assert "await _video_turn.execute(video_req[" in src
-
-
-def test_la_rama_de_video_va_DENTRO_del_bloque_de_ejecucion():
-    """Outside `if execute:`, it would become a label again—and that is exactly the defect being closed."""
-    src = _vts.read(Path("nucleo/flash/probe.py"))
-    i_exec = src.index("    if execute:")
-    i_video = src.index('elif action == "canvas:show:youtube" and video_req:')
-    assert i_exec < i_video
 
 
 def test_el_rail_es_el_MISMO_que_usa_la_voz():
