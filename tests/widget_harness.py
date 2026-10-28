@@ -1,8 +1,8 @@
 #
-# widgets/harness.py — the per-widget mini-harness. Runs OUTSIDE the server, from the repo root:
+# tests/widget_harness.py — the per-widget mini-harness. Runs OUTSIDE the server, from the repo root:
 #
-#   ./.venv/bin/python -m widgets.harness            # every widget in the catalog
-#   ./.venv/bin/python -m widgets.harness agenda …   # just these
+#   ./.venv/bin/python -m tests.widget_harness            # every widget in the catalog
+#   ./.venv/bin/python -m tests.widget_harness agenda …   # just these
 #
 # Three checks per widget, all local and fast:
 #   contract — generator._validate(): manifest + `export function render` + data.py compiles + view_data() runs
@@ -42,7 +42,7 @@ def _shape(d: dict) -> dict:
 
 
 def check_contract(wid: str) -> tuple[bool, str]:
-    from . import generator
+    from widgets import generator
     ok, err = generator._validate(wid)
     return ok, err or "valid"
 
@@ -97,7 +97,7 @@ def check_render(wid: str) -> tuple[bool, str]:
 
 
 def check_screens(wid: str) -> tuple[bool, str]:
-    from . import screen_policy
+    from widgets import screen_policy
     p = os.path.join(paths.dir_for(wid) or paths.new_dir(wid), "manifest.json")
     try:
         man = json.load(open(p, encoding="utf-8"))
@@ -127,7 +127,7 @@ _MANUAL = {
 
 
 def manual_steps(wid: str) -> list[str]:
-    from . import registry, screen_policy, runtime
+    from widgets import registry, screen_policy, runtime
     man = next((w for w in runtime.catalog() if w.get("id") == wid), {"id": wid})
     name = registry.display_name("widgets", wid, str(man.get("name") or man.get("title") or wid))
     return [s.format(name=name) for s in _MANUAL[screen_policy.of(man)]]
@@ -139,7 +139,7 @@ def two_screens(widget_ids: list[str], headed: bool = False) -> int:
 
 
 def run(widget_ids: list[str] | None = None) -> int:
-    from . import runtime
+    from widgets import runtime
     ids = widget_ids or [w["id"] for w in runtime.catalog()]
     failures = 0
     for wid in ids:
@@ -158,7 +158,7 @@ def run(widget_ids: list[str] | None = None) -> int:
 def main(argv: list[str]) -> int:
     ids = [a for a in argv if not a.startswith("--")] or None
     if "--manual" in argv:
-        from . import runtime
+        from widgets import runtime
         for wid in ids or [w["id"] for w in runtime.catalog() if not w.get("transient")]:
             print(f"\n▸ {wid} — manual two-screen pass (a computer and a phone, one agent)")
             for i, step in enumerate(manual_steps(wid), 1):

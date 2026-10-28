@@ -4,7 +4,7 @@
 # Extracted from widgets/generator.py: that file mixed job orchestration (spawn the headless Claude Code agent,
 # lock/journal it) with this — a static analyzer that has no shared mutable state with the orchestration half and
 # is cohesive on its own ("does this widget's code obey the contract?"). generator.py imports `_validate` and the
-# other names it calls directly, so existing callers (widgets/harness.py, widgets/server_api.py, and every test
+# other names it calls directly, so existing callers (tests/widget_harness.py, widgets/server_api.py, and every test
 # that does `from widgets import generator; generator._validate(...)`) keep working unchanged.
 #
 import json
