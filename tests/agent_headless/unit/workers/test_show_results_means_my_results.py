@@ -17,8 +17,9 @@ from nucleo import worker_api
 def _shows(monkeypatch):
     got = []
     import voice.observer as obs
-    monkeypatch.setattr(obs, "emit",
-                        lambda *a, **k: got.append((a, k.get("extra") or {})), raising=False)
+    monkeypatch.setattr(obs, "emit",          # the canvas ops, not the door's `arbiter` verdict beside them
+                        lambda *a, **k: a and a[0] == "widget" and got.append((a, k.get("extra") or {})),
+                        raising=False)
     return got
 
 

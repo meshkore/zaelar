@@ -93,6 +93,8 @@ export function openSSE(desktop) {
     // 2026-09-27: four result sheets and a document on a «blank» desktop). A re-open of this stream IS the
     // restart seen from the tab; the same takeover the boot runs decides whether the epoch moved.
     sweepOnReopen(++_opens, () => takeoverOnReset(browserTakeoverArgs()));
+    // V2-825 F5 — and the screen adopts the engine's list of cards: an orphan the engine cannot name goes.
+    sweepOnReopen(_opens, () => desktop && desktop.reconcile && desktop.reconcile());
   };
   es.onmessage = ev => {
     let d; try { d = JSON.parse(ev.data); } catch (_) { return; }

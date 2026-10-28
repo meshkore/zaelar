@@ -48,7 +48,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
             acted["widget"] = True
             # V2-773 — a show the door SUPPRESSES (already open) is not the act: the turn's order was inside
             # the card («Open the most important one»), and `card_commission.after_show` asks for the call.
-            acted["show_suppressed"] = not _pst._cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit)
+            acted["show_suppressed"] = not _pst._cvis.present(_guard_wid, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
             acted["widget_id"] = acted.get("widget_id") or _guard_wid
             emit("brain", "🪟 show por guard determinista (tool espuria evitada)",
                  text=f"{_guard_wid} ({'search' if _was_search else 'escalate'}→show"
@@ -100,7 +100,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
                                                                    spec=spec, window=list(brain._window), brief=_brief))
             if _ar:
                 _pst._cvis.present(_pst._direct_action.card_to_present(_ar["widget_id"], operator_text),
-                                   reason="turn-order", src="flash", emit=emit)   # the sheet, never the bare base
+                                   reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)   # the sheet, never the bare base
                 _apply_widget_data(_ar["widget_id"], _ar["action"], _ar["payload"])
                 escalate_req["v"], escalate_req["more"], acted["widget"] = None, [], True
                 emit("brain", "🎯 acción declarada en vez de un worker (segunda pasada con sus campos)",

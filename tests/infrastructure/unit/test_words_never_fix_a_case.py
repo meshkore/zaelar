@@ -26,8 +26,8 @@ from pathlib import Path
 ENGINE = Path(__file__).resolve().parents[3]
 
 #: Measured 2026-10-19 at 295ff4ec (366 files). Lower these when you remove; never raise them.
-MAX_REGEXES = 496   # refactor2710-07: the presence knock and the bare call became action-map rows; refactor2710-03: the word gates over our own reply went (was 532); refactor2710-01: the old text channel went (was 543); V2-806: the spoken-rule parsers went
-MAX_WORD_TABLES = 459  # refactor2710-07: the self-correction words became the brief's item_ref verdict; refactor2710-03: the claim vocabulary went (the player receipt's tables moved to reply_receipts); refactor2710-12: two dispatch tables read off their handler names; refactor2710-01: the old text channel's reply door went; refactor2710-11: a guessed dimension row went (was 476)
+MAX_REGEXES = 496   # refactor2710-03: the word gates over our own reply went (was 532); refactor2710-01: the old text channel went (was 543); V2-806: the spoken-rule parsers went
+MAX_WORD_TABLES = 457  # refactor2710-06: the reminder rails went; refactor2710-03: the claim vocabulary went (the player receipt's tables moved to reply_receipts); refactor2710-12: two dispatch tables read off their handler names; refactor2710-01: the old text channel's reply door went; refactor2710-11: a guessed dimension row went (was 476)
 
 
 def _strings(v) -> int:

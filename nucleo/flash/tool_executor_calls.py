@@ -146,9 +146,9 @@ def _t_show_widget(*, args, _brief, _router, _say, _show_guard_target, _show_tar
             emit("brain", "🏗️ show_widget→CREATE: se escala al generador (no es un show)", text=_bd[1][:60], role="system")
         else:
             from widgets import runtime
-            # Resolve WITH CERTAINTY (V2-082) — in show_target.resolve_show since V2-650b.
-            _res, _open, _recent = _tx._show_target.resolve_show(
-                _wid, text, brain._window, brain._last_action, _show_guard_target)
+            # Resolved WITH CERTAINTY (V2-082) by the canvas door's own resolver (`canvas.resolve`, refactor2710-04).
+            from nucleo.acts import canvas as _door
+            _res, _open, _recent = _door.resolve(_wid, text, brain._window, brain._last_action, _show_guard_target)
             _rid = _res.get("match") or ""
             _rid = _rid if (_rid and runtime.get(_rid.split("::", 1)[0]) is not None) else ""
             _sys = _res.get("system")
@@ -237,7 +237,8 @@ def _t_arrange_canvas(*, _tool_fired, acted, emit):
     # existed. A whole-canvas action: the same emit as the REST endpoint.
     if "arrange_canvas" not in _tool_fired:
         _tool_fired.add("arrange_canvas")
-        emit("widget", "arrange", extra={"src": "flash"})
+        from nucleo.acts import canvas
+        canvas.apply("arrange", src="flash", emit=emit)
         emit("brain", "▦ arrange_canvas → canvas", role="system")
         acted["widget"] = True
 

@@ -146,7 +146,7 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
                 return False
             if not wid:
                 from nucleo.flash import bulk_close as _bulk
-                _bulk.close_all(emit, src="flash", text=text)
+                _bulk.close_all(emit, src="flash", text=text, brief=brief)
                 return True
             _t = _close_target(wid, text)
             if _t["ask"]:
@@ -156,9 +156,12 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
                          extra={"options": _t["options"]})
                     return True
                 return False        # sin canal para preguntar, mejor no cerrar a ciegas
-            for _cid in (_t.get("ids") or [_t["id"] or wid]):
-                emit("widget", "close", extra={"id": _cid, "src": "flash"})
-            return True
+            from nucleo.acts import canvas_turn
+            from nucleo.acts import canvas
+            req = canvas_turn.request_of(brief, text)
+            done = [canvas.apply("close", _cid, src="flash", emit=emit, request=req)
+                    for _cid in (_t.get("ids") or [_t["id"] or wid])]
+            return any(done)
         wid = _identify_named(text)
         if wid:
             # V2-605 F2 — the instance, as the close branch resolves it: «Enséñame el navegador» with four cards
@@ -172,9 +175,9 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
                     return True
                 # No channel to ask through: SHOW the base, exactly as before. Staying silent here would
                 # turn a slightly-wrong card into a turn where nothing happens at all.
-                _cvis.present(wid, reason="turn-order", src="flash", emit=emit)
+                _cvis.present(wid, reason="turn-order", src="flash", emit=emit, text=text, brief=brief)
                 return True
-            _cvis.present(str(_t.get("id") or wid), reason="turn-order", src="flash", emit=emit)
+            _cvis.present(str(_t.get("id") or wid), reason="turn-order", src="flash", emit=emit, text=text, brief=brief)
             return True
     except Exception as e:  # noqa: BLE001
         logger.warning(f"widget fallback skipped: {e}")
