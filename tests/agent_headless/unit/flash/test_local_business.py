@@ -97,6 +97,7 @@ def test_the_promise_after_the_missing_datum_now_starts_something(monkeypatch):
     out = H.run_case({
         "id": "v144", "lang": "es", "phrase": "En Valencia, por el barrio de Ruzafa.", "source": "V2-144",
         "screen": {"open": []}, "expect": "escalate",
+        "brief": {"escalate_or_inline": ("escalate", 1.0)},    # refactor2710-03: the brief owes the act, not our words
         "model": {"say": "Perfecto. Me pongo a buscar peluquerías en el barrio de Ruzafa, Valencia, y te digo cuál "
                          "encuentro."},
         "history": [

@@ -1,4 +1,4 @@
-"""Tests for nucleo/tasks.py (V2-728) — the SessionRecord ↔ durable task row seam.
+"""Tests for nucleo/circuit/ledger.py (V2-728) — the SessionRecord ↔ durable task row seam.
 
 The two vocabularies do not match, and the differences carry meaning. These hold the translation in place.
 """
@@ -6,7 +6,7 @@ import pytest
 
 from memory import db as memdb
 from memory import tasks_store as ts
-from nucleo import tasks as T
+from nucleo.circuit import ledger as T
 from nucleo.workers.session import SessionRecord
 
 

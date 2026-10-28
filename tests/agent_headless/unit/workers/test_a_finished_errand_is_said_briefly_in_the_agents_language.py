@@ -33,9 +33,9 @@ def world(monkeypatch):
         async def complete(self, messages, **k):
             asked.append(messages)
             return "Your monitors are ready — the Dell S2725QS at $299.99 is the best pick."
-    import nucleo.flash.fast_client as fc
+    import nucleo.llm.fast_client as fc
     monkeypatch.setattr(fc, "FastClient", _Client)
-    import nucleo.errand_title as et
+    import nucleo.request.title as et
     monkeypatch.setattr(et, "_spec_for_naming", lambda: object())
     import i18n.langs as langs
     monkeypatch.setattr(langs, "current_language", lambda: types.SimpleNamespace(name="English", native="English"))
@@ -66,7 +66,7 @@ def test_when_the_model_does_not_answer_only_the_opening_is_said(world, monkeypa
     class _Down:
         async def complete(self, *a, **k):
             raise TimeoutError("down")
-    import nucleo.flash.fast_client as fc
+    import nucleo.llm.fast_client as fc
     monkeypatch.setattr(fc, "FastClient", _Down)
     _deliver()
     assert said and len(said[0]) <= sd._MAX_CHARS and "**" not in said[0]

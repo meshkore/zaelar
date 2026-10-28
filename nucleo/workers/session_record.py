@@ -32,6 +32,7 @@ class SessionRecord:
     # A RELAY inherits it: one commission, one row across provider changes.
     uid: str = ""
     title: str = ""               # V2-530 — the NAME, beside the BRIEF; readers fall back to `goal`
+    heard: str = ""               # his commissioning sentence (Request.heard): what the errand's sheet judges rows by
     kind: str = "generic"
     backend: str = ""
     label: str = ""
@@ -77,7 +78,7 @@ class SessionRecord:
     # enough?». -1 = not reported.
     considered: int = -1
     kept: int = -1
-    # V2-707 F2 — HOW SUCCESS IS MEASURED, in `nucleo/verify.py`'s grammar; the rule is in `workers/goal.py`.
+    # V2-707 F2 — HOW SUCCESS IS MEASURED, in `nucleo/circuit/verify.py`'s grammar; the rule is in `workers/goal.py`.
     # Empty = nothing declared, and then nothing is claimed: an absent condition is not a failed one.
     done_when: dict = field(default_factory=dict)
     goal_retried: bool = False

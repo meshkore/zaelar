@@ -89,7 +89,6 @@ def test_a_typed_turn_asking_for_a_few_videos_builds_the_queue(rail, monkeypatch
     assert rail.get("action") == "queue_search", f"the queue must reach the player, got {rail}"
 
 
-@pytest.mark.xfail(reason="refactor2710-03: the mouth speaks the verdict", strict=True)
 def test_the_typed_queue_turn_names_what_plays(rail, monkeypatch):
     """The promise to line them up is backed by what plays, said in the turn (V2-469). The voice turn's words stream
     before the player answers; saying what plays is the mouth saying the verdict — the 03's class."""

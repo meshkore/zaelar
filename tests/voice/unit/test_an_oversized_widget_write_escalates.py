@@ -16,7 +16,7 @@ def _src(rel: str) -> str:
 
 
 def test_the_helper_names_only_a_token_capped_widget_write():
-    from nucleo.flash.fast_client import oversized_widget_write
+    from nucleo.llm.fast_client import oversized_widget_write
     hit = {"dropped_tool_calls": [{"name": "widget_data", "reason": "cortada por el tope de tokens",
                                    "args_head": '{"id":"documento","action":"show","payload":{"title":"Decl'}]}
     head = oversized_widget_write(hit)
@@ -35,7 +35,7 @@ def test_the_helper_names_only_a_token_capped_widget_write():
 def test_the_drop_record_carries_the_head_of_what_was_being_written():
     """Without `args_head` the rescue can only escalate the operator's bare turn text — which at the
     measured incident was «Venga, estoy esperando.», an errand no worker can act on."""
-    from nucleo.flash.fast_client import _drop_tool_call
+    from nucleo.llm.fast_client import _drop_tool_call
     metrics = {"finish_reason": "length"}
     _drop_tool_call(metrics, "widget_data", '{"id":"documento","action":"show","payload":{"title":"X","body":"' + "a" * 500)
     d = metrics["dropped_tool_calls"][0]

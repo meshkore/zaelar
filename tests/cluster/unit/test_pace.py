@@ -56,7 +56,7 @@ class _FakeFC:
 
 
 def test_evaluate_returns_model_verdict(monkeypatch):
-    import nucleo.flash.fast_client as fc
+    import nucleo.llm.fast_client as fc
     monkeypatch.setattr(fc, "FastClient", lambda: _FakeFC('{"health":"dead_end","action":"pause","reason":"bloqueado"}'))
     v = asyncio.run(evaluator.evaluate([{"who": "peer", "text": "x"}] * 4, {"turns": 9}, spec=object()))
     assert v["action"] == "pause" and v["health"] == "dead_end"
@@ -65,7 +65,7 @@ def test_evaluate_returns_model_verdict(monkeypatch):
 def test_evaluate_failopen_on_model_error(monkeypatch):
     class _Boom:
         async def complete(self, *a, **k): raise RuntimeError("modelo caído")
-    import nucleo.flash.fast_client as fc
+    import nucleo.llm.fast_client as fc
     monkeypatch.setattr(fc, "FastClient", lambda: _Boom())
     v = asyncio.run(evaluator.evaluate([{"who": "peer", "text": "x"}] * 4, {}, spec=object()))
     assert v["action"] == "continue"                  # an infrastructure failure NEVER cuts off the conversation

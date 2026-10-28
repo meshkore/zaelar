@@ -19,7 +19,8 @@ EMPTY_CARD = "items ahora: NINGUNO — la tarjeta está ABIERTA pero VACÍA"
 
 
 def _model_corrects_to(monkeypatch, fixed: dict, digest: str = EMPTY_CARD):
-    from nucleo.flash import fast_client as FC, widget_read as WR
+    from nucleo.flash import widget_read as WR
+    from nucleo.llm import fast_client as FC
 
     async def _complete(self, msgs, on_tool_call=None, **kw):
         on_tool_call("widget_data", {"widget_id": "musica", "action": "play_playlist", "payload": fixed})

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import errand_kind
+from nucleo.request import kind as errand_kind
 from nucleo.flash import router_guards
 
 RECIPE = ("Provide a classic, authentic Roman carbonara recipe (guanciale, eggs, pecorino, pasta water — no cream) "

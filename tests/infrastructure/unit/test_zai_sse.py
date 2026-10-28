@@ -4,7 +4,7 @@ The HTTP transport is tested end-to-end against a live GLM-4.5-Air (pending fund
 PURE and deterministic component: `_AnthropicSSE.feed()` reconstructs the text and tool calls from the
 stream's `data:` objects, including the realistic case of a `tool_use` `input_json` FRAGMENTED across multiple deltas.
 """
-from nucleo.flash.fast_client import _AnthropicSSE
+from nucleo.llm.fast_client import _AnthropicSSE
 
 
 def _drive(objs):

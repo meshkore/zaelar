@@ -97,7 +97,7 @@ def test_the_model_health_lines_follow_the_operators_language():
 def test_the_dry_chain_speaks_his_language_and_shows_the_key_instead_of_saying_it():
     """V2-244 renegotiated by the operator: the silenced rung is still NAMED aloud, the config key moves to
     the screen next to the button that acts on it."""
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
     line = _in("en", lambda: pc.dry_chain_line(["deepseek-directo"]))
     assert "deepseek-directo" in line and "credit" in line.lower()
     assert "fast.providers" not in line
@@ -177,7 +177,7 @@ def test_the_boot_tops_up_the_language_after_an_update():
 def test_the_fault_that_blocks_the_screen_carries_FACTS_and_not_prose():
     """A dry model chain is the one moment the translator —a model— is what we do not have, so the engine
     sends facts and the frontend renders them from its own bundle."""
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
     f = pc.dry_fault()
     assert set(f) >= {"code", "model", "provider", "suppressed", "config_key"}
     assert all(not isinstance(v, str) or len(v) < 60 for v in f.values()), "no sentences in the payload"

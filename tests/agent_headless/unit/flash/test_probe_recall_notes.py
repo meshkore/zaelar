@@ -86,7 +86,7 @@ def test_recall_query_excludes_prepended_system_note(fresh_db, probe_session, mo
 
     monkeypatch.setattr(_recall, "compose", _spy_compose)
     monkeypatch.setattr(prompt_mod, "build_flash_system", _spy_build)
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _NoNetworkFastClient)
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _NoNetworkFastClient)
 
     brain_notes.push("[SISTEMA] Telegram: 1 mensaje(s) nuevo(s) que le importan al operador: ? (grupo GOLD "
                       "SIMPLIFICADO): Near our tp1 we take out 20-30% of this trade and set breakeven ok?. "

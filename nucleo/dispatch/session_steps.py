@@ -167,7 +167,7 @@ async def run_it_to_its_delivery(*, _dev, _dev_settings_path, _wd, brief, escala
         # V2-079 → V2-728: the DURABLE trace of the ending execution, now a `tasks` row (was a 50-entry
         # `sys_kv` blob) with its RESULT attached. Best-effort, off the hot path.
         try:
-            from nucleo import tasks as _tasks
+            from nucleo.circuit import ledger as _tasks
             _tasks.closed(rec)
         except Exception:  # noqa: BLE001
             pass

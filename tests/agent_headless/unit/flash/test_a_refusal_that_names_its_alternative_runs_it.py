@@ -41,7 +41,8 @@ class _Client:
 
 @pytest.fixture
 def client(monkeypatch):
-    from nucleo.flash import fast_client, widget_read
+    from nucleo.flash import widget_read
+    from nucleo.llm import fast_client
     monkeypatch.setattr(fast_client, "FastClient", _Client)
     monkeypatch.setattr(widget_read, "read", lambda wid: "1. Jaén · 3. José Manuel · 5. Iván\nCOLA: vacía")
     _Client.calls, _Client.answer = [], []

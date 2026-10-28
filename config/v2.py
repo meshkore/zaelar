@@ -69,7 +69,7 @@ _DEFAULTS: dict[str, dict] = {
         "model": _t("voice_brain", "model"),                # from the table; passed per invocation
         "base_url": _t("voice_brain", "base_url"),          # DIRECTO, no el broker
         "api_key": "",
-        # Explicit RELAY chain for the VOICE role (2026-08-15 fix): `nucleo.flash.provider_chain._voice_chain()`
+        # Explicit RELAY chain for the VOICE role (2026-08-15 fix): `nucleo.llm.provider_chain._voice_chain()`
         # already read `cfg.get("providers")` on this exact key — its own docstring says "the operator activates
         # it by putting `fast.providers` in their config" — but `set()` only accepts keys already in `_DEFAULTS`,
         # and this one was never declared here. The promised override existed in the reader and was unreachable
@@ -108,7 +108,7 @@ _DEFAULTS: dict[str, dict] = {
         # empty (default) = usual behavior (base_url above + KNOWN catalog + local license).
         "providers": [],
     },
-    # CLUSTER BRAIN chain (V2-069 "one mind", off-voice — `nucleo.flash.provider_chain`, 2026-08-03). Motivated by
+    # CLUSTER BRAIN chain (V2-069 "one mind", off-voice — `nucleo.llm.provider_chain`, 2026-08-03). Motivated by
     # the Z.AI 429 incident: a cluster turn (heartbeat/reply to a peer) had only ONE tier fixed at server boot
     # (`connectors/meshkore/brain.py`), without relay — once its quota was exhausted, the turn died and was retried
     # ALWAYS against the same broken provider. `providers` (empty = default) lets the operator manually set
@@ -225,7 +225,7 @@ _DEFAULTS: dict[str, dict] = {
     # RESEARCH DIRECTOR (nucleo/workers/brief.py) — composes the BRIEF with which a Brain Worker executes a SELECTION
     # (hard/soft criteria separated, expert enrichments, minimum candidate breadth, quality rubric, deliverable
     # shape). Runs in the ASYNC pre-flight of escalation, never in the voice turn, so here it CAN reason. Empty =
-    # goes through the reasoning-tier CHAIN (nucleo/flash/provider_chain.py), which also relays provider if the
+    # goes through the reasoning-tier CHAIN (nucleo/llm/provider_chain.py), which also relays provider if the
     # primary runs out of quota; fill model+base_url only to PIN a concrete one. Fail-open: without a brief the
     # worker starts as before.
     "research": {

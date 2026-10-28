@@ -27,7 +27,7 @@ import asyncio
 
 import pytest
 
-from nucleo.flash import fast_client as fc
+from nucleo.llm import fast_client as fc
 
 
 class _Delta:

@@ -116,7 +116,7 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
     if kind == "broken":
         until = time.time() + _p._BROKEN_COOLDOWN_S     # V2-682 — see `is_broken_request`
     elif kind == "exhausted":
-        # Same floor as `nucleo/flash/provider_chain.py` (2026-08-09): an already PAST reset date freed the tier
+        # Same floor as `nucleo/llm/provider_chain.py` (2026-08-09): an already PAST reset date freed the tier
         # at once → self-relay loop. V2-243: an empty BALANCE has nothing to wait for.
         until = (time.time() + _p._DEPLETED_COOLDOWN_S) if dry \
             else max(_p._reset_epoch(text), time.time() + _p._DEFAULT_COOLDOWN_S)

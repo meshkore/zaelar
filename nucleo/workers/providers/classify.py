@@ -58,7 +58,7 @@ def is_context_overflow(text: str) -> bool:
 
 # V2-243 — AN EMPTY BALANCE IS NOT A QUOTA: a quota returns on its own, a balance only when the operator tops up.
 # Measured 2026-08-21: DeepSeek `Insufficient Balance` (HTTP 402) showed «no quota until 03:02 · NO RELAY». A
-# separate predicate, not a new `classify_failure` value: `nucleo/flash/provider_chain.py` branches on its three
+# separate predicate, not a new `classify_failure` value: `nucleo/llm/provider_chain.py` branches on its three
 # values and would return None for an unknown one (same reason as `is_context_overflow`).
 _DEPLETED_RE = re.compile(
     r"insufficient (?:balance|credit|funds)|out of credit|no credit|balance is insufficient|"

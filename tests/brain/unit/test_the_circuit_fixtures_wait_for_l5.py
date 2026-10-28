@@ -25,7 +25,7 @@ def test_the_circuit_cases_have_the_shape_l5_will_run():
     for c in cases:
         assert REQUIRED <= set(c), c.get("id")
         assert isinstance(c["beats"], list) and c["beats"], c["id"]
-        assert "end" in c["expect"] and c["expect"]["end"] in ("met", "gave_up", "unverifiable"), c["id"]
+        assert "end" in c["expect"] and c["expect"]["end"] in ("met", "unmet", "unverifiable"), c["id"]
         assert c["expect"].get("false_done", 0) == 0, "no circuit case may accept a false «done»"
 
 

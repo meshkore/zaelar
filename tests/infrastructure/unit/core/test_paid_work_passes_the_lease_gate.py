@@ -117,8 +117,8 @@ def test_the_model_egress_refuses_without_a_lease(no_lease):
 
 
 def _stream_refuses_before_any_client(monkeypatch):
-    from nucleo.flash import fast_client, provider_failure
-    from nucleo.flash.model_spec import ModelSpec
+    from nucleo.llm import fast_client, provider_failure
+    from nucleo.llm.model_spec import ModelSpec
     built, marked = [], []
     monkeypatch.setattr(fast_client.FastClient, "_client_for", lambda self, spec: built.append(1) or (_ for _ in ()).throw(RuntimeError("x")))
     monkeypatch.setattr(provider_failure, "handle", lambda *a, **k: marked.append(1) or {})
@@ -186,8 +186,8 @@ def test_the_boot_search_probe_never_pays_in_a_leased_deployment(monkeypatch):
 
 
 def test_a_refusal_never_marks_a_provider(no_lease):
-    from nucleo.flash import provider_failure
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_failure
+    from nucleo.llm import provider_chain as pc
     assert provider_failure.handle("no energy lease for llm", role=pc.ROLE_VOICE) == {"relay": None, "dry": False}
 
 

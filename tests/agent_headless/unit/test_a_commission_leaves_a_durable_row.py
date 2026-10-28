@@ -1,7 +1,7 @@
 """V2-728 — a commission the operator hands over leaves a DURABLE row, and the dispatcher is what writes it.
 
 These drive the REAL `dispatch.run_listener` with a fake worker backend, because the module-level tests of
-`nucleo/tasks.py` prove the translation and prove nothing about whether anybody calls it. That distinction has
+`nucleo/circuit/ledger.py` prove the translation and prove nothing about whether anybody calls it. That distinction has
 a scar: 33 green tests once covered a mechanism that had been disconnected from `_finish`. What is fixed here
 is the CALL and its ORDER — the row exists while the worker is still running, not only once it is over, which
 is the whole point of a counter the operator can watch go up.
@@ -182,7 +182,7 @@ def test_the_NAME_reaches_the_row_when_it_is_composed(fresh_db, monkeypatch):
     whole file green, because every other test here only ever checked the goal. The title is half of what
     `task_search` matches on, so a row stuck on the provisional clip is a task he cannot ask for by name.
     """
-    from nucleo import errand_title as et
+    from nucleo.request import title as et
     monkeypatch.setattr(et, "enabled", lambda: True)
 
     async def _compose(goal, **kw):

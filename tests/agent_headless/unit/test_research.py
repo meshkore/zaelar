@@ -231,7 +231,7 @@ def test_a_slow_composer_never_holds_the_task_hostage(monkeypatch):
     # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
     # dies. `None` = model fixed by the operator, which is not a chain selection.
     monkeypatch.setattr(research, "_spec", lambda: (object(), None))
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Hung())
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _Hung())
     with pytest.raises(research.ComposerUnavailable):
         asyncio.run(research.compose("busca las mejores vacaciones", timeout=0.2))
 
@@ -246,7 +246,7 @@ def test_a_broken_composer_fails_open(monkeypatch):
     # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
     # dies. `None` = model fixed by the operator, which is not a chain selection.
     monkeypatch.setattr(research, "_spec", lambda: (object(), None))
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Boom())
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _Boom())
     with pytest.raises(research.ComposerUnavailable):
         asyncio.run(research.compose("busca las mejores vacaciones"))
 
@@ -268,7 +268,7 @@ def test_a_good_composer_produces_a_directed_brief(monkeypatch):
     # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
     # dies. `None` = model fixed by the operator, which is not a chain selection.
     monkeypatch.setattr(research, "_spec", lambda: (object(), None))
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Ok())
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _Ok())
     b = asyncio.run(research.compose("nos queremos ir de vacaciones a Baleares en agosto"))
     assert b["breadth"]["min_candidates"] >= research._MIN_CANDIDATES_FLOOR
     assert b["request"].startswith("nos queremos ir")     # the literal request travels with the brief
@@ -428,7 +428,7 @@ def test_declining_is_not_an_outage_and_keeps_the_normal_budget(monkeypatch):
     # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
     # dies. `None` = model fixed by the operator, which is not a chain selection.
     monkeypatch.setattr(research, "_spec", lambda: (object(), None))
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _No())
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _No())
     assert asyncio.run(research.compose("¿qué hora es?")) is None
 
 
@@ -444,7 +444,7 @@ def test_an_unreadable_answer_is_an_outage_not_a_decline(monkeypatch):
     # V2-225: `_spec` returns (spec, tier)—the tier is what is reported to the chain if the provider
     # dies. `None` = model fixed by the operator, which is not a chain selection.
     monkeypatch.setattr(research, "_spec", lambda: (object(), None))
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Garbage())
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _Garbage())
     with pytest.raises(research.ComposerUnavailable):
         asyncio.run(research.compose("busca las mejores vacaciones"))
 

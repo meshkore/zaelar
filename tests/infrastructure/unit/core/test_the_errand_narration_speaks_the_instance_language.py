@@ -12,7 +12,7 @@ import pytest
 
 
 def _lines() -> dict:
-    from nucleo.errand_kind import default_label
+    from nucleo.request.kind import default_label
     from nucleo.workers import progress as P
     from nucleo.workers.tool_steps import _tool_phase
     from widgets.results import data as sheet

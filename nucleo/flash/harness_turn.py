@@ -35,7 +35,7 @@ OVERSIZED = "oversized"
 def note_shown(shown_ids, words: str, *, trace: str = "") -> None:
     """Every card this turn showed becomes an open GOAL of the harness (content in it)."""
     try:
-        from nucleo import harness
+        from nucleo.circuit import harness
         for wid in list(shown_ids or []):
             if wid:
                 harness.note_goal(harness.KIND_WIDGET_CONTENT, str(wid), words, trace=trace)
@@ -62,7 +62,7 @@ async def rescue(spoken: str, *, data_done: bool, turn_text: str, metrics=None, 
     if not may_escalate:
         return None
     try:
-        from nucleo import harness
+        from nucleo.circuit import harness
         goal = await harness.false_claim(spoken, data_done=data_done)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"harness skipped: {e}")
@@ -79,7 +79,7 @@ async def rescue(spoken: str, *, data_done: bool, turn_text: str, metrics=None, 
     head = None
     if metrics is not None:
         try:
-            from nucleo.flash.fast_client import oversized_widget_write
+            from nucleo.llm.fast_client import oversized_widget_write
             head = oversized_widget_write(metrics)
         except Exception:  # noqa: BLE001
             head = None

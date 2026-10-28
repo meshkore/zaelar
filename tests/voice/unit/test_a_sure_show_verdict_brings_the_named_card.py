@@ -34,8 +34,7 @@ def test_unsure_or_not_an_order_does_not():
 
 def test_the_promise_backstop_wakes_on_the_verdict_and_identifies_by_it():
     src = _vts.read(SRC)
-    gate = re.search(r"if \(_no_tool and spoken_text\n.*?and not _router\.asks_for_missing_detail\(spoken_text\)\):",
-                     src, re.S)
+    gate = re.search(r"if \(_no_tool\n.*?_direct_action\.verdict_shows\(_brief\)\)\):", src, re.S)
     assert gate and "_direct_action.verdict_shows(_brief)" in gate.group(0)
     # 5a572275 (demo C1): the card the verdict names wins over the contextual guess, then the same gate.
     # V2-807 T-06: the grammar-or-verdict choice lives in ONE helper, where a sure non-show verdict overrules the grammar.

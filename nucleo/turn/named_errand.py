@@ -119,7 +119,7 @@ def spoken_name(errand: dict, limit: int = 72) -> str:
     — never our listing wrapper and never a mid-word cut. three-tasks-at-once (ES, 2026-10-11 02:58): «Así va todo:
     Crear un widget nuevo para el canvas: un juego de plataformas tipo Sup: esperando…; Find real marketplace
     listings for: monitor de ordenador usado (condit: mirando «results»» was read to him as a status."""
-    from nucleo import errand_title as _et
+    from nucleo.request import title as _et
     from nucleo.turn.errands_of_a_turn import ask_of
     for name in (errand.get("title"), errand.get("label")):
         name = str(name or "").strip()

@@ -178,7 +178,7 @@ def _live_chains() -> "list[tuple[str, list[dict]]]":
     which is the failure mode that already cost a round here. What matters is what the builders RETURN.
     """
     out = []
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
     from nucleo.workers import providers as wp
     out.append(("voice latency relays", list(pc._VOICE_RELAYS())))
     out.append(("voice catalogue", list(pc._known_chain())))

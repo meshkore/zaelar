@@ -111,7 +111,7 @@ def test_the_voice_chain_actually_CARRIES_the_stand_in(monkeypatch):
     code. The ONLY symptom was a bill that did not fall and an agent that went mute instead of relaying."""
     import os
     from config import credentials as C
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
     for env in ("DEEPSEEK_API_KEY", "OPENAI_API_KEY"):
         monkeypatch.setenv(env, C.get(env) or "test-key-for-the-chain")
     names = [t.get("base_url") for t in pc.chain(pc.ROLE_VOICE)]
@@ -126,7 +126,7 @@ def test_a_rung_whose_key_is_missing_is_not_in_the_chain(monkeypatch):
     test of that is whether the key is there, not who is running the engine."""
     import os
     from config import credentials as C
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
     monkeypatch.setenv("DEEPSEEK_API_KEY", C.get("DEEPSEEK_API_KEY") or "test-key-for-the-chain")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     names = [t.get("base_url") for t in pc.chain(pc.ROLE_VOICE)]

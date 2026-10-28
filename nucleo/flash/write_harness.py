@@ -70,7 +70,7 @@ def goal_on(done_when, card: str, order: str = "") -> dict | None:
     turn can owe. Demo pass 145, INIT: «Remember: … the Tesla insurance renews on March 12…» inferred four agenda
     rows («Ducati insurance renewal», «Tesla next service»…) and the harness wrote three meetings nobody asked for;
     a row is owed only when every value that names it is in what he said."""
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     if not done_when:
         return None
     said = " ".join(str(order or "").lower().split())
@@ -84,7 +84,7 @@ def goal_on(done_when, card: str, order: str = "") -> dict | None:
 async def check(order: str, writes: list, *, spec=None, settle_s: float = SETTLE_S) -> int:
     """Run the loop once; the number of repair calls applied. Never raises."""
     try:
-        from nucleo import spec as _spec, verify as _verify
+        from nucleo.circuit import spec as _spec, verify as _verify
         card = writes[0][0]
         goal = goal_on(await _spec.infer(order), card, order)
         if not goal:
@@ -112,7 +112,7 @@ async def check(order: str, writes: list, *, spec=None, settle_s: float = SETTLE
 async def _missing_calls(order: str, card: str, allowed: list, missing: list, *, spec=None) -> list[tuple[str, dict]]:
     """One pass, bounded to the actions this turn already ran on `card`."""
     from nucleo.flash import act_repair as _ar, repair_grounding as _rg, widget_read as _wr
-    from nucleo.flash.fast_client import FastClient
+    from nucleo.llm.fast_client import FastClient
     from widgets import runtime as _rt
     tool = _ar._widget_data_tool()
     manifest = _rt.get(card) or {}

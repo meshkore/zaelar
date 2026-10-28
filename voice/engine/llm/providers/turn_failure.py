@@ -89,7 +89,7 @@ async def say_the_turn_failed(*, emit, err_exc, err_text, errored, llm_metrics, 
         # después, y el operador se queda mirando un LLM en rojo que funciona. Se distingue el HECHO (este turno no
         # salió, y eso hay que decirlo) del DIAGNÓSTICO (el proveedor está caído, que es otra cosa y más grave).
         # V2-252 — la DECISIÓN (¿atasco o fallo duro? ¿a qué escalón se releva? ¿queda alguno?) vive ahora en
-        # `nucleo/flash/provider_failure.py`, compartida con el canal de TEXTO. Estaba escrita dos veces y esa
+        # `nucleo/llm/provider_failure.py`, compartida con el canal de TEXTO. Estaba escrita dos veces y esa
         # duplicación mordió tres veces: la última dejó al arnés ocho horas sin poder medir, con el texto
         # devolviendo un 402 en el mismo segundo en que el log decía «relevo a aimlapi-failover». Lo que NO se
         # comparte, a propósito, es lo que cada canal DICE: esta habla, el otro devuelve un objeto.
@@ -103,7 +103,7 @@ async def say_the_turn_failed(*, emit, err_exc, err_text, errored, llm_metrics, 
         # the defect instead of blaming a provider that was up.
         _mine = ""
         try:
-            from nucleo.flash import provider_failure as _pfail
+            from nucleo.llm import provider_failure as _pfail
             if _pfail.is_engine_fault(err_exc):
                 _mine = _pfail.engine_fault_line(err_exc)
         except Exception:  # noqa: BLE001
@@ -128,7 +128,7 @@ async def say_the_turn_failed(*, emit, err_exc, err_text, errored, llm_metrics, 
 
         _v = {}
         try:
-            from nucleo.flash import provider_chain as _pchain1
+            from nucleo.llm import provider_chain as _pchain1
             # `fast_client` may ALREADY have relayed inside this very turn and marked both tiers on the
             # way (V2-758). Marking again from here would punish the titular for a failure the stand-in
             # produced — the class of silent mis-attribution V2-307 paid for.
@@ -153,7 +153,7 @@ async def say_the_turn_failed(*, emit, err_exc, err_text, errored, llm_metrics, 
             # full-screen notice in the operator's own language with a button into the settings. His
             # ruling: «la voz hay que pararla y bloquear a la gente… que salga en grande… y un botón que
             # abra la configuración». Composition and facts both live in `provider_chain`.
-            from nucleo.flash import provider_chain as _pchain2   # ONE import, used twice in this branch
+            from nucleo.llm import provider_chain as _pchain2   # ONE import, used twice in this branch
             emit("alert", "Sin proveedor de modelo — no es un tropiezo, no hay a quién preguntar.",
                  text=err_text[:200] or "provider chain exhausted", extra=_pchain2.dry_alert_extra())
         else:

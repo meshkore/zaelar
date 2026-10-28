@@ -71,7 +71,7 @@ def has_live_trace(trace_id: str) -> bool:
 
 
 def find_duplicate(request: str, kind: str) -> str | None:
-    """tid of a session VIVA that already atiende ESTA request ('' → None). La REGLA lives in `nucleo/dedup.py`;
+    """tid of a session VIVA that already atiende ESTA request ('' → None). La REGLA lives in `nucleo/request/append.py`;
     here only is resuelve QUIÉN esta live, that es it only that this module sabe."""
     return _d.dedup_scan(request, kind)[0]
 

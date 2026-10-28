@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-from nucleo.flash import provider_chain as pc
+from nucleo.llm import provider_chain as pc
 
 # ALWAYS 2 days ahead of "now" — never an absolute literal (one fell behind: "2026-08-04" became
 # past and a cooldown with an already-expired reset is considered available immediately, breaking pick()).
@@ -369,7 +369,7 @@ def test_el_turno_de_VOZ_lo_pregunta_y_cambia_lo_que_dice():
         assert "credit" in pc.dry_chain_line([]).lower()
     finally:
         os.environ.pop("ZAELAR_LANGUAGE", None) if _prev is None else os.environ.update(ZAELAR_LANGUAGE=_prev)
-    from nucleo.flash import provider_failure as _pf
+    from nucleo.llm import provider_failure as _pf
     assert "pc.pick(role) is None" in inspect.getsource(_pf.handle)
 
 
@@ -551,5 +551,5 @@ def test_el_turno_de_voz_LO_LLAMA_cuando_se_atasca():
     # V2-252: the turn passes the FACT (`stalled=`) and the shared module decides `note_stall` vs `note_failure`.
     # Both halves are checked: without the first the stall does not arrive; without the second it is not penalized.
     assert "stalled=bool(stalled)" in txt
-    from nucleo.flash import provider_failure as _pf
+    from nucleo.llm import provider_failure as _pf
     assert "pc.note_stall(role=role, tier=culpable)" in inspect.getsource(_pf.handle)

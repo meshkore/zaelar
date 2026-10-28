@@ -37,7 +37,7 @@ def test_a_waiting_reply_goes_out_with_the_rows_the_sheet_already_holds(monkeypa
     assert "calle Verdi" in reply, reply
 
 
-@XFAIL
+@pytest.mark.xfail(reason="needs held TTS (option b), decided in refactor2710-99", strict=True)
 def test_an_amount_no_source_carries_does_not_survive_a_live_errand(monkeypatch):
     from nucleo import dispatch
     from nucleo.flash import live_blocks

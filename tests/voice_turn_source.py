@@ -111,8 +111,8 @@ _PROVIDER_CALLS = (
     ("        # V2-778 F1 — the phrase accumulator (a fragment", "_turn_fragment.hold_a_fragment(",
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_fragment.py", "hold_a_fragment"),
     # the post-stream chain's own blocks (spliced into it once it is back inside the turn)
-    ("        # V2-778 F1 — holding the model to its words", "_ps_words.hold_the_model_to_its_words(",
-     ENGINE / "nucleo" / "flash" / "post_stream_words.py", "hold_the_model_to_its_words"),
+    ("        # V2-778 F1 — holding the model to its words", "_ps_acts.complete_the_acts(",
+     ENGINE / "nucleo" / "flash" / "post_stream_acts.py", "complete_the_acts"),
     ("        # V2-778 F1 — the light lanes the model chose", "_ps_lanes.run_the_light_lanes(",
      ENGINE / "nucleo" / "flash" / "post_stream_lanes.py", "run_the_light_lanes"),
     ("        # V2-778 F1 — settling what is pending", "_ps_settle.settle_what_is_pending(",
@@ -129,7 +129,7 @@ _SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch" / f"{x}.py"
                                                                   for x in ("notes", "record", "events", "finish")],
           (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py", ENGINE / "server" / "run_api.py"],
           (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"],
-          POST_STREAM.resolve(): [ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py" for x in ("words", "lanes", "settle")],
+          POST_STREAM.resolve(): [ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py" for x in ("acts", "lanes", "settle")],
           (ENGINE / "widgets" / "navegador" / "owner.py").resolve(): [ENGINE / "widgets" / "navegador" / "owner_login.py",
                                                                     ENGINE / "widgets" / "navegador" / "owner_actions.py",
                                                                     ENGINE / "widgets" / "navegador" / "owner_page.py"]}
@@ -196,7 +196,7 @@ _ALIASED = {(ENGINE / "nucleo" / "dispatch" / "session.py").resolve(): "_d",
             (ENGINE / "nucleo" / "flash" / "tool_executor_widget_calls.py").resolve(): "_txw",
             (ENGINE / "voice" / "engine" / "pipeline" / "agent_events.py").resolve(): "_ag",
             **{(ENGINE / "nucleo" / "flash" / f"probe_{x}.py").resolve(): "_probe" for x in ("after", "decide", "mirrors", "before")},
-            **{(ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py").resolve(): "_pst" for x in ("words", "lanes", "settle")},
+            **{(ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py").resolve(): "_pst" for x in ("acts", "lanes", "settle")},
             (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py").resolve(): "_p",
             **{(ENGINE / "nucleo" / "dispatch" / f"{x}.py").resolve(): "_d"
                for x in ("prepare", "model", "registry", "dedup_flow", "control")},

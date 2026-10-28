@@ -13,7 +13,7 @@ import pytest
 from nucleo import dispatch
 from nucleo.dispatch import confirm as dc
 from nucleo.context_packs import ridden
-from nucleo.flash import reply_promise
+from nucleo.turn import reply
 from nucleo.turn import errands_of_a_turn as E, our_question as Q
 
 ERRAND = {"id": "2", "request": "Find anniversary restaurant options in Portland: quiet, good reviews, about $60 a person",
@@ -31,7 +31,7 @@ def portland(monkeypatch):
     monkeypatch.setattr(dispatch, "get_record", lambda tid: types.SimpleNamespace(label=""))
     monkeypatch.setattr(dc, "_PENDING_CONFIRM", {})
     monkeypatch.setattr(dispatch, "inject_soon", lambda which, msg: sent.append((which, msg)))
-    monkeypatch.setattr(reply_promise, "promises_action", lambda r: r == PROMISE)
+    monkeypatch.setattr(reply, "owes_an_act", lambda brief: "order")
     monkeypatch.setattr(Q, "previous_reply", lambda spoken="": OURS)
     ridden.forget()
     yield sent

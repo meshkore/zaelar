@@ -45,7 +45,7 @@ async def _compose_brief(request: str, context: str, trusted: bool, resume: dict
 def _errand_name(rec, req: str) -> str:
     """The name a browser card is born with: the errand's own (`rec.title`), else the provisional one — the goal cut
     on a word boundary. Never a summariser's answer (V2-799)."""
-    from nucleo import errand_title as _et
+    from nucleo.request import title as _et
     return str(getattr(rec, "title", "") or "").strip() or _et.provisional(req)
 
 
@@ -62,7 +62,7 @@ def _name_errand(rec) -> None:
     keeps the name it already had. That is why nothing upstream checks the result.
     """
     try:
-        from nucleo import errand_title as _et
+        from nucleo.request import title as _et
         if not _et.enabled() or not (rec.goal or "").strip():
             return
 
@@ -88,7 +88,7 @@ def _name_errand(rec) -> None:
             elif _d.surfaces.opens_doc(getattr(rec, "surface", "")):
                 _d._docsheet.doc_retitle(rec)
             try:
-                from nucleo import tasks as _tasks
+                from nucleo.circuit import ledger as _tasks
                 _tasks.retitled(rec)   # V2-728 — the durable row carries the name the operator will search by
             except Exception:  # noqa: BLE001
                 pass

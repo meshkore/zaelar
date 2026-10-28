@@ -19,7 +19,8 @@ def test_one_task_is_one_chip() -> None:
 
 
 def test_the_board_row_names_the_session_its_events_carry(monkeypatch) -> None:
-    from nucleo import dispatch, tasks
+    from nucleo import dispatch
+    from nucleo.circuit import ledger as tasks
     from memory import tasks_store
     monkeypatch.setattr(tasks_store, "tasks_where", lambda **k: [{"id": "48ac70-1", "title": "monitors"}])
     monkeypatch.setattr(dispatch, "active_sessions", lambda: [{"id": "1", "uid": "48ac70-1", "phase": "reading"}])

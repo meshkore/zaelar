@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-from nucleo.flash import provider_chain as pc
+from nucleo.llm import provider_chain as pc
 
 _402 = ("Error code: 402 - {'error': {'message': 'Insufficient Balance', 'type': 'unknown_error'}}")
 _429 = "429 — [1310][Weekly Limit Exhausted. Your limit will reset at 2027-01-01 01:39:02]"

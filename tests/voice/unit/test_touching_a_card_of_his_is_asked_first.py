@@ -29,7 +29,8 @@ import pytest
 
 
 # ── A · TOCAR UN WIDGET SE PREGUNTA ANTES (la norma del operador) ──────────────────────────────────────
-from nucleo import dispatch, errand_kind
+from nucleo import dispatch
+from nucleo.request import kind as errand_kind
 
 #: The commission the engine actually wrote and dispatched, verbatim from the session log.
 THE_REAL_COMMISSION = (

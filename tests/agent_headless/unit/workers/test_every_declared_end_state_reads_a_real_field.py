@@ -11,7 +11,7 @@ import pathlib
 
 import pytest
 
-from nucleo import verify
+from nucleo.circuit import verify
 
 ROOT = pathlib.Path(__file__).resolve().parents[4] / "widgets"
 
@@ -52,14 +52,14 @@ def test_a_field_clause_names_a_field_of_the_view(seeded, wid, action, clause):
 def test_a_key_the_view_omits_until_set_reads_as_its_declared_absence(seeded):
     """S3 (passes 63, 66, 67): «Done.» over a refused `detail`. `results.view` is written only once set, so the
     clause read None — unverifiable — and the failure reached nobody. Absent is «list», and «list» is not detail."""
-    from nucleo import spec
+    from nucleo.circuit import spec
     dw = spec.render("results", "detail", {"item": 1})
     assert verify.check(dw) is False
 
 
 def test_an_op_on_an_instance_is_judged_on_that_instance(seeded):
     """Demo pass 70, S2/S3: the ops ran on `results::<errand>` and their end state read the bare `results` card."""
-    from nucleo import spec
+    from nucleo.circuit import spec
     dw = spec.render("results::abc-ls1", "layout", {"layout": "compare"})
     assert verify._clauses(dw)[1][0]["widget"] == "results::abc-ls1"
 
@@ -67,5 +67,5 @@ def test_an_op_on_an_instance_is_judged_on_that_instance(seeded):
 def test_an_add_that_found_nothing_new_is_not_declared_a_failure():
     """Demo pass 70, I2: the picture lane added the new photos, the model's own `add` then merged nothing new, and
     «items changed» read unmet — the circuit said «I couldn't pull those up» over photos on screen."""
-    from nucleo import spec
+    from nucleo.circuit import spec
     assert spec.template_of("imagenes", "add") is None

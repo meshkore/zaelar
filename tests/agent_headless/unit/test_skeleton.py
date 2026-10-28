@@ -11,7 +11,7 @@ import pytest
 def test_import_tree():
     for mod in [
         "nucleo",
-        "nucleo.flash", "nucleo.flash.router", "nucleo.flash.fast_client",
+        "nucleo.flash", "nucleo.flash.router", "nucleo.llm.fast_client",
         "nucleo.flash.frontend", "nucleo.flash.procs", "nucleo.flash.escalate",
         "nucleo.loop", "nucleo.dispatch", "nucleo.memory_agent",
         "nucleo.agentes", "nucleo.agentes.base", "nucleo.agentes.claude_code", "nucleo.agentes.codex",
@@ -20,7 +20,7 @@ def test_import_tree():
 
 
 def test_fast_client_model_by_invocation():
-    from nucleo.flash.fast_client import ModelSpec, FastClient
+    from nucleo.llm.fast_client import ModelSpec, FastClient
     spec = ModelSpec(model="x-ai/grok-4-fast-non-reasoning", provider="aimlapi")
     assert spec.model and spec.provider == "aimlapi"
     assert hasattr(FastClient(), "stream")

@@ -393,7 +393,8 @@ def test_a_relayed_worker_is_over_when_its_durable_row_says_so(monkeypatch):
     `relevada` for good; the row said `failed` — the list must read the row, not wait 45 minutes."""
     from types import SimpleNamespace
 
-    from nucleo import dispatch, tasks as _tasks
+    from nucleo import dispatch
+    from nucleo.circuit import ledger as _tasks
     ts = runner._store()
     monkeypatch.setattr(dispatch, "get_record", lambda tid: SimpleNamespace(status="relevada"))
     ts.task_put({"id": _tasks.task_uid("91"), "title": "x", "state": "running"})

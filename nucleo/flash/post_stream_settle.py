@@ -10,13 +10,11 @@ from __future__ import annotations
 from nucleo.flash import card_receipt as _pst_receipt   # V2-781: a bare ack names the cards the turn changed
 from nucleo.flash import post_stream as _pst
 from nucleo.turn import split_by_errand as _sbe   # the status line names the errand a send reached (2.644)
-from nucleo.flash import unchecked_provenance as _pst_up   # 2026-10-14: no claimed check of a video's provenance
-from nucleo.flash import row_claims as _pst_rc   # 2026-10-14: a claim about a row that no source carries is corrected aloud
-from nucleo.flash import blocked_channel_receipt as _pst_bcr   # V2-604: a blocked channel's pasted link is said
-from nucleo.flash import stop_decision as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
+from nucleo.request import stop as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
+from nucleo.turn import reply as _reply   # refactor2710-03: the mouth speaks the verdict
 
 
-async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _dialog, _filler_audio, _langs, _prev_pending, _r, _resolve_confirm, _router, _shown_ids, acted, aside, brain, clarify, confirm_state, data_done, emit, escalate_req, had_pending_confirm, llm_metrics, music_req, operator_text, search_req, send, speech, spoken_text, style_fired, text, worker_acted) -> dict:
+async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _dialog, _filler_audio, _langs, _prev_pending, _r, _resolve_confirm, _router, _shown_ids, _turn_op_tasks=(), acted, aside, brain, clarify, confirm_state, data_done, emit, escalate_req, had_pending_confirm, llm_metrics, music_req, operator_text, search_req, send, speech, spoken_text, style_fired, text, worker_acted) -> dict:
     if had_pending_confirm and not confirm_state["handled"]:
         try:
             verdict = _pst._wconfirm.answers_pending(text, _brief)
@@ -139,6 +137,8 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         _ack_allowed = _style_ack.confirm_short_actions()
     except Exception:
         _ack_allowed = True
+    if escalate_req["v"] is None and search_req["v"] is None:   # refactor2710-03: the acts' verdicts are said
+        spoken_text = await _reply.after_acts(_turn_op_tasks if data_done["v"] else (), spoken_text, send, speech)
     if data_done["v"] and not spoken_text and _ack_allowed \
             and escalate_req["v"] is None and search_req["v"] is None:
         try:
@@ -149,24 +149,12 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             spoken_text = _pst_receipt.voice_ack(next((a for a in _acks if a.strip().lower() != _last), _acks[0]))
         except Exception:
             spoken_text = "Hecho."
-        # The ack is a claim about the cards: checked against them before it is said (V2-783 P0-2; text channel does the
-        # same in `probe_after`). An unmet end state on a card this turn wrote to says what is true instead.
-        try:
-            from nucleo.flash import done_backing as _dback
-            spoken_text = _dback.backed(spoken_text, "widget_data",
-                                        {"ops": [{"widget": str(w)} for w, _a in (data_done.get("ops") or [])]})
-        except Exception:  # noqa: BLE001 — an unreadable screen leaves the ack as it was
-            pass
+        # The ack is a claim about the cards (V2-783 P0-2): an unmet end state on a card this turn wrote to says what is
+        # true instead (`reply_receipts.bare_ack`).
+        from nucleo.turn import reply_receipts as _receipts
+        spoken_text = _receipts.bare_ack(spoken_text, {str(w).split("::", 1)[0] for w, _a in (data_done.get("ops") or [])})
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
-    # The TRANSPORT receipt (2026-10-11): the model's words answered the side remark and skipped the next/pause/add he
-    # asked for — one more sentence names what is playing now. The words have streamed, so it is said after them.
-    if data_done["v"] and spoken_text and escalate_req["v"] is None and search_req["v"] is None:
-        from nucleo.flash import transport_receipt as _pst_tr
-        if (_tr_line := await _pst_tr.voice_owed_settled(spoken_text)):
-            send(speech.sanitize(_tr_line, drop_metadata=False))
-            spoken_text = (spoken_text + " " + _tr_line).strip()
-    spoken_text = await _pst_bcr.said_after(_pst_rc.said_after(_pst_up.said_after(spoken_text, send, speech), send, speech, operator_text or text, list(getattr(brain, "_window", None) or [])), send, speech)   # AI check · row claims · a blocked channel's link (V2-604)
 
     # Regla de usuario fijada/retirada SIN frase hablada → ack corto (V2-046 A1, visto en el probe: la
     # RETIRADA dejaba el turno MUDO). Nunca mudo al aceptar/quitar una regla.
@@ -195,9 +183,8 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             spoken_text = "Aquí lo tienes."
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
-    # V2-660/V2-658 — lo que el turno DEBE, en la costura compartida (`flash/harness_turn.py`, misma
-    # llamada que el probe): una afirmación de entrega sobre una hoja VACÍA o una widget_data cortada por
-    # el tope escalan con superficie documento, y la voz añade el seguimiento honesto (forma V2-572).
+    # V2-660/V2-658 — what the turn OWES (`harness_turn`): a delivery claimed over an EMPTY sheet, or a widget_data cut
+    # by the cap, escalates with a document surface.
     try:
         _pst._ht.note_shown(_shown_ids, _router.operator_words(operator_text, text), trace=_pst._ht.current_trace())
         _owed = await _pst._ht.rescue(

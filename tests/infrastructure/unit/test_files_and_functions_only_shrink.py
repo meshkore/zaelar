@@ -33,7 +33,7 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 # frozen there: every entry is today's size, down-only from here. The debt it names is unchanged and still owed.
 FILES = {
     'nucleo/energy_meter.py': 812,
-    'nucleo/flash/fast_client.py': 866,
+    'nucleo/llm/fast_client.py': 866,
     'nucleo/flash/prompt.py': 816,
     'nucleo/jev.py': 824,
     'voice/engine/llm/providers/nucleo.py': 997,
@@ -50,7 +50,7 @@ FUNCTIONS = {
     'nucleo/dispatch/session_steps.py::build_what_it_runs_with': 132,
     'nucleo/errands/wake.py::wake': 153,
     'nucleo/input/stt.py::Accumulator._offer': 129,   # 2026-10-22: `offer` → wrapper + `_offer`
-    'nucleo/flash/fast_client.py::FastClient._stream_inner': 267,
+    'nucleo/llm/fast_client.py::FastClient._stream_inner': 267,
     'nucleo/flash/listing_turn.py::run': 121,
     'nucleo/flash/live_blocks.py::navegador_lines': 147,
     'nucleo/flash/live_blocks_nav.py::read_the_browser_tasks': 133,
@@ -58,7 +58,7 @@ FUNCTIONS = {
     'nucleo/flash/post_stream.py::run': 155,
     'nucleo/flash/post_stream_lanes.py::run_the_light_lanes': 435,
     'nucleo/flash/post_stream_settle.py::settle_what_is_pending': 211,
-    'nucleo/flash/post_stream_words.py::hold_the_model_to_its_words': 323,
+    'nucleo/flash/post_stream_acts.py::complete_the_acts': 323,
     'nucleo/flash/probe.py::run_turn': 481,
     'nucleo/flash/probe_after.py::execute_what_was_decided': 148,
     'nucleo/flash/probe_decide.py::name_the_action': 221,
@@ -101,7 +101,7 @@ FUNCTIONS = {
 
 BRANCHES = {
     'nucleo/flash/post_stream_lanes.py::run_the_light_lanes': 146,
-    'nucleo/flash/post_stream_words.py::hold_the_model_to_its_words': 117,
+    'nucleo/flash/post_stream_acts.py::complete_the_acts': 117,
     'nucleo/flash/probe.py::run_turn': 124,
     'nucleo/flash/probe_decide.py::name_the_action': 106,
     'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 106,

@@ -88,7 +88,7 @@ async def _run_session(task: "Task") -> None:
     # operator's catalogue — it brings its own repo and its own authorisation.
     if (kind == "code" and not bool(task.context.get("confirmed"))
             and not _d._dev_worker_params(task.context)):
-        from nucleo import errand_kind as _ek_gate
+        from nucleo.request import kind as _ek_gate
         _d.logger.info(f"dispatch: task {key} STOPPED by the widget confirm-gate: {req[:80]}")
         rec = _d._SESSIONS.get(key)
         if rec:

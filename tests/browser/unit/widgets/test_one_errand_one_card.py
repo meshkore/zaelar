@@ -150,7 +150,7 @@ def test_a_resumed_errand_reopens_its_rows_sheet_and_keeps_its_rows():
 
 
 def test_the_rows_recorded_sheet_wins_over_its_id(monkeypatch):
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     monkeypatch.setattr(_tasks, "get", lambda uid: {"id": uid, "sheet": "bbbbbb-ls3"} if uid == "bbbbbb-2" else None)
     rec = SessionRecord(task_id="2", goal="find a flight Madrid–Lisbon", kind="web", uid="bbbbbb-2")
     surfaces.set_once(rec, "lista")
@@ -160,7 +160,7 @@ def test_the_rows_recorded_sheet_wins_over_its_id(monkeypatch):
 
 def test_a_fresh_errand_still_opens_its_own_fresh_sheet():
     """The counterweight: an errand whose row is its own (uid composed from this boot) is NOT a continuation."""
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     mine = dispatch.sheet_id_for("3")
     _deliver(mine, "leftover")
     rec = SessionRecord(task_id="3", goal="put together a shopping list", kind="web", uid=_tasks.task_uid("3"))

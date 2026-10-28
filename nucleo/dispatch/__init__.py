@@ -24,7 +24,7 @@ import time
 import unicodedata
 from dataclasses import dataclass, field
 
-from nucleo import dedup as _dedup
+from nucleo.request import append as _dedup
 from nucleo import matching
 from typing import Any
 
@@ -41,9 +41,9 @@ from nucleo.workers.session import SessionRecord, WorkerSession
 # so existing call sites (below, and tests doing dispatch._build_prompt/_web_prompt) keep working unchanged.
 from nucleo.dispatch_prompts import _build_prompt, _web_prompt  # noqa: F401
 
-# V2-289 — the errand's CLASS (which kind, how it is labelled) is pure text work in `nucleo/errand_kind.py`; kind
+# V2-289 — the errand's CLASS (which kind, how it is labelled) is pure text work in `nucleo/request/kind.py`; kind
 # «web» means operating a site in a real browser, never «the data is on the internet» (that is research).
-from nucleo.errand_kind import (  # noqa: E402,F401 — re-export
+from nucleo.request.kind import (  # noqa: E402,F401 — re-export
     _ARCHITECT_RE, _DATA_NOT_CODE_RE, _MODIFY_CODE_RE, _WEB_RE,
     classify_kind as _classify_kind, default_label as _default_label)
 
@@ -109,7 +109,7 @@ from nucleo.dispatch.thresholds import NO_STEP_SECS, STUCK_SECS  # noqa: F401,E4
 # ── An ENDING is a FACT (V2-198/199/222/224/238) — in `nucleo/workers/ended.py` (ratchet, 2026-09-03, V2-566). The
 # old names are ALIASES to the SAME objects, so in-place mutation of `dispatch._ENDED_SESSIONS` still hits the dict.
 from nucleo.workers import ended as _ended
-from nucleo import errand_continuity as _continuity
+from nucleo.request import append as _continuity
 
 LIVE_SESSION_STATES = _ended.LIVE_SESSION_STATES
 ENDED_SESSION_STATES = _ended.ENDED_SESSION_STATES
@@ -161,7 +161,7 @@ def _task_row(how: str, rec, **kw) -> None:
     `_run_session` used to skip `tasks.closed()` (only the `finally` below reaches it), so the row stayed
     `pending` forever. Best-effort: a store that failed must not change how the errand ended."""
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         getattr(_tasks, how)(rec, **kw)
     except Exception:  # noqa: BLE001
         logger.debug(f"dispatch: task row {how} failed", exc_info=True)

@@ -109,7 +109,7 @@ def remember_code_change(task_id: str, request: str, task: "Task", *, sheet: str
     not a dangerous act, it is an expensive and visible one, and calling it «irreversible» to his face
     would make him answer a different question.
     """
-    from nucleo import errand_kind as _ek
+    from nucleo.request import kind as _ek
     _sweep_confirm()
     _EXPIRED_CONFIRM.pop(str(task_id), None)
     _forget_declined_like(request)

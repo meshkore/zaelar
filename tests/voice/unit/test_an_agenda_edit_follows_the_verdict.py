@@ -36,13 +36,12 @@ class _Model:
 
 @pytest.fixture
 def brief(monkeypatch):
-    from nucleo.flash import reply_promise as rp, turn_brief as tb
-    said = {tb.TARGET_KEY: "agenda:cancel_meeting", tb.REQUEST_KEY: "comment", "promise": "act"}
+    from nucleo.flash import turn_brief as tb
+    said = {tb.TARGET_KEY: "agenda:cancel_meeting", tb.REQUEST_KEY: "order"}
 
     def _read(b, k, d="", min_confidence=None):
         return (said[k], {"used": True}) if k in said else (d, None)
     monkeypatch.setattr(tb, "read", _read)
-    monkeypatch.setattr(rp, "verdict", lambda reply: said["promise"])
     from nucleo.flash import direct_action as da
     monkeypatch.setattr(da, "named_cards", lambda text: [])
     return said
@@ -50,7 +49,7 @@ def brief(monkeypatch):
 
 @pytest.fixture
 def model(monkeypatch):
-    import nucleo.flash.fast_client as fc
+    import nucleo.llm.fast_client as fc
     from nucleo.flash import widget_read
     monkeypatch.setattr(widget_read, "read", lambda wid, *a, **k: "Piano lesson with Abril · Tuesdays 17:00")
 
@@ -66,11 +65,12 @@ def test_a_read_of_the_card_the_verdict_names_carries_the_op_out(brief):
     assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "Let me check what's on the card.") == "cancel_meeting"
     brief[tb.REQUEST_KEY] = "question"
     assert act_repair.same_card_order_after_read({"x": 1}, "agenda") == "", "a question is answered by the read"
-    brief[tb.REQUEST_KEY], brief["promise"] = "comment", "none"
-    assert act_repair.same_card_order_after_read({"x": 1}, "agenda") == "", "no promise and no sure order: words"
-    brief["promise"] = "act"
+    brief[tb.REQUEST_KEY] = "comment"
+    assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "I'll cancel it.") == "", \
+        "no sure order: our words decide nothing (refactor2710-03)"
+    brief[tb.REQUEST_KEY] = "order"
     assert act_repair.same_card_order_after_read({"x": 1}, "mensajeria") == "", "another card is not this repair"
-    brief[tb.TARGET_KEY] = "agenda:show_day"
+    brief[tb.TARGET_KEY], brief[tb.REQUEST_KEY] = "agenda:show_day", "comment"
     assert act_repair.same_card_order_after_read({"x": 1}, "agenda") == "", "a view verdict changes nothing"
 
 
@@ -79,7 +79,7 @@ def test_a_sure_order_for_a_lens_is_carried_out_after_the_read(brief):
     and a sure ORDER; the model read the document and recited the section, and nothing moved on screen. A lens is
     still left to the words when the turn is no sure order (the test above); a sure order for one is the order."""
     from nucleo.flash import turn_brief as tb
-    brief[tb.TARGET_KEY], brief[tb.REQUEST_KEY], brief["promise"] = "documento:goto", "order", "none"
+    brief[tb.TARGET_KEY], brief[tb.REQUEST_KEY] = "documento:goto", "order"
     assert act_repair.same_card_order_after_read({"x": 1}, "documento", "The relevant part is…") == "goto"
     brief[tb.REQUEST_KEY] = "comment"
     assert act_repair.same_card_order_after_read({"x": 1}, "documento", "The relevant part is…") == ""
@@ -132,10 +132,9 @@ def test_a_day_view_answers_with_that_days_rows_and_their_hours(tmp_path, monkey
 
 
 def test_a_reply_that_holds_the_act_for_a_go_ahead_is_not_carried_out(brief):
-    """`ask_first` means the model has NOT done it and waits for his word (`reply_promise.CHOICES`): a read of the card
-    plus a reply that holds the act is a question, never a licence to act — only a SURE order or a promise to act is
-    (audit V2-783 P0-3, 2026-10-16: «Shall I send it?» + a named recipient was sent by this repair)."""
-    brief["promise"] = "ask_first"
+    """A read of the card plus a reply that holds the act is never a licence to act — only a SURE order is (audit V2-783
+    P0-3, 2026-10-16: «Shall I send it?» + a named recipient was sent by this repair)."""
+    brief[__import__("nucleo.flash.turn_brief", fromlist=["x"]).REQUEST_KEY] = "comment"
     assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "Shall I cancel the piano on the 13th?") == ""
     brief[__import__("nucleo.flash.turn_brief", fromlist=["x"]).REQUEST_KEY] = "order"
     assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "Shall I cancel it?") == "cancel_meeting", \

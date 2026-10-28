@@ -70,7 +70,7 @@ import pathlib
 
 import pytest
 
-from nucleo import harness
+from nucleo.circuit import harness
 from nucleo.flash import turn_brief as _tb
 from widgets import store
 from widgets.youtube import data as yt

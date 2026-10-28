@@ -10,7 +10,7 @@ import asyncio
 import pytest
 
 from connectors.meshkore import brain
-from nucleo.flash import provider_chain as pc
+from nucleo.llm import provider_chain as pc
 
 Z_AI = {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "model": "glm-5.2", "env": ["Z_AI_API_KEY"]}
 AIMLAPI = {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1", "model": "", "env": ["AIMLAPI_KEY"]}

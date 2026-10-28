@@ -150,10 +150,11 @@ async def before_backstops(no_tool: bool, escalate_req: dict, *, spoken_text: st
     brief from his words or the window, the pending rows are asked first; resumed rows mean no backstop runs."""
     if escalate_req.get("resumed"):
         return False
-    if not (no_tool and spoken_text) or escalate_req.get("v") is not None:
+    if not no_tool or escalate_req.get("v") is not None:
         return no_tool
-    from nucleo.flash import direct_action as _da, router as _router
-    if not (_router.promises_action(spoken_text) or _da.verdict_escalates(brief, answered=False)):
+    from nucleo.flash import direct_action as _da
+    from nucleo.turn import reply as _reply
+    if not (_reply.owes_an_act(brief) or _da.verdict_escalates(brief, answered=False)):
         return no_tool
     if await take(escalate_req, operator_text=operator_text, last_reply=last_reply,
                   apply_widget_data=apply_widget_data, emit=emit):

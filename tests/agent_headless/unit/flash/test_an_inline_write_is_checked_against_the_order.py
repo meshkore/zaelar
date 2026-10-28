@@ -9,7 +9,7 @@ import inspect
 
 import pytest
 
-from nucleo import spec as _spec
+from nucleo.circuit import spec as _spec
 from nucleo.flash import write_harness as wh
 
 GOAL = {"all": [{"widget": "contactos", "collection": "contacts", "where": {"title~": "Quinn"}, "expect": "present"},
@@ -54,7 +54,7 @@ def world(monkeypatch):
                                          "payload": {"name": "Rowan", "email": "rowan@example.com"}})
             on_tool_call("widget_data", {"widget_id": "contactos", "action": "remove_contact", "payload": {"name": "Quinn"}})
             on_tool_call("widget_data", {"widget_id": "agenda", "action": "add_meeting", "payload": {"title": "x"}})
-    import nucleo.flash.fast_client as fc
+    import nucleo.llm.fast_client as fc
     monkeypatch.setattr(fc, "FastClient", FakeClient)
 
     async def brain_action(wid, action, payload):
