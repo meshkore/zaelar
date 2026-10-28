@@ -168,3 +168,39 @@ def names_elsewhere(handle) -> bool:
     from nucleo.turn import verdicts
     choice, info = verdicts.read(handle, NAMES_KEY, "")
     return bool(info and info.get("used")) and choice == NAMES_ELSEWHERE
+
+
+ITEM_REF_KEY = "item_ref"
+#: Rows enumerated per brief: a queue on screen is a handful; past that no self-correction is read.
+MAX_ITEM_ROWS = 12
+
+
+def item_ref_question(open_ids) -> dict | None:
+    """Which listed row, if any, did he name and then TAKE BACK? None with fewer than two rows on screen.
+
+    Use case `la-cola-de-video-con-palabras-imprecisas` (ES, 2026-10-11): «el último… no, el penúltimo, ponlo justo
+    después del de skills» names three rows and means two. A self-correction is a reading of the whole sentence, so it
+    is asked here over the rows that EXIST, never read off a table of correction words."""
+    from widgets import refs as _refs
+    rows = []
+    for wid in [str(w).strip() for w in (open_ids or []) if str(w or "").strip()][:MAX_OPEN_CARDS]:
+        base = _base_of(wid)
+        rows += [(base, i, r) for i, r in enumerate(_refs._ref_index(base), 1)]
+    rows = rows[:MAX_ITEM_ROWS]
+    if len(rows) < 2:
+        return None
+    criteria = {f"{b}#{r['id']}": f"row {i} of {_card_label(b)} («{str(r['label'])[:60]}») — he named it and then "
+                                  "corrected himself, naming another row instead" for b, i, r in rows}
+    criteria["none"] = "he takes back no row: every row he names is meant, or he names none"
+    return {"instructions": "Rows listed on screen, numbered from the top. In one breath the operator may name a row and "
+                            "then correct himself («the last… no, the second to last»). Which row did he TAKE BACK?",
+            "criteria": criteria}
+
+
+def withdrawn_rows(handle, base: str) -> set[str]:
+    """Ids of the rows of `base` the brief, at its licence, says he named and took back."""
+    from nucleo.turn import verdicts
+    choice, info = verdicts.read(handle, ITEM_REF_KEY, "")
+    if info and info.get("used") and str(choice).startswith(f"{base}#"):
+        return {str(choice).split("#", 1)[1]}
+    return set()

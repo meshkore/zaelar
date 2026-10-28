@@ -21,7 +21,8 @@ from nucleo.turn.brief_turn import (  # noqa: F401 — re-export: which turn a b
     PREFIRED_TTL_S, judged_text, of_this_turn, owner_still_open, remember_for_the_turn, stamp, verdict_before_the_turn)
 from nucleo.turn.brief_screen import (  # noqa: F401 — re-export: the screen questions and their caps
     CATALOG_INSTRUCTIONS, MAX_CATALOG_CANDIDATES, MAX_DESC_CHARS, MAX_OPEN_CARDS, NAMES_KEY, TARGET_INSTRUCTIONS,
-    _base_of, _card_label, _possible_now, catalog_question, names_elsewhere, names_question, target_question)
+    ITEM_REF_KEY, _base_of, _card_label, _possible_now, catalog_question, item_ref_question, names_elsewhere,
+    names_question, target_question, withdrawn_rows)
 
 ESCALATE_KEY = "escalate_or_inline"
 CANVAS_KEY = "canvas"
@@ -133,6 +134,7 @@ QUESTIONS = (
     (TARGET_KEY, lambda c: bool(c.get("open_ids")), lambda c: target_question(c.get("open_ids"))),
     (CATALOG_KEY, lambda c: not target_question(c.get("open_ids")), lambda _c: catalog_question()),
     (NAMES_KEY, lambda c: bool(c.get("open_ids")), lambda c: names_question(c.get("open_ids"))),
+    (ITEM_REF_KEY, lambda c: bool(c.get("open_ids")), lambda c: item_ref_question(c.get("open_ids"))),
     (("nucleo.turn.identity", "KEY"), None, lambda c: __import__("nucleo.turn.identity", fromlist=["x"]).question(c)),
 )
 
