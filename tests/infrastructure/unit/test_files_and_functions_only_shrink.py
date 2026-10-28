@@ -32,8 +32,6 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 # dad7f3bd) and stayed red through 114 commits — a ratchet nobody runs holds nothing. Re-measured at HEAD and
 # frozen there: every entry is today's size, down-only from here. The debt it names is unchanged and still owed.
 FILES = {
-    'connectors/email/mailbox.py': 816,
-    'connectors/meshkore/bridge.py': 891,
     'memory/api.py': 891,
     'nucleo/dispatch.py': 919,
     'nucleo/energy_meter.py': 812,
@@ -48,9 +46,6 @@ FILES = {
 
 FUNCTIONS = {
     'config/settings.py::update': 146,
-    'connectors/meshkore/bridge.py::ClusterBridge._brain_turn': 142,
-    'connectors/meshkore/bridge.py::ClusterBridge.dispatch': 171,
-    'connectors/meshkore/bridge.py::ClusterBridge.on_event': 203,
     'i18n/init/detect.py::lock': 132,
     'memory/_prompt.py::compose_state': 258,
     'memory/writer.py::insert_memory': 177,

@@ -200,7 +200,8 @@ _CEILINGS: dict[str, tuple[int, int]] = {
 }
 
 #: No god file may be BORN either: any engine module NOT in the table stays under this. The largest unlisted
-#: file today is `connectors/meshkore/bridge.py` at 863, so 900 bounds the whole rest of the tree with margin.
+#: file was `connectors/meshkore/bridge.py` at 863 until refactor2710-13 split it into a package; 900 still bounds the
+#: rest of the tree with margin.
 _UNLISTED_MAX = 900
 
 #: The mirror annotation: the turn's decisions copied between the voice provider and probe, each marked «this
