@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.use_cases.e2e.agent import status as statusmod, tick as T
+from tests.use_cases.e2e.agent import config as agent_config, status as statusmod, tick as T
 
 
 _LIVE_LEDGER = statusmod.LEDGER_PATH
@@ -28,6 +28,10 @@ def _never_touch_live_artifacts(tmp_path, monkeypatch):
     monkeypatch.setattr(T, "LOG_PATH", tmp_path / "tick.log")
     monkeypatch.setattr(statusmod, "LEDGER_PATH", tmp_path / "status.json")
     monkeypatch.setattr(statusmod, "BOARD_PATH", tmp_path / "STATUS.md")
+    # …and no unit test reaches an engine over the network. A runner path left unstubbed (`_run_scenario` reads the
+    # agenda through `probe_client.widget_data`) resolved the configured host: urllib's timeout does not bound the DNS
+    # lookup, and on a CI runner that lookup hung the whole folder for 299 s. A closed loopback port refuses at once.
+    monkeypatch.setattr(agent_config, "ZAELAR_URL", "http://127.0.0.1:9")
     yield
 
 
