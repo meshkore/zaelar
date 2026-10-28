@@ -25,9 +25,9 @@ from nucleo import consequence
 _SESSIONS: dict = {}
 
 def _brain(sid: str):
-    from voice.engine.llm.providers.nucleo import NucleoLLM
+    from voice import typed_turn
     if sid not in _SESSIONS:
-        _SESSIONS[sid] = NucleoLLM()
+        _SESSIONS[sid] = typed_turn.new_brain()
     return _SESSIONS[sid]
 
 
@@ -36,40 +36,6 @@ def reset(sid: str | None = None) -> None:
         _SESSIONS.clear()
     else:
         _SESSIONS.pop(sid, None)
-
-
-class _TypedTurn:
-    """The voice turn, borrowed whole from the LiveKit stream — `_run`, `_run_inner` and the two methods they call —
-    with its two seams filled by the typed channel: the context holds HIS line, the channel collects what the turn
-    says. No `LLMStream` underneath, so no task of its own and no retry that would re-run the turn's doors."""
-
-    def __init__(self, brain, text: str):
-        from types import SimpleNamespace
-        from voice.engine.llm.providers.nucleo import NucleoLLMStream
-        self._llm = brain
-        self._chat_ctx = SimpleNamespace(items=[SimpleNamespace(role="user", text_content=text)])
-        self._said: list[str] = []
-        self._event_ch = SimpleNamespace(send_nowait=lambda chunk: self._said.append(
-            getattr(getattr(chunk, "delta", None), "content", None) or ""))
-        for name in ("_run", "_run_inner", "_superseded", "_note_death"):
-            setattr(self, name, getattr(NucleoLLMStream, name).__get__(self))
-
-
-async def _drive(brain, text: str) -> str:
-    """The turn, with its out-of-band speaker lent to the reply: what a lane says through `proactive.speaker()` (the
-    action map's ack, a rename's confirmation) is what this channel answers, never a line on a live session."""
-    from voice import proactive
-    turn = _TypedTurn(brain, text)
-
-    def _say(line: str, *_a, **_k) -> None:     # synchronous: a lane may fire its speaker without awaiting it
-        if line:
-            turn._said.append((" " if turn._said else "") + str(line))
-    token = proactive._TURN_SPEAKER.set(_say)
-    try:
-        await turn._run()
-    finally:
-        proactive._TURN_SPEAKER.reset(token)
-    return "".join(turn._said).strip()
 
 
 def _tags(events: list[dict]) -> list[dict]:
@@ -135,8 +101,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     """One typed turn through the voice turn. Same signature as the text channel always had; `model` and `lists` are
     accepted for its callers: the model is the routing's (`config/v2.py`), and `lists=False` (a list's own step) keeps
     the task-list door shut so a step never opens another list."""
-    from voice import attention
-    from voice import observer
+    from voice import attention, observer, typed_turn
     text = (text or "").strip()
     if not text:
         return {"ok": False, "error": "texto vacío"}
@@ -151,7 +116,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
               else consequence.dry_turn(ingest=ingest))
     try:
         with policy as ledger:
-            reply = await _drive(brain, text)
+            reply = await typed_turn.drive(brain, text)
     except Exception as e:  # noqa: BLE001 — the channel reports a failed turn, it never raises
         return {"ok": False, "error": f"{type(e).__name__}: {e}"[:300]}
     events = [dict(e) for e in observer._events[n0:]]
