@@ -119,7 +119,7 @@ def split(text: str, *, chat=None) -> tuple[list[dict], str]:
     """(steps, how). Blocking — call it in a thread. `how` is `model`, `sections` or `none`."""
     try:
         if chat is None:
-            from nucleo.memllm import chat_sync as chat
+            from nucleo.memory_agent.processor.llm import chat_sync as chat
         content = chat("batch_split", _SYSTEM, f"{_today_line()}\n\nMessage:\n{(text or '').strip()[:12000]}",
                        max_tokens=4000, temperature=0.1, timeout=90.0)
         steps = parse(content or "")

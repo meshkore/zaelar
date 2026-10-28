@@ -61,7 +61,7 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 def test_run_range_seeds_spanish_before_any_case(fresh_db, monkeypatch):
-    monkeypatch.setattr("nucleo.mem_processor.enabled", lambda: False)  # heuristic, no network
+    monkeypatch.setattr("nucleo.memory_agent.processor.distill_config.enabled", lambda: False)  # heuristic, no network
     asyncio.run(runner.run_range(0, 1, fresh=True))
     assert memapi.state().get("language") == "es", \
         f"una BD fresca del bot debe nacer en español (corpus español), no en el default de producto: {memapi.state().get('language')!r}"

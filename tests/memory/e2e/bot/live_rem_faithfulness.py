@@ -3,7 +3,7 @@
 Operator rule (2026-08-16): "all validations have to be real... we do not care about the cost; what matters to us
 is verifying that everything works properly." `test_rem.py` tests the MECHANICS of the gate with `verify_fn` mocked
 by hand — it never invokes the real model. This script DOES: it calls the REAL
-`nucleo.memllm.synthesize_concept_groups()` and `verify_insight_grounded()` (DeepSeek V4 Flash, the production model)
+`nucleo.memory_agent.processor.llm_tasks.synthesize_concept_groups()` and `verify_insight_grounded()` (DeepSeek V4 Flash, the production model)
 against an isolated database.
 
 Three tests, in order:
