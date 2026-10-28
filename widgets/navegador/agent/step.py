@@ -1,5 +1,5 @@
-"""One model call of the automator (`_next_action`), the summary of a results page, and the module's self-description.
-Moved out of `agent.py`; module names are read through the package (`_f.<name>`).
+"""One model call of the automator (`_next_action`), the summary of a results page, and the module's
+self-description. Names are read through the package (`_f.<name>`).
 """
 
 import json
@@ -32,14 +32,8 @@ async def _next_action(messages: list[dict], tools: list[dict], strong: bool = F
         else:
             raise
     choice = resp.choices[0].message
-    # V2-253 — UNREADABLE ARGUMENTS ARE NOT AN ACTION WITHOUT ARGUMENTS. This returned the action NAME
-    # with `{}` when its JSON failed to parse, so the loop executed `click` without a ref, `type` without text, or
-    # `navigate` without a URL — a plausible action with what the model said ERASED. It belongs to the V2-171 family
-    # ("a truncated tool call is silently discarded"), and it is worse here because it is not discarded: it is acted on.
-    #
-    # The cluster adopted the rule governing this on 2026-08-21: **a limit is dangerous only if the reader accepts
-    # PREFIXES**. The engine's other readers require the complete JSON and fall back to a safe default; this one
-    # accepted the empty prefix as if it were what was requested.
+    # V2-253 — UNREADABLE ARGUMENTS ARE NOT AN ACTION WITHOUT ARGUMENTS: acting on `{}` clicks without a ref or
+    # navigates without a URL. A limit is dangerous only if the reader accepts PREFIXES; this one needs the full JSON.
     _cortado = str(getattr(resp.choices[0], "finish_reason", "") or "") == "length"
     for tc in (choice.tool_calls or []):
         _crudo = tc.function.arguments or "{}"
@@ -50,11 +44,8 @@ async def _next_action(messages: list[dict], tools: list[dict], strong: bool = F
             # are the model's and are fixed by retrying. Saying "emitted no action" obscures both cases.
             _por = ("se cortó por el tope de tokens" if _cortado else "devolvió argumentos ilegibles")
             logger.warning(f"navegador agent: «{tc.function.name}» {_por} ({len(_crudo)} chars) — no se ejecuta")
-            # V2-255 — AND THROUGH THE CHANNEL THAT ALREADY EXISTS. `tool_dropped` was created in V2-171 precisely
-            # for this in FlashBrain ("the turn DECIDED on an action and the system could not read its arguments"),
-            # and the harness already reads it (its node 10.6). The browser had the same event and counted it only
-            # in its step list, so it did not occur for any external instrumentation. The event shape is deliberately
-            # the same: consumers that already handle it need no changes to see it here too.
+            # V2-255 — reported through the channel that already exists: the same `tool_dropped` event shape
+            # FlashBrain emits (V2-171), so consumers that already handle it see it here too.
             try:
                 from voice.observer import emit as _emit_obs
                 _emit_obs("tool_dropped", "⚠️ acción descartada",

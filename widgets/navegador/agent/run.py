@@ -1,6 +1,6 @@
 """The automator's LOOP: one task driven step by step over the current page (DOM first, vision when stuck, a
-stronger model on a hard bottleneck), and the Energy report of each call. Moved out of `agent.py`; module names
-are read through the package (`_f.<name>`) so a patch on `agent` still governs every call.
+stronger model on a hard bottleneck), and the Energy report of each call. Names are read through the package
+(`_f.<name>`), so a patch on `agent` governs every call.
 """
 
 import json
@@ -37,27 +37,20 @@ async def run_task(goal: str, owner, plan: str = "", max_steps: int = _f._MAX_ST
     _tid = getattr(owner, "task_id", "") or ""
     try:
         for i in range(max_steps):
-            # CONTINUITY (2026-07-12): reread the goal in case the operator clarified it mid-task. Continue in the
-            # SAME tab searching for what they really want, without opening another.
+            # CONTINUITY: reread the goal (the operator may clarify it mid-task) and go on in the SAME tab.
             if _tid:
                 goal = _f._reread_the_goal(owner, _tid, goal)
             state = await owner.snapshot_for_agent()          # {"url","title","elements": "..."}
-            # LOGIN WALL (deterministic, BEFORE letting the model act): if the page IS a sign-in screen, do not type
-            # and do not escalate to vision. Stop and return needs_login, so the loop NEVER invents email/password
-            # (2026-07-10 bug) and the owner opens the real window for the operator. The session stays in the
-            # persistent profile and the task resumes automatically after login.
+            # LOGIN WALL (deterministic, BEFORE the model acts): on a sign-in screen stop with needs_login — the loop
+            # never invents credentials; the owner opens the real window and the task resumes after login.
             if _f._looks_like_login(state["url"], state["elements"]):
                 site = _f._login_site(state["url"])
                 owner._emit("task_need_login", f"login requerido en {site}")
                 return {"ok": True, "success": False, "needs_login": True, "site": site,
                         "login_url": state["url"], "steps": steps,
                         "summary": f"«{site}» pide iniciar sesión; te abro la ventana para que entres con tu cuenta."}
-            # ANTI-STUCK (seen in Wallapop: identical clicks on ref 23 without progress). Two stuck signals:
-            # (a) page does not change after the step (no_progress), (b) model REPEATS the same action (same_sig,
-            # updated at the end of the previous step). On either signal, force VISION instead of continuing with
-            # DOM: look at the screenshot and act by coordinates, which unsticks cookie overlays, unfocused fields,
-            # and search boxes that must be typed into rather than clicked. Only give up honestly if even vision
-            # keeps failing to advance.
+            # ANTI-STUCK: the page did not change (no_progress) or the model REPEATS its action (same_sig) → force
+            # VISION and act by coordinates (unsticks overlays, unfocused fields); give up only if vision can't advance.
             fp = hash((state["url"], state["title"], state["elements"]))
             if not pending_vision:
                 no_progress = no_progress + 1 if (last_fp is not None and fp == last_fp) else 0
@@ -127,8 +120,8 @@ async def run_task(goal: str, owner, plan: str = "", max_steps: int = _f._MAX_ST
 
 
 def _reread_the_goal(owner, tid: str, goal: str) -> str:
-    """CONTINUITY (2026-07-12): the goal as the operator left it — he may have clarified it mid-task. The loop goes on
-    in the SAME tab with what he really wants, without opening another."""
+    """CONTINUITY: the goal as the operator left it — he may have clarified it mid-task. The loop goes on in the SAME
+    tab with what he really wants, without opening another."""
     try:
         from widgets.navegador import tasks as _tasks
         _cur = (_tasks.get(tid) or {}).get("goal") or ""
@@ -159,9 +152,8 @@ async def _ask_the_model(owner, messages: list[dict], state: dict, goal: str, vi
 
 
 def _meter(resp, model: str) -> None:
-    """Report to Energy the cost of one call in this loop. This agent makes the most calls in the whole system: one
-    per navigation step, and one task can take dozens. It was the only LLM client that reported nothing: the browser
-    is free, the model driving it is not. Best-effort: metering must never bring down a running task."""
+    """Report to Energy the cost of one call in this loop — the system's most frequent caller (one per navigation
+    step). Best-effort: metering must never bring down a running task."""
     try:
         from nucleo import energy_meter as _energy
         u = getattr(resp, "usage", None)

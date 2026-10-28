@@ -1,19 +1,11 @@
 #
-# agent.py: browser AUTOMATOR (Milestone 2): a goal-driven, DOM-first loop that drives the owner's
-# Chromium to complete a natural-language goal. HYBRID approach decided with the operator on 2026-07-08:
-#
-#   - DOM-first (cheap): each step passes the model a TEXT SNAPSHOT of the page's interactive elements
-#     (accessibility tree -> `[7] textbox "Search"`), not a screenshot. The model chooses the NEXT action through
-#     function-calling (click/type/scroll/navigate/press/done). Text tokens only -> cents per task.
-#   - HUMAN behavior in the Playwright layer (owner.py), free of token cost: mouse curve + delays + jittered typing.
-#     Always active; this is what makes websites behave well without paying model cost for it.
-#   - VISION only on demand: if the model cannot solve through DOM, it asks for `need_vision` and the step attaches
-#     ONE screenshot (expensive), so the image is paid only on that step. Vision phase: stub in M2, completed in M3.
-#
-# Brain = DEDICATED model, DeepSeek V4 Pro DIRECT by default (operator's norm, 2026-08-19: DeepSeek V4 Pro and
-# nothing else). Configurable by env (NAVEGADOR_AGENT_*). Does NOT use the Hermes agent: governance
-# already escalates the DECISION to automate to Hermes (`automate` action = safe:false); the loop itself is
-# mechanical and cheap, and should not occupy the voice ACP turn.
+# agent: browser AUTOMATOR — a goal-driven, DOM-first loop driving the owner's Chromium to a natural-language goal.
+#   - DOM-first: each step gets a TEXT SNAPSHOT of the interactive elements (`[7] textbox "Search"`) and picks the
+#     NEXT action by function-calling (click/type/scroll/navigate/press/done). Text tokens only.
+#   - HUMAN behaviour lives in the Playwright layer (owner.py) at no token cost: mouse curve, delays, jittered typing.
+#   - VISION on demand: `need_vision` attaches ONE screenshot to the next step, so the image is paid only there.
+# Brain = a DEDICATED model (DeepSeek V4 Pro direct by default, env NAVEGADOR_AGENT_*), not the Hermes agent:
+# governance already escalates the DECISION to automate; the loop is mechanical and must not hold the voice turn.
 #
 import json
 import os
@@ -23,24 +15,15 @@ from urllib.parse import urlsplit
 from loguru import logger
 from openai import AsyncOpenAI
 
-# ⚠️ 2026-08-19 — operator's norm: DeepSeek V4 Pro DIRECT, no other provider. The model name TRAVELS WITH ITS
-# ENDPOINT: the broker prefixes it (`deepseek/deepseek-v4-pro`) and the native API does not, so changing one
-# without the other buys a 400 on every step.
-#
-# KNOWN, WRITTEN LIMIT rather than a silent regression: the loop is DOM-FIRST (text snapshots of the
-# accessibility tree), which is what almost every step uses and is plain text — that path is unaffected. The
-# `need_vision` step attaches a screenshot as an `image_url` content part, and VISION on this default is NOT
-# verified. If a run stalls asking for vision, that is where to look; the escape hatch is
-# `NAVEGADOR_AGENT_MODEL_STRONG` with a vision-capable id on the same endpoint, which is exactly the third rung
-# this loop already has for "the cheap model cannot pass this".
+# The model name TRAVELS WITH ITS ENDPOINT: the broker prefixes it (`deepseek/deepseek-v4-pro`), the native API does
+# not — changing one without the other is a 400 on every step. Vision on this default is NOT verified: if a run
+# stalls on `need_vision`, the escape hatch is `NAVEGADOR_AGENT_MODEL_STRONG` with a vision-capable id.
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-v4-pro"
 _MAX_STEPS = int(os.environ.get("NAVEGADOR_AGENT_MAX_STEPS", "16"))
 
-# LOGIN WALL: deterministic detection so credentials are never invented (2026-07-10 bug: on Google login, the loop
-# typed a fake email and spun). When the page IS a login screen, the loop types nothing: it stops and returns
-# needs_login, so the owner opens the REAL window for the operator to log in manually. The session remains in the
-# persistent profile. Known login URL patterns + DOM signal (password field).
+# LOGIN WALL: detected deterministically so credentials are never invented. On a login screen the loop types nothing
+# and returns needs_login; the owner opens the REAL window for the operator (the session persists in the profile).
 _LOGIN_URL_RE = re.compile(
     r"(accounts\.google\.[^/]+/.*(signin|login)|/login(\b|[/?])|/signin(\b|[/?])|/sign-in(\b|[/?])|"
     r"/auth/(login|signin)|/sso/|/session/new|/uas/login|/checkpoint/|login\.(microsoftonline|yahoo|live)\.com|"
@@ -78,11 +61,9 @@ def _model() -> str:
 
 
 def _judge_model() -> str:
-    """Model that judges relevance of extracted listings, including exact-category fit. Off-hot-path, so prioritize
-    judgment over latency: a capable model distinguishes enduro from trial/road. Default `deepseek-v4-flash`
-    (cheap and good at reasoning) on the SAME endpoint as the loop, which since 2026-08-19 is the DIRECT DeepSeek
-    API — hence the UNPREFIXED name; the `deepseek/` prefix is the broker's catalog and 400s here. Adjustable with
-    `NAVEGADOR_JUDGE_MODEL`."""
+    """Model that judges the relevance of extracted listings, exact category included (off the hot path: judgement
+    over latency). Default `deepseek-v4-flash` on the loop's endpoint — the DIRECT DeepSeek API, hence the UNPREFIXED
+    name (`deepseek/` is the broker's catalog and 400s here). `NAVEGADOR_JUDGE_MODEL` overrides."""
     return os.getenv("NAVEGADOR_JUDGE_MODEL", "deepseek-v4-flash").strip() or _model()
 
 
@@ -135,8 +116,7 @@ def _c() -> AsyncOpenAI:
         key = _api_key()
         if not key:
             raise RuntimeError("no NAVEGADOR_AGENT_API_KEY/AIMLAPI_KEY para el automatizador del navegador")
-        # EGRESS (T304). This agent makes the most calls in the system, one per navigation step, so it most needed
-        # mediated key handling. Not anymore.
+        # EGRESS (T304): the system's most frequent caller (one per navigation step) goes through mediated keys.
         from nucleo import llm_egress
         base, key, extra = llm_egress.route(_base_url(), key)
         if not key:
@@ -242,7 +222,7 @@ _VISION_TOOLS = [
         "parameters": {"type": "object", "properties": {"why": {"type": "string"}}, "required": ["why"]}}},
 ]
 
-# refactor2710-12 — the loop lives in `run.py`, one model call in `step.py`; both read this module's names through it.
+# The loop lives in `run.py`, one model call in `step.py`; both read this module's names through it.
 from widgets.navegador.agent.run import (  # noqa: E402,F401 — re-export
     run_task, _reread_the_goal, _ask_the_model, _meter)
 from widgets.navegador.agent.step import (  # noqa: E402,F401 — re-export
