@@ -85,7 +85,9 @@ class _TextOnly(HTMLParser):
 
     def handle_starttag(self, tag, attrs=None):
         self.out.append(" ")
-    handle_endtag = handle_starttag
+
+    def handle_endtag(self, tag):
+        self.handle_starttag(tag)
 
 
 def _plain(text) -> str:
