@@ -59,26 +59,8 @@ def _now() -> str:
     return time.strftime("%H:%M")
 
 
-def _spoken(field: str) -> str:
-    """A line the operator HEARS, read from the language table instead of written here (V2-689).
-
-    His rule, and V2-676's receipt: every text the operator can hear or read lives in ONE place that gets
-    translated when the agent is initialised in a language. A hardcoded Spanish refusal is a defect for
-    every operator who is not speaking Spanish — and an `_en` ternary is the same defect for the third
-    language, which is why this reads the TABLE and never a two-way branch.
-
-    Fail-safe: an unreadable table falls back to the field's own default, which is the Castilian text that
-    used to be inline. A refusal the operator cannot hear is worse than one in the wrong language."""
-    try:
-        from i18n import langs as _langs
-        return str(getattr(_langs.spec(), field, "") or "")
-    except Exception:  # noqa: BLE001
-        from dataclasses import fields as _fields
-        try:
-            from i18n.langs import LangSpec as _LS
-            return str(next(f.default for f in _fields(_LS) if f.name == field))
-        except Exception:  # noqa: BLE001
-            return ""
+# The text views (refactor2710-12 T-03): the spoken line, the coach context, today's block.
+from .digest import _spoken, coach_context, today_line  # noqa: E402,F401 — re-export
 
 
 def _lang() -> str:
@@ -92,45 +74,8 @@ def compute_plan(db: dict | None = None) -> dict:
     return planner.plan_day(db or load_db(), date=_today(), now=_now(), lang=_lang())
 
 
-def _horizon(db: dict, span: int = 7) -> list[dict]:
-    """Per-day plans for TODAY .. TODAY+span-1, so the widget exposes a time horizon (not only today) and
-    switches views client-side without another request (widget.js cannot fetch). `plan_day` is pure and cheap."""
-    import time as _t
-    today = _today()
-    base = _t.mktime(_t.localtime())
-    lang = _lang()
-    from i18n import langs as _langs
-    wk = _langs.words("agenda.week_labels", code=lang[:2] or None, default=())
-    words = _langs.words("agenda.day_words", code=lang[:2] or None, default=())
-    out: list[dict] = []
-    for i in range(span):
-        d = _t.localtime(base + i * 86400)
-        date = _t.strftime("%Y-%m-%d", d)
-        plan = planner.plan_day(db, date=date, now=_now() if date == today else "", lang=lang)
-        label = words[0] if i == 0 else (words[1] if i == 1 else wk[d.tm_wday])
-        out.append({"date": date, "label": label, "weekday": wk[d.tm_wday], "plan": plan})
-    return out
-
-
-# How long a pushed view stays worth OBEYING (V2-540). It is not the mounted widget that needs this — that one
-# keeps whatever is on screen and only moves when the token changes — it is a widget mounting FRESH.
-#
-# The flow that matters happens in seconds: `show_day` writes, then `show_widget` opens the card, and its first
-# fetch has to arrive already pointing at tomorrow (opening the widget can never select a day by itself, which
-# is the whole defect). But a push kept forever would mean that reopening the agenda NEXT WEEK lands on a
-# «tomorrow» that is now the past — a stale answer wearing the face of a deliberate one. Expiring it server-side
-# is the one place with a trustworthy clock, and it costs the open widget nothing: when `view` goes away the
-# token merely stops moving, so nothing snaps back and the operator's own tab survives.
-_VIEW_TTL_S = 600
-
-
-def _fresh_view(db: dict) -> dict | None:
-    v = db.get("view") or None
-    if not v:
-        return None
-    import time as _tm
-    at = float(v.get("at") or 0)
-    return v if at and (_tm.time() - at) <= _VIEW_TTL_S else None
+# The pieces view_data() assembles (refactor2710-12 T-03): horizon, pushed-view freshness, proposals.
+from .view import _VIEW_TTL_S, _fresh_view, _horizon, _proposals  # noqa: E402,F401 — re-export
 
 
 def calendars() -> list[dict]:
@@ -181,14 +126,6 @@ def view_data(q: str = "") -> dict:
         "coaching": plan.get("coaching", []),
     }
 
-
-def _proposals() -> list[dict]:
-    """Best-effort: an unreadable errand ledger costs the proposals band, never the calendar."""
-    try:
-        from nucleo.errands import proposals as _p
-        return _p.pending()
-    except Exception:  # noqa: BLE001
-        return []
 
 
 # The two views the brain reads of this card — WHAT CAN BE NAMED and WHAT IS INSIDE — live in
@@ -338,66 +275,6 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     store.save(WIDGET_ID, db)   # persist the mutation; the plan is derived fresh in view_data()
     return {**view_data(), **{k: v for k, v in (_extra or {}).items() if v}}
 
-
-def coach_context() -> str:
-    """The 'memory seam' (HANDOFF §7 note): mission + workday + projects-by-priority + today's plan + free gaps,
-    rendered for the assistant to adopt the COACH role over the agenda."""
-    d = view_data()
-    db = load_db()
-    lines = [f"MISIÓN GLOBAL: {d['mission']}", "", "PROYECTOS (por prioridad):"]
-    for p in sorted(db.get("projects", []), key=lambda p: p.get("priority", 5)):
-        lines.append(f"- [{p.get('priority')}] {p['name']}: {p.get('objective','')} "
-                     f"(valor {p.get('expectedValue')}, prob {p.get('successProbability')}, {p.get('hoursRemaining')}h)")
-    lines.append("\nAGENDA DE HOY:")
-    for b in d["plan"]["blocks"]:
-        lines.append(f"  {b['start']}–{b['end']} · {b['label']} ({b['kind']})")
-    if d["active"]:
-        lines.append(f"\nAHORA ({d['now']}): {d['active']['label']} · quedan {d['active'].get('remaining_min','?')} min")
-    if d["warnings"]:
-        lines.append("\nNO CABE HOY: " + " | ".join(d["warnings"]))
-    return "\n".join(lines)
-
-
-def today_line(limit: int = 8) -> str:
-    """TODAY's meetings as ONE compact block for the turn prompt, whether or not the card is open (V2-668b).
-
-    Measured live (2026-09-11, 11:33, the very re-run of the Hacienda incident): with the agenda CLOSED, the
-    STATE carried a memory pill the processor had distilled from the conversation — «cita con la agencia
-    tributaria… a las 11:00» — while this widget held 11:30, and the model answered the pill without calling
-    `read_widget`, which it had been offered. A widget-owned fact asserted by a recollection outranks the widget
-    for a model, because the recollection is IN the prompt and the widget is a tool call away. So the one
-    calendar everybody asks about every day rides in the state, and the block says who wins when they disagree.
-    Only when there IS something today or tomorrow (an empty pair costs nothing); the header names the precedence.
-    Demo pass 110, Z1: «what's on my plate tomorrow» was answered with TODAY's rows — the only day the block carried
-    — so tomorrow rides too, and every day is named by its DATE rather than left for the model to place."""
-    try:
-        import datetime as _dt
-        db = load_db()
-        today = _today()
-        days = [("HOY", today), ("MAÑANA", (_dt.date.fromisoformat(today) + _dt.timedelta(days=1)).isoformat())]
-        per = [(label, day, sorted(recur.on_date(db.get("meetings", []), day),
-                                   key=lambda m: (bool(not m.get("allDay")), str(m.get("startTime") or ""))))
-               for label, day in days]
-    except Exception:
-        return ""
-    if not any(meets for _l, _d, meets in per):
-        return ""
-    rows = []
-    for label, day, meets in per:
-        rows.append(f"{label} ({day}):" + ("" if meets else " nada"))
-        for m in meets[:limit]:
-            if m.get("allDay"):
-                when = "todo el día"
-            else:
-                when = str(m.get("startTime") or "?") + (f"–{m['endTime']}" if m.get("endTime") else "")
-            row = f"  {when} · {str(m.get('title') or 'Cita')[:80]}"
-            if m.get("location"):
-                row += f" · {str(m['location'])[:40]}"
-            rows.append(row)
-        if len(meets) > limit:
-            rows.append(f"  … y {len(meets) - limit} más (read_widget agenda)")
-    return ("AGENDA — lo que GUARDA el widget agenda; si un recuerdo dice otra hora u otro día, MANDA esto "
-            "(para otro día o más detalle: read_widget):\n" + "\n".join(rows))
 
 
 def tick(ctx) -> None:
