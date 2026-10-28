@@ -67,6 +67,8 @@ _EXENTOS: dict[str, str] = {
         "meters it.",
     "nucleo/energy/meter.py":
         "ES el contador: aquí viven las tarifas, no un llamante que deba usarlas.",
+    "nucleo/energy/meter_rates.py":
+        "the meter's rate TABLES, split out of meter.py by concern; the hosts are rate keys and it calls nobody.",
     "nucleo/energy/keys.py":
         "una TABLA de base_url → nombre de variable de la clave; no llama a nadie (V2-782 añadió el host de Gemini a las señales).",
     "search/providers/__init__.py":
