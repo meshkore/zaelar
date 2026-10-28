@@ -230,10 +230,20 @@ def apply(action: str, p: dict, db: dict) -> "dict | None":
     if action == "open_channel":
         name = str(p.get("channel") or p.get("name") or p.get("item") or "").strip()
         ch = _followed(db, name)
+        followed = ch is not None
         if ch is None:
-            return {"ok": False, "error": "not_followed", "channel": name,
-                    "channels": [c.get("name") for c in db.get("channels") or []],
-                    "message": "No sigo ese canal."}
+            # A channel he does not follow still OPENS (live 2026-10-28: «show me the channel of SpaceX» answered
+            # «No sigo ese canal» four turns in a row). Resolved by name on the public search, never stored: following
+            # stays his explicit act (`follow_channel`).
+            if not name:
+                return {"ok": False, "error": "no_channel", "message": "Dime qué canal."}
+            hit = find(name)
+            if not hit.get("id"):
+                return {"ok": False, "error": "not_found", "channel": name,
+                        "channels": [c.get("name") for c in db.get("channels") or []],
+                        "message": "No encuentro ese canal en YouTube."}
+            ch = {"name": hit.get("title") or name, "id": hit["id"],
+                  "meta": {k: hit[k] for k in ("handle", "avatar", "subscribers") if hit.get(k)}}
         if not ch.get("id") and not _resolve(ch):
             store.save(WID, db)
             return {"ok": False, "error": "not_found", "channel": ch.get("name"),
@@ -246,7 +256,7 @@ def apply(action: str, p: dict, db: dict) -> "dict | None":
         store.save(WID, db)
         # The card asks for `refresh_channel` right after this, with its loader up: opening is instant from
         # the cache, and looking for what is new is a separate, visible step.
-        return {"ok": True, "channel": ch.get("name"), "id": ch["id"]}
+        return {"ok": True, "channel": ch.get("name"), "id": ch["id"], "followed": followed}
 
     if action == "close_channel":
         db["channel_view"] = {}

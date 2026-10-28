@@ -34,7 +34,23 @@ def order_is_inside(brief, widget_id: str = "") -> bool:
         # 2026-09-28, M4: «ok close that», close 1.00 vs agenda:close_meeting 0.55, closed the AGENDA, not the chart).
         if _da.sure_canvas(brief) == "close" and not _da._action_sure(brief):
             return False
+        # An in-card action that borrows the canvas verb's own NAME («youtube:close» = unload the player) cannot by
+        # itself put «close the widget» inside the card: live 2026-10-28 T40, `youtube:close` 1.00 kept the card on
+        # screen through four turns. The canvas reader leaning to close outvotes the alias; only a canvas reading
+        # that is NOT a close («quita el vídeo», canvas = neither) leaves the order inside.
+        if name == "close" and _canvas_leans_close(brief):
+            return False
         return not widget_id or _da._base_of(owner) == _da._base_of(widget_id)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _canvas_leans_close(brief) -> bool:
+    """The canvas verdict's choice is `close` at any readable confidence (the licence floor, not the veto)."""
+    try:
+        from nucleo.turn import brief as _tb, verdicts as _v
+        verb, info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=_v.LICENCE)
+        return bool(info) and str(verb or "") == "close"
     except Exception:  # noqa: BLE001
         return False
 
@@ -223,7 +239,12 @@ def order_card_after_read(brief, operator_text: str, read_widget: str) -> str:
             return ""
         # Demo pass 62, C2: verdict `agenda:find_free` 0.91, the model ran it, and this still sent the order to the
         # monitors sheet. A verdict SURE the order is on the card the turn touched means there is no other card.
-        target, t_info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.8)
+        # Any READABLE verdict (the licence floor) pointing at the card the turn touched is evidence that there is no
+        # other card — a grammar match cannot refute it (live 2026-10-28 T14: «show me a message for, uh, show me a
+        # video from SpaceX» read `youtube:search` 0.73, under the old 0.8 floor, and the retracted half opened the
+        # messages card in a second pass).
+        from nucleo.turn import verdicts as _v
+        target, t_info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=_v.LICENCE)
         owner = str(target or "").rpartition(":")[0]
         if t_info and owner and _da._base_of(owner) == _da._base_of(read_widget):
             return ""
