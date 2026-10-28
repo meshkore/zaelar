@@ -230,9 +230,8 @@ def test_the_prompt_AFFIRMS_the_capability_and_names_the_forbidden_sentence():
         assert verb in block, verb
     # V2-640's LIMIT travels with it — the two halves are one paragraph on purpose.
     assert "nunca sigas como si existiera" in block
-    from nucleo.flash import prompt as _p
-    import inspect
-    assert "_canvas_claim.SCREEN_BLOCK" in inspect.getsource(_p)
+    from nucleo.turn.prompt import operating
+    assert block in operating._flash_layer(set()), "the operating layer the model reads carries it"
 
 
 # ── F · Everything the operator HEARS is in his language, including the auditor and the workers ───────────

@@ -348,8 +348,9 @@ def test_the_turn_is_told_which_closed_sheets_it_can_bring_back(monkeypatch):
     assert len(lines) == 1 and "results::m1" in lines[0] and "results::t9" in lines[0] and "results::o1" not in lines[0], lines
     monkeypatch.setattr(instances, "recent_faces", lambda limit=5: [])
     assert live_blocks.shelf_lines() == []
-    src = (Path(__file__).resolve().parents[4] / "nucleo/flash/prompt.py").read_text("utf-8")
-    assert "lines.extend(_live_blocks.shelf_lines())" in src[src.index("def live_state"):], "the live block must carry it"
+    from nucleo.turn.prompt import live_state
+    monkeypatch.setattr(live_blocks, "shelf_lines", lambda: ["SHELF-MARK"])
+    assert "SHELF-MARK" in live_state.live_state(), "the live block must carry it"
 
 
 def test_an_open_sheet_is_never_on_the_shelf_of_closed_ones(monkeypatch):

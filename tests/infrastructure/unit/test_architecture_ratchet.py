@@ -178,10 +178,8 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     "nucleo/flash/show_guard.py": (165, 4),
     # nucleo/flash/probe.py left the table with the text channel's own turn (refactor2710-01): the typed
     # channel runs the voice turn, so there is no second copy left to bound.
-    "nucleo/flash/prompt.py": (834, 29),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
-    # branch in the worker directive: inject before killing—directive prose, nothing extractable)
-    # 26-09-11: V2-675 · −21 — the CRON line moved to `live_blocks.py` (same precedent as the browser and
-    # background-task blocks), paying for the context-pack seam. Lowering the number IS the celebration.
+    # nucleo/flash/prompt.py left the table: refactor2710-08 split it into nucleo/turn/prompt/ (builder, operating,
+    # live_state, recall), every file under the new-file bound.
     "nucleo/workers/session.py": (696, 16),   # 2026-10-01 V2-778 F1: its notes → workers/session_notes.py
     "nucleo/flash/router.py": (327, 1),
 }
@@ -341,14 +339,14 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/dispatch": 2448,   # refactor2710-09 T-01: moved from top and split; target 1 200
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 24949,      # refactor2710-02: the model client MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts
+    "nucleo/flash": 24145,      # refactor2710-02: the model client MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/jev": 759,          # refactor2710-07: born — jev.py split into the client, select and decide (dead calls out)
     "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
     "nucleo/request": 954,     # refactor2710-02: born — request_row (model), errand_kind/title, dedup+continuity (append), stop_decision MOVED in
     "nucleo/susurro": 1386,
-    "nucleo/turn": 4084,        # refactor2710-03: `reply.py` + `reply_receipts.py` (the mouth); refactor2710-07: `brief.py` + `verdicts.py` (moved from nucleo/flash); refactor2710-08: `prompt/` (catalogs moved from nucleo/flash, packs from nucleo/context_packs)
+    "nucleo/turn": 4884,        # refactor2710-03: `reply.py` + `reply_receipts.py` (the mouth); refactor2710-07: `brief.py` + `verdicts.py` (moved from nucleo/flash); refactor2710-08: `prompt/` (catalogs moved from nucleo/flash, packs from nucleo/context_packs, prompt.py split into builder · operating · live_state · recall)
     "nucleo/workers": 6940,            # refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
     "nucleo/workflows": 315,
     "observability": 1005,
@@ -397,7 +395,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/payload_fill.py",
     "nucleo/flash/post_stream_lanes.py",
     "nucleo/flash/post_stream_acts.py",
-    "nucleo/flash/prompt.py",
     "nucleo/llm/provider_chain.py",
     "nucleo/flash/reminder_guards.py",
     "nucleo/flash/router.py",
@@ -444,8 +441,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777; refactor2710-08: → 170681). Never for growth in place.
-_TOTAL_MAX = 170681
+#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777; refactor2710-08: → 170677). Never for growth in place.
+_TOTAL_MAX = 170677
 
 
 def test_the_total_only_shrinks():

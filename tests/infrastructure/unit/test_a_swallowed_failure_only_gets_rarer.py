@@ -308,7 +308,10 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/probe_mirrors.py': 9,
     'nucleo/flash/probe_scheduling.py': 3,
     'nucleo/flash/procs.py': 3,
-    'nucleo/flash/prompt.py': 16,
+    'nucleo/turn/prompt/live_state.py': 10,   # refactor2710-08: nucleo/flash/prompt.py (16) split
+    'nucleo/turn/prompt/operating.py': 2,
+    'nucleo/turn/prompt/recall.py': 4,
+    'nucleo/turn/prompt/builder.py': 1,
     'nucleo/llm/provider_chain.py': 11,
     'nucleo/llm/provider_failure.py': 4,
     'nucleo/flash/recall_heuristics.py': 1,

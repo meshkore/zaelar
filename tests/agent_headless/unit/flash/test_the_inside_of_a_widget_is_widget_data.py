@@ -26,7 +26,9 @@ def _tool(name: str) -> dict:
 
 
 def _prompt_src() -> str:
-    return (ENGINE / "nucleo" / "flash" / "prompt.py").read_text(encoding="utf-8")
+    """The operating layer AS THE MODEL READS IT (refactor2710-08: rendered, not the module's source)."""
+    from nucleo.turn.prompt import operating
+    return operating._flash_layer(set())
 
 
 # ── The canvas block no longer forbids what the resources block teaches ─────────────────────────────────────

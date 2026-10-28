@@ -171,9 +171,12 @@ def test_the_voice_channel_wires_the_harness_before_the_rescue_and_the_holding_l
     assert "_shown_ids.add(_pw)" in prov, "the promise-backstop show must register its card as a goal too"
 
 
-def test_the_prompt_and_the_heartbeat_read_the_ledger():
-    # V2-661: the harness lines joined their two neighbours in `live_blocks` (same precedent as V2-276/V2-348).
-    assert "harness_lines()" in _src("nucleo/flash/prompt.py")
+def test_the_prompt_and_the_heartbeat_read_the_ledger(monkeypatch):
+    # V2-661: the harness lines joined their two neighbours in `live_blocks`; read on the built live state.
+    from nucleo.flash import live_blocks
+    from nucleo.turn.prompt import live_state
+    monkeypatch.setattr(live_blocks, "harness_lines", lambda: ["HARNESS-MARK"])
+    assert "HARNESS-MARK" in live_state.live_state()
     assert "harness.prompt_lines()" in _src("nucleo/flash/live_blocks.py")
     loop = _src("nucleo/loop.py")
     assert "await self._supervise_harness(now)" in loop and "harness.sweep(now)" in loop

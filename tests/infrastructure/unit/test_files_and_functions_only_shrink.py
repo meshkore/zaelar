@@ -34,7 +34,6 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 FILES = {
     'nucleo/energy_meter.py': 812,
     'nucleo/llm/fast_client.py': 866,
-    'nucleo/flash/prompt.py': 816,
     'nucleo/jev/__init__.py': 590,
     'voice/engine/llm/providers/nucleo.py': 997,
 }
@@ -63,8 +62,8 @@ FUNCTIONS = {
     'nucleo/flash/probe_after.py::execute_what_was_decided': 148,
     'nucleo/flash/probe_decide.py::name_the_action': 221,
     'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 264,
-    'nucleo/flash/prompt.py::_flash_layer': 238,
-    'nucleo/flash/prompt.py::live_state': 210,
+    'nucleo/turn/prompt/operating.py::_flash_layer': 238,   # refactor2710-08: moved from nucleo/flash/prompt.py
+    'nucleo/turn/prompt/live_state.py::live_state': 202,    # refactor2710-08: moved from nucleo/flash/prompt.py
     'nucleo/flash/task_block.py::pending_task_lines': 198,
     'nucleo/flash/tool_executor_calls.py::_on_tool_call': 188,
     'nucleo/flash/tool_executor_widget.py::build': 156,

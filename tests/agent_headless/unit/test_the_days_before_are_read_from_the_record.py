@@ -74,6 +74,8 @@ def test_bounded_and_facts_only():
         assert rule not in line, f"facts only — «{rule}» is an instruction"
 
 
-def test_the_turn_prompt_carries_it():
-    src = open("nucleo/flash/prompt.py", encoding="utf8").read()
-    assert "_live_blocks.earlier_lines()" in src, "the block is built and never reaches the turn"
+def test_the_turn_prompt_carries_it(monkeypatch):
+    from nucleo.flash import live_blocks
+    from nucleo.turn.prompt import live_state
+    monkeypatch.setattr(live_blocks, "earlier_lines", lambda: ["EARLIER-MARK"])
+    assert "EARLIER-MARK" in live_state.live_state(), "the block is built and never reaches the turn"
