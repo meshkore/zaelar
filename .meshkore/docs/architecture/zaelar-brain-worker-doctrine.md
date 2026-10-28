@@ -119,7 +119,7 @@ The worker prompt (`nucleo/dispatch_prompts.py`) is where breadth lives, and it 
   commitment made on a SITE with no connector (a booking, a subscription, a payment) is done there and then reflected.
 - `_HUMAN_NAV_GUIDE` — human rhythm, use the site's own search and filters, accept cookies, scroll gradually,
   back off from anti-bot walls instead of hammering. Also domain-free.
-- `nucleo/research.py` — the brief *directs* an investigation (breadth floor, hard vs soft criteria, a scoring
+- `nucleo/workers/brief.py` — the brief *directs* an investigation (breadth floor, hard vs soft criteria, a scoring
   rubric) instead of prescribing where to look. Direction generalises; itineraries do not.
 
 ### Starting points, not fences

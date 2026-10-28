@@ -222,7 +222,7 @@ _DEFAULTS: dict[str, dict] = {
         "window_turns": 8,                      # verbatim conversation turns in the audit window
         "recency_window_s": 120,                # only turns/events from this window enter the audit (anti-contamination)
     },
-    # RESEARCH DIRECTOR (nucleo/research.py) — composes the BRIEF with which a Brain Worker executes a SELECTION
+    # RESEARCH DIRECTOR (nucleo/workers/brief.py) — composes the BRIEF with which a Brain Worker executes a SELECTION
     # (hard/soft criteria separated, expert enrichments, minimum candidate breadth, quality rubric, deliverable
     # shape). Runs in the ASYNC pre-flight of escalation, never in the voice turn, so here it CAN reason. Empty =
     # goes through the reasoning-tier CHAIN (nucleo/llm/provider_chain.py), which also relays provider if the

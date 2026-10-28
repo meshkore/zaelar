@@ -158,7 +158,7 @@ def test_the_worker_is_told_to_fill_the_sheet_while_it_works():
     """An investigation takes 5–15 minutes and the brief only asked for delivery AT THE END: the operator was left
     staring at an empty sheet —or the previous search's— without knowing whether anything was happening or being able
     to correct course in time."""
-    from nucleo import research
+    from nucleo.workers import brief as research
     brief = {"goal": "veleros de 49 pies de segunda mano", "min_candidates": 40, "n_final": 3,
              "hard": ["velero", "segunda mano"], "soft": ["ubicación"]}
     text = research.to_prompt_block(brief)

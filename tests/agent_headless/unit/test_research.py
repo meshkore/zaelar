@@ -1,4 +1,4 @@
-"""Contract for the RESEARCH DIRECTOR (`nucleo/research.py`).
+"""Contract for the RESEARCH DIRECTOR (`nucleo/workers/brief.py`).
 
 The bug this closes (operator, 2026-08-09): asking for “the best holiday” and receiving three results taken from the
 first page of a search engine. The worker already knew how to browse and extract; what nobody told it was how BROADLY
@@ -15,7 +15,7 @@ import json
 import pytest
 
 from memory import db as memdb
-from nucleo import research
+from nucleo.workers import brief as research
 
 
 @pytest.fixture(autouse=True)

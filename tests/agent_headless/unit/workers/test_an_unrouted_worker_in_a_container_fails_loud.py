@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 
-from nucleo.workers import claude_session as cs
+from nucleo.workers.providers import claude as cs
 from nucleo.workers import providers
 
 

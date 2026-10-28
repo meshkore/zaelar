@@ -1,4 +1,4 @@
-"""nucleo/workers/spawned.py — the sessions this engine opened for its workers (2026-10-14).
+"""nucleo/workers/providers/spawned.py — the sessions this engine opened for its workers (2026-10-14).
 
 Every worker backend starts its CLI with `start_new_session=True`, so the worker's pid IS the id of a new
 process session, and everything the worker runs (each Bash tool, a `curl`, a backgrounded `( … & )`) inherits

@@ -10,7 +10,9 @@ from __future__ import annotations
 import asyncio
 import types
 
-from nucleo import research, sheets, surfaces
+from nucleo import sheets, surfaces
+
+from nucleo.workers import brief as research
 
 BRIEF = {"goal": "Verified photos of the Ferrari Amalfi", "round": 1}
 

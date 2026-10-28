@@ -1,4 +1,4 @@
-"""nucleo/workers/generator_session.py — backend `GeneratorBackend` (V2-038, §v3·Q4).
+"""nucleo/workers/providers/generator.py — backend `GeneratorBackend` (V2-038, §v3·Q4).
 
 Unifica la CREACIÓN/MODIFICACIÓN de widgets bajo el sustrato de Brain Workers **conservando el CONTRATO**: reutiliza
 `widgets/generator.py` ÍNTEGRO (su `_CONTRACT`, la validación de acciones/background/CSS, el journal `_jobs`,
@@ -16,7 +16,7 @@ import asyncio
 
 from loguru import logger
 
-from .base import WorkerBackend, WorkerEvent, WorkerSpec
+from ..base import WorkerBackend, WorkerEvent, WorkerSpec
 
 
 class GeneratorBackend(WorkerBackend):
@@ -123,7 +123,7 @@ class GeneratorBackend(WorkerBackend):
 
     async def _apply_what_came_later(self, wid: str) -> str:
         """One `modify_widget` pass with every message that arrived during the build; the summary's tail ("" if none)."""
-        from nucleo.workers import generator_followup as _fu
+        from nucleo.workers.providers import generator_followup as _fu
         change = _fu.instruction(self._later)
         self._later = []
         if not change or not wid:

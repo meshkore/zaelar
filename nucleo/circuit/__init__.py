@@ -319,7 +319,7 @@ RETRY_QUESTION = "¿Lo intento otra vez, con alguna pista tuya?"
 
 def _park_retry(rec, missing: str) -> bool:
     try:
-        from nucleo import dispatch_confirm as _dc
+        from nucleo.dispatch import confirm as _dc
         _dc.remember_offer(
             f"{rec.goal}\n\n[ARNÉS] Esto quedó SIN cumplir y es lo que hay que terminar: {missing}. "
             f"Lo demás ya está hecho: no lo repitas.",

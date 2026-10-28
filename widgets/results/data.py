@@ -11,7 +11,7 @@
 #
 # An item may be a BUNDLE (`parts`: hotel + ferry + restaurant) with a drill-down (`images`/`facts`); `view`/`focus`
 # switch the sheet to one item's full dossier. FOUR TABS — results, summary, sources (what happened on each site),
-# criteria (seeded from the brief in `nucleo/research.py`, plus spoken corrections) — and the active `tab` live in
+# criteria (seeded from the brief in `nucleo/workers/brief.py`, plus spoken corrections) — and the active `tab` live in
 # the same persisted payload, so voice moves the screen. A record is DYNAMIC (`blocks`) from a closed vocabulary
 # painted with `textContent`, never worker HTML: this payload comes from the open web.
 #

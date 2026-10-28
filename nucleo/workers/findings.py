@@ -245,29 +245,17 @@ def hand_search_rows(rec, res: dict) -> int:
         from nucleo import picture_errand as _pe     # a picture errand's search goes to the viewer, never a sheet
         if _pe.deliver(rec, str(res.get("query") or ""), res):
             return 0
-        # V2-376 — WHAT RETURNS FROM A SEARCH IS A LEAD, NOT A CANDIDATE, and until now it entered the
-        # sheet without being distinguished from a record extracted from a listing. Measured in
-        # `weekend-adventure-sports-bilbao__es` (2026-08-27): **52 «named candidates»** from a SINGLE
-        # source, and their titles were pages —«Canyoning descents in Vizcaya: 9 prices and offers
-        # 2026», «Bilbao unveils eight free music venues», «Top activity in Bilbao - Book with free
-        # cancellation»—. The same pattern as the eight Google titles counted as rental cars that same day.
-        #
-        # V2-320 is NOT undone and this is what must be preserved: searching is a legitimate way to resolve
-        # «activities near X», so its findings are findings and the sheet cannot remain empty. What was
-        # missing was for the row to SAY what it is. It travels through `facts`, vocabulary the sheet already
-        # preserves —that is how the phone number travels— so there is no need to touch the widget contract.
+        # V2-376 — A SEARCH RETURNS A LEAD, NOT A CANDIDATE. `weekend-adventure-sports-bilbao__es` (2026-08-27):
+        # 52 «named candidates» from ONE source, titles of pages. V2-320 stands (search findings are findings);
+        # the row now SAYS what it is, via `facts` (like the phone number) — no widget contract change.
         rows = [{"title": str(r.get("title") or "").strip(),
                  "subtitle": str(r.get("snippet") or "").strip()[:160],
                  "url": str(r.get("url") or "").strip(),
                  "facts": [{"label": "Origen", "value": "búsqueda web"}]}
                 for r in (res.get("results") or [])[:4] if isinstance(r, dict)]
         rows = [r for r in rows if r["title"]]
-        # V2-471 — the price the snippet already NAMES travels as the row's datum. Measured in
-        # `cheapest-monitor__us` round 12: 46 rows, all `price: None`, while titles carried the figure
-        # («…S2725QS for $279.99») — the model's «let me confirm the price» loop was honest, and the
-        # delivery backstop cannot append what the rows do not carry. One unambiguous amount in the title
-        # (else exactly one in the snippet) is the source's own claim; with several amounts nothing is
-        # guessed — absence is said by `fila()`, a guess is invented data (V2-430's whole family).
+        # V2-471 — a price the snippet NAMES travels as the row's datum (`cheapest-monitor__us` round 12: 46 rows,
+        # `price: None`, titles «…for $279.99»). One unambiguous amount only; several → nothing guessed (V2-430).
         for r in rows:
             p = _lone_amount(r["title"]) or _lone_amount(r.get("subtitle") or "")
             if p:

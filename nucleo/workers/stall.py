@@ -93,10 +93,8 @@ def mark_stalled(rec, emit_chip) -> None:
 
 
 # ── the same step, over and over (demo run, 2026-09-26) ────────────────────────────────────────────────────
-# A worker that hit the permission gate while writing its sheet then ran `true` again and again for 15+ minutes:
-# every step was an event, so the silence watchdog above never fired, and it held one of the two pool slots
-# while delivering nothing. Counting IDENTICAL consecutive steps is mechanical — it judges nothing about the
-# errand: at SPIN_WARN it is told to deliver what it has, at SPIN_KILL it is stopped with an honest ending.
+# A gated worker ran `true` for 15+ minutes, invisible to the silence watchdog, holding a pool slot. Counting
+# IDENTICAL steps judges nothing: SPIN_WARN → deliver what you have; SPIN_KILL → stopped with an honest ending.
 SPIN_WARN = 6
 SPIN_KILL = 20
 
@@ -142,9 +140,7 @@ def mark_spinning(rec, emit_chip, n: int) -> None:
 
 
 # ── the gate's refusal, read (V2-241) ──────────────────────────────────────────────────────────────────────
-# WHICH fragment the gate stopped. A correction repeating general rules does not say WHICH command is
-# unnecessary; the CLI names it in three different measured forms. Returns "" if the text does not say —
-# never invents a fragment, which would ask the worker to rewrite a command it did not write.
+# WHICH fragment the gate stopped (three measured CLI forms); "" if unsaid — never invents one.
 _DENIED_RE = (
     re.compile(r"following part requires approval:\s*(.+?)(?:\.\s|$)", re.I | re.S),
     re.compile(r"\bcd in ['\"](.+?)['\"] was blocked", re.I),

@@ -133,7 +133,7 @@ def test_the_dispatcher_appends_the_block_to_every_trusted_worker():
     i = prompts.index("def trusted_blocks(")
     body = prompts[i:prompts.index("\ndef ", i + 10)]
     assert "library_block()" in body and "DOC_SURFACE_BLOCK" in body
-    src = _vts.read(_ENGINE / "nucleo" / "dispatch.py")
+    src = "\n".join(_vts.read(f) for f in sorted((_ENGINE / "nucleo" / "dispatch").glob("*.py")))
     j = src.index("trusted_blocks(")
     assert "if trusted and not _dev:" in src[j - 400:j], "trusted workers only — the dev channel keeps its own prompt"
 
