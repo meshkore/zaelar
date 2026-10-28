@@ -126,7 +126,7 @@ def real_system_prompt() -> str:
     half a prompt is exactly the error this benchmark is intended to correct. The timeline remains a fallback if building
     fails (no session, no memory)."""
     try:
-        from nucleo.flash import prompt as _p
+        from nucleo.turn.prompt import builder as _p
         built, _ids = _p.build_flash_system(turn_text="investiga en internet y ponme un informe en pantalla")
         if built:
             return built

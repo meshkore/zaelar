@@ -36,7 +36,7 @@ with Isolated("es"):
     from connectors.google import app as _gapp
     _gapp.client_id = lambda: ""          # a clean install has no Google client (it lives in gitignored credentials)
     from memory import api as memapi
-    from nucleo.flash.prompt import build_flash_system
+    from nucleo.turn.prompt.builder import build_flash_system
     out = {}
     for cards in json.loads(sys.argv[1]):
         memapi.set_state({"open_widgets": cards})

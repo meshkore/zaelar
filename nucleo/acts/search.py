@@ -130,7 +130,7 @@ def compose_system(operator_text: str, query: str, res: dict, ctx: str, *, today
                    on_screen: list | None = None) -> str:
     """The system prompt for the pass that turns web results into one spoken answer. It answers HIS question, not
     the model's query (V2-135: «opening hours AND price» searched as «opening hours» lost its second half)."""
-    from nucleo.flash import prompt as _prompt
+    from nucleo.turn.prompt import builder as _prompt
     head = _prompt._lang_lock() + (f"\nHOY es {today}." if today else "")
     body = (
         "\nEl operador preguntó algo que requería BUSCAR en la web. Con estos RESULTADOS, responde a su "

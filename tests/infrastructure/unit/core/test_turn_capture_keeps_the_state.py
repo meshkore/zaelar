@@ -47,7 +47,7 @@ def test_a_short_prompt_is_kept_whole():
 
 def test_and_a_REAL_turn_keeps_its_browser_block():
     """The check that matters, using the real prompt rather than filler."""
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import builder as _p
     from widgets.navegador import tasks
 
     tasks._tasks.clear()

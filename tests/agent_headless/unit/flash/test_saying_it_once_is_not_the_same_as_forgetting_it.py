@@ -39,7 +39,7 @@ GOAL = "Busca hoteles de 4 estrellas en Sevilla"
 
 
 def _state(monkeypatch, rows):
-    from nucleo.flash import prompt as P
+    from nucleo.turn.prompt import live_state as P
     monkeypatch.setattr(d, "recently_ended_sessions", lambda: rows, raising=False)
     return P.live_state()
 

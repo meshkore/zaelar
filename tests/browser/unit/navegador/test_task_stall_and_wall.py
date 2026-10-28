@@ -119,7 +119,7 @@ def test_a_task_that_just_started_is_not_stalled():
 def test_the_brain_is_told_about_the_wall():
     """Proof that the fact REACHES the prompt: V2-145/V2-150 already established that in this system the truth
     usually exists in the task and never reaches the place where decisions are made, which is the recurring bug."""
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import live_state as _p
 
     tid = tasks.create("Reservar habitación en el hotel")
     tasks.set_status(tid, "working")
@@ -155,7 +155,7 @@ def test_but_a_task_that_is_simply_working_says_nothing_of_the_sort():
 
 
 def _live() -> str:
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import live_state as _p
     return _p.live_state()
 
 
@@ -343,9 +343,10 @@ def test_the_two_halves_share_ONE_threshold():
     """The failure this engine keeps repeating: two copies of the same threshold drifting apart. Both sides read
     the same environment variable."""
     from widgets.navegador import act_api
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import live_state as _p
 
-    assert act_api._STALL_HINT_S == _p._STALLED_S
+    from nucleo.flash import live_blocks as _lb
+    assert act_api._STALL_HINT_S == _lb._STALLED_S
 
 
 # ── V2-187: a fact that cannot be said aloud is a fact that does not arrive ────────────────────────────────
@@ -934,7 +935,7 @@ def test_the_same_wall_twice_in_a_row_is_not_two_blocks():
 
 def test_the_turn_is_told_about_a_block_it_already_left_behind():
     """Lo que se midió: el estado tiene que DECIRLO, no solo saberlo."""
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import live_state as prompt
     tid = tasks.create("conseguir dos entradas para El Rey León en Madrid")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url="https://www.entradas.com/el-rey-leon", page_text=ACCESS_DENIED)
@@ -947,7 +948,7 @@ def test_the_turn_is_told_about_a_block_it_already_left_behind():
 def test_and_the_instruction_names_the_sentence_it_replaces():
     """El daño medido no fue que el sistema no lo supiera: fue que el operador esperó diez turnos oyendo «sigue
     sin dar señal», que es cierto y no le sirve de nada."""
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import live_state as prompt
     tid = tasks.create("conseguir entradas")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url="https://www.entradas.com/x", page_text=ACCESS_DENIED)
@@ -960,7 +961,7 @@ def test_and_the_instruction_names_the_sentence_it_replaces():
 def test_but_a_task_standing_ON_a_wall_keeps_the_more_specific_face():
     """Si sigue encima del muro, lo que manda es MURO con su salida — la historia sería decir lo mismo dos veces
     y más flojo."""
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import live_state as prompt
     tid = tasks.create("conseguir entradas")
     tasks.set_status(tid, "working")
     tasks.update_view(tid, url="https://www.entradas.com/x", page_text=ACCESS_DENIED)

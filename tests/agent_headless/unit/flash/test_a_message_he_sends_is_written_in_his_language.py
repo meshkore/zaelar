@@ -9,7 +9,7 @@ from __future__ import annotations
 
 def _lock(monkeypatch, code):
     from voice.engine.core import langs
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import builder as prompt
     monkeypatch.setattr(langs, "current_language", lambda: langs.spec(code))
     return prompt._lang_lock()
 

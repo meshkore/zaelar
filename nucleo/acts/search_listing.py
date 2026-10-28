@@ -174,7 +174,7 @@ def compose_face(res: dict, operator_text: str) -> str:
     """The system prompt that tells a fast-pass verdict, one definition for both channels. On the escalated branch
     the rows go INSIDE the order and by NAME: V2-556's run v3 had four cars on the sheet answered with «I'll tell you
     when I have results», because the count stood as a fact beside an imperative the model obeyed alone."""
-    from nucleo.flash import prompt as _prompt
+    from nucleo.turn.prompt import builder as _prompt
     head = _prompt._lang_lock()
     ctx, ask = str(res.get("ctx") or "").strip(), str(operator_text or "").strip()
     if res.get("delivered"):

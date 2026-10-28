@@ -25,7 +25,8 @@ from __future__ import annotations
 import pytest
 
 from nucleo import dispatch
-from nucleo.flash import prompt as P
+from nucleo.flash import live_blocks as _lb
+from nucleo.turn.prompt import live_state as P
 
 _NOTA = "Comparativa entregada en pantalla (hoja de resultados con los 3 finalistas)"
 
@@ -61,7 +62,7 @@ def test_y_ese_era_el_agujero_el_recorte_viejo_se_comia_justo_esa_parte():
 
 def test_una_nota_larga_se_corta_por_PALABRA_y_lo_dice():
     largo = "Comparativa entregada en pantalla " + "con muchisimos detalles adicionales " * 6
-    out = P._short_note(largo)
+    out = _lb._short_note(largo)
     assert out.endswith("…"), "un recorte que acaba limpio se lee como una frase entera"
     assert not out.rstrip("…").endswith(" ")
     # It does not split a word in half: the last segment before the ellipsis is a word from the original.
@@ -69,8 +70,8 @@ def test_una_nota_larga_se_corta_por_PALABRA_y_lo_dice():
 
 
 def test_una_nota_corta_no_se_toca():
-    assert P._short_note("Comparativa entregada") == "Comparativa entregada"
-    assert not P._short_note("Comparativa entregada").endswith("…")
+    assert _lb._short_note("Comparativa entregada") == "Comparativa entregada"
+    assert not _lb._short_note("Comparativa entregada").endswith("…")
 
 
 # ── 2. the block AUTHORIZES reporting it ─────────────────────────────────────────────────────────────────

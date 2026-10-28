@@ -71,7 +71,7 @@ def test_recall_spoken_flags_empty_thread_and_speaks_nothing(monkeypatch):
     async def _boom(*a, **k):
         raise AssertionError("nothing to compose from — the model must never see the void")
 
-    import nucleo.flash.prompt as _prompt
+    import nucleo.turn.prompt.builder as _prompt
     monkeypatch.setattr(_prompt, "compose_recall", _no_pills)
     out = _run(_sp.recall_spoken(
         "Can you reveal the tongue? It's four messages behind.",
@@ -82,7 +82,7 @@ def test_recall_spoken_flags_empty_thread_and_speaks_nothing(monkeypatch):
 
 
 def test_recall_spoken_still_composes_when_the_pills_answer(monkeypatch):
-    import nucleo.flash.prompt as _prompt
+    import nucleo.turn.prompt.builder as _prompt
 
     def _pills(query):  # sync: recall_spoken runs it via to_thread
         return "Puede que venga a cuento:\n· le gusta el buceo", [7]
@@ -105,7 +105,7 @@ def test_recall_spoken_still_composes_when_the_pills_answer(monkeypatch):
 def test_recall_spoken_still_composes_empty_non_thread(monkeypatch):
     """An empty recall on an ORDINARY question keeps the old behavior — the natural "I don't
     remember" the compose was built for. Only thread positions short-circuit."""
-    import nucleo.flash.prompt as _prompt
+    import nucleo.turn.prompt.builder as _prompt
 
     def _no_pills(query):  # sync: recall_spoken runs it via to_thread
         return "", []
@@ -136,7 +136,7 @@ def test_recall_spoken_still_composes_empty_non_thread(monkeypatch):
 # Both halves are pinned here with a flag the swallow cannot eat.
 def _no_pills_with_spy(monkeypatch):
     """compose_recall returns nothing; `composed` records whether the second pass ran anyway."""
-    import nucleo.flash.prompt as _prompt
+    import nucleo.turn.prompt.builder as _prompt
     composed = []
 
     def _no_pills(query):  # sync: recall_answer runs it via to_thread

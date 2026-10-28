@@ -341,7 +341,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/pulse": 2783,        # refactor2710-10: born — loop split into loop/workers/flows/due/signals (same beat); scheduler, sparks, homeostasis, wake, cron_api, rehydrate, notices, webpush, notice_today MOVED
     "nucleo/errands": 2548,
     "nucleo/cli": 2900,         # refactor2710-10: the worker CLIs MOVED in (nav, mesh, widget, mem, git, report, bridge, worker_api/policy, sandbox, usage); 01: born
-    "nucleo/flash": 20055,      # refactor2710-08: prompt.py, catalogs and task_recall → nucleo/turn; refactor2710-02: the model client MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts; refactor2710-04: the text channel's canvas mirrors went; refactor2710-02: the model client (7 files) MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-02: the model client MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts; refactor2710-02: the model client (7 files) MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-06: search_turn, search_routing, listing_turn folded into acts/search; vault_carrier, vault_flow, vault_rules into acts/memory; player_control, player_outcome into acts/media; the wait lines of reminder_guards into nucleo/turn; the reminder rails (reminder_guards, reminder_fact, reminder_year, reminder_promise) went
+    "nucleo/flash": 20049,      # refactor2710-08: prompt.py, catalogs and task_recall → nucleo/turn; refactor2710-02: the model client MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts; refactor2710-04: the text channel's canvas mirrors went; refactor2710-02: the model client (7 files) MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-02: the model client MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts; refactor2710-02: the model client (7 files) MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-06: search_turn, search_routing, listing_turn folded into acts/search; vault_carrier, vault_flow, vault_rules into acts/memory; player_control, player_outcome into acts/media; the wait lines of reminder_guards into nucleo/turn; the reminder rails (reminder_guards, reminder_fact, reminder_year, reminder_promise) went
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/jev": 759,          # refactor2710-07: born — jev.py split into the client, select and decide (dead calls out)
     "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
@@ -356,7 +356,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "search": 5474,
     "server": 5746,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply, /api/canvas/reconcile (V2-825 F5); refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10092,             # refactor2710-01: +3, `typed_turn.py` (the typed front door) and the lent speaker
-    "voice/engine/llm": 3850,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-01: +64, a failed turn keeps his words; the vault is a door
+    "voice/engine/llm": 3848,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-01: +64, a failed turn keeps his words; the vault is a door
     "widgets": 38383,           # refactor2710-01 +42 (payload_digest, sheet.rebuild); refactor2710-12 split and condensed; refactor2710-06: `agenda/notice.py`, the notice's consequence bounds read off its slots
 }
 
@@ -437,8 +437,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777; -04…-10 and refactor2710-08 on main: → 169509). Never for growth in place.
-_TOTAL_MAX = 169509
+#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777; -04…-10 and refactor2710-08 on main: → 169509; -08b: → 169501). Never for growth in place.
+_TOTAL_MAX = 169501
 
 
 def test_the_total_only_shrinks():

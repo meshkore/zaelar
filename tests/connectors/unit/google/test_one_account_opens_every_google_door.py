@@ -357,7 +357,7 @@ def test_the_turn_prompt_consults_it(monkeypatch):
     """Wiring, by behaviour: a fact nobody injects is a fact the model never had. With Google not usable, the turn's
     connector facts carry Google's own state line (refactor2710-08: read through `catalogs.connector_facts`)."""
     from connectors.google import brain
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import operating as prompt
     monkeypatch.setattr(brain, "connected_services", lambda: [])
     monkeypatch.setattr(brain, "brain_state", lambda: "GOOGLE-STATE-LINE")
     assert "GOOGLE-STATE-LINE" in prompt._connector_briefs(set(), "what do I have tomorrow?")

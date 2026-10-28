@@ -323,7 +323,7 @@ def test_the_turn_is_told_which_closed_sheets_it_can_bring_back(monkeypatch):
     """The resolver names a closed sheet, but the model has to KNOW it exists to ask for it (demo S1: «no
     monitor widget in your setup»). Three at most, most recent first, the open ones left out."""
     from memory import api as memapi
-    from nucleo.flash import live_blocks, prompt
+    from nucleo.flash import live_blocks
     monkeypatch.setattr(instances, "recent_faces", lambda limit=5: [{"id": "results::m1", "label": "Three monitors"},
                                                                     {"id": "results::o1", "label": "Open one"},
                                                                     {"id": "results::t9", "label": "Trips"}])

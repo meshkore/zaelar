@@ -16,7 +16,7 @@ async def compose_the_prompt(*, brain, emit, operator_text, self, text) -> dict:
     from nucleo.flash import escalate as _escalate_mod
     from nucleo.flash import frontend as _frontend
     from nucleo.llm.fast_client import FastClient, spec_from_config
-    from nucleo.flash.prompt import build_flash_system
+    from nucleo.turn.prompt.builder import build_flash_system
     from nucleo.flash import router as _router
 
     # EL SPEC SE RESUELVE POR TURNO, contra la cadena de relevo (V2-094). Antes se cogía el titular fijo de la
@@ -39,15 +39,13 @@ async def compose_the_prompt(*, brain, emit, operator_text, self, text) -> dict:
     self._phase = "montando el prompt"
     timings: dict = {}
     _t_prompt = _p.time.time()
-    # RECALL semántico BAJO DEMANDA y FUERA del event loop (T115+T116): `compose_recall` hace embeddings HTTP
-    # a Ollama — meterlo en el loop, cada turno, era la regresión de V2-004. Ahora (a) solo se dispara cuando
-    # el turno PIDE recordar algo (`needs_recall`, heurística ligera) — la charla normal ni toca el retriever,
-    # así que cierra en ~1s; y (b) cuando se dispara, corre en un hilo (`to_thread`) → el event loop nunca se
-    # para. El bloque de estado (nombre/trato/…) sale SIEMPRE del caché (T114); el resto del prompt es de ms.
-    from nucleo.flash import prompt as _prompt_mod
+    # Semantic RECALL on demand and off the event loop (T115+T116; in the loop it was V2-004's regression): it fires
+    # only when the turn ASKS to recall (`needs_recall`), in a thread. The state block always comes from the cache (T114).
+    from nucleo.flash import recall_heuristics as _rh
+    from nucleo.turn.prompt import builder as _prompt_mod
     recall_block = ""
     recall_ids: list = []
-    timings["recall_fired"] = _prompt_mod.needs_recall(operator_text)
+    timings["recall_fired"] = _rh.needs_recall(operator_text)
     if timings["recall_fired"]:
         # TIME-BOX del recall (regla dura "nunca lento"): el retriever suele cerrar en ~0.4-1.5s, pero en el
         # turno vivo puede dispararse a 4s+ (recarga del modelo de embedding tras un desalojo por el CORAZÓN
@@ -71,11 +69,11 @@ async def compose_the_prompt(*, brain, emit, operator_text, self, text) -> dict:
     # hilo por consistencia con V2-011 (nunca I/O de memoria en el event loop). El prompt por defecto NO lo
     # lleva → cero tokens extra en charla normal; solo se carga bajo demanda.
     recent_block = ""
-    timings["recent_fired"] = _prompt_mod.needs_recent(text)
+    timings["recent_fired"] = _rh.needs_recent(text)
     if timings["recent_fired"]:
         try:
             recent_block = await _p.asyncio.wait_for(
-                _p.asyncio.to_thread(_prompt_mod.compose_recent_block), timeout=0.5)
+                _p.asyncio.to_thread(_rh.compose_recent_block), timeout=0.5)
         except Exception:
             recent_block = ""
     # `turn_text` (V2-085): la frase del operador entra en el build para que la SELECCIÓN PROGRESIVA de widgets

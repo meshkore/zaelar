@@ -65,7 +65,7 @@ def _run(action, payload):
 
 
 def _live():
-    from nucleo.flash import prompt as p
+    from nucleo.turn.prompt import live_state as p
     return p.live_state()
 
 

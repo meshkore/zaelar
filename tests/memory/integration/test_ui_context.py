@@ -77,7 +77,7 @@ def test_compose_block_carries_activity_and_never_the_screen(fresh_db):
 def test_the_screen_is_read_live_once_and_an_empty_one_says_so(fresh_db):
     # 2026-09-19: an empty desktop composed NO screen line, and the model filled the silence from recent_widgets +
     # rails («already open on screen» with nothing open). Emptiness travels as a fact — now from the live reader.
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import live_state as prompt
     memapi.set_state({"open_widgets": ["mensajeria", "agenda"], "recent_widgets": ["youtube"]})
     assert prompt.screen_line() == "En pantalla: mensajeria, agenda."
     assert prompt.screen_line() in prompt.live_state()
