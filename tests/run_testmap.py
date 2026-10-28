@@ -5320,6 +5320,20 @@ DOMAINS: list[dict] = [
                                  "and a card sits one rung above its sheet",
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_a_result_card_fits_any_space.py"]},
+        # V2-831 T-01 — the operator's 2026-10-28 screenshot: one wide logo flipped thirteen rows to photo plates, six
+        # rows titled with the price text («6,69 € /mes<br>») painted a «1» monogram, and the shared sheet kept an
+        # unrelated earlier errand's rows. The recorded sheet is the fixture.
+        {"id": "4.320", "title": "A row with no NAME is not a result: markup never reaches a text slot, a title that is its own "
+                                 "price or leads with an amount folds into the named row before it as a price option "
+                                 "(else it is dropped), in any currency or script; bare digits («1984») stay a name",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_a_row_with_no_name_is_not_a_result.py"]},
+        {"id": "4.321", "title": "The shared results sheet belongs to one errand: a push naming its errand but no sheet "
+                                 "replaces another errand's rows, then accumulates its own; a manual push still appends",
+            "ch": UNIT, "paths": ["tests/browser/unit/results/test_the_shared_sheet_belongs_to_one_errand.py"]},
+        {"id": "4.322", "title": "A poor sheet paints clean (RENDERED): a photo layout only when MOST rows carry a photo — "
+                                 "never a wall of monograms — and the item templates offer (big price, logo, ≤2 chips, no "
+                                 "plate), link (site icon + host) and video (16:9 thumbnail left of its text)",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_a_poor_sheet_paints_clean.py"]},
         # V2-296 (encargo del operador, 2026-08-24). La pestaña contaba QUÉ hacía y no CUÁNTO llevaba hecho. Dos
         # nodos porque son dos averías distintas: la rejilla puede pintar perfecto cifras que nadie produce, y la
         # cadena puede producirlas y no llegar a pantalla. El de PANTALLA fija sobre todo cuándo CALLARSE —`{}`

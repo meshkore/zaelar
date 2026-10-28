@@ -33,26 +33,15 @@ export function paintResults(panel, data, ctx, nav){
   // some rows and not on others, which is precisely the ragged look the grid exists to prevent.
   const lay = layoutFor(all, data.kind, data.layout);
 
-  // Primary items lead the list; they do NOT get a bigger box. It used to be `primary.length === 1 ? 1 : 2`,
-  // so a sheet whose only result was the recommended one drew ONE card across the whole sheet — which is what
-  // the operator was looking at when he asked «si un resultado solo ya ocupa toda la pantalla, ¿de qué me sirve
-  // la lista de resultados y tener acceso a la ficha?». The featured card is already told apart by its border,
-  // its ground and its badge (the decision recorded beside `.hr-card.primary`); size was a second, louder way
-  // of saying the same thing, and the one that broke the formation.
-  // ONE GRID, and the featured results simply come first. It used to be two grids stacked, which is what put
-  // his only result alone on a row of its own with two thirds of the sheet empty beside it — «si un resultado
-  // solo ya ocupa toda la pantalla, ¿de qué me sirve la lista de resultados?». A row is a row: every card the
-  // same track, the same height, the buttons aligned. The featured one is told apart by its border, its ground
-  // and its badge, which is the whole reason those exist.
+  // ONE GRID, featured results first and the SAME box (V2-703): «si un resultado solo ya ocupa toda la pantalla,
+  // ¿de qué me sirve la lista?» — the featured card is told apart by border, ground and badge, never by size.
   const grid = elem("div","hr-grid");
   grid.style.gridTemplateColumns = gridStyle(all, data.columns, lay);
-  // The DECISION, written down where a test (and a person debugging) can read it. Without it, asking
-  // «did the guard refuse an impossible template?» is unanswerable: makeCard degrades each card on its
-  // own, so the drawing looks right whether the guard ran or not.
+  // The layout DECISION, readable by a test and by whoever debugs it.
   grid.dataset.layout = lay;
   panel.appendChild(grid);
-  primary.forEach(it => grid.appendChild(makeCard(it, true, choose, ctx, lay, nav)));
-  rest.forEach(it => grid.appendChild(makeCard(it, false, choose, ctx, lay, nav)));
+  primary.forEach(it => grid.appendChild(makeCard(it, true, choose, ctx, lay, nav, data.kind)));
+  rest.forEach(it => grid.appendChild(makeCard(it, false, choose, ctx, lay, nav, data.kind)));
 
   // Faithful count: if the real pushed results exceed what we render, say so — never silently drop
   // obtained data (the operator asked for a REAL search; the interface must reflect its true size).

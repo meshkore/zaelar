@@ -59,14 +59,9 @@ def _a_present(action, payload, sheet) -> dict:
         "subtitle": _d._clip(payload.get("subtitle"), "sheet_subtitle"),
         "items": items,
     }
-    # The OTHER tabs SURVIVE a `present`. During long work there are several `present`s (provisional → final), and
-    # deleting sources and summary already reported on each one would lose data that took minutes of browsing.
-    # They are emptied by `clear`, or at the start of a NEW investigation (`criteria` with another objective) —
-    # two explicit moments, not a side effect.
-    # `rejected` survives a `present` for the same reason as the three below, and one more: the FINAL
-    # present is exactly the moment a worker replaces its provisional picks, which is when the pile of
-    # what it rejected is most complete and most expensive to have lost.
-    for k in ("sources", "summary", "criteria", "rejected"):
+    # The OTHER tabs SURVIVE a `present` (provisional → final presents must not lose minutes of browsing; the final
+    # one is when `rejected` is most complete). `clear` or a NEW investigation empties them, never a side effect.
+    for k in ("sources", "summary", "criteria", "rejected", "errand"):    # `errand`: who owns the shared sheet (V2-831)
         if prev.get(k):
             data[k] = prev[k]
     _gate.keep_asked(data, prev, payload)
@@ -187,11 +182,8 @@ def _a_list(action, payload, sheet) -> dict:
 
 
 def _a_scroll(action, payload, sheet) -> dict:
-    # V2-591 — «haz scroll en la lista» used to get a tab switch, then a re-present, then a worker set to
-    # MODIFY this widget's CODE (the operator stopped it: «No, no toques nada»). Scrolling is CARD CHROME
-    # (the scroller belongs to the canvas, ctx.top()'s own rule), so the server only stores a witnessed
-    # REQUEST — push counter + expiry, the V2-540 pattern — and widget.js asks its host (ctx.scroll),
-    # the same road a wheel gesture takes. No accent table: the payload is normalized inline.
+    # V2-591 — scrolling is CARD CHROME: the server only stores a witnessed REQUEST (counter + expiry) and widget.js
+    # asks its host (ctx.scroll), the road a wheel gesture takes.
     _raw = "".join(c for c in _d._ud.normalize("NFKD",
                    str(payload.get("where") or payload.get("to") or "").strip().lower())
                    if not _d._ud.combining(c))

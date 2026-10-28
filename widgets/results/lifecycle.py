@@ -1,22 +1,13 @@
-"""widgets/results/lifecycle.py — the ERRAND's three gates on the sheet: it OPENS it, NAMES it and CLOSES it.
+"""widgets/results/lifecycle.py — the ERRAND's three gates on the sheet: it OPENS it, NAMES it and CLOSES it (V2-530).
 
-Extracted from `data.py` on 2026-08-31 (V2-530) because the architecture ratchet asked for a module instead of a
-higher ceiling, and the cut was already drawn in the comment these gates carried: they are NOT actions of
-`apply_action`'s vocabulary — nobody asks for them from a prompt, the errand's LIFECYCLE fires them, and putting
-them in that vocabulary would put them within a worker's reach, which is exactly who must not decide when the
-sheet is opened, renamed or closed.
-
-Everything here writes through `data`'s own store seams (`_empty` / `view_data` / `_save` / `_clip`), so the sheet
-has a single writer as it always did. `data.py` re-exports the three names: no caller changed.
+They are NOT `apply_action` vocabulary: the errand's LIFECYCLE fires them, and a worker must not decide when the
+sheet opens, is renamed or closes. Everything writes through `data`'s store seams, so the sheet keeps one writer.
 """
 from __future__ import annotations
 
 from widgets.results.live import _clean_phases
 
-# The sheet's STORE layer (`view_data` / `_save` / `_empty` / `_clip`) still lives in `data.py`, and `data.py`
-# re-exports these three gates, so the import has to be late or the two modules would deadlock at import time.
-# Naming the debt rather than hiding it: the cycle disappears the day that store layer becomes its own module,
-# which is a bigger cut than the ratchet was asking for tonight.
+# The STORE layer lives in `data.py`, which re-exports these gates: the import is late or the two would deadlock.
 
 
 def _empty():
@@ -39,23 +30,11 @@ def _clip(text, key: str) -> str:
     return _d._clip(text, key)
 
 
-# ── THE ERRAND OPENS AND CLOSES THE SHEET (V2-227 scope C) ───────────────────────────────────────────────────
-# The only two gates the dispatcher uses so the operator can SEE the work as it happens. They are not actions
-# in `apply_action`'s vocabulary: nobody asks for them from a prompt; the errand's lifecycle triggers them —
-# putting them there would place them within a worker's reach, and that is exactly who must not decide when the
-# sheet is opened.
+# ── THE ERRAND OPENS AND CLOSES THE SHEET (V2-227 scope C) — so the operator can SEE the work as it happens.
 
 def begin_task(title: str = "", fresh: bool = True, sheet: str = "") -> dict:
-    """The errand has just started: the sheet opens in PROCESS, with nothing inside yet.
-
-    `fresh` OPENS the sheet (title = what the operator requested, with no results or history from the previous
-    search). It is turned off when another errand is still writing here: clearing it then would erase what that
-    errand had already delivered, and the sheet is unique until C4 ("two searches = two sheets") exists.
-
-    In both cases the PERSISTED tab is removed. That is what makes the sheet open in Process: `data.tab` takes
-    precedence over the derived state —and it should, since it is where the operator chose to look— but that
-    decision belonged to the PREVIOUS errand, and carrying it over would leave the operator looking at an empty
-    list while the story unfolds in the one next to it.
+    """The errand has just started: the sheet opens with nothing inside yet. `fresh` wipes it (title = the request);
+    off when another errand still writes here. The persisted tab, view and story always go: they were the last errand's.
     """
     data = _empty() if fresh else view_data(sheet)
     if fresh:
@@ -74,12 +53,7 @@ def begin_task(title: str = "", fresh: bool = True, sheet: str = "") -> dict:
 
 
 def rename_task(title: str, sheet: str = "") -> dict:
-    """Change ONLY this sheet's name, leaving everything it holds alone (V2-530).
-
-    Separate from `begin_task` because that one OPENS the sheet — it is the errand's opening gesture and it wipes items,
-    tabs and process. Renaming happens later, on a sheet the operator is already looking at, once the errand's
-    title has been composed; reusing `begin_task(fresh=True)` for it would erase the very results it is naming.
-    """
+    """Change ONLY this sheet's name (V2-530) — `begin_task(fresh=True)` would erase the results it is naming."""
     t = " ".join(str(title or "").split())
     if not t:
         return {"ok": False, "error": "sin título"}
@@ -90,20 +64,14 @@ def rename_task(title: str, sheet: str = "") -> dict:
 
 
 def end_task(phases, sheet: str = "") -> dict:
-    """The errand is over: its story is saved with the report and the loader is stopped.
-
-    It is PERSISTED because the sheet is: a report survives a restart, and its explanation of how it was reached
-    has to survive with it. The write is also what TURNS OFF the loader — the phase emitter only fires when a phase
-    CHANGES, so without this save the card would keep saying «Trabajando…» about a worker that no longer exists.
-    """
+    """The errand is over: its story and numbers are PERSISTED with the report, and the save turns the loader off."""
     lines = _clean_phases(phases)
     data = {k: v for k, v in view_data(sheet).items() if k not in ("counts", "progress")}
     if lines:
         data["process"] = lines
     else:
         data.pop("process", None)            # without a single phase there is no story to tell; none is invented
-    # …and its NUMBERS with it (V2-296). `view_data` has just derived them from the live record, which will cease to
-    # exist in an instant: if they are not saved here, the report is left without the tally of what it took to reach it.
+    # …and its NUMBERS (V2-296): derived from a live record that is about to cease to exist.
     if not isinstance(data.get("harvest"), dict) or not any((data.get("harvest") or {}).values()):
         data.pop("harvest", None)            # without a single number there is no tally to give; zeros are not saved
     _save(data, sheet)

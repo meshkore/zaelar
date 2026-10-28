@@ -1,28 +1,11 @@
 """widgets/results/intake.py — THE ONE DOOR through which a browser finding enters the results sheet (V2-257).
 
-Why a module and not three `apply_action("append", …)` calls: because there ARE three callers, and until today all
-three wrote somewhere else. `act_api._hand_over` (what a worker extracts), `owner._automate` (the engine's own
-loop) and `dispatch._finalize_web` (the final scrape of the tab) every one of them ended at
-`navegador.tasks.set_results()`, which writes the CARD. Meanwhile a `kind:"web"` errand resolves `surface = LIST`,
-so `dispatch._sheet_open()` opens the results sheet in front of the operator the moment the errand is placed —
-and nothing ever put anything in it. The sheet was empty by construction, and the harness read that as an
-extraction failure (`missing_signals: ['widget']`, V2-223). It was not: there was no door.
-
-Three decisions worth stating, because each one has an obvious wrong alternative:
-
-  · **`append`, never `present`.** Several browsers can work on one errand and each finds its own things; the
-    sheet is single and has to ACCUMULATE. `present` replaces, so the second browser would erase the first one's
-    findings. Deduplication by title+url already lives in the sheet, so a re-extraction of the same page is not a
-    second result — and neither is the worker filing its own report on top of what we pushed.
-  · **The SOURCE travels with the finding.** Where a row came from is the difference between a result and a
-    rumour, and the sheet already has a tab for it. Reporting it here rather than asking the worker to remember
-    means it is reported for every route, including the two that have no model in them at all.
-  · **`tel` becomes a FACT.** The sheet's item schema is closed (`_ITEM_FIELDS`) and has no phone field; dropping
-    it on the floor would be V2-240's defect again — on a service errand the phone number is the datum that
-    RESOLVES the errand. `facts` is exactly the structured half the operator asks about later.
-
-Fail-soft everywhere: a browser finding that cannot reach the sheet must never take down the extraction, the
-worker, or the turn. It returns how many rows landed so a caller can say so instead of guessing.
+Three callers (`act_api._hand_over`, `owner._automate`, `dispatch._finalize_web`) used to write only the browser
+CARD while a `kind:"web"` errand opened an empty sheet. Decisions with an obvious wrong alternative:
+  · **`append`, never `present`** — several browsers can work one errand; the sheet ACCUMULATES (dedup by title+url).
+  · **The SOURCE travels with the finding**, for every route, including the two with no model in them.
+  · **`tel` becomes a FACT** — the item schema has no phone field, and on a service errand it RESOLVES the errand.
+Fail-soft: a finding that cannot reach the sheet never takes down the extraction; it returns how many rows landed.
 """
 from __future__ import annotations
 
@@ -56,8 +39,23 @@ def _to_item(row: dict) -> dict | None:
     return item
 
 
+def _claim_shared(errand: str) -> None:
+    """V2-831 — the SHARED sheet belongs to one errand at a time. A push that names no sheet but names the errand it
+    comes from takes the shared sheet over: rows another errand (or nobody) left there are not this errand's results,
+    so the sheet starts blank under the new owner instead of appending onto them (2026-10-28: six school-canteen
+    rows from an earlier search sat above a streaming errand's offers). The same errand pushing again appends."""
+    from widgets.results import data as _sheet
+    cur = _sheet.view_data("")
+    if str(cur.get("errand") or "") == errand:
+        return
+    # an empty sheet keeps what it holds (the title `begin_task` just gave it); one with someone else's rows restarts
+    fresh = dict(cur) if not cur.get("items") else _sheet._empty()
+    fresh["errand"] = errand
+    _sheet._save(fresh, "")
+
+
 def push(rows, *, sheet: str = "", source_url: str = "", source_name: str = "",
-         status: str = "ok") -> int:
+         status: str = "ok", errand: str = "") -> int:
     """Put what a browser just found into the sheet. Returns how many rows were handed over (0 if none/failed).
 
     The count is what LANDED in the payload, not what the sheet decided to keep after deduplication: this
@@ -68,10 +66,16 @@ def push(rows, *, sheet: str = "", source_url: str = "", source_name: str = "",
         return 0
     # V2-259 — which sheet. It is the ERRAND, not the browser: two browsers on the same errand deliver to the
     # same sheet (V2-257), while two errands mean two sheets. Without `sheet`, this delivers to the usual sheet,
-    # which is correct for a browser the operator is driving manually, with no errand behind it.
+    # which is correct for a browser the operator is driving manually, with no errand behind it. A caller that has
+    # an errand but no sheet passes `errand=`, and the shared sheet is that errand's from then on (V2-831).
     payload: dict = {"items": items}
     if str(sheet or "").strip():
         payload["sheet"] = str(sheet).strip()
+    elif str(errand or "").strip():
+        try:
+            _claim_shared(str(errand).strip())
+        except Exception as e:  # noqa: BLE001 — an unclaimed sheet still takes the delivery
+            logger.warning("results.intake: could not claim the shared sheet (%s)", e)
     if source_url or source_name:
         payload["sources"] = [{"name": source_name or "", "url": source_url or "",
                                "status": status, "found": len(items)}]
