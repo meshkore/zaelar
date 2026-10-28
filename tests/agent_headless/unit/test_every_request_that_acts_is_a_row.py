@@ -55,8 +55,8 @@ def test_a_turn_with_no_words_opens_nothing():
 
 def test_a_failed_op_is_not_undone_by_a_later_good_one():
     uid = _in_turn(lambda: (rq.begin("x"), rq.opened("agenda", "add_meeting"))[1])
-    rq.settle(uid, "unmet", "no such meeting")
-    rq.settle(uid, "met")
+    circuit.settle(row=uid, verdict="unmet", outcome="no such meeting")
+    circuit.settle(row=uid, verdict="met")
     row = ts.task_get(uid)
     assert row["state"] == "failed" and row["verdict"] == "unmet" and row["outcome"] == "no such meeting"
 
@@ -125,7 +125,7 @@ def test_a_list_step_parents_the_rows_of_its_ops():
 
 def test_the_board_shows_inline_rows_only_behind_the_switch():
     uid = _in_turn(lambda: (rq.begin("x"), rq.opened("agenda", "add_meeting"))[1])
-    rq.settle(uid, "met")
+    circuit.settle(row=uid, verdict="met")
     assert not any(r["id"] == uid for r in T.board("done"))
     assert any(r["id"] == uid for r in T.board("done", show_all=True))
 
@@ -133,7 +133,7 @@ def test_the_board_shows_inline_rows_only_behind_the_switch():
 def test_an_inline_row_is_pruned_after_two_days_and_a_worker_row_is_not():
     import time
     uid = _in_turn(lambda: (rq.begin("x"), rq.opened("agenda", "add_meeting"))[1])
-    rq.settle(uid, "met")
+    circuit.settle(row=uid, verdict="met")
     ts.task_put({"id": "w1", "goal": "find monitors", "kind": "web", "state": "done",
                  "finished_at": int(time.time())})
     assert ts.tasks_prune(30, now=time.time() + 3 * 86400) == 1

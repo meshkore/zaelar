@@ -51,7 +51,7 @@ that is fixed in System Settings, not in code.
 - **Brain = `nucleo/`** (zaelar's OWN, default `BRAIN=nucleo`; `config/v2.py` `active_brain()`). Two speeds:
   **FlashBrain** (`nucleo/flash/`) is the sub-second voice layer — a **non-reasoning** model chosen per-invocation
   (the `voice_brain` row of `config/models.default.json`: DeepSeek direct, OpenAI as the failover), exposed to the voice engine as provider
-  `voice/engine/llm/providers/nucleo.py`. **SlowBrain** (`nucleo/dispatch.py` + `nucleo/memory_agent.py` +
+  `voice/engine/llm/providers/nucleo.py`. **SlowBrain** (`nucleo/dispatch/` + `nucleo/memory_agent.py` +
   `nucleo/workers/`) runs async Brain Workers (Claude Code / Codex / Grok sessions) for memory/tools/reasoning
   off the voice path — reached by the FlashBrain calling `escalate_to_slowbrain`. The orchestrator loop
   (`nucleo/loop.py`, ~1 Hz) + own cron (`nucleo/scheduler.py`, persisted in `memory.journal`) + panel
@@ -106,7 +106,7 @@ loop** (`nucleo/loop.py` + `nucleo/scheduler.py`, own cron persisted in `memory.
 ## 4. Architecture & couplings (the contracts)
 - **Voice ↔ Brain**: the nucleo provider (`voice/engine/llm/providers/nucleo.py`) sits in the LLM slot; the
   FlashBrain answers the voice turn in ~sub-second and, when the turn needs memory/tools/reasoning, calls
-  `escalate_to_slowbrain` → `nucleo/dispatch.py` (async CodeAgent, result delivered back via `voice/proactive` +
+  `escalate_to_slowbrain` → `nucleo/dispatch/` (async CodeAgent, result delivered back via `voice/proactive` +
   a bus/`[SISTEMA]` note). Memory lives in `memory/` (SQLite), shared across voice + chat + the MeshKore channel.
 - **Brain ↔ Widgets bridge** (one-directional, additive, guarded): on connect, `widgets/brief.for_brain()` (the
   catalog + today's agenda + the **silent-tag protocol**) is injected into the brain. The brain decides to surface

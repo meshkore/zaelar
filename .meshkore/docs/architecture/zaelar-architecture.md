@@ -86,7 +86,7 @@ NOT the browser UI — the user-facing audio I/O lives in `frontend/`.
 | `frontend/` | **client** (browser) | The whole UI: captures mic + camera, draws the orb (agent voice) and the mic spectrum, shows widgets on the canvas, text chat wall, ☾/☀ dark/light theme (dark default, one `--hb-*` CSS variable namespace shared with widgets). No business logic — a thin reactive shell (ES modules, no build). |
 | `server/` | server | FastAPI transport: serves the frontend, the WebRTC offer/ICE, `/events` SSE, settings, the widgets HTTP API, the first-run wizard (`/api/wizard/*`), the music connector control plane (`/api/spotify/*` OAuth + `/api/music/state`) and the **full-screen config area** (`/api/config*`: per-piece API/model + API balances). Composition root + entrypoint (`python -m server`); its lifespan also starts the LiveKit agent worker (embedded), the `nucleo/` loop, the widgets supervisor and the memory queue consumer. |
 | `voice/` | server | The voice **engine** (`voice/engine/`, LiveKit AgentSession): receives mic audio → STT → brain → TTS → back to the client. Turn-taking/VAD/barge-in are governed by LiveKit (VAD Silero + `allow_interruptions`), with a lexical semantic layer on top as the default turn-detector (closes a turn on SENTENCE END, not just acoustic silence — most turns need no model call at all) and a fragment accumulator (`nucleo/input/stt.py`) that holds a still-growing sentence across a pause of ANY length instead of acting on a half-finished thought. When the lexical layer can't confidently call a fragment complete, a fast LLM judge (`nucleo/flash/segmenter.py::judge`, any language, no per-language word list) gives a second opinion — resolving to act, a spoken clarifying question, or (still) accumulate. Top level = brain-agnostic contract: observer (SSE), prompt, `tag_protocol`, `brain_notes`, `proactive`, TTS/STT backends. |
-| `nucleo/` | server | zaelar's **own brain** (default `BRAIN=nucleo`). Two speeds: **FlashBrain** (`nucleo/flash/`, sub-second voice layer, non-reasoning model per-invocation) + **SlowBrain** (`nucleo/dispatch.py` + `nucleo/memory_agent.py` + `nucleo/agentes/`, async Claude Code / Codex agents behind a `CodeAgent` interface). Orchestrator loop `nucleo/loop.py` (~1 Hz) + own cron `nucleo/scheduler.py` + panel `nucleo/cron_api.py` + `nucleo/sparks.py`. Exposed to the voice engine as provider `voice/engine/llm/providers/nucleo.py`. |
+| `nucleo/` | server | zaelar's **own brain** (default `BRAIN=nucleo`). Two speeds: **FlashBrain** (`nucleo/flash/`, sub-second voice layer, non-reasoning model per-invocation) + **SlowBrain** (`nucleo/dispatch/` + `nucleo/memory_agent.py` + `nucleo/agentes/`, async Claude Code / Codex agents behind a `CodeAgent` interface). Orchestrator loop `nucleo/loop.py` (~1 Hz) + own cron `nucleo/scheduler.py` + panel `nucleo/cron_api.py` + `nucleo/sparks.py`. Exposed to the voice engine as provider `voice/engine/llm/providers/nucleo.py`. |
 | `memory/` | server | **Central memory** — SQLite `zaelar.db` (sqlite-vec + FTS5 + RRF + graph + forgetting). Includes an episodic layer for files. |
 | `bus/` | server | In-process **event bus** (pub/sub, generalization of `voice/observer.py`) + durable SQLite log + SSE bridge. |
 | `widgets/` | server + client | Full-stack widgets: `widget.js` renders in the client, `data.py` serves data on the server, per-widget JSON store. Isolated from the voice core. |
@@ -94,7 +94,7 @@ NOT the browser UI — the user-facing audio I/O lives in `frontend/`.
 
 **Role of the brain (`nucleo/`):** it is zaelar's OWN brain — memory, cron/proactivity, tools, reasoning — no
 external agent. **FlashBrain** owns the hard-realtime voice turn (~sub-second); **SlowBrain** does async
-memory/tools/reasoning off the voice path (escalation via `escalate_to_slowbrain` → `nucleo/dispatch.py`). The brain
+memory/tools/reasoning off the voice path (escalation via `escalate_to_slowbrain` → `nucleo/dispatch/`). The brain
 drives the canvas through a thin tag contract (§2).
 
 ## 1. Three layers, decoupled
@@ -114,7 +114,7 @@ drives the canvas through a thin tag contract (§2).
 │  • FlashBrain (nucleo/flash/) — sub-second voice turn, non-reasoning     │
 │    model per-invocation; provider voice/engine/llm/providers/nucleo.py   │
 │    (streams reply, parses tags, keeps them out of TTS)                   │
-│  • SlowBrain (nucleo/dispatch.py + memory_agent.py + agentes/) — async   │
+│  • SlowBrain (nucleo/dispatch/ + memory_agent.py + agentes/) — async   │
 │    CodeAgent (Claude Code/Codex), reached via escalate_to_slowbrain      │
 │  • Loop nucleo/loop.py (~1 Hz) + cron nucleo/scheduler.py + sparks.py    │
 │  • Memory: memory/ (SQLite zaelar.db). Persona/instructions injected     │
@@ -172,7 +172,7 @@ Key invariants (full detail in `.meshkore/docs/security/zaelar-security.md`):
   lives in the per-peer **capsule** (`connectors/meshkore/capsule.py`), quarantined (`trust=untrusted`) — never in
   the operator's prompt. **Permission-gated escalation:** the operator can grant a per-cluster permission profile
   (`connectors/meshkore/perms.py`+`store.py`, deny-all default) that lets a cluster turn reach
-  `escalate_to_slowbrain` → a **dev-worker** (`nucleo/dispatch.py`) scoped to a disposable cwd + `Bash` only to
+  `escalate_to_slowbrain` → a **dev-worker** (`nucleo/dispatch/`) scoped to a disposable cwd + `Bash` only to
   `nucleo/git_cli.py` (clone/commit/push to the operator-authorized repo only, with the real git `origin`
   re-verified on every commit/push). This additionally requires the operator to have set an **objective** for that
   specific relationship (`capsule.objective`, `perms.gate_dev_by_objective`) — permission alone never suffices.
@@ -657,7 +657,7 @@ tier does in the background. Model routing changes apply on the next voice recon
 
 ## 7. Files map (the pieces)  ·  (see zaelar-modules.md for the full layout)
 - Voice core: `voice/engine/` (LiveKit AgentSession, providers), `voice/tag_protocol.py`, `voice/observer.py`, `server/` (entry: `server/__main__.py`, `python -m server`).
-- Brain: `nucleo/flash/` (FlashBrain) + `nucleo/websearch.py` (shared web search, §5b) + `nucleo/rails.py` + `nucleo/flash/music_flow.py` (RAILS, §5c) + `nucleo/dispatch.py`/`nucleo/memory_agent.py`/`nucleo/agentes/` (SlowBrain, web search via native `WebSearch`/`WebFetch`) + `nucleo/loop.py`/`nucleo/scheduler.py`/`nucleo/cron_api.py`/`nucleo/sparks.py`; provider `voice/engine/llm/providers/nucleo.py`. Memory: `memory/` (SQLite). Bus: `bus/`.
+- Brain: `nucleo/flash/` (FlashBrain) + `nucleo/websearch.py` (shared web search, §5b) + `nucleo/rails.py` + `nucleo/flash/music_flow.py` (RAILS, §5c) + `nucleo/dispatch/`/`nucleo/memory_agent.py`/`nucleo/agentes/` (SlowBrain, web search via native `WebSearch`/`WebFetch`) + `nucleo/loop.py`/`nucleo/scheduler.py`/`nucleo/cron_api.py`/`nucleo/sparks.py`; provider `voice/engine/llm/providers/nucleo.py`. Memory: `memory/` (SQLite). Bus: `bus/`.
 - Widget circuit: `widgets/{runtime,server_api,brief,generator}.py`, `widgets/<id>/` (data.py + widget.js), `frontend/app/widgets/desktop.js`.
 - Music (§5d): `connectors/music/` (agnostic seam) + `connectors/spotify/` (Web API + OAuth PKCE) + `connectors/music/youtube_audio.py` (free fallback) + `widgets/musica/` (surface) + `server/spotify_api.py` (`/api/spotify/*` + `/api/music/state`).
 - Front: `frontend/` — ES-module app (`app/core` reactive store, `app/services` WebRTC/audio/VAD/STT/SSE engine, `app/components`, SSE + voice-command fast-path). `index.html` is a thin bootstrap. Solid-migration-ready.
@@ -674,7 +674,7 @@ the code must name exactly the same set of tools; `tests/infrastructure/unit/tes
 enforces it in both directions.
 
 > **Naming note (important):** `escalate_to_slowbrain` is a **legacy name** from when the "SlowBrain" was a
-> separate reasoning brain. Escalating today = `nucleo/dispatch.py` **launches a headless worker** (a Claude Code
+> separate reasoning brain. Escalating today = `nucleo/dispatch/` **launches a headless worker** (a Claude Code
 > agent, or whatever headless `CodeAgent` is configured) that drives the task with its own intelligence
 > (memory/tools/browser). The function name is kept as a stable model-facing contract; its **description reflects
 > the real mechanism**. Renaming touches several files + the model's learned behavior + tests, so it stays until a
@@ -682,7 +682,7 @@ enforces it in both directions.
 
 | Tool | What it does | Flow route | When offered |
 |---|---|---|---|
-| `escalate_to_slowbrain` | **Launch a Brain Worker** → `dispatch.py` starts a LIVE, interactive worker session (`nucleo/workers/`, agent-agnostic) that drives it async (memory, code, browser, reasoning). Injectable/killable; result returns by voice+UI. **Boundary:** a widget with a CONNECTOR is the SOURCE, not a mirror — the agenda IS the calendar (two-way Google sync), messaging IS the outbox, contacts IS the directory. So creating/cancelling a cita or writing to a person is `widget_data` (or `send_to` +objective, which opens the engine's own errand), NOT escalate. Escalate ONLY for a commitment made on a SITE with no connector (a booking on a web, a subscription, an order, a payment): the action happens there, then the worker reflects it in the widget via `hbwidget`. Writing to a person is NOT an escalation. | → `nucleo/dispatch.py` → `WorkerSession` | always |
+| `escalate_to_slowbrain` | **Launch a Brain Worker** → `dispatch.py` starts a LIVE, interactive worker session (`nucleo/workers/`, agent-agnostic) that drives it async (memory, code, browser, reasoning). Injectable/killable; result returns by voice+UI. **Boundary:** a widget with a CONNECTOR is the SOURCE, not a mirror — the agenda IS the calendar (two-way Google sync), messaging IS the outbox, contacts IS the directory. So creating/cancelling a cita or writing to a person is `widget_data` (or `send_to` +objective, which opens the engine's own errand), NOT escalate. Escalate ONLY for a commitment made on a SITE with no connector (a booking on a web, a subscription, an order, a payment): the action happens there, then the worker reflects it in the widget via `hbwidget`. Writing to a person is NOT an escalation. | → `nucleo/dispatch/` → `WorkerSession` | always |
 | `web_search` | One factual, time-changing datum answered **in the turn** (~1-2s, no card/browser). ONLY gets a datum to say — DOING something on a site (book/appointment, fill/submit a form, transact, buy) or "do it / book it for me" → `escalate` (drive the browser and complete), never advice. | → `nucleo/websearch.py` (§5b) | always |
 | `recall` | Query the operator's DURABLE long-term memory (tastes, family, plans, budgets, things said days/weeks ago) when the turn needs it and it is NOT already in the STATE/recent conversation — e.g. about to plan/organize/book something ("quiero irme de vacaciones", "organízame el finde"). The "the MODEL decides to search" principle applied to memory: the `needs_recall` heuristic stays as optimistic PREFETCH; this tool covers what it misses. Lightweight sibling of `web_search` (`compose_recall` off-loop + 2nd pass with the turn's model — memories return IN the turn, no card/worker). NOT for world data (`web_search`), NOT for what's already visible in STATE/conversation. Never says "memory"/"database" out loud. | → `prompt.compose_recall` → `memory.query()` (off-loop) | always |
 | `reveal_secret` | Retrieve an ENCRYPTED operator secret (password/IBAN/crypto account/wallet key). The model only IDENTIFIES which one (`vault_flow.py`, fuzzy match); the **value is delivered OUT-OF-BAND** — it NEVER enters the model prompt nor the observer/logs. Vault locked → asks for the passphrase/passkey (opens the native modal); no vault → offers to create it; comfort mode (default) says it by voice, hard rule `secrets_voice=False` → screen-only. NOT web_search (world data), NOT recall (that's plaintext durable memory). | → `nucleo/flash/vault_flow.py` → `memory/vault.py` → `/api/vault/reveal` (loopback) | always |

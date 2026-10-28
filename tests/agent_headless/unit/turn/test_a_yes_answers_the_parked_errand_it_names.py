@@ -19,7 +19,7 @@ import time
 import pytest
 
 from nucleo import dispatch
-from nucleo import dispatch_confirm as dc
+from nucleo.dispatch import confirm as dc
 from nucleo.turn import confirm_gates as gates
 
 GAME = "Crear un NUEVO widget de juego de plataformas tipo Super Mario (saltar, moverse, enemigos)"

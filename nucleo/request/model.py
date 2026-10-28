@@ -19,7 +19,7 @@ still runs detached, inline, in milliseconds); what changes is that the RECORD k
     the detached op tasks the turn spawns inherit it (asyncio copies the context at `create_task`).
   · `opened(widget, action)` — the first op of the turn opens the row; the next ops of the SAME turn reuse it.
     One request, one row, however many calls it took.
-  · `settle(uid, verdict, outcome)` — the op's end: a spec that attested, a refusal, a spec the circuit settled
+  · the op's end is written by `circuit.settle` (the one writer of «done»): a spec that attested, a refusal, a spec the circuit settled
     unmet after its grace. A row that failed never reads better later in the same request.
 
 What never opens a row: a turn with no words (the kickoff), a canvas gesture (show/close/minimize are not
@@ -108,34 +108,3 @@ def opened(widget: str, action: str, *, text: str = "") -> str:
         return ""
     turn["uid"] = uid
     return uid
-
-
-def settle(uid: str, verdict: str, outcome: str = "") -> None:
-    """The request's ending, as the circuit judged it — an ENDING of the one vocabulary (`circuit/verdict.py`).
-
-    A non-ending (`started`, `asked`, `skipped`) or a name no verdict has is refused out loud, never ranked as the
-    best. The row keeps its lifecycle state (`row_state`) beside the verdict, and every settle is an event."""
-    if not uid:
-        return
-    from nucleo.circuit import verdict as _verdict
-    v = _verdict.of(verdict)
-    if v is None or not v.ending:
-        logger.warning(f"request_row: {verdict!r} is not an ending — row {uid} is not settled with it")
-        return
-    from nucleo.circuit import ledger as _tasks
-    _ts = _tasks.store()
-    row = _ts.task_get(uid)
-    if row is None:
-        return
-    if _verdict.keeps(row.get("verdict"), v.name):
-        return                                   # a failed op in this request is not undone by a later good one
-    _ts.task_patch(uid, state=v.row_state, verdict=v.name, finished_at=int(time.time()),
-                   outcome=(outcome or str(row.get("outcome") or ""))[:300])
-    _verdict.emit(v, text=outcome or str(row.get("outcome") or ""), trace=str(row.get("trace_id") or ""), uid=uid,
-                  row_kind=KIND)
-
-
-def verdict_of_attest(out) -> str:
-    """`spec.attest`'s answer as a verdict name: True met · False unmet (not yet final) · None unverifiable."""
-    from nucleo.circuit import verdict as _verdict
-    return _verdict.from_attest(out).name

@@ -8,7 +8,7 @@ status: stable
 
 - **Colmena**: the two-speed brain design (Flash + Slow); implemented by `nucleo/`.
 - **FlashBrain** (`nucleo/flash/`): sub-second voice layer, non-reasoning model chosen per invocation.
-- **SlowBrain** (`nucleo/dispatch.py` + `memory_agent.py` + `agentes/`): async CodeAgent reasoning off the voice path.
+- **SlowBrain** (`nucleo/dispatch/` + `memory_agent.py` + `agentes/`): async CodeAgent reasoning off the voice path.
 - **Slow lane / slow-process model** (`services.slow_process`, V2-811): a cheaper, slower model seat for background work that can wait (classify, extract, summarise, paraphrase); off by default; the route is decided once per rule or task and stored. Not the SlowBrain.
 - **escalate_to_slowbrain**: the Flash→Slow handoff call for memory/tools/reasoning.
 - **memory/**: central SQLite memory (`zaelar.db`: vec + FTS5 + graph + forgetting + episodic layer).

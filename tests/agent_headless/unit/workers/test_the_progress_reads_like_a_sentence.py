@@ -12,7 +12,7 @@ the other, and that travels along the existing channel (B4).
 import pytest
 
 from nucleo.workers import progress as P
-from nucleo.workers.claude_session import _tool_phase
+from nucleo.workers.providers.claude import _tool_phase
 
 
 @pytest.fixture(autouse=True)

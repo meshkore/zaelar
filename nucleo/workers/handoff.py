@@ -43,17 +43,12 @@ def operator_safe_summary(summary: str) -> str:
     t = (summary or "").strip()
     if not t:
         return ""
-    # V2-676 — THE THREE SENTENCES LIVE IN THE LANGUAGE TABLE NOW. They were Spanish literals right here, and
-    # this is the exact line the operator heard in the middle of an English session («esta tarea no ha podido
-    # realizarse por un fallo del proveedor… me la ha dicho en castellano»). The irony is that this function
-    # exists to stop a raw provider error reaching him in the WRONG LANGUAGE — it replaced English jargon with
-    # Spanish prose and called it a translation.
+    # V2-676 — the three sentences live in the LANGUAGE TABLE: Spanish literals here reached an English session,
+    # in the function meant to stop wrong-language errors.
     from i18n import langs as _lg
     sp = _lg.current_language()
-    # …but only a text that IS a provider message is classified. The classifier matches codes anywhere, and a
-    # report is prose about the world: «ASUS ProArt — $399.00 (list $429.00)» read as a 429, and the demo pass
-    # (2026-09-28) heard «the provider gave me a problem» over three verified monitors. Errors open with their
-    # own wording; a report never does.
+    # …but only a text that IS a provider message is classified: «$399.00 (list $429.00)» read as a 429 (demo pass
+    # 2026-09-28). Errors open with their own wording; a report never does.
     if not t.lower().lstrip("⚠️ ").startswith(_PROVIDER_OPENINGS):
         return t
     try:

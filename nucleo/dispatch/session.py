@@ -13,7 +13,8 @@ import time
 from typing import TYPE_CHECKING
 
 from nucleo import dispatch as _d
-from nucleo import dispatch_confirm as _dconf
+from nucleo.dispatch import confirm as _dconf
+from nucleo.workers import reach_gap as _rg
 
 if TYPE_CHECKING:
     from nucleo.dispatch import Task
@@ -79,12 +80,9 @@ async def _run_session(task: "Task") -> None:
     # un widget o modificar un widget… que sea algo de sistema, porque así nos evitaremos que se empiecen
     # a generar widgets por ahí fuera de cualquier manera».
     #
-    # IT GOES HERE, AND THE PLACE IS HALF THE REPAIR. The generator is reached from six different doors —
-    # the voice turn, the text channel, the probe, V2-118's create-widget backstop, the promise backstop,
-    # and a turn promoted from an injection — and a rule every caller has to remember to apply is not a
-    # rule. `_run_session` is the ONLY door that starts a
-    # worker, and `kind` is already classified by the time it runs: `kind == "code"` IS «this is going to
-    # write or rewrite a card's code», decided by `errand_kind` and not by a verb list of this file's own.
+    # IT GOES HERE, AND THE PLACE IS HALF THE REPAIR: the generator has six doors (voice, text, probe, V2-118's
+    # backstop, the promise backstop, a promoted injection) and `_run_session` is the ONE that starts a worker, with
+    # `kind` already classified — `kind == "code"` IS «this rewrites a card», decided by `errand_kind`, not a verb list.
     #
     # Out of scope: the CLUSTER dev worker with code permission (V2-076). That one never touches the
     # operator's catalogue — it brings its own repo and its own authorisation.
@@ -153,7 +151,7 @@ async def _run_session(task: "Task") -> None:
             _d._task_row("ended_early", rec, state="cancelled")
             return
         ctx = await _d._compose_context(req, kind)
-        # V2-778 F1 — building what the session runs with lives in `nucleo/dispatch_session_steps.py`.
+        # V2-778 F1 — building what the session runs with lives in `nucleo/dispatch/session_steps.py`.
         _blk = await _dss.build_what_it_runs_with(
             ctx=ctx,
             key=key,
@@ -179,6 +177,9 @@ async def _run_session(task: "Task") -> None:
             resume = _blk['resume']
         if 'session' in _blk:
             session = _blk['session']
+        # V2-825 F6 — the worker's FIRST step: a declared window older than the resource's reach is a capability gap.
+        if (_gap := _rg.gap(_rg.window_of(brief, task.context))):
+            return await _rg.end(_d, key, rec, _gap)
         if _dev:
             prompt = _d._dev_prompt(req, _dev["repo"])
         elif kind == "web" and trusted:
@@ -205,7 +206,7 @@ async def _run_session(task: "Task") -> None:
                        "instrucción nueva en un momento. NO la esperes parado: haz ya los primeros pasos (PASO 0, "
                        "abrir el sitio, la primera búsqueda) y aplícala en cuanto llegue.")
             _d._attach_brief_followup(_brief_bg, key=key, rec=rec, req=req, kind0=kind)
-        # V2-778 F1 — running the session to its delivery lives in `nucleo/dispatch_session_steps.py`.
+        # V2-778 F1 — running the session to its delivery lives in `nucleo/dispatch/session_steps.py`.
         _blk = await _dss.run_it_to_its_delivery(
             _dev=_dev,
             _dev_settings_path=_dev_settings_path,
@@ -224,7 +225,7 @@ async def _run_session(task: "Task") -> None:
         )
 
 
-from nucleo import dispatch_session_steps as _dss  # noqa: E402 — V2-778 F1, reads this module back
+from nucleo.dispatch import session_steps as _dss  # noqa: E402 — V2-778 F1, reads this module back
 
 
 @contextlib.asynccontextmanager

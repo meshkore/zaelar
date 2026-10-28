@@ -73,7 +73,8 @@ def test_a_worker_killed_with_no_tier_left_is_parked_too(asleep):
 
 def test_the_dispatcher_parks_the_errand_it_refuses_and_says_so(asleep, monkeypatch):
     import asyncio
-    from nucleo import dispatch, dispatch_session
+    from nucleo import dispatch
+    from nucleo.dispatch import session as dispatch_session
     from nucleo.workers.session import SessionRecord
     said = []
 

@@ -10,7 +10,7 @@ And the trace blamed the wrong command: `agent_report` paints no row, so its rej
 and the log said «navegador ⚠️ error» on a `nav_cli scroll down` that had succeeded.
 """
 from nucleo import dispatch_prompts as DP
-from nucleo.workers.claude_session import ClaudeCodeSession
+from nucleo.workers.providers.claude import ClaudeCodeSession
 
 
 def test_the_prompt_says_a_dollar_in_double_quotes_is_a_variable():

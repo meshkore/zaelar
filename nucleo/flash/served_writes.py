@@ -9,7 +9,7 @@ which `_needs_real_work` reads as work — and a Brain Worker spent two minutes 
 already in the calendar. The window lookback (V2-132) exists for a request zaelar asked a detail about and never
 started; it could not tell that this one had been done.
 
-Both channels pass every landed data-op through `write_outcome.remember`, so that is where a WRITE (an action the
+Both channels pass every landed data-op through `circuit.compose.remember`, so that is where a WRITE (an action the
 manifest does not declare as a view) is noted with the sentence it came from. `served(content)` answers whether a
 window message is one of those sentences. Bounded: a short TTL and a small ring, in-process like the rest of the
 turn's short memory.
@@ -25,7 +25,7 @@ _seen: list[tuple[str, float]] = []
 
 
 def _fold(text: str) -> str:
-    from nucleo.flash.write_outcome import _fold as _f
+    from nucleo.circuit.compose import _fold as _f
     return _f(text)
 
 
