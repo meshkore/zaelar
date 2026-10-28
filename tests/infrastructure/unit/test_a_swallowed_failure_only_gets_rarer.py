@@ -58,7 +58,7 @@ def _counts() -> dict[str, int]:
 
 #: Measured on 2026-10-16 with the widened predicate (was 1147 `pass`-only on 2026-10-01) — the TOTAL may only
 #: fall, and no file may exceed its own count.
-TOTAL = 1714   # refactor2710-06: measured after the act doors, the wait lines and the reminder rails
+TOTAL = 1710   # refactor2710-06: measured after the act doors (message included), the wait lines and the reminder rails
 PER_FILE: dict[str, int] = {
     'bus/__init__.py': 5,
     'bus/log.py': 7,
@@ -280,7 +280,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/hard_turn.py': 4,
     'nucleo/flash/harness_turn.py': 2,
     'nucleo/flash/image_turn.py': 2,
-    'nucleo/flash/leave_gate.py': 3,
     'nucleo/flash/live_blocks.py': 14,
     'nucleo/flash/meeting_time.py': 2,
     'nucleo/flash/memory_cache.py': 5,
@@ -309,7 +308,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/redo_decision.py': 2,
     'nucleo/flash/refusal_line.py': 1,
     'nucleo/flash/refusal_redirect.py': 1,
-    'nucleo/flash/reply_or_forward.py': 1,
     'nucleo/flash/reply_promise.py': 1,
     'nucleo/flash/router_guards.py': 1,
     'nucleo/flash/second_pass.py': 10,

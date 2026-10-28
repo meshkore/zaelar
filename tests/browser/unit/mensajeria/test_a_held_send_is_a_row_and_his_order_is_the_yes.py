@@ -97,7 +97,9 @@ def test_an_explicit_send_over_a_seen_draft_is_the_confirmation(monkeypatch):
     """The live shape: a stranger's mail sat in the context, so the leave gate asked even after he had read the
     draft and said «send it». The row he SAW names its recipient and its text; his sure order is the yes."""
     from nucleo import untrusted
-    from nucleo.flash import frontend, held_send, leave_gate
+    from nucleo.acts import message as held_send
+    from nucleo.acts import message as leave_gate
+    from nucleo.flash import frontend
     from widgets import actions as wa
     monkeypatch.setattr(untrusted, "present", lambda *a, **k: True)
     _held_email()
@@ -126,7 +128,7 @@ def test_his_yes_clears_the_class_rail_and_never_his_own_ask_rule():
 
 def test_a_draft_he_has_not_seen_or_an_unsure_order_is_not_a_yes(monkeypatch):
     from nucleo import his_words
-    from nucleo.flash import held_send
+    from nucleo.acts import message as held_send
     _held_email()
     payload = {"contact": "hospitality@example.com"}
     assert not held_send.confirmed("mensajeria", "send_draft", payload, _brief("mensajeria:send_draft", 0.5))
@@ -136,7 +138,7 @@ def test_a_draft_he_has_not_seen_or_an_unsure_order_is_not_a_yes(monkeypatch):
 
 def test_his_rule_for_one_channel_governs_that_channel_only():
     """«pregúntame siempre antes de mandar un correo» — the email asks, the WhatsApp to Rowan does not."""
-    from nucleo.flash import held_send
+    from nucleo.acts import message as held_send
     _held_email()
     data.apply_action("draft", {"contact": "Rowan Pike", "text": "See you at 4"})
     consent.set_class("messaging.send_new@email", "ask")

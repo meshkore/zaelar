@@ -85,7 +85,8 @@ def test_a_mesh_agents_answer_is_neutralised_and_labelled(monkeypatch, capsys):
 
 
 def test_a_send_with_a_strangers_words_in_context_and_no_sure_verdict_is_asked(monkeypatch):
-    from nucleo.flash import direct_action as DA, leave_gate as LG
+    from nucleo.acts import message as LG
+    from nucleo.flash import direct_action as DA
     U.seen()
     monkeypatch.setattr(DA, "from_brief", lambda brief: ("", ""))
     assert LG.needs_asking(None, "mensajeria", "forward") is True

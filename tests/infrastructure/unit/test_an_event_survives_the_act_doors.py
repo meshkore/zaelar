@@ -16,6 +16,9 @@ FROZEN_PAIRS = {
     ("brain", "🔎 búsqueda web"), ("brain", "🧭 ruta de búsqueda (sombra)"), ("search", "🔎 resultados web"),
     ("brain", "🛒 la pasada rápida acabó después del turno"), ("search", "🛒 búsqueda de anuncios"),
     ("widget", "show"),
+    # T-02 · the message door (from flash/leave_gate and ordered_send)
+    ("brain", "🛑 acto que sale fuera sin un destinatario que él nombrara (o con texto de un tercero) — se pregunta"),
+    ("brain", "📤 orden segura de un acto que sale y el modelo solo lo preparó — corre el veredicto"),
 }
 
 

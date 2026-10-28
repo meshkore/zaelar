@@ -14,7 +14,8 @@ import pytest
 @pytest.fixture
 def gate(monkeypatch):
     from nucleo import untrusted
-    from nucleo.flash import leave_gate, direct_action
+    from nucleo.acts import message as leave_gate
+    from nucleo.flash import direct_action
     monkeypatch.setattr(untrusted, "present", lambda: True)
     monkeypatch.setattr(direct_action, "from_brief", lambda _b: ("", ""))
     return leave_gate

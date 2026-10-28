@@ -7,7 +7,7 @@ closure has. Module-level names of `tool_executor_widget` are read through it (`
 """
 from __future__ import annotations
 
-from nucleo.flash import held_send as _held_send   # V2-800: his order over a row he has seen is the yes
+from nucleo.acts import message as _message_door   # V2-800: his order over a row he has seen is the yes
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import tool_executor_widget as _txw
 
@@ -222,7 +222,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
                                    "id": wid, "action": action_name})
         return
     action_name, payload = _txw._row_lens.retarget(wid, action_name, _txw._said_day.payload(wid, action_name, payload, _txw._bnotes.operator_half(text)), _txw._bnotes.operator_half(text))   # the day he said; the row he named, on ITS day (pass 140)
-    mode = _held_send.release(_frontend.action_mode_now(wid, action_name, payload), wid, action_name, payload, _brief)   # V2-712 · V2-800
+    mode = _message_door.release(_frontend.action_mode_now(wid, action_name, payload), wid, action_name, payload, _brief)   # V2-712 · V2-800
     # TWO READERS DISAGREE ON AN ACT THAT LEAVES (demo pass 2026-09-28, full12 E3): «draft a short reply
     # saying i'll send the meet link…» — the verdict read `mensajeria:draft` at 1.00, the model called
     # `reply`, V2-712 ran it without a question (clear order, resolved target) and a real email went to a
@@ -230,7 +230,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
     # a reversible view; for an act of level ≥ sensitive the costs are reversed, so the verdict's action
     # runs instead — and if it cannot, he is asked. Agreement, or no verdict at all, changes nothing.
     if mode == _wactions.FAST and _frontend.at_least_sensitive(wid, action_name):
-        _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name) or _txw._rof.instead(wid, action_name, payload, _txw._bnotes.operator_half(text))
+        _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name) or _txw._message.forward_instead(wid, action_name, payload, _txw._bnotes.operator_half(text))
         if _vdis:
             emit("brain", "🛑 acto que sale fuera y el veredicto dice otra cosa — corre el veredicto",
                  text=f"{wid}: modelo={action_name} · veredicto={_vdis}", role="system",
@@ -238,7 +238,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
             # the model already wrote the content: it travels to the verdict's action, filtered to what
             # that action declares (a reply's `text` is a draft's `text`)
             _vkeys = set(_txw._direct_action._payload_spec(wid, _vdis))
-            _vpay = _txw._rof.forward_of(wid, action_name, payload, _txw._bnotes.operator_half(text)) or {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
+            _vpay = _txw._message.forward_of(wid, action_name, payload, _txw._bnotes.operator_half(text)) or {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
             # …and the recipient his sentence names, which the model's call for the OTHER action did not
             # carry (full18 E3: `reply` has no recipient; the verdict's `forward` needs one)
             _vpay.update(_txw._direct_action.person_fill(wid, _vdis, _vpay, _txw._bnotes.operator_half(text)))
@@ -269,7 +269,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
                               f"si él te lo pide explícitamente, llama entonces a «{action_name}».")
             except Exception: pass  # noqa: BLE001, E701
             return
-    if _txw._ordered_send.run(_brief, wid, action_name, payload, _txw._bnotes.operator_half(text), emit=emit, acted=acted, apply=_apply_widget_data): return  # noqa: E701 — an ordered act that leaves, the model only prepared (E3)
+    if _txw._message.run_ordered(_brief, wid, action_name, payload, _txw._bnotes.operator_half(text), emit=emit, acted=acted, apply=_apply_widget_data): return  # noqa: E701 — an ordered act that leaves, the model only prepared (E3)
 
     def _log_dataop(m: str) -> None:
         """REGISTRO DE ACCIONES DE WIDGET (2026-08-09, petición del operador). Hasta ahora una data-op
@@ -286,7 +286,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
              extra={"id": wid, "action": action_name, "mode": m, "src": "flash", "item": ref,
                     "payload": payload if isinstance(payload, dict) else {}})   # V2-653: the order's content
 
-    mode = _txw._leave_gate.asked_if_leaving(mode, _brief, wid, action_name, emit=emit, payload=payload, said=_txw._bnotes.operator_half(text))
+    mode = _txw._message.asked_if_leaving(mode, _brief, wid, action_name, emit=emit, payload=payload, said=_txw._bnotes.operator_half(text))
     if mode == _wactions.FAST:
         # GUARD anti context-bleed (round headless V2-038 #1): el modelo a veces RE-emite la data-op del
         # turno ANTERIOR junto a la acción de ESTE ("borra el reloj" arrastró el add_meeting del dentista

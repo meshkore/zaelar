@@ -12,7 +12,7 @@ import threading
 
 import pytest
 
-from nucleo.flash import ordered_send
+from nucleo.acts import message_repair as ordered_send
 
 SAID = "send the invoice to quinn, tell him we're already trying inworld and he should book it"
 
@@ -37,7 +37,7 @@ def directory(tmp_path, monkeypatch):
 
 
 def test_a_draft_under_a_sure_ordered_forward_becomes_the_forward():
-    got = ordered_send.instead(_brief("mensajeria:forward", 0.79), "mensajeria", "draft",
+    got = ordered_send.ordered_instead(_brief("mensajeria:forward", 0.79), "mensajeria", "draft",
                                {"text": "We're already trying Inworld — please book it."}, SAID)
     assert got and got[0] == "forward", got
     assert got[1].get("text", "").startswith("We're already trying Inworld") and got[1].get("contact"), got
@@ -45,10 +45,10 @@ def test_a_draft_under_a_sure_ordered_forward_becomes_the_forward():
 
 def test_under_the_bar_or_a_model_that_sends_or_a_question_nothing_changes():
     draft = {"text": "book it"}
-    assert ordered_send.instead(_brief("mensajeria:forward", 0.6), "mensajeria", "draft", draft, SAID) is None
-    assert ordered_send.instead(_brief("mensajeria:forward", 0.9), "mensajeria", "send_to", draft, SAID) is None
-    assert ordered_send.instead(_brief("mensajeria:forward", 0.9, kind="question"), "mensajeria", "draft", draft, SAID) is None
-    assert ordered_send.instead(_brief("mensajeria:forward", 0.9), "mensajeria", "forward", draft, SAID) is None
+    assert ordered_send.ordered_instead(_brief("mensajeria:forward", 0.6), "mensajeria", "draft", draft, SAID) is None
+    assert ordered_send.ordered_instead(_brief("mensajeria:forward", 0.9), "mensajeria", "send_to", draft, SAID) is None
+    assert ordered_send.ordered_instead(_brief("mensajeria:forward", 0.9, kind="question"), "mensajeria", "draft", draft, SAID) is None
+    assert ordered_send.ordered_instead(_brief("mensajeria:forward", 0.9), "mensajeria", "forward", draft, SAID) is None
 
 
 def test_a_dry_turn_reports_the_call_as_it_would_run():

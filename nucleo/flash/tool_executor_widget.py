@@ -16,12 +16,10 @@ from loguru import logger
 from nucleo.flash import (canvas_license as _canvas_lic,
                           canvas_visibility as _cvis, card_close as _card_close, close_guards as _closeg, data_ops as _data_ops,
                           direct_action as _direct_action, show_target as _show_target)
-from nucleo.flash import leave_gate as _leave_gate  # V2-778 F4-33, read as _txw._leave_gate
+from nucleo.acts import message as _message  # the message door (refactor2710-06 T-02), read as _txw._message
 from nucleo.flash import agenda_close_is_a_cancel as _close_cancel  # 2026-10-14, read as _txw._close_cancel
 from nucleo.flash import agenda_said_day as _said_day  # agenda-everyday-edits 2026-10-14, read as _txw._said_day
 from widgets import row_lens as _row_lens  # demo pass 140 R2, read as _txw._row_lens
-from nucleo.flash import reply_or_forward as _rof  # demo pass 110 E3, read as _txw._rof
-from nucleo.flash import ordered_send as _ordered_send  # live bench E3 2026-10-15, read as _txw._ordered_send
 from nucleo.flash import verdict_card as _vcard  # demo pass 114 I3, read as _txw._vcard
 from voice import brain_notes as _bnotes
 from widgets import confirm as _wconfirm
