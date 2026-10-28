@@ -72,15 +72,6 @@ def test_the_invisible_ones_are_out_unless_asked_for(fresh_db):
     assert {r["id"] for r in ts.tasks_where(visible_only=False)} == {"t1", "t2"}
 
 
-def test_due_reads_only_what_is_overdue_and_timed(fresh_db):
-    ts.task_put(_task("t1", "aviso", mode="scheduled", due_at=900))
-    ts.task_put(_task("t2", "aviso futuro", mode="scheduled", due_at=5000))
-    ts.task_put(_task("t3", "semanal", mode="recurring", due_at=800))
-    ts.task_put(_task("t4", "ahora", mode="now"))
-    ts.task_put(_task("t5", "ya disparada", mode="scheduled", due_at=100, state="done"))
-    assert [r["id"] for r in ts.tasks_due(now=1000)] == ["t3", "t1"]     # oldest due first
-
-
 def test_search_finds_by_what_the_task_was_ABOUT(fresh_db):
     ts.task_put(_task("t1", "búscame piso de alquiler en Gracia", title="piso en Gràcia", created_at=1000))
     ts.task_put(_task("t2", "resérvame mesa en un japonés", title="mesa japonés", created_at=2000))

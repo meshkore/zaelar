@@ -109,15 +109,6 @@ def get(episode_id: int) -> dict | None:
     return dict(row) if row is not None else None
 
 
-def by_memory(memory_id: int) -> dict | None:
-    """Dado el id del recuerdo-resumen, devuelve su episodio (para que el retriever ofrezca la carga lazy)."""
-    row = _db.get_db().query_one(
-        "SELECT id, path, summary, memory_id, bytes, mime, created FROM episodic WHERE memory_id=?",
-        (int(memory_id),),
-    )
-    return dict(row) if row is not None else None
-
-
 def load_bytes(episode_id: int) -> bytes | None:
     """Carga LAZY del binario completo desde `path`. None si no existe (aún no persistido / borrado)."""
     ep = get(episode_id)

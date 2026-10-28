@@ -440,6 +440,15 @@ def answer_of(res) -> dict:
     return out
 
 
+def answer_owed(read_req: dict, escalate_req: dict) -> bool:
+    """Does the turn owe the words an op of its own RETURNED? Not when a worker took it; not when a READ answered it —
+    unless the after-read pass ran the order's op (`read_req["op"]`): then the op's answer is the turn's (demo sandbox
+    2026-10-28, R3: `find_free` computed the five dates and the turn said «let me check»)."""
+    if (escalate_req or {}).get("v") is not None:
+        return False
+    return (read_req or {}).get("v") is None or bool((read_req or {}).get("op"))
+
+
 def answer_to_speak(answers: list, ops) -> tuple | None:
     """The op answer the reply is composed from: the first whose op DECLARES `effects.OUTPUT_ANSWER`, else the
     last. `answers` = [(widget_id, answer)], `ops` = [(widget_id, action)] (demo pass 62, C2)."""

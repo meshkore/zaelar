@@ -37,18 +37,25 @@ def _src_rank(src: str) -> int:
     return 0
 
 
+def begin_turn() -> None:
+    """His next turn begins: what this turn touched becomes «the previous turn». ONE boundary for both channels: the
+    voice reaches it through its final transcript (`note`), the typed channel (`cli/turn.run_turn`) calls it — it
+    emits no transcript, so its window never rotated (node 2.928). An untouched turn keeps the previous window."""
+    with _lock:
+        if _state["current"]:
+            _state["previous"] = _state["current"]
+            _state["prev_failed"] = list(_state["failed"])
+        _state["current"] = []
+        _state["t_prev"], _state["t_cur"] = _state["t_cur"], time.monotonic()
+        _state["acts"] = []
+        _state["failed"] = []
+
+
 def note(kind: str, label: str, role: str = "", extra: dict | None = None) -> None:
     """One event from the funnel. Cheap and never raises: this runs on every event the engine emits."""
     try:
         if kind == "transcript" and role == "user":
-            with _lock:
-                if _state["current"]:
-                    _state["previous"] = _state["current"]
-                    _state["prev_failed"] = list(_state["failed"])
-                _state["current"] = []
-                _state["t_prev"], _state["t_cur"] = _state["t_cur"], time.monotonic()
-                _state["acts"] = []
-                _state["failed"] = []
+            begin_turn()
             return
         if kind != "widget":
             return

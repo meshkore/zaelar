@@ -176,26 +176,30 @@ async def blocked_channel() -> list:
         return []
 
 
-def end_state_unmet(cards: set[str] | None = None) -> dict | None:
-    """The first end state still owed on `cards` (any card when None) that the product reads as NOT met now."""
+def end_state_unmet(cards: set[str] | None = None, said: str = "") -> dict | None:
+    """The first end state still owed on `cards` (any card when None) that reads NOT met now. With `said`, only the end
+    states THIS sentence owes: one another request left open is its business (demo sandbox 2026-10-28, C2/C3)."""
     from nucleo.circuit import spec, verify
+    mine = _norm(said)
     for e in spec.open_specs():
         card = str(e.get("target") or "").split(":", 1)[0]
         if card in ("", "desktop", "canvas") or (cards is not None and card not in cards):
+            continue
+        if mine and _norm(e.get("text")) not in ("", mine):
             continue
         if verify.check(e.get("done_when")) is False:
             return e
     return None
 
 
-def bare_ack(ack: str, cards: set[str] | None, *, beside: bool = False) -> str:
+def bare_ack(ack: str, cards: set[str] | None, *, beside: bool = False, said: str = "") -> str:
     """The bare acknowledgement WE are about to say over a turn's writes, or the true line instead: «just started» when
-    an errand runs beside it, «not on the card yet» when an end state owed on those cards still reads unmet."""
+    an errand runs beside it, «not on the card yet» when an end state THIS turn owes on those cards still reads unmet."""
     try:
         lang = _lang()
         if beside:
             return str(lang.done_just_started)
-        return str(lang.done_not_on_card) if end_state_unmet(cards) else ack
+        return str(lang.done_not_on_card) if end_state_unmet(cards, said) else ack
     except Exception as e:  # noqa: BLE001 — an unreadable screen leaves the ack as it was
         logger.debug(f"reply_receipts: ack not checked — {e}")
         return ack

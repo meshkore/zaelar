@@ -33,6 +33,17 @@ def test_a_row_his_words_never_named_is_never_owed():
                       "contactos", "guarda a Rowan en mis contactos")
 
 
+def test_a_selector_that_names_no_row_is_nothing_to_check():
+    """Demo sandbox 2026-10-28, C4 «actually move it half an hour later»: the inferred clause was `title~=""` — matched
+    by no row, contained in every sentence — so the spec read unmet and the pass moved the meeting a second time."""
+    empty = {"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": ""}, "expect": "present"}]}
+    assert wh.goal_on(empty, "agenda", "actually move it half an hour later") is None
+    assert wh.goal_on(empty, "agenda", "muévela media hora más tarde") is None
+    named = {"all": [{"widget": "agenda", "collection": "meetings",
+                      "where": {"title~": "Catch up with Rowan", "startTime": ""}, "expect": "present"}]}
+    assert wh.goal_on(named, "agenda", "move catch up with rowan half an hour later")["all"] == named["all"]
+
+
 def test_views_and_acts_that_leave_are_never_the_turns_writes():
     assert wh.writes_of([("contactos", "add_contact"), ("agenda", "show_day"), ("mensajeria", "send_to")]) == \
         [("contactos", "add_contact")]

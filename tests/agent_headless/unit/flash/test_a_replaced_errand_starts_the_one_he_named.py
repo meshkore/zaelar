@@ -289,3 +289,40 @@ def test_the_disarm_a_steer_that_does_not_relay_lets_the_promise_pass_open_the_c
 def test_the_question_offers_the_four_answers():
     assert set(sd.question("")["criteria"]) == {"stop", "stop_all", "replace", "steer", "keep"}
     assert [c for c in sd.CHOICES if sd.ends(c)] == ["stop", "stop_all", "replace"]
+
+
+# ── steer: words a card already carried out are not a correction of the errand (demo sandbox 2026-10-28) ──────
+@pytest.mark.parametrize("text", ["set the first one as my background", "actually move it half an hour later",
+                                  "pon la primera de fondo", "muévela media hora más tarde"])
+@pytest.mark.parametrize("consumed", [{"acted": {"widget": True}}, {"data_done": {"v": True}}])
+def test_an_order_a_card_carried_out_is_never_relayed_to_the_errand(text, consumed, one_errand):
+    """B2 and C4: the wallpaper was set, the meeting moved — and the same words went to the monitor errand as a
+    «steer»; the worker stopped to ask which image, which meeting, and his next order answered THAT. One sentence,
+    one order: the act on the card consumed it."""
+    acted = {"v": None}
+    assert sd.steer(_brief("steer"), text, worker_acted=acted, **consumed) == ""
+    assert one_errand["injected"] == [] and acted["v"] is None
+
+
+def test_a_lane_that_carried_the_words_out_consumes_them_too(one_errand):
+    """U2 «no, put like a prayer» played the track (the music lane) AND was relayed to the monitor errand."""
+    acted = {"v": None}
+    assert sd.steer(_brief("steer"), "no, put like a prayer", worker_acted=acted, lanes=({"v": {"query": "Like a Prayer"}}, {"v": None})) == ""
+    assert one_errand["injected"] == []
+
+
+@pytest.mark.parametrize("sure, relayed", [(True, ""), (False, "7")])
+def test_a_verdict_that_surely_names_a_cards_act_keeps_the_words_on_the_card(one_errand, monkeypatch, sure, relayed):
+    """S2 «compare them side by side»: `results:layout` at 1.00 — the sheet's own act, not a correction of the errand."""
+    from nucleo.flash import direct_action as DA
+    monkeypatch.setattr(DA, "from_brief", lambda b: ("results::723152-ls1", "layout"))
+    monkeypatch.setattr(DA, "_action_sure", lambda b, floor=0.8: sure)
+    acted = {"v": None}
+    assert sd.steer(_brief("steer"), "compare them side by side", worker_acted=acted) == relayed
+
+
+def test_a_steer_nothing_carried_out_still_reaches_the_errand(one_errand):
+    acted = {"v": None}
+    assert sd.steer(_brief("steer"), STEER_BANK[1], worker_acted=acted, acted={"widget": False},
+                    data_done={"v": False}) == "7"
+    assert one_errand["injected"]

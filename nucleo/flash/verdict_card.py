@@ -132,16 +132,21 @@ def inner_order_wins(brief, operator_text: str = "") -> str:
       · "write" — the verdict names a WRITE of the card (not a lens, not its own close): the close is the canvas
         question's reading of a removal verb, and the write is left to the repair that builds its payload.
     His words naming a card («cierra la agenda») keep the close: the canvas verdict is then about that card.
-    Never raises."""
+
+    The same for «arrange», which names no card: canvas=arrange 0.92 AND `results:layout` 1.00 tidied the desktop and
+    never laid the rows side by side (demo sandbox 2026-10-28, S2) — only the "sure" rung applies to it. Never raises."""
     try:
         from nucleo.flash import data_ops as _do, direct_action as _da
-        if _da.sure_canvas(brief) != "close":
+        gesture = _da.sure_canvas(brief)
+        if gesture not in ("close", "arrange"):
             return ""
         owner, name = _da.from_brief(brief)
         if not owner or not name or _da.named_cards(operator_text):
             return ""
         if _da._action_sure(brief, floor=SURE):
             return "sure"
+        if gesture != "close":
+            return ""
         return "write" if name != "close" and not _do.is_view_op(owner, name) else ""
     except Exception:  # noqa: BLE001 — a doubt keeps today's close
         __import__("logging").getLogger("zaelar.flash").debug("inner_order_wins failed", exc_info=True)

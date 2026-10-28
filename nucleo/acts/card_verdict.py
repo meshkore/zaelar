@@ -251,6 +251,11 @@ def order_card_after_read(brief, operator_text: str, read_widget: str) -> str:
         owner = str(target or "").rpartition(":")[0]
         if t_info and owner and _da._base_of(owner) == _da._base_of(read_widget):
             return ""
+        # …and the CATALOGUE verdict is the same evidence for a card off screen (node 2.926: «save … in my contacts:
+        # … Telegram … email» wrote the contact, the grammar named the messages card, a pass mailed Quinn).
+        card, c_info = _tb.read(brief, _tb.CATALOG_KEY, "", min_confidence=_v.LICENCE)
+        if c_info and str(card or "") not in ("", "none") and _da._base_of(str(card)) == _da._base_of(read_widget):
+            return ""
         named = [c for c in _da.named_cards(operator_text) if _da._base_of(c) != _da._base_of(read_widget)]
         return _da._base_of(named[0]) if len(named) == 1 else ""
     except Exception:  # noqa: BLE001

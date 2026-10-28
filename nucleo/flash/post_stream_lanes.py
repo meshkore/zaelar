@@ -244,6 +244,12 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             _apply_widget_data(_after["widget_id"], _after["action"], _after["payload"])
             acted["widget"] = True
             data_done["v"] = True
+            read_req["op"] = _after          # the read's turn now owes what THIS op answers (`data_ops.answer_owed`)
+            from nucleo.flash import post_stream_acts as _ps_acts_oa
+            if await _ps_acts_oa.speak_the_ops_answer(_brief=_brief, _op_text=_op_text, _turn_op_tasks=_turn_op_tasks,
+                                                      data_done=data_done, read_req=read_req, escalate_req=escalate_req,
+                                                      search_req=search_req, speak=speak, emit=emit, _prompt_mod=_prompt_mod):
+                spoken_text = "".join(spoken).strip()
             emit("brain", "🔁 leyó para una orden — la llamada, con lo leído", role="system",
                  text=f"{_rw} → {_after['widget_id']}:{_after['action']}",
                  extra={"cat": "flash", "widget": _after["widget_id"], "action": _after["action"]})

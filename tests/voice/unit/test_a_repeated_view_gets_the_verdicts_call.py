@@ -125,7 +125,13 @@ def test_a_read_for_an_order_on_another_card_carries_the_order_out(model, monkey
     monkeypatch.setattr(widget_read, "read", lambda wid, *a, **k: "Catch up with Rowan · 16:30" if wid == "agenda" else "")
     m = model([("widget_data", {"widget_id": "mensajeria", "action": "send_to",
                                 "payload": {"contact": "Rowan", "text": "Moved to 16:30"}})])
-    got = asyncio.run(act_repair.call_after_read("send rowan a telegram with the new time", "agenda", "mensajeria"))
+    # The verdict of that turn put the order on the messaging card; a send the pass composes needs it (demo sandbox
+    # 2026-10-28: the same pass mailed Quinn over a «save my contacts» order — `send_backed_by_verdict`).
+    import threading
+    from nucleo.turn import brief as _tb
+    ev = threading.Event(); ev.set()
+    brief = {"event": ev, "turn_id": "t", "open_ids": [], "result": {_tb.CATALOG_KEY: {"choice": "mensajeria", "confidence": 0.95}}}
+    got = asyncio.run(act_repair.call_after_read("send rowan a telegram with the new time", "agenda", "mensajeria", brief=brief))
     assert got == {"widget_id": "mensajeria", "action": "send_to", "payload": {"contact": "Rowan", "text": "Moved to 16:30"}}
     assert "16:30" in m.seen[0][0]["content"], "what was read travels to the pass"
 

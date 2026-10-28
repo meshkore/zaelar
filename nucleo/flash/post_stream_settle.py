@@ -159,7 +159,8 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         # The ack is a claim about the cards (V2-783 P0-2): an unmet end state on a card this turn wrote to says what is
         # true instead (`reply_receipts.bare_ack`).
         from nucleo.turn import reply_receipts as _receipts
-        spoken_text = _receipts.bare_ack(spoken_text, {str(w).split("::", 1)[0] for w, _a in (data_done.get("ops") or [])})
+        spoken_text = _receipts.bare_ack(spoken_text, {str(w).split("::", 1)[0] for w, _a in (data_done.get("ops") or [])},
+                                         said=_router.operator_words(operator_text, text))
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
 

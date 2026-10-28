@@ -275,18 +275,6 @@ def tasks_of_kind(kind: str, states: tuple = LIVE_STATES) -> list[dict]:
         return []
 
 
-def tasks_due(now: float | None = None, limit: int = 20) -> list[dict]:
-    """Scheduled/recurring tasks whose moment has arrived. Read once a second by the loop, so it is indexed."""
-    ts = int(time.time() if now is None else now)
-    try:
-        rows = _db_mod.get_db().query(
-            "SELECT * FROM tasks WHERE due_at IS NOT NULL AND due_at <= ? AND state='pending' "
-            "AND mode IN ('scheduled','recurring') ORDER BY due_at ASC LIMIT ?", (ts, int(limit)))
-        return [_row(r) for r in rows]
-    except Exception:  # noqa: BLE001
-        return []
-
-
 def task_search(query: str, limit: int = 5) -> list[dict]:
     """Candidate tasks for a fuzzy reference («the flat-hunting task I told you about»), NEWEST FIRST.
 

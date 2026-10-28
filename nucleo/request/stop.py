@@ -174,12 +174,27 @@ def steer_target() -> str:
         return ""
 
 
-def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict | None = None) -> str:
+def _names_a_cards_act(brief) -> bool:
+    """The verdict SURELY names an action on a card: the sentence is that card's, not the errand's (S2 «compare them
+    side by side» read results:layout 1.00 and still went to the worker as a steer)."""
+    try:
+        from nucleo.flash import direct_action as _da, verdict_card as _vc
+        return bool(_da.from_brief(brief)[1]) and _da._action_sure(brief, floor=_vc.SURE)
+    except Exception as e:  # noqa: BLE001 — unreadable: the steer stands as before
+        return logger.debug(f"stop_decision: card verdict unreadable: {e!r}") or False
+
+
+def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict | None = None,
+          acted: dict | None = None, data_done: dict | None = None, lanes: tuple = ()) -> str:
     """Relay his correction to the running errand on a sure `steer` the model did not address; the errand reached or
-    "". Runs BEFORE any repair pass, so a promise to tell the process is kept here. Never raises."""
+    "". Runs BEFORE any repair pass, so a promise to tell the process is kept here. Never raises. `acted` / `data_done`
+    are the turn's own acts: words a card already carried out are not a correction of the errand that happens to be
+    running — one sentence is one order (demo sandbox 2026-10-28: the worker asked «which meeting? which image?»)."""
     try:
         words = " ".join(str(text or "").split())
-        target = steer_target() if (words and not worker_acted.get("v") and steers(brief)) else ""
+        consumed = (bool((acted or {}).get("widget")) or bool((data_done or {}).get("v"))
+                    or any((r or {}).get("v") is not None for r in lanes) or _names_a_cards_act(brief))
+        target = steer_target() if (words and not worker_acted.get("v") and not consumed and steers(brief)) else ""
         if not target:
             return ""
         from nucleo import dispatch as _dispatch

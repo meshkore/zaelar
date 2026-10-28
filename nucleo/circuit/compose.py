@@ -76,8 +76,16 @@ def goal_on(done_when, card: str, order: str = "") -> dict | None:
     kept = [c for c in _verify._clauses(done_when)[1]
             if _verify.kind_of(c) == "rows" and _base(c.get("widget")) == card
             and str(c.get("expect") or "present") == "present"
-            and all(" ".join(str(v).lower().split()) in said for v in (c.get("where") or {}).values() if isinstance(v, str))]
+            and _names_a_row(c) and all(" ".join(str(v).lower().split()) in said
+                                        for v in (c.get("where") or {}).values() if isinstance(v, str))]
     return {"all": kept} if kept else None
+
+
+def _names_a_row(clause: dict) -> bool:
+    """A row clause OWES a row only when some value of its `where` names one: `title~=""` matches no row and is in every
+    sentence, so it read «unmet» and the pass moved the meeting AGAIN (demo sandbox 2026-10-28, C4)."""
+    where = clause.get("where") if isinstance(clause.get("where"), dict) else {}
+    return any(str(v).strip() for v in where.values() if isinstance(v, (str, int, float)))
 
 
 async def check(order: str, writes: list, *, spec=None, settle_s: float = SETTLE_S) -> int:

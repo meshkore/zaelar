@@ -34,13 +34,12 @@ def test_register_creates_searchable_summary(fresh_db, tmp_path):
     assert any(r["id"] == ref["memory_id"] for r in res)
 
 
-def test_get_and_by_memory(fresh_db, tmp_path):
+def test_get(fresh_db, tmp_path):
     f = tmp_path / "doc.txt"
     f.write_text("hola", encoding="utf-8")
     ref = memep.register(str(f), "resumen doc", mime="text/plain")
     ep = memep.get(ref["episode_id"])
     assert ep["path"] == str(f) and ep["mime"] == "text/plain" and ep["bytes"] == 4
-    assert memep.by_memory(ref["memory_id"])["id"] == ref["episode_id"]
 
 
 def test_lazy_load_text_and_bytes(fresh_db, tmp_path):

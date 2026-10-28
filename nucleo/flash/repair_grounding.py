@@ -47,6 +47,30 @@ def recipient_was_named(wid: str, action: str, payload: dict, operator_text: str
         return True
 
 
+def send_backed_by_verdict(brief, wid: str, action: str) -> bool:
+    """An act that LEAVES, composed by a pass whose card came from his WORDS, runs only when the verdict puts the
+    order on that card (`screen_action` target or `catalog_widget`, licence floor). A named recipient is not an
+    ordered send (node 2.926: a pass mailed Quinn over «save … in my contacts»). Fail-closed: no brief, no send."""
+    try:
+        from widgets import effects as _fx
+        if not _fx.carries(wid, action, _fx.EXTERNAL_SEND):
+            return True
+        if not brief:
+            return False
+        from nucleo.turn import brief as _tb, verdicts as _v
+        base = str(wid or "").split("::", 1)[0].strip().lower()
+        target, t_info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=_v.LICENCE)
+        owner = str(target or "").rpartition(":")[0].split("::", 1)[0].strip().lower()
+        if t_info and owner and owner == base:
+            return True
+        card, c_info = _tb.read(brief, _tb.CATALOG_KEY, "", min_confidence=_v.LICENCE)
+        return bool(c_info) and str(card or "").split("::", 1)[0].strip().lower() == base
+    except Exception as e:  # noqa: BLE001 — unreadable: an act that leaves does not
+        from loguru import logger
+        logger.debug(f"repair_grounding: verdict unreadable — {e}")
+        return False
+
+
 def list_was_named(payload: dict, operator_text: str, window, card_digest: str = "") -> bool:
     """A named list the repair selects must be one he said, or one the card holds. Never raises (True = allow)."""
     try:

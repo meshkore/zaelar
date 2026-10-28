@@ -48,17 +48,6 @@ def test_is_safe_action_compat(monkeypatch):
     assert not frontend.is_safe_action("agenda", "inexistente")
 
 
-def test_widget_action_tag_for_data_ops(monkeypatch):
-    import widgets.runtime as rt
-    monkeypatch.setattr(rt, "get", lambda wid: {"actions": {"done": {}, "drop_project": {"confirm": True},
-                                                            "rebuild": {"escalate": True}}})
-    tag = frontend.widget_action_tag("agenda", "done", {"taskId": "t1"})
-    assert tag.startswith("[[widget.data:agenda]]") and '"action": "done"' in tag
-    assert frontend.widget_action_tag("agenda", "drop_project", {}).startswith("[[widget.data:agenda]]")  # CONFIRM
-    assert frontend.widget_action_tag("agenda", "rebuild", {}) is None       # ESCALATE → None
-    assert frontend.widget_action_tag("agenda", "inexistente", {}) is None   # undeclared → None
-
-
 def test_canvas_verb_maps_pseudo_dataops():
     """Long-session diagnostic 2026-07-15: deep in the model, SHOW/CLOSE slips through as a pseudo data-op
     (`widget_data(clock, action="show")`). `canvas_verb` returns the canonical tag; a real action returns None."""

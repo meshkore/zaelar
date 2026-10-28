@@ -66,20 +66,6 @@ ACTION_INSTRUCTIONS = (
 )
 
 
-def widget_action_tag(widget_id: str, action: str, payload: dict | None = None) -> str | None:
-    """Compone `[[widget.data:ID]]{...}[[/widget.data]]` para una data-op DECLARADA (modo FAST o CONFIRM). Devuelve
-    None si la acción no está declarada o es una vía de escape a código (ESCALATE). El mismo `apply_action` lo
-    aplica el despacho del canvas."""
-    from widgets import actions
-    mode = action_mode(widget_id, action)
-    if mode not in (actions.FAST, actions.CONFIRM):
-        return None
-    import json
-    body = {"action": (action or "").strip(), "payload": payload or {}}
-    wid = (widget_id or "").strip().lower()
-    return f"[[widget.data:{wid}]]{json.dumps(body, ensure_ascii=False)}[[/widget.data]]"
-
-
 def identify(text: str) -> str | None:
     """Best-effort: id del widget al que se refiere una frase (delegado en `widgets/runtime.py`). None si nada
     casa. Sirve al safety-net del provider (el modelo dijo "abre X" sin emitir la tag)."""
