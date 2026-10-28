@@ -243,7 +243,7 @@ _METERS = ("report_llm_usage(", "meter_openai_response(", "report_search_usage("
 _DOORS = ("energy_lease", "llm_egress.route(", "_keys.key(", "blocks_new_work")
 _EXEMPT = {
     "nucleo/energy_meter.py": "IS the meter.",
-    "nucleo/workers/session.py": "reads a worker's usage AFTER it ran; the worker was opened through "
+    "nucleo/workers/session_finish.py": "reads a worker's usage AFTER it ran; the worker was opened through "
                                  "`runstate.blocks_new_work`, which asks the lease.",
     "widgets/generator.py": "meters a widget generation's worker; generations are opened through dispatch / "
                             "`blocks_new_work` (widgets/server_api.py), which ask the lease.",

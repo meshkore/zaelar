@@ -207,24 +207,37 @@ def test_the_deny_message_lists_the_real_action_vocabulary():
 # INTERFACE reason (not to display two contradictory `end` rows, 2026-07-14 demo) and that swept away an
 # unrelated BILLING concern: a worker killed due to budget had spent REAL tokens and was billed ZERO.
 # Measured: 704 s, 256 steps, 39 captures, ~$0.20 in xAI tokens → €0 billed.
-def test_the_energy_report_is_not_gated_by_the_ui_concern():
-    """The two concerns are SEPARATE in the code: the chip remains under the cancellation guard, billing does not."""
-    import pathlib
-    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "session.py"
-    code = src.read_text(encoding="utf-8")
-    cobro = code.index("report_worker_usage")
-    guard = code.index('if rec.status != "cancelled":\n            # V2-048')
-    assert cobro < guard, "el cobro tiene que estar FUERA (y antes) del guard que solo gobierna la fila del panel"
+def test_the_energy_report_is_not_gated_by_the_ui_concern(monkeypatch):
+    """The two concerns are SEPARATE: a CANCELLED session paints no second end row, and its tokens are billed."""
+    from nucleo import energy_meter
+    from tests.agent_headless.unit.workers import session_door as door
+    billed = []
+    monkeypatch.setattr(energy_meter, "report_worker_usage", lambda **kw: billed.append(kw))
+    s = door.session(monkeypatch, status="cancelled", ok=False)
+    s._usage = {"input_tokens": 1200, "output_tokens": 80}
+    door.finish(monkeypatch, s)
+    assert billed and billed[0]["prompt_tokens"] == 1200, "a cancelled worker still consumed real tokens"
+    assert not [c for c in s.chips if c[0] == "end"], "the cancellation already painted its end row"
 
 
-def test_partial_usage_survives_a_worker_that_never_says_goodbye():
+def test_partial_usage_survives_a_worker_that_never_says_goodbye(monkeypatch):
     """The final `result`'s `usage` does not exist if we kill the process, so it accumulates message by message. The
-    `result` takes precedence when it arrives (the CLI already provides the sum); the partial is the MINIMUM reported when it does not."""
-    import pathlib
-    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "session.py"
-    code = src.read_text(encoding="utf-8")
-    assert 'elif ev.type == "usage":' in code
-    assert "self._usage or self._usage_partial or {}" in code, "el final gana; el parcial es el respaldo"
+    `result` takes precedence when it arrives (the CLI already provides the sum); the partial is the MINIMUM reported
+    when it does not. Read from what the session bills."""
+    from nucleo import energy_meter
+    from tests.agent_headless.unit.workers import session_door as door
+    billed = []
+    monkeypatch.setattr(energy_meter, "report_worker_usage", lambda **kw: billed.append(kw))
+    killed = door.session(monkeypatch, status="running", ok=False)
+    door.event(killed, "usage", usage={"input_tokens": 500, "output_tokens": 20})
+    door.event(killed, "usage", usage={"input_tokens": 700, "output_tokens": 30})
+    door.finish(monkeypatch, killed)
+    assert billed[-1]["prompt_tokens"] == 1200 and billed[-1]["completion_tokens"] == 50, billed
+    summed = door.session(monkeypatch, status="running", ok=True, result_summary="x")
+    door.event(summed, "usage", usage={"input_tokens": 500, "output_tokens": 20})
+    summed._usage = {"input_tokens": 61969, "output_tokens": 127}
+    door.finish(monkeypatch, summed)
+    assert billed[-1]["prompt_tokens"] == 61969, "the final sum wins over the partial"
 
 
 def test_the_stream_emits_usage_per_message_not_only_at_the_end():

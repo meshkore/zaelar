@@ -240,15 +240,14 @@ def test_the_worker_is_TOLD_it_can_declare_a_bar():
     assert "OBJETIVO MEDIBLE" in block and "nunca la retires" in block
 
 
-def test_the_harness_is_WIRED_INTO_the_ending_and_runs_BEFORE_delivery():
+def test_the_harness_is_WIRED_INTO_the_ending_and_runs_BEFORE_delivery(monkeypatch):
     """Caught by its own disarm: every case above drives `goal.check_and_relay` directly, so unhooking it
     from `_finish` left the whole file green while the mechanism was dead. A measure taken AFTER the
-    operator has already been told is not a measure, so the order is pinned too."""
-    import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "session.py"
-           ).read_text(encoding="utf-8")
-    body = src[src.index("    async def _finish(self)"):]
-    body = body[:body.index("\n    async def ") if "\n    async def " in body[10:] else len(body)]
-    assert "_harness(rec" in body, "`_finish` no longer measures the declared end state"
-    assert body.index("_harness(rec") < body.index("await _deliver(rec)"), (
+    operator has already been told is not a measure, so the order is pinned too — read from the ending itself."""
+    from tests.agent_headless.unit.workers import session_door as door
+    s = door.session(monkeypatch, ok=True, result_summary="tres carpinteros", status="running")
+    order = door.finish(monkeypatch, s)
+    steps = [k for k, _ in order]
+    assert "harness" in steps, "`_finish` no longer measures the declared end state"
+    assert steps.index("harness") < steps.index("deliver"), (
         "the harness has to run BEFORE delivery — measuring after telling him it is done is not measuring")

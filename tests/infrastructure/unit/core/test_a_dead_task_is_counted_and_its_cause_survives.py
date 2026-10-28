@@ -151,21 +151,23 @@ def test_un_broken_SIN_RELEVO_produce_causa(monkeypatch, tmp_path):
     ("broken", "el proveedor RECHAZA nuestras peticiones"),
     ("", "proveedor caído"),
 ])
-def test_el_chip_dice_QUE_fallo_en_vez_de_sin_cuota_siempre(kind, esperado):
+def test_el_chip_dice_QUE_fallo_en_vez_de_sin_cuota_siempre(monkeypatch, kind, esperado):
     """Lo que el operador lee decide lo que HACE: una cuota dice «espera», una credencial dice «arréglala»,
-    una petición rechazada no dice ninguna de las dos."""
-    src = (ENGINE / "nucleo" / "workers" / "session.py").read_text(encoding="utf-8")
-    body = src[src.index('elif ev.type == "provider_down"'):src.index('elif ev.type == "progress"')]
-    assert f'"{esperado}"' in body or f"'{esperado}'" in body
-    if kind:
-        assert f'"{kind}"' in body
+    una petición rechazada no dice ninguna de las dos. Leído del chip que la sesión pinta."""
+    from tests.agent_headless.unit.workers import session_door as door
+    s = door.session(monkeypatch)
+    door.event(s, "provider_down", provider="relay-a", next="", kind=kind, text="x")
+    assert s.chips and s.chips[-1][0] == esperado and s.chips[-1][2] is False, s.chips
 
 
-def test_session_no_vuelve_a_leer_el_texto_del_error():
-    """Sería la TERCERA clasificación de la misma cadena. La causa llega como dato."""
-    src = (ENGINE / "nucleo" / "workers" / "session.py").read_text(encoding="utf-8")
-    body = src[src.index('elif ev.type == "provider_down"'):src.index('elif ev.type == "progress"')]
-    assert "classify_failure" not in body and "is_broken_request" not in body
+def test_session_no_vuelve_a_leer_el_texto_del_error(monkeypatch):
+    """Sería la TERCERA clasificación de la misma cadena. La causa llega como dato: con el texto de una cuota
+    agotada y `kind` vacío, la sesión no lo reclasifica — el chip dice lo que dice el dato."""
+    from tests.agent_headless.unit.workers import session_door as door
+    s = door.session(monkeypatch)
+    door.event(s, "provider_down", provider="relay-a", next="relay-b", kind="",
+               text="Weekly Limit Exhausted. Your limit will reset at 2026-11-02")
+    assert s.chips[-1][0] == "proveedor caído" and "relevo a relay-b" in s.chips[-1][1], s.chips
 
 
 # ── R3 · la regla del cierre corto la comparten los dos canales, como FUNCIÓN ───────────────────────────

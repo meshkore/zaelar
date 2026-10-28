@@ -125,7 +125,8 @@ _PROVIDER_CALLS = (
 DISPATCH = ENGINE / "nucleo" / "dispatch" / "__init__.py"
 _SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch" / f"{x}.py"
                               for x in ("listener", "session", "prepare", "model", "registry", "dedup_flow", "control")],
-          (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"],
+          (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / f"session_{x}.py"
+                                                                  for x in ("notes", "record", "events", "finish")],
           (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py", ENGINE / "server" / "run_api.py"],
           (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"],
           POST_STREAM.resolve(): [ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py" for x in ("words", "lanes", "settle")],
@@ -188,6 +189,7 @@ def _module_function(src: str, fname: str) -> str:
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
 _ALIASED = {(ENGINE / "nucleo" / "dispatch" / "session.py").resolve(): "_d",
             (ENGINE / "server" / "voice_status.py").resolve(): "_va",
+            **{(ENGINE / "nucleo" / "workers" / f"session_{x}.py").resolve(): "_s" for x in ("record", "events", "finish")},
             (ENGINE / "nucleo" / "memory_agent" / "ingest_steps.py").resolve(): "_ing",
             (ENGINE / "nucleo" / "flash" / "live_blocks_nav.py").resolve(): "_lb",
             (ENGINE / "nucleo" / "flash" / "tool_executor_calls.py").resolve(): "_tx",
