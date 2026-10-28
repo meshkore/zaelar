@@ -124,8 +124,3 @@ def said_when(payload: dict) -> dict:
         out["startTime"] = hour
         out.pop("allDay", None)
     return out
-
-
-def strip_when(title: str) -> str:
-    """`title` without the date and time phrases it carries (see `split_when`)."""
-    return split_when(title)[0]

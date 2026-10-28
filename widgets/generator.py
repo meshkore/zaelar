@@ -133,12 +133,6 @@ def kill(token: str) -> bool:
     return True
 
 
-def kill_all() -> int:
-    with _PROCS_LOCK:
-        tokens = list(_PROCS.keys())
-    return sum(1 for t in tokens if kill(t))
-
-
 def _run_agent(prompt: str, token: str = "", *, target: str) -> tuple[bool, str]:
     """Run the agent on the worker provider chain, relaying ONCE if the provider (not the build) failed.
 

@@ -78,9 +78,5 @@ USD_PER_REQUEST: dict[str, float] = {
 }
 
 
-def of_kind(kind: str) -> list[str]:
-    return [p.name for p in PROVIDERS.values() if p.kind == kind]
-
-
 def paid() -> frozenset[str]:
     return frozenset(p.name for p in PROVIDERS.values() if p.paid)

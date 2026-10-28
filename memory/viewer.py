@@ -42,12 +42,6 @@ def clamp_budget(budget) -> int:
     return max(BUDGET_MIN, min(n, BUDGET_MAX))
 
 
-def _layer_sql(layers: set[str]) -> str:
-    if layers >= {"short", "long"} or not layers:
-        return ""
-    return "level = 'short'" if "short" in layers else "level IN ('mid','long')"
-
-
 # ── totals ──────────────────────────────────────────────────────────────────────────────────────────────────
 def counts(week_s: int = 7 * 86400) -> dict:
     """Every memory total the overview prints, as COUNTs. Cheap: indexed columns only."""
