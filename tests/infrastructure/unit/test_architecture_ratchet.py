@@ -177,18 +177,8 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # mezclaba dinero, login y cierre. Los lazy bajan de 5 a 3 porque los nuevos se fueron con él.
     "nucleo/flash/router_guards.py": (561, 3),   # 2026-10-01 V2-778 F1: commission readers → commission_guards.py
     "nucleo/flash/show_guard.py": (165, 4),
-    # probe.py 1168→1176 net: V2-300's grace/latency growth minus F1's confirm-gate retirement (−2 mirrors,
-    # 2026-08-24); →1214/89 on 25-08 (49a7c81, 25d7ebd, 73daeac — the walk's fixes land in the same god
-    # files they measure). Still F2's split target (`run_turn` into named phases).
-    # probe.py 1214→1226 on 2026-08-28 (V2-457), same audit and for the same reason: this channel is the
-    # PARALLEL implementation of the voice provider, so a new capability is wired into BOTH or they diverge—
-    # something this codebase has already paid for four times (V2-121, V2-176, V2-380, V2-383). They are three
-    # branches of an `elif` chain (classify, execute, speak) that do not form a module: shared code already lives
-    # in `image_turn`.
-    # 2026-09-02: 1226 → 1163. `run_turn` alone was 1136 of 1248 lines, so the only honest extraction was a
-    # slice of it: the three SCHEDULING backstops (promise→tag, execute the cron tags, write the commitment)
-    # → `probe_scheduling.py`. A closed unit over five of run_turn's locals; moved byte for byte.
-    "nucleo/flash/probe.py": (1109, 68),   # 2026-10-01 V2-778 F1: the post-model blocks → probe_after.py
+    # nucleo/flash/probe.py left the table with the text channel's own turn (refactor2710-01): the typed
+    # channel runs the voice turn, so there is no second copy left to bound.
     "widgets/results/data.py": (991, 5),
     "memory/api.py": (1026, 17),   # 2026-10-01 V2-778 F1: the workflows table → memory/workflows_store.py
     "nucleo/flash/prompt.py": (834, 29),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
@@ -341,28 +331,30 @@ def test_process_identity_has_ONE_owner():
 _PACKAGE_CEILINGS: dict[str, int] = {
     "bus": 646,
     "config": 2525,
-    "connectors": 20313,
+    "connectors": 20323,        # refactor2710-01: +10, the consequence doors the connectors ask (music, messaging, mesh)
     "library": 805,
     "memory": 9117,
-    "nucleo (top)": 24101,
+    "nucleo (top)": 24264,      # refactor2710-01: +163, `consequence.py` (the door registry) and `dispatch_soon.py` (moved)
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
-    "nucleo/batch": 903,
+    "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
     "nucleo/context_packs": 568,
     "nucleo/errands": 2563,
-    "nucleo/flash": 36974,
-    "nucleo/memory_agent": 1949,
+    "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
+    "nucleo/flash": 32692,
+    "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
+    "nucleo/memory_agent": 1951,  # refactor2710-01: +2, the memory.ingest door
     "nucleo/susurro": 1386,
-    "nucleo/turn": 2308,
-    "nucleo/workers": 6463,
+    "nucleo/turn": 2169,
+    "nucleo/workers": 6455,
     "nucleo/workflows": 315,
     "observability": 1005,
-    "rules": 1208,
+    "rules": 1211,              # refactor2710-01: +3, the rules.write door
     "search": 5474,
     "server": 5783,
-    "voice": 10089,
-    "voice/engine/llm": 3836,
-    "widgets": 38624,
+    "voice": 10092,             # refactor2710-01: +3, `typed_turn.py` (the typed front door) and the lent speaker
+    "voice/engine/llm": 3900,   # refactor2710-01: +64, a failed turn keeps his words; the vault is a door
+    "widgets": 38666,           # refactor2710-01: +42, `payload_digest.py` (moved), the sheet.rebuild door, refs paid by extraction
 }
 
 #: A new file under `nucleo/` is born small. 300 lines, not the tree-wide 900 above: the refactor splits the brain
@@ -387,7 +379,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/errands/book.py",
     "nucleo/errands/wake.py",
     "nucleo/errands/watch.py",
-    "nucleo/flash/accumulator.py",
     "nucleo/flash/act_repair.py",
     "nucleo/flash/answer_guards.py",
     "nucleo/flash/canvas_license.py",
@@ -406,9 +397,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/payload_fill.py",
     "nucleo/flash/post_stream_lanes.py",
     "nucleo/flash/post_stream_words.py",
-    "nucleo/flash/probe.py",
-    "nucleo/flash/probe_after.py",
-    "nucleo/flash/probe_mirrors.py",
     "nucleo/flash/prompt.py",
     "nucleo/flash/provider_chain.py",
     "nucleo/flash/reminder_guards.py",
@@ -427,6 +415,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/widget_data_turn.py",
     "nucleo/flash/widget_read.py",
     "nucleo/homeostasis.py",
+    "nucleo/input/stt.py",   # the phrase accumulator, MOVED from nucleo/flash/accumulator.py (refactor2710-01)
     "nucleo/jev.py",
     "nucleo/loop.py",
     "nucleo/mem_processor.py",
@@ -464,6 +453,18 @@ def _package_totals() -> dict[str, int]:
         bucket = package_of(path)
         totals[bucket] = totals.get(bucket, 0) + src.count("\n") + 1
     return totals
+
+
+#: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
+#: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
+#: 178503 → 175435). Never for growth in place.
+_TOTAL_MAX = 175435
+
+
+def test_the_total_only_shrinks():
+    total = sum(_package_totals().values())
+    assert total <= _TOTAL_MAX, f"the product grew to {total} lines (ceiling {_TOTAL_MAX}) — the refactor only removes"
+    assert _TOTAL_MAX - total <= 200, f"the total ceiling is slack ({_TOTAL_MAX} over {total}): lower it to what landed"
 
 
 def test_a_package_only_shrinks():
