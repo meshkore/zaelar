@@ -156,9 +156,9 @@ def present(widget_id: str, *, reason: str, action: str = "", src: str = "flash"
             return _suppress("no se pudo leer la declaración del widget")
     if is_open(wid, known=known) and not is_minimized(wid):
         return _suppress("ya está abierta", already_open=True)
-    from nucleo import canvas_arbiter
+    from nucleo.acts import canvas_turn
     from nucleo.acts import canvas
-    req = canvas_arbiter.request_of(brief, text)
+    req = canvas_turn.request_of(brief, text)
     req["card_closed"] = not is_open(wid, known=known)        # a lens brings a card only when it is closed
     return canvas.apply("show", card, src=src, action=action, reason=why, emit=emit, request=req)
 

@@ -155,9 +155,9 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
                          extra={"options": _t["options"]})
                     return True
                 return False        # sin canal para preguntar, mejor no cerrar a ciegas
-            from nucleo import canvas_arbiter
+            from nucleo.acts import canvas_turn
             from nucleo.acts import canvas
-            req = canvas_arbiter.request_of(brief, text)
+            req = canvas_turn.request_of(brief, text)
             done = [canvas.apply("close", _cid, src="flash", emit=emit, request=req)
                     for _cid in (_t.get("ids") or [_t["id"] or wid])]
             return any(done)

@@ -16,7 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import canvas_arbiter as arb
+from nucleo.acts import canvas_arbiter as arb
+from nucleo.acts import canvas_turn as turn
 from nucleo.flash import canvas_license as lic
 
 ENGINE = Path(__file__).resolve().parents[3]
@@ -151,13 +152,13 @@ def verdicts(monkeypatch):
     out = []
     monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
                         out.append({"kind": kind, "label": label, "text": text, **(extra or {})}))
-    arb._last_turn.update(text="", ts=0.0, credit=True)
+    turn._last_turn.update(text="", ts=0.0, credit=True)
     return out
 
 
 def test_the_tap_judges_a_widget_command_with_the_assembled_turn(verdicts):
-    arb.shadow_tap("transcript", "🗣", "cierra el widget de youtube", "user", None)
-    arb.shadow_tap("widget", "close", "", "", {"id": "youtube", "src": "flash"})
+    turn.shadow_tap("transcript", "🗣", "cierra el widget de youtube", "user", None)
+    turn.shadow_tap("widget", "close", "", "", {"id": "youtube", "src": "flash"})
     assert len(verdicts) == 1
     v = verdicts[0]
     assert v["kind"] == "arbiter" and v["allow"] is True and v["rule"] == "close-grammar"
@@ -167,8 +168,8 @@ def test_the_tap_judges_a_widget_command_with_the_assembled_turn(verdicts):
 def test_a_data_event_carries_its_own_phrase_and_is_judged_on_it(verdicts):
     """`data:*` events already log the originating phrase (V2-039) — the tap must use IT, not the
     assembled turn, so a stale transcript cannot mislabel a fresh data-op."""
-    arb.shadow_tap("transcript", "🗣", "algo viejo sin relación", "user", None)
-    arb.shadow_tap("widget", "data:add_meeting",
+    turn.shadow_tap("transcript", "🗣", "algo viejo sin relación", "user", None)
+    turn.shadow_tap("widget", "data:add_meeting",
                    "Añade una cita mañana en la agencia tributaria", "",
                    {"id": "agenda", "action": "add_meeting", "src": "flash",
                     "payload": {"title": "cita agencia tributaria", "date": "2026-09-11"}})
@@ -179,7 +180,7 @@ def test_a_data_event_carries_its_own_phrase_and_is_judged_on_it(verdicts):
 def test_a_ui_click_travels_as_an_action_event_and_is_judged(verdicts):
     """Measured live 2026-09-10: a real click emits label `action` (never `data:*`), and the first
     shadow judged nothing — the ORDER events of both data funnels wear this label."""
-    arb.shadow_tap("widget", "action", "", "",
+    turn.shadow_tap("widget", "action", "", "",
                    {"id": "agenda", "action": "show_day", "src": "user"})
     assert verdicts and verdicts[0]["rule"] == "operator-hands" and verdicts[0]["allow"] is True
 
@@ -187,21 +188,21 @@ def test_a_ui_click_travels_as_an_action_event_and_is_judged(verdicts):
 def test_a_flash_action_event_is_not_judged_twice(verdicts):
     """`brain_action` re-emits `action` for the same order `_log_dataop` already logged with its
     payload — one order, ONE verdict, the richer one."""
-    arb.shadow_tap("widget", "action", "", "",
+    turn.shadow_tap("widget", "action", "", "",
                    {"id": "agenda", "action": "add_meeting", "src": "flash"})
     assert verdicts == []
 
 
 def test_an_ambient_verdict_removes_the_turns_credit(verdicts):
-    arb.shadow_tap("transcript", "🗣", "enséñame la agenda", "user", None)
-    arb.shadow_tap("ambient", "🙉 ambiente — no dirigido a zaelar", "", "user", None)
-    arb.shadow_tap("widget", "show", "", "", {"id": "agenda", "src": "flash"})
+    turn.shadow_tap("transcript", "🗣", "enséñame la agenda", "user", None)
+    turn.shadow_tap("ambient", "🙉 ambiente — no dirigido a zaelar", "", "user", None)
+    turn.shadow_tap("widget", "show", "", "", {"id": "agenda", "src": "flash"})
     assert verdicts and verdicts[0]["rule"] == "ambient-turn" and verdicts[0]["allow"] is False
 
 
 def test_the_tap_never_raises_even_on_garbage(verdicts):
-    arb.shadow_tap("widget", "show", None, None, "not-a-dict")  # type: ignore
-    arb.shadow_tap("widget", "data:", None, None, {})  # type: ignore
+    turn.shadow_tap("widget", "show", None, None, "not-a-dict")  # type: ignore
+    turn.shadow_tap("widget", "data:", None, None, {})  # type: ignore
 
 
 # ── the wiring, structural (comment-stripped, per the V2-573 lesson) ────────────────────────────────────

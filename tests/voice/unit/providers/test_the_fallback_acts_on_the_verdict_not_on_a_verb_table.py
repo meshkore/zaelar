@@ -77,7 +77,7 @@ def test_the_turn_passes_its_brief_to_the_fallback():
 def test_disarmed_a_fallback_that_ignores_the_verdict_opens_the_messages_again(monkeypatch):
     """RED proof: with the verdict read as «show» whatever it said — by the fallback AND by the canvas door, the two
     readers of it — the signature edit opens the messaging card, so the tests above measure the verdict reading."""
-    from nucleo import canvas_arbiter
+    from nucleo.acts import canvas_turn as canvas_arbiter
     monkeypatch.setattr(WI, "_identify_named", lambda text: "mensajeria")
     monkeypatch.setattr(WI._cvis, "is_open", lambda wid, known=None: False)
     monkeypatch.setattr(WI, "_canvas_order", lambda brief: "show")

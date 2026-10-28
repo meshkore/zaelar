@@ -199,12 +199,12 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
 
 def _cross_the_door(action: str, extra: dict, *, text: str, brief, emit, log_text: str = "") -> bool:
     """A canvas tag of the FlashBrain's turn, through the one canvas door (`nucleo.acts.canvas.apply`)."""
-    from nucleo import canvas_arbiter
+    from nucleo.acts import canvas_turn
     from nucleo.acts import canvas
     fields = {k: v for k, v in (extra or {}).items() if k not in ("id", "src")}
     src = str((extra or {}).get("src") or "") if str((extra or {}).get("src") or "").startswith("recall:") else "flash"
     return canvas.apply(action, str((extra or {}).get("id") or ""), src=src, text=log_text, emit=emit,
-                        request=canvas_arbiter.request_of(brief, _txw._bnotes.operator_half(text)), **fields)
+                        request=canvas_turn.request_of(brief, _txw._bnotes.operator_half(text)), **fields)
 
 
 def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *, _apply_widget_data, _brief, _frontend, _request_data_confirm, _spawn, _tag_emit, _turn_op_tasks, acted, brain, data_done, deduped, emit, escalate_req, text) -> None:

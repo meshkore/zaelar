@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import canvas_arbiter as arb
+from nucleo.acts import canvas_arbiter as arb
 from nucleo.acts import canvas
 
 NOTHING = {"text": "mm, vale", "turn_credit": True, "last_reply": "", "verdict": {}}
@@ -130,6 +130,25 @@ def test_every_canvas_op_crosses_the_one_door():
 def test_disarm_a_bare_write_is_named():
     bare = 'from voice.observer import emit\nemit("widget", "show", extra={"id": "agenda"})\nemit("widget", op)\n'
     assert _scan("nucleo/x.py", bare) == ["nucleo/x.py:2 show", "nucleo/x.py:3 <computed label>"]
+
+
+#: refactor2710-04 T-05: the door, the tree and the turn it reads stay one small thing.
+CANVAS_DOOR_MAX = 700
+
+
+def _door_lines(folder) -> int:
+    return sum(p.read_text(encoding="utf-8").count("\n") + 1 for p in sorted(folder.glob("canvas*.py")))
+
+
+def test_the_canvas_door_stays_small():
+    from pathlib import Path
+    n = _door_lines(Path(__file__).resolve().parents[3] / "nucleo" / "acts")
+    assert 0 < n <= CANVAS_DOOR_MAX, f"nucleo/acts/canvas*.py is {n} lines (ceiling {CANVAS_DOOR_MAX})"
+
+
+def test_disarm_a_door_grown_past_its_ceiling_is_caught(tmp_path):
+    (tmp_path / "canvas_big.py").write_text("x = 1\n" * CANVAS_DOOR_MAX)
+    assert _door_lines(tmp_path) > CANVAS_DOOR_MAX
 
 
 def test_a_broken_arbiter_fails_open_with_its_verdict_on_record(monkeypatch, stream):

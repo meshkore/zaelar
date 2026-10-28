@@ -1,4 +1,4 @@
-"""nucleo/canvas_arbiter.py — ONE decision tree for every canvas mutation (V2-653; armed by refactor2710-04).
+"""nucleo/acts/canvas_arbiter.py — ONE decision tree for every canvas mutation (V2-653; armed by refactor2710-04).
 
 Every canvas mutation is judged by ONE pyramidal tree and needs TWO credentials: PROVENANCE (who ordered it, a
 closed set) and a LICENSE — the turn's paid verdict first (CRIT-K1), then the declared leaves (the manifest's
@@ -13,8 +13,6 @@ An internal error is the verdict `arbiter-error`, never a crash at a caller; the
 """
 from __future__ import annotations
 
-import contextlib
-import time
 from dataclasses import dataclass, field
 
 # ── the verdict ──────────────────────────────────────────────────────────────────────────────────────────
@@ -60,9 +58,7 @@ def decide(op: str, wid: str, src: str, *, action: str = "", payload: dict | Non
         return _v(False, "arbiter-error", error=str(e)[:120])
 
 
-#: The closed op vocabulary. Anything else is vetoed BEFORE the provenance ladder: an op the tree does
-#: not know must not inherit anybody's pass (found by the garbage conformance case — `op=None` with an
-#: unattributed src walked out as `lifecycle`).
+#: The closed op vocabulary: anything else is vetoed before the provenance ladder, never inheriting a pass.
 _OPS = ("show", "close", "data", "screen")
 
 
@@ -81,9 +77,8 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
     if src == canvas_src.CLIENT:
         return _v(True, "report")           # the canvas telling what it already did: nothing to obey or veto
     if base_src == "client":
-        # V2-807 T-15: a change the canvas reports from its OWN code. A restore or a reset is lifecycle; the
-        # echo of an engine command was judged at the command; any other client code (a fast path, an
-        # unnamed cause) has no hand behind it and walks the license branch like the model.
+        # A restore or reset is lifecycle, an engine echo was judged at its command; other client code walks
+        # the licence branch like the model (V2-807 T-15).
         cause = canvas_src.cause_of(src)
         if cause in canvas_src.LIFECYCLE:
             return _v(True, "lifecycle", cause=cause)
@@ -95,13 +90,9 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
         # a task's own card: its wall raising it, the errand this turn reopened, the sheet a tool just filled
         return _v(True, "task-owned", tid=(src.split(":", 1) + [""])[1], via=base_src)
     if base_src.startswith("worker"):
-        # F0: a worker mutation is admitted with its task on record; F1 adds the ownership check
-        # (does this corr_id own the surface it touches) against the dispatcher's registry.
         return _v(True, "task-owned", tid=(src.split(":", 1) + [""])[1])
     if base_src in _SRC_DETERMINISTIC:
-        # The seeded phrase IS the license (a human wrote the grammar, V2-539/V2-567); the executor's
-        # own liveness veto (a close over live production declines to the model) stays where it is.
-        return _v(True, "seeded-grammar")
+        return                                  # the seeded phrase IS the licence (V2-539/V2-567) _v(True, "seeded-grammar")
 
     # ── level 2 · model / backstop share the license branch; a backstop must also not duplicate ─────
     if base_src == "backstop" and model_acted:
@@ -129,8 +120,6 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
                 else _v(False, "screen-drag"))
 
     if op == "show":
-        # A close order licenses no show (V2-567) — checked FIRST, because a show against a close
-        # order is the model contradicting the operator, whatever else the words contain.
         if _lic.close_license(text):
             return _v(False, "show-against-close-order")
         if not _lic.reopen_license(wid, text, open_ids=open_ids, recent_ids=recent_ids,
@@ -140,21 +129,12 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
             return _v(True, "turn-mention")
         if _lic.video_license(text, last_reply):
             return _v(True, "media-or-show-request")
-        # A MOUNT is not a drag (V2-721). When a widget's output lives in its own card — the music player's
-        # hidden iframe — an action the widget DECLARES as production cannot happen off screen, so the show
-        # that follows it is part of the playback, not a second decision about the canvas. Without this the
-        # shadow was counting the honest mount as a drag too: of the six `show-drag` verdicts over the music
-        # card in twelve real sessions, FIVE were a `pause`/`stop`/`volume_up` putting the card back on his
-        # screen (what V2-721 stops emitting) and ONE was the card going up so the play he had just asked
-        # for could be heard. Arming the arbiter without this rule would have answered that one with silence.
+        # A MOUNT is not a drag (V2-721): output that lives in its card (a declared production) needs the card.
         if _mounts_production(wid, action):
             return _v(True, "producer-mount")
         if card_closed and _reads_the_card(wid, action):
             return _v(True, "lens-mount")              # a declared lens over a CLOSED card brings the card
-        # CONTENT LANDING is a mount too (`show-real-photo-of-a-new-car__us`, 2026-10-11): the picture search
-        # fills the viewer and its `show` was filed as a drag three times in one round, because the emit carried
-        # no action. The declaration is the action's own `done_when` (`effects._fills_the_card`): the card goes
-        # from empty to holding what he asked to SEE. A lens (`select`) over an open card still earns nothing.
+        # Content landing mounts too: the action's `done_when` fills an empty card; a lens over an open one does not.
         if _lands_content(wid, action):
             return _v(True, "content-mount")
         return _v(False, "show-drag")
@@ -284,179 +264,3 @@ def _payload_in_turn(payload: dict, text: str) -> bool:
         return bool(words & turn)
     except Exception:  # noqa: BLE001
         return False
-
-
-# ── F0 shadow: assemble context from the observer stream, judge, emit the verdict ──────────────────────
-
-@contextlib.contextmanager
-def judged():
-    """While the door emits what it already judged, the tap must not judge it a second time."""
-    global _in_tap
-    prev, _in_tap = _in_tap, True
-    try:
-        yield
-    finally:
-        _in_tap = prev
-
-
-_TURN_TTL_S = 25.0
-_last_turn: dict = {"text": "", "ts": 0.0, "credit": True, "reply": ""}
-_in_tap = False                     # re-entrancy guard: our own verdict emit must not re-enter the tap
-#: trace → {key: (choice, confidence)}: the brief's answers, read off its `jev read <key>` events.
-_reads: dict[str, dict] = {}
-_READS_KEPT = 64
-
-
-def _trace_of(ex: dict) -> str:
-    """The event's trace: the caller's own, else the stimulus in flight (the observer stamps the same one)."""
-    if ex.get("trace"):
-        return str(ex["trace"])
-    try:
-        from voice import trace as _trace
-        return str(_trace.current() or "")
-    except Exception as e:  # noqa: BLE001
-        _note(f"no trace in flight: {e!r}")
-        return ""
-
-
-def request_for(extra: dict | None = None) -> dict:
-    """The turn a canvas act belongs to, as `decide` reads it: his words (25 s), their credit, our last reply and
-    the brief's verdict on that trace — what the door passes when its caller did not bring its own."""
-    text, credit = _turn_text()
-    return {"text": text, "turn_credit": credit, "last_reply": str(_last_turn.get("reply") or ""),
-            "verdict": dict(_reads.get(_trace_of(extra or {}), {}))}
-
-
-def request_of(brief=None, text: str | None = None, *, credit: bool | None = None) -> dict:
-    """The same request, from a door that holds the turn's brief handle: its verdict read with the turn's own
-    reader (`turn_brief.read`, at any confidence — the tree applies its own lines); his words and their credit
-    from the call, else from the stream."""
-    req = request_for()
-    if text is not None:
-        req["text"] = str(text)
-    if credit is not None:
-        req["turn_credit"] = credit
-    if brief is None:
-        return req
-    from nucleo.flash import turn_brief as _tb
-    verdict = {}
-    for key in (_tb.CANVAS_KEY, _tb.TARGET_KEY, _tb.CATALOG_KEY):
-        choice, info = _tb.read(brief, key, "", min_confidence=0.0)
-        if choice:
-            info = info or {}
-            sure = 1.0 if info.get("used") else 0.0          # a read the turn USED already passed jev's own line
-            verdict[key] = (str(choice), float(info.get("confidence") or sure))
-    req["verdict"] = verdict or req["verdict"]
-    return req
-
-
-def _note_read(ex: dict) -> None:
-    from nucleo.flash import turn_brief as _tb
-    trace, key = _trace_of(ex), str(ex.get("question") or "")
-    if not trace or key not in (_tb.CANVAS_KEY, _tb.TARGET_KEY, _tb.CATALOG_KEY):
-        return
-    _reads.setdefault(trace, {})[key] = (str(ex.get("choice") or ""), float(ex.get("confidence") or 0))
-    while len(_reads) > _READS_KEPT:
-        _reads.pop(next(iter(_reads)))
-
-#: op labels as they travel on the observer's `widget` events today.
-_SHOW_LABELS = ("show",)
-_CLOSE_LABELS = ("close",)
-
-
-def _turn_text() -> tuple[str, bool]:
-    if time.time() - _last_turn["ts"] <= _TURN_TTL_S:
-        return _last_turn["text"], bool(_last_turn["credit"])
-    return "", True
-
-
-def shadow_tap(kind: str, label: str, text: str, role: str, extra: dict | None) -> None:
-    """Called by `voice/observer.emit` for every recorded event (F0's ONLY wiring). Assembles the turn
-    context from `transcript`/`ambient` events and judges every `widget` command, emitting a verdict as
-    its own `arbiter` event. Approximate on purpose — shadow measures agreement and coverage; the armed
-    phases (F1+) pass explicit context at the doors, where the turn text already lives. NEVER raises and
-    never mutates the event it observes."""
-    global _in_tap
-    if _in_tap:
-        return
-    try:
-        _in_tap = True
-        ex = extra or {}
-        if kind == "transcript" and role == "user":
-            _last_turn.update(text=str(text or ""), ts=time.time(), credit=True)
-            return
-        if kind == "transcript" and role == "assistant":
-            # V2-723: a bare «yes» licenses media only as the answer to something WE asked, so the tap
-            # has to remember our side of the conversation too — one line, same shape as his.
-            _last_turn["reply"] = str(text or "")
-            return
-        if kind == "brain" and str(label or "").startswith("jev read "):
-            _note_read(ex)
-            return
-        if kind == "ambient":
-            # the gate's own verdict for the turn: 🙉 removes credit, 👂 restores it
-            if "🙉" in (label or ""):
-                _last_turn["credit"] = False
-            elif "dirigido" in (label or "") or "👂" in (label or ""):
-                _last_turn["credit"] = True
-            return
-        if kind != "widget":
-            return
-        op, action = "", ""
-        if label in _SHOW_LABELS:
-            op, action = "show", str(ex.get("action") or "")   # V2-721: a mount names the action that produces
-        elif label in _CLOSE_LABELS:
-            op = "close"
-        elif isinstance(label, str) and label.startswith("data:"):
-            op, action = "data", label.split(":", 1)[1]
-        elif label == "action":
-            # The ORDER event both data funnels emit (`widget_action` for the UI, `brain_action` for
-            # every non-UI door) — measured live 2026-09-10: a real click produced `action`, never
-            # `data:*`, and the first shadow judged nothing. A flash-sourced `action` is skipped here
-            # because the SAME order was already judged richer (with its payload) at the `data:*` log.
-            op, action = "data", str(ex.get("action") or "")
-        if not op:
-            return
-        wid = str(ex.get("id") or "").strip().lower()
-        src = str(ex.get("src") or "") or _prov_src(wid)
-        if label == "action" and src.split(":", 1)[0] == "flash":
-            return
-        if src == "client:engine":      # `voice.canvas_src.of(BY_ENGINE)`
-            return          # the canvas echoing an engine command: that command was judged when it was issued
-        # data:* events carry the ORIGINATING phrase in `text` AND (since V2-653) their payload in
-        # `extra` (V2-039's action log); show/close do not, so those borrow the assembled last turn.
-        turn, credit = (str(text or ""), True) if op == "data" and text else _turn_text()
-        payload = ex.get("payload") if isinstance(ex.get("payload"), dict) else {}
-        brief = dict(_reads.get(_trace_of(ex), {}))
-        verdict = decide(op, wid, src, action=action, payload=payload, text=turn, turn_credit=credit,
-                         last_reply=str(_last_turn.get("reply") or ""), verdict=brief)
-        _emit_verdict(op, wid, src, action, verdict, shadow=True, brief=brief)
-    except Exception:  # noqa: BLE001
-        pass
-    finally:
-        _in_tap = False
-
-
-def _prov_src(wid: str) -> str:
-    try:
-        from widgets import provenance
-        return provenance.who(wid)
-    except Exception:  # noqa: BLE001
-        return "system"
-
-
-def _emit_verdict(op: str, wid: str, src: str, action: str, verdict: Verdict, *, shadow: bool,
-                  brief: dict | None = None) -> None:
-    try:
-        from voice.observer import emit
-        face = ("✅ permitiría" if verdict.allow else "⛔ vetaría") if shadow else \
-               ("✅ permitida" if verdict.allow else "⛔ vetada")
-        emit("arbiter", f"{face} · {verdict.rule}",
-             text=f"{op} {wid}" + (f":{action}" if action else ""),
-             role="system",
-             extra={"op": op, "id": wid, "action": action, "src": src, "allow": verdict.allow,
-                    "rule": verdict.rule, "shadow": shadow, "source": src,
-                    "verdict": {k: {"choice": c, "confidence": round(f, 2)} for k, (c, f) in (brief or {}).items()},
-                    **({"ev": verdict.evidence} if verdict.evidence else {})})
-    except Exception:  # noqa: BLE001
-        pass

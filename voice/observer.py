@@ -534,7 +534,7 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
     # ZAELAR_ARBITER_SHADOW=0. Enforcement, when it comes (F1+), lives at the doors — never here.
     if kind in ("widget", "transcript", "ambient") or (kind == "brain" and str(label or "").startswith("jev read ")):
         try:
-            from nucleo import canvas_arbiter as _arb
+            from nucleo.acts import canvas_turn as _arb
             _arb.shadow_tap(kind, label, text, role, extra)
         except Exception:
             pass

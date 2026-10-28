@@ -222,7 +222,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/batch/runner.py': 4,
     'nucleo/batch/split.py': 2,
     'nucleo/bridge_usage.py': 1,
-    'nucleo/canvas_arbiter.py': 7,
+    'nucleo/acts/canvas_arbiter.py': 7,
     'nucleo/canvas_focus.py': 1,
     'nucleo/circuit.py': 9,
     'nucleo/consent.py': 1,

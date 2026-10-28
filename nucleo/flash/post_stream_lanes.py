@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from nucleo.flash import act_repair as _act_repair, escalation_guard as _eg, post_stream as _pst
 from nucleo.flash import close_answer as _close_answer
-from nucleo import canvas_arbiter as _arbiter
+from nucleo.acts import canvas_turn as _arbiter
 from nucleo.acts import canvas as _door
 
 

@@ -3,7 +3,7 @@
     ./.venv/bin/python -m tests.arbiter_replay <archive-dir> [--md out.md]
 
 An archive is a folder of session event logs (`*.jsonl`, one observer event per line, the shape the Master exports).
-Every `widget` mutation is fed, in event-time order, to `nucleo.canvas_arbiter.decide()` with the context the live
+Every `widget` mutation is fed, in event-time order, to `nucleo.acts.canvas_arbiter.decide()` with the context the live
 shadow tap assembles (the operator's last turn within 25 s, the ambient credit, our last reply), plus the cards open
 before it and the turn's brief verdict (`jev read canvas|screen_action|catalog_widget`, joined by `trace`).
 
@@ -140,7 +140,7 @@ def _session(path: str, arb, rows: list, totals: collections.Counter, per: colle
 
 
 def replay(folder: str) -> dict:
-    from nucleo import canvas_arbiter as arb
+    from nucleo.acts import canvas_arbiter as arb
     rows, totals, per = [], collections.Counter(), collections.Counter()
     for path in sorted(glob.glob(os.path.join(folder, "*.jsonl"))):
         _session(path, arb, rows, totals, per)

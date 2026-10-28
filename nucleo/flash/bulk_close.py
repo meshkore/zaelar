@@ -141,10 +141,10 @@ def close_all(emit, *, src: str, text: str = "", said: str = "", extra: dict | N
     `text` is his sentence (read to see whether it names a card in use); `said` is the phrase a caller already
     attaches to its canvas events (the action map does), passed through unchanged. Each close crosses the canvas
     door with the turn (`brief`, his sentence)."""
-    from nucleo import canvas_arbiter
+    from nucleo.acts import canvas_turn
     from nucleo.acts import canvas
     base = {k: v for k, v in (extra or {}).items() if k not in ("id", "src")}
-    req = canvas_arbiter.request_of(brief, text)
+    req = canvas_turn.request_of(brief, text)
     opened = list(open_ids) if open_ids is not None else _open_instances()
     spare = spare_for(opened, text, emit=emit, src=src)
     if not spare:

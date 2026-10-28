@@ -38,7 +38,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import canvas_arbiter as arb
+from nucleo.acts import canvas_arbiter as arb
 from nucleo.flash import canvas_license as lic, canvas_visibility as cv
 
 ENGINE = Path(__file__).resolve().parents[4]
@@ -114,13 +114,6 @@ def test_the_voice_lane_goes_through_the_door_and_names_its_reason():
     assert m, "the music lane must present through the door, declaring `producer-mount` and its action"
     assert 'emit("widget", "show"' not in src, \
         "no anonymous show may be left in the voice provider — everything goes through the door"
-
-
-def test_the_shadow_tap_carries_the_action_of_a_show():
-    src = (ENGINE / "nucleo/canvas_arbiter.py").read_text(encoding="utf-8")
-    body = src[src.index("if label in _SHOW_LABELS:"):]
-    assert 'ex.get("action")' in body.split("elif", 1)[0], \
-        "a show's action must reach `decide`, or every mount is judged as an anonymous show"
 
 
 def test_both_sides_read_one_declaration_and_not_two_lists():

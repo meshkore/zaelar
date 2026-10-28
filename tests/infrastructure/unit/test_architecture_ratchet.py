@@ -332,26 +332,27 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
-    "nucleo (top)": 22757,      # refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
-    "nucleo/actionmap": 755,
-    "nucleo/agentes": 793,
+    "nucleo (top)": 22418,   # refactor2710-04: the arbiter left for nucleo/acts; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
+    "nucleo/acts": 493,         # refactor2710-04: the one canvas door, the arbiter and the turn it reads
+    "nucleo/actionmap": 761,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply
+    "nucleo/agentes": 795,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
     "nucleo/context_packs": 568,
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 31550,
+    "nucleo/flash": 31380,   # refactor2710-04: the text channel's canvas mirrors went
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
     "nucleo/susurro": 1386,
-    "nucleo/turn": 2169,
-    "nucleo/workers": 6455,
+    "nucleo/turn": 2170,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply
+    "nucleo/workers": 6453,
     "nucleo/workflows": 315,
     "observability": 1005,
     "rules": 1211,              # refactor2710-01: +3, the rules.write door
     "search": 5474,
-    "server": 5736,        # refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
+    "server": 5738,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10092,             # refactor2710-01: +3, `typed_turn.py` (the typed front door) and the lent speaker
-    "voice/engine/llm": 3900,   # refactor2710-01: +64, a failed turn keeps his words; the vault is a door
+    "voice/engine/llm": 3903,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-01: +64, a failed turn keeps his words; the vault is a door
     "widgets": 38262,           # refactor2710-01 +42 (payload_digest, sheet.rebuild); refactor2710-12 split and condensed
 }
 
@@ -363,7 +364,6 @@ _NUCLEO_NEW_FILE_MAX = 300
 _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/actionmap/executor.py",
     "nucleo/batch/runner.py",
-    "nucleo/canvas_arbiter.py",
     "nucleo/circuit.py",
     "nucleo/consent.py",
     "nucleo/danger.py",
@@ -380,7 +380,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/act_repair.py",
     "nucleo/flash/answer_guards.py",
     "nucleo/flash/canvas_license.py",
-    "nucleo/flash/canvas_visibility.py",
     "nucleo/flash/card_close.py",
     "nucleo/flash/card_commission.py",
     "nucleo/flash/data_ops.py",
@@ -450,7 +449,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12). Never for growth in place.
-_TOTAL_MAX = 172847
+_TOTAL_MAX = 172845
 
 
 def test_the_total_only_shrinks():

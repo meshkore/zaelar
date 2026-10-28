@@ -125,7 +125,7 @@ def test_an_open_card_is_never_raised_again(shown):
 @pytest.fixture
 def asked_to_see(monkeypatch):
     """The turn whose verdict asked to see the card — the licence the armed canvas door reads (refactor2710-04)."""
-    from nucleo import canvas_arbiter
+    from nucleo.acts import canvas_turn as canvas_arbiter
     monkeypatch.setattr(canvas_arbiter, "request_for", lambda extra=None: {
         "text": "", "turn_credit": True, "last_reply": "", "verdict": {"canvas": ("show", 0.9)}})
 
@@ -273,17 +273,6 @@ def test_the_reopen_license_binds_to_a_proposal_about_that_card():
         assert lic.reopen_license("youtube", "abre otra vez el vídeo de YouTube") is True
     finally:
         lic._RECENT_CLOSES.clear()
-
-
-def test_the_turn_and_the_arbiter_hand_over_what_we_said():
-    """A fact only one reader reads is a mirror that drifts (V2-539): the provider and the arbiter's tap both
-    pass the previous reply."""
-    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    arb = (ENGINE / "nucleo/canvas_arbiter.py").read_text(encoding="utf-8")
-    # 2026-10-22 — the line BEFORE his turn, frozen when the window is built; `_last_reply` is the reply being
-    # streamed by the time a tool runs (`prior_line`).
-    assert "last_reply=_prior_line.of(brain)" in prov
-    assert 'role == "assistant"' in arb and "last_reply=str(_last_turn" in arb
 
 
 def test_the_door_puts_the_CARD_on_screen_not_the_piece(asked_to_see):

@@ -23,7 +23,7 @@ from widgets import row_lens as _row_lens  # demo pass 140 R2, read as _txw._row
 from nucleo.flash import reply_or_forward as _rof  # demo pass 110 E3, read as _txw._rof
 from nucleo.flash import ordered_send as _ordered_send  # live bench E3 2026-10-15, read as _txw._ordered_send
 from nucleo.flash import verdict_card as _vcard  # demo pass 114 I3, read as _txw._vcard
-from nucleo import canvas_arbiter as _arbiter
+from nucleo.acts import canvas_turn as _arbiter
 from nucleo.acts import canvas as _door
 from voice import brain_notes as _bnotes
 from widgets import confirm as _wconfirm

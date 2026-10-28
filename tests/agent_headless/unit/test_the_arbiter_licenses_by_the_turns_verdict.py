@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import canvas_arbiter as arb
+from nucleo.acts import canvas_arbiter as arb
+from nucleo.acts import canvas_turn as turn
 
 MUTE = "mm, vale"           # words no leaf licenses: only the verdict can
 
@@ -48,16 +49,16 @@ def verdicts(monkeypatch):
     out = []
     monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
                         out.append({"kind": kind, "label": label, **(extra or {})}))
-    arb._last_turn.update(text="", ts=0.0, credit=True)
-    arb._reads.clear()
+    turn._last_turn.update(text="", ts=0.0, credit=True)
+    turn._reads.clear()
     return out
 
 
 def test_the_tap_reads_the_brief_off_its_events_and_the_verdict_event_carries_it(verdicts):
-    arb.shadow_tap("brain", "jev read canvas", "", "system",
+    turn.shadow_tap("brain", "jev read canvas", "", "system",
                    {"question": "canvas", "choice": "close", "confidence": 0.87, "trace": "T19·5b76"})
-    arb.shadow_tap("transcript", "🗣", MUTE, "user", None)
-    arb.shadow_tap("widget", "close", "", "", {"id": "musica", "src": "flash", "trace": "T19·5b76"})
+    turn.shadow_tap("transcript", "🗣", MUTE, "user", None)
+    turn.shadow_tap("widget", "close", "", "", {"id": "musica", "src": "flash", "trace": "T19·5b76"})
     assert len(verdicts) == 1
     v = verdicts[0]
     assert v["kind"] == "arbiter" and v["label"] == "✅ permitiría · verdict-close", "kind and label keep their shape"
@@ -69,8 +70,8 @@ def test_the_real_observer_hands_the_briefs_reads_to_the_arbiter(monkeypatch):
     verdict is judged on an empty brief — what happened until this was wired."""
     import voice.observer as obs
     seen = []
-    monkeypatch.setattr(arb, "_emit_verdict", lambda op, wid, src, action, v, **kw: seen.append((v.rule, kw.get("brief"))))
-    arb._reads.clear()
+    monkeypatch.setattr(turn, "_emit_verdict", lambda op, wid, src, action, v, **kw: seen.append((v.rule, kw.get("brief"))))
+    turn._reads.clear()
     obs.emit("brain", "jev read canvas", role="system",
              extra={"question": "canvas", "choice": "close", "confidence": 0.9, "trace": "T7·beef"})
     obs.emit("widget", "close", extra={"id": "musica", "src": "flash", "trace": "T7·beef"})

@@ -325,10 +325,9 @@ def _t_show_widget(*, args, _brief, _router, _say, _show_guard_target, _show_tar
             emit("brain", "🏗️ show_widget→CREATE: se escala al generador (no es un show)", text=_bd[1][:60], role="system")
         else:
             from widgets import runtime
-            # Resolver CON CERTEZA (V2-082) — the whole resolution lives in
-            # show_target.resolve_show since V2-650b (ratchet extraction, guard passed in).
-            _res, _open, _recent = _tx._show_target.resolve_show(
-                _wid, text, brain._window, brain._last_action, _show_guard_target)
+            # Resolved WITH CERTAINTY (V2-082) by the canvas door's own resolver (`canvas.resolve`, refactor2710-04).
+            from nucleo.acts import canvas as _door
+            _res, _open, _recent = _door.resolve(_wid, text, brain._window, brain._last_action, _show_guard_target)
             _rid = _res.get("match") or ""
             _rid = _rid if (_rid and runtime.get(_rid.split("::", 1)[0]) is not None) else ""
             _sys = _res.get("system")

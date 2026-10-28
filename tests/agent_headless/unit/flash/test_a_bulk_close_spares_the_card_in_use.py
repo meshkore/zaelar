@@ -25,7 +25,7 @@ OPEN = ["documento", "navegador", "mensajeria"]
 def _clean(monkeypatch):
     done_ops.reset()
     bulk_close.reset()
-    from nucleo import canvas_arbiter          # the turn ordered the close: the licence the canvas door reads
+    from nucleo.acts import canvas_turn as canvas_arbiter          # the turn ordered the close: the licence the canvas door reads
     monkeypatch.setattr(canvas_arbiter, "request_of", lambda brief=None, text=None, **k: {
         "text": text or "", "turn_credit": True, "last_reply": "", "verdict": {"canvas": ("close", 0.9)}})
     yield
