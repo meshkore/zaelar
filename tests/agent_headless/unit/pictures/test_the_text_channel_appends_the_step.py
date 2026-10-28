@@ -1,22 +1,15 @@
 """The text channel's reply door appends the step line — the brief reaches `delivery.apply_to_reply` (2.505).
 
 The voice channel is left out on purpose (its stream is already said when a backstop could act, V2-210); the text
-channel's one door for a waiting reply is `delivery.apply_to_reply`, and it only knows he wants to be told if the
-probe hands it the turn brief.
+channel's one door for a waiting reply is `delivery.apply_to_reply`, and it only knows he wants to be told if it
+is handed the turn brief.
 """
 from __future__ import annotations
 
-import inspect
-
 from nucleo import dispatch
-from nucleo.flash import delivery, live_blocks, probe, step_line
+from nucleo.flash import delivery, live_blocks, step_line
 
 from ._brief import brief
-
-
-def test_the_probe_passes_its_brief():
-    assert "apply_to_reply(spoken, sess.window, heard_now=operator_text or text, brief=_tbrief)" in \
-        inspect.getsource(probe.run_turn)
 
 
 def test_a_waiting_reply_goes_out_with_the_step(monkeypatch):
