@@ -104,11 +104,52 @@ def _note_page_player(res) -> None:
             logger.debug(f"music_flow: agent order not noted: {e!r}")
 
 
+def something_to_play():
+    """What a play with NO track means, in order: resume what was sounding (a `music.playing` activity exists), the
+    track he played last on the card, else a question (`music.ask_what`). Never a search for an empty string."""
+    from connectors import music
+    from connectors.music.base import MusicResult
+    from nucleo import rails as acts
+    try:
+        if acts.get("music.playing") is not None:
+            res = music.control("resume", "", "", 0, "")
+            if getattr(res, "ok", False):
+                return res
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"music_flow: resume with nothing said failed: {e!r}")
+    try:
+        from widgets.musica import data as _md
+        recent = (_md._load_db().get("recent") or [])
+        q = str((recent[0] if recent else {}).get("query") or (recent[0] if recent else {}).get("title") or "").strip()
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"music_flow: recents unreadable: {e!r}")
+        q = ""
+    if q:
+        res = music.control("play", q, "", 0, "")
+        try:
+            res.chosen = q
+        except Exception:  # noqa: BLE001
+            pass
+        return res
+    from i18n import langs as _langs
+    return MusicResult(ok=False, action="play", reason="no_query",
+                       message=_langs.words("music.ask_what", default="What should I put on?"))
+
+
 async def run(action: str, query: str, *, extract=None):
     """Executes ONE music action with fuzzy resolution. Returns the final `MusicResult` (with an extra `.resolved_from`
     if a chain occurred). `extract(system, user) -> str` = async 2nd model pass, provided by the caller (None =
     no resolution, direct attempt only)."""
     from connectors import music
+
+    # 0 · NOTHING SAID («put some music»): the request ends with the player sounding, so something is chosen — what
+    # was sounding, then what he played last — and only with nothing to choose from does it ASK. A search for ""
+    # is never sent (live 2026-10-28 T65: «I couldn't find ""»).
+    if action == "play" and not (query or "").strip():
+        res = await asyncio.to_thread(something_to_play)
+        if getattr(res, "ok", False):
+            await asyncio.to_thread(_on_success, res, getattr(res, "chosen", "") or "")
+        return res
 
     # 1 · ACT DIRECTLY (provider search engines already tolerate fuzziness)
     res = await asyncio.to_thread(music.control, action, query, "", 0, "")

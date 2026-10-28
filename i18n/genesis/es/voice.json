@@ -410,6 +410,7 @@
   "no_provider": "No tengo ninguna cuenta de música conectada. Conéctame Spotify (u otra) desde la configuración y podré ponerte lo que quieras.",
   "done": "Hecho.",
   "ask_more": "No he dado con esa canción. ¿Me dices el artista o alguna palabra más de la letra?",
+  "ask_what": "¿Qué te pongo? Dime una canción, un artista o un estilo.",
   "audio_blocked": "La música está cargada pero no se oye: el navegador de esta pantalla no la deja sonar sin un toque. Toca una vez la tarjeta de música y sonará.",
   "youtube": {
    "play": "Suena «{label}».",

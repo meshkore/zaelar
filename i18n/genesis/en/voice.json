@@ -403,6 +403,7 @@
   "no_provider": "I don't have a music account connected yet. Connect Spotify (or another) from settings and I'll play whatever you like.",
   "done": "Done.",
   "ask_more": "I couldn't pin down that song. Can you give me the artist or a few more words from the lyrics?",
+  "ask_what": "What should I put on? Say a song, an artist or a style.",
   "audio_blocked": "The music is loaded but silent: this screen's browser will not let it play without a tap. Tap the music card once and you'll hear it.",
   "youtube": {
    "play": "Now playing «{label}».",
