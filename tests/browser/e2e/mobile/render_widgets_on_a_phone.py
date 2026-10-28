@@ -33,6 +33,7 @@ from playwright.sync_api import sync_playwright
 
 ENGINE = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
 sys.path.insert(0, ENGINE)
+from widgets.client_files import SHARED_CLIENT_MODULES  # noqa: E402  (the shell modules a widget may import)
 
 W, H = 390, 844
 MIN_TAP = 40           # the shell's own rule is 44; 40 leaves room for a border-box rounding, not for a design
@@ -250,7 +251,7 @@ def main():
                                  headers={"content-type": "text/html; charset=utf-8"})
             if path.startswith("f/"):
                 fp = os.path.join(ENGINE, "frontend", path[2:])
-            elif path.startswith("widgets/"):
+            elif path.startswith("widgets/") or "/" + path in SHARED_CLIENT_MODULES:   # + the shell's icon set
                 fp = os.path.join(ENGINE, path)
             else:
                 return r.fulfill(status=404, body="")
