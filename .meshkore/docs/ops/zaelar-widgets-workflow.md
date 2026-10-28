@@ -97,7 +97,7 @@ specifically:
 - `make test` (imports/health) and `make test-widgets` (contract + golden + ES-module parse of EVERY widget) —
   both green before continuing.
 - If the change touches brain↔widget dispatch/governance: test it **live** against the real system (not only by
-  reading code) — e.g. by calling `nucleo.flash.fast_client.FastClient()` (FlashBrain) and `nucleo.dispatch`
+  reading code) — e.g. by calling `nucleo.llm.fast_client.FastClient()` (FlashBrain) and `nucleo.dispatch`
   (SlowBrain) directly to confirm both speeds behave as expected with the new prompt/brief, and that
   `escalate_to_slowbrain` escalates what it should. Clean up any test data left in the real stores when you
   finish (never leave a "test meeting" in the operator's agenda).

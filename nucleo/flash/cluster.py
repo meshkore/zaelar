@@ -17,7 +17,7 @@ from __future__ import annotations
 import asyncio
 import os
 
-from .fast_client import FastClient, ModelSpec
+from nucleo.llm.fast_client import FastClient, ModelSpec
 from .prompt import build_cluster_system
 
 # Tope of time of the turn of cluster. Off-voice no there is presion of latencia of time real, PERO the tier can ser a
