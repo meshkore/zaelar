@@ -18,9 +18,10 @@ def _note(text: str) -> None:
 
 
 def _emit(label: str, wid: str, action: str, text: str = "", **extra) -> None:
+    """A status line about the op (brain family): never a canvas op, which only `nucleo.acts.canvas.apply` writes."""
     try:
         from voice.observer import emit
-        emit("widget", label, text=text[:160], role="system", extra={"id": wid, "action": action, **extra})
+        emit("brain", label, text=text[:160], role="system", extra={"cat": "flash", "id": wid, "action": action, **extra})
     except Exception:  # noqa: BLE001
         pass
 
@@ -52,8 +53,12 @@ async def still_running(wid: str, action: str, res: dict, *, seal=None, row: str
         _settle(row, "unverifiable", "the op never answered")
         return res
     if isinstance(real, dict) and (real.get("ok") is False or (real.get("error") and real.get("ok") is None)):
-        _emit("action_failed", wid, action, text=str(real.get("message") or real.get("error") or ""),
-              error=str(real.get("error") or ""), is_error=True)
+        try:
+            from voice.observer import emit as _ev
+            _ev("widget", "action_failed", text=str(real.get("message") or real.get("error") or "")[:160],
+                extra={"id": wid, "action": action, "error": str(real.get("error") or ""), "is_error": True})
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"op_pending: late failure event not emitted: {e!r}")
         _settle(row, "unmet", str(real.get("message") or real.get("error") or "")[:200])
         _seal(seal, False)
         try:
