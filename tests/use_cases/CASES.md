@@ -222,7 +222,7 @@ also why full transcripts are safe there and never in the committed scoreboard.
   complete within the turn budget, but for a newly-found, concrete, unrelated reason —
 
   ⚠️ **New finding: the worker sometimes calls nav_cli subcommands that don't exist** — observed
-  `nucleo.nav_cli automate` and `nucleo.nav_cli act`, both rejected with `Exit code 2 ... invalid
+  `nucleo.cli.nav automate` and `nucleo.cli.nav act`, both rejected with `Exit code 2 ... invalid
   choice` (the real set is `snapshot/look/navigate/click/type/select_option/click_at/type_at/scroll/
   press/extract`, per `dispatch_prompts.py::_web_prompt()`'s own command list). Also observed an
   `extract` call with extra unsupported arguments ("texto visible"). Each of these burns a full

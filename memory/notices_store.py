@@ -1,6 +1,6 @@
 """memory/notices_store.py — the notice ledger's storage: the `notices` and `push_devices` tables and nothing else.
 
-The rules live in the owner (`nucleo/notices.py` — which channel, when to retry, what «covered» means); this module
+The rules live in the owner (`nucleo/pulse/notices.py` — which channel, when to retry, what «covered» means); this module
 only reads and writes the rows, and is reached through the facade (`memory.api.notices`), never imported directly.
 Rows come back as plain dicts.
 """

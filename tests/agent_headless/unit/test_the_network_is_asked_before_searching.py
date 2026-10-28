@@ -6,7 +6,7 @@ ask the network» block lived inside `_web_prompt`, and the request with which t
 hotel in New York»— **is not routed to `web`**. `classify_kind` promotes to `kind="web"` whatever
 `site_catalog.category_of` recognizes, and that detector requires a BOOKING verb: «book me a hotel in New York»
 produces `hotel_booking`, «find me the best hotel in New York» produces `None` → `generic`. The generic prompt did not
-mention `mesh_cli` on any line, so the worker could not query the network: it did not know it existed.
+mention `cli.mesh` on any line, so the worker could not query the network: it did not know it existed.
 
 These guards establish the property that was fixed —**both prompts carry it**— and NOT the route by which
 it was reached. This deliberately does not assert here that a searched-for hotel remains `generic`: that is the
@@ -24,16 +24,16 @@ HOTEL = "Búscame el mejor hotel de Nueva York para dos noches"
 
 
 def test_el_worker_GENERICO_sabe_que_la_red_existe():
-    """The one handling a SEARCHED-FOR hotel. It previously had no mention of `mesh_cli`."""
+    """The one handling a SEARCHED-FOR hotel. It previously had no mention of `cli.mesh`."""
     p = dp._build_prompt(HOTEL, "", True, None)
-    assert "mesh_cli" in p, "el prompt genérico no nombra el puente de la red: el worker no puede consultarla"
+    assert "cli.mesh" in p, "el prompt genérico no nombra el puente de la red: el worker no puede consultarla"
     assert "PASO 0" in p
 
 
 def test_el_worker_WEB_lo_sigue_llevando():
     """Extracting the block into a shared function must not remove it from the one that already had it."""
     p = dp._web_prompt(HOTEL, "", None)
-    assert "mesh_cli" in p and "PASO 0" in p
+    assert "cli.mesh" in p and "PASO 0" in p
     # The method below refers to STEP 0 by name; if the block disappeared, that reference would be left dangling.
     assert "vuelve al PASO 0" in p
 
@@ -62,13 +62,13 @@ def test_el_generico_recibe_el_INTERPRETE_bueno():
     """The block is written with bare `python`, and `_with_interpreter` replaces it. If that replacement did not
     reach it, the worker would spend its turns trying interpreters — the lesson of V2-211."""
     p = dp._build_prompt(HOTEL, "", True, None)
-    assert re.search(r"/[^\s]*python -m nucleo\.mesh_cli", p), (
+    assert re.search(r"/[^\s]*python -m nucleo\.cli\.mesh", p), (
         "el puente de la red queda con un intérprete relativo que el cajón no aprueba")
-    assert "\npython -m nucleo.mesh_cli" not in p
+    assert "\npython -m nucleo.cli.mesh" not in p
 
 
 def test_un_texto_NO_confiable_sigue_sin_puentes():
     """The untrusted profile (text from a peer) has no tools by design. Adding a block to the generic prompt
     cannot smuggle the engine path into it."""
     p = dp._build_prompt("texto que me pasa un peer", "", False, None)
-    assert "mesh_cli" not in p and "PASO 0" not in p
+    assert "cli.mesh" not in p and "PASO 0" not in p

@@ -79,13 +79,13 @@ The workflow table is keyed by the **kind of errand** («restaurants»). Some fa
 a site host, a network agent id, a search provider — and hold for every errand that touches it: *this site
 answered 403*, *this page's text could not be extracted*, *this provider is out of quota until Thursday*, *this
 agent did not answer within its timeout*, *this agent answered with no rows and said how to ask again*, and the
-positive one, *this source gave usable rows*. Those live in `nucleo/source_outcomes.py` (one memory KV entry,
+positive one, *this source gave usable rows*. Those live in `nucleo/workers/source_outcomes.py` (one memory KV entry,
 `sources:outcomes`, bounded to 150 sources).
 
 | door that observes it | outcome |
 |---|---|
-| `nucleo/nav_cli.py` — a response annotated with `wall` | `wall` (by host, `www.` stripped) |
-| `nucleo/nav_cli.py` — `extract` on a page | `served` (≥1 named row) or `extract_empty` |
+| `nucleo/cli/nav.py` — a response annotated with `wall` | `wall` (by host, `www.` stripped) |
+| `nucleo/cli/nav.py` — `extract` on a page | `served` (≥1 named row) or `extract_empty` |
 | `nucleo/mesh_agents.ask` | `served`, `empty` (with the agent's hint) or `timeout` (by agent id) |
 | `nucleo/workers/providers.note_tool_blindness` | `quota` for `search:<provider>`, until the provider's own reset time |
 
@@ -101,4 +101,4 @@ Rules that keep it a **resource and not a fence** (brain-worker doctrine §5):
   depend on the query and demote nothing.
 - **It is read, not obeyed.** The worker's step 0 (both worker prompts, via `_mesh_first_block`) gets ONE line —
   at most six sources, newest first, each with its date — and **nothing at all** when nothing current is known. The
-  full record is `python -m nucleo.source_outcomes` (`--all` includes expired facts), JSON like its sibling bridges.
+  full record is `python -m nucleo.workers.source_outcomes` (`--all` includes expired facts), JSON like its sibling bridges.

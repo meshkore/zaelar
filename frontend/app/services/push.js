@@ -1,7 +1,7 @@
 // ============================================================================
 // push.js — Web Push for THIS browser, and whether this screen is an installed app (V2-796). No DOM.
 //
-// Shared by both shells. The server half is `server/notices_api.py` + `nucleo/notices.py`: the engine keeps ONE
+// Shared by both shells. The server half is `server/notices_api.py` + `nucleo/pulse/notices.py`: the engine keeps ONE
 // ledger of the notices it owes the operator and sends each through voice, then this browser, then «owed».
 //
 // Three browser rules shape this file:

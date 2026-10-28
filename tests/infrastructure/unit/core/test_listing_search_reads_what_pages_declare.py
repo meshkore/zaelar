@@ -199,7 +199,7 @@ def test_a_resting_domain_is_skipped_not_queued_behind_its_penalty():
 
 # ── money: the paid rungs are in the rate table (the 2026-08-13 lesson) ──────────────────────────
 def test_every_brightdata_rung_has_its_own_search_rate():
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     for provider in ("brightdata_serp", "brightdata_unlocker"):
         assert provider in energy_meter._SEARCH_USD_PER_REQUEST, (
             f"{provider} would bill at the catch-all — add its real rate with source and date")

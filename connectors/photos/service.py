@@ -199,7 +199,7 @@ def _public_item(it: dict) -> dict:
 
 
 # ── a small, PAST-oriented date-range parser ──────────────────────────────────────────────────────────────
-# `nucleo/scheduler.py::parse_when` looks similar but is strictly FUTURE-facing (reminders: "tomorrow", "next
+# `nucleo/pulse/scheduler.py::parse_when` looks similar but is strictly FUTURE-facing (reminders: "tomorrow", "next
 # Thursday") and returns a single point in time, not a range — the wrong shape for "last year's trip" or "in
 # June". This is intentionally small: year + last/this year + a month name (± year) + "N years ago". Anything
 # else falls through as a plain label search, which is the honest v1 scope agreed with the operator.

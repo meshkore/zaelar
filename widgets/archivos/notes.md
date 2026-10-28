@@ -90,7 +90,7 @@
 - **A local file that cannot play in the browser is NEVER downloaded by a click — it is REVEALED.**
   Operator, live: double-clicking an unplayable `.mkv` in the Descargas shelf downloaded a SECOND copy into
   his Mac's own `~/Downloads`, next to the one already sitting in Zaelar's own library on that SAME disk —
-  "eso es ineficiente". `_same_machine()` (`nucleo.cloud_account.is_cloud_account()`, inverted) tells apart
+  "eso es ineficiente". `_same_machine()` (`nucleo.energy.account.is_cloud_account()`, inverted) tells apart
   self-host (the engine process IS the operator's own computer — shelling out to `open -R`/`explorer /select,`/
   `xdg-open` there is no bigger a privilege than the library writes this widget already does) from a cloud
   Machine (no local disk of the operator's exists to reveal — the gesture is hidden entirely there, and the

@@ -134,7 +134,7 @@ def test_lo_RETIRADO_no_ha_vuelto():
 
 def test_every_credential_in_the_table_CAN_be_resolved_by_the_engine(monkeypatch):
     """A row can declare a `key_env` the engine cannot resolve for THAT endpoint — and then nothing fails: the
-    request goes out unauthenticated, eats a 401 and degrades in silence (exactly what `nucleo/provider_keys`
+    request goes out unauthenticated, eats a 401 and degrades in silence (exactly what `nucleo/energy/keys`
     documents, since it was born from four lists drifting apart). What is checked here is the only thing that
     closes the hole: that for every `base_url` in the table the resolver returns the credential that same row
     NAMES.
@@ -142,7 +142,7 @@ def test_every_credential_in_the_table_CAN_be_resolved_by_the_engine(monkeypatch
     Variables are marked with sentinels instead of reading real values: the test needs no key at all and its
     output is safe in a log.
     """
-    from nucleo import provider_keys
+    from nucleo.energy import keys as provider_keys
 
     for env_name in {e for _n, e in provider_keys._ENDPOINTS}:
         monkeypatch.setenv(env_name, f"SENTINEL::{env_name}")
@@ -157,7 +157,7 @@ def test_every_credential_in_the_table_CAN_be_resolved_by_the_engine(monkeypatch
             assert resolved == f"SENTINEL::{rung['key_env']}", (
                 f"{service}.{which}: the table says {rung['base_url']} is paid for with {rung['key_env']}, but "
                 f"the engine resolves something else ({resolved or 'NOTHING'}). Add the endpoint to "
-                f"nucleo/provider_keys.")
+                f"nucleo/energy/keys.")
 
 
 #: How a retired provider SHOWS UP in a rung, since the `retired` section names the provider and a rung names a

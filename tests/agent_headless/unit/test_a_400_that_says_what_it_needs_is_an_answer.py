@@ -91,7 +91,7 @@ def test_un_402_sigue_sin_pagarse(monkeypatch):
 def test_el_puente_convierte_field_en_campos():
     """`--field key=value`, repeatable. A number is sent as a number: some agents reject `adults: "2"`, and
     that is the FORM of the value, not its meaning — the bridge does not know what “adults” is."""
-    from nucleo import mesh_cli
+    from nucleo.cli import mesh as mesh_cli
     visto = {}
 
     def _serve(errand, prompt, fields=None):
@@ -108,7 +108,7 @@ def test_el_puente_convierte_field_en_campos():
 
 
 def test_un_field_mal_escrito_lo_dice_y_no_llama_a_nadie():
-    from nucleo import mesh_cli
+    from nucleo.cli import mesh as mesh_cli
     import nucleo.mesh_agents as ma
 
     def _explota(*a, **k):

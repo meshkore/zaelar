@@ -277,14 +277,14 @@ properties so nobody "improves" this into a cache.
 
 The work happens on the engine; what the phone has to be is a place a notice can LAND. Three pieces:
 
-- **The notice ledger** — `nucleo/notices.py`. Every reminder, finished job and pending approval is a row in
+- **The notice ledger** — `nucleo/pulse/notices.py`. Every reminder, finished job and pending approval is a row in
   `notices` (`zaelar.db`) with a UNIQUE `dedupe_key`, delivered in order: voice when someone touched a visible screen
   in the last 15 min → Web Push to every subscribed browser → `owed` (retried with backoff for 24 h, and painted on
   the next screen that opens its event stream). The row ends `spoken · pushed · covered · shown · seen`. A default
   appointment notice whose Google event rings by itself (a popup override, or the calendar's default popup) is
   `covered`, decided at FIRE time (`widgets/agenda/reminders.covered_by`); an asked notice is always ours. ⏻ stops
   the voice, not the push.
-- **Web Push** — `nucleo/webpush.py`: RFC 8291 (`aes128gcm`) + RFC 8292 (VAPID) on `cryptography`, no push library.
+- **Web Push** — `nucleo/pulse/webpush.py`: RFC 8291 (`aes128gcm`) + RFC 8292 (VAPID) on `cryptography`, no push library.
   The key pair is generated on first use beside the credential store. Routes in `server/notices_api.py`
   (`/api/push/key|subscribe|unsubscribe|device|devices|test`, `/api/notices`, `/api/notices/{id}/seen`). The
   browser half is `app/services/push.js`, shared by both shells. `sw.js` gained `push` (always shows — iOS revokes a
@@ -298,7 +298,7 @@ The work happens on the engine; what the phone has to be is a place a notice can
   same switch plus «test», and the desktop has it under ⚙ → Notifications.
 
 A deployment that stops idle engines may set `ZAELAR_WAKE_URL` (or `CONTROL_PLANE_URL` + its token → `/wake`):
-`nucleo/wake.py` reports the next due instant after every schedule change so the process can be started in time.
+`nucleo/pulse/wake.py` reports the next due instant after every schedule change so the process can be started in time.
 Without it, nothing is sent.
 
 Not covered: a self-hosted engine opened from a phone over plain `http://<lan-ip>` is not a secure origin, so it

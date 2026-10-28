@@ -79,7 +79,7 @@ Before writing it, answer these. If any answer is "no", the fix is aimed at the 
 This is the half that must be nailed down and kept tested. The contract, in the order the worker meets it:
 
 **Drive the browser like a person.** `widgets/navegador/act_api.py` exposes `snapshot · look · navigate · click ·
-type · select_option · scroll · press · click_at · type_at · extract`. `nucleo/nav_cli.py` is the CLI the worker
+type · select_option · scroll · press · click_at · type_at · extract`. `nucleo/cli/nav.py` is the CLI the worker
 actually types. Both must be self-describing: a worker that has to *guess* a signature is spending the operator's
 errand on our documentation.
 
@@ -115,7 +115,7 @@ The worker prompt (`nucleo/dispatch_prompts.py`) is where breadth lives, and it 
 - `_METHOD_BLOCK` — understand (including the implicit constraints) → plan and recall → act where it truly lives →
   reflect it in the widgets → **verify for real** → iterate until certified. Generalises because it names no domain.
   A widget with a connector IS the source (the agenda IS the calendar, messaging IS the outbox), so a
-  cita or a message is created/cancelled/sent WITH the widget (`nucleo/widget_cli`), never by driving its web; only a
+  cita or a message is created/cancelled/sent WITH the widget (`nucleo/cli/widget`), never by driving its web; only a
   commitment made on a SITE with no connector (a booking, a subscription, a payment) is done there and then reflected.
 - `_HUMAN_NAV_GUIDE` — human rhythm, use the site's own search and filters, accept cookies, scroll gradually,
   back off from anti-bot walls instead of hammering. Also domain-free.

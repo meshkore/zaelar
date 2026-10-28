@@ -32,7 +32,7 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 # dad7f3bd) and stayed red through 114 commits — a ratchet nobody runs holds nothing. Re-measured at HEAD and
 # frozen there: every entry is today's size, down-only from here. The debt it names is unchanged and still owed.
 FILES = {
-    'nucleo/energy_meter.py': 812,
+    'nucleo/energy/meter.py': 812,
     'nucleo/llm/fast_client.py': 866,
     'nucleo/flash/prompt.py': 816,
     'nucleo/jev/__init__.py': 590,
@@ -70,12 +70,12 @@ FUNCTIONS = {
     'nucleo/flash/tool_executor_widget_calls.py::_apply_widget_data': 180,
     'nucleo/flash/tool_executor_widget_calls.py::_handle_widget_data_tool': 194,
     'nucleo/flash/tool_executor_widget_calls.py::_tag_emit': 186,
-    'nucleo/loop.py::OrchestratorLoop._supervise_workers': 174,
+    'nucleo/pulse/workers.py::WorkersPulse._supervise_workers': 172,
     'nucleo/memory_agent/ingest_steps.py::file_the_atoms': 141,
     'nucleo/memory_agent/ingest_steps.py::gate_the_utterance': 164,
     'nucleo/research_prompts.py::to_prompt_block': 136,
     'nucleo/susurro/apply.py::apply_corrections': 161,
-    'nucleo/worker_api.py::_exec_allow': 293,
+    'nucleo/cli/worker_api.py::_exec_allow': 293,
     'nucleo/workers/providers/claude_map.py::_map': 145,
     'nucleo/workers/providers/claude_start.py::start': 145,
     'server/voice_status.py::brain_and_voice': 140,
@@ -104,7 +104,7 @@ BRANCHES = {
     'nucleo/flash/probe.py::run_turn': 124,
     'nucleo/flash/probe_decide.py::name_the_action': 106,
     'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 106,
-    'nucleo/worker_api.py::_exec_allow': 106,
+    'nucleo/cli/worker_api.py::_exec_allow': 106,
     'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 108,
     'widgets/agenda/tasklists.py::apply': 115,
     'widgets/youtube/library.py::apply': 101,

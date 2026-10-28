@@ -27,8 +27,8 @@ def build(vad=None):
         if boost:
             opts["keyterm"] = boost
 
-    # EGRESS: a mediated deployment opens the socket through egress with its own credential (`nucleo.llm_egress`).
-    from nucleo import llm_egress
+    # EGRESS: a mediated deployment opens the socket through egress with its own credential (`nucleo.energy.egress`).
+    from nucleo.energy import egress as llm_egress
     base_url, api_key = llm_egress.route_url(llm_egress.base_of("deepgram") + "/listen", SETTINGS.deepgram_api_key or "")
     return _deepgram.STT(
         model=model,

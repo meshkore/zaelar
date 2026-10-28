@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import worker_api
+from nucleo.cli import worker_api
 from nucleo.workers.session import SessionRecord
 
 

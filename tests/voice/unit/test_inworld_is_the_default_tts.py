@@ -27,7 +27,7 @@ def test_the_engine_can_build_it():
 
 def test_every_surface_knows_the_provider():
     from config import settings
-    from nucleo import energy_tariffs
+    from nucleo.energy import tariffs as energy_tariffs
     from voice.engine.core import profile
     assert "inworld" in settings._ENGINE_TTS
     assert "inworld" in settings._TTS_LABELS

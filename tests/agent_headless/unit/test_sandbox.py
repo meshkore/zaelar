@@ -6,7 +6,7 @@
 #
 import os
 
-from nucleo import sandbox
+from nucleo.cli import sandbox
 
 
 def test_runs_python_and_captures_stdout():

@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import asyncio
 
-from nucleo import bridge_usage, dispatch_prompts
+from nucleo import dispatch_prompts
+from nucleo.cli import usage as bridge_usage
 from nucleo.workers import session as _session
 
 
@@ -30,7 +31,7 @@ def test_the_prompts_teach_the_quoted_form_and_no_file():
 
 
 def test_use_tool_returns_the_chain_dict_plus_the_service_fields(monkeypatch):
-    from nucleo import worker_api
+    from nucleo.cli import worker_api
     from search import web
     monkeypatch.setattr(web, "search", lambda q, k=5, mode="answer": {
         "query": q, "answer": "El Prado abre a las 10.", "source": "openai", "ai": True,
@@ -58,7 +59,7 @@ def test_use_tool_returns_the_chain_dict_plus_the_service_fields(monkeypatch):
 
 
 def test_an_empty_query_still_refuses_loudly():
-    from nucleo import worker_api
+    from nucleo.cli import worker_api
 
     class Rec:
         task_id = "t-2"

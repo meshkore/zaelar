@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import account_routing as ar
+from nucleo.energy import routing as ar
 from server import ingress, operator_gate
 
 MINE = "d8d0793f04d5e8"

@@ -29,7 +29,7 @@ _TTL = 90.0                        # a confirmation expires after 90s; it must n
 # split by the segmenter — each opened its OWN confirmation on the same widget, silently clobbering one another
 # in `_PENDING`; nothing ever told the operator, and one of the two flows sat "EN CURSO" forever with no way to
 # answer it). `_sweep()` (called constantly, from request/pending/resolve) only enqueues here; it never notifies
-# directly — that would require an async call from a function with no guaranteed running loop. `nucleo/loop.py`'s
+# directly — that would require an async call from a function with no guaranteed running loop. `nucleo/pulse/loop.py`'s
 # ~1Hz tick, which already owns the proactive-delivery rails (voice+chat), drains this once per tick instead.
 _EXPIRED_QUEUE: list[dict] = []
 
@@ -71,7 +71,7 @@ def _sweep() -> None:
 def drain_expired_notices() -> list[dict]:
     """Pops every confirmation that just expired unanswered, for the caller to tell the operator — a pending
     question can never just die in silence (2026-08-16 operator request). Meant to be called once per tick by
-    `nucleo/loop.py`, the only caller that acts on the return value; every other `_sweep()` call site (far more
+    `nucleo/pulse/loop.py`, the only caller that acts on the return value; every other `_sweep()` call site (far more
     frequent) only needs the flow closed, which already happened inside `_sweep()` itself."""
     out = list(_EXPIRED_QUEUE)
     _EXPIRED_QUEUE.clear()

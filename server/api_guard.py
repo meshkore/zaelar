@@ -20,7 +20,7 @@ Self-hosted (a process that is not part of account routing):
   · `ZAELAR_API_TOKEN`, when set, lets a caller that presents it in `X-Zaelar-Token` through all of the above —
     the door for an operator who opened his engine to his network on purpose. Closed by default.
 
-Cloud account process (`nucleo.account_routing`): the session is already established by `server/ingress.py`,
+Cloud account process (`nucleo.energy.routing`): the session is already established by `server/ingress.py`,
 and the session is a cookie — which a browser attaches to a request another site makes. So a mutating request
 there must come from the account's own site: `Origin` equal to `Host`, and never `Sec-Fetch-Site: cross-site`.
 
@@ -112,7 +112,7 @@ def install(app) -> None:
         if not guarded(path, request.method):
             return await call_next(request)
         try:
-            from nucleo import account_routing as _ar
+            from nucleo.energy import routing as _ar
             cloud = bool(_ar.is_account_routing_machine())
         except Exception:  # noqa: BLE001 — unknown deployment: the stricter, self-hosted rule
             cloud = False

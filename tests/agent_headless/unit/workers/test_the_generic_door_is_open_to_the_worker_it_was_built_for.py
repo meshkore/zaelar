@@ -8,7 +8,7 @@
 > estructura de los datos y borrarlo todo. […] Los guardarraíles, las tools, las hash tables de las
 > acciones son para agilizar ciertas cosas. Pero el resto también tiene que ser posible.»
 
-Everything got built except the last wire. `nucleo/widget_cli.py` documents `hbwidget rows` to the worker,
+Everything got built except the last wire. `nucleo/cli/widget.py` documents `hbwidget rows` to the worker,
 `read_widget` hands it the collection schema so it can write the expression, and then:
 
     classify_act("widget_data", {"widget_id": "agenda", "action": "rows.delete"}) -> deny
@@ -36,7 +36,7 @@ import asyncio
 
 import pytest
 
-from nucleo.worker_policy import ALLOW, CONFIRM, DENY, classify_act
+from nucleo.cli.worker_policy import ALLOW, CONFIRM, DENY, classify_act
 
 
 def _act(_kind, **payload):

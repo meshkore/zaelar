@@ -19,7 +19,7 @@ from widgets.agenda import data as agenda
 @pytest.fixture(autouse=True)
 def _isolated(tmp_path, monkeypatch):
     from widgets import store
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     monkeypatch.setattr(store, "DATA_DIR", tmp_path)
     monkeypatch.setattr(scheduler, "create", lambda prompt, stamp, name="", origin="cron": {"ok": True, "id": "j"})
     monkeypatch.setattr(scheduler, "cancel", lambda ref: None)

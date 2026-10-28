@@ -70,7 +70,6 @@ _ALL = r"all|todas|todos|toda|todo"
 #: time, and «September three» is a date.
 _DET = (r"the|all|those|these|them|both|"
         r"las|los|la|el|esas|esos|estas|estos|aquellas|aquellos|todas|todos|unas|unos")
-_FRAMED_WORD_RE = re.compile(rf"\b(?:{_DET})\s+(?:{_NUM})\b", re.I)
 _WORD_AFTER_DET_RE = re.compile(rf"\b(?:{_DET})\s+({_NUM})\b", re.I)
 
 

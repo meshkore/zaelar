@@ -87,13 +87,13 @@ def _model_strong() -> str:
 
 
 def _api_key() -> str:
-    # Explicit key wins; otherwise the single shared endpoint→key resolver (nucleo/provider_keys.py, V2-098).
+    # Explicit key wins; otherwise the single shared endpoint→key resolver (nucleo/energy/keys.py, V2-098).
     if os.getenv("NAVEGADOR_AGENT_API_KEY"):
         return os.getenv("NAVEGADOR_AGENT_API_KEY")
     u = _base_url().lower()
     if "11434" in u or "localhost" in u or "127.0.0.1" in u:
         return "ollama"
-    from nucleo.provider_keys import key_for_endpoint
+    from nucleo.energy.keys import key_for_endpoint
     return key_for_endpoint(u) or os.getenv("AIMLAPI_KEY", "") or os.getenv("OPENAI_API_KEY", "")
 
 

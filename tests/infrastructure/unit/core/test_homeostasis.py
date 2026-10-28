@@ -9,7 +9,7 @@ import logging
 import os
 import time
 
-from nucleo import homeostasis as H
+from nucleo.pulse import homeostasis as H
 
 
 # ── 1) degraded-engine detection (pure) ─────────────────────────────────────────────────────────────────────────

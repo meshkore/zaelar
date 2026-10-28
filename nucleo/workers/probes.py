@@ -2,7 +2,7 @@
 
 Measured 2026-08-28 on `weekend-plan-barcelona__es`: the round was filed with two `error_interno` anomalies
 and the judge wrote that «the worker failed technically to extract the price». What the worker had actually
-done was run `nav_cli` and `worker_bridge` with no subcommand — argparse answers with a usage block and
+done was run `cli.nav` and `cli.bridge` with no subcommand — argparse answers with a usage block and
 **exit code 2**, so a discovery probe reaches us wearing the exact clothes of a crash. Two of the round's four
 flagged failures were the model looking at the menu, and the mechanism score paid for them.
 
@@ -13,20 +13,20 @@ THE RULE, and why this one and not "exit code 2 is fine":
 
     the missing argument is `cmd` ITSELF  →  nobody chose a subcommand  →  someone is reading the menu.
 
-A wrong argument to a REAL subcommand (`nav_cli click` with no ref) still says «arguments are required» and
+A wrong argument to a REAL subcommand (`cli.nav click` with no ref) still says «arguments are required» and
 still exits 2, and that one IS a broken call: an order was placed and it could not be served. Downgrading
 every exit-2 would have hidden it. And the bridge has to be OURS — a foreign CLI complaining about its own
 `cmd` argument is not something we know anything about.
 
 What this does NOT claim: that probing is free. Four round-trips to read a menu the prompt already spells out
-in full (`dispatch_prompts` lists every `nav_cli` subcommand and closes with «esos son TODOS los que
+in full (`dispatch_prompts` lists every `cli.nav` subcommand and closes with «esos son TODOS los que
 existen») is wasted time on a 496 s round. That is conduct, and conduct is measured, not silenced — it just
 must not be measured as a CRASH.
 """
 from __future__ import annotations
 
 #: The bridges we serve ourselves. We cannot interpret a `usage:` message from another binary, so it is left as is.
-OUR_BRIDGES = ("nav_cli", "worker_bridge", "widget_cli", "mesh_cli")
+OUR_BRIDGES = ("cli.nav", "cli.bridge", "cli.widget", "cli.mesh")
 
 
 def is_menu_probe(text: str) -> bool:

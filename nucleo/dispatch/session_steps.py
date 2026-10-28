@@ -193,7 +193,7 @@ async def run_it_to_its_delivery(*, _dev, _dev_settings_path, _wd, brief, escala
         elif not _continues and _ds._d.surfaces.opens_doc(getattr(rec, "surface", "")):
             _ds._d._docsheet.doc_close(rec)
         try:
-            from nucleo import worker_api
+            from nucleo.cli import worker_api
             worker_api.purge_task(key)   # §v3·L: sin asks pendientes de una sesión terminada
         except Exception:
             pass

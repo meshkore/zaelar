@@ -147,7 +147,7 @@ def worker_block() -> str:
     """The lines a worker filling a results sheet reads: declare his hard requirements, then answer them per row."""
     return ("HIS HARD REQUIREMENTS ARE COLUMNS. Before the first row, write the requirements he stated as "
             "must-haves (a feature, a place, a date — in his words, one short line each) with "
-            "`python -m nucleo.widget_cli data results criteria @crit.json` → {\"hard\": [\"…\", \"…\"]}. Every row "
+            "`python -m nucleo.cli.widget data results criteria @crit.json` → {\"hard\": [\"…\", \"…\"]}. Every row "
             "on the sheet then carries one fact per requirement, «?» until you check it on the listing; set it to "
             "«yes — <where you saw it>» or «no — <where>». A row nobody checked is not a row that meets it, and "
             "when he asks about one, the turn reads exactly that fact.")

@@ -12,13 +12,13 @@ from . import PROVIDERS
 
 def spendable() -> bool:
     """May a PAID index be asked right now? The energy lease's answer (always yes when no lease is configured)."""
-    from nucleo import energy_lease
+    from nucleo.energy import lease as energy_lease
     return energy_lease.check("search")
 
 
 def leased() -> bool:
     """Is this deployment's spending bounded by an energy lease? Then a probe nobody asked for is not paid for."""
-    from nucleo import energy_lease
+    from nucleo.energy import lease as energy_lease
     return energy_lease.enabled()
 
 

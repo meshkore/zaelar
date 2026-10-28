@@ -181,7 +181,7 @@ def _same_machine() -> bool:
     """Is the browser reading this card on the SAME machine the engine runs on? Self-host: yes. A container
     deployment: no — revealing a file would open a window on a remote, usually headless, server."""
     try:
-        from nucleo.cloud_account import is_cloud_account
+        from nucleo.energy.account import is_cloud_account
         return not is_cloud_account()
     except Exception:  # noqa: BLE001 — an unreadable signal must default to the SAFE answer: offer nothing
         return False

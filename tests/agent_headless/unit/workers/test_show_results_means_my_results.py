@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from nucleo import worker_api
+from nucleo.cli import worker_api
 
 
 def _shows(monkeypatch):

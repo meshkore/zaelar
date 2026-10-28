@@ -33,7 +33,7 @@ def _with_wall(snap: dict, task_id: str = "") -> dict:
         except Exception:
             pass
         # V2-470 — walls on TWO OR MORE hosts mean the browser channel itself is refused, and pivoting sites is a
-        # treadmill: report the streak (nav_cli prints what to do). One walled host stays a site problem.
+        # treadmill: report the streak (cli.nav prints what to do). One walled host stays a site problem.
         try:
             from widgets.navegador import tasks as _t3
             hist = (_t3.get(task_id) or {}).get("walls") or [] if task_id else []

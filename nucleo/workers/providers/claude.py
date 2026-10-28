@@ -42,7 +42,7 @@ _DEFAULT_TOOLS = ["Read", "Write"]
 
 def worker_shell(current: str) -> str:
     """The shell the worker's Bash tool runs in: bash, never zsh. zsh ABORTS a command whose unquoted `?` or `*`
-    matches no file — `nav_cli goto https://www.amazon.com/s?k=27+inch+4k+monitor` failed with «no matches found»
+    matches no file — `cli.nav goto https://www.amazon.com/s?k=27+inch+4k+monitor` failed with «no matches found»
     (demo run, 2026-09-26) where bash passes the word through. The operator's login shell is his; this is ours."""
     for sh in ("/bin/bash", "/usr/bin/bash"):
         if os.path.exists(sh):
@@ -58,7 +58,7 @@ _INTERPRETERS = ("python", "python3", ".venv/bin/python", ".venv/bin/python3",
 # spelling above matched, so the worker got a command its own allowlist would stop.
 if (sys.executable or "").strip() and sys.executable.strip() not in _INTERPRETERS:
     _INTERPRETERS += (sys.executable.strip(),)
-_BRIDGES = ("mem_cli", "agent_report", "nav_cli", "worker_bridge", "widget_cli", "mesh_cli")
+_BRIDGES = ("cli.mem", "cli.report", "cli.nav", "cli.bridge", "cli.widget", "cli.mesh")
 _BRIDGE_TOOLS = [f"Bash({py} -m nucleo.{mod}:*)" for mod in _BRIDGES for py in _INTERPRETERS]
 
 

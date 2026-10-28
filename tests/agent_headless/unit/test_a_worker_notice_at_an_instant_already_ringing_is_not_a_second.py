@@ -6,7 +6,7 @@ The worker's door asks the scheduler for the instant first; a live job there ans
 """
 from __future__ import annotations
 
-from nucleo import scheduler as S
+from nucleo.pulse import scheduler as S
 
 
 def test_the_same_instant_answers_with_the_live_job():
@@ -23,4 +23,4 @@ def test_another_instant_is_scheduled():
 
 
 def test_the_worker_door_uses_it():
-    assert "scheduler.create_unless_ringing, what, spec, name" in open("nucleo/worker_api.py", encoding="utf-8").read()
+    assert "scheduler.create_unless_ringing, what, spec, name" in open("nucleo/cli/worker_api.py", encoding="utf-8").read()

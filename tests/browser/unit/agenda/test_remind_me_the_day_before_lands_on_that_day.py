@@ -27,7 +27,7 @@ def _isolated_store(tmp_path, monkeypatch):
 
 @pytest.fixture
 def fake_sched(monkeypatch):
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     calls = {"created": [], "cancelled": []}
 
     def _create(prompt, stamp, name="", origin="cron"):

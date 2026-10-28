@@ -39,8 +39,8 @@ def _emitido(monkeypatch, d: dict) -> dict:
 
 def test_un_rechazo_dice_QUE_se_intento(monkeypatch):
     v = _emitido(monkeypatch, {"text": "Contains simple_expansion", "is_error": True, "where": "web",
-                               "tool": "Bash", "cmd": "python -m nucleo.nav_cli extract $(cat q.txt)"})
-    assert v["extra"]["cmd"] == "python -m nucleo.nav_cli extract $(cat q.txt)"
+                               "tool": "Bash", "cmd": "python -m nucleo.cli.nav extract $(cat q.txt)"})
+    assert v["extra"]["cmd"] == "python -m nucleo.cli.nav extract $(cat q.txt)"
     assert v["extra"]["is_error"] is True
 
 
@@ -48,7 +48,7 @@ def test_un_paso_que_sale_BIEN_no_arrastra_su_comando(monkeypatch):
     """The sensitivity half: a row that always succeeds stops being examined, and the command from a healthy step is
     noise in an already dense flow."""
     v = _emitido(monkeypatch, {"text": "8 resultados", "is_error": False, "where": "web",
-                               "tool": "Bash", "cmd": "python -m nucleo.nav_cli extract"})
+                               "tool": "Bash", "cmd": "python -m nucleo.cli.nav extract"})
     assert "cmd" not in v["extra"]
 
 
@@ -70,7 +70,7 @@ def test_the_session_KEEPS_the_command_when_it_pairs_the_step_with_its_result():
     from nucleo.workers.providers.claude import ClaudeCodeSession
     s = ClaudeCodeSession()
     s._task_id = "1"
-    cmd = "python -m nucleo.nav_cli extract $(cat q.txt)"
+    cmd = "python -m nucleo.cli.nav extract $(cat q.txt)"
     use = {"type": "assistant", "message": {"content": [
         {"type": "tool_use", "id": "tu-1", "name": "Bash", "input": {"command": cmd}}]}}
     res = {"type": "user", "message": {"content": [
@@ -92,7 +92,7 @@ def test_y_la_ANOMALIA_del_informe_lo_enseña():
     ev = {"kind": "task", "cat": "worker",
           "payload": json.dumps({"kind": "task", "cat": "worker", "label": "· paso ⚠️ error",
                                  "text": "Contains simple_expansion", "is_error": True, "rel_ms": 1000,
-                                 "span": "worker:1", "cmd": "python -m nucleo.nav_cli extract $(cat q.txt)"})}
+                                 "span": "worker:1", "cmd": "python -m nucleo.cli.nav extract $(cat q.txt)"})}
     anomalias = V.audit([ev])["anomalies"]
     interno = [a for a in anomalias if a["clase"] == "error_interno"]
     assert interno and "lo que se intentó" in interno[0]["que"]

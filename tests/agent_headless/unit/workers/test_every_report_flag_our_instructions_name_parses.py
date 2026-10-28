@@ -1,9 +1,9 @@
-"""Every `agent_report` command our own instructions name parses — and the measured mis-glued call does too
+"""Every `cli.report` command our own instructions name parses — and the measured mis-glued call does too
 (node 2.677).
 
-search-buy-boat-multicountry ES (2026-10-14, sandbox 093838-es): the status demand (`nucleo/loop.REPORT_DEMAND`)
+search-buy-boat-multicountry ES (2026-10-14, sandbox 093838-es): the status demand (`nucleo/pulse/loop.REPORT_DEMAND`)
 names `phase "<…>"` and `progress "<nota>" --done <pasos hechos>` in one sentence; the worker ran
-`agent_report phase "Buscando Lagoon 440 …" --done 1` and got exit code 2, so the report it was told to give never
+`cli.report phase "Buscando Lagoon 440 …" --done 1` and got exit code 2, so the report it was told to give never
 arrived. The test reads the instructions from the source (every string literal under `nucleo/`, adjacent literals
 joined), so a new instruction that names a flag the CLI does not take fails here, not in a worker's sandbox.
 """
@@ -15,10 +15,10 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import agent_report
+from nucleo.cli import report as agent_report
 
 ENGINE = Path(__file__).resolve().parents[4]
-_CMD = re.compile(r"agent_report\s+(phase|note|plan|progress|goal|considered)\b(.*?)(?=agent_report|\n|`|$)")
+_CMD = re.compile(r"cli.report\s+(phase|note|plan|progress|goal|considered)\b(.*?)(?=cli.report|\n|`|$)")
 
 
 def _literals(path: Path) -> list[str]:

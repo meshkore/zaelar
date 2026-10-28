@@ -270,7 +270,7 @@ export function ConfigPanel() {
   }
 
   // V2-796 — can THIS browser be reached when zaelar is closed? The engine sends each notice by voice when he is
-  // in front of a screen, and to every subscribed browser when he is not (`nucleo/notices.py`).
+  // in front of a screen, and to every subscribed browser when he is not (`nucleo/pulse/notices.py`).
   function sec_notices() {
     const p = push.permission();
     const state = !push.supported() ? "—" : p === "granted" ? t("push.settings_on")

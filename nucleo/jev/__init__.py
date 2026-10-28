@@ -154,7 +154,7 @@ def enabled() -> bool:
     """False silences the whole module: no thread, no HTTP, callers keep their local verdict."""
     if (os.getenv("ZAELAR_JEV", "") or "").strip().lower() in ("0", "off", "no", "false"):
         return False
-    if _breaker_open() or not __import__("nucleo.energy_lease", fromlist=["check"]).check("decision"):
+    if _breaker_open() or not __import__("nucleo.energy.lease", fromlist=["check"]).check("decision"):
         return False                      # provider down, or no energy lease: no thread, no socket, today's path
     return bool(_read_key())
 
@@ -186,7 +186,7 @@ def _post_question(answer_key: str, state: str, instructions: str, criteria: dic
 
 def _trip(body: bytes, timeout_s: float) -> dict:
     """One Jev trip; `llm_egress.route_url` decides where (the provider directly, or mediated egress)."""
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     return llm_egress.post_json(*llm_egress.route_url(ENDPOINT, _read_key()), body, timeout_s)
 
 
@@ -195,7 +195,7 @@ def _meter(questions: int) -> None:
     turn. Reported after the answer, like every other call site: a trip that never came back is
     not a billed trip. Never raises: metering must not be able to break a verdict."""
     try:
-        from nucleo import energy_meter
+        from nucleo.energy import meter as energy_meter
         energy_meter.report_decision_usage(provider="typesafe", questions=questions)
     except Exception:
         pass

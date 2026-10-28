@@ -1,6 +1,6 @@
 """V2-564 — the Google Photos connector: the picker's session lifecycle, the local index that makes
 browsing possible at all (Google never re-serves "the whole library" — see `connectors/photos/providers.py`),
-and the past-oriented date parser that is deliberately NOT `nucleo/scheduler.py::parse_when` (that one is
+and the past-oriented date parser that is deliberately NOT `nucleo/pulse/scheduler.py::parse_when` (that one is
 future-only, built for reminders).
 
 What is guarded here is the reasoning, not "the HTTP call works" — that needs a real Google account and lives
@@ -176,7 +176,7 @@ def test_a_client_that_blows_up_degrades_instead_of_raising(wired, monkeypatch):
     assert out["ok"] is False and "503" in out["error"]
 
 
-# ── the past-oriented date parser — deliberately NOT nucleo.scheduler.parse_when ─────────────────────────────
+# ── the past-oriented date parser — deliberately NOT nucleo.pulse.scheduler.parse_when ─────────────────────────────
 _NOW = time.mktime((2026, 9, 3, 12, 0, 0, 0, 0, -1))   # a fixed "today" so "last year"/"this June" are stable
 
 

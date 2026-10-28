@@ -161,7 +161,7 @@ def test_a_widget_without_the_hook_decides_exactly_as_before(agenda):
 
 def test_the_worker_gate_gets_the_same_answer(agenda):
     """One consent rule, two mouths (V2-719): the Brain Worker cannot run the sweep the voice must ask for."""
-    from nucleo.worker_policy import CONFIRM, classify_act
+    from nucleo.cli.worker_policy import CONFIRM, classify_act
     assert classify_act("widget_data", {"widget_id": "agenda", "action": "clear_range",
                                         "payload": dict(PHANTOM)}) == CONFIRM
 

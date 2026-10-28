@@ -182,7 +182,7 @@ def livekit_config() -> dict:
 def _token_from_egress(identity: str, name: str) -> JSONResponse:
     import httpx
     try:
-        from nucleo import llm_egress
+        from nucleo.energy import egress as llm_egress
         r = httpx.post(f"{llm_egress.root()}/livekit/token", json={"identity": identity, "name": name},
                        headers={"Authorization": f"Bearer {llm_egress.credential()}"}, timeout=10.0)
         return JSONResponse(r.json(), status_code=r.status_code)
@@ -217,7 +217,7 @@ def token(identity: str = "operator", name: str = "You") -> JSONResponse:
     # MEDIATED: the room token is signed by egress, which holds the LiveKit secret and decides the room and the agent
     # (this instance's own). A process that can sign a token can sign one for ANY room of the project — so in a
     # deployment where other people's code may run, it does not hold the secret at all.
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     if llm_egress.mediated():
         return _token_from_egress(identity, name)
 

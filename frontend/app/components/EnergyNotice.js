@@ -2,7 +2,7 @@
 //
 // Until 2026-10-22 running out was only ever SPOKEN: the voice said «You're out of Energy…», the session ended, and
 // the screen showed nothing — no notice, no link — so the person who heard it had nowhere to go. The engine now
-// records the state where every road to "out of energy" passes (`nucleo/account_limits.request_close`) and sends it
+// records the state where every road to "out of energy" passes (`nucleo/energy/limits.request_close`) and sends it
 // on the `energy` event the battery already listens to, and in `/api/energy` for a page opened afterwards. This
 // renders it: what happened, and one button to the configured account page.
 //

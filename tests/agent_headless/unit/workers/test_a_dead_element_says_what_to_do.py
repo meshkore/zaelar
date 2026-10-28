@@ -12,7 +12,7 @@ The raw message is PRESERVED: it is accurate and useful to whoever is debugging.
 """
 from __future__ import annotations
 
-from nucleo.nav_cli import _salida
+from nucleo.cli.nav import _salida
 
 
 def test_el_elemento_muerto_dice_que_mirar_otra_vez():
@@ -43,7 +43,7 @@ def test_un_error_DESCONOCIDO_no_se_inventa_una_salida():
 def test_el_mensaje_CRUDO_se_conserva():
     """Whoever is debugging needs Playwright's text as-is; the worker needs the guidance. Both fit."""
     import io, contextlib
-    from nucleo.nav_cli import _print_state
+    from nucleo.cli.nav import _print_state
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         _print_state({"ok": False, "error": "Error: ElementHandle.click: Element is not attached to the DOM"})

@@ -9,7 +9,7 @@ import time
 import pytest
 from tests.waiting import until
 
-from nucleo import energy_lease
+from nucleo.energy import lease as energy_lease
 
 
 @pytest.fixture(autouse=True)
@@ -258,7 +258,7 @@ def test_a_spend_metered_in_a_worker_thread_still_asks_for_the_renewal(monkeypat
     had 200 Energy. The renewal must reach the server's loop."""
     import asyncio
     import threading
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     _con_arriendo(monkeypatch)
     asked = []
 

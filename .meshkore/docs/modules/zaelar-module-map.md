@@ -35,8 +35,8 @@ start with `make run` → `python -m server`.
   turn**: the STATE block (name/register/topics) comes from `memory_cache` (session cache, TTL + async refresh +
   invalidation on `memory.updated`), and semantic recall (`prompt.compose_recall`) is **on demand**
   (`prompt.needs_recall`) and **off the event loop** (`asyncio.to_thread`) — a chit-chat turn never triggers the
-  retriever. `nucleo/loop.py` (~1 Hz) + `nucleo/scheduler.py` (**the engine's OWN cron**, backed by
-  `memory.journal`) + `nucleo/cron_api.py` (`/api/cron`, the ⏰ panel) + `nucleo/sparks.py` (double-gated sparks) =
+  retriever. `nucleo/pulse/loop.py` (~1 Hz) + `nucleo/pulse/scheduler.py` (**the engine's OWN cron**, backed by
+  `memory.journal`) + `nucleo/pulse/cron_api.py` (`/api/cron`, the ⏰ panel) + `nucleo/pulse/sparks.py` (double-gated sparks) =
   the **orchestrator loop** (scheduled tasks + proactivity + triggers the memory consolidator off the hot path +
   reports by voice and UI; mounted in the lifespan with `BRAIN=nucleo`). `nucleo/dispatch/` (dispatcher: composes
   the prompt [context + task] → CodeAgent with a per-invocation model, consumes `escalate.requested` from the bus,
@@ -58,16 +58,16 @@ start with `make run` → `python -m server`.
   config, mixable], `session.py` [`WorkerSession` + `SessionRecord`], **`providers.py`** [a CHAIN of
   Anthropic-compatible endpoints + hand-over when a quota is exhausted]) = the INTERACTIVE async work layer.
   `nucleo/agentes/` (the one-shot `CodeAgent` interface — `worker/web/web_cc/otros.py` are **parked**; only their
-  widget-detection helpers are reused). **Worker bridges**: `nucleo/mem_cli.py` (`hbmem` — serial memory,
-  recall/remember over HTTP) · `nucleo/agent_report.py` + `nucleo/agent_api.py` (`hbnote` — phase report to the bus)
-  · **`nucleo/worker_bridge.py` + `nucleo/worker_api.py`** (`hbask`/`hbact`/`hbsay` — ask / request a tool / speak
+  widget-detection helpers are reused). **Worker bridges**: `nucleo/cli/mem.py` (`hbmem` — serial memory,
+  recall/remember over HTTP) · `nucleo/cli/report.py` + `nucleo/agent_api.py` (`hbnote` — phase report to the bus)
+  · **`nucleo/cli/bridge.py` + `nucleo/cli/worker_api.py`** (`hbask`/`hbact`/`hbsay` — ask / request a tool / speak
   to the user, a request/response plane, `/api/worker/act`, policy + piggyback + token) ·
-  `nucleo/nav_cli.py` + `widgets/navegador/act_api.py` (`hbweb` — drive the browser) · **`nucleo/widget_cli.py`**
+  `nucleo/cli/nav.py` + `widgets/navegador/act_api.py` (`hbweb` — drive the browser) · **`nucleo/cli/widget.py`**
   (`hbwidget` — READ/OPERATE a canvas widget: `read`/`data`/`show`/`close`, the `widget_data` action of
   `/api/worker/act` gated by the canonical catalog + worker provenance; the BRIDGE that reflects in the widgets what
   was done in the real world). `nucleo/danger.py` = the gate for irreversible actions. **`nucleo/susurro/`** =
   **conversational self-audit «Susurro»** — plugged in ONLY through the bus (topic `turn.completed` + friction), a
-  configurable stronger model under `§susurro`, closed-catalog corrections. **`nucleo/homeostasis.py`** = the
+  configurable stronger model under `§susurro`, closed-catalog corrections. **`nucleo/pulse/homeostasis.py`** = the
   **AUTONOMOUS HEARTBEAT** — the third level, a SIBLING of the brain (not part of it): keeps the MACHINE healthy
   (recycles a degraded LiveKit engine when safe, rotates logs, evicts dead capsules), deterministic and with NO LLM,
   `start()/stop()` in the lifespan like the other supervisors.

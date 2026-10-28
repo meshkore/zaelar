@@ -54,7 +54,7 @@ _HEARTBEAT_INTERVAL_S = float(os.getenv("ZAELAR_SESSION_HEARTBEAT_S", "15"))
 _heartbeat: dict = {"task": None}
 
 # The server's event loop, captured once from the lifespan — same cross-thread bridge as
-# `nucleo/energy_meter.py::set_loop` (V2-102) and for a sharper version of the same reason: a work session is
+# `nucleo/energy/meter.py::set_loop` (V2-102) and for a sharper version of the same reason: a work session is
 # usually opened LAZILY, by whatever thread emits the first real event, and that thread has no loop of its own.
 _loop = None
 
@@ -71,7 +71,7 @@ def _identity_file() -> Path:
 
 def user_id() -> str:
     """The STABLE id of this installation: the one supplied by the environment, if any, or a persisted UUID4 of our own."""
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
 
     provided = cloud_account.my_user_id()
     if provided:
@@ -182,7 +182,7 @@ def end_session(reason: str = "frontend") -> dict:
 # which is exactly the part no per-turn hook would ever see.
 #
 # Only the duration crosses this seam: whether that costs anything, and how much, is the tariff's
-# business (`nucleo/energy_tariffs.py` — it may legitimately be zero while the deployment sits inside
+# business (`nucleo/energy/tariffs.py` — it may legitimately be zero while the deployment sits inside
 # LiveKit's included quota). Failing to bill must never break closing a session, hence the guard.
 _TRANSPORT_PARTICIPANTS = 2
 
@@ -191,7 +191,7 @@ def _bill_transport(duration_ms: int) -> None:
     if duration_ms <= 0:
         return
     try:
-        from nucleo import energy_meter
+        from nucleo.energy import meter as energy_meter
         energy_meter.report_transport_usage(
             participant_seconds=(duration_ms / 1000.0) * _TRANSPORT_PARTICIPANTS)
     except Exception as e:  # noqa: BLE001
@@ -231,7 +231,7 @@ def close_if_idle() -> bool:
     decision as `note_real_activity`, taken from the other side: THAT one can only fire when activity comes
     BACK, so a session nobody ever returns to (the operator walks away, a tab dies without `pagehide`) stayed
     open forever and read "EN CURSO" in the observability viewer with nothing happening inside it. The pulse calls this
-    (`nucleo/loop.py::tick`). It only ever CLOSES — it never opens a session and never touches the activity
+    (`nucleo/pulse/loop.py::tick`). It only ever CLOSES — it never opens a session and never touches the activity
     clock — so an idle machine closes once and then has nothing left to close.
 
     The clock counts from the LATER of the last real activity and this session's own start: `_last_real_activity_ms`
@@ -257,7 +257,7 @@ def _report_to_control_plane(label: str, info: dict) -> None:
     has one configured (`CONTROL_PLANE_URL` + a `ZAELAR_USER_ID`). **In a normal installation this is a no-op**:
     without those variables nothing is contacted and not a single byte leaves the machine.
 
-    Same guarded-until-configured contract as `nucleo/energy_meter.py`: fire-and-forget, and a failure can NEVER
+    Same guarded-until-configured contract as `nucleo/energy/meter.py`: fire-and-forget, and a failure can NEVER
     bring down starting or closing a session. No event or transcription is sent — only
     `(user_id, session_id, start|end)`."""
 
@@ -265,7 +265,7 @@ def _report_to_control_plane(label: str, info: dict) -> None:
         import asyncio
         import os
 
-        from nucleo import cloud_account
+        from nucleo.energy import account as cloud_account
 
         url = (os.getenv("CONTROL_PLANE_URL") or "").strip()
         uid = cloud_account.my_user_id()
@@ -292,7 +292,7 @@ def _report_to_control_plane(label: str, info: dict) -> None:
         # No loop in THIS thread. A work session most often opens LAZILY, from whatever thread emitted the first
         # real event — the voice thread, a `to_thread` worker — none of which has a loop, so the report was
         # dropped exactly where it mattered most and the central registry never learned the session existed.
-        # Same bridge `nucleo/energy_meter.py::_fire_and_forget` uses for the identical problem (V2-102). No
+        # Same bridge `nucleo/energy/meter.py::_fire_and_forget` uses for the identical problem (V2-102). No
         # loop captured yet (a unit test) → drop, same as before.
         if _loop is not None:
             asyncio.run_coroutine_threadsafe(_post(), _loop)

@@ -39,7 +39,7 @@ _SENALES = (
 )
 
 # Proof that the file participates in the energy system.
-_MARCAS = ("energy_meter", "report_llm_usage", "report_worker_usage",
+_MARCAS = ("energy_meter", "energy import meter", "energy.meter", "report_llm_usage", "report_worker_usage",
            "report_tts_usage", "report_stt_usage", "report_search_usage",
            "report_decision_usage")
 
@@ -65,9 +65,9 @@ _EXENTOS: dict[str, str] = {
     "nucleo/memory_agent/processor/llm_routes.py":
         "the off-hot-path tasks' route TABLE (base_url, model) as data; it calls nobody — `llm.py` makes the call and "
         "meters it.",
-    "nucleo/energy_meter.py":
+    "nucleo/energy/meter.py":
         "ES el contador: aquí viven las tarifas, no un llamante que deba usarlas.",
-    "nucleo/provider_keys.py":
+    "nucleo/energy/keys.py":
         "una TABLA de base_url → nombre de variable de la clave; no llama a nadie (V2-782 añadió el host de Gemini a las señales).",
     "search/providers/__init__.py":
         "la DECLARACIÓN de cada proveedor (host, clave, tarifa) que la sonda de salud y la cadena leen; no hace ninguna llamada — "
@@ -89,7 +89,7 @@ _EXENTOS: dict[str, str] = {
         "lee el CATÁLOGO de voces (/v1/voices y /v1/shared-voices). ElevenLabs factura por CARACTER "
         "SINTETIZADO: estos dos endpoints son metadatos y no consumen cuota — lo que sí cuesta es "
         "/v1/text-to-speech, y ese lo mide el builder del TTS por el camino de siempre.",
-    "nucleo/llm_egress.py":
+    "nucleo/energy/egress.py":
         "mapa de ENRUTADO: nombra hosts de proveedor para saber a qué familia iba dirigida una "
         "llamada, pero no abre ninguna conexión. Quien llama —y quien mide— es el call site.",
     "config/balances.py":
@@ -136,7 +136,7 @@ def test_todo_lo_que_llama_a_un_proveedor_de_pago_reporta_a_energy():
         "Estos ficheros llaman a un proveedor de pago y NO nombran el contador de Energy:\n"
         + "\n".join(f"  {k}  (señal: {v!r})" for k, v in sorted(faltan.items()))
         + "\n\nEn una cuenta de nube eso es dinero saliendo sin factura. Reporta el consumo con "
-          "nucleo.energy_meter, o —si de verdad no cuesta— añádelo a _EXENTOS con el motivo escrito."
+          "nucleo.energy.meter, o —si de verdad no cuesta— añádelo a _EXENTOS con el motivo escrito."
     )
 
 
@@ -160,7 +160,7 @@ def test_una_exencion_lleva_motivo_de_verdad(rel):
 def test_medir_una_llamada_es_UNA_linea_y_el_contador_sabe_de_cache():
     """The gateway extracts `usage` from the provider's raw response—the caller does not unpack anything, which is
     exactly the knowledge that had been missed by ten of the eleven."""
-    from nucleo import energy_meter as em
+    from nucleo.energy import meter as em
     visto = {}
     orig = em.report_llm_usage
     try:
@@ -177,7 +177,7 @@ def test_medir_una_llamada_es_UNA_linea_y_el_contador_sabe_de_cache():
 def test_la_puerta_traga_una_respuesta_rara_sin_tumbar_al_llamante():
     """“Metering never brings down the call it was metering” is a property of the MODULE. Previously it was a
     `try/except` copied eleven times: a new caller that forgot it turned an accounting failure into a crash."""
-    from nucleo import energy_meter as em
+    from nucleo.energy import meter as em
     for payload in (None, "no soy una respuesta", {"usage": None}, object()):
         em.meter_openai_response(payload, base_url="https://api.x.ai/v1", model="grok-4-fast")
 
@@ -185,7 +185,7 @@ def test_la_puerta_traga_una_respuesta_rara_sin_tumbar_al_llamante():
 def test_ninguna_puerta_publica_del_contador_puede_lanzar():
     """The PROPERTY is checked across all of them at once, so adding a new gateway without the decorator is noticed
     here rather than in production."""
-    from nucleo import energy_meter as em
+    from nucleo.energy import meter as em
     puertas = [n for n in dir(em) if n.startswith("report_") or n.startswith("meter_")]
     assert len(puertas) >= 6, f"esperaba las puertas públicas del contador, encontré {puertas}"
     for n in puertas:
@@ -197,7 +197,7 @@ def test_todo_proveedor_de_busqueda_de_pago_tiene_tarifa():
     """The search chain degrades by QUALITY, so adding a paid search provider is tempting and
     cheap. Without a rate it would be charged at the catch-all—which exists so that nothing is free,
     not to be anyone's permanent price."""
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     from search import web as websearch
     sin_tarifa = [p for p in websearch._PAID_BACKENDS
                   if p not in energy_meter._SEARCH_USD_PER_REQUEST]

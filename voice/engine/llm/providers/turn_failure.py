@@ -16,7 +16,7 @@ def _refused_for_energy(err_exc, err_text, emit, send) -> bool:
     """The energy lease refused the model call before it left. Not an outage and not our bug: no ladder, no
     light. The out-of-energy state is already on screen (the gate's fuse recorded it); the voice says it unless
     the session closer is about to say it on its way out — once is the message, twice is a stutter."""
-    from nucleo import account_limits, energy_lease
+    from nucleo.energy import limits as account_limits, lease as energy_lease
     if not energy_lease.is_refusal(err_exc if err_exc is not None else err_text):
         return False
     emit("alert", "Out of energy — the model call was not started.", text=(err_text or "")[:200],

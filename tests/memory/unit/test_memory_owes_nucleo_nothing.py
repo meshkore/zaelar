@@ -41,23 +41,23 @@ INVERSE_IMPORTS_DEBT: dict[tuple[str, str], str] = {
     ("memory/db.py", "nucleo.workspace"):
         "infra, not a brain: resolves the workspace root (a filesystem path, no reasoning anywhere near it). "
         "BLESSED permanently on 2026-08-23 — moving it would mean a shared-infra package for one function.",
-    ("memory/rerank.py", "nucleo.llm_egress"):
+    ("memory/rerank.py", "nucleo.energy.egress"):
         "remote rerank egress, deferred import inside the opt-in remote path. STAYS: see energy_meter below — "
         "the two travel together and splitting them would route egress without metering it.",
-    ("memory/rerank.py", "nucleo.energy_meter"):
+    ("memory/rerank.py", "nucleo.energy.meter"):
         "meters the remote rerank call. STAYS, deliberately (2026-08-23): its own comment says it is metered "
         "while DORMANT so that turning the remote reranker on is never free by accident. A registered-callback "
         "design reopens exactly that hole for any process that forgets to register — real money going unbilled, "
         "silently, in exchange for layer purity. Deferred import inside an opt-in branch is the cheaper trade.",
-    ("memory/embeddings/cloud.py", "nucleo.energy_meter"):
+    ("memory/embeddings/cloud.py", "nucleo.energy.meter"):
         "meters the CLOUD embedding call (V2-501). Same trade as rerank above, and the argument is stronger "
         "here: the reranker is dormant, this runs on every insert AND every query. Deferred import inside the "
         "cloud branch, right after a successful response; the local backends never reach it.",
-    ("memory/embeddings/cloud.py", "nucleo.energy_lease"):
+    ("memory/embeddings/cloud.py", "nucleo.energy.lease"):
         "the energy lease gate in front of the CLOUD embedding call (V2-785). The meter's twin: one counts the "
         "spend after it, this refuses it before it when the machine holds no lease. Same deferred import, same "
         "cloud branch, and the same reason a callback would not do — a process that forgot to register would spend.",
-    ("memory/embeddings/cloud.py", "nucleo.llm_egress"):
+    ("memory/embeddings/cloud.py", "nucleo.energy.egress"):
         "WHERE the cloud embedding call goes (2026-10-23): in a mediated deployment it leaves through egress with "
         "the account's own credential instead of a provider key held in this process. Same pair as rerank above "
         "(egress travels with the meter), same deferred import in the same cloud branch; a callback a process could "
@@ -76,6 +76,14 @@ def _inverse_imports() -> set[tuple[str, str]]:
     for p in (REPO / "memory").rglob("*.py"):              # a module split into a folder stays in scope
         for line in p.read_text(encoding="utf-8").splitlines():
             m = _FROM_DOTTED_RE.match(line) or _IMPORT_RE.match(line)
+            if m and (REPO / "nucleo" / m.group(1)).is_dir():   # a package: name the module inside it
+                sub = line.split("nucleo." + m.group(1), 1)[1]
+                names = sub.split(" import ", 1)[1].split(",") if sub.startswith(" import ") else [sub[1:].split()[0]]
+                for n in names:
+                    n = n.split(" as ")[0].split("#")[0].strip().split(".")[0]
+                    if n:
+                        found.add((p.relative_to(REPO).as_posix(), f"nucleo.{m.group(1)}.{n}"))
+                continue
             if m:
                 found.add((p.relative_to(REPO).as_posix(), f"nucleo.{m.group(1)}"))
                 continue

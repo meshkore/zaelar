@@ -83,9 +83,9 @@ async def classify(messages: list[dict], operator_name: str | None = None) -> li
     local = "11434" in url or "localhost" in url or "127.0.0.1" in url
     try:
         if not local:                     # the energy lease gate: a remote triage model is paid work
-            from nucleo import energy_lease
+            from nucleo.energy import lease as energy_lease
             energy_lease.admit("llm")
-        from nucleo import llm_egress
+        from nucleo.energy import egress as llm_egress
         base, key, extra = llm_egress.route(url, config.triage_key())
         async with aiohttp.ClientSession(timeout=to) as s:
             async with s.post(base.rstrip("/") + "/chat/completions",
@@ -109,7 +109,7 @@ async def classify(messages: list[dict], operator_name: str | None = None) -> li
         # the normal case still costs zero and makes no network call. Still reported because `MSG_TRIAGE_MODEL` may
         # point at a REMOTE endpoint — and a container deployment may have no local Ollama: without this, moving that variable turns
         # triage into invisible spend, and triage runs for EVERY inbound message batch, not by operator request.
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         _energy.meter_openai_response(data, base_url=url, model=config.triage_model())
         try:
             from voice.observer import emit

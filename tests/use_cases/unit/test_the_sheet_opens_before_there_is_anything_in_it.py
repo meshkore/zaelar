@@ -11,7 +11,7 @@ import sqlite3
 from tests.use_cases.e2e.agent import verify
 
 _REAL = '[{"title": "Bécquer", "price": "100 €"}]'
-_USAGE = "usage: nav_cli [-h] {snapshot,look,navigate,click}"
+_USAGE = "usage: cli.nav [-h] {snapshot,look,navigate,click}"
 
 
 def _db(tmp_path, rows):

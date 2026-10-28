@@ -2,7 +2,7 @@
 
 Before this, a due reminder went to the voice and, with nobody listening, became a note for the brain's NEXT turn:
 nothing recorded whether «the car's ITV expires on Thursday» ever reached him, and nothing could reach his phone.
-`nucleo/notices.py` is the one door; these tests pin its four promises and the Web Push wire format it relies on.
+`nucleo/pulse/notices.py` is the one door; these tests pin its four promises and the Web Push wire format it relies on.
 """
 from __future__ import annotations
 
@@ -17,7 +17,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from nucleo import notices, runstate, webpush
+from nucleo import runstate
+from nucleo.pulse import notices, webpush
 
 
 def _b64u(b: bytes) -> str:
@@ -202,7 +203,7 @@ def test_a_subscription_never_returns_its_endpoint():
 
 # ── the loop: ⏻ and the one door ─────────────────────────────────────────────────────────────────────────────
 def test_the_loop_fires_a_reminder_to_the_phone_while_stopped_and_postpones_it_with_no_phone(monkeypatch):
-    from nucleo import loop as _loop, scheduler
+    from nucleo.pulse import loop as _loop, scheduler
     import time
     stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime(time.time() + 3600))
     job = scheduler.create("Recuerda: la ITV caduca el jueves", stamp, name="aviso: ITV", origin="cron")

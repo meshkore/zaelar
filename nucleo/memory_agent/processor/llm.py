@@ -52,7 +52,7 @@ def _attempt(url: str, model: str, key: str, disable_thinking: bool, *, system: 
         payload["thinking"] = {"type": "disabled"}
     # EGRESS (T304): with mediated egress neither the URL nor the key is the provider's; the `extra` headers name
     # the provider family, or a stand-in on another provider is sent to the wrong upstream.
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     r_url, r_key, extra = llm_egress.route(url, key)
     data = _post_json(
         r_url.rstrip("/") + "/chat/completions",
@@ -126,5 +126,5 @@ def _record_usage(usage: dict | None, base_url: str, model: str) -> None:
         usage = {}
     else:
         _last_usage = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
-    from nucleo import energy_meter as _energy
+    from nucleo.energy import meter as _energy
     _energy.meter_openai_response({"usage": usage}, base_url=base_url, model=model)

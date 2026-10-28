@@ -190,9 +190,9 @@ def _relay_search(self) -> None:
     except Exception:  # noqa: BLE001
         py = "python"
     msg = ("Tu buscador integrado se ha quedado SIN CUOTA y no vuelve en esta tarea: no lo uses más. Busca "
-           f"con el de Zaelar: `{py} -m nucleo.worker_bridge act use_tool \"<qué buscas>\"` — la consulta entre "
+           f"con el de Zaelar: `{py} -m nucleo.cli.bridge act use_tool \"<qué buscas>\"` — la consulta entre "
            "comillas, sin llaves ni ficheros. Para leer una página, el navegador: "
-           f"`{py} -m nucleo.nav_cli`.")
+           f"`{py} -m nucleo.cli.nav`.")
     try:
         import asyncio as _aio
         _aio.get_running_loop().create_task(self.inject(msg))

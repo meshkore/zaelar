@@ -74,7 +74,7 @@ def _session_start_opts() -> dict:
     uploads a session's recording, traces and logs to the provider's observability endpoint signed with that key:
     every session would end in a 401 and an ERROR. So it does not record. Elsewhere the SDK default stands.
     Voice isolation (V2-812 T-08) adds `room_options` only when the setting is on AND the transport serves it."""
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     from .voice_isolation import room_options
     opts = {"record": False} if llm_egress.mediated() else {}
     return {**opts, **room_options(SETTINGS.voice_isolation, SETTINGS.livekit_url)}
@@ -384,8 +384,8 @@ async def entrypoint(ctx: JobContext) -> None:
     # triggering turn's own reply already finished — so this closer must SPEAK the closing line
     # itself, not just wait for one. No-op everywhere ZAELAR_USER_ID isn't set (self-host) —
     # cloud_account.is_cloud_account().
-    from nucleo import account_limits as _account_limits
-    from nucleo import cloud_account as _cloud_account
+    from nucleo.energy import limits as _account_limits
+    from nucleo.energy import account as _cloud_account
 
     async def _close_account_session(reason: str) -> None:
         _emit("session", f"account energy exhausted ({reason}) — closing", role="system")
@@ -550,7 +550,7 @@ def make_server() -> AgentServer:
     # MEDIATED: the worker registers THROUGH egress, which holds the LiveKit secret. The SDK signs its own JWT with
     # whatever key it is given, so it is given this instance's egress credential: egress reads who it is from the
     # token's `iss`, signs the real registration and lets it through only under this instance's own agent name.
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     lk_url, lk_key, lk_secret = SETTINGS.livekit_url, SETTINGS.livekit_api_key, SETTINGS.livekit_api_secret
     if llm_egress.mediated():
         lk_url = llm_egress.root().replace("https://", "wss://", 1) + "/livekit"
