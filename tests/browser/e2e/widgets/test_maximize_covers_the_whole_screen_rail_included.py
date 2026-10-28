@@ -26,12 +26,11 @@ RENDERED, not read: which CSS class wins the class LIST is a source fact; whethe
 stacking actually cover the icon cluster while losing to the rail is a layout fact only a browser settles.
 """
 import asyncio
-import pathlib
-import re
 
 import pytest
 
-DESKTOP = pathlib.Path("frontend/app/widgets/desktop.js")
+from tests.browser import desktop_client
+
 
 # Minimal real-shaped chrome: the top icon cluster (`.me`, z-index 9000 in the real styles.css) and the
 # bottom rail (`#wrail`, z-index 9002, V2-623) — the two landmarks this fix is about, at their REAL values.
@@ -80,15 +79,6 @@ _SETUP = """(async () => {
 })()"""
 
 
-def _module_source() -> str:
-    src = DESKTOP.read_text(encoding="utf-8")
-    src = re.sub(r'^import \{ t as tr \}.*$', 'const tr = (k) => k;', src, count=1, flags=re.M)
-    src = re.sub(r'^import \* as store from .*$', 'const store = { lang: () => "en" };', src, count=1, flags=re.M)
-    leftover = re.findall(r'^import .*$', src, flags=re.M)
-    assert not leftover, f"_module_source() does not stub: {leftover} — every import needs a stub line above"
-    return src + "\nwindow.__Desktop = Desktop;\n"
-
-
 @pytest.fixture(scope="module")
 def playwright_available():
     try:
@@ -109,8 +99,7 @@ def _run(script):
             await pg.route("http://zaelar.test/", lambda r: asyncio.ensure_future(
                 r.fulfill(status=200, content_type="text/html", body=_HTML)))
             await pg.goto("http://zaelar.test/")
-            await pg.add_script_tag(content=_module_source(), type="module")
-            await pg.wait_for_function("() => !!window.__Desktop")
+            await desktop_client.mount(pg)
             await pg.evaluate(_SETUP)
             out = await pg.evaluate(script)
             await b.close()

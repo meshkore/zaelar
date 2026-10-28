@@ -26,6 +26,8 @@ import re
 
 import pytest
 
+from tests.browser import desktop_client
+
 DESKTOP = pathlib.Path("frontend/app/widgets/desktop.js")
 
 _HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
@@ -72,18 +74,6 @@ _SETUP = """(async () => {
 })()"""
 
 
-def _module_source() -> str:
-    """desktop.js with its top-of-file imports stubbed — the route-mocked page has no static server, so a
-    real `../core` import kills the whole script tag in silence (the V2-613 trap, documented by its
-    neighbours here)."""
-    src = DESKTOP.read_text(encoding="utf-8")
-    src = re.sub(r'^import \{ t as tr \}.*$', 'const tr = (k) => k;', src, count=1, flags=re.M)
-    src = re.sub(r'^import \* as store from .*$', 'const store = { lang: () => "en" };', src, count=1, flags=re.M)
-    leftover = re.findall(r'^import .*$', src, flags=re.M)
-    assert not leftover, f"_module_source() does not stub: {leftover} — every import needs a stub line above"
-    return src + "\nwindow.__Desktop = Desktop;\n"
-
-
 @pytest.fixture(scope="module")
 def playwright_available():
     try:
@@ -104,8 +94,7 @@ def _run(script):
             await pg.route("http://zaelar.test/", lambda r: asyncio.ensure_future(
                 r.fulfill(status=200, content_type="text/html", body=_HTML)))
             await pg.goto("http://zaelar.test/")
-            await pg.add_script_tag(content=_module_source(), type="module")
-            await pg.wait_for_function("() => !!window.__Desktop")
+            await desktop_client.mount(pg)
             await pg.evaluate(_SETUP)
             out = await pg.evaluate(script)
             await b.close()
