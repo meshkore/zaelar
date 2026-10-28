@@ -12,7 +12,9 @@ import threading
 
 import pytest
 
-from nucleo.flash import ordered_send
+from tests import widget_data_rig as rig
+
+from nucleo.acts import message_repair as ordered_send
 
 SAID = "send the invoice to quinn, tell him we're already trying inworld and he should book it"
 
@@ -37,7 +39,7 @@ def directory(tmp_path, monkeypatch):
 
 
 def test_a_draft_under_a_sure_ordered_forward_becomes_the_forward():
-    got = ordered_send.instead(_brief("mensajeria:forward", 0.79), "mensajeria", "draft",
+    got = ordered_send.ordered_instead(_brief("mensajeria:forward", 0.79), "mensajeria", "draft",
                                {"text": "We're already trying Inworld — please book it."}, SAID)
     assert got and got[0] == "forward", got
     assert got[1].get("text", "").startswith("We're already trying Inworld") and got[1].get("contact"), got
@@ -45,17 +47,10 @@ def test_a_draft_under_a_sure_ordered_forward_becomes_the_forward():
 
 def test_under_the_bar_or_a_model_that_sends_or_a_question_nothing_changes():
     draft = {"text": "book it"}
-    assert ordered_send.instead(_brief("mensajeria:forward", 0.6), "mensajeria", "draft", draft, SAID) is None
-    assert ordered_send.instead(_brief("mensajeria:forward", 0.9), "mensajeria", "send_to", draft, SAID) is None
-    assert ordered_send.instead(_brief("mensajeria:forward", 0.9, kind="question"), "mensajeria", "draft", draft, SAID) is None
-    assert ordered_send.instead(_brief("mensajeria:forward", 0.9), "mensajeria", "forward", draft, SAID) is None
-
-
-def test_both_channels_ask_it():
-    import inspect
-    from nucleo.flash import tool_executor_widget_calls, verdict_card
-    assert "_os.instead(brief, widget_id, action, payload, said)" in inspect.getsource(verdict_card.retarget)
-    assert "_txw._ordered_send.run(_brief, wid, action_name, payload" in inspect.getsource(tool_executor_widget_calls)
+    assert ordered_send.ordered_instead(_brief("mensajeria:forward", 0.6), "mensajeria", "draft", draft, SAID) is None
+    assert ordered_send.ordered_instead(_brief("mensajeria:forward", 0.9), "mensajeria", "send_to", draft, SAID) is None
+    assert ordered_send.ordered_instead(_brief("mensajeria:forward", 0.9, kind="question"), "mensajeria", "draft", draft, SAID) is None
+    assert ordered_send.ordered_instead(_brief("mensajeria:forward", 0.9), "mensajeria", "forward", draft, SAID) is None
 
 
 def test_a_dry_turn_reports_the_call_as_it_would_run():
@@ -71,3 +66,19 @@ def test_a_dry_turn_reports_the_call_as_it_would_run():
     out = H.run_case(case)
     assert not out.error, out.error
     assert out.decision == "data-op mensajeria:forward", (out.decision, out.tool_calls, out.reply)
+
+
+@pytest.fixture()
+def gate_scene(tmp_path, monkeypatch):
+    from nucleo import his_words, untrusted
+    rig.scene(tmp_path, monkeypatch)
+    yield
+    untrusted.reset()
+    his_words.reset()
+
+
+def test_a_sure_ordered_forward_the_model_only_drafted_runs_to_whom_he_named(gate_scene, monkeypatch):
+    out = rig.run("mensajeria", "draft", {"text": "We're already trying Inworld — please book it."},
+                  said="send the invoice to quinn, tell him we're already trying inworld and he should book it",
+                  turn_brief=rig.brief("mensajeria:forward", 0.79), monkeypatch=monkeypatch)
+    assert [a for _w, a, _p in out.ran] == ["forward"] and out.ran[0][2].get("contact"), out

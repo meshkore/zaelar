@@ -4,7 +4,7 @@
 own state, never from our reply's words:
 
   · a PLAYER control (next / previous / play / pause / add / remove on the video or music card) is `met` with what plays
-    now or what the queue holds — or `cannot` when the embedded player refused it (`player_outcome`, 2026-10-11);
+    now or what the queue holds — or `cannot` when the embedded player refused it (`acts.media.settled`, 2026-10-11);
   · a pasted link from a channel he BLOCKED, let through because he asked, is `met` with the card's stamp (V2-604);
   · a bare acknowledgement over a card whose declared end state still reads unmet is not said as «done» (2026-10-14).
 
@@ -141,8 +141,8 @@ async def player(said: str, controls=None, lang=None) -> list:
             return []
         lang = lang or _lang()
         if any(c == "youtube" and a in MOVES for c, a in controls):
-            from nucleo.flash import player_outcome
-            out = await player_outcome.settled("youtube", min_wait=0.3)
+            from nucleo.acts import media as _media
+            out = await _media.settled("youtube", min_wait=0.3)
             if (line := _refused_line(out, lang)):
                 return [_outcome("cannot" if out.get("state") == "blocked" else "met", "youtube", "move", line)]
         return player_owed(said, controls, lang)

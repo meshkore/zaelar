@@ -464,7 +464,7 @@ _KV_KEY = "energy:balance"
 _state: dict = {"balance": None, "capacity": None, "at": 0.0, "src": "", "plan": None}
 _loaded = False
 
-# The server's event loop (V2-102), for the SAME cross-thread bridge problem `nucleo/browser_search.py::set_loop`
+# The server's event loop (V2-102), for the SAME cross-thread bridge problem `search/browser.py::set_loop`
 # already solves — captured once, sync, from the lifespan.
 _loop = None
 
@@ -570,7 +570,7 @@ def _fire_and_forget(energy: float, kind: str, meta: dict | None = None) -> None
     # No loop in THIS thread — the caller is inside `asyncio.to_thread` (V2-102: `nucleo/memllm.chat_sync` is
     # documented to run there, and every one of its callers metered through this path silently lost their
     # report — the local lease deduction above still happened, only the ledger POST vanished). Same
-    # bridge `nucleo/browser_search.py::set_loop`/`run_coroutine_threadsafe` already uses for the identical
+    # bridge `search/browser.py::set_loop`/`run_coroutine_threadsafe` already uses for the identical
     # problem. No loop captured yet (`set_loop` not called — e.g. a unit test) → drop, same as before.
     if _loop is not None:
         try:

@@ -7,7 +7,7 @@ closure has. Module-level names of `tool_executor_widget` are read through it (`
 """
 from __future__ import annotations
 
-from nucleo.flash import held_send as _held_send   # V2-800: his order over a row he has seen is the yes
+from nucleo.acts import message as _message_door   # V2-800: his order over a row he has seen is the yes
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import tool_executor_widget as _txw
 
@@ -87,15 +87,12 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
             from nucleo.pulse import scheduler as _sched
             d = extra.get("data") or {}
             if action == "cron.create":
-                # V2-214 (PARALLEL impl, wire BOTH): his words on his own duty wrap in «AVÍSALE».
-                from nucleo.flash import router_guards as _rg_cron
-                r = _sched.create(
-                    _rg_cron.safe_reminder_prompt((d.get("prompt") or d.get("task") or "").strip()),
-                    _rg_cron.safe_reminder_schedule((d.get("schedule") or d.get("when") or "").strip(), "", text, brain._window),
-                    name=(d.get("name") or "").strip(), repeat=str(d.get("repeat") or ""))
+                # refactor2710-06 T-06: the notice's slots decide; the agenda bounds the consequence, no words read
+                from widgets.agenda import notice as _notice
+                r, verdict = _notice.schedule(_sched.create, d)
                 emit("cron", "⏰ tarea programada" if r.get("ok") else "⚠️ schedule no reconocido",
                      text=r.get("display") or r.get("error") or "", role="system",
-                     extra={"ok": bool(r.get("ok")), "op": action})
+                     extra={"ok": bool(r.get("ok")), "op": action, "verdict": verdict})
             else:
                 _sched.cancel(extra.get("name") or d.get("name") or "")
                 emit("cron", "🗑️ tarea cancelada", role="system", extra={"ok": True, "op": action})
@@ -158,19 +155,29 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         if _txw._direct_action.order_is_inside(_brief, _sid):
             emit("brain", "🪟 show de una tarjeta ya abierta — la orden es una acción DENTRO",
                  text=_sid, role="system", extra={"cat": "flash", "kind_diag": "show_inside_card"})
-            extra["src"] = "flash"
-            emit("widget", action, extra=extra)
+            _cross_the_door(action, extra, text=text, brief=_brief, emit=emit)
             return
+    # V2-039: the order comes from the FlashBrain; the event carries the phrase that caused it (2026-08-09).
+    if not _cross_the_door(action, extra, text=text, brief=_brief, emit=emit, log_text=(text or "").strip()[:160]):
+        deduped["v"] = True
+        return False                  # the canvas door vetoed it: what was not done is not recorded as done
     acted["widget"] = True
     if action == "show" and extra.get("id"):
         # V2-776 — WHICH card: without it a tag show skipped the after-show repair (empty Markets, demo v7).
         acted["widget_id"] = acted.get("widget_id") or str(extra.get("id"))
     if action == "close":
-        acted["closed"] = True                   # el backstop de cierre corto no re-cierra (ver post-stream)
+        acted["closed"] = True                   # the short-close backstop does not close it again (post-stream)
         _txw._canvas_lic.note_operator_close(str(extra.get("id") or ""))   # V2-650b: reopen needs his words
-    extra["src"] = "flash"                       # V2-039: procedencia — esta orden viene del FlashBrain
-    # Canvas order log (2026-08-09, operator's request): the event carries the SENTENCE behind it.
-    emit("widget", action, text=(text or "").strip()[:160], extra=extra)
+
+
+def _cross_the_door(action: str, extra: dict, *, text: str, brief, emit, log_text: str = "") -> bool:
+    """A canvas tag of the FlashBrain's turn, through the one canvas door (`nucleo.acts.canvas.apply`)."""
+    from nucleo.acts import canvas_turn
+    from nucleo.acts import canvas
+    fields = {k: v for k, v in (extra or {}).items() if k not in ("id", "src")}
+    src = str((extra or {}).get("src") or "") if str((extra or {}).get("src") or "").startswith("recall:") else "flash"
+    return canvas.apply(action, str((extra or {}).get("id") or ""), src=src, text=log_text, emit=emit,
+                        request=canvas_turn.request_of(brief, _txw._bnotes.operator_half(text)), **fields)
 
 
 def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *, _apply_widget_data, _brief, _frontend, _request_data_confirm, _spawn, _tag_emit, _turn_op_tasks, acted, brain, data_done, deduped, emit, escalate_req, text) -> None:
@@ -197,19 +204,19 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
                                    "id": wid, "action": action_name})
         return
     action_name, payload = _txw._row_lens.retarget(wid, action_name, _txw._said_day.payload(wid, action_name, payload, _txw._bnotes.operator_half(text)), _txw._bnotes.operator_half(text))   # the day he said; the row he named, on ITS day (pass 140)
-    mode = _held_send.release(_frontend.action_mode_now(wid, action_name, payload), wid, action_name, payload, _brief)   # V2-712 · V2-800
+    mode = _message_door.release(_frontend.action_mode_now(wid, action_name, payload), wid, action_name, payload, _brief)   # V2-712 · V2-800
     # TWO READERS DISAGREE ON AN ACT THAT LEAVES (demo pass 2026-09-28, full12 E3): verdict draft 1.00,
     # model `reply`, and a real email went out. V2-754 lets the model win since a wrong verdict costs a
     # view; at level ≥ sensitive that reverses: the verdict's action runs, or he is asked.
     if mode == _wactions.FAST and _frontend.at_least_sensitive(wid, action_name):
-        _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name) or _txw._rof.instead(wid, action_name, payload, _txw._bnotes.operator_half(text))
+        _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name) or _txw._message.forward_instead(wid, action_name, payload, _txw._bnotes.operator_half(text))
         if _vdis:
             emit("brain", "🛑 acto que sale fuera y el veredicto dice otra cosa — corre el veredicto",
                  text=f"{wid}: modelo={action_name} · veredicto={_vdis}", role="system",
                  extra={"cat": "flash", "id": wid, "model": action_name, "verdict": _vdis})
             # The model's content travels to the verdict's action, filtered to its declared keys.
             _vkeys = set(_txw._direct_action._payload_spec(wid, _vdis))
-            _vpay = _txw._rof.forward_of(wid, action_name, payload, _txw._bnotes.operator_half(text)) or {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
+            _vpay = _txw._message.forward_of(wid, action_name, payload, _txw._bnotes.operator_half(text)) or {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
             # …plus the recipient his sentence names (full18 E3: `reply` has none; `forward` needs one).
             _vpay.update(_txw._direct_action.person_fill(wid, _vdis, _vpay, _txw._bnotes.operator_half(text)))
             if _vpay:
@@ -237,7 +244,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
                               f"si él te lo pide explícitamente, llama entonces a «{action_name}».")
             except Exception: pass  # noqa: BLE001, E701
             return
-    if _txw._ordered_send.run(_brief, wid, action_name, payload, _txw._bnotes.operator_half(text), emit=emit, acted=acted, apply=_apply_widget_data): return  # noqa: E701 — an ordered act that leaves, the model only prepared (E3)
+    if _txw._message.run_ordered(_brief, wid, action_name, payload, _txw._bnotes.operator_half(text), emit=emit, acted=acted, apply=_apply_widget_data): return  # noqa: E701 — an ordered act that leaves, the model only prepared (E3)
 
     def _log_dataop(m: str) -> None:
         """REGISTRO DE ACCIONES DE WIDGET (2026-08-09, petición del operador). Hasta ahora una data-op
@@ -253,7 +260,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
              extra={"id": wid, "action": action_name, "mode": m, "src": "flash", "item": ref,
                     "payload": payload if isinstance(payload, dict) else {}})   # V2-653: the order's content
 
-    mode = _txw._leave_gate.asked_if_leaving(mode, _brief, wid, action_name, emit=emit, payload=payload, said=_txw._bnotes.operator_half(text))
+    mode = _txw._message.asked_if_leaving(mode, _brief, wid, action_name, emit=emit, payload=payload, said=_txw._bnotes.operator_half(text))
     if mode == _wactions.FAST:
         # GUARD anti context-bleed (headless V2-038 #1): an IDENTICAL mutation to the last one (<120s) whose
         # content his turn never mentions is drag (a duplicated dentist appointment). V2-650: unless the turn
@@ -308,12 +315,12 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
         try:
             from widgets import effects as _fx
             if _fx.carries(wid, action_name, _fx.PRESENT_MOUNT):
-                _txw._cvis.present(wid, reason="producer-mount", action=action_name, src="flash", emit=emit)
+                _txw._cvis.present(wid, reason="producer-mount", action=action_name, src="flash", emit=emit, text=text, brief=_brief)
             # A LENS on a closed card brings the card (V2-773 final pass, C2: `agenda:show_day` changed a day
             # nobody could see). A write is not this: it may run behind the screen on purpose.
             elif (_fx.carries(wid, action_name, _fx.DATA_READ) and not _txw._cvis.is_open(wid)
                   and not _txw._canvas_lic.closing_turn(_brief, wid)):   # V2-773 E5: a close never brings the card
-                _txw._cvis.present(wid, reason="turn-order", action=action_name, src="flash", emit=emit)
+                _txw._cvis.present(wid, reason="turn-order", action=action_name, src="flash", emit=emit, text=text, brief=_brief)
         except Exception:
             pass
     elif mode == _wactions.CONFIRM:

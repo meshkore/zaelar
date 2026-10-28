@@ -426,10 +426,9 @@ def _sheet_open(rec, *, show: bool = True) -> None:
     if not show:
         return
     try:
-        from voice.observer import emit
+        from nucleo.acts import canvas
         from widgets.results import data as _sheet2
-        emit("widget", "show",
-             extra={"id": _sheet2.instance_id(_sid), "src": f"worker:{rec.task_id}"})
+        canvas.apply("show", _sheet2.instance_id(_sid), src=f"worker:{rec.task_id}")
     except Exception:
         pass
 

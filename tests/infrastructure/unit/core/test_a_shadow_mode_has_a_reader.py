@@ -4,7 +4,7 @@
 
 Three mechanisms in this engine run in SHADOW — they decide, they log a verdict, and they change nothing:
 
-  · `nucleo/canvas_arbiter.py` (V2-653 F0, `kind="arbiter"`), whose promotion gate is declared in writing as
+  · `nucleo/acts/canvas_arbiter.py` (V2-653 F0, `kind="arbiter"`), whose promotion gate is declared in writing as
     *«CERO vetos falsos sobre sus sesiones reales, auditado desde los veredictos en sombra»*;
   · `nucleo/errands/wake.py`, where errands ship shadow-by-default because autonomy that writes to real
     people in the operator's name is handed over after he has read a few of those rows;

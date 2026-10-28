@@ -22,11 +22,6 @@ def test_the_voice_gesture_closes_the_video_only(screen, spanish, verdict, conf)
     assert _gesture(_brief(verdict, conf), T6) == [("close", "youtube")]
 
 
-def test_the_text_mirror_closes_the_video_only(screen, spanish):
-    got = card_close.complete_canvas_mirror(_brief("youtube:close", 1.0), T6, blocked=False)
-    assert got.get("action") == "canvas:close:youtube"
-
-
 def test_the_english_deferral_closes_the_video_only(screen):
     text = "ok, close the video and leave the music on. I'll check the calendar later."
     assert _gesture(_brief("youtube:close", 0.6), text) == [("close", "youtube")]

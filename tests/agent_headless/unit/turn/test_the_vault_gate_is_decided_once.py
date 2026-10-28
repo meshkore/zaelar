@@ -107,7 +107,7 @@ def test_an_unreadable_carrier_verdict_fails_CLOSED(monkeypatch):
     one repetition; letting the value through costs the invariant for which this module exists."""
     from memory import secrets as msecrets
     from memory import vault
-    from nucleo.flash import vault_carrier
+    from nucleo.acts import memory as vault_carrier
     txt = "mi contraseña de Netflix es hunter2"
     monkeypatch.setattr(msecrets, "detect", lambda t: [_Detected(txt)])
     monkeypatch.setattr(vault, "exists", lambda: True)
@@ -151,7 +151,7 @@ def test_the_text_channel_CANNOT_carry_the_value(monkeypatch):
     composing the dict by hand in `probe.py`: that response travels to the harness and use-case logs. With the
     shared phrase, the probe would have to RECEIVE the value in order to discard it afterward — exactly how an
     invariant degrades into a convention."""
-    from nucleo.flash import vault_flow
+    from nucleo.acts import memory as vault_flow
     monkeypatch.setattr(vault_flow, "reveal", _Rev())
     out = _run(vault_gate.reveal("Netflix"))
     payload = out.as_probe_payload()
@@ -163,7 +163,7 @@ def test_the_text_channel_CANNOT_carry_the_value(monkeypatch):
 def test_the_observability_rows_come_with_the_outcome(monkeypatch):
     """Each channel emits on its own bus, but WHAT is emitted is decided by the outcome — otherwise, a new branch
     gets wired into one and not the other, which is the failure this package exists to close."""
-    from nucleo.flash import vault_flow
+    from nucleo.acts import memory as vault_flow
     for status, expected in (("ok", "reveal"), ("locked", "locked"), ("no_vault", "no_vault")):
         monkeypatch.setattr(vault_flow, "reveal", _Rev(status=status))
         out = _run(vault_gate.reveal("Netflix"))
@@ -174,14 +174,14 @@ def test_the_observability_rows_come_with_the_outcome(monkeypatch):
 
 def test_the_event_keys_avoid_the_one_that_collides(monkeypatch):
     """`label` would overwrite the event's own label in `observer.emit`. It already cost us one unreadable row once."""
-    from nucleo.flash import vault_flow
+    from nucleo.acts import memory as vault_flow
     monkeypatch.setattr(vault_flow, "reveal", _Rev())
     extra = _run(vault_gate.reveal("Netflix")).events[0][2]
     assert "slabel" in extra and "label" not in extra
 
 
 def test_a_broken_reveal_never_takes_the_turn_down(monkeypatch):
-    from nucleo.flash import vault_flow
+    from nucleo.acts import memory as vault_flow
 
     def _boom(_l):
         raise RuntimeError("simulado")

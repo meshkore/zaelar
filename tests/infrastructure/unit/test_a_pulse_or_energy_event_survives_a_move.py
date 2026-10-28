@@ -7,7 +7,9 @@ webpush, notice_today), `nucleo/energy/` (meter, lease, tariffs, limits, routing
 Frozen: the (kind, label) pairs emitted with literal arguments and the kinds emitted at all. A pair may move between
 files, never vanish; one retired on purpose leaves this set in the same commit, with the reason.
 
-Measured 2026-10-28 against the flat files at the section's base (0bcc5b7d0): the same 7 pairs and 28 kinds.
+Measured 2026-10-28 against the flat files at the section's base (0bcc5b7d0): the same 7 pairs and 28 kinds. The
+`widget` kind left with refactor2710-04: a worker's show/close is emitted by the canvas door (`nucleo.acts.canvas.apply`),
+frozen by node 3.25 there.
 
 Disarm: rename one literal kind in `nucleo/pulse/workers.py` (say `worker.stuck`) → the test names it.
 """
@@ -29,7 +31,7 @@ FROZEN = {
 FROZEN_KINDS = {
     "alert", "degraded", "energy", "evict", "homeostasis", "loop.chat_digest", "loop.consolidated", "loop.rem",
     "loop.scheduled_fired", "loop.spark", "loop.tick", "notice", "notify", "recycle", "rotate", "start", "task",
-    "task.reconciled", "widget", "worker.ask", "worker.budget_kill", "worker.budget_nudge", "worker.report_demanded",
+    "task.reconciled", "worker.ask", "worker.budget_kill", "worker.budget_nudge", "worker.report_demanded",
     "worker.say", "worker.stuck", "📋 informe de estado exigido", "🥶 worker sin señales", "🧹 tareas huérfanas cerradas",
 }
 

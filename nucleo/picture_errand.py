@@ -140,7 +140,7 @@ def _open_if_closed(rec) -> None:
         from memory import api as memory
         if VIEWER in ((memory.state() or {}).get("open_widgets") or []):
             return
-        from voice.observer import emit
-        emit("widget", "show", extra={"id": VIEWER, "src": f"worker:{getattr(rec, 'task_id', '')}"})
+        from nucleo.acts import canvas
+        canvas.apply("show", VIEWER, src=f"worker:{getattr(rec, 'task_id', '')}")
     except Exception as e:  # noqa: BLE001
         logger.debug(f"picture_errand: viewer not opened — {type(e).__name__}: {e}")

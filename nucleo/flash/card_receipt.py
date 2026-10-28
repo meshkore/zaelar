@@ -34,10 +34,6 @@ import unicodedata
 from loguru import logger
 
 CLOSE, SHOW, CONTROL = "close", "show", "control"
-#: Turn outcomes that ran nothing on a card — a question, an errand, a search.
-_NOTHING_RAN = ("clarify", "escalate", "send_to_worker", "answer_worker", "stop_worker", "search", "authenticate_web")
-#: Player tools → the card they drive (`player_control.CARD_OF_TOOL`, read lazily to keep this module light).
-_PLAYER_SHOWS = ("play", "")
 
 
 def _norm(s: str) -> str:
@@ -136,41 +132,6 @@ def _shared(card: str, action: str, open_ids) -> bool:
         return False
 
 
-def acts_of_probe_turn(action: str, tags, tool_calls) -> list[tuple[str, str, str]]:
-    """`[(card, kind, action)]` — what the text channel's turn ran on cards, one entry per card (close > show > control)."""
-    action = str(action or "")
-    if not action or action.startswith(_NOTHING_RAN):
-        return []
-    acts: list[tuple[str, str, str]] = []
-    if action.startswith("canvas:close:"):
-        acts.append((action.split(":", 2)[2], CLOSE, "close"))
-    elif action.startswith("canvas:show:"):
-        acts.append((action.split(":", 2)[2], SHOW, "show"))
-    for t in tags or []:
-        cid = str(((t or {}).get("extra") or {}).get("id") or "")
-        if cid and (t or {}).get("action") in (CLOSE, SHOW):
-            acts.append((cid, t["action"], t["action"]))
-    for c in tool_calls or []:
-        name, args = str((c or {}).get("name") or ""), (c or {}).get("args") or {}
-        if name == "widget_data":
-            wid, act = str(args.get("widget_id") or ""), str(args.get("action") or "")
-            acts.append((wid, CLOSE if act == "close" else CONTROL, act))
-        elif name in ("show_widget", "close_widget"):
-            acts.append((str(args.get("widget_id") or ""), SHOW if name == "show_widget" else CLOSE, name))
-        elif name == "play_video":
-            acts.append(("youtube", SHOW, "play"))
-        elif name == "play_music" and action == "music":     # a moved/asked control is not the music's (`player_control`)
-            act = str(args.get("action") or "").strip().lower()
-            acts.append(("musica", SHOW if act in _PLAYER_SHOWS or args.get("query") else CONTROL, act))
-    rank = {CLOSE: 0, SHOW: 1, CONTROL: 2}
-    best: dict[str, tuple[str, str, str]] = {}
-    for card, kind, act in acts:
-        b = _base(card)
-        if b and (b not in best or rank[kind] < rank[best[b][1]]):
-            best[b] = (b, kind, act)
-    return list(best.values())
-
-
 def _join(lang, cards) -> str:
     names_ = [card_name(c, getattr(lang, "code", "")) for c in cards]
     if len(names_) <= 1:
@@ -218,11 +179,6 @@ def complete(reply: str, acts, *, open_ids=None, lang=None) -> str:
     if not lines:
         return reply
     return " ".join(lines) if content_free(reply) else f"{str(reply).rstrip()} {' '.join(lines)}"
-
-
-def complete_probe(reply: str, action: str, tags, tool_calls) -> str:
-    """The text channel's call: its reply completed from what its turn ran (`acts_of_probe_turn`)."""
-    return complete(reply, acts_of_probe_turn(action, tags, tool_calls))
 
 
 def voice_ack(ack: str) -> str:

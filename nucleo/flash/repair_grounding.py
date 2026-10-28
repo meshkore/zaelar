@@ -41,8 +41,8 @@ def recipient_was_named(wid: str, action: str, payload: dict, operator_text: str
             return True
         who = str(payload.get("contact") or payload.get("to") or "").strip().lower()
         heard = _heard(operator_text, window)
-        from nucleo.flash import leave_gate as _lg          # one reading of «his recipient» (demo pass 141, E3)
-        return not who or who in heard.lower() or _lg.is_his(who, [operator_text, heard])
+        from nucleo.acts import message as _msg             # one reading of «his recipient» (demo pass 141, E3)
+        return not who or who in heard.lower() or _msg.is_his(who, [operator_text, heard])
     except Exception:  # noqa: BLE001
         return True
 

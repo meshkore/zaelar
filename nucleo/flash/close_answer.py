@@ -93,8 +93,13 @@ def backstop(text: str, brief, emit, acted: dict, open_ids=None) -> list[str]:
     ids = targets(text, _open_now() if open_ids is None else open_ids)
     if not ids:
         return []
+    from nucleo.acts import canvas_turn
+    from nucleo.acts import canvas
+    req = {**canvas_turn.request_of(brief, text), "answered": True}   # `answers(brief)` above: his answer licenses
+    ids = [cid for cid in ids if canvas.apply("close", cid, src="flash", emit=emit, request=req)]
+    if not ids:
+        return []
     for cid in ids:
-        emit("widget", "close", extra={"id": cid, "src": "flash"})
         try:
             from nucleo.flash import canvas_license as _lic
             _lic.note_operator_close(cid)

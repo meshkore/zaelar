@@ -44,6 +44,12 @@ def _emitted() -> tuple[set, set]:
                 if not isinstance(n, ast.Call):
                     continue
                 name = n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", "")
+                if name == "apply" and n.args and isinstance(n.args[0], ast.Constant) and isinstance(n.args[0].value, str):
+                    # refactor2710-04: a canvas op leaves through the one canvas door, `canvas.apply("close", …)`, which
+                    # emits `widget/<op>` itself — the same event, written where the errand still decides it
+                    pairs.add(("widget", n.args[0].value))
+                    kinds.add("widget")
+                    continue
                 if name not in ("emit", "_emit", "emit_sync", "_emit_d", "_emit_chip") or not n.args \
                         or not isinstance(n.args[0], ast.Constant) or not isinstance(n.args[0].value, str):
                     continue

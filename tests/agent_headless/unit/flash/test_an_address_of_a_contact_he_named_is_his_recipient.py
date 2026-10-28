@@ -11,7 +11,8 @@ import re
 
 import pytest
 
-from nucleo.flash import act_repair, leave_gate, repair_grounding
+from nucleo.acts import message as leave_gate
+from nucleo.flash import act_repair, repair_grounding
 
 BOOK = {"quinn@example.com": [{"name": "Quinn", "email": "quinn@example.com"}],
         "rowan@example.com": [{"name": "Rowan Ferrer", "email": "rowan@example.com"}]}

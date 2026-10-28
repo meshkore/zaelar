@@ -90,26 +90,9 @@ class FlowsPulse:
 
     @staticmethod
     def _lang():
-        """The active language catalog (`voice.engine.core.langs`) — falls back to Spanish if the import fails."""
-        try:
-            from voice.engine.core import langs
-            return langs.current_language()
-        except Exception:
-            class _Fallback:
-                worker_ask_named = "Oye, el proceso «{goal}» pregunta: {question}"
-                worker_ask_generic = "Oye, uno de los procesos en marcha pregunta: {question}"
-                worker_budget_killed = ("He parado «{goal}»: agotó su tiempo. Te dejo en la tarjeta lo que ha "
-                                       "encontrado hasta ahora.")
-                worker_end_state_met = "Aun así, lo que pediste sí quedó hecho: lo he comprobado."
-                worker_end_state_unmet = "Lo que pediste no quedó hecho: queda {missing}."
-                worker_end_state_unverifiable = "No he podido comprobar si lo que pediste quedó hecho."
-                worker_timeout_running = "El proceso «{goal}» lleva ya {minutes} minutos. ¿Quieres que lo pare o que siga?"
-                worker_stuck = ("El proceso «{goal}» lleva {minutes} minutos sin dar señales. Si no reacciona en "
-                                "un par de minutos lo reinicio una vez.")
-                confirm_expired = ("Dejé de esperar tu confirmación sobre: {question} Dímelo otra vez si quieres "
-                                   "que lo haga.")
-                generic_task = "la tarea"
-            return _Fallback()
+        """The active language catalog (`voice.engine.core.langs`): what the pulse says is in his language, always."""
+        from voice.engine.core import langs
+        return langs.current_language()
 
     async def _deliver_keyed(self, title: str, text: str, key: str) -> None:
         """Deliver with a retractable KEY (V2-353), allowing a two-argument injected `deliver`.

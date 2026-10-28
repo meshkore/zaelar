@@ -8,7 +8,8 @@ import pytest
 from memory import db as memdb
 from memory import embeddings as mememb
 from memory import vault
-from nucleo.flash import router, vault_flow
+from nucleo.acts import memory as vault_flow
+from nucleo.flash import router
 
 
 @pytest.fixture(autouse=True)

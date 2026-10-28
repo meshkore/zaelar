@@ -197,8 +197,8 @@ def test_todo_proveedor_de_busqueda_de_pago_tiene_tarifa():
     """The search chain degrades by QUALITY, so adding a paid search provider is tempting and
     cheap. Without a rate it would be charged at the catch-all—which exists so that nothing is free,
     not to be anyone's permanent price."""
-    from nucleo import websearch
     from nucleo.energy import meter as energy_meter
+    from search import web as websearch
     sin_tarifa = [p for p in websearch._PAID_BACKENDS
                   if p not in energy_meter._SEARCH_USD_PER_REQUEST]
     assert not sin_tarifa, (
@@ -210,6 +210,6 @@ def test_todo_proveedor_de_busqueda_de_pago_tiene_tarifa():
 def test_un_buscador_gratis_no_se_cobra():
     """Google (our Chromium) and DDG are the normal path in production. Charging for them by mistake
     would inflate every user's bill for the most frequent operation the agent performs."""
-    from nucleo import websearch
+    from search import web as websearch
     assert "google" not in websearch._PAID_BACKENDS
     assert "ddg" not in websearch._PAID_BACKENDS

@@ -125,7 +125,7 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
         named = cat if cat and cat != "none" and conf >= LATE_CATALOGUE_MIN else ""
         if named:
             # a CLOSED player named while another player is on screen: the open one owns a bare order (V2-781)
-            from nucleo.flash import player_control as _pc
+            from nucleo.acts import media as _pc
             _ids = brief.get("open_ids") if isinstance(brief, dict) and brief.get("open_ids") else None
             named = _pc.open_player_owns(named, operator_text, open_ids=_ids)
         # A guess on his words alone may not contradict the end state the brief already named (`spec`).
@@ -469,7 +469,7 @@ def present_if_show(read_req: dict, *, brief, operator_text: str, is_open: Calla
             return False
         if _tb.read(brief, _tb.CANVAS_KEY, "neither")[0] != "show":
             return False
-        return bool(present(wid, reason="turn-order", src="flash", emit=emit))
+        return bool(present(wid, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=brief))
     except Exception:  # noqa: BLE001
         return False
 
@@ -527,7 +527,7 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
             return False
         if _mints_an_address(got, operator_text, said, window, emit):
             return False
-        present(got["widget_id"], reason="turn-order", src="flash", emit=emit)
+        present(got["widget_id"], reason="turn-order", src="flash", emit=emit, text=operator_text, brief=brief)
         apply_widget_data(got["widget_id"], got["action"], got["payload"])
         emit("brain", "🔁 abrió la tarjeta y prometió más — la llamada, en una segunda pasada",
              text=f"{got['widget_id']}:{got['action']}", role="system",

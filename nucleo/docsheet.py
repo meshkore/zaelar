@@ -33,8 +33,8 @@ def doc_open(rec) -> None:
     except Exception:  # noqa: BLE001
         pass
     try:
-        from voice.observer import emit
-        emit("widget", "show", extra={"id": "documento", "src": f"worker:{getattr(rec, 'task_id', '')}"})
+        from nucleo.acts import canvas
+        canvas.apply("show", "documento", src=f"worker:{getattr(rec, 'task_id', '')}")
     except Exception:  # noqa: BLE001
         pass
 

@@ -20,7 +20,8 @@ import threading
 import pytest
 
 from nucleo import jev
-from nucleo.flash import build_decision, card_commission as cc, player_control as pc, repair_grounding as rg
+from nucleo.acts import media as pc
+from nucleo.flash import build_decision, card_commission as cc, repair_grounding as rg
 from nucleo.flash import turn_brief as tb
 
 PLAY_ES = "Dale, ¿y qué está sonando ahora?"

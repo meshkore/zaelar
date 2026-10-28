@@ -13,7 +13,7 @@ decide from the words alone, the turn is first resolved against those rows by a 
 rows' own labels — enumerated, declared, no verb table, any language). Every row his turn means resumes from itself:
 
   · a widget row (a draft held for his word) through its own declared action, so through its own confirm gate —
-    the one question, or none when his order over a draft he has seen already is the yes (`held_send`);
+    the one question, or none when his order over a draft he has seen already is the yes (`acts.message`);
   · an errand row from its own brief, sheet and outcome (`pending_work.errand_brief`, `task_uid` → the same row and
     the same sheet, CRIT-E16) — never a glued utterance and never a blind restart;
   · a live errand is not started twice: it is already running, or already waiting on his answer.

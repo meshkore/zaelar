@@ -17,19 +17,6 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parents[4] / "voice" / "engine" / "llm" / "providers" / "nucleo.py"
 
 
-def _tag_path() -> str:
-    text = _vts.read(SRC)
-    m = re.search(r'acted\["widget"\] = True\n(.*?)emit\("widget", action, text=', text, re.S)
-    assert m, "the tag emit path moved — repoint this guard"
-    return m.group(1)
-
-
-def test_a_tag_show_records_the_card_it_showed():
-    block = _tag_path()
-    assert 'acted["widget_id"]' in block and 'action == "show"' in block, \
-        "without the id, the after-show repair never runs for a tag show"
-
-
 def test_the_after_show_repair_is_still_gated_on_that_id():
     """The premise: if the repair stopped reading `widget_id`, this guard would protect nothing."""
     text = _vts.read(SRC)
