@@ -13,7 +13,7 @@ import asyncio
 import pytest
 
 from nucleo.workers.base import WorkerSpec
-from nucleo.workers.codex_session import CodexSession
+from nucleo.workers.providers.codex import CodexSession
 
 
 def _map(obj):
@@ -157,7 +157,7 @@ def test_the_bypass_flag_is_never_used():
     (verified: with `workspace-write`, it already runs without requesting approval in headless) and it must not slip in."""
     import ast
     from pathlib import Path
-    src = Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "codex_session.py"
+    src = Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "providers" / "codex.py"
     tree = ast.parse(src.read_text(encoding="utf-8"))
     # Inspect the EXECUTABLE CODE, not the prose: the module header names the flag precisely to explain why
     # it is not used, and a guard broken by documenting the decision would teach people to delete the explanation.
@@ -173,7 +173,7 @@ def test_the_bypass_flag_is_never_used():
 def test_stderr_noise_is_not_reported_as_the_cause_of_death():
     """An old CLI spews `failed to load models cache` on EVERY invocation. Returning that as the reason for the
     failure sends the operator to look in the wrong place."""
-    from nucleo.workers.codex_session import _stderr_reason
+    from nucleo.workers.providers.codex import _stderr_reason
     blob = (b"2026-08-12T19:59:47Z ERROR codex_models_manager::cache: failed to load models cache: unknown variant\n"
             b"2026-08-12T19:59:48Z ERROR codex_models_manager::manager: failed to refresh available models\n"
             b"stream error: 401 Unauthorized\n")
@@ -185,8 +185,8 @@ def test_registry_routes_the_contained_tasks_to_claude_code_even_with_codex_conf
     """Choosing Codex for normal work must NOT cost the operator the cluster's capabilities or protection against
     untrusted input, either visibly (a failed task) or invisibly (a worker with an open shell). The registry routes
     them to the backend that CAN be contained."""
-    from nucleo.workers import registry
-    from nucleo.workers.claude_session import ClaudeCodeSession
+    from nucleo.workers.providers import registry
+    from nucleo.workers.providers.claude import ClaudeCodeSession
     monkeypatch.setenv("WORKER_BACKEND", "")
     monkeypatch.setattr(registry, "_provider_for", lambda kind: "codex")
 

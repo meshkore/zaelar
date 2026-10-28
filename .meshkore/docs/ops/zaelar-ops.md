@@ -83,7 +83,7 @@ orchestrator loop (`nucleo/loop.py`), its own cron/scheduler (`nucleo/scheduler.
 `nucleo/cron_api.py`), and the memory queue consumer. Nothing to install or upgrade separately.
 
 **Two speeds.** **FlashBrain** (`nucleo/flash/`) owns the hard-realtime voice turn (~sub-second) and is exposed to
-the voice engine as the provider `voice/engine/llm/providers/nucleo.py`. **SlowBrain** (`nucleo/dispatch.py` +
+the voice engine as the provider `voice/engine/llm/providers/nucleo.py`. **SlowBrain** (`nucleo/dispatch/` +
 `nucleo/memory_agent.py` + `nucleo/agentes/`) does async memory/tools/reasoning off the voice path, reached via
 `escalate_to_slowbrain`.
 

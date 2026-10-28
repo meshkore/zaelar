@@ -26,10 +26,8 @@ def _content_words(text: str) -> set:
 _WEB_RESUME: dict[str, dict] = {}
 _RESUME_TTL = 1800.0
 _RESUME_CAP = 3
-# …and like the session registry, this used to live ONLY in RAM: a restart in the middle of a web task wiped out the
-# only way to CONTINUE IT (the `native_sid` that lets the worker resume its reasoning instead of starting from
-# scratch). Mirror in `sys_kv` — process state, not operator state, just like the worker ledger. The TTL is applied
-# on loading as well, so a stale entry revives nothing.
+# …mirrored in `sys_kv` (process state), so a restart no longer wipes the `native_sid` a web task resumes from.
+# The TTL also applies on load.
 _RESUME_KEY = "web_resume"
 
 
@@ -146,12 +144,8 @@ def _find_resume(req: str, *, take: bool = False) -> dict | None:
             _WEB_RESUME.pop(key, None)
             continue
         o = set(key.split())
-        # V2-342 — scored against the SMALLER set (with a floor of 3), not the union. Measured in session
-        # 7575e81a (2026-08-26): the real “Relaunch the car search from scratch…” contains 47 content words
-        # —pacing instructions, sources, notices— and with Jaccard the incomplete task it RELAUNCHES scored 0.208:
-        # the verbosity of the instruction hid that the entire task was CONTAINED in it (11 of its 17 words,
-        # 0.647). Strictly more permissive than Jaccard, so nothing that matched stops matching; the floor of 3
-        # prevents a one-word request (“search”) from taking any pending task.
+        # V2-342 — scored against the SMALLER set (floor 3), not the union: session 7575e81a (2026-08-26), a 47-word
+        # relaunch scored 0.208 Jaccard while containing 11/17 of the task (0.647). Strictly more permissive.
         inter = len(req_w & o)
         denom = max(3, min(len(req_w), len(o)))
         score = inter / denom

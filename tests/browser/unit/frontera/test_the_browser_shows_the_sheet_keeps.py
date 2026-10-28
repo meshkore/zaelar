@@ -117,7 +117,7 @@ def test_and_the_task_still_carries_the_FACT(tarea):
 #: `set_results()` and is not here because it is PARKED: the dispatcher routes `kind=="web"` through the substrate of
 #: V2-038 (`dispatch._prepare_web` + `dispatch_prompts._web_prompt`) and nobody imports it at runtime. It is a
 #: fourth dormant copy of the same rule, which is why the case below watches it instead of ignoring it.
-CAMINOS = ["widgets/navegador/act_api.py", "widgets/navegador/owner.py", "nucleo/dispatch.py"]
+CAMINOS = ["widgets/navegador/act_api.py", "widgets/navegador/owner.py", "nucleo/dispatch/__init__.py"]
 
 
 def test_the_PARKED_fourth_copy_stays_parked():
@@ -126,7 +126,7 @@ def test_the_PARKED_fourth_copy_stays_parked():
     again be a path that finds things and does not deliver them. If this case turns red, the answer is NOT to delete
     it: put `web_cc` in PATHS and give it its door."""
     vivos = []
-    for rel in ("nucleo/dispatch.py", "nucleo/workers/registry.py", "nucleo/agentes/worker.py",
+    for rel in ("nucleo/dispatch/__init__.py", "nucleo/workers/providers/registry.py", "nucleo/agentes/worker.py",
                 "nucleo/workers/session.py"):
         f = ENGINE / rel
         if f.exists() and "web_cc" in re.sub(r"#.*", "", f.read_text(encoding="utf-8", errors="replace")):

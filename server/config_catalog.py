@@ -58,7 +58,7 @@ _PROVIDER_CATALOG = {
         "providers": [
             {"id": "claude_code", "label": "Claude Code (CLI)", "cloud": True,
              # TWO families, and both are legitimate for THIS provider: the own-license aliases, and the
-             # Anthropic-compatible RELAY rung models (`workers/providers.py`), because Claude Code still drives —
+             # Anthropic-compatible RELAY rung models (`workers/providers/`), because Claude Code still drives —
              # only the endpoint underneath changes. Leaving relay models out would mark the operator's working
              # TODAY config as invalid (claude_code + glm-5.2 + Z.AI endpoint), and that config is correct.
              # glm-5.3 (live 2026-08-14) VERIFIED against the real coding-plan endpoint. Two things worth knowing,
@@ -196,14 +196,14 @@ def _detected_code_agents() -> dict:
     Cheap (local `--version`) and NEVER raises: if detection fails, the UI simply marks nothing."""
     det: dict = {}
     try:
-        from nucleo.workers import codex_session as _cx
+        from nucleo.workers.providers import codex as _cx
         det["codex"] = _cx.detect()
     except Exception:
         det["codex"] = {"installed": False}
     try:
         import subprocess
 
-        from nucleo.workers import claude_session as _cc
+        from nucleo.workers.providers import claude as _cc
         path = _cc._find_claude()
         det["claude_code"] = {"installed": bool(path), "path": path, "version": "", "default_model": ""}
         if path:
@@ -219,7 +219,7 @@ def _detected_code_agents() -> dict:
     except Exception:
         det["claude_code"] = {"installed": False}
     try:
-        from nucleo.workers import grok_session as _gk
+        from nucleo.workers.providers import grok as _gk
         det["grok_build"] = _gk.detect()
     except Exception:
         det["grok_build"] = {"installed": False}

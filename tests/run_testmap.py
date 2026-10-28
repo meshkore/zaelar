@@ -4559,8 +4559,12 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_workers_curl_is_refused_on_a_real_socket.py']},
         {"id": "2.623", "title": 'Every mutation of the assembled app is an operator route unless it is a NAMED worker door (the list is pinned); the gate is mounted inside `api_guard`, and the CSRF/rebinding rules reach `/widgets/*` mutations',
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_mutation_of_the_app_is_an_operator_route.py']},
-        {"id": "2.624", "title": 'Every worker backend (Claude, Codex, Grok) remembers the session it spawns (`nucleo/workers/spawned.py`), so an orphan of that worker is still recognised',
+        {"id": "2.624", "title": 'Every worker backend (Claude, Codex, Grok) remembers the session it spawns (`nucleo/workers/providers/spawned.py`), so an orphan of that worker is still recognised',
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_every_worker_backend_names_its_session.py']},
+        {"id": "2.835", "title": "An errand that asks for what the resource cannot hold is said, not retried: the worker's first step reads the declared window (brief or escalation) against `connectors.reach`; a gap ends the errand before any worker spawns, in his language, with the reason on its row and the verdict `cannot`; no window or an unknown reach starts the worker (V2-825 F6, refactor2710-09)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_an_impossible_window_is_said_not_retried.py']},
+        {"id": "2.899", "title": "The worker bridge has no product importer and is alive: it is the CLI a worker runs (`python -m nucleo.worker_bridge ask|act|say|wait|decide`) — in the worker's allowlist, taught by the prompt, runnable as a module (refactor2710-09)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_the_worker_bridge_is_a_live_cli.py']},
         {"id": "2.638", "title": "A past errand he names by a word only its TITLE has is that errand: «el de Gràcia» over Gràcia/Sant Antoni picks without the chooser, accent-folded; shared words, both names, or a goal-only word («last month») stay a question (flat-hunt-recall, 2026-10-14)",
             "ch": UNIT, "paths": ['tests/memory/unit/test_a_past_errand_named_by_its_own_word_is_reopened.py']},
         {"id": "2.639", "title": "His own sentence names the errand when the model's `reopen_task` query («piso») paraphrased the name out — `resolve(heard=)`, `voice_turn(query, heard)`, and the voice lane passes the operator's text",
@@ -5889,6 +5893,10 @@ DOMAINS: list[dict] = [
                                 "memory/ and nucleo/memory_agent/ emit may move between files, never vanish (V2-826 §2b, "
                                 "refactor2710-11)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_a_memory_event_survives_a_move.py"]},
+        {"id": "5.69", "title": "An errand event survives a refactor: the (kind, label) pairs, kinds and chip phases "
+                                "nucleo/dispatch/, nucleo/workers/ and nucleo/errands/ emit may move between files, never "
+                                "vanish (V2-826 §2b, refactor2710-09)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_an_errand_event_survives_a_move.py"]},
         {"id": "5.4", "title": "Architect", "ch": UNIT, "paths": ["tests/connectors/unit/architect/test_architect.py"]},
         {"id": "5.5", "title": "WhatsApp: normalización y allowlist", "ch": UNIT, "paths": [
             "tests/connectors/unit/whatsapp/test_allowlist_contract.py",

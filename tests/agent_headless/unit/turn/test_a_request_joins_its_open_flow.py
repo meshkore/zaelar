@@ -121,7 +121,7 @@ def test_a_late_fold_into_the_same_sheet_closes_nothing(monkeypatch):
 
 
 def test_the_dispatchers_fold_runs_the_late_fold_with_the_escalation_context(monkeypatch):
-    from nucleo import dispatch_listener as _dl
+    from nucleo.dispatch import listener as _dl
     got = []
 
     async def fake_inject(which, message):

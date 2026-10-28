@@ -9,7 +9,9 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from nucleo import dispatch, dispatch_session
+from nucleo import dispatch
+
+from nucleo.dispatch import session as dispatch_session
 from nucleo.workers import reports
 
 

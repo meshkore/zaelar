@@ -11,8 +11,8 @@ import pathlib
 import pytest
 
 from nucleo.workers.base import WorkerSpec
-from nucleo.workers.claude_session import _BRIDGE_TOOLS
-from nucleo.workers.grok_session import GrokSession, _translate, _unwrap_evidence
+from nucleo.workers.providers.claude import _BRIDGE_TOOLS
+from nucleo.workers.providers.grok import GrokSession, _translate, _unwrap_evidence
 
 
 def _map(obj):
@@ -106,34 +106,34 @@ def test_unknown_tool_falls_back_without_raising():
 
 
 # ── CONTAINMENT: Grok can uphold the single-writer invariant ───────────────────────────────────────────────
-def test_the_prompt_goes_by_file_never_by_stdin_dash():
+def test_the_prompt_goes_by_file_never_by_stdin_dash(monkeypatch):
     """`grok -p -` does NOT read stdin: it takes `-` as a literal prompt and ours is lost WITHOUT ERROR—the CLI starts
     with a nonsensical prompt and the model does something reasonable on its own. Measured: 447,559 input tokens and
     $0.73 exploring the repo when it had been asked to print a version; with the prompt delivered correctly, $0.005.
     This guard exists because the failure is EXPENSIVE and SILENT."""
-    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "grok_session.py"
-    code = "\n".join(ln for ln in src.read_text(encoding="utf-8").splitlines()
-                     if not ln.lstrip().startswith("#"))
-    assert '"--prompt-file"' in code
-    assert '"-p", "-"' not in code
+    from tests.agent_headless.unit.workers.claude_spawn import grok_spawn_of
+    out = grok_spawn_of(monkeypatch)
+    assert "--prompt-file" in out["argv"] and "-p" not in out["argv"], out["argv"]
+    assert "busca carpinteros" in out["prompt"], "the prompt reaches the worker through the file"
 
 
-def test_bash_stays_pinned_to_the_bridges():
+def test_bash_stays_pinned_to_the_bridges(monkeypatch):
     """The rule list is LITERALLY `_BRIDGE_TOOLS` from claude_session (single source of truth). A backend that
     invented its own list would become out of sync with the real interpreter at the first change, and the worker
     would start doing permission archaeology instead of the task."""
-    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "grok_session.py"
-    code = src.read_text(encoding="utf-8")
-    assert "_BRIDGE_TOOLS" in code
-    assert '"--allow"' in code
-    assert "dangerously" not in code and "bypassPermissions" not in code
+    from tests.agent_headless.unit.workers.claude_spawn import grok_spawn_of
+    argv = grok_spawn_of(monkeypatch)["argv"]
+    allows = [argv[i + 1] for i, a in enumerate(argv) if a == "--allow"]
+    assert set(_BRIDGE_TOOLS) <= set(allows), "every bridge rule is allowed, from the single source"
+    assert not [a for a in allows if a == "Bash" or a.startswith("Bash(") and a not in _BRIDGE_TOOLS], allows
+    assert not [a for a in argv if "dangerously" in a or "bypassPermissions" in a], argv
     assert any("mem_cli" in r for r in _BRIDGE_TOOLS)          # the single source still includes the bridges
 
 
 def test_registry_sends_untrusted_work_to_grok_because_it_can_contain_it(monkeypatch):
     """Unlike Codex, Grok does NOT divert to claude_code: it accepts `--deny` and applies it (tested against the CLI),
     so it can run an untrusted-input task with the tools disabled."""
-    from nucleo.workers import registry
+    from nucleo.workers.providers import registry
     monkeypatch.setenv("WORKER_BACKEND", "")
     monkeypatch.setattr(registry, "_provider_for", lambda kind: "grok_build")
     assert registry.get_backend(WorkerSpec(kind="web")).name == "grok_build"
@@ -146,7 +146,7 @@ def test_the_worker_can_write_so_it_never_pushes_against_the_bash_fence():
     Denying it write access does not make it safer: it pushes it against the fence. Bash's fence provides containment,
     and that one remains.
     """
-    from nucleo.workers.grok_session import _GROK_TOOLS
+    from nucleo.workers.providers.grok import _GROK_TOOLS
     assert "write" in _GROK_TOOLS and "search_replace" in _GROK_TOOLS
     # …but NOT its own, which would interfere with our components (pool, cron, channel with the operator)
     for pisa in ("spawn_subagent", "scheduler_create", "scheduler_list", "ask_user_question",
@@ -159,21 +159,22 @@ def test_a_denied_command_is_not_read_as_the_operator_giving_up():
     that denies it. A model reading that concludes the human aborted it and STOPS: in the benchmark, a single denial
     closed the session with `ok=False` and an empty result after it had worked well. The CLI writes the text inside its
     loop (it does not pass through us), so the only defense is to disarm it beforehand, in the prompt."""
-    from nucleo.workers.grok_session import _BACKEND_NOTE
+    from nucleo.workers.providers.grok import _BACKEND_NOTE
     assert "User cancelled" in _BACKEND_NOTE                    # names the EXACT text it will see
     assert "NO es el operador" in _BACKEND_NOTE                 # and says whose fence it is
     assert "web_fetch" in _BACKEND_NOTE                         # + the capability Grok lacks and where it is
 
 
-def test_the_backend_note_rides_the_prompt_and_never_reaches_untrusted_work():
+def test_the_backend_note_rides_the_prompt_and_never_reaches_untrusted_work(monkeypatch):
     """The note is appended to the prompt by the backend ITSELF (this CLI has an unusual behavior; it does not clutter
     `dispatch`). With `deny_tools`, there is no terminal or bridges to explain, so it is not added there: less surface
     area to read for a task coming from outside."""
-    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "grok_session.py"
-    code = "\n".join(ln for ln in src.read_text(encoding="utf-8").splitlines()
-                     if not ln.lstrip().startswith("#"))
-    assert "_BACKEND_NOTE + " in code
-    assert "spec.deny_tools else _BACKEND_NOTE" in code         # fail-closed: the branch without the note is untrusted
+    from nucleo.workers.base import WorkerSpec
+    from nucleo.workers.providers import grok as G
+    from tests.agent_headless.unit.workers.claude_spawn import grok_spawn_of
+    trusted = grok_spawn_of(monkeypatch)["prompt"]
+    untrusted = grok_spawn_of(monkeypatch, spec=WorkerSpec(task_id="t-u", deny_tools=True))["prompt"]
+    assert trusted.startswith(G._BACKEND_NOTE) and not untrusted.startswith(G._BACKEND_NOTE[:40])
 
 
 def test_every_tool_gets_its_own_allow_rule_because_the_allowlist_is_strict():
@@ -181,7 +182,7 @@ def test_every_tool_gets_its_own_allow_rule_because_the_allowlist_is_strict():
     is not listed. It took TWO benchmark runs to see this (first `write` was missing from `--tools`; after adding it,
     it still died with «User cancelled the execution for tool `write`», because it had never been granted permission).
     A tool in `_GROK_TOOLS` without an entry in `_TOOL_ALIAS` is a tool WITHOUT PERMISSION—this test prevents it."""
-    from nucleo.workers.grok_session import _GROK_TOOLS, _TOOL_ALIAS
+    from nucleo.workers.providers.grok import _GROK_TOOLS, _TOOL_ALIAS
     sin_alias = [t for t in _GROK_TOOLS if t not in _TOOL_ALIAS]
     assert not sin_alias, f"sin alias = sin regla --allow = denegada en vivo: {sin_alias}"
 
@@ -189,7 +190,7 @@ def test_every_tool_gets_its_own_allow_rule_because_the_allowlist_is_strict():
 def test_writes_show_what_happened_not_the_diff_payload():
     """`write`/`search_replace` return `{"type":"SearchReplace","EditsApplied":{…}}`. Without unwrapping it, the row
     showed the JSON with complete `old_string`/`new_string` values instead of “X has been created”."""
-    from nucleo.workers.grok_session import _unwrap_evidence
+    from nucleo.workers.providers.grok import _unwrap_evidence
     raw = ('{"type":"SearchReplace","EditsApplied":{"old_string":"","new_string":"hola\\n",'
            '"tool_output_for_prompt":"The file /tmp/x.txt has been created."}}')
     assert _unwrap_evidence(raw) == "The file /tmp/x.txt has been created."

@@ -1,4 +1,4 @@
-"""nucleo/dispatch_thresholds.py — the RELOJES of a task of background, definidos a vez (V2-354).
+"""nucleo/dispatch/thresholds.py — the RELOJES of a task of background, definidos a vez (V2-354).
 
 Extraido of `dispatch.py` for pagar the trinquete of arquitectura, with the same criterion and the same precedente
 that `dispatch_confirm.py` and `dispatch_prompts.py`: son constantes without a sola dependencia of the record, and the

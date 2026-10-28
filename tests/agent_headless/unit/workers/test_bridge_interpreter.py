@@ -13,7 +13,7 @@ import os
 import sys
 
 from nucleo.dispatch import _DEV_TOOLS, _build_prompt
-from nucleo.workers import claude_session as cs
+from nucleo.workers.providers import claude as cs
 
 
 def test_the_resolved_interpreter_actually_exists():

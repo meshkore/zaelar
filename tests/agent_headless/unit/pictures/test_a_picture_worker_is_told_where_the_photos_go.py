@@ -9,7 +9,9 @@ from __future__ import annotations
 import inspect
 import types
 
-from nucleo import dispatch_prompts, dispatch_session_steps, picture_errand, surfaces
+from nucleo import dispatch_prompts, picture_errand, surfaces
+
+from nucleo.dispatch import session_steps as dispatch_session_steps
 
 
 def test_the_prompt_names_the_viewer_only_for_pictures():

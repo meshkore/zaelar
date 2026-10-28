@@ -26,7 +26,7 @@ resolved along TWO axes:
   **UNTRUSTED** profile: tools switched OFF in code, an IDENTITY-SAFE system prompt (never exposes the operator's
   name/PII/catalog), and memory that IS WRITTEN but NEVER READ into the passive prompt.
 - **DEPTH** (reflex/reason/act): the FlashBrain resolves the turn on the spot (reflex); if real reasoning with
-  tools is needed, it escalates to a **Brain Worker** (`nucleo/dispatch.py`) — the same mechanism the operator
+  tools is needed, it escalates to a **Brain Worker** (`nucleo/dispatch/`) — the same mechanism the operator
   uses to ask for code or research, with its scope bounded to the profile of whoever triggered it.
 
 This means **there is no separate "cluster brain"** — nothing that reasons about cluster chatter with its own
@@ -115,7 +115,7 @@ A periodic tick (`TICK_SECS`) does two independent things:
 
 The tier is resolved **per turn**, not once at server startup, so that a provider running out of quota does not
 turn every cluster turn into the same failing call. `nucleo/flash/provider_chain.py` (sibling of
-`nucleo/workers/providers.py`, same design — an ordered chain of steps, cooldowns, `classify_failure` reused) does
+`nucleo/workers/providers/`, same design — an ordered chain of steps, cooldowns, `classify_failure` reused) does
 it:
 
 1. `connectors/meshkore/brain.py::_brain()` calls `provider_chain.pick()` on every turn (cheap: an in-memory dict of
@@ -140,7 +140,7 @@ directly) capture the error response BODY (`_raise_with_body`) before raising �
 httpx's generic message ("429 Too Many Requests", nothing more) and `classify_failure` could not tell "weekly
 quota exhausted, resets Thursday" from a transient rate limit: both would be the same bare 429.
 
-See also `nucleo/workers/providers.py` (the SAME problem, for the brain workers' `claude` CLI instead of the
+See also `nucleo/workers/providers/` (the SAME problem, for the brain workers' `claude` CLI instead of the
 channel's model) — sibling modules, deliberately separate (a step there is an `ANTHROPIC_BASE_URL` endpoint for a
 CLI; here it is a `FastClient` `ModelSpec`) rather than forcing both cases through a common abstraction.
 
@@ -189,7 +189,7 @@ code collaboration ("help me port this algorithm") actually executable, without 
    `objective` of THAT relationship (`set_cluster_objective`, `perms.gate_dev_by_objective`). Without an objective,
    escalation to a dev-worker stays INERT even with the permission granted — so a peer cannot, merely by holding a
    granted permission, decide ON ITS OWN what gets worked on.
-3. **The dev-worker itself** (`nucleo/dispatch.py`, `kind="dev"`) — a Brain Worker session (same substrate as any
+3. **The dev-worker itself** (`nucleo/dispatch/`, `kind="dev"`) — a Brain Worker session (same substrate as any
    other, see `zaelar-modules.md`/the Brain Workers page) but with the NARROWEST scope in the system:
    - A TEMPORARY, dedicated working directory, deleted when done.
    - `Bash` **only** to the `nucleo/git_cli.py` bridge — never an open Bash. That bridge clones/commits/pushes

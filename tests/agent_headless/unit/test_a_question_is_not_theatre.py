@@ -17,7 +17,7 @@ existe para quitar. Por eso la gramática es estrecha y ante la duda deja pasar.
 """
 import pytest
 
-from nucleo import dispatch_confirm as dc
+from nucleo.dispatch import confirm as dc
 from nucleo.flash import clarifying as clar
 from nucleo.flash import escalate as esc
 

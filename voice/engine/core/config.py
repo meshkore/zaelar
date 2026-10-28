@@ -7,7 +7,7 @@ zaelar adaptations:
   * env knob prefix ``VL2_`` -> ``ZAELAR_``; provider API keys keep zaelar's
     existing standard names (OPENAI_API_KEY, AIMLAPI_KEY, CARTESIA_API_KEY,
     MISTRAL_API_KEY, DEEPGRAM_API_KEY, GEMINI_API_KEY). Z.AI NO: it is only for the Brain Worker
-    (inside Claude Code), per the operator's 2026-08-30 rule — its catalog lives in nucleo/workers/providers.py.
+    (inside Claude Code), per the operator's 2026-08-30 rule — its catalog lives in nucleo/workers/providers/.
   * web_port 43917, room "zaelar", English prompt/greeting.
   * llm_provider defaults to the ``BRAIN`` env (hermes|duo|direct) when set — the
     hermes/duo/direct LLM providers are added later by another change; this only

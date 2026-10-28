@@ -1,6 +1,6 @@
 """The SYNCHRONOUS entries into the worker registry, marshalled to the server loop that owns it (§v3·D/O).
 
-The FlashBrain calls these from its job thread and never awaits them. Moved out of `nucleo/dispatch.py` (refactor2710-01)
+The FlashBrain calls these from its job thread and never awaits them. Moved out of the dispatch facade (refactor2710-01)
 when they became consequence doors: `dispatch` re-exports them under their historical names, and every name they read
 from the registry is read through it at call time, so a patch on `dispatch` still governs them.
 """

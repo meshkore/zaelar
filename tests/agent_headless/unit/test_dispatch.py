@@ -458,7 +458,7 @@ def test_listener_consumes_escalate_requested(fresh_db, fake_backend):
 
 # ── RESEARCH BRIEF in the worker prompt (2026-08-09) ───────────────────────────────────────────────────────────
 # The worker received free-form prose and imposed the minimum criterion on itself. This tests the WIRING: that the
-# direction composed during preflight (nucleo/research.py) actually reaches the prompt through both prompt paths.
+# direction composed during preflight (nucleo/workers/brief.py) actually reaches the prompt through both prompt paths.
 def _brief(**over):
     b = {"goal": "Tres propuestas de vacaciones en Baleares", "domain": "viaje familiar",
          "hard": ["17-23 agosto"], "soft": ["ferry rápido"],
@@ -501,7 +501,7 @@ def test_an_untrusted_source_gets_no_research_direction():
 
 def test_a_resumed_task_keeps_the_criteria_it_already_agreed(fresh_db):
     """Recomposing the brief halfway through a search would turn it into a different search without telling the operator."""
-    from nucleo import research
+    from nucleo.workers import brief as research
     b = _brief(hard=["criterio ya acordado"])
     research.save("t-42", b)
     got = asyncio.run(dispatch._compose_brief("sigue con lo de antes", "", True, {"brief_task": "t-42"}))
@@ -511,7 +511,7 @@ def test_a_resumed_task_keeps_the_criteria_it_already_agreed(fresh_db):
 def test_asking_again_continues_the_investigation_instead_of_repeating_it(fresh_db):
     """Without this, «those do not work for me, search more» would recompose from scratch and repeat the SAME breadth:
     the operator would see what they had just rejected arrive and reasonably conclude that we were not listening."""
-    from nucleo import research
+    from nucleo.workers import brief as research
     req = "busca vacaciones en Baleares en ferry con hotel con piscina"
     research.remember_round(dispatch._goal_key(req), _brief())
     nxt = asyncio.run(dispatch._compose_brief(req + ", esos no me valen", "", True))
@@ -629,7 +629,7 @@ def test_the_architect_connector_name_still_matches_bare():
 def test_the_composer_distinguishes_declining_from_being_unable_to_answer():
     """«esto no es una investigación» (decisión del modelo, presupuesto normal) NO es «no pude contestar» (avería
     nuestra, el presupuesto se mantiene). Con un solo `None` para ambas, la costura era inexpresable."""
-    from nucleo import research
+    from nucleo.workers import brief as research
     assert research._declined('{"research": false}') is True
     assert research._declined('{"research": true, "breadth": {}}') is False
     assert research._declined("lo siento, no puedo con esto") is False      # no contestó: NO es un rechazo suyo
@@ -639,7 +639,7 @@ def test_the_composer_distinguishes_declining_from_being_unable_to_answer():
 def test_a_dead_composer_costs_direction_never_time(fresh_db, monkeypatch):
     """Con el compositor caído la tarea sale SIN dirigir (sin amplitud ni baremo) pero con el presupuesto de una
     investigación — que la petición SEA una investigación no depende de que el compositor esté vivo."""
-    from nucleo import research
+    from nucleo.workers import brief as research
     from nucleo.loop import OrchestratorLoop
     rec = dispatch.SessionRecord(task_id="c1", goal="busca vacaciones en Baleares", kind="generic")
     dispatch._SESSIONS["c1"] = rec

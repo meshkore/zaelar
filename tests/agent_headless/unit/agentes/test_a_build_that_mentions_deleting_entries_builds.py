@@ -37,7 +37,7 @@ def test_a_delete_order_is_still_a_delete(clock_exists):
 
 def test_the_generator_worker_never_deletes_a_card(clock_exists, monkeypatch):
     from widgets import lifecycle
-    from nucleo.workers.generator_session import GeneratorBackend
+    from nucleo.workers.providers.generator import GeneratorBackend
     from nucleo.workers.base import WorkerSpec
     deleted = []
 

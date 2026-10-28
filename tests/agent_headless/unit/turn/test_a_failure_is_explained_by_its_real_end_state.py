@@ -16,7 +16,7 @@ import time
 
 import pytest
 
-from nucleo import dispatch_confirm as dc
+from nucleo.dispatch import confirm as dc
 
 GAME = "Build a playable platform game widget, Super Mario style, with coins"
 
@@ -51,7 +51,7 @@ def test_a_declined_fact_ages_out():
 def test_the_generator_timeout_is_said(monkeypatch):
     from widgets import generator
     from nucleo.agentes import code as _code
-    from nucleo.workers import generator_session as gs
+    from nucleo.workers.providers import generator as gs
     monkeypatch.setattr(generator, "generate_widget", lambda *a, **k: {"ok": False, "error": "the agent timed out"})
     monkeypatch.setattr(_code, "widget_action", lambda req: ("create", ""))
     b = gs.GeneratorBackend()
