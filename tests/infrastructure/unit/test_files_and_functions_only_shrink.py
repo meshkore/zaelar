@@ -62,7 +62,7 @@ FUNCTIONS = {
     'nucleo/flash/probe_after.py::execute_what_was_decided': 148,
     'nucleo/flash/probe_decide.py::name_the_action': 221,
     'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 264,
-    'nucleo/turn/prompt/operating.py::_flash_layer': 238,   # refactor2710-08: moved from nucleo/flash/prompt.py
+    'nucleo/turn/prompt/operating.py::_flash_parts': 237,   # refactor2710-08: moved from nucleo/flash/prompt.py (was _flash_layer)
     'nucleo/turn/prompt/live_state.py::live_state': 202,    # refactor2710-08: moved from nucleo/flash/prompt.py
     'nucleo/flash/task_block.py::pending_task_lines': 198,
     'nucleo/flash/tool_executor_calls.py::_on_tool_call': 188,

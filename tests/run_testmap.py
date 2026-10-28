@@ -4523,6 +4523,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_jev_read_event_is_frozen.py']},
         {"id": "2.891", "title": "The voice turn's prompt never loads a worker's brief: the briefs live in nucleo/workers/prompts/, the dispatcher takes them from there, and importing the voice prompt builder loads none of them (refactor2710-08 T-04)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_voice_prompt_never_reads_a_worker_brief.py']},
+        {"id": "2.892", "title": "Every block of the voice prompt is declared with the one truth it reads (`builder.BLOCKS`; «CÓMO OPERAS» and the closing line read none, and say so) and has a token budget per block that only goes down; an idle turn pays nothing for what is not there (refactor2710-08 T-01/T-05)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/test_each_prompt_block_has_a_token_budget.py']},
         {"id": "2.850", "title": "The mouth says the verdict (refactor2710-03): an acting turn's last words come from what its acts ended in, one i18n key per verdict; `met` names its object, `unmet`/`cannot`/`asked` are always said, a promise is a start",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_mouth_says_the_verdict.py']},
         {"id": "2.828", "title": "His commissioning sentence travels with the request to the ONE errand it opens, and reaches its sheet's row door (was 2.630; refactor2710-02 T-01)",

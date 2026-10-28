@@ -14,6 +14,13 @@ def _connector_briefs(open_ids: set[str], turn_text: str = "") -> str:
     return catalogs.connector_facts(open_ids, turn_text)
 
 
+def proactive() -> str:
+    """The cron protocol with what is scheduled, the workers' directive while one runs, and each live rail's line —
+    LIVE state (scheduler jobs, dispatch sessions, rails), so it rides after the stable prefix (refactor2710-08 T-01:
+    the cron line was where the cacheable prefix broke in 117 of 783 measured turn pairs)."""
+    return (_cron_line() + _workers_directive() + _rails_directive()).strip("\n")
+
+
 def _workers_directive() -> str:
     """Brain Worker MANAGEMENT directive (V2-038 §v3·F)—only while workers are live. It used to be embedded in
     `memory.compose_state()` (2026-07-14 audit): that prose belongs to FlashBrain (V2-027: memory composes shared
@@ -48,7 +55,12 @@ def _rails_directive() -> str:
 
 def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
                  turn_text: str = "", stats: dict | None = None) -> str:
-    """FlashBrain RESOURCE LAYER (D)—CONCISE (V2-027). Replaces the ~75-line `_FAST_RULES`: essential VOICE
+    return "\n\n".join(p for p in _flash_parts(open_ids, recent_ids, turn_text=turn_text, stats=stats) if p)
+
+
+def _flash_parts(open_ids: set[str], recent_ids: list[str] | None = None,
+                 turn_text: str = "", stats: dict | None = None) -> tuple[str, str, str]:
+    """`(operating, resources, connectors)` — the RESOURCE LAYER (D), CONCISE (V2-027). Replaces the ~75-line `_FAST_RULES`: essential VOICE
     rules fit in 3–4 sentences; "how each tool is used" does NOT go here (it lives in `router.TOOLS`, the single
     source per tool). RESOURCES (widgets/web/browser) are data-driven, not hard-coded prose.
 
@@ -255,9 +267,6 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "cancelar/cambiar es un COMPROMISO real (una cita o reserva hecha en algún sitio, una suscripción, un "
         "pedido), es una acción del MUNDO → escalate_to_slowbrain (el widget/agenda es solo su espejo), no un simple "
         "cambio de datos local.\n"
-        + _cron_line()
-        + _workers_directive()
-        + _rails_directive()
     )
     res = "── QUÉ TIENES (recursos) ──\n" + _widgets(open_ids, recent_ids, query=turn_text, stats=stats) + (
         "\n\nweb_search (tool): un DATO factual y actual del mundo (resultado, tiempo, precio, noticia); "
@@ -282,5 +291,4 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "NO es web_search (eso es un dato) ni el widget de YouTube (eso es VÍDEO). No lo escales ni lo busques.\n"
         "El \"cuándo SÍ / cuándo NO\" de cada tool vive en su descripción; no lo repito aquí."
     )
-    tail = _connector_briefs(open_ids, turn_text)
-    return ops + "\n\n" + res + (("\n\n" + tail) if tail else "")
+    return ops, res, _connector_briefs(open_ids, turn_text)   # (operating, resources, connectors)

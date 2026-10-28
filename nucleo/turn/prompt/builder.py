@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from nucleo.turn.prompt import packs as _packs
 from nucleo.turn.prompt.live_state import _open_widget_ids, _recent_widget_ids, live_state
-from nucleo.turn.prompt.operating import _flash_layer
+from nucleo.turn.prompt.operating import _flash_parts, proactive
 from nucleo.turn.prompt.recall import compose_recall
 
 
@@ -99,25 +99,36 @@ def _people_block(turn_text: str) -> str:
                 + (f" · preferido {r['preferred']}" if r.get("preferred") else "") for r in rows))
 
 
+#: Every block of the voice turn's system message, in the order it is written, with the ONE truth it reads
+#: (refactor2710-08 T-01). Two read none and say so: they are the debt the token budget watches (T-05).
+BLOCKS: tuple[tuple[str, str], ...] = (
+    ("language", "i18n.langs"),
+    ("operating", "NONE · hard-coded prose"),
+    ("resources", "widgets.brief + tool prose"),
+    ("connectors", "catalogs.connector_facts"),
+    ("memory", "memory.compose_state, cached"),
+    ("recent", "recall_heuristics, episodic"),
+    ("recall", "recall.compose_recall"),
+    ("people", "contactos.people_named"),
+    ("rules", "rules.prompt.voice_block"),
+    ("directive", "the session directive"),
+    ("packs", "packs.compose, by phase"),
+    ("proactive", "scheduler · dispatch · rails"),
+    ("live", "live_state: canvas, clock, ledger"),
+    ("close", "NONE · the closing line"),
+)
+
+
 def build_flash_system(directive: str = "", recall_query: str = "", recall_block: str = "",
                        recent_block: str = "", timings: dict | None = None,
                        turn_text: str = "") -> tuple[str, list[int]]:
-    """FlashBrain system message, recomposed per turn (V2-027 REDESIGN): **[composed STATE] + CONCISE resource
-    layer**, ~30 lines. Returns (prompt, used_memory_ids). Assembly:
+    """The voice turn's system message: `BLOCKS`, each composed by its reader, joined in that order. Returns
+    `(prompt, used_memory_ids)`. STABLE prefix first, VOLATILE last (V2-536: the provider caches the prefix; the
+    live state MUST stay at the end — `observer._prompt_excerpt`'s capture says so). The shared memory STATE comes
+    from the session cache (`memory_cache.get()`, T114) and never triggers the retriever; recall arrives composed
+    (`recall_query` is the tests' inline path). A directive is HIS and a pack is OURS, so his is read first.
 
-        _lang_lock() + [_flash_layer D, ESTABLE] + [ESTADO compartido A+B+C] + [recall opcional] + [directiva] + live_state()
-
-    - **Shared STATE** (mission + situational data + synthesized conversation) is composed by
-      `memory.compose_state()` and comes from the **session cache** (`memory_cache.get()`, T114): an INSTANT read
-      of an already composed string, refreshed asynchronously outside the turn and invalidated by
-      `memory.updated`. The turn NEVER triggers the retriever.
-    - Specific semantic **recall** is optional and arrives ALREADY composed in `recall_block` (the caller obtains
-      it outside the event loop and on demand—T115/T116); `recall_query` is the compatibility path (tests) that
-      composes it inline.
-    - The **resource layer** (`_flash_layer`) is CONCISE and data-driven; "how each tool is used" lives in
-      `router.TOOLS`, not here.
-
-    `timings` (T113)—latency breakdown by phase (memory, resources, live state, total build) for `/debug`."""
+    `timings` (T113) — latency per phase, and the size of each block in chars (`sz_*`) and tokens (`tok_<block>`)."""
     import time as _t
     _t0 = _t.perf_counter()
     from nucleo.flash import memory_cache
@@ -130,12 +141,8 @@ def build_flash_system(directive: str = "", recall_query: str = "", recall_block
     if not recall_block and recall_query:
         recall_block, used_ids = compose_recall(recall_query, timings=timings)
     _tb = _t.perf_counter()
-    open_ids = _open_widget_ids()
-    # SELECCIÓN PROGRESIVA (V2-085): `turn_text` alimenta la capa `named` del top-K de widgets. Sus stats
-    # (cuántos candidatos, por qué entró cada uno, cuántos quedaron ocultos) se vuelcan en `timings` — el mismo
-    # canal de observabilidad que ya usa `/debug` para el desglose de tamaños.
-    _wstats: dict = {}
-    resources = _flash_layer(open_ids, _recent_widget_ids(), turn_text=turn_text, stats=_wstats)
+    _wstats: dict = {}       # V2-085: the widget top-K's selection breakdown, for /debug
+    ops, res, conn = _flash_parts(_open_widget_ids(), _recent_widget_ids(), turn_text=turn_text, stats=_wstats)
     if timings is not None:
         timings["briefs_ms"] = round((_t.perf_counter() - _tb) * 1000, 1)
         for _k, _v in _wstats.items():
@@ -144,38 +151,18 @@ def build_flash_system(directive: str = "", recall_query: str = "", recall_block
     live = live_state()
     if timings is not None:
         timings["live_ms"] = round((_t.perf_counter() - _tl) * 1000, 1)
-    # STABLE PREFIX FIRST, VOLATILE LAST (V2-536, 2026-09-01). The resources layer is the big
-    # UNCHANGING block (~73% of the system chars, measured) and it used to sit AFTER the per-turn blocks
-    # (conversation synthesis, recall) — so the provider's prefix cache broke in the first few hundred chars
-    # and re-prefilled ~10k tokens every turn (prompt_cache_hit_tokens measured at 6.1%; consecutive turns
-    # shared only 19-46% of their prefix). Order now: lang lock + resources (stable) -> state/recent/recall/
-    # directive (per-turn) -> live state (per-turn, and it MUST stay at the end: `observer._prompt_excerpt`'s
-    # capture and several live_blocks faces say so out loud). Routing gated by the nodo 2.13 bench (V2-097
-    # rule): measured same-day before/after on the production titular, 3 rounds x 14 cases each side.
-    prompt = (
-        _lang_lock()
-        + "\n\n" + resources
-        + ("\n\n" + memory_block if memory_block else "")
-        + ("\n\n" + recent_block if recent_block else "")
-        + ("\n\n" + recall_block if recall_block else "")
-        + _people_block(turn_text) + _rules_prompt.voice_block()
-        + _directive_block(directive)
-        # CONTEXT PACKS (V2-675) go AFTER the operator's own style directive and BEFORE the live state: a
-        # directive is HIS instruction and a pack is OURS; and a pack is about a STRETCH of the relationship,
-        # a weaker claim than what is true this second. Outside the stable prefix (V2-536) on purpose — a
-        # phase ends mid-conversation, and a cached block keeps being spoken after its phase is over.
-        + _packs.compose(turn_text)
-        + "\n\n── AHORA MISMO ──\n" + live
-        + "\n\nAtiende ahora la petición del operador que viene a continuación."
-    )
+    sep = lambda text: ("\n\n" + text) if text else ""   # noqa: E731
+    parts = (("language", _lang_lock()), ("operating", "\n\n" + ops), ("resources", "\n\n" + res),
+             ("connectors", sep(conn)), ("memory", sep(memory_block)), ("recent", sep(recent_block)),
+             ("recall", sep(recall_block)), ("people", _people_block(turn_text)), ("rules", _rules_prompt.voice_block()),
+             ("directive", _directive_block(directive)), ("packs", _packs.compose(turn_text)),
+             ("proactive", sep(proactive())), ("live", "\n\n── AHORA MISMO ──\n" + live),
+             ("close", "\n\nAtiende ahora la petición del operador que viene a continuación."))
+    prompt = "".join(text for _name, text in parts)
     if timings is not None:
+        from nucleo.llm.fast_client import est_tokens
         timings["build_ms"] = round((_t.perf_counter() - _t0) * 1000, 1)
-        # DESGLOSE DE TAMAÑO (observabilidad, FASE 0): chars por bloque → se ve QUÉ infla el prompt (memoria vs
-        # conversación reciente vs recall largo vs recursos/tools vs estado vivo). Clave para atribuir latencia.
-        timings["sz_memory"] = len(memory_block or "")
-        timings["sz_recent"] = len(recent_block or "")
-        timings["sz_recall"] = len(recall_block or "")
-        timings["sz_resources"] = len(resources or "")
-        timings["sz_live"] = len(live or "")
-        timings["sz_system_total"] = len(prompt)
+        timings.update({f"tok_{name}": est_tokens(len(text)) for name, text in parts})
+        timings.update(sz_memory=len(memory_block or ""), sz_recent=len(recent_block or ""), sz_recall=len(recall_block or ""),
+                       sz_resources=len(ops) + len(res) + len(sep(conn)) + 2, sz_live=len(live or ""), sz_system_total=len(prompt))
     return prompt, used_ids
