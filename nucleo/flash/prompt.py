@@ -208,11 +208,8 @@ def _directive_block(directive: str) -> str:
 
 
 def _connector_briefs(open_ids: set[str], turn_text: str = "") -> str:
-    """The connector facts for this turn. Body in `flash/connector_briefs.py` — extracted to pay the
-    architecture ratchet (V2-685), which asks for a module and never for a higher ceiling. Kept as a name
-    here because three tests and one call site already address it through this module."""
-    from nucleo.flash import connector_briefs as _cb
-    return _cb.for_prompt(open_ids, turn_text)
+    from nucleo.turn.prompt import catalogs
+    return catalogs.connector_facts(open_ids, turn_text)
 
 
 def _open_widget_ids() -> set[str]:

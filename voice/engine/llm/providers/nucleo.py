@@ -23,7 +23,7 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
-from nucleo.flash.panel_canon import wall_tab_for as _wall_tab_for
+from nucleo.turn.prompt.catalogs import wall_tab_for as _wall_tab_for
 from nucleo.flash import (build_decision as _build_decision, canvas_license as _canvas_lic,  # V2-750 grammar only proposes / V2-650 a replay can be an order
                           canvas_visibility as _cvis,                          # V2-723: ONE door to present
                           close_guards as _closeg,                             # V2-635: close needs the words

@@ -272,8 +272,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/card_receipt.py': 1,
     'nucleo/flash/commission_guards.py': 3,
     'nucleo/flash/commission_keep.py': 1,
-    'nucleo/flash/connector_briefs.py': 5,
-    'nucleo/flash/connector_canon.py': 1,
     'nucleo/flash/data_ops.py': 31,
     'nucleo/flash/death_line.py': 1,
     'nucleo/flash/delivery_repeat.py': 2,
@@ -348,6 +346,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/web_auth.py': 2,
     'nucleo/flash/widget_read.py': 10,
     'nucleo/circuit/compose.py': 1,
+    'nucleo/turn/prompt/catalogs.py': 5,   # refactor2710-08: connector_briefs (5) + connector_canon (1), one fewer
     'nucleo/git_cli.py': 1,
     'nucleo/circuit/harness.py': 2,
     'nucleo/his_words.py': 1,

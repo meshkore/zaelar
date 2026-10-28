@@ -279,7 +279,7 @@ def _t_authenticate_web(*, args, _start_web_auth, emit, escalate_req, text):
     if _kind_v in (_wa_v.KIND_MUSIC, _wa_v.KIND_MESSAGING):
         # INVARIANT (2026-07-16, V2-045): Spotify, WhatsApp, Telegram and email are never logged into via the
         # browser; since 2026-10-04 they connect in ONE place, the ⚙ Conectores section on that connector.
-        from nucleo.flash.connector_canon import canon_connector as _cc
+        from nucleo.turn.prompt.catalogs import canon_connector as _cc
         _cx = _cc(_site) or _cc(text) or ("spotify" if _kind_v == _wa_v.KIND_MUSIC else "")
         emit("panel", "open", extra={"tab": "conectores", "src": "flash", **({"connector": _cx} if _cx else {})})
         emit("brain", f"🔌 connect → Conectores section ({_cx or 'list'}), not the browser", text=_site or text[:60],

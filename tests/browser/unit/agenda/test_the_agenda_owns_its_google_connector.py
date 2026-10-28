@@ -27,7 +27,7 @@
 #
 # 2026-10-04 — the button moved. The agenda's own `connect` action and its in-card wizard were removed with
 # every other widget's connect screen: there is ONE door, the ⚙ «Conectores» section opened on that connector
-# (`show_panel(panel='conectores', connector=…)`, canon in `nucleo/flash/connector_canon.py`). What this file
+# (`show_panel(panel='conectores', connector=…)`, canon in `nucleo/turn/prompt/catalogs.py`). What this file
 # pins is the same property on the new door: every phrase of 2026-09-14 names the Google calendar connector,
 # the agenda's routing row still claims the calendar (so the catalog never sends it to messaging again), no
 # widget declares a connect action of its own, and the consent door the section opens is real.
@@ -38,7 +38,7 @@ import pathlib
 
 import pytest
 
-from nucleo.flash.connector_canon import canon_connector
+from nucleo.turn.prompt.catalogs import canon_connector
 
 ENGINE = pathlib.Path(__file__).resolve().parents[4]
 MANIFEST = json.loads((ENGINE / "widgets" / "agenda" / "manifest.json").read_text(encoding="utf-8"))
