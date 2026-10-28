@@ -297,7 +297,7 @@ def brief_handle(case: dict):
 
 # ── isolation ─────────────────────────────────────────────────────────────────────────────────────────────
 _ENV_KEYS = ("ZAELAR_WORKSPACE", "ZAELAR_DB", "ZAELAR_JEV", "ZAELAR_EMBED_BACKEND", "MEMORY_RERANK",
-             "ZAELAR_LANGUAGE_GATE", "ZAELAR_LANGUAGE", "ZAELAR_LOG_DIR", "ZAELAR_TEST_EMBED_CLOUD")
+             "ZAELAR_LANGUAGE_GATE", "ZAELAR_LANGUAGE", "ZAELAR_LOG_DIR", "ZAELAR_TEST_EMBED_CLOUD", "BROWSER_SEARCH")
 
 
 class Isolated:
@@ -322,6 +322,7 @@ class Isolated:
             "ZAELAR_WORKSPACE": os.path.join(self.tmp, "ws"),
             "ZAELAR_DB": os.path.join(self.tmp, "zaelar.db"),
             "ZAELAR_JEV": "1" if self.live else "0",
+            "BROWSER_SEARCH": "1" if self.live else "0",   # a recorded case never starts a real Chromium
             "ZAELAR_EMBED_BACKEND": "hash",
             "MEMORY_RERANK": "off",
             "ZAELAR_LANGUAGE_GATE": "0",
@@ -437,11 +438,15 @@ class Isolated:
         # in front). Seeded from the same `screen.open` as the state, so both views agree.
         from server import canvas_api
         self._set(canvas_api.canvas_state, "_last_inst", [str(w) for w in case["screen"].get("open") or []])
-        from nucleo import canvas_focus, done_ops
-        from nucleo.flash import bulk_close
+        from nucleo import canvas_closes, canvas_focus, done_ops
+        from nucleo.flash import bulk_close, canvas_license
         canvas_focus._reset()
         done_ops.reset()          # the voice turn RUNS a case's ops (dry at the door): the last case's working card
         bulk_close.reset()        # and kept cards are process state, and a bulk close spared them in the next case
+        canvas_closes._reset_for_tests()       # …and so are the closes it made: the last case's close of a card
+        canvas_license._RECENT_CLOSES.clear()  # decided this one's (a bank that passes only in order measures the order)
+        from voice import observer
+        observer._dedup.clear()   # the flood filter swallowed this case's «close youtube» as a repeat of the last one's
         if case.get("focus"):                           # the card his previous turn acted on, as the event funnel leaves it
             canvas_focus._state["previous"], canvas_focus._state["current"] = [(2, str(case["focus"]))], [(2, str(case["focus"]))]
         if self.live:
