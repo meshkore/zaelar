@@ -39,7 +39,7 @@ def why(brief, widget_id: str, action: str, *, operator_text: str = "", model_wo
         if _fe.which_card(widget_id, action, brief=brief)[0] != "ask":
             return ""
         base = str(widget_id or "").split("::", 1)[0].strip().lower()
-        from nucleo.flash import named_target as _nt
+        from nucleo.acts import named_target as _nt
         ids = list(brief.get("open_ids") or []) if isinstance(brief, dict) else []
         named = _nt.target(operator_text, ids or _fe._screen_now(), action)
         if named:                       # his words settle it: the verdict's card runs, another card's never does

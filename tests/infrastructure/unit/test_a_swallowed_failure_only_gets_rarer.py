@@ -343,7 +343,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/two_orders.py': 1,
     'nucleo/flash/verdict_card.py': 2,
     'nucleo/flash/video_turn.py': 2,
-    'nucleo/flash/wall_lane.py': 1,
+    'nucleo/acts/wall_tab.py': 1,
     'nucleo/flash/web_auth.py': 2,
     'nucleo/flash/widget_read.py': 10,
     'nucleo/circuit/compose.py': 1,
