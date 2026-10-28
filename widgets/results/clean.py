@@ -2,15 +2,23 @@
 a part, a source, a rejected row, the summary and the criteria may carry, their caps, and the word-boundary clip.
 `data` re-exports every name (`data._clean_item`, `data._MAX_ITEMS`).
 """
+import logging
+import unicodedata as _ud
+from html.parser import HTMLParser
+
 from .record import (  # noqa: F401
-    _MAX_LINES, _clean_blocks, _clean_facts, _clean_images, _clean_lines, _clean_meta, _clean_score, _num)
+    _MAX_FACTS, _MAX_LINES, _clean_blocks, _clean_facts, _clean_images, _clean_lines, _clean_meta, _clean_score, _num)
 from .sheet_names import WIDGET_ID
 
 
 # Fields an item may carry; anything else is dropped. The payload comes from a worker that read the open web,
 # so the schema stays closed even though widget.js paints with textContent only.
 _ITEM_FIELDS = ("title", "subtitle", "price", "badge", "url", "image", "primary", "lines",
-                "parts", "images", "facts", "score", "blocks", "full_title", "meta")
+                "parts", "images", "facts", "score", "blocks", "full_title", "meta", "kind")
+
+#: WHAT KIND OF THING a result is — content, not layout. On the payload's root it names the list; on an item (V2-831)
+#: it picks that card's template (`offer` · `video` · `link`, `js/parts.js::itemKind`). Absent, the shape decides.
+_KINDS = ("product", "place", "media", "photo", "document", "link", "plan", "offer", "video")
 #: `full_title` — the title as the listing wrote it, kept when the slot clips it: the card paints `title`,
 #: a reader of the row reads both, so what the clip cut is not lost to later turns.
 # A PART is one piece of a composite item (the hotel inside a holiday plan, the ferry, the restaurant). Same
@@ -66,7 +74,57 @@ def _clip(text, key: str) -> str:
 _SLOT_CLIP_KEYS = {"title": "title", "subtitle": "subtitle", "price": "price", "badge": "badge"}
 
 
+class _TextOnly(HTMLParser):
+    """The text of a fragment of markup, tags parsed away (any tag, no pattern)."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.out: list[str] = []
+
+    def handle_data(self, data):
+        self.out.append(data)
+
+    def handle_starttag(self, tag, attrs=None):
+        self.out.append(" ")
+
+    def handle_endtag(self, tag):
+        self.handle_starttag(tag)
+
+
+def _plain(text) -> str:
+    """A text slot holds TEXT (V2-831): scraped markup (`6,69 € /mes<br>`) and entities go, whitespace collapses."""
+    s = "" if text is None else str(text)
+    if "<" in s or "&" in s:
+        p = _TextOnly()
+        try:
+            p.feed(s), p.close()
+            s = "".join(p.out)
+        except Exception as e:  # noqa: BLE001 — unparseable markup keeps its raw text rather than losing the row
+            logging.getLogger(__name__).debug("results: markup kept raw, it did not parse (%s)", e)
+    return " ".join(s.split())
+
+
+def _split(it: dict) -> tuple[str, str, bool]:
+    """(its amount, the rest of the title, is it a NAME?) — V2-831, structural, no vocabulary: a name comes BEFORE
+    its amount. A title starting with its own price, leading with a number next to a currency sign, or that is only
+    an amount is the price line of something else. Bare digits with no currency («1984») are still a name."""
+    t, price = str(it.get("title") or ""), _plain(it.get("price"))
+    if price and t.startswith(price):
+        return price, t[len(price):], False
+    i = next((i for i, ch in enumerate(t) if _ud.category(ch).startswith("L")), len(t))
+    money = any(_ud.category(c) == "Sc" for c in t[:i])
+    named = (not money) if i == len(t) else not (money and any(c.isdigit() for c in t[:i]))
+    return price or t[:i].strip(" ·-–—"), t[i:], named
+
+
+def _fold(into: dict, label: str, rest: str) -> None:
+    """A nameless row is a price OPTION of the named row before it: one fact {its amount: the rest of its line}."""
+    value, facts = rest.strip(" -–—·") or label, list(into.get("facts") or [])
+    if label and len(facts) < _MAX_FACTS and {"label": label[:80], "value": value} not in facts:
+        into["facts"] = facts + [{"label": label[:80], "value": value}]
+
+
 def _clip_slot(text, key: str) -> str:
+    text = _plain(text)
     clipped = _clip(text, key)
     if clipped:
         return clipped
@@ -89,6 +147,8 @@ def _clean_part(raw: dict) -> dict | None:
                 p[k] = f
         elif k == "title":
             p[k] = _clip_slot(v, "part_title")
+        elif k in ("subtitle", "price"):
+            p[k] = _plain(v)[:300]
         else:
             p[k] = str(v)[:300]
     return p if p.get("title") else None      # a piece with no name can't be shown or talked about
@@ -116,7 +176,10 @@ def _clean_item(raw: dict) -> dict | None:
         if k == "primary":
             it[k] = bool(v)
         elif k == "lines":
-            it[k] = _clean_lines(v, _MAX_LINES)
+            it[k] = [x for x in map(_plain, _clean_lines(v, _MAX_LINES)) if x]
+        elif k == "kind":
+            if str(v).strip().lower() in _KINDS:
+                it[k] = str(v).strip().lower()
         elif k == "parts":
             p = _clean_parts(v)
             if p:
@@ -142,24 +205,29 @@ def _clean_item(raw: dict) -> dict | None:
             if s:
                 it[k] = s
         elif k == "full_title":
-            it[k] = str(v).strip()[:1000]          # the listing's own words: its own, larger cap (V2-797)
+            it[k] = _plain(v)[:1000]               # the listing's own words: its own, larger cap (V2-797)
         elif k in _SLOT_CLIP_KEYS:
             it[k] = _clip_slot(v, _SLOT_CLIP_KEYS[k])
-            if k == "title" and it[k] != str(v).strip():
-                it.setdefault("full_title", str(v).strip()[:1000])
+            if k == "title" and it[k] != _plain(v):
+                it.setdefault("full_title", _plain(v)[:1000])
         else:
             it[k] = str(v)[:300]
     return it if it.get("title") else None       # a card with no title is not a result, it is noise
 
 
 def _clean_items(raw) -> list[dict]:
+    """THE DOOR every item crosses (present, append, every read). V2-831: a row with no name is not a result — the
+    price lines a scraper lifted under one offer (`6,69 € /mes - Ahorra un 25%`) fold into the named row before
+    them as facts, and with no named row before them they are dropped. An empty item never gets this far."""
     if not isinstance(raw, (list, tuple)):
         return []
-    out = []
-    for r in raw:
-        it = _clean_item(r)
-        if it:
+    out: list[dict] = []
+    for it in filter(None, map(_clean_item, raw)):
+        label, rest, named = _split(it)
+        if named:
             out.append(it)
+        elif out:
+            _fold(out[-1], label, rest)
     return out[:_MAX_ITEMS]
 
 

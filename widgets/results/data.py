@@ -1,20 +1,8 @@
-#
-# results widget — backend. Does NO searching of its own: it is zaelar's GENERIC PRESENTATION SURFACE. Whoever did
-# the work (a Brain Worker, the browser, the FlashBrain) hands it a finished result set; this widget PERSISTS and
-# RENDERS it, never knowing what the items are about. With nothing pushed it is an EMPTY SHEET, never invented data.
-#
-# HOW IT GETS FILLED (the only way):
-#   a Brain Worker →  python -m nucleo.cli.widget data results present '{"title": "...", "items": [...]}'
-#   the FlashBrain →  tool widget_data(widget_id="results", action="present", payload={...})
-# Both land on apply_action() → store.save() → the SSE "widget changed" event → the card re-fetches view_data().
-# The payload is persisted, so it survives re-render, reconnect and restart.
-#
-# An item may be a BUNDLE (`parts`: hotel + ferry + restaurant) with a drill-down (`images`/`facts`); `view`/`focus`
-# switch the sheet to one item's full dossier. FOUR TABS — results, summary, sources (what happened on each site),
-# criteria (seeded from the brief in `nucleo/workers/brief.py`, plus spoken corrections) — and the active `tab` live in
-# the same persisted payload, so voice moves the screen. A record is DYNAMIC (`blocks`) from a closed vocabulary
-# painted with `textContent`, never worker HTML: this payload comes from the open web.
-#
+# results widget — backend: zaelar's GENERIC PRESENTATION SURFACE. It searches nothing; whoever did the work (a Brain
+# Worker via `nucleo.cli.widget data results present`, the FlashBrain via `widget_data`) hands it a finished result
+# set, and `apply_action()` persists it (store → SSE → the card re-fetches `view_data()`). Nothing pushed = an EMPTY
+# sheet, never invented data. Items may be bundles (`parts`), carry a dynamic record (`blocks`, closed vocabulary,
+# painted with textContent) and the four tabs plus `view`/`focus` live in the persisted payload, so voice moves them.
 import time as _tm
 import unicodedata as _ud
 
@@ -24,8 +12,7 @@ from .sheet_names import (  # noqa: F401 — re-export: this module IS the sheet
     WIDGET_ID, _INSTANCE_SEP, _MAX_SHEETS, _safe_sheet, card_face, instance_id, prune_sheets, recent_faces,  # noqa: F401
     sheet_key, sheets)
 
-# How one VALUE becomes paintable (rating, photos, lines, the closed block vocabulary) lives in `record.py`
-# (V2-702); re-exported because this module is the sheet's contract (`data._MAX_LINES`).
+# How one VALUE becomes paintable lives in `record.py` (V2-702); re-exported: this module is the sheet's contract.
 from .record import (  # noqa: F401,E402 — re-export
     _BLOCK_KINDS, _MAX_BLOCKS, _MAX_CELL_CHARS, _MAX_CHIPS, _MAX_FACT_CHARS, _MAX_FACTS, _MAX_IMAGES,
     _MAX_LINE_CHARS, _MAX_LINES, _MAX_TABLE_COLS, _MAX_TABLE_ROWS,
@@ -41,18 +28,13 @@ from .clean import (  # noqa: F401,E402 — re-export
     _clean_sources, _clean_summary, _clip, _clip_slot)
 
 # ── THE TABS THAT ARE NOT THE LIST ───────────────────────────────────────────────────────────────────────────
-# Every tab the widget can show must be here, or its click is not persisted and the next refresh pulls the operator
-# back to Results (V2-227 C). «process» is not a tab: an errand's progress lives in the processes panel, never in
-# its deliverable; the «proceso» alias makes the `tab` action open that panel (V2-822).
+# Every tab the widget shows, or its click is not persisted (V2-227 C). «process» opens the processes panel (V2-822).
 _TABS = ("results", "summary", "sources", "criteria")
 
-#: WHAT KIND OF THING the sheet found — CONTENT, not layout, so it may come from outside; `widget.js::layoutFor`
-#: still turns it into a shape. Absent or unknown, the shape of the items decides.
-_KINDS = ("product", "place", "media", "photo", "document", "link", "plan")
+#: WHAT KIND OF THING the sheet found (`_KINDS`) is declared in `clean.py`, which validates it on items too (V2-831).
+from .clean import _KINDS  # noqa: E402,F401 — re-export
 
-#: WHICH TEMPLATE the list is drawn with (V2-703, a deliberate exception to `presentation.py` rule 1). The worker
-#: sends a NAME from this closed set — never a width, column count or pixel — and `widget.js` refuses one it cannot
-#: honour. The worker chooses the SHAPE; the surface owns each slot's geometry.
+#: WHICH TEMPLATE the list is drawn with (V2-703): a NAME, never geometry; `widget.js` refuses one it cannot honour.
 _LAYOUTS = ("card", "tile", "row", "list", "compare", "split", "gallery", "rows")
 
 
@@ -93,20 +75,14 @@ def _empty() -> dict:
     return {"title": default_title(), "subtitle": "", "items": []}
 
 
-# The live PROCESS (derived from the dispatcher's record) lives in `live.py` (V2-296); re-exported.
+# The live PROCESS lives in `live.py` (V2-296); the derived fields and the write that strips them in `derived.py`.
 from widgets.results.live import (  # noqa: E402,F401 — re-export
     _MAX_PHASES, _MAX_PHASE_CHARS, _browser, _clean_phases, _harvest, _progress)
-
-
-# The derived fields (`_counts`, `_identity`) and the write that strips them (`_save`) live in `derived.py`.
 from .derived import _counts, _identity, _save  # noqa: E402,F401 — re-export
 
 
 def view_data(q: str = "") -> dict:
-    """The LAST result set pushed here, verbatim. Nothing pushed yet → an empty sheet (never invented content).
-
-    `q` is the INSTANCE: the canvas splits `results::<corr>` and hands the suffix over as `q` (V2-259).
-    """
+    """The LAST result set pushed here. Nothing pushed → an empty sheet. `q` is the INSTANCE (`results::<q>`, V2-259)."""
     db = store.load(sheet_key(q), _empty())
     if not isinstance(db, dict):
         db = _empty()
@@ -118,8 +94,7 @@ def view_data(q: str = "") -> dict:
     data["criteria"] = _clean_criteria(data.get("criteria"))
     if data.get("tab") not in _TABS:
         data.pop("tab", None)                    # without a valid tab, results wins (the widget decides)
-    # V2-591: a scroll request EXPIRES — re-applying a stale one on a reload would move what the operator is
-    # reading with no order behind it. 120 s covers the voice round-trip with margin.
+    # V2-591: a scroll request EXPIRES (120 s, the voice round-trip with margin): a stale one would move his reading.
     _sc = data.get("scroll") or None
     if _sc:
         if not (float(_sc.get("at") or 0) and (_tm.time() - float(_sc.get("at") or 0)) <= 120):
@@ -142,28 +117,23 @@ def view_data(q: str = "") -> dict:
     return data
 
 
-# ── THE TASK OPENS AND CLOSES THE SHEET (`lifecycle.py`, V2-227 C / V2-530) ─────────────────────────────────────
-# The dispatcher's gateways, deliberately NOT actions in `apply_action`: a worker must not decide when the sheet
-# opens. Re-exported (`data.begin_task`).
+# ── THE TASK OPENS AND CLOSES THE SHEET (`lifecycle.py`): the errand's gates, never a worker's action.
 from widgets.results.lifecycle import (  # noqa: E402,F401 — re-export
     begin_task, end_task, rename_task)
 
 
-# Which item a reference names (`_find`), and what the brain sees (`ref_index`, `prompt_digest`) live in `find.py`;
-# `widgets/refs.py` looks the two hooks up HERE by name.
+# `_find`, `ref_index`, `prompt_digest` live in `find.py`; `widgets/refs.py` looks the two hooks up HERE by name.
 from .find import _find, _named, _sheets_for_brain, prompt_digest, ref_index  # noqa: E402,F401 — re-export
 
-# The prompt digest is pure functions over a sheet dict (`digest.py`, V2-287); `_digest_head`/`_digest_one` are
-# re-exported for the surface tests.
+# The prompt digest is pure functions over a sheet dict (`digest.py`, V2-287); re-exported for the surface tests.
 from . import digest as _digest                                                              # noqa: E402,F401
 from .digest import head as _digest_head, one as _digest_one, _MAX_HEAD_CHARS, _MAX_HEAD_ITEM  # noqa: E402,F401
 
 
-# The sections merged alongside present/append, and the spoken tab names, live in `merge.py`.
+# The sections merged alongside present/append and the spoken tab names live in `merge.py`; handlers in `actions.py`.
 from .merge import _TAB_ALIASES, _merge_sections  # noqa: E402,F401 — re-export
 
 
-# The action handlers live in `actions.py` (which reads this module) (V2-778 F1-12).
 from .actions import (  # noqa: E402,F401
     _a_present, _a_append, _a_clear, _a_choose, _a_detail, _a_list, _a_scroll, _a_layout, _a_tab, _a_sources,
     _a_rejected, _a_progress, _a_criteria, _a_auth_done)
@@ -190,13 +160,10 @@ ACTIONS = {
 }
 
 
-# present/append/clear deliver the result set; `choose` PERSISTS the operator's pick; `detail`/`list` flip between
-# the grid and one item's dossier. The view lives in the persisted payload so voice drives it.
+# present/append/clear deliver the result set; `choose` persists his pick; `detail`/`list` flip grid ↔ dossier.
 def apply_action(action: str, payload: dict | None = None) -> dict:
     payload = payload or {}
-    # WHICH sheet travels in the payload: the canvas sends actions to the BASE widget and stamps the instance as `q`
-    # (`desktop.js`); `sheet` is the explicit name. Read both, or every click on an instance lands on the default
-    # sheet (V2-259, V2-540). Neither → the default sheet.
+    # WHICH sheet: the canvas stamps the instance as `q`, `sheet` is the explicit name — read both (V2-259, V2-540).
     sheet = _safe_sheet(payload.get("sheet") or payload.get("q"))
     handler = ACTIONS.get(action) if isinstance(action, str) else None
     if handler is None:

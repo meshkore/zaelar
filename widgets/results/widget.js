@@ -1,27 +1,7 @@
-// Results widget — the GENERIC SURFACE where zaelar shows what it found. Whoever did the work (a Brain Worker, the
-// browser, the brain) fills it through declared actions; this only RENDERS. It never searches by itself.
-//
-// FOUR TABS (2026-08-12) — because a complex search is not just its result:
-//   · RESULTS — the cards, and a full record when one is opened (second page, with its "back").
-//   · SUMMARY — where the work stands, how many candidates it explored, how many remain, and what it did.
-//   · SOURCES — which websites it entered and WHAT HAPPENED on each one (entered · capped at 50 · required login · error).
-//   · CRITERIA — the task as currently executed, with corrections the operator gave along the way.
-// The active tab lives in the PERSISTED payload (like `view`/`focus`), not in a variable in this file: this is why
-// "show me where you got this from" —a voice phrase that arrives through the brain— moves the screen, and why the
-// sheet survives re-render, reconnect, and restart. The local click is rendered IMMEDIATELY and also persisted, so
-// the tab does not blink waiting for the server and is not lost either.
-//
-// DYNAMIC RECORD. A boat does not read like a paper or an email: beyond fixed fields, an item may bring `blocks` — a
-// list of composition pieces from a CLOSED vocabulary (text · facts · chips · gallery · meter · table · link ·
-// section). This gives the freedom of "a different HTML record per result type" WITHOUT accepting third-party HTML:
-// this payload comes from the open web, and everything is rendered with textContent.
-//
-// FLUID WIDTH. The sheet no longer owns its width (before: fixed 620px, so fullscreen left a narrow column in the
-// middle of the screen). It takes 100% of its card and CSS distributes columns by the REAL available width — with a
-// minimum per card type and a column CAP, so it neither strangles when shrunk nor turns into eight confetti columns
-// when maximized.
-//
-// SECURITY: item text is web/3rd-party-sourced → built with textContent ONLY (never innerHTML).
+// Results widget — the GENERIC SURFACE where zaelar shows what it found; whoever did the work fills it through
+// declared actions, this only RENDERS. Four persisted tabs (results · summary · sources · criteria), so voice moves
+// the screen and the sheet survives re-render and restart. A record is DYNAMIC (`blocks`, a closed vocabulary), the
+// width is FLUID (CSS distributes columns by the real width). SECURITY: web-sourced text → textContent ONLY.
 
 import { CSS } from "./js/style.js";
 import { PAINT, paintBrowser, paintResults } from "./js/panels.js";
@@ -78,18 +58,12 @@ export function render(el, data, ctx){
   // Title and tabs live together in a FIXED header, outside the scroller: with several dozen results the sheet
   // scrolls and tabs must stay there (looking at the last card and jumping to Sources is a normal case).
   const top = elem("div","hr-top");
-  // THE TITLE IS SAID ONCE. If the card already carries the TASK in its header (canvas marks it with
-  // `data-host-title` when the manifest declares `live_title`), repeating it here in larger body text was the same
-  // text twice 4px apart: noise, and one lost line of height in the most valuable part of the sheet. Own rendering is
-  // kept as BACKUP: if this surface is ever mounted without the canvas header, the task cannot disappear.
+  // THE TITLE IS SAID ONCE: when the canvas header already carries it (`data-host-title`), it is not repeated here.
   if(el.dataset.hostTitle !== "1"){
     top.appendChild(elem("div","hr-hd", data.title || tt("name", null, "Resultados")));
   }
   if(data.subtitle){
-    // The header is FIXED: every line it occupies is taken away from results throughout scrolling. A real subtitle
-    // ("8 real listings from Levante (SUV, ~5.00 m long...), from coches.net and coches.com. Ordered by...") reached
-    // three lines. Bound to TWO on screen and keep the full text in the tooltip: control space without losing data,
-    // which is different from clipping it.
+    // The header is FIXED, so the subtitle is bound to TWO lines on screen, the full text in the tooltip.
     const sub = elem("div","hr-sub clamp2", data.subtitle);
     sub.title = data.subtitle;
     top.appendChild(sub);
@@ -114,12 +88,8 @@ export function render(el, data, ctx){
     if(moved && ctx && ctx.top) ctx.top();
   };
 
-  // LOCAL NAVIGATION between the list and a record. The page the operator is on is sheet state (so the brain
-  // knows what he is looking at, and a reload or «vuelve a la lista» by voice agrees with the screen) — but it
-  // does not have to travel to the server and back to be DRAWN: the item is already in `data`. This is the same
-  // shape the tabs have used since V2-538, and its absence here is what made «Ver detalle» look like a dead
-  // button for as long as the SSE id was wrong. `WHERE` sees the change too, so the record opens at the top
-  // instead of halfway down the page the button was at the bottom of.
+  // LOCAL NAVIGATION between the list and a record: the view is persisted sheet state, but the item is already in
+  // `data`, so it is drawn here first (same shape as the tabs, V2-538); `WHERE` opens the record at the top.
   function nav(view, focus, warn){
     if(view === "detail"){ data.view = "detail"; data.focus = focus || ""; data.viewWarn = warn || ""; }
     else { delete data.view; delete data.focus; delete data.viewWarn; }
