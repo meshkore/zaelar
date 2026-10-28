@@ -179,6 +179,10 @@ async def _run_session(task: "Task") -> None:
             resume = _blk['resume']
         if 'session' in _blk:
             session = _blk['session']
+        # V2-825 F6 — the worker's FIRST step: a declared window older than the resource's reach is a capability gap.
+        from nucleo.workers import reach_gap as _rg
+        if (_gap := _rg.gap(_rg.window_of(brief, task.context))):
+            return await _rg.end(_d, key, rec, _gap)
         if _dev:
             prompt = _d._dev_prompt(req, _dev["repo"])
         elif kind == "web" and trusted:

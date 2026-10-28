@@ -141,6 +141,7 @@
  "amounts_unbacked": "I don't have checked prices to give you: what I looked at doesn't carry them.",
  "worker_gave_up_context": "I tried that task {times} times and ran out of context space all {times}, so I'm stopping instead of burning more. Ask me for it in parts and I'll get it.",
  "worker_command_denied": "I got stuck halfway: the command `{cmd}` is not allowed in the sandbox my background work runs in, and there's no way to approve it from here. Tell me which way to go and I'll pick it up another way.",
+ "worker_reach_gap": "I can't get that from what's connected: you're asking for something from before {asked}, and the oldest thing readable there is from {earliest}. If you have another source that goes back that far, tell me and I'll look there.",
  "worker_stalled": "The provider stopped answering ({minutes} min without a single event) and I aborted the task. It can be relaunched.",
  "worker_spinning": "My background process got stuck repeating the same step without getting anywhere, so I stopped it. It can be relaunched.",
  "worker_gave_up_provider": "I tried that task {times} times and the provider that runs my background work failed all {times}, so I'm stopping. It's in the status panel.",
