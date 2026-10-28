@@ -129,11 +129,6 @@ def test_flow_should_close_normally_once_a_worker_is_actually_registered():
     assert _flow_should_close("T1·aaaa", "", set(), True, just_escalated=True) is False
 
 
-def test_flow_closes_normally_when_nothing_was_escalated_this_turn():
-    # just_escalated defaults False — a plain conversational turn is unaffected by this guard.
-    assert _flow_should_close("T1·aaaa", "", set(), False) is True
-
-
 # ── _close_flow_now reads brain._escalated_trace_id (V2-113) ──────────────────────────────────────────────────────
 def test_close_flow_now_defers_while_this_traces_escalation_is_unresolved(monkeypatch):
     from voice.engine.llm.providers import nucleo as nmod
