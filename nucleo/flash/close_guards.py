@@ -174,7 +174,7 @@ def dataop_close_licensed(text: str, widget_id: str, *, brief=None, emit=None) -
     and it may never contradict a paid verdict.
 
     And the repair for exactly this already existed ONE BRANCH OVER: the canvas [[close]] guard in the
-    voice provider has consulted `show_target.close_has_order` since V2-635 — grammar first, a
+    voice provider has consulted the close licence (now `canvas.close_ordered`) since V2-635 — grammar first, a
     confident Jev second. This branch, the DATA-OP close, never got the escape hatch. The same rule
     installed on one of two branches is [[feedback_una_regla_instalada_en_una_sola_de_dos_ramas]], and
     here the un-repaired branch is the one that fires on a real player.
@@ -186,7 +186,7 @@ def dataop_close_licensed(text: str, widget_id: str, *, brief=None, emit=None) -
 
     Grammar hit → True with no verdict read. A deterministic NEGATED or NARRATED close («no lo
     cierres», «has cerrado el vídeo») → False even against a confident verdict, exactly as
-    `close_has_order` vetoes: a cheap model's opinion never beats the operator's own «no». Emits are
+    `canvas.close_ordered` vetoes: a cheap model's opinion never beats the operator's own «no». Emits are
     optional so the pure decision stays testable; the caller passes the turn's `emit`.
     """
     if looks_like_close(text):

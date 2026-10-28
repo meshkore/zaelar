@@ -43,16 +43,15 @@ def test_the_close_case_goes_red_only_when_both_of_its_defenders_are_disarmed(mo
     """«Stop it and close the video widget» is defended twice on the voice turn (refactor2710-01: the bank runs on
     it): the stop's remainder reaches the ACTION MAP, which closes the card without the model; with the map off the
     recorded model's `show_widget youtube` meets the CLOSE GRAMMAR (`close_guards.looks_like_close`, read by
-    `canvas_license`), which keeps the close. Disarming one leaves it green — the layering the compaction exists to
+    the canvas door's `close_ordered`), which keeps the close. Disarming one leaves it green — the layering the compaction exists to
     remove; the first assertion pins it, so the day one defender is retired this proof says which is left."""
-    from nucleo.flash import canvas_license, close_guards
+    from nucleo.flash import close_guards
     case, before = _run("demo-v7-stop-it-and-close-the-video")
     assert before.failures(case) == [], before.as_dict()
     monkeypatch.setenv("ZAELAR_ACTIONMAP", "0")
     _, one_down = _run("demo-v7-stop-it-and-close-the-video")
     assert one_down.failures(case) == [], "the close grammar no longer covers for the action map — update this proof"
-    monkeypatch.setattr(close_guards, "looks_like_close", lambda text: False)
-    monkeypatch.setattr(canvas_license, "looks_like_close", lambda text: False)
+    monkeypatch.setattr(close_guards, "looks_like_close", lambda text: False)   # the door reads it through the module
     _, both_down = _run("demo-v7-stop-it-and-close-the-video")
     why = both_down.failures(case)
     assert why, "both defenders gone and the case stayed green — the bank measured nothing"

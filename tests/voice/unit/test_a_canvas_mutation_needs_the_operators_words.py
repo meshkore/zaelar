@@ -16,6 +16,8 @@ things on the operator's screen requires the operator to have said so in the ver
 """
 from __future__ import annotations
 
+from nucleo.acts import canvas as _door
+
 from tests import voice_turn_source as _vts
 
 import json
@@ -59,10 +61,10 @@ def test_a_short_bare_yes_answers_the_models_own_offer():
 
 
 def test_a_close_needs_a_close_verb_in_the_turn():
-    assert lic.close_license("Vale, Johnny, cierra el vídeo.") is True
-    assert lic.close_license("te he dicho que cierres el widget") is True
+    assert _door.close_ordered("Vale, Johnny, cierra el vídeo.")[0] is True
+    assert _door.close_ordered("te he dicho que cierres el widget")[0] is True
     for t in ("Johnny eres tonto.", "¿Y por qué lo has quitado?", "no cierres nada"):
-        assert lic.close_license(t) is False, t
+        assert _door.close_ordered(t)[0] is False, t
 
 
 def test_fullscreen_calls_need_screen_size_words_and_shrink_routes_to_minimize():
@@ -160,9 +162,9 @@ def test_fullscreen_dispatch_routes_by_direction_and_discards_the_drag(monkeypat
 
 def test_the_voice_provider_gates_model_closes_and_delegates_the_bodies():
     src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    # 2026-10-22 — the same gate through `close_license` (grammar AND the turn's sure canvas verdict): a complaint
+    # 2026-10-22 — the same gate through `canvas.close_ordered` (grammar AND the turn's sure canvas verdict): a complaint
     # about a close («you did close the document») is no order either.
-    assert 'if action == "close" and not _canvas_lic.close_license(text, brief=_brief):' in src, \
+    assert '_canvas_door.close_ordered(text, brief=_brief, called=True, handle=canvas_h)' in src, \
         "a model-emitted [[close]] with no close order in the turn is drag (the «eres tonto» close)"
     # V2-753 — the data-op close keeps needing a license; what changed is WHO grants it. The bare
     # verb table was the sole decider here and it ate «Páralo, y vuelve al inicio» five times in one

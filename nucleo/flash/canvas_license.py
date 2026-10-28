@@ -20,7 +20,6 @@ from loguru import logger as _log
 import re as _re
 import time as _time
 
-from .close_guards import looks_like_close
 from .text_norm import _norm_txt
 from .verb_forms import alternation as _en
 
@@ -310,63 +309,6 @@ def video_license(text: str, last_reply: str = "", *, brief=None, query: str = "
     # loud that it was acting on it. Scoped to the widget the corrected op ran on: see `redo_decision`.
     from nucleo.flash import redo_decision as _redo
     return _redo.corrects(brief, "youtube")
-
-
-def close_license(text: str, *, brief=None) -> bool:
-    """True when the turn ORDERS a close — `close_guards.looks_like_close` (negations and narrated closes
-    already excluded there), UNLESS the turn's own canvas verdict says it is not a close at all.
-
-    THE DEFECT (live session fce3eff3, 2026-09-22). The grammar closed his video card THREE times, twice
-    of them on sentences where he was COMPLAINING about the first close:
-
-        +255.1 s  «quita este vídeo y vamos otra vez al No me estás oyendo.»   → closed  (garbled text —
-                  the accumulator glued two unrelated fragments; repaired in `accumulator.py`)
-        +284.4 s  «He dicho que vuelvas al inicio del widget de vídeo, Yo no te he dicho en ningún
-                   momento que CERRARAS el widget de vídeo.»                   → closed AGAIN
-        +288.2 s  «Yo no te he dicho en ningún momento que CERRARAS el widget de vídeo.»  → and AGAIN
-
-    The verb table matched «quita» and «cerraras» and never asked whether the sentence ORDERS a close or
-    DENIES one. On both of the last two the turn's own `canvas` verdict said `neither` — the question had
-    been asked and answered, and nobody read it. This is CLAUDE.md's «UNA TABLA DE VERBOS NO ES UN
-    ENRUTADOR» with a third door: the grammar PROPOSES, the verdict decides.
-
-    ⚠️ THIS ONE NEWLY FORBIDS, which is the direction `verdict_grants` deliberately does not take, so it
-    carries its own justification rather than that one's. What it forbids is a CLOSE — the mutation whose
-    wrong direction he has now paid for three times in one conversation, and whose cheap direction is a
-    card that stays open one turn too long. And it forbids only on a CONFIDENT verdict: absent, unsure or
-    anything but a clear `neither` leaves today's behaviour untouched, so a brief that never lands can
-    never make the engine deaf to «ciérralo».
-    """
-    if not looks_like_close(_his_words(text)):
-        # V2-812 T-05 — his ANSWER to our own «which one should I close?» carries that question's licence: «Las
-        # dos.» has no close verb, and refusing it as context-bleed refused the close he had already ordered.
-        # «no cierres ninguna» answers it too — and forbids; a negated or narrated close never borrows the licence.
-        from nucleo.flash import close_answer as _ca, close_guards as _cg
-        return _ca.answers(brief) and not _cg.is_negated_or_narrated(_his_words(text))
-    if brief is not None and verdict_denies_close(brief):
-        return False
-    return True
-
-
-def verdict_denies_close(brief) -> bool:
-    """Does the turn's brief READ A NEGATION of the close the grammar saw? (V2-812 T-05)
-
-    `canvas=neither` alone is not that reading. In the car session «Vale, pues aquí no suena nada, cierra el resto de
-    aplicaciones.» read `canvas=neither` (0.87) beside `request_type=order` — the verdict missed the canvas half of an
-    order and vetoed a clear close. The denials this veto exists for (fce3eff3: «yo no te he dicho que cerraras el
-    widget de vídeo»; 2026-10-22: «you did close the document without me telling you») read as something said ABOUT
-    us or the conversation, never as an order. So the veto needs both: a sure `neither` AND a sure reading of the turn
-    as anything but an order or an answer. An unsure or absent `request_type` is no reading of a negation, and the
-    clear close stands."""
-    try:
-        from nucleo.flash import show_target as _st, turn_brief as _tb
-        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "")
-        if not (str(verb or "") == "neither" and "neither" in _st.CANVAS_VERBS):
-            return False
-        kind, kinfo = _tb.read(brief, _tb.REQUEST_KEY, "")
-        return bool(kinfo and kinfo.get("used")) and str(kind or "") not in ("order", "answer")
-    except Exception:  # noqa: BLE001
-        return False
 
 
 def fullscreen_license(text: str) -> str:

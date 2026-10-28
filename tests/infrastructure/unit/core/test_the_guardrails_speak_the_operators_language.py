@@ -11,6 +11,8 @@ side was a list of BARE STEMS, so it missed the forms an operator actually speak
 """
 from __future__ import annotations
 
+from nucleo.acts import canvas as _door
+
 import asyncio
 import json
 
@@ -408,13 +410,13 @@ def test_a_note_that_talks_about_a_video_licenses_no_video():
 def test_a_note_that_talks_about_closing_licenses_no_close():
     from voice import brain_notes
     note = "[SISTEMA] El worker ha terminado; puedes cerrar la tarjeta cuando quieras."
-    assert not cl.close_license(brain_notes.compose_turn("¿qué hora es?", [note]))
+    assert not _door.close_ordered(brain_notes.compose_turn("¿qué hora es?", [note]))[0]
 
 
 def test_his_own_order_still_licenses_through_the_notes():
     """The counterweight: stripping the notes must not strip him."""
     assert cl.video_license(_composed("play the Beatles"))
-    assert cl.close_license(_composed("cierra el widget de música"))
+    assert _door.close_ordered(_composed("cierra el widget de música"))[0]
     assert cl.fullscreen_license(_composed("maximize the widget")) == "fullscreen"
 
 

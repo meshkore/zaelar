@@ -224,10 +224,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   action map). — since 2026-10-26 · nodes 3.133, 3.135 · `nucleo/flash/bulk_close.py`, `nucleo/flash/hard_turn.py`.
 - **CRIT-K8c · A verdict vetoes a clear close only when it reads a negation; his answer to OUR question carries its
   licence.** A sure `canvas=neither` refuses a close the grammar saw only beside a sure reading of the turn as neither
-  an order nor an answer (`canvas_license.verdict_denies_close`); a turn the brief reads as an `answer` while our
+  an order nor an answer (the canvas door's `close_ordered`); a turn the brief reads as an `answer` while our
   «which one should I close?» is pending licenses the close (the cards it picks, `close_answer`) and nothing that
   starts a player (`runtime.produce`), and never a negated close. — since 2026-10-26 · nodes 3.136 ·
-  `nucleo/flash/canvas_license.py`, `nucleo/flash/close_answer.py`.
+  `nucleo/acts/canvas.py::close_ordered`, `nucleo/flash/close_answer.py`.
 - **CRIT-K9 · A classifier before the model is a PRICE** (~780 ms), paid only where the decision cannot be read
   after; a fixed table may decide alone only where a wrong answer costs nothing — a fail-open default. — since
   2026-09-22 · nodes 3.58.

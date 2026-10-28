@@ -110,7 +110,8 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
     from nucleo.flash import canvas_license as _lic
 
     if op == "close":
-        return (_v(True, "close-grammar") if _lic.close_license(text)
+        from nucleo.acts import canvas as _door
+        return (_v(True, "close-grammar") if _door.close_ordered(text)[0]
                 else _v(False, "close-drag"))
 
     if op == "screen":
