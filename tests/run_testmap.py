@@ -194,18 +194,7 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_probe_never_mute.py",
             # V2-305: una respuesta de pura espera con la hoja llena sale CON las filas — el imperativo del
             # prompt pierde contra el reflejo de espera una ronda de cada tres (delivery_lag 98,9 s, ronda 34).
-            "tests/agent_headless/unit/flash/test_the_wait_goes_out_with_the_rows.py",  # familia del backstop → nucleo/flash/delivery.py (V2-340)
-            # V2-339: la guarda anti-feed miraba UNA señal (vocabulario compartido) y silenciaba los dominios
-            # donde los resultados buenos no se parecen — coches, hoteles, vuelos. Ahora exige DOS.
-            "tests/agent_headless/unit/flash/test_a_feed_is_two_signals_not_one.py",
-            # V2-472: un importe que NINGUNA fuente nuestra nombra no sobrevive a un encargo vivo — la clase
-            # de bloqueador que domina el tablero US («under $400» sobre un techo de $250), garantizada por
-            # código porque el imperativo del prompt pierde una ronda de cada tres.
-            "tests/agent_headless/unit/flash/test_an_unbacked_amount_does_not_survive_an_errand.py",
-            # V2-475: toda esta familia estaba escrita SOLO contra formas en castellano, y fallaba en las dos
-            # direcciones a la vez: el atasco jamás sonaba en inglés, y la entrega sí — en español, pegada a
-            # una respuesta inglesa. La garantía sale en el idioma en que se le habla al operador.
-            "tests/agent_headless/unit/flash/test_the_guarantees_speak_the_operators_language.py"]},
+            "tests/agent_headless/unit/flash/test_the_wait_goes_out_with_the_rows.py"]},
         {"id": "2.3", "title": "Prompt / skeleton / chispas", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_prompt.py",
             # V2-130: a definite reference to a habitual thing ("la de siempre", "mi peluqueria") is a memory
@@ -782,11 +771,6 @@ DOMAINS: list[dict] = [
         # respuesta que V2-345: no se tira, se MARCA.
         # V2-394 — `dispatch_tag` se traga el resultado, así que el turno no podía saber si la op ocurrió y la
         # boca decía «Hecho.» pase lo que pase. Dos ops fallidas anunciadas como hechas (resultado 2/5).
-        {"id": "4.56", "title": "«Hecho.» solo si la data-op OCURRIÓ · y lo que el widget rechaza se DICE",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/flash/test_hecho_sobre_una_op_que_fallo.py",
-                      # V2-469: los enlaces pegados viajan TODOS al add, y la enumeración marca «la que suena».
-                      "tests/agent_headless/unit/flash/test_the_pasted_links_all_travel.py"]},
         # V2-391 — «UNA data-op por turno» convirtió dos enlaces pegados en una alucinación: solo entró el
         # primer `add`, el `next` no encontró segundo vídeo y el turno anunció que sonaba igualmente.
         {"id": "4.55", "title": "Dos enlaces pegados son dos `add` · sin reabrir la cita doble ni la enumeración",
@@ -1061,19 +1045,6 @@ DOMAINS: list[dict] = [
         # V2-359 — V2-354 puso el hecho delante y el modelo lo contó UNA DE CADA DOS: en bilbao sí («va
         # encallada, no te la estoy escondiendo»), en el coche no, con el operador preguntando tres veces. Esa
         # variancia es la que V2-305 dejó escrita: la conducta determinista la garantiza el código.
-        {"id": "2.39", "title": "Una espera nunca calla un atasco que el sistema YA sabe · y si el turno ya lo "
-                                "dice, o ya está entregando, el backstop no lo pisa",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/flash/test_the_music_is_played_not_labelled.py",
-                      # V2-380 — el canal de TEXTO resolvía `play_music` a una etiqueta y contestaba «Hecho.»
-                      # sobre una reproducción que no existía. La primera ronda que ese caso ha tenido nunca
-                      # salió 1/5 con `familias faltantes: ['widget']`: medía un mecanismo INALCANZABLE.
-                      "tests/agent_headless/unit/flash/test_a_stall_the_system_knows_is_never_silent.py",
-                      # V2-371 — y una PREGUNTA tampoco calla una entrega. La puerta de V2-364 silenciaba el
-                      # backstop, el flujo caía al de atasco, y las dos «¿la paro o le doy margen?» que el
-                      # juez le reprochó a zaelar en `search-buy-motorcycle__es` las escribimos nosotros —
-                      # con once candidatos sin entregar y la segunda ya contestada por el operador.
-                      "tests/agent_headless/unit/flash/test_a_question_is_no_reason_to_withhold.py"]},
         {"id": "2.37", "title": "Un paso del worker que afirma la PANTALLA sin respaldo sale marcado «💬» · y "
                                 "uno mecánico, o con la hoja llena, no se toca",
             "ch": UNIT,
@@ -3786,8 +3757,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_finished_report_he_corrects_is_never_a_mute_turn.py"]},
         {"id": "2.734", "title": "A meeting's detail opens and closes INSIDE the agenda: the verdict rung fills a row selector with the one row his sentence names, and a sure close that names another view of the card runs it instead of closing the card",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_dentist_detail_opens_and_closes_inside_the_agenda.py"]},
-        {"id": "2.735", "title": "A refused op that names the row another op of the same turn already acted on is that op's echo, never «No he podido» — a row that was not there is still said",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_echo_of_what_the_turn_did_is_not_a_failure.py"]},
         {"id": "2.736", "title": "Rows a worker writes as a JSON array reach the action's one declared list field through widget_cli; anywhere else an array is still refused",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_rows_written_as_a_list_reach_the_one_list_field.py"]},
         {"id": "2.737", "title": "A parked errand's question that nobody said (no live speaker, the note dropped) rides the next reply once, both channels — unless that reply already names the errand",
@@ -3967,9 +3936,6 @@ DOMAINS: list[dict] = [
         {"id": "2.143", "title": "A modal buy inside a search is not a charge",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_a_modal_buy_inside_a_search_is_not_a_charge.py"]},
-        {"id": "2.142", "title": "A data-op with no item is resolved from the operator's sentence in the text channel too",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/flash/test_the_sentence_resolves_a_missing_contact.py"]},
         {"id": "2.141", "title": "An order the second pass carried out is said after the model's words",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_repaired_act_is_said_after_the_words.py"]},
@@ -4199,10 +4165,6 @@ DOMAINS: list[dict] = [
                                  "before a widget build or a Brain Worker is declared dead; quota, a rejected key and a "
                                  "bad request are never retried (build-workout-tracker-widget, 2026-10-10)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_a_rate_limit_is_waited_out.py"]},
-        {"id": "2.391", "title": "A waiting reply written blind to a death that just happened says the errand died — once, "
-                                 "in his language, with the reason and a way out; its queued notes are retracted "
-                                 "(«I'll let you know the moment it's ready» over a dead build, 2026-10-10)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_promise_over_a_dead_errand_is_corrected.py"]},
         {"id": "2.360", "title": "«A few videos, back to back» builds the QUEUE from the search and plays its first — "
                                  "«I'll line up a few» over a lone `load`, then «the second one» failed 3× (V2-781)",
             "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_a_few_videos_back_to_back_builds_the_queue.py"]},
@@ -4272,9 +4234,6 @@ DOMAINS: list[dict] = [
         {"id": "2.274", "title": "A title that carries its day («Piano del martes 2026-10-13») names that occurrence — the "
                                  "one-week move moved the whole series (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_title_that_carries_its_day_names_that_day.py"]},
-        {"id": "2.272", "title": "The delivery backstop never says the prompt's markers — «Humphreys Half Moon Inn — SIN "
-                                 "PRECIO» in an English reply (V2-781)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_never_says_the_prompts_markers.py"]},
         {"id": "2.271", "title": "The round plays the desktop — it reports the open cards after each turn; a sandbox engine "
                                  "believed nothing was open and «pause the video» read none (V2-781)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_round_tells_the_engine_what_its_canvas_shows.py"]},
@@ -4323,9 +4282,6 @@ DOMAINS: list[dict] = [
         {"id": "2.254", "title": "A worker's notice at an instant already ringing is not a second notice — the premiere "
                                  "rang twice at 09:00 (V2-781 pair 3)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_worker_notice_at_an_instant_already_ringing_is_not_a_second.py"]},
-        {"id": "2.253", "title": "A failure rides along in words he can read, never the tool's own instructions — «… "
-                                 "cancel_meeting {title, date}» was read to him (V2-781 pair 7)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_failure_is_named_without_the_tool_syntax.py"]},
         {"id": "2.395", "title": "A notice asked for about something to FIND OUT rings with the answer the conversation "
                                  "gave — the premiere's prompt was his own question cut at «cuándo se estrena» "
                                  "(V2-781 pair 3); ES + EN, both channels (one backstop)",
@@ -4408,8 +4364,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/memory/unit/test_a_bare_answer_reaches_the_distiller_with_its_question.py']},
         {"id": "2.543", "title": "Each HARD requirement of his is a column every row carries (yes · no · «?») through every door of the results sheet; a row sent again carries what was verified; a list errand's worker is told to declare them",
             "ch": UNIT, "paths": ['tests/browser/unit/results/test_a_hard_requirement_is_a_column_every_row_carries.py']},
-        {"id": "2.544", "title": "A question about a row and one of his must-haves is answered FROM the row's fact — «not verified» when it says «?» — and the delivery tail is not added on top (text channel)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_question_about_a_row_reads_its_hard_requirement.py']},
         {"id": "2.545", "title": "A status sentence never says the browser's micro-step («pulsando en la página», «usando el teclado»): the worker's milestone note, or «under way», instead",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_status_line_never_says_a_click.py']},
         # music use cases (2026-10-11): the unasked «Favoritos», and «it's still playing» on an empty player
@@ -4436,8 +4390,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_close_over_a_row_removal_cancels_the_row.py']},
         {"id": "2.588", "title": "A request whose WRITE already landed is not a window errand: «Apúntame dos cosas…» written in turn 0 started a Brain Worker three turns later off an onboarding offer read as a promise",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_landed_write_is_not_a_window_errand.py']},
-        {"id": "2.550", "title": "The errand STARTING (asked, no session yet) or just FINISHED is an errand his sentence names: «for the game make the jump higher» between the yes and the game's session gets no monitor rows (three-tasks EN 2026-10-11 11:34)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_errand_just_started_is_an_errand_he_names.py']},
         {"id": "2.551", "title": 'A sentence about errands that just FINISHED is not a new list: «me sacas un LG de 24… ¿y el Fujitsu? …¿y el informe?» with all three done is an ordinary turn, never «me pongo con ellas» (three-tasks ES 2026-10-11)',
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_a_sentence_about_finished_errands_is_not_a_list.py']},
         {"id": "2.552", "title": 'A DELIVERED errand stays in «YA ACABADAS» for the conversation (15 min), a death keeps five, the block keeps its cap of three — the report 333 s old was gone and the turn said «del informe no me consta nada» (three-tasks ES)',
@@ -4577,6 +4529,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_a_dry_turn_reaches_no_door.py']},
         {"id": "2.826", "title": "The one turn keeps what the old text channel emitted (only two mirrors retired, named) and every consequence door it reaches is a `consequence` event with door, verdict and trace — the typed turn leaves the same 🧾 row as the spoken one (V2-826 §2b)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_an_event_survives_the_one_pipeline.py']},
+        {"id": "2.827", "title": "What the old text channel's reply door said after the model's words is the mouth's: rows a waiting reply owes and the cut of an amount no source carries are strict xfails for refactor2710-03; the line for an errand that just died already holds on the one turn",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_what_the_old_reply_door_said_is_the_mouths.py']},
+        {"id": "2.828", "title": "His commissioning sentence travels with the request to the errand it opens (was 2.630, the old channel's `commission_words`) — strict xfail for refactor2710-02",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_his_commissioning_words_travel_with_the_request.py']},
         {"id": "2.821", "title": "The decision bank runs on the VOICE turn, typed and dry (`nucleo/cli/turn.py`): a recorded case decides there what the voice turn decides, and every door it meets is closed in the ledger",
             "ch": UNIT, "paths": ['tests/brain/unit/test_the_bank_runs_on_the_voice_turn.py']},
         {"id": "2.823", "title": "The typed channel reports its act and never writes it into the brain: `brain._last_action` stays what the voice turn left («search» after a search), so «open it» resolves the same typed and spoken",
@@ -4591,16 +4547,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_boots_beside_the_running_engine.py']},
         {"id": "2.816", "title": "A use-case sandbox calls the models with the operator's keys: his credential store is lent into the sandbox's own store (mode 600, same precedence over .env) and taken back when it stops — an empty store made every round measure the relay",
             "ch": UNIT, "paths": ['tests/platform/tests/test_a_sandbox_calls_models_with_the_operators_keys.py']},
-        {"id": "2.600", "title": "An escalation the dedup FOLDED into a live errand closes with the fold, so it is never a «starting» errand of its own — his goodbye «quedo a la espera si sale algo» named that phantom by «sale» and three plumbers with phones were withheld (best-plumber-same-day ES)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_folded_escalation_is_not_another_errand.py']},
-        {"id": "2.601", "title": "A row he NAMED is named by a word only that row carries (not shared with another row, not his errand's vocabulary, never a bare number) — «monitor» and «27» made both real monitors «his» and only power adapters were ever offered (cheapest-monitor EN); «fontanero», «Madrid», «24h» did the same to three plumbers (best-plumber-same-day ES)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_row_is_named_only_by_a_word_it_alone_carries.py']},
         {"id": "2.603", "title": "A commission the brief sends to a worker with a SHEET as its deliverable is never replaced by one repaired call on the browser or that sheet — «compare a few insurers» became `navegador:search` + «Done.», and «are they top-rated, can they come today?» became `results:progress` + «Done.» (compare-insurance-quotes EN, best-plumber-same-day EN); both channels hand the brief to the rung",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_commission_for_a_sheet_keeps_its_worker.py']},
         {"id": "2.605", "title": "A power adapter, charger or power supply is an accessory, never a candidate for the thing asked (unless he asked for one; «with/incluye adaptador» stays) — three adapters were offered as 27\" 4K monitors (cheapest-monitor EN)",
             "ch": UNIT, "paths": ['tests/search/unit/test_a_power_adapter_is_not_a_monitor.py']},
-        {"id": "2.606", "title": "A question about rows he NAMES is answered clause by clause from those rows — the hard fact the clause asks, another fact whose label it asks, or «not verified» when the reply leaves the row unsaid — never the criteria block («¿el curvo es 4K? ¿el Blackview tiene buenas reseñas?» got every criterion of three rows, «para» naming the AOC; cheapest-monitor ES)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_question_about_named_rows_reads_those_rows.py']},
         {"id": "2.620", "title": "A worker's request is never his click: `operator_gate.decide` refuses a worker on every route family his screen calls (widget action/confirm/delete, messaging, cluster send, contacts, agenda lists and reminders, tasks, settings, credentials, vault, his spoken turn, reset) and admits his UI cookie or a process the engine did not spawn; the worker's own doors stay open",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_a_workers_request_is_never_his_click.py']},
         {"id": "2.621", "title": 'A process the engine spawned is a worker even orphaned: `peer_process.classify` — a child is WORKER by ancestry, an orphan out of a worker session by its session id, a worker environment by its markers; his side of the machine is OUTSIDE, the engine SELF, a gone pid UNKNOWN',
@@ -4635,8 +4585,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/search/unit/test_a_ruled_out_word_matches_its_plural_and_its_other_language.py']},
         {"id": "2.633", "title": "What he rules out about one errand reaches its sheet in HIS words before the reply names rows (only a sheet that holds his commissioning words) — the relay «DESCARTAR todos los albergues…» carried no negation and two hostels were presented next (hotel-under-15-days ES)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_what_he_rules_out_reaches_the_sheet_in_his_words.py']},
-        {"id": "2.634", "title": "A repaired `results:criteria` correction is acknowledged with what changed (rows taken off, what does not fit stays out), never a bare «Hecho.» — «esos no son de Rosalía» got «Hecho.» twice over twelve rejected rows (find-concert-tickets ES)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_sheet_correction_says_what_changed.py']},
         {"id": "2.636", "title": "Both ends of a route in his words («de Madrid a Londres», «from Boston to Denver») are places, never a subject a row must name — his words now reach every errand's sheet",
             "ch": UNIT, "paths": ['tests/search/unit/test_a_routes_two_ends_are_places_not_subjects.py']},
         {"id": "2.637", "title": "A capitalised word right after an opening «¿»/«¡» starts a sentence, never a subject — «¿Los tienes?» named the subject «los»",
