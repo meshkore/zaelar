@@ -74,13 +74,6 @@ def _settle(handle, timeout_s: float = 2.0):
     return handle
 
 
-# ── the four that are wired ──────────────────────────────────────────────────────────────────────
-def test_the_filler_request_type_reaches_the_transport(wire):
-    _settle(jev.request_async("open my messages"))
-    assert len(wire.calls) == 1, "the filler never asked Jev anything"
-    assert wire.calls[0]["key"] == "request_type"
-
-
 def test_the_canvas_verb_reaches_the_transport(wire):
     """Since V2-726 F1 the canvas verb rides the turn's brief, so the brief is its front door."""
     from nucleo.flash import turn_brief as tb
@@ -89,13 +82,6 @@ def test_the_canvas_verb_reaches_the_transport(wire):
     canvas = wire.calls[0]["questions"].get(tb.CANVAS_KEY)
     assert canvas, "the brief reached the transport without the canvas question"
     assert set(canvas["criteria"]) == {"show", "close", "fullscreen", "exit_fullscreen", "minimize", "arrange", "neither"}
-
-
-def test_the_escalate_gate_reaches_the_transport(wire):
-    from nucleo.flash import escalation_guard as eg
-    eg.judge_escalation("¿qué hora es?")
-    assert len(wire.calls) == 1, "the escalate gate never asked Jev anything"
-    assert wire.calls[0]["key"] == "escalate_or_inline"
 
 
 def test_the_action_repair_reaches_the_transport(wire):
@@ -107,7 +93,7 @@ def test_the_action_repair_reaches_the_transport(wire):
     assert "none" in wire.calls[0]["criteria"]
 
 
-def test_the_live_integrations_are_exactly_these_four(wire):
+def test_the_live_integrations_are_exactly_these_two(wire):
     """The census. Every integration that talks to Jev is named here, and the list is the assertion.
 
     It was written when ONE of five was silently dead (the route, V2-726 §3.1) and it stays now that
@@ -115,17 +101,15 @@ def test_the_live_integrations_are_exactly_these_four(wire):
     transport, and one that starts reaching it without being declared. Either is a §3.1 in the
     making — the first failure mode took a whole implementation to notice.
     """
-    from nucleo.flash import escalation_guard as eg, frontend as fe, turn_brief as tb
+    from nucleo.flash import frontend as fe, turn_brief as tb
     fired = []
-    for name, fn in (("filler", lambda: _settle(jev.request_async("open my messages"))),
-                     ("canvas", lambda: _settle(tb.ask("abre mis mensajes"))),
-                     ("action", lambda: fe.repair_action("agenda", "inventada", "borra la cita")),
-                     ("escalate", lambda: eg.judge_escalation("¿qué hora es?"))):
+    for name, fn in (("canvas", lambda: _settle(tb.ask("abre mis mensajes"))),
+                     ("action", lambda: fe.repair_action("agenda", "inventada", "borra la cita"))):
         before = len(wire.calls)
         fn()
         if len(wire.calls) > before:
             fired.append(name)
-    assert fired == ["filler", "canvas", "action", "escalate"], (
+    assert fired == ["canvas", "action"], (   # refactor2710-07: the filler's socket and the escalate re-ask went
         f"the set of LIVE Jev integrations changed: {fired}. One that went silent is a new "
         f"V2-726 §3.1; one that appeared is an integration nobody declared.")
 
@@ -154,5 +138,4 @@ def test_switched_off_reaches_nothing_at_all(wire, monkeypatch):
     from nucleo.flash import turn_brief as tb
     monkeypatch.setenv("ZAELAR_JEV", "0")
     assert tb.ask("abre mis mensajes") is None
-    assert jev.request_async("open my messages") is None
     assert wire.calls == [], "something talked to Jev with the kill switch on"

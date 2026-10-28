@@ -16,9 +16,12 @@ enumerates what was open at fire time; two seconds later a card may have closed.
 """
 from __future__ import annotations
 
+from nucleo.turn import brief_turn as _bt
+from nucleo.turn.brief_turn import (  # noqa: F401 — re-export: which turn a brief belongs to
+    PREFIRED_TTL_S, judged_text, of_this_turn, owner_still_open, remember_for_the_turn, stamp, verdict_before_the_turn)
 from nucleo.turn.brief_screen import (  # noqa: F401 — re-export: the screen questions and their caps
-    CATALOG_INSTRUCTIONS, MAX_CATALOG_CANDIDATES, MAX_DESC_CHARS, MAX_OPEN_CARDS, TARGET_INSTRUCTIONS, _base_of,
-    _card_label, _possible_now, catalog_question, target_question)
+    CATALOG_INSTRUCTIONS, MAX_CATALOG_CANDIDATES, MAX_DESC_CHARS, MAX_OPEN_CARDS, NAMES_KEY, TARGET_INSTRUCTIONS,
+    _base_of, _card_label, _possible_now, catalog_question, names_elsewhere, names_question, target_question)
 
 ESCALATE_KEY = "escalate_or_inline"
 CANVAS_KEY = "canvas"
@@ -129,6 +132,7 @@ QUESTIONS = (
     (("nucleo.flash.capability_gap", "KEY"), None, _gap),
     (TARGET_KEY, lambda c: bool(c.get("open_ids")), lambda c: target_question(c.get("open_ids"))),
     (CATALOG_KEY, lambda c: not target_question(c.get("open_ids")), lambda _c: catalog_question()),
+    (NAMES_KEY, lambda c: bool(c.get("open_ids")), lambda c: names_question(c.get("open_ids"))),
 )
 
 
@@ -173,6 +177,8 @@ def _worker_state() -> tuple[bool, bool]:
 def ask_for_turn(operator_text: str, *, running_goals=None, last_reply: str = "", turn_id=None):
     """Fire the brief for a live voice turn, reading the screen and worker state itself. `operator_text` must be the
     ADMITTED sentence. Never raises: no state reads as nothing open."""
+    if (pre := _bt.prefired(operator_text)) is not None:
+        return pre
     try:
         from memory import api as _memapi
         open_ids = list((_memapi.state() or {}).get("open_widgets") or [])
@@ -200,45 +206,6 @@ def ask(operator_text: str, *, turn_id=None, **kw):
         return handle
     except Exception:  # noqa: BLE001 — a classifier may never break a turn
         return None
-
-
-def judged_text(handle, fallback: str = "") -> str:
-    """The sentence this brief's verdicts were asked about, or `fallback` (V2-820 T-06): a guard that reads the turn's
-    words must read the same words the verdict did."""
-    got = handle.get("judged") if isinstance(handle, dict) else None
-    return str(got) if got else (fallback or "")
-
-
-def stamp(handle, *, turn_id=None, open_ids=None):
-    """Record WHICH turn this brief belongs to and WHAT was open when it was asked (a join, not a guess by time)."""
-    if isinstance(handle, dict):
-        handle["turn_id"] = turn_id
-        handle["open_ids"] = [str(w) for w in (open_ids or [])]
-        try:     # the errand portal is reached from many callers and none hands it the brief: the trace joins them
-            from nucleo.flash import capability_gap as _gap_d
-            from voice import trace as _trace
-            _gap_d.remember(handle, _trace.current())
-        except Exception as e:  # noqa: BLE001 — without it the portal judges nothing, which is today's path
-            from loguru import logger
-            logger.debug(f"brief: capability verdict not joinable to the trace: {e!r}")
-    return handle
-
-
-def owner_still_open(handle, widget_id: str) -> bool:
-    """Is the card a verdict names STILL on screen? `True` when the brief carried no open set (fail-soft)."""
-    known = (handle or {}).get("open_ids") if isinstance(handle, dict) else None
-    if not known:
-        return True
-    wid = (widget_id or "").strip().lower()
-    if wid in {str(w).strip().lower() for w in known}:
-        try:
-            from memory import api as _memapi
-            now = {str(w).strip().lower() for w in ((_memapi.state() or {}).get("open_widgets") or [])}
-        except Exception:  # noqa: BLE001
-            return True
-        if not now:
-            return True
-        return wid in now     # an INSTANCE that closed while its base stayed open is a stale verdict too
 
 
 def read(handle, key: str, fallback, *, min_confidence: float | None = None):

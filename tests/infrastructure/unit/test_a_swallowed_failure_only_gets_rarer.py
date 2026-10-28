@@ -346,7 +346,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/circuit/harness.py': 2,
     'nucleo/his_words.py': 1,
     'nucleo/homeostasis.py': 13,
-    'nucleo/jev.py': 5,
+    'nucleo/jev/__init__.py': 5,
     'nucleo/library_router.py': 2,
     'nucleo/loop.py': 20,
     'nucleo/memory_agent/dossier.py': 3,

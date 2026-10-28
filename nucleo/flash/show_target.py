@@ -330,6 +330,9 @@ def close_target(widget_id: str) -> str:
             if focus:
                 return focus
         return wid
+    from nucleo.turn import brief as _brief
+    if _brief.names_elsewhere(_brief.of_this_turn()):   # refactor2710-07: he named something that is not a card here
+        return ""
     return canvas_focus.last_turn_card(ids) or (ids[0] if len(ids) == 1 else "")
 
 

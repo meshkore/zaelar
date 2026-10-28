@@ -24,7 +24,6 @@ _ROOTS = ("nucleo", "voice", "server", "widgets", "memory")
 
 # The two measured in V2-726 §3.2. Shape: "<module path>::<enclosing function>".
 KNOWN_BLOCKING = {
-    "nucleo/flash/escalation_guard.py::judge_escalation",
     "nucleo/flash/frontend.py::repair_action",
 }
 
@@ -83,7 +82,7 @@ def test_the_declared_blocking_debt_only_goes_down():
 
 # The voice provider's coroutine, and the functions that would freeze it if it named them.
 _PROVIDER = _ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py"
-BLOCKING_NAMES = ("judge_escalation", "repair_action", "choose_sync", "classify_sync")
+BLOCKING_NAMES = ("repair_action", "choose_sync")
 
 
 def test_the_voice_provider_names_no_blocking_jev_call():

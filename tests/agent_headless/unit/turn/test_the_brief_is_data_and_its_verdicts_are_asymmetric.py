@@ -72,3 +72,20 @@ def test_a_licence_is_read_at_the_licence_floor():
     assert choice == "" and not info["used"]
     assert brief.read is not verdicts.read and brief.read(_brief(**{brief.REQUEST_KEY: ("order", 0.55)}),
                                                           brief.REQUEST_KEY, "")[0] == "order"
+
+
+def test_a_brief_asked_before_the_turn_is_the_turns_brief(monkeypatch):
+    """A hard stop asks the brief before the turn (`verdict_before_the_turn`); the turn that admits the SAME sentence
+    reuses that handle — one round trip — and a different sentence asks its own."""
+    import asyncio
+    fired = []
+
+    def _ask(text, **_k):
+        fired.append(text)
+        return _brief(**{brief.TARGET_KEY: ("mensajeria:mail_sort", 0.9)})
+    monkeypatch.setattr(brief, "ask", _ask)
+    choice, info = asyncio.run(brief.verdict_before_the_turn("Stop showing me the Social tab", brief.TARGET_KEY))
+    assert choice == "mensajeria:mail_sort" and info["used"]
+    assert brief.ask_for_turn("Stop showing me the Social tab") is not None and len(fired) == 1, "reused, not re-asked"
+    brief.ask_for_turn("something else")
+    assert len(fired) == 2

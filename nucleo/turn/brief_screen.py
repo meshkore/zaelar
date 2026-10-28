@@ -14,45 +14,18 @@ TARGET_INSTRUCTIONS = (
 #: cap below it and the two are different decisions.
 MAX_OPEN_CARDS = 8
 
-#: How much of a declared action's `desc` reaches the question. It was 90, and 90 DECAPITATED the
-#: sentence that made an action routable (V2-753, live session 46dcfcb4). `youtube:show_tab` declares
-#: «CAMBIA de pantalla dentro del reproductor SIN tocar lo que está sonando. 'inicio' es el catálogo…
-#: es lo que responde a «vuelve al catálogo», «a la página de inicio»» — V2-742 wrote that second
-#: sentence INTO the manifest precisely so the decision could find the action, and the cut fell at
-#: «'inicio' es el ca». Measured against the real API over the operator's own words: «vuelve al
-#: catálogo» → `none` 0.77 at 90 chars, `youtube:show_tab` **0.96** at 200; «y tampoco vuelves al
-#: inicio a ver el catálogo» 0.32 → 0.83. Nothing else moved (pause 1.00, next 0.94, search 0.99).
-#: The price is +1.1 KB on a 4.7 KB question and no measurable latency (47 candidates, ~850 ms both).
-#: ⚠️ This is the cheap half of a two-part rule: a description is product data and the place to
-#: repair a routing miss (V2-726 §4-bis) — but only the part of it that ARRIVES can decide anything.
+#: How much of a declared action's `desc` reaches the question: 90 cut the sentence that made `youtube:show_tab`
+#: routable («vuelve al catálogo» none 0.77 → show_tab 0.96 at 200, V2-753).
 MAX_DESC_CHARS = 200
 
 
 def target_question(open_ids) -> dict | None:
     """One enumerated question over what is on screen, keyed by INSTANCE, or None when nothing is.
 
-    Measured (V2-726 §4-bis): asking «which widget» over widget DESCRIPTIONS put «dale al play» at
-    0.26 — under the gate, discarded. Asking «which declared action of what is on screen» put it at
-    0.94, 8/8. The widget falls out of the action, because what disambiguates two open cards is what
-    each can DO, not the prose each was described with.
-
-    A4 fixed the two things that measurement also exposed, at five open cards and 132 actions:
-
-    · **The key is the INSTANCE, not the widget type.** Two `results` cards are two candidates, and
-      keying by base meant a verdict could not name which one — «enséñame el tercero» came back as
-      `youtube:play_result` at 0.70 (confident and wrong) with the third row sitting in `results`.
-      `widgets/instances.card_face()` is how a card says what it currently SHOWS, and it is the only
-      component that can: the label is the widget's own, never one we guessed for it.
-
-    · **Only what is POSSIBLE NOW.** «reproduce» and «siguiente» chose `musica` over `youtube` with
-      nothing to justify it — both declare `play` and `next`, and the question carried nothing but
-      the list of what was open. An action that cannot run right now (a list action on a card with
-      no rows) is not a candidate, and taking it out is what makes the remaining ones mean something.
-      Fewer and more pertinent is also what brings the 15 KB down.
-
-    Both refine DOWNWARDS only: anything unreadable keeps the candidate, so a widget that cannot
-    answer about itself is never silently dropped from its own screen.
-    """
+    Measured (V2-726 §4-bis): «which widget» over descriptions put «dale al play» at 0.26; «which declared action of
+    what is on screen» at 0.94, 8/8 — what disambiguates two open cards is what each can DO. The key is the INSTANCE
+    (two `results` cards are two candidates; `instances.card_face` says what each SHOWS), and only what is POSSIBLE NOW
+    is a candidate. Both refine DOWNWARDS only: anything unreadable keeps the candidate."""
     ids = [str(w).strip() for w in (open_ids or []) if str(w or "").strip()]
     if not ids:
         return None
@@ -101,11 +74,7 @@ def _base_of(widget_id: str) -> str:
 
 
 def _card_label(widget_id: str) -> str:
-    """What THIS card is showing, in the operator's terms — the RAIL that disambiguates two of a kind.
-
-    «YouTube: paused · Música: playing» is what turns «siguiente» from a coin flip into an answer.
-    Falls back to the id, which is what the question carried before A4: never worse, often better.
-    """
+    """What THIS card is showing, in his terms («YouTube: paused · Música: playing»); falls back to the id."""
     try:
         from widgets import instances as _inst
         label = str((_inst.card_face(widget_id) or {}).get("label") or "").strip()
@@ -115,22 +84,9 @@ def _card_label(widget_id: str) -> str:
 
 
 def _possible_now(widget_id: str, action: str) -> bool:
-    """Can this action run on THIS card right now? Unknown always means YES.
-
-    The only exclusion is structural and declared: an action that must name an EXISTING row, on a
-    card that currently publishes none. That is «play the third one» on an empty list — not a
-    capability the operator lacks, a target that does not exist. Anything this cannot read keeps the
-    candidate, because a gate that guesses would hide a real capability (V2-085's invariant, one
-    layer over).
-
-    ⚠️ EXISTING is the load-bearing word, and getting it wrong costs a capability. The first version
-    asked `contract.selector_for`, which answers «which payload key identifies this call» — and for
-    `musica:create_playlist` that is `name`, the name of a playlist that does not exist yet. With an
-    empty library every CREATION action vanished from the question, so «crea una lista Rock» had no
-    candidate to be aimed at. `refs.id_field_for_action` is the narrower question — «which key names
-    an item that ALREADY EXISTS» — and it is the one this filter needs. Caught by a test that picked
-    the first declared action and found it gone.
-    """
+    """Can this action run on THIS card right now? Unknown always means YES. The only exclusion is declared: an action
+    that must name an EXISTING row (`refs.id_field_for_action`, never `selector_for`, which would hide every creation
+    action) on a card that publishes none."""
     try:
         from widgets import refs as _refs
         base = _base_of(widget_id)
@@ -163,19 +119,9 @@ MAX_CATALOG_CANDIDATES = 40
 
 
 def catalog_question() -> dict | None:
-    """Which widget the order NAMES, enumerated with the words each one answers to.
-
-    Measured (V2-726 §4-bis, against the 15 real manifests): criteria built from the widget's `desc`
-    alone got 6 of 9; `«Name» + the same desc` got 8 of 9. The text a widget declares about itself IS
-    the product surface of this decision — so this passes the identity ALIASES too (V2-082's table,
-    which already exists and was never being handed to the chooser).
-
-    ⚠️ It does not fix the operator's own failing example on its own, and saying so is the point:
-    «ábreme el vídeo» answered `none` 0/8 at 0.52-0.61 — over the gate, confidently wrong, the worst
-    mode there is — because NOTHING in the catalogue declares the word «vídeo» except the name
-    «YouTube». That is repaired where it belongs, in the widget's own declaration, and this question
-    is what makes the repair reach the decision.
-    """
+    """Which widget the order NAMES, enumerated with the words each one answers to: «Name» + aliases + desc got 8 of 9
+    (desc alone 6 of 9, V2-726 §4-bis). A miss is repaired in the widget's own declaration, which this makes reach the
+    decision."""
     try:
         from widgets import runtime as _rt
         rows = []
@@ -195,3 +141,30 @@ def catalog_question() -> dict | None:
         return {"instructions": CATALOG_INSTRUCTIONS, "criteria": criteria}
     except Exception:  # noqa: BLE001
         return None
+
+
+#: refactor2710-07 — does the thing he NAMES exist on screen? An unnamed close («Close the weekend.» with only the video
+#: open) took the only card: the canvas verdict reads «close» (0.94 live) and the model closes too, while what he named
+#: is not a card at all. Whether a name points at a card on screen is a judgement about his sentence, asked here.
+NAMES_KEY = "names_a_card"
+NAMES_ELSEWHERE = "elsewhere"
+
+
+def names_question(open_ids) -> dict | None:
+    """Is what his sentence names one of the cards on screen? None with nothing open (nothing to compare with)."""
+    ids = [str(w).strip() for w in (open_ids or []) if str(w or "").strip()]
+    if not ids:
+        return None
+    labels = ", ".join(_card_label(w) for w in ids[:MAX_OPEN_CARDS])
+    return {"instructions": f"The cards on screen are: {labels}. Does the operator's sentence name or point at one of "
+                            "them, name something that is NOT one of them, or name nothing?",
+            "criteria": {"on_screen": "he names or points at one of the cards on screen («close it», «the video»)",
+                         NAMES_ELSEWHERE: "he names something that is not one of the cards on screen",
+                         "nothing": "his sentence names nothing"}}
+
+
+def names_elsewhere(handle) -> bool:
+    """The brief, at its licence, says what he named is NOT a card on screen: an unnamed close takes nothing."""
+    from nucleo.turn import verdicts
+    choice, info = verdicts.read(handle, NAMES_KEY, "")
+    return bool(info and info.get("used")) and choice == NAMES_ELSEWHERE
