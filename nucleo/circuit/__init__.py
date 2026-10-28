@@ -1,26 +1,13 @@
-"""nucleo/circuit/ — one loop, one bound, one report (V2-776 L3).
+"""nucleo/circuit/ — what «done» means for a request, owned in one place (V2-776 L3, refactor2710-02).
 
-## What this replaces
+  · `verdict.py` — the one vocabulary a request ends in; `spec.py` — its end state (inline actions and errands);
+  · `verify.py` — the readers of the product's truth; `harness.py` — the card-content goals a reply claims;
+  · `ledger.py` — the durable task rows; `deliverable.py` — an errand opens only its deliverable;
+  · here — the pulse and a worker's ending: re-verify every open spec, JUDGE an ending (never the worker's word),
+    relaunch within the operator's bound (genesis `circuit.retries`), and say the VERDICT.
 
-Three fragments verified an end state, each with its own owner, clock and cap, none of them the path a
-request takes (four read-only maps of the brain, 2026-09-29):
-
-  · `nucleo/circuit/harness.py` (V2-660): one goal kind, in RAM, 300 s, re-verified by the pulse, never retried;
-  · `workers/goal.py` (V2-707 F2, now `spec.session_goal`): the worker's own `done_when`, checked once in `_finish`; the retry
-    bound was `goal_retried` on a record every relay rebuilds — so the real cap was `relay_gen < 2`, shared
-    with the context and provider relays; `None` ended on the worker's `ok` and was spoken as «It is done»;
-  · `nucleo/errands/verify.py` (V2-683): one hand-written condition for third-party errands.
-
-## What this is
-
-The pulse re-verifies every open spec (`nucleo/circuit/spec.py`'s ledger — inline actions and errands alike); a
-worker's ending is JUDGED here, not by its own word; the retry bound is explicit, its own, and the operator's
-to set (genesis `circuit.retries`, overridable per install); an ending that cannot be read is a verdict of its
-own («unverifiable») that the mouth says as such; and what the operator hears at the end is the VERDICT:
-«done» only over `met`, «what is missing» over `unmet` (`verdict.py` declares each value once).
-
-The V2-660 rule is kept verbatim: `None` (unreadable) is never failure and never opens a retry. The cure for
-unreadable is a readable widget (L2), never a guess.
+`None` (unreadable) is never failure and never opens a retry: the cure for unreadable is a readable widget, not a
+guess. An ending that cannot be read is `unverifiable`, and the mouth says it as such.
 """
 from __future__ import annotations
 
