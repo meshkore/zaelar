@@ -18,7 +18,7 @@ import asyncio
 
 import pytest
 
-from nucleo import research
+from nucleo.workers import brief as research
 
 
 RECHAZO = ("Error code: 400 - {'error': {'code': '1210', 'message': 'This model always engages in thinking "

@@ -9,7 +9,7 @@ from tests.use_cases.e2e.agent.run import dirty_tree_refusal
 
 
 def test_a_dirty_engine_stops_the_round():
-    msg = dirty_tree_refusal({"n_dirty": 2, "dirty": ["nucleo/dispatch/__init__.py", "nucleo/research.py"]})
+    msg = dirty_tree_refusal({"n_dirty": 2, "dirty": ["nucleo/dispatch/__init__.py", "nucleo/workers/brief.py"]})
     assert msg and "nucleo/dispatch/__init__.py" in msg
 
 
@@ -18,7 +18,7 @@ def test_a_clean_tree_goes_ahead():
 
 
 def test_the_fixing_agent_can_measure_their_own_work_on_purpose():
-    assert dirty_tree_refusal({"n_dirty": 1, "dirty": ["nucleo/research.py"]}, allow_dirty=True) == ""
+    assert dirty_tree_refusal({"n_dirty": 1, "dirty": ["nucleo/workers/brief.py"]}, allow_dirty=True) == ""
 
 
 def test_an_empty_stamp_never_costs_a_round():

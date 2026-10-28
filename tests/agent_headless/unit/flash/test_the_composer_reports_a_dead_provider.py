@@ -22,7 +22,7 @@ import asyncio
 
 import pytest
 
-from nucleo import research
+from nucleo.workers import brief as research
 
 EXHAUSTED = "429 — [1310][Weekly/Monthly Limit Exhausted. Your limit will reset at 2027-01-01 01:39:02]"
 LEAD = {"name": "zai", "base_url": "https://api.z.ai/v1", "model": "glm", "api_key": "k"}

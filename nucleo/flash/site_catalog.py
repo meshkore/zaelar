@@ -287,7 +287,7 @@ _CAT_PATTERNS: list[tuple[str, "_re.Pattern[str]"]] = [
 # Los CLASIFICADOS (segunda mano) quedan FUERA de esa promoción a propósito, aunque este módulo sí los detecte
 # para el titular de categoría del prompt: «segunda mano» también es como empieza una INVESTIGACIÓN de verdad
 # («busca veleros de segunda mano… entra en la ficha de CADA candidato»), y esa ruta tiene su propio embudo con
-# su propio presupuesto (`nucleo/research.py`, kind "research", 1200 s) al que solo se llega desde `generic`.
+# su propio presupuesto (`nucleo/workers/brief.py`, kind "research", 1200 s) al que solo se llega desde `generic`.
 # Mandar esa petición al navegador la sacaría del embudo — el mismo tipo de daño que ya causó una vez enrutar de
 # más (ver el incidente de `_MODIFY_CODE_RE` en dispatch.py). Al worker genérico se le da igualmente este
 # catálogo, así que «de segunda mano» sigue llegando a Wallapop sin tocar el enrutado.

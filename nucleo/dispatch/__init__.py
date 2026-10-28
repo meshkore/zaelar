@@ -30,7 +30,9 @@ from typing import Any
 
 from loguru import logger
 
-from nucleo import dev_worker_guard, protected_core, research
+from nucleo import dev_worker_guard, protected_core
+
+from nucleo.workers import brief as research
 from nucleo.workers import WorkerSpec, get_backend, workdir
 from nucleo.workers.providers import worker_sees as _worker_sees
 from nucleo import surfaces

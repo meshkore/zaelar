@@ -8,7 +8,7 @@ keep working unchanged.
 """
 from __future__ import annotations
 
-from nucleo import research
+from nucleo.workers import brief as research
 from nucleo.source_outcomes import worker_line as _sources_line   # V2-798: what each source did lately
 
 
@@ -580,7 +580,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
     """Prompt del worker WEB (portado de web_cc/V2-036 al sustrato V2-038): conduce el navegador por hbweb con
     criterio de CIERRE (extraer → concluir → entregar) e hitos visibles. Sin él, el worker deambula.
 
-    Con `brief` (nucleo/research.py) la BÚSQUEDA deja de ser «filtra y coge los 2-3 primeros»: el atajo de cierre
+    Con `brief` (nucleo/workers/brief.py) la BÚSQUEDA deja de ser «filtra y coge los 2-3 primeros»: el atajo de cierre
     rápido que este prompto lleva de serie —correcto para «tráeme el precio de X», ruinoso para «elige lo mejor»—
     se sustituye por el embudo del brief (reunir ancho → filtrar → puntuar → verificar finalistas).
 

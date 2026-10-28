@@ -124,7 +124,7 @@ def test_compose_reads_the_model_and_a_dash_means_no_errand_inside(monkeypatch):
             seen["msgs"] = msgs
             return self.answer
 
-    monkeypatch.setattr("nucleo.research._spec", lambda: (object(), None))
+    monkeypatch.setattr("nucleo.workers.brief._spec", lambda: (object(), None))
 
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda: _Fake("Cita de traumatología en PAMA"))
     assert _run(et.compose("Oye, una cosita… pídeme cita")) == "Cita de traumatología en PAMA"
@@ -146,7 +146,7 @@ def test_no_provider_available_is_not_an_error(monkeypatch):
     from nucleo.flash import provider_chain as _pc
     monkeypatch.setenv("ZAELAR_TITLE_MODEL", "on")
     monkeypatch.setattr(_pc, "pick", lambda *a, **k: None)
-    monkeypatch.setattr("nucleo.research._spec", lambda: (None, None))
+    monkeypatch.setattr("nucleo.workers.brief._spec", lambda: (None, None))
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient",
                         lambda: pytest.fail("no provider available must never reach a client"))
     assert _run(et.compose("Pedir cita")) == ""
@@ -208,7 +208,7 @@ def test_and_falls_back_to_the_reasoning_chain_when_no_voice_tier_is_up(monkeypa
 
     other = object()
     monkeypatch.setattr(pc, "pick", lambda role=None: None)
-    monkeypatch.setattr("nucleo.research._spec", lambda: (other, None))
+    monkeypatch.setattr("nucleo.workers.brief._spec", lambda: (other, None))
     assert et._spec_for_naming() is other
 
 

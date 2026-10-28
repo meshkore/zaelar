@@ -32,7 +32,7 @@ composite.
 
 | Piece | File | What it solves |
 |---|---|---|
-| **Research director** | `nucleo/research.py` | Turns the raw request into a BRIEF: what disqualifies, what scores, what an expert would add, how wide to search, how quality is judged, what shape the delivery takes. |
+| **Research director** | `nucleo/workers/brief.py` | Turns the raw request into a BRIEF: what disqualifies, what scores, what an expert would add, how wide to search, how quality is judged, what shape the delivery takes. |
 | **Composite proposals + detail page** | `widgets/results/` | A result can be made of PIECES (`parts`), carry hard, queryable data (`facts`) and real photos (`images`); and the sheet has a DETAIL view of one item. |
 | **The brain sees the screen** | `widgets/refs.py::prompt_digest` | Generic hook: a widget publishes a summary of its content and the FlashBrain carries it in the prompt → it can ANSWER about what is on screen, not just name it. |
 
@@ -50,7 +50,7 @@ ASYNC PRE-FLIGHT  ← here, and only here, there is time to THINK
       │  · is it a research task? (the model decides, not a verb table)
       │  · was there a previous round with this goal? → expand() instead of recomposing
       ▼
-  nucleo/research.py::compose  → structured BRIEF (30 s ceiling, fail-open)
+  nucleo/workers/brief.py::compose  → structured BRIEF (30 s ceiling, fail-open)
       │  research.save(task_id)  +  research.remember_round(goal_key)
       ▼
 worker prompt = literal request + BRIEF (to_prompt_block)
@@ -166,7 +166,7 @@ otherwise call the real model from tests that have nothing to do with research.
 
 ## 10. References
 
-- `nucleo/research.py` — the director (compose/parse/expand/to_prompt_block/rounds).
+- `nucleo/workers/brief.py` — the director (compose/parse/expand/to_prompt_block/rounds).
 - `nucleo/dispatch/::_compose_brief`, `_build_prompt`, `_web_prompt`, `session_considered`.
 - `widgets/results/{data,widget}.js|py` + `manifest.json` — composite schema, `facts`/`images`, `detail`/`list`.
 - `widgets/refs.py::prompt_digest` + `widgets/brief.py` — the generic «what is on screen» hook.

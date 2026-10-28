@@ -341,7 +341,9 @@ def test_the_brief_of_the_dead_task_is_the_one_reused(fresh_db):
     following the same script is worse than starting from scratch."""
     import asyncio
 
-    from nucleo import dispatch, research
+    from nucleo import dispatch
+
+    from nucleo.workers import brief as research
 
     brief = {"goal": "veleros de 42 a 49 pies hasta 50.000 €", "hard": ["≤ 50.000 €"], "round": 1,
              "breadth": {"min_candidates": 40, "angles": []}, "deliverable": {"widget": "results", "n_final": 10}}

@@ -1,4 +1,4 @@
-"""nucleo/research.py — the RESEARCH BRIEF: how a search is DIRECTED, not how it is executed.
+"""nucleo/workers/brief.py — the RESEARCH BRIEF: how a search is DIRECTED, not how it is executed.
 
 THE PROBLEM IT SOLVES (operator, 2026-08-09). Asking for “the best holiday options in the Balearic Islands” and
 receiving three results is trivial: anyone can enter a website, set two filters, and copy the first three. What the
@@ -24,10 +24,8 @@ pregunta tiene la misma forma para una tesis de física cuántica (¿cuántos pa
 ¿qué hace que una fuente sea sólida?), para escribir un libro o para elegir una librería de software. El dominio
 lo nombra el propio brief; la ESTRUCTURA de dirigir una investigación es la misma.
 
-WHERE IT RUNS. In the ASYNCHRONOUS pre-flight of the escalation (`nucleo/dispatch.py`), never during the voice turn: therefore
-puede permitirse un modelo que razone. Si el compositor no está disponible o dice que esto no es una
-investigación (cancelar una cita no necesita amplitud ni baremo), se devuelve None y el worker sale como siempre
-— fail-open, la escalada NUNCA se cae por no tener brief.
+WHERE IT RUNS. In the errand's ASYNCHRONOUS pre-flight (`nucleo/dispatch/`), never in the voice turn, so it may use a
+reasoning model. No composer, or «this is not research» → None, and the worker starts as always (fail-open).
 
 ROUNDS. The brief is PERSISTED with the task, so “I’m not convinced, keep searching” does not start from zero:
 `expand()` sube la amplitud y añade ángulos nuevos sobre los MISMOS criterios ya acordados.
@@ -53,155 +51,15 @@ logger = logging.getLogger("zaelar.research")
 # ⚠️ Con el kill-switch serial (ZAELAR_BRIEF_HEAD_START_S=0) este plazo vuelve a pagarse en el arranque.
 _COMPOSE_TIMEOUT = float(os.environ.get("ZAELAR_COMPOSE_TIMEOUT_S", "90") or 90)
 
-# Breadth floor. It exists because the model’s bias, if allowed to choose the number, is to ask for “10 candidates” — which is
-# superficial search under another name. A SELECTION (“the best”, “the 3 best”) only means
-# algo si detrás hay un conjunto del que elegir.
-_MIN_CANDIDATES_FLOOR = 25
-_MIN_CANDIDATES_CAP = 200
-# HOW MANY are delivered. The default is TEN by operator decision (2026-08-12): with three, an honest selection
-# se queda sin sitio para enseñar el segundo pelotón —lo que casi entra— y él no puede juzgar si el corte fue
-# bueno; con diez ve la horquilla entera y elige. Si el operador PIDE un número ("dame tres", "ponme veinte"), ese
-# número manda y sustituye al defecto: el brief lo recoge del propio encargo, no de aquí.
-_N_FINAL_DEFAULT = 10
-_N_FINAL_CAP = 20       # el tope antes era 10 y hacía INEXPRESABLE un "ponme veinte" del operador
-_MAX_LIST = 12          # criterios/enriquecimientos/baremo: una lista que el worker pueda de verdad respetar
-_MAX_ITEM_CHARS = 220
-# El ROL de una pieza se pinta como INSIGNIA en la tarjeta («Hotel», «Ferry»), así que tiene que caber en una. El
-# modelo, si le dejas, devuelve la descripción del contenido en vez del nombre del rol («Tarifa del ferry para 4
-# passengers detailing charges by height”), which breaks the card as a badge. The prompt asks for it to be short; this
-# GARANTIZA, porque un prompt es una petición y un cap es un contrato.
-_MAX_ROLE_CHARS = 28
 _KV = "research_brief"  # memoria KV: <_KV>:<task_id>
-
-
-# ── the CLOSED catalog of what a brief may say (same principle as evaluator.py: validate, do not trust) ──
-def _strlist(raw, cap: int = _MAX_LIST, chars: int = _MAX_ITEM_CHARS) -> list[str]:
-    if isinstance(raw, str):
-        raw = [raw]
-    if not isinstance(raw, (list, tuple)):
-        return []
-    out = []
-    for x in raw:
-        s = str(x).strip()
-        if s:
-            out.append(s[:chars])
-        if len(out) >= cap:
-            break
-    return out
 
 
 _MAX_ROLE_WORDS = 3
 
 
-def _roles(raw) -> list[str]:
-    """Roles of the parts of a composite proposal. Short by contract (they appear on a badge) and without duplicates:
-    two parts with the same role (“Hotel” and “Hotel”) are not a composite proposal; they are a malformed list.
-
-    It is cut by WORD, never midway: “Ferry fare for 4 passengers (detailing…)” → “Ferry fare”, which is a readable
-    badge; cutting by characters would produce “Ferry fare for 4 passe”, which is unusable on screen."""
-    seen, out = set(), []
-    for raw_role in _strlist(raw, cap=6, chars=200):
-        # A descriptive phrase masquerading as a role is reduced to its first clause, where the real name is.
-        r = raw_role.split("(")[0].split(",")[0].split(":")[0].strip(" -–—")
-        words = [w for w in (r or raw_role).split() if w]
-        r = " ".join(words[:_MAX_ROLE_WORDS])[:_MAX_ROLE_CHARS].strip(" -–—")
-        k = r.lower()
-        if r and k not in seen:
-            seen.add(k)
-            out.append(r)
-    return out
-
-
-def parse(raw: str, request: str = "") -> dict | None:
-    """Composer JSON → validated brief. None if there is no usable JSON or it says this is not research.
-
-    `request` — the operator's own words. When they name a size («a couple of recipes», «las tres mejores»), that
-    number is his and it caps both the floor and the model's own `n_final` (V2-782 T4.4: «a couple» became 40
-    candidates and 265 s). `search.criteria.breadth` reads it; a request that names none keeps the floor."""
-    s = (raw or "").strip()
-    if s.startswith("```"):
-        s = s.strip("`")
-        if s.lower().startswith("json"):
-            s = s[4:]
-    i, j = s.find("{"), s.rfind("}")
-    if i < 0 or j <= i:
-        return None
-    try:
-        p = json.loads(s[i:j + 1])
-    except Exception:
-        return None
-    if not isinstance(p, dict):
-        return None
-    if not p.get("research"):
-        return None                      # the model itself says this requires neither breadth nor a quality bar
-
-    breadth = p.get("breadth") if isinstance(p.get("breadth"), dict) else {}
-    try:
-        minc = int(breadth.get("min_candidates") or 0)
-    except (TypeError, ValueError):
-        minc = 0
-    minc = max(_MIN_CANDIDATES_FLOOR, min(_MIN_CANDIDATES_CAP, minc))
-
-    deliv = p.get("deliverable") if isinstance(p.get("deliverable"), dict) else {}
-    try:
-        nfin = int(deliv.get("n_final") or _N_FINAL_DEFAULT)
-    except (TypeError, ValueError):
-        nfin = _N_FINAL_DEFAULT
-    nfin = max(1, min(_N_FINAL_CAP, nfin))
-    said = _said_breadth(request)
-    if said:
-        nfin = min(nfin, said["n_final"]) if deliv.get("n_final") else said["n_final"]
-        minc = min(minc, max(said["min_candidates"], nfin * 2))
-
-    brief = {
-        "goal": str(p.get("goal") or "").strip()[:400],
-        "domain": str(p.get("domain") or "").strip()[:120],
-        "hard": _strlist(p.get("hard")),
-        **({"subjects": _strlist(p["subjects"], cap=6, chars=60)} if isinstance(p.get("subjects"), list) else {}),
-        "soft": _strlist(p.get("soft")),
-        "assumed": _strlist(p.get("assumed")),
-        "enrichments": _strlist(p.get("enrichments")),
-        "breadth": {"min_candidates": minc, "angles": _strlist(breadth.get("angles"))},
-        "quality_bar": _strlist(p.get("quality_bar")),
-        "deliverable": {
-            "widget": str(deliv.get("widget") or "results").strip()[:40] or "results",
-            "n_final": nfin,
-            "composite": bool(deliv.get("composite")),
-            "parts": _roles(deliv.get("parts")),
-        },
-        "round": 1,
-        "ts": time.time(),
-    }
-    if not brief["goal"]:
-        return None                      # without a restated objective there is no brief to direct anything
-    return brief
-
-
-
 # `_SYSTEM` moved to research_prompts.py (2026-08-17 modularization pass) — re-exported here so `build_messages`
 # below keeps working unchanged, and so `research._SYSTEM` still resolves for anyone reading it that way.
 from nucleo.research_prompts import _SYSTEM  # noqa: F401 — re-export + used by build_messages below
-def _said_breadth(request: str) -> dict | None:
-    """`{n_final, min_candidates}` when the operator named a size, else None. One reader of his words: `search.criteria`."""
-    if not (request or "").strip():
-        return None
-    try:
-        from search import criteria as _crit
-        b = _crit.breadth(request, floor=_MIN_CANDIDATES_FLOOR, cap=_MIN_CANDIDATES_CAP, n_final_default=_N_FINAL_DEFAULT)
-    except Exception:  # noqa: BLE001 — a grammar must never cost a brief
-        return None
-    return b if b.get("said") else None
-
-
-def build_messages(request: str, context: str = "", today: str = "") -> list[dict]:
-    user = []
-    if today:
-        user.append(today)
-    if context:
-        user.append("LO QUE EL ASISTENTE YA SABE DEL OPERADOR (úsalo para no preguntar lo que ya consta, y para "
-                    "afinar los criterios):\n" + context[:1500])
-    user.append("PETICIÓN DEL OPERADOR (literal):\n" + (request or "").strip()[:3000])
-    return [{"role": "system", "content": _SYSTEM}, {"role": "user", "content": "\n\n".join(user)}]
 
 
 def _spec():
@@ -433,157 +291,9 @@ def expand(brief: dict, *, note: str = "") -> dict:
     return nxt
 
 
-def to_criteria(brief: dict) -> dict:
-    """The brief translated into the payload for the CRITERIA tab of the results sheet.
-
-    Why it exists: until now, the criteria being used for the search were something that could only be ASKED
-    («¿qué has entendido?») y por tanto no se podía comprobar de un vistazo. Se siembran desde AQUÍ, en el
-    pre-vuelo, y no desde el worker: si dependieran de que el ejecutor se acuerde de escribirlos, faltarían justo
-    en las búsquedas que peor van. `goal` hace además de firma del encargo — un objetivo distinto vacía la hoja de
-    the previous search, and round 2 (which preserves the objective) deletes nothing."""
-    if not isinstance(brief, dict) or not brief.get("goal"):
-        return {}
-    b = brief.get("breadth") or {}
-    d = brief.get("deliverable") or {}
-    out = {"goal": brief["goal"], "round": int(brief.get("round") or 1)}
-    if brief.get("domain"):
-        out["domain"] = brief["domain"]
-    if isinstance(brief.get("subjects"), list):      # the sheet's door reads these, never a sentence's capitals
-        out["subjects"] = list(brief["subjects"])
-    for k in ("hard", "soft", "assumed", "enrichments", "quality_bar"):
-        if brief.get(k):
-            out[k] = list(brief[k])
-    # V2-782 T4.3 — the FIELDS the operator's words ask for (price · rating · availability) travel as hard criteria,
-    # so the sheet's candidacy can say «no row shows the rating» when the worker presents bare names.
-    try:
-        from search import criteria as _crit
-        for line in _crit.hard_criteria(str(brief.get("request") or "")):
-            if line not in out.setdefault("hard", []):
-                out["hard"].append(line)
-    except Exception as e:  # noqa: BLE001 — a grammar never costs the criteria tab
-        logger.debug("research: asked fields not read (%r)", e)
-    if brief.get("feedback"):
-        out["changes"] = list(brief["feedback"])     # what the operator corrected when rejecting the previous round
-    if b.get("min_candidates"):
-        out["min_candidates"] = b["min_candidates"]
-    if d.get("n_final"):
-        out["n_final"] = d["n_final"]
-    return out
-
-
-async def seed_criteria(brief: dict, rec=None) -> None:
-    """Pour the freshly composed brief into the CRITERIA tab of the results sheet.
-
-    Done in the PRE-FLIGHT, never inside the worker: if it depended on the executor remembering to write it,
-    it would be missing in exactly the searches that go worst. Side effect — and wanted: `goal` is the errand's
-    signature, so starting a DIFFERENT research empties the previous sheet (the operator once sat looking at
-    the previous search's results believing they were his), while a round 2 preserves the objective so
-    «sigue buscando» deletes nothing.
-
-    Hard best-effort: this is the SCREEN, not the work. If the widget fails, the research continues.
-    (Lived in `nucleo/dispatch.py` until V2-644; moved here to pay the architecture ratchet — same module
-    that composes the brief and already owns `to_criteria`.)"""
-    try:
-        payload = to_criteria(brief)
-        # The errand's OWN sheet (2026-10-11, photo round): with no `sheet` the criteria went to the BASE `results`
-        # box, and a desktop showing that errand's sheet got an empty base card mounted over it. No sheet, no seed.
-        sheet = str(getattr(rec, "sheet", "") or "") if rec is not None else ""
-        if not payload or (rec is not None and not sheet):
-            return
-        from widgets.server_api import brain_action
-        await brain_action("results", "criteria", {**payload, **({"sheet": sheet} if sheet else {})})
-    except Exception as exc:                                # noqa: BLE001 — never brake a task for the view
-        logger.debug(f"research: could not seed the criteria into the results sheet ({exc})")
-
-
-
-
-# `to_prompt_block`'s actual formatting logic moved to research_prompts.py (same split as `_SYSTEM` above) — this
-# thin wrapper keeps `_MIN_CANDIDATES_FLOOR` single-sourced here (the constant `parse()`/`expand()` above also
-# use) while research_prompts.py stays a leaf module with zero import of this file, avoiding a circular import.
-def to_prompt_block(brief: dict) -> str:
-    from nucleo.research_prompts import to_prompt_block as _to_prompt_block_impl
-    return _to_prompt_block_impl(brief, _MIN_CANDIDATES_FLOOR)
-def save(task_id, brief: dict) -> None:
-    if not brief:
-        return
-    try:
-        from memory import api as memory
-        memory.kv_set(f"{_KV}:{task_id}", brief)
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"research: no pude persistir el brief de {task_id} ({e})")
-
-
-def load(task_id) -> dict | None:
-    try:
-        from memory import api as memory
-        out = memory.kv_get(f"{_KV}:{task_id}")
-        return out if isinstance(out, dict) and out.get("goal") else None
-    except Exception:
-        return None
-
-
-# ── ROUNDS by OBJECTIVE: “I’m not convinced, keep searching” continues; it does not restart ───────────────────
-# Indexado por la firma del objetivo (no por task_id) porque quien pide la continuación es el OPERADOR hablando,
-# y su segunda frase es una tarea nueva sin ninguna referencia a la primera. Casando por objetivo, «busca más
-# hoteles, esos no me valen» hereda los criterios YA acordados y solo sube la amplitud — el operador no tiene que
-# repetir las fechas, los niños ni el tamaño del coche.
-#
-# DELIBERATE: if the operator asks for the SAME thing again within the TTL, it is treated as a continuation (round 2), not as a
-# búsqueda nueva. Pedir dos veces lo mismo significa que la primera respuesta no sirvió, así que buscar MÁS ancho
-# es la lectura correcta; y el TTL acota el efecto para que dentro de una semana sea otra búsqueda desde cero.
-_KV_ROUND = "research_rounds"     # UN registro con todas las rondas vivas (el casado es difuso, no por clave)
-_ROUND_TTL = 6 * 3600
-_ROUND_MATCH = 0.5                # mismo umbral de solape que la reanudación web (`dispatch._find_resume`)
-_ROUND_MAX = 40                   # cota del registro: investigaciones vivas, no un histórico
-
-
-def _rounds() -> dict:
-    try:
-        from memory import api as memory
-        out = memory.kv_get(_KV_ROUND)
-        return out if isinstance(out, dict) else {}
-    except Exception:
-        return {}
-
-
-def remember_round(goal_key: str, brief: dict) -> None:
-    if not goal_key or not brief:
-        return
-    try:
-        from memory import api as memory
-        now = time.time()
-        reg = {k: v for k, v in _rounds().items()
-               if isinstance(v, dict) and now - float(v.get("ts") or 0) <= _ROUND_TTL}
-        reg[goal_key] = {"brief": brief, "ts": now}
-        if len(reg) > _ROUND_MAX:                     # oldest first
-            reg = dict(sorted(reg.items(), key=lambda kv: -float(kv[1].get("ts") or 0))[:_ROUND_MAX])
-        memory.kv_set(_KV_ROUND, reg)
-    except Exception:
-        pass
-
-
-def previous_round(goal_key: str) -> dict | None:
-    """Brief of the live investigation that BEST matches this objective, or None if this is a new search.
-
-    El casado es DIFUSO (solape de palabras de contenido ≥0.5) y no exacto, porque la frase con la que el operador
-    pide continuar nunca es la misma que la inicial: «busca vacaciones en Baleares…» y luego «esos no me valen,
-    sigue buscando» comparten el objetivo pero no el texto. Con casado exacto la continuación se leía como búsqueda
-    nueva y repetía la ronda 1 con la misma amplitud — es decir, le devolvía al operador lo mismo que acababa de
-    rechazar."""
-    want = set((goal_key or "").split())
-    if not want:
-        return None
-    now = time.time()
-    best, best_score = None, 0.0
-    for key, ent in _rounds().items():
-        if not isinstance(ent, dict) or now - float(ent.get("ts") or 0) > _ROUND_TTL:
-            continue
-        other = set(str(key).split())
-        union = len(want | other)
-        score = (len(want & other) / union) if union else 0.0
-        if score >= _ROUND_MATCH and score > best_score:
-            b = ent.get("brief")
-            if isinstance(b, dict) and b.get("goal"):
-                best, best_score = b, score
-    return best
+from nucleo.workers.brief_parse import (  # noqa: E402,F401
+    _MIN_CANDIDATES_FLOOR, _MIN_CANDIDATES_CAP, _N_FINAL_DEFAULT, _N_FINAL_CAP, _MAX_LIST, _MAX_ITEM_CHARS,
+    _MAX_ROLE_CHARS, _strlist, _roles, parse, _said_breadth, build_messages)
+from nucleo.workers.brief_store import (  # noqa: E402,F401
+    to_criteria, seed_criteria, to_prompt_block, save, load, _KV_ROUND, _ROUND_TTL, _ROUND_MATCH, _ROUND_MAX,
+    _rounds, remember_round, previous_round)

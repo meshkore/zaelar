@@ -35,7 +35,7 @@
 #   · SOURCES — which websites it entered and WHAT HAPPENED on each one: entered, could not due to auth, limited to
 #               50 results, errored. This turns "I found nothing" into auditable data.
 #   · CRITERIA — the task as currently executed (hard/soft/assumed/rubric) PLUS corrections the operator gives by
-#                voice ("they should be 42 to 49 feet"). Seeded automatically from the BRIEF (`nucleo/research.py`),
+#                voice ("they should be 42 to 49 feet"). Seeded automatically from the BRIEF (`nucleo/workers/brief.py`),
 #                so they do not depend on the worker remembering to write them.
 #
 # All four live in the SAME persisted payload as the list, and so does the active tab (`tab`) — just like
@@ -143,7 +143,7 @@ _SUMMARY_TEXT = ("state", "note")
 _MAX_STEPS = 24          # logbook of what was done: milestones, not every click
 _MAX_STEP_CHARS = 160
 
-# CRITERIA used to execute the task. Same names as the `nucleo/research.py` brief (seeded from there) + `changes`:
+# CRITERIA used to execute the task. Same names as the `nucleo/workers/brief.py` brief (seeded from there) + `changes`:
 # corrections the operator gives WHILE searching, which are exactly what used to get lost in conversation.
 _CRIT_LISTS = ("hard", "soft", "assumed", "enrichments", "quality_bar", "changes")
 _MAX_CRIT = 14

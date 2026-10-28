@@ -121,7 +121,7 @@ def _spec_for_naming():
                 return spec
     except Exception:  # noqa: BLE001
         pass
-    from nucleo.research import _spec as _research_spec
+    from nucleo.workers.brief import _spec as _research_spec
     return _research_spec()[0]
 
 
