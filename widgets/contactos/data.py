@@ -9,7 +9,7 @@ import re
 import time
 
 from .. import store
-from . import gcontacts
+from . import gcontacts, gmerge
 from . import channels, model
 
 # A QUESTION about somebody is answered from the RECORD (`lookup.py`, V2-704), not from the digest; re-exported
@@ -245,9 +245,9 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
 
 
 #: The GOOGLE merge lives in `gcontacts.py`, beside the who-wins-a-conflict rule (V2-714); aliased for callers.
-_merge_imported = gcontacts.merge_imported
-_match_imported = gcontacts.match_imported
-_drop_deleted = gcontacts.drop_deleted
+_merge_imported = gmerge.merge_imported
+_match_imported = gmerge.match_imported
+_drop_deleted = gmerge.drop_deleted
 
 
 def tick(ctx) -> None:

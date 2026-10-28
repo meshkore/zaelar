@@ -461,7 +461,7 @@ def _a_set_auto(action, payload, q, db, contacts, now) -> dict:
 def _a_sync_contacts(action, payload, q, db, contacts, now) -> dict:
     # `import_google` is kept as an alias: it shipped in the manifest for one build and a model that
     # learned it must not start getting «acción desconocida» for asking the same thing.
-    res = _d.gcontacts.sync(db, merge=_d.gcontacts.merge_imported, remove=_d.gcontacts.drop_deleted,
+    res = _d.gcontacts.sync(db, merge=_d.gmerge.merge_imported, remove=_d.gmerge.drop_deleted,
                          since=float((db.get("sync") or {}).get("last") or 0.0))
     if not res.get("ok"):
         return {"ok": False, "error": str(res.get("error") or "no se pudo sincronizar")}
