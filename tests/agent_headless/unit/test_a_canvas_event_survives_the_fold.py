@@ -11,12 +11,11 @@ import ast
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[3]
-FILES = ["nucleo/acts/canvas.py", "nucleo/acts/canvas_arbiter.py", "nucleo/acts/canvas_turn.py",
+FILES = ["nucleo/acts/canvas.py", "nucleo/acts/canvas_arbiter.py", "nucleo/acts/canvas_turn.py", "nucleo/acts/close_target.py", "nucleo/acts/named_target.py",
          "nucleo/canvas_focus.py", "nucleo/canvas_closes.py", "nucleo/surfaces.py"] + [
     f"nucleo/flash/{m}.py" for m in ("agenda_close_is_a_cancel", "bulk_close", "canvas_claim", "canvas_license",
                                      "canvas_visibility", "card_close", "card_commission", "card_receipt",
-                                     "close_answer", "close_guards", "close_identify", "close_which",
-                                     "named_target", "show_guard", "show_target", "surface_ack")]
+                                     "close_answer", "close_guards", "show_guard", "show_target", "surface_ack")]
 
 FROZEN = {
 ('brain', '⚠️ commission call failed — the errand stays as it was'),

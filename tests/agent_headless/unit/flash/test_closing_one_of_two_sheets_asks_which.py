@@ -4,7 +4,7 @@ two-searches-two-sheets (ES, 2026-10-14, sandbox 024032-es): a plumber hunt and 
 open (`results::8862f3-1`, `results::8862f3-2`). «cierra los resultados» → `close_widget(results)`; the target
 resolver kept the bare id (two real sheets, no focus) and the tool path closed it — both sheets went, and the reply
 said «He cerrado Resultados. Ya no queda nada en pantalla.». The [[close]] tag already asked in this situation
-(`instances.resolve_close`); both tool paths now ask through `nucleo/flash/close_which.py`.
+(`instances.resolve_close`); both tool paths now ask through `nucleo/acts/close_target.py`.
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import tempfile
 
 import pytest
 
-from nucleo.flash import close_which as CW
+from nucleo.acts import close_target as CW
 from nucleo.flash import show_target as ST
 from widgets import store
 
