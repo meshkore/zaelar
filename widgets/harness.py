@@ -84,15 +84,15 @@ def check_render(wid: str) -> tuple[bool, str]:
     node = shutil.which("node")
     if not node:
         return True, "skipped (no node)"
-    js = os.path.join(paths.dir_for(wid) or paths.new_dir(wid), "widget.js")
-    try:
-        src = open(js, encoding="utf-8").read()
-        r = subprocess.run([node, "--input-type=module", "--check", "-"], input=src,
-                           capture_output=True, text=True, timeout=15)
-    except Exception as e:
-        return False, f"node check failed to run: {e}"
-    if r.returncode != 0:
-        return False, (r.stderr or "syntax error").strip().splitlines()[-1][:160]
+    for js in paths.client_files(paths.dir_for(wid) or paths.new_dir(wid)):
+        try:
+            src = open(js, encoding="utf-8").read()
+            r = subprocess.run([node, "--input-type=module", "--check", "-"], input=src,
+                               capture_output=True, text=True, timeout=15)
+        except Exception as e:
+            return False, f"node check failed to run: {e}"
+        if r.returncode != 0:
+            return False, f"{os.path.basename(js)}: " + (r.stderr or "syntax error").strip().splitlines()[-1][:160]
     return True, "parses as ES module"
 
 

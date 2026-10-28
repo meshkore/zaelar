@@ -49,7 +49,8 @@ _JS_BANNED = [
     ("dynamic import()", re.compile(r"\bimport\s*\(")),
     ("eval()", re.compile(r"\beval\s*\(")),
     ("new Function()", re.compile(r"\bnew\s+Function\b")),
-    ("external import", re.compile(r'\bimport\b[^\n;]*\bfrom\b\s*["\']')),   # self-contained: no module deps
+    # self-contained: no module deps — only the widget's own `js/` modules (`./js/x.js`, or `./x.js` between them)
+    ("external import", re.compile(r'\bimport\b[^\n;]*\bfrom\b\s*["\'](?!\./(?:js/)?[\w-]+\.js["\'])')),
 ]
 # widget.js: HTML sinks are only dangerous with INTERPOLATION (a static string is fine). Flag assignment/call
 # whose RHS on the same line carries a template `${…}` or a `+` string concat.
@@ -561,7 +562,7 @@ def _validate(wid: str, *, stamp_origin: bool = False) -> tuple[bool, str]:
     js_src = open(js_p, encoding="utf-8").read() if os.path.isfile(js_p) else ""
     if not js_src or "export function render" not in js_src:
         return False, "widget.js missing or has no `export function render`"
-    js_bad = _scan_widget_js(js_src)                        # static house-rules gate (SEC-3): no XSS/network/dynamic code
+    js_bad = _scan_widget_js(paths.client_source(d))                        # static house-rules gate (SEC-3): no XSS/network/dynamic code
     if js_bad:
         return False, js_bad
     dp = os.path.join(d, "data.py")

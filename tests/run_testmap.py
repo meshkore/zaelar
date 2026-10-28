@@ -2052,6 +2052,10 @@ DOMAINS: list[dict] = [
                                  "durable row) and served at /api/tasks/<id>/process; not live → alive false (V2-822)",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_the_process_record_is_read_from_the_live_registry.py"]},
+        {"id": "3.145", "title": "A widget.js split into js/ modules is served under its prefix and gated as one client "
+                                 "(refactor2710-12)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_a_widget_split_into_js_modules_is_served_and_gated.py"]},
         # V2-820 T-06 — a request cut by his own «¿Te parece bien?» (barge-in before its first word): the model answered
         # the whole from the window, the brief judged the tag alone and CRIT-K34 annulled the errand as `answered`; the
         # composed answer then got «Perdona, se me ha ido» glued on (a stale reply read as mute). Disarmed 2026-10-27
