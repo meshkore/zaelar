@@ -311,6 +311,16 @@ def test_a_lane_that_carried_the_words_out_consumes_them_too(one_errand):
     assert one_errand["injected"] == []
 
 
+@pytest.mark.parametrize("sure, relayed", [(True, ""), (False, "7")])
+def test_a_verdict_that_surely_names_a_cards_act_keeps_the_words_on_the_card(one_errand, monkeypatch, sure, relayed):
+    """S2 «compare them side by side»: `results:layout` at 1.00 — the sheet's own act, not a correction of the errand."""
+    from nucleo.flash import direct_action as DA
+    monkeypatch.setattr(DA, "from_brief", lambda b: ("results::723152-ls1", "layout"))
+    monkeypatch.setattr(DA, "_action_sure", lambda b, floor=0.8: sure)
+    acted = {"v": None}
+    assert sd.steer(_brief("steer"), "compare them side by side", worker_acted=acted) == relayed
+
+
 def test_a_steer_nothing_carried_out_still_reaches_the_errand(one_errand):
     acted = {"v": None}
     assert sd.steer(_brief("steer"), STEER_BANK[1], worker_acted=acted, acted={"widget": False},

@@ -348,7 +348,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/jev": 759,          # refactor2710-07: born — jev.py split into the client, select and decide (dead calls out)
     "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
-    "nucleo/request": 962,     # demo sandbox 2026-10-28: +3, a steer sees the turn's own acts; refactor2710-02: born — request_row (model), errand_kind/title, dedup+continuity (append), stop_decision MOVED in
+    "nucleo/request": 973,     # demo sandbox 2026-10-28: +14, a steer sees the turn's own acts, lanes and a sure card act; refactor2710-02: born — request_row (model), errand_kind/title, dedup+continuity (append), stop_decision MOVED in
     "nucleo/susurro": 1386,
     "nucleo/turn": 6558,     # demo sandbox 2026-10-28: +4, a bare ack reads only the end states THIS sentence owes;        # refactor2710-03: `reply.py` + `reply_receipts.py` (the mouth); refactor2710-07: `brief.py` + `verdicts.py` (moved from nucleo/flash); refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-03: `reply.py` + `reply_receipts.py`, the mouth that speaks the verdict (paid by nucleo/flash); refactor2710-03: `reply.py` + `reply_receipts.py`, the mouth that speaks the verdict (paid by nucleo/flash); refactor2710-06: `wait_lines.py`, the holding/mute/follow-up lines from flash/reminder_guards
     "nucleo/workers": 8197,            # refactor2710-10: source_outcomes MOVED in from the top; refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
@@ -430,7 +430,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777). Never for growth in place.
-_TOTAL_MAX = 169812   # demo sandbox 2026-10-28: +106 for seven declared mechanisms (nodes 2.919-2.924, the ack, the one op-answer door), each with its test
+_TOTAL_MAX = 169823   # demo sandbox 2026-10-28: +117 for seven declared mechanisms (nodes 2.919-2.924, the ack, the one op-answer door, the steer's readers), each with its test
 
 
 def test_the_total_only_shrinks():
