@@ -4,42 +4,33 @@ import { tt, fmtDate, raf, ymd, parseYmd, hhmm, el2, svgEl, ICO_CHECK, hueOf, ba
 
 // ── LIST (Schedule) ───────────────────────────────────────────────────────────────────────────────────
 export function renderList(host, anchor, all, data, onPick){
-  const today = data.date || ymd(new Date());
-  const from = anchor;
+  const today = data.date || ymd(new Date());  const from = anchor;
   const rows = all.filter(e=>e.date >= from).sort((a,b)=>
     a.date.localeCompare(b.date) || a.start-b.start);
   if(!rows.length){
     host.appendChild(el2("div","agempty", tt("nothing_ahead", null, "No tienes nada apuntado a partir de hoy.")));
     return;
-  }
-  const wrap = el2("div","aglist");
-  const byDay = {};
+  }  const wrap = el2("div","aglist");  const byDay = {};
   rows.forEach(e=>{ (byDay[e.date] = byDay[e.date] || []).push(e); });
   Object.keys(byDay).sort().slice(0,60).forEach(ds=>{
     const d = parseYmd(ds);
     const row = el2("div","agday" + (ds===today?" today":""));
-    const dd = el2("div","agdaydate");
-    dd.appendChild(el2("div","d", String(d.getDate())));
+    const dd = el2("div","agdaydate");  dd.appendChild(el2("div","d", String(d.getDate())));
     dd.appendChild(el2("div","w", fmtDate(d,{weekday:"short"},"").replace(/\.$/,"")));
-    row.appendChild(dd);
-    const evs = el2("div","agdayevs");
+    row.appendChild(dd);  const evs = el2("div","agdayevs");
     byDay[ds].forEach(e=>{
       const r = el2("div","agrow" + (e.status==="pending"?" pending":""));
       r.style.setProperty("--evc", hueOf(e));
       r.appendChild(el2("div","agrowh", e.allDay ? tt("all_day_short", null, "Todo el día") : hhmm(e.start)));
-      r.appendChild(el2("div","agrowt", e.title));
-      const meta = [];
+      r.appendChild(el2("div","agrowt", e.title));  const meta = [];
       if(e.location) meta.push(e.location);
       if((e.attendees||[]).length) meta.push(tt("n_people",{n:e.attendees.length},"{n} personas"));
       if(meta.length) r.appendChild(el2("div","agrowm", meta.join(" · ")));
       r.appendChild(badges(e));
       r.onclick = ev => { ev.stopPropagation(); onPick(e); };
       evs.appendChild(r);
-    });
-    row.appendChild(evs);
-    wrap.appendChild(row);
-  });
-  host.appendChild(wrap);
+    });  row.appendChild(evs);  wrap.appendChild(row);
+  });  host.appendChild(wrap);
 }
 
 // ── V2-744 · TAREAS — the operator's own lists, numbered as he reads them ─────────────────────────────
@@ -62,8 +53,7 @@ export function taskWhen(it){
 }
 
 export function renderTasks(host, data, ctx, S, redraw){
-  const T = (data && data.tasks) || {};
-  const lists = Array.isArray(T.lists) ? T.lists : [];
+  const T = (data && data.tasks) || {};  const lists = Array.isArray(T.lists) ? T.lists : [];
   const byId = (T.items && typeof T.items === "object") ? T.items : {};
   const cur = lists.find(l => l.id === S.tl) || lists[0] || null;
   const items = (cur && byId[cur.id]) || [];
@@ -81,11 +71,9 @@ export function renderTasks(host, data, ctx, S, redraw){
   // data grows is a control that stops existing exactly when it is most needed. It is a flex SIBLING of the
   // scroller now, which is stickiness by construction rather than by a `position` nobody can see is load
   // bearing.
-  const side = el2("div","agt-side");
-  const shead = el2("div","agt-sidehead");
+  const side = el2("div","agt-side");  const shead = el2("div","agt-sidehead");
   shead.appendChild(el2("span","agt-sidetitle", tt("tasks_lists", null, "Listas")));
-  side.appendChild(shead);
-  const rows = el2("div","agt-rows");
+  side.appendChild(shead);  const rows = el2("div","agt-rows");
   lists.forEach(l => {
     const b = el2("button","agt-list" + (cur && l.id === cur.id ? " on" : ""));
     b.dataset.list = l.id; b.dataset.no = String(l.no);
@@ -118,20 +106,14 @@ export function renderTasks(host, data, ctx, S, redraw){
                          if(v) act("add_list", {name: v}); else redraw(); };
     inp.onkeydown = e => { if(e.key === "Enter") save(); if(e.key === "Escape"){ S.tlNew = false; redraw(); } };
     const ok = el2("button","agt-b on", tt("tasks_add", null, "Añadir")); ok.onclick = save;
-    newl.appendChild(inp); newl.appendChild(ok);
-    raf(() => { try{ inp.focus(); }catch(_){} });
+    newl.appendChild(inp); newl.appendChild(ok);  raf(() => { try{ inp.focus(); }catch(_){} });
   } else {
     // The ＋ carries its words in the tooltip, not on its face: in a 40px header bar a full label would push
     // the column title out, and the label is what the pointer asks for rather than what the eye scans.
-    const add = el2("button","agt-plus", "＋");
-    add.dataset.a2 = "newlist";
-    add.title = tt("tasks_new_list", null, "Nueva lista");
-    add.setAttribute("aria-label", add.title);
-    add.onclick = () => { S.tlNew = true; redraw(); };
-    newl.appendChild(add);
-  }
-  shead.appendChild(newl);
-  wrap.appendChild(side);
+    const add = el2("button","agt-plus", "＋");  add.dataset.a2 = "newlist";
+    add.title = tt("tasks_new_list", null, "Nueva lista");  add.setAttribute("aria-label", add.title);
+    add.onclick = () => { S.tlNew = true; redraw(); };  newl.appendChild(add);
+  }  shead.appendChild(newl);  wrap.appendChild(side);
 
   // ── the chosen list ────────────────────────────────────────────────────────────────────────────────
   const main = el2("div","agt-main");
@@ -144,21 +126,18 @@ export function renderTasks(host, data, ctx, S, redraw){
       const save = () => { const v = inp.value.trim(); S.tlEdit = false;
                            if(v && v !== cur.name) act("rename_list", {list: cur.id, newName: v}); else redraw(); };
       inp.onkeydown = e => { if(e.key === "Enter") save(); if(e.key === "Escape"){ S.tlEdit = false; redraw(); } };
-      inp.onblur = save;
-      head.appendChild(inp);
+      inp.onblur = save;  head.appendChild(inp);
       raf(() => { try{ inp.focus(); inp.select(); }catch(_){} });
     } else {
       const nm = (cur.builtin && String(cur.name) === "General") ? tt("tasks_general", null, "General") : String(cur.name || "");
-      head.appendChild(el2("div","agt-title", nm));
-      const id = el2("span","agt-id", cur.id);
+      head.appendChild(el2("div","agt-title", nm));  const id = el2("span","agt-id", cur.id);
       id.title = tt("tasks_share_id", null, "Identificador de la lista — para compartirla");
       // No clipboard permission, no network: selecting the text is what a widget is allowed to do, and it
       // is enough for him to read it out or copy it by hand.
       id.onclick = () => { try{ const r = document.createRange(); r.selectNodeContents(id);
                                 const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); }catch(_){} };
       head.appendChild(id);
-    }
-    const acts = el2("div","agt-acts");
+    }  const acts = el2("div","agt-acts");
     const ren = el2("button","agt-b", tt("tasks_rename", null, "Renombrar"));
     ren.dataset.a2 = "rename"; ren.onclick = () => { S.tlEdit = true; redraw(); };
     const clr = el2("button","agt-b danger", tt("tasks_clear", null, "Vaciar"));
@@ -168,15 +147,13 @@ export function renderTasks(host, data, ctx, S, redraw){
       const del = el2("button","agt-b danger", tt("tasks_delete_list", null, "Borrar lista"));
       del.dataset.a2 = "deletelist"; del.onclick = () => { S.tlAsk = "delete"; redraw(); };
       acts.appendChild(del);
-    }
-    head.appendChild(acts);
+    }  head.appendChild(acts);
     main.appendChild(head);
 
     // The confirmation is IN the card with Yes/No — the house rule (no popups), the same shape the
     // appointment's own «¿la cancelo?» uses two hundred lines above.
     if(S.tlAsk){
-      const ask = el2("div","agt-ask");
-      const del = S.tlAsk === "delete";
+      const ask = el2("div","agt-ask");  const del = S.tlAsk === "delete";
       ask.appendChild(el2("span", null, (del ? tt("tasks_confirm_delete", {name: cur.name},
                                                   `¿Borro la lista «${cur.name}» entera?`)
                                              : tt("tasks_confirm_clear", {name: cur.name},
@@ -186,21 +163,18 @@ export function renderTasks(host, data, ctx, S, redraw){
       yes.dataset.a2 = del ? "deleteyes" : "clearyes";
       yes.onclick = () => { S.tlAsk = ""; act(del ? "delete_list" : "clear_list", {list: cur.id}); };
       const no = el2("button","agt-b", tt("cancel", null, "Cancelar"));
-      no.onclick = () => { S.tlAsk = ""; redraw(); };
-      ask.appendChild(yes); ask.appendChild(no);
+      no.onclick = () => { S.tlAsk = ""; redraw(); };  ask.appendChild(yes); ask.appendChild(no);
       main.appendChild(ask);
     }
 
     // The table's label line. It carries no data and it is what turns a stack of rows into columns — the
     // one thing a spreadsheet has that a list of chips does not.
     if(items.length){
-      const cols = el2("div","agt-cols");
-      cols.appendChild(el2("i", null, ""));
+      const cols = el2("div","agt-cols");  cols.appendChild(el2("i", null, ""));
       cols.appendChild(el2("i","n", "Nº"));
       cols.appendChild(el2("i", null, tt("tasks_col_task", null, "Tarea")));
       cols.appendChild(el2("i", null, tt("tasks_col_when", null, "Cuándo")));
-      cols.appendChild(el2("i", null, ""));
-      main.appendChild(cols);
+      cols.appendChild(el2("i", null, ""));  main.appendChild(cols);
     }
 
     const box = el2("div","agt-items");

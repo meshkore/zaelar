@@ -10,14 +10,11 @@ import { tt, repeatLabel, fmtDate, raf, parseYmd, mins, hhmm, el2, svgEl, ICO_BE
 // `add_meeting` — a DECLARED data-op — and nothing else: a button that promises what the API cannot do is
 // the failure this widget's own history is made of (V2-540).
 export function renderAdd(root, ctx, state, redraw){
-  const at = state.add || {};
-  const veil = el2("div","agveil");
-  const close = ()=>{ state.add = null; redraw(); };
-  veil.onclick = e => { if(e.target===veil) close(); };
+  const at = state.add || {};  const veil = el2("div","agveil");
+  const close = ()=>{ state.add = null; redraw(); };  veil.onclick = e => { if(e.target===veil) close(); };
   const p = el2("div","agpanel agaddp");
 
-  const head = el2("div","agphead");
-  head.appendChild(el2("div","agpbar"));
+  const head = el2("div","agphead");  head.appendChild(el2("div","agpbar"));
   head.appendChild(el2("div","agptitle", tt("new_meeting", null, "Nueva cita")));
   const x = el2("button","agpx","×"); x.title = tt("close", null, "Cerrar"); x.onclick = close;
   head.appendChild(x); p.appendChild(head);
@@ -29,8 +26,7 @@ export function renderAdd(root, ctx, state, redraw){
 
   const title = el2("input","agfield");
   title.type = "text"; title.placeholder = tt("what_is_it", null, "¿Qué es?");
-  title.value = at.title || "";
-  p.appendChild(title);
+  title.value = at.title || "";  p.appendChild(title);
 
   const row = el2("div","agfrow");
   const start = el2("input","agfield agftime"); start.type = "time"; start.value = hhmm(at.start || 9*60);
@@ -41,8 +37,7 @@ export function renderAdd(root, ctx, state, redraw){
   });
   row.appendChild(start); row.appendChild(mins); p.appendChild(row);
 
-  const meetRow = el2("label","agfcheck");
-  const meet = el2("input"); meet.type = "checkbox";
+  const meetRow = el2("label","agfcheck");  const meet = el2("input"); meet.type = "checkbox";
   meetRow.appendChild(meet);
   meetRow.appendChild(el2("span",null, tt("with_meet", null, "Con videollamada de Google Meet")));
   p.appendChild(meetRow);
@@ -58,19 +53,16 @@ export function renderAdd(root, ctx, state, redraw){
     const m = mins2(start.value);
     if(m == null){ err.textContent = tt("needs_time", null, "Esa hora no la entiendo."); err.hidden = false;
                    return; }
-    const dur = Number(mins.value) || 60;
-    state.add = null;
+    const dur = Number(mins.value) || 60;  state.add = null;
     Promise.resolve(ctx.action("add_meeting", {
       title: t, date: at.date, startTime: hhmm(m), endTime: hhmm(Math.min(24*60-1, m + dur)),
       meet: meet.checked ? true : undefined,
     })).then(nd => redraw(nd)).catch(()=>redraw());
   };
   const no = el2("button",null, tt("cancel", null, "Cancelar")); no.onclick = close;
-  acts.appendChild(save); acts.appendChild(no);
-  p.appendChild(acts);
+  acts.appendChild(save); acts.appendChild(no);  p.appendChild(acts);
 
-  veil.appendChild(p); root.appendChild(veil);
-  raf(()=>{ try{ title.focus(); }catch(_){} });
+  veil.appendChild(p); root.appendChild(veil);  raf(()=>{ try{ title.focus(); }catch(_){} });
 }
 
 // "HH:MM" → minutes, or null when the field is empty or unreadable. An unreadable time must not silently
@@ -87,16 +79,14 @@ export function renderDetail(root, ev, ctx, state, redraw){
   const veil = el2("div","agveil");
   veil.onclick = e => { if(e.target===veil){ state.sel=null; state.confirmDel=false; redraw(); } };
   const p = el2("div","agpanel"); p.style.setProperty("--evc", hueOf(ev));
-  const head = el2("div","agphead");
-  head.appendChild(el2("div","agpbar"));
+  const head = el2("div","agphead");  head.appendChild(el2("div","agpbar"));
   head.appendChild(el2("div","agptitle", ev.title));
   const x = el2("button","agpx","×"); x.title = tt("close", null, "Cerrar");
   x.onclick = ()=>{ state.sel=null; state.confirmDel=false; redraw(); };
   head.appendChild(x); p.appendChild(head);
 
   const when = el2("div","agprow"); when.appendChild(svgEl(ICO_CLOCK));
-  const d = parseYmd(ev.date);
-  when.appendChild(el2("span",null,
+  const d = parseYmd(ev.date);  when.appendChild(el2("span",null,
     `${fmtDate(d,{weekday:"long",day:"numeric",month:"long"},ev.date)} · ${timeLabel(ev)}`));
   p.appendChild(when);
 
@@ -124,8 +114,7 @@ export function renderDetail(root, ev, ctx, state, redraw){
     const r=el2("div","agprow agpguests"); r.appendChild(svgEl(ICO_USERS));
     const box=el2("div","agpglist");
     for(const g of ev.guests){
-      const row=el2("div","agpg");
-      const rs=String(g.rsvp||"");
+      const row=el2("div","agpg");  const rs=String(g.rsvp||"");
       const mk=el2("i","agpgm "+(RSVP_MARK[rs]?rs:"unknown"), RSVP_MARK[rs]||"·");
       mk.title = rs==="accepted" ? tt("rsvp_yes", null, "Ha aceptado")
                : rs==="declined" ? tt("rsvp_no", null, "No va")
@@ -135,8 +124,7 @@ export function renderDetail(root, ev, ctx, state, redraw){
       row.appendChild(el2("span","agpgn", g.name || g.email || ""));
       if(g.organizer) row.appendChild(el2("i","agpgo", tt("organizer", null, "organiza")));
       box.appendChild(row);
-    }
-    r.appendChild(box); p.appendChild(r);
+    }  r.appendChild(box); p.appendChild(r);
   } else if((ev.attendees||[]).length){
     // A meeting the operator dictated: names only, no roster to report.
     const named = ev.attendees.filter(a=>String(a).trim());
@@ -187,8 +175,7 @@ export function renderDetail(root, ev, ctx, state, redraw){
   // Only actions that map to a DECLARED data-op — a button that promises what the API cannot do is the
   // failure this widget's own history is made of (V2-540).
   if(ev.meeting){
-    const acts = el2("div","agpacts");
-    const call = (name, payload) => {
+    const acts = el2("div","agpacts");  const call = (name, payload) => {
       state.sel = null; state.confirmDel = false;
       Promise.resolve(ctx.action(name, payload)).then(nd => redraw(nd)).catch(()=>redraw());
     };
@@ -235,8 +222,7 @@ export function renderDetail(root, ev, ctx, state, redraw){
       const b = el2("button","risk", tt("delete", null, "Cancelar cita"));
       b.onclick = ()=>{ state.confirmDel=true; redraw(); };
       acts.appendChild(b);
-    }
-    p.appendChild(acts);
+    }  p.appendChild(acts);
   } else if(ev.system){
     // What it IS, said plainly, because the one thing that must not happen is him reading it as a meeting.
     p.appendChild(el2("div","agnote", ev.recurring

@@ -427,3 +427,60 @@ def test_a_nameless_appointment_is_REFUSED_not_invented(_page):
     _page.locator(".agpacts button.done").click()
     assert _page.evaluate("() => window.__calls") == [], "nothing is written"
     assert _page.locator(".agaddp").count() == 1, "and the composer stays open, saying what is missing"
+
+
+# ── 2026-10-28 · A MULTI-DAY EVENT IS ONE BAR, NOT ONE CHIP PER DAY ─────────────────────────────────────
+
+def _monday(n: int = 0) -> str:
+    now = time.localtime()
+    return time.strftime("%Y-%m-%d", time.localtime(time.time() - (now.tm_wday % 7) * 86400 + n * 86400))
+
+
+def test_a_trip_over_several_days_is_ONE_bar_across_its_cells_in_the_month(_page):
+    """The operator's reference: a calendar's «trip» bar spanning its days with the title said once. A row
+    with `lastDay` three days after `date` draws ONE bar over four columns — never four chips."""
+    _mount(_page, _data(meetings=[{"title": "Viaje a Alsacia", "date": _monday(1), "lastDay": _monday(4),
+                                   "allDay": True}]))
+    _page.click(".agtab[data-view=month]")
+    geo = _page.evaluate(
+        """() => { const bars=[...document.querySelectorAll('.agmgrid .agspan')];
+                   const cells=[...document.querySelectorAll('.agmcell')];
+                   const b=bars[0].getBoundingClientRect();
+                   const under=cells.filter(c=>{const r=c.getBoundingClientRect();
+                     return r.top<=b.top && r.bottom>=b.bottom && r.right>b.left+1 && r.left<b.right-1;});
+                   return {bars: bars.length, titles: bars.map(x=>x.textContent), covered: under.length,
+                           chips: document.querySelectorAll('.agmcell .agmev').length}; }""")
+    assert geo["bars"] == 1 and geo["titles"] == ["Viaje a Alsacia"], geo
+    assert geo["covered"] == 4, f"the bar has to lie over exactly its four days, got {geo['covered']}"
+    assert geo["chips"] == 0, "a multi-day event is never also drawn as per-day chips"
+
+
+def _grid_start(n: int = 0) -> str:
+    """The Monday that opens the month grid (the week of the 1st), plus n days — always on screen, whatever
+    today is; a fixture hung on «this week» fell off the grid at the end of a month (measured 2026-10-28)."""
+    first = time.localtime(time.time())
+    first_day = time.mktime((first.tm_year, first.tm_mon, 1, 12, 0, 0, 0, 0, -1))
+    monday = first_day - time.localtime(first_day).tm_wday * 86400
+    return time.strftime("%Y-%m-%d", time.localtime(monday + n * 86400))
+
+
+def test_a_trip_that_crosses_the_week_break_is_cut_and_continued(_page):
+    _mount(_page, _data(meetings=[{"title": "Viaje a Alsacia", "date": _grid_start(5), "lastDay": _grid_start(8),
+                                   "allDay": True}]))
+    _page.click(".agtab[data-view=month]")
+    kinds = _page.evaluate(
+        """() => [...document.querySelectorAll('.agmgrid .agspan')].map(b => [b.classList.contains('cr'),
+                                                                               b.classList.contains('cl')])""")
+    assert kinds == [[True, False], [False, True]], f"one segment cut on the right, one continued on the left: {kinds}"
+
+
+def test_the_week_draws_the_same_trip_as_one_bar_in_its_all_day_band(_page):
+    _mount(_page, _data(meetings=[{"title": "Viaje a Alsacia", "date": _wd(1), "lastDay": _wd(3), "allDay": True}]))
+    geo = _page.evaluate(
+        """() => { const band=document.querySelector('.agallday'); const bar=band.querySelector('.agspan');
+                   const cells=[...band.querySelectorAll('.agallcell')];
+                   const b=bar.getBoundingClientRect();
+                   return {bars: band.querySelectorAll('.agspan').length, chips: band.querySelectorAll('.agev:not(.agspan)').length,
+                           covered: cells.filter(c=>{const r=c.getBoundingClientRect(); return r.right>b.left+1 && r.left<b.right-1;}).length,
+                           inGrid: document.querySelectorAll('.agcol .agev').length}; }""")
+    assert geo == {"bars": 1, "chips": 0, "covered": 3, "inGrid": 0}, geo

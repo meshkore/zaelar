@@ -3,15 +3,12 @@
 export const CSS_PANELS = `\
   /* V2-697 — the join link is the one thing on this card somebody needs at a specific minute, so it reads as
      an action and not as another grey detail line. */
-  .hb-agenda .agpmeet{color:var(--hb-accent,#3D6FE0);font-weight:600;text-decoration:none}
-  .hb-agenda .agpmeet:hover{text-decoration:underline}
+  .hb-agenda .agpmeet{color:var(--hb-accent,#3D6FE0);font-weight:600;text-decoration:none}  .hb-agenda .agpmeet:hover{text-decoration:underline}
   .hb-agenda .agpglist{display:flex;flex-direction:column;gap:3px;min-width:0}
   .hb-agenda .agpg{display:flex;align-items:baseline;gap:6px;min-width:0}
   .hb-agenda .agpgm{flex:0 0 auto;width:13px;text-align:center;font-style:normal;font-weight:700;font-size:12px}
-  .hb-agenda .agpgm.accepted{color:var(--hb-ok,#5FD3A2)}
-  .hb-agenda .agpgm.declined{color:var(--hb-risk,#e5484d)}
-  .hb-agenda .agpgm.tentative{color:var(--hb-warn,#EFC75E)}
-  .hb-agenda .agpgm.unknown{color:var(--hb-muted-2,#8d9db4)}
+  .hb-agenda .agpgm.accepted{color:var(--hb-ok,#5FD3A2)}  .hb-agenda .agpgm.declined{color:var(--hb-risk,#e5484d)}
+  .hb-agenda .agpgm.tentative{color:var(--hb-warn,#EFC75E)}  .hb-agenda .agpgm.unknown{color:var(--hb-muted-2,#8d9db4)}
   .hb-agenda .agpgn{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
   .hb-agenda .agpgo{flex:0 0 auto;font-style:normal;font-size:11px;color:var(--hb-muted-2,#8d9db4)}
   /* V2-697 — the proposals band. Deliberately NOT styled like a calendar entry: none of this is on the
@@ -22,8 +19,7 @@ export const CSS_PANELS = `\
     display:flex;flex-direction:column;gap:4px}
   .hb-agenda .agprophead{font-size:13px;color:var(--hb-ink,#0d1622)}
   .hb-agenda .agpropwhen{font-size:13px;font-weight:600;color:var(--hb-accent,#3D6FE0)}
-  .hb-agenda .agpropwhy{font-size:12px;color:var(--hb-muted,#3a4757)}
-  .hb-agenda .agpropacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:3px}
+  .hb-agenda .agpropwhy{font-size:12px;color:var(--hb-muted,#3a4757)}  .hb-agenda .agpropacts{display:flex;flex-wrap:wrap;gap:6px;margin-top:3px}
   .hb-agenda .agpropacts button{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
     border-radius:9px;padding:6px 11px;font-size:13px;cursor:pointer;color:var(--hb-muted,#3a4757)}
   .hb-agenda .agpropacts button.ok{border-color:color-mix(in srgb,var(--hb-ok,#5FD3A2) 55%,transparent);
@@ -38,7 +34,7 @@ export const CSS_PANELS = `\
     color:var(--hb-ok,#5FD3A2)}
   .hb-agenda .agpacts button.ok:hover{border-color:var(--hb-ok,#5FD3A2)}
   .hb-agenda .agnote{font-size:13px;color:var(--hb-muted-2,#7d8a9c);line-height:1.4}
-  .hb-agenda .agcaldefsel{height:var(--hb-icon-h,28px);max-width:180px;font-size:13px;border-radius:var(--hb-r-s,8px);
+  .hb-agenda .agcaldefsel{height:var(--hb-ctl-h-sm,32px);max-width:180px;font-size:13px;border-radius:var(--hb-r-s,8px);
     border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);padding:0 6px}
 
   /* ── V2-744/V2-746 · THE SUBHEADER ────────────────────────────────────────────────────────────────
@@ -56,16 +52,19 @@ export const CSS_PANELS = `\
      accent text: V2-691 measured that pairing at 6.1:1 against the dark canvas, and the underline variant
      would put small accent text on a lighter step, which is where the tertiary ink already loses a point.
      A design change is not allowed to spend the contrast that audit bought. */
-  .hb-agenda .agsub{display:flex;align-items:center;gap:var(--sp-3,12px);flex:0 0 auto;min-width:0;
-    margin:0 0 var(--sp-3,12px);padding:0 0 var(--sp-2,8px);
-    border-bottom:1px solid var(--hb-line,rgba(255,255,255,.14))}
-  .hb-agenda .agsec{display:flex;gap:2px;flex:0 0 auto;padding:3px;
-    border-radius:999px;background:var(--hb-bg-soft,#171B21);
-    border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06))}
-  .hb-agenda .agsecb{border:0;background:none;color:var(--hb-muted,#5b6b82);border-radius:999px;
-    padding:6px var(--sp-4,16px);font:600 13px/1.2 var(--sans,system-ui);cursor:pointer;white-space:nowrap}
-  .hb-agenda .agsecb:hover{color:var(--hb-ink,#0d1622)}
-  .hb-agenda .agsecb.on{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#fff)}
+  /* 2026-10-28 — the band IS the toolbar now (the operator: all the chrome in two lines — the window's bar
+     and this one). One strip on surface-2 holding the section switch, ‹ Hoy › · range · views (.agbar) and
+     the slot; it wraps only when a phone leaves no other way. The switch sits one rung DOWN on the strip. */
+  .hb-agenda .agsub{display:flex;align-items:center;gap:var(--sp-2,8px);flex:0 0 auto;min-width:0;flex-wrap:wrap;
+    margin:0 0 var(--sp-3,12px);padding:var(--sp-1,4px) var(--sp-2,8px);background:var(--hb-bg-soft,#272D35);
+    border:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));border-radius:var(--hb-r-m,10px);
+    border-bottom-color:var(--hb-line,rgba(255,255,255,.14))}
+  .hb-agenda .agsec{display:flex;gap:2px;flex:0 0 auto;padding:2px;border-radius:999px;
+    background:var(--hb-bg,#1F242B);border:1px solid var(--hb-line-subtle,rgba(255,255,255,.09))}
+  .hb-agenda .agsecb{border:0;background:none;color:var(--hb-muted,#5b6b82);border-radius:999px;display:inline-flex;
+    align-items:center;gap:6px;padding:6px var(--sp-3,12px);font:600 13px/1.2 var(--sans,system-ui);cursor:pointer;white-space:nowrap}
+  .hb-agenda .agsecb svg{display:none;width:15px;height:15px}
+  .hb-agenda .agsecb:hover{color:var(--hb-ink,#0d1622)}  .hb-agenda .agsecb.on{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#fff)}
   /* The slot. "margin-left:auto" and not a spacer element, so an empty slot costs no node at all. */
   .hb-agenda .agsub-meta{margin-left:auto;flex:0 1 auto;min-width:0;display:flex;align-items:center;
     gap:var(--sp-2,8px);font:600 12px/1 var(--sans,system-ui);color:var(--hb-muted,#BAC2CE);
@@ -274,4 +273,10 @@ export const CSS_PANELS = `\
     .hb-agenda .agt-side{flex:0 0 auto;max-height:168px}
     .hb-agenda .agt-main{min-height:240px}
   }
+  /* The band's three widths — see style.js «THE VIEWS». Last on purpose: a tier has to beat the base rules. */
+  @container (max-width:1040px){ .hb-agenda .agcaldefsel{max-width:58px} }
+  @container (max-width:820px){ .hb-agenda .agtab,.hb-agenda .agcaldefsel{display:none} .hb-agenda .agviewsel{display:block} }
+  @container (max-width:560px){ .hb-agenda .agsecb span,.hb-agenda .agconnicons,.hb-agenda .agmev .agmh{display:none}
+    .hb-agenda .agsecb svg{display:block} .hb-agenda .agsecb{padding:7px 9px}
+    .hb-agenda .agsub,.hb-agenda .agbar{gap:var(--sp-1,4px)} .hb-agenda .agnav button{min-width:28px;padding:0 6px} }
   `;

@@ -76,7 +76,9 @@ def _page():
 def _mount(page, data, *, lang=None, bundle=None):
     """lang+bundle -> a ctx with the V2-613 seam; without them the bare-fallback path renders."""
     page.goto(page._hb_origin)
-    page.set_content("<div id='w' style='width:820px'></div>")
+    # 1000px: under 820px of card the four view tabs fold into a <select> (2026-10-28, the two-line chrome),
+    # and these cases click the tabs — the width is not what they measure.
+    page.set_content("<div id='w' style='width:1000px'></div>")
     page.evaluate(
         """async ([src, data, lang, bundle]) => {
              const mod = await import(src);

@@ -2,27 +2,37 @@
 // Part of the client split out of widget.js (refactor2710-12 T-03); widget.js stays the entry with render().
 
 export const SVG_NS_AG = "http://www.w3.org/2000/svg";
-
 // Event palette. HUE says WHAT KIND of thing it is; the INTENSITY (below) says how settled it is. Both are
 // derived from stored data — the category the operator dictated, or the planner's own block kind — never from
 // sniffing the title, which would be guessing intent (V2-095).
+// 2026-10-28 — the hues are the product's CATEGORICAL RANGE (palette.css `--hb-c-*`), not hexes of this
+// widget's own: the same ten mean the same things on every card, and a design profile retunes them at once.
+// What each colour MEANS here: a KIND of our own item (below), or WHICH CALENDAR a synced row came from (calHue).
+const C = k => `var(--hb-c-${k},#8B98AC)`;
 export const HUES = {
-  meeting:  "#7C6BFF",   // an appointment with the world
-  work:     "#3D6FE0",
-  deep:     "#3D6FE0",
-  admin:    "#16B8A6",
-  health:   "#E5484D",
-  travel:   "#0EA5E9",
-  social:   "#EC4899",
-  personal: "#22A06B",
-  exercise: "#E8973A",
-  break:    "#8B98AC",
-  buffer:   "#8B98AC",
-  // V2-728 — work the SYSTEM does at a moment, not an appointment the operator keeps. Its own hue because
-  // it is its own kind of thing: nobody is meeting anybody, and colouring it like a meeting would put a
-  // commitment on his calendar that he never made.
-  system:   "#9A6BFF",
+  meeting:  C("violet"),                    // an appointment with the world
+  work:     C("blue"), deep: C("blue"),
+  admin:    C("teal"),
+  health:   C("red"),
+  travel:   C("cyan"),
+  social:   C("pink"),
+  personal: C("green"),
+  exercise: C("orange"),
+  break:    C("grey"), buffer: C("grey"),
+  // V2-728 — work the SYSTEM does at a moment (a reminder, a job), not an appointment the operator keeps. Its own
+  // hue because it is its own kind of thing: nobody is meeting anybody, and colouring it like a meeting would put
+  // a commitment on his calendar that he never made.
+  system:   C("amber"),
 };
+// A synced CALENDAR gets one colour, stable for its id — the same calendar is the same colour on every
+// screen and every day — unless the operator has set one (`data.calendarColors`, a token name per id;
+// nothing writes it yet). Nine hues, never grey: grey is for an unset state.
+const CAL_HUES = ["blue","green","orange","violet","pink","teal","amber","cyan","red"];
+export function calHue(id, colors){
+  const set = (colors||{})[id]; if(set) return C(set);
+  let h = 0; for(const ch of String(id||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0;
+  return C(CAL_HUES[h % CAL_HUES.length]);
+}
 // Dictated category → hue key. Spanish and English, because the category is PRODUCT DATA the operator speaks.
 export const CATEGORY_HUE = {
   trabajo:"work", work:"work", oficina:"work", reunion:"meeting", meeting:"meeting",
@@ -63,22 +73,17 @@ export function fmtDate(d, opts, fb){ const f=intl(opts); return f ? f.format(d)
 // ── date helpers (local time, no libraries) ───────────────────────────────────────────────────────────
 // Optional browser surface — a widget must render (and a headless DOM stub must be able to drive it) even
 // where these do not exist; neither carries behaviour, only polish.
-export function raf(fn){ try{ if(typeof requestAnimationFrame === "function") requestAnimationFrame(fn); else fn(); }
-  catch(_){} }
+export function raf(fn){ try{ if(typeof requestAnimationFrame === "function") requestAnimationFrame(fn); else fn(); }catch(_){} }
 
-export const _pad = n => String(n).padStart(2,"0");
-export function ymd(d){ return `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`; }
-export function parseYmd(s){
-  const p = String(s||"").split("-").map(Number);
-  return (p[0] && p[1] && p[2]) ? new Date(p[0], p[1]-1, p[2]) : new Date();
-}
+export const _pad = n => String(n).padStart(2,"0");  export function ymd(d){ return `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`; }
+export function parseYmd(s){ const p = String(s||"").split("-").map(Number);
+  return (p[0] && p[1] && p[2]) ? new Date(p[0], p[1]-1, p[2]) : new Date(); }
 export function addDays(d, n){ const x = new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
 export function startOfWeek(d){ const x=new Date(d.getTime()); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }  // Monday
 export function mins(hhmm){ const p=String(hhmm||"").split(":"); const h=Number(p[0]), m=Number(p[1]);
   return (isFinite(h)?h:0)*60 + (isFinite(m)?m:0); }
 export function hhmm(m){ return `${_pad(Math.floor(m/60)%24)}:${_pad(Math.round(m)%60)}`; }
-export function fmtCount(min){ const m=Math.max(0,Math.round(min));
-  return `${_pad(Math.floor(m/60))}:${_pad(m%60)}`; }
+export function fmtCount(min){ const m=Math.max(0,Math.round(min)); return `${_pad(Math.floor(m/60))}:${_pad(m%60)}`; }
 
 // ── DOM builder — data-derived text ALWAYS via textContent (data is brain-pushable, i.e. UNTRUSTED) ───
 export function el2(tag, cls, text){ const e=document.createElement(tag); if(cls)e.className=cls;
@@ -96,15 +101,13 @@ export function svgEl(paths, opts){
   return svg;
 }
 export const ICO_CAL   = ["M8 2v4","M16 2v4","M3 10h18","M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"];
-export const ICO_PREV  = "M15 18l-6-6 6-6";
-export const ICO_NEXT  = "M9 18l6-6-6-6";
+export const ICO_PREV  = "M15 18l-6-6 6-6", ICO_NEXT = "M9 18l6-6-6-6";
 export const ICO_BELL  = ["M18 8a6 6 0 0 0-12 0c0 7-3 8-3 8h18s-3-1-3-8","M13.7 21a2 2 0 0 1-3.4 0"];
 export const ICO_USERS = ["M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2","M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8",
                    "M23 21v-2a4 4 0 0 0-3-3.87","M16 3.13a4 4 0 0 1 0 7.75"];
 export const ICO_PIN   = ["M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0","M12 12a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5"];
 export const ICO_NOTE  = ["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z","M14 2v6h6","M8 13h8","M8 17h5"];
-export const ICO_CHECK = "M20 6L9 17l-5-5";
-export const ICO_CLOCK = ["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z","M12 6v6l4 2"];
+export const ICO_CHECK = "M20 6L9 17l-5-5", ICO_CLOCK = ["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z","M12 6v6l4 2"];
 export const ICO_PLUG  = ["M9 2v6","M15 2v6","M6 8h12v3a6 6 0 0 1-12 0z","M12 17v5"];
 export const ICO_CAM   = ["M23 7l-7 5 7 5V7z","M14 5H3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"];
 export const ICO_HOST  = ["M20 21v-2a4 4 0 0 0-3-3.87","M4 21v-2a4 4 0 0 1 3-3.87",
@@ -137,8 +140,11 @@ export const CAL_SVG = {
 // blocks are dropped because the same appointment already arrived through `meetings` with more inside it.
 export function hueOf(ev){
   const cat = String(ev.category||"").toLowerCase();
-  const key = CATEGORY_HUE[cat] || (HUES[cat] ? cat : null) || ev.kind || "meeting";
-  return HUES[key] || HUES.meeting;
+  const known = CATEGORY_HUE[cat] || (HUES[cat] ? cat : null);
+  // 2026-10-28 — an uncategorised MEETING is coloured by WHICH CALENDAR it belongs to (a synced row) or by the
+  // accent (his own voice); a category he dictated still wins.
+  if(!known && (ev.kind||"meeting") === "meeting") return ev.calHue || "var(--hb-accent,#AE90FF)";
+  return HUES[known || ev.kind] || HUES.meeting;
 }
 export function eventsOf(data){
   const out = [];
@@ -157,6 +163,7 @@ export function eventsOf(data){
       // import; nothing copied them here, so the detail card could not show what Google plainly knew.
       guests:Array.isArray(m.guests)?m.guests:[], organizer:m.organizer||"",
       myRsvp:m.myRsvp||"", meetLink:m.meetLink||"", htmlLink:m.htmlLink||"", source:m.source||"",
+      calHue: m.googleCalendarId ? calHue(m.googleCalendarId, data.calendarColors) : "", lastDay: allDay && m.lastDay > m.date ? String(m.lastDay) : "",
       // V2-769 — a repeating appointment arrives as its days; each one knows the rule it belongs to.
       repeat:(m.repeat && typeof m.repeat === "object") ? m.repeat : null});
   });
@@ -182,10 +189,7 @@ export function eventsOf(data){
   });
   return out;
 }
-export function eventsOn(all, dateStr){
-  return all.filter(e=>e.date===dateStr).sort((a,b)=>a.start-b.start || a.end-b.end);
-}
-
+export function eventsOn(all, dateStr){ return all.filter(e=>e.date===dateStr).sort((a,b)=>a.start-b.start || a.end-b.end); }
 
 // ── one event chip, in the time grid ──────────────────────────────────────────────────────────────────
 export function badges(ev){
@@ -202,13 +206,9 @@ export function badges(ev){
   return box;
 }
 export function chipClasses(ev){
-  if(ev.system) return "agev system";
-  return "agev" + (ev.planned ? " planned" : (ev.status==="pending" ? " pending" : ""));
+  return ev.system ? "agev system" : "agev" + (ev.planned ? " planned" : (ev.status==="pending" ? " pending" : ""));
 }
-export function timeLabel(ev){
-  if(ev.allDay) return tt("all_day", null, "Todo el día");
-  return `${hhmm(ev.start)}–${hhmm(ev.end)}`;
-}
+export function timeLabel(ev){ return ev.allDay ? tt("all_day", null, "Todo el día") : `${hhmm(ev.start)}–${hhmm(ev.end)}`; }
 
 // ── the grid (day + week share it) ────────────────────────────────────────────────────────────────────
 export const HOUR_PX = 46, GUTTER = 46;
