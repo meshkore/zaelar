@@ -22,7 +22,6 @@ from nucleo import dispatch
 from nucleo import dispatch_confirm as dc
 from nucleo.flash import delivery, escalate, live_blocks
 from nucleo.turn import errand_pool, errands_of_a_turn as E, named_errand
-from nucleo.workers import ended
 
 REPORT = {"id": "4", "request": "Write a report on electric cars for city driving: which models suit urban use, range, "
                                 "charging, running costs", "phase": "", "waiting_on": "", "surface": "informe", "sheet": ""}
@@ -44,14 +43,8 @@ def between(monkeypatch):
     monkeypatch.setattr(escalate, "_tasks", {9: {"request": GAME[:200], "started_at": time.time() - 1, "done": False,
                                                  "summary": ""}})
     monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: (MONITOR["request"], list(ROWS)))
-    monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: ("", 0, ""))
     monkeypatch.setattr(delivery, "_speaks_en", lambda: True)
     delivery.forget_announced()
-
-
-def test_a_sentence_about_the_game_being_launched_gets_no_monitor_rows(between):
-    out = delivery.apply_to_reply(WAIT, [], heard_now=HEARD)
-    assert out == WAIT, f"the monitor's rows answered a sentence about the game: {out!r}"
 
 
 def test_the_starting_errand_is_named_and_is_not_an_injection_target(between):
@@ -66,23 +59,3 @@ def test_once_its_session_registers_it_is_not_counted_twice(between, monkeypatch
     monkeypatch.setattr(dispatch, "pending_summaries", lambda: [dict(REPORT), dict(MONITOR), live])
     assert not errand_pool.starting(named_errand.known()[:3]), "the live session IS the errand now"
     assert [e["id"] for e in named_errand.known()] == ["4", "5", "6"]
-
-
-def test_an_old_or_finished_escalation_is_not_starting(between, monkeypatch):
-    monkeypatch.setattr(escalate, "_tasks", {9: {"request": GAME[:200], "started_at": time.time() - 600,
-                                                 "done": False, "summary": ""}})
-    assert not any(e.get("starting") for e in named_errand.known())
-    out = delivery.apply_to_reply(WAIT, [], heard_now="any news?")
-    assert "MONITOR PC" in out, "with no errand named, the first delivery is unchanged"
-
-
-def test_a_sentence_about_the_game_that_just_finished_gets_no_monitor_rows(between, monkeypatch):
-    """EN, same round, turn 11: «how's the game coming?» got two monitor tails. Once the game is DONE it is neither
-    live nor starting — it is in the ended snapshots, and his sentence still names it."""
-    monkeypatch.setattr(escalate, "_tasks", {})
-    monkeypatch.setattr(ended, "_ENDED_SESSIONS", {"6": {
-        "id": "6", "goal": GAME, "status": "done", "ok": True, "summary": "", "at": time.time() - 20, "told": 0,
-        "sheet": "", "title": "", "kind": "code", "error_class": ""}})
-    monkeypatch.setattr(ended, "_live_goals", lambda: set())
-    out = delivery.apply_to_reply(WAIT, [], heard_now="nice, and the mario game, is it playable now? did the jump get higher?")
-    assert out == WAIT, f"the monitor's rows answered a sentence about the finished game: {out!r}"

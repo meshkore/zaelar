@@ -133,49 +133,8 @@ def test_sin_filas_frescas_no_hay_nada_que_entregar():
 
 # ── the second half: the stall stops hanging its question ──────────────────────────────────────────────────
 
-def test_con_filas_frescas_el_flujo_NO_llega_al_backstop_de_atasco(monkeypatch):
-    """The cause was ONE. With delivery triggering, `apply_to_reply` returns before checking the stall, so
-    the management question the operator received twice is no longer written."""
-    from nucleo.flash import live_blocks as LB
-    monkeypatch.setattr(LB, "any_live_task_rows", lambda n=3: (ENCARGO, [f.strip("«»") for f in FILAS]))
-    llamado = {"atasco": False}
-
-    def _no_deberia(*a, **k):
-        llamado["atasco"] = True
-        return ("un encargo", 5, "sin avanzar")
-    monkeypatch.setattr(LB, "any_stalled_task", _no_deberia)
-
-    out = D.apply_to_reply("¿La paro y probamos por otro lado, o le doy un poco más de margen?", [])
-    assert "Yamaha R125" in out
-    assert not llamado["atasco"], "with fresh rows in front, the stall is not mentioned"
-
-
-def test_sin_filas_el_atasco_SIGUE_contandose(monkeypatch):
-    """And the symmetric case, which keeps this fix from silencing V2-359: with nothing to deliver, a
-    detected stall is reported just as before."""
-    from nucleo.flash import live_blocks as LB
-    monkeypatch.setattr(LB, "any_live_task_rows", lambda n=3: ("", []))
-    monkeypatch.setattr(LB, "any_stalled_task", lambda: ("buscar una moto", 5, "sin avanzar"))
-    out = D.apply_to_reply("Sigo con ello, te aviso.", [])
-    assert "puede estar atascada" in out
-
 
 # ── the silence is visible ─────────────────────────────────────────────────────────────────────────────────
-
-def test_callar_ante_una_PREGUNTA_deja_su_fila(monkeypatch):
-    """V2-336 applied to the new reason. Reconstructing this round required cross-referencing clocks because
-    the turns that mattered —the ones asking questions— emitted nothing: the event guard was still the waiting
-    vocabulary that V2-364 no longer used to make its decision."""
-    from nucleo.flash import live_blocks as LB
-    vistos = []
-    monkeypatch.setattr(LB, "any_live_task_rows", lambda n=3: (ENCARGO, [f.strip("«»") for f in FILAS]))
-    monkeypatch.setattr(LB, "any_stalled_task", lambda: ("", 0, ""))
-    monkeypatch.setattr(D, "_emit", lambda label, **k: vistos.append((label, k)))
-    # name + datum: since V2-471 a row with a price is only “said” once its price has sounded
-    dicho = ("Te he encontrado una Yamaha R125 por 500 €, una Brixton 125cc por 1200 € y una "
-             "Honda Varadero XL125V del 2006 por 1400 €")
-    D.apply_to_reply("¿La paro o sigo?", [{"role": "assistant", "content": dicho}])
-    assert any("CALLÓ" in l for l, _ in vistos), "un silencio sin fila es indistinguible de una avería"
 
 
 def test_a_named_row_whose_datum_never_sounded_is_still_fresh():

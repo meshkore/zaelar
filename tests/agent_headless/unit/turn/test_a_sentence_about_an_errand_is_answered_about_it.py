@@ -131,34 +131,6 @@ def test_a_question_about_everything_still_gets_everything(errands):
     assert "informe" in line and "monitor" in line
 
 
-# ── 3. an offer he answered is not asked again ──────────────────────────────────────────────────────────
-def test_the_stop_offer_is_made_once(monkeypatch):
-    from nucleo.flash import delivery, live_blocks
-    monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: ("", []))
-    monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: (GAME, 3, "sin avanzar"))
-    monkeypatch.setattr(dispatch, "pending_summaries", lambda: [])
-    monkeypatch.setattr(delivery, "_speaks_en", lambda: True)
-    first = delivery.apply_to_reply("Alright, give me a moment to look into that.", [])
-    assert "stop it and try another way" in first
-    again = delivery.apply_to_reply("Alright, give me a moment to look into that.", [])
-    assert "stop it" not in again, "he already answered that offer"
-
-
-# ── 4. a refinement of one errand does not get another errand's rows ────────────────────────────────────────
-def test_the_rows_of_another_errand_are_not_glued_to_a_refinement(errands, monkeypatch):
-    from nucleo.flash import delivery, live_blocks
-    rows = ["Monitor Fujitsu Display P27-8 TE — 59", "HP EliteDisplay E243d 23,8 — 79.9", "Monitor LCD 22 — 55"]
-    monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: (MONITOR["request"], list(rows)))
-    monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: ("", 0, ""))
-    monkeypatch.setattr(delivery, "_speaks_en", lambda: False)
-    held = delivery.apply_to_reply("Vale, dame un momento que lo miro.", [],
-                                   heard_now="Marco. Y ya que estás, del informe quítame los híbridos.")
-    assert "Fujitsu" not in held, held
-    asked = delivery.apply_to_reply("Vale, dame un momento que lo miro.", [],
-                                    heard_now="¿Y del monitor tienes ya algo de 27?")
-    assert "Fujitsu" in asked, "a sentence about THAT errand still gets its rows"
-
-
 # ── 5. a «no» about the monitor does not cancel the parked game ─────────────────────────────────────────────
 def test_a_no_about_another_errand_leaves_the_parked_one_waiting(errands, monkeypatch):
     from widgets import confirm as wconfirm

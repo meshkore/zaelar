@@ -20,10 +20,7 @@ from __future__ import annotations
 import re as _re
 
 from .router_guards import _norm_txt
-from . import row_check as _row_check   # a question about a row reads its hard-requirement fact
-from . import delivery_repeat as _repeat   # a second tail only rides a wait (rental-car, 2026-10-11)
 from . import row_named as _row_named   # a row he named is named by a word only it carries (2026-10-14)
-from . import asked_fact_hold as _hold   # a row that lacks what he asked about is not news (vinyl, 2026-10-14)
 
 
 
@@ -339,10 +336,6 @@ def strip_unbacked_amounts(reply: str, *, user_text: str = "", rows=None, active
 _ANNOUNCED: dict[str, set] = {}
 
 
-def _row_key(row: str) -> str:
-    return _norm_txt(str(row or "").split(" — ")[0])[:80]
-
-
 #: errands whose stall this backstop already OFFERED to stop. An offer is made once: in the EN round of
 #: three-tasks-at-once (2026-10-10 20:00) he answered «stop it and try another way», the stop ran, and the next
 #: reply asked the same question again with «4 min» for «3 min». The fact stays in the prompt; the offer does not.
@@ -352,121 +345,8 @@ _STALL_OFFERED: set = set()
 def forget_announced() -> None:
     _ANNOUNCED.clear()
     _STALL_OFFERED.clear()
-    from .step_line import forget as _forget_steps
-    _forget_steps()
-    from .asked_site import forget as _forget_sites
-    _forget_sites()
     from nucleo.turn.his_spec_to_sheet import forget as _forget_specs
     _forget_specs()
-
-
-def apply_to_reply(spoken: str, window, *, heard_now: str = "", brief=None) -> str:
-    """Aplica el backstop a la respuesta de un turno y devuelve la que sale. Nunca lanza.
-
-    Vive aquí y no en `probe` (V2-340) porque el trinquete de arquitectura lo pidió al crecer aquel fichero, y
-    porque la decisión y su cableado son la misma cosa: quien llama solo tiene que decir «pásale mi respuesta».
-
-    La VOZ queda FUERA a propósito, como en V2-210: su stream ya se ha dicho cuando esto podría corregirlo, y
-    añadir detrás es hablar dos veces — su arreglo es pre-generación, con su propia medición.
-    """
-    try:
-        from . import live_blocks as _lb
-        from . import asked_site as _site, nothing_claims as _nothing, own_words as _own, row_claims as _claims, note_owed as _note
-
-        from nucleo.turn import his_spec_to_sheet as _spec
-        _spec.carry(heard_now)     # his «27 al menos» re-judges that errand's rows BEFORE any are delivered
-        spoken = _own.keep_its_word(spoken or "", window, heard_now)   # a row it named is never denied (V2-782)
-        dicho = " ".join(str((m or {}).get("content") or "") for m in (window or [])
-                         if (m or {}).get("role") == "assistant")
-        encargo, filas = _lb.any_live_task_rows(12)   # V2-781 T521: past the top three, to find three that are new
-        # V2-472 — an unbacked amount does not survive a live errand. FIRST, so the backstops below append
-        # rows to a reply already clean of inventions. The gate is the same «live errand» the backstops use;
-        # backing rows come wider than the top-3 face (a figure delivered in row 7 is still a delivery).
-        _user = " ".join(str((m or {}).get("content") or "") for m in (window or [])
-                         if (m or {}).get("role") == "user")
-        _back_rows = _lb.any_live_task_rows(30)[1] if encargo else []
-        # The gate cannot be «the sheet has rows»: rounds 10/12's inventions came while the worker ran over
-        # an EMPTY sheet — exactly when there is nothing real to say and inventing thrives. A live errand is
-        # rows OR anything still running (same reader as `show_target._running_goals`).
-        _live = bool(encargo)
-        if not _live:
-            try:
-                from nucleo import dispatch as _disp
-                _live = bool(_disp.pending_summaries())
-            except Exception:
-                _live = False
-        from . import amount_gate as _ag
-        _failed = not _live and _ag.an_errand_just_failed()   # a dead errand is when inventing thrives (2026-10-11)
-        spoken, _cut = strip_unbacked_amounts(spoken or "", user_text=_user, rows=_back_rows,
-                                              active=_live or _failed, keep_whole=not _failed)
-        if _cut:
-            _emit("🧹 importe sin fuente recortado", dropped=[c[:120] for c in _cut[:3]])
-            spoken = (f"{spoken} {_ag.unbacked_line()}" if spoken else _ag.unbacked_line()) if _failed else spoken
-        spoken = _note.deliver(_claims.guard(spoken or "", window, heard_now), window, heard_now)   # claims need a source; a pushed finding is said (2026-10-14)
-        _check = _row_check.for_turn(heard_now, spoken or "")   # he asked about a row: the row answers
-        if _check:
-            _emit("📋 row check: the reply reads the row's hard-requirement fact", line=_check[:160])
-            return ((spoken.rstrip() + " ") if spoken else "") + _check
-        _said = _ANNOUNCED.setdefault(encargo, set())     # V2-781: what it said, kept past the window
-        filas = [f for f in filas if _row_key(f) not in _said]
-        filas = _hold.rows_owed(encargo, filas, _hold.his_sentences(window, heard_now))   # what he asked, carried
-        _held = (_not_owed(heard_now, encargo, _back_rows or filas, already=bool(_said))
-                 or _repeat.held(spoken, already=bool(_said), brief=brief)) if filas else ""
-        if _held:
-            _emit(f"🤐 delivery backstop held: {_held}", goal=(encargo or "")[:80])
-            filas = []
-        extra = sheet_delivery_backstop(spoken or "", filas, dicho, errand=encargo, heard=_user, sheet=_back_rows or None)
-        if extra:
-            _given = [f for f in filas if f.split(" — ")[0][:40] in extra]
-            _said.update(_row_key(f) for f in _given)
-            _emit("📬 backstop de entrega: la espera sale con las filas")
-            # V2-782: a «there is nothing» sentence does not stand beside the rows, and rows from another site
-            # than the one he asked for say where they came from.
-            _where = _site.note(_user, _given)
-            return _nothing.reconcile(spoken or "", extra + ((" " + _where) if _where else ""))
-        # An errand that DIED while this waiting reply was being written: the promise is corrected here,
-        # once (`death_line.py` — the 2026-10-10 widget build that died mid-turn on a rate limit).
-        from .death_line import backstop as _death_backstop
-        _dead = _death_backstop(spoken or "")
-        if _dead:
-            return ((spoken.rstrip() + " ") if spoken else "") + _dead
-        # V2-359 — y si no hay filas que entregar, puede haber un ATASCO que callar. Va DESPUÉS y no antes:
-        # con resultados delante la cara correcta es entregarlos, no hablar del atasco.
-        _enc, _min, _mot = _lb.any_stalled_task()
-        _stall = "" if _row_key(_enc) in _STALL_OFFERED else stalled_task_backstop(spoken or "", _enc, _min, _mot)
-        if _stall:
-            _STALL_OFFERED.add(_row_key(_enc))
-            _emit("📬 backstop de atasco: la espera sale con el hecho", mins=_min, motivo=_mot)
-            return ((spoken.rstrip() + " ") if spoken else "") + _stall
-        from .step_line import owed as _step_owed     # a wait names the errand's real step (photo round, 2026-10-11)
-        _step = _step_owed(spoken or "", brief)
-        if _step:
-            _emit("📬 la espera sale con el paso real", step=_step[:120])
-            return spoken.rstrip() + " " + _step
-        # EL SILENCIO SE VE (V2-336). Todo esto vive bajo un `except` general, así que una avería interna
-        # desaparece sin ruido — y un backstop que calla es indistinguible de uno que decidió callar. Fue
-        # exactamente lo que pasó en la ronda limpia del coche (2026-08-26): tres esperas con la hoja llena y
-        # cero disparos, mientras sus tests pasaban con esas mismas entradas. El evento deja las ENTRADAS de
-        # la decisión donde el arnés las lee, y con ellas se cerró el misterio en la ronda siguiente: `rows=3`
-        # y las filas YA dichas, o sea silencio correcto.
-        # V2-371 — y el silencio se ve TAMBIÉN cuando el turno pregunta. Esta guarda seguía siendo el
-        # vocabulario de espera, que V2-364 ya había dejado de usar para DECIDIR: desde entonces un turno
-        # silenciado por ser una pregunta no dejaba ni una fila donde mirarlo. Reconstruir la ronda de la moto
-        # costó cruzar el reloj de entrega con los eventos del atasco porque los turnos que importaban —los que
-        # preguntaban— no habían emitido nada. Un guarda de observabilidad que no sigue a la decisión que
-        # observa deja ciego justo el caso nuevo.
-        _limpio = _norm_txt(spoken or "")
-        _pregunta = bool(_limpio.rstrip().endswith("?") or _PREGUNTA_RE.search(_limpio))
-        # Una pregunta SIN filas detrás es un turno normal, no una entrega retenida: emitir ahí convertiría el
-        # evento en ruido de cada turno y lo dejaría inservible como señal. Con filas SÍ interesa, porque
-        # entonces sí hubo algo que no se entregó y hace falta saber por qué.
-        if _WAITING_REPLY_RE.search(_limpio) or (_pregunta and filas):
-            _emit("🤐 backstop de entrega CALLÓ ante una espera",
-                  rows=len(filas or []), goal=(encargo or "")[:80],
-                  said_chars=len(dicho or ""), reply=(spoken or "")[:90])
-    except Exception:  # noqa: BLE001
-        pass
-    return spoken
 
 
 def _not_owed(heard_now: str, errand: str, rows, *, already: bool) -> str:

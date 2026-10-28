@@ -11,7 +11,6 @@ touched — a trivia answer is not a finding.
 """
 from __future__ import annotations
 
-import pytest
 
 from nucleo.flash import delivery as D
 
@@ -52,32 +51,3 @@ def test_a_reply_that_would_vanish_entirely_stays_whole():
     out, dropped = _strip("Around $136 for the CUNPU.", user_text="find me a monitor")
     assert out == "Around $136 for the CUNPU.", out
     assert dropped, "…but the event still says what was seen"
-
-
-def test_the_guard_is_wired_into_apply_to_reply(monkeypatch):
-    """V2-199's lesson: a guard whose caller was deleted stays green. Through the real seam."""
-    from nucleo.flash import live_blocks as LB
-    monkeypatch.setattr(LB, "any_live_task_rows",
-                        lambda n=3: ("cheapest 27 inch 4K monitor", []) if n != 30 else ("", []))
-    monkeypatch.setattr(LB, "any_stalled_task", lambda: ("", 0, ""))
-    eventos = []
-    monkeypatch.setattr(D, "_emit", lambda label, **k: eventos.append(label))
-    window = [{"role": "user", "content": "I need a 27 inch 4K monitor under $250"}]
-    out = D.apply_to_reply("The sweet spot is the $300-400 range right now. Still searching for you.", window)
-    assert "$300" not in out and "$400" not in out, out
-    assert "Still searching" in out
-    assert any("recortado" in e for e in eventos), "the cut leaves its event"
-
-
-def test_a_worker_running_over_an_empty_sheet_is_a_live_errand(monkeypatch):
-    """Rounds 10/12: the invention thrives exactly while the worker runs and the sheet is EMPTY."""
-    from nucleo.flash import live_blocks as LB
-    monkeypatch.setattr(LB, "any_live_task_rows", lambda n=3: ("", []))
-    monkeypatch.setattr(LB, "any_stalled_task", lambda: ("", 0, ""))
-    import nucleo.dispatch as disp
-    monkeypatch.setattr(disp, "pending_summaries", lambda: [{"request": "find a monitor"}])
-    monkeypatch.setattr(D, "_emit", lambda label, **k: None)
-    window = [{"role": "user", "content": "find me a good monitor"}]
-    out = D.apply_to_reply("Several models sit under $400 these days. I'll bring you the real prices.", window)
-    assert "$400" not in out, out
-    assert "real prices" in out

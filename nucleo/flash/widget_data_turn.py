@@ -197,9 +197,6 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     return parte
 
 
-_YT_LINK = None  # compiled lazily below
-
-
 def _selector(pl: dict) -> str:
     """The row an op names. A refused op naming the row another op of the SAME turn already acted on (same card and
     action) is that op's echo (agenda-everyday-edits ES, 2026-10-15: the repair cancelled the piano series, the
@@ -257,53 +254,6 @@ def _asked_something(text: str) -> bool:
     if _ASKS is None:
         _ASKS = _re.compile(r"\b(dime|dimelo|me dices|me cuentas|cuentame|tell me|what's playing)\b")
     return bool(_ASKS.search(plano))
-
-
-def named_ack(parte: dict, ack: str, operator_text: str = "", *, asked: bool = False) -> str:
-    """A bare «Done.» to a QUESTION is a non-answer (V2-469, `build-a-video-playlist` 23:05): «And what is
-    in the list?» → mute model over a redundant `add` → «Done.», twice, watchdog nudging both times and
-    the user asking FIVE times before getting the titles.
-
-    When the operator's turn ASKED something and the model said nothing, the ack enumerates what the
-    acted-on widget now holds — read live from its `ref_index`, the same contract reference-resolution
-    already uses, so it is generic (agenda, player list, photo strip) and never invented: a widget that
-    publishes nothing keeps the plain ack. Failures keep `spoken_for`'s honest message untouched.
-    """
-    parte = parte if isinstance(parte, dict) else {}
-    base = spoken_for(parte, ack)
-    if parte.get("executed") != "widget_data" or parte.get("fallidas") or base != ack:   # its own line already
-        return base
-    if not (asked or _asked_something(operator_text)):   # `asked`: the brief says he wants words (2026-10-14)
-        return base
-    wid = str(parte.get("widget") or "").strip()
-    if not wid:
-        return base
-    try:
-        from widgets import refs as _refs
-        labels = []
-        for i in _refs._ref_index(wid):
-            l = str(i.get("label") or "").strip()
-            if not l:
-                continue
-            # The hint travels (V2-469, round 10): «and what is playing?» got the enumeration WITHOUT
-            # marking which one — the labels answered a different question than the one asked.
-            h = str(i.get("hint") or "").strip()
-            labels.append(f"{l[:80]} ({h})" if h else l[:80])
-    except Exception:  # noqa: BLE001
-        labels = []
-    if not labels:
-        return base
-    en = False
-    try:
-        from voice.engine.core import langs as _langs
-        en = _langs.current_code() == "en"
-    except Exception:  # noqa: BLE001
-        pass
-    vista = " · ".join(f"«{l}»" for l in labels[:4])
-    resto = len(labels) - 4
-    if resto > 0:
-        vista += (f" and {resto} more" if en else f" y {resto} más")
-    return (f"Done. Right now it holds: {vista}." if en else f"Hecho. Ahora mismo hay: {vista}.")
 
 
 async def answer_in_words(parte: dict, operator_text: str, spec=None, *, asked: bool = False) -> str:

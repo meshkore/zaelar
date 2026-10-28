@@ -7,22 +7,11 @@ the model's payload. The links are the operator's own words, so completing the p
 turn carries invents nothing. Same round, the other half: «¿y qué está sonando ahora?» got the enumeration
 WITHOUT marking which one — `named_ack` used labels and dropped the hints ref_index publishes.
 """
-import pytest
 
 from nucleo.flash import widget_data_turn as WDT
 
 _TURN = ("Te paso un par de vídeos: https://www.youtube.com/watch?v=dQw4w9WgXcQ y "
          "https://youtu.be/9bZkp7q19f0 — móntame una lista con ellos.")
-
-
-def test_the_enumeration_marks_the_one_playing(monkeypatch):
-    from widgets import refs
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: [
-        {"id": "1", "label": "Rick Astley", "field": "item", "hint": "la que suena"},
-        {"id": "2", "label": "PSY", "field": "item", "hint": ""}])
-    parte = {"executed": "widget_data", "widget": "youtube", "act": "play"}
-    out = WDT.named_ack(parte, "Hecho.", "¿Y qué está sonando ahora?")
-    assert "la que suena" in out and "Rick Astley" in out
 
 
 # ── the failure rides along even when the model spoke (V2-469, round 11 turn 7) ──────────────────────────
@@ -45,13 +34,3 @@ def test_a_successful_op_appends_nothing():
 def test_a_mute_turn_keeps_the_plain_failure_line():
     parte = {"executed": "widget_data_failed", "widget": "youtube", "act": "next", "message": "no va"}
     assert WDT.ensure_failure_named("", parte) == ""
-
-
-# ── «dime qué está sonando» is a question without a question mark (V2-469, round 11 turn 1) ─────────────
-def test_dime_counts_as_asking(monkeypatch):
-    from widgets import refs
-    monkeypatch.setattr(refs, "_ref_index", lambda wid: [
-        {"id": "1", "label": "Rick", "field": "item", "hint": "la que suena"}])
-    parte = {"executed": "widget_data", "widget": "youtube", "act": "play"}
-    out = WDT.named_ack(parte, "Hecho.", "Perfecto, pues ponla y dime qué está sonando ahora mismo.")
-    assert "Rick" in out and out != "Hecho."

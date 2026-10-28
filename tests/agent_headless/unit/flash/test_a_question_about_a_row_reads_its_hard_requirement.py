@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo.flash import delivery, live_blocks, row_check
+from nucleo.flash import row_check
 from widgets.results import data as D
 
 SHEET = "rowcheck-1"
@@ -60,17 +60,6 @@ def test_none_verified_is_said_as_none(sheet, monkeypatch):
                                    "¿alguna novedad?", "¿cuánto cuesta el Polo?"])
 def test_a_statement_or_a_question_about_nothing_he_requires_owes_nothing(sheet, heard):
     assert row_check.line(heard, sheet) == ""
-
-
-def test_the_reply_carries_the_row_and_not_the_delivery_tail(sheet, monkeypatch):
-    monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: ("coche automático Málaga",
-                                                                        [f"{i['title']} — {i['price']}" for i in ITEMS]))
-    monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: ("", 0, ""))
-    delivery.forget_announced()
-    reply = "Voy a pedirle a la búsqueda que confirme eso del Polo."
-    out = delivery.apply_to_reply(reply, [], heard_now="¿Puedes confirmarme que el Polo es automático?")
-    assert out.startswith(reply) and "Polo" in out[len(reply):] and "sin verificar" in out
-    assert "ya hay candidatos" not in out
 
 
 def test_a_word_every_row_shares_names_no_row(sheet):

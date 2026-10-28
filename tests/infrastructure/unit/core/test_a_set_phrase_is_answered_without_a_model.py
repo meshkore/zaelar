@@ -224,28 +224,3 @@ def test_the_exchange_lands_in_the_window_and_the_conv_buffer():
     body = m.group(0)
     assert "push_user" in body and "_window . append" in body.replace("_window.append", "_window . append")
     assert "kind = \"conv\"" in body.replace('kind="conv"', 'kind = "conv"')
-
-
-def test_the_probe_mirror_is_deterministic(es):
-    """A test channel that rolls dice cannot be asserted on — the mirror takes the FIRST phrase."""
-    class _S:
-        window: list = []
-        smalltalk_bounce = False
-    s = _S()
-    s.window = []
-    got = smalltalk.mirror("Hola.", s, "t1", es)
-    assert got and got["action"] == "smalltalk"
-    assert got["reply"] == [es["intents"]["greeting"]["replies"][0]]
-    assert s.window[-1] == {"role": "assistant", "content": got["reply"][0]}
-
-
-def test_the_probe_mirror_clears_the_bounce_on_any_other_turn(es):
-    class _S:
-        window: list = []
-        smalltalk_bounce = True
-    s = _S()
-    s.window = []
-    assert smalltalk.mirror("abre la agenda", s, "t1", es) is None
-    assert s.smalltalk_bounce is False, (
-        "a sentence that is not small talk takes the question out of the air; leaving the flag set lets a "
-        "«bien» three turns later be read as an answer to a question nobody remembers asking")

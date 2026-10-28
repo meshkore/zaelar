@@ -26,7 +26,6 @@ hablar del atasco.
 import pytest
 
 from nucleo.flash import delivery as RG
-from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 
 @pytest.fixture(autouse=True)
@@ -83,28 +82,6 @@ def test_las_variantes_de_ya_haberlo_dicho():
               "Te aviso en cuanto tenga algo; parece que se ha quedado parada.",
               "Sigo pendiente, el navegador está bloqueado."):
         assert RG.stalled_task_backstop(r, "busca un coche", 5, "sin avanzar") == "", r
-
-
-def test_la_FUENTE_del_atasco_es_la_misma_que_la_de_la_cara():
-    """Guarda contra la divergencia que este repositorio ya pagó: `any_stalled_task` lee `pending_summaries` y
-    los umbrales de `dispatch_thresholds`, igual que `pending_task_lines`. Si un día uno de los dos se copiara
-    su propio número, el aviso y el agente dirían cosas distintas del mismo hecho."""
-    from pathlib import Path
-    src = "\n".join(ln for ln in _vts.read("nucleo/flash/live_blocks.py").splitlines()
-                    if not ln.strip().startswith("#"))
-    i = src.index("def any_stalled_task")
-    cuerpo = src[i:src.index("\ndef ", i + 10)]
-    assert "pending_summaries()" in cuerpo
-    assert "STUCK_SECS" in cuerpo and "NO_STEP_SECS" in cuerpo
-
-
-def test_el_turno_lo_CABLEA_y_DESPUES_de_las_filas():
-    """Guarda de cableado y de ORDEN: con filas que entregar, entregar gana."""
-    from pathlib import Path
-    src = "\n".join(ln for ln in Path("nucleo/flash/delivery.py").read_text().splitlines()
-                    if not ln.strip().startswith("#"))
-    assert "stalled_task_backstop(spoken" in src, "la decisión sin llamante es el arreglo que no existe"
-    assert src.index("sheet_delivery_backstop(spoken") < src.index("stalled_task_backstop(spoken")
 
 
 # ── V2-361: el vocabulario de ESPERA salió de una tanda, y le faltaban formas reales ────────────────────

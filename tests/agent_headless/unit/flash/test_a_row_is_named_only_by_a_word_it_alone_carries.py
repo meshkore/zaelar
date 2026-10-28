@@ -32,7 +32,6 @@ def _window(user_lines):
 def sheet(monkeypatch):
     def _set(errand, rows, en):
         monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: (errand, list(rows)[:n]))
-        monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: ("", 0, ""))
         monkeypatch.setattr(delivery, "_speaks_en", lambda: en)
         delivery.forget_announced()
     return _set
@@ -43,26 +42,3 @@ def test_the_category_and_a_size_he_said_do_not_name_a_monitor():
     assert not row_named.by_him(" ".join(HIS_MONITOR), MONITORS[2], MONITORS, "27-inch, 4K, and new only")
     assert row_named.by_him("what about the AGEX pulgadas one?", MONITORS[0], MONITORS, "")
     assert row_named.by_him("is the 27UD68 any good?", MONITORS[2], MONITORS, ""), "a model code names its row"
-
-
-def test_the_real_monitors_reach_a_wait(sheet):
-    sheet("27-inch, 4K, and new only — I don't want someone else's panel", MONITORS, True)
-    out = delivery.apply_to_reply("I'll let you know as soon as I have it.", _window(HIS_MONITOR),
-                                  heard_now="ok, let me know when you've got something")
-    assert "AGEX" in out and "27UD68" in out, out
-
-
-def test_the_plumbers_reach_his_goodbye(sheet):
-    sheet("Buscar y contactar fontaneros de urgencia en Madrid centro con buenas valoraciones", PLUMBERS, False)
-    out = delivery.apply_to_reply("Un saludo, y aquí sigo pendiente. En cuanto salga algo te lo hago saber.",
-                                  _window(HIS_PLUMBER),
-                                  heard_now="Gracias por la ayuda. Quedo a la espera si sale algo, un saludo.")
-    assert "652 66 18 46" in out and "683 13 98 19" in out, out
-
-
-def test_a_row_he_turned_down_by_name_is_still_never_news(sheet):
-    cars = ["Ford Focus 1.6 TDCi — 7.450 €", "Fiat Tipo 1.3 Multijet — 9.250 €", "Peugeot 3008 1.6 HDI — 7.890 €"]
-    sheet("coche diésel segunda mano", cars, False)
-    out = delivery.apply_to_reply("Vale, sigo buscando.", _window(["el Focus no me vale, es muy viejo"]),
-                                  heard_now="¿alguna novedad?")
-    assert "Focus" not in out and "Fiat Tipo" in out, out

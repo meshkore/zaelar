@@ -87,18 +87,3 @@ def _live_sheets() -> list[str]:
             sheets.append(s)
     return sheets
 
-
-def for_turn(heard: str, reply: str = "") -> str:
-    """`line` over the live errands' sheets — the first that owes a sentence. Never raises."""
-    if "?" not in str(heard or ""):
-        return ""
-    try:
-        from widgets.results import data as _sheet
-        for sheet in _live_sheets():
-            out = line(heard, _sheet.view_data(sheet) or {}, reply)
-            if out:
-                return out
-    except Exception as e:  # noqa: BLE001 — a sheet that cannot be read leaves the reply as the model wrote it
-        from voice.observer import emit
-        emit("rail", "row_check: sheet unreadable", text=f"{type(e).__name__}: {e}"[:160], role="system")
-    return ""

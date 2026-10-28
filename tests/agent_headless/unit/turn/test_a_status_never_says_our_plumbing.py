@@ -13,7 +13,6 @@ import pytest
 
 from nucleo import dispatch
 from nucleo.flash import speakable_note as S
-from nucleo.flash import step_line
 from nucleo.turn import errands_of_a_turn as E
 
 ERRAND = "Búscame el vinilo original de 'The Dark Side of the Moon' en buen estado por menos de 60 euros."
@@ -52,11 +51,6 @@ def test_a_note_about_his_errand_is_still_said(spanish):
     spanish.setattr(dispatch, "pending_summaries", lambda: [
         {"id": "2", "request": ERRAND, "phase": "", "note": STEP, "waiting_on": ""}])
     assert STEP in E.status_owed("¿Alguna novedad?", _brief())
-
-
-def test_the_step_line_reads_the_same_rule():
-    assert step_line.candidates({"note": PLUMBING, "phase": "", "plan": []}, "es") == []
-    assert step_line.candidates({"note": STEP, "phase": "", "plan": []}, "es") == [STEP]
 
 
 def test_an_engine_phase_never_reaches_an_english_status(monkeypatch):

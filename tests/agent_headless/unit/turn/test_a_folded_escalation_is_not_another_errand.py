@@ -11,7 +11,6 @@ phones stayed in the prompt while the reply said «Un saludo, y aquí sigo pendi
 """
 from __future__ import annotations
 
-import asyncio
 import time
 import types
 
@@ -21,7 +20,6 @@ from nucleo import dispatch
 from nucleo import dispatch_confirm as dc
 from nucleo import dispatch_listener as L
 from nucleo.flash import delivery, escalate, live_blocks
-from nucleo.turn import named_errand
 
 PLUMBER = {"id": "1", "request": "Buscar y contactar fontaneros de urgencia en Madrid centro con buenas valoraciones "
                                  "(reputación contrastada, opiniones recientes positivas)",
@@ -42,7 +40,6 @@ def folded(monkeypatch):
     monkeypatch.setattr(escalate, "_tasks", {2: {"request": COMPLAINT[:200], "started_at": time.time() - 66,
                                                  "done": False, "summary": ""}})
     monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: (PLUMBER["request"], list(ROWS)))
-    monkeypatch.setattr(live_blocks, "any_stalled_task", lambda: ("", 0, ""))
     monkeypatch.setattr(delivery, "_speaks_en", lambda: False)
     injected: list = []
 
@@ -52,21 +49,6 @@ def folded(monkeypatch):
     monkeypatch.setattr(dispatch, "inject", _inject)
     delivery.forget_announced()
     return injected
-
-
-def test_an_open_folded_escalation_is_what_withheld_the_plumbers(folded):
-    """The measured state, reproduced: the phantom is named, the rows are held."""
-    assert any(e.get("starting") for e in named_errand.named(GOODBYE)), "the phantom errand is named by «sale»"
-    assert delivery.apply_to_reply(WAIT, [], heard_now=GOODBYE) == WAIT
-
-
-def test_folding_closes_the_escalation_and_the_goodbye_gets_the_rows(folded):
-    asyncio.run(L._fold_into("1", COMPLAINT, "2"))
-    assert folded == [("1", COMPLAINT)], "the refinement still reaches the live errand"
-    assert not escalate.pending(), "a folded escalation is no longer in flight"
-    assert not any(e.get("starting") for e in named_errand.known())
-    out = delivery.apply_to_reply(WAIT, [], heard_now=GOODBYE)
-    assert "652 66 18 46" in out and "683 13 98 19" in out, out
 
 
 def test_absorbing_into_a_parked_errand_closes_it_too(folded, monkeypatch):
