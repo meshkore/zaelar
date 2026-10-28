@@ -5761,6 +5761,10 @@ DOMAINS: list[dict] = [
         {"id": "4.319", "title": "The client JavaScript only shrinks: no widgets/ or frontend/ .js file is born over 400 "
                                  "lines, the 12 listed never grow, and the client total only goes down (refactor2710-99 #106)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_client_js_only_shrinks.py"]},
+        {"id": "4.321", "title": "The messaging header is ONE compact bar for every channel — one icon size, the plug and "
+                                 "settings as labelled stroke icons — and the chat list's search shares its row with "
+                                 "the kind filters and new chat / new group (V2-831 T-04) — RENDERED",
+            "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_header_is_one_compact_bar.py"]},
         {"id": "4.320", "title": "The chat composer gives the text box the whole width: attach and send stand in ONE "
                                  "column on its right, touching, same size — at desktop and 375px, with a file in the "
                                  "tray too (RENDERED, V2-831 T-03)",

@@ -119,14 +119,14 @@ def _mount_with_upload(page, data):
 
 def test_new_chat_and_new_group_use_the_same_doors_as_the_voice(page):
     _mount_with_upload(page, _data(_ROWS))
-    page.locator(".cxnew .bt", has_text="Nuevo chat").click()
+    page.locator(".cxnew button[aria-label='Nuevo chat']").click()
     page.locator(".newform input").first.fill("Marta")
     page.locator(".newform textarea").fill("¿comemos?")
     page.locator(".newform .bt-primary").click()
     page.wait_for_function("window.__calls.length >= 1")
     assert page.evaluate("window.__calls")[-1] == ["send_to", {"contact": "Marta", "channel": "telegram",
                                                                "text": "¿comemos?", "files": []}]
-    page.locator(".cxnew .bt", has_text="Nuevo grupo").click()
+    page.locator(".cxnew button[aria-label='Nuevo grupo']").click()
     inputs = page.locator(".newform input")
     inputs.nth(0).fill("Viaje")
     inputs.nth(1).fill("Ana, Luis")
