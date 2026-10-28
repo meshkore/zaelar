@@ -2060,6 +2060,10 @@ DOMAINS: list[dict] = [
                                  "(V2-826 §2b, refactor2710-12)",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_a_widget_event_survives_a_move.py"]},
+        {"id": "3.147", "title": "Every widget keeps its shape (py ≤ 400, client module ≤ 600, js/ for the parts) and no "
+                                 "widget grows back (refactor2710-12 T-05)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_every_widget_keeps_its_shape.py"]},
         # V2-820 T-06 — a request cut by his own «¿Te parece bien?» (barge-in before its first word): the model answered
         # the whole from the window, the brief judged the tag alone and CRIT-K34 annulled the errand as `answered`; the
         # composed answer then got «Perdona, se me ha ido» glued on (a stale reply read as mute). Disarmed 2026-10-27
