@@ -1,4 +1,4 @@
-"""nucleo/flash/wall_lane.py — an order to OPEN a tab of the wall that the name resolver names with certainty (V2-761).
+"""nucleo/acts/wall_tab.py — an order to OPEN a tab of the wall that the name resolver names with certainty (V2-761).
 
 Neutral ground for both channels, like `presence.py`: the voice lane (`voice/engine/llm/providers/fast_lane.py`)
 and the probe mirror (`probe_actionmap.try_fast_lanes`) read the SAME verdict, so they cannot drift.

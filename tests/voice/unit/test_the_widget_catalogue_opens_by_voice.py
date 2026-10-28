@@ -163,7 +163,7 @@ def test_the_packs_were_versioned_so_existing_installs_import_them():
     ("abre el chat", "chat"),
 ])
 def test_an_order_that_names_the_tab_is_decided_by_the_name(phrase, tab):
-    from nucleo.flash.wall_lane import named_wall_tab
+    from nucleo.acts.wall_tab import named_wall_tab
     assert named_wall_tab(phrase) == tab
 
 
@@ -172,7 +172,7 @@ def test_an_order_that_names_the_tab_is_decided_by_the_name(phrase, tab):
     "cierra las apps", "hazme un widget de recetas", "crea una app de notas", "no me abras las apps",
 ])
 def test_the_lane_leaves_everything_else_to_the_model(phrase):
-    from nucleo.flash.wall_lane import named_wall_tab
+    from nucleo.acts.wall_tab import named_wall_tab
     assert named_wall_tab(phrase) == "", phrase
 
 
