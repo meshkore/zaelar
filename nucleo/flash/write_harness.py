@@ -112,7 +112,7 @@ async def check(order: str, writes: list, *, spec=None, settle_s: float = SETTLE
 async def _missing_calls(order: str, card: str, allowed: list, missing: list, *, spec=None) -> list[tuple[str, dict]]:
     """One pass, bounded to the actions this turn already ran on `card`."""
     from nucleo.flash import act_repair as _ar, repair_grounding as _rg, widget_read as _wr
-    from nucleo.flash.fast_client import FastClient
+    from nucleo.llm.fast_client import FastClient
     from widgets import runtime as _rt
     tool = _ar._widget_data_tool()
     manifest = _rt.get(card) or {}

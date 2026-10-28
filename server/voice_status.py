@@ -61,7 +61,7 @@ async def brain_and_voice(*, SETTINGS, active, has, health_state) -> dict:
     prov_label = _cloud = _t("status.detail.cloud", "cloud"); llm_key = True; model_name = SETTINGS.llm_model or _va.os.getenv("LLM_MODEL", "?")
     if brain == "nucleo":
         try:
-            from nucleo.flash.fast_client import spec_from_config
+            from nucleo.llm.fast_client import spec_from_config
             _spec = spec_from_config()
             model_name = _spec.model or model_name
             _url = _spec.resolved_base_url().lower()
@@ -112,7 +112,7 @@ async def brain_and_voice(*, SETTINGS, active, has, health_state) -> dict:
     # error is still fresh, so it is read from the ladder every time.
     llm_extra = None
     try:
-        from nucleo.flash import provider_chain as _pc
+        from nucleo.llm import provider_chain as _pc
         _ch = _pc.chain(_pc.ROLE_VOICE)
         _serving = _pc.pick(_pc.ROLE_VOICE)
         if _ch and _serving and _serving.get("name") != _ch[0].get("name"):

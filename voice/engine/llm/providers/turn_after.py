@@ -218,7 +218,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
         # causa que acaba de decidirse. `note_slow` exige turnos lentos SEGUIDOS, tiene cooldown corto y techo
         # de turnos en el escalón de relevo — un turno lento no puede convertirse en una factura sorpresa.
         # Cambia el titular para los turnos SIGUIENTES; el actual ya está entregado.
-        from nucleo.flash import provider_chain as _pchain
+        from nucleo.llm import provider_chain as _pchain
         _pchain.note_slow(_v_perf, role=_pchain.ROLE_VOICE)
     except Exception:
         pass

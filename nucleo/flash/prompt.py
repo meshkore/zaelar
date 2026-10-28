@@ -603,7 +603,7 @@ def live_state() -> str:
     # después. Es el mismo remedio que `recently_finished()` y que la confirmación caducada: un hecho que solo
     # vive un turno es un hecho que la conversación pierde.
     try:
-        from nucleo.flash import fast_client as _fc_drop
+        from nucleo.llm import fast_client as _fc_drop
         _drops = _fc_drop.recent_drops()
         if _drops:
             _names = ", ".join(sorted({str(d.get("name") or "?") for d in _drops}))

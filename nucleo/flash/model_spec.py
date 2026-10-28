@@ -3,7 +3,7 @@
 provider-detection/URL/key resolution with zero I/O and zero coupling to the streaming client itself — the
 audit that led to this split found them a genuinely separable concern from `fast_client.py`'s actual HTTP/SSE
 transport code. Re-exported from `fast_client.py` (imported there by name across many callers: `nucleo/research.py`,
-`nucleo/flash/provider_chain.py`, `voice/engine/pipeline/agent.py`, etc. — none of them needed to change).
+`nucleo/llm/provider_chain.py`, `voice/engine/pipeline/agent.py`, etc. — none of them needed to change).
 
 Hard project rule (preserved from the original docstring): model PER INVOCATION, never a global model env
 variable — concurrent sessions may use different models without interfering."""

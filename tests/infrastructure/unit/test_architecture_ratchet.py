@@ -342,8 +342,9 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/context_packs": 568,
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 31550,
+    "nucleo/flash": 29694,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/, aliased at its old path
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
+    "nucleo/llm": 1907,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
     "nucleo/request": 144,      # refactor2710-02: born — request_row.py MOVED in as `model.py`; `heard()`, his words for the errand
     "nucleo/susurro": 1386,
@@ -391,7 +392,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/dialog.py",
     "nucleo/flash/direct_action.py",
     "nucleo/flash/escalation_guard.py",
-    "nucleo/flash/fast_client.py",
+    "nucleo/llm/fast_client.py",
     "nucleo/flash/frontend.py",
     "nucleo/flash/listing_turn.py",
     "nucleo/flash/live_blocks.py",
@@ -399,7 +400,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/post_stream_lanes.py",
     "nucleo/flash/post_stream_words.py",
     "nucleo/flash/prompt.py",
-    "nucleo/flash/provider_chain.py",
+    "nucleo/llm/provider_chain.py",
     "nucleo/flash/reminder_guards.py",
     "nucleo/flash/router.py",
     "nucleo/flash/router_catalog.py",

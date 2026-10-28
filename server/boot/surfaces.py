@@ -106,7 +106,7 @@ def prewarm_and_seams(app, active_brain) -> None:
         return
     try:
         from nucleo import browser_search, energy_meter
-        from nucleo.flash import prewarm as flash_prewarm
+        from nucleo.llm import prewarm as flash_prewarm
         _running_loop = asyncio.get_running_loop()
         browser_search.set_loop(_running_loop)
         # V2-782: the search service's seams — the status light and the timeline — wired here, where the engine

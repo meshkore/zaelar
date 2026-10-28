@@ -79,7 +79,7 @@ async def rescue(spoken: str, *, data_done: bool, turn_text: str, metrics=None, 
     head = None
     if metrics is not None:
         try:
-            from nucleo.flash.fast_client import oversized_widget_write
+            from nucleo.llm.fast_client import oversized_widget_write
             head = oversized_widget_write(metrics)
         except Exception:  # noqa: BLE001
             head = None
