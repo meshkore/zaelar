@@ -117,9 +117,60 @@ def test_the_question_is_asked_only_while_an_errand_runs(monkeypatch):
     assert sd.KEY not in _tb.build("para esa tarea", has_workers=False)
 
 
-def test_both_doors_read_the_verdict():
-    """The wiring: the tool gate and the settle backstop ask `stop_decision`."""
-    import inspect
+def _settle(text: str, *, brief, grammar: bool, monkeypatch) -> tuple[list, dict, list]:
+    """Drive the voice turn's settle step — the backstop door — on a turn whose model called nothing.
+
+    Returns (what was cancelled, `worker_acted`, what was said)."""
+    import asyncio
+    from nucleo import dispatch
     from nucleo.flash import post_stream_settle
-    assert "_stop_decision.model_stop(brief" in inspect.getsource(_calls._t_stop_worker)
-    assert "_stop_decision.repair(" in inspect.getsource(post_stream_settle.settle_what_is_pending)
+    killed: list = []
+    monkeypatch.setattr(dispatch, "has_active", lambda: True)
+    monkeypatch.setattr(dispatch, "cancel_soon", lambda w: killed.append(w) or ["t9"])
+    said: list = []
+    acted = {"v": None}
+    asyncio.run(post_stream_settle.settle_what_is_pending(
+        _ans=None, _ask_waiting=False, _auth_pending=False, _brief=brief,
+        _dialog=SimpleNamespace(sanitize_reply=lambda s: s), _filler_audio=SimpleNamespace(played_recently=lambda: False),
+        _langs=None, _prev_pending=[], _r=None, _resolve_confirm=lambda yes: None,
+        _router=SimpleNamespace(looks_like_stop_work=lambda t: grammar, operator_words=lambda o, t: o),
+        _shown_ids=set(), acted={"widget": False}, aside={"v": False},
+        brain=SimpleNamespace(_window=[], _last_spoken=""), clarify={"msg": ""}, confirm_state={"handled": True},
+        data_done={"v": None}, emit=lambda *a, **k: None, escalate_req={"v": None, "more": [], "surface": {}},
+        had_pending_confirm=True, llm_metrics={}, music_req={"v": None}, operator_text=text, search_req={"v": None},
+        send=said.append, speech=SimpleNamespace(sanitize=lambda s, drop_metadata=False: s), spoken_text="",
+        style_fired={"v": False}, text=text, worker_acted=acted))
+    return killed, acted, said
+
+
+@pytest.mark.parametrize("text", [STOP_BANK[3], STOP_BANK[5]])
+def test_the_settle_step_stops_the_errand_on_a_sure_verdict_its_grammar_missed(text, monkeypatch):
+    """The voice turn's backstop door: the model called nothing, the word table read nothing, the verdict said stop —
+    the errand stops and the stop is SAID (never a mute kill)."""
+    killed, acted, said = _settle(text, brief=_brief("stop"), grammar=False, monkeypatch=monkeypatch)
+    assert killed == [text] and acted["v"] == "stop", "his words name what is cancelled"
+    assert said and said[0].strip(), "a kill is always announced"
+
+
+def test_the_settle_step_refuses_a_stop_the_verdict_keeps(monkeypatch):
+    killed, acted, _said = _settle("los dos navegadores no se tenían que haber abierto", brief=_brief("keep"),
+                                   grammar=True, monkeypatch=monkeypatch)
+    assert killed == [] and acted["v"] is None
+
+
+def test_the_disarm_a_settle_step_that_skips_the_verdict_misses_the_stop(monkeypatch):
+    """Disarm: the settle door asks the grammar alone (the verdict unread) → the same sure stop stops nothing."""
+    from nucleo.flash import post_stream_settle
+    real = sd.repair
+    monkeypatch.setattr(post_stream_settle._stop_decision, "repair",
+                        lambda brief, text, **kw: real(None, text, **kw))
+    assert post_stream_settle._stop_decision.repair is not real
+    killed, acted, _said = _settle(STOP_BANK[3], brief=_brief("stop"), grammar=False, monkeypatch=monkeypatch)
+    assert killed == [] and acted["v"] is None
+
+
+def test_the_disarm_a_tool_gate_that_skips_the_verdict_vetoes_the_stop(monkeypatch):
+    """Disarm: the tool gate reads the grammar alone → the model's call over a sure stop is vetoed."""
+    real = sd.model_stop
+    monkeypatch.setattr(sd, "model_stop", lambda brief, *, grammar: real(None, grammar=grammar))
+    assert _gate(STOP_BANK[4], brief=_brief("stop"), grammar=False, monkeypatch=monkeypatch) == []

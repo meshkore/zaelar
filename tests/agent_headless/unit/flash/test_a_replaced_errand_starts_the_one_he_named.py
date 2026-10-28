@@ -17,7 +17,6 @@ relays his words to the ONE running errand before any repair pass can turn the p
 """
 from __future__ import annotations
 
-import inspect
 import threading
 from types import SimpleNamespace
 
@@ -115,18 +114,96 @@ def test_the_goal_is_read_before_the_cancel_purges_it(one_errand):
     assert sd.goals_of("todo") == ["Crear una app que lea mis mensajes enviados"]
 
 
-def test_the_doors_carry_the_replace():
-    """Wiring: the voice tool gate and backstop record what they stopped, the settle step composes the replacement,
-    and `turn_after` lets it through beside the stop (and never as a refinement of the dying errand)."""
-    from nucleo.flash import post_stream_settle, tool_executor_calls
-    from voice.engine.llm.providers import turn_after
-    assert 'worker_acted["stopped"] = _stop_decision.goals_of(_w)' in inspect.getsource(
-        tool_executor_calls._t_stop_worker)
-    assert "acted=worker_acted" in inspect.getsource(post_stream_settle.settle_what_is_pending)
-    after = inspect.getsource(turn_after.close_the_turn)
-    assert "_replacing = _stop_decision.start_beside_the_stop(_brief, escalate_req, _op_text, worker_acted" in after
-    assert '(not worker_acted["v"] or _replacing)' in after
-    assert "if not _replacing and _p._similar_pending(req, _prev_pending)" in after
+_SPEECH = SimpleNamespace(sanitize=lambda s, drop_metadata=False: s)
+
+
+def test_the_tool_gate_records_what_its_stop_ended(one_errand):
+    """The voice tool gate: the model's `stop_worker` over a sure replace runs, and the turn keeps the stopped goal."""
+    from nucleo.flash import tool_executor_calls as _calls
+    acted = {"v": None}
+    _calls._t_stop_worker(args={"which": "la app"}, _norm_nfkd=str.lower, _say=lambda: None,
+                          _says_stop=lambda t: False, clarify={}, emit=lambda *a, **k: None,
+                          text=REPLACE_BANK[1][0], worker_acted=acted, brief=_brief("replace"), prior="")
+    assert one_errand["cancelled"] == ["la app"] and acted["v"] == "stop"
+    assert acted["stopped"] == ["Crear una app que lea mis mensajes enviados"]
+
+
+def _settle(text, brief, worker_acted):
+    import asyncio
+    from nucleo.flash import post_stream_settle
+    asyncio.run(post_stream_settle.settle_what_is_pending(
+        _ans=None, _ask_waiting=False, _auth_pending=False, _brief=brief,
+        _dialog=SimpleNamespace(sanitize_reply=lambda s: s), _filler_audio=SimpleNamespace(played_recently=lambda: False),
+        _langs=None, _prev_pending=[], _r=None, _resolve_confirm=lambda yes: None,
+        _router=SimpleNamespace(looks_like_stop_work=lambda t: False, operator_words=lambda o, t: o),
+        _shown_ids=set(), acted={"widget": False}, aside={"v": False},
+        brain=SimpleNamespace(_window=[], _last_spoken=""), clarify={"msg": ""}, confirm_state={"handled": True},
+        data_done={"v": None}, emit=lambda *a, **k: None, escalate_req={"v": None, "more": [], "surface": {}},
+        had_pending_confirm=True, llm_metrics={}, music_req={"v": None}, operator_text=text, search_req={"v": None},
+        send=lambda s: None, speech=_SPEECH, spoken_text="", style_fired={"v": False}, text=text,
+        worker_acted=worker_acted))
+
+
+def test_the_settle_step_records_what_its_backstop_ended(one_errand):
+    """The voice backstop: the model called nothing over a sure replace — the errand stops and its goal is kept."""
+    acted = {"v": None}
+    _settle(REPLACE_BANK[2][0], _brief("replace"), acted)
+    assert one_errand["cancelled"] and acted["v"] == "stop"
+    assert acted["stopped"] == ["Crear una app que lea mis mensajes enviados"]
+
+
+def _close(text, brief, worker_acted, escalate_req, monkeypatch) -> list:
+    """Drive the voice turn's close (`turn_after.close_the_turn`) and return what it escalated."""
+    import asyncio
+    from nucleo.flash import router as _router
+    from voice.engine.llm.providers import nucleo as _p, turn_after
+    monkeypatch.setattr(_p, "_similar_pending", lambda req, prev: True)   # the request is VERY like the dying one
+    escalated: list = []
+    asyncio.run(turn_after.close_the_turn(
+        send=lambda s: None, _acc_ms=0, _amap_ms=0, _brief=brief, _busy_at_start=None,
+        _dialog=SimpleNamespace(push_user=lambda w, t: None, sanitize_reply=lambda s: s, prune_window=lambda w: w,
+                                record_silent_action=lambda w, s: None),
+        _escalate_mod=SimpleNamespace(escalate_to_slowbrain=lambda req, context=None: escalated.append(req),
+                                      done_when_from_brief=lambda b: None, class_verdict=lambda b: None),
+        _filler_audio=SimpleNamespace(note_latency=lambda ms: None, played_recently=lambda: False),
+        _gate_ms=0, _op_text=text, _prev_pending=[{"request": "la app"}],
+        _router=_router, _shown_ids=set(), _start_web_auth=lambda s: False,
+        _t_entry=0.0, _t_stream0=0.0, _tool_fired=set(), _turn_tools=[], acted={"widget": False},
+        aside={"v": True}, attention=SimpleNamespace(was_typed=lambda: False),
+        brain=SimpleNamespace(_window=[], _turn_count=0, _last_spoken="", _turn_calls=[]),
+        clarify={"msg": ""}, confirm_state={}, data_done={"v": None}, deduped={"v": False},
+        emit=lambda *a, **k: None, escalate_req=escalate_req, first_ms=None, first_turn=True,
+        images_req={"v": None}, listing_req={"v": None}, llm_metrics={}, music_req={"v": None}, operator_text=text,
+        read_req={"v": None}, recall_req={"v": None}, reopen_req={"v": None}, reveal_req={"v": None},
+        search_req={"v": None}, spec=SimpleNamespace(provider="p", model="m"), speech=_SPEECH,
+        spoken_text="Vale, paro eso y me pongo con lo nuevo.", style_fired={"v": False}, system="", t0=0.0,
+        text=text, timings={}, worker_acted=worker_acted))
+    return escalated
+
+
+@pytest.mark.parametrize("text,old_goal", REPLACE_BANK[:2])
+def test_the_turn_close_starts_the_replacement_beside_the_stop(text, old_goal, monkeypatch):
+    """The voice turn's close: a turn that stopped an errand over a sure replace still starts the work he named —
+    with the stopped goal carried — and never as a refinement injected into the errand it just killed."""
+    from nucleo import dispatch
+    monkeypatch.setattr(dispatch, "inject_soon", lambda *a: pytest.fail("a replacement was injected into the dying errand"))
+    esc = {"v": None, "more": [], "surface": {}}
+    escalated = _close(text, _brief("replace"), {"v": "stop", "stopped": [old_goal]}, esc, monkeypatch)
+    assert len(escalated) == 1 and escalated[0].startswith(text) and old_goal in escalated[0]
+
+
+@pytest.mark.parametrize("choice", ["stop", "keep"])
+def test_the_turn_close_starts_nothing_after_a_plain_stop(choice, monkeypatch):
+    esc = {"v": None, "more": [], "surface": {}}
+    assert _close("para eso", _brief(choice), {"v": "stop", "stopped": ["la app"]}, esc, monkeypatch) == []
+
+
+def test_the_disarm_a_close_that_ignores_the_replace_starts_nothing(monkeypatch):
+    """Disarm: the close no longer composes the replacement → the stop stands alone and his new work is lost."""
+    monkeypatch.setattr(sd, "start_beside_the_stop", lambda *a, **k: False)
+    esc = {"v": None, "more": [], "surface": {}}
+    text, old = REPLACE_BANK[0]
+    assert _close(text, _brief("replace"), {"v": "stop", "stopped": [old]}, esc, monkeypatch) == []
 
 
 # ── steer: his correction reaches the errand ────────────────────────────────────────────────────────────────
@@ -162,12 +239,51 @@ def test_a_steer_with_several_errands_or_one_waiting_on_him_is_left_to_today(one
     assert one_errand["injected"] == []
 
 
-def test_the_steer_runs_before_the_promise_pass():
-    from nucleo.flash import post_stream_acts
-    words = inspect.getsource(post_stream_acts.complete_the_acts)
-    assert "_stop_decision.steer(_brief" in words
-    assert words.index("_stop_decision.steer(_brief") < words.index("call_for_promise_or_order"), \
-        "a relay that ran after the repair pass would come too late: the card op already ran"
+def _complete(text, brief, monkeypatch, *, promise="Vale, le digo al proceso que mire solo tu correo."):
+    """Drive the voice turn's act completion (`post_stream_acts.complete_the_acts`) over a turn whose model PROMISED
+    and called nothing, with his mail card named by the catalogue. Returns (card ops run, promise passes asked)."""
+    import asyncio
+    from nucleo.flash import act_repair, card_commission, post_stream_acts, router as _router
+    passes: list = []
+
+    async def _pass(*a, **k):
+        passes.append(a)
+        return {"widget_id": "mensajes", "action": "open_thread", "payload": {"q": "email"}}
+    monkeypatch.setattr(act_repair, "call_for_promise_or_order", _pass)
+    monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text: "mensajes")
+    ops: list = []
+
+    async def _speak(*a, **k):
+        return None
+    worker_acted = {"v": None}
+    asyncio.run(post_stream_acts.complete_the_acts(
+        _apply_widget_data=lambda w, a, p: ops.append((w, a)), _brief=brief, _data_ops_hechas=[], _has_workers=True,
+        _prompt_mod=None, _repeat_repair={"v": None}, _router=_router, _show_guard_target=lambda *a: None,
+        _tag_emit=lambda *a, **k: None, _tool_fired=set(), _turn_op_tasks=[], acted={"widget": False},
+        brain=SimpleNamespace(_window=[], _last_action=None, _last_spoken="", _turn_calls=[]), canvas_h=None,
+        clarify={"msg": ""}, cron_seen=set(), data_done={"v": None}, emit=lambda *a, **k: None,
+        escalate_req={"v": None, "more": [], "surface": {}}, images_req={"v": None}, listing_req={"v": None},
+        music_req={"v": None}, operator_text=text, read_req={"v": None}, recall_req={"v": None},
+        reopen_req={"v": None}, reveal_req={"v": None}, search_req={"v": None}, send=lambda s: None, speak=_speak,
+        spec=None, speech=SimpleNamespace(sanitize=lambda s, drop_metadata=False: s), spoken=[promise], text=text,
+        worker_acted=worker_acted))
+    return ops, passes, worker_acted
+
+
+@pytest.mark.parametrize("text", STEER_BANK[:2])
+def test_a_steer_reaches_the_errand_and_no_promise_pass_turns_it_into_a_card_op(text, one_errand, monkeypatch):
+    """The voice act completion: the promise «le digo al proceso…» is KEPT by the relay — his mail card is not
+    opened in its place (the live bug), and no second pass is even asked."""
+    ops, passes, acted = _complete(text, _brief("steer"), monkeypatch)
+    assert one_errand["injected"] == [("7", " ".join(text.split()))]
+    assert acted["v"] == "inject" and ops == [] and passes == []
+
+
+def test_the_disarm_a_steer_that_does_not_relay_lets_the_promise_pass_open_the_card(one_errand, monkeypatch):
+    """Disarm: the relay is switched off → the same turn reaches the promise pass, and the card op runs instead."""
+    monkeypatch.setattr(sd, "steer", lambda *a, **k: "")
+    ops, passes, acted = _complete(STEER_BANK[0], _brief("steer"), monkeypatch)
+    assert one_errand["injected"] == [] and passes and ops == [("mensajes", "open_thread")]
 
 
 def test_the_question_offers_the_four_answers():

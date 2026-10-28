@@ -188,7 +188,34 @@ def test_an_ok_op_that_left_its_changed_value_as_it_was_is_a_replay_not_a_failur
     assert row["verdict"] == "unverifiable" and entry["status"] == "unverifiable"
 
 
-def test_the_spoken_correction_never_names_a_field():
-    import inspect
-    src = inspect.getsource(circuit._say_now)
-    assert "missing" not in src.split("_sd.line(")[1].split(")")[0]
+@pytest.mark.parametrize("missing", ["youtube.videoId", "agenda.meetings[title~=Cryptonite].absent"])
+def test_the_spoken_correction_never_names_a_field(missing, monkeypatch):
+    """Demo pass 71: «the YouTube video ID is still set the way it was» was said to him. The correction is composed
+    from what he ASKED and that it did not happen — the clause the circuit read (`missing`) never reaches it."""
+    from nucleo.workers import spoken_delivery
+    from voice import proactive
+    composed: list = []
+    said: list = []
+
+    async def line(goal, result, **k):
+        composed.append((goal, result, k))
+        return "No ha quedado hecho."
+
+    async def notify(source, text, **k):
+        said.append((text, k))
+    monkeypatch.setattr(spoken_delivery, "line", line)
+    monkeypatch.setattr(proactive, "notify", notify)
+
+    async def run():
+        assert circuit._say_now({"turn": {"text": "make the video full screen"}}, missing)
+        for _ in range(5):
+            await asyncio.sleep(0)
+    asyncio.run(run())
+    assert len(composed) == 1 and composed[0][0] == "make the video full screen"
+    assert composed[0][2].get("ok") is False and composed[0][2].get("verdict") == "unmet"
+    assert missing not in repr(composed) and missing.split(".")[-1] not in repr(composed)
+    assert said == [("No ha quedado hecho.", {"speak": True, "kind": "notify"})]
+
+
+def test_with_no_running_loop_the_correction_falls_back_to_the_next_turn():
+    assert circuit._say_now({"turn": {"text": "x"}}, "youtube.videoId") is False
