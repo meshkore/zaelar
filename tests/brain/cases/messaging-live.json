@@ -3448,5 +3448,211 @@
     }
    }
   }
+ },
+ {
+  "id": "msg-es-new-whatsapps",
+  "lang": "es",
+  "phrase": "¿Tengo whatsapps nuevos?",
+  "source": "refactor2710-99 (2026-10-28): «new messages?» is a question the view answers — show_view, never the `unread` WRITE (descriptor fix in fixbatch-2, node 2.907)",
+  "screen": {
+   "open": [
+    "mensajeria"
+   ]
+  },
+  "expect": "data-op mensajeria:show_view",
+  "live_only": true,
+  "widgets": {
+   "mensajeria": {
+    "platforms": {
+     "whatsapp": {
+      "status": "connected"
+     },
+     "telegram": {
+      "status": "connected"
+     },
+     "email": {
+      "status": "connected"
+     }
+    },
+    "items": [
+     {
+      "platform": "whatsapp",
+      "chatId": "34600000001@s.whatsapp.net",
+      "messageId": "WA1",
+      "senderId": "34600000001@s.whatsapp.net",
+      "from": "Marta",
+      "body": "¿Quedamos mañana a las 9?",
+      "ts": 1792699400,
+      "dirigido_a_mi": true
+     },
+     {
+      "platform": "whatsapp",
+      "chatId": "34600000002@s.whatsapp.net",
+      "messageId": "WA2",
+      "senderId": "34600000002@s.whatsapp.net",
+      "from": "Ana",
+      "body": "[image received]",
+      "mediaType": "image",
+      "ts": 1792699100,
+      "media": [
+       {
+        "url": "/widgets/mensajeria/asset/img_test.jpg",
+        "type": "image",
+        "name": "img_test.jpg"
+       }
+      ]
+     },
+     {
+      "platform": "telegram",
+      "chatId": "-1001",
+      "messageId": "-1001:7",
+      "senderId": "77",
+      "from": "Luis",
+      "group": "Viaje Lisboa",
+      "isGroup": true,
+      "body": "He mirado vuelos para el 12",
+      "ts": 1792698800
+     }
+    ],
+    "chat_index": {
+     "whatsapp": {
+      "rows": {
+       "34600000001@s.whatsapp.net": {
+        "chatId": "34600000001@s.whatsapp.net",
+        "name": "Marta",
+        "kind": "person",
+        "ts": 1792699400,
+        "unread": 1
+       },
+       "34600000002@s.whatsapp.net": {
+        "chatId": "34600000002@s.whatsapp.net",
+        "name": "Ana",
+        "kind": "person",
+        "ts": 1792699100,
+        "unread": 1
+       },
+       "120363000000000001@g.us": {
+        "chatId": "120363000000000001@g.us",
+        "name": "Familia",
+        "kind": "group",
+        "ts": 1792696400
+       }
+      },
+      "answered_at": 1792700000
+     }
+    }
+   }
+  },
+  "connectors": [
+   "whatsapp",
+   "telegram",
+   "email"
+  ],
+  "forbid": [
+   "worker"
+  ]
+ },
+ {
+  "id": "msg-en-new-whatsapps",
+  "lang": "en",
+  "phrase": "Do I have new WhatsApp messages?",
+  "source": "refactor2710-99 (2026-10-28): «new messages?» is a question the view answers — show_view, never the `unread` WRITE (descriptor fix in fixbatch-2, node 2.907)",
+  "screen": {
+   "open": [
+    "mensajeria"
+   ]
+  },
+  "expect": "data-op mensajeria:show_view",
+  "live_only": true,
+  "widgets": {
+   "mensajeria": {
+    "platforms": {
+     "whatsapp": {
+      "status": "connected"
+     },
+     "telegram": {
+      "status": "connected"
+     },
+     "email": {
+      "status": "connected"
+     }
+    },
+    "items": [
+     {
+      "platform": "whatsapp",
+      "chatId": "34600000001@s.whatsapp.net",
+      "messageId": "WA1",
+      "senderId": "34600000001@s.whatsapp.net",
+      "from": "Marta",
+      "body": "¿Quedamos mañana a las 9?",
+      "ts": 1792699400,
+      "dirigido_a_mi": true
+     },
+     {
+      "platform": "whatsapp",
+      "chatId": "34600000002@s.whatsapp.net",
+      "messageId": "WA2",
+      "senderId": "34600000002@s.whatsapp.net",
+      "from": "Ana",
+      "body": "[image received]",
+      "mediaType": "image",
+      "ts": 1792699100,
+      "media": [
+       {
+        "url": "/widgets/mensajeria/asset/img_test.jpg",
+        "type": "image",
+        "name": "img_test.jpg"
+       }
+      ]
+     },
+     {
+      "platform": "telegram",
+      "chatId": "-1001",
+      "messageId": "-1001:7",
+      "senderId": "77",
+      "from": "Luis",
+      "group": "Viaje Lisboa",
+      "isGroup": true,
+      "body": "He mirado vuelos para el 12",
+      "ts": 1792698800
+     }
+    ],
+    "chat_index": {
+     "whatsapp": {
+      "rows": {
+       "34600000001@s.whatsapp.net": {
+        "chatId": "34600000001@s.whatsapp.net",
+        "name": "Marta",
+        "kind": "person",
+        "ts": 1792699400,
+        "unread": 1
+       },
+       "34600000002@s.whatsapp.net": {
+        "chatId": "34600000002@s.whatsapp.net",
+        "name": "Ana",
+        "kind": "person",
+        "ts": 1792699100,
+        "unread": 1
+       },
+       "120363000000000001@g.us": {
+        "chatId": "120363000000000001@g.us",
+        "name": "Familia",
+        "kind": "group",
+        "ts": 1792696400
+       }
+      },
+      "answered_at": 1792700000
+     }
+    }
+   }
+  },
+  "connectors": [
+   "whatsapp",
+   "telegram",
+   "email"
+  ],
+  "forbid": [
+   "worker"
+  ]
  }
 ]

@@ -134,7 +134,7 @@ class YouTubeAudioProvider(MusicProvider):
         _bump(yt, "load")
         return MusicResult(ok=True, provider=self.name, action="play",
                            track=Track(id=vid, uri=f"yt:{vid}", title=title or query or vid, art=_yt_thumb(vid)),
-                           message=_t("play", label=title or query or "la música"),
+                           message=_t("play", label=title or query) if (title or query) else _t("play_untitled"),
                            extra={"surface": "widget", "widget": _WID, "videoId": vid})
 
     def enqueue(self, query: str = "", uri: str = "") -> MusicResult:
@@ -302,7 +302,7 @@ class YouTubeAudioProvider(MusicProvider):
         _bump(yt, "load")
         return MusicResult(ok=True, provider=self.name, action="previous",
                            track=Track(id=vid, uri=f"yt:{vid}", title=yt["title"], art=yt["art"]),
-                           message=_t("play", label=yt["title"] or "la música"),
+                           message=_t("play", label=yt["title"]) if yt["title"] else _t("play_untitled"),
                            extra={"surface": "widget", "widget": _WID, "videoId": vid})
 
     def seek(self, seconds: float = 0.0, relative: bool = False) -> MusicResult:

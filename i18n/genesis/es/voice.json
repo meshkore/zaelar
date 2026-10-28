@@ -412,7 +412,8 @@
   "ask_more": "No he dado con esa canción. ¿Me dices el artista o alguna palabra más de la letra?",
   "audio_blocked": "La música está cargada pero no se oye: el navegador de esta pantalla no la deja sonar sin un toque. Toca una vez la tarjeta de música y sonará.",
   "youtube": {
-   "play": "Suena {label}.",
+   "play": "Suena «{label}».",
+   "play_untitled": "Ya suena la música.",
    "pause": "Pausado.",
    "resume": "Sigo.",
    "volume": "Volumen al {n} por ciento.",
@@ -420,13 +421,13 @@
    "done": "Hecho.",
    "no_next": "No hay más canciones en la cola; dime qué pongo.",
    "no_prev": "No hay canción anterior a la que volver.",
-   "already": "Ya está sonando {label}.",
-   "queued": "Vale, después pongo {label}.",
+   "already": "Ya está sonando «{label}».",
+   "queued": "Vale, después pongo «{label}».",
    "seek": "Ahí va.",
    "seek_to": "En el {t}."
   },
   "spotify": {
-   "play": "Suena {label}.",
+   "play": "Suena «{label}».",
    "resume": "Sigo con la música.",
    "pause": "Pausado.",
    "next": "Siguiente.",
@@ -440,9 +441,9 @@
    "error": "No he podido con Spotify ahora mismo.",
    "no_next": "No hay nada después de esta canción en lo que suena; dime qué pongo.",
    "no_prev": "No hay ninguna canción anterior en lo que suena.",
-   "play_on": "Suena {label} en «{device}».",
+   "play_on": "Suena «{label}» en «{device}».",
    "not_sounding": "He mandado la música a «{device}», pero allí no está sonando.",
-   "already_on": "Ya está sonando {label} en «{device}»."
+   "already_on": "Ya está sonando «{label}» en «{device}»."
   }
  },
  "agenda": {
