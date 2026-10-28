@@ -124,10 +124,11 @@ def test_every_declared_action_is_handled_and_every_handled_one_is_declared():
     """Read at the door, not in the source: the dispatch table `apply_action` consults, and the catalog gate that
     holds every widget to «declared == handled» (refactor2710-12 — the table is read off the `_a_<action>` names)."""
     from widgets import validator
+    from widgets import validator_actions as _validator_actions_m
     data = importlib.import_module("widgets.archivos.data")
     assert set(_manifest()["actions"]) == set(data.ACTIONS)
     assert all(callable(h) for h in data.ACTIONS.values())
-    assert validator._validate_actions_sync(_manifest(), (_WIDGET / "data.py").read_text(encoding="utf-8"),
+    assert _validator_actions_m._validate_actions_sync(_manifest(), (_WIDGET / "data.py").read_text(encoding="utf-8"),
                                             str(_WIDGET)) is None
 
 

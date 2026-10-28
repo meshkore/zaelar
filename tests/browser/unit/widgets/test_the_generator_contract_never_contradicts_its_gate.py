@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 from widgets import generator, validator
+from widgets import validator_actions as _validator_actions_m
 
 
 # ── the contract agrees with the gate ─────────────────────────────────────────────────────────────────────
@@ -98,7 +99,7 @@ def test_a_widget_written_the_way_the_contract_says_is_read_by_the_gate():
            '    handler = ACTIONS.get(action) if isinstance(action, str) else None\n'
            '    if handler is None:\n        return {"ok": False, "error": "unknown_action", "action": action}\n'
            '    return handler(action, p)\n')
-    assert validator._apply_action_names(src) == {"add", "done"}
+    assert _validator_actions_m._apply_action_names(src) == {"add", "done"}
     man = {"id": "w1", "actions": {"add": {"desc": "x"}, "done": {"desc": "x"}, "ghost": {"desc": "x"}}}
-    err = validator._validate_actions_sync(man, src)
+    err = _validator_actions_m._validate_actions_sync(man, src)
     assert err and "ghost" in err, err

@@ -22,9 +22,9 @@ from nucleo import workspace as _workspace
 # Static + runtime contract validation lives in its own module (V2-098): no shared mutable state with the
 # orchestration below it. Re-exported by name so existing callers (tests/widget_harness.py, server_api.py, tests)
 # keep working unchanged against `generator._validate`/`generator._validate_background`/etc.
-from .validator import (_validate, _validate_actions_sync, _validate_background,  # noqa: F401
-                         _apply_action_names, _defines_function, _keyword_collisions,
-                         _scan_data_py)
+from .validator import _keyword_collisions, _scan_data_py, _validate  # noqa: F401
+from .validator_actions import (_apply_action_names, _defines_function,  # noqa: F401
+                                 _validate_actions_sync, _validate_background)
 from .validator_js import _scan_widget_js  # noqa: F401
 
 from widgets import paths

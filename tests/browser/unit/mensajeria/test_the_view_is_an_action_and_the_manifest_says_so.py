@@ -62,8 +62,9 @@ def test_the_manifest_declares_every_action_apply_action_handles():
     # V2-778 F1-12: read the way the contract gate reads it — the ACTIONS table's keys plus what apply_action
     # still compares inline (read/dismiss/clear) — since the gate itself skips the backed kind
     from widgets import validator
+    from widgets import validator_actions as _validator_actions_m
     wdir = ENGINE / "widgets" / "mensajeria"
-    handled = validator._apply_action_names((wdir / "data.py").read_text(encoding="utf-8"), str(wdir))
+    handled = _validator_actions_m._apply_action_names((wdir / "data.py").read_text(encoding="utf-8"), str(wdir))
     declared = set(_manifest()["actions"])
     # connect/disconnect stay undeclared ON PURPOSE: they carry credentials, and the door for the voice is
     # open_connectors (V2-520: the voice transports intent, never a credential).
