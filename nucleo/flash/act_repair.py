@@ -39,9 +39,8 @@ _SYS = (
     "payload (a note, a message, a title) in the OPERATOR's language, as he said it.\n\nActions of "
     "«{wid}»:\n{actions}{card}"
 )
-#: What the card holds, so a relative order («move it 30 minutes later») can be turned into a call. The
-#: demo run (2026-09-26): the model computed «It's now at 2:00 PM, running until 2:45» in the turn — it had the
-#: digest — and this pass, which had only his words, could not, and returned nothing in silence.
+#: What the card holds, so a relative order («move it 30 minutes later») becomes a call (demo run 2026-09-26:
+#: the turn had the digest and computed 2:00 PM; this pass had only his words and returned nothing).
 _CARD = "\n\nWHAT THE CARD «{wid}» HOLDS NOW:\n{digest}"
 
 
@@ -87,90 +86,16 @@ def _widget_data_tool() -> dict | None:
         return None
 
 
-# The words that DENY an act — the one case the repaired act has to be said after (see `after_the_repair`).
-# English and Spanish, the two languages the demo and the operator's sessions are measured in.
+# The words that DENY an act — the one case said after the repair (`after_the_repair`); English and Spanish.
 _DENIED_RE = re.compile(
     r"\b(?:can'?t|cannot|can not|couldn'?t|unable to|not something i can|no way (?:to|i can)|there(?:'s| is) no|"
     r"there(?:'s| is)n'?t (?:a|any)|isn'?t (?:a|any|something)|"
     r"no puedo|no es algo que pueda|no hay (?:forma|manera|ning[uú]n)|no tengo (?:forma|manera)|no existe)\b", re.I)
 
 
-def denies_the_act(spoken: str) -> bool:
-    """Do the model's words say the act cannot be done? Deterministic and narrow: a can't/there's-no shape."""
-    return bool(_DENIED_RE.search(spoken or ""))
-
-
-#: The line after an act the verdict carried out, by what the model's words DID (demo passes 108-109): «which…?» was
-#: answered with «I've gone ahead, as you asked» — a go-ahead nobody gave. The shape is read deterministically from
-#: the model's own words in the session language (`clarifying`): no trip on the tail, and the Jev brief is fired
-#: before the reply exists. A claim or a promise has no shape here and gets nothing.
+#: The line after an act the verdict carried out, by what the model's words DID (demo passes 108-109: «which…?»
+#: got «I've gone ahead»). Read deterministically (`clarifying`); a claim or a promise gets nothing.
 TAILS = {"asked_which": "data_ack_went_with", "asked": "data_ack_went_ahead", "denied": "data_ack"}
-
-
-def words_shape(spoken: str) -> str:
-    """"asked_which" (a missing detail), "asked" (any other question), "denied", or "" — the key of `TAILS`."""
-    s = spoken or ""
-    from nucleo.flash import clarifying as _cl
-    if "?" in s:
-        return "asked_which" if _cl.asks_for_missing_detail(s) else "asked"
-    return "denied" if denies_the_act(s) else ""
-
-
-def _tail(shape: str) -> str:
-    from i18n import langs as _langs
-    line = str(getattr(_langs.current_language(), TAILS.get(shape, ""), "") or "").strip() if shape else ""
-    return " " + line if line else ""
-
-
-def after_the_completion(spoken: str, widget_id: str = "", action: str = "") -> str:
-    """What the VOICE adds when the VERDICT carried out an order the model's words only ASKED about.
-
-    Demo passes 76 S3 and 90 S2 (2026-10-03): «Compare them visually.» — the model called nothing and asked «Which
-    view do you want them in, side by side?»; the verdict set `layout: compare` and the sheet changed, and the last
-    thing heard was the question (incident T509). Unlike a repaired LOOK (`after_the_repair` stays silent: its answer
-    comes from the op's data), a completed view changes the screen and has no answer of its own — so a question is
-    followed by the went-ahead line; a denial by «Done.» (p130 V2: «no such video» over it playing). Others: nothing."""
-    shape = words_shape(spoken)
-    if not shape:
-        return ""
-    from widgets import effects as _fx
-    if widget_id and action and _fx.carries(widget_id, action, _fx.OUTPUT_ANSWER):
-        return ""                           # its answer is composed from the data — see `after_the_repair`
-    return _tail(shape)
-
-
-def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: str = "") -> str:
-    """What the VOICE adds once the second pass has carried out an order the model's words DENIED.
-
-    Demo pass 31 (2026-09-28, E4): «leave that inworld one as unread» — the model called nothing and said «there's
-    no unread toggle for a mail message»; the verdict's second pass then marked it unread. The action was done and
-    the last thing heard was that it could not be. The text channel drops the model's words and lets the result
-    speak; the voice cannot unsay what already streamed, so it says what happened after it — the same rule as a
-    worker stopped by the backstop («never a silent kill»). Nothing is added when the words already promised the
-    act, or when nothing was said (the ordinary data ack covers that)."""
-    # One rule (demo passes 55-56, 2026-09-29): the words already carry the act unless they DENIED it. «Right… I
-    # left the Inworld one unread — it's back to showing as new.» and «Yep — putting Madonna on.» both got a
-    # «Done.» stapled on, because the promise table is Spanish and neither is a refusal. A claim or a promise in
-    # any language needs nothing after it; a denial does, and a question gets «went ahead» (below).
-    if not (spoken or "").strip():
-        return ""
-    shape = words_shape(spoken)
-    # …but a QUESTION is still a question when it also promises (pass 114, C5: «want me to fire it off… I'll send it
-    # as soon as you confirm?» — sent by the repair, and the last thing heard asked).
-    if not shape or (promised and shape not in ("asked", "asked_which")):
-        return ""
-    try:
-        # …and a repaired LOOK changes nothing to acknowledge (demo pass 42, C2: «…want me to put it on your calendar
-        # at 4?» + a repaired `find_free` → «…at 4?Done.»). Its answer, if one is owed, comes from the op's data.
-        from nucleo.flash import data_ops as _dops
-        if widget_id and action and _dops.is_view_op(widget_id, action):
-            return ""
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        return _tail(shape)
-    except Exception:  # noqa: BLE001
-        return ""
 
 
 async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=None, *,
@@ -253,89 +178,6 @@ _SYS_REFUSED = (
 )
 
 
-def _answered_a_question(brief, reply: str) -> bool:
-    """A SURE question (the brief) answered by a reply that refused nothing: the brief decides (refactor2710-03)."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8) if brief is not None else ("", None)
-        return bool(info) and str(kind or "") == "question" and not denies_the_act(reply)
-    except Exception:  # noqa: BLE001
-        return False
-
-
-async def call_for_promise_or_order(operator_text: str, reply: str, widget_id: str, verdict: str = "", spec=None, *,
-                                    window=None, brief=None, outcome: dict | None = None) -> dict | None:
-    """`call_for_promise`, and when the words promised nothing — they REFUSED — the verdict's call.
-
-    Demo pass 41 (2026-09-29, E3): «send the invoice to quinn…» over the open receipt → «I can't send it myself —
-    sending mail isn't something I can do on my end», no call, the verdict reading `mensajeria:forward`. The promise
-    pass asks «did you promise an act?», and a refusal did not, so it rightly called nothing — and the mail never
-    went. A refusal of an action the card DECLARES, for an order the verdict names, is one more question to the
-    model, with the action named. Bounded like the others: one card, its declared action, the caller's gate."""
-    if _answered_a_question(brief, reply) or _keep.keeps_the_worker(brief, widget_id):   # T529 · 2026-10-14
-        return None
-    got = _cvis.unless_a_view(await call_for_promise(operator_text, reply, widget_id, spec, window=window, **({"outcome": outcome} if outcome is not None else {})), brief, outcome)   # V2-820
-    # V2-781 T518: «make it last until one» — the promise pass read «I'll open it so you can see it» and picked
-    # `open_meeting` with the verdict at `agenda:move_meeting` 0.98. The verdict completes the model (CRIT-K2): a
-    # view the pass chose over a real op the verdict names is asked once more, for that op.
-    if got and verdict and got["action"] != verdict and _is_view(got["widget_id"], got["action"]) \
-            and not _is_view(got["widget_id"], verdict):
-        return await call_for_repeated_view(operator_text, widget_id, got["action"], verdict, spec,
-                                            window=window) or got
-    if got or not verdict:
-        return got
-    said = " ".join(str(reply or "").split())[:300]
-    return _pk.called(outcome, await call_for_repeated_view(operator_text, widget_id, "", verdict, spec, window=window,
-                      _sys=_SYS_REFUSED.replace("{said}", said.replace("{", "(").replace("}", ")"))))
-
-
-async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: str, verdict: str, spec=None, *,
-                                 window=None, _sys: str = "") -> dict | None:
-    """The model's only call RE-OPENED what was already on screen, and the verdict names an action on that card
-    that needs a payload only a model can write — ask once, for that call. `{widget_id, action, payload}` or None.
-
-    Demo pass 2026-09-28 (full20 E3): «send the invoice to quinn, tell him we're already trying inworld and he
-    should book it» over the open Inworld invoice → the model called `open` (again), the verdict read
-    `mensajeria:forward` at 0.61. The verdict alone cannot complete a forward — the note to Quinn has to be
-    written — so the turn ended having done nothing. Bounded like `call_for_promise`: one card, its declared
-    action, the caller's usual gate. Never raises."""
-    try:
-        wid = str(widget_id or "").strip().lower()
-        verdict = str(verdict or "").strip()
-        if not wid or not verdict or not (operator_text or "").strip() or operator_text.lstrip().startswith("[SISTEMA]"):
-            return None
-        from widgets import runtime as _rt
-        manifest = _rt.get(wid) or {}
-        declared = manifest.get("actions") or {}
-        tool = _widget_data_tool()
-        if verdict not in declared or not tool:
-            return None
-        digest = ""
-        try:
-            from nucleo.flash import widget_read as _wr
-            digest = str(_wr.read(wid) or "").strip()[:1500]
-        except Exception:  # noqa: BLE001
-            digest = ""
-        card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
-        got: list[tuple[str, dict]] = []
-        from nucleo.llm.fast_client import FastClient
-        await FastClient().complete(
-            [{"role": "system", "content": _in_his_lang(_sys or _SYS_REPEAT).format(wid=wid, repeated=repeated, verdict=verdict,
-                                                                     actions=_actions_block(manifest), card=card)},
-             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»" + conversation(window)}],
-            spec=spec, max_tokens=400, tools=[tool], no_thinking=True,
-            on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
-        for name, args in got:
-            if (name == "widget_data" and str(args.get("widget_id") or "").strip().lower() == wid
-                    and str(args.get("action") or "").strip() == verdict):
-                payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
-                return {"widget_id": wid, "action": verdict, "payload": payload}
-        _note(wid, "el modelo no hizo la llamada del veredicto", action=verdict)
-        return None
-    except Exception:  # noqa: BLE001
-        return None
-
-
 _SYS_AFTER_READ = (
     "You are the brain of a voice assistant. The operator gave an ORDER on the card «{wid}». To "
     "fulfil it you first read the card «{read}» — this is what it holds:\n{block}\n\nNow fulfil the "
@@ -347,104 +189,6 @@ _SYS_AFTER_READ = (
 )
 
 
-async def call_after_read(operator_text: str, read_widget: str, widget_id: str, spec=None, *,
-                          window=None) -> dict | None:
-    """The turn READ one card to get what an order on ANOTHER card needed — and the read path ends the turn with
-    words only. `{widget_id, action, payload}` for the order, or None. Never raises.
-
-    Demo pass 2026-09-28 (full20 C5): «send rowan a telegram with the new time» — the model read the agenda for the
-    new time (sensible), and the read's answer pass, which has no tools, said «I can't send a Telegram, I don't have
-    any messaging tool available here». The order stood; this pass carries it out with what was read."""
-    try:
-        wid = str(widget_id or "").strip().lower()
-        rid = str(read_widget or "").strip().lower()
-        if not wid or not rid or wid == rid or not (operator_text or "").strip():
-            return None
-        from widgets import runtime as _rt
-        manifest = _rt.get(wid) or {}
-        declared = manifest.get("actions") or {}
-        tool = _widget_data_tool()
-        if not declared or not tool:
-            return None
-        from nucleo.flash import widget_read as _wr
-        block = str(_wr.read(rid) or "").strip()[:1500] or "(vacía)"
-        digest = str(_wr.read(wid) or "").strip()[:800]
-        card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
-        got: list[tuple[str, dict]] = []
-        from nucleo.llm.fast_client import FastClient
-        await FastClient().complete(
-            [{"role": "system", "content": _in_his_lang(_SYS_AFTER_READ).format(wid=wid, read=rid, block=block,
-                                                                  actions=_actions_block(manifest), card=card)},
-             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»" + conversation(window)}],
-            spec=spec, max_tokens=400, tools=[tool], no_thinking=True,
-            on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
-        for name, args in got:
-            action = str(args.get("action") or "").strip()
-            if name == "widget_data" and str(args.get("widget_id") or "").strip().lower() == wid and action in declared:
-                payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
-                return {"widget_id": wid, "action": action, "payload": payload}
-        _note(wid, "tras leer, el modelo no hizo la llamada de la orden", read=rid)
-        return None
-    except Exception:  # noqa: BLE001
-        return None
-
-
-def _is_view(wid: str, action: str) -> bool:
-    try:
-        from nucleo.flash import data_ops as _dops
-        return bool(_dops.is_view_op(wid, action))
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def same_card_order_after_read(brief, read_widget: str, reply: str = "") -> str:
-    """The verdict's action when the turn READ the very card the order is on and stopped there, or "".
-
-    V2-781 T518 (EN `agenda-everyday-edits`): «There's no piano on Tuesday October 13» — the verdict read
-    `agenda:cancel_meeting` at 1.00, the model said «let me check», read the agenda and the
-    read's answer pass, which has no tools, said «Got it — no piano on the 13th» over a series that still held it.
-    The brief called the sentence a `comment`, so the order gate stayed shut. A statement about his own card IS an
-    order on it when a SURE verdict names a real op there and the brief reads an order — never for a
-    question, which a read answers."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        target, t_info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.85)
-        owner, _sep, act = str(target or "").rpartition(":")
-        rid = str(read_widget or "").split("::")[0].strip().lower()
-        if not (t_info and owner and act) or owner.split("::")[0].lower() != rid:
-            return ""
-        kind, k_info = _tb.read(brief, _tb.REQUEST_KEY, "")
-        sure_order = str(kind or "") == "order" and bool(k_info)
-        if str(kind or "") == "question" or (_is_view(rid, act) and not sure_order):   # p124 F2: «go to» is a sure lens
-            return ""
-        # Only an order the brief is sure of licenses the repair (audit V2-783 P0-3 — «Shall I send it?» was carried
-        # out here); what our reply said decides nothing (refactor2710-03).
-        return act if sure_order else ""
-    except Exception:  # noqa: BLE001
-        return ""
-
-
-async def after_a_read(brief, operator_text: str, read_widget: str, reply: str = "", spec=None, *,
-                       window=None) -> dict | None:
-    """The order a READ was serving, carried out — `{widget_id, action, payload}` or None. ONE door for both
-    channels: the voice read lane and the probe's light route used to differ (only the voice had it).
-
-    Another card («send rowan a telegram with the new time», full20 C5) → `call_after_read`; the same card the
-    verdict names (T518) → the verdict's call, asked once like a repeated view."""
-    try:
-        from nucleo.flash import direct_action as _da
-        other = _da.order_card_after_read(brief, operator_text, read_widget)
-        if other:
-            return await call_after_read(operator_text, read_widget, other, spec, window=window)
-        act = same_card_order_after_read(brief, read_widget, reply)
-        if act:
-            rid = str(read_widget or "").split("::")[0]
-            return await call_for_repeated_view(operator_text, rid, "read_widget", act, spec, window=window)
-        return None
-    except Exception:  # noqa: BLE001 — a repair must never take down a live turn
-        return None
-
-
 _SYS_AFTER_SEARCH = (
     "You are the brain of a voice assistant. The operator's turn asked for a FACT and an ORDER on the card "
     "«{wid}». You searched the web for the fact and answered:\n«{answer}»\n\nNow fulfil the order: make the "
@@ -453,82 +197,6 @@ _SYS_AFTER_SEARCH = (
     "for anything on «{wid}», call nothing. Write any text you put in the payload (a note, a title) in the "
     "OPERATOR's language, as he said it.\n\nActions of «{wid}»:\n{actions}{card}"
 )
-
-
-def order_card_after_search(brief, answer: str = "") -> str:
-    """The card an ORDER is on when the turn SEARCHED the web for the fact it needed, or "".
-
-    V2-781 T515 (2026-10-03): «Can you set a reminder for the premiere day?» — the model searched again for the
-    date, and the search's answer pass, which has no tools, said «I can't actually set reminders myself»; the
-    brief had read `request_type=order` and `catalog_widget=agenda` (0.91). The ES twin read `wants_words=tell` on
-    the same order and `request_type=question` on «¿te enteras de cuándo se estrena y me avisas?» — answered «avisarte
-    no puedo». So: a card the brief names, and either a SURE order or an answer that refuses an act. A question
-    answered with its fact never reaches here."""
-    try:
-        from nucleo.flash import build_decision as _bd, turn_brief as _tb
-        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8)
-        if not ((str(kind or "") == "order" and info) or denies_the_act(answer)):
-            return ""
-        return str(_bd.named_card(brief) or "").split("::")[0]
-    except Exception:  # noqa: BLE001
-        return ""
-
-
-async def call_after_search(operator_text: str, answer: str, brief, spec=None, *, window=None) -> dict | None:
-    """The order half of a turn that searched for its fact — `{widget_id, action, payload}` or None. Never raises.
-
-    The sibling of `call_after_read`: the search's answer pass has no tools, so an order beside the question
-    («find out when it premieres and remind me») was answered with the fact and then refused. One bounded pass:
-    the card the brief names, its declared actions, the caller's usual gate."""
-    try:
-        wid = order_card_after_search(brief, answer)
-        if not wid or not (operator_text or "").strip() or not (answer or "").strip():
-            return None
-        from widgets import runtime as _rt
-        manifest = _rt.get(wid) or {}
-        declared = manifest.get("actions") or {}
-        tool = _widget_data_tool()
-        if not declared or not tool:
-            return None
-        from nucleo.flash import widget_read as _wr
-        digest = str(_wr.read(wid) or "").strip()[:800]
-        card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
-        said = " ".join(str(answer).split())[:600].replace("{", "(").replace("}", ")")
-        got: list[tuple[str, dict]] = []
-        from nucleo.llm.fast_client import FastClient
-        await FastClient().complete(
-            [{"role": "system", "content": _in_his_lang(_SYS_AFTER_SEARCH).format(wid=wid, answer=said, actions=_actions_block(manifest),
-                                                                    card=card)},
-             {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»" + conversation(window)}],
-            spec=spec, max_tokens=400, tools=[tool], no_thinking=True,
-            on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
-        for name, args in got:
-            action = str(args.get("action") or "").strip()
-            if name == "widget_data" and str(args.get("widget_id") or "").strip().lower() == wid and action in declared:
-                payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
-                return {"widget_id": wid, "action": action, "payload": payload}
-        _note(wid, "tras buscar, el modelo no hizo la llamada de la orden")
-        return None
-    except Exception:  # noqa: BLE001
-        return None
-
-
-async def voice_after_search(operator_text: str, spoken_text: str, brief, spec, *, window, apply, send, emit,
-                             acted: dict, done: dict) -> bool:
-    """The VOICE channel's half of `call_after_search`: run the order, mark the turn as having acted, say what
-    happened after a refusal that already streamed (`after_the_repair`), and leave one timeline line."""
-    got = await call_after_search(operator_text, spoken_text, brief, spec, window=window)
-    if not got:
-        return False
-    apply(got["widget_id"], got["action"], got["payload"])
-    acted["widget"] = done["v"] = True
-    line = after_the_repair(spoken_text, False, got["widget_id"], got["action"]).strip()
-    if line:
-        send(line)
-    emit("brain", "🔁 buscó para una orden — la llamada, con lo encontrado", role="system",
-         text=f"{got['widget_id']}:{got['action']}", extra={"cat": "flash", "widget": got["widget_id"],
-                                                          "action": got["action"]})
-    return True
 
 
 _SYS_COMMISSION = (
@@ -552,134 +220,6 @@ _SYS_COMMISSION = (
     "the commission. Write any text you put in the payload (a note, a message, a title) in the "
     "OPERATOR's language, as he said it.\n\nActions of «{wid}»:\n{actions}{card}"
 )
-
-
-def _tool_named(name: str) -> dict | None:
-    try:
-        from nucleo.flash import router_catalog as _rc
-        return next((t for t in _rc.TOOLS if t.get("function", {}).get("name") == name), None)
-    except Exception:  # noqa: BLE001
-        return None
-
-
-def _other_open_cards(wid: str, *, limit: int = 2, chars: int = 900) -> str:
-    """What the OTHER cards on his screen hold — the facts a commission on this card usually refers to.
-
-    Demo pass 43 (2026-09-29), C5: «send rowan a telegram with the new time» — the meeting had just been moved to
-    4:30 on the open agenda (silently: no words in the window said so), the model's escalation said «17:00», and
-    this pass, which saw only the messaging card and that brief, wrote Rowan «moved to 5:00 PM». The time was on
-    the screen, in another card."""
-    try:
-        from memory import api as _memapi
-        from nucleo.flash import widget_read as _wr
-        ids = [str(x).split("::")[0].lower() for x in ((_memapi.state() or {}).get("open_widgets") or [])]
-        out = []
-        for other in dict.fromkeys(i for i in ids if i and i != wid):
-            if len(out) >= limit:
-                break
-            if not _wr.can_answer(other):
-                continue
-            digest = str(_wr.read(other) or "").strip()[:chars]
-            if digest:
-                out.append(f"\n\nWHAT «{other}» HOLDS, ALSO ON HIS SCREEN (the source of a fact the order names — a time, "
-                           f"a date —, above what the commission says). It is the state NOW, with the changes he "
-                           f"already asked for in the conversation ALREADY APPLIED: a time from here is the final "
-                           f"one, nothing is added to or taken from it again:\n{digest}")
-        return "".join(out)
-    except Exception:  # noqa: BLE001
-        return ""
-
-
-def _ignored_the_verdict(got: list, wid: str, verdict_action: str, declared: dict) -> bool:
-    """The pass called a DIFFERENT declared action on the card the verdict names an action of."""
-    a = str(verdict_action or "").strip()
-    if not a or a not in declared:
-        return False
-    calls = [str(x.get("action") or "").strip() for n, x in got
-             if n == "widget_data" and str(x.get("widget_id") or "").strip().lower() == wid]
-    return bool(calls) and a not in calls
-
-
-def _verdict_hint(action: str, manifest: dict) -> str:
-    """One line naming the action the engine's own reading of the order chose on this card, when it declares it.
-
-    Demo passes 88/89 (2026-10-03), R3 «find a five-day period during her vacation when my calendar is clear»: the
-    verdict read `agenda:find_free` (0.73-0.80) and this pass, not told, called `show_day` — a view of ONE day — and
-    the answer was «I can't map out five days from just this». The verdict completes the pass; it never overrules a
-    call that fits better."""
-    a = str(action or "").strip()
-    if not a or a not in (manifest.get("actions") or {}):
-        return ""
-    return (f"\nThe engine's reading of this order names the action «{a}» on this card — use it, with every value "
-            f"the conversation already gave (dates, names), unless it clearly cannot do what he asked.")
-
-
-async def call_or_read_for_commission(operator_text: str, commission: str, widget_id: str, spec=None, *,
-                                      window=None, may_read: bool = True, verdict_action: str = "") -> dict | None:
-    """A commission that names one of our cards, before it costs a worker (V2-773 final pass, C1): «Find me a
-    free 45-minute slot tomorrow afternoon» was delegated to a Brain Worker (three minutes) when the agenda was
-    the whole answer. One pass with the card in front decides: `{"kind": "call", widget_id, action, payload}`,
-    `{"kind": "read", widget_id, question}`, or None — and None keeps today's path, the worker. Never raises."""
-    try:
-        wid = str(widget_id or "").strip().lower()
-        if not wid or not (operator_text or "").strip():
-            return None
-        from widgets import runtime as _rt
-        manifest = _rt.get(wid) or {}
-        # The read option only for a card that can ANSWER (`widget_read.can_answer`): a messaging card gets the
-        # call («message Rowan on Telegram» → send_to) and never a read it cannot serve.
-        from nucleo.flash import widget_read as _wr0
-        tools = [t for t in (_tool_named("widget_data"),
-                             _tool_named("read_widget") if (may_read and _wr0.can_answer(wid)) else None) if t]
-        from nucleo.flash import compose_rung as _compose
-        if tools and _compose.prose_action(wid):
-            tools.append(_compose.tool())   # a card that holds prose: its text may be WRITTEN now (2026-10-22)
-        if not manifest or not tools:
-            return None
-        digest = ""
-        try:
-            from nucleo.flash import widget_read as _wr
-            digest = str(_wr.read(wid) or "").strip()[:1500]
-        except Exception:  # noqa: BLE001
-            digest = ""
-        card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _other_open_cards(wid)
-        got: list[tuple[str, dict]] = []
-        from nucleo.llm.fast_client import FastClient
-        _msgs = [{"role": "system", "content": _in_his_lang(_SYS_COMMISSION).format(wid=wid, actions=_actions_block(manifest), card=card)},
-                 {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»\n"
-                                             f"The commission that was going to a worker: «{(commission or '').strip()[:300]}»"
-                                             + _verdict_hint(verdict_action, manifest)
-                                             + conversation(window)}]
-        await FastClient().complete(
-            _msgs, spec=spec, max_tokens=300, tools=tools, no_thinking=True,
-            on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
-        declared = manifest.get("actions") or {}
-        if _ignored_the_verdict(got, wid, verdict_action, declared):
-            # Demo pass 92, R3: the hint was there (agenda:find_free, 0.75) and the pass called show_day again — one
-            # day, «I can only see the start of it». ONE more ask, naming the action as the one to call; whatever it
-            # answers then is taken (the verdict completes the pass, it never runs blind).
-            got.clear()
-            await FastClient().complete(
-                _msgs + [{"role": "user", "content": f"Call «{verdict_action}» on «{wid}» — that is the action this "
-                                                     f"order needs; fill its payload from the operator's words and the "
-                                                     f"conversation."}],
-                spec=spec, max_tokens=300, tools=tools, no_thinking=True,
-                on_tool_call=lambda name, args: got.append((name, args if isinstance(args, dict) else {})))
-        for name, args in got:
-            if str(args.get("widget_id") or "").strip().lower() != wid:
-                continue
-            if (_c := _compose.decision(name, args, wid)):
-                return _c
-            if name == "read_widget":
-                q = str(args.get("question") or "").strip() or operator_text.strip()
-                return {"kind": "read", "widget_id": wid, "question": q[:300]}
-            if name == "widget_data" and str(args.get("action") or "").strip() in declared:
-                payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
-                return {"kind": "call", "widget_id": wid, "action": str(args["action"]).strip(), "payload": payload}
-        _note(wid, "el encargo sigue su camino al worker" if not got else "la llamada no era de esta tarjeta")
-        return None
-    except Exception:  # noqa: BLE001 — never take down a live turn
-        return None
 
 
 _SYS_REFUSAL = (
@@ -763,3 +303,10 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
     except Exception:  # noqa: BLE001 — a repair must never take down a live turn
         return None
 
+from nucleo.acts.repair_after_lookup import (  # noqa: E402,F401
+    _tool_named, _is_view, call_after_read, same_card_order_after_read, after_a_read, order_card_after_search,
+    call_after_search, voice_after_search)
+from nucleo.acts.repair_of_a_view import (  # noqa: E402,F401
+    denies_the_act, words_shape, _tail, after_the_completion, after_the_repair, _answered_a_question,
+    call_for_promise_or_order, call_for_repeated_view, _other_open_cards, _ignored_the_verdict, _verdict_hint,
+    call_or_read_for_commission)

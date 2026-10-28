@@ -97,7 +97,10 @@ def test_the_call_site_hands_the_turn_brief_to_the_guard():
     """The verdict hatch is dead code unless the turn's own brief reaches the predicate."""
     import inspect
 
+    from nucleo.acts import card
     from nucleo.flash import tool_executor_widget_calls as _tw
-    src = inspect.getsource(_tw)
+    src = inspect.getsource(card._context_bleed)
     i = src.index("is_context_bleed(")
-    assert "brief=_brief" in src[i:i + 300]
+    assert 'brief=(r or {}).get("brief")' in src[i:i + 300]
+    assert '_req = {"brief": _brief, "text": text}' in inspect.getsource(_tw._apply_widget_data), \
+        "the gate hands the turn's brief to the card door"

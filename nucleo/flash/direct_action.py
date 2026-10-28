@@ -58,11 +58,8 @@ def from_brief(brief) -> tuple:
     verdict.
     """
     if not brief:
-        # NOT an optimisation. `turn_brief.read` emits one `brain` read-attribution event per call
-        # (V2-726 A6a) so the timeline can say whether a verdict was USED — and with no brief there
-        # is no verdict to attribute. Asking anyway printed a `jev read screen_action → off` line on
-        # every video turn of a channel that fires no brief at all, which is noise in the one place
-        # that has to stay readable. Caught by the flow test that counts a turn's events by kind.
+        # NOT an optimisation: `turn_brief.read` emits a read-attribution event per call (V2-726 A6a); with no
+        # brief there is no verdict, and asking printed `jev read screen_action → off` noise on every video turn.
         return ("", "")
     try:
         from nucleo.flash import turn_brief as _tb
@@ -80,147 +77,6 @@ def from_brief(brief) -> tuple:
         return ("", "")
 
 
-def verdict_card(brief) -> str:
-    """The card the verdict names, OPEN OR NOT — for a close, a card already gone is an answer («nothing left to
-    do»), not a reason to look for another one (demo pass 2026-09-28, V7)."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        choice, _info = _tb.read(brief, _tb.TARGET_KEY, "")
-        owner, sep, _name = str(choice or "").rpartition(":")
-        return owner if sep else ""
-    except Exception:  # noqa: BLE001
-        return ""
-
-
-def order_is_inside(brief, widget_id: str = "") -> bool:
-    """Does the verdict put this turn's order INSIDE a card — on one of its declared actions — so that a
-    [[close]] of that same card is not the order?
-
-    Measured live on the agenda (V2-770): «vale, ya la puedes cerrar» with a detail card open. The brief
-    answered `screen_action = agenda:close_meeting` at 0.99; the model called exactly that AND emitted
-    [[close]], the grammar saw «cerrar» and licensed the tag, and the canvas precedence closed the whole
-    AGENDA. The canvas verb reads «close»; only the action question knows WHAT closes."""
-    try:
-        owner, name = from_brief(brief)
-        if not owner or not name:
-            return False
-        # With the CANVAS verdict sure it is a close, only an action verdict just as sure says otherwise (demo
-        # pass 2026-09-28, M4: «ok close that» — canvas=close 1.00, screen_action=agenda:close_meeting 0.55 —
-        # threw away the model's own close and the completion then closed the AGENDA over the chart he meant).
-        if sure_canvas(brief) == "close" and not _action_sure(brief):
-            return False
-        return not widget_id or _base_of(owner) == _base_of(widget_id)
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def _action_sure(brief, floor: float = 0.8) -> bool:
-    try:
-        from nucleo.flash import turn_brief as _tb
-        _c, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=floor)
-        return bool(info) and bool(info.get("used"))
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def verdict_shows(brief) -> bool:
-    """Did the brief say, SURE, that this order brings a card up (`canvas = show`) on an order turn?
-
-    V2-776 (verification after the demo pass, 2026-09-27): «Show me the monitors.» — canvas=show 0.98, the model
-    said «Bringing the monitor comparison back up» and called nothing. The promise backstop that shows the named
-    card gated on a verb table that knows «te lo abro», not «bringing it back up»; the verdict was already paid for."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
-        if info is None or str(verb or "") != "show":
-            return False
-        kind, k = _tb.read(brief, _tb.REQUEST_KEY, "")
-        return k is not None and str(kind) == "order"
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def aims_at_a_card(brief) -> bool:
-    """Is this turn's order aimed at a CARD on screen — an action of one, or the canvas itself (show/close)?
-
-    V2-773 (demo, kickoff + video): «Stop it and close the video widget» with the verdict at
-    `youtube:close` 0.97 and canvas=close 1.0 — and the deterministic stop-worker backstop read «stop it» as
-    «stop the background work» and CANCELLED the two errands launched a minute earlier. A verdict that names
-    a card says whose the order is; a worker kill over it is the wrong reading of the same words."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        if from_brief(brief)[0]:
-            return True
-        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "neither")
-        return str(verb or "") in ("show", "close")
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def verdict_escalates(brief, *, answered: bool = False) -> bool:
-    """Did the brief say this order needs a WORKER (`escalate_or_inline = escalate`, sure) on an order turn?
-
-    `answered` — the reply already ANSWERED and promised nothing. A QUESTION the model answered from memory is
-    not an errand, whatever the verdict guessed before the answer existed (V2-773, demo R1, 2026-09-27: «When
-    does my Tesla insurance renew?» → «March 12, 2027», verdict `escalate` 0.84, and a Brain Worker went to
-    the web with a browser tab and a sheet over a fact the turn had just said). An order keeps the verdict:
-    «find me three monitors» is work whether or not the reply sounds finished.
-
-    V2-773 (demo kickoff, A1): «find me three 27-inch 4K monitors under 400 dollars» — the verdict said
-    escalate, the model answered «On it — I'll show you the options as soon as I have them» and called
-    nothing, and the promise backstop only knew the verb tables («hazme/búscame…»), so no errand was born.
-    The verdict was paid for; it is the evidence the backstop was missing."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        esc, info = _tb.read(brief, _tb.ESCALATE_KEY, "")
-        if info is None or str(esc or "") != "escalate":
-            return False
-        kind, _k = _tb.read(brief, _tb.REQUEST_KEY, "")
-        if _k is None or kind in NOT_AIMED_AT_THE_SCREEN:
-            return False
-        return not (answered and str(kind) == "question")
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def order_over_a_card_left_undone(brief) -> bool:
-    """A sure ORDER the catalogue addressed to a card, on a turn the caller knows called nothing and asked for
-    nothing — the work is still owed (V2-773, demo F1, 2026-09-27): «Write me a one-page summary of the
-    Declaration of Independence in a document» — the catalogue named `documento` (0.86), the card-or-worker
-    pass got no call, the escalation verdict was unsure (0.15), the reply said «on its way» and nothing was on
-    its way. The caller supplies «nothing called, nothing asked»; this reads only the verdicts."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        kind, k = _tb.read(brief, _tb.REQUEST_KEY, "")
-        if k is None or str(kind) != "order":
-            return False
-        card, c = _tb.read(brief, _tb.CATALOG_KEY, "")
-        return c is not None and bool(card) and str(card) != "none"
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def reads_as_order(brief) -> bool:
-    """The verdict read this turn as an ORDER — whatever card it names, or none.
-
-    The gate for the act repair when no card was named yet (demo pass 2026-09-28, W1: «put griffith observatory,
-    mount baldy and the getty on a map» → «I'll pull those three up on the map for you.», no call, no card open, and
-    the promise-wording table knew neither «I'll pull up» nor «I'll put»). The repair finds the card through the
-    late catalogue question and judges its own reply; a verb table is not needed for either."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
-        if info is not None and str(kind or "") == "order":
-            return True
-        # …or the sure «he only asks for something to be DONE» of the words question (demo pass 2026-09-28, full11
-        # C5: «send rowan a telegram with the new time» read `order` at 0.46 — unsure — and `act` at 0.92; the reply
-        # said «Sending it now» over nothing, and the repair was never asked).
-        words, winfo = _tb.read(brief, _tb.WORDS_KEY, "")
-        return winfo is not None and str(words or "") == "act"
-    except Exception:  # noqa: BLE001
-        return False
-
-
 def names_an_order(brief, *, sure: float = 0.0) -> bool:
     """Does the turn's verdict name a declared action of an open card, on a turn it does not read as a remark?
 
@@ -236,9 +92,8 @@ def names_an_order(brief, *, sure: float = 0.0) -> bool:
     paid for and named the action; the wording of the reply is not the evidence, the verdict is."""
     try:
         from nucleo.flash import build_decision as _bd, turn_brief as _tb
-        # V2-773 — either twin names the card: `screen_action` while it is open, the CATALOGUE while it is
-        # closed. Read through `screen_action` alone, «Message Rowan on Telegram» (catalogue: messaging 1.0)
-        # and «Show me only today's emails» promised or denied with no call and no repair ever looked.
+        # V2-773 — either twin names the card: `screen_action` while open, the CATALOGUE while closed («Message
+        # Rowan on Telegram», «Show me only today's emails» were promised or denied with no call and no repair).
         if not from_brief(brief)[1] and not _bd.named_card(brief):
             return False
         # A SURE «tell me» over an UNSURE action is no order (`verdicts.tell_vetoes_unsure_action`): «did you actually skip it? what's
@@ -255,9 +110,8 @@ def names_an_order(brief, *, sure: float = 0.0) -> bool:
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
         if info is not None:
             return kind not in NOT_AIMED_AT_THE_SCREEN
-        # An UNSURE request type is not a veto when the action itself is named surely (demo pass 2026-09-28, E3:
-        # «draft a short reply…» → mensajeria:draft 0.74, request_type 0.48, the reply «I've got a draft ready»
-        # and no call). Only a SURE reading that he was not giving an order stops the repair.
+        # An UNSURE request type is no veto over a surely named action (demo pass 2026-09-28, E3: mensajeria:draft
+        # 0.74, request_type 0.48, «I've got a draft ready» and no call). Only a SURE non-order stops the repair.
         return named_sure
     except Exception:  # noqa: BLE001
         return False
@@ -284,11 +138,9 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
     from nucleo.flash import undecided as _und   # a turn that ASKED, or a shared control nobody settled (V2-781)
     if _und.stops_the_rung(brief, wid, action, operator_text=operator_text or commission, model_words=model_words):
         return {}
-    # V2-776 L1 — a rung is the ENGINE's own inference from the verdict (never the model's valid call), so it is
-    # held to the engine's own reading of the phrase: when the brief names an attestable END STATE, the rung has
-    # to be an action that attests it. Pass 60, B2: «set the first one as my background» with only the monitors
-    # sheet open resolved to `results:choose`; the wallpaper was the end state, and choose attests nothing of it.
-    # One site for both channels (the provider's `complete`/`take_rung` and the probe's mirror call this).
+    # V2-776 L1 — a rung is the ENGINE's inference, so when the brief names an attestable END STATE the rung must
+    # attest it (pass 60, B2: «set the first one as my background» resolved to `results:choose`, which attests
+    # nothing of it). One site for both channels.
     try:
         from nucleo.circuit import spec as _spec
         if (_why := _spec.gate_completion(brief, wid, action)):
@@ -301,8 +153,7 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
         pass
     key = fillable_key(wid, action)
 
-    # 1 · the model's own arguments, which a guard swallowed. The best source there is: they were
-    #     written by the model that had just read the whole turn.
+    # 1 · the model's own arguments, which a guard swallowed — the best source, written after reading the turn.
     args = swallowed if isinstance(swallowed, dict) else {}
     if args:
         payload = {k: v for k, v in args.items() if str(v or "").strip()}
@@ -323,16 +174,12 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
             return {"widget": wid, "action": action, "payload": named, "key": key, "source": "model-named-row",
                     "label": f"{wid}:{action} ← la fila que el modelo nombró"}
 
-    # 2 · no tool at all. The words are the operator's, and only if they are short enough to BE the
-    #     thing the payload key asks for.
+    # 2 · no tool at all: the operator's words, only if short enough to BE what the payload key asks for.
     words = (operator_text or commission or "").strip()
     if not key:
-        # V2-754 — two payload shapes the first version could not fill, and both were the incident:
-        #   · an action with NO payload at all (`pause`, `close`, `next`) — nothing to invent, so it fires
-        #     bare. An action whose keys are all OPTIONAL is not this case (`load` wants the model's own
-        #     arguments, and «which of four to stuff» is the invention this module refuses);
-        #   · ONE required key that is a declared CHOICE — filled only by an alias the operator SAID
-        #     (`widgets.enums`), never by the sentence. «Vuelve al dashboard» names `inicio`.
+        # V2-754 — two payload shapes the first version could not fill: an action with NO payload (`pause`, `close`)
+        # fires bare (all-OPTIONAL keys are not this case: «which of four to stuff» is invention); ONE required
+        # CHOICE key is filled only by an alias he SAID (`widgets.enums`). «Vuelve al dashboard» names `inicio`.
         if no_payload(wid, action):
             return {"widget": wid, "action": action, "payload": {}, "key": "",
                     "source": "no-payload", "label": f"{wid}:{action} ← el veredicto de pantalla (sin payload)"}
@@ -343,9 +190,8 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
             return {"widget": wid, "action": action, "payload": filled, "key": next(iter(filled)),
                     "source": src, "label": f"{wid}:{action} ← el veredicto de pantalla ({src})"}
         return {}
-    # V2-756 — an INDEX key is not a query. Before this, `play_result` got the whole sentence stuffed
-    # into `item` («Ahora quiero que me pongas el vídeo número tres»), which the widget can only read as
-    # a title and never match. A number he SAID is a reading, not an invention (see `number_fill`).
+    # V2-756 — an INDEX key is not a query: `play_result` got the whole sentence in `item` and never matched.
+    # A number he SAID is a reading, not an invention (`number_fill`).
     if (n := number_fill(wid, action, words)):
         return {"widget": wid, "action": action, "payload": n, "key": next(iter(n)),
                 "source": "said-number", "label": f"{wid}:{action} ← el veredicto de pantalla (nº dicho)"}
@@ -369,55 +215,22 @@ def no_payload(widget_id: str, action: str) -> bool:
         return False
 
 
-#: Request types that REFUSE to let the verdict complete an EMPTY turn. It used to be the mirror —
-#: only a confident `order`/`answer` passed — and that let an UNSURE reader veto a near-certain one:
-#: «Para el vídeo» came back `screen_action = youtube:pause` at 0.95 with `request_type` torn between
-#: answer 0.49 and comment 0.39, so nothing happened and he said «He dicho que pares el vídeo. Que no
-#: me has oído.» (live session 74be8e9a, 2026-09-23).
-#:
-#: Measured against the real API over that session's own candidates, and the numbers are why this is a
-#: REFUSAL list and not an allow list — the screen question already answers `none` for everything not
-#: aimed at the screen, so both guards agree where it matters and only this one was ever wrong:
-#:
-#:     «¿el siguiente es de la NASA?»   question 1.00  · screen_action none 0.95
-#:     «ese vídeo es antiguo»           comment  0.82  · screen_action none 0.96
-#:     «me gusta mucho este documental» comment  0.95  · screen_action none 0.99
-#:     «hoy juega el Barça»             comment  1.00  · screen_action none 0.87
-#:     «Bórrame los tres últimos…»      order    1.00  · screen_action remove 0.98
-#:     «Para el vídeo»                  comment  0.45 ← unsure, and the turn IS an order
-#:
-#: `complaint` is deliberately NOT here: a complaint about what was just done IS an order to do it
-#: properly (V2-750, node 2.70), and one with nothing to redo answers `none` on the screen question
-#: anyway («Vale, hasta aquí bien, aunque te ha costado bastante» → none 0.92).
-#:
-#: V2-757 — AND NEITHER IS `question`, WHICH THIS LIST GOT WRONG THE SAME WAY. Live session f84f91ef
-#: (2026-09-23, +95.2 s): «¿Puedes enseñarme el catálogo?» measured `screen_action = youtube:show_tab`
-#: at **0.85** and `request_type = question` at 0.64, so this list refused it, the card never moved,
-#: and the turn PROMISED it instead — «Voy a quitar el vídeo para que quede el catálogo a la vista» —
-#: which he read out loud: «Bueno, dices que vas a hacer eso, pero no lo haces.»
-#:
-#: In Spanish a polite order IS shaped like a question, and that is not a rare form — it is how he
-#: talks to it. Measured over the same 47 candidates of that session:
-#:
-#:     «¿Puedes, por favor, reproducir el vídeo número dos?»  question-shaped · play_result 0.56
-#:     «¿Me pones el siguiente?»                              question-shaped · next        0.75
-#:     «¿Puedes parar el vídeo?»                              question-shaped · pause       1.00
-#:     «¿el siguiente es de la NASA?»                          a real question  · none        0.94
-#:     «¿cuántos vídeos hay en la cola?»                       a real question  · none        0.78
-#:     «¿de qué año es este documental?»                       a real question  · none        0.94
-#:     «¿quién sale en el vídeo?»                              a real question  · none        0.91
-#:     «¿tú crees que llegaron a la luna de verdad?»           a real question  · none        0.90
-#:
-#: Every genuine question answers `none`, so this entry could never SAVE a turn — and `complete` only
-#: ever fires where the screen question is CONFIDENT about a concrete action, which is exactly the
-#: case where it did damage. Same shape as the gate this list replaced: a weaker reader vetoing a
-#: stronger one. What stays are the two that name a turn with no addressee at all.
+#: Request types that REFUSE to let the verdict complete an EMPTY turn. It used to be the mirror (only a
+#: confident `order`/`answer` passed), so an UNSURE reader vetoed a near-certain one: «Para el vídeo» →
+#: `youtube:pause` 0.95 with request_type split answer 0.49 / comment 0.39, nothing happened, and he said
+#: «He dicho que pares el vídeo. Que no me has oído.» (live session 74be8e9a, 2026-09-23).
+#: A REFUSAL list, not an allow list: measured on that session, the screen question already answers `none`
+#: for everything not aimed at it («¿el siguiente es de la NASA?» none 0.95, «hoy juega el Barça» none 0.87);
+#: «Bórrame los tres últimos…» → remove 0.98; «Para el vídeo» comment  0.45 ← unsure, and the turn IS an order.
+#: `complaint` is NOT here: a complaint about what was just done IS an order to redo it (V2-750, node 2.70).
+#: V2-757 — NEITHER IS `question` (session f84f91ef, 2026-09-23, +95.2 s): «¿Puedes enseñarme el catálogo?»
+#: → show_tab 0.85, question 0.64, refused, and the turn only PROMISED it. A polite Spanish order IS shaped
+#: like a question (47 candidates: «¿Me pones el siguiente?» next 0.75, «¿Puedes parar el vídeo?» pause       1.00;
+#: every real question → none 0.78-0.94), so it could never save a turn. What stays: the two with no addressee.
 NOT_AIMED_AT_THE_SCREEN = ("comment", "greeting")
 
-#: A turn made of NOTHING BUT A NUMBER. A closed class — the tens, the units, the scales and the words
-#: that glue them — not a verb table: nothing is ever added to Spanish's list of numerals, which is why
-#: this one can be written down without becoming the thing CLAUDE.md forbids. Digits count too: the STT
-#: writes «69» as often as «sesenta y nueve».
+#: A turn made of NOTHING BUT A NUMBER: a closed class (tens, units, scales, glue words), not a verb table —
+#: numerals never grow, so it is not what CLAUDE.md forbids. Digits count too (the STT writes «69»).
 _NUMERIC_ONLY = frozenset(
     "cero un uno una dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince "
     "dieciseis diecisiete dieciocho diecinueve veinte veintiuno veintidos veintitres veinticuatro "
@@ -497,96 +310,6 @@ def a_fragment_moves_nothing(operator_text: str, *, brief=None, last_reply: str 
     return "un número suelto, y el veredicto no nombra ninguna acción"
 
 
-def completes(brief, widget_id: str, *, model_action: str = "") -> str:
-    """The verdict's action on THIS card when it is confident, still open and NOT what the model
-    called; "" otherwise. The narrow question both arbitration sites ask (V2-754)."""
-    wid, name = from_brief(brief)
-    if not wid or not name or _base_of(wid) != _base_of(widget_id):
-        return ""
-    return "" if name == (model_action or "") else name
-
-
-def sure_canvas(brief) -> str:
-    """The canvas gesture this turn SURELY asks for — close, minimize, fullscreen, exit_fullscreen — or ""."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
-        v = str(verb or "")
-        return v if v in ("close", "minimize", "fullscreen", "exit_fullscreen", "arrange") else ""
-    except Exception:  # noqa: BLE001
-        return ""
-
-
-def named_cards(operator_text: str) -> list[str]:
-    """Every card his words NAME (alias or name, never context) — «the calendar and the messages» is two."""
-    try:
-        from widgets import runtime as _rt
-        res = _rt.identify(operator_text or "") or {}
-        if res.get("by_context"):
-            return []
-        if res.get("match"):
-            return [str(res["match"])]
-        cands = res.get("candidates") or []
-        top = max((float(c.get("score") or 0) for c in cands), default=0.0)
-        return [str(c["id"]) for c in cands if top > 0 and float(c.get("score") or 0) == top] if res.get("ambiguous") else []
-    except Exception:  # noqa: BLE001
-        return []
-
-
-def _open_now() -> list[str]:
-    try:
-        from server.voice_api import open_instances
-        return [str(i) for i in open_instances() if str(i)]
-    except Exception:  # noqa: BLE001
-        return []
-
-
-def complete_canvas(brief, *, tag_emit, emit, operator_text: str = "") -> str:
-    """The model called NOTHING and the brief SURELY names a canvas gesture: do that gesture on the card the
-    turn is about (the verdict's card, else the card his last turn acted on, else the only one open), through
-    the same tag funnel the model's own calls use. Returns the gesture, or "". Never raises.
-
-    Demo pass 2026-09-28: R4 «ok close the calendar» and V3 «can you make it bigger, like full screen» were both
-    answered as done («calendar's closed», «it's full screen now») with nothing called."""
-    from nucleo.flash import card_close as _ccl   # the body lives with the other close readers (V2-781)
-    return _ccl.run_gesture(brief, tag_emit=tag_emit, emit=emit, operator_text=operator_text)
-
-
-def catalogue_names(widget_id: str) -> list[str]:
-    from widgets import naming as _naming
-    return _naming.catalogue_names(_base_of(widget_id))
-
-
-def _says_the_name(operator_text: str, widget_id: str) -> bool:
-    from widgets import naming as _naming
-    return _naming.says_the_name(operator_text, _base_of(widget_id))
-
-
-def closes_the_named_card(brief, operator_text: str, done_ops, *, floor: float = 0.75) -> str:
-    """The card to close AFTER the model's own data-op, or "".
-
-    Demo pass 2026-09-28 (V7, twice): «ok stop the video and close youtube» ran `youtube:close` — which empties
-    the player, as its manifest says — and the card stayed open, hiding every card after it. Two orders, one call.
-    The verdict alone cannot tell them apart: Jev reads «close the video» (the player's content, V2-753) and
-    «close youtube» (the card) both as canvas=close. What does is whether his words call the card by what it is
-    CALLED (`catalogue_names`), in any language the catalogue has — «close the video» names only what it holds."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=floor)
-        if str(verb or "") != "close":
-            return ""
-        from nucleo.flash import show_target as _st
-        open_now = _open_now()
-        for wid, _action in (done_ops or []):
-            if _says_the_name(operator_text, wid):
-                target = _st.close_target(wid)
-                if target and target in open_now:
-                    return target
-        return ""
-    except Exception:  # noqa: BLE001
-        return ""
-
-
 def subject_card(widget_id: str, action: str, operator_text: str) -> str:
     """The card the verdict's action lands on: the verdict's own, unless HIS words name no card and the card his
     last turn acted on declares the same action — then «it» is that one.
@@ -652,8 +375,7 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
         if instead_of and name == instead_of:
             return ""
         # A SURE «close the card» is about the card, never its data (demo pass 2026-09-28, R4: «ok close the
-        # calendar», canvas=close 1.00 and screen_action=agenda:close_meeting 0.60 — the data action ran, the
-        # card was shown again, and the reply said «calendar's closed»). The completion is the card's own close.
+        # calendar» ran agenda:close_meeting 0.60 and the card stayed). The completion is the card's own close.
         if not __import__("nucleo.flash.verdict_card", fromlist=["x"]).canvas_yields(brief):   # V2-781
             return ""                         # a canvas gesture is never a data action — `complete_canvas` owns it
         rung = resolve(operator_text, brief=brief, operator_text=operator_text, model_words=model_words)
@@ -688,111 +410,10 @@ def card_to_present(widget_id: str, operator_text: str = "") -> str:
     except Exception:  # noqa: BLE001
         return str(widget_id or "")
 
-
-def close_op_is_the_card(brief, action: str) -> bool:
-    """A data-op NAMED «close» over a SURE close verdict is the card's own close, never its data.
-
-    Demo passes 36/42 (2026-09-29, E5): «close my mail» — the model called the messaging card's `close` (a view
-    action: back to the chat list), the canvas verdict read `close` sure, and the card stayed on screen while the
-    reply said the mail was closed. `complete` already refuses a data action under a sure canvas gesture; this is
-    the same rule for the model's OWN call, read by the door every data-op goes through."""
-    return str(action or "").strip().lower() == "close" and sure_canvas(brief) == "close"
-
-
-def endorses(brief, widget_id: str, action: str = "") -> bool:
-    """Does the turn's verdict point at THIS card (and optionally this action)?
-
-    The predicate a grammar license consults before vetoing a tool. `video_license` and its family
-    read a table of conjugated verbs, and the table cannot be complete — it had no «preparar» and no
-    «podrías», so a plain, polite Spanish request for videos read as context-bleed. The verdict is
-    enumerated from the manifests and calibrated; where the two disagree the verdict is the one that
-    was asked the question.
-
-    Narrow on purpose: it only ever GRANTS. A license that the grammar already granted is untouched,
-    so this can add a permitted call and can never remove one.
-    """
-    wid, name = from_brief(brief)
-    if not wid:
-        return False
-    if _base_of(wid) != _base_of(widget_id):
-        return False
-    return (not action) or name == action
-
-
-def take_rung(escalate_req: dict, *, brief, operator_text: str, emit, present,
-              apply_widget_data) -> bool:
-    """Try the rung and SPEND it. `True` when a declared action took the commission's place.
-
-    The body lives here and not in the voice provider for the reason the architecture ratchet keeps
-    giving: that file is a god file and the answer to «this block grew» is «extract a module, do not
-    raise the ceiling» (V2-726 A7, V2-740). It also means the text channel gets the identical rung
-    the day it fires a brief of its own, instead of a hand-mirrored copy — V2-252's rule.
-
-    The caller owns the two facts this cannot know: that a commission survived every guard above, and
-    that nothing in the turn acted. Those are the whole precondition — this rung may only ever
-    replace *spending minutes*, never a result the turn already produced.
-    """
-    try:
-        rung = resolve(str(escalate_req.get("v") or ""), brief=brief, operator_text=operator_text)
-    except Exception:  # noqa: BLE001 — a classifier may never break a turn
-        return False
-    if not rung:
-        return False
-    try:
-        present(card_to_present(rung["widget"], operator_text), reason="turn-order", src="flash", emit=emit)
-        apply_widget_data(rung["widget"], rung["action"], rung["payload"])
-        emit("brain", "🎯 acción declarada en vez de un worker", text=rung["label"][:120],
-             role="system",
-             extra={"cat": "flash", "widget": rung["widget"], "action": rung["action"],
-                    "source": rung["source"], "instead_of": str(escalate_req.get("v") or "")[:120]})
-    except Exception:  # noqa: BLE001
-        return False
-    escalate_req["v"] = None
-    escalate_req["more"] = []
-    return True
-
-
-def on_screen_now(widget_id: str) -> bool:
-    """Whether the card is in front of him NOW — open by the canvas report, or brought by THIS turn. The report
-    comes from the browser and lags the turn that presents a card: full17 M1 «show me the chart» opened it and the
-    answer said «I can't pull up the chart itself here» over it, because the report still said closed."""
-    base = str(widget_id or "").split("::", 1)[0].strip().lower()
-    try:
-        from nucleo.flash import canvas_visibility as _cvis
-        if _cvis.is_open(base):
-            return True
-    except Exception:  # noqa: BLE001
-        pass
-    try:
-        from nucleo import canvas_focus as _cf
-        return base in _cf.this_turn_cards()
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def verdict_elsewhere(brief, widget_id: str) -> bool:
-    """The verdict SURELY names an action on a card other than `widget_id` — the turn is about something else."""
-    wid, name = from_brief(brief)
-    return bool(wid and name) and _base_of(wid) != _base_of(widget_id) and _action_sure(brief)
-
-
-def order_card_after_read(brief, operator_text: str, read_widget: str) -> str:
-    """The card an ORDER is on when the turn read a DIFFERENT card for it, or "": the brief is sure it is an order
-    and his words name exactly one other card (by its name, an alias or a word it declares)."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8)
-        if str(kind or "") != "order" or not info:
-            return ""
-        # Demo pass 62, C2: «find me a free 45 minutes tomorrow afternoon…» — the verdict said `agenda:find_free` at
-        # 0.91, the model ran exactly that, and this still sent the order to the monitors sheet (the answer was then
-        # read off the sheet: «nothing here with tomorrow's meetings»). A verdict SURE the order is on the card the
-        # turn touched means there is no other card.
-        target, t_info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.8)
-        owner = str(target or "").rpartition(":")[0]
-        if t_info and owner and _base_of(owner) == _base_of(read_widget):
-            return ""
-        named = [c for c in named_cards(operator_text) if _base_of(c) != _base_of(read_widget)]
-        return _base_of(named[0]) if len(named) == 1 else ""
-    except Exception:  # noqa: BLE001
-        return ""
+from nucleo.acts.canvas_verdict import (  # noqa: E402,F401
+    sure_canvas, named_cards, _open_now, complete_canvas, catalogue_names, _says_the_name, closes_the_named_card,
+    close_op_is_the_card, on_screen_now)
+from nucleo.acts.card_verdict import (  # noqa: E402,F401
+    verdict_card, order_is_inside, _action_sure, verdict_shows, aims_at_a_card, verdict_escalates,
+    order_over_a_card_left_undone, reads_as_order, completes, endorses, take_rung, verdict_elsewhere,
+    order_card_after_read)

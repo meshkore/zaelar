@@ -1,0 +1,211 @@
+"""The card door's licence (refactor2710-05 T-02): may THIS turn's request run this data-op on a card?
+
+Before the door, the vetoes over a `widget_data` call were thirteen `if`s spread over the two functions it crosses
+(`tool_executor_widget_calls`), each with its own emit and its own way out. Now they are ONE ladder, declared once
+(`_LADDER`), read by `licence(request, ...)`; the caller only does what the answer says. The ladder is read at the
+moments the door knows enough to judge:
+
+  · `CALL` — the model's call, before anything is resolved: a pure «show me X» runs no invented mutation; a short
+    close order closes the card; a `close` data-op needs his close (or the verdict's).
+  · `DECLARED` — once the action is a declared one (an invented name repaired): a question writes nothing.
+  · `GATE` — every path that reaches the gate (the call, a tag, a repair): a close verdict closes the card instead of
+    running its `close` view; the tail of a sentence moves nothing.
+  · `LEAVES` — an act that leaves with no question, which the verdict does not dispute: dropped (asked instead) when
+    the verdict puts the turn on ANOTHER card.
+  · `FAST` — an op about to run with no question: a repeat of the last op his words never order is drag
+    (context-bleed); the same refused op re-sent identically is the model re-reading its failure.
+
+A clause answers `SHOW` / `CLOSE` / `DROP` (the call does not run) or nothing; `RUN` is the ladder's end. Each answer
+carries the event the `if` emitted, so the timeline reads as it did. The class (V2-825 F4): a reading of the request
+that VETOES the model is one decision with one door. `request` is `{"brief", "text"}`; his half is taken here, once.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+from loguru import logger
+
+from nucleo.acts.outcome import Outcome
+from nucleo.circuit import verdict as V
+
+CALL, DECLARED, GATE, LEAVES, FAST = "call", "declared", "gate", "leaves", "fast"
+RUN, SHOW, CLOSE, DROP = "run", "show", "close", "drop"
+
+
+@dataclass(frozen=True)
+class Licence:
+    verdict: str = RUN
+    clause: str = ""
+    label: str = ""
+    text: str = ""
+    extra: dict = field(default_factory=dict)
+    card: str = ""          # the card a SHOW/CLOSE acts on
+
+    def outcome(self) -> Outcome:   # a vetoed call fired nothing; a SHOW/CLOSE moved the canvas instead
+        if self.verdict == RUN:
+            return Outcome(False, V.STARTED.name)
+        return Outcome(self.verdict != DROP, V.SKIPPED.name, data={"clause": self.clause, "card": self.card})
+
+
+def _his(request) -> str:
+    from voice import brain_notes as _bn
+    return _bn.operator_half(str((request or {}).get("text") or ""))
+
+
+def _ex(wid, action, payload) -> dict:  # what a dropped op's event carries
+    return {"id": wid, "action": action, "payload": payload or {}}
+
+
+# ── CALL · DECLARED ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+def _pure_show(r, wid, action, payload, **_k):
+    """2026-07-16 «abre la agenda» added «Reunión con Axa Seguros»: a pure show order runs no invented mutation. The
+    ACTION decides what it may run (V2-545: a `view` runs beside the card); the verdict naming it licenses it (V2-753)."""
+    from nucleo.flash import direct_action as _da, router as _router
+    from widgets import runtime
+    text = str((r or {}).get("text") or "")
+    if runtime.get(wid) is None or not _router.is_pure_show_request(text):
+        return None
+    if (_router.show_request_blocks_data_action(text, wid, action, payload)
+            and not _da.endorses((r or {}).get("brief"), wid, action)):
+        return Licence(SHOW, "pure-show", "🪟 'abrir/mostrar' puro → show (no data-op inventada)",
+                       f"{wid} (descartada {action})", _ex(wid, action, payload), wid)
+    return None
+
+
+def _short_close(r, wid, action, payload, **_k):
+    """Session 22:40 2026-07-16: «Vale, ciérralo» → `widget_data(youtube, mute)`. A short clear close order closes the
+    card (V2-713 R3 / V2-781)."""
+    from nucleo.flash import card_close as _cc
+    from widgets import runtime
+    if runtime.get(wid) is not None and _cc.data_close(wid, action, str((r or {}).get("text") or ""),
+                                                       brief=(r or {}).get("brief")):
+        return Licence(CLOSE, "short-close", "🙈 orden corta de CERRAR → close (no data-op)", f"{wid} (era {action})",
+                       {}, wid)
+    return None
+
+
+def _unlicensed_close(r, wid, action, payload, *, emit=None, **_k):
+    """V2-635: the `close` data-op EMPTIES the card; with no close of his (or the verdict's) it is drag. The clause
+    logs its own reason (`close_guards.dataop_close_licensed`)."""
+    if action != "close":
+        return None
+    from nucleo.flash import close_guards as _cg
+    if _cg.dataop_close_licensed(str((r or {}).get("text") or ""), wid, brief=(r or {}).get("brief"), emit=emit):
+        return None
+    return Licence(DROP, "unlicensed-close")
+
+
+def question_keeps_unwritten(wid: str, action: str, operator_text: str, brief) -> bool:
+    """A WRITE the model made on a QUESTION (his own «?») while the verdict read, surely, that the turn asks no action
+    on the screen. Never raises; anything unreadable runs the model's call as before (CRIT-K2)."""
+    try:
+        if "?" not in (operator_text or "") and "¿" not in (operator_text or ""):
+            return False
+        from widgets import effects as _fx
+        if not _fx.carries(wid, action, _fx.DATA_WRITE):
+            return False
+        from nucleo.flash import turn_brief as _tb
+        choice, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.8)
+        return bool((info or {}).get("used")) and str(choice or "") == "none"
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"acts.card: a question unreadable ({e}) — the call runs")
+        return False
+
+
+def _a_question(r, wid, action, payload, **_k):
+    """Demo pass 93, R2: «When does Anna's vacation start? Show it to me…» — verdict «none» (0.83), and the model WROTE
+    a duplicate. A write is the costly reading of a question: not run; the card is shown."""
+    if question_keeps_unwritten(wid, action, _his(r), (r or {}).get("brief")):
+        return Licence(SHOW, "a-question", "❓ una pregunta no escribe — el veredicto no pedía acción",
+                       f"{wid}:{action}", {"cat": "flash", "id": wid, "action": action}, wid)
+    return None
+
+
+# ── GATE ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+def _close_is_the_card(r, wid, action, payload, **_k):
+    """E5 (demo passes 36/42): «close my mail» ran the card's `close` VIEW over a sure close verdict."""
+    from nucleo.flash import direct_action as _da, show_target as _st
+    if _da.close_op_is_the_card((r or {}).get("brief"), action):
+        return Licence(CLOSE, "close-is-the-card", "🔁 data-op «close» sobre un cierre seguro — cierra la tarjeta",
+                       wid, {"cat": "flash", "widget": wid, "action": "close"}, _st.close_target(wid))
+    return None
+
+
+def _a_fragment(r, wid, action, payload, *, last_reply="", **_k):
+    """V2-757 — a sentence's tail is not an order (why: `direct_action.a_fragment_moves_nothing`)."""
+    from nucleo.flash import direct_action as _da
+    said = _his(r)
+    why = _da.a_fragment_moves_nothing(said, brief=(r or {}).get("brief"), last_reply=last_reply)
+    if why:
+        return Licence(DROP, "a-fragment", "🧩 trozo de frase — no mueve nada en pantalla",
+                       f"{said.strip()[:80]} → {wid}:{action}", {"cat": "flash", "why": why, "id": wid, "action": action})
+    return None
+
+
+# ── LEAVES · FAST ─────────────────────────────────────────────────────────────────────────────────────────────────────
+
+def _leaves_for_another_card(r, wid, action, payload, **_k):
+    """Demo pass 45, 2026-09-29, C2→C5: «ok book it» sent two Telegrams to Rowan he never ordered. An act that leaves
+    and that the verdict puts on ANOTHER card is dropped and not offered; the model is told it did not run."""
+    from nucleo.flash import direct_action as _da
+    if not _da.verdict_elsewhere((r or {}).get("brief"), wid):
+        return None
+    try:
+        from voice import brain_notes as _bn
+        _bn.push(f"[SISTEMA] La acción «{action}» sobre «{wid}» NO se ejecutó: el operador no la pidió (su orden era "
+                 f"otra). No digas que se ha enviado ni lo ofrezcas; si él te lo pide explícitamente, llama entonces a "
+                 f"«{action}».")
+    except Exception as e:  # noqa: BLE001 — the drop stands without the note
+        logger.debug(f"acts.card: drop note not pushed ({e})")
+    return Licence(DROP, "leaves-for-another-card", "🛑 acto que sale fuera sin respaldo del veredicto — no se ejecuta",
+                   f"{wid}:{action} · veredicto en otra tarjeta", {"cat": "flash", "id": wid, "model": action})
+
+
+def _context_bleed(r, wid, action, payload, *, last_dataop=None, **_k):
+    """Headless V2-038 #1: an IDENTICAL mutation to the last one (<120 s) whose content his turn never mentions is drag
+    (a duplicated dentist appointment). V2-650: unless the turn orders it again; V2-791: a redo runs; a VIEW-op is never
+    drag (`data_ops.is_context_bleed`). Only a mutation that REALLY happened is remembered (V2-707 F0)."""
+    from nucleo.flash import data_ops as _do
+    if _do.is_context_bleed(last_dataop, wid, action, payload, _his(r), brief=(r or {}).get("brief")):
+        return Licence(DROP, "context-bleed", "🛡️ data-op del turno anterior re-emitida — ignorada (context-bleed)",
+                       f"{wid}:{action}", _ex(wid, action, payload))
+    return None
+
+
+def _refused_again(r, wid, action, payload, **_k):
+    """V2-773 — the SAME refused op with the SAME payload is the model re-reading the failure note; a corrected retry
+    carries a different payload and runs."""
+    from nucleo.flash import data_ops as _do
+    if _do.is_identical_retry_of_refused(wid, action, payload):
+        return Licence(DROP, "refused-again", "🛡️ reintento idéntico de una op rechazada — ignorado", f"{wid}:{action}",
+                       _ex(wid, action, payload))
+    return None
+
+
+#: The ladder, in the order it is read at each moment. Declared once; a new veto is a clause here, never an `if`.
+_LADDER = {CALL: (_pure_show, _short_close, _unlicensed_close), DECLARED: (_a_question,),
+           GATE: (_close_is_the_card, _a_fragment), LEAVES: (_leaves_for_another_card,),
+           FAST: (_context_bleed, _refused_again)}
+
+
+def licence(request, wid: str, action: str, payload=None, *, at: str, **known) -> Licence:
+    """The first clause of `at` that vetoes this call, or `RUN`. `known` is what that moment knows (`last_dataop`,
+    `last_reply`, `emit`). Never raises: an unreadable clause does not veto (CRIT-K2)."""
+    for clause in _LADDER[at]:
+        try:
+            got = clause(request, wid, action, payload, **known)
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"acts.card: clause {clause.__name__} unreadable ({e}) — it does not veto")
+            continue
+        if got is not None:
+            return got
+    return Licence()
+
+
+def logged(lic: Licence, emit) -> Licence:
+    """Emit the licence's own event (a clause that logged its reason itself carries no label)."""
+    if lic.label:
+        emit("brain", lic.label, text=lic.text, role="system", extra=lic.extra)
+    return lic
