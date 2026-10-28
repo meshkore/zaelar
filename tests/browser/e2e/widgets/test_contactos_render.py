@@ -105,14 +105,17 @@ def _run(steps, clicks=None):
             await widget_client.mount(pg, "contactos")
             out = []
             for i, data in enumerate(steps):
-                await pg.evaluate(
-                    "d => window.render(document.getElementById('host'), d, {action: async () => ({})})", data)
+                await pg.evaluate("""d => { window.__cx = window.__cx || [];
+                    window.render(document.getElementById('host'), d,
+                                  {action: async () => ({}), openConnector: id => window.__cx.push(id)}); }""",
+                                  data)
                 await pg.wait_for_timeout(50)
                 for at, sel in (clicks or []):
                     if at == i:
                         await pg.click(sel)
                         await pg.wait_for_timeout(50)
                 m = await pg.evaluate(_MEASURE)
+                m["opened"] = await pg.evaluate("() => window.__cx.slice()")
                 m["errors"] = errors
                 out.append(m)
             await b.close()
@@ -243,11 +246,13 @@ def test_clicking_a_LINKED_platform_shows_only_its_contacts(playwright_available
     assert m["crumb"] and "Telegram" in m["crumb"][0], m["crumb"]
 
 
-def test_clicking_a_platform_that_is_NOT_linked_opens_the_connectors_screen(playwright_available):
+def test_clicking_a_platform_that_is_NOT_linked_opens_ITS_connector(playwright_available):
     """There is nothing to filter by a source he has not connected, and «conéctalo» is the only useful
-    answer — so that icon keeps the old behaviour instead of showing him an empty directory."""
+    answer — so that icon opens THAT platform's page in ⚙ Conectores (`ctx.openConnector`, the one door since
+    2026-10-04), and the directory behind it does not move."""
     m = _run([_BASE], clicks=[(0, ".ctconnicon:nth-child(3)")])[0]
-    assert m["conn_screen"] == 1, "WhatsApp is off — its icon has to lead to the connectors screen"
+    assert m["opened"] == ["whatsapp"], m["opened"]
+    assert m["conn_screen"] == 0 and len(m["rows"]) == 4, "the card stays on the directory"
 
 
 def test_the_plug_button_opens_the_same_screen_and_carries_no_word(playwright_available):
@@ -256,11 +261,14 @@ def test_the_plug_button_opens_the_same_screen_and_carries_no_word(playwright_av
     assert m["plug"] == 1, "the bar survives inside the screen — it is how you get back"
 
 
-def test_the_voice_can_open_the_connectors_screen_too(playwright_available):
-    """Every control on this card has to be reachable both ways. `show_connectors` pushes `screen` in the
-    same view token `show_view` uses, so the card lands on it without the operator touching anything."""
-    m = _run([{**_BASE, "view": {"sel": {"screen": "connectors"}, "n": 1}}])[0]
-    assert m["conn_screen"] == 1, "a pushed connectors view must land"
+def test_the_voice_can_open_the_sources_screen_and_its_connect_button_is_the_same_door(playwright_available):
+    """Every control on this card has to be reachable both ways. `show_sources` pushes `screen: sources` in
+    the same view token `show_view` uses, so the card lands on it without the operator touching anything; and
+    the «Conectar» of a source that is not linked there opens THAT connector in ⚙ Conectores, like its icon."""
+    m = _run([{**_BASE, "view": {"sel": {"screen": "sources"}, "n": 1}}],
+             clicks=[(0, ".ctsrcbox:not(.on):not(.dim) .ctbtn")])[0]
+    assert m["conn_screen"] == 1, "a pushed sources view must land"
+    assert m["opened"] == ["whatsapp"], m["opened"]
 
 
 def test_a_pushed_PLATFORM_view_lands_exactly_like_the_click(playwright_available):

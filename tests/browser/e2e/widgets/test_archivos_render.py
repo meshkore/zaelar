@@ -112,7 +112,15 @@ _MEASURE = """() => {
 }"""
 
 
-def _run(steps, width=860, height=700, host_w=820, host_h=600):
+_RENDER = """d => { window.__cx = window.__cx || []; window.__acts = window.__acts || [];
+  window.render(document.getElementById('host'), d,
+                {action: async (name) => { window.__acts.push(name); return {ok: true}; },
+                 openConnector: id => window.__cx.push(id)}); }"""
+
+
+def _run(steps, width=860, height=700, host_w=820, host_h=600, clicks=()):
+    """`clicks` are selectors clicked after the LAST step; each measure carries the `ctx.openConnector` calls
+    (`opened`) and the actions the card asked for (`acts`) so far."""
     async def go():
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
@@ -127,12 +135,15 @@ def _run(steps, width=860, height=700, host_w=820, host_h=600):
             await pg.goto("http://zaelar.test/")
             await widget_client.mount(pg, "archivos")
             out = []
-            for data in steps:
-                await pg.evaluate(
-                    "d => window.render(document.getElementById('host'), d, {action: async () => ({ok:true})})",
-                    data)
+            for i, data in enumerate(steps):
+                await pg.evaluate(_RENDER, data)
                 await pg.wait_for_timeout(80)
+                if i == len(steps) - 1:
+                    for sel in clicks:
+                        await pg.click(sel)
+                        await pg.wait_for_timeout(40)
                 m = await pg.evaluate(_MEASURE)
+                m["opened"], m["acts"] = await pg.evaluate("() => [window.__cx.slice(), window.__acts.slice()]")
                 m["errors"] = list(errors)
                 out.append(m)
             await b.close()
@@ -176,13 +187,25 @@ def test_an_unconnected_cloud_provider_reads_OFF_and_local_still_works(playwrigh
     assert m["shelves"], "local browsing must not depend on any cloud connection"
 
 
-def test_the_connect_panel_shows_ONLY_when_requested_never_forced_by_a_disconnected_cloud(playwright_available):
+def test_the_card_never_draws_a_connect_screen_of_its_own(playwright_available):
+    """Since 2026-10-04 connecting is ⚙ Conectores' job, the one door the voice and the buttons share. A
+    disconnected cloud never papers over the card, and neither does a stale `panel:'connect'` in the payload:
+    local browsing stays on screen in both."""
     off = {**_BASE, "providers": [{**_PROVIDERS[0], "connected": False}]}
-    m = _run([off])[0]
-    assert m["providers"] == [], "no wizard content without panel:'connect' — local needs no connection"
-    requested = {**off, "panel": "connect"}
-    m2 = _run([requested])[0]
-    assert m2["providers"] == ["Google Drive"], m2["providers"]
+    for data in (off, {**off, "panel": "connect"}):
+        m = _run([data])[0]
+        assert m["providers"] == [] and m["tier_options"] == [], "no connect screen inside the card"
+        assert m["shelves"], "local browsing must stay on screen"
+
+
+def test_an_unlinked_cloud_chip_opens_ITS_connector_and_a_linked_one_browses(playwright_available):
+    """The chip of a provider that is not linked opens that provider's page in ⚙ Conectores; the chip of a
+    linked one switches the card to it and opens nothing."""
+    off = {**_BASE, "providers": [{**_PROVIDERS[0], "connected": False}]}
+    m = _run([off], clicks=[".arx-pchip.off"])[0]
+    assert m["opened"] == ["gdrive"], m["opened"]
+    on = _run([_BASE], clicks=[".arx-pchip.conn"])[0]
+    assert on["opened"] == [] and "set_provider" in on["acts"], (on["opened"], on["acts"])
 
 
 def test_a_local_folder_lists_its_files_with_size_and_action_icons(playwright_available):
@@ -263,12 +286,13 @@ def test_selecting_a_cloud_file_shows_its_strip_with_the_link(playwright_availab
     assert m["footer"] == "Contrato Axa.pdf", m["footer"]
 
 
-def test_a_provider_without_its_app_registered_says_where_to_register_it(playwright_available):
-    off = {**_BASE, "panel": "connect",
-           "providers": [{**_PROVIDERS[0], "connected": False, "app_configured": False}]}
-    m = _run([off])[0]
-    assert "Conectores" in m["note_text"], m["note_text"]
-    assert m["tier_options"] == [], "there is nothing to choose until the app exists"
+def test_a_provider_without_its_app_registered_leads_to_its_connector_page(playwright_available):
+    """Registering the app is explained on the connector's own page in ⚙ Conectores. From the card, an
+    unregistered provider is reached the same way from the chip and from the wide card's sidebar: both open
+    THAT connector, never a generic list."""
+    unreg = {**_BASE, "providers": [{**_PROVIDERS[0], "connected": False, "app_configured": False}]}
+    m = _run([unreg], host_w=1000, clicks=[".arx-pchip.off", ".arx-side-item:has(.arx-side-dot:not(.conn))"])[0]
+    assert m["opened"] == ["gdrive", "gdrive"], m["opened"]
 
 
 # ── V2-662: navigation clarity — the sidebar, ONE search field, and an exit from the connect screen ─────────
@@ -324,9 +348,12 @@ def test_a_long_cloud_trail_collapses_and_the_ellipsis_expands_it(playwright_ava
     assert m2["crumb_more"] is False, "a short trail never collapses — nothing to hide"
 
 
-def test_the_connect_screens_close_button_is_reachable_without_scrolling(playwright_available):
-    m = _run([{**_BASE, "panel": "connect"}])[0]
-    assert m["cx_close_visible"] is True, "landing here must never trap the operator with no way back"
+def test_the_cloud_services_gear_opens_the_connectors_section_and_the_card_stays_put(playwright_available):
+    """The ⚙ tool is «manage my cloud services»: it opens the whole section (no connector named), and the card
+    underneath stays on what it was showing — there is no screen inside it to be trapped in."""
+    m = _run([_BASE], clicks=[".arx-tools .arx-btn:has-text('⚙')"])[0]
+    assert m["opened"] == [""], m["opened"]
+    assert m["shelves"] and m["providers"] == [], m
 
 
 def test_the_torrent_door_is_drawn_only_when_the_client_is_there(playwright_available):
