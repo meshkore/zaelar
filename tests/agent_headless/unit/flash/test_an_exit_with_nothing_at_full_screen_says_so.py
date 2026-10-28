@@ -5,15 +5,13 @@ resolved no card, the turn became `canvas:unfullscreen:` with an empty target an
 the engine's: no target, no `maximized_widget`, no full screen his own order left (`canvas_focus`).
 
 The old text channel patched the model's words after the fact (`fullscreen_nothing.honest`, a check on a content-free
-reply). That is the class refactor2710-03 removes: the mouth says the verdict. Until then this stays an expected
-failure, strict, so it goes red the day the 03 makes it pass.
+reply). That class went with refactor2710-03: the exit declares its verdict, `cannot`, and the mouth says it
+(`nucleo/turn/reply.py`).
 """
 from __future__ import annotations
 
-import pytest
 
 
-@pytest.mark.xfail(reason="refactor2710-03: the mouth speaks the verdict", strict=True)
 def test_the_typed_turn_says_there_was_nothing_to_exit():
     """The whole turn (the voice turn, typed): an empty canvas, the model calls `fullscreen_widget(mode=off)` and says
     «Done.» — what he hears is that nothing was at full screen."""

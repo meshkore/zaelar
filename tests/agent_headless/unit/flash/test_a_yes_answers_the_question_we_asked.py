@@ -80,7 +80,7 @@ def test_without_our_question_the_context_bleed_guard_still_holds(monkeypatch):
 
 def test_no_guard_that_runs_after_the_stream_reads_the_live_reply():
     """The wiring: the three readers take the snapshot, and the prompt builder takes it."""
-    for rel in ("nucleo/flash/post_stream_words.py", "nucleo/flash/tool_executor_calls.py",
+    for rel in ("nucleo/flash/post_stream_acts.py", "nucleo/flash/tool_executor_calls.py",
                 "nucleo/flash/tool_executor_widget_calls.py"):
         src = (_ENGINE / rel).read_text(encoding="utf-8")
         assert "_last_reply" not in src, f"{rel} reads the reply being streamed as «what we said before»"

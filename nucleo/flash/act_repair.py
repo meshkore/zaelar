@@ -110,10 +110,10 @@ TAILS = {"asked_which": "data_ack_went_with", "asked": "data_ack_went_ahead", "d
 def words_shape(spoken: str) -> str:
     """"asked_which" (a missing detail), "asked" (any other question), "denied", or "" — the key of `TAILS`."""
     s = spoken or ""
-    from nucleo.flash import clarifying as _cl, reply_promise as _rp
+    from nucleo.flash import clarifying as _cl
     if "?" in s:
         return "asked_which" if _cl.asks_for_missing_detail(s) else "asked"
-    return "asked" if _rp.waits_for_go_ahead(s) else ("denied" if denies_the_act(s) else "")   # «say the word…» (p124)
+    return "denied" if denies_the_act(s) else ""
 
 
 def _tail(shape: str) -> str:
@@ -254,13 +254,11 @@ _SYS_REFUSED = (
 
 
 def _answered_a_question(brief, reply: str) -> bool:
-    """A SURE question (the brief) answered by a reply that promised nothing and refused nothing (`reply_promise`).
-    «none» also covers a report of something done («Hecho»), so the question half is what keeps a CLAIM repairable."""
+    """A SURE question (the brief) answered by a reply that refused nothing: the brief decides (refactor2710-03)."""
     try:
-        from nucleo.flash import reply_promise as _rp, turn_brief as _tb
+        from nucleo.flash import turn_brief as _tb
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8) if brief is not None else ("", None)
-        return bool(info) and str(kind or "") == "question" and _rp.verdict(reply) == "none" \
-            and not denies_the_act(reply)
+        return bool(info) and str(kind or "") == "question" and not denies_the_act(reply)
     except Exception:  # noqa: BLE001
         return False
 
@@ -403,13 +401,13 @@ def same_card_order_after_read(brief, read_widget: str, reply: str = "") -> str:
     """The verdict's action when the turn READ the very card the order is on and stopped there, or "".
 
     V2-781 T518 (EN `agenda-everyday-edits`): «There's no piano on Tuesday October 13» — the verdict read
-    `agenda:cancel_meeting` at 1.00, the model said «let me check» (reply_promise=act), read the agenda and the
+    `agenda:cancel_meeting` at 1.00, the model said «let me check», read the agenda and the
     read's answer pass, which has no tools, said «Got it — no piano on the 13th» over a series that still held it.
     The brief called the sentence a `comment`, so the order gate stayed shut. A statement about his own card IS an
-    order on it when a SURE verdict names a real op there and the model itself promised to act — never for a
+    order on it when a SURE verdict names a real op there and the brief reads an order — never for a
     question, which a read answers."""
     try:
-        from nucleo.flash import reply_promise as _rp, turn_brief as _tb
+        from nucleo.flash import turn_brief as _tb
         target, t_info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.85)
         owner, _sep, act = str(target or "").rpartition(":")
         rid = str(read_widget or "").split("::")[0].strip().lower()
@@ -419,9 +417,9 @@ def same_card_order_after_read(brief, read_widget: str, reply: str = "") -> str:
         sure_order = str(kind or "") == "order" and bool(k_info)
         if str(kind or "") == "question" or (_is_view(rid, act) and not sure_order):   # p124 F2: «go to» is a sure lens
             return ""
-        # `ask_first` HOLDS the act for his word (`reply_promise.CHOICES`): only a promise to act, or an order sure at
-        # the operator's 70%, licenses the repair (audit V2-783 P0-3 — «Shall I send it?» was carried out here).
-        return act if (sure_order or _rp.verdict(reply) == "act") else ""
+        # Only an order the brief is sure of licenses the repair (audit V2-783 P0-3 — «Shall I send it?» was carried
+        # out here); what our reply said decides nothing (refactor2710-03).
+        return act if sure_order else ""
     except Exception:  # noqa: BLE001
         return ""
 

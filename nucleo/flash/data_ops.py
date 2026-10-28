@@ -538,19 +538,7 @@ def answer_of(res) -> dict:
         out = {"result": res["result"]}
     else:
         out = {k: v for k, v in res.items() if k not in _ACK_KEYS and v not in (None, "", [], {})}
-    if out:                                  # what a card answered is a SOURCE for the words (`claim_backing`, p125 M3)
-        _LAST_ANSWER.update(at=time.time(), text=_json.dumps(out, ensure_ascii=False, default=str)[:20000])
     return out
-
-
-#: The last answer a card returned — a source for the reply built on it (demo pass 125, M3: «The NASDAQ Composite is
-#: at 26,676.49» was corrected as an unbacked candidate; «Composite» came from the markets card's own data).
-_LAST_ANSWER: dict = {"at": 0.0, "text": ""}
-ANSWER_BACKING_S = 120.0
-
-
-def answer_backing(now: float | None = None) -> str:
-    return _LAST_ANSWER["text"] if ((now or time.time()) - _LAST_ANSWER["at"]) <= ANSWER_BACKING_S else ""
 
 
 def answer_to_speak(answers: list, ops) -> tuple | None:

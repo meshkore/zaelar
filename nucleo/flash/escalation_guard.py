@@ -261,7 +261,7 @@ def covered_by_live_work(commission: str, *, anything_running: bool) -> bool:
 
 
 def annulment_verdict(jev_choice: str, *, reply: str, acted: bool,
-                      anything_running: bool, commission: str = "", answerable: bool = False) -> dict:
+                      anything_running: bool, commission: str = "", answerable: bool = False, brief=None) -> dict:
     """May a confident `handle_inline` annul this commission? `{annul, disposition, why}`.
 
     THE DEFECT THIS EXISTS FOR (V2-726 audit, finding 4). The gate ran AFTER the model had answered
@@ -274,8 +274,8 @@ def annulment_verdict(jev_choice: str, *, reply: str, acted: bool,
     So the annulment now needs EVIDENCE, and the evidence is local and deterministic — no second
     model, no reasoner asked to referee, nothing the audit warned against:
 
-      · the reply PROMISED something (`promises_action` / `promises_music` / `looks_like_show_strict`
-        over a promise, or `a_promise_left_hanging`) → the commission stays. A promise is a debt.
+      · the brief says the turn owed an ORDER and nothing ran (`reply.owes_an_act`, refactor2710-03: a
+        verdict, never our words) → the commission stays. An owed act is a debt.
       · the turn ACTED (a widget op, a data read, a search, a listing) or a worker is already
         running → there IS an inline result, and `handle_inline` is describing it correctly.
       · neither → the commission stays. That is today's path and the safe side of this gate, which
@@ -289,7 +289,7 @@ def annulment_verdict(jev_choice: str, *, reply: str, acted: bool,
         return {"annul": False, "disposition": DELEGATED, "why": "verdict-keeps-it"}
     if answerable and not acted:
         return {"annul": True, "disposition": ANSWERED, "why": "a-question-the-state-answers"}
-    if reply_promises(reply, acted=acted, anything_running=anything_running):
+    if reply_promises(reply, acted=acted, anything_running=anything_running, brief=brief):
         return {"annul": False, "disposition": PROMISED, "why": "reply-promised"}
     if acted:
         return {"annul": True, "disposition": HANDLED_INLINE, "why": "acted"}
@@ -300,39 +300,15 @@ def annulment_verdict(jev_choice: str, *, reply: str, acted: bool,
     return {"annul": False, "disposition": UNRESOLVED, "why": "no-evidence"}
 
 
-def reply_promises(reply: str, *, acted: bool = False, anything_running: bool = False) -> bool:
-    """Did OUR reply commit to something that is NOT already covered? The three existing detectors.
-
-    They are reused rather than re-implemented (V2-252's parallel-implementation rule), and each
-    already carries the incident that shaped it: `promises_action` (polite/subjunctive turns where
-    the model chatted a promise and called no tool), `promises_music` («te pongo algo de rock» with
-    no player touched) and `a_promise_left_hanging` («déjame que lo mire» with nothing running).
-
-    ⚠️ COVERED is the load-bearing word, and the engine's own rule, not a new one:
-    `a_promise_left_hanging` already exonerates a promise when the turn ACTED or a worker is
-    running, because a promise over live work is honest — «sigo con ello» while a worker runs is a
-    true statement, not a debt. Passing the real flags through keeps the two gates agreeing instead
-    of inventing a stricter local variant.
-
-    ⚠️ And negation is applied HERE to the look-promise regex. `promises_action` runs through
-    `unnegated_match` (V2-534 §1); `a_promise_left_hanging` does not, so «no voy a buscarlo, no hace
-    falta» reads as a promise to it. Measured while writing this gate's tests. The shared backstop is
-    left alone — for ITS purpose a false positive only costs a nudge — and this gate applies the
-    engine's existing negation rule to the same pattern rather than editing a detector three other
-    consumers depend on.
-    """
-    r = (reply or "").strip()
-    if not r:
-        return False
+def reply_promises(reply: str, *, acted: bool = False, anything_running: bool = False, brief=None) -> bool:
+    """Is an act owed that nothing covers? The BRIEF decides (refactor2710-03, CRIT-K1): an order at its confidence,
+    with nothing run and no worker live — a promise over live work is honest («sigo con ello» while a worker runs).
+    `reply` is kept for the callers' signature; what our reply said decides nothing."""
     if acted or anything_running:
-        return False                    # the promise is covered by real work: nothing is owed
+        return False                    # the act is covered by real work: nothing is owed
     try:
-        from nucleo.flash import router_guards as _rg
-        from nucleo.flash import reply_promise as _rp      # V2-778 F2-16: the verdict first
-        if _rp.promises_action(r) or _rp.promises_music(r):
-            return True
-        from nucleo.flash import answer_guards as _ag
-        return bool(_rg.unnegated_match(_ag._PROMISE_TO_LOOK_RE, r.lower())) and "?" not in r
+        from nucleo.turn import reply as _reply
+        return _reply.owes_an_act(brief) == "order"
     except Exception:  # noqa: BLE001
         return False
 
@@ -374,7 +350,7 @@ def settle_commission(escalate_req: dict, *, brief, operator_text: str, reply: s
         verdict = annulment_verdict(choice, reply=reply, acted=acted,
                                     anything_running=anything_running,
                                     commission=str(escalate_req.get("v") or ""),
-                                    answerable=a_question_the_state_answers(brief))
+                                    answerable=a_question_the_state_answers(brief), brief=brief)
     except Exception:  # noqa: BLE001 — the gate may never break the turn
         verdict = {"annul": False, "disposition": DELEGATED, "why": "verdict-error"}
     try:

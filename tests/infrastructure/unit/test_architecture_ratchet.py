@@ -340,13 +340,13 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/context_packs": 568,
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 29172,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/, aliased at its old path
+    "nucleo/flash": 27202,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
     "nucleo/request": 985,     # refactor2710-02: born — request_row (model), errand_kind/title, dedup+continuity (append), stop_decision MOVED in
     "nucleo/susurro": 1386,
-    "nucleo/turn": 2169,
+    "nucleo/turn": 2607,        # refactor2710-03: `reply.py` + `reply_receipts.py`, the mouth that speaks the verdict (paid by nucleo/flash)
     "nucleo/workers": 6386,
     "nucleo/workflows": 315,
     "observability": 1005,
@@ -354,7 +354,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "search": 5474,
     "server": 5736,        # refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10092,             # refactor2710-01: +3, `typed_turn.py` (the typed front door) and the lent speaker
-    "voice/engine/llm": 3900,   # refactor2710-01: +64, a failed turn keeps his words; the vault is a door
+    "voice/engine/llm": 3892,   # refactor2710-01: +64, a failed turn keeps his words; the vault is a door
     "widgets": 38262,           # refactor2710-01 +42 (payload_digest, sheet.rebuild); refactor2710-12 split and condensed
 }
 
@@ -396,7 +396,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/live_blocks.py",
     "nucleo/flash/payload_fill.py",
     "nucleo/flash/post_stream_lanes.py",
-    "nucleo/flash/post_stream_words.py",
+    "nucleo/flash/post_stream_acts.py",
     "nucleo/flash/prompt.py",
     "nucleo/llm/provider_chain.py",
     "nucleo/flash/reminder_guards.py",
@@ -451,8 +451,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 173251 by the 01; 172840 after the 02; → 172847 with -01 and -12). Never for growth in place.
-_TOTAL_MAX = 172840
+#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300). Never for growth in place.
+_TOTAL_MAX = 171300
 
 
 def test_the_total_only_shrinks():

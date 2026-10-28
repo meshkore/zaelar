@@ -85,14 +85,21 @@ def test_no_backstop_reads_the_note_prefixed_turn_text():
 # The V2-049 forced escalation left `nucleo.py` on 2026-09-01 (architecture ratchet). Now that it is a module
 # it can be DRIVEN instead of grepped — which is the better guard: a source scan cannot tell a live call from
 # a mention of itself, and this file has been bitten by exactly that.
-def _drive(reply, *, op_text, did_act=False, pending=None, web=True):
-    """Run the real backstop with fakes, and report what it emitted and what it escalated."""
+def _drive(reply, *, op_text, did_act=False, pending=None, web=True, owed="order"):
+    """Run the real backstop with fakes, and report what it emitted and what it escalated. `owed` is what the brief
+    says the turn owed (`reply.owes_an_act`, refactor2710-03)."""
+    from nucleo.turn import reply as _reply
     from voice.engine.llm.providers import promise_backstop as pb
+    real = _reply.owes_an_act
+    _reply.owes_an_act = lambda brief: owed
     events, launched = [], []
-    pb.run(reply, did_act=did_act, op_text=op_text, prev_pending=pending or [],
-           emit=lambda *a, **k: events.append((a[1] if len(a) > 1 else "", k.get("text", ""))),
-           escalate=lambda req, context=None: launched.append(req),
-           similar_pending=lambda *_a: False)
+    try:
+        pb.run(reply, did_act=did_act, op_text=op_text, prev_pending=pending or [],
+               emit=lambda *a, **k: events.append((a[1] if len(a) > 1 else "", k.get("text", ""))),
+               escalate=lambda req, context=None: launched.append(req),
+               similar_pending=lambda *_a: False)
+    finally:
+        _reply.owes_an_act = real
     return [e[0] for e in events], launched
 
 
@@ -104,11 +111,10 @@ def test_the_forced_escalation_never_launches_the_glued_note():
     assert any("promesa sin acción" in l for l in labels)
 
 
-def test_a_clarifying_question_launches_nothing_at_all():
+def test_a_turn_the_brief_owes_nothing_launches_nothing_at_all():
     labels, launched = _drive("¿Los precios de qué, Ricardo? Dime de qué quieres verlos y te lo miro.",
-                              op_text="entra en Wallapop y bórrame los anuncios viejos")
-    assert launched == [], "a question asking for the missing datum bought a Brain Worker and a browser"
-    assert any("pregunta aclaratoria" in l for l in labels), "and the fact stays measurable"
+                              op_text="entra en Wallapop y bórrame los anuncios viejos", owed="")
+    assert launched == [], "a turn the brief does not read as an order bought a Brain Worker and a browser"
     assert not any("promesa sin acción" in l for l in labels)
 
 
@@ -223,17 +229,6 @@ def test_the_accent_is_the_signal_and_is_not_normalized_away():
     from nucleo.flash import router
     assert router.asks_for_missing_detail("¿Cuándo lo quieres?")
     assert not router.asks_for_missing_detail("Te lo digo cuando lo tenga.")
-
-
-def test_both_promise_gates_consult_it():
-    """Wired in both of the voice turn's promise gates; the typed channel runs this same turn
-    (`nucleo.cli.turn.run_turn`), so there is no second copy to diverge."""
-    src = _vts.read(NUCLEO)
-    assert "asks_for_missing_detail(spoken_text)" in src, \
-        "the no-tool backstop in the turn body has to consult it"
-    pb = NUCLEO.parent / "promise_backstop.py"
-    assert "asks_for_missing_detail(spoken_text)" in pb.read_text(encoding="utf-8"), \
-        "and so does the forced escalation, now that it lives in its own module"
 
 
 def test_use_case_the_ghost_errand_of_2026_09_01():

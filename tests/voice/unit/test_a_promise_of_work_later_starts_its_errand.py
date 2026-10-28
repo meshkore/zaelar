@@ -6,9 +6,10 @@ at 1.00, the model called nothing, the late catalogue named no card, the escalat
 and the promise harness emitted nothing: `owed` still asked the Spanish phrase tables, which do not know «te monto»,
 and a promise of LATER work had no door that could keep it. He waited; nothing was ever started.
 
-Now: a sure `act` verdict is the evidence on its own (no table), and when the reply's own verdict says its result
-comes later (`reply_promise.defers`), the turn end starts the errand through the turn's escalation — the same
-portal every escalation crosses — instead of a «not done». The variants carry other domains and the other language.
+Now (refactor2710-03): the turn's BRIEF is the evidence, never our words — a sure order owed an act, and a sure
+`escalate` with nothing run starts the errand through the turn's escalation (the same portal every escalation
+crosses) instead of a «not done», which the mouth says (`nucleo/turn/reply.py`) when only an order was owed. The
+variants carry other domains and the other language.
 """
 from __future__ import annotations
 
@@ -16,8 +17,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from nucleo.flash import reply_promise as rp
 from nucleo.turn import promise_kept as pk
+from nucleo.turn import reply as R
 
 LATER = {
     "es_songs": ("Crea una lista de 40 canciones",
@@ -31,20 +32,9 @@ LATER = {
 NOW = {"es": "Te organizo los tres ahora.", "en": "Lining those three up for you."}
 
 
-@pytest.fixture(autouse=True)
-def _clean():
-    rp.reset()
-    yield
-    rp.reset()
-
-
-def _verdict(monkeypatch, reply: str, choice: str, *, when: str = "now", confidence: float = 0.97) -> None:
-    """Settle the reply's verdicts through the real `_settle`, as one trip answers all three questions."""
-    from nucleo import jev
-    answers = {"reply_promise": (choice, {"confidence": confidence}), rp.STATE_KEY: ("other", {"confidence": 1.0}),
-               rp.WHEN_KEY: (when, {"confidence": 0.95})}
-    monkeypatch.setattr(jev, "read", lambda handle, key, default="": answers.get(key, (default, {})))
-    rp._settle(rp._key(reply), {"event": None})
+def _verdict(monkeypatch, owed: str) -> None:
+    """The brief's verdict on what the turn owed: "escalate", "order" or "" (`reply.owes_an_act`)."""
+    monkeypatch.setattr(R, "owes_an_act", lambda brief: owed)
 
 
 def _turn(escalated: list):
@@ -63,7 +53,7 @@ def _say(reply, turn, *, outcome=None, acted=False):
 @pytest.mark.parametrize("case", sorted(LATER))
 def test_a_promise_of_later_work_starts_the_errand_and_says_no_undone(monkeypatch, case):
     words, reply = LATER[case]
-    _verdict(monkeypatch, reply, "act", when="later")
+    _verdict(monkeypatch, "escalate")
     escalated: list = []
     turn = (None, [], words, lambda req, context=None: escalated.append((req, context)))
     line, said, events, data_done = _say(reply, turn)
@@ -77,19 +67,16 @@ def test_a_promise_of_later_work_starts_the_errand_and_says_no_undone(monkeypatc
 @pytest.mark.parametrize("lang", ["es", "en"])
 def test_a_promise_to_act_now_that_ran_nothing_is_said_undone_without_any_table(monkeypatch, lang):
     reply = NOW[lang]
-    from nucleo.flash import router_guards as rg
-    from voice.engine.llm.providers import promise_backstop as pb
-    assert not (pb.committed(reply) or rg.promises_action(reply)), "no phrase table knows this wording"
-    _verdict(monkeypatch, reply, "act", when="now")
+    _verdict(monkeypatch, "order")
     escalated: list = []
     line, said, _e, _d = _say(reply, (None, [], "organízamelos", lambda r, context=None: escalated.append(r)))
     assert not escalated, "an act promised for NOW is not a worker's errand"
-    assert line and said, "the verdict alone says it was promised: he hears it was not done"
+    assert line and said and said[-1].strip() == line, "the brief alone says an act was owed: the mouth says it was not done"
 
 
 def test_the_live_case_replayed(monkeypatch):
     words, reply = LATER["es_songs"]
-    _verdict(monkeypatch, reply, "act", when="later", confidence=1.0)
+    _verdict(monkeypatch, "escalate")
     escalated: list = []
     line, *_ = _say(reply, (None, [], words, lambda r, context=None: escalated.append(r)))
     assert escalated == [words] and line == ""
@@ -105,15 +92,15 @@ def test_the_live_case_replayed(monkeypatch):
 ])
 def test_what_is_not_a_deferred_errand(monkeypatch, why, outcome, calls, acted):
     words, reply = LATER["en_films"]
-    _verdict(monkeypatch, reply, "act", when="later")
+    _verdict(monkeypatch, "escalate")
     escalated: list = []
     _say(reply, (None, calls, words, lambda r, context=None: escalated.append(r)), outcome=outcome, acted=acted)
     assert not escalated, why
 
 
-def test_a_reply_that_holds_the_act_for_his_word_starts_nothing(monkeypatch):
+def test_a_turn_the_brief_owes_nothing_starts_nothing_and_says_nothing(monkeypatch):
     reply = "Cuando me digas, te preparo la lista y la tendrás en un rato."
-    _verdict(monkeypatch, reply, "ask_first", when="later", confidence=0.95)
+    _verdict(monkeypatch, "")
     escalated: list = []
     line, *_ = _say(reply, (None, [], "una lista", lambda r, context=None: escalated.append(r)))
     assert not escalated and line == ""
@@ -121,6 +108,7 @@ def test_a_reply_that_holds_the_act_for_his_word_starts_nothing(monkeypatch):
 
 def test_without_a_sure_verdict_nothing_is_started(monkeypatch):
     words, reply = LATER["es_restaurants"]
+    _verdict(monkeypatch, "order")
     escalated: list = []
     _say(reply, (None, [], words, lambda r, context=None: escalated.append(r)))
     assert not escalated, "a worker costs minutes: only the verdict may start one, never a table"
@@ -135,11 +123,3 @@ def test_the_voice_turn_end_hands_the_door_its_turn():
     call = src[j:j + 900]
     assert "turn=(_brief, getattr(brain, \"_turn_calls\", None), _op_text, _escalate_mod.escalate_to_slowbrain)" \
         in call, call
-
-
-def test_the_reply_verdict_asks_when_in_the_same_trip(monkeypatch):
-    from nucleo import jev
-    seen = {}
-    monkeypatch.setattr(jev, "ask_many", lambda state, questions, **k: seen.update(questions) or None)
-    rp._ask("x", "y")
-    assert {"reply_promise", rp.STATE_KEY, rp.WHEN_KEY} <= set(seen), "one trip, every question"

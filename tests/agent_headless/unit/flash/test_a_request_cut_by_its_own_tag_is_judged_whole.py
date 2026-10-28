@@ -101,7 +101,7 @@ ANSWER_EN = "Sounds good. Just tell me whether to read WhatsApp, mail or both, a
 
 def _hold(monkeypatch, *, verdicts, answer, tag):
     from nucleo.flash import router as _router
-    from nucleo.flash import post_stream as pst, post_stream_words as psw, second_pass as sp, card_commission as cc
+    from nucleo.flash import post_stream as pst, post_stream_acts as psw, second_pass as sp, card_commission as cc
 
     monkeypatch.setattr(tb, "read", lambda h, key, fallback, **k: (verdicts.get(key, fallback), None))
 
@@ -128,7 +128,7 @@ def _hold(monkeypatch, *, verdicts, answer, tag):
               reopen_req=box(), reveal_req=box(), search_req=box(), send=sent.append, speak=_noop, spec=None,
               speech=types.SimpleNamespace(sanitize=lambda t, **k: t), spoken=spoken, text=tag,
               worker_acted={"v": None})
-    return asyncio.run(psw.hold_the_model_to_its_words(**kw)), sent
+    return asyncio.run(psw.complete_the_acts(**kw)), sent
 
 
 @pytest.mark.parametrize("answer,tag", [(ANSWER_ES, TAG_ES), (ANSWER_EN, TAG_EN)], ids=["es", "en"])

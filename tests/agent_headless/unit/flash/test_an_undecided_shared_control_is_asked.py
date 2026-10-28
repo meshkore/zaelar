@@ -129,4 +129,4 @@ def test_a_sure_order_repairs_over_a_question(screen):
     import inspect
     from nucleo.turn import split_by_errand
     assert "_und.a_question_holds(brief, spoken)" in inspect.getsource(split_by_errand.holds_the_repair)
-    assert "holds_the_repair(spoken_text, _op_text, _brief)" in (ENGINE / "nucleo/flash/post_stream_words.py").read_text()
+    assert "holds_the_repair(spoken_text, _op_text, _brief)" in (ENGINE / "nucleo/flash/post_stream_acts.py").read_text()
