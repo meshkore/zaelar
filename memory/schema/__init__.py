@@ -31,7 +31,9 @@ from .memories import (  # noqa: F401
 #   v7 (V2-728)  the TASK is the unit: `tasks` + `task_artifacts` + `fts_tasks` replace five partial stores.
 #   v8 (V2-776)  a worker's live state, durable (`TASKS_STATUS_COLUMNS`).
 #   v9 (V2-776)  the circuit's verdict per row (`TASKS_V9_COLUMNS`).
-SCHEMA_VERSION = 9
+#   v10 (refactor2710-11) a request the distiller stored as `result` is relabelled `request`: a result is only
+#                the circuit's verdict. Selected by provenance (`meta.path='llm'`), never by wording.
+SCHEMA_VERSION = 10
 
 BASE_DDL = [STATE, MEMORIES, *MEMORIES_INDEXES, EDGES, *EDGES_INDEXES, EPISODIC, JOURNAL, SYS_KV,
             VAULT_META, VAULT_SECRETS, PARAPHRASE_INDEX, *PARAPHRASE_INDEXES,

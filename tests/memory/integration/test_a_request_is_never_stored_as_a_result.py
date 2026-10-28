@@ -103,3 +103,17 @@ def test_a_stored_request_is_shown_as_an_errand_not_as_something_known_about_him
     block, _op, stats = memapi.compose_state()
     known = block.split("[Lo que sabes de él")[1].split("[Encargos")[0]
     assert "capture su estilo" not in known and stats["errand_count"] == 1
+
+
+def test_an_old_distilled_result_is_relabelled_a_request_and_a_circuit_result_is_kept(fresh_db):
+    """The defect's pill is ON DISK in installs that ran before the grammar: migration v10 relabels the rows the
+    distiller wrote (`meta.path='llm'`) and leaves the ones a worker wrote. Provenance decides, never wording."""
+    from memory import writer as memwriter
+    asked = memwriter.insert_memory(_REQUESTS[0][1], kind="result", level="long", meta={"source": "typed", "path": "llm"})
+    done = memwriter.insert_memory("[tarea web] carpinteros → tres en Soria", kind="result", level="mid",
+                                   meta={"source": "worker:t9"})
+    db = memdb.get_db()
+    db.execute("PRAGMA user_version=9")
+    memdb.reset_db()
+    kinds = {r["id"]: r["kind"] for r in memdb.get_db().query("SELECT id, kind FROM memories")}
+    assert kinds[asked] == "request" and kinds[done] == "result"

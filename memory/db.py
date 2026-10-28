@@ -146,6 +146,9 @@ class Database:
             # v5->v6 (V2-242): give background pills their author in the KEY. Runs ONCE, gated on the version.
             if version < 6:
                 self._namespace_widget_slots()
+            if version < 10:      # a distilled `result` was always a request (refactor2710-11 T-01)
+                self.conn.execute("UPDATE memories SET kind='request' WHERE kind='result' "
+                                  "AND json_extract(meta,'$.path')='llm'")
             if version < _schema.SCHEMA_VERSION:
                 self.conn.execute(f"PRAGMA user_version={_schema.SCHEMA_VERSION}")
             self.conn.commit()
