@@ -77,7 +77,6 @@ FUNCTIONS = {
     'nucleo/flash/tool_executor_widget_calls.py::_apply_widget_data': 180,
     'nucleo/flash/tool_executor_widget_calls.py::_handle_widget_data_tool': 194,
     'nucleo/flash/tool_executor_widget_calls.py::_tag_emit': 186,
-    'nucleo/flash/widget_data_turn.py::execute': 154,
     'nucleo/loop.py::OrchestratorLoop._supervise_workers': 174,
     'nucleo/mem_processor.py::process': 205,
     'nucleo/memory_agent/ingest_steps.py::file_the_atoms': 141,

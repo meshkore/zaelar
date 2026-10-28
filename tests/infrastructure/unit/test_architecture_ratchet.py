@@ -340,9 +340,9 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
     "nucleo/context_packs": 568,
-    "nucleo/errands": 2563,
+    "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 32692,
+    "nucleo/flash": 31550,
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/memory_agent": 1951,  # refactor2710-01: +2, the memory.ingest door
     "nucleo/susurro": 1386,
@@ -387,7 +387,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/card_close.py",
     "nucleo/flash/card_commission.py",
     "nucleo/flash/data_ops.py",
-    "nucleo/flash/delivery.py",
     "nucleo/flash/dialog.py",
     "nucleo/flash/direct_action.py",
     "nucleo/flash/escalation_guard.py",
@@ -413,7 +412,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/tool_executor_widget_calls.py",
     "nucleo/flash/tool_selection.py",
     "nucleo/flash/turn_brief.py",
-    "nucleo/flash/widget_data_turn.py",
     "nucleo/flash/widget_read.py",
     "nucleo/homeostasis.py",
     "nucleo/input/stt.py",   # the phrase accumulator, MOVED from nucleo/flash/accumulator.py (refactor2710-01)
@@ -458,8 +456,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 175376, with refactor2710-13 merged). Never for growth in place.
-_TOTAL_MAX = 175376
+#: 178503 → 174219, with refactor2710-13 merged). Never for growth in place.
+_TOTAL_MAX = 174219
 
 
 def test_the_total_only_shrinks():
