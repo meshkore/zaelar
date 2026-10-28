@@ -20,7 +20,9 @@ import pytest
 from nucleo import sheets, surfaces
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[3]
-_DISPATCH_SRC = _vts.read(_ENGINE / "nucleo" / "dispatch.py")
+#: The dispatcher is a PACKAGE (refactor2710-09): its gestures are read across every file in it, so a split inside
+#: the package never empties this guard.
+_DISPATCH_SRC = "\n".join(_vts.read(f) for f in sorted((_ENGINE / "nucleo" / "dispatch").glob("*.py")))
 
 
 def _rec(**over):

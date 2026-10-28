@@ -21,7 +21,7 @@ import pytest
 
 from nucleo import dispatch
 from nucleo.agentes import code as code_helpers
-from nucleo.workers import registry
+from nucleo.workers.providers import registry
 from nucleo.workers.base import WorkerSpec
 from nucleo.flash import router_guards as g
 
@@ -94,7 +94,7 @@ def test_the_request_reaches_the_backend_through_the_env_dispatch_sets():
 
 # ── link 3: driving it opens the card AND reports the id ────────────────────────────────────────────────────
 def _drive(monkeypatch, *, req, gen_result):
-    from nucleo.workers.generator_session import GeneratorBackend
+    from nucleo.workers.providers.generator import GeneratorBackend
     from widgets import generator as _gen
 
     seen: list[tuple] = []

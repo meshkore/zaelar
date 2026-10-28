@@ -15,7 +15,7 @@ import types
 import pytest
 
 from nucleo import dispatch
-from nucleo import dispatch_confirm as dc
+from nucleo.dispatch import confirm as dc
 from nucleo.batch import detect
 from nucleo.flash import escalate
 from nucleo.turn import errands_of_a_turn as E

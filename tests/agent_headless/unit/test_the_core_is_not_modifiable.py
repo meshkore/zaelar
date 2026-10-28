@@ -131,7 +131,7 @@ def test_the_refusal_lives_in_the_SINGLE_gateway_every_escalation_passes_through
 def test_the_tools_and_the_cwd_follow_the_ERRAND_not_its_kind():
     import re
     from pathlib import Path
-    src = Path(__file__).resolve().parents[3] / "nucleo/dispatch.py"
+    src = Path(__file__).resolve().parents[3] / "nucleo/dispatch/__init__.py"
     text = re.sub(r"(?m)#.*$", "", _vts.read(src))
     assert "protected_core.writes_are_confined(kind, req)" in text
     assert 'if kind == "code" and may_write:' in text, (

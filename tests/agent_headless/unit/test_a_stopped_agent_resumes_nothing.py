@@ -149,7 +149,7 @@ def test_the_three_spending_doors_all_ask_the_SAME_question():
     import re
     from pathlib import Path
     root = Path(__file__).resolve().parents[3]
-    for rel, why in (("nucleo/dispatch.py", "el chokepoint de TODO Brain Worker"),
+    for rel, why in (("nucleo/dispatch/__init__.py", "el chokepoint de TODO Brain Worker"),
                      ("nucleo/rehydrate.py", "la resurrección de encargos al arrancar"),
                      ("widgets/server_api.py", "el relanzamiento de generaciones de widget")):
         text = re.sub(r"(?m)#.*$", "", _vts.read(root / rel))   # a split file reads with its pieces (F1-11)

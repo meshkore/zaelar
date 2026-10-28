@@ -72,7 +72,7 @@ _EXENTOS: dict[str, str] = {
     "search/providers/__init__.py":
         "la DECLARACIÓN de cada proveedor (host, clave, tarifa) que la sonda de salud y la cadena leen; no hace ninguna llamada — "
         "las hacen `search/providers/<nombre>.py` y `search/web.py`, que sí miden (V2-782).",
-    "nucleo/workers/claude_session.py":
+    "nucleo/workers/providers/claude.py":
         "lanza el CLI del worker y no llama a nadie: la cadena 'api.anthropic.com' está en un COMENTARIO sobre el "
         "entorno heredado que se le quita al worker. Lo que ese worker consume se factura donde se lee su uso, "
         "`nucleo/workers/session.py` → `energy_meter.report_worker_usage` (V2-778 F5-41, comprobado).",
@@ -96,7 +96,7 @@ _EXENTOS: dict[str, str] = {
         "consulta SALDO de las cuentas de proveedor; no consume nada facturable.",
     "server/config_catalog.py":   # the catalog moved out of config_api (refactor2710-13 T-03)
         "cataloga proveedores/modelos para la UI; nunca invoca un modelo.",
-    "nucleo/workers/providers.py":
+    "nucleo/workers/providers/__init__.py":
         "resuelve la cadena de endpoints; quien EJECUTA y mide es workers/session.py.",
     "nucleo/llm/provider_chain.py":
         "hermano del anterior: elige escalón, no llama.",

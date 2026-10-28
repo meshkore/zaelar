@@ -69,7 +69,7 @@ def test_and_says_nothing_when_nobody_asks(monkeypatch):
 
 def test_the_composer_actually_asks_for_it(monkeypatch):
     """The half that matters in production: an option nobody uses fixes nothing."""
-    from nucleo import research
+    from nucleo.workers import brief as research
 
     asked = {}
 
@@ -96,7 +96,7 @@ def test_and_the_relay_asks_for_it_too(monkeypatch):
     would have gone GREEN on any refactor that kept the substring and broke the call. This codebase already
     paid for that lesson once: a guard that only grepped a substring survived its rule being mutated to
     `if False and …`. So it asks the FUNCTION now, not the file."""
-    from nucleo import research
+    from nucleo.workers import brief as research
 
     llamadas: list[dict] = []
 

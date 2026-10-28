@@ -29,141 +29,22 @@ from .relay import relay_out_of_fuel as _relay_out_of_fuel
 from .relay import restart_stalled as _restart_stalled
 
 
-# CONTEXT BUDGET (incident 2026-08-18). Not the model's real ceiling — deliberately well below it, because the
-# provider rejects a call once input PLUS the requested output reservation exceeds its window, and we do not know
-# what reservation the CLI asks for. The worker that died reached 138,492 with a ~200k-window model, so the ceiling
-# in practice sits somewhere around 140k: warning at 110k leaves room to deliver rather than to be cut off.
-# `0` disables the watchdog (the crash path in `_finish` still catches it).
+# CONTEXT BUDGET (incident 2026-08-18), deliberately below the model's ceiling: input PLUS the CLI's unknown output
+# reservation must fit. The dead worker reached 138,492 on a ~200k model (~140k in practice); warning at 110k leaves
+# room to deliver. `0` disables the watchdog (`_finish` still catches the crash).
 _CTX_BUDGET = int(os.getenv("ZAELAR_WORKER_CTX_BUDGET", "110000"))
-
-
-@dataclass
-class Inject:
-    text: str
-    ts: float
-    state: str = "pending"        # pending | delivered
-
-
-@dataclass
-class SessionRecord:
-    """The ROW for a live session in the in-memory record (source of truth). Absorbs what was previously scattered
-    across escalate._tasks / dispatch._INFLIGHT / dispatch._SESSIONS (§v3·G). The serializable projection is provided
-    by `dispatch.active_sessions()`; handles (session/task) do not travel to STATE or /api/tasks."""
-    task_id: str
-    goal: str
-    # V2-728 — the DURABLE id of the commission this session serves, in `tasks`. NOT `task_id`: that one is
-    # `escalate._seq`, which returns to 0 every restart, so it names a session and never an errand. A RELAY
-    # inherits this value, which is what keeps one commission one row across a change of provider.
-    uid: str = ""
-    title: str = ""               # V2-530 — the NAME, beside the BRIEF; readers fall back to `goal`
-    kind: str = "generic"
-    backend: str = ""
-    label: str = ""
-    phase: str = field(default_factory=lambda: _progress.say("queued", "queued"))
-    status: str = "queued"        # queued | running | done | error | cancelled
-    started: float = field(default_factory=time.time)
-    native_sid: str = ""
-    waiting_on: str = ""          # "" | "user" | "flash"  (lo fija worker_api al aparcar un ask)
-    ask: str = ""                 # text of the active question (if waiting_on)
-    ask_corr: str = ""            # corr_id of the active ask
-    result_summary: str = ""
-    ok: bool = True
-    parent_task_id: str = ""
-    depth: int = 0
-    trace_id: str = ""            # V2-044: trace of the phrase that originated the session (chains all its events)
-    heard: str = ""               # his commissioning sentence (Request.heard): what the errand's sheet judges rows by
-    nav_task: str = ""            # kind=web: associated browser task ID (card) — set by dispatch
-    # V2-259 — the SHEET for this errand (`results::<sheet>`), sealed ONCE by `dispatch._sheet_open`. Not `task_id`
-    # alone: `escalate._seq` starts at 0 in each process, so IDs REPEAT across restarts and the first errand of a new
-    # startup landed in the previous session's `results--1` sheet — which `begin_task(fresh=True)` opens anew, that
-    # is, DELETES: the «search deletion error» this initiative exists to remove, back through the back door.
-    sheet: str = ""
-    # V2-227 — WHERE the operator will see the result, decided when ASSIGNING it and not when delivering it. CLOSED
-    # vocabulary (`nucleo/surfaces.py`): list | item | widget | voice | silent. It is sealed ONCE (`set_once`) and
-    # not reconsidered midway: changing surfaces when the operator is already looking at the first is worse than
-    # having chosen incorrectly. Empty = not sealed yet (for example, a session created manually in a test).
-    surface: str = ""
-    # V2-227 scope C — the HISTORY of readable phases, for the sheet's PROCESS tab. Short ring: it is
-    # what the operator is looking at now, not an audit log (that already lives in observability). It is kept
-    # separate from `steps`, which are the raw steps derived from the stream and are shown to nobody.
-    phases: list = field(default_factory=list)     # [{"t": <ts>, "s": "entrando en booking.com"}]
-    last_event_at: float = field(default_factory=time.time)
-    # V2-776 D1 — the last report the worker made ITSELF (`hbnote` via `/api/agent/report`). `last_event_at`
-    # moves on every stream event, so it says «the process is alive»; this says «it told us where it is», which is
-    # the obligation the pulse enforces (D2). 0.0 = it has not reported once.
-    reported_at: float = 0.0
-    # V2-776 D2 — WHY it failed, in the A5 vocabulary (network | credit | auth | rate | stalled | ours). Written by
-    # whoever detects the cause (the stall watchdog, the generator), copied into the durable row on close.
-    error_class: str = ""
-    injects: list = field(default_factory=list)     # [Inject]
-    paused: bool = False           # V2-065: SIGSTOP'd (⏻ del operador) — sigue "running" para el registro, pero
-                                    # frozen; do not confuse with status=cancelled (that is irreversible)
-    # ── observabilidad ESTRUCTURADA del worker (V2-059) ──────────────────────────────────────────────────────
-    # The worker opens a Claude Code session with opaque INTERNAL work. To view it in a controlled way:
-    #  · `plan`  = the list of tasks the worker DECLARES at startup (`hbnote plan "a|b|c"`).
-    #  · `done`  = how many plan steps it has completed (`hbnote progress --done N`) → progress = done/len(plan).
-    #  · `pct`   = explicit 0-100 progress if reported (takes precedence over done/plan); -1 = derive/unknown.
-    #  · `note`  = latest readable progress note.
-    #  · `steps` = ring of the latest REAL steps (derived from the stream: tool + where + what) → debug + UI.
-    plan: list = field(default_factory=list)
-    done: int = 0
-    pct: int = -1
-    note: str = ""
-    steps: list = field(default_factory=list)
-    # BREADTH of an investigation (`hbnote considered N --kept M`): how many candidates the worker REALLY
-    # examined before keeping M. This is what separates a defensible selection from the first three search-result
-    # rows, and lets the brain offer «I've seen 47; is that enough, or should I continue?» instead of hiding the fact.
-    # -1 = not reported (a task that is not an investigation, or a worker that did not say).
-    considered: int = -1
-    kept: int = -1
-    # V2-707 F2 — HOW SUCCESS IS MEASURED, in `nucleo/circuit/verify.py`'s grammar; the rule is in `workers/goal.py`.
-    # Empty = nothing declared, and then nothing is claimed: an absent condition is not a failed one.
-    done_when: dict = field(default_factory=dict)
-    goal_retried: bool = False
-    # Died because the PROVIDER ran out of quota (not because of the task) → `{provider, next, text}`. The
-    # backend sets it when it sees the error; `_finish` uses it to retry ONCE with the handoff tier instead of
-    # delivering the operator an «API Error … Weekly Limit Exhausted» as though it were the report.
-    provider_down: dict | None = None
-    provider_retried: bool = False
-    # Died (or is about to) because the CONTEXT no longer fits, not because the provider failed (incident
-    # 2026-08-18). A separate family on purpose: relaying to another provider does not fix a blown context — the
-    # next one blows up identically — so this puts NOBODY on cooldown: it COMPACTS AND CONTINUES with what was learned.
-    context_full: dict | None = None
-    context_retried: bool = False
-    # How many AUTOMATIC relaunches led to THIS worker. `context_retried`/`provider_retried` above read like
-    # they bound the chain ("relaunched ONCE"), and they do not: they live on the RECORD, and every relay builds
-    # a fresh one, so each new worker starts at False and may relay again. Measured on the operator's own engine
-    # (2026-08-17, `zaelar.db`): SIX workers for one car search. The first ran 7m47s and died on a context-window
-    # error after $2.0897 and 138k tokens; the next four were born 3-8s after the previous one ended and died in
-    # ~17s with the SAME error. `depth` was travelling through the relay UNCHANGED, so it could not count it
-    # either. Same shape as the sheet id that reset on every process: a per-instance counter read as if it were
-    # a global one.
-    relay_gen: int = 0
-    # V2-238 — A HANDOFF IS NOT A DEATH. When one of `_finish`'s two deliveries completes (provider handoff,
-    # compact-and-continue), this session has not failed: it has PASSED THE BATON to another that is already
-    # running. Without this fact, `ok=False` made it indistinguishable from a dead worker, and the engine told the
-    # operator that their task «DIED without a result and will not be retried automatically» while the handoff worked.
-    handoff: str = ""             # "" = genuinely final · otherwise, where the baton went, in readable form
-    # V2-241 — the exact FRAGMENT the gate stopped (`cd /Users/…`, `curl -s https://…`). It is stored so it can be
-    # named in the correction —a general rule does not say which of its commands is unnecessary— and so a final
-    # without delivery can say why it was left incomplete instead of staying silent.
-    perm_denied: str = ""
-    ctx_tokens: int = 0             # context size of the last message (for the panel and the watchdog)
-    real_model: str = ""            # the model that ACTUALLY ran, when the provider says so (≠ requested alias)
-    # runtime handles (NOT serialized):
-    session: "WorkerSession | None" = None
-    task: "asyncio.Task | None" = None
 
 
 from nucleo.workers.stall import denied_fragment  # noqa: F401 — moved to stall.py (V2-645), re-export
 
 
-#: How many AUTOMATIC relaunches an errand gets before we stop and SAY so. Two, because there are two independent
-#: causes (blown context, provider out of quota) and each was written to fire once; what was missing was a bound on
-#: the CHAIN. A cap is not a cure — a relay that keeps failing identically is a symptom, not a hiccup — but an
-#: unbounded retry on a NON-retryable error spends the operator's money in silence, which is how six workers ran
-#: one car search on 2026-08-17.
+#: AUTOMATIC relaunches an errand gets before we stop and SAY so: two (blown context, provider out of quota). A cap
+#: bounds the CHAIN — an unbounded retry on a non-retryable error spent money silently (six workers, one car
+#: search, 2026-08-17).
 _RELAY_CAP_DEFAULT = 2
+
+
+from nucleo.workers import session_events as _sev, session_finish as _sfin  # noqa: E402
 
 
 class WorkerSession(SessionNotes):
@@ -180,9 +61,8 @@ class WorkerSession(SessionNotes):
         self._base_url = ""                # actual endpoint of the tier serving the session (energy_meter, 2026-08-05)
         self._started_at = time.time()     # to measure the worker's FIRST output (its TTFT) — see _emit_note
         self._first_output_at = 0.0
-        # V2-241 — permission correction ran ONCE per session (V2-211), and the measured worker hit the gate THREE times.
-        # From the second hit onward nobody told it anything and it died silently, exactly what the network
-        # intended to prevent. Now every hit is corrected up to a cap, and the LAST one changes its message.
+        # V2-241 — correction ran ONCE per session (V2-211); the measured worker hit the gate THREE times and died
+        # silently. Every hit is now corrected up to a cap, and the LAST one changes its message.
         self._perm_hits = 0
         self._spin: dict = {}              # identical consecutive steps (stall.spin_count)
         self._spin_dead = False
@@ -247,226 +127,11 @@ class WorkerSession(SessionNotes):
         finally:
             await self._finish()
 
-    def _on_event(self, ev) -> None:
-        rec = self._rec
-        d = ev.data or {}
-        if ev.type == "spawned":
-            rec.native_sid = d.get("native_session_id") or rec.native_sid
-            self._model = d.get("model") or self._model
-            self._emit_meta_row()                              # V2-048: fila "worker · <backend>" con modelo + capa
-        elif ev.type == "phase":
-            _lbl = (d.get("label") or "").strip()
-            rec.phase = _lbl or rec.phase
-            self._bus("worker.phase", {"id": rec.task_id, "phase": rec.phase})
-            # THE DIARY THE OPERATOR WATCHES. This line was missing, and its absence did not look like a failure: the
-            # PROCESS tab read a ring (`rec.phases`) populated only by `hbnote`, meaning whatever the worker
-            # bothered to narrate. Everything that translates ITS STEPS into a sentence —`progress.phrase`, the
-            # component written precisely for this— stayed in `rec.phase` (a single line, the NOW line) and died there.
-            # Measured in session `ed9df756`: fourteen real browser steps and two diary entries, both at the end.
-            # The operator saw «working» for two and a half minutes.
-            try:
-                from nucleo import dispatch as _d
-                _d.record_phase(rec.task_id, _lbl)   # THE LABEL THAT ARRIVES, not `rec.phase`: empty means
-                #  «another source supplies the phase» (`hbnote`, richer), and recording the previous one would
-                #  repeat in the diary a step that has not happened again.
-            except Exception:  # noqa: BLE001
-                pass
-            if not d.get("quiet"):                             # quiet = accompanies a rich `step` → do not duplicate row
-                self._emit_chip("phase", rec.phase)
-        elif ev.type == "step":
-            self._emit_step(d)                                 # V2-048: concrete WHERE + WHAT of this step
-            _n = _stall.spin_count(self._spin, d.get("action", ""), d.get("target") or "")
-            if _n == _stall.SPIN_WARN:
-                asyncio.create_task(self._say_deliver_now(_n, str(d.get("target") or "")[:80]))
-            elif _n >= _stall.SPIN_KILL:
-                self._spin_dead = True
-            # V2-059: besides the panel row, STORE the step in the record (ring, cap 12) → /api/tasks + STATE
-            # see the worker's REAL activity (not only the coarse phase). _tool_step composes where/what.
-            try:
-                rec.steps.append({"where": d.get("where", ""), "action": d.get("action", ""),
-                                  "target": (d.get("target") or "")[:80], "ts": time.time()})
-                if len(rec.steps) > 12:
-                    rec.steps = rec.steps[-12:]
-            except Exception:
-                pass
-        elif ev.type == "step_result":
-            _stall.spin_result(getattr(self, "_spin", None), d.get("text"))   # a new answer to the same step is progress
-            self._emit_step_result(d)                          # 2026-08-10: what ANSWERED that step
-            self._maybe_unstick_permission(d)                  # V2-211: did it hit OUR own gate?
-            self._maybe_hand_web(d)                            # V2-236: what the SEARCH brought to the conversation
-        elif ev.type == "note":
-            self._emit_note(str(d.get("text") or ""))          # worker narration → observability, not voice
-        elif ev.type == "context_full":
-            # The context no longer fits. NOT a provider fault (see `providers.is_context_overflow`) — nobody goes on
-            # cooldown; `_finish` compacts what was learned and hands it to a fresh session.
-            rec.context_full = {"text": d.get("text") or "", "tokens": int(d.get("tokens") or 0)}
-            self._emit_chip("contexto agotado", f"{rec.context_full['tokens']:,} tokens".replace(",", "."), ok=False)
-        elif ev.type == "provider_down":
-            # V2-713 R4 — THE LABEL SAYS WHICH FAULT IT WAS. It read «proveedor sin cuota» for every one of
-            # them, so a rejected credential and a rejected request both reached the operator as a quota
-            # problem — and what he DOES about each is opposite (wait vs. fix the key vs. neither). The cause
-            # arrives already classified from `providers.note_failure`; nothing here re-reads the error text,
-            # which would be the third classification of the same string.
-            rec.provider_down = {"provider": d.get("provider") or "", "next": d.get("next") or "",
-                                 "kind": d.get("kind") or "", "text": d.get("text") or ""}
-            titulo = {"exhausted": "proveedor sin cuota", "auth": "credencial rechazada",
-                      "broken": "el proveedor RECHAZA nuestras peticiones"}.get(
-                          str(d.get("kind") or ""), "proveedor caído")
-            self._emit_chip(titulo, (d.get("provider") or "") +
-                            (f" → relevo a {d['next']}" if d.get("next") else " · sin relevo"), ok=False)
-        elif ev.type == "progress":
-            self._bus("worker.progress", {"id": rec.task_id, "pct": d.get("pct"), "note": d.get("note")})
-        elif ev.type == "usage":
-            # PARTIAL USAGE, message by message (2026-08-13). It is accumulated separately from the `result`'s
-            # `usage` because it covers a case `result` cannot: a worker KILLED by budget never emits it. It is not
-            # added to the final total if `result` arrives —the CLI has already summed that— but is preserved as
-            # the declared MINIMUM. See `_finish`.
-            u = d.get("usage") or {}
-            for k in ("input_tokens", "output_tokens", "cache_read_input_tokens"):
-                try:
-                    self._usage_partial[k] = self._usage_partial.get(k, 0) + int(u.get(k) or 0)
-                except (TypeError, ValueError):
-                    pass
-            self._model = d.get("model") or self._model
-            self._base_url = d.get("base_url") or self._base_url
-            # THE NUMBER THAT PREDICTS DEATH was already flowing past here and we only used it to bill the
-            # post-mortem (incident 2026-08-18). Two different things, and telling them apart is the whole point:
-            # `_usage_partial` above ACCUMULATES spend; `ctx_tokens` is the size of the LAST request. When it
-            # crosses the budget the worker gets ONE turn asking it to deliver what it has — the session is still
-            # alive, so we can just talk to it, which beats letting it die and reconstructing the work afterwards.
-            rec.real_model = d.get("real_model") or rec.real_model
-            ctx = int(d.get("ctx_tokens") or 0)
-            if ctx:
-                rec.ctx_tokens = ctx
-                self._maybe_warn_context(ctx)
-        elif ev.type == "result":
-            rec.result_summary = str(d.get("summary") or "").strip()
-            rec.ok = bool(d.get("ok", True))
-            rec.error_class = str((d.get("data") or {}).get("error_class") or rec.error_class or "")
-            self._usage = d.get("usage") or {}
-            self._cost = d.get("cost")
-            self._model = d.get("model") or self._model
-            rec.real_model = d.get("real_model") or rec.real_model
-            self._base_url = d.get("base_url") or self._base_url
-            self._bus("worker.result", {"id": rec.task_id, "ok": rec.ok})
-        elif ev.type == "say":
-            # (if a backend emits it explicitly) → the loop reports it; here it only goes to the bus.
-            self._bus("worker.say", {"id": rec.task_id, "text": (d.get("text") or "")[:400]})
-        elif ev.type == "error":
-            rec.ok = False
-            if d.get("fatal") and not rec.result_summary:
-                # the operator must HEAR that it failed (never silence): _finish delivers this summary via voice+UI.
-                rec.result_summary = "No pude completar la tarea."
-            self._bus("worker.error", {"id": rec.task_id, "message": (d.get("message") or "")[:300]})
+    _on_event = _sev._on_event
 
     _RELAY_CAP = _RELAY_CAP_DEFAULT
 
-    async def _finish(self) -> None:
-        rec = self._rec
-        # A SESSION THAT RAN OUT OF FUEL PASSES THE BATON — context blown, provider without quota,
-        # or the chain capped. `workers/relay.py` owns the three rules and the incidents behind them.
-        _relay_out_of_fuel(rec, self._RELAY_CAP)
-        # V2-776 D2 — …and one that went SILENT gets one fresh start (the count lives in the durable row).
-        _restart_stalled(rec)
-
-        # V2-241 — A SILENT ENDING AFTER HITTING THE GATE. The three measured cases died without saying anything,
-        # and the cause appeared only by cross-checking the engine log. If the session ends without delivery or
-        # handoff but hit our own gate, THAT is what happened, and it is what the operator must hear: it is not a
-        # task failure; the route they chose is closed here.
-        if (not rec.ok and not rec.handoff and rec.perm_denied and rec.status != "cancelled"
-                and not rec.result_summary.strip()):
-            rec.result_summary = _say().worker_command_denied.format(cmd=rec.perm_denied)
-
-        # V2-707 F2 — THE HARNESS: a task does not end because the worker SAYS it ended.
-        # `workers/goal.py` carries the rule, the incident and the relay.
-        _harness(rec, self._RELAY_CAP)
-
-        if rec.status not in ("cancelled",):
-            rec.status = "done" if rec.ok else ("relevada" if rec.handoff else "error")
-        if rec.ok:
-            rec.phase = "terminado"
-        else:
-            rec.phase = "relevada" if rec.handoff else "sin completar"
-        # DELIVERY through voice+UI + [SYSTEM] + memory, except on cancellation (the operator already knows they stopped it).
-        if rec.status != "cancelled" and rec.result_summary.strip():
-            await _deliver(rec)
-        self._bus("worker.done", {"id": rec.task_id, "ok": rec.ok, "status": rec.status})
-        # TOKENS ARE ALWAYS CHARGED, even if the session was CANCELLED (2026-08-13). This lived inside the
-        # `if rec.status != "cancelled"` below, which exists for an INTERFACE reason (do not paint two contradictory
-        # `end` rows) and swept away an unrelated METERING concern: a worker killed by budget had consumed REAL tokens
-        # and was metered at ZERO (e.g. 704 s, 256 steps, ~$0.20 of provider tokens → 0 Energy).
-        # Two distinct concerns in one `if`; they are separated.
-        u = self._usage or self._usage_partial or {}
-        pt, ct = u.get("input_tokens"), u.get("output_tokens")
-        # CACHED input is a SEPARATELY BILLABLE LINE and does not belong in `input_tokens` (Anthropic-shaped usage
-        # has the three counters separated). In a long agent session the same prompt prefix is reread each turn,
-        # so cache tokens end up being SEVERAL TIMES the fresh-input tokens: measured against the cost reported by
-        # Grok's own CLI, ignoring them left 29% of the bill out (211k cached versus 74k input). It is passed to the
-        # meter, which tariffs it at its own price.
-        cached = u.get("cache_read_input_tokens")
-        if pt or ct or cached:
-            from nucleo import energy_meter as _energy
-            # THE MODEL THAT ACTUALLY RAN, not the alias we asked for (incident 2026-08-18): the run recorded as
-            # `claude-opus-4-8[1m]` was performed by `glm-4.7`, and the tariff table looks the model up BY NAME —
-            # so the bill was computed at Opus prices for a GLM run. The alias only decides pricing when the
-            # provider never said what it served.
-            _energy.report_worker_usage(
-                base_url=self._base_url, model=(rec.real_model or self._model),
-                prompt_tokens=pt, completion_tokens=ct, cached_tokens=cached,
-            )
-        # a CANCELLED session has already emitted its end chip (ok=False) from dispatch.cancel_session — re-emitting
-        # here produced TWO contradictory ends (ok=False and ok=True one second later, seen in the 2026-07-14 demo).
-        if rec.status != "cancelled":
-            # V2-048: the final row carries TOKENS (size chip) + COST + the model — what the task cost.
-            extra = {}
-            if pt is not None:
-                extra["prompt_tokens"] = pt
-            if ct is not None:
-                extra["completion_tokens"] = ct
-            if self._model or rec.real_model:
-                # The panel showed the alias, so it LIED about which model ran. The real one wins; the alias is
-                # kept beside it, because "what we asked for" is what a routing/config bug is diagnosed from.
-                extra["model"] = rec.real_model or self._model
-                if rec.real_model and self._model and rec.real_model != self._model:
-                    extra["model_requested"] = self._model
-            if rec.ctx_tokens:
-                extra["ctx_tokens"] = rec.ctx_tokens
-            lbl = ""
-            try:
-                if self._cost:
-                    lbl = f"${float(self._cost):.4f}"
-            except (TypeError, ValueError):
-                pass
-            # AN ENDING SAYS WHY (V2-237, 2026-08-21). The ending row showed cost and nothing else, so a DEAD worker
-            # left `text:""` and the reason had to be found by cross-checking the engine log through `span=worker:N`.
-            # Measured by the harness in `best-plumber-same-day`: the only error events in the round were from the
-            # worker that did NOT die, and the four that did die said nothing. An ending without a cause
-            # reads the same as a normal ending.
-            #
-            # The RAW text is intentional: this row belongs to the record, not the operator's mouth. Ensuring a provider error
-            # being read aloud is handled by `operator_safe_summary` during delivery, and its own docstring says
-            # the full text remains in the log —which is exactly this.
-            extra["status"] = str(rec.status or "")
-            if rec.handoff:
-                # V2-238 — if the BATON WAS PASSED, the row says so by name. A handoff delivered here the same
-                # empty ending as a dead worker (`result_summary` is deliberately emptied so the operator does not
-                # see two deliveries), so both read the same in the record.
-                extra["handoff"] = rec.handoff
-                lbl = f"{lbl} · relevada: {rec.handoff}".strip(" ·")
-            elif not rec.ok:
-                why = " ".join(str(rec.result_summary or "").split())[:200]
-                lbl = f"{lbl} · {why}".strip(" ·") if why else (lbl or str(rec.status or "sin completar"))
-            self._emit_chip("end", label=lbl, ok=rec.ok, extra=extra)
-        # LEAK FIX (marathon 2026-07-22/23): `run()` sale del bucle en el PRIMER "done" (= primer `result` de
-        # stream-json), but the `claude --print` process remains alive (multi-turn mode, waiting for more stdin).
-        # dispatch performs `_SESSIONS.pop(key)` immediately after `run()` → the ONLY reference to the backend is
-        # lost without killing the process: it remained orphaned forever (observed: 14 zombie processes after ~2h).
-        # If the session was not already closed by `stop()` (explicit cancellation), close the backend here before releasing it.
-        if not self._stopped:
-            try:
-                await self._b.stop()
-            except Exception:
-                pass
+    _finish = _sfin._finish
 
     # ── injection (↓) ───────────────────────────────────────────────────────────────────────────────────────
     async def inject(self, text: str) -> None:
@@ -530,164 +195,35 @@ class WorkerSession(SessionNotes):
             pass
 
 
-    def _maybe_warn_context(self, ctx: int) -> None:
-        """Nearing the context ceiling → ask the worker, ONCE, to deliver what it already has (incident 2026-08-18).
+    _maybe_warn_context = _sev._maybe_warn_context
 
-        Why talk to it instead of killing it: the session is ALIVE and its own reasoning is the cheapest possible
-        summary of its progress — far better than anything we could reconstruct from `steps`/`plan` afterwards. It is
-        the same stdin injection channel `send_to_worker` already uses, so no new machinery. Best-effort throughout:
-        failing to warn must never be what breaks a task that is still working."""
-        rec = self._rec
-        if self._ctx_warned or _CTX_BUDGET <= 0 or ctx < _CTX_BUDGET:
-            return
-        self._ctx_warned = True
-        logger.warning(f"worker[{rec.task_id}]: contexto en {ctx} tokens (tope {_CTX_BUDGET}) → pido entrega")
-        self._emit_chip("contexto casi lleno", f"{ctx} tokens — pidiendo entrega", ok=False)
-        try:
-            from voice.observer import emit
-            emit("task", "⚠️ contexto casi lleno", text=f"{ctx} tokens — le pido que entregue lo que tiene",
-                 extra={"id": rec.task_id, "src": f"worker:{rec.task_id}", "ctx_tokens": ctx})
-        except Exception:
-            pass
-        asyncio.create_task(self._ask_for_delivery())
-
-    # V2-211 — THE GATE IS OURS, and the worker dies there without saying so. Three cases measured on the same day,
-    # three different commands, the same pattern: `cd … was blocked`, `requires approval: curl -s …`, `requires
-    # approval: cd /Users/…`. In headless mode nobody approves, so the approval request is a dead end; the worker
-    # reads it as a no and stops, while the turn continues to count as progress.
-    #
-    # `dispatch_prompts` attacks it upstream (the drawer rules, like the interpreter on 2026-08-02); this is the
-    # NET: if it still hits the gate, it is told IMMEDIATELY what happened and how to rewrite it. The same form as
-    # the early delivery above —one injected turn, ONCE— because the session is still alive and its own reasoning
-    # is the shortest route back.
+    # V2-211 — THE GATE IS OURS, and the worker dies there silently: three cases one day (`cd … was blocked`,
+    # `requires approval: curl -s …`, `requires approval: cd /Users/…`); headless, nobody approves. `dispatch_prompts`
+    # prevents it upstream; this is the NET: one injected turn, ONCE, saying what happened and how to rewrite it.
     _DENIED_NEEDLES = ("requires approval", "was blocked", "permission to use", "requested permissions",
                        "may only change directories")
 
-    def _maybe_hand_web(self, d: dict) -> None:
-        """What a WEB SEARCH returns goes to the conversation immediately, not when the worker delivers.
-
-        Here rather than in each backend: `where` is already normalized by the substrate (`_PLACE`), so this covers
-        Claude Code, Codex, and Grok in one place — including each CLI's NATIVE tools, where the harness measured the
-        useful data being lost. An `is_error` is not pushed: a tool failure is not a finding, and already
-        tiene su propio camino (`_maybe_unstick_permission`, el chip del panel).
-        """
-        try:
-            if str(d.get("where") or "") != "web" or d.get("is_error"):
-                return
-            from nucleo.workers import findings
-            findings.hand_web_finding(self._rec.task_id, str(d.get("text") or ""), self._rec.goal)
-        except Exception:  # noqa: BLE001
-            pass
+    _maybe_hand_web = _sev._maybe_hand_web
 
     _PERM_MAX = 3          # the number the harness measured in one worker before it died silently
 
-    def _maybe_unstick_permission(self, d: dict) -> None:
-        raw = " ".join(str(d.get(k) or "") for k in ("text", "result", "output", "target"))
-        txt = raw.lower()
-        if not txt or not any(n in txt for n in self._DENIED_NEEDLES):
-            return
-        if self._perm_hits >= self._PERM_MAX:
-            return
-        self._perm_hits += 1
-        last = self._perm_hits >= self._PERM_MAX
-        self._rec.perm_denied = denied_fragment(raw) or self._rec.perm_denied
-        self._emit_chip("comando no permitido",
-                        (f"{self._perm_hits}º choque · " if self._perm_hits > 1 else "")
-                        + ("le pido que entregue lo que tenga" if last else "le digo cómo reescribirlo"),
-                        ok=False)
-        try:
-            from voice.observer import emit
-            emit("task", "⚠️ el worker chocó con una puerta de permiso",
-                 text=raw[:200], extra={"id": self._rec.task_id, "src": f"worker:{self._rec.task_id}",
-                                        "hit": self._perm_hits, "denied": self._rec.perm_denied})
-        except Exception:
-            pass
-        asyncio.create_task(self._explain_permissions(last=last))
+    _maybe_unstick_permission = _sev._maybe_unstick_permission
 
 
-    def _relay_search(self) -> None:
-        """The provider's built-in search is out of quota: tell THIS worker, once, to use Zaelar's (2026-09-28).
-
-        Blindness was detected and announced, and nothing changed for the worker: it kept calling the dead tool
-        or reasoning without material (demo pass 30 — Z.ai's web reader answering 429 while the model worked).
-        The operator's rule: the provider's own search first while it works, OURS when its quota runs out — the
-        same search the FlashBrain uses, reached through the per-task bridge. The spawn prompt already names both;
-        this is the moment the second one becomes the only one, delivered on the worker's next bridge contact."""
-        if getattr(self, "_search_relayed", False):
-            return
-        self._search_relayed = True
-        try:
-            from nucleo.workers.claude_session import bridge_python
-            py = bridge_python() or "python"
-        except Exception:  # noqa: BLE001
-            py = "python"
-        msg = ("Tu buscador integrado se ha quedado SIN CUOTA y no vuelve en esta tarea: no lo uses más. Busca "
-               f"con el de Zaelar: `{py} -m nucleo.worker_bridge act use_tool \"<qué buscas>\"` — la consulta entre "
-               "comillas, sin llaves ni ficheros. Para leer una página, el navegador: "
-               f"`{py} -m nucleo.nav_cli`.")
-        try:
-            import asyncio as _aio
-            _aio.get_running_loop().create_task(self.inject(msg))
-        except RuntimeError:
-            self._rec.injects.append(Inject(text=msg, ts=time.time()))   # no loop: the bridge piggyback still delivers it
-        try:
-            from voice.observer import emit
-            emit("task", "🔁 búsqueda → la de Zaelar (cuota del proveedor agotada)", role="system",
-                 extra={"id": self._rec.task_id, "span": f"worker:{self._rec.task_id}"})
-        except Exception:  # noqa: BLE001
-            pass
+    _relay_search = _sev._relay_search
 
 
 def _default_label(kind: str) -> str:
     return _errand_kind.default_label(kind)
 
 
-# V2-276 — the two text builders (`operator_safe_summary`, `context_handoff`) have lived in
-# `handoff.py` since 2026-08-24 (architectural ratchet). Pure, operating only on the record; this
-# file governs a session's LIFECYCLE, it does not compose text. They are re-exported because tests and
-# `providers.py` refer to them from here.
+# V2-276 — `operator_safe_summary` / `context_handoff` live in `handoff.py` since 2026-08-24 (architectural
+# ratchet); this file governs the LIFECYCLE. Re-exported for tests and `providers.py`.
 from nucleo.workers.handoff import (  # noqa: F401,E402 — re-export
     context_handoff, operator_safe_summary,
 )
 
-async def _deliver(rec: "SessionRecord") -> None:
-    """Delivers the result through the usual rails: proactive (voice+UI) + [SYSTEM] note + memory (sole
-    writer). Replica of the former dispatch._deliver, now per session."""
-    summary = operator_safe_summary(rec.result_summary)
-    if not summary:
-        return
-    try:
-        from voice import brain_notes
-        head = "Tarea completada" if rec.ok else "Tarea sin completar"
-        brain_notes.push(f"[SISTEMA] Brain worker · {head}: {summary[:400]}", key=f"delivery:{rec.task_id}")
-    except Exception:
-        pass
-    # MEMORY: only SUCCESS is remembered as a durable result (2026-07-14 audit — the P2 refactor lost the one-shot
-    # `ok` gate and FAILED tasks wrote mid-sized pills such as «I could not complete the task», creating noise that
-    # also competed in recall). Failure already reaches the operator through voice + [SYSTEM] note. Provenance is
-    # stamped (`meta.source`) so it can be audited/cleaned by origin.
-    # The pill is a RESULT, so it goes through the one door that writes one: only the circuit's `met` verdict.
-    if rec.ok:
-        try:
-            from nucleo.memory_agent import writer as _mw
-            await _mw.result(f"[tarea {rec.kind}] {rec.goal} → {summary[:600]}", task_id=rec.task_id,
-                             verdict=str(getattr(rec, "verdict", "") or ""))
-        except Exception:
-            pass
-    try:
-        from nucleo import notices as _notices     # V2-796: voice when he is there, his phone when not, once
-        from nucleo.workers import named_top as _top, spoken_delivery as _sd
-        _line = await _sd.line(rec.goal, summary, ok=rec.ok, verdict=str(getattr(rec, "verdict", "") or "")) or summary
-        # V2-782: «the top 3» he asked for (or the three a comparison needs) are named, not one of them
-        _res = await _notices.notify("zaelar", _top.complete(_line, rec), kind="done", key=f"notice:{rec.task_id}")
-        if "voice" in str(_res.get("channel") or ""):
-            # SPOKEN: he has heard it, and it sits in the conversation as our own words. The note above would
-            # hand it to the next turn as news «to add after answering», and the demo pass (2026-09-28) heard the
-            # same three monitors three times — the delivery, then two replies that «by the way» repeated it.
-            from voice import brain_notes as _bn
-            if _bn.retract(f"delivery:{rec.task_id}"):
-                from voice.observer import emit as _emit_d
-                _emit_d("task", "🔔 entrega dicha en voz — su aviso al cerebro se retira", role="system",
-                        text=summary[:120], extra={"id": rec.task_id})
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"worker[{rec.task_id}]: entrega proactiva falló: {e}")
+from nucleo.workers.session_record import (  # noqa: E402,F401
+    Inject, SessionRecord)
+from nucleo.workers.session_finish import (  # noqa: E402,F401
+    _deliver)

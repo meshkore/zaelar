@@ -83,7 +83,7 @@ class SessionNotes:
     async def _explain_permissions(self, *, last: bool = False) -> None:
         """Injects the corrective turn. Separate coroutine because `_on_event` is synchronous."""
         try:
-            from nucleo.workers.claude_session import bridge_python
+            from nucleo.workers.providers.claude import bridge_python
             py = bridge_python()
         except Exception:
             py = "python"

@@ -4,7 +4,7 @@ Measured in the 2026-08-02 session: 21 s from the worker being spawned to its fi
 2m21s with not a single line in the middle of a 5 min task. The worker WAS talking the whole time (it says what it is
 going to do, what it finds, and why it changes plans), but `_map` only translated the `tool_use` blocks and discarded the text.
 """
-from nucleo.workers.claude_session import ClaudeCodeSession
+from nucleo.workers.providers.claude import ClaudeCodeSession
 
 
 def _map(obj):

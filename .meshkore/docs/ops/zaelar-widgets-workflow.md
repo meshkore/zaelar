@@ -30,7 +30,7 @@ If the answer is yes to any of these, run the full workflow:
   `confirm`/`irreversible` — an action's execution mode, `widgets/actions.py`; `background`+`tick(ctx)` —
   off-screen execution on a cycle, `widgets/background.py`; `ref_index` — refs to items, `widgets/refs.py`; `kind`).
 - The tag protocol (`voice/tag_protocol.py`) — a new tag, a syntax change, a change in what is escaped/held back.
-- Brain↔widget dispatch (`voice/engine/llm/providers/nucleo.py`, `nucleo/flash/router.py`, `nucleo/dispatch.py`,
+- Brain↔widget dispatch (`voice/engine/llm/providers/nucleo.py`, `nucleo/flash/router.py`, `nucleo/dispatch/`,
   `widgets/__init__.py`, `widgets/server_api.py`) — who may create/modify/delete/deliver/mutate data, and under
   which conditions.
 - The storage model (`widgets/store.py`) — on-disk format, location, migration.
@@ -51,7 +51,7 @@ document is needed.
 | A new tag or a syntax change (`tag_protocol.py`) | `widgets/brief.py` (`TAG_PROTOCOL`) · `nucleo/flash/prompt.py` if the FlashBrain must know it or be blocked from it · `zaelar-modules.md §Widgets` · public diagram (`/technology`, outside this repo, + its `.ts`, only for a change that matters to an outside reader) |
 | A new `manifest.json` field (e.g. `actions`, `safe`, `kind`) | `widgets/AGENTS.md` (the contract for hand editors) · `widgets/generator.py` → `_CONTRACT`/`_CREATE_PROMPT`/`_MODIFY_PROMPT` (the contract for the code agent) · `widgets/brief.py` if the brain must read it |
 | The storage model (`widgets/store.py`) | a **lazy, automatic** migration, never a manual script nor data loss (same pattern as the `_v` schema migration) · `widgets/AGENTS.md` · the generator's `_CONTRACT` · doc + diagram |
-| Brain↔widget governance (who mutates what) | `voice/engine/llm/providers/nucleo.py` + `nucleo/flash/router.py` (dispatch + the declaration of the tools `escalate_to_slowbrain`/`set_style_directive`) · `nucleo/dispatch.py` (SlowBrain) · `nucleo/flash/prompt.py` · `widgets/brief.py` · doc + diagram |
+| Brain↔widget governance (who mutates what) | `voice/engine/llm/providers/nucleo.py` + `nucleo/flash/router.py` (dispatch + the declaration of the tools `escalate_to_slowbrain`/`set_style_directive`) · `nucleo/dispatch/` (SlowBrain) · `nucleo/flash/prompt.py` · `widgets/brief.py` · doc + diagram |
 | The refresh mechanism (SSE/poll) | `desktop.js` · `sse.js` · `widgets/AGENTS.md` (the "no polling" rule) · doc + diagram |
 | **Any VISIBLE string of a built-in widget** (label, title, button, empty state, `placeholder`, `title`) | `tt("key", params, "<the literal>")` in the `widget.js` + the row in `i18n/genesis/en/ui.json` **and** `es.json` · bump `MANIFEST_VERSION` if the SET of keys changes · the gate at node 4.11 requires it and fails the build |
 | **The NAME of a widget or a surface** | `widgets.<id>.name` / `surfaces.<id>.name` in both bundles — NOT `manifest.json`, which stays as the fallback and as an alias so voice keeps answering to the factory word · `widgets/registry.py::display_name` is the only reader |

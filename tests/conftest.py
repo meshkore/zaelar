@@ -163,6 +163,22 @@ def _the_spec_ledger_starts_empty():
 
 
 @pytest.fixture(autouse=True)
+def _the_alert_lights_start_dark():
+    """`voice.health_state` is one in-process table of amber lights; a test that noted a provider failure for real
+    left `worker_tools` amber, and the next test that reads the alerts panel found an error it never caused —
+    measured 2026-10-28, `test_provider_failover` red after `test_a_source_outcome_outlives_the_errand`, green alone."""
+    import sys
+
+    def _dark():
+        lights = getattr(sys.modules.get("voice.health_state"), "_errors", None)
+        if isinstance(lights, dict):          # a test may have put a double in its place; leave that one alone
+            lights.clear()
+    _dark()
+    yield
+    _dark()
+
+
+@pytest.fixture(autouse=True)
 def _composers_never_reach_the_network():
     """The two small model calls a turn can make after the fact — a finished errand's spoken line
     (`spoken_delivery.line`) and the confirmation judge (`widgets.confirm._judge`) — stay off the network inside the
@@ -174,7 +190,7 @@ def _composers_never_reach_the_network():
     from nucleo.turn import his_spec_to_sheet
     from nucleo.workers import spoken_delivery
     his_spec_to_sheet.forget()             # his specs carried to a sheet are per conversation, so per test
-    from nucleo import dispatch_confirm
+    from nucleo.dispatch import confirm as dispatch_confirm
     dispatch_confirm._DECLINED_CONFIRM.clear()   # a «no» one test read must not be a fact in the next one's prompt
     from widgets import confirm
     saved = (spoken_delivery.LIVE, confirm._JUDGE_LIVE, outgoing_lang.LIVE)

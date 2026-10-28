@@ -7,7 +7,7 @@ cannot forge is where its process came from, so the operator's own routes ask th
   · the peer socket is found among this user's processes (the client end of the connection: its local address is
     the request's peer address, its remote port is the port this engine served it on);
   · that process is a WORKER when the engine is one of its ancestors (a worker, its tools, the agent's own
-    Chromium, the widget generator), when it lives in a session a worker opened (`nucleo/workers/spawned.py` —
+    Chromium, the widget generator), when it lives in a session a worker opened (`nucleo/workers/providers/spawned.py` —
     this catches an orphan whose parent died), or when it carries a worker's environment markers;
   · the engine itself is SELF; anything else on the machine is OUTSIDE (his browser, his terminal, the harness);
   · a socket nobody here owns is UNKNOWN — another machine, or a connection already gone.
@@ -96,6 +96,6 @@ def classify(pid: int | None, *, engine_pid: int, worker_sids: frozenset[int]) -
 
 def kind_of(peer_ip: str, peer_port: int, server_port: int) -> str:
     """Blocking (a process scan, ~15 ms on a busy Mac): call it off the event loop."""
-    from nucleo.workers import spawned
+    from nucleo.workers.providers import spawned
     return classify(find_pid(peer_ip, peer_port, server_port), engine_pid=os.getpid(),
                     worker_sids=spawned.sessions())

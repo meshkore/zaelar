@@ -10,7 +10,7 @@
 # any module reads it at import time. Same knob shape as bus/log.py's ZAELAR_DB / nucleo/workspace.py's
 # ZAELAR_WORKSPACE; unset in production → byte-identical to before.
 #
-# ZAELAR_RESEARCH=0 — the RESEARCH DIRECTOR (nucleo/research.py) composes a selection brief with a REAL
+# ZAELAR_RESEARCH=0 — the RESEARCH DIRECTOR (nucleo/workers/brief.py) composes a selection brief with a REAL
 # provider call during escalation preflight. That is wanted in production; in a test it is
 # an undeclared network call that hangs the case until timeout (seen with
 # `test_listener_consumes_escalate_requested`: «busca un piso» is research, so dispatch started calling the model).
