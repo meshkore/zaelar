@@ -8,6 +8,7 @@ construction: email and WhatsApp below, an address and a contact, Spanish and En
 """
 from __future__ import annotations
 
+import asyncio
 import threading
 import time
 
@@ -40,6 +41,13 @@ def _isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(his_words, "since", lambda ts: ["send it"] if ts < time.time() + 1 else [])
     yield
     consent._reset_for_tests()
+    # Process state the gate tests leave behind (the disarm leaves a pending question ON PURPOSE): a later voice
+    # turn in the same process answered it instead of closing its card.
+    from nucleo import his_words as _hw, untrusted
+    from widgets import confirm as wc
+    wc.reset()
+    untrusted.reset()
+    _hw.reset()
 
 
 def _held_email():
@@ -157,9 +165,70 @@ def test_the_same_inputs_give_every_channel_the_same_decision():
         assert consent.asks(consent.decide(level="sensitive", policy_key=f"messaging.send_new@{chan}", his_yes=True))
 
 
+def _ask_once_then_answer(monkeypatch, tmp_path, answer_by: str, *, resolve_consumes: bool = True):
+    """An unsure order over a held draft goes through the REAL widget_data gate, is asked once, and is answered by
+    one channel; returns what the gate asked, what was emitted, what each channel found and what left."""
+    from types import SimpleNamespace
+
+    from tests import widget_data_rig as rig
+    from widgets import confirm as wc
+    rig.scene(tmp_path, monkeypatch)
+    wc.reset()
+    emitted = []
+    monkeypatch.setattr(wc, "_emit", lambda action, wid, extra=None: emitted.append((action, wid)))
+    if not resolve_consumes:                                   # the disarm: an answer leaves the row standing
+        real = wc.resolve
+        monkeypatch.setattr(wc, "resolve", lambda wid="", ok=True: (lambda p: (p and wc._PENDING.update(
+            {p["widget_id"]: {k: v for k, v in p.items() if k != "widget_id"}})) or p)(real(wid, ok)))
+    data.apply_action("draft", {"contact": "quinn@example.com", "subject": "Thursday",
+                                "text": "Hi Quinn, Thursday at ten works for us."})
+    payload = {"contact": "quinn@example.com"}
+    out = rig.run("mensajeria", "send_draft", payload, said="send that one",
+                  turn_brief=rig.brief("mensajeria:send_draft", 0.55), monkeypatch=monkeypatch)
+    for w, a, p in out.asked:                                  # the gate's one question, registered as the turn does
+        wc.request("data", w, "¿Lo mando?", op={"action": a, "payload": p}, notify_ui=wc.ui_paints(w))
+
+    def _voice():
+        from voice.engine.llm.providers import nucleo as prov, pending_confirm
+        monkeypatch.setattr(prov, "_spawn", lambda coro, name: asyncio.run(coro))
+        return pending_confirm._resolve_pending_confirm(True)
+
+    def _chat():
+        from widgets import server_api
+        r = asyncio.run(server_api.confirm_widget("mensajeria", {"ok": True}))
+        return r.status_code == 200
+
+    first, second = (_voice, _chat) if answer_by == "voice" else (_chat, _voice)
+    found = (first(), second())
+    return SimpleNamespace(out=out, emitted=emitted, found=found, left=list(data.load_db().get("pending_send") or []),
+                           still=wc.pending())
+
+
+@pytest.mark.parametrize("answer_by", ["voice", "chat"])
+def test_a_held_send_is_asked_once_and_either_channel_resolves_that_one_row(monkeypatch, tmp_path, answer_by):
+    """Behaviour of «asked once, in one place»: the unsure order is ONE pending row with ONE question emitted; the
+    first channel that answers sends exactly that draft, and the other finds nothing left to answer."""
+    r = _ask_once_then_answer(monkeypatch, tmp_path, answer_by)
+    assert r.out.ran == [] and len(r.out.asked) == 1, (r.out.ran, r.out.asked)
+    assert r.emitted.count(("confirm", "mensajeria")) == 1, r.emitted
+    assert r.found == (True, False), "the second channel must find no second question"
+    assert [(o["to"], o.get("subject")) for o in r.left] == [("quinn@example.com", "Thursday")]
+    assert not r.still
+
+
+def test_the_disarm_an_answer_that_leaves_the_row_standing_asks_twice(monkeypatch, tmp_path):
+    """Disarm: when an answer does not consume the one row, the other channel still finds a question to answer."""
+    r = _ask_once_then_answer(monkeypatch, tmp_path, "voice", resolve_consumes=False)
+    assert r.found == (True, True) and r.still, "the mutation did not take: the row was consumed anyway"
+
+
 def test_a_pending_confirmation_has_one_surface_the_conversation():
     """«La confirmación se pide UNA vez, en UN sitio»: the chat thread holds the Yes/No (answerable there or by
-    voice — both resolve the same pending row); the card overlay that repeated it is gone."""
+    voice — both resolve the same pending row); the card overlay that repeated it is gone.
+
+    Kept as a SOURCE check on purpose: which surface paints the question is `sse.js` routing, which cannot be
+    driven from Python (the module pulls the store and the UI in at import). Its behaviour half — one row, one
+    question emitted, either channel resolves it — is the test above."""
     import pathlib
     sse = (pathlib.Path(__file__).resolve().parents[4] / "frontend/app/services/sse.js").read_text(encoding="utf-8")
     block = sse[sse.index('else if (d.label === "confirm" && d.id) {'):][:900]

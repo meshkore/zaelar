@@ -1,4 +1,3 @@
-from tests import voice_turn_source as _vts
 """Closing a card is a TOOL, like opening one (demo pass 2026-09-28).
 
 Showing had `show_widget`; closing only the [[close]] text tag. Measured on the human-script turns with the
@@ -52,8 +51,40 @@ def test_an_empty_id_is_the_card_his_last_turn_acted_on(monkeypatch):
     assert show_target.close_target("") == "results::ab-1"
 
 
+def _voice_turn(phrase: str, tools: list):
+    """Through the voice turn itself (the bank harness: the real `run_turn`, a recorded model, every door dry)."""
+    from tests.brain import harness as H
+    case = {"id": "close-tool", "lang": "en", "phrase": phrase, "source": "node 2.88", "expect": "talk",
+            "screen": {"open": ["results", "agenda"]}, "model": {"say": "", "tools": tools}}
+    try:
+        out = H.run_case(case)
+    finally:
+        from nucleo import canvas_closes, done_ops
+        from nucleo.flash import bulk_close, canvas_license
+        done_ops.reset()
+        bulk_close.reset()
+        canvas_closes._reset_for_tests()
+        canvas_license._RECENT_CLOSES.clear()
+    assert not out.error, out.error
+    return out
+
+
+#: «put that away while you work»: no close verb for a backstop to read — only the TOOL can set the card aside.
+_PUT_AWAY = ("put that away while you work",
+             [{"name": "close_widget", "args": {"widget_id": "results", "mode": "minimize"}}])
+
+
 def test_the_voice_turn_routes_it():
-    assert 'name == "close_widget"' in _vts.turn_source()
+    out = _voice_turn(*_PUT_AWAY)
+    assert out.decision == "minimize" and out.tags == [{"action": "minimize", "extra": {"id": "results"}}], out.tags
+
+
+def test_the_disarm_a_turn_that_never_reaches_the_close_door_sets_nothing_aside(monkeypatch):
+    """The canvas route of the tool (`close_dispatch`) switched off: the same call leaves the sheet where it was."""
+    monkeypatch.setattr(show_target, "close_dispatch", lambda *a, **k: "")
+    assert show_target.close_dispatch({"widget_id": "results"}, None, None) == "", "the mutation landed"
+    out = _voice_turn(*_PUT_AWAY)
+    assert out.decision != "minimize" and out.tags == [], (out.decision, out.tags)
 
 
 def test_a_close_is_not_acknowledged_as_an_open():

@@ -105,7 +105,34 @@ def test_a_suppressed_show_for_another_reason_is_no_touch():
     assert cf.last_turn_card(["musica", "youtube"]) == ""
 
 
-def test_the_door_marks_the_already_open_refusal():
-    from pathlib import Path
-    src = (Path(__file__).resolve().parents[4] / "nucleo/flash/canvas_visibility.py").read_text("utf-8")
-    assert 'return _suppress("ya está abierta", already_open=True)' in src
+def _show_over_the_open_card(monkeypatch, *, strip_marker: bool = False):
+    """His previous turn asks the ONE show door for the music card, already up; the refusal it emits reaches the
+    focus funnel as the engine's event stream would carry it. Then his next turn: «pause it a sec»."""
+    from nucleo.flash import canvas_visibility as cv
+    monkeypatch.setattr(cv, "is_open", lambda wid, known=None: True)
+    monkeypatch.setattr(cv, "is_minimized", lambda wid: False)
+    seen = []
+
+    def funnel(kind, label, extra=None, **_k):
+        e = dict(extra or {})
+        if strip_marker:
+            e.pop("already_open", None)
+        seen.append((label, e.get("already_open")))
+        cf.note(kind, label, extra=e)
+    cf.note("transcript", "text-injected", role="user")
+    shown = cv.present("musica", reason="turn-order", src="flash", emit=funnel)
+    cf.note("transcript", "text-injected", role="user")                # «pause it a sec»
+    return shown, seen
+
+
+def test_the_door_marks_the_already_open_refusal(monkeypatch):
+    shown, seen = _show_over_the_open_card(monkeypatch)
+    assert shown is False and seen == [("🚫 presentación suprimida", True)], seen
+    assert _subject(monkeypatch, "pause it a sec") == "musica", "the refused show was still his turn aiming at it"
+
+
+def test_the_disarm_a_refusal_without_the_marker_loses_the_touch(monkeypatch):
+    """The same refusal with `already_open` stripped: no touch is left, and «pause it» falls back to the video — U3."""
+    shown, seen = _show_over_the_open_card(monkeypatch, strip_marker=True)
+    assert shown is False and seen == [("🚫 presentación suprimida", None)], "the mutation landed"
+    assert _subject(monkeypatch, "pause it a sec") != "musica"

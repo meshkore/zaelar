@@ -7,33 +7,33 @@ to go. The flat shapes now land as the same channel row.
 """
 from __future__ import annotations
 
-from widgets.contactos import model
+from widgets.contactos import channels
 
 
 def test_channel_and_handle_flat():
-    rows = model.channels_in({"name": "Rowan", "channel": "telegram", "handle": "@rowan_example"})
+    rows = channels.channels_in({"name": "Rowan", "channel": "telegram", "handle": "@rowan_example"})
     assert [(r["platform"], r.get("handle")) for r in rows] == [("telegram", "@rowan_example")], rows
 
 
 def test_a_platform_named_as_its_own_key():
-    rows = model.channels_in({"name": "Rowan", "telegram": "@rowan_example"})
+    rows = channels.channels_in({"name": "Rowan", "telegram": "@rowan_example"})
     assert [(r["platform"], r.get("handle")) for r in rows] == [("telegram", "@rowan_example")], rows
 
 
 def test_the_list_shape_still_wins():
-    rows = model.channels_in({"channels": [{"platform": "whatsapp", "handle": "+34600000000"}],
+    rows = channels.channels_in({"channels": [{"platform": "whatsapp", "handle": "+34600000000"}],
                               "channel": "telegram", "handle": "@x"})
     assert [r["platform"] for r in rows] == ["whatsapp"], rows
 
 
 def test_an_email_alone_is_not_a_channel_row_here():
-    assert model.channels_in({"name": "Quinn", "email": "quinn@example.com"}) == []
+    assert channels.channels_in({"name": "Quinn", "email": "quinn@example.com"}) == []
 
 
 # Demo pass 104, INIT: the same sentence came a third way — `{channel, value}` — and both contacts were saved bare.
 
 def test_channel_and_value_flat():
-    rows = model.channels_in({"name": "Rowan", "channel": "telegram", "value": "@rowan_example"})
+    rows = channels.channels_in({"name": "Rowan", "channel": "telegram", "value": "@rowan_example"})
     assert [(r["platform"], r.get("handle")) for r in rows] == [("telegram", "@rowan_example")], rows
 
 

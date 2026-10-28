@@ -9,8 +9,8 @@ import re
 import time
 
 from .. import store
-from . import gcontacts
-from . import model
+from . import gcontacts, gmerge
+from . import channels, model
 
 # A QUESTION about somebody is answered from the RECORD (`lookup.py`, V2-704), not from the digest; re-exported
 # because `read_query` is the seam `nucleo/flash/widget_read` looks for on every widget's `data.py`.
@@ -71,11 +71,11 @@ _group_matches = model.group_matches
 _matches = model.matches
 _platform = model.platform
 _PLATFORMS = model.PLATFORMS
-_channel_row = model.channel_row
-_channels_in = model.channels_in
-_same_channel = model.same_channel
-_owner_of_channel = model.owner_of_channel
-_merge_channel = model.merge_channel
+_channel_row = channels.channel_row
+_channels_in = channels.channels_in
+_same_channel = channels.same_channel
+_owner_of_channel = channels.owner_of_channel
+_merge_channel = channels.merge_channel
 
 
 # How long a pushed view stays worth OBEYING (the agenda's `show_day` contract, V2-540): `n` is a monotonic push
@@ -199,9 +199,11 @@ from .digest import people_named, prompt_digest, ref_index  # noqa: E402,F401 â€
 
 # The action handlers live in `actions.py` (which reads this module) (V2-778 F1-12).
 from .actions import (  # noqa: E402,F401
-    _a_add_contact, _a_update_contact, _a_set_channel, _a_add_channel, _a_show_sources, _a_remove_contact,
-    _a_set_favorite, _a_hide_contact, _a_sync_source, _a_link_contact, _a_show_contact_members, _a_show_view,
-    _a_show_contact, _a_set_auto, _a_sync_contacts, _a_set_flag, _a_restore_contact)
+    _a_add_contact, _a_update_contact, _a_set_channel, _a_add_channel, _a_remove_contact, _a_set_favorite,
+    _a_hide_contact, _a_link_contact, _a_set_flag, _a_restore_contact)
+from .views import (  # noqa: E402,F401
+    _a_show_sources, _a_sync_source, _a_show_contact_members, _a_show_view, _a_show_contact, _a_set_auto,
+    _a_sync_contacts)
 
 
 # `apply_action` is a table lookup; the contract gate reads the table's keys (`widgets/validator._table_actions`).
@@ -245,9 +247,9 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
 
 
 #: The GOOGLE merge lives in `gcontacts.py`, beside the who-wins-a-conflict rule (V2-714); aliased for callers.
-_merge_imported = gcontacts.merge_imported
-_match_imported = gcontacts.match_imported
-_drop_deleted = gcontacts.drop_deleted
+_merge_imported = gmerge.merge_imported
+_match_imported = gmerge.match_imported
+_drop_deleted = gmerge.drop_deleted
 
 
 def tick(ctx) -> None:

@@ -95,11 +95,12 @@ def test_the_question_is_a_sentence_a_person_hears(wid, act):
 def test_the_gate_refuses_a_confirmation_with_no_question_and_the_view_contradiction():
     """A rule each widget author has to remember is not a rule — `widgets/validator.py` enforces both."""
     from widgets import validator
-    assert validator._validate_confirm_questions(
+    from widgets import validator_actions as _validator_actions_m
+    assert _validator_actions_m._validate_confirm_questions(
         {"actions": {"borrar": {"desc": "borra todo", "confirm": True}}}), "a bare confirmation must be refused"
-    assert validator._validate_confirm_questions(
+    assert _validator_actions_m._validate_confirm_questions(
         {"actions": {"mirar": {"desc": "x", "view": True, "confirm": True}}}), "view+confirm contradict"
-    assert validator._validate_confirm_questions(
+    assert _validator_actions_m._validate_confirm_questions(
         {"actions": {"borrar": {"desc": "borra todo", "confirm": True, "confirm_q": "¿Lo borro?"}}}) is None
 
 

@@ -127,7 +127,47 @@ def test_a_live_errand_is_not_started_twice(monkeypatch):
     assert took and esc == [] and req["resumed"] == ["b00t01-2"]
 
 
+def _fragment_turn(monkeypatch, text, *, ask_rows: bool = True):
+    """A short turn about pending work, with the model's commission glued to an old utterance, passed through the two
+    steps in the order the turn runs them: the rows are asked, then the fragment guard reads what is left."""
+    from nucleo.flash import escalation_guard
+    _errand()
+    calls = []
+    _verdict(monkeypatch, {"task"}, calls)
+    esc = _escalations(monkeypatch)
+    if not ask_rows:                                            # the disarm: the rows are never asked
+        async def _skip(*a, **k):
+            return None
+        monkeypatch.setattr(resume_turn, "before_fragment_guard", _skip)
+    req, acted = {"v": "Vale. ¿Serías capaz de reservarme, Johnny, un restaurante — " + text, "more": []}, {}
+    asyncio.run(resume_turn.before_fragment_guard(req, operator_text=text, brief=None, last_reply="Hecho.",
+                                                  apply_widget_data=None, emit=None, acted=acted))
+    annulled = escalation_guard.drop_if_fragment(req, operator_text=text, brief=None, last_reply="Hecho.")
+    return req, esc, annulled
+
+
+@pytest.mark.parametrize("text", ["acaba eso", "finish that"])
+def test_a_fragment_about_pending_work_resumes_its_row_before_the_guard_annuls_it(monkeypatch, text):
+    """Behaviour of the order the source test below pins: a turn too thin to commission is first resolved against the
+    pending rows, so the errand resumes from its own brief and the guard has nothing left to annul."""
+    from nucleo.flash import escalation_guard
+    assert escalation_guard.is_a_fragment(text), "the variant must be one the guard would annul"
+    req, esc, annulled = _fragment_turn(monkeypatch, text)
+    assert req.get("resumed") == ["b00t01-1"] and not annulled, (req, annulled)
+    (brief, ctx), = esc
+    assert brief.startswith(GOAL) and "Serías capaz" not in brief and ctx["task_uid"] == "b00t01-1"
+
+
+def test_the_disarm_a_guard_that_runs_before_the_rows_annuls_the_resumption(monkeypatch):
+    """Disarm: with the rows never asked, the same turn is annulled as a fragment and nothing resumes."""
+    req, esc, annulled = _fragment_turn(monkeypatch, "acaba eso", ask_rows=False)
+    assert annulled and esc == [] and "resumed" not in req and req["v"] is None
+
+
 def test_both_doors_ask_the_rows_before_annulling_or_gluing():
+    """Kept as a SOURCE check: the call ORDER inside the two turn bodies (`complete_the_acts`, `run_the_light_lanes`,
+    each taking ~40 closure arguments) cannot be observed without driving the whole voice turn. What that order
+    buys is the behaviour test above."""
     words = (ROOT / "nucleo/flash/post_stream_acts.py").read_text(encoding="utf-8")
     assert words.index("_resume_turn.before_fragment_guard(") < words.index("_pst._eguard.drop_if_fragment(")
     lanes = (ROOT / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
@@ -165,10 +205,60 @@ def test_the_card_title_is_the_errand_name_and_a_summary_never_overwrites_it():
     assert navdata._task_view(navtasks.get(tid))["title"] == "Mesa para 2 en Soria"
 
 
-def test_a_browser_card_is_born_with_the_errands_name_and_renamed_with_it():
-    src = (ROOT / "nucleo/dispatch/prepare.py").read_text(encoding="utf-8")
-    assert "navtasks.create(req, _errand_name(rec, req)" in src
-    assert "_navtasks.set_title(rec.nav_task, t)" in src
+REQ = "Vale. ¿Serías capaz de reservarme, Johnny, un restaurante — finish those two things"
+
+
+def _web_card(monkeypatch, title: str):
+    """The browser card `_prepare_web` opens for an errand, and the same card after the namer named the errand."""
+    from types import SimpleNamespace
+
+    from nucleo import dispatch
+    from nucleo.agentes import web as agweb
+    from nucleo.request import title as errand_title
+    from widgets.navegador import data as navdata, tasks as navtasks
+
+    async def _refusal(goal):
+        return "No se puede: la petición no contiene objetivo, criterios, tipo"
+    monkeypatch.setattr(agweb, "_synthesize_goal", _refusal)
+    monkeypatch.setattr(dispatch, "sync_state", lambda: None)
+    monkeypatch.setattr(navtasks, "_tasks", {})          # the registry is process state: no tab from another test
+    rec = SimpleNamespace(title=title, goal=REQ, trace_id="", task_id="b00t01-9", surface="", status="running",
+                          nav_task="")
+    tid = asyncio.run(dispatch._prepare_web(rec, REQ))
+    born = navdata._task_view(navtasks.get(tid))["title"]
+    monkeypatch.setattr(errand_title, "enabled", lambda: True)
+
+    async def _named(goal, **_k):
+        return "Table for two in Soria"
+    monkeypatch.setattr(errand_title, "compose", _named)
+
+    async def _name():
+        dispatch._name_errand(rec)
+        await asyncio.gather(*list(dispatch._TITLE_BG_TASKS))
+    asyncio.run(_name())
+    return born, navdata._task_view(navtasks.get(tid))["title"], rec
+
+
+def test_a_browser_card_is_born_with_the_errands_name_and_renamed_with_it(monkeypatch):
+    born, renamed, rec = _web_card(monkeypatch, "Mesa en Soria")
+    assert born == "Mesa en Soria", "born with the errand's name, never the utterance or the summariser's refusal"
+    assert renamed == "Table for two in Soria" == rec.title, "the namer's name reaches the card the errand opened"
+
+
+def test_an_unnamed_errand_card_is_born_with_the_provisional_name_never_the_utterance(monkeypatch):
+    from nucleo.request import title as errand_title
+    born, _renamed, _rec = _web_card(monkeypatch, "")
+    assert born == errand_title.provisional(REQ) and "No se puede" not in born
+
+
+def test_the_disarm_a_card_born_with_the_utterance_and_never_renamed(monkeypatch):
+    """Disarm: the naming door hands the raw request and the rename never reaches the card — both assertions flip."""
+    from nucleo.dispatch import prepare
+    from widgets.navegador import tasks as navtasks
+    monkeypatch.setattr(prepare, "_errand_name", lambda rec, req: req)
+    monkeypatch.setattr(navtasks, "set_title", lambda tid, name: None)
+    born, renamed, _rec = _web_card(monkeypatch, "Mesa en Soria")
+    assert born != "Mesa en Soria" and renamed != "Table for two in Soria", "the mutation did not take"
 
 
 # ── the MODEL resumes, from the state it is shown; the verdict only completes it ─────────────────────────
@@ -186,6 +276,31 @@ def test_the_prompt_carries_pending_rows_only_when_there_are_any():
     from nucleo.turn.prompt import live_state
     assert live_history.pending_work_lines() == lines
     assert all(line in live_state.live_state() for line in lines), "the rows are built and never reach the turn"
+
+
+def _live_state_pending(with_rows: bool) -> list[str]:
+    """The PENDIENTE block as the turn prompt's live state carries it (`nucleo.turn.prompt.live_state`)."""
+    from nucleo.turn.prompt import live_state as prompt
+    if with_rows:
+        _errand(uid="b00t01-4", goal="Find a dentist open on Saturday", outcome="Two fit — want me to book one?")
+        _held_email()
+    pending_work.forget_cache()
+    state = prompt.live_state().splitlines()
+    i = next((n for n, line in enumerate(state) if line.startswith("PENDIENTE")), None)
+    return [] if i is None else state[i:i + 1 + len(pending_work.rows())]
+
+
+def test_the_turn_prompt_carries_the_pending_block_only_when_rows_exist():
+    assert _live_state_pending(False) == [], "nothing pending: the block is not in the prompt"
+    block = _live_state_pending(True)
+    assert any("b00t01-4" in line for line in block) and any(line.startswith("· mensajeria:") for line in block)
+
+
+def test_the_disarm_a_live_state_without_the_pending_block(monkeypatch):
+    """Disarm: when the live block yields nothing, the prompt loses the rows the model resumes by id."""
+    from nucleo.turn.prompt import live_history
+    monkeypatch.setattr(live_history, "pending_work_lines", lambda: [])
+    assert _live_state_pending(True) == []
 
 
 def test_the_resume_tool_is_offered_only_when_something_is_pending():

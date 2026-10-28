@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 
 from widgets import validator
+from widgets import validator_actions as _validator_actions_m
 
 _DATA = '''from . import sub
 
@@ -42,11 +43,11 @@ def _widget(tmp_path):
 
 def test_a_delegate_that_renames_its_parameter_counts_its_actions(tmp_path):
     man = _widget(tmp_path)
-    assert validator._validate_actions_sync(man, _DATA, str(tmp_path)) is None
+    assert _validator_actions_m._validate_actions_sync(man, _DATA, str(tmp_path)) is None
 
 
 def test_a_declared_action_nobody_handles_is_still_dead(tmp_path):
     man = _widget(tmp_path)
     man["actions"]["ghost"] = {"desc": "x"}
-    err = validator._validate_actions_sync(man, _DATA, str(tmp_path))
+    err = _validator_actions_m._validate_actions_sync(man, _DATA, str(tmp_path))
     assert err and "ghost" in err, err
