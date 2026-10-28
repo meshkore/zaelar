@@ -10,14 +10,9 @@ A reminder that rings, a commission that finished, an approval the agent is wait
     seen     he opened it (notification click)
     owed     nobody could take it yet: retried with backoff, and drained to the next screen that opens
 
-Three properties, each with its test (`tests/agent_headless/unit/test_notice_ledger.py`):
-  · NEVER TWICE — `dedupe_key` is UNIQUE. A second emit for the same key (a restart that re-fires a job, two doors
-    announcing the same finish) returns the existing row and delivers nothing.
-  · NEVER LOST — a notice no channel could take stays `owed`; it is retried, and the next screen shows it.
-  · ⏻ SILENCES THE VOICE, NOT THE LOCK SCREEN — stopped, nothing is spoken; a push still goes out.
-
-Which notices push is DECLARED by the caller (`notify(..., push=True)` is the default only here), never guessed
-from the words: `voice/proactive.notify` stays the voice door for everything else, interim lines included.
+Tested in `tests/agent_headless/unit/test_notice_ledger.py`: NEVER TWICE (`dedupe_key` is UNIQUE; a re-emit
+returns the existing row), NEVER LOST (`owed` is retried and drained to the next screen), ⏻ SILENCES THE VOICE,
+NOT THE LOCK SCREEN. Push is DECLARED by the caller; `voice/proactive.notify` stays the voice door for the rest.
 """
 from __future__ import annotations
 
@@ -29,8 +24,7 @@ import time
 
 logger = logging.getLogger("zaelar.notices")
 
-#: How long someone must have touched a screen for a spoken notice to count as HEARD. A desktop tab left visible on
-#: an empty desk is not an audience; past this, the phone is told as well.
+#: A spoken notice counts as HEARD only if a screen was touched this recently; past it, the phone is told too.
 PRESENT_S = 15 * 60
 #: Retry schedule for an owed notice (seconds after each failed attempt), then it waits for a screen.
 _BACKOFF_S = (60, 300, 900, 1800, 3600)
