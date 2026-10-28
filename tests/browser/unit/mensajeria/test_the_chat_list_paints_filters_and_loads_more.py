@@ -6,9 +6,6 @@ Verified by RENDERING the widget — the lens is chosen by a pushed view, and a 
 from __future__ import annotations
 
 import pathlib
-import socket
-import subprocess
-import sys
 import time
 
 import pytest
@@ -16,42 +13,21 @@ import pytest
 pytest.importorskip("playwright.sync_api")
 from playwright.sync_api import sync_playwright
 
-from tests.waiting import until_sync
+from tests.browser import widget_client
+
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
 
-def _free_port() -> int:
-    s = socket.socket()
-    s.bind(("127.0.0.1", 0))
-    port = s.getsockname()[1]
-    s.close()
-    return port
-
-
 @pytest.fixture(scope="module")
 def page():
-    port = _free_port()
-    srv = subprocess.Popen([sys.executable, "-m", "http.server", str(port), "--bind", "127.0.0.1"],
-                           cwd=_ENGINE, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    def up():
-        try:
-            socket.create_connection(("127.0.0.1", port), 0.2).close()
-            return True
-        except OSError:
-            return False
-    until_sync(up, "the static server to answer", timeout_s=15)
-    try:
-        with sync_playwright() as pw:
-            browser = pw.chromium.launch()
-            pg = browser.new_page()
-            pg._hb_url = f"http://127.0.0.1:{port}/widgets/mensajeria/widget.js"
-            pg.goto(f"http://127.0.0.1:{port}/widgets/mensajeria/")
-            yield pg
-            browser.close()
-    finally:
-        srv.terminate()
-
+    with widget_client.serve() as port, sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        pg = browser.new_page()
+        pg._hb_url = f"http://127.0.0.1:{port}/widgets/mensajeria/widget.js"
+        pg.goto(f"http://127.0.0.1:{port}/widgets/mensajeria/")
+        yield pg
+        browser.close()
 
 def _mount(page, data):
     page.set_content("<div id='w'></div>")

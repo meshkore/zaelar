@@ -58,3 +58,14 @@ def test_only_the_widgets_own_modules_may_be_imported():
            'import { a } from "https://cdn.example/x.js";', 'import { a } from "./js/../../x.js";']
     assert all(validator._scan_widget_js(src) is None for src in ok)
     assert all(validator._scan_widget_js(src) for src in bad)
+
+
+def test_a_versioned_entry_versions_the_whole_module_graph(monkeypatch, tmp_path):
+    """The host re-imports `widget.js?v=<n>` to load an edited card with fresh state; its `js/` modules must be new
+    too, or they keep the old code and the old module state."""
+    d = _widget(tmp_path, 'import { x } from "./other.js";\nexport function paint(el){ x(el); }\n')
+    c = _client(monkeypatch, d)
+    assert './js/paint.js?v=17"' in c.get("/widgets/demo/widget.js?v=17").text
+    assert '"./other.js?v=17"' in c.get("/widgets/demo/js/paint.js?v=17").text
+    assert '"./js/paint.js"' in c.get("/widgets/demo/widget.js").text, "no version asked, the file as written"
+    assert './js/paint.js?v=x"' in c.get("/widgets/demo/widget.js?v=../x").text, "the version is sanitised"

@@ -7,10 +7,14 @@ Call it after `pg.goto(<origin>)`; it leaves `window.render` set, which is what 
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from widgets import client_files
+
+_ENGINE = Path(__file__).resolve().parents[2]
 
 _app = FastAPI()
 _app.include_router(client_files.router)
@@ -29,3 +33,33 @@ async def mount(pg, widget_id: str, origin: str = "http://zaelar.test") -> None:
     await pg.route(f"{origin}/widgets/{widget_id}/**", _serve)
     await pg.evaluate("async id => { window.render = (await import(`/widgets/${id}/widget.js`)).render; }",
                       widget_id)
+
+
+class serve:
+    """A real HTTP origin for a page that loads the engine's files: widget clients through their served route (with
+    `?v=` carried to their modules), everything else as static files from the engine. `with serve() as port: …`."""
+
+    def __enter__(self) -> int:
+        import socket
+        import threading
+        import time
+
+        import uvicorn
+        from fastapi.staticfiles import StaticFiles
+
+        app = FastAPI()
+        app.include_router(client_files.router)
+        app.mount("/", StaticFiles(directory=str(_ENGINE)), name="engine")
+        s = socket.socket()
+        s.bind(("127.0.0.1", 0))
+        port = s.getsockname()[1]
+        s.close()
+        self._srv = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+        threading.Thread(target=self._srv.run, daemon=True).start()
+        deadline = time.monotonic() + 15
+        while not self._srv.started and time.monotonic() < deadline:
+            time.sleep(0.05)
+        return port
+
+    def __exit__(self, *exc) -> None:
+        self._srv.should_exit = True
