@@ -35,7 +35,7 @@ def _live_state_with(monkeypatch, mode: str, name: str) -> str:
     monkeypatch.setattr(settings, "get",
                         lambda k, d=None: mode if k == "attention_mode" else real_get(k, d))
     monkeypatch.setattr(memapi, "state", lambda: {"assistant_name": name, "location": "Soria"})
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import live_state as prompt
     return prompt.live_state()
 
 

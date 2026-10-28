@@ -16,7 +16,7 @@ never arrive. While the reassuring half is the one that says what to DO, the mod
 """
 import pytest
 
-from nucleo.flash import prompt as P
+from nucleo.turn.prompt import live_state as P
 
 
 def _state(monkeypatch, ended):

@@ -238,9 +238,11 @@ def test_one_session_can_be_opened_and_summarised(wired):
     sid = identity.begin_session("test")["id"]
     trace.begin("ponme el tiempo")
     emit("brain", "decide", extra={"brain_ms": 100, "prompt_tokens": 500, "completion_tokens": 20})
-    _settle()
-
-    s = flows.session(sid)
+    # Against a clock, not one fixed settle (refactor2710-99, debt #113: intermittent in CI): the sink writes on the
+    # publishing thread, and a busy run can outlast any fixed sleep. The claim is «the session sums my event».
+    from tests.waiting import until_sync
+    s = until_sync(lambda: (lambda x: x if x and x.get("tokens_in") == 500 else None)(flows.session(sid)),
+                   "the session to sum the decide event")
     assert s and s["events"] >= 2 and s["flows"] >= 1
     assert s["tokens_in"] == 500
     assert flows.session("no-existe") == {}, "una sesión que no existe devuelve vacío, no una sesión fingida"

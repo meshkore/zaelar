@@ -14,13 +14,13 @@ import time
 import pytest
 
 from nucleo import done_ops as D
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_record
 
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
     D.reset()
-    monkeypatch.setattr(LB, "_is_open", lambda wid: True)
+    monkeypatch.setattr(live_record, "_is_open", lambda wid: True)
     yield
     D.reset()
 
@@ -36,13 +36,13 @@ def test_an_order_the_rows_show_is_not_listed_again(monkeypatch):
     _rows(monkeypatch, [{"id": "abcdef-i1", "kind": "inline", "state": "done", "verdict": "met",
                          "outcome": "agenda:move_meeting", "finished_at": now - 5, "started_at": now - 6}])
     D.note("agenda", "move_meeting", {"title": "Dentist"})
-    assert LB.done_ops_lines() == [], "the move is already on the request record: once is enough"
+    assert live_record.done_ops_lines() == [], "the move is already on the request record: once is enough"
 
 
 def test_a_click_no_row_shows_is_still_said(monkeypatch):
     _rows(monkeypatch, [])
     D.note("agenda", "clear_range", {"date": "2026-10-17"}, n=5, destructive=True)
-    lines = LB.done_ops_lines()
+    lines = live_record.done_ops_lines()
     assert lines and "agenda:clear_range" in lines[0] and "TIENE RAZÓN" in lines[0]
 
 
@@ -51,5 +51,5 @@ def test_a_destructive_order_keeps_its_instruction_even_when_the_rows_show_it(mo
     _rows(monkeypatch, [{"id": "abcdef-i2", "kind": "inline", "state": "done", "verdict": "met",
                          "outcome": "agenda:clear_range", "finished_at": now - 5, "started_at": now - 6}])
     D.note("agenda", "clear_range", {}, n=4, destructive=True)
-    lines = LB.done_ops_lines()
+    lines = live_record.done_ops_lines()
     assert lines and "TIENE RAZÓN" in lines[0], "the rule V2-707 paid for never leaves"

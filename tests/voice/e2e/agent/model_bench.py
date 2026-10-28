@@ -111,7 +111,8 @@ TURNS = [
 def _build_prompt(text: str) -> tuple[str, list[dict]]:
     """FlashBrain's REAL prompt for this turn (same build as voice/probe). Fallback: minimal prompt."""
     try:
-        from nucleo.flash.prompt import build_flash_system, compose_recent_block, needs_recall, needs_recent
+        from nucleo.flash.recall_heuristics import compose_recent_block, needs_recall, needs_recent
+        from nucleo.turn.prompt.builder import build_flash_system
         recall_q = text if needs_recall(text) else ""
         recent_block = compose_recent_block() if needs_recent(text) else ""
         system, _ = build_flash_system(directive="", recall_query=recall_q, recent_block=recent_block)

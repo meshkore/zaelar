@@ -34,7 +34,7 @@ def keeps_the_worker(brief, widget_id: str) -> bool:
         return False
     try:
         from nucleo import surfaces as _sf
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         route, _ = _tb.read(brief, _tb.ESCALATE_KEY, "")
         surface, _ = _tb.read(brief, _sf.SURFACE_KEY, "", min_confidence=0.7)
         keep = str(route) == "escalate" and (str(surface) == _sf.LIST

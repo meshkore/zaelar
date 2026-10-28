@@ -45,7 +45,7 @@ def repair_action_from_brief(widget_id: str, brief) -> str | None:
     `repair_action` below opens its own blocking call to get. Returns the declared action name, or
     None for anything else: a verdict about another open card, `none`, unsure, or no brief at all.
     """
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     choice, _info = _tb.read(brief, _tb.TARGET_KEY, "")
     wid = (widget_id or "").strip().lower()
     if not choice or ":" not in str(choice):

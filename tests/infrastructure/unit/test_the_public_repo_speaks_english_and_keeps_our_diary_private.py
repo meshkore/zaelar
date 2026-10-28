@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 1988   # refactor2710-06: measured with 10 merged
+TOTAL = 1975   # refactor2710-08: measured with main merged (was 2026)
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -84,6 +84,7 @@ PER_FILE: dict[str, int] = {
     'memory/slots.py': 15,
     'memory/state.py': 41,
     'memory/vault_api.py': 1,
+    'nucleo/acts/errand.py': 1,
     'nucleo/acts/tools.py': 4,
     'nucleo/cli/report.py': 3,
     'nucleo/agentes/claude_code.py': 11,
@@ -93,7 +94,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/batch/runner.py': 1,
     'nucleo/cli/usage.py': 2,
     'nucleo/consent.py': 1,
-    'nucleo/context_packs/introduction.py': 5,
+    'nucleo/turn/prompt/packs/introduction.py': 5,
     'nucleo/danger.py': 1,
     'nucleo/dev_worker_guard.py': 1,
     'nucleo/dispatch/__init__.py': 3,
@@ -103,7 +104,10 @@ PER_FILE: dict[str, int] = {
     'nucleo/dispatch/confirm.py': 4,
     'nucleo/dispatch/listener.py': 1,
     'nucleo/dispatch/prepare.py': 6,
-    'nucleo/dispatch_prompts.py': 110,
+    'nucleo/workers/prompts/build.py': 11,    # refactor2710-08: nucleo/dispatch_prompts.py (110) split, 36 translated
+    'nucleo/workers/prompts/context.py': 10,
+    'nucleo/workers/prompts/drawer.py': 9,
+    'nucleo/workers/prompts/web.py': 44,
     'nucleo/dispatch/session.py': 6,
     'nucleo/dispatch/session_steps.py': 10,
     'nucleo/energy/lease.py': 57,
@@ -123,11 +127,13 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/dialog.py': 10,
     'nucleo/flash/direct_action.py': 1,
     'nucleo/flash/errand_sheet.py': 10,
-    'nucleo/acts/errand.py': 1,
+    'nucleo/flash/escalate.py': 16,
     'nucleo/llm/fast_client.py': 55,
     'nucleo/flash/hard_turn.py': 1,
-    'nucleo/flash/live_blocks.py': 84,
-    'nucleo/flash/live_blocks_nav.py': 104,
+    'nucleo/turn/prompt/live_browser.py': 27,   # refactor2710-08b: live_blocks (84) + nav (104) + task_block (43), moved
+    'nucleo/turn/prompt/live_browser_nav.py': 104,
+    'nucleo/turn/prompt/live_sheet.py': 57,
+    'nucleo/turn/prompt/live_tasks.py': 43,
     'nucleo/llm/model_spec.py': 7,
     'nucleo/flash/post_stream.py': 2,
     'nucleo/flash/post_stream_lanes.py': 89,
@@ -141,7 +147,9 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/probe_decide.py': 25,
     'nucleo/flash/probe_mirrors.py': 47,
     'nucleo/flash/probe_scheduling.py': 37,
-    'nucleo/flash/prompt.py': 119,
+    'nucleo/turn/prompt/builder.py': 4,       # refactor2710-08: nucleo/flash/prompt.py (119) split four ways
+    'nucleo/turn/prompt/live_state.py': 44,
+    'nucleo/turn/prompt/operating.py': 66,
     'nucleo/llm/provider_chain.py': 43,
     'nucleo/flash/recall_heuristics.py': 30,
     'nucleo/flash/router.py': 2,
@@ -152,7 +160,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/show_target.py': 3,
     'nucleo/flash/site_catalog.py': 10,
     'nucleo/flash/style_directive.py': 1,
-    'nucleo/flash/task_block.py': 43,
     'nucleo/flash/tool_executor.py': 2,
     'nucleo/flash/tool_executor_calls.py': 4,
     'nucleo/flash/tool_executor_widget.py': 2,

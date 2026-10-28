@@ -169,7 +169,8 @@ def test_an_order_reading_is_enough_to_ask_the_repair():
     was named. A turn the verdict reads as an ORDER now asks the repair, which finds the card through the late
     catalogue question and judges its own reply."""
     import threading
-    from nucleo.flash import direct_action as da, turn_brief as tb
+    from nucleo.flash import direct_action as da
+    from nucleo.turn import brief as tb
     ev = threading.Event(); ev.set()
     order = {"event": ev, "turn_id": "t", "open_ids": [], "result": {tb.REQUEST_KEY: {"choice": "order", "confidence": 0.9}}}
     remark = {"event": ev, "turn_id": "t", "open_ids": [], "result": {tb.REQUEST_KEY: {"choice": "comment", "confidence": 0.9}}}
@@ -187,7 +188,8 @@ def test_a_sure_act_reading_is_an_order_even_when_the_request_type_is_unsure():
     """full11 C5: «send rowan a telegram with the new time» → request_type order at 0.46 (unsure), wants_words act at
     0.92; «Sending it now» over nothing and no repair."""
     import threading
-    from nucleo.flash import direct_action as da, turn_brief as tb
+    from nucleo.flash import direct_action as da
+    from nucleo.turn import brief as tb
     ev = threading.Event(); ev.set()
     b = {"event": ev, "turn_id": "t", "open_ids": [], "result": {
         tb.REQUEST_KEY: {"choice": "order", "confidence": 0.46}, tb.WORDS_KEY: {"choice": "act", "confidence": 0.92}}}

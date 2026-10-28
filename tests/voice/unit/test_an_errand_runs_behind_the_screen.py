@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 
 from nucleo.flash import canvas_visibility as cv
-from nucleo.flash import turn_brief as tb
+from nucleo.turn import brief as tb
 
 
 @pytest.fixture()

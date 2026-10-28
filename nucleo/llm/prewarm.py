@@ -30,7 +30,7 @@ async def _warm_flash() -> None:
         # FASE 1: calentar con la FORMA REAL del turno (system prompt COMPLETO + router.TOOLS), no un "ping" pelado.
         # Así el 1er turno real no paga el frío del prompt grande + esquemas de tools + el establecimiento TLS (que
         # con el keepalive largo del cliente sobrevive hasta que el operador habla). Mide TTFT y total.
-        from nucleo.flash.prompt import build_flash_system
+        from nucleo.turn.prompt.builder import build_flash_system
         from nucleo.flash.router import TOOLS
         try:
             system, _ = build_flash_system()

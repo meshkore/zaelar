@@ -10,7 +10,9 @@ import re
 import threading
 from pathlib import Path
 
-from nucleo.flash import direct_action as _da, turn_brief as _tb
+from nucleo.flash import direct_action as _da
+
+from nucleo.turn import brief as _tb
 
 SRC = Path(__file__).resolve().parents[3] / "voice" / "engine" / "llm" / "providers" / "nucleo.py"
 

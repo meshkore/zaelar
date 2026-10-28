@@ -59,7 +59,7 @@ def request_of(brief=None, text: str | None = None, *, credit: bool | None = Non
         req["turn_credit"] = credit
     if brief is None:
         return req
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     verdict = {}
     for key in (_tb.CANVAS_KEY, _tb.TARGET_KEY, _tb.CATALOG_KEY):
         choice, info = _tb.read(brief, key, "", min_confidence=0.0)
@@ -72,7 +72,7 @@ def request_of(brief=None, text: str | None = None, *, credit: bool | None = Non
 
 
 def _note_read(ex: dict) -> None:
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     trace, key = _trace_of(ex), str(ex.get("question") or "")
     if not trace or key not in (_tb.CANVAS_KEY, _tb.TARGET_KEY, _tb.CATALOG_KEY):
         return

@@ -63,24 +63,26 @@ def test_canvas_state_endpoint_normalizes_and_writes(fresh_db):
 
 
 # ── 3. composition of the FlashBrain memory block ──────────────────────────────────────────────────
-def test_compose_block_lists_open_widgets_and_activity(fresh_db):
+def test_compose_block_carries_activity_and_never_the_screen(fresh_db):
+    """The memory block is served from a cache, so it no longer carries the screen (refactor2710-08): a cached screen
+    said «empty» over open cards in 48 of 552 measured turns. Activity still travels there."""
     from nucleo.flash import memory_cache
     memory_cache.reset()
     memapi.set_state({"open_widgets": ["mensajeria"], "activity": ["Modificando el widget «agenda»…"]})
     block, _op = memory_cache._compose()
-    assert "Widgets ABIERTOS" in block and "mensajeria" in block
     assert "Tareas en marcha" in block and "agenda" in block
+    assert "mensajeria" not in block and "VACÍA" not in block
 
 
-def test_compose_block_states_empty_screen_when_nothing_open(fresh_db):
-    # 2026-09-19: an empty desktop composed NO screen line, and the model filled the silence
-    # from recent_widgets + rails («already open on screen» with nothing open). Emptiness must
-    # travel as a fact — without the «Widgets ABIERTOS» head the empty-canvas cases pin absent.
-    from nucleo.flash import memory_cache
-    memory_cache.reset()
-    memapi.set_state({"mission": "m", "open_widgets": [], "recent_widgets": ["youtube"]})
-    block, _op = memory_cache._compose()
-    assert "VACÍA" in block and "Widgets ABIERTOS" not in block
+def test_the_screen_is_read_live_once_and_an_empty_one_says_so(fresh_db):
+    # 2026-09-19: an empty desktop composed NO screen line, and the model filled the silence from recent_widgets +
+    # rails («already open on screen» with nothing open). Emptiness travels as a fact — now from the live reader.
+    from nucleo.turn.prompt import live_state as prompt
+    memapi.set_state({"open_widgets": ["mensajeria", "agenda"], "recent_widgets": ["youtube"]})
+    assert prompt.screen_line() == "En pantalla: mensajeria, agenda."
+    assert prompt.screen_line() in prompt.live_state()
+    memapi.set_state({"open_widgets": []})
+    assert "VACÍA" in prompt.screen_line() and "youtube" not in prompt.screen_line()
 
 
 # ── 4. breaking an identify tie in favor of the OPEN widget ───────────────────────────────────────────────────────

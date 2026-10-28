@@ -1,34 +1,28 @@
 """nucleo/cli/worker_api.py — REQUEST/RESPONSE blueprint for Brain Workers (V2-038, §v2·B + §v3·I/J/K).
 
-A worker (subprocess, any backend) talks to the live server over HTTP to REQUEST things that only the host/
-FlashBrain can do or that require a response:
-  · `ask_user`  — ask the operator and WAIT ("¿enduro o cross?").
-  · `use_tool`  — use a FlashBrain TOOL (web_search today; FILTERED catalog §v3·J) → the brain executes it and
-                  returns the result (the operator asked: "the brain executes searches and returns them to the worker").
-  · `read_widget`/`show_widget`/`close_widget` — read/show/close a canvas widget.
-  · `push_channel` — push to an external channel (CONFIRM + scan_outbound).
-  · `spawn` — chain another Brain Worker (within quota/depth limits).
+A worker subprocess talks to the live server over HTTP to request what only the host can do: `ask_user` (ask the
+operator and WAIT), `use_tool` (a FILTERED FlashBrain tool, §v3·J — web_search today), `read_widget`/`show_widget`/
+`close_widget`, `push_channel` (CONFIRM + scan_outbound) and `spawn` (within quota/depth).
 
-ONE endpoint (`ask` = `act action=ask_user`), ALLOW/CONFIRM/DENY policy evaluated HERE (server, not in the
-worker prompt), CONFIRM = an auto-generated `ask_user` (§v3·K), idempotent re-poll (§v3·I), and **piggyback**: every
-response carries the pending FlashBrain injections for that task (§v3·H). Per-task token auth (§v2·D).
+ONE endpoint, ALLOW/CONFIRM/DENY policy evaluated HERE (not in the worker prompt), CONFIRM = an auto-generated
+`ask_user` (§v3·K), idempotent re-poll (§v3·I), per-task token auth (§v2·D), and every response carries the pending
+FlashBrain injections (piggyback, §v3·H). Execution lives in `worker_api_exec`, the ask registry's logic in
+`worker_api_asks`; both are re-exported here.
 """
 from __future__ import annotations
 
-import asyncio
 import secrets
-import time
 
 from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
-from loguru import logger
+
+from nucleo.runtime_ids import next_seq as _next_seq
 
 router = APIRouter()
 
 
-# ── per-action policy (§v3·J) ───────────────────────────────────────────────────────────────────────────────
-# The pure decision logic lives in worker_policy.py; re-exported so callers keep `worker_api.classify_act(...)`.
-from nucleo.cli.worker_policy import (  # noqa: F401 — re-export
+# ── per-action policy (§v3·J): pure logic in worker_policy.py, re-exported (`worker_api.classify_act(...)`) ─────
+from nucleo.cli.worker_policy import (  # noqa: F401,E402 — re-export
     ALLOW, CONFIRM, DENY, _PRESTABLE_TOOLS, _DENY_TOOLS, _KNOWN_ACTS, deny_reason, classify_act,
     _confirm_question,
 )
@@ -37,46 +31,18 @@ _MAX_DEPTH = 2
 
 # ── in-flight request registry (corr_id → state) ────────────────────────────────────────────────────────────
 _ACTS: dict[str, dict] = {}
+_ANSWERED_TTL_S = 600.0
 
-from nucleo.runtime_ids import next_seq as _next_seq
-from nucleo import consequence as _consequence
+#: How many reminders ONE task may schedule — the capability's filter: a looping worker cannot fill the agenda.
+_SCHEDULE_CAP = 3
 
-
-def _own_sheet(rec) -> str:
-    """This errand's results sheet — OPENED NOW if it has none yet. A worker whose surface did not open a sheet at
-    dispatch used to deliver into the BARE `results`, the one box every sheet-less worker shares: measured
-    2026-09-27, the monitor search delivered there and the Ferrari search that came next REPLACED it, so «show me
-    the monitors» found nothing. The first delivery is when this errand's own box is minted."""
-    from nucleo import sheets as _sh
-    sid = _sh.sheet_of(rec)
-    if not sid:
-        try:
-            # A REPORT errand's deliverable is the document (V2-644): its first write to `results` — the worker
-            # registering its `sources` — mints the box so nothing is lost, but does not put a results sheet over
-            # the document it is writing (demo pass 79, F1/F2: the sheet sat on top of the Bitcoin summary).
-            from nucleo import surfaces as _surf
-            _sh._sheet_open(rec, show=not _surf.opens_doc(getattr(rec, "surface", "")))
-        except Exception:  # noqa: BLE001 — fail-soft: the base sheet is still a place to deliver
-            logger.debug("worker_api: could not open the errand's sheet", exc_info=True)
-        sid = _sh.sheet_of(rec)
-    return sid
-
-
-def _decide_deadline(payload: dict) -> float | None:
-    """Seconds a worker is willing to wait for a bounded decision, bounded by us (V2-726 A1).
-
-    A worker has no latency budget of its own, but it does have a Bash timeout, and an unbounded
-    wait here would show up as a worker that died mid-errand with nothing to report."""
-    try:
-        d = float((payload or {}).get("deadline_s") or 0)
-    except (TypeError, ValueError):
-        return None
-    return max(0.5, min(d, 20.0)) if d > 0 else None
+#: The forms the parser REALLY accepts, said once for all three errors (examples that don't parse send it to retry).
+_CUANDO_VALE = ('Vale «mañana a las 9», «el miércoles a las 18:00», un día del mes («el 3 a las 10»), '
+                '«every 30m» para algo que se repite, o un cron de 5 campos «0 9 * * 3».')
 
 
 def _new_corr(task_id: str, action: str) -> str:
-    """UNPREDICTABLE corr_id: re-polling (`GET /act/{corr_id}`) carries no token — the corr IS the capability. A
-    sequential one would be guessable (read the operator's response + steal the injection piggyback, §v2·D)."""
+    """UNPREDICTABLE corr_id: the re-poll carries no token, so the corr IS the capability (§v2·D)."""
     return f"{task_id}:{action}:{_next_seq('worker_api.corr')}:{secrets.token_urlsafe(8)}"
 
 
@@ -102,334 +68,6 @@ def _verify(task_id: str, token: str):
         return rec
     except Exception:
         return None
-
-
-# ── immediate execution of ALLOW actions ─────────────────────────────────────────────────────────────────
-#: How many reminders ONE background task may schedule. This is the capability filter, not a decorative number: without
-#: a cap, a looping worker fills the operator's agenda and each entry later triggers a turn.
-_SCHEDULE_CAP = 3
-
-#: The forms the parser REALLY accepts, in one sentence. Written here once because it appears in all three errors, and
-#: because a list of examples that do not parse is worse than none: it sends the worker to retry the same thing.
-_CUANDO_VALE = ('Vale «mañana a las 9», «el miércoles a las 18:00», un día del mes («el 3 a las 10»), '
-                '«every 30m» para algo que se repite, o un cron de 5 campos «0 9 * * 3».')
-
-
-async def _exec_allow(action: str, payload: dict, rec) -> dict:
-    payload = payload or {}
-    if action == "decide":
-        # V2-726 A1 — the bounded-decision door for a headless worker. `nucleo/workers/`,
-        # `nucleo/errands/` and `research.py` are the places in this engine with the MOST choosing to
-        # do and no latency budget at all, and they were the only ones that could not reach the
-        # chooser: a worker is a subprocess and talks to the engine only through this endpoint.
-        #
-        # ONE action, not a new bridge: the authentication, the piggyback and the policy are already
-        # here and already audited. It runs in a thread because `decide` is a blocking round trip and
-        # this is a coroutine — the same rule the voice path learned the hard way (V2-726 F2).
-        from nucleo import jev as _jev
-        cands = (payload or {}).get("candidates") or {}
-        if not isinstance(cands, dict):
-            cands = {str(i + 1): str(c) for i, c in enumerate(cands)}
-        try:
-            decision = await asyncio.to_thread(
-                _jev.decide,
-                str((payload or {}).get("purpose") or ""),
-                str((payload or {}).get("evidence") or ""),
-                cands,
-                abstain=bool((payload or {}).get("abstain", True)),
-                source=f"worker:{getattr(rec, 'task_id', '')}",
-                task_id=str(getattr(rec, "task_id", "")),
-                deadline_s=_decide_deadline(payload),
-                effect_class=str((payload or {}).get("effect_class") or "view"))
-        except Exception as e:  # noqa: BLE001 — a chooser may never break a worker
-            return {"ok": False, "error": f"decide falló: {type(e).__name__}"}
-        # The worker sees the DECISION and nothing else: no credentials, no other task's data, no
-        # engine state it did not supply. `decide` returns only its own verdict, so this is the
-        # shape by construction rather than by filtering — which is the version that cannot rot.
-        return {"ok": True, "result": dict(decision)}
-    if action == "use_tool" and payload.get("tool") == "web_search":
-        from nucleo.workers import web_search_bridge
-        return await web_search_bridge.run(payload, rec)
-    if action == "schedule":
-        # V2-249 — the SCHEDULED reminder must really exist, or it must not be claimed. A worker told
-        # «remind him on Wednesday» could not do it (the capability did not exist) and durably wrote in memory
-        # that it had scheduled it. The harness set the bar: **the entry must exist, or the pill must not say
-        # «scheduled»**. This does the former.
-        when = str(payload.get("when") or payload.get("schedule") or "").strip()
-        what = str(payload.get("prompt") or payload.get("text") or payload.get("what") or "").strip()
-        tid = str(getattr(rec, "task_id", "") or "")
-        if not what:
-            return {"ok": False, "error": "falta `prompt`: qué tiene que decir o hacer zaelar cuando llegue el "
-                                          "momento, escrito como se lo dirías a él."}
-        if not when:
-            return {"ok": False, "error": "falta `when`: cuándo. " + _CUANDO_VALE}
-        try:
-            from nucleo.pulse import scheduler
-            # TWO parsers, in this order: `parse_schedule` understands machine forms («every 30m», a 5-field cron,
-            # `YYYY-MM-DD HH:MM`) and `parse_when` translates spoken forms («mañana a las 9», «el miércoles a las
-            # 18:00»). The worker writes as it speaks, so without the second almost all of its input would be rejected;
-            # without the first, recurrence would be lost.
-            spec = when if scheduler.parse_schedule(when) else (scheduler.parse_when(when) or "")
-            if not spec:
-                # `parse_when` deliberately returns "" for ambiguous input («esta tarde», «pronto»): a reminder set
-                # for a guessed date is worse than none, because the operator is left believing it is scheduled.
-                return {"ok": False, "error": f"«{when}» no me dice un momento exacto y no lo adivino: un aviso "
-                                              f"sobre una fecha inventada es peor que ninguno. " + _CUANDO_VALE}
-            # THE CAP, which is this capability's filter (same pattern as the `spawn` quota): a looping worker
-            # cannot fill the operator's agenda. It is counted over LIVE tasks and by attribution, so no new state
-            # is needed and no stale number survives a restart.
-            mias = [j for j in scheduler.list_jobs() if f"[worker:{tid}]" in str(j.get("name") or "")]
-            if len(mias) >= _SCHEDULE_CAP:
-                return {"ok": False, "error": f"ya has programado {len(mias)} avisos en esta tarea, que es el "
-                                              f"tope. Si necesitas otro, cancela uno o dilo en tu entrega."}
-            name = f"{(payload.get('name') or what)[:80]} [worker:{tid}]"
-            # V2-480: a cron's reader is the AGENT at another time, so the job tells it to NOTIFY (the agenda's rule)
-            from widgets.agenda import notice as _notice
-            what = _notice.prompt_for({"commitment": what}) or what
-            out = await asyncio.to_thread(scheduler.create_unless_ringing, what, spec, name)   # one alarm per instant
-            if not out.get("ok"):
-                # It knows the form; let it say so (same contract as V2-203).
-                return {"ok": False, "error": f"{out.get('error') or 'no se pudo programar'}. " + _CUANDO_VALE}
-                # V2-249 — AND MAKE IT VISIBLE. A reminder due in three days was created by a background task that
-                # no longer exists by then: without a row, the operator encounters it without knowing where it came
-                # from. The row carries the REAL ID, which allows a pill to be checked against the scheduler —
-                # memoria-dev noted that nothing currently verifies a system claim about its own effects, and this
-                # is the half that the action executor can provide: leave the proof.
-            try:
-                from voice.observer import emit
-                emit("task", "⏰ aviso programado",
-                     text=f"{out.get('display') or when} — {what[:120]}",
-                     extra={"id": tid, "src": f"worker:{tid}", "cron_id": out.get("id"),
-                            "when": out.get("display") or when})
-            except Exception:  # noqa: BLE001
-                pass
-            return {"ok": True, "result": {"id": out.get("id"), "cuando": out.get("display") or when,
-                                           "que": what,
-                                           "ref": f"cron:{out.get('id')}"}}
-        except Exception as e:  # noqa: BLE001
-            return {"ok": False, "error": f"no pude programarlo: {e}"}
-    if action == "read_widget":
-        wid = str(payload.get("id") or payload.get("widget_id") or "")
-        try:
-            from widgets import runtime
-            from widgets.server_api import MISSING, run_widget_hook
-            man = runtime.get(wid)
-            if not man:
-                # …and before saying it does not exist, ASK about the name the rest of the system already knows:
-                # the registry contains the identity of all 26 (id, name, and alias), and this bridge did not consult it.
-                from widgets import naming as _nm
-                _id, _varios = _nm.resolve(wid)
-                if _id:
-                    wid, man = _id, runtime.get(_id)
-                if not man:
-                    return {"ok": False, "error": _nm.not_found(wid, _varios)}
-
-            def _call(view_data):
-                try:
-                    return view_data(q="")
-                except TypeError:            # old widgets without a query argument
-                    return view_data()
-
-            # the widget DATA (§7.3: view_data), off-loop and with a timeout — not just the manifest.
-            data = await run_widget_hook(wid, "view_data", _call)
-            # V2-692c — BOUNDED. The agenda answered this call with 59 955 bytes (55 666 of them the
-            # operator's whole calendar), the CLI persisted it, and the worker could then not read the file
-            # it was handed. A widget that grows is one a worker structurally cannot read; the digest the
-            # turn prompt already uses says the same thing in 975 bytes. Small widgets are untouched.
-            # V2-707 F1 — and the STRUCTURE of its data, which is what lets a worker express an operation
-            # nobody declared («delete every meeting whose title contains crypto») instead of being limited
-            # to the action list. Per collection: its id field, the fields its live rows carry, how many
-            # there are, and which of list/put/patch/delete it takes. Costs nothing when a widget declares
-            # no collections, which is most of them.
-            from widgets import rows as _rows
-            _schema = _rows.schema(wid)
-            from nucleo.workers import widget_view as _wv
-            return {"ok": True, "result": {"manifest": man,
-                                           **({"collections": _schema} if _schema else {}),
-                                           **_wv.bounded(wid, None if data is MISSING else data)}}
-        except Exception as e:  # noqa: BLE001
-            return {"ok": False, "error": f"read_widget falló: {e}"}
-    if action in ("show_widget", "close_widget"):
-        wid = payload.get("id") or payload.get("widget_id") or ""
-        # V2-359 — «show results» from a worker means MY results. The worker knows the widget's NAME, never its
-        # errand instance, and passing the bare id through opened the BASE card ON TOP of the errand's own sheet
-        # — the intermittent «TARJETA FANTASMA» the round reports keep naming (bilbao 08:38 and coche 08:03:
-        # base `results` beside its instances, empty; V2-351 swept the RESTORE-time fossils but this opener is
-        # live, mid-round). Same decision the voice channel took in 246007a («enséñamelo» resolves to the
-        # ERRAND's sheet): when this worker's errand has a sheet, the bare `results` resolves to it. A worker
-        # with no sheet gets one on its first show (`_own_sheet`).
-        try:
-            if str(wid).strip().lower() == "results":
-                from nucleo import sheets as _sh
-                # showing is a delivery (its own box, minted now); closing never mints one
-                _sid = _own_sheet(rec) if action == "show_widget" else _sh.sheet_of(rec)
-                if _sid:
-                    from widgets.results import data as _rd
-                    wid = _rd.instance_id(_sid)
-        except Exception:
-            pass
-        # V2-757 — AN ID THAT DOES NOT EXIST IS NOT MOUNTED, AND CERTAINLY DOES NOT ANSWER `ok`.
-        #
-        # MEASURED LIVE (session f84f91ef, 2026-09-23, +306.6 s). The worker went to read the bridge's help
-        # and typed `act show --help`; argparse took `show` as the action and `--help` as the payload, this
-        # emitted `widget/show` with id «--help», the canvas mounted an instance, the browser failed to
-        # import `/widgets/--help/widget.js` — a CLIENT error, therefore invisible — and a broken card
-        # reading «help» stayed on his screen. He saw it: «Hay un widget ahí que pone help… no sé lo que es,
-        # ha aparecido en pantalla ahora. Ciérralo inmediatamente». This call had answered
-        # `OK: {"widget": "--help"}`.
-        #
-        # The rule is the CATALOGUE, not a list of forbidden names: what exists is what opens. And the
-        # error NAMES what does exist, because a worker that gets an id wrong needs the catalogue, not a
-        # «no». CLOSE is not validated: closing what is not there is harmless, and its id may be a live
-        # instance the catalogue does not list.
-        if action == "show_widget":
-            _base = str(wid).split("::", 1)[0].strip().lower()
-            try:
-                from widgets import runtime as _rt
-                _ids = sorted(str(w.get("id") or "") for w in _rt.catalog() if w.get("id"))
-            except Exception:  # noqa: BLE001 — a broken catalogue may not take the worker down
-                _ids = []
-            if _ids and _base not in _ids:
-                return {"ok": False, "error": f"no widget «{wid}» exists — the ones there are: "
-                                              + ", ".join(_ids)}
-            # The operator closed this card AFTER this errand began: his decision about his screen (pass 82).
-            from nucleo import canvas_closes as _closes
-            if _closes.closed_after(wid, float(getattr(rec, "started", 0) or 0)):
-                return {"ok": False, "error": f"the operator CLOSED «{_base}» after this errand began — do not "
-                                              f"reopen it. Your result stays in the card for when he asks; "
-                                              f"say in one line that it is ready."}
-        try:
-            from nucleo.acts import canvas
-            _src = f"worker:{getattr(rec, 'task_id', '')}"        # V2-039: provenance — Brain Worker command
-            extra = {}
-            _tid = getattr(rec, "trace_id", "")                   # V2-044: HTTP handler without context → session trace
-            if _tid:
-                extra["trace"] = _tid
-                extra["span"] = f"worker:{getattr(rec, 'task_id', '')}"
-            # a worker's close names its card: with no id the canvas closes EVERY card (refactor2710-04)
-            if not str(wid or "").strip():
-                return {"ok": False, "error": "close_widget needs the card it closes"}
-            canvas.apply("show" if action == "show_widget" else "close", str(wid), src=_src, **extra)
-            return {"ok": True, "result": {"widget": wid}}
-        except Exception as e:  # noqa: BLE001
-            return {"ok": False, "error": str(e)}
-    if action == "widget_data":
-        # V2-061 worker→widget bridge: applies the data-op through the SAME path as the FlashBrain's [[widget.data]]
-        # tag (widgets.brain_action → the widget's apply_action, off-loop, isolated, never crashes). The PROVENANCE
-        # is sealed as worker:<id> (V2-039) so the widget/data event is not attributed to "user".
-        wid = str(payload.get("widget_id") or payload.get("id") or "").strip().lower()
-        act = str(payload.get("action") or "").strip()
-        data_payload = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
-        if not wid or not act:
-            return {"ok": False, "error": "widget_data requiere widget_id y action"}
-        # V2-259 — WHICH SHEET. The worker prompt says «deliver to the `results` sheet» (V2-257), and with
-        # instances that bare name stops being an address: it would write to the box nobody looks at while the
-        # operator has THEIR assignment's box in front of them. The BRIDGE resolves it, deliberately, not the worker:
-        # a worker should not need to know instance IDs, and asking for them would create a new way to make mistakes.
-        # An explicit `sheet` is respected in case it is ever needed, but nobody tells it about this.
-        if wid == "results" and not str(data_payload.get("sheet") or "").strip():
-            try:
-                _own = _own_sheet(rec)
-            except Exception:  # noqa: BLE001
-                _own = ""
-            if _own:
-                data_payload = {**data_payload, "sheet": _own}
-        try:
-            from widgets import runtime
-            if runtime.get(wid) is None:
-                from widgets import naming as _nm
-                _id, _varios = _nm.resolve(wid)
-                if _id and runtime.get(_id) is not None:
-                    wid = _id
-                else:
-                    return {"ok": False, "error": _nm.not_found(wid, _varios)}
-            try:
-                from widgets import provenance as _prov
-                _prov.note(wid, f"worker:{getattr(rec, 'task_id', '')}")
-            except Exception:
-                pass
-            from widgets.server_api import brain_action
-            res = await brain_action(wid, act, data_payload)
-            if isinstance(res, dict) and res.get("error"):
-                # V2-707 F1 — the refusal has to say WHAT TO DO, not just fail. This returned the bare code,
-                # so a worker that hit the V2-705 contract read «selector_missing» with no menu, and one that
-                # hit the radius gate read «needs_confirm» with neither the count, nor the names, nor the fact
-                # that answering is the way through. Same lesson as V2-203/V2-644 at the bridge next door: for
-                # a worker, a message with no way out is a message that stops it. The diagnostic half travels.
-                out = {"ok": False, "error": str(res.get("error"))}
-                for k in ("detail", "message", "options", "names", "n", "collection", "field",
-                          "collections", "needs_confirm"):
-                    if res.get(k) not in (None, "", [], {}):
-                        out[k] = res[k]
-                return out
-            # Same ceiling as `read_widget`, and for the same reason: several of the agenda's own actions
-            # answer with the whole view, so the op would succeed and its ANSWER would be unreadable.
-            from nucleo.workers import widget_view as _wv
-            return {"ok": True, "result": {"widget": wid, "action": act, **_wv.bounded(wid, res)}}
-        except Exception as e:  # noqa: BLE001
-            return {"ok": False, "error": f"widget_data falló: {e}"}
-    if action == "spawn":
-        return await _spawn_child(payload, rec)
-    return {"ok": False, "error": "acción ALLOW no ejecutable"}
-
-
-async def _spawn_child(payload: dict, rec) -> dict:
-    """Chain another Brain Worker within quota/depth limits (§v3·J: DENY when exceeded)."""
-    depth = int(getattr(rec, "depth", 0) or 0)
-    if depth + 1 > _MAX_DEPTH:
-        return {"ok": False, "error": "límite de profundidad de cadena alcanzado"}
-    req = (payload or {}).get("request") or ""
-    if not req:
-        return {"ok": False, "error": "spawn sin request"}
-    try:
-        from nucleo.acts import errand as escalate
-        cid = escalate.escalate_to_slowbrain(str(req), context={
-            "src": "worker", "kind": (payload.get("kind") or "generic"),
-            "parent_task_id": rec.task_id, "depth": depth + 1})
-        return {"ok": True, "result": {"child_id": cid}}
-    except Exception as e:  # noqa: BLE001
-        return {"ok": False, "error": f"spawn falló: {e}"}
-
-
-def purge_task(task_id: str) -> int:
-    """§v3·L: when a session dies/is killed, its PENDING requests are purged — the loop must not recount a dead
-    session's question. Answered requests are retained (a late `hbask wait` from the still-live group gets a clean 404).
-    Called by dispatch (cancel_session / end of session)."""
-    n = 0
-    for corr, e in list(_ACTS.items()):
-        if e.get("task_id") == str(task_id) and e.get("state") == "pending":
-            _ACTS.pop(corr, None)
-            n += 1
-    return n
-
-
-_ANSWERED_TTL_S = 600.0
-
-
-def _prune() -> None:
-    """Prune old ANSWERED entries (the worker has claimed them or died) — the registry never grows without limit."""
-    cut = time.time() - _ANSWERED_TTL_S
-    for corr, e in list(_ACTS.items()):
-        if e.get("state") == "answered" and float(e.get("created") or 0) < cut:
-            _ACTS.pop(corr, None)
-
-
-def _register_ask(rec, question: str, action: str = "ask_user", retained: dict | None = None) -> str:
-    """Park a pending question (ask_user or an act's CONFIRM, §v3·K) → waiting_on=user + bus worker.ask."""
-    _prune()
-    corr = _new_corr(rec.task_id, action)
-    _ACTS[corr] = {"corr_id": corr, "task_id": rec.task_id, "action": action, "question": question,
-                   "state": "pending", "answer": "", "result": None, "retained": retained or {},
-                   "created": time.time()}
-    rec.waiting_on = "user"
-    rec.ask = question
-    rec.ask_corr = corr
-    try:
-        import bus
-        bus.emit_sync("worker.ask", {"id": rec.task_id, "question": question, "corr_id": corr})
-    except Exception:
-        pass
-    return corr
 
 
 # ── endpoints ────────────────────────────────────────────────────────────────────────────────────────────
@@ -467,7 +105,6 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
     from nucleo import circuit as _deliv    # an errand opens only its deliverable (V2-822)
     if (_why := _deliv.refused(rec, action, payload)):
         return JSONResponse({"ok": False, "error": _why, "injections": inj})
-    # ALLOW inmediato
     res = await _exec_allow(action, payload or {}, rec)
     res["injections"] = inj
     return JSONResponse(res)
@@ -512,87 +149,10 @@ async def worker_act_poll(corr_id: str):
     return JSONResponse({"ok": True, "status": "pending", "injections": inj})
 
 
-# ── ask resolution (called by FlashBrain/provider when the operator responds) ──────────────────────────────
-def has_pending_ask() -> bool:
-    return any(e["state"] == "pending" for e in _ACTS.values())
-
-
-def pending_asks() -> list[dict]:
-    """Pending questions (for the supervisor loop: recount them by voice, one at a time, FIFO)."""
-    out = [e for e in _ACTS.values() if e["state"] == "pending"]
-    out.sort(key=lambda e: e["created"])
-    return [{"corr_id": e["corr_id"], "task_id": e["task_id"], "question": e["question"],
-             "action": e["action"]} for e in out]
-
-
-def active_ask() -> dict | None:
-    """The OLDEST pending ask (the 'active' one being recounted, §v3·M/Q5)."""
-    p = pending_asks()
-    return p[0] if p else None
-
-
-async def answer(corr_id: str, text: str) -> bool:
-    """Resolve an ask by corr_id: store the response and, if it was an act CONFIRM, EXECUTE the retained action
-    (§v3·K). Clear waiting_on on the record. Return True if something was resolved."""
-    e = _ACTS.get(corr_id)
-    if not e or e["state"] != "pending":
-        return False
-    e["answer"] = text or ""
-    e["state"] = "answered"
-    # Retained CONFIRM: "sí" → execute the action; anything else → no.
-    retained = e.get("retained") or {}
-    if retained.get("action") and _is_yes(text):
-        try:
-            from nucleo import dispatch
-            rec = dispatch.get_record(e["task_id"])
-            if rec is not None:
-                e["result"] = await _exec_allow(retained["action"], retained.get("payload") or {}, rec)
-        except Exception:
-            pass
-    _clear_waiting(e["task_id"], corr_id)
-    return True
-
-
-async def answer_active(text: str) -> bool:
-    """Resolve the ACTIVE (oldest) ask — deterministic path when the operator responds by voice (§v3·M)."""
-    a = active_ask()
-    if not a:
-        return False
-    return await answer(a["corr_id"], text)
-
-
-@_consequence.door("worker.answer", neutral=lambda *_a, **_k: has_pending_ask())
-def answer_active_soon(text: str) -> bool:
-    """Fire-and-forget marshalled to the server loop (§v3·D/O): resolve the active ask. Called by FlashBrain from
-    the job thread. Return True if there WAS an ask to answer (so voice can confirm)."""
-    if not has_pending_ask():
-        return False
-    try:
-        import asyncio
-
-        from nucleo import dispatch
-        loop = getattr(dispatch, "_LOOP", None)
-        if loop is not None:
-            asyncio.run_coroutine_threadsafe(answer_active(text), loop)
-        else:
-            asyncio.ensure_future(answer_active(text))
-        return True
-    except Exception:
-        return False
-
-
-def _clear_waiting(task_id: str, corr_id: str) -> None:
-    try:
-        from nucleo import dispatch
-        rec = dispatch.get_record(task_id)
-        if rec is not None and getattr(rec, "ask_corr", "") == corr_id:
-            rec.waiting_on = ""
-            rec.ask = ""
-            rec.ask_corr = ""
-    except Exception:
-        pass
-
-
-def _is_yes(text: str) -> bool:
-    t = (text or "").strip().lower()
-    return any(w in t for w in ("sí", "si", "vale", "adelante", "hazlo", "ok", "yes", "dale", "confirmo"))
+from nucleo.cli.worker_api_exec import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
+    _own_sheet, _decide_deadline, _exec_allow, _spawn_child,
+)
+from nucleo.cli.worker_api_asks import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
+    purge_task, _prune, _register_ask, has_pending_ask, pending_asks, active_ask, answer, answer_active,
+    answer_active_soon, _clear_waiting, _is_yes,
+)

@@ -2,22 +2,11 @@
 
 ## Why this exists (operator, 2026-09-16)
 
-> «Si el Brainworker puede acceder a los datos de la memoria de la agenda, puede perfectamente ver la
-> estructura de los datos y borrarlo todo. […] Los guardarraíles, las tools, las hash tables de las acciones
-> son para agilizar ciertas cosas. Pero el resto también tiene que ser posible.»
-
-He is right about the goal and the shape had to be found. What a worker must NOT do is open
-`widgets/_data/<id>/state.json` and write it, for four reasons measured on this tree:
-
-  1. **Mirror.** The agenda IS the calendar (V2-643): `cancel_meeting` calls `gcal.delete_google`. A row
-     deleted in the file stays in Google and `tick()` brings it back — those are the 46 that «resurrected»
-     on 2026-09-15.
-  2. **Screen.** `store.save` is what notifies the canvas. A file written from outside leaves the card
-     showing yesterday.
-  3. **One writer.** The store holds an in-process lock; a worker is another process. Two writers on one
-     JSON is corruption, and the snapshot (`store.history`) only exists inside `save`.
-  4. **The one guard that worked.** The V2-705 contract lives in `server_api._dispatch`. Going around it is
-     going back to the 147 DELETEs.
+A worker may do anything with a card's data — but never by writing `widgets/_data/<id>/state.json` itself:
+  1. **Mirror.** The agenda IS the calendar (V2-643): a row deleted in the file stays in Google and comes back.
+  2. **Screen.** `store.save` is what notifies the canvas; a file written from outside shows yesterday.
+  3. **One writer.** The store's lock and its snapshot (`store.history`) only exist inside `save`.
+  4. **The contract.** V2-705 lives in `server_api._dispatch`; going around it is going back to the 147 DELETEs.
 
 So the freedom is real and it enters by the front door. **This module is a RESOLVER, not a second writer.**
 It turns an expression over the data — «the meetings whose title contains crypto», «everything before

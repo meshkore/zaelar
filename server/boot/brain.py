@@ -128,7 +128,7 @@ def watchers() -> None:
     # notice when it is OVER and archive itself. It subscribes to nothing once the phase has closed, so on
     # an installation that is past its first conversation this line costs one settings read at boot.
     try:
-        from nucleo.context_packs import introduction as _intro_pack
+        from nucleo.turn.prompt.packs import introduction as _intro_pack
         _intro_pack.start()
     except Exception as e:
         logger.warning(f"context packs start failed (conversation unaffected): {e}")

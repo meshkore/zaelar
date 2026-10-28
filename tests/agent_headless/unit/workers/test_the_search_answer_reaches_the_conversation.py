@@ -100,11 +100,11 @@ def test_va_por_el_camino_que_SI_llega(sesion, monkeypatch):
     """The lead is shown BESIDE its task in the background-task block — with the task in front of it, which is
     what lets the turn judge whether the answer is useful, and only there."""
     from nucleo import dispatch
-    from nucleo.flash import task_block
+    from nucleo.turn.prompt import live_tasks
     sesion._maybe_hand_web(_web(RESPUESTA))
     monkeypatch.setattr(dispatch, "pending_summaries", lambda: [
         {"id": "t1", "request": "el monitor más barato que sirva para trabajar", "secs": 30}])
-    block = " ".join(task_block.pending_task_lines())
+    block = " ".join(live_tasks.pending_task_lines())
     assert "Philips 27E1N1800A" in block and "el monitor más barato" in block
 
 
@@ -112,11 +112,11 @@ def test_el_JUICIO_se_queda_en_el_cerebro(sesion, monkeypatch):
     """It is not ordered announced: the block labels it as a LEAD — a page is not a candidate — and leaves the
     judgment to the turn that is actually about this errand."""
     from nucleo import dispatch
-    from nucleo.flash import task_block
+    from nucleo.turn.prompt import live_tasks
     sesion._maybe_hand_web(_web(RESPUESTA))
     monkeypatch.setattr(dispatch, "pending_summaries", lambda: [
         {"id": "t1", "request": "el monitor más barato", "secs": 30}])
-    block = " ".join(task_block.pending_task_lines())
+    block = " ".join(live_tasks.pending_task_lines())
     assert "NO un candidato" in block
     assert "NÓMBRALO EN ESTE TURNO" not in block
 

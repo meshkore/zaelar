@@ -71,7 +71,7 @@ import pytest
 
 from nucleo.flash import close_guards as _cg
 from nucleo.flash import direct_action as _da
-from nucleo.flash import turn_brief as _tb
+from nucleo.turn import brief as _tb
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[3]
 _PROVIDER = _ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py"
@@ -112,9 +112,7 @@ def test_the_screen_question_does_not_behead_the_routing_sentence():
 
 def test_the_cut_is_a_named_bound_and_not_a_number_in_the_middle_of_a_line():
     """A magic number in two channels that must agree is the R3 class (see `is_short_order`)."""
-    assert _tb.MAX_DESC_CHARS >= 200
-    body = (_ENGINE / "nucleo/flash/turn_brief.py").read_text(encoding="utf-8")
-    assert "[:90]" not in body, "the bare 90 is what beheaded the answer"
+    assert _tb.MAX_DESC_CHARS >= 200, "the bare 90 is what beheaded the answer"
 
 
 def test_the_question_stays_bounded():

@@ -12,7 +12,7 @@
 
 
 **Modules:** `nucleo/tasks.py` (the decisions) · `memory/tasks_store.py` (the storage) ·
-`nucleo/flash/task_recall.py` (finding one again) · `widgets/results/rehydrate.py` (putting it back)
+`nucleo/turn/task_recall.py` (finding one again) · `widgets/results/rehydrate.py` (putting it back)
 **Tables:** `tasks`, `task_artifacts`, `fts_tasks` (`memory/schema.py`, schema v7)
 **Sibling docs:** `zaelar-workflow-table.md` (a different object with a confusing name — that one caches WHICH
 CHANNEL serves a domain; this one is the commission itself).
@@ -134,7 +134,7 @@ current.
 
 Two doors, one mechanism (`widgets/results/rehydrate.sheet_from_task`, idempotent):
 
-- **Voice** — `reopen_task` → `nucleo/flash/task_recall.py`. Index narrows to ≤5 without a model, Jev
+- **Voice** — `reopen_task` → `nucleo/turn/task_recall.py`. Index narrows to ≤5 without a model, Jev
   chooses among those, and with several equally good candidates it ASKS.
 - **The button** — a finished row in «Hechas» draws «Ver resultados» when the board says `has_results`
   (one `task_artifacts` lookup per finished row; a button that opens nothing is worse than no button).

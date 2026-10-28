@@ -222,7 +222,7 @@ def ask_which(cands) -> str:
     """`consent.ASK_WHICH`'s sentence over these cards' live labels — the one question, the one phrase."""
     try:
         from i18n import langs as _langs
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         names = [_tb._card_label(c) for c in cands or []]
         return _langs.current_language().ask_which_item.format(cands=", ".join(names[:3]))
     except Exception:  # noqa: BLE001

@@ -9,7 +9,8 @@ from __future__ import annotations
 import inspect
 import types
 
-from nucleo import dispatch_prompts, picture_errand, surfaces
+from nucleo import picture_errand, surfaces
+from nucleo.workers import prompts as dispatch_prompts
 
 from nucleo.dispatch import session_steps as dispatch_session_steps
 

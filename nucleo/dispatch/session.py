@@ -172,7 +172,7 @@ async def _run_session(task: "Task") -> None:
         # V2-644 (a REPORT flips the delivery contract) + V2-661 (where the operator's FILES live): the blocks
         # a trusted worker gets after the method block, composed in one place.
         if trusted and not _dev:
-            from nucleo.dispatch_prompts import trusted_blocks
+            from nucleo.workers.prompts.surfaces import trusted_blocks
             prompt += trusted_blocks(getattr(rec, "surface", ""))
         if resume and (kind == "web" and trusted):
             prompt = ("REANUDAS una gestión que YA empezaste (no arranques de cero): la pestaña sigue donde la "

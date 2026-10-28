@@ -40,7 +40,7 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
     mission = (st.get("mission") or "").strip() or (mission_fallback or "").strip()
     stats["has_mission"] = bool(mission)
 
-    sit, crit, screen_listed = _situation(st, op)
+    sit, crit = _situation(st, op)
     stats["state_fields"] = len(sit)
     stats["has_state"] = bool(sit)
 
@@ -80,18 +80,15 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
     stats["short_count"] = len(convo)
     stats["short_chars"] = short_chars
 
-    if not screen_listed and (mission or sit or salient or errands or convo):
-        # An empty canvas says so out loud: silence let the model claim a card was on screen (2026-09-19).
-        sit.append("Pantalla VACÍA ahora: ningún widget a la vista.")
-        stats["state_fields"] = len(sit)
-
     if not (mission or sit or salient or errands or convo):
         return "", op, stats
     return _render(mission, sit, salient, errands, convo, crit), op, stats
 
 
-def _situation(st: dict, op: str) -> tuple[list[str], list[str], bool]:
-    """B · the situational lines, the critical facts, and whether the screen was listed."""
+def _situation(st: dict, op: str) -> tuple[list[str], list[str]]:
+    """B · the situational lines and the critical facts. What is on screen is NOT here: this block is served from a
+    cache, and a cached screen went stale (refactor2710-08: 48 of 552 measured turns said «empty» over open cards).
+    The screen is read live, once, by the turn's own live state."""
     sit: list[str] = []
     # IDENTITY WITHOUT AMBIGUITY (2026-09-09): renamed «Johnny», it greeted the OPERATOR as «Johnny». The OPERATOR
     # goes FIRST in the sentence — the small model takes the first name it sees as the vocative. Never «⚠️» here:
@@ -128,11 +125,8 @@ def _situation(st: dict, op: str) -> tuple[list[str], list[str], bool]:
             continue
         if isinstance(v, (str, int, float)) and str(v).strip():
             sit.append(f"{k.capitalize().replace('_', ' ')}: {v}.")
-    open_w = [str(w).strip() for w in (st.get("open_widgets") or []) if str(w).strip()]
-    if open_w:
-        sit.append("Widgets ABIERTOS ahora en su pantalla: " + ", ".join(open_w[:12]) + ".")
     sit += _processes(st) + _rails(st)
-    return sit, crit, bool(open_w)
+    return sit, crit
 
 
 def _processes(st: dict) -> list[str]:

@@ -24,7 +24,7 @@ import re
 
 import pytest
 
-from nucleo import dispatch_prompts as dp
+from nucleo.workers import prompts as dp
 
 _CTX = "CONTEXTO DE MEMORIA: nada relevante."
 
@@ -61,9 +61,10 @@ def test_la_regla_vive_UNA_vez_y_las_dos_la_LEEN():
     It is the lesson this repository has already paid for four times in one week (V2-252, V2-254, V2-256, V2-261):
     the problem was not the rule, but having it duplicated.
     """
-    src = inspect.getsource(dp)
-    assert src.count("NO SALGAS DE TU DIRECTORIO") == 1, "la regla del cajón volvió a estar escrita dos veces"
-    assert "_drawer_rules(" in src
+    from nucleo.workers.prompts import build, drawer, web
+    srcs = [inspect.getsource(m) for m in (build, drawer, web)]
+    assert sum(s.count("NO SALGAS DE TU DIRECTORIO") for s in srcs) == 1, "la regla del cajón volvió a estar escrita dos veces"
+    assert all(p.count("NO SALGAS DE TU DIRECTORIO") == 1 for p in _prompts().values()), "las dos la LEEN, una vez"
 
 
 def test_las_reglas_se_pueden_dar_SIN_intérprete_y_siguen_siendo_las_mismas():

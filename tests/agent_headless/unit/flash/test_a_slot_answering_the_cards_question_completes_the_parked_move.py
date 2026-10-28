@@ -10,7 +10,7 @@ from __future__ import annotations
 from nucleo.flash import direct_action as _da
 from nucleo.flash import move_fill as _mf
 from nucleo.flash import parked_refusal as _parked
-from nucleo.flash import turn_brief as _tb
+from nucleo.turn import brief as _tb
 from nucleo.flash import undecided as _und
 from widgets.youtube import data as yt
 

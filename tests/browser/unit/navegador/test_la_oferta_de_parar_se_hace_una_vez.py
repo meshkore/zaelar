@@ -16,7 +16,7 @@ import pytest
 
 from nucleo import dispatch as D
 from nucleo import turn_marks
-from nucleo.flash import task_block as TB
+from nucleo.turn.prompt import live_tasks
 from nucleo.workers.session import SessionRecord
 
 
@@ -41,15 +41,15 @@ def _atascada(tid="w1"):
 
 def test_la_PRIMERA_vez_se_ofrece_parar():
     _atascada()
-    st = "\n".join(TB.pending_task_lines())
+    st = "\n".join(live_tasks.pending_task_lines())
     assert "ENCALLADA" in st
     assert "YA le ofreciste" not in st
 
 
 def test_la_SEGUNDA_vez_se_dice_que_NO_lo_vuelva_a_preguntar():
     _atascada()
-    TB.pending_task_lines()                        # turn 1: it carries the offer forward
-    st = "\n".join(TB.pending_task_lines())        # turn 2
+    live_tasks.pending_task_lines()                        # turn 1: it carries the offer forward
+    st = "\n".join(live_tasks.pending_task_lines())        # turn 2
     assert "YA le ofreciste pararla" in st and "NO se lo vuelvas a preguntar" in st
 
 
@@ -57,8 +57,8 @@ def test_pero_el_HECHO_se_sigue_diciendo():
     """The V2-224 rule: silencing the repetition is NOT silencing the state. If removing the offer also removed
     the fact, the turn would revert to “still running” — the silence that V2-131 closed off."""
     _atascada()
-    TB.pending_task_lines()
-    st = "\n".join(TB.pending_task_lines())
+    live_tasks.pending_task_lines()
+    st = "\n".join(live_tasks.pending_task_lines())
     assert "ENCALLADA" in st and "SIN DAR NINGUNA SEÑAL" in st
 
 
@@ -69,7 +69,7 @@ def test_una_tarea_SANA_no_marca_nada():
     rec = SessionRecord(task_id="w2", goal="algo", kind="web")
     rec.status, rec.started, rec.last_event_at = "running", time.time(), time.time()
     D._SESSIONS["w2"] = rec
-    TB.pending_task_lines()
+    live_tasks.pending_task_lines()
     assert D.stall_offered("w2") == 0
 
 
@@ -77,7 +77,7 @@ def test_cada_tarea_lleva_su_propia_cuenta():
     """Two stuck assignments mean two offers: sharing the marker would leave the second one without anyone
     offering it anything."""
     _atascada("w1"); _atascada("w3")
-    TB.pending_task_lines()
+    live_tasks.pending_task_lines()
     assert D.stall_offered("w1") == 1 and D.stall_offered("w3") == 1
 
 
@@ -85,5 +85,5 @@ def test_el_bloque_le_DICE_al_modelo_que_no_repita_la_pregunta():
     """The instruction, not just the marker: without the phrase, the model has the fact and does not know what
     to do with it."""
     _atascada()
-    st = "\n".join(TB.pending_task_lines())
+    st = "\n".join(live_tasks.pending_task_lines())
     assert "la pregunta NO se \nrepite" in st or "la pregunta NO se repite" in st.replace("\n", "")

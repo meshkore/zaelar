@@ -109,21 +109,21 @@ def test_a_domain_the_catalogue_does_not_know_offers_no_browser():
 
 # ── what the worker is TOLD, and only when we know it ─────────────────────────────────────────────────────
 def test_the_worker_prompt_names_the_agent_we_already_proved():
-    from nucleo import dispatch_prompts as dp
+    from nucleo.workers import prompts as dp
     wf.learn("restaurant", store.CH_MESH, target="tablescout", rank=10)
     line = dp._known_route_line("resérvame mesa para dos")
     assert "tablescout" in line and "YA COMPROBADO" in line
 
 
 def test_the_worker_prompt_says_when_the_mesh_is_known_empty():
-    from nucleo import dispatch_prompts as dp
+    from nucleo.workers import prompts as dp
     wf.note_empty("wellness")
     assert "NO tiene agente" in dp._known_route_line("quiero un masaje en Sevilla")
 
 
 def test_the_worker_prompt_stays_SILENT_when_nothing_is_known():
     """A prompt does not pay for an empty table. This is the line that keeps the feature free."""
-    from nucleo import dispatch_prompts as dp
+    from nucleo.workers import prompts as dp
     assert dp._known_route_line("quiero un masaje en Sevilla") == ""
     assert dp._known_route_line("qué hora es") == ""
     assert dp._known_route_line("") == ""

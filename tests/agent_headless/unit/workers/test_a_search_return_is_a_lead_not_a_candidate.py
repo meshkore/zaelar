@@ -13,7 +13,7 @@
 import pytest
 
 from nucleo import dispatch
-from nucleo.flash import task_block
+from nucleo.turn.prompt import live_tasks
 from nucleo.workers import findings
 
 
@@ -32,7 +32,7 @@ _HEADLINE = "The 6 Best Budget And Cheap Monitors of 2026 - RTINGS.com — a rou
 def _block(monkeypatch) -> str:
     monkeypatch.setattr(dispatch, "pending_summaries", lambda: [
         {"id": "1", "request": "monitor barato", "phase": "buscando", "secs": 40}])
-    return " ".join(task_block.pending_task_lines())
+    return " ".join(live_tasks.pending_task_lines())
 
 
 def test_a_search_return_is_not_pushed_into_the_next_turn(monkeypatch):

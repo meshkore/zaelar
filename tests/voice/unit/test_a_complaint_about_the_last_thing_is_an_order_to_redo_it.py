@@ -31,7 +31,8 @@ from __future__ import annotations
 import pytest
 
 from nucleo import done_ops
-from nucleo.flash import canvas_license, redo_decision, turn_brief
+from nucleo.flash import canvas_license, redo_decision
+from nucleo.turn import brief as turn_brief
 
 
 @pytest.fixture(autouse=True)

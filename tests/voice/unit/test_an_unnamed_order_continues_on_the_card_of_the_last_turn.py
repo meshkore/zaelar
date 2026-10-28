@@ -13,7 +13,7 @@ def _q(monkeypatch, ids, focus):
     # The fact comes from `canvas_focus` (its own tests cover how it is kept); here only what the QUESTION does
     # with it. Both modules are read at call time: another test in the same run may have reloaded either.
     cf = importlib.import_module("nucleo.canvas_focus")
-    tb = importlib.import_module("nucleo.flash.turn_brief")
+    tb = importlib.import_module("nucleo.turn.brief")
     monkeypatch.setattr(cf, "last_turn_card", lambda open_ids: focus)
     monkeypatch.setattr(tb, "_possible_now", lambda w, a: True)
     monkeypatch.setattr(tb, "_card_label", lambda w: w)
@@ -28,4 +28,4 @@ def test_the_question_says_which_card_his_last_turn_acted_on(monkeypatch):
 
 def test_without_a_last_card_the_question_is_unchanged(monkeypatch):
     q = _q(monkeypatch, ["youtube", "musica"], "")
-    assert q["instructions"] == importlib.import_module("nucleo.flash.turn_brief").TARGET_INSTRUCTIONS
+    assert q["instructions"] == importlib.import_module("nucleo.turn.brief").TARGET_INSTRUCTIONS

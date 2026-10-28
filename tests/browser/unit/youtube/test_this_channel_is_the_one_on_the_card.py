@@ -112,7 +112,7 @@ def test_the_digest_names_the_playing_channel_and_keeps_the_queue(card):
 
 def test_the_router_reads_block_channel_for_the_orders_words():
     m = json.loads((ENGINE / "widgets/youtube/manifest.json").read_text(encoding="utf-8"))
-    from nucleo.flash.turn_brief import MAX_DESC_CHARS
+    from nucleo.turn.brief import MAX_DESC_CHARS
     desc = m["actions"]["block_channel"]["desc"]
     assert len(desc) <= MAX_DESC_CHARS                       # a descriptor cut short does not route
     for words in ("sugieras", "block this channel", "SIN canal"):

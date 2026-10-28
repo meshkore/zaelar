@@ -123,8 +123,7 @@ DOMAINS: list[dict] = [
             # no slot, so a rename could only be remembered as PROSE — which recall feeds the model (it
             # introduced itself as «Johnny» for days) while `state.assistant_name` stayed «Zaelar» and the
             # wake word with it. Four minutes of «Johnny?» ruled 🙉 AMBIENT, in a live session.
-            "tests/memory/unit/test_the_assistant_answers_to_the_name_it_gives_you.py",
-            "tests/memory/integration/test_seed_from_hermes.py"]},
+            "tests/memory/unit/test_the_assistant_answers_to_the_name_it_gives_you.py"]},
         {"id": "1.7", "title": "API HTTP de memoria", "ch": HTTP, "paths": [
             "tests/memory/integration/test_api.py", "tests/memory/integration/test_vault_api.py",
             "tests/memory/e2e/test_server_api.py"]},
@@ -466,7 +465,7 @@ DOMAINS: list[dict] = [
             # V2-115 left this written down as its own primary open task: every link was tested in
             # isolation and the chain was not, which is what let a created widget be opened by nobody.
             "tests/agent_headless/unit/workers/test_widget_creation_chain.py",
-            "tests/agent_headless/unit/agentes/test_agentes.py", "tests/agent_headless/unit/agentes/test_work_agents.py",
+            "tests/agent_headless/unit/agentes/test_agentes.py",
             # las 3 decisiones que hundieron la sesión del 2026-08-02 (llenar≠programar · confirm-gate sobre una
             # investigación · la frase del operador perdida al pisarse los turnos del STT)
             "tests/agent_headless/unit/test_search_report_flow.py",
@@ -4513,6 +4512,12 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_brief_is_data_and_its_verdicts_are_asymmetric.py']},
         {"id": "2.871", "title": "The `jev read` row is frozen across the brief's move (refactor2710-07, V2-826 §2b): same kind, label, text and extra through the new reading door, one row per (call, question)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_jev_read_event_is_frozen.py']},
+        {"id": "2.890", "title": "What the prompt modules emitted survives their move into nucleo/turn/prompt/: the recall's memory.updated highlight and the introduction's phase-closed row, read as events (refactor2710-08, V2-826 §2b)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_prompt_events_survive_the_move.py']},
+        {"id": "2.891", "title": "The voice turn's prompt never loads a worker's brief: the briefs live in nucleo/workers/prompts/, the dispatcher takes them from there, and importing the voice prompt builder loads none of them (refactor2710-08 T-04)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_voice_prompt_never_reads_a_worker_brief.py']},
+        {"id": "2.892", "title": "Every block of the voice prompt is declared with the one truth it reads (`builder.BLOCKS`; «CÓMO OPERAS» and the closing line read none, and say so) and has a token budget per block that only goes down; an idle turn pays nothing for what is not there (refactor2710-08 T-01/T-05)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/test_each_prompt_block_has_a_token_budget.py']},
         {"id": "2.850", "title": "The mouth says the verdict (refactor2710-03): an acting turn's last words come from what its acts ended in, one i18n key per verdict; `met` names its object, `unmet`/`cannot`/`asked` are always said, a promise is a start",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_mouth_says_the_verdict.py']},
         {"id": "2.828", "title": "His commissioning sentence travels with the request to the ONE errand it opens, and reaches its sheet's row door (was 2.630; refactor2710-02 T-01)",
@@ -7400,6 +7405,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/brain/unit/test_the_bank.py"]},
         {"id": "11.4", "title": "The live bench: a case seeds what a card holds, and going live puts the keys and the model routing back",
             "ch": UNIT, "paths": ["tests/brain/unit/test_the_live_bench.py"]},
+        {"id": "11.5", "title": "A patch the bank puts on never outlives it: a module imported while `FastClient` was the recorded model gets the real class back on exit, with the sweep disarmed the copy stays (refactor2710-99, debt #101)",
+            "ch": UNIT, "paths": ["tests/brain/unit/test_a_bank_patch_never_outlives_the_bank.py"]},
         {"id": "11.2", "title": "El banco mide el PRODUCTO: tres desarmes (mapa de acciones, cierre, veredicto) "
                                 "ponen su caso en rojo",
             "ch": UNIT, "paths": ["tests/brain/unit/test_the_bank_measures_the_product.py"]},

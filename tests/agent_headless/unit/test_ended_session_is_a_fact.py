@@ -57,7 +57,7 @@ def _session(status: str, *, ok: bool = True, summary: str = "", goal: str = "Bu
 
 
 def _state() -> str:
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import live_state as _p
     return _p.live_state()
 
 

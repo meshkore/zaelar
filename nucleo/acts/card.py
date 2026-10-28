@@ -99,7 +99,7 @@ def question_keeps_unwritten(wid: str, action: str, operator_text: str, brief) -
         from widgets import effects as _fx
         if not _fx.carries(wid, action, _fx.DATA_WRITE):
             return False
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         choice, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.8)
         return bool((info or {}).get("used")) and str(choice or "") == "none"
     except Exception as e:  # noqa: BLE001

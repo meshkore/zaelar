@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from nucleo.cli import mesh as mesh_cli
 from nucleo.acts import search as search_routing
-from nucleo.flash import turn_brief
+from nucleo.turn import brief as turn_brief
 from nucleo.workers import brief as research
 from search.route import SEARCH_KEY
 

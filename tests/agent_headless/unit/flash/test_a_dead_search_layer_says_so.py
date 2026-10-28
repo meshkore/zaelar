@@ -95,7 +95,7 @@ def test_the_operator_semaphore_is_lit(monkeypatch):
 
 # ── and it reaches the TURN, which was what was missing ────────────────────────────────────────────────────────
 def _state() -> str:
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import live_state as prompt
     return prompt.live_state()
 
 

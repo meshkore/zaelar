@@ -19,7 +19,7 @@ import pytest
 
 from nucleo.request import stop as sd
 from nucleo.flash import tool_executor_calls as _calls
-from nucleo.flash import turn_brief as _tb
+from nucleo.turn import brief as _tb
 
 #: Stop orders in several languages and word orders — the grammar below is told it read NONE of them.
 STOP_BANK = [

@@ -76,7 +76,7 @@ async def seed_criteria(brief: dict, rec=None) -> None:
 # `to_prompt_block`'s formatting lives in research_prompts.py (a leaf, no import of this file — no cycle); this
 # wrapper keeps `_MIN_CANDIDATES_FLOOR` single-sourced here.
 def to_prompt_block(brief: dict) -> str:
-    from nucleo.research_prompts import to_prompt_block as _to_prompt_block_impl
+    from nucleo.workers.prompts.research import to_prompt_block as _to_prompt_block_impl
     return _to_prompt_block_impl(brief, _b._MIN_CANDIDATES_FLOOR)
 
 

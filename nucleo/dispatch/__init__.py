@@ -39,7 +39,7 @@ from nucleo import surfaces
 from nucleo.workers.session import SessionRecord, WorkerSession
 # Prompt composition (pure, no session-pool state) split out (V2-098) into its own module; re-exported by name
 # so existing call sites (below, and tests doing dispatch._build_prompt/_web_prompt) keep working unchanged.
-from nucleo.dispatch_prompts import _build_prompt, _web_prompt  # noqa: F401
+from nucleo.workers.prompts import _build_prompt, _web_prompt  # noqa: F401
 
 # V2-289 — the errand's CLASS (which kind, how it is labelled) is pure text work in `nucleo/request/kind.py`; kind
 # «web» means operating a site in a real browser, never «the data is on the internet» (that is research).

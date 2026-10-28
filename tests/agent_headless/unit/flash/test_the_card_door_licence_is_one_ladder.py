@@ -20,7 +20,8 @@ def screen(tmp_path, monkeypatch):
     rig.scene(tmp_path, monkeypatch)
     import server.voice_api as _va
     from memory import api as _memapi
-    from nucleo.flash import data_ops as _do, turn_brief as _tb
+    from nucleo.flash import data_ops as _do
+    from nucleo.turn import brief as _tb
     from nucleo.acts import named_target as _nt
     opened = ["youtube", "agenda", "mensajeria"]
     monkeypatch.setattr(_va, "open_instances", lambda: list(opened))

@@ -120,7 +120,7 @@ def commissioned(brief, args) -> bool:
         args = args if isinstance(args, dict) else {}
         if str(args.get("action") or "play").strip().lower() != "play" or not str(args.get("query") or "").strip():
             return False
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         esc, info = _tb.read(brief, _tb.ESCALATE_KEY, "", min_confidence=COMMISSION_SURE)
         kind, kinfo = _tb.read(brief, _tb.REQUEST_KEY, "")
         return info is not None and esc == "escalate" and kinfo is not None and kind == "order"

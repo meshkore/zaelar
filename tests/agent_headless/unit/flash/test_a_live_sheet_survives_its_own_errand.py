@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from widgets.results import data as sheet_mod
 from nucleo.acts import search_listing
-from nucleo.flash import live_blocks
+from nucleo.turn.prompt import live_browser
 
 _SHEET = "results--t-live-1"
 
@@ -66,6 +66,6 @@ def test_the_delivery_reads_the_errand_he_is_looking_at(monkeypatch):
     monkeypatch.setattr(errand_sheet, "rows_of_sheet",
                         lambda s, n: ["Monitor LG — 120 €"] if s == "results--a" else ["Bike Orbea — 400 €"])
     monkeypatch.setattr(canvas_focus, "last_turn_card", lambda ids: "results::results--b")
-    assert live_blocks.any_live_task_rows(3) == ("a road bike", ["Bike Orbea — 400 €"])
+    assert live_browser.any_live_task_rows(3) == ("a road bike", ["Bike Orbea — 400 €"])
     monkeypatch.setattr(canvas_focus, "last_turn_card", lambda ids: "")
-    assert live_blocks.any_live_task_rows(3) == ("a used monitor", ["Monitor LG — 120 €"])
+    assert live_browser.any_live_task_rows(3) == ("a used monitor", ["Monitor LG — 120 €"])

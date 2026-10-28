@@ -30,8 +30,8 @@ def _typed(said: str, heard: str, lang: str = "es") -> str:
 
 @XFAIL
 def test_a_waiting_reply_goes_out_with_the_rows_the_sheet_already_holds(monkeypatch):
-    from nucleo.flash import live_blocks
-    monkeypatch.setattr(live_blocks, "any_live_task_rows",
+    from nucleo.turn.prompt import live_browser
+    monkeypatch.setattr(live_browser, "any_live_task_rows",
                         lambda n=3: ("pisos de alquiler en Gràcia", ["Piso en Gràcia, calle Verdi — 1.150 €"]))
     reply = _typed("Dame un momento, sigo con ello.", "¿Cómo va lo del piso?")
     assert "calle Verdi" in reply, reply
@@ -40,8 +40,8 @@ def test_a_waiting_reply_goes_out_with_the_rows_the_sheet_already_holds(monkeypa
 @pytest.mark.xfail(reason="needs held TTS (option b), decided in refactor2710-99", strict=True)
 def test_an_amount_no_source_carries_does_not_survive_a_live_errand(monkeypatch):
     from nucleo import dispatch
-    from nucleo.flash import live_blocks
-    monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: ("un móvil libre", []))
+    from nucleo.turn.prompt import live_browser
+    monkeypatch.setattr(live_browser, "any_live_task_rows", lambda n=3: ("un móvil libre", []))
     monkeypatch.setattr(dispatch, "pending_summaries", lambda *a, **k: [{"goal": "un móvil libre", "state": "running"}])
     reply = _typed("Con AT&T sale a 830 dólares.", "¿Y cuánto cuesta?")
     assert "830" not in reply, reply
@@ -52,8 +52,8 @@ def test_an_amount_no_source_carries_does_not_survive_a_live_errand(monkeypatch)
 def test_a_waiting_reply_over_a_stalled_errand_says_it_is_stuck(monkeypatch):
     import time
     from nucleo import dispatch
-    from nucleo.flash import live_blocks
-    monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: ("una moto de segunda mano", []))
+    from nucleo.turn.prompt import live_browser
+    monkeypatch.setattr(live_browser, "any_live_task_rows", lambda n=3: ("una moto de segunda mano", []))
     monkeypatch.setattr(dispatch, "pending_summaries", lambda *a, **k: [
         {"goal": "buscar una moto de segunda mano", "state": "running", "started_at": time.time() - 900,
          "progress_at": time.time() - 600}])

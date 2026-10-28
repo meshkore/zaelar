@@ -36,7 +36,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   nodes 2.17, 3.35, 2.201.
 - **CRIT-V4 · Fillers are «smart».** A wait cover sounds only on a turn that thinks (a question, real work), never
   on a short order; a cover describes motion and never ends the turn; a promise to look with nothing behind it is
-  withdrawn. — since 2026-09-17 · nodes 2.50, 2.164, 3.58 · `voice/engine/core/filler_audio.py`,
+  withdrawn. — since 2026-09-17 · nodes 2.50, 2.164, 3.58 · `voice/engine/speech/filler_audio.py`,
   `nucleo/flash/answer_guards.py`.
 - **CRIT-V5 · A claim is not a fact.** A delivery claimed over an empty sheet becomes a follow-up; «still on it»
   is said only about live work on THIS request; a result already spoken is not news on the next turn. — since
@@ -53,7 +53,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   `set_style_directive.name` — nothing is read from his words; a rename takes one model turn
   (`nucleo/turn/identity.py`, refactor2710-07). — since 2026-09-22 · nodes 2.56.
 - **CRIT-V9 · A phase pack rides only a FREE turn.** A question, an order or a long sentence gets its answer and
-  no introduction block that turn (`nucleo/context_packs/free_turn.py`, `context_packs.compose(turn_text)`).
+  no introduction block that turn (`nucleo/turn/prompt/packs/free_turn.py`, `context_packs.compose(turn_text)`).
   — since 2026-10-11 · nodes 2.474.
 - **CRIT-V10 · The microphone is only parked over an ear that has HEARD.** In a wake-word mode the browser's
   recogniser may close the paid tap only after it has returned a result; its `onstart` proves nothing, and

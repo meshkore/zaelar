@@ -178,7 +178,6 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     "nucleo/flash/show_guard.py": (165, 4),
     # nucleo/flash/probe.py left the table with the text channel's own turn (refactor2710-01): the typed
     # channel runs the voice turn, so there is no second copy left to bound.
-    "nucleo/flash/prompt.py": (834, 29),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
     # branch in the worker directive: inject before killing—directive prose, nothing extractable)
     # 26-09-11: V2-675 · −21 — the CRON line moved to `live_blocks.py` (same precedent as the browser and
     # background-task blocks), paying for the context-pack seam. Lowering the number IS the celebration.
@@ -351,8 +350,8 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
     "nucleo/request": 959,     # refactor2710-02: born — request_row (model), errand_kind/title, dedup+continuity (append), stop_decision MOVED in
     "nucleo/susurro": 1386,
-    "nucleo/turn": 3476,        # refactor2710-03: `reply.py` + `reply_receipts.py` (the mouth); refactor2710-07: `brief.py` + `verdicts.py` (moved from nucleo/flash); refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-03: `reply.py` + `reply_receipts.py`, the mouth that speaks the verdict (paid by nucleo/flash); refactor2710-03: `reply.py` + `reply_receipts.py`, the mouth that speaks the verdict (paid by nucleo/flash); refactor2710-06: `wait_lines.py`, the holding/mute/follow-up lines from flash/reminder_guards
-    "nucleo/workers": 7168,            # refactor2710-10: source_outcomes MOVED in from the top; refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
+    "nucleo/turn": 6527,        # refactor2710-03: `reply.py` + `reply_receipts.py` (the mouth); refactor2710-07: `brief.py` + `verdicts.py` (moved from nucleo/flash); refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-03: `reply.py` + `reply_receipts.py`, the mouth that speaks the verdict (paid by nucleo/flash); refactor2710-03: `reply.py` + `reply_receipts.py`, the mouth that speaks the verdict (paid by nucleo/flash); refactor2710-06: `wait_lines.py`, the holding/mute/follow-up lines from flash/reminder_guards
+    "nucleo/workers": 8194,            # refactor2710-10: source_outcomes MOVED in from the top; refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
     "nucleo/workflows": 315,
     "observability": 1005,
     "rules": 1211,              # refactor2710-01: +3, the rules.write door
@@ -375,9 +374,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/consent.py",
     "nucleo/danger.py",
     "nucleo/dispatch/confirm.py",
-    "nucleo/dispatch_prompts.py",
-    "nucleo/energy/lease.py",
-    "nucleo/energy/meter.py",
     "nucleo/errands/__init__.py",
     "nucleo/errands/book.py",
     "nucleo/errands/wake.py",
@@ -392,11 +388,9 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/direct_action.py",
     "nucleo/flash/escalation_guard.py",
     "nucleo/llm/fast_client.py",
-    "nucleo/flash/live_blocks.py",
     "nucleo/flash/payload_fill.py",
     "nucleo/flash/post_stream_lanes.py",
     "nucleo/flash/post_stream_acts.py",
-    "nucleo/flash/prompt.py",
     "nucleo/llm/provider_chain.py",
     "nucleo/flash/router.py",
     "nucleo/flash/router_catalog.py",
@@ -405,27 +399,21 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/segmenter.py",
     "nucleo/flash/show_target.py",
     "nucleo/flash/site_catalog.py",
-    "nucleo/flash/task_block.py",
     "nucleo/flash/tool_executor_calls.py",
     "nucleo/flash/tool_executor_widget_calls.py",
     "nucleo/flash/tool_selection.py",
     "nucleo/flash/widget_read.py",
-    "nucleo/pulse/homeostasis.py",
     "nucleo/input/stt.py",   # the phrase accumulator, MOVED from nucleo/flash/accumulator.py (refactor2710-01)
     "nucleo/jev/__init__.py",
     "nucleo/memory_agent/gates.py",
     "nucleo/mesh_agents.py",
-    "nucleo/cli/nav.py",
-    "nucleo/pulse/notices.py",
     "nucleo/runstate.py",
-    "nucleo/pulse/scheduler.py",
     "nucleo/sheets.py",
     "nucleo/circuit/spec.py",
     "nucleo/susurro/apply.py",
     "nucleo/susurro/engine.py",
     "nucleo/circuit/ledger.py",
     "nucleo/turn/promise_kept.py",
-    "nucleo/cli/worker_api.py",
 })
 
 
@@ -442,7 +430,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777). Never for growth in place.
-_TOTAL_MAX = 169674
+_TOTAL_MAX = 169033
 
 
 def test_the_total_only_shrinks():

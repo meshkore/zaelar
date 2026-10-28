@@ -10,7 +10,7 @@ an ORDER is the natural way to say it, and an order never fired the prefetch.
 """
 import pytest
 
-from nucleo.flash import prompt
+from nucleo.flash import recall_heuristics as prompt
 
 
 @pytest.mark.parametrize("text", [

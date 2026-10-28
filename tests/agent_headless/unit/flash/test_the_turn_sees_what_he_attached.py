@@ -39,13 +39,13 @@ def _attach(eid, name, kind, reading="", why=""):
 
 
 def test_no_attachment_adds_nothing_to_the_turn():
-    from nucleo.flash.prompt import live_state
+    from nucleo.turn.prompt.live_state import live_state
     assert att.prompt_lines() == []
     assert "ADJUNTO" not in live_state()
 
 
 def test_the_attachment_rides_the_turn_with_its_reading():
-    from nucleo.flash.prompt import live_state
+    from nucleo.turn.prompt.live_state import live_state
     _attach(41, "ticket.jpg", "image", "Receipt from Bar Pepe. Total 23,40 EUR")
     live = live_state()
     assert "«ticket.jpg» · image · 2 KB" in live and "Total 23,40 EUR" in live

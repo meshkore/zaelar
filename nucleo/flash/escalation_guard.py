@@ -49,7 +49,7 @@ def judge_escalation_from_brief(brief) -> str:
     Returns "escalate" for everything that is not a confident `handle_inline` — an unsure verdict, a
     brief still in flight, a failed or disabled one: today's path, unchanged.
     """
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     choice, _info = _tb.read(brief, _tb.ESCALATE_KEY, "escalate")
     return "handle_inline" if choice == "handle_inline" else "escalate"
 
@@ -136,7 +136,7 @@ def drop_if_fragment(escalate_req: dict, *, operator_text: str, brief=None,
     leaving the commission exactly where it is.
     """
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         # V2-820 T-06 — the turn's words as the verdict read them: a «vale» after his own cut request is not the
         # whole of what the model was answering, and the commission came from the cut words.
         if not escalate_req.get("v") or not is_a_fragment(_tb.judged_text(brief, operator_text), brief=brief,
@@ -180,7 +180,7 @@ def a_question_the_state_answers(brief) -> bool:
     a search the turn never needed ran for minutes. A turn whose surface is something to LOOK at (a document, a
     list, one item, pictures, a new card) is not answered by the state: it goes on to the rung that writes it."""
     from nucleo import surfaces as _sf
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     return (_tb.read(brief, _tb.REQUEST_KEY, "")[0] == "question"
             and _tb.read(brief, _tb.WORDS_KEY, "")[0] == "tell"
             and _tb.read(brief, _tb.ESCALATE_KEY, "")[0] == "handle_inline"
@@ -280,7 +280,8 @@ def _the_order_was_carried_out(brief) -> bool:
     act this turn ran IS the commission (live bench E3, 2026-10-15: `forward` + `escalate_to_slowbrain` with the escalate
     key missing from the brief; the worker was kept and was free to send the same mail again). A sure «escalate» — a
     compound turn that also commissions real work — keeps its worker."""
-    from nucleo.flash import direct_action as _da, turn_brief as _tb, undecided as _und
+    from nucleo.flash import direct_action as _da, undecided as _und
+    from nucleo.turn import brief as _tb
     _c, info = _tb.read(brief, _tb.ESCALATE_KEY, "")
     if info is not None:
         return False

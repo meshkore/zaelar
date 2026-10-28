@@ -20,7 +20,7 @@ import asyncio
 import pytest
 
 from nucleo.cli import turn
-from nucleo.flash import prompt
+from nucleo.turn.prompt import builder as prompt
 from tests.brain import harness as H
 
 

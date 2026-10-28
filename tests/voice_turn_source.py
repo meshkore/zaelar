@@ -191,7 +191,7 @@ _ALIASED = {(ENGINE / "nucleo" / "dispatch" / "session.py").resolve(): "_d",
             (ENGINE / "server" / "voice_status.py").resolve(): "_va",
             **{(ENGINE / "nucleo" / "workers" / f"session_{x}.py").resolve(): "_s" for x in ("record", "events", "finish")},
             (ENGINE / "nucleo" / "memory_agent" / "ingest_steps.py").resolve(): "_ing",
-            (ENGINE / "nucleo" / "flash" / "live_blocks_nav.py").resolve(): "_lb",
+            (ENGINE / "nucleo" / "turn" / "prompt" / "live_browser_nav.py").resolve(): "_lb",
             (ENGINE / "nucleo" / "flash" / "tool_executor_calls.py").resolve(): "_tx",
             (ENGINE / "nucleo" / "flash" / "tool_executor_widget_calls.py").resolve(): "_txw",
             (ENGINE / "voice" / "engine" / "pipeline" / "agent_events.py").resolve(): "_ag",
@@ -266,11 +266,11 @@ _SPLICED = {
           ENGINE / "nucleo" / "memory_agent" / "ingest_steps.py", "gate_the_utterance"),
          ("    # V2-778 F1 — filing the atoms the distiller returned", "_ing_steps.file_the_atoms(",
           ENGINE / "nucleo" / "memory_agent" / "ingest_steps.py", "file_the_atoms")], "_ing"),
-    (ENGINE / "nucleo" / "flash" / "live_blocks.py").resolve(): (
+    (ENGINE / "nucleo" / "turn" / "prompt" / "live_browser.py").resolve(): (
         [("            # V2-778 F1 — reading each live browser task", "_lbn.read_the_browser_tasks(",
-          ENGINE / "nucleo" / "flash" / "live_blocks_nav.py", "read_the_browser_tasks"),
+          ENGINE / "nucleo" / "turn" / "prompt" / "live_browser_nav.py", "read_the_browser_tasks"),
          ("            # V2-778 F1 — saying what the brain may claim about the browser", "_lbn.say_the_browser_state(",
-          ENGINE / "nucleo" / "flash" / "live_blocks_nav.py", "say_the_browser_state")], "_lb"),
+          ENGINE / "nucleo" / "turn" / "prompt" / "live_browser_nav.py", "say_the_browser_state")], "_lb"),
 }
 
 

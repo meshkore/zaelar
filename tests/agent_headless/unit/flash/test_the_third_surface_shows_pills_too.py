@@ -23,7 +23,7 @@ instead of writing a fourth copy.
 import pytest
 
 from memory.api import background_slot_off_topic as regla
-from nucleo.flash import prompt as fp
+from nucleo.turn.prompt import recall as fp
 
 
 class _Mem(dict):

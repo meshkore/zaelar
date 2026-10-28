@@ -46,7 +46,7 @@ import pytest
 
 from nucleo.flash import build_decision as _bd
 from nucleo.flash import router_guards as _rg
-from nucleo.flash import turn_brief as _tb
+from nucleo.turn import brief as _tb
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[3]
 _PROVIDER = _ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py"

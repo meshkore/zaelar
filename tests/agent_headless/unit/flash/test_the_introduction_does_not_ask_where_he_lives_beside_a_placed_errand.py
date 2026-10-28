@@ -9,8 +9,8 @@ from __future__ import annotations
 import pytest
 
 from nucleo import dispatch
-from nucleo.context_packs import introduction as I
-from nucleo.context_packs import place_in_play as P
+from nucleo.turn.prompt.packs import introduction as I
+from nucleo.turn.prompt.packs import place_in_play as P
 
 PORTLAND = {"id": "2", "request": "Find me a restaurant for an anniversary in Portland, quiet, about $60 a person.",
             "phase": "", "waiting_on": ""}

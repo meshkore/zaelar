@@ -3,14 +3,14 @@
 `flat-hunt-recall-the-report__es` (1/5): two flat hunts on file, Gràcia and Sant Antoni, and he said «el de
 Gràcia». The chooser scored the right one `strong` at 0.19 — under its 0.5 floor — so nothing was picked and the
 turn asked him again for the word he had just said. The index already knew: «gracia» is in one title and not in
-the other (`nucleo/flash/task_recall_named.py`).
+the other (`nucleo/turn/task_recall.py`).
 """
 import pytest
 
 from memory import db as memdb
 from memory import tasks_store as ts
-from nucleo.flash import task_recall as tr
-from nucleo.flash import task_recall_named as named
+from nucleo.turn import task_recall as tr
+from nucleo.turn import task_recall as named
 
 
 @pytest.fixture

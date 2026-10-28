@@ -119,7 +119,7 @@ def test_an_empty_sheet_and_a_pdf_are_refused(ws):
 # ── the worker is TOLD where the files live ─────────────────────────────────────────────────────────────────
 def test_the_worker_prompt_names_the_library_root_and_the_filing_action(ws):
     from library import paths
-    from nucleo.dispatch_prompts import library_block
+    from nucleo.workers.prompts import library_block
     block = library_block()
     assert str(paths.root()) in block and "save_document" in block and "documents" in block
     assert "navegador" in block, "it names the wrong place the worker actually wrote to"
@@ -129,10 +129,10 @@ def test_the_dispatcher_appends_the_block_to_every_trusted_worker():
     """The blocks a trusted worker's prompt carries compose in ONE place (`dispatch_prompts.trusted_blocks`,
     V2-661) and the dispatcher calls it for TRUSTED, non-dev workers only — the cluster dev channel keeps its
     own prompt (V2-655's boundary)."""
-    prompts = (_ENGINE / "nucleo" / "dispatch_prompts.py").read_text(encoding="utf-8")
-    i = prompts.index("def trusted_blocks(")
-    body = prompts[i:prompts.index("\ndef ", i + 10)]
-    assert "library_block()" in body and "DOC_SURFACE_BLOCK" in body
+    from nucleo import surfaces
+    from nucleo.workers import prompts
+    assert prompts.library_block() in prompts.trusted_blocks(surfaces.LIST)
+    assert prompts.DOC_SURFACE_BLOCK in prompts.trusted_blocks(surfaces.DOC)
     src = "\n".join(_vts.read(f) for f in sorted((_ENGINE / "nucleo" / "dispatch").glob("*.py")))
     j = src.index("trusted_blocks(")
     assert "if trusted and not _dev:" in src[j - 400:j], "trusted workers only — the dev channel keeps its own prompt"

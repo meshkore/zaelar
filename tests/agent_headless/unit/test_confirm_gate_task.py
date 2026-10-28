@@ -46,7 +46,7 @@ def test_the_brain_can_SEE_that_something_is_parked():
 
 
 def test_the_live_state_carries_it():
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import live_state as prompt
     dispatch.remember_confirm("9", "paga la factura de la luz", _Task())
     assert "CONFIRMACIÓN PENDIENTE de una acción IRREVERSIBLE" in prompt.live_state()
 
@@ -244,7 +244,7 @@ def test_the_memory_of_an_expired_one_does_not_last_forever():
 
 def test_and_it_reaches_the_live_state():
     """This codebase's recurring failure: the fact exists but does not reach the place where the decision is made."""
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import live_state as _p
 
     tid = _ask()
     dispatch._PENDING_CONFIRM[tid]["ts"] = time.time() - (dispatch._CONFIRM_TTL + 100)

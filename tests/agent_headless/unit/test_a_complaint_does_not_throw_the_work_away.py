@@ -80,7 +80,7 @@ def test_the_measured_relaunch_order_matches_and_an_unrelated_errand_does_not():
 
 
 def test_the_directive_teaches_inject_on_complaint_before_the_kill(monkeypatch):
-    from nucleo.flash import prompt as P
+    from nucleo.turn.prompt import operating as P
     monkeypatch.setattr(dispatch, "has_active", lambda: True)
     text = P._workers_directive()
     assert "Si se QUEJA" in text and "ENTREGUE YA" in text, text

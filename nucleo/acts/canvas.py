@@ -165,7 +165,7 @@ def size_ordered(text: str, *, brief=None) -> str:
 def _verdict(brief, key: str) -> str:
     """The brief's answer to `key` (a `turn_brief` key name) read with confidence, else ""; no brief, no (observed) read."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         choice, info = _tb.read(brief, getattr(_tb, key), "") if brief is not None else ("", None)
         return str(choice or "") if (info or {}).get("used") else ""
     except Exception as e:  # noqa: BLE001 — an unread brief licenses and vetoes nothing

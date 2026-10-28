@@ -296,6 +296,21 @@ def brief_handle(case: dict):
 
 
 # ── isolation ─────────────────────────────────────────────────────────────────────────────────────────────
+def _unbind_copies(name: str, fake, real) -> None:
+    """A module first imported WHILE a patch was on bound the fake under its own name (`from … import FastClient`
+    took `RecordedModel`), and restoring the patched attribute does not reach that copy — five tests went red only in
+    wide runs, missing `_client_for`. Put the real object back wherever the fake is still bound under that name."""
+    import sys
+    if fake is None or fake is real:
+        return
+    for mod in list(sys.modules.values()):
+        try:
+            if getattr(mod, name, None) is fake:
+                setattr(mod, name, real)
+        except Exception:  # noqa: BLE001 — a module that refuses attribute access keeps what it has
+            continue
+
+
 _ENV_KEYS = ("ZAELAR_WORKSPACE", "ZAELAR_DB", "ZAELAR_JEV", "ZAELAR_EMBED_BACKEND", "MEMORY_RERANK",
              "ZAELAR_LANGUAGE_GATE", "ZAELAR_LANGUAGE", "ZAELAR_LOG_DIR", "ZAELAR_TEST_EMBED_CLOUD", "BROWSER_SEARCH")
 
@@ -351,7 +366,7 @@ class Isolated:
             from nucleo.pulse import scheduler
             self._set(scheduler, "create", lambda prompt, stamp, name="": {"ok": True, "id": "bank-job"})
             self._set(scheduler, "cancel", lambda ref: None)
-            from nucleo.flash import turn_brief
+            from nucleo.turn import brief as turn_brief
             from nucleo.llm import fast_client
             if self.live:
                 self._go_live()
@@ -393,7 +408,9 @@ class Isolated:
         except Exception:  # noqa: BLE001
             pass
         for obj, name, old in reversed(self._patched):
+            fake = getattr(obj, name, None)
             setattr(obj, name, old)
+            _unbind_copies(name, fake, old)
         self._patched.clear()
         try:
             from memory import db as memdb

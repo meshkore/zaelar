@@ -36,7 +36,7 @@ class _Model:
 
 @pytest.fixture
 def brief(monkeypatch):
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     said = {tb.TARGET_KEY: "agenda:cancel_meeting", tb.REQUEST_KEY: "order"}
 
     def _read(b, k, d="", min_confidence=None):
@@ -61,7 +61,7 @@ def model(monkeypatch):
 
 
 def test_a_read_of_the_card_the_verdict_names_carries_the_op_out(brief):
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "Let me check what's on the card.") == "cancel_meeting"
     brief[tb.REQUEST_KEY] = "question"
     assert act_repair.same_card_order_after_read({"x": 1}, "agenda") == "", "a question is answered by the read"
@@ -78,7 +78,7 @@ def test_a_sure_order_for_a_lens_is_carried_out_after_the_read(brief):
     """Demo pass 124 (2026-10-14), F2: «go to the part about proof of work» — the verdict read `documento:goto` (1.00)
     and a sure ORDER; the model read the document and recited the section, and nothing moved on screen. A lens is
     still left to the words when the turn is no sure order (the test above); a sure order for one is the order."""
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     brief[tb.TARGET_KEY], brief[tb.REQUEST_KEY] = "documento:goto", "order"
     assert act_repair.same_card_order_after_read({"x": 1}, "documento", "The relevant part is…") == "goto"
     brief[tb.REQUEST_KEY] = "comment"
@@ -134,8 +134,8 @@ def test_a_day_view_answers_with_that_days_rows_and_their_hours(tmp_path, monkey
 def test_a_reply_that_holds_the_act_for_a_go_ahead_is_not_carried_out(brief):
     """A read of the card plus a reply that holds the act is never a licence to act — only a SURE order is (audit V2-783
     P0-3, 2026-10-16: «Shall I send it?» + a named recipient was sent by this repair)."""
-    brief[__import__("nucleo.flash.turn_brief", fromlist=["x"]).REQUEST_KEY] = "comment"
+    brief[__import__("nucleo.turn.brief", fromlist=["x"]).REQUEST_KEY] = "comment"
     assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "Shall I cancel the piano on the 13th?") == ""
-    brief[__import__("nucleo.flash.turn_brief", fromlist=["x"]).REQUEST_KEY] = "order"
+    brief[__import__("nucleo.turn.brief", fromlist=["x"]).REQUEST_KEY] = "order"
     assert act_repair.same_card_order_after_read({"x": 1}, "agenda", "Shall I cancel it?") == "cancel_meeting", \
         "a SURE order is carried out whatever the words — the operator's 70% decides, not the reply's shape"

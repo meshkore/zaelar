@@ -107,7 +107,7 @@ MIN_CONFIDENCE = 0.7
 def missing(brief) -> bool:
     """The brief said, SURE, that the order asks for a capability no card declares."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         choice, info = _tb.read(brief, KEY, "", min_confidence=MIN_CONFIDENCE)
         return info is not None and str(choice or "") == MISSING
     except Exception as e:  # noqa: BLE001
