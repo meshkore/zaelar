@@ -4523,6 +4523,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_his_commissioning_words_travel_with_the_request.py']},
         {"id": "2.829", "title": "One vocabulary for how a request ended: each of the eight verdicts declares delivered, rank, row state, line and event; older names read as it; a later op never improves a failed row; a non-ending is never settled; every settle emits with the row's trace (refactor2710-02 T-00)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_one_verdict_vocabulary.py']},
+        {"id": "2.880", "title": "What the act doors emit survives their fold into nucleo/acts, and the fact door's search row carries what came back (V2-826 §2b, refactor2710-06)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/test_an_event_survives_the_act_doors.py']},
         {"id": "2.831", "title": "What the request and the circuit emit survives their move into nucleo/request and nucleo/circuit, and the verdict event carries the trace the consequence doors carry (V2-826 §2b, refactor2710-02)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_an_event_survives_request_and_circuit.py']},
         {"id": "2.821", "title": "The decision bank runs on the VOICE turn, typed and dry (`nucleo/cli/turn.py`): a recorded case decides there what the voice turn decides, and every door it meets is closed in the ledger",
