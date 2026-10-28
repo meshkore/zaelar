@@ -337,7 +337,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
     "nucleo/context_packs": 568,
-    "nucleo/dispatch": 2494,   # refactor2710-09 T-01: moved from top and split; target 1 200
+    "nucleo/dispatch": 2443,   # refactor2710-09 T-01: moved from top and split; target 1 200
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
     "nucleo/flash": 31550,
@@ -345,7 +345,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
     "nucleo/susurro": 1386,
     "nucleo/turn": 2169,
-    "nucleo/workers": 7030,    # refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
+    "nucleo/workers": 7006,    # refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
     "nucleo/workflows": 315,
     "observability": 1005,
     "rules": 1211,              # refactor2710-01: +3, the rules.write door
@@ -443,8 +443,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; → 172802 with -09). Never for growth in place.
-_TOTAL_MAX = 172802
+#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; → 172727 with -09). Never for growth in place.
+_TOTAL_MAX = 172727
 
 
 def test_the_total_only_shrinks():

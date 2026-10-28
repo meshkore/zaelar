@@ -43,10 +43,8 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 continue
             key = str(tid or "?")
             kind = str(ctx.get("kind", "generic"))
-            # V2-092: with the agent PARADO (⏻) NO is opens work new. Los workers that already estaban is congelan and
-            # continuan al start (pause_all/resume_all), but start uno DESDE CERO sobre a agent parado es
-            # it contrario of parar. Se rechaza VISIBLE (evento `task/blocked`), never in silencio: a escalada that
-            # desaparece without rastro es the clase of failure that cuesta a session of diagnostico.
+            # V2-092: with the agent STOPPED (⏻) no new work opens (paused workers resume on start). Rejected
+            # VISIBLY (`task/blocked`), never silently.
             from nucleo import runstate
             _halted = runstate.blocks_new_work(who="dispatch")   # V2-655: falla CERRADO, ver ese docstring
             if _halted:
@@ -68,10 +66,8 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             _dup_by = _ev.get("by") or ""
             _model = "skipped"          # the second half only runs with something live to compare against
             if not dup:
-                # SEGUNDA MITAD DEL DEDUP, off-loop. `find_duplicate` responds «¿es a reformulacion of it
-                # same?» and no can responder «¿es esto a errand siquiera?» — ver `about_a_live_errand`.
-                # Only corre with something live, so that the first errand of a conversacion no it paga; and va in
-                # a hilo because `chat_sync` es sincrono and this bucle es the of the servidor.
+                # SECOND HALF OF THE DEDUP, off-loop: «is this an errand at all?» (`about_a_live_errand`). Only
+                # with something live; in a thread because `chat_sync` is synchronous.
                 _live = _d._live_errands()
                 if _live:
                     try:
@@ -106,14 +102,10 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 if not _d._merge_dedup_flow(ctx, dup):
                     _d._close_escalated_flow(ctx, ok=True, status="dedup_injected")
                 continue
-            # A PARKED ERRAND IS STILL THE ERRAND HE IS TALKING ABOUT (2026-09-29, session 81095d8d). The gate
-            # pops the record when it parks, so the live dedup above cannot see it — and every repetition of
-            # the order («provide the link», «give me the link and don't ask me again») opened another task,
-            # another sheet and asked the same question again: four errands for one intention. Same yardstick
-            # and same model half as the live dedup, over `parked_errands()`; a hit is folded into the parked
-            # one (`absorb_refinement`) and the brain is told which question is still waiting, so the next
-            # turn repeats the QUESTION instead of the work. A confirmed relaunch carries `confirmed` and is
-            # never compared here: it IS the parked errand coming back through the door.
+            # A PARKED ERRAND IS STILL THE ERRAND HE IS TALKING ABOUT (2026-09-29, session 81095d8d): parked records
+            # are popped, so each repeat opened another task — four errands, one intention. Same yardstick over
+            # `parked_errands()`; a hit is folded in (`absorb_refinement`) and the brain repeats the QUESTION. A
+            # `confirmed` relaunch is never compared: it IS the parked errand coming back.
             if not bool(ctx.get("confirmed")):
                 _parked = _d.parked_errands()
                 pdup = None
@@ -145,10 +137,8 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                         pass
                     _d._close_escalated_flow(ctx, ok=True, status="dedup_parked")
                     continue
-            # THE NEGATIVE DECISION, SAID OUT LOUD (V2-507). Only the hit was emitted, so «the dedup did not
-            # fire» could not be told from «there was nothing live to fire against» — opposite fixes, and the
-            # round of 20260830-114302 spent a full replay of the event log without settling it. `live` is the
-            # one that decides: 0 means nobody was there to match, and no yardstick can be blamed for that.
+            # THE NEGATIVE DECISION, SAID OUT LOUD (V2-507): «dedup did not fire» vs «nothing live» (round
+            # 20260830-114302 could not tell). `live: 0` means nobody was there to match.
             try:
                 from voice.observer import emit
                 emit("task", "dedup_miss", role="system", text=request[:120],
@@ -162,11 +152,8 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                                        "encargo NUEVO: no casa con ninguna tarea viva")})
             except Exception:
                 pass
-            # V2-566/V2-570 — A FOLLOW-UP IS NOT A NEW ERRAND, and a follow-up of a DELIVERED listing fast
-            # pass does not spawn a parallel worker. Both decisions live in `nucleo/errand_continuity.py`
-            # (extracted: dispatch sat one line under its ratchet ceiling): the escalation may come back with
-            # an inherited sheet, or redirected entirely to a refined fast re-run in the same box — in which
-            # case there is no session to open and the module already owns the errand's next step.
+            # V2-566/V2-570 — a FOLLOW-UP is not a new errand, nor a parallel worker after a delivered fast pass;
+            # both live in `nucleo/errand_continuity.py`, which may own the next step (then no session opens).
             ctx, _redirected = _d._continuity.inherit_and_maybe_rerun(
                 request, kind if kind != "generic" else _d._classify_kind(request), ctx, key)
             if _redirected:
@@ -206,10 +193,8 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                                 # would deliver the half-done work the harness had just caught.
                                 done_when=dict(ctx.get("done_when") or {}),
                                 trace_id=str(ctx.get("trace", "") or ""))   # V2-044: encadena a la frase origen
-            # V2-227 — the SURFACE is sealed here, the one point EVERY door into the dispatcher passes (the brain with its
-            # `surface`, auto-resume, the confirm gate, the cluster, Susurro). What the brain declared rules; with nothing
-            # declared (or a word outside the vocabulary) it derives from the kind. Sealing later would open the sheet
-            # once the answer is already there — exactly what this exists to prevent.
+            # V2-227 — the SURFACE is sealed here, where EVERY door passes. The brain's declaration rules; else it
+            # derives from the kind. Sealing later opens the sheet after the answer is there.
             _note_screen(key, ctx, rec)   # V2-792: its cards open on the screen that commissioned it
             _d.surfaces.set_once(rec, ctx.get("surface"))
             # …and if esa superficie es the sheet, is ABRE YA, empty and with the tab of proceso. Aqui, and no in the
@@ -219,10 +204,8 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             elif _d.surfaces.opens_doc(getattr(rec, "surface", "")):   # a REPORT opens the DOCUMENT sheet (V2-644)
                 _d._docsheet.doc_open(rec)
             _d._SESSIONS[key] = rec
-            # V2-728 — the DURABLE row. `_SESSIONS` is RAM and a restart empties it, so the commission the
-            # operator just handed over would stop existing the moment the engine bounced. Written HERE, at
-            # the one point every door into the dispatcher passes through, for the same reason the surface is
-            # sealed here. Best-effort and off the hot path: a store that failed must not lose the worker.
+            # V2-728 — the DURABLE row (a restart empties `_SESSIONS`), written at the same single door.
+            # Best-effort: a failed store must not lose the worker.
             try:
                 from nucleo import tasks as _tasks
                 _tasks.opened(rec, ctx)

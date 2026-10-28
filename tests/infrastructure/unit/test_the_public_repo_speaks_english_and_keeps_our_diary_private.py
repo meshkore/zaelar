@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 2257
+TOTAL = 2252
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -100,11 +100,11 @@ PER_FILE: dict[str, int] = {
     'nucleo/dispatch/model.py': 4,
     'nucleo/dispatch/control.py': 1,
     'nucleo/dispatch/confirm.py': 4,
-    'nucleo/dispatch/listener.py': 2,
+    'nucleo/dispatch/listener.py': 1,
     'nucleo/dispatch/prepare.py': 6,
     'nucleo/dispatch_prompts.py': 110,
     'nucleo/dispatch/session.py': 6,
-    'nucleo/dispatch/session_steps.py': 13,
+    'nucleo/dispatch/session_steps.py': 10,
     'nucleo/energy_lease.py': 57,
     'nucleo/energy_meter.py': 60,
     'nucleo/errand_kind.py': 9,
@@ -196,7 +196,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/workers/providers/grok.py': 6,
     'nucleo/workers/providers/grok_start.py': 10,
     'nucleo/workers/providers/health.py': 10,
-    'nucleo/workers/handoff.py': 2,
+    'nucleo/workers/handoff.py': 1,
     'nucleo/workers/providers/__init__.py': 8,
     'nucleo/workers/providers/classify.py': 2,
     'nucleo/workers/relay.py': 3,
