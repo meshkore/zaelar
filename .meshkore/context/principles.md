@@ -61,6 +61,32 @@ gave to a question the system asked and makes it the default the same class of d
 the natural next step of the philosophy above, and the right home for preferences that would otherwise be
 turned into constants in prompts and code.
 
+## Any user, any request, any language — the engine is generic, the personalisation sits beside it
+
+> Multiple users will make multiple requests in multiple languages. The system must absorb any case; we never
+> channel one in particular. (Operator, 2026-10-28.)
+
+What this forbids and what it asks for, for any change that touches how a request is understood or carried out:
+
+1. **No patch for the case in front of you.** A fix is only accepted when it is the mechanism for the whole CLASS
+   of that case — change the widget, the wording, the language, the city: it must still hold. A rail is allowed
+   only when it is **generic for a kind of act** (a canvas gesture, a data-op on any card, a stop, a confirmation)
+   and helps cases nobody has written yet; never for one phrase, one widget or one user.
+2. **The engine never knows the user; the adaptive layers do.** Everything that depends on WHO is speaking and HOW
+   lives in data the engine reads, never in constants: the widget and action **aliases** (`widgets/registry`,
+   the manifests), the **rules table** (`rules/`, scoped global → domain → widget → item), **memory** (his tastes,
+   his places, his contacts) and the **per-operator policy store** above. «Find me a restaurant» searches his city
+   because memory says where he is, not because the code names a city. A threshold or a window that turns out to
+   depend on the speaker is a candidate for that layer, not for a constant — until then it is ONE value for
+   everyone, with its reason written next to it.
+3. **Thresholds, windows and vocabularies are mechanisms, not tunings.** When a verdict floor or a recency window
+   decides a case, the change is to the RULE that reads it (which readers vote, in which order, what evidence
+   outvotes what), stated once and tested with variants — not a number nudged until today's turn passes.
+4. **Never bound future scalability to make today work.** A widget that only answers in one language, a door that
+   lists the cards it knows, a verb table that routes: each of these works today and closes a door tomorrow. The
+   question before merging is the one the Brain Worker doctrine asks: *does it work for a task nobody has
+   written yet?*
+
 ## Fix the class, never the case
 
 > No fixes whose purpose is to make individual tests pass. Improvements happen at the structural level, they fix

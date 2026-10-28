@@ -22,11 +22,10 @@ TOOLS: list[dict] = [
             # (hoy Spotify). Frontera clara: es ESCUCHAR música, NO un dato del mundo (web_search) NI un vídeo.
             "description": (
                 "Reproduce o controla MÚSICA o un PODCAST (solo AUDIO) con la cuenta de música conectada del operador. `query` = "
-                "qué poner (artista/canción/género); acepta pistas vagas. Si pide música SIN decir qué, elige tú: lo que "
-                "le gusta si lo sabes, si no algo variado — y di qué pones; vacío = reanudar o lo último que sonó. "
+                "qué poner; si no dice qué, elige tú (sus gustos o algo variado) y dilo; vacío = reanudar. "
                 "`action`: play (def) | queue | pause | resume | next | previous | volume_up "
-                "| volume_down | stop. Varias seguidas: la 1ª con play y CADA siguiente con queue (encadena "
-                "solo). Comentar o quejarse de lo que suena no es otra reproducción; querer algo DISTINTO "
+                "| volume_down | stop. Varias seguidas: la 1ª con play y CADA siguiente con queue. "
+                "Comentar o quejarse de lo que suena no es otra reproducción; querer algo DISTINTO "
                 "(aun como deseo o pregunta) SÍ: llámala. VER algo en "
                 "pantalla (vídeo, videoclip, tráiler, peli) es play_video, no esto. Abrir un juego o widget se "
                 "MUESTRA, no se reproduce. Sus LISTAS guardadas son del widget `musica` (widget_data play_playlist / "
