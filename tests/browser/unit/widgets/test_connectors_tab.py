@@ -62,7 +62,7 @@ def test_api_js_exposes_the_catalog_fetch():
 
 
 def test_the_route_exists_server_side():
-    server_src = (ENGINE / "server" / "config_api.py").read_text(encoding="utf-8")
+    server_src = (ENGINE / "server" / "connectors_api.py").read_text(encoding="utf-8")   # mounted by config_api
     assert '@router.get("/api/connectors/catalog")' in server_src
 
 

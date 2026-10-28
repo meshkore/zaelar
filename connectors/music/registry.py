@@ -15,13 +15,21 @@ from .base import MusicProvider
 
 logger = logging.getLogger("zaelar.music")
 
-# name -> factory (zero-arg callable -> instance). Lazy: do not import the connector until needed.
+# name -> factory (zero-arg callable -> provider class or instance). Lazy: the connector is imported inside the
+# factory, so nobody pays for it until needed — and the import is a REAL statement the import graph can see.
 # ORDER = PRIORITY for `active()`: Spotify FIRST (if session exists) -> YouTube-audio as FREE fallback (always
 # available, no login, in the browser). This way "play music" ALWAYS plays something even with no connected account.
-_BUILTIN: "dict[str, str]" = {
-    "spotify": "connectors.spotify:provider",
-    "youtube": "connectors.music.youtube_audio:YouTubeAudioProvider",
-}
+def _spotify():
+    from connectors import spotify
+    return spotify.provider
+
+
+def _youtube():
+    from connectors.music.youtube_audio import YouTubeAudioProvider
+    return YouTubeAudioProvider
+
+
+_BUILTIN = {"spotify": _spotify, "youtube": _youtube}
 
 _PROVIDERS: "dict[str, MusicProvider]" = {}
 _loaded = False
@@ -38,13 +46,11 @@ def _ensure_loaded() -> None:
     if _loaded:
         return
     _loaded = True
-    for name, target in _BUILTIN.items():
+    for name, factory in _BUILTIN.items():
         if name in _PROVIDERS:
             continue
         try:
-            mod_name, attr = target.split(":", 1)
-            mod = __import__(mod_name, fromlist=[attr])
-            prov = getattr(mod, attr)
+            prov = factory()
             prov = prov() if callable(prov) and not isinstance(prov, MusicProvider) else prov
             register(prov)
         except Exception as e:  # noqa: BLE001 — a broken provider does not take down the rest or voice

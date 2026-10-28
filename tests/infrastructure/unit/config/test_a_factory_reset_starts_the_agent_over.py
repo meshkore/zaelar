@@ -23,7 +23,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[4]
 SCRIPT = ROOT / "scripts" / "reset-memory.sh"
-API = ROOT / "server" / "voice_api.py"
+API = ROOT / "server" / "reset_api.py"   # the reset routes left voice_api (refactor2710-13 T-03)
 TOPBAR = ROOT / "frontend" / "app" / "components" / "TopBar.js"
 SESSION = ROOT / "frontend" / "app" / "services" / "session-lk.js"
 

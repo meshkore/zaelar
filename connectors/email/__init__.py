@@ -7,5 +7,5 @@
 # V2-051). Auth = IMAP/SMTP + app-password with presets (Gmail/Outlook/iCloud/Yahoo/other); OAuth2 = future Phase 2.
 # Config MANAGED BY THE INTERFACE (config/connectors.py, gitignored + redacted); `.env` = power-user fallback.
 #
-# Pieces: config.py (knobs + presets), mailbox.py (pure IMAP/SMTP, testable without network), service.py (asyncio engine).
+# Pieces: config.py (knobs + presets), mailbox/ (pure IMAP/SMTP, testable without network), service/ (asyncio engine).
 #

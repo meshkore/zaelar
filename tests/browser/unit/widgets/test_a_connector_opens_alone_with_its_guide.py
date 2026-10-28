@@ -147,7 +147,8 @@ def test_contacts_finally_has_a_form_and_a_route_behind_it():
     assert '"google-contacts": "contacts-connect"' in WIZ.read_text(encoding="utf-8") and "api.contactsConnect(" in PANEL
     api = (APP / "services" / "api.js").read_text(encoding="utf-8")
     assert '"/api/contacts/connect"' in api
-    assert '@router.post("/api/contacts/connect")' in (ENGINE / "connectors/contacts/server_api.py").read_text(encoding="utf-8")
+    from connectors.contacts.server_api import router   # its routes are the shared door, connectors/oauth_routes.py
+    assert any(r.path == "/api/contacts/connect" and "POST" in r.methods for r in router.routes)
 
 
 def test_both_requests_are_read_before_either_is_cleared():

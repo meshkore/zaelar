@@ -200,7 +200,8 @@ _CEILINGS: dict[str, tuple[int, int]] = {
 }
 
 #: No god file may be BORN either: any engine module NOT in the table stays under this. The largest unlisted
-#: file today is `connectors/meshkore/bridge.py` at 863, so 900 bounds the whole rest of the tree with margin.
+#: file was `connectors/meshkore/bridge.py` at 863 until refactor2710-13 split it into a package; 900 still bounds the
+#: rest of the tree with margin.
 _UNLISTED_MAX = 900
 
 #: The mirror annotation: the turn's decisions copied between the voice provider and probe, each marked «this
@@ -341,7 +342,7 @@ def test_process_identity_has_ONE_owner():
 _PACKAGE_CEILINGS: dict[str, int] = {
     "bus": 646,
     "config": 2525,
-    "connectors": 20313,
+    "connectors": 20288,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow
     "library": 805,
     "memory": 9117,
     "nucleo (top)": 24101,
@@ -359,7 +360,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "observability": 1005,
     "rules": 1208,
     "search": 5474,
-    "server": 5783,
+    "server": 5736,        # refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10089,
     "voice/engine/llm": 3836,
     "widgets": 38624,
