@@ -353,7 +353,7 @@ def _a_update_meeting(action, payload, db, _extra) -> dict:
         return {"ok": False,
                 "error": "no me has dicho qué cambiar — manda alguno de: status (confirmed/pending), "
                          "attendees, location, category, notes o newTitle"}
-    # The series RULE belongs to the series row, not to a day moved off it under the same title (99, node 2.903).
+    # The series RULE belongs to the series row, not to a day moved off it under the same title (99, node 2.904).
     m = next((h for h in _hits if isinstance(h.get("repeat"), dict)), _hits[0]) \
         if any(k in payload for k in _d.recur.ALL_KEYS) else _hits[0]
     if (_why := _name_taken(db, m, payload)):

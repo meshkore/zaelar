@@ -51,7 +51,7 @@ def ref_index() -> list[dict]:
     # V2-769 — a SERIES is named once, by its next day: «el piano» is one thing, not forty Tuesdays.
     from . import recur
     _future = [(recur.next_occurrence(m, today), m) for m in db.get("meetings", [])]
-    _named: set[str] = set()       # one title, one reference: a day moved off a series shares its title (99, 2.903)
+    _named: set[str] = set()       # one title, one reference: a day moved off a series shares its title (99, 2.904)
     for nxt, m in sorted(((n, m) for n, m in _future if n), key=lambda t: (t[0], str(t[1].get("startTime") or ""))):
         label = m.get("title") or "Cita"
         if label in _named:
