@@ -120,7 +120,7 @@ def test_the_discarded_detail_travels_to_observability_not_memory():
     """Forensics are not lost: WHAT was killed rides in the return (→ the RESET event, archived with the
     session) instead of in the memory the next session reads. A LIVE pending escalation is planted — the
     snapshot reads the live queue, not the state residue."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     escalate.reset()
     escalate.escalate_to_slowbrain("Busca digestólogos en Soria con buena reputación")
     try:

@@ -40,7 +40,7 @@ def _brief(kind: str, p: float = 0.95):
 @pytest.fixture
 def parked(monkeypatch):
     relaunched: list = []
-    monkeypatch.setattr("nucleo.flash.escalate.escalate_to_slowbrain",
+    monkeypatch.setattr("nucleo.acts.errand.escalate_to_slowbrain",
                         lambda req, context=None: relaunched.append(req) or 1)
     monkeypatch.setattr(dc, "_PENDING_CONFIRM", {})
     import time

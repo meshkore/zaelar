@@ -132,7 +132,7 @@ def test_apply_finding_dedup(tmp_path):
 def test_apply_worker_action_dispatches(monkeypatch):
     # F2 (V2-061): worker_action launches escalation through FlashBrain, with the request as the goal.
     from nucleo import dispatch
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     monkeypatch.setattr(dispatch, "active_sessions", lambda: [])
     seen = {}
     monkeypatch.setattr(escalate, "escalate_to_slowbrain",
@@ -148,7 +148,7 @@ def test_apply_worker_action_breaker_trips_after_max(monkeypatch):
     # Anti-loop guard (2026-07-26 audit): after _BREAKER_MAX successful escalations in the window, the circuit OPENS
     # and NO new worker_action is sent, even if text deduplication would not have caught it (different requests).
     from nucleo import dispatch
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     sus_apply.breaker_reset()
     monkeypatch.setattr(dispatch, "active_sessions", lambda: [])
     fired = {"n": 0}
@@ -172,7 +172,7 @@ def test_apply_worker_action_breaker_trips_after_max(monkeypatch):
 def test_apply_worker_action_dedup_vs_active(monkeypatch):
     # Does NOT relaunch if there is already a live session with a very similar goal (hard deduplication).
     from nucleo import dispatch
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     monkeypatch.setattr(dispatch, "active_sessions",
                         lambda: [{"id": "s1", "goal": "cancela la cita de la ITV en su web"}])
     fired = {"n": 0}
@@ -277,7 +277,7 @@ def test_engine_a_widget_data_op_never_opens_a_second_executor(monkeypatch, tmp_
     # widget had already deleted the row — ONE order, TWO executors. A widget with a connector IS the source,
     # so a data-op is not a risk signal: no audit opens, nothing is dispatched, nothing is spoken.
     from nucleo import dispatch
-    from nucleo.flash import escalate as _esc
+    from nucleo.acts import errand as _esc
     from nucleo.susurro import client
 
     async def fake_llm(doc):
@@ -409,7 +409,7 @@ def test_an_ungrounded_action_is_reported_not_silently_dropped(monkeypatch, tmp_
     """Silently discarding it would make it invisible: the operator would not know their auditor is inventing things. The
     record and its event remain with `ungrounded` — VISIBLE state, not silent."""
     from nucleo import dispatch
-    from nucleo.flash import escalate as _esc
+    from nucleo.acts import errand as _esc
     monkeypatch.setattr(dispatch, "active_sessions", lambda: [])
     fired = {}
     monkeypatch.setattr(_esc, "escalate_to_slowbrain", lambda req, **kw: fired.setdefault("req", req) or 1)

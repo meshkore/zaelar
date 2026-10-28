@@ -47,7 +47,7 @@ def _observe(task_id: str, verdict: str, why: str) -> None:
     try:
         from voice.observer import emit
         emit("memory", "resultado rechazado" if why else "resultado aceptado", role="system", text=why,
-             extra={"layer": "write", "kind": RESULT, "task_id": task_id, "verdict": verdict,
+             extra={"layer": "write", "pill_kind": RESULT, "task_id": task_id, "verdict": verdict,
                     "accepted": not why, "reason": why})
     except Exception as e:  # noqa: BLE001 — observability NEVER breaks the memory
         from loguru import logger

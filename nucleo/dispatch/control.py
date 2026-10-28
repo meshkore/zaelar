@@ -16,7 +16,7 @@ def _schedule_auto_resume(req: str) -> None:
     async def _later() -> None:
         try:
             await asyncio.sleep(5.0)
-            from nucleo.flash import escalate
+            from nucleo.acts import errand as escalate
             escalate.escalate_to_slowbrain(req, context={"kind": "web", "auto_resume": True})
             logger.info(f"dispatch: AUTO-RESUME de gestión web incompleta: {req[:80]}")
         except Exception as e:  # noqa: BLE001
