@@ -171,9 +171,9 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
                     return True
                 # No channel to ask through: SHOW the base, exactly as before. Staying silent here would
                 # turn a slightly-wrong card into a turn where nothing happens at all.
-                _cvis.present(wid, reason="turn-order", src="flash", emit=emit)
+                _cvis.present(wid, reason="turn-order", src="flash", emit=emit, text=text, brief=brief)
                 return True
-            _cvis.present(str(_t.get("id") or wid), reason="turn-order", src="flash", emit=emit)
+            _cvis.present(str(_t.get("id") or wid), reason="turn-order", src="flash", emit=emit, text=text, brief=brief)
             return True
     except Exception as e:  # noqa: BLE001
         logger.warning(f"widget fallback skipped: {e}")

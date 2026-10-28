@@ -103,7 +103,7 @@ REASONS = {
 
 
 def present(widget_id: str, *, reason: str, action: str = "", src: str = "flash",
-            known=None, emit=None) -> bool:
+            known=None, emit=None, brief=None, text: str | None = None) -> bool:
     """THE ONE DOOR a card goes through to appear (V2-723). True when the show was emitted.
 
     Three mechanical refusals, and each one is a measured incident rather than a policy:
@@ -156,8 +156,11 @@ def present(widget_id: str, *, reason: str, action: str = "", src: str = "flash"
             return _suppress("no se pudo leer la declaración del widget")
     if is_open(wid, known=known) and not is_minimized(wid):
         return _suppress("ya está abierta", already_open=True)
-    _emit("widget", "show", {"id": card, "src": src, "action": action, "reason": why})
-    return True
+    from nucleo import canvas_arbiter
+    from nucleo.acts import canvas
+    req = canvas_arbiter.request_of(brief, text)
+    req["card_closed"] = not is_open(wid, known=known)        # a lens brings a card only when it is closed
+    return canvas.apply("show", card, src=src, action=action, reason=why, emit=emit, request=req)
 
 
 def present_for_call(widget_id: str, action: str, *, brief=None, card: str = "", src: str = "flash",
@@ -186,16 +189,16 @@ def present_for_call(widget_id: str, action: str, *, brief=None, card: str = "",
         from widgets import effects as _fx
         fx = _fx.of(wid, str(action or "").strip())
         if _fx.PRESENT_MOUNT in fx:
-            return present(target, reason="producer-mount", action=action, src=src, known=known, emit=emit)
+            return present(target, reason="producer-mount", action=action, src=src, known=known, emit=emit, brief=brief)
         if _fx.DATA_READ in fx and not is_open(wid, known=known):
-            return present(target, reason="turn-order", action=action, src=src, known=known, emit=emit)
+            return present(target, reason="turn-order", action=action, src=src, known=known, emit=emit, brief=brief)
     except Exception as e:  # noqa: BLE001 — an unreadable declaration is not a reason to cover the screen
         logger.debug(f"present_for_call: declaration of {wid}:{action} unreadable — {e!r}")
     try:
         from nucleo.flash import turn_brief as _tb
         verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
         if info is not None and str(verb or "") == "show":
-            return present(target, reason="turn-order", action=action, src=src, known=known, emit=emit)
+            return present(target, reason="turn-order", action=action, src=src, known=known, emit=emit, brief=brief)
     except Exception as e:  # noqa: BLE001
         logger.debug(f"present_for_call: canvas verdict unreadable — {e!r}")
     _say(emit, "🚫 presentación suprimida", {

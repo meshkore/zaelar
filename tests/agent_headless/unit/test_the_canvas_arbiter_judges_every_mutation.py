@@ -199,12 +199,6 @@ def test_an_ambient_verdict_removes_the_turns_credit(verdicts):
     assert verdicts and verdicts[0]["rule"] == "ambient-turn" and verdicts[0]["allow"] is False
 
 
-def test_the_kill_switch_silences_the_shadow(verdicts, monkeypatch):
-    monkeypatch.setenv("ZAELAR_ARBITER_SHADOW", "0")
-    arb.shadow_tap("widget", "show", "", "", {"id": "agenda", "src": "flash"})
-    assert verdicts == []
-
-
 def test_the_tap_never_raises_even_on_garbage(verdicts):
     arb.shadow_tap("widget", "show", None, None, "not-a-dict")  # type: ignore
     arb.shadow_tap("widget", "data:", None, None, {})  # type: ignore

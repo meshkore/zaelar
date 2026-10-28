@@ -17,7 +17,10 @@ def state(monkeypatch):
     return st
 
 
-def test_a_show_goes_through_for_a_minimized_card(state):
+def test_a_show_goes_through_for_a_minimized_card(state, monkeypatch):
+    from nucleo import canvas_arbiter          # the turn asked to see it: the licence the armed door reads
+    monkeypatch.setattr(canvas_arbiter, "request_for", lambda extra=None: {
+        "text": "", "turn_credit": True, "last_reply": "", "verdict": {"canvas": ("show", 0.9)}})
     ev = []
     assert cv.present("results::abc-ls1", reason="turn-order", emit=lambda k, l, extra=None: ev.append(l)) is True
     assert ev == ["show"]

@@ -122,7 +122,15 @@ def test_an_open_card_is_never_raised_again(shown):
     assert "ya está abierta" in out[0][2]["detail"]
 
 
-def test_a_turn_order_opens_a_card_that_declares_no_production(shown):
+@pytest.fixture
+def asked_to_see(monkeypatch):
+    """The turn whose verdict asked to see the card — the licence the armed canvas door reads (refactor2710-04)."""
+    from nucleo import canvas_arbiter
+    monkeypatch.setattr(canvas_arbiter, "request_for", lambda extra=None: {
+        "text": "", "turn_credit": True, "last_reply": "", "verdict": {"canvas": ("show", 0.9)}})
+
+
+def test_a_turn_order_opens_a_card_that_declares_no_production(shown, asked_to_see):
     """The door is not «producers only»: most cards are presented because the operator asked."""
     out, emit = shown
     assert cv.present("agenda", reason="turn-order", known=[], emit=emit) is True
@@ -278,7 +286,7 @@ def test_the_turn_and_the_arbiter_hand_over_what_we_said():
     assert 'role == "assistant"' in arb and "last_reply=str(_last_turn" in arb
 
 
-def test_the_door_puts_the_CARD_on_screen_not_the_piece():
+def test_the_door_puts_the_CARD_on_screen_not_the_piece(asked_to_see):
     """V2-776 (2026-09-27): «Show me the monitors» resolved to the monitor sheet `results::94b220-ls1` and the door
     emitted bare `results` — the empty base — so every order on «the monitors» after it worked on nothing."""
     from nucleo.flash import canvas_visibility as cv

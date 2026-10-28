@@ -1,35 +1,19 @@
-"""nucleo/canvas_arbiter.py — ONE decision tree for every canvas mutation (V2-653, phase F0: SHADOW).
+"""nucleo/canvas_arbiter.py — ONE decision tree for every canvas mutation (V2-653; armed by refactor2710-04).
 
-Thirty days of widget incidents were each fixed with a correct, measured guard — and the SUM is a
-blacklist spread over ~10 modules and 2 channels that the next session walks around, and whose pieces
-now collide with each other (the silent tail of session 7f77e2cc was two correct guards interacting).
-This module inverts the posture: every canvas mutation is judged by ONE pyramidal decision tree with at
-most a handful of options per level, and needs TWO credentials — PROVENANCE (who ordered it, a closed
-set) and a LICENSE (what gives it the right: the operator's words in THIS turn, a task that owns the
-surface, or the operator's own hands). The existing guard modules are reused as this tree's LEAVES
-(`canvas_license`, `close_guards`, the manifest-driven `producers`/`actions`/`runtime` resolvers), so a
-verdict here agrees with the doctrine each of them already proved live — the tree only puts them in ONE
-place, in ONE order, with ONE observable answer to «why did/didn't this happen».
+Every canvas mutation is judged by ONE pyramidal tree and needs TWO credentials: PROVENANCE (who ordered it, a
+closed set) and a LICENSE — the turn's paid verdict first (CRIT-K1), then the declared leaves (the manifest's
+production, lenses and aliases), the operator's words only where the verdict is silent. A widget forked or
+written by a user inherits the rails with zero code of ours.
 
-The license leaves are DERIVED FROM THE MANIFEST wherever they touch a specific widget (aliases via
-`runtime.identify`, production via `producers.starts_production`, lenses via `actions.is_view`): a
-widget forked or written by a user inherits the rails with zero code of ours.
-
-## F0 — SHADOW, deliberately
-
-`decide()` is pure and enforced nowhere yet. `shadow_tap()` hangs off the observer stream — the funnel
-every canvas command already travels through as a `widget` event with `src` (V2-039), and every operator
-turn as a `transcript` — assembles an approximate context, and emits a VERDICT (`kind="arbiter"`) for
-every mutation: what the armed tree WOULD have done, with the rule and the evidence. The gate from
-shadow to enforcement is the operator's own condition: zero false vetoes over his real sessions.
-Kill-switch: `ZAELAR_ARBITER_SHADOW=0`.
-
-Fail-open by construction in F0: any internal error produces NO verdict and never touches the event
-that carried the mutation.
+ARMED at the door: `nucleo.acts.canvas.apply` judges every show and close before the canvas hears it (promoted
+once the replay over the operator's archive gave zero false vetoes, `tests/arbiter_replay.py`). `shadow_tap()`
+keeps listening to the observer stream — it assembles the turn the door reads (his words, their credit, the
+brief's `jev read` answers by trace) and still judges, unenforced, what does not cross the door (data-op logs).
+An internal error is the verdict `arbiter-error`, never a crash at a caller; the door lets that act through.
 """
 from __future__ import annotations
 
-import os
+import contextlib
 import time
 from dataclasses import dataclass, field
 
@@ -60,7 +44,8 @@ _SRC_DETERMINISTIC = ("actionmap", "interrupt")
 
 def decide(op: str, wid: str, src: str, *, action: str = "", payload: dict | None = None,
            text: str = "", turn_credit: bool = True, model_acted: bool = False,
-           open_ids=(), recent_ids=(), last_reply: str = "", verdict: dict | None = None) -> Verdict:
+           open_ids=(), recent_ids=(), last_reply: str = "", verdict: dict | None = None,
+           card_closed: bool = False) -> Verdict:
     """The whole pyramid, pure. `op` ∈ show|close|data|screen. `src` is the V2-039 provenance string
     (`user`, `system`, `worker:<tid>`, `wall:<tid>`, `actionmap`, `flash`, `backstop`). `text` is the operator's
     turn; `turn_credit` is False only for a turn judged ambient. `verdict` is the turn's paid brief,
@@ -69,7 +54,8 @@ def decide(op: str, wid: str, src: str, *, action: str = "", payload: dict | Non
     try:
         return _decide(op, wid, src, action=action, payload=payload or {}, text=text,
                        turn_credit=turn_credit, model_acted=model_acted,
-                       open_ids=open_ids, recent_ids=recent_ids, last_reply=last_reply, verdict=verdict or {})
+                       open_ids=open_ids, recent_ids=recent_ids, last_reply=last_reply, verdict=verdict or {},
+                       card_closed=card_closed)
     except Exception as e:  # noqa: BLE001
         return _v(False, "arbiter-error", error=str(e)[:120])
 
@@ -81,7 +67,7 @@ _OPS = ("show", "close", "data", "screen")
 
 
 def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
-            open_ids, recent_ids, last_reply="", verdict=None) -> Verdict:
+            open_ids, recent_ids, last_reply="", verdict=None, card_closed=False) -> Verdict:
     op = (op or "").strip().lower()
     wid = (wid or "").strip().lower()
     base_src = (src or "system").split(":", 1)[0].strip().lower()
@@ -160,6 +146,8 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
         # for could be heard. Arming the arbiter without this rule would have answered that one with silence.
         if _mounts_production(wid, action):
             return _v(True, "producer-mount")
+        if card_closed and _reads_the_card(wid, action):
+            return _v(True, "lens-mount")              # a declared lens over a CLOSED card brings the card
         # CONTENT LANDING is a mount too (`show-real-photo-of-a-new-car__us`, 2026-10-11): the picture search
         # fills the viewer and its `show` was filed as a drag three times in one round, because the emit carried
         # no action. The declaration is the action's own `done_when` (`effects._fills_the_card`): the card goes
@@ -207,7 +195,9 @@ def _verdict_licence(op: str, wid: str, action: str, verdict: dict) -> Verdict |
             return _v(True, "verdict-show", confidence=round(ccf, 2))
         if card == base and kcf >= _LICENCE_MIN:
             return _v(True, "verdict-catalog", confidence=round(kcf, 2))
-    if op in ("show", "close") and canvas and canvas != op and ccf >= _SURE:
+    # A show that carries one of the card's own actions mounts the card for that act — «neither» is about canvas
+    # verbs, and this is not one; only a bare show or close stands against a sure contrary verdict.
+    if op in ("show", "close") and not action and canvas and canvas != op and ccf >= _SURE:
         return _v(False, "verdict-against", canvas=canvas, confidence=round(ccf, 2))
     return None
 
@@ -252,6 +242,23 @@ def _lands_content(wid: str, action: str) -> bool:
         return False
 
 
+def _reads_the_card(wid: str, action: str) -> bool:
+    """Does the action DECLARE it reads the card (`effects.DATA_READ`)? A lens nobody can see is a silent nothing."""
+    if not (wid and action):
+        return False
+    try:
+        from widgets import effects as _fx
+        return _fx.carries(wid.split("::", 1)[0], action, _fx.DATA_READ)
+    except Exception as e:  # noqa: BLE001
+        _note(f"declaration of {wid}:{action} unreadable: {e!r}")
+        return False
+
+
+def _note(what: str) -> None:
+    from loguru import logger
+    logger.debug(f"canvas_arbiter: {what}")
+
+
 def _is_view_action(wid: str, action: str) -> bool:
     if not (wid and action):
         return False
@@ -278,8 +285,15 @@ def _payload_in_turn(payload: dict, text: str) -> bool:
 
 # ── F0 shadow: assemble context from the observer stream, judge, emit the verdict ──────────────────────
 
-def _enabled() -> bool:
-    return os.getenv("ZAELAR_ARBITER_SHADOW", "1") != "0"
+@contextlib.contextmanager
+def judged():
+    """While the door emits what it already judged, the tap must not judge it a second time."""
+    global _in_tap
+    prev, _in_tap = _in_tap, True
+    try:
+        yield
+    finally:
+        _in_tap = prev
 
 
 _TURN_TTL_S = 25.0
@@ -290,9 +304,52 @@ _reads: dict[str, dict] = {}
 _READS_KEPT = 64
 
 
+def _trace_of(ex: dict) -> str:
+    """The event's trace: the caller's own, else the stimulus in flight (the observer stamps the same one)."""
+    if ex.get("trace"):
+        return str(ex["trace"])
+    try:
+        from voice import trace as _trace
+        return str(_trace.current() or "")
+    except Exception as e:  # noqa: BLE001
+        _note(f"no trace in flight: {e!r}")
+        return ""
+
+
+def request_for(extra: dict | None = None) -> dict:
+    """The turn a canvas act belongs to, as `decide` reads it: his words (25 s), their credit, our last reply and
+    the brief's verdict on that trace — what the door passes when its caller did not bring its own."""
+    text, credit = _turn_text()
+    return {"text": text, "turn_credit": credit, "last_reply": str(_last_turn.get("reply") or ""),
+            "verdict": dict(_reads.get(_trace_of(extra or {}), {}))}
+
+
+def request_of(brief=None, text: str | None = None, *, credit: bool | None = None) -> dict:
+    """The same request, from a door that holds the turn's brief handle: its verdict read with the turn's own
+    reader (`turn_brief.read`, at any confidence — the tree applies its own lines); his words and their credit
+    from the call, else from the stream."""
+    req = request_for()
+    if text is not None:
+        req["text"] = str(text)
+    if credit is not None:
+        req["turn_credit"] = credit
+    if brief is None:
+        return req
+    from nucleo.flash import turn_brief as _tb
+    verdict = {}
+    for key in (_tb.CANVAS_KEY, _tb.TARGET_KEY, _tb.CATALOG_KEY):
+        choice, info = _tb.read(brief, key, "", min_confidence=0.0)
+        if choice:
+            info = info or {}
+            sure = 1.0 if info.get("used") else 0.0          # a read the turn USED already passed jev's own line
+            verdict[key] = (str(choice), float(info.get("confidence") or sure))
+    req["verdict"] = verdict or req["verdict"]
+    return req
+
+
 def _note_read(ex: dict) -> None:
     from nucleo.flash import turn_brief as _tb
-    trace, key = str(ex.get("trace") or ""), str(ex.get("question") or "")
+    trace, key = _trace_of(ex), str(ex.get("question") or "")
     if not trace or key not in (_tb.CANVAS_KEY, _tb.TARGET_KEY, _tb.CATALOG_KEY):
         return
     _reads.setdefault(trace, {})[key] = (str(ex.get("choice") or ""), float(ex.get("confidence") or 0))
@@ -317,7 +374,7 @@ def shadow_tap(kind: str, label: str, text: str, role: str, extra: dict | None) 
     phases (F1+) pass explicit context at the doors, where the turn text already lives. NEVER raises and
     never mutates the event it observes."""
     global _in_tap
-    if _in_tap or not _enabled():
+    if _in_tap:
         return
     try:
         _in_tap = True
@@ -367,7 +424,7 @@ def shadow_tap(kind: str, label: str, text: str, role: str, extra: dict | None) 
         # `extra` (V2-039's action log); show/close do not, so those borrow the assembled last turn.
         turn, credit = (str(text or ""), True) if op == "data" and text else _turn_text()
         payload = ex.get("payload") if isinstance(ex.get("payload"), dict) else {}
-        brief = dict(_reads.get(str(ex.get("trace") or ""), {}))
+        brief = dict(_reads.get(_trace_of(ex), {}))
         verdict = decide(op, wid, src, action=action, payload=payload, text=turn, turn_credit=credit,
                          last_reply=str(_last_turn.get("reply") or ""), verdict=brief)
         _emit_verdict(op, wid, src, action, verdict, shadow=True, brief=brief)

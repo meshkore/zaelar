@@ -70,7 +70,7 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
             if _pic:
                 _tool_fired.add("show_images")
                 images_req["v"] = _pic
-                _tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=emit)
+                _tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
                 emit("brain", "🖼️ fotos → visor imagenes (un show vacío del visor es la búsqueda)",
                      text=_pic["query"][:80], role="system")
                 return
@@ -137,7 +137,7 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
         if "show_images" not in _tool_fired:
             _tool_fired.add("show_images")
             images_req["v"] = _tx._image_turn.request_from([{"name": name, "args": args}])
-            _tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=emit)
+            _tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
             emit("brain", "🖼️ fotos → visor imagenes", text=images_req["v"]["query"][:80], role="system")
     elif name == "show_widget":
         # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.

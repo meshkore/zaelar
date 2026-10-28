@@ -63,7 +63,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
                 pass
             acted["widget"] = True
             _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
-            _pst._cvis.present(_pw, reason="turn-order", src="flash", emit=emit)
+            _pst._cvis.present(_pw, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
             emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
             from nucleo.flash import card_commission as _cc_fill
             _fill = _cc_fill.search_to_fill(_pw, _op_text)    # demo pass 93, V1: an empty catalogue is its search
@@ -246,7 +246,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         _after = await _act_repair.after_a_read(_brief, _op_text, _rw, "".join(spoken).strip(), spec=spec,
                                                 window=list(brain._window))    # V2-781 T518: or this same card
         if _after:
-            _pst._cvis.present(_after["widget_id"], reason="turn-order", src="flash", emit=emit)
+            _pst._cvis.present(_after["widget_id"], reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
             _apply_widget_data(_after["widget_id"], _after["action"], _after["payload"])
             acted["widget"] = True
             data_done["v"] = True
@@ -429,7 +429,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         # checks the claim against the widget's own declaration and refuses to raise an open card.
         if ok and str(_extra.get("surface") or "") == "widget":
             _pst._cvis.present(str(_extra.get("widget") or ""), reason="producer-mount",
-                          action=mq.get("action") or "", src="flash", emit=emit)
+                          action=mq.get("action") or "", src="flash", emit=emit, text=operator_text, brief=_brief)
         # No re-anunciar un no-op (F5): si la reproducción fue "ya suena eso", el modelo ya habló; no encajes
         # el "ya está sonando" salvo que el modelo callara.
         _is_noop = bool(_extra.get("noop"))

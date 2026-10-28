@@ -360,7 +360,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
         try:
             from widgets import effects as _fx
             if _fx.carries(wid, action_name, _fx.PRESENT_MOUNT):
-                _txw._cvis.present(wid, reason="producer-mount", action=action_name, src="flash", emit=emit)
+                _txw._cvis.present(wid, reason="producer-mount", action=action_name, src="flash", emit=emit, text=text, brief=_brief)
             # A LENS on a closed card brings the card (V2-773 final pass, C2): «Show me that time in my
             # calendar» ran `agenda:show_day` — a view-op, writes nothing — over a canvas with no agenda
             # on it, and the day changed on a card nobody could see. The model chose to change what
@@ -368,7 +368,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
             # (it may run behind the screen on purpose); a lens nobody can see is a silent nothing.
             elif (_fx.carries(wid, action_name, _fx.DATA_READ) and not _txw._cvis.is_open(wid)
                   and not _txw._canvas_lic.closing_turn(_brief, wid)):   # V2-773 E5: a close never brings the card
-                _txw._cvis.present(wid, reason="turn-order", action=action_name, src="flash", emit=emit)
+                _txw._cvis.present(wid, reason="turn-order", action=action_name, src="flash", emit=emit, text=text, brief=_brief)
         except Exception:
             pass
     elif mode == _wactions.CONFIRM:
