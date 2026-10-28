@@ -33,21 +33,21 @@ export const CSS = `
     padding:0 0 var(--sp-2,8px);border-bottom:1px solid var(--hb-line-subtle,#eef1f6)}
   /* V2-831 T-04 — the crumb is the CONTENT's title, one step under the window's own name (the header standard:
      14/600), not a 17 px headline competing with the card chrome above it. */
-  .hb-msg .hd b{font-size:14px;font-weight:600} .hb-msg .hd .sub{font-size:12px;color:var(--hb-muted-2,#7d8a9c)}
+  .hb-msg .hd b{font-size:var(--fs-ui,14px);font-weight:600} .hb-msg .hd .sub{font-size:var(--fs-micro,12px);color:var(--hb-muted-2,#7d8a9c)}
   .hb-msg .hdtitle{cursor:pointer;border-radius:8px;padding:4px 7px;margin:-4px -7px}
   .hb-msg .hdtitle:hover{background:var(--hb-hover,#eef3f9)}
-  .hb-msg .dots{display:flex;gap:2px;margin-left:auto}
-  .hb-msg .hdactions{display:flex;align-items:center;gap:2px;padding-left:var(--sp-2,8px);margin-left:var(--sp-1,4px);
+  .hb-msg .dots{display:flex;gap:var(--sp-1,4px);margin-left:auto}
+  .hb-msg .hdactions{display:flex;align-items:center;gap:var(--sp-1,4px);padding-left:var(--sp-2,8px);margin-left:var(--sp-1,4px);
     border-left:1px solid var(--hb-line,#e3e8f0)}
-  /* V2-831 T-04 — ONE icon scale for the whole bar: 32 px targets, 18 px glyphs (node 4.321 measures it). */
+  /* V2-831 T-04 — ONE icon scale from the tokens: the standard's 28 px target, glyph = target less --sp-3 (node 4.321). */
   .hb-msg .picon,.hb-msg .hdbtn,.hb-msg .homebtn{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;
-    width:32px;height:32px;border-radius:9px;padding:0;cursor:pointer}
-  .hb-msg .picon svg,.hb-msg .hdbtn svg,.hb-msg .homebtn svg{width:18px;height:18px;display:block}
+    width:var(--hb-icon-h,28px);height:var(--hb-icon-h,28px);border-radius:var(--hb-r-s,8px);padding:0;cursor:pointer}
+  .hb-msg .picon svg,.hb-msg .hdbtn svg,.hb-msg .homebtn svg{width:calc(var(--hb-icon-h,28px) - var(--sp-3,12px));height:calc(var(--hb-icon-h,28px) - var(--sp-3,12px));display:block}
   .hb-msg .picon{opacity:.4}
   .hb-msg .picon:hover{background:var(--hb-hover,#eef3f9);opacity:.7}
   .hb-msg .picon.on{opacity:1}
   .hb-msg .picon.on:hover{opacity:1;background:var(--hb-hover,#eef3f9)}
-  .hb-msg .picon.filt{background:color-mix(in srgb,currentColor 18%,transparent);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,currentColor 55%,transparent)}
+  .hb-msg .picon.filt{background:color-mix(in srgb,currentColor 18%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,currentColor 55%,transparent)}
   .hb-msg .pdot{width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;
     font-size:9.5px;font-weight:700;color:#fff;background:var(--hb-neutral,#3a4a5c);opacity:.5;flex:0 0 auto}
   .hb-msg .pdot.on{opacity:1;background:var(--hb-accent2,#16B8A6)}
@@ -118,13 +118,13 @@ export const CSS = `
   .hb-msg .mdet{padding:2px 2px 10px}
   /* WHERE AM I (2026-10-26): the house + title are lit on the home; inside a section they dim and the
      section's name follows as the current crumb. Outline icons, the same stroke as every action icon. */
-  .hb-msg .homebtn{border:0;background:transparent;color:var(--hb-muted-2,#7d8a9c);margin-right:-4px}
+  .hb-msg .homebtn{border:0;background:transparent;color:var(--hb-muted-2,#7d8a9c);margin-right:calc(-1 * var(--sp-1,4px))}
   .hb-msg .homebtn:hover{background:var(--hb-hover,#eef3f9);color:var(--hb-ink,#0d1622)}
   .hb-msg .homebtn.on{color:var(--hb-accent,#3D6FE0);background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 14%,transparent)}
   .hb-msg .hd .hdtitle{color:var(--hb-muted,#5f6b7c);font-weight:600}
   .hb-msg .hd .hdtitle.on{color:var(--hb-accent,#3D6FE0);font-weight:700}
   .hb-msg .hdsep,.hb-msg .msep{color:var(--hb-muted-2,#9aa7b8);font-size:14px}
-  .hb-msg .hd .hdsec{font-size:14px;font-weight:600;color:var(--hb-ink,#0d1622)}
+  .hb-msg .hd .hdsec{font-size:var(--fs-ui,14px);font-weight:600;color:var(--hb-ink,#0d1622)}
   .hb-msg .hd .hdcur{font-size:14px;font-weight:600;color:var(--hb-muted,#5f6b7c)}
   /* The MAIL CLIENT (V2-807 T-01): ONE left rail — Compose, the Inbox opening into the categories the provider
      sorts it by, every other folder — each with the provider's own unread figure; the list beside it. The rail

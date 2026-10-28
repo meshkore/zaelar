@@ -31,10 +31,18 @@ _HOST = """<!doctype html><html><head><meta charset="utf-8">
   .hb-scroll{flex:1 1 auto;min-height:0;overflow:auto;padding:16px}</style></head><body>
   <div class="hb-win"><div class="hb-scroll"><div id="w"></div></div></div></body></html>"""
 
-# The standard's bar: one row of 32 px targets plus its padding and hairline. A second row of controls can never fit.
+# The standard's bar: one row of icon targets plus its padding and hairline. A second row of controls can never fit.
 _BAR_MAX = 48
-_ICON = 32
-_GLYPH = 18
+
+
+def _tokens(page):
+    """The design-system values the card must be drawn with (frontend/app/core/palette.css), read from the page —
+    the test asserts the TOKENS, so a component that types its own size fails even if it happens to match today."""
+    t = page.evaluate("""() => { const c = getComputedStyle(document.documentElement);
+        return ['--hb-icon-h', '--hb-ctl-h-sm', '--sp-3'].map(k => parseFloat(c.getPropertyValue(k))); }""")
+    icon, ctl_sm, sp3 = t
+    assert icon and ctl_sm and sp3, f"the palette did not load: {t}"
+    return {"icon": round(icon), "ctl_sm": round(ctl_sm), "glyph": round(icon - sp3)}
 
 
 def _free_port() -> int:
@@ -111,10 +119,13 @@ def test_every_header_control_shares_one_icon_size(page, platform):
     _mount(page, platform)
     targets = _boxes(page, ".hb-msg .hd .homebtn, .hb-msg .hd .picon, .hb-msg .hd .hdactions > button")
     glyphs = _boxes(page, ".hb-msg .hd .homebtn svg, .hb-msg .hd .picon svg, .hb-msg .hd .hdactions > button svg")
+    tk = _tokens(page)
     assert len(targets) >= 6, targets                       # house · 3 channels · plug · settings (· mark read)
-    assert {(w, h) for w, h, _ in targets} == {(_ICON, _ICON)}, f"{platform}: targets of mixed sizes {targets}"
+    # The header standard's provider-icon row: 28 px targets (`--hb-icon-h`) — and the plug, settings and mark-read
+    # beside them wear the same size, so nothing in the bar is out of scale.
+    assert {(w, h) for w, h, _ in targets} == {(tk["icon"], tk["icon"])}, f"{platform}: targets {targets} vs {tk}"
     assert len(glyphs) == len(targets), "a control is drawn without a stroke icon (an emoji or a text glyph)"
-    assert {(w, h) for w, h, _ in glyphs} == {(_GLYPH, _GLYPH)}, f"{platform}: glyphs of mixed sizes {glyphs}"
+    assert {(w, h) for w, h, _ in glyphs} == {(tk["glyph"], tk["glyph"])}, f"{platform}: glyphs {glyphs} vs {tk}"
     # Every control sits on the same line: one bar, not a cluster that wrapped.
     assert len({t for _, _, t in targets}) == 1, f"{platform}: the header controls wrapped onto two lines {targets}"
 
@@ -137,5 +148,7 @@ def test_the_chat_list_tools_share_one_row_with_the_search(page):
     assert len(same_line) == len(row), f"the search took a row of its own: search top {stop}, tools {row}"
     bar_w = _boxes(page, ".hb-msg .cxbar")[0][0]
     assert sw < bar_w * 0.6, f"the search spans {sw}/{bar_w}px — it is a field with room around it, not a banner"
-    # The new chat / new group buttons wear the header's icon scale.
-    assert {(w, h) for w, h, _ in _boxes(page, ".hb-msg .cxbar .cxnewbt")} == {(_ICON, _ICON)}
+    # The new chat / new group buttons wear the header's icon scale; the search is the small control height.
+    tk = _tokens(page)
+    assert {(w, h) for w, h, _ in _boxes(page, ".hb-msg .cxbar .cxnewbt")} == {(tk["icon"], tk["icon"])}
+    assert sh == tk["ctl_sm"], f"the search is {sh}px, not the --hb-ctl-h-sm control height {tk}"

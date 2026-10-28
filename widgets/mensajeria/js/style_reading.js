@@ -199,20 +199,20 @@ export const READING_CSS = `  /* V2-680 retired .mdsubj/.mdmeta/.mdfrom/.mdwhen/
      a name search and «Cargar más». */
   /* V2-831 T-04 — ONE toolbar row: search pill · kind chips · new chat/group icons; wraps only on a narrow card. */
   .hb-msg .cxbar{display:flex;align-items:center;flex-wrap:wrap;gap:var(--sp-2,8px);margin:0 0 var(--sp-2,8px)}
-  .hb-msg .cxsearch{flex:1 1 180px;min-width:140px;max-width:300px;box-sizing:border-box;height:32px;
-    border:1px solid var(--hb-line,#e3e8f0);border-radius:999px;padding:0 12px;font-size:13px;
+  .hb-msg .cxsearch{flex:1 1 180px;min-width:140px;max-width:300px;box-sizing:border-box;height:var(--hb-ctl-h-sm,32px);
+    border:1px solid var(--hb-line,#e3e8f0);border-radius:999px;padding:0 var(--sp-3,12px);font-size:var(--fs-caption,13px);
     background:var(--hb-bg-soft,#fbfdff);color:var(--hb-ink,#26313d)}
   .hb-msg .cxsearch:focus{outline:none;border-color:var(--hb-accent,#3D6FE0)}  /* selected chip: accent tint + ring */
-  .hb-msg .cxchips{display:flex;gap:4px;flex-wrap:wrap}
+  .hb-msg .cxchips{display:flex;gap:var(--sp-1,4px);flex-wrap:wrap}
   .hb-msg .cxchip{border:1px solid var(--hb-line,#e3e8f0);background:transparent;color:var(--hb-muted,#6b7b92);
-    border-radius:999px;font-size:12px;height:28px;padding:0 11px;cursor:pointer}
+    border-radius:999px;font-size:var(--fs-micro,12px);height:var(--hb-icon-h,28px);padding:0 var(--sp-3,12px);cursor:pointer}
   .hb-msg .cxchip:hover{color:var(--hb-ink,#26313d)}
   .hb-msg .cxchip.on{background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,transparent);border-color:transparent;
     box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--hb-accent,#3D6FE0) 55%,transparent);color:var(--hb-ink,#26313d)}
-  .hb-msg .cxnew{display:flex;gap:2px;margin-left:auto}
-  .hb-msg .cxnewbt{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;
-    border-radius:9px;background:transparent;color:var(--hb-muted,#3a4757);cursor:pointer}
-  .hb-msg .cxnewbt svg{width:18px;height:18px;display:block}
+  .hb-msg .cxnew{display:flex;gap:var(--sp-1,4px);margin-left:auto}
+  .hb-msg .cxnewbt{display:inline-flex;align-items:center;justify-content:center;width:var(--hb-icon-h,28px);
+    height:var(--hb-icon-h,28px);padding:0;border:0;border-radius:var(--hb-r-s,8px);background:transparent;color:var(--hb-muted,#3a4757);cursor:pointer}
+  .hb-msg .cxnewbt svg{width:calc(var(--hb-icon-h,28px) - var(--sp-3,12px));height:calc(var(--hb-icon-h,28px) - var(--sp-3,12px));display:block}
   .hb-msg .cxnewbt:hover{background:var(--hb-hover,#eef3f9);color:var(--hb-accent,#3D6FE0)}
   .hb-msg .cxtag{font-size:11.5px;color:var(--hb-muted-2,#9aa7b8);font-weight:400}
   .hb-msg .trow.cxarch{opacity:.6}
