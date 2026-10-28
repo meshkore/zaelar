@@ -73,12 +73,9 @@ export function isWide(img){
   return !!(img && img.naturalWidth && img.naturalHeight && img.naturalWidth >= 2.5 * img.naturalHeight);
 }
 
-// ── ITEM TEMPLATES (V2-831) ──────────────────────────────────────────────────────────────────────────────────
-// Inside the list layout, ONE card may be drawn by the template of what it is: `offer` (price-led — name, big
-// price, ≤2 chips, a logo at most, never a plate), `video` (16:9 thumbnail beside its text) or `link` (the site's
-// icon and host over a snippet). The worker DECLARES it in one word (`kind` on the item, or on the list); on a
-// list with no photo layout it is inferred from the FIELDS — a priced row is an offer, a bare page is a link.
-// A photo layout infers nothing: its cards keep the plate that keeps the row in formation (V2-797).
+// ── ITEM TEMPLATES (V2-831): ONE card drawn by what it is — `offer` (name, big price, ≤2 chips, a logo at most, never
+// a plate), `video` (16:9 thumbnail beside its text), `link` (site icon + host over a snippet). DECLARED in one word
+// (`kind` on the item or list); in a rows list inferred from the FIELDS. A photo layout infers nothing (V2-797 plates).
 export const ITEM_KINDS = ["offer", "video", "link"];
 
 export function itemKind(it, listKind, layout){
@@ -93,10 +90,19 @@ export function itemKind(it, listKind, layout){
   return "";
 }
 
-// The site's own icon, over the initial of its host: a dead icon leaves the letter, never an empty square.
+// The site's own icon, over the shell's LINK icon (`frontend/app/lib/icons.js` LINK_ICON, copied: widget.js cannot
+// import from frontend/app): a dead icon leaves the shared link mark, never an empty square.
+const LINK_PATHS = ["M9 17H7A5 5 0 0 1 7 7h2", "M15 7h2a5 5 0 1 1 0 10h-2", "M8 12h8"];
+function linkIcon(){
+  const NS = "http://www.w3.org/2000/svg", svg = document.createElementNS(NS, "svg");
+  for(const [k, v] of [["viewBox","0 0 24 24"],["fill","none"],["stroke","currentColor"],["stroke-width","2"],
+                       ["stroke-linecap","round"],["stroke-linejoin","round"],["aria-hidden","true"]]) svg.setAttribute(k, v);
+  LINK_PATHS.forEach(d => { const p = document.createElementNS(NS, "path"); p.setAttribute("d", d); svg.appendChild(p); });
+  return svg;
+}
 export function favicon(host){
   const box = elem("span","hr-fav");
-  box.appendChild(monogram(host));
+  box.appendChild(linkIcon());
   if(host){ const img = photo("https://" + host + "/favicon.ico", "", ""); box.appendChild(img); }
   return box;
 }

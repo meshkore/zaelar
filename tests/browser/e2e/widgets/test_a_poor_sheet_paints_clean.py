@@ -80,7 +80,7 @@ _MEASURE = """(id) => {
               logo: logo ? [logo.getBoundingClientRect().width, logo.getBoundingClientRect().height] : null,
               big: big ? big.textContent : null, chips: c.querySelectorAll('.hr-chip').length,
               host: (c.querySelector('.hr-host') || {}).textContent || null,
-              fav: !!c.querySelector('.hr-fav .hr-mono')};
+              fav: !!c.querySelector('.hr-fav svg')};
     }),
   };
 }"""
