@@ -1,7 +1,6 @@
 #
 # found_mail.py — what an archive search FOUND, made usable by the card: a mail the card no longer holds is asked
-# back from the mailbox, and the last find is remembered so «open it» has a referent. Moved out of data.py (which
-# re-exports every name) with no behaviour change.
+# back from the mailbox, and the last find is remembered so «open it» has a referent.
 #
 import time
 
@@ -15,11 +14,9 @@ _BRING_BACK_MAX = 2
 def _bring_back_found_mail(payload: dict) -> int:
     """A mail the archive found but this card no longer holds is asked back from the mailbox, attachments included.
 
-    Demo pass 2026-09-28 (full28 E1→E3): «did inworld send me something?» found the receipt in the archive; the card
-    holds only the 30 most recent unread, and with newer mail since, the receipt was not among them — «open it» found
-    no chat and «send the invoice to quinn» had nothing to forward. The archive keeps the mailbox UID, so the
-    card's own «load previous» order (the connector's `fetch_older`, one message just below UID+1) brings exactly
-    that mail into its conversation. Never raises; returns how many orders were queued."""
+    The card holds only the most recent unread; the archive keeps the mailbox UID, so the card's own «load previous»
+    order (`fetch_older`, one message just below UID+1) brings exactly that mail back. Never raises; returns how many
+    orders were queued."""
     try:
         from . import views as _v
         db = load_db()
@@ -48,12 +45,8 @@ FOUND_TTL_S = 1800
 
 
 def _remember_found(payload: dict) -> None:
-    """The mail an archive search found, so «open it» has a referent (demo pass 62, E2).
-
-    «did inworld send me something?» found the receipt; its conversation was on the card (a thread with no name,
-    brought back by an earlier «load previous»), but not in the inbox list — and «open it» came back as «nothing to
-    open», then a repair pass opened the ONE chat the list showed: the wrong mail. What the card last found is a
-    fact of the card, like what it last sent. Never raises."""
+    """The mail an archive search found, so «open it» has a referent even when it is not in the inbox list: what the
+    card last found is a fact of the card, like what it last sent. Never raises."""
     try:
         from . import views as _v
         row = next((r for r in _v.archive_rows(payload) if r.get("direction") == "in" and r.get("chat_id")), None)

@@ -22,22 +22,18 @@ class _Apply:
                 continue
             body = dict(ev)
             body["from"] = ev.get("from") or ev.get("senderName") or ""
-            # V2-819 — in a one-to-one chat, the bridge names a message HE sent after its sender: himself. That is
-            # not the conversation's name, and storing it titled the chat with his own name.
+            # In a one-to-one chat the bridge names his own message after himself — never the chat's name (V2-819).
             chat_name = ev.get("chatName") or ""
             if not ev.get("isGroup") and chat_name and chat_name == (ev.get("senderName") or ""):
                 chat_name = ""
             msgstore.record_outbound(platform, ev.get("chatId"), body, name=chat_name)
-            # V2-616 — INFO, the far end of the same trace the connector's own log line starts: the operator
-            # reported his own reply never reaching the widget, and the whole pipeline was silent on success
-            # end to end. This confirms the message actually landed in the store, not just that the bus saw it.
+            # INFO, the far end of the trace the connector's log line starts: the message landed in the store (V2-616).
             logger.info(f"mensajeria: outbound {platform} message joined its thread ({ev.get('chatId')})")
             _f._record_left(ev)
             if ev.get("ref"):
                 _f._settle(ev.get("ref"), True)
-            # V2-693 — and the directory learns WHO that conversation is. The connector resolved a handle
-            # into a chat id to make this send; that mapping exists nowhere else, and dropping it is what
-            # let one person become two contacts.
+            # The directory learns WHO that conversation is (V2-693): the handle → chat id mapping the connector
+            # resolved exists nowhere else, and dropping it makes one person two contacts.
             if ev.get("contactId"):
                 try:
                     from widgets import directory
@@ -46,8 +42,8 @@ class _Apply:
                     logger.debug(f"mensajeria: no pude anotar el contacto del envío: {e}")
 
     def _apply_send_failures(self) -> None:
-        """V2-819 — `msg.send_failed` had publishers and no reader: a send that did not leave was told to nobody.
-        It settles the card's outbox row (the card keeps his text and says why) and the brain hears it once."""
+        """A send that did not leave (`msg.send_failed`, V2-819) settles the card's outbox row — the card keeps his
+        text and says why — and the brain hears it once."""
         for ev in self._drain(self._failed_sub):
             ev = ev if isinstance(ev, dict) else {}
             reason = str(ev.get("reason") or "")
@@ -152,13 +148,9 @@ class _Apply:
             return
 
         verdicts = await triage_agent.classify(batch, msgcfg.operator_name() or None)
-        # V2-607 — STORING IS NOT NOTIFYING. This used to be one decision: `notify.surface` filtered by the
-        # notification policy and whatever survived was BOTH saved and announced, so anything the policy did not
-        # care about never reached his inbox at all. With the policy now defaulting to silence (his direction,
-        # 2026-09-07) that single gate would have emptied the widget completely — the exact failure V2-606 had
-        # just fixed. So the two questions are asked separately, in this order:
-        #   1. what is NEW  → everything of it goes into its channel's section, unread, whatever the policy says
-        #   2. of that, what may INTERRUPT → almost always nothing, until he asks to be told
+        # STORING IS NOT NOTIFYING (V2-607), two questions in this order:
+        #   1. what is NEW  → all of it goes into its channel's section, unread, whatever the policy says
+        #   2. of that, what may INTERRUPT → the policy decides (silent by default)
         db = msgstore.load()
         by_platform: dict[str, list[dict]] = {}
         for v in verdicts:
@@ -179,24 +171,17 @@ class _Apply:
                 await notify.announce(_f._LABEL.get(platform, platform), notice)
 
     def _auto_reply(self, platform: str, items: list[dict]) -> int:
-        """V2-624 — the autoresponder (the 'Phase 4' the WhatsApp client has long named, now with its
-        go-ahead). The DECISION lives whole in `widgets/mensajeria/autorespond.py` (zero-import, like policy.py):
-        never a group, email only when addressed to him, inside the configured hours, once per chat per 24 h
-        against a DURABLE ledger. The reply travels the SAME `msg.reply` seam a dictated reply uses — each
-        connector's already-tested send path, echoed into the thread by the existing outbound-capture seams.
-        Deliberately: the original item is NOT marked read and NOT removed — an automatic «estoy fuera» does
-        not deal with the message, it announces the absence; the message still waits for him."""
+        """The autoresponder (V2-624). The DECISION lives whole in `autorespond.py`: never a group, email only when
+        addressed to him, inside the configured hours, once per chat per 24 h against a DURABLE ledger. The reply
+        travels the same `msg.reply` seam a dictated reply uses. The original item is NOT marked read nor removed:
+        an automatic «estoy fuera» announces the absence, the message still waits for him."""
         try:
             import time as _time
             from datetime import datetime
             from .. import autorespond
-            # V2-712 — THE OPERATOR'S STANDING RULE IS A FLOOR UNDER THE PER-PLATFORM SWITCH. His words,
-            # 2026-09-16: «por defecto no autorrespondemos ningún mensaje de ningún tipo. Eso es una regla de
-            # usuario que viene preseteada en el Génesis. Pero si el usuario decide cambiarla, que la cambie.»
-            # This is the engine writing to real people in his name with nobody in the loop, so the rule is
-            # read HERE and not only where the switch is flipped. The other half is in `autorespond.set_config`:
-            # enabling the responder IS him changing the rule, so it writes `allow` — both halves ship
-            # together, because a floor without its release silently kills a feature he already turned on.
+            # His standing rule is a FLOOR under the per-platform switch (V2-712): default no autoreply, read HERE
+            # because this writes to people in his name with nobody in the loop. `autorespond.set_config` is the
+            # release — enabling the responder writes `allow`; one half without the other breaks the feature.
             from nucleo import consent as _consent
             if _consent.class_policy(_consent.act_key("messaging.autorespond", platform)) == "never":
                 return 0

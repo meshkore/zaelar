@@ -8,10 +8,8 @@ from __future__ import annotations
 from .. import data as _d
 
 
-# PULL through the connector, on demand (V2-624 — the operator's «¿puedes ir al conector y chupar más
-# mensajes?», refused honestly on 2026-09-08 because no such door existed). Enqueues a platform-wide
-# fetch the connector serves against its real source; what arrives lands in the CONVERSATIONS as
-# scrollback (never in triage — pulling the past must not interrupt anybody).
+# PULL through the connector on demand (V2-624): a platform-wide fetch the connector serves against its real
+# source; what arrives lands in the CONVERSATIONS as scrollback, never in triage (the past interrupts nobody).
 def _a_fetch_now(action, payload) -> dict:
     raw = str(payload.get("platform") or "").strip().lower()
     platform = _d._PLAT_ALIASES.get(raw, raw)
@@ -39,7 +37,7 @@ def _a_fetch_now(action, payload) -> dict:
             **_d.view_data()}
 
 
-# THE AUTORESPONDER (V2-624 — the «Phase 4» go-ahead). Config only: the decision runs in
+# THE AUTORESPONDER (V2-624). Config only: the decision runs in
 # autorespond.py at the owner's ingest, the send travels the same reply seam a dictated reply uses.
 def _a_set_autoresponder(action, payload) -> dict:
     from .. import autorespond
@@ -102,10 +100,8 @@ def _a_unread(action, payload) -> dict:
                                    "subject": m.get("subject") or ""}}
 
 
-# ARCHIVE / DELETE in the REAL mailbox (V2-543; email only today). Same `n` addressing as read/dismiss.
-# The item leaves the widget AND the order travels to the platform's connector: archiving here without
-# archiving there would make the widget a lie about the real inbox — the whole point is not having to
-# open the real app afterwards.
+# ARCHIVE / DELETE in the REAL mailbox (V2-543; email only). Same `n` addressing as read/dismiss. The item leaves
+# the widget AND the order travels to the connector: archiving only here would make the widget lie about the inbox.
 def _a_archive(action, payload) -> dict:
     n = payload.get("n")
     mid = payload.get("messageId")

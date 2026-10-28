@@ -20,11 +20,8 @@ def _norm_txt(s) -> str:
 
 
 def _known_chats(db: dict) -> list:
-    """Conversations we HOLD, pending or not (V2-546). The main list stays an INBOX — what still wants
-    attention — and that is deliberate: showing every recent chat there would turn a triage surface into a
-    second messaging app. But a conversation the operator has already dealt with is still one he can read, so
-    `open` resolves against these too. Without it, answering someone from your phone makes their chat
-    unopenable here: it leaves the inbox, and the inbox was the only index."""
+    """Conversations we HOLD, pending or not (V2-546). The main list stays an INBOX on purpose, but a conversation
+    already dealt with is still readable, so `open` resolves against these too."""
     out = []
     for k, th in (db.get("threads") or {}).items():
         platform, _, chat_id = str(k).partition("|")
@@ -65,8 +62,7 @@ def _thread_view(db: dict, active: dict, pending_here: list) -> list:
     read (here or in the real app) arrives without them, so the widget shows it as history and offers no
     action on something already dealt with.
 
-    Falls back to the pending items alone if there is no thread yet: an install that predates this, or a chat
-    whose messages arrived before it existed, must still open."""
+    Falls back to the pending items alone when there is no thread yet: the chat must still open."""
     platform, chat_id = active.get("platform"), active.get("chatId")
     try:
         from .. import thread
@@ -89,10 +85,8 @@ def _thread_view(db: dict, active: dict, pending_here: list) -> list:
             row["mediaType"] = m.get("mediaType")
         if m.get("media"):
             row["media"] = m.get("media")
-        # V2-680 — the envelope a MAIL is read by. These come off the THREAD, so a mail already read still
-        # says who wrote it and who was copied: before this they were merged only from a still-pending
-        # item, which means the fields vanished the moment the message was dealt with — exactly when the
-        # operator scrolls back to check who else was on it.
+        # The envelope a MAIL is read by (V2-680), off the THREAD: a mail already read still says who wrote it
+        # and who was copied.
         for k in ("subject", "senderId", "recipients"):
             if m.get(k):
                 row[k] = m.get(k)
@@ -102,9 +96,7 @@ def _thread_view(db: dict, active: dict, pending_here: list) -> list:
                 if live.get(k) is not None:
                     row[k] = live.get(k)
         out.append(row)
-    # A pending item with no counterpart in the thread (arrived before threads existed, or was pruned) is still
-    # the operator's mail — appended rather than dropped. Losing a real message to a bookkeeping gap is the one
-    # outcome this whole file exists to prevent.
+    # A pending item with no counterpart in the thread is still his mail: appended, never dropped.
     for it in pending_here:
         if str(it.get("messageId")) in by_id:
             out.append(it)
@@ -128,10 +120,8 @@ def _thread_meta(db: dict, active: dict) -> dict | None:
 
 
 def _peek_answer(payload: dict) -> dict:
-    """A conversation handed WHOLE to the brain (V2-624) — «dame lo relevante del grupo del viaje», «resume
-    esos correos». Read-only: the thread store already holds the segregated data, so analysis is a READ of it,
-    never an index into memory. Newest messages win the budget (walking backwards), because the question is
-    almost always about what is being said NOW; `load_more` first is the door to more past."""
+    """A conversation handed WHOLE to the brain (V2-624): analysis is a READ of the thread store, never an index into
+    memory. Newest messages win the budget (the question is about NOW); `load_more` is the door to more past."""
     from .. import data as _d
     db = _d.load_db()
     hit = None

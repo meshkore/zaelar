@@ -1,13 +1,8 @@
-"""What each messaging action does, one function per action; `data.ACTIONS` maps the names to them (V2-778
-F1-12, 2026-10-01).
+"""What each messaging action does, one function per action; `data.ACTIONS` maps the names to them (V2-778).
 
-Moved out of `widgets/mensajeria/data.py`'s `apply_action` if-chain with no behaviour change: each body is the branch
-it was, and every module-level name of `data` it reads is read through it (`_d.<name>`), so a patch on `data`
-still governs every call.
-
-The handlers live by concern — `open` (what the screen shows), `send` (writing to somebody), `fetch` (asking the
-connector, reading), `groups` (groups, muting, policy, signature, media) — and are re-exported here under their
-names, so `widgets.mensajeria.actions._a_<verb>` still resolves.
+Handlers live by concern — `open` (the screen), `send` (writing to somebody), `fetch` (the connector, reads),
+`groups` (groups, muting, policy, signature, media) — re-exported here so `actions._a_<verb>` resolves. Every
+module-level name of `data` is read through it (`_d.<name>`), so a patch on `data` still governs every call.
 """
 from __future__ import annotations
 

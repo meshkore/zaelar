@@ -32,15 +32,9 @@ class _Handle:
     def _flush_queues(self) -> None:
         """Push everything the store has queued onto the bus, for the connectors to execute.
 
-        ⚠️ Called from BOTH the action door and the owner's own beat, and the second caller is the fix for a
-        defect the V2-684 arc found (2026-09-13): an errand composes its reply through `wake._send`, which
-        queues it here exactly as a dictated reply is queued — and this flush only ever ran inside
-        `handle()`. With no operator action on the messaging widget, the reply sat in `pending_send`
-        forever, so an ARMED errand would have answered nobody. It was invisible because the feature ships
-        in SHADOW, where there is nothing to flush.
-
-        The flush deliberately stays HERE and is not moved next to the errand: this is the one door where
-        `memory/secrets.py` reads a text written by a MODEL for somebody outside the house.
+        ⚠️ Called from BOTH the action door and the owner's beat: an errand's reply (`wake._send`) is queued with no
+        action on this widget, and only the beat flushes it (V2-684). It stays HERE, never next to the errand: this
+        is the one door where `memory/secrets.py` reads a text a MODEL wrote for somebody outside.
         """
         try:
             for key in msgstore.take_pending_read():
@@ -58,10 +52,8 @@ class _Handle:
                 ingest.publish_reply(rep)
         except Exception as e:
             logger.debug(f"mensajeria reply flush: {e}")
-        # And for a message to a PERSON (V2-683) — the order that OPENS a conversation instead of answering
-        # one. Same shape, one door later: the last thing it passes through before leaving the engine is the
-        # secret scan, because unlike every other queue here the text was composed by a MODEL and its
-        # destination is somebody outside.
+        # A message to a PERSON (V2-683): its text was composed by a MODEL for somebody outside, so the secret scan
+        # is the last thing it passes before leaving.
         try:
             for order in msgstore.take_pending_send():
                 clean, leaked = _f._scrub(order.get("text") or "")

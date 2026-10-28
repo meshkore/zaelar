@@ -24,10 +24,8 @@ class _Lifecycle:
         self._failed_sub = None           # V2-819: a send that did not leave, with the reason
         self._task: asyncio.Task | None = None
         self._triage_task: asyncio.Task | None = None
-        # NOTE (V2-607): the in-memory `_seen` set that used to live here is gone. It claimed to stop resurrecting
-        # what the operator removed and could not: it started empty on every boot, while the mail it was meant to
-        # suppress is still UNREAD at the provider and gets re-delivered on every connect. The ledger that
-        # actually holds that promise is durable, in the store — `msgstore.taken_ids`.
+        # No in-memory «seen» set: what he removed is kept from coming back by the DURABLE ledger in the store
+        # (`msgstore.taken_ids`), since the provider re-delivers unread mail on every connect (V2-607).
 
     # Lifecycle.
     async def start(self) -> None:
@@ -79,17 +77,12 @@ class _Lifecycle:
                 self._apply_status()
             except Exception as e:
                 logger.debug(f"mensajeria owner status: {e}")
-            # Triage runs BESIDE this loop, one batch at a time — never in front of the operator's orders. Demo pass
-            # 45 (2026-09-29): «did inworld send me something?» queued the receipt's history fetch, and it left two
-            # minutes later, with E2 and E3 already failed on a card that did not hold it — the loop was parked in
-            # `_triage_batch`, whose announcement waits for silence in a conversation that had none. The queues
-            # below are flushed every tick whatever triage is doing.
+            # Triage runs BESIDE this loop, one batch at a time, never in front of his orders: its announcement can
+            # wait for silence, and the queues below are flushed every tick whatever triage is doing.
             if self._triage_task is None or self._triage_task.done():
                 self._triage_task = asyncio.create_task(self._triage_quietly())
-            # V2-546 — the real apps moving on their own. These run AFTER triage on purpose: a message the
-            # operator answered from his phone should reach the conversation and clear the chat in the same
-            # tick it would otherwise have been surfaced in, not one tick later as a notification he has
-            # already dealt with.
+            # The real apps moving on their own (V2-546), AFTER triage on purpose: a message he answered from his
+            # phone clears the chat in the same tick, never surfaces a tick later as a notification.
             for what, fn in (("outbound", self._apply_outbound), ("failed", self._apply_send_failures),
                              ("read", self._apply_external_reads),
                              ("history", self._apply_history), ("chats", self._apply_chats),

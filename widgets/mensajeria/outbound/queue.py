@@ -12,20 +12,16 @@ from .targets import _message_ref
 
 def enqueue_reply(db: dict, target: dict, text: str, cc: list | None = None,
                   attachments: list | None = None, not_before: float = 0.0, ref: str = "") -> None:
-    """The one place a reply/draft actually gets queued for the connector to send for real. A real item
-    ALWAYS carries `messageId` (set on ingestion, by every connector) — including one resolved via `reply`'s
-    own chat-grouping fallback, which never goes through `_renumber` and so never has `n` set either, which
-    is why `n` cannot be the "is this real" signal here. Only the true synthetic thread-identity target (see
-    `resolve_reply_target`, `{"platform", "chatId"}` alone) has neither, and nothing pending to remove —
-    correct, since there was no pending item to begin with."""
+    """The one place a reply/draft is queued for the connector to send. `messageId` (set on ingestion), never
+    `n`, is the "real item" signal: only the synthetic thread identity (`resolve_reply_target`, platform + chatId
+    alone) lacks it, and it has no pending item to remove."""
     from .. import data as _d
     db.setdefault("pending_reply", []).append({
         "platform": target.get("platform"), "chatId": target.get("chatId"),
         "to": target.get("senderId") or target.get("chatId"),
         "messageId": target.get("messageId"), "subject": target.get("subject", ""),
         "msgid": target.get("msgid", ""), "text": text,
-        # V2-680 — reply-ALL. Empty (the default, and every caller that does not pass it) is a plain reply,
-        # so the queued shape is unchanged for `reply` and for every connector that ignores the field.
+        # Reply-ALL (V2-680); empty is a plain reply, the shape every connector that ignores it expects.
         "cc": [str(a) for a in (cc or []) if str(a).strip()],
         # Local paths inside the widget's data dir (media.local_paths): photos, voice notes, documents.
         "attachments": [str(a) for a in (attachments or []) if str(a).strip()],
@@ -40,9 +36,8 @@ def enqueue_reply(db: dict, target: dict, text: str, cc: list | None = None,
 
 
 def new_ref() -> str:
-    """The id that ties an order to its echo (`connector.msg_out`) and, through it, to an errand. Not a
-    counter: a restart would repeat one, and the binding it carries must never land on somebody else's
-    conversation (the `SessionRecord.sheet` scar, V2-259)."""
+    """The id that ties an order to its echo (`connector.msg_out`) and, through it, to an errand. Not a counter: a
+    restart would repeat one, and the binding must never land on somebody else's conversation (V2-259)."""
     import secrets
     return f"s{int(time.time() * 1000) % 10_000_000}-{secrets.token_urlsafe(6)}"
 
@@ -56,10 +51,9 @@ _MAILBOX_MAX_ASKS = 2
 def _mailbox_files(chat_id: str, uid: str) -> list[str]:
     """The files of ONE mail, asked of the real mailbox by its UID and saved where the card's assets live.
 
-    Demo passes 38-53 (2026-09-29, E3): the receipt reached the card from the archive — a row, no bytes — and
-    «send the invoice to quinn» was refused six times for files that were one IMAP read away. `fetch_older`
-    with the UID just above it returns exactly that mail (UIDs are monotonic), BODY.PEEK, attachments saved by
-    `parse_message`. [] when email is not connected, the UID is not one, or the fetch brings nothing."""
+    A mail brought back as an archive row has no bytes; `fetch_older` with the UID just above it returns exactly
+    that mail (UIDs are monotonic), BODY.PEEK, attachments saved by `parse_message`. [] when email is not
+    connected, the UID is not one, or the fetch brings nothing."""
     import os
     key = (str(chat_id or "").strip(), str(uid or "").strip())
     if not key[0] or not key[1].isdigit():
@@ -97,7 +91,7 @@ def _mail_identities(m: dict | None, ref: dict) -> list[tuple[str, str]]:
             rows = archive.search(None, sender=who, platform="email", direction="in", limit=2)
             if not rows:
                 rows = archive.search(who, platform="email", direction="in", limit=2)
-            core = " ".join(re.sub(r"\([^)]*\)|#\S+", " ", who).split())   # demo pass 107: «X (recibo #N)»
+            core = " ".join(re.sub(r"\([^)]*\)|#\S+", " ", who).split())   # «X (recibo #N)» → «X»
             if not rows and core and core != who:
                 rows = archive.search(None, sender=core, platform="email", direction="in", limit=2)
             for r in rows:
@@ -137,15 +131,12 @@ def attachments_of(db: dict, ref: dict) -> list[str]:
 
 
 def forward_without_files(db: dict, payload: dict) -> dict | None:
-    """The refusal a `forward` would get from the owner for pointing at a message with no files — computed
-    BEFORE the order is queued. Demo pass 37 (2026-09-29, E3): `forward {n: 1}` pointed at our own mail to
-    Quinn; the owner refused it `no_attachment` out of sight and the turn went on as if the invoice had gone.
-    Answered here, the refusal reaches the turn and its same-turn correction. None when the message has files."""
+    """The refusal a `forward` would get from the owner for pointing at a message with no files, computed BEFORE
+    the order is queued so it reaches the turn (the owner's refusal is out of sight). None when it has files."""
     src = {k: payload[k] for k in ("n", "messageId", "from") if payload.get(k) not in (None, "")}
     if attachments_of(db, src):
         return None
-    # Demo pass 45 (E3): «…o el `n` del que los trae» sent the same-turn correction looking for ANY sender with
-    # files — it retried with `from: Harry Boyd`. What is forwarded is what HE pointed at, never a stand-in.
+    # What is forwarded is what HE pointed at, never a stand-in from another sender that has files.
     return {"ok": False, "error": "el mensaje que él señaló no está en la tarjeta con sus adjuntos todavía — ábrelo "
                                   "(open con su remitente) y vuelve a intentarlo, o dile que aún no lo tienes a mano; "
                                   "NUNCA reenvíes el mensaje de otro remitente en su lugar"}
@@ -182,7 +173,7 @@ def enqueue(db: dict, target: dict, text: str, *, subject: str = "", objective: 
     return order
 
 
-#: How long the same files to the same person count as ONE send (demo pass 127, E3: two forwards of the receipt).
+#: How long the same files to the same person count as ONE send.
 SAME_FILES_S = 180.0
 
 

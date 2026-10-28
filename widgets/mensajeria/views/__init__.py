@@ -1,17 +1,13 @@
 #
 # views/ — the READ side of the messaging widget (V2-624): resolving a spoken chat name, the conversation
 # view a thread renders from, the per-platform ACTIVITY criteria, `peek` (a conversation handed whole to the
-# brain) and the autoresponder previews. Extracted from data.py when it crossed the architecture ratchet's
-# unlisted-file cap — the ratchet is paid by EXTRACTING along a real seam, never by raising a ceiling.
+# brain) and the autoresponder previews.
 #
-# The seam is one-directional on purpose: data.py imports THIS module at the top; anything here that needs
-# data.py's store or inbox helpers imports it LAZILY inside the function. Same widget-package contract as
-# data.py itself: stdlib plus the `widgets` package — `connectors` only LAZILY and only because this
-# widget sits in validator's curated _STDLIB_EXEMPT (V2-611: the email signature; V2-628: the archive).
+# One-directional seam: data.py imports THIS at the top; anything here that needs data.py imports it LAZILY.
+# stdlib plus the `widgets` package — `connectors` only LAZILY, as this widget is in validator's _STDLIB_EXEMPT.
 #
-# The read side lives by concern — `thread` (one conversation: name lookup, the thread view, peek), `chats` (the
-# lists, criteria, policy and autoresponder previews), `archive` (the permanent archive and the mailbox behind it)
-# — and every name is re-exported here, so `widgets.mensajeria.views.<name>` resolves and a patch on it governs.
+# By concern — `thread` (one conversation), `chats` (lists, criteria, policy, autoresponder previews), `archive`
+# (the permanent archive and the mailbox behind it); every name is re-exported here, so a patch on it governs.
 #
 from .thread import (  # noqa: F401
     _PEEK_MAX_MSGS, _PEEK_MAX_BODY, _PEEK_BUDGET, _norm_txt, _known_chats, _find_chat_by_name, _thread_view,

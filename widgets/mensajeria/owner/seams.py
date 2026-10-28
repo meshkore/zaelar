@@ -19,14 +19,11 @@ def _note(text: str) -> None:
 
 
 def _scrub(text: str) -> tuple[str, str]:
-    """V2-683 — the last door before a MODEL-composed text leaves toward somebody outside. Returns
-    `(text, "")` when it is clean and `(text, what)` when it is not, and the caller does not send.
+    """The last door before a MODEL-composed text leaves toward somebody outside (V2-683). Returns `(text, "")`
+    when clean and `(text, what)` when not, and the caller does not send.
 
-    It FAILS CLOSED, and deliberately does not redact-and-send: a reply's text is dictated by the operator
-    and goes to a conversation he is already in, but this one was written by a model for a third party, so a
-    secret inside it is either a mistake or an injection, and both are answered by stopping rather than by
-    delivering a redacted version he never got to read. `memory/secrets.py` is the same detector the worker
-    bridge already runs on anything leaving through `push_channel`."""
+    It FAILS CLOSED and never redacts-and-sends: a secret in a model's text for a third party is a mistake or an
+    injection, answered by stopping. Same detector (`memory/secrets.py`) the worker bridge runs on `push_channel`."""
     try:
         from memory import secrets as _secrets
         found = _secrets.detect(text or "")
@@ -57,7 +54,7 @@ def _settle(ref, ok: bool, reason: str = "") -> None:
 
 
 def _record_left(ev: dict) -> None:
-    """V2-807 T-12 — the body a send of this card LEFT with, on the timeline (`sent.left_event`): what was sent is
+    """The body a send of this card LEFT with (V2-807), on the timeline (`sent.left_event`): what was sent is
     then read from the record, never rebuilt from the conversation that wrote it."""
     from .. import sent as _sent
     rec = _sent.left_event(ev)

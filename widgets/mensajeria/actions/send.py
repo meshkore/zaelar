@@ -7,16 +7,11 @@ from __future__ import annotations
 from .. import data as _d
 
 
-# Reply to a message (V2-051): enqueue into pending_reply so that platform's connector sends it. `n` follows
-# the same duality as read/dismiss: with an open chat it is a message `n` from items; with the chat list it is
-# a chat `n` pointing to its last message. The connector performs the real send; the CONFIRM gate (V2-025)
-# already asked for OK before reaching this branch.
+# Reply to a message (V2-051): enqueue into pending_reply for the platform's connector; the CONFIRM gate (V2-025)
+# already asked. `n` is a message in the open thread, or a CHAT (its last message) in the chat list.
 def _a_reply(action, payload) -> dict:
-    # UNCHANGED contract (V2-521, tested): `n` means an item in the open thread, or a CHAT in the chat
-    # list otherwise — the same duality `hide` documents. `draft`/`send_draft` below are the new,
-    # unambiguous path (`n`/`messageId` address one ITEM directly, matching archive/trash's own meaning
-    # of `n` for the flat email list); `reply` keeps its original resolution so nothing that already
-    # depends on it — voice included — changes behavior.
+    # Contract kept (V2-521, tested): the same `n` duality as `hide`. `draft`/`send_draft` are the unambiguous
+    # path, where `n`/`messageId` name one ITEM.
     n = payload.get("n")
     text = (payload.get("text") or "").strip()
     if n is not None and text:
@@ -35,10 +30,8 @@ def _a_reply(action, payload) -> dict:
             _d._outbound.enqueue_reply(db, target, text)
             _d.store.save(_d.WIDGET_ID, db)
             return _d.view_data()
-        # A reply with nothing to answer is a send that did not happen, and it must SAY so (use case
-        # dictate-a-reply-honestly, 2026-10-15: «respóndele a Marta por WhatsApp…» with no chat of hers and WhatsApp
-        # unlinked came back as the card's whole state, and the turn said «Hecho.»). What leaves the machine is
-        # never claimed without the act — the operator's rule for anything that reaches somebody else.
+        # A reply with nothing to answer is a send that did not happen and must SAY so: what leaves the machine is
+        # never claimed without the act.
         return {"ok": False, "error": _NO_TARGET_FOR_THE_MODEL, "message": _no_reply_target(db), "say": _no_reply_say(db)}
     if n is not None and not text:
         return _d.view_data()                      # nothing dictated: nothing to send and nothing to claim
@@ -78,10 +71,8 @@ def _no_reply_target(db: dict) -> str:
     return "No tengo esa conversación para contestarla, así que no se ha enviado nada." + tail
 
 
-# V2-611 — DRAFT then SEND, as a pair: dictating a reply (or typing it) fills a visible box the operator
-# can read before anything goes out; `send_draft` is the separate, deliberate act that actually sends —
-# by the widget's own button or by a later voice order («envíalo»). `reply` above still exists for a
-# one-shot model-dictated reply (CONFIRM-gated, unchanged) — this is the review-first path instead.
+# DRAFT then SEND (V2-611): a draft fills a visible box he reads before anything leaves; `send_draft` is the
+# separate act that sends (button or «envíalo»). `reply` stays the one-shot, CONFIRM-gated path.
 def _a_draft(action, payload) -> dict:
     db = _d.load_db()
     if str(payload.get("contact") or "").strip() and payload.get("n") is None and not payload.get("messageId"):
@@ -123,10 +114,8 @@ def _a_send_draft(action, payload) -> dict:
     if _card.is_card_send(payload):     # V2-819: the card's own Send — its text, its conversation, answered
         return _card.send(payload)
     db = _d.load_db()
-    # A send names WHICH conversation whenever the widget's own button fires it; a bare voice «envíalo»
-    # names nothing and gets the most recent draft, which is what it meant before drafts were per
-    # conversation. Resolving the key from the payload's own target keeps both callers on one path.
-    # V2-800: a held NEW message is named by its recipient (`contact`), and `at`/`in_minutes` schedule it.
+    # The widget's button names WHICH conversation; a bare voice «envíalo» gets the most recent draft. A held NEW
+    # message is named by its recipient (`contact`), and `at`/`in_minutes` schedule it (V2-800).
     not_before, bad = _d._held.when(payload)
     if bad:
         return {"ok": False, "error": bad, "message": "No entiendo para cuándo: dime la hora o dentro de cuánto."}
@@ -145,10 +134,8 @@ def _a_send_draft(action, payload) -> dict:
     if not text and not files:
         return {"ok": False, "error": "no_draft", "message": "No hay ningún borrador que enviar."}
     stored = draft.get("target") or {}
-    # Re-resolve against the LIVE item, so a target that changed since the draft was written (answered
-    # elsewhere, read from the real app) is not blindly replied to under a stale identity — same
-    # resolution `reply` itself uses. Falls back to the stored identity when nothing live matches: the
-    # conversation's own platform/chatId are still enough to send to, even with no pending item left.
+    # Re-resolve against the LIVE item so a stale identity is not blindly replied to; the stored platform/chatId
+    # are the fallback, enough to send with no pending item left.
     if stored.get("new"):
         order = _d._outbound.enqueue(db, stored, text, subject=str(stored.get("subject") or ""),
                                      attachments=files, not_before=not_before, scheduled=bool(not_before))
@@ -166,18 +153,14 @@ def _a_send_draft(action, payload) -> dict:
 
 
 def _a_send_to(action, payload) -> dict:
-    # V2-683 — writing to a PERSON who has not written to us. WHO and by WHICH channel are resolved in
-    # `outbound.py` (which asks `widgets/directory.py`), and an unresolved one comes back as a refusal
-    # that says what is missing: this door can say the right thing to the WRONG person, and that is the
-    # one mistake it cannot take back.
+    # Writing to a PERSON who has not written (V2-683): WHO and WHICH channel resolve in `outbound.py`; an
+    # unresolved one is a refusal saying what is missing — words to the WRONG person cannot be taken back.
     db = _d.load_db()
     t = _d._outbound.resolve_target(payload)
     if not t.get("ok"):
         return t
-    # FORWARDING what arrived (the operator's demo, 2026-09-28: «open the Inworld invoice and send the invoice
-    # to Quinn»): `attach_from` points at a message on the card — its `n`, its `messageId`, or `{}` for the
-    # one open — and its files travel with this send. Asked for and absent is a refusal, never a mail that
-    # announces an attachment it does not carry.
+    # FORWARDING: `attach_from` names a message on the card (`n`, `messageId`, or `{}` for the open one) whose files
+    # travel with this send. Asked for and absent is a refusal, never a mail announcing a missing attachment.
     atts = []
     if "attach_from" in payload:
         ref = payload.get("attach_from")
@@ -193,9 +176,7 @@ def _a_send_to(action, payload) -> dict:
     # A chat message is written on screen before it leaves (`_composing`); an email is a document, not a
     # line typed into a conversation, and goes straight out.
     if atts and (dup := _d._outbound.same_files_just_sent(db, t, atts)):
-        # Demo pass 127, E3: the verdict's forward went out and the same-turn correction of the model's refused
-        # forward sent the receipt to Quinn a SECOND time. The same files to the same person seconds later are
-        # one send; it is reported as done, never queued again.
+        # The same files to the same person seconds later are one send: reported as done, never queued again.
         return {"ok": True, "result": {"to": t.get("name"), "channel": t.get("platform"), "ref": dup.get("ref"),
                                        "attachments": len(atts), "already_sent": True}}
     seen = t.get("platform") != "email" and bool(str(t.get("chatId") or "").strip())
@@ -214,9 +195,8 @@ def _a_send_to(action, payload) -> dict:
 
 
 def _a_forward(action, payload) -> dict:
-    # FORWARD = a send to a person carrying the files of a message that arrived (the operator's demo: «send the
-    # invoice to Quinn»). One name for what he asks, instead of a parameter the model has to remember — measured
-    # 2026-09-28: the model reached for `reply` (to the SENDER of the invoice) and the files never travelled.
+    # FORWARD = a send to a person carrying the files of a message that arrived: one name for what he asks, so the
+    # model does not reach for `reply` (to the sender) and lose the files.
     src = {k: payload[k] for k in ("n", "messageId", "from") if payload.get(k) not in (None, "")}
     db0 = _d.load_db()
     orig = _d._outbound._message_ref(db0, src) or {}

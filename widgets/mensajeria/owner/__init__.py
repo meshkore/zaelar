@@ -1,19 +1,13 @@
 #
-# owner/: live backend for the messaging widget (V2-008, kind:"backed", gate:"nucleo"). This closes the v2
-# central-diagram reshape: connectors (WhatsApp/Telegram) publish incoming messages to the bus (connector.msg) and
-# their link status (connector.status); this owner consumes them, triages with its internal agent (LOCAL model,
-# privacy), dumps durable content to central memory, proactively notifies only relevant items, and reflects
-# everything into the widget UI store. It is the ONLY WRITER of widgets/_data/mensajeria/ (backed contract:
-# data.py/widget.js become read + enqueue faces; operator/brain actions arrive through the supervisor mailbox ->
-# handle()).
+# owner/: live backend for the messaging widget (V2-008, kind:"backed", gate:"nucleo"). Connectors publish incoming
+# messages (connector.msg) and link status (connector.status) to the bus; this owner triages them with a LOCAL model,
+# dumps durable content to memory, notifies only what deserves it and reflects everything into the UI store. It is
+# the ONLY WRITER of widgets/_data/mensajeria/; data.py/widget.js are read + enqueue faces, and actions arrive
+# through the supervisor mailbox -> handle().
 #
-# Mark-read is symmetrical: a read/clear/readchat action does NOT talk to any app directly. It publishes
-# msg.mark_read to the bus, which the connector for the correct platform drains and executes in its app. The owner
-# does not know WhatsApp or Telegram, only the bus. Connectors are genuinely stateless.
-#
-# STRANGLER-FIG: the supervisor only starts this owner with BRAIN=nucleo (manifest gate). Under duo/hermes, the
-# widget behaves as the previous passive version (owner does NOT run -> actions fall to data.apply_action and
-# connectors write the store through their direct path). Zero regression until burial (V2-009).
+# Orders to the apps (mark read, send, archive…) go out only as bus events the right connector executes: the owner
+# knows the bus, never WhatsApp or Telegram. Without BRAIN=nucleo (manifest gate) the owner does not run and the
+# widget behaves as the passive version (actions fall to data.apply_action).
 #
 # The owner lives by concern: `lifecycle` (subscriptions, start/stop, the beat), `apply` (what the bus brought,
 # triage, autoresponder), `handle` (the action door and the queue flush) and `seams` (the small doors they share).

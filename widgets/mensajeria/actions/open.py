@@ -9,10 +9,8 @@ from .. import chatlist as _cl
 from .. import data as _d
 
 
-# CHANGE WHAT IS SHOWN and ANSWER (V2-543). «Vuelve a la lista principal» / «muéstrame solo el WhatsApp»
-# are THIS action — re-showing the widget changes nothing (measured live 2026-09-01: two such orders got a
-# bare show_widget and «Aquí lo tienes» over an unmoved screen). Returns the matching chats so the turn can
-# answer with names instead of promising.
+# CHANGE WHAT IS SHOWN and ANSWER (V2-543): «vuelve a la lista principal» / «muéstrame solo el WhatsApp» are THIS
+# action — re-showing the widget changes nothing. Returns the matching chats so the turn answers with names.
 def _a_show_view(action, payload) -> dict:
     raw = str(payload.get("platform") or payload.get("view") or "").strip().lower()
     if raw not in _d._PLAT_ALIASES:
@@ -25,10 +23,8 @@ def _a_show_view(action, payload) -> dict:
     if platform == "email":             # the mail section opens on its folder's list, never on a stale message
         from .. import mailbox as _mbx
         _mbx.section(db)
-    # V2-624 — the per-platform view CRITERION («todas las conversaciones con actividad en las últimas 72
-    # horas»). `window_h` present = set it (0/negative clears, back to the classic pending view); absent =
-    # KEEP whatever he set before — the criterion is per-platform STATE, his words, not per-utterance. It
-    # persists until changed and stays VISIBLE on the lens (a chip with a ✕), never a silent mode.
+    # The per-platform view CRITERION (V2-624): `window_h` present sets it (0/negative clears); absent KEEPS the
+    # previous one — per-platform state that persists and stays VISIBLE on the lens (a chip with a ✕).
     if platform and "window_h" in payload:
         try:
             win = float(payload.get("window_h") or 0)
@@ -55,13 +51,12 @@ def _a_show_view(action, payload) -> dict:
     return {"ok": True, "result": result, **out}
 
 
-# Open/close a chat thread: pure navigation, addressable by click or voice
-# ([[msg.open:N]]/[[msg.close]], N = the CHAT `n`; see _group_chats). V2-543: also by NAME — the operator
-# says «abre el chat de Jose Vicente», not a number; containment over accent-stripped forms, both ways.
+# Open/close a chat thread: pure navigation by click or voice (N = the CHAT `n`; see _group_chats), or by NAME
+# (V2-543): containment over accent-stripped forms, both ways.
 def _a_open(action, payload) -> dict:
     n, name = _d._open_ref(payload)
     db = _d.load_db()
-    # Demo pass 62, E2 — «open it» right after an archive search is the mail it found, not the inbox's first row.
+    # «open it» right after an archive search is the mail it found, not the inbox's first row.
     _lf = _d.last_found(db)
     if _lf and n is None and not name and payload.get("chatId") is None:
         payload = {**payload, "platform": _lf["platform"], "chatId": _lf["chatId"]}
@@ -74,10 +69,8 @@ def _a_open(action, payload) -> dict:
                 (it.get("platform"), str(it.get("chatId"))) == (key_[0], str(key_[1]))
                 for it in db.get("items", [])):
             db["active_chat"] = {"platform": key_[0], "chatId": key_[1]}
-            # Opening IS reading, locally: he sees the whole conversation on screen, so the
-            # thread-store flags flip here (the activity lens dot reads them). Local ONLY —
-            # nothing is enqueued to pending_read: marking read in the real app stays an
-            # explicit `read`, never a side effect of navigating.
+            # Opening IS reading, locally only: the thread-store flags flip (the activity lens dot reads them);
+            # nothing goes to pending_read — marking read in the real app stays an explicit `read`.
             _th.mark_read(db, key_[0], key_[1])
             _d.store.save(_d.WIDGET_ID, db)
             return _d.view_data()
@@ -109,9 +102,8 @@ def _a_open(action, payload) -> dict:
         match = next((c for c in chats if c.get("n") == n), None)
     elif name:
         match = _d._find_chat_by_name(db, name)
-        # Demo pass 66, E2: «open it» came as open {name: "Inworld invoice"} — the thread is named by its address
-        # (a vendor's invoice address), so no chat matched and the turn needed a second try. A name that shares
-        # a word with what the archive last found means that mail.
+        # A name sharing a word with what the archive last found means that mail (its thread is named by an
+        # address, so no chat name matches).
         if match is None and _lf:
             import re as _re
             said = {w for w in _re.findall(r"[a-z0-9]{4,}", name.lower())}

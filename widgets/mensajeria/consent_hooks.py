@@ -1,8 +1,7 @@
 #
 # consent_hooks.py — the hooks the consent rule and the pending-work reader ask this card (V2-800, V2-799, V2-807):
 # the held row an order confirms, the channel that refines a send's class, the rows held for his word, a text that
-# belongs on one of them, and what the card sent lately. Moved out of data.py (which re-exports every name) with no
-# behaviour change; each hook never raises.
+# belongs on one of them, and what the card sent lately. Each hook never raises.
 #
 from . import held as _held
 from . import outbound as _outbound
@@ -46,11 +45,9 @@ def consent_scope(action: str, payload: dict | None = None) -> dict:
 
 
 def pending_rows() -> list[dict]:
-    """V2-799 — what this card holds for his word, for `nucleo/pending_work.py`: each held draft, and how it resumes
-    (its own `send_draft`, so a «finish those» reaches it through the same confirm gate as a «send it»).
-
-    V2-807 T-10 — and what it IS, whichever cards are open: its body's excerpt and the declared actions that show,
-    rewrite, send or drop it, named by its recipient. This row is the one place a held draft reaches the prompt."""
+    """What this card holds for his word, for `nucleo/pending_work.py` (V2-799, V2-807): each held draft, its excerpt,
+    the actions that show/rewrite/send/drop it by recipient, and how it resumes — its own `send_draft`, through the
+    same confirm gate. This row is the one place a held draft reaches the prompt."""
     try:
         return [{"id": d["key"], "title": f"{d['platform'] or 'message'} → {d['to']}: {d['subject'] or d['text'][:60]}",
                  "state": "draft waiting for his OK", "at": d["at"], "excerpt": d["text"],
@@ -63,7 +60,7 @@ def pending_rows() -> list[dict]:
 
 
 def claim_text(text: str, title: str = "") -> dict | None:
-    """V2-807 T-09 — the hook `widgets/text_home.py` asks: is this text, about to be written on another card, a
+    """The hook `widgets/text_home.py` asks (V2-807): is this text, about to be written on another card, a
     version of a message held here? Then it belongs on its row (`held.claim`). None when it is not, or unreadable."""
     try:
         return _held.claim(load_db(), str(text or ""), str(title or ""))
@@ -73,7 +70,7 @@ def claim_text(text: str, title: str = "") -> dict | None:
 
 
 def recent_facts() -> list[str]:
-    """V2-807 T-12 — what this card SENT lately and what is still leaving, as the record every turn reads
+    """What this card SENT lately (V2-807) and what is still leaving, as the record every turn reads
     (`nucleo/pending_work.fact_lines`): a claim about what left is read from the body as it left."""
     try:
         from . import inbox_read

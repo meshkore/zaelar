@@ -62,10 +62,8 @@ def _a_set_media_days(action, payload) -> dict:
     return {"ok": True, "result": {"media_days": d}, **_d.view_data()}
 
 
-# V2-611 — the EMAIL SIGNATURE, appended once by the connector at real send time (service.py's
-# `_drain_replies`), never here: this only writes the config the connector reads. `config/connectors.py`
-# is the SAME store the connect wizard already writes to for email — signature_lines is one more field
-# on the same "email" entry, not a new mechanism.
+# The EMAIL SIGNATURE (V2-611): only the config; the connector appends it once at real send time
+# (`_drain_replies`). One more field on the same `config/connectors.py` "email" entry the connect wizard writes.
 def _a_set_signature(action, payload) -> dict:
     lines = payload.get("lines")
     if not isinstance(lines, list):
@@ -87,11 +85,8 @@ def _a_set_signature_line(action, payload) -> dict:
         return {"ok": False, "error": "bad_line", "message": "La firma admite hasta 10 líneas."}
     text = str(payload.get("text") or "").strip()[:200]
     from config import connectors as _conn_store
-    # RAW positional read, never `connectors.email.config.signature_lines()` — that reader FILTERS
-    # blank lines for the sender (a trailing/leading blank in the actual email is cosmetic noise there),
-    # which is exactly wrong for addressing "line N" by index here: filtering first would silently
-    # collapse an already-set blank middle line and the NEXT dictated line would overwrite the wrong
-    # one (found live, verifying this feature — line 1 + line 3 read back as two lines, not three).
+    # RAW positional read, never `connectors.email.config.signature_lines()`: that reader drops blank lines, so
+    # addressing "line N" would collapse a blank middle line and the next dictated line would overwrite the wrong one.
     raw = _conn_store.get("email").get("signature_lines")
     lines = [str(x) for x in raw] if isinstance(raw, list) else []
     while len(lines) < i:
@@ -139,11 +134,9 @@ def _a_hide(action, payload) -> dict:
     return _d.view_data()
 
 
-# Per-connector NOTIFICATION POLICY (V2-532): how a channel may interrupt — which messages surface
-# proactively (never|direct|important|all) and whether a surfaced batch may be SPOKEN. Voice-settable
-# («no me avises de los grupos de Telegram» is `hide`; «Telegram solo mensajes directos» is this). The
-# decision logic lives in `.policy` (zero-import module) and is the same one notify.surface consults —
-# one rule, two readers, never two copies.
+# Per-connector NOTIFICATION POLICY (V2-532): which messages surface proactively (never|direct|important|all) and
+# whether a surfaced batch may be SPOKEN («Telegram solo mensajes directos»; muting a group is `hide`). The logic
+# lives once in `.policy`, the same one notify.surface consults.
 def _a_set_notify(action, payload) -> dict:
     platform = payload.get("platform")
     if platform not in _d._PLATFORMS:

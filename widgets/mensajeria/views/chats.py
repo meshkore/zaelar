@@ -7,9 +7,8 @@ import time
 
 
 def _criteria_for(db: dict, platform: str) -> dict | None:
-    """The operator's persisted view criterion for one platform's lens (V2-624), or None (= the classic
-    pending view, byte-for-byte what the lens always showed). Today one criterion exists: `window_h`,
-    «conversations with activity in the last N hours»."""
+    """His persisted view criterion for one platform's lens (V2-624), or None (= the pending view). One criterion
+    exists: `window_h`, «conversations with activity in the last N hours»."""
     raw = (db.get("lens_criteria") or {}).get(platform)
     if not isinstance(raw, dict):
         return None
@@ -21,10 +20,8 @@ def _criteria_for(db: dict, platform: str) -> dict | None:
 
 
 def _activity_chats(db: dict, platform: str, window_h: float) -> list:
-    """Conversations of `platform` with activity inside the window, newest first — read whole from the THREAD
-    store (V2-546's conversations), never from the pending inbox: «movimiento» includes what he already read
-    and what he himself sent. No `n`: these rows are addressed by name (voice) or platform+chatId (a click),
-    never by the chat-list numbering, which belongs to the pending inbox and would collide with it."""
+    """Conversations of `platform` with activity inside the window, newest first, read from the THREAD store (what
+    he read and sent count). No `n`: addressed by name or platform+chatId, never the pending inbox's numbering."""
     cutoff = time.time() - float(window_h) * 3600
     out = []
     for k, th in (db.get("threads") or {}).items():
@@ -148,15 +145,11 @@ def _group_chats(items: list) -> list:
     return chats
 
 
-# ── Reading what the CALLER referred to, and what the card must show about policy (moved here V2-626) ──────
-# Both are read-side shaping that stayed behind in data.py; they moved when data.py crossed the unlisted-file
-# cap again. Same rule as the V2-624 extraction: the ratchet is paid by moving code along the seam that is
-# already there, never by raising a ceiling.
+# ── Reading what the CALLER referred to, and what the card must show about policy ──────────────────────────
 
 def _open_ref(payload: dict) -> tuple:
-    """(n, name) normalized for open. widget_data's item convention drops a natural reference into the
-    action's primary payload key, so `n` can arrive as "1" (coerce) or as a NAME (reroute) — without this,
-    `widget_data(open, item='Francisco')` missed every chat while the list sat on screen (V2-544)."""
+    """(n, name) normalized for open: widget_data drops a natural reference into the primary key, so `n` can
+    arrive as "1" (coerced) or as a NAME (rerouted) (V2-544)."""
     n = payload.get("n")
     name = str(payload.get("name") or payload.get("chat") or "").strip()
     if isinstance(n, str):
