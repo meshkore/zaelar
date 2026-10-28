@@ -29,9 +29,9 @@ import struct
 import zlib
 
 import pytest
+from tests.browser import widget_client
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-_WIDGET = os.path.join(ENG, "widgets", "results", "widget.js")
 _PALETTE = os.path.join(ENG, "frontend", "app", "core", "palette.css")
 SIZES = {"narrow": 340, "medium": 640, "wide": 1100}
 
@@ -135,8 +135,7 @@ def _paint():
                 route.fulfill(status=200, content_type="text/html", body=html)))
             await pg.route("https://dead.invalid/**", lambda route: asyncio.ensure_future(route.abort()))
             await pg.goto("http://zaelar.test/")
-            src = open(_WIDGET, encoding="utf-8").read()
-            await pg.add_script_tag(content=src.replace("export function render", "window.render = function render"))
+            await widget_client.mount(pg, "results")
             for k in SIZES:
                 await pg.evaluate("""([id, d]) => window.render(document.getElementById(id), d, {
                     action: async () => ({ok: true}), top: () => {}, scroll: () => {}})""", [k, SHEET])

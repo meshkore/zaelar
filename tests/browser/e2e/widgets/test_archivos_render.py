@@ -17,9 +17,9 @@ import asyncio
 import os
 
 import pytest
+from tests.browser import widget_client
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-_WIDGET = os.path.join(ENG, "widgets", "archivos", "widget.js")
 
 _SHELVES = [
     {"id": f"shelf:{k}", "name": n, "kind": "folder", "mime": "", "size": None, "modified": "",
@@ -125,9 +125,7 @@ def _run(steps, width=860, height=700, host_w=820, host_h=600):
                 await route.fulfill(status=200, content_type="text/html", body=_html(host_w, host_h))
             await pg.route("http://zaelar.test/", _page)
             await pg.goto("http://zaelar.test/")
-            src = open(_WIDGET, encoding="utf-8").read()
-            await pg.add_script_tag(
-                content=src.replace("export function render", "window.render = function render"))
+            await widget_client.mount(pg, "archivos")
             out = []
             for data in steps:
                 await pg.evaluate(
