@@ -51,7 +51,7 @@ def _a_rsvp_meeting(action, payload, db, _extra) -> dict:
     date = _d._resolve_date(raw_date) if raw_date else ""
     _hits = [m for m in db.get("meetings", [])
              if (not title or title in _d._strip_accents(m.get("title", "").strip().lower()))
-             and (not date or _d.recur.on(m, date))]
+             and (not date or _d.series.on(m, date))]
     if not title or not _hits:
         return {"ok": False,
                 "error": "no encuentro esa invitación — dime el título tal como está apuntada "

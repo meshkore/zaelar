@@ -11,7 +11,7 @@ from .. import store
 from . import gcal, sweep
 from .reminders import _cancel_reminder, _schedule_reminder  # noqa: F401  (V2-705)
 from .details import _apply_details, _norm_attendees, _norm_status  # noqa: F401
-from . import edit, planner, recur, tasklists
+from . import edit, planner, recur, series, tasklists
 from widgets.agenda import task_read as _task_read_m
 
 
@@ -219,7 +219,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         payload = {**payload, "newDate": payload["day"]}   # in a move, a bare `day` is where it goes
         payload.pop("day")
     # A move is a write too: the model names its fields the way it names a meeting's ({date, start, end}).
-    payload = recur.normalize(payload) if action in ("add_meeting", "update_meeting", "move_meeting") \
+    payload = series.normalize(payload) if action in ("add_meeting", "update_meeting", "move_meeting") \
         else (payload or {})
     if action in ("move_meeting", "update_meeting", "cancel_meeting", "open_meeting"):
         payload = edit.day_out_of_title(payload)       # «Piano del martes 2026-10-13» names that day (V2-781)

@@ -95,10 +95,10 @@ def _a_add_meeting(action, payload, db, _extra) -> dict:
     # whether the other side has confirmed.
     _d._apply_details(_new, payload)
     # V2-769 — the RULE travels with the row (`recur.py`), and a key nothing reads is reported, not dropped.
-    if (_why := _d.recur.attach(_new, payload, _d._today())):
+    if (_why := _d.series.attach(_new, payload, _d._today())):
         return {"ok": False, "error": _why}
     date = str(_new.get("date") or date)
-    _extra = {"ignored": _d.recur.ignored_keys(payload), "stored": dict(_new),
+    _extra = {"ignored": _d.series.ignored_keys(payload), "stored": dict(_new),
               "revert": {"action": "cancel_meeting", "payload": {"title": title, "date": date, "whole": True}}}
     if "status" not in _new:
         # An appointment WITH other people starts awaiting their answer; one you simply put in your own
@@ -307,7 +307,7 @@ def _a_move_meeting(action, payload, db, _extra) -> dict:
     _end = _d.edit.end_of(m, payload, new_start)
     _d._cancel_reminder(m)
     if _rawnew and (m.get("repeat") or {}).get("freq") == "weekly":   # V2-769: a series moves every week
-        m["repeat"]["days"] = [_d.recur.weekday(new_date)]
+        m["repeat"]["days"] = [_d.series.weekday(new_date)]
     m["date"], m["startTime"], m["endTime"] = new_date, new_start, _end
     m.pop("reminder_id", None); m.pop("remindAt", None); m.pop("remindAsked", None)
     _d.gcal.patch_google(m)   # V2-679: a moved Google-origin meeting is rescheduled on Google too
@@ -356,9 +356,9 @@ def _a_update_meeting(action, payload, db, _extra) -> dict:
     m = _hits[0]
     if (_why := _name_taken(db, m, payload)):
         return {"ok": False, "error": _why}
-    if (_why := _d.recur.update(m, payload, _d._today())):            # V2-769 — its rule is a detail too
+    if (_why := _d.series.update(m, payload, _d._today())):            # V2-769 — its rule is a detail too
         return {"ok": False, "error": _why}
-    _extra = {"ignored": _d.recur.ignored_keys(payload), "stored": dict(m)}
+    _extra = {"ignored": _d.series.ignored_keys(payload), "stored": dict(m)}
     _d._apply_details(m, payload)
     _nt = str(payload.get("newTitle") or "").strip()
     if _nt:

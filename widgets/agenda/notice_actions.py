@@ -16,7 +16,7 @@ def _a_set_reminder(action, payload, db, _extra) -> dict:
     date = _d._resolve_date(raw_date) if raw_date else ""
     _hits = [m for m in db.get("meetings", [])
              if (not title or title in _d._strip_accents(m.get("title", "").strip().lower()))
-             and (not date or _d.recur.on(m, date))]
+             and (not date or _d.series.on(m, date))]
     if title and date and not _hits and not payload.get("at"):
         # V2-781 T513 — the `date` was the NOTICE's day («avísame el miércoles» of Thursday's item, measured
         # live): the title alone names the item, so the day goes to `at` instead of filtering the item out.

@@ -16,6 +16,7 @@ import time as _t
 from datetime import date as _date
 
 from . import recur
+from widgets.agenda import series as _series_m
 from .when import _m2, _resolve_date, _resolve_time, _today
 
 #: The keys that say WHEN — present in an `update_meeting`, they are a reschedule and go through the one
@@ -112,7 +113,7 @@ def open_detail(db: dict, payload: dict) -> dict:
         return {"ok": False, "error": missing(db, payload)}
     m = hits[0]
     day = _day_of(m, payload)
-    if day and not recur.on(m, day):
+    if day and not _series_m.on(m, day):
         day = _day_of(m, {})
     _push(db, sel=day, open={"title": str(m.get("title") or ""), "date": day})
     touch(db, m)
