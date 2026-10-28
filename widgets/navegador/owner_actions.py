@@ -1,9 +1,6 @@
 """The browser's ACTIONS: the web task agent (`_automate`), plain browsing, and the page gestures the operator and
 the agent drive — search, step, scroll, click, type, press — plus the YouTube exception (V2-778 F1, 2026-10-01).
-
-Moved out of `widgets/navegador/owner.py` with no behaviour change. Every module-level name these functions read —
-each other included — is read through the owner (`_o.<name>`), so a patch on `owner` still governs every call, and
-the owner imports them back under their names.
+Every module-level name is read through the owner (`_o.<name>`), so a patch on `owner` still governs every call.
 """
 from __future__ import annotations
 
@@ -53,49 +50,10 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
     summary = str(res.get("summary") or "")
     ok, success = bool(res.get("ok")), bool(res.get("success"))
     results = res.get("results")
-    # RICH RESULTS: scrape listings from the final page + cheap model picks the best ones + conclusion.
-    # Visible phases: collecting → (N listings) → investigating the best. Best-effort.
+    # RICH RESULTS (best-effort): collecting → (N listings) → investigating the best.
     if not results and ok:
-        try:
-            tasks.set_phase(task_id, "recopilando anuncios", True)
-            items = await tb.extract_listings()
-            if items:
-                # OBSERVABILITY (V2-035): leave WHICH candidates were extracted in the feed (so we can later review
-                # whether the search returned the requested thing —e.g. enduro— or the wrong category), not just
-                # "N listings".
-                _sample = "; ".join(
-                    f"{(it.get('title') or '')[:40]}{(' · '+it.get('price')) if it.get('price') else ''}"
-                    for it in items[:6])
-                tasks.milestone(task_id, f"📋 {len(items)} anuncios encontrados: {_sample}")
-                # EVIDENCE (2026-08-10): the milestone carries a readable sample, but AUDITING needs the source —
-                # each candidate URL, which allows revisiting and checking whether the price and description were what
-                # it claimed. Budgeted (`observability.evidence`), best-effort.
-                try:
-                    from observability import evidence as _evd
-                    from voice.observer import emit as _emit_obs
-                    _ev = _evd.web_results([{"title": it.get("title"), "url": it.get("url"),
-                                             "snippet": it.get("price")} for it in items])
-                    _emit_obs("navegador", "📋 candidatos extraídos", text=f"{len(items)} de {tb.page.url}",
-                              extra={"id": "navegador", "task": task_id, "span": f"web:{task_id}",
-                                     "trace": tasks.trace_of(task_id), "evidence": _ev})
-                except Exception:
-                    pass
-                tasks.set_phase(task_id, "investigando los mejores", True)
-                results = await agent.summarize_results(goal, items)
-                if results and results.get("discarded"):
-                    # OBSERVABILITY (V2-035): what was DISCARDED and WHY (e.g. "trial motorcycle — not enduro"), so
-                    # the relevance filter can be reviewed.
-                    _dis = "; ".join(f"{d.get('title', '')[:32]} ({d.get('reason', '')[:40]})"
-                                     for d in results["discarded"][:5])
-                    tasks.milestone(task_id, f"🚫 descartados {len(results['discarded'])} por no encajar: {_dis}")
-                if results and results.get("items"):
-                    _sel = "; ".join((it.get("title") or "")[:40] for it in results["items"][:5])
-                    tasks.milestone(task_id, f"⭐ seleccionados {len(results['items'])}: {_sel}")
-        except Exception as e:  # noqa: BLE001
-            _o.logger.warning(f"extracción de resultados falló: {e}")
-    # SUCCESS by RESULT, not by what the model reports: if we got ranked listings, the task DID complete (the loop
-    # sometimes closes with empty done {} → success False even though it reached the grid). Fix for saying "could not
-    # fully complete" despite having results.
+        results = await _rich_results(goal, tb, task_id, agent, tasks)
+    # SUCCESS by RESULT, not by what the model reports: ranked listings mean the task DID complete.
     if results and results.get("items"):
         success = True
         if not summary:
@@ -105,10 +63,8 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
     tasks.set_phase(task_id, "listo" if (ok and success) else ("terminado" if ok else "no pude completarlo"), False)
     tasks.finish(task_id, "done" if (ok and success) else ("done" if ok else "failed"),
                  ("✅ " if (ok and success) else "") + (summary or "sin resumen"))
-    # V2-257 — the card stores the FACT, the sheet stores the FINDINGS. This path had never had a way to reach
-    # the sheet: the engine's own loop does not talk to `cli.widget`, so what it found died in the card. It goes
-    # AFTER completion, as in `dispatch._finalize_web` and for the same reason: it keeps `set_results` and the
-    # final state required by the V2-192 invariant together (a LIVE task cannot have results).
+    # V2-257 — the card stores the FACT, the sheet the FINDINGS; AFTER completion, as in `dispatch._finalize_web`
+    # (V2-192: a LIVE task cannot have results).
     if results:
         try:
             from widgets.results import intake as _intake
@@ -117,6 +73,50 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
                          source_url=str((tasks.get(task_id) or {}).get("url") or ""))
         except Exception:  # noqa: BLE001
             pass
+    await _announce(task_id, goal, summary, ok, success, tasks)
+
+
+async def _rich_results(goal: str, tb, task_id: str, agent, tasks):
+    """Scrape the final page's listings, let the cheap model pick the best, and leave both in the feed."""
+    results = None
+    try:
+        tasks.set_phase(task_id, "recopilando anuncios", True)
+        items = await tb.extract_listings()
+        if items:
+            # OBSERVABILITY (V2-035): WHICH candidates were extracted, so the category can be reviewed later.
+            _sample = "; ".join(
+                f"{(it.get('title') or '')[:40]}{(' · '+it.get('price')) if it.get('price') else ''}"
+                for it in items[:6])
+            tasks.milestone(task_id, f"📋 {len(items)} anuncios encontrados: {_sample}")
+            # EVIDENCE (2026-08-10): auditing needs each candidate's URL, not just the sample. Budgeted, best-effort.
+            try:
+                from observability import evidence as _evd
+                from voice.observer import emit as _emit_obs
+                _ev = _evd.web_results([{"title": it.get("title"), "url": it.get("url"),
+                                         "snippet": it.get("price")} for it in items])
+                _emit_obs("navegador", "📋 candidatos extraídos", text=f"{len(items)} de {tb.page.url}",
+                          extra={"id": "navegador", "task": task_id, "span": f"web:{task_id}",
+                                 "trace": tasks.trace_of(task_id), "evidence": _ev})
+            except Exception:
+                pass
+            tasks.set_phase(task_id, "investigando los mejores", True)
+            results = await agent.summarize_results(goal, items)
+            if results and results.get("discarded"):
+                # OBSERVABILITY (V2-035): what was DISCARDED and WHY (e.g. "trial motorcycle — not enduro"), so
+                # the relevance filter can be reviewed.
+                _dis = "; ".join(f"{d.get('title', '')[:32]} ({d.get('reason', '')[:40]})"
+                                 for d in results["discarded"][:5])
+                tasks.milestone(task_id, f"🚫 descartados {len(results['discarded'])} por no encajar: {_dis}")
+            if results and results.get("items"):
+                _sel = "; ".join((it.get("title") or "")[:40] for it in results["items"][:5])
+                tasks.milestone(task_id, f"⭐ seleccionados {len(results['items'])}: {_sel}")
+    except Exception as e:  # noqa: BLE001
+        _o.logger.warning(f"extracción de resultados falló: {e}")
+    return results
+
+
+async def _announce(task_id: str, goal: str, summary: str, ok: bool, success: bool, tasks) -> None:
+    """Tell the brain (a [SISTEMA] note) and the operator (a proactive notice) how the task ended."""
     try:
         from voice import brain_notes
         head = "completé" if (ok and success) else "no pude completar del todo"
