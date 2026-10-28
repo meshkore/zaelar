@@ -1,7 +1,5 @@
 """The documento sheet's action handlers — one function per action, dispatched by `data.ACTIONS`.
-
-Split out of `data.py` (it keeps the contract and the table). Shared helpers are read back through the `data`
-module, so a test that patches one of them there is honoured here too.
+Shared helpers are read through `data`, so a test that patches one there is honoured here.
 """
 from __future__ import annotations
 
@@ -27,10 +25,8 @@ def _a_show(action: str, p: dict) -> dict:
         if why:
             return {"ok": False, "error": why}
     elif not body.strip():
-        # An empty `show` must NOT blank a sheet the operator is reading (the `imagenes` lesson): they
-        # would be left staring at nothing with no way back, and the honest report is that nothing came.
-        # A `query` or a topic is not a document: this card does not search, its caller writes the text.
-        # The `error` tells the model's correction pass that; `say` is what the operator may hear.
+        # An empty `show` must NOT blank a sheet being read. This card does not search: its caller writes the
+        # text. `error` is for the model's correction pass; `say` is what the operator may hear.
         return {"ok": False, "say": "widgets.documento.refusal_empty",
                 "error": "no llegó ningún contenido para la hoja ('body' vacío): esta hoja no busca — "
                          "escribe TÚ el documento entero en 'body' (markdown) y vuelve a llamar a 'show'"}
@@ -56,9 +52,7 @@ def _a_append(action: str, p: dict) -> dict:
     old = str(db.get("body") or "")
     body = old + ("\n\n" if old else "") + add
     if len(body) > _d.MAX_CHARS:
-        # Refuse WHOLE rather than truncate. A silent cut lands mid-sentence and reads like a finished
-        # document that simply stops — the caller has no way to know it was cut, and neither has the
-        # operator. Saying it is full is the only honest answer, and it names the way out.
+        # Refuse WHOLE rather than truncate: a silent cut reads like a finished document that simply stops.
         return {"ok": False, "say": "widgets.documento.refusal_full", "error": f"la hoja ya está llena ({_d.MAX_CHARS} caracteres): no cabe lo que "
                                       f"añades. Usa 'show' para reemplazarla por una versión más corta",
                 "chars": len(old)}
@@ -71,8 +65,6 @@ def _a_append(action: str, p: dict) -> dict:
 
 def _a_goto(action: str, p: dict) -> dict:
     db = _d._load()
-    # «Show me the section explaining why the colonies wanted independence» over the Declaration on screen
-    # (demo run, 2026-09-26): the reply described the passage and the sheet never moved — no action could.
     # The best-matching heading or passage becomes the FOCUS; the card scrolls to it and marks it.
     body = str(db.get("body") or "")
     if _d._kind(db.get("kind")) == "pdf" or not body.strip():
@@ -82,8 +74,7 @@ def _a_goto(action: str, p: dict) -> dict:
         heads = [b.lstrip("# ").strip() for b in _blocks(body) if b.startswith("#")][:12]
         return {"ok": False, "error": "no encuentro ese pasaje — pásame un título o una frase suya",
                 "headings": heads}
-    # As the reader will SEE it: the card matches this against rendered text, where «**refused**» is
-    # «refused» and a wrapped paragraph is one line (V2-773 audit — a passage with emphasis never matched).
+    # As the reader SEES it: the card matches against rendered text, without markdown marks or wraps (V2-773).
     plain = " ".join(re.sub(r"[*_`~>#\[\]]+", "", hit).split())
     db["focus"] = {"text": plain[:160], "at": time.time()}
     store.save(_d.WIDGET_ID, _d._stamp(db))
@@ -97,9 +88,8 @@ def _a_clear(action: str, p: dict) -> dict:
 
 def _a_save_to_library(action: str, p: dict) -> dict:
     db = _d._load()
-    # V2-661 — «guárdalo en mis archivos» with the document ON SCREEN is one data-op, not an errand: the
-    # text is already here. It lands on the library's documents shelf (the `archivos` card's truth), never
-    # in this widget's own data directory, which no file manager shows. A PDF is a file we never held.
+    # Saving the document ON SCREEN is a data-op, not an errand. It lands on the library's documents shelf, never in
+    # this widget's data directory, which no file manager shows. A PDF is a file we never held (V2-661).
     kind = _d._kind(db.get("kind"))
     body = str(db.get("body") or "")
     if kind == "pdf" or not body.strip():
@@ -109,8 +99,7 @@ def _a_save_to_library(action: str, p: dict) -> dict:
     name = _d._text(p.get("name") or p.get("filename") or db.get("title"), 160) or "documento"
     if kind == "html" and not os.path.splitext(name)[1]:
         name += ".html"
-    # The sheet OWNS its file: saving again updates it (demo pass 2026-09-28 — each save made «(1)», «(2)»…,
-    # and the worker spent minutes renaming and deleting its own duplicates, asking him to authorise it).
+    # The sheet OWNS its file: saving again updates it instead of making «(1)», «(2)» duplicates.
     res = _lib.save_text(name, body, kind="documents", replace=str(db.get("saved_rel") or ""))
     if not res.get("ok"):
         return {"ok": False, "error": res.get("error") or "no pude guardar el fichero"}
