@@ -1,9 +1,11 @@
-"""The post-stream chain holds the model to its WORDS: a pure show over a spurious tool, a ghost worker, the third rung, the escalate gate's evidence, promised reminders and dated notes, an order on a card that was never called (V2-778 F1, 2026-10-01).
+"""The post-stream chain COMPLETES the acts a turn owed: a pure show over a spurious tool, a ghost worker, the third
+rung, the escalate gate's evidence, an order on a card that was never called, a search the card answers (V2-778 F1).
 
-Moved out of `nucleo/flash/post_stream.py::run` (951 lines) with no behaviour change. Every name the block read
-from `post_stream` is read through it (`_pst.<name>`), so a patch on `post_stream` still governs it. The function
-takes the chain's locals it read as keyword arguments and returns the ones the rest of `run` reads, only when
-bound.
+Was `post_stream_words.py`. Since refactor2710-03 nothing here reads our reply's words to decide: whether an act was
+owed is the brief's verdict (`nucleo/turn/reply.owes_an_act`) and what the turn says is the mouth's
+(`nucleo/turn/reply.py`). What is left are act repairs — owed to the act sections (refactor2710-04/05/06), not to the
+mouth. Every name the block read from `post_stream` is read through it (`_pst.<name>`), so a patch on `post_stream`
+still governs it.
 """
 from __future__ import annotations
 
@@ -16,7 +18,7 @@ from nucleo.turn import split_by_errand as _sbe   # a sentence about several err
 from nucleo.turn import promise_kept as _pk      # a promise ends ran, repaired or said undone (V2-790)
 
 
-async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
+async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
     spoken_text = "".join(spoken).strip()
     _stop_decision.steer(_brief, _router.operator_words(operator_text, text), worker_acted=worker_acted, emit=emit, escalate_req=escalate_req)  # V2-820: first
     # GUARD DETERMINISTA de SHOW puro (V2-023, ampliado 2026-07-14). "muéstrame el de mensajería" / "abre la

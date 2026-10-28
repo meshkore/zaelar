@@ -10,7 +10,6 @@ from __future__ import annotations
 from nucleo.flash import card_receipt as _pst_receipt   # V2-781: a bare ack names the cards the turn changed
 from nucleo.flash import post_stream as _pst
 from nucleo.turn import split_by_errand as _sbe   # the status line names the errand a send reached (2.644)
-from nucleo.flash import blocked_channel_receipt as _pst_bcr   # V2-604: a blocked channel's pasted link is said
 from nucleo.request import stop as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
 from nucleo.turn import reply as _reply   # refactor2710-03: the mouth speaks the verdict
 
@@ -150,23 +149,12 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             spoken_text = _pst_receipt.voice_ack(next((a for a in _acks if a.strip().lower() != _last), _acks[0]))
         except Exception:
             spoken_text = "Hecho."
-        # The ack is a claim about the cards: checked against them before it is said (V2-783 P0-2; text channel does the
-        # same in `probe_after`). An unmet end state on a card this turn wrote to says what is true instead.
-        try:
-            from nucleo.flash import done_backing as _dback
-            spoken_text = _dback.backed(spoken_text, "widget_data",
-                                        {"ops": [{"widget": str(w)} for w, _a in (data_done.get("ops") or [])]})
-        except Exception:  # noqa: BLE001 — an unreadable screen leaves the ack as it was
-            pass
+        # The ack is a claim about the cards (V2-783 P0-2): an unmet end state on a card this turn wrote to says what is
+        # true instead (`reply_receipts.bare_ack`).
+        from nucleo.turn import reply_receipts as _receipts
+        spoken_text = _receipts.bare_ack(spoken_text, {str(w).split("::", 1)[0] for w, _a in (data_done.get("ops") or [])})
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
-    # The TRANSPORT receipt (2026-10-11): words that skipped the next/pause/add he asked for — what plays now is named.
-    if data_done["v"] and spoken_text and escalate_req["v"] is None and search_req["v"] is None:
-        from nucleo.flash import transport_receipt as _pst_tr
-        if (_tr_line := await _pst_tr.voice_owed_settled(spoken_text)):
-            send(speech.sanitize(_tr_line, drop_metadata=False))
-            spoken_text = (spoken_text + " " + _tr_line).strip()
-    spoken_text = await _pst_bcr.said_after(spoken_text, send, speech)   # a blocked channel's link (V2-604)
 
     # Regla de usuario fijada/retirada SIN frase hablada → ack corto (V2-046 A1, visto en el probe: la
     # RETIRADA dejaba el turno MUDO). Nunca mudo al aceptar/quitar una regla.

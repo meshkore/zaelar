@@ -12,7 +12,7 @@ and got the same promise again. Three ways the existing repair never opened:
     act reached him unqualified;
   · a second pass that called nothing told nobody whether the words promised nothing or the card could not do it.
 
-The mechanism, one door shared by the voice turn (`post_stream_words` + `turn_after`) and the text channel
+The mechanism, one door shared by the voice turn (`post_stream_acts` + `turn_after`) and the text channel
 (`probe_mirrors`):
 
   1. `card_for_the_repair` — when no verdict names a card: the card of a call the MODEL made this turn that did not

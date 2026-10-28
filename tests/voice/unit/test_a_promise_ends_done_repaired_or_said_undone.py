@@ -134,8 +134,8 @@ def test_no_card_and_an_owed_order_still_ends_honestly(monkeypatch):
 # ── the voice door, driven ──────────────────────────────────────────────────────────────────────────────
 
 def _voice_turn(op_text: str, said: str, *, model_calls=(), apply=None):
-    """Runs `post_stream_words.hold_the_model_to_its_words` on a turn that called nothing that ran."""
-    from nucleo.flash import post_stream_words as psw
+    """Runs `post_stream_acts.complete_the_acts` on a turn that called nothing that ran."""
+    from nucleo.flash import post_stream_acts as psw
     applied: list = []
     acted, data_done = {"widget": False}, {"v": False}
     escalate_req = {"v": None, "more": [], "surface": {}}
@@ -149,7 +149,7 @@ def _voice_turn(op_text: str, said: str, *, model_calls=(), apply=None):
     brain = SimpleNamespace(_window=[], _last_action=None, _turn_calls=list(model_calls), _last_spoken="")
     none = lambda: {"v": None}                              # noqa: E731
     events: list = []
-    out = asyncio.run(psw.hold_the_model_to_its_words(
+    out = asyncio.run(psw.complete_the_acts(
         _apply_widget_data=_apply, _brief=None, _data_ops_hechas=[], _has_workers=False, _prompt_mod=None,
         _repeat_repair={"v": None}, _router=__import__("nucleo.flash.router", fromlist=["x"]),
         _show_guard_target=lambda *a, **k: None, _tag_emit=lambda *a, **k: None, _tool_fired=set(),

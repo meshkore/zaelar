@@ -35,8 +35,8 @@ async def run(*, FastClient, _apply_widget_data, _ask_waiting, _auth_pending, _b
               _say, _close_target, _identify, _identify_system, _show_guard_target, _show_target_instance, with_also_named, _buf_reset, _buf_add) -> dict:
     """The post-stream chain of ONE turn. Returns `{"spoken_text", "_op_text"}`."""
     # V2-778 F1 — holding the model to its words (pure show, ghost worker, third rung, promises) lives in
-    # `nucleo/flash/post_stream_words.py`.
-    _blk = await _ps_words.hold_the_model_to_its_words(
+    # `nucleo/flash/post_stream_acts.py`.
+    _blk = await _ps_acts.complete_the_acts(
         _apply_widget_data=_apply_widget_data,
         _brief=_brief,
         _data_ops_hechas=_data_ops_hechas,
@@ -186,4 +186,4 @@ async def run(*, FastClient, _apply_widget_data, _ask_waiting, _auth_pending, _b
 # V2-778 F1 — the chain's three moved blocks; module imports at the end (they read this module back).
 from nucleo.flash import post_stream_lanes as _ps_lanes  # noqa: E402
 from nucleo.flash import post_stream_settle as _ps_settle  # noqa: E402
-from nucleo.flash import post_stream_words as _ps_words  # noqa: E402
+from nucleo.flash import post_stream_acts as _ps_acts  # noqa: E402

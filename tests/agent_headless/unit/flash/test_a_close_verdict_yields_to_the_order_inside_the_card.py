@@ -81,7 +81,7 @@ def test_the_measured_series_removal_does_not_close_the_agenda(verdict):
 def test_the_voice_turn_asks_the_rule():
     src = (ENGINE / "nucleo/flash/card_close.py").read_text(encoding="utf-8")   # `complete_canvas`'s body (run_gesture)
     assert ".inner_order_wins(brief, operator_text)" in src
-    assert "_vcard.close_is_owed(_brief, _op_text)" in (ENGINE / "nucleo/flash/post_stream_words.py").read_text(
+    assert "_vcard.close_is_owed(_brief, _op_text)" in (ENGINE / "nucleo/flash/post_stream_acts.py").read_text(
         encoding="utf-8")
 
 

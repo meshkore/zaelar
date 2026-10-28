@@ -223,7 +223,7 @@ class LangSpec:
     receipt_opened: str = ""
     receipt_on_card: str = ""
     receipt_and: str = ""
-    #: The TRANSPORT receipt (`transport_receipt`, 2026-10-11): a reply that ignored the next/play/pause/add he
+    #: The TRANSPORT receipt (`reply_receipts.player`, 2026-10-11): a reply that ignored the next/play/pause/add he
     #: asked for names what happened and what is playing now.
     receipt_now_playing: str = ""
     receipt_paused: str = ""
@@ -238,7 +238,7 @@ class LangSpec:
     #: …and when the player REFUSED it (`player_outcome`): what could not play and why, never «Suena ahora».
     receipt_cannot_play: str = ""
     receipt_swapped: str = ""
-    #: A pasted link from a channel he BLOCKED, let through because he asked (`blocked_channel_receipt`, V2-604).
+    #: A pasted link from a channel he BLOCKED, let through because he asked (`reply_receipts.blocked_channel`, V2-604).
     receipt_blocked_channel_played: str = ""
     receipt_blocked_channel_queued: str = ""
     #: «Exit full screen» with no card at full screen (`fullscreen_nothing`): said, never «Hecho.».

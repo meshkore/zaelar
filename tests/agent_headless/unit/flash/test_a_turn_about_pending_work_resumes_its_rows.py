@@ -128,7 +128,7 @@ def test_a_live_errand_is_not_started_twice(monkeypatch):
 
 
 def test_both_doors_ask_the_rows_before_annulling_or_gluing():
-    words = (ROOT / "nucleo/flash/post_stream_words.py").read_text(encoding="utf-8")
+    words = (ROOT / "nucleo/flash/post_stream_acts.py").read_text(encoding="utf-8")
     assert words.index("_resume_turn.before_fragment_guard(") < words.index("_pst._eguard.drop_if_fragment(")
     lanes = (ROOT / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
     i = lanes.index("_no_tool = await _pst._resume_turn.before_backstops(")

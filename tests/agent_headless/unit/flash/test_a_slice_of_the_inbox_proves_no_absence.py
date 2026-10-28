@@ -46,6 +46,6 @@ def test_a_lens_that_is_the_whole_answer_is_unchanged(asked):
 
 
 def test_the_turn_composes_through_the_one_door():
-    from nucleo.flash import post_stream_words
-    src = inspect.getsource(post_stream_words)
+    from nucleo.flash import post_stream_acts
+    src = inspect.getsource(post_stream_acts)
     assert "op_answer_system(" in src and "answered=True" not in src
