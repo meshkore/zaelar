@@ -78,7 +78,7 @@ def _scheduled_names():
 
 
 def test_a_cron_tag_is_actually_scheduled_not_just_captured(probe_session, monkeypatch):
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _CronTagClient)
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _CronTagClient)
     res = asyncio.run(turn.run_turn(
         "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles.",
         sid=probe_session, ingest=False, execute=True))
@@ -89,7 +89,7 @@ def test_a_cron_tag_is_actually_scheduled_not_just_captured(probe_session, monke
 def test_booking_the_appointment_does_not_kill_the_reminder(probe_session, monkeypatch):
     """The turn has ONE `action`; the cron runs outside it on purpose. If they competed, the half the model
     happened to emit last would silently win and the operator would get an agenda entry with no alert."""
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _CronPlusToolClient)
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _CronPlusToolClient)
     res = asyncio.run(turn.run_turn(
         "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles.",
         sid=probe_session, ingest=False, execute=True))

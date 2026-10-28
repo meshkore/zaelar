@@ -118,7 +118,7 @@ def named(monkeypatch):
 
 
 def test_a_term_that_is_only_the_assistants_name_leaves_the_spec(named):
-    from nucleo import spec as S
+    from nucleo.circuit import spec as S
     only_name = {"all": [{"widget": "musica", "collection": "tracks", "where": {"title~": "Marlowe"},
                           "expect": "present"}]}
     assert S._without_the_assistants_name(only_name) is None

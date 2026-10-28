@@ -42,7 +42,7 @@ def sheet_from_task(task_id: str) -> dict:
         data = _lifecycle.view_data(tid)
         return {"ok": True, "instance": instance_id(tid), "rebuilt": False,
                 "title": str(data.get("title") or "")}
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     parts = _tasks.artifacts(tid)
     if not parts.get("result"):
         # Nothing was ever kept for this task: an errand with no sheet, or one that closed before V2-728.
@@ -78,5 +78,5 @@ def has_results(task_id: str) -> bool:
         return False
     if store.exists(sheet_key(tid)):
         return True
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     return bool(_tasks.artifact(tid, "result"))

@@ -31,7 +31,7 @@ import time
 import server.common  # noqa: F401  — carga el credential store en el entorno
 
 from nucleo.flash import router
-from nucleo.flash.fast_client import FastClient, ModelSpec
+from nucleo.llm.fast_client import FastClient, ModelSpec
 
 AIML = "https://api.aimlapi.com/v1"
 GEMINI = "https://generativelanguage.googleapis.com/v1beta/openai/"

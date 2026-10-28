@@ -15,7 +15,8 @@ import pytest
 
 @pytest.fixture
 def ol(monkeypatch):
-    from nucleo.flash import outgoing_lang, fast_client
+    from nucleo.flash import outgoing_lang
+    from nucleo.llm import fast_client
     from i18n import langs
     monkeypatch.setattr(langs, "current_code", lambda: "en")
     calls = []

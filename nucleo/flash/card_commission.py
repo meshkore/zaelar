@@ -129,7 +129,7 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
             _ids = brief.get("open_ids") if isinstance(brief, dict) and brief.get("open_ids") else None
             named = _pc.open_player_owns(named, operator_text, open_ids=_ids)
         # A guess on his words alone may not contradict the end state the brief already named (`spec`).
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         _against = _spec.card_contradicts(brief, named) if named else ""
         if _against:
             named = ""
@@ -512,7 +512,8 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
         # when the brief fired, so no verdict could name `open`). The card came up by CONTEXT, which is a guess at the
         # object, never the act; «show me the calendar» names its card and is left alone.
         by_context = _da.reads_as_order(brief) and not _da.named_cards(operator_text)
-        if not (acted.get("show_suppressed") or (spoken_text and _router.promises_action(spoken_text))
+        from nucleo.turn import reply as _reply
+        if not (acted.get("show_suppressed") or _reply.owes_an_act(brief) == "order"
                 or _da.names_an_order(brief, sure=0.8) or named_or_catalogue(brief, operator_text) == wid
                 or (spoken_text and _da.names_an_order(brief)) or empty or by_context):
             return False

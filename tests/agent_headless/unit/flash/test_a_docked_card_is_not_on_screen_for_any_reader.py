@@ -20,7 +20,7 @@ def docked(monkeypatch):
 
 
 def test_the_harness_does_not_count_a_docked_card_as_open(docked):
-    from nucleo import harness
+    from nucleo.circuit import harness
     assert harness._card_is_open("results") is False
     assert harness._card_is_open("agenda") is True
 
@@ -32,7 +32,8 @@ def test_the_live_state_does_not_call_a_docked_card_open(docked):
 
 
 def test_a_met_content_goal_needs_the_card_visible(docked, monkeypatch):
-    from nucleo import harness, truth
+    from nucleo import truth
+    from nucleo.circuit import harness
     monkeypatch.setattr(truth, "widget_view", lambda wid: {"empty": False})
     g = {"kind": harness.KIND_WIDGET_CONTENT, "target": "results", "text": "x", "checks": 0}
     assert asyncio.run(harness.verify(g)) is False, "content in the dock is not content in front of him"
@@ -52,7 +53,8 @@ def test_a_collection_declared_from_the_view_is_read_from_the_view(monkeypatch):
 def test_a_full_sheet_still_in_the_dock_is_not_a_false_claim(docked, monkeypatch):
     """Demo pass 65, S1: the sheet came back from the dock with its three monitors; the canvas report still said
     minimized, and a worker was sent to «locate the content» of a full sheet. Only an EMPTY sheet is a false claim."""
-    from nucleo import harness, truth
+    from nucleo import truth
+    from nucleo.circuit import harness
     monkeypatch.setattr(truth, "widget_view", lambda wid: {"empty": False, "items": [1, 2, 3]})
     g = {"kind": harness.KIND_WIDGET_CONTENT, "target": "results", "text": "monitors", "checks": 0, "status": "open"}
     monkeypatch.setattr(harness, "open_goals", lambda now=None: [g])

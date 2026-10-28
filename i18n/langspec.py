@@ -223,7 +223,7 @@ class LangSpec:
     receipt_opened: str = ""
     receipt_on_card: str = ""
     receipt_and: str = ""
-    #: The TRANSPORT receipt (`transport_receipt`, 2026-10-11): a reply that ignored the next/play/pause/add he
+    #: The TRANSPORT receipt (`reply_receipts.player`, 2026-10-11): a reply that ignored the next/play/pause/add he
     #: asked for names what happened and what is playing now.
     receipt_now_playing: str = ""
     receipt_paused: str = ""
@@ -235,12 +235,10 @@ class LangSpec:
     #: request went (kept as a suggestion, or the button to send one).
     capability_not_yet: str = ""
     capability_not_yet_noted: str = ""
-    #: A reply that claimed it checked whether videos are AI-made (`unchecked_provenance`): nothing here can.
-    provenance_unchecked: str = ""
     #: …and when the player REFUSED it (`player_outcome`): what could not play and why, never «Suena ahora».
     receipt_cannot_play: str = ""
     receipt_swapped: str = ""
-    #: A pasted link from a channel he BLOCKED, let through because he asked (`blocked_channel_receipt`, V2-604).
+    #: A pasted link from a channel he BLOCKED, let through because he asked (`reply_receipts.blocked_channel`, V2-604).
     receipt_blocked_channel_played: str = ""
     receipt_blocked_channel_queued: str = ""
     #: «Exit full screen» with no card at full screen (`fullscreen_nothing`): said, never «Hecho.».
@@ -351,13 +349,6 @@ class LangSpec:
     row_check_no: str = ""
     row_check_unknown: str = ""
     row_check_row_unknown: str = ""   # a row asked about something it does not carry
-    row_check_none: str = ""
-    row_check_some: str = ""
-    # A reply's claim about a row that no source carries (nucleo/flash/row_claims.py): said as not verified.
-    claim_unverified: str = ""
-    claim_backed: str = ""
-    claim_not_verified: str = ""
-    claim_candidate_unbacked: str = ""
     claim_correction: str = ""
     # A restart caught a widget half-built — `widgets/server_api.py`.
     widget_build_resumed: str = ""
@@ -394,6 +385,16 @@ class LangSpec:
     work_started: str = ""
     op_failed: str = ""
     op_unknown: str = ""
+    # refactor2710-03 — the mouth speaks the verdict: ONE line per verdict of `nucleo/turn/reply.py`. `{object}` is
+    # what the act named (a title, a queue), `{reason}` the act's own sentence for why not. A promise is a START.
+    reply_started: str = ""
+    reply_met: str = ""
+    reply_unmet: str = ""
+    reply_unverifiable: str = ""
+    reply_undeclared: str = ""
+    reply_cannot: str = ""
+    reply_asked: str = ""
+    reply_skipped: str = ""
     # V2-771 — a message that hands over SEVERAL tasks is a list (`nucleo/batch`). On receipt he hears that it
     # is a list and that work started — never the list read back to him, and no count: the count needs the
     # split (~5 s) and the receipt must not wait for it. The report comes ONCE, at
@@ -543,8 +544,6 @@ class LangSpec:
     #: …and while a worker IS running (2026-10-22: «…and nothing is running» was said over two live workers). It
     #: retracts the look only and says nothing about the state — the live list is the panel's to show.
     promise_retracted_busy: str = ("")
-    #: Said when the reply claimed work stopped / nothing running and the task record says otherwise. `{titles}`.
-    still_running_truth: str = ("")
     #: Said when a document was written in one request and is on screen (`compose_rung`). `{title}`.
     composed_on_screen: str = ("")
     #: The FIRST backed rows of an errand he asked to be told about, said once (`nucleo/turn/first_rows_notice`).

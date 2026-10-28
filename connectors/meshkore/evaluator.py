@@ -79,7 +79,7 @@ async def evaluate(window: list[dict], metrics: dict, *, spec, timeout: float = 
     """Evaluator judgment (model). Read-only, HARD fail-open — if the model fails, 'continue' (never cut because of
     infrastructure error). `spec` = ModelSpec for the off-voice tier (can reason; runs outside the turn)."""
     try:
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         out = await FastClient().complete(build_messages(window, metrics), spec=spec, max_tokens=200)
         return parse(out)
     except Exception:

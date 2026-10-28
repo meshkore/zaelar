@@ -328,6 +328,11 @@ def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) ->
         # exit is idempotent — a card that is not full screen is left exactly as it is, never shrunk to the rail
         # and never blown up (the two things the old toggle and `minimize` could do to a normal card).
         tag_emit("fullscreen", {"id": rid, "on": False})
+        if not rid and not _anything_at_full_screen():   # refactor2710-03: the exit had nothing to act on
+            from i18n import langs as _langs
+            from nucleo.turn import reply as _reply
+            _reply.note(_reply.Outcome("cannot", "canvas", "unfullscreen",
+                                       reason=str(_langs.current_language().fullscreen_nothing)))
         emit("brain", "⤡ fullscreen_widget(off) → salir de pantalla completa", text=rid or "(la que esté)",
              role="system")
         return
@@ -342,6 +347,17 @@ def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) ->
     # back out. With no `mode` (an older call shape) the event keeps its old meaning, toggle included.
     tag_emit("fullscreen", {"id": rid, **({"on": True} if mode == "on" else {})})
     emit("brain", "⛶ fullscreen_widget → canvas", text=rid, role="system")
+
+
+def _anything_at_full_screen() -> bool:
+    """A card the canvas reports maximized, or one his own order put at full screen. Unreadable → True (an unread
+    canvas proves nothing, so nothing is claimed)."""
+    try:
+        from memory import api as _memapi
+        from nucleo import canvas_focus as _cf
+        return bool(str((_memapi.state() or {}).get("maximized_widget") or "").strip() or _cf.ordered_fullscreen())
+    except Exception:  # noqa: BLE001
+        return True
 
 
 def fullscreen_exit_due(text: str, *, fired: bool) -> str:

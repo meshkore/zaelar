@@ -23,7 +23,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nucleo.flash import stop_decision as sd
+from nucleo.request import stop as sd
 
 #: «not X, do Y» in several languages — the stopped errand is the app build, the new one the document.
 REPLACE_BANK = [
@@ -163,8 +163,8 @@ def test_a_steer_with_several_errands_or_one_waiting_on_him_is_left_to_today(one
 
 
 def test_the_steer_runs_before_the_promise_pass():
-    from nucleo.flash import post_stream_words
-    words = inspect.getsource(post_stream_words.hold_the_model_to_its_words)
+    from nucleo.flash import post_stream_acts
+    words = inspect.getsource(post_stream_acts.complete_the_acts)
     assert "_stop_decision.steer(_brief" in words
     assert words.index("_stop_decision.steer(_brief") < words.index("call_for_promise_or_order"), \
         "a relay that ran after the repair pass would come too late: the card op already ran"

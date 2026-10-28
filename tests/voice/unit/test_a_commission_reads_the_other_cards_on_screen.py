@@ -23,7 +23,7 @@ def seen(monkeypatch):
     class _M:
         async def complete(self, messages, **kw):
             got.append(messages)
-    import nucleo.flash.fast_client as fc
+    import nucleo.llm.fast_client as fc
     monkeypatch.setattr(fc, "FastClient", _M)
     return got
 

@@ -483,7 +483,7 @@ async def worker_act(task_id: str = Body(..., embed=True), token: str = Body("",
     from nucleo import network_rows_gate as _net     # a network agent's rows never open a sheet for a report
     if (_skip := _net.refused(rec, action, payload)):
         return JSONResponse({"ok": True, "skipped": _skip, "injections": inj})
-    from nucleo import deliverable_gate as _deliv    # an errand opens only its deliverable (V2-822)
+    from nucleo.circuit import deliverable as _deliv    # an errand opens only its deliverable (V2-822)
     if (_why := _deliv.refused(rec, action, payload)):
         return JSONResponse({"ok": False, "error": _why, "injections": inj})
     # ALLOW inmediato

@@ -46,7 +46,7 @@ def wired(monkeypatch):
     `compose()` exits on the first line without touching anything: all seven tests would pass along the wrong path."""
     monkeypatch.setenv("ZAELAR_RESEARCH", "1")
     spy = _Spy()
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
     monkeypatch.setattr(pc, "pick", lambda *a, **k: LEAD)
     monkeypatch.setattr(pc, "spec_for", lambda t: t)
     monkeypatch.setattr(pc, "note_failure", spy.note_failure)
@@ -58,7 +58,7 @@ def wired(monkeypatch):
                 raise RuntimeError(EXHAUSTED)
             return '{"research": false}'
 
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Client())
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda *a, **k: _Client())
     return spy
 
 
@@ -115,7 +115,7 @@ def test_a_timeout_is_not_a_dead_provider(wired, monkeypatch):
     cooldown would shut down a healthy tier. The `except TimeoutError` still comes first and does not pass through here."""
     async def _slow(*a, **k):
         raise asyncio.TimeoutError()
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient",
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient",
                         lambda *a, **k: type("C", (), {"complete": staticmethod(_slow)})())
     with pytest.raises(research.ComposerUnavailable):
         asyncio.run(research.compose("hotel en Sevilla"))

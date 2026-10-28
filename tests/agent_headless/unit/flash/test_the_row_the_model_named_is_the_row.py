@@ -41,7 +41,7 @@ def test_words_that_name_no_row_fill_nothing(sheet):
 
 
 def test_resolve_prefers_the_named_row_over_the_operators_sentence(sheet, monkeypatch):
-    from nucleo import spec as S
+    from nucleo.circuit import spec as S
     monkeypatch.setattr(DA, "from_brief", lambda brief: ("results", "detail"))
     monkeypatch.setattr(S, "gate_completion", lambda *a, **k: "")
     monkeypatch.setattr(DA, "card_to_present", lambda wid, text="": "results::x")

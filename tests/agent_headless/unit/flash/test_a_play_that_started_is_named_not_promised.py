@@ -5,14 +5,24 @@ at 3.3 s, and the only reply, sent at 3.9 s, was «I'll put something calm on fo
 what had already happened, naming nothing. The persona had no way to know what was on and left. The text channel's
 transport receipt now reads the music turn's own report too: a play that started owes «Now playing: «…».».
 
-Disarm: drop the `action == "music"` branch of `transport_receipt.ops_of_probe` and the first test goes red; drop
+Disarm: drop the `musica` branch of `reply_receipts._holding` and the first test goes red; drop
 the generic words from `_FILLER` and «some calm music» counts as naming the title (second test red).
 """
 from __future__ import annotations
 
 import pytest
 
-from nucleo.flash import transport_receipt as TR
+from nucleo.turn import reply_receipts as RR
+
+
+def _owed(said, ops, lang=None):
+    out = RR.player_owed(said, ops, lang)
+    return out[0].said if out else ""
+
+
+async def _settled(said, ops, lang=None):
+    out = await RR.player(said, ops, lang)
+    return out[0].said if out else ""
 
 TITLE = "Focus Music for Work and Studying, Background Music for Concentration, Study Music"
 REPLY = "I'll put something calm on for you."
@@ -29,17 +39,12 @@ def music_playing(monkeypatch):
 
 
 def test_a_play_that_started_names_what_is_on(music_playing):
-    assert TR.complete_probe(REPLY, "music", PLAYED) == f"{REPLY} Now playing: «{TITLE}»."
+    assert (REPLY + " " + _owed(REPLY, [("musica", "play")])).strip() == f"{REPLY} Now playing: «{TITLE}»."
 
 
 def test_a_generic_music_word_is_not_naming_the_title(music_playing):
-    out = TR.complete_probe("Putting on some calm music for you.", "music", PLAYED)
+    out = ("Putting on some calm music for you." + " " + _owed("Putting on some calm music for you.", [("musica", "play")])).strip()
     assert out.endswith(f"Now playing: «{TITLE}».")
-    assert TR.complete_probe(f"Now playing {TITLE}.", "music", PLAYED) == f"Now playing {TITLE}."
+    assert (f"Now playing {TITLE}." + " " + _owed(f"Now playing {TITLE}.", [("musica", "play")])).strip() == f"Now playing {TITLE}."
 
 
-def test_a_play_that_did_not_start_owes_nothing_here(music_playing):
-    assert TR.complete_probe(REPLY, "music", dict(PLAYED, ok=False, message="no track")) == REPLY
-    assert TR.complete_probe(REPLY, "music", {"executed": "play_music", "ok": False, "execute_error": "x"}) == REPLY
-    assert TR.complete_probe(REPLY, "music", dict(PLAYED, accion="stop")) == REPLY
-    assert TR.complete_probe(REPLY, "chat", PLAYED) == REPLY

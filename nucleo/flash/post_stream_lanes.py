@@ -11,17 +11,18 @@ from nucleo.flash import act_repair as _act_repair, escalation_guard as _eg, pos
 from nucleo.flash import close_answer as _close_answer
 from nucleo.acts import canvas_turn as _arbiter
 from nucleo.acts import canvas as _door
+from nucleo.turn import reply as _reply
 
 
 async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_add, _buf_reset, _cardc, _close_target, _cover_work, _identify, _identify_system, _named_by_verdict, _no_tool, _op_text, _prompt_mod, _router, _rv, _say, _show_target_instance, _shown_ids, _t, _tag_emit, _tool_fired, _turn_op_tasks, acted, attention, brain, clarify, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, spoken_text, take, text, with_also_named) -> dict:
     _no_tool = await _pst._resume_turn.before_backstops(_no_tool, escalate_req, spoken_text=spoken_text, emit=emit,
         operator_text=_op_text, brief=_brief, last_reply=_pst._prior_line.of(brain), apply_widget_data=_apply_widget_data, acted=acted)
-    _playback = _router.promises_playback(spoken_text, _op_text, music_open=_pst._direct_action.on_screen_now("musica"))
-    if (_no_tool and spoken_text
-            and (_router.promises_action(spoken_text) or _playback
-                 or _pst._direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))
-                 or _pst._direct_action.verdict_shows(_brief))
-            and not _router.asks_for_missing_detail(spoken_text)):
+    # refactor2710-03 — an act was owed and none fired: the BRIEF says so (an order, a sure escalation, a show), never
+    # what our reply said (CRIT-K1). `answered` is only whether the model said anything to a question.
+    if (_no_tool
+            and (_reply.owes_an_act(_brief)
+                 or _pst._direct_action.verdict_escalates(_brief, answered=bool(spoken_text))
+                 or _pst._direct_action.verdict_shows(_brief))):
         _win_goal = ""
         if (_wt := _eg.word_tables(_router, _brief, _op_text, emit=emit)) == "":   # V2-802 T-07 (CRIT-K1)
             # V2-132 — la petición puede ser de HACE UNOS TURNOS: zaelar pidió el dato que faltaba (correcto),
@@ -74,14 +75,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
                 data_done["v"] = True
                 emit("brain", "🔎 la tarjeta estaba vacía — su búsqueda, con su frase", role="system",
                      text=f"{_fill['widget_id']}:{_fill['action']} ← {_op_text[:80]}", extra={"cat": "flash"})
-        elif _playback:
-            # BEFORE any worker or show: the song is on the player, not on the web. The query is the title the
-            # words carry, never his sentence whole («no, put like a prayer» is not a song).
-            music_req["v"] = {"query": _router.music_query(spoken_text, _op_text), "action": "play"}
-            emit("brain", "🎵 música por backstop (prometió ponerla sin tool, en inglés)",
-                 text=music_req["v"]["query"][:80], role="system")
         elif (_wt == "go" or _win_goal
-                or _pst._direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))
+                or _pst._direct_action.verdict_escalates(_brief, answered=bool(spoken_text))
                 or _pst._direct_action.order_over_a_card_left_undone(_brief)):
             escalate_req["v"] = _win_goal or _op_text   # crear widget = código; marketplace/informe = navegador
             emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)",
@@ -94,16 +89,9 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
                 emit("panel", "open", extra={"tab": _wtab, "src": "flash"})
                 emit("brain", "🗂️ panel por backstop de promesa (prometió abrirlo sin tool)", text=_wtab,
                      role="system")
-        elif _router.promises_music(spoken_text):     # 'voy a poner algo de rock' sin tool → reproduce
-            music_req["v"] = {"query": _op_text, "action": "play"}
-            emit("brain", "🎵 música por backstop (prometió poner música sin tool)", text=_op_text[:80], role="system")
 
-    # BACKSTOP DE TRABAJO DEVUELTO (V2-142). Distinto del de promesa: aquí el modelo no promete nada, MANDA
-    # AL OPERADOR a buscar en Google/Maps lo que él acaba de pedir. Medido en `reorder-prescription`: «¿puedes
-    # buscar tú el teléfono?, para eso te pido ayuda» → «la forma más fiable es que tú busques "farmacia" en
-    # Google Maps y me pases el teléfono». Una regla de prompt no basta: lo que hace falta es HACER la
-    # búsqueda. Solo si NADA corre (con una tarea viva la frase puede ser una sugerencia mientras se trabaja,
-    # y re-escalar duplicaría el trabajo, V2-123).
+    # WORK HANDED BACK (V2-142): the model sends HIM to search for what he just asked (`reorder-prescription`) — the
+    # search is done instead. Only when NOTHING runs (with a live task it may be a suggestion, V2-123).
     if (_no_tool and spoken_text and escalate_req["v"] is None
             and _router.hands_public_lookup_back(spoken_text)):
         try:
@@ -260,8 +248,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
                         operator_text, 220, "read_widget compose")
             spoken_text = "".join(spoken).strip()
 
-    # V2-728 — RECUPERAR UN ENCARGO TERMINADO. La decisión ENTERA (índice léxico → Jev → preguntar si hay
-    # varios) y su descripción viven en `task_recall.voice_turn`; aquí solo lo propio del canal.
+    # V2-728 — bring back a finished errand: the whole decision lives in `task_recall.voice_turn`.
     if reopen_req["v"] is not None and escalate_req["v"] is None:
         _re = await _pst.asyncio.to_thread(_pst._trecall.voice_turn, reopen_req["v"], operator_text or text, _brief)
         acted["widget"], escalate_req["v"] = (False, operator_text or text) if _re.get("escalate") else (True, None)
@@ -269,6 +256,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             _tag_emit("show", {"id": _re["show"], "src": f"recall:{_re['show']}"})   # the reopened errand's sheet
         elif _re["ask"]:
             clarify["msg"] = _say().ask_which_item.format(cands=_re["ask"])
+        elif not _re.get("escalate"):   # refactor2710-03: nothing like it, no worker — the verdict is `asked`
+            clarify["msg"] = _say().ask_which_item_bare
         emit("brain", _re["label"], role="system", text=_re["text"], extra=_re["extra"])
 
     if recall_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \

@@ -67,7 +67,7 @@ async def flow_of(text: str, *, emit=None) -> dict | None:
     hit, by = lexical(text, pool), "containment"
     if hit is None:
         try:
-            from nucleo import dedup as _dedup
+            from nucleo.request import append as _dedup
             tid = await asyncio.wait_for(asyncio.to_thread(
                 _dedup.about_a_live_errand, text, [(str(c["id"]), str(c["request"])) for c in pool]), JUDGE_S)
         except Exception as e:  # noqa: BLE001 — fail-open: no flow, the door opens a new one

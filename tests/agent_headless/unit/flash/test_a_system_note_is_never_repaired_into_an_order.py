@@ -10,7 +10,7 @@ from nucleo.flash import act_repair
 
 
 def test_a_system_note_gets_no_repaired_call(monkeypatch):
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
 
     class _FC:
         async def complete(self, messages, *, on_tool_call=None, **kw):

@@ -6,7 +6,7 @@ for its end state and wrote `results.view[title~=27]` — a collection no card d
 collections and its `empty` field), and whatever it still invents is sanitised at birth: an undeclared
 collection on a card that declares `empty` becomes «the card is not empty», and nothing readable means None.
 """
-from nucleo import spec
+from nucleo.circuit import spec
 
 
 def _view(wid):

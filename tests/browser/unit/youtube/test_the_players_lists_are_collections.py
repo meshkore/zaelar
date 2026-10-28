@@ -31,6 +31,6 @@ def test_the_results_are_a_read_only_collection_from_the_view(yt):
 
 
 def test_a_spec_can_name_the_row_and_the_scalar(yt):
-    from nucleo import verify
+    from nucleo.circuit import verify
     assert verify.check({"widget": "youtube", "collection": "search_results", "where": {"title~": "cbs news"}}) is True
     assert verify.check({"widget": "youtube", "field": "search_query", "has": "starship"}) is True

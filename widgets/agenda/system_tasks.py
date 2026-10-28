@@ -45,7 +45,7 @@ def system_tasks(limit: int = 60, db=None) -> list[dict]:
     honestly. Best-effort throughout — an unreadable table costs the band, never the calendar.
     """
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
     except Exception:  # noqa: BLE001
         return []
     if db is None:

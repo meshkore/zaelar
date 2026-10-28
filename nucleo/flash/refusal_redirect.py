@@ -52,7 +52,7 @@ async def call(text: str, wid: str, action: str, res, *, spec=None) -> dict | No
         digest = str(_wr.read(wid) or "").strip()[:1500]
         sub = {"actions": {n: manifest["actions"][n] for n in names}}
         got: list[dict] = []
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         await FastClient().complete(
             [{"role": "system", "content": _SYS.format(
                 wid=wid, action=action, why=str(res.get("message") or res.get("error") or "")[:300],

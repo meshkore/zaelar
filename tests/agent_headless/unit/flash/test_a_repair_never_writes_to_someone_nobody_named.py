@@ -11,7 +11,7 @@ from nucleo.flash import act_repair
 
 
 def _run(text, window=None, contact="zaelar"):
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
 
     class _FC:
         async def complete(self, messages, *, on_tool_call=None, **kw):
@@ -24,13 +24,13 @@ def _run(text, window=None, contact="zaelar"):
 
 
 def test_a_send_to_a_contact_nobody_named_is_dropped(monkeypatch):
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     monkeypatch.setattr(fast_client, "FastClient", fast_client.FastClient)
     assert _run("Vale, avísame cuando esté.") is None
 
 
 def test_a_send_to_the_person_he_named_survives(monkeypatch):
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     monkeypatch.setattr(fast_client, "FastClient", fast_client.FastClient)
     got = _run("mándale a Rowan que llego tarde", contact="Rowan")
     assert got and got["action"] == "send_to"

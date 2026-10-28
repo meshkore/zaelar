@@ -89,7 +89,7 @@ async def _synthesize_goal(goal: str) -> str:
     goal = (goal or "").strip()
     if not goal:
         return ""
-    from nucleo.flash.fast_client import FastClient, spec_from_config
+    from nucleo.llm.fast_client import FastClient, spec_from_config
     try:
         from voice.engine.core import langs
         native = langs.current_language().native

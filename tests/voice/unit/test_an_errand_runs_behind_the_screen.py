@@ -79,7 +79,7 @@ def test_every_repair_rung_asks_the_rule_instead_of_presenting_on_habit():
     from tests import voice_turn_source as _vts
     eng = Path(__file__).resolve().parents[3]
     cc = _vts.read(eng / "nucleo/flash/card_commission.py")
-    pw = _vts.read(eng / "nucleo/flash/post_stream_words.py")
+    pw = _vts.read(eng / "nucleo/flash/post_stream_acts.py")
     assert cc.count("present_for_call(got[\"widget_id\"], got[\"action\"], brief=brief") == 2
     assert pw.count("present_for_call(") >= 2
     assert 'present(_oc["widget_id"], reason="turn-order"' not in pw

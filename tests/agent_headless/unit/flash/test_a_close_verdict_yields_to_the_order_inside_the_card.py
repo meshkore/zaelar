@@ -63,7 +63,7 @@ def test_the_measured_series_removal_does_not_close_the_agenda(verdict):
 def test_the_voice_turn_asks_the_rule():
     src = (ENGINE / "nucleo/flash/card_close.py").read_text(encoding="utf-8")   # `complete_canvas`'s body (run_gesture)
     assert ".inner_order_wins(brief, operator_text)" in src
-    assert "_vcard.close_is_owed(_brief, _op_text)" in (ENGINE / "nucleo/flash/post_stream_words.py").read_text(
+    assert "_vcard.close_is_owed(_brief, _op_text)" in (ENGINE / "nucleo/flash/post_stream_acts.py").read_text(
         encoding="utf-8")
 
 
@@ -97,32 +97,32 @@ def _agenda():
 
 
 def test_the_measured_hecho_over_the_series_cancels_all_of_it():
-    from nucleo.flash import agenda_claims as ac
-    got = ac.cancel_call("Y quita el piano entero, toda la serie", "Hecho.", _agenda(), now=time.time())
+    from nucleo.flash import agenda_close_is_a_cancel as ac
+    got = ac.cancel_instead("Y quita el piano entero, toda la serie", "agenda", _agenda())
     assert got == {"widget_id": "agenda", "action": "cancel_meeting",
                    "payload": {"title": "Clase de piano de Abril", "whole": True}}
 
 
 def test_the_english_whole_series_too():
-    from nucleo.flash import agenda_claims as ac
+    from nucleo.flash import agenda_close_is_a_cancel as ac
     db = _agenda()
     for m in db["meetings"][:2]:
         m["title"] = "Abril's piano lesson"
-    got = ac.cancel_call("And get rid of the piano completely, the whole series", "Done.", db, now=time.time())
+    got = ac.cancel_instead("And get rid of the piano completely, the whole series", "agenda", db)
     assert got and got["payload"] == {"title": "Abril's piano lesson", "whole": True}
 
 
 def test_a_series_named_without_its_scope_keeps_its_question():
-    from nucleo.flash import agenda_claims as ac
-    got = ac.cancel_call("Quita el piano", "Hecho.", _agenda(), now=time.time())
+    from nucleo.flash import agenda_close_is_a_cancel as ac
+    got = ac.cancel_instead("Quita el piano", "agenda", _agenda())
     assert got and got["payload"] == {"title": "Clase de piano de Abril"}
 
 
 def test_one_word_two_titles_names_nothing():
-    from nucleo.flash import agenda_claims as ac
+    from nucleo.flash import agenda_close_is_a_cancel as ac
     db = _agenda()
     db["meetings"].append({"title": "Concierto de piano", "date": "2026-10-30", "startTime": "20:00"})
-    assert ac.cancel_call("Quita el piano", "Hecho.", db, now=time.time()) is None
+    assert ac.cancel_instead("Quita el piano", "agenda", db) is None
 
 
 # ── 2.444 · the rename field reads as the NEW title, the selector as the current one ──────────────────────────

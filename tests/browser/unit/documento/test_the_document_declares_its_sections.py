@@ -32,7 +32,7 @@ def test_the_collection_reads_from_the_view_and_is_read_only(doc):
 
 
 def test_goto_moves_the_focus_and_the_postcondition_reads_it(doc):
-    from nucleo import spec, verify
+    from nucleo.circuit import spec, verify
     dw = spec.render("documento", "goto", {"text": "proof of work"})
     assert dw["baseline"] is None, "before any goto the sheet looks at nothing"
     assert doc.apply_action("goto", {"text": "proof of work"})["ok"]

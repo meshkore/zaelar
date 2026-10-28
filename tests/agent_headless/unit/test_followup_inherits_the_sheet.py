@@ -11,7 +11,7 @@ scan — `test_one_yardstick_of_similarity` is the reason there is no second bar
 """
 import pytest
 
-from nucleo import dedup
+from nucleo.request import append as dedup
 
 # The REAL goals from the incident (memory/_data/zaelar.db): task 1's goal and the brain's re-escalation.
 ENDED_GOAL = ("Reservar una mesa para comer mañana (viernes 4 de septiembre de 2026, hora de comer) en Soria, "

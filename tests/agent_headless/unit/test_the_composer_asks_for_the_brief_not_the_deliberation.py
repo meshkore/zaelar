@@ -20,7 +20,7 @@ import asyncio
 
 import pytest
 
-from nucleo.flash.fast_client import FastClient, ModelSpec
+from nucleo.llm.fast_client import FastClient, ModelSpec
 
 
 class _Captured(Exception):
@@ -113,7 +113,7 @@ def test_and_the_relay_asks_for_it_too(monkeypatch):
     monkeypatch.setattr(research, "_spec", lambda: (_zai_spec(), "titular"))
     monkeypatch.setattr(research, "enabled", lambda: True)
     monkeypatch.setattr(research, "_note_provider_failure", lambda exc, tier: _relevo)
-    import nucleo.flash.provider_chain as _pc
+    import nucleo.llm.provider_chain as _pc
     monkeypatch.setattr(_pc, "spec_for", lambda tier: _zai_spec())
 
     asyncio.run(research.compose("búscame un fontanero"))
