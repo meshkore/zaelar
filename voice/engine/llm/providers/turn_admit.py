@@ -24,10 +24,9 @@ async def admit_the_turn(*, attention, brain, emit, first_turn, text) -> dict:
         _judged, running_goals=_p._show_target._running_goals(),
         last_reply=getattr(brain, "_last_reply", "") or "",
         turn_id=f"{id(brain):x}-{getattr(brain, '_acc_gen', 0)}")
+    _turn_brief.remember_for_the_turn(_brief)    # readers no caller hands it to (an unnamed close) find it by trace
 
-    # V2-013: el "corazón" (agente de memoria) clasifica en background lo que dijo el operador y, si es
-    # perfil (nombre/ubicación/trato/hardware/coche) o deseo durable, lo lleva a `state`/`long` sin
-    # bloquear el turno. Fire-and-forget: regex µs + escritura por la cola async → cero coste en TTFB.
+    # V2-013: the memory agent files what he said in the background (fire-and-forget, zero cost to the first byte).
     # V2-802: the CHANNEL travels with it — a typed/pasted line is read as written, a document whole.
     try:
         from nucleo import memory_agent as _mem_agent

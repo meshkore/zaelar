@@ -12,7 +12,8 @@ import pytest
 from memory import api as memapi
 from memory import db as memdb
 from memory import embeddings as mememb
-from nucleo.batch import identity, runner
+from nucleo.batch import runner
+from nucleo.turn import identity
 
 ES = ("Te llamas Johnny. Cuando diga «Johnny», te estoy hablando a ti. Actúa como mi asistente digital personal. "
       "Usa lo que ya sabes de mí cuando venga al caso en vez de pedirme que lo repita.")
@@ -32,9 +33,21 @@ def _fresh(tmp_path, monkeypatch):
     memdb.reset_db(); mememb.reset()
 
 
-def _run(steps):
+def _brief(choice="rename", conf=0.95):
+    import threading
+    ev = threading.Event()
+    ev.set()
+    return {"event": ev, "result": {identity.KEY: {"choice": choice, "confidence": conf}}}
+
+
+def _run(steps, *, name="Johnny", verdict="rename"):
+    """Each step's turn: the brief reads `verdict` and the model declares `name` — what `post_stream` hands
+    `identity.settle` on a real turn (refactor2710-07: the verdict decides, the model names, nothing is read from
+    his words)."""
     async def turn(text, **kw):
-        return {"ok": True, "reply": ["Entendido, soy Johnny."]}      # the model plays the part, writes nothing
+        if "Johnny" in text:
+            await identity.settle(_brief(verdict), name, lambda *a, **k: None)
+        return {"ok": True, "reply": ["Entendido, soy Johnny."]}
 
     async def ingest(text):
         await asyncio.sleep(0)
@@ -53,13 +66,13 @@ def test_the_measured_identity_step_stores_the_name(say):
     assert len(s["done"]) == 1 and not s["failed"]
 
 
-@pytest.mark.parametrize("say", [ES, EN])
-def test_the_name_is_read_from_its_own_sentence(say):
-    assert identity.named_in(say) == "Johnny"
+def test_a_rename_the_model_named_nothing_for_fails_the_step():
+    """The verdict ordered the rename and the model played the part without declaring the name: not stored, not done."""
+    s = _run([{"title": "identidad", "kind": "identity", "say": EN}], name="")
+    assert [r["title"] for r in s["failed"]] == ["identidad"]
 
 
 def test_a_step_that_does_not_name_the_assistant_is_left_alone():
-    assert identity.named_in("Recuerda: mi perro se llama Pixel. ¿Cómo te llamas?") is None
     s = _run([{"title": "perfil", "kind": "memory", "say": "Recuerda: me llamo Rowan y vivo en Valencia."}])
     assert (memapi.state().get("assistant_name") or "") != "Rowan"
     assert len(s["done"]) == 1
@@ -69,8 +82,7 @@ def test_a_name_that_could_not_be_stored_fails_the_step(monkeypatch):
     """«N of N» never counts the step whose point did not happen."""
     async def _broken(name):
         raise RuntimeError("disk full")
-    from nucleo.flash import identity_actions
-    monkeypatch.setattr(identity_actions, "persist_rename", _broken)
+    monkeypatch.setattr(identity, "persist_rename", _broken)
     s = _run([{"title": "identidad", "kind": "identity", "say": EN},
               {"title": "perfil", "kind": "memory", "say": "Remember: I live in Los Angeles."}])
     assert [r["title"] for r in s["failed"]] == ["identidad"]

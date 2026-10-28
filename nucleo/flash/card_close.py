@@ -295,6 +295,8 @@ def run_gesture(brief, *, tag_emit, emit, operator_text: str = "") -> str:
         verb = _da.sure_canvas(brief)   # …unless the verdict's inner order outranks the close (`inner_order_wins`)
         if not verb or __import__("nucleo.flash.verdict_card", fromlist=["x"]).inner_order_wins(brief, operator_text):
             return ""
+        if verb != "arrange" and __import__("nucleo.turn.brief", fromlist=["x"]).names_elsewhere(brief):
+            return ""     # refactor2710-07: what he named is not a card on screen — no gesture lands on one
         if verb == "arrange":
             # the whole canvas, no card to pick: the same emit `arrange_canvas` and POST /api/canvas/arrange make
             emit("widget", "arrange", extra={"src": "flash"})

@@ -46,7 +46,8 @@
    "close",
    "worker"
   ],
-  "open": "refactor2710-07: whether the thing he names is a card on screen is a brief verdict — live, Jev reads canvas=close 0.94 and the model closes too; with no brief the unnamed-close backstop takes the only card by design (never deaf to «ciérralo»)"
+  "brief": {"canvas": ["close", 0.94], "names_a_card": ["elsewhere", 0.9]},
+  "note": "refactor2710-07: whether the thing he names is a card on screen is the brief's `names_a_card` verdict — live, Jev read canvas=close 0.94; with no brief the unnamed-close backstop still takes the only card (never deaf to «ciérralo»)"
  },
  {
   "id": "session-3a9a082c-open-my-messages",
