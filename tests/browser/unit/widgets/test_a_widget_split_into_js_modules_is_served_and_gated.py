@@ -54,9 +54,14 @@ def test_disarm_a_gate_that_reads_only_the_entry_lets_it_through(tmp_path):
 
 
 def test_only_the_widgets_own_modules_may_be_imported():
-    ok = ['import { a } from "./js/list.js";', "import { b } from './style.js';"]
+    ok = ['import { a } from "./js/list.js";', "import { b } from './style.js';",
+          'import * as I from "/frontend/app/lib/icons.js";']           # the one shared file (V2-831 T-12)
     bad = ['import { a } from "../agenda/widget.js";', 'import { a } from "/app/core/store.js";',
-           'import { a } from "https://cdn.example/x.js";', 'import { a } from "./js/../../x.js";']
+           'import { a } from "https://cdn.example/x.js";', 'import { a } from "./js/../../x.js";',
+           'import { a } from "/frontend/app/lib/dom.js";', 'import { a } from "/frontend/app/lib/icons.js/../x.js";',
+           'import { a } from "/frontend/app/lib/icons.js?x";', 'import { a } from "/frontend/app/lib/%69cons.js";',
+           'import { a } from "/frontend/app/lib/icons.js#x";', 'import { a } from "//frontend/app/lib/icons.js";',
+           'import { a } from "/frontend/app/lib/../lib/icons.js";', 'import { a } from "/frontend/app/lib%2Ficons.js";']
     assert all(_validator_js_m._scan_widget_js(src) is None for src in ok)
     assert all(_validator_js_m._scan_widget_js(src) for src in bad)
 

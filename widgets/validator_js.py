@@ -4,8 +4,10 @@ from __future__ import annotations
 import json
 import os
 import re
+
 from loguru import logger
 from widgets import paths
+from widgets.client_files import SHARED_CLIENT_MODULES
 
 
 HERE = paths.BUILTIN_ROOT                                  # …/zaelar/widgets
@@ -24,7 +26,10 @@ _JS_BANNED = [
     ("eval()", re.compile(r"\beval\s*\(")),
     ("new Function()", re.compile(r"\bnew\s+Function\b")),
     # self-contained: no module deps — only the widget's own `js/` modules (`./js/x.js`, or `./x.js` between them)
-    ("external import", re.compile(r'\bimport\b[^\n;]*\bfrom\b\s*["\'](?!\./(?:js/)?[\w-]+\.js["\'])')),
+    # and the app-shell modules `client_files.SHARED_CLIENT_MODULES` serves — matched as the EXACT string between the
+    # quotes, with no normalisation: a query, a fragment, an encoded or `..` form is not that string, so it is refused.
+    ("external import", re.compile(r'\bimport\b[^\n;]*\bfrom\b\s*["\'](?!\./(?:js/)?[\w-]+\.js["\']|(?:'
+                                   + "|".join(map(re.escape, SHARED_CLIENT_MODULES)) + r')["\'])')),
 ]
 
 
