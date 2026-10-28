@@ -200,8 +200,15 @@ def test_the_tool_resumes_the_rows_the_model_named_and_drops_invented_ids(monkey
     pending_work.forget_cache()
     rows = pending_work.by_ids(["b00t01-1", "nonexistent-9", "mensajeria:" + "to:email:hospitality@example.com"])
     assert [r["id"] for r in rows] == ["b00t01-1", "mensajeria:to:email:hospitality@example.com"]
-    src = (ROOT / "nucleo/flash/tool_executor_calls.py").read_text(encoding="utf-8")
-    assert "_resume_turn.from_tool(args" in src[src.index('elif name == "resume_task":'):][:300]
+    # The tool's own door hands the call to `resume_turn.from_tool` (refactor2710-05: the catalogue, not the text).
+    from types import SimpleNamespace
+    from nucleo.acts import tools
+    handed = []
+    monkeypatch.setattr(resume_turn, "from_tool", lambda args, **kw: handed.append((args, kw["operator_text"])))
+    tools.CATALOG["resume_task"]({"ids": ["b00t01-1"]}, SimpleNamespace(
+        escalate_req={}, operator_text="termina eso", _apply_widget_data=None, emit=None, acted={}))
+    assert handed == [({"ids": ["b00t01-1"]}, "termina eso")]
+    monkeypatch.undo()
     esc, ops, acted = {"v": None, "more": []}, [], {}
     resume_turn.from_tool({"ids": ["nonexistent-9"]}, escalate_req=esc, operator_text="x",
                           apply_widget_data=lambda *a: ops.append(a), emit=None, acted=acted)
