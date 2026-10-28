@@ -321,7 +321,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
             # A LENS on a closed card brings the card (V2-773 final pass, C2: `agenda:show_day` changed a day
             # nobody could see). A write is not this: it may run behind the screen on purpose.
             elif (_fx.carries(wid, action_name, _fx.DATA_READ) and not _txw._cvis.is_open(wid)
-                  and not _txw._canvas_lic.closing_turn(_brief, wid)):   # V2-773 E5: a close never brings the card
+                  and not _canvas_door.show_under_close(brief=_brief, wid=wid, words=False)):   # V2-773 E5: a close never brings the card
                 _txw._cvis.present(wid, reason="turn-order", action=action_name, src="flash", emit=emit, text=text, brief=_brief)
         except Exception:
             pass

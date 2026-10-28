@@ -121,8 +121,8 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
 
     if op == "show":
         # one decision with the show gate it replaced: a close order that also carries an open verb is compound
-        from nucleo.flash import close_guards as _cg
-        if _cg.show_contradicts_the_order(text):
+        from nucleo.acts import canvas as _door
+        if _door.show_under_close(text):
             return _v(False, "show-against-close-order")
         if not _lic.reopen_license(wid, text, open_ids=open_ids, recent_ids=recent_ids,
                                    last_reply=last_reply):

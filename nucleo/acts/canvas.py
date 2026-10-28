@@ -6,6 +6,8 @@ and `apply` says so. Other ops cross the same door unjudged, so there is one wri
 """
 from __future__ import annotations
 
+import re as _re
+
 from nucleo.acts import canvas_arbiter as _arb, canvas_turn as _turn
 from voice import canvas_src
 
@@ -79,4 +81,46 @@ def _denies_close(brief) -> bool:
     except Exception as e:  # noqa: BLE001 — an unread brief is no negation: the close the grammar saw stands
         from loguru import logger
         logger.debug(f"canvas.close_ordered: brief unread — {e}")
+        return False
+
+
+# A CLOSE order answered with an OPEN is not obedience (V2-567: one close order, two mutations). Grammar, not intent
+# (V2-095): a close verb with no un-negated open verb in the turn licenses no show; a compound order keeps it.
+_OPEN_VERB_RE = _re.compile(r"\b(abr\w*|muestr\w*|ensen\w*|desplieg\w*|saca\w*|pon\w*|vuelv\w*|open|show|display|bring\s+up)\b")
+_NO_OPEN_RE = _re.compile(r"\bno\s+(?:me\s+|lo\s+|la\s+|los\s+|las\s+)?(?:abr\w*|muestr\w*|ensen\w*|saqu\w*|pong\w*)\b"
+                          r"|\bdon'?t\s+(?:open|show|display)\b")
+
+
+def show_under_close(text: str = "", *, brief=None, wid: str = "", words: bool = True) -> bool:
+    """Is a show of `wid` the contradiction of this turn's close order? (refactor2710-04b T-02) The paid verdict first:
+    a sure `canvas=close` with `screen_action` naming this card or nobody (V2-773: «Stop it and close the video widget»
+    brought the card straight back); a close naming ANOTHER card leaves it alone. Then, where `words` (a show the model
+    called), the grammar above; the lens door asks the verdict only."""
+    if _closes_this(brief, wid):
+        return True
+    if not words:
+        return False
+    from nucleo.flash import close_guards as _cg
+    from nucleo.flash.text_norm import _norm_txt
+    if not _cg.looks_like_close(text):
+        return False
+    n = _norm_txt(text)
+    return not (_OPEN_VERB_RE.search(n) and not _NO_OPEN_RE.search(n))
+
+
+def _closes_this(brief, wid: str) -> bool:
+    try:
+        from nucleo.flash import turn_brief as _tb
+        w = str(wid or "").strip().lower()
+        canvas, info = _tb.read(brief, _tb.CANVAS_KEY, "neither")
+        if str(canvas or "") != "close" or not (isinstance(info, dict) and info.get("used")):
+            return False
+        target, tinfo = _tb.read(brief, _tb.TARGET_KEY, "")
+        t = str(target or "").strip().lower()
+        if t and t != "none" and isinstance(tinfo, dict) and tinfo.get("used"):
+            return t.split(":", 1)[0] == w
+        return True
+    except Exception as e:  # noqa: BLE001 — an unread brief vetoes nothing
+        from loguru import logger
+        logger.debug(f"canvas.show_under_close: brief unread — {e}")
         return False

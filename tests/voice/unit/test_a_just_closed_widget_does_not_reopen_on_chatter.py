@@ -10,6 +10,8 @@ his own words resolve to that widget — never on chatter.
 """
 from __future__ import annotations
 
+from nucleo.acts import canvas as _door
+
 from tests import voice_turn_source as _vts
 
 import pathlib
@@ -96,23 +98,23 @@ def test_a_show_of_the_card_the_verdict_closes_is_a_closing_turn(monkeypatch):
     closed and the model still called show_widget(youtube). The text guard saw nothing; the verdict does."""
     from nucleo.flash import turn_brief as tb
     monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "close", tb.TARGET_KEY: "youtube:close"}))
-    assert lic.closing_turn(object(), "youtube") is True, "THE BUG: the card came straight back"
-    assert lic.closing_turn(object(), "agenda") is False, "a close naming another card leaves this show alone"
+    assert _door.show_under_close(brief=object(), wid="youtube", words=False) is True, "THE BUG: the card came straight back"
+    assert _door.show_under_close(brief=object(), wid="agenda", words=False) is False, "a close naming another card leaves this show alone"
 
 
 def test_a_close_naming_nobody_shows_nothing_and_any_other_verdict_shows(monkeypatch):
     from nucleo.flash import turn_brief as tb
     monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "close", tb.TARGET_KEY: "none"}))
-    assert lic.closing_turn(object(), "youtube") is True
+    assert _door.show_under_close(brief=object(), wid="youtube", words=False) is True
     monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "show"}))
-    assert lic.closing_turn(object(), "youtube") is False
+    assert _door.show_under_close(brief=object(), wid="youtube", words=False) is False
     monkeypatch.setattr(tb, "read", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no brief")))
-    assert lic.closing_turn(None, "youtube") is False, "no brief, no veto"
+    assert _door.show_under_close(brief=None, wid="youtube", words=False) is False, "no brief, no veto"
 
 
 def test_the_show_branch_asks_the_verdict_next_to_the_text_guard():
     src = _vts.read(pathlib.Path("voice/engine/llm/providers/nucleo.py"))
-    assert "if _router.show_contradicts_the_order(text) or _canvas_lic.closing_turn(_brief, _wid):" in src
+    assert "if _canvas_door.show_under_close(text, brief=_brief, wid=_wid):" in src
 
 
 def test_the_fast_lens_door_asks_the_verdict_too():
@@ -120,4 +122,4 @@ def test_the_fast_lens_door_asks_the_verdict_too():
     over the now-closed card, and the lens door brought it back as a «turn-order». A close never brings the card."""
     src = _vts.read(pathlib.Path("voice/engine/llm/providers/nucleo.py"))
     i = src.index("_fx.carries(wid, action_name, _fx.DATA_READ) and not _cvis.is_open(wid)")
-    assert "not _canvas_lic.closing_turn(_brief, wid)" in src[i:i + 200]
+    assert "not _canvas_door.show_under_close(brief=_brief, wid=wid, words=False)" in src[i:i + 200]

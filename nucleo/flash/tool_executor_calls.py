@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace as _SimpleNamespace
 
-from nucleo.acts import media as _media_door
+from nucleo.acts import canvas as _canvas_door, media as _media_door
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import resume_turn as _resume_turn   # V2-799
 from nucleo.flash import tool_executor as _tx
@@ -128,7 +128,7 @@ def _t_show_widget(*, args, _brief, _router, _say, _show_guard_target, _show_tar
         # GUARD (V2-567): a CLOSE order is not answered with a show («Cierra los contactos» → show(mensajeria)
         # made two mutations); the show is dropped, the close backstop closes. V2-750: grammar only PROPOSES;
         # `build_decision` composes the verdict with `build_or_use` (zh/ja/hi 6/9 → 9/9, node 2.68).
-        if _router.show_contradicts_the_order(text) or _tx._canvas_lic.closing_turn(_brief, _wid):
+        if _canvas_door.show_under_close(text, brief=_brief, wid=_wid):
             # V2-807 T-08 — a show of an ALREADY open card on a close turn is the model KEEPING it; nothing
             # opens, and the keep is remembered so the same sentence's bulk close spares it.
             from nucleo.flash import bulk_close as _bulk, canvas_visibility as _cvis_keep
