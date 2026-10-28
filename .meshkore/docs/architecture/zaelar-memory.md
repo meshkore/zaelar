@@ -1242,7 +1242,7 @@ the distiller conversation context so a correction without a subject is attribut
   and hashing safety nets).
 - `memory/retriever.py` — hot path: vec ∥ fts ∥ paraphrases → RRF → weighted score → rerank → graph_expand.
 - `memory/state.py` — fixed table (µs read, no search).
-- `memory/graph.py` (+ `memory/graph_ppr.py`) — edges (link/expand, multi-hop PPR).
+- `memory/graph_ppr.py` (+ `writer.link`) — edges and multi-hop PPR expansion (the retriever reads them).
 - `memory/episodic.py` — files/PDFs: searchable embedded summary + lazy load of the binary.
 - `memory/consolidator.py` — the LIGHT "sleep" job (hourly: promote/exact dedup/decay PER WINDOW/prune_invalid/evict).
 - **`memory/rem.py`** — DEEP sleep, the "REM phase" (daily): repair_embeddings + semantic_dedup + synthesize

@@ -37,7 +37,7 @@ DOMAINS: list[dict] = [
         {"id": "1.1", "title": "BD y primitivas de estado, y un ENCARGO no se presenta como hecho de la persona",
             "ch": UNIT, "paths": [
             "tests/memory/unit/test_db.py", "tests/memory/unit/test_journal.py",
-            "tests/memory/unit/test_graph.py", "tests/memory/unit/test_state.py",
+            "tests/memory/unit/test_state.py",
             "tests/memory/unit/test_compose_state.py", "tests/memory/unit/test_bitemporal.py",
             # V2-498 (2026-08-29): tastes are ACTIVE state (the operator's rule) and were not reaching the
             # passive block—they were written correctly and LOST their ranking. A dedicated line, outside the cap, like critical items.

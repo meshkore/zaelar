@@ -3,7 +3,7 @@
 Sacado VERBATIM de `memory/api.py` en la auditoría de arquitectura del 2026-08-23 (hallazgo H3). La fachada
 había llegado a 1.075 líneas mezclando ciclo de vida, escritura, olvido, kv, reglas de usuario y episodios con
 **160 líneas de composición de PROMPT** — presentación viviendo dentro de la capa de datos. La fachada sigue
-siendo LA puerta (el contrato de `memory/contract.py` lo exige y el trinquete lo vigila); lo que cambia es que
+siendo LA puerta (el contrato de `tests/memory/unit/memory_contract.py` lo exige y el trinquete lo vigila); lo que cambia es que
 por dentro es delgada.
 
 Aquí vive la lectura DIRECTA que el turno paga: microsegundos, sin LLM y sin retriever — el invariante de oro

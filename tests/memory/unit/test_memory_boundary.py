@@ -1,4 +1,4 @@
-"""memory/contract.py — memory's boundary, with a ratchet (V2-114 F0).
+"""memory's boundary (`memory_contract.py`, beside this test) — memory's boundary, with a ratchet (V2-114 F0).
 
 Memory has to be reimplementable without the agent noticing, and that requires knowing where the agent comes in.
 Measured 2026-08-18: 84 of ~108 production imports already go through `memory.api`; the ~24 leaks live in few
@@ -18,7 +18,7 @@ import pathlib
 import re
 
 from memory import api as memapi
-from memory.contract import BLESSED_INTERNAL_IMPORTS, MemoryContract
+from tests.memory.unit.memory_contract import BLESSED_INTERNAL_IMPORTS, MemoryContract
 
 REPO = pathlib.Path(__file__).resolve().parents[3]
 
