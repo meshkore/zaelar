@@ -442,7 +442,7 @@ def test_an_ABSENT_capability_is_declared_even_with_the_card_CLOSED(sandbox):
 
     The OFFER is what opens the card, so the fact has to arrive before it. V2-540 again: a model cannot
     decline what is not in its prompt."""
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import operating as prompt
 
     assert "TODAVÍA NO ESTÁ DISPONIBLE" in (prompt._connector_briefs(set()) or "")
 
@@ -450,7 +450,7 @@ def test_an_ABSENT_capability_is_declared_even_with_the_card_CLOSED(sandbox):
 def test_the_connected_STATE_block_stays_gated_on_the_open_card(sandbox, monkeypatch):
     """The counterweight: the always-on branch exists only for the absent capability. Once a client exists,
     the detailed state goes back to costing tokens only while the operator is looking at the card."""
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import operating as prompt
 
     _with_builtin(monkeypatch)
     assert "VÍDEO (cuentas)" not in (prompt._connector_briefs(set()) or "")

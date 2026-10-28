@@ -55,7 +55,8 @@ def test_compose_still_sends_the_pack_on_a_free_turn(one_pack):
 def test_the_built_prompt_carries_the_pack_only_on_a_free_turn(one_pack, monkeypatch):
     """By behaviour, on the prompt the model reads (refactor2710-08 rewrote the source read): the builder hands the
     turn's text to the packs, so the same engine sends the pack on «hola» and withholds it on a question."""
-    from nucleo.flash import memory_cache, prompt
+    from nucleo.flash import memory_cache
+    from nucleo.turn.prompt import builder as prompt
     monkeypatch.setattr(memory_cache, "get", lambda: ("", ""))
     assert "ASK HIS NAME" in prompt.build_flash_system(turn_text="hola, buenos días")[0]
     assert "ASK HIS NAME" not in prompt.build_flash_system(turn_text="¿Sigo con algo o le damos a la agenda?")[0]

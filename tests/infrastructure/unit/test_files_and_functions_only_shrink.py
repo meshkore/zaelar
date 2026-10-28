@@ -50,9 +50,9 @@ FUNCTIONS = {
     'nucleo/errands/wake.py::wake': 153,
     'nucleo/input/stt.py::Accumulator._offer': 129,   # 2026-10-22: `offer` → wrapper + `_offer`
     'nucleo/llm/fast_client.py::FastClient._stream_inner': 267,
-    'nucleo/flash/live_blocks.py::navegador_lines': 147,
-    'nucleo/flash/live_blocks_nav.py::read_the_browser_tasks': 133,
-    'nucleo/flash/live_blocks_nav.py::say_the_browser_state': 147,
+    'nucleo/turn/prompt/live_browser.py::navegador_lines': 147,   # refactor2710-08b: moved
+    'nucleo/turn/prompt/live_browser_nav.py::read_the_browser_tasks': 133,
+    'nucleo/turn/prompt/live_browser_nav.py::say_the_browser_state': 147,
     'nucleo/flash/post_stream.py::run': 155,
     'nucleo/flash/post_stream_lanes.py::run_the_light_lanes': 435,
     'nucleo/flash/post_stream_settle.py::settle_what_is_pending': 211,
@@ -63,7 +63,7 @@ FUNCTIONS = {
     'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 264,
     'nucleo/turn/prompt/operating.py::_flash_parts': 237,   # refactor2710-08: moved from nucleo/flash/prompt.py (was _flash_layer)
     'nucleo/turn/prompt/live_state.py::live_state': 202,    # refactor2710-08: moved from nucleo/flash/prompt.py
-    'nucleo/flash/task_block.py::pending_task_lines': 198,
+    'nucleo/turn/prompt/live_tasks.py::pending_task_lines': 198,   # refactor2710-08b: moved
     'nucleo/flash/tool_executor_calls.py::_on_tool_call': 188,
     'nucleo/flash/tool_executor_widget.py::build': 156,
     'nucleo/flash/tool_executor_widget_calls.py::_apply_widget_data': 180,

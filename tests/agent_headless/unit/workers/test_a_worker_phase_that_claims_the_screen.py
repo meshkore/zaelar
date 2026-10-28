@@ -25,7 +25,7 @@ where a list of texts would be doomed because tomorrow it would be another store
 """
 import pytest
 
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_sheet
 
 HOJA = "results::19e54a-1"
 CLAIM = "Preparando entrega: 10 propuestas en la hoja de resultados"
@@ -42,41 +42,41 @@ def hoja(monkeypatch):
 
 def test_la_linea_medida_se_marca(hoja):
     """The exact case: it asserts ten proposals about an empty sheet."""
-    assert LB.worker_phase_is_a_claim(CLAIM, HOJA) is True
+    assert live_sheet.worker_phase_is_a_claim(CLAIM, HOJA) is True
 
 
 def test_con_la_hoja_LLENA_la_afirmacion_es_cierta_y_no_se_toca(hoja):
     """The side that matters: marking something true teaches the operator to ignore the marker."""
     hoja["items"] = [{"title": "VOLKSWAGEN Golf Variant 2.0TDI", "price": "11.900 €"}]
-    assert LB.worker_phase_is_a_claim(CLAIM, HOJA) is False
+    assert live_sheet.worker_phase_is_a_claim(CLAIM, HOJA) is False
 
 
 def test_un_paso_MECANICO_no_se_marca_nunca(hoja):
     """It does not mention the screen, so it asserts nothing the operator can disprove."""
     for p in ("entrando en coches.net", "recorriendo la página", "9 resultados en la página",
               "conduciendo el navegador"):
-        assert LB.worker_phase_is_a_claim(p, HOJA) is False, p
+        assert live_sheet.worker_phase_is_a_claim(p, HOJA) is False, p
 
 
 def test_filas_SIN_nombre_no_respaldan_nada(hoja):
     """A sheet with hollow rows is empty for these purposes: the same rule as `by_identity` — a row without a
     name is chrome, not a result."""
     hoja["items"] = [{"title": "", "price": "€ 10.475"}, {"title": "   ", "price": "€ 9.900"}]
-    assert LB.worker_phase_is_a_claim(CLAIM, HOJA) is True
+    assert live_sheet.worker_phase_is_a_claim(CLAIM, HOJA) is True
 
 
 def test_sin_hoja_resuelta_NO_se_marca(hoja):
     """Marking because we cannot read would be making a blind accusation, and silence leaves the ring as it was."""
-    assert LB.worker_phase_is_a_claim(CLAIM, "") is False
+    assert live_sheet.worker_phase_is_a_claim(CLAIM, "") is False
 
 
 def test_las_otras_formas_de_nombrar_la_pantalla(hoja):
     for p in ("ya lo tienes en pantalla", "tres opciones en la hoja", "10 rows on screen"):
-        assert LB.worker_phase_is_a_claim(p, HOJA) is True, p
+        assert live_sheet.worker_phase_is_a_claim(p, HOJA) is True, p
 
 
 def test_una_fase_vacia_no_es_una_afirmacion(hoja):
-    assert LB.worker_phase_is_a_claim("", HOJA) is False
+    assert live_sheet.worker_phase_is_a_claim("", HOJA) is False
 
 
 def test_el_anillo_lo_CABLEA_y_marca_con_el_mismo_simbolo():

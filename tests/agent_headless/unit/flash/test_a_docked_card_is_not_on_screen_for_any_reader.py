@@ -26,9 +26,9 @@ def test_the_harness_does_not_count_a_docked_card_as_open(docked):
 
 
 def test_the_live_state_does_not_call_a_docked_card_open(docked):
-    from nucleo.flash import live_blocks
-    assert live_blocks._is_open("results") is False
-    assert live_blocks._is_open("agenda") is True
+    from nucleo.turn.prompt import live_record
+    assert live_record._is_open("results") is False
+    assert live_record._is_open("agenda") is True
 
 
 def test_a_met_content_goal_needs_the_card_visible(docked, monkeypatch):

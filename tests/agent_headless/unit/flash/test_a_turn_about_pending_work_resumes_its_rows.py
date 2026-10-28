@@ -182,9 +182,9 @@ def test_the_prompt_carries_pending_rows_only_when_there_are_any():
     lines = pending_work.prompt_lines()
     assert lines[0].startswith("PENDIENTE") and any("b00t01-1" in l and "Reservar mesa en Soria" in l for l in lines)
     assert any(l.startswith("· mensajeria:") for l in lines), "a row the mail card holds for his word is listed"
-    from nucleo.flash import live_blocks
+    from nucleo.turn.prompt import live_history
     from nucleo.turn.prompt import live_state
-    assert live_blocks.pending_work_lines() == lines
+    assert live_history.pending_work_lines() == lines
     assert all(line in live_state.live_state() for line in lines), "the rows are built and never reach the turn"
 
 

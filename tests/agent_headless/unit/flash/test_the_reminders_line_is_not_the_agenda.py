@@ -2,7 +2,7 @@
 
 «what's on my plate tomorrow» was answered from this line — two of the four meetings: six notices, unsorted, is not
 a calendar. It is sorted soonest first and says, in so many words, that a day is read on the agenda."""
-from nucleo.flash import live_blocks
+from nucleo.turn.prompt import live_record
 
 
 def test_the_line_is_marked_partial_and_sorted(monkeypatch):
@@ -12,6 +12,6 @@ def test_the_line_is_marked_partial_and_sorted(monkeypatch):
             {"name": "aviso: Sooner", "prompt": "Remind «Sooner» on 2026-09-29 at 09:00", "next_run": "2026-09-29 07:00",
              "schedule": "2026-09-29 07:00"}]
     monkeypatch.setattr(scheduler, "list_jobs", lambda active_only=True: jobs)
-    line = live_blocks._cron_line()
+    line = live_record._cron_line()
     assert "PARCIAL" in line and "NO la agenda" in line and "read_widget" in line
     assert line.index("Sooner") < line.index("Later"), "soonest first"

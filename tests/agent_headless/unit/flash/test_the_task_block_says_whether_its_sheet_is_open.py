@@ -9,7 +9,7 @@ import pytest
 
 from nucleo import dispatch
 from nucleo.flash import canvas_visibility as CV
-from nucleo.flash import task_block as TB
+from nucleo.turn.prompt import live_tasks
 
 _SHEET = "results::c29838-ls1"
 
@@ -19,12 +19,12 @@ def _one_task(monkeypatch):
     monkeypatch.setattr(dispatch, "pending_summaries", lambda: [
         {"id": "7", "request": "find three 27 inch 4k monitors", "phase": "verifying", "secs": 500,
          "sheet": _SHEET}])
-    monkeypatch.setattr(TB, "rows_of_sheet", lambda sheet, n: ["KTC H27P6 — $260.09"])
+    monkeypatch.setattr(live_tasks, "rows_of_sheet", lambda sheet, n: ["KTC H27P6 — $260.09"])
 
 
 def _block(monkeypatch, open_now):
     monkeypatch.setattr("server.voice_api.open_instances", lambda: list(open_now))
-    return " ".join(TB.pending_task_lines())
+    return " ".join(live_tasks.pending_task_lines())
 
 
 def test_a_closed_sheet_is_said_to_be_closed(monkeypatch, _one_task):

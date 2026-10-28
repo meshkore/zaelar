@@ -13,7 +13,7 @@ no signal yet, and that already has its own wording in the healthy branch (plus 
 """
 import pytest
 
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_browser
 from widgets.navegador import tasks as T
 
 
@@ -38,7 +38,7 @@ def _old_task(*, url: str = "", steps: int = 0) -> str:
 
 
 def _state() -> str:
-    return "\n".join(LB.navegador_lines())
+    return "\n".join(live_browser.navegador_lines())
 
 
 def test_no_page_and_no_steps_is_not_a_stall():

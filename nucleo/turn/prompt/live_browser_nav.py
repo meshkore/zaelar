@@ -7,7 +7,7 @@
 # (A comment, not a docstring: the prose ratchet counts this module's string constants as prompt text.)
 from __future__ import annotations
 
-from nucleo.flash import live_blocks as _lb
+from nucleo.turn.prompt import live_sheet as _lb
 
 
 def read_the_browser_tasks(*, _asked, _bits, _blocked, _has_results, _hit_walls, _login, _orphan, _prog, act) -> dict:

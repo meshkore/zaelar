@@ -6,7 +6,7 @@ One reader per truth: the screen (`state.open_widgets`, the canvas's own report)
 from __future__ import annotations
 
 from files import attachments as _attachments
-from nucleo.flash import live_blocks as _live_blocks
+from nucleo.turn.prompt import live_browser, live_history, live_record, live_tasks
 from voice import screens as _screens
 
 
@@ -58,12 +58,12 @@ def live_state() -> str:
                  "— no pidas confirmación de ninguna de las dos cosas.")
     lines.append(screen_line())
     # V2-348 — TAREAS DE FONDO live in `live_blocks.py` (V2-276 precedent); V2-799 — what is pending or stopped.
-    lines.extend(_live_blocks.pending_task_lines() + _live_blocks.pending_work_lines())
-    lines.extend(_live_blocks.recent_lines() + _live_blocks.earlier_lines())   # the record: lately, then the days before
-    lines.extend(_live_blocks.navegador_lines())
-    lines.extend(_live_blocks.harness_lines())   # V2-660: an open harness goal is a FACT with its rule
-    lines.extend(_live_blocks.done_ops_lines())  # V2-707 F6: and so is a mutation that already RAN
-    lines.extend(_live_blocks.shelf_lines())     # V2-773: a finished errand's closed sheet has a name
+    lines.extend(live_tasks.pending_task_lines() + live_history.pending_work_lines())
+    lines.extend(live_history.recent_lines() + live_history.earlier_lines())   # the record: lately, then the days before
+    lines.extend(live_browser.navegador_lines())
+    lines.extend(live_record.harness_lines())   # V2-660: an open harness goal is a FACT with its rule
+    lines.extend(live_record.done_ops_lines())  # V2-707 F6: and so is a mutation that already RAN
+    lines.extend(live_record.shelf_lines())     # V2-773: a finished errand's closed sheet has a name
     try:
         # AUSENCIA de ubicación, dicha con todas las letras (V2-127). Sin esto el prompt manda usar «la ciudad
         # del operador» y no hay ninguna: el hueco se rellena con una plausible y el operador oye el nombre de

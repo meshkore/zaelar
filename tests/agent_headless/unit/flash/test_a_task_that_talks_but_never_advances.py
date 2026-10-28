@@ -30,7 +30,7 @@ import time
 import pytest
 
 from nucleo import dispatch
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_tasks
 
 
 def _cara() -> str:
@@ -39,7 +39,7 @@ def _cara() -> str:
     El imperativo NOMBRA las mismas palabras («ENCALLADA o SIN AVANZAR») para que el modelo pueda casarlas, así
     que buscarlas en el bloque entero da verde siempre — el primer intento de este fichero afirmaba justo eso.
     """
-    bloque = " ".join(LB.pending_task_lines())
+    bloque = " ".join(live_tasks.pending_task_lines())
     corte = bloque.find("Si el operador pregunta el estado")
     return bloque[:corte] if corte > 0 else bloque
 
@@ -145,6 +145,6 @@ def test_reportar_el_MISMO_done_no_rearma_nada():
 
 def test_el_imperativo_dice_QUE_hacer_con_el_dato():
     _tarea(total=4, done=0, sin_avanzar_s=331)
-    linea = " ".join(LB.pending_task_lines())
+    linea = " ".join(live_tasks.pending_task_lines())
     assert "ENCALLADA o SIN AVANZAR" in linea
     assert "no ha empezado" in linea, "el dato solo, sin la lectura, se lee como tranquilizador"

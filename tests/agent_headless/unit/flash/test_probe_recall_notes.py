@@ -22,7 +22,7 @@ import pytest
 from memory import api as memapi
 from memory import db as memdb
 from memory import embeddings as mememb
-from nucleo.flash import prompt as prompt_mod
+from nucleo.turn.prompt import builder as prompt_mod
 from voice import brain_notes
 
 

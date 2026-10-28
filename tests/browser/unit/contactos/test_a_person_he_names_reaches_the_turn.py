@@ -30,7 +30,7 @@ def test_a_whole_name_wins_and_a_word_is_not_a_person(cd):
 
 
 def test_the_turn_prompt_carries_them():
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import builder as prompt
     import inspect
     src = inspect.getsource(prompt.build_flash_system)
     assert "_people_block(turn_text)" in src

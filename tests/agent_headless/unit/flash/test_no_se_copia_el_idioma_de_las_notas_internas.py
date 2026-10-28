@@ -21,7 +21,7 @@ import pytest
 
 def _lock(monkeypatch, code):
     monkeypatch.setenv("ZAELAR_LANGUAGE", code)
-    from nucleo.flash import prompt as P
+    from nucleo.turn.prompt import builder as P
     importlib.reload(P)
     return P._lang_lock()
 
@@ -68,7 +68,7 @@ def _restaura():
     import os
     before = os.environ.get("ZAELAR_LANGUAGE")
     yield
-    from nucleo.flash import prompt as P
+    from nucleo.turn.prompt import builder as P
     if before is None:
         os.environ.pop("ZAELAR_LANGUAGE", None)
     else:

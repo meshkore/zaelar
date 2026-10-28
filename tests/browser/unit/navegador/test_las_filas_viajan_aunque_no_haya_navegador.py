@@ -18,7 +18,7 @@ to the ERRAND (V2-259), and the prompt only knew how to read it through the brow
 import pytest
 
 from nucleo import dispatch as D
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_sheet, live_tasks
 from nucleo.workers.session import SessionRecord
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
@@ -51,7 +51,7 @@ _ROW_HEAD = " — ENCONTRADO (en su hoja): "
 
 def test_las_filas_de_su_hoja_llegan_al_prompt_SIN_pestana_de_navegador():
     _encargo_sin_navegador()
-    st = "\n".join(LB.pending_task_lines())
+    st = "\n".join(live_tasks.pending_task_lines())
     assert _ROW_HEAD in st
     assert "Dell S2725QC — $280" in st and "LG 27UP650-W — $230" in st
     assert not T._tasks, "la premisa del caso es que NO hay tarea de navegador"
@@ -62,7 +62,7 @@ def test_sin_filas_no_se_dice_nada():
     # OWN sheet: the store is shared between tests, so reusing the previous case's reads its rows and the
     # test fails for the wrong reason — confirmed, it failed that way when it was written.
     _encargo_sin_navegador(sheet="v451-vacia", filas=())
-    assert _ROW_HEAD not in "\n".join(LB.pending_task_lines())
+    assert _ROW_HEAD not in "\n".join(live_tasks.pending_task_lines())
 
 
 def test_sin_hoja_sellada_no_se_inventa_ninguna():
@@ -73,7 +73,7 @@ def test_sin_hoja_sellada_no_se_inventa_ninguna():
     D._SESSIONS["w1"] = rec
     SHEET.apply_action("present", {"sheet": "", "title": "Resultados",
                                    "items": [{"title": "Guitarra de otra ronda", "price": "100 €"}]})
-    st = "\n".join(LB.pending_task_lines())
+    st = "\n".join(live_tasks.pending_task_lines())
     assert "Guitarra de otra ronda" not in st
 
 
@@ -81,7 +81,7 @@ def test_una_fila_SIN_precio_lo_dice_en_vez_de_callarlo():
     """Same rule as `_sheet_top_rows` (V2-360): naming the gap costs one word and closes the
 substitution — a name on its own is read as a comparable option."""
     _encargo_sin_navegador(filas=(("Monitor sin importe", ""),))
-    assert "SIN PRECIO" in "\n".join(LB.pending_task_lines())
+    assert "SIN PRECIO" in "\n".join(live_tasks.pending_task_lines())
 
 
 def test_el_resumen_del_encargo_LLEVA_su_hoja():
@@ -100,7 +100,7 @@ would pass with only a partial fix."""
 def test_el_ARNES_reconoce_la_cabecera_del_bloque_de_tareas():
     from tests.use_cases.e2e.agent.verify import _rows_in
     _encargo_sin_navegador(sheet="v451-arnes", filas=(("Dell S2725QC", "$280"), ("LG 27UP650-W", "$230")))
-    sp = "\n".join(LB.pending_task_lines())
+    sp = "\n".join(live_tasks.pending_task_lines())
     assert _rows_in(sp) == ["Dell S2725QC", "LG 27UP650-W"], sp[:200]
 
 
@@ -117,10 +117,10 @@ what measures all rounds with a browser."""
 # round: the stated absence (V2-360), the phone as actionable data (V2-240), and the search hint that is NOT a
 # candidate (V2-376).
 def test_las_DOS_lecturas_formatean_la_fila_IGUAL():
-    from nucleo.flash import live_blocks as _LB
+    from nucleo.turn.prompt import live_sheet, live_tasks
     from nucleo.flash.errand_sheet import fila
     import inspect
-    assert "fila(i)" in inspect.getsource(_LB._sheet_top_rows), (
+    assert "fila(i)" in inspect.getsource(live_sheet._sheet_top_rows), (
         "la cara del navegador volvió a formatear por su cuenta")
     assert fila({"title": "X", "price": "10 €"}) == "«X — 10 €»"
 

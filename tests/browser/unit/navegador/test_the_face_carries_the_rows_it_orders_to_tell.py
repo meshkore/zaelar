@@ -17,7 +17,7 @@ V2-278's boundary (never claim «en pantalla» / «en la hoja») stays exactly w
 """
 import pytest
 
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_browser, live_sheet
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
 from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
@@ -40,7 +40,7 @@ def test_las_filas_salen_con_nombre_y_precio():
     tid = T.create("Busca una guitarra acústica", sheet="v298-1")
     _sheet_with("v298-1", [{"title": "Guitarra Acústica Fender CD-60", "price": "120 €"},
                            {"title": "Gibson Hummingbird Faded", "price": "150 €"}])
-    rows = LB._sheet_top_rows(tid)
+    rows = live_sheet._sheet_top_rows(tid)
     assert rows == ["«Guitarra Acústica Fender CD-60 — 120 €»", "«Gibson Hummingbird Faded — 150 €»"]
 
 
@@ -58,7 +58,7 @@ def test_una_fila_sin_precio_DICE_que_no_lo_tiene():
     tid = T.create("Busca una guitarra", sheet="v298-2")
     _sheet_with("v298-2", [{"title": "Guitarra Acústica Crafter FX 550 EQ"}])
     # The title may be cut to the prompt's row budget (`fila`); what this guards is that the ABSENCE is said.
-    rows = LB._sheet_top_rows(tid)
+    rows = live_sheet._sheet_top_rows(tid)
     assert len(rows) == 1 and rows[0].startswith("«Guitarra Acústica Crafter") and rows[0].endswith("— SIN PRECIO»"), rows
     # …and what did NOT change: the row is still present. Discarding it would hide a real finding.
 
@@ -77,22 +77,22 @@ def test_acotado_por_TAMANO_esto_va_a_un_prompt_no_a_una_pantalla():
     """
     tid = T.create("Busca monitores", sheet="v298-3")
     _sheet_with("v298-3", [{"title": f"Monitor candidato {i}", "price": "60 €"} for i in range(20)])
-    filas = LB._sheet_top_rows(tid)
+    filas = live_sheet._sheet_top_rows(tid)
     cuerpo = [f for f in filas if f.startswith("«")]
     assert len(cuerpo) == 12, f"se mostraron {len(cuerpo)}: el tope no es el de V2-479"
     assert "8 candidato(s) más" in filas[-1]
-    assert sum(len(f) for f in cuerpo) <= LB._SHEET_ROWS_BUDGET, "el bloque se pasó de su techo de tamaño"
+    assert sum(len(f) for f in cuerpo) <= live_sheet._SHEET_ROWS_BUDGET, "el bloque se pasó de su techo de tamaño"
 
 
 def test_sin_hoja_no_hay_filas_y_no_hay_error():
     tid = T.create("Busca algo sin encargo detrás")     # no sheet stamped
-    assert LB._sheet_top_rows(tid) == []
+    assert live_sheet._sheet_top_rows(tid) == []
 
 
 def test_un_titulo_largo_se_recorta_no_revienta_el_bloque():
     tid = T.create("Busca", sheet="v298-4")
     _sheet_with("v298-4", [{"title": "G" * 300, "price": "1 €"}])
-    (row,) = LB._sheet_top_rows(tid)
+    (row,) = live_sheet._sheet_top_rows(tid)
     assert len(row) < 120
 
 
@@ -104,7 +104,7 @@ def test_la_cara_LLEVA_las_filas_no_solo_la_orden_de_contarlas():
     tid = T.create("Busca una guitarra acústica de segunda mano", sheet="v298-5")
     T.set_status(tid, "working")
     _sheet_with("v298-5", [{"title": "Guitarra Acústica Fender CD-60", "price": "120 €"}])
-    state = "\n".join(LB.navegador_lines())
+    state = "\n".join(live_browser.navegador_lines())
     assert "CUÉNTALE en este turno LO QUE ENCAJE" in state
     assert "LO QUE HA ENCONTRADO" in state
     assert "Guitarra Acústica Fender CD-60 — 120 €" in state
@@ -128,7 +128,7 @@ def test_con_amplitud_reportada_pero_hoja_vacia_la_cara_sale_SIN_filas():
     rec.nav_task = tid
     D._SESSIONS["v298-fake"] = rec
     try:
-        state = "\n".join(LB.navegador_lines())
+        state = "\n".join(live_browser.navegador_lines())
         assert "YA HA ENCONTRADO" in state
         assert "LO QUE HA ENCONTRADO" not in state
     finally:
@@ -140,7 +140,7 @@ def test_la_frontera_de_V278_sigue_la_cara_no_afirma_la_pantalla():
     tid = T.create("Busca una guitarra", sheet="v298-7")
     T.set_status(tid, "working")
     _sheet_with("v298-7", [{"title": "Guitarra Acústica Fender CD-60", "price": "120 €"}])
-    state = "\n".join(LB.navegador_lines())
+    state = "\n".join(live_browser.navegador_lines())
     assert "NO digas que «lo tiene en pantalla»" in state
 
 
@@ -164,12 +164,12 @@ def test_la_frontera_de_V278_sigue_la_cara_no_afirma_la_pantalla():
 # data, the same rule as `by_amount`: a result is a name and a way to act on it, never a price (V2-240).
 
 def _rows(monkeypatch, items):
-    from nucleo.flash import live_blocks as LB
+    from nucleo.turn.prompt import live_browser, live_sheet
     from widgets.navegador import tasks as _t
     from widgets.results import data as _sd
     monkeypatch.setattr(_t, "get", lambda tid: {"sheet": "results::c4202d-1"})
     monkeypatch.setattr(_sd, "view_data", lambda sheet, *a, **k: {"items": items})
-    return LB._sheet_top_rows("t1", 5)
+    return live_sheet._sheet_top_rows("t1", 5)
 
 
 def test_una_fila_sin_importe_lo_DICE(monkeypatch):
@@ -203,6 +203,6 @@ def test_la_cara_dice_QUE_HACER_con_una_linea_sin_precio(monkeypatch):
     """The data alone, without the interpretation, is read again as a candidate. The rule goes INSIDE the same
     row block that already orders «di solo lo que RESPONDE a lo que pidió» (V2-348: the branch goes inside)."""
     from pathlib import Path
-    src = _vts.read("nucleo/flash/live_blocks.py")
+    src = _vts.read("nucleo/turn/prompt/live_browser.py")
     assert "marcada SIN PRECIO no es una opción" in src
     assert "ofrezcas como candidata" in " ".join(src.split())

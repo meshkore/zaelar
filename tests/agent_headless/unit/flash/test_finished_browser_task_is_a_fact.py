@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo.flash import prompt
+from nucleo.turn.prompt import live_state as prompt
 from widgets.navegador import tasks as nt
 
 

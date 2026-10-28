@@ -48,12 +48,12 @@ def test_every_status_the_code_writes_is_classified():
         f"estados de tarea que no están ni en LIVE_STATES ni en ENDED_STATES: {unclassified}. "
         "Una tarea en ese estado NO aparece en el estado vivo —ni viva ni terminada— y el modelo sigue "
         "contando lo último que supo. Clasifícalo, y si es un final decide cómo se DICE en "
-        "`nucleo/flash/prompt.py` (un final que suena igual que otro distinto tampoco sirve).")
+        "`nucleo/turn/prompt/live_state.py` (un final que suena igual que otro distinto tampoco sirve).")
 
 
 def test_open_is_an_ENDED_state_and_says_what_it_is():
     """The one that was in the gap. It is neither a failure nor a result: it is a tab that remains in front of them."""
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import live_state as _p
 
     assert "open" in tasks.ENDED_STATES
     tasks._tasks.clear()

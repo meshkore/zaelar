@@ -37,7 +37,7 @@ def test_the_request_rows_writes_fit_the_budget(tmp_path, monkeypatch):
     try:
         from nucleo.circuit import spec as S
         from nucleo.request import model as rq
-        from nucleo.flash import task_block as tb
+        from nucleo.turn.prompt import live_history
         now = int(time.time())
         for i in range(300):
             ts.task_put({"id": f"abcdef-i{i}", "goal": "x", "kind": "inline", "mode": "now", "state": "done",
@@ -49,7 +49,7 @@ def test_the_request_rows_writes_fit_the_budget(tmp_path, monkeypatch):
             uid = rq.opened("youtube", "load", text="x")
             S.persist(uid, {"done_when": {"a": 1}, "status": "open"})
             circuit.settle(row=uid, verdict="met")
-            tb.recent_lines()
+            live_history.recent_lines()
             turn.append((time.perf_counter() - t) * 1000)
         assert _median(turn) <= BUDGET_MS, f"a turn's own writes take {_median(turn):.2f} ms (median; budget {BUDGET_MS})"
     finally:

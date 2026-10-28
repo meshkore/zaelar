@@ -123,7 +123,7 @@ async def compose(query: str, timings: dict | None = None) -> tuple[str, list[in
     lex_propias: dict = {}
     lex = None
     try:
-        from nucleo.flash import prompt as _prompt
+        from nucleo.turn.prompt import recall as _prompt
         loop = asyncio.get_running_loop()
         # `run_in_executor` + `shield`, not `to_thread` + bare `wait_for`: the timeout must abandon the WAIT
         # without cancelling the FUTURE, or the salvage below never sees a result. (`wait_for` cancels what it

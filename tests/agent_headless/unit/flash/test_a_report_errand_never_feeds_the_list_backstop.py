@@ -5,7 +5,7 @@ Measured in `docs-report-lands-as-document__es` (2026-10-10): «hazme un informe
 T528 source, `dispatch.pending_summaries`) and glued «ya hay candidatos en la hoja de resultados: «RENAULT 4…»» to
 two replies about a report.
 """
-from nucleo.flash import live_blocks
+from nucleo.turn.prompt import live_browser
 
 
 def _pending(monkeypatch, surface):
@@ -20,10 +20,10 @@ def _pending(monkeypatch, surface):
 
 def test_a_report_errand_gives_no_rows(monkeypatch):
     _pending(monkeypatch, "informe")
-    assert live_blocks.any_live_task_rows(3) == ("", [])
+    assert live_browser.any_live_task_rows(3) == ("", [])
 
 
 def test_a_list_errand_still_does(monkeypatch):
     _pending(monkeypatch, "lista")
-    goal, rows = live_blocks.any_live_task_rows(3)
+    goal, rows = live_browser.any_live_task_rows(3)
     assert rows and "RENAULT" in rows[0]

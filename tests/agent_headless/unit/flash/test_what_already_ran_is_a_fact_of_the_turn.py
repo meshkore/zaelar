@@ -65,7 +65,7 @@ def _run(action, payload):
 
 
 def _live():
-    from nucleo.flash import prompt as p
+    from nucleo.turn.prompt import live_state as p
     return p.live_state()
 
 
@@ -170,10 +170,10 @@ def test_a_done_act_on_a_card_that_is_not_open_says_it_is_not_on_screen(monkeypa
     """Demo pass 59, S1: «results:present hace 140s» + «cuéntalo como hecho» over a sheet he had put away, and
     «so how did the monitors go, show me» got «Done.» with the card still in the dock."""
     from memory import api as _memapi
-    from nucleo.flash import live_blocks
+    from nucleo.turn.prompt import live_record
     done_ops.note("results", "present", {})
     monkeypatch.setattr(_memapi, "state", lambda: {"open_widgets": ["agenda"]})
-    line = " ".join(live_blocks.done_ops_lines())
+    line = " ".join(live_record.done_ops_lines())
     assert "results NO está en pantalla" in line and "show_widget" in line, line
     monkeypatch.setattr(_memapi, "state", lambda: {"open_widgets": ["results::1b6f65-ls1"]})
-    assert "NO está en pantalla" not in " ".join(live_blocks.done_ops_lines())
+    assert "NO está en pantalla" not in " ".join(live_record.done_ops_lines())

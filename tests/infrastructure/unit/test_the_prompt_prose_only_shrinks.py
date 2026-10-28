@@ -46,8 +46,9 @@ _PROSE_FLOOR = 40
 #: The two modules that compose what the fast turn reads. `router_catalog` is measured apart, because it
 #: already has its own ceiling in `test_router` and is counted here only so the TOTAL is honest.
 _PROSE_FILES = ("nucleo/turn/prompt/builder.py", "nucleo/turn/prompt/operating.py", "nucleo/turn/prompt/live_state.py",
-                "nucleo/turn/prompt/recall.py", "nucleo/flash/live_blocks.py",
-                "nucleo/flash/live_blocks_nav.py")   # refactor2710-08: prompt.py split four ways, same sum
+                "nucleo/turn/prompt/recall.py", "nucleo/turn/prompt/live_sheet.py",
+                "nucleo/turn/prompt/live_browser.py", "nucleo/turn/prompt/live_browser_nav.py",
+                "nucleo/turn/prompt/live_record.py")   # refactor2710-08: prompt.py and live_blocks split, same sum
 
 #: Measured 2026-09-16. EDIT DOWNWARD ONLY — and the edit is the celebration.
 _MAX_PROSE = 24_866          # refactor2710-08: −63, the screen line and one contradiction out (was 24_929); prompt.py 16_417 + live_blocks.py 3_395 + live_blocks_nav.py 5_117 — DOCSTRINGS OUT
@@ -126,8 +127,8 @@ def test_the_prose_of_the_turn_prompt_only_shrinks():
 def test_moving_prose_between_the_two_files_does_not_pay_anything():
     """The defect in the LOC ratchet, pinned: the total is what is measured, so an extraction to
     `live_blocks.py` no longer reads as a saving. Both files are in ONE sum, deliberately."""
-    # six since refactor2710-08: prompt.py split into builder/operating/live_state/recall, all in the same sum
-    assert len(_PROSE_FILES) == 6 and all((ENGINE / r).exists() for r in _PROSE_FILES)
+    # eight since refactor2710-08: prompt.py and live_blocks split, all in the same sum
+    assert len(_PROSE_FILES) == 8 and all((ENGINE / r).exists() for r in _PROSE_FILES)
     combined = sum(_prose_bytes(r) for r in _PROSE_FILES)
     assert combined == sum({r: _prose_bytes(r) for r in _PROSE_FILES}.values())
 

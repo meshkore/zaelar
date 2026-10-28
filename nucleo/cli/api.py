@@ -83,10 +83,10 @@ async def say(text: str = Body(..., embed=True), session: str = Body("default", 
     _reply = res.get("reply")
     _wall("agent", " ".join(str(x) for x in _reply) if isinstance(_reply, list) else str(_reply or ""))
     if prompt and res.get("ok"):
-        # optional: include the composed prompt (to inspect what state/memory the model saw)
-        # Same safeguard as the turn: this runs in the server loop, so a slow recall freezes the engine too — and
-        # this is only an INSPECTION option, the worst place to lose the process.
-        from nucleo.flash.prompt import build_flash_system, needs_recall
+        # optional: the composed prompt, to inspect what the model saw. Same safeguard as the turn: a slow recall
+        # here would freeze the server loop over an INSPECTION option.
+        from nucleo.flash.recall_heuristics import needs_recall
+        from nucleo.turn.prompt.builder import build_flash_system
         from nucleo.turn import recall_budget as _recall
         _rb, _ = await _recall.compose(text if needs_recall(text) else "")
         sys_txt, _ = build_flash_system(directive=_brain(session)._directive,

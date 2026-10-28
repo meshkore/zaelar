@@ -73,8 +73,8 @@ def test_instrumentar_NO_puede_tumbar_el_prompt(monkeypatch):
 def test_live_blocks_sigue_usando_LA_MISMA_funcion():
     """The extraction cannot have left two copies: that is the debt this repo paid four times in one
     week, and here it would mean that the warning exists in one place while the prompt is composed with the other."""
-    from nucleo.flash import live_blocks as LB
-    assert LB._sheet_of_tab is ES._sheet_of_tab
+    from nucleo.turn.prompt import live_sheet
+    assert live_sheet._sheet_of_tab is ES._sheet_of_tab
 
 
 # ── And the other half: RESOLVED, but not the one containing the rows ─────────────────────────────────────
@@ -83,22 +83,22 @@ def test_una_hoja_resuelta_y_VACIA_tambien_lo_dice(monkeypatch, _emitido):
     and that was the case for `search-buy-guitar__es` (2026-08-28): `unresolved_errand_sheets.n` came out **0**, meaning
     it resolved, and yet there were six turns in which the model was not told it had anything, with fifteen
     candidates in the sheet. Without this line, the diagnosis remains “it resolved correctly and something happens afterward.”"""
-    from nucleo.flash import live_blocks as LB
+    from nucleo.turn.prompt import live_sheet
     import widgets.results.data as _rd
-    monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results"])
+    monkeypatch.setattr(live_sheet, "boxes_of_tab", lambda *_a, **_k: ["results"])
     monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": []})
-    assert LB._sheet_has_rows("6175ca-1") is False
+    assert live_sheet._sheet_has_rows("6175ca-1") is False
     assert _emitido and "RESUELTA PERO VACÍA" in _emitido[0]["label"]
     assert _emitido[0]["extra"]["hoja"] == "results", "sin decir CUÁL caja miró no se puede comparar"
 
 
 def test_una_hoja_resuelta_CON_filas_no_dice_nada(monkeypatch, _emitido):
     """The sensitivity counterpart: this is the healthy path and it is traversed on every turn."""
-    from nucleo.flash import live_blocks as LB
+    from nucleo.turn.prompt import live_sheet
     import widgets.results.data as _rd
-    monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results::6175ca-1"])
+    monkeypatch.setattr(live_sheet, "boxes_of_tab", lambda *_a, **_k: ["results::6175ca-1"])
     monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": [{"title": "Yamaha F370BL"}]})
-    assert LB._sheet_has_rows("6175ca-1") is True
+    assert live_sheet._sheet_has_rows("6175ca-1") is True
     assert _emitido == []
 
 
@@ -110,11 +110,11 @@ def test_una_lectura_que_REVIENTA_tampoco_se_calla(monkeypatch, _emitido):
     A failure that swallows itself is worse than a noisy one: it leaves the prompt saying there is nothing and
     the investigator with nothing to read.
     """
-    from nucleo.flash import live_blocks as LB
+    from nucleo.turn.prompt import live_sheet
     import widgets.results.data as _rd
-    monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results::6175ca-1"])
+    monkeypatch.setattr(live_sheet, "boxes_of_tab", lambda *_a, **_k: ["results::6175ca-1"])
     monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: (_ for _ in ()).throw(KeyError("items")))
-    assert LB._sheet_has_rows("6175ca-1") is False
+    assert live_sheet._sheet_has_rows("6175ca-1") is False
     assert _emitido and "ILEGIBLE" in _emitido[0]["label"]
     assert "KeyError" in _emitido[0]["extra"]["error"], "sin el error no hay nada que investigar"
 
@@ -131,11 +131,11 @@ def test_la_cara_dice_que_hay_filas_y_la_hoja_no_las_da(monkeypatch, _emitido):
     sheet had six pharmacies with names and addresses, told that there was something there and with zero rows. The model
     named zero of six, and the judge called it “a severe failure to provide that data.”
     """
-    from nucleo.flash import live_blocks as LB
+    from nucleo.turn.prompt import live_sheet
     import widgets.results.data as _rd
-    monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results::d787b2-1"])
+    monkeypatch.setattr(live_sheet, "boxes_of_tab", lambda *_a, **_k: ["results::d787b2-1"])
     monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": []})
-    assert LB._sheet_top_rows("d787b2-1") == []
+    assert live_sheet._sheet_top_rows("d787b2-1") == []
     # the warning lives in `errand_sheet` (its home: it concerns the errand sheet), and `live_blocks` calls it
     assert _emitido and "no las da" in _emitido[0]["label"]
     assert "d787b2-1" in _emitido[0]["extra"]["cajas"], "sin las cajas no se puede comparar con dónde están"
@@ -143,10 +143,10 @@ def test_la_cara_dice_que_hay_filas_y_la_hoja_no_las_da(monkeypatch, _emitido):
 
 def test_y_cuando_SÍ_las_da_no_dice_nada(monkeypatch, _emitido):
     """The sensitivity counterpart: this is the healthy path and it is traversed on every turn with results."""
-    from nucleo.flash import live_blocks as LB
+    from nucleo.turn.prompt import live_sheet
     import widgets.results.data as _rd
-    monkeypatch.setattr(LB, "boxes_of_tab", lambda *_a, **_k: ["results::d787b2-1"])
+    monkeypatch.setattr(live_sheet, "boxes_of_tab", lambda *_a, **_k: ["results::d787b2-1"])
     monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": [{"title": "CVS · 701 Van Ness Ave"}]})
-    filas = LB._sheet_top_rows("d787b2-1")
+    filas = live_sheet._sheet_top_rows("d787b2-1")
     assert filas and "CVS" in filas[0]
     assert _emitido == []

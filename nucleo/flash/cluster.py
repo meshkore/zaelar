@@ -18,7 +18,7 @@ import asyncio
 import os
 
 from .fast_client import FastClient, ModelSpec
-from .prompt import build_cluster_system
+from nucleo.turn.prompt.builder import build_cluster_system
 
 # Tope of time of the turn of cluster. Off-voice no there is presion of latencia of time real, PERO the tier can ser a
 # RAZONADOR that a veces tarda: without cap, a turn colgaria the task of the bridge. Cap generoso but acotado; al trigger

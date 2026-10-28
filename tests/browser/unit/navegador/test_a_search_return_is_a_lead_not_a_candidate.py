@@ -22,7 +22,7 @@ so it does not affect the widget contract.
 """
 import pytest
 
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_sheet
 from nucleo.workers import findings as F
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
@@ -79,7 +79,7 @@ def test_una_vuelta_SIN_titulos_no_entra():
 def test_la_cara_NO_la_llama_candidato_sin_precio(tarea):
     _sembrar([{"title": "Descensos de Barranquismo en Vizcaya: 9 precios y ofertas 2026",
                "url": "https://x.invalid/a", "facts": [{"label": "Origen", "value": "búsqueda web"}]}])
-    (fila,) = LB._sheet_top_rows(tarea, 5)
+    (fila,) = live_sheet._sheet_top_rows(tarea, 5)
     assert "SIN PRECIO" not in fila
     assert "PÁGINA WEB por mirar" in fila and "aún no es un candidato" in fila
 
@@ -87,13 +87,13 @@ def test_la_cara_NO_la_llama_candidato_sin_precio(tarea):
 def test_una_ficha_CON_precio_no_cambia(tarea):
     """Sensitivity: the mark must not affect genuine listings."""
     _sembrar([{"title": "Tour en kayak por Bilbao", "price": "35 €", "url": "https://x.invalid/b"}])
-    assert LB._sheet_top_rows(tarea, 5) == ["«Tour en kayak por Bilbao — 35 €»"]
+    assert live_sheet._sheet_top_rows(tarea, 5) == ["«Tour en kayak por Bilbao — 35 €»"]
 
 
 def test_una_ficha_SIN_precio_y_SIN_marca_sigue_diciendo_SIN_PRECIO(tarea):
     """V2-360 intact: an insurer without an amount must still say that it does not include one."""
     _sembrar([{"title": "Allianz Direct", "url": "https://x.invalid/c"}])
-    (fila,) = LB._sheet_top_rows(tarea, 5)
+    (fila,) = live_sheet._sheet_top_rows(tarea, 5)
     assert "SIN PRECIO" in fila
 
 
@@ -108,7 +108,7 @@ def test_el_TELEFONO_por_fin_llega_a_la_cara(tarea):
                "facts": [{"label": "Teléfono", "value": "944123456"}], "url": "https://x.invalid/d"}])
     it = ((SHEET.view_data("v376-hoja") or {}).get("items") or [{}])[0]
     assert it.get("tel") is None, "premisa: la hoja no guarda una clave `tel`"
-    (fila,) = LB._sheet_top_rows(tarea, 5)
+    (fila,) = live_sheet._sheet_top_rows(tarea, 5)
     assert "944123456" in fila
 
 
@@ -117,7 +117,7 @@ def test_el_TELEFONO_gana_a_la_marca_de_pista(tarea):
     _sembrar([{"title": "Escuela de surf Sopelana", "url": "https://x.invalid/e",
                "facts": [{"label": "Teléfono", "value": "944999888"},
                          {"label": "Origen", "value": "búsqueda web"}]}])
-    (fila,) = LB._sheet_top_rows(tarea, 5)
+    (fila,) = live_sheet._sheet_top_rows(tarea, 5)
     assert "944999888" in fila and "PÁGINA WEB" not in fila
 
 

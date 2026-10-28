@@ -58,7 +58,7 @@ def test_the_turn_says_it_is_asking_and_quotes_the_question():
     tid = t.create("comprar entradas del teatro")
     t.ask(tid, "Voy a pulsar «Comprar entradas». ¿Lo confirmo?")
 
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import live_state as prompt
     live = prompt.live_state()
 
     assert "ESTÁ PARADA ESPERANDO TU OK" in live

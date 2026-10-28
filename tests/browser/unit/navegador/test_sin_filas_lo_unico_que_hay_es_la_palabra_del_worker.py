@@ -19,7 +19,7 @@ MARKED.
 import pytest
 
 from nucleo import dispatch as D
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_browser
 from nucleo.workers.session import SessionRecord
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
@@ -44,7 +44,7 @@ def test_sin_filas_la_cara_dice_que_lo_DICE_el_worker_y_no_que_sea_un_hecho():
     tid = T.create("Busca entradas de teatro", sheet="v443-1")
     T.set_status(tid, "working")
     _worker_que_dice_tener(tid, 4)
-    state = "\n".join(LB.navegador_lines())
+    state = "\n".join(live_browser.navegador_lines())
     assert "DICE QUE YA TIENE CANDIDATOS" in state
     assert "es SU cuenta, no la hemos comprobado" in state
     # …and not the firm assertion, which is what the turn was repeating to the operator
@@ -57,7 +57,7 @@ def test_sin_filas_YA_NO_se_le_prohibe_decir_que_no_ha_llegado_nada():
     tid = T.create("Busca entradas de teatro", sheet="v443-2")
     T.set_status(tid, "working")
     _worker_que_dice_tener(tid, 4)
-    state = "\n".join(LB.navegador_lines())
+    state = "\n".join(live_browser.navegador_lines())
     assert "NO digas que sigue «sin resultados»" not in state
     assert "aún no ha llegado nada" in state
 
@@ -68,7 +68,7 @@ def test_pero_lo_que_SI_seria_falso_se_sigue_prohibiendo():
     tid = T.create("Busca entradas de teatro", sheet="v443-3")
     T.set_status(tid, "working")
     _worker_que_dice_tener(tid, 4)
-    state = "\n".join(LB.navegador_lines())
+    state = "\n".join(live_browser.navegador_lines())
     assert "NO te inventes nombres" in state
     assert "ni que están en pantalla" in state
 
@@ -79,7 +79,7 @@ def test_la_tarea_sigue_diciendose_VIVA_para_no_reabrir_V2_152():
     tid = T.create("Busca entradas de teatro", sheet="v443-4")
     T.set_status(tid, "working")
     _worker_que_dice_tener(tid, 4)
-    state = "\n".join(LB.navegador_lines())
+    state = "\n".join(live_browser.navegador_lines())
     assert "no está bloqueada ni esperando" in state and "sigue trabajando" in state
 
 
@@ -90,6 +90,6 @@ def test_CON_filas_la_cara_no_se_toca_porque_ahi_SI_es_un_hecho():
     T.set_status(tid, "working")
     SHEET.apply_action("present", {"sheet": "v443-5", "title": "Resultados",
                                    "items": [{"title": "The Lion King · Minskoff", "price": "120 $"}]})
-    state = "\n".join(LB.navegador_lines())
+    state = "\n".join(live_browser.navegador_lines())
     assert "YA HA ENCONTRADO algo: no está bloqueada ni esperando. CUÉNTALE" in state
     assert "DICE QUE YA TIENE CANDIDATOS" not in state

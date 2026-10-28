@@ -21,7 +21,7 @@ import time
 
 import pytest
 
-from nucleo.flash import prompt as prompt_mod
+from nucleo.turn.prompt import recall as prompt_mod
 from nucleo.turn import recall_budget
 from voice import health_state
 

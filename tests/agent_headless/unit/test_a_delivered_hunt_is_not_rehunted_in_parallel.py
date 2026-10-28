@@ -273,7 +273,7 @@ def test_an_insufficient_rerun_pushes_nothing_the_escalation_speaks_for_itself(m
 # ── the PROMPT carries the fact with its instruction (V2-453) ────────────────────────────────────────────
 
 def test_the_prompt_names_the_delivery_and_the_linear_rule():
-    from nucleo.flash import prompt as P
+    from nucleo.turn.prompt import live_state as P
     ended.note_listing_delivery(_DELIVERY_GOAL, _SHEET, n=20)
     st = P.live_state()
     assert "BÚSQUEDA DE ANUNCIOS YA HECHA" in st
@@ -282,5 +282,5 @@ def test_the_prompt_names_the_delivery_and_the_linear_rule():
 
 
 def test_without_a_fresh_delivery_the_prompt_is_untouched():
-    from nucleo.flash import prompt as P
+    from nucleo.turn.prompt import live_state as P
     assert "BÚSQUEDA DE ANUNCIOS YA HECHA" not in P.live_state()
