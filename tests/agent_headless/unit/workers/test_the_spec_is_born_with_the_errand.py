@@ -54,7 +54,7 @@ def test_a_spec_the_escalation_brought_is_opened_persisted_and_told_to_the_worke
     assert live and live[0]["target"] == "desktop:wallpaper"
     spec.reset()                                          # a restart empties RAM…
     row = spec.of_task(rec.uid)
-    assert row and row["done_when"] == WALL and row["status"] == "open", "…and the row still says what «done» means"
+    assert row and row["done_when"] == WALL and row["status"] == "started", "…and the row still says what «done» means"
     assert rec.session.heard and rec.session.heard[0].startswith("OBJETIVO MEDIBLE"), rec.session.heard
 
 

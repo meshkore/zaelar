@@ -224,7 +224,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/bridge_usage.py': 1,
     'nucleo/canvas_arbiter.py': 7,
     'nucleo/canvas_focus.py': 1,
-    'nucleo/circuit.py': 9,
+    'nucleo/circuit/__init__.py': 9,
     'nucleo/consent.py': 1,
     'nucleo/context_packs/introduction.py': 6,
     'nucleo/context_packs/place_in_play.py': 1,

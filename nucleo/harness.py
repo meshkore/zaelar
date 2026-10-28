@@ -76,7 +76,7 @@ def _ledger():
 def _expire(now: float) -> None:
     for g in _ledger().open_specs(now):
         if g.get("source") == SOURCE and now - float(g.get("born") or now) > TTL_S:
-            g["status"] = "expired"
+            g["status"], g["why"] = "unverifiable", "expired"   # never read before its time ran out
             g["met_at"] = now
             _emit("🕰 arnés: objetivo caducado sin verificar", g)
 

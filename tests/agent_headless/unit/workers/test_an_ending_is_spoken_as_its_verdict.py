@@ -18,7 +18,7 @@ def test_the_outcome_sentence_is_the_verdicts():
     assert circuit.outcome_line("met", ok=True).startswith("It is done")
     assert "unverified" in circuit.outcome_line("unverifiable", ok=True)
     assert "Never say it is done" in circuit.outcome_line("unverifiable", ok=True)
-    assert "missing" in circuit.outcome_line("gave_up", ok=False)
+    assert "missing" in circuit.outcome_line("unmet", ok=False)
     assert circuit.outcome_line("", ok=True) == "It is done." and circuit.outcome_line("", ok=False) == "It could not be completed."
 
 
