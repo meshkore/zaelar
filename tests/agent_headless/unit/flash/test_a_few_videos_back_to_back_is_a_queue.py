@@ -77,9 +77,7 @@ def test_the_queue_read_carries_the_queue_rows_beside_the_notice(monkeypatch, tm
         "the queue's rows ride beside the notice — the notice alone read as «one video left»"
 
 
-def test_a_typed_turn_asking_for_a_few_videos_builds_the_queue(rail, monkeypatch):
-    """The whole turn (the voice turn, typed): nothing between the model's call and the widget may turn the queue
-    into a load."""
+def _typed_queue_turn(monkeypatch) -> dict:
     from tests.brain import harness as H
     with H.Isolated("en"):
         from nucleo.cli import turn
@@ -92,8 +90,20 @@ def test_a_typed_turn_asking_for_a_few_videos_builds_the_queue(rail, monkeypatch
                                             sid="test-video-queue-turn", ingest=False, execute=True))
         finally:
             turn.reset("test-video-queue-turn")
+    return res
+
+
+def test_a_typed_turn_asking_for_a_few_videos_builds_the_queue(rail, monkeypatch):
+    """The whole turn (the voice turn, typed): nothing between the model's call and the widget may turn the queue
+    into a load."""
+    res = _typed_queue_turn(monkeypatch)
     assert res["ok"] is True, res
     assert rail.get("action") == "queue_search", f"the queue must reach the player, got {rail}"
-    # Naming what plays IN the reply (V2-469 `ensure_delivery_named`) was the old text channel's half only: the voice
-    # turn's words stream before the player answers. No criterion decides it, so the voice turn's behaviour stands
-    # (refactor2710-01, named divergence); the player's receipt is the voice's way to say it.
+
+
+@pytest.mark.xfail(reason="refactor2710-03: the mouth speaks the verdict", strict=True)
+def test_the_typed_queue_turn_names_what_plays(rail, monkeypatch):
+    """The promise to line them up is backed by what plays, said in the turn (V2-469). The voice turn's words stream
+    before the player answers; saying what plays is the mouth saying the verdict — the 03's class."""
+    res = _typed_queue_turn(monkeypatch)
+    assert "Maradona best goals" in str(res.get("reply") or "")

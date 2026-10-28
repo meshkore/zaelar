@@ -46,4 +46,4 @@ def test_honest_replies_and_other_cards_are_untouched():
 
 def test_the_voice_turn_asks_it():
     voice = (ENGINE / "nucleo/flash/post_stream_settle.py").read_text("utf-8")
-    assert "_pst_up.said_after(_pst_fsn.said_after(spoken_text, send, speech), send, speech)" in voice and "spoken_text = " in voice   # row claims wrap it (2.690)
+    assert "_pst_up.said_after(spoken_text, send, speech)" in voice and "spoken_text = " in voice   # row claims wrap it (2.690)

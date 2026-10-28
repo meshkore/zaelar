@@ -105,6 +105,33 @@ class _ClienteMudoQuePideVideo(_ClienteQuePideVideo):
             yield ""
 
 
+
+@pytest.mark.xfail(reason="refactor2710-03: the mouth speaks the verdict", strict=True)
+def test_a_mute_video_turn_names_what_it_loaded(monkeypatch, tmp_path):
+    """The model calls `play_video` and says nothing: the reply has to name what loaded. The old text channel patched
+    it after the fact (V2-383); the voice turn's words stream before the player answers, so this is the mouth saying
+    the verdict — the 03's class."""
+    from memory import db as memdb
+    from memory import embeddings as mememb
+    from nucleo.cli import turn
+
+    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
+    mememb.reset(); memdb.reset_db(); memdb.get_db()
+
+    async def _brain_action(wid, action, payload):
+        return {"ok": True, "videoId": "Way9Dexny3w", "title": "Dune: Part Two | Official Trailer"}
+
+    import widgets.server_api as _sa
+    monkeypatch.setattr(_sa, "brain_action", _brain_action)
+    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _ClienteMudoQuePideVideo)
+    try:
+        res = asyncio.run(turn.run_turn("Pon el tráiler de Dune.", sid="test-video-mudo", ingest=False, execute=True))
+    finally:
+        turn.reset("test-video-mudo")
+        memdb.reset_db(); mememb.reset()
+    assert "Dune: Part Two" in (res.get("reply") or "")
+
 def test_el_rail_es_el_MISMO_que_usa_la_voz():
     """The voice uses `_apply_widget_data("youtube", "load", {"query": …})`. If this channel invented its own
     path, there would be TWO ways to play a video, and the one being measured would not be the one the operator uses."""

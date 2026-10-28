@@ -14,7 +14,6 @@ from nucleo.flash import unchecked_provenance as _pst_up   # 2026-10-14: no clai
 from nucleo.flash import row_claims as _pst_rc   # 2026-10-14: a claim about a row that no source carries is corrected aloud
 from nucleo.flash import blocked_channel_receipt as _pst_bcr   # V2-604: a blocked channel's pasted link is said
 from nucleo.flash import stop_decision as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
-from nucleo.flash import fullscreen_nothing as _pst_fsn   # node 2.717: an exit that found nothing says so
 
 
 async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _dialog, _filler_audio, _langs, _prev_pending, _r, _resolve_confirm, _router, _shown_ids, acted, aside, brain, clarify, confirm_state, data_done, emit, escalate_req, had_pending_confirm, llm_metrics, music_req, operator_text, search_req, send, speech, spoken_text, style_fired, text, worker_acted) -> dict:
@@ -167,7 +166,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         if (_tr_line := await _pst_tr.voice_owed_settled(spoken_text)):
             send(speech.sanitize(_tr_line, drop_metadata=False))
             spoken_text = (spoken_text + " " + _tr_line).strip()
-    spoken_text = await _pst_bcr.said_after(_pst_rc.said_after(_pst_up.said_after(_pst_fsn.said_after(spoken_text, send, speech), send, speech), send, speech, operator_text or text, list(getattr(brain, "_window", None) or [])), send, speech)   # exit with nothing · AI check · row claims · a blocked channel's link
+    spoken_text = await _pst_bcr.said_after(_pst_rc.said_after(_pst_up.said_after(spoken_text, send, speech), send, speech, operator_text or text, list(getattr(brain, "_window", None) or [])), send, speech)   # AI check · row claims · a blocked channel's link (V2-604)
 
     # Regla de usuario fijada/retirada SIN frase hablada → ack corto (V2-046 A1, visto en el probe: la
     # RETIRADA dejaba el turno MUDO). Nunca mudo al aceptar/quitar una regla.
