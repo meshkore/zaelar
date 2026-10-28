@@ -235,8 +235,6 @@ class LangSpec:
     #: request went (kept as a suggestion, or the button to send one).
     capability_not_yet: str = ""
     capability_not_yet_noted: str = ""
-    #: A reply that claimed it checked whether videos are AI-made (`unchecked_provenance`): nothing here can.
-    provenance_unchecked: str = ""
     #: …and when the player REFUSED it (`player_outcome`): what could not play and why, never «Suena ahora».
     receipt_cannot_play: str = ""
     receipt_swapped: str = ""
@@ -351,13 +349,6 @@ class LangSpec:
     row_check_no: str = ""
     row_check_unknown: str = ""
     row_check_row_unknown: str = ""   # a row asked about something it does not carry
-    row_check_none: str = ""
-    row_check_some: str = ""
-    # A reply's claim about a row that no source carries (nucleo/flash/row_claims.py): said as not verified.
-    claim_unverified: str = ""
-    claim_backed: str = ""
-    claim_not_verified: str = ""
-    claim_candidate_unbacked: str = ""
     claim_correction: str = ""
     # A restart caught a widget half-built — `widgets/server_api.py`.
     widget_build_resumed: str = ""

@@ -337,7 +337,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/turn_brief.py': 3,
     'nucleo/flash/turn_perf.py': 1,
     'nucleo/flash/two_orders.py': 1,
-    'nucleo/flash/unchecked_provenance.py': 3,
     'nucleo/flash/vault_rules.py': 1,
     'nucleo/flash/verdict_card.py': 2,
     'nucleo/flash/video_turn.py': 2,

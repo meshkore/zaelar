@@ -96,12 +96,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             music_req["v"] = {"query": _op_text, "action": "play"}
             emit("brain", "🎵 música por backstop (prometió poner música sin tool)", text=_op_text[:80], role="system")
 
-    # BACKSTOP DE TRABAJO DEVUELTO (V2-142). Distinto del de promesa: aquí el modelo no promete nada, MANDA
-    # AL OPERADOR a buscar en Google/Maps lo que él acaba de pedir. Medido en `reorder-prescription`: «¿puedes
-    # buscar tú el teléfono?, para eso te pido ayuda» → «la forma más fiable es que tú busques "farmacia" en
-    # Google Maps y me pases el teléfono». Una regla de prompt no basta: lo que hace falta es HACER la
-    # búsqueda. Solo si NADA corre (con una tarea viva la frase puede ser una sugerencia mientras se trabaja,
-    # y re-escalar duplicaría el trabajo, V2-123).
+    # WORK HANDED BACK (V2-142): the model sends HIM to search for what he just asked (`reorder-prescription`) — the
+    # search is done instead. Only when NOTHING runs (with a live task it may be a suggestion, V2-123).
     if (_no_tool and spoken_text and escalate_req["v"] is None
             and _router.hands_public_lookup_back(spoken_text)):
         try:
@@ -258,8 +254,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
                         operator_text, 220, "read_widget compose")
             spoken_text = "".join(spoken).strip()
 
-    # V2-728 — RECUPERAR UN ENCARGO TERMINADO. La decisión ENTERA (índice léxico → Jev → preguntar si hay
-    # varios) y su descripción viven en `task_recall.voice_turn`; aquí solo lo propio del canal.
+    # V2-728 — bring back a finished errand: the whole decision lives in `task_recall.voice_turn`.
     if reopen_req["v"] is not None and escalate_req["v"] is None:
         _re = await _pst.asyncio.to_thread(_pst._trecall.voice_turn, reopen_req["v"], operator_text or text, _brief)
         acted["widget"], escalate_req["v"] = (False, operator_text or text) if _re.get("escalate") else (True, None)
@@ -267,7 +262,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             _tag_emit("show", {"id": _re["show"]})
         elif _re["ask"]:
             clarify["msg"] = _say().ask_which_item.format(cands=_re["ask"])
-        elif not _re.get("escalate"):   # refactor2710-03: nothing like it and no worker — the verdict is `asked`
+        elif not _re.get("escalate"):   # refactor2710-03: nothing like it, no worker — the verdict is `asked`
             clarify["msg"] = _say().ask_which_item_bare
         emit("brain", _re["label"], role="system", text=_re["text"], extra=_re["extra"])
 

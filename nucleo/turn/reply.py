@@ -55,7 +55,8 @@ def _lang():
     try:
         from i18n import langs
         return langs.current_language()
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"reply: no language table — {e!r}")
         return None
 
 
@@ -94,8 +95,8 @@ async def of_ops(tasks, timeout: float = WAIT_S) -> list[Outcome]:
         pend = [t for _w, t in tasks if not t.done()]
         if pend:
             await asyncio.wait(pend, timeout=timeout)
-    except Exception:  # noqa: BLE001 — an unreadable wait leaves every op `started`
-        pass
+    except Exception as e:  # noqa: BLE001 — an unreadable wait leaves every op `started`
+        logger.debug(f"reply: the ops' wait failed — {e!r}")
     for w, t in tasks or []:
         card, _, action = str(w).partition("::")
         try:
@@ -103,7 +104,8 @@ async def of_ops(tasks, timeout: float = WAIT_S) -> list[Outcome]:
                 out.append(Outcome(V.STARTED.name, card, action))
                 continue
             out.append(of_op(card, action, t.result()))
-        except Exception:  # noqa: BLE001 — a task that raised is an op that did not land
+        except Exception as e:  # noqa: BLE001 — a task that raised is an op that did not land
+            logger.debug(f"reply: {card}:{action} raised — {e!r}")
             out.append(Outcome(V.UNMET.name, card, action))
     return out
 
@@ -118,7 +120,8 @@ def _trace() -> str:
     try:
         from voice import trace
         return trace.current() or ""
-    except Exception:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"reply: no trace for this turn — {e!r}")
         return ""
 
 
@@ -175,8 +178,8 @@ def _emit(o: Outcome, text: str) -> None:
         emit("brain", "🗣 reply: the verdict's line", role="system", text=text[:160],
              extra={"cat": "flash", "verdict": _value(o.verdict), "key": f"reply_{_value(o.verdict)}",
                     "object": o.object[:120], "id": o.card, "action": o.action})
-    except Exception:  # noqa: BLE001 — the trace never decides the words
-        pass
+    except Exception as e:  # noqa: BLE001 — the trace never decides the words
+        logger.debug(f"reply: event not emitted — {e!r}")
 
 
 def speak(outcomes: list[Outcome], said: str, send, speech) -> str:

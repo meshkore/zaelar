@@ -85,8 +85,6 @@ async def run(*, FastClient, _apply_widget_data, _ask_waiting, _auth_pending, _b
         _op_text = _blk['_op_text']
     if 'spoken_text' in _blk:
         spoken_text = _blk['spoken_text']
-    # U2 (demo passes 34-51, 2026-09-29): «Sure — putting on Like a Prayer now» and no call — an ENGLISH promise
-    # of playback, read here with the same gate the branch below applies (music card open, or a music word).
     # V2-778 F1 — the light lanes the model chose (playback, closes, secret, recall, read, search, music) live in
     # `nucleo/flash/post_stream_lanes.py`.
     _blk = await _ps_lanes.run_the_light_lanes(

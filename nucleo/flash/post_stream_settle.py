@@ -10,8 +10,6 @@ from __future__ import annotations
 from nucleo.flash import card_receipt as _pst_receipt   # V2-781: a bare ack names the cards the turn changed
 from nucleo.flash import post_stream as _pst
 from nucleo.turn import split_by_errand as _sbe   # the status line names the errand a send reached (2.644)
-from nucleo.flash import unchecked_provenance as _pst_up   # 2026-10-14: no claimed check of a video's provenance
-from nucleo.flash import row_claims as _pst_rc   # 2026-10-14: a claim about a row that no source carries is corrected aloud
 from nucleo.flash import blocked_channel_receipt as _pst_bcr   # V2-604: a blocked channel's pasted link is said
 from nucleo.flash import stop_decision as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
 from nucleo.turn import reply as _reply   # refactor2710-03: the mouth speaks the verdict
@@ -140,8 +138,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         _ack_allowed = _style_ack.confirm_short_actions()
     except Exception:
         _ack_allowed = True
-    # refactor2710-03 — what the turn's data-ops ENDED in is said from their verdicts (`nucleo/turn/reply.py`).
-    if escalate_req["v"] is None and search_req["v"] is None:
+    if escalate_req["v"] is None and search_req["v"] is None:   # refactor2710-03: the acts' verdicts are said
         spoken_text = await _reply.after_acts(_turn_op_tasks if data_done["v"] else (), spoken_text, send, speech)
     if data_done["v"] and not spoken_text and _ack_allowed \
             and escalate_req["v"] is None and search_req["v"] is None:
@@ -163,14 +160,13 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             pass
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
-    # The TRANSPORT receipt (2026-10-11): the model's words answered the side remark and skipped the next/pause/add he
-    # asked for — one more sentence names what is playing now. The words have streamed, so it is said after them.
+    # The TRANSPORT receipt (2026-10-11): words that skipped the next/pause/add he asked for — what plays now is named.
     if data_done["v"] and spoken_text and escalate_req["v"] is None and search_req["v"] is None:
         from nucleo.flash import transport_receipt as _pst_tr
         if (_tr_line := await _pst_tr.voice_owed_settled(spoken_text)):
             send(speech.sanitize(_tr_line, drop_metadata=False))
             spoken_text = (spoken_text + " " + _tr_line).strip()
-    spoken_text = await _pst_bcr.said_after(_pst_rc.said_after(_pst_up.said_after(spoken_text, send, speech), send, speech, operator_text or text, list(getattr(brain, "_window", None) or [])), send, speech)   # AI check · row claims · a blocked channel's link (V2-604)
+    spoken_text = await _pst_bcr.said_after(spoken_text, send, speech)   # a blocked channel's link (V2-604)
 
     # Regla de usuario fijada/retirada SIN frase hablada → ack corto (V2-046 A1, visto en el probe: la
     # RETIRADA dejaba el turno MUDO). Nunca mudo al aceptar/quitar una regla.
@@ -199,9 +195,8 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             spoken_text = "Aquí lo tienes."
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
-    # V2-660/V2-658 — lo que el turno DEBE, en la costura compartida (`flash/harness_turn.py`, misma
-    # llamada que el probe): una afirmación de entrega sobre una hoja VACÍA o una widget_data cortada por
-    # el tope escalan con superficie documento, y la voz añade el seguimiento honesto (forma V2-572).
+    # V2-660/V2-658 — what the turn OWES (`harness_turn`): a delivery claimed over an EMPTY sheet, or a widget_data cut
+    # by the cap, escalates with a document surface.
     try:
         _pst._ht.note_shown(_shown_ids, _router.operator_words(operator_text, text), trace=_pst._ht.current_trace())
         _owed = await _pst._ht.rescue(

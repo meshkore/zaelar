@@ -75,7 +75,7 @@ def test_the_voice_turn_and_the_worker_read_the_table():
     root = pathlib.Path(__file__).resolve().parents[4]
     assert "_rules_prompt.voice_block()" in (root / "nucleo/flash/prompt.py").read_text("utf-8")
     assert '_rnotes.for_surface("worker")' in (root / "nucleo/memory_agent/dossier.py").read_text("utf-8")
-    assert '_rnotes.for_surface("voice")' in (root / "nucleo/circuit.py").read_text("utf-8")
+    assert '_rnotes.for_surface("voice")' in (root / "nucleo/circuit/__init__.py").read_text("utf-8")
 
 
 # ── the sentences the memory state held move once ────────────────────────────────────────────────────────
