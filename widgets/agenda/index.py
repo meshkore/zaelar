@@ -46,19 +46,17 @@ def ref_index() -> list[dict]:
     # cancel_meeting / move_meeting resolve a spoken reference without the model re-typing the title. Only
     # today-or-future ones: a past appointment is history, not a target.
     today = _today()
-    # V2-707 F0 — SOONEST FIRST. The rows come off the store in Google-sync order, and this index is what
-    # `widgets/contract.guard` turns into the menu a refused destructive action offers («which of these?»),
-    # capped at the first eight. Measured 2026-09-16 (session cb0ac5da, i=7911): asked to remove a meeting
-    # today at five, the operator was read back «¡Feliz cumpleaños! (cita 2027-08-19); Cristina Sergio Primo
-    # Raquel - Cumplea…» — birthdays eleven months away, while the two meetings he could have meant were
-    # further down the list. The model then re-emitted the same empty selector, because the menu it was
-    # handed named nothing it could use. `prompt_digest` has always sorted this way; the index that feeds
-    # the REFUSAL never did, so the brain's two views of the same card disagreed on what comes next.
+    # V2-707 F0 — SOONEST FIRST: this index is the menu a refused destructive action offers (`contract.guard`, first
+    # eight), and it once read back birthdays eleven months away instead of the two meetings he meant today.
     # V2-769 — a SERIES is named once, by its next day: «el piano» is one thing, not forty Tuesdays.
     from . import recur
     _future = [(recur.next_occurrence(m, today), m) for m in db.get("meetings", [])]
+    _named: set[str] = set()       # one title, one reference: a day moved off a series shares its title (99, 2.903)
     for nxt, m in sorted(((n, m) for n, m in _future if n), key=lambda t: (t[0], str(t[1].get("startTime") or ""))):
         label = m.get("title") or "Cita"
+        if label in _named:
+            continue
+        _named.add(label)
         # V2-778 F3-30 — the hints are SPOKEN (`widget_data_turn.named_ack` reads them back after an edit), so they
         # are in the agent's language: an English agent said «(cita … · todos los miércoles hasta el …)» live.
         _rule = (f" · {recur.describe(m['repeat'], _langs.current_code())}"

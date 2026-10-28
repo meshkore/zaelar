@@ -4509,6 +4509,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_words_he_asked_for_carry_no_not_done.py']},
         {"id": "2.894", "title": "A module faked in sys.modules is also what its package hands out (`from pkg import mod`), and both come back — the root conftest's monkeypatch, so a fake never depends on whether an earlier test imported the real one (refactor2710-99)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_a_faked_module_is_what_its_package_hands_out.py']},
+        {"id": "2.903", "title": "A series with one day moved off it is ONE reference: ending, cutting or removing it is never «which one?», the index names each title once, and a change of the RULE lands on the series row, not on the moved day (refactor2710-99, agenda-everyday-edits)",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_series_with_a_moved_day_is_one_reference.py"]},
         {"id": "2.893", "title": "An errand shows only its deliverable: every show that comes from an errand (worker or the sheet its search fills) is licensed at the canvas door by the Request's surface — document → documento, list → results, told → nothing — and a step is a `step` event, never a card (refactor2710-15, Master feedback 30e302f2)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_the_deliverable_decides_the_surface.py']},
         {"id": "2.892", "title": "Every block of the voice prompt is declared with the one truth it reads (`builder.BLOCKS`; «CÓMO OPERAS» and the closing line read none, and say so) and has a token budget per block that only goes down; an idle turn pays nothing for what is not there (refactor2710-08 T-01/T-05)",
