@@ -189,8 +189,7 @@ def _verdict_licence(op: str, wid: str, action: str, verdict: dict) -> Verdict |
 # ── leaves that read the MANIFEST (fork-safe: a user widget brings its own vocabulary) ──────────────────
 
 def _mentions_widget(wid: str, text: str, open_ids, recent_ids) -> bool:
-    """The operator's own words resolve to this widget through the certainty resolver every show
-    already uses (V2-082/V2-566: full aliases, never fragments)."""
+    """His words name this widget through the certainty resolver (V2-082/V2-566: full aliases, never fragments)."""
     if not (wid and text):
         return False
     try:
