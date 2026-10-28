@@ -164,6 +164,23 @@ def record_silent_action(window: list[dict], ack: str) -> None:
         window.append({"role": "assistant", "content": ack.strip()})
 
 
+def record_turn_without_model(brain, said: str, reply: str, cap: int = 10) -> None:
+    """A turn that ACTED with no model still happened: his line and our answer (`data_ack` without one) enter the window
+    and `_last_reply`, like a model turn's — «close all» then «i said all» found no close there (V2-831 T-02). `cap` is
+    the voice window's size."""
+    window, t = getattr(brain, "_window", None), (said or "").strip()
+    if not isinstance(window, list) or not t:
+        return
+    push_user(window, t)
+    r = sanitize_reply((reply or "").strip())
+    if not r:
+        from i18n import langs as _lg
+        r = str(_lg.current_language().data_ack or "").strip()
+    record_silent_action(window, r)
+    del window[:-cap]
+    brain._last_reply = r
+
+
 # ── 2) PODA DE HISTORIAL ─────────────────────────────────────────────────────────────────────────────────
 def prune_window(window: list[dict]) -> list[dict]:
     """Colapsa respuestas del asistente casi idénticas para no reforzar el patrón. Conserva el orden y **los

@@ -65,7 +65,7 @@ async def say_receipt(emit, brain=None) -> str:
     The hard close has no model reply to ride: before this it ended the turn in silence, and in the car session an
     order to close everything that had closed nothing (`bulk_close`, the spare) was indistinguishable from one that
     had worked. Spoken out of band, with the fast lane's manners (never over his voice, anti-echo updated). Returns
-    the line ("" when there was nothing to say or no mouth to say it with)."""
+    the line it emitted, spoken or not ("" when there was nothing to say) — the turn records it in the window."""
     import time as _time
 
     from nucleo.flash import bulk_close as _bulk
@@ -77,7 +77,7 @@ async def say_receipt(emit, brain=None) -> str:
         from voice import proactive
         speak = proactive.speaker()
         if speak is None or proactive.user_speaking():
-            return ""
+            return line                          # said in the chat column even when not out loud
         if brain is not None:
             brain._last_spoken = line            # anti-echo: the mic must not re-capture it as his turn
             brain._last_spoke_at = _time.time()
@@ -88,7 +88,7 @@ async def say_receipt(emit, brain=None) -> str:
     except Exception as e:                     # noqa: BLE001 — a receipt never breaks the close it describes
         emit("brain", "⚠️ close receipt not spoken", text=f"{type(e).__name__}: {e}"[:160], role="system",
              extra={"cat": "flash", "reason": "close_receipt_failed"})
-        return ""
+        return line
 
 
 async def names_an_act_on_screen(text: str, emit) -> bool:
@@ -151,9 +151,15 @@ async def handle(text: str, hard: str, emit, brain=None) -> str | None:
     if hard == "close":
         # 3 · close every card he is not using, now, before anything else (V2-807 T-08: the card in use stays
         #     unless his words name it — `bulk_close`).
-        from nucleo.flash import bulk_close as _bulk
-        _bulk.close_all(emit, src="flash", text=text)
-        await say_receipt(emit, brain)         # V2-812 T-04: never a close in silence
+        #     V2-831 T-02: an explicit total («close all») spares nothing — the grammar's own reading (`close_scope`).
+        from nucleo.flash import bulk_close as _bulk, dialog as _dialog
+        from voice import interrupt_grammar as _grammar
+        _bulk.close_all(emit, src="flash", text=text, scope=_grammar.close_scope(text))
+        line = await say_receipt(emit, brain)  # V2-812 T-04: never a close in silence
+        try:                                   # V2-831 T-02: …and never one the conversation does not hold
+            _dialog.record_turn_without_model(brain, text, line)
+        except Exception as e:                 # noqa: BLE001 — the close already ran
+            emit("brain", "⚠️ close not recorded in the window", text=f"{type(e).__name__}: {e}"[:160], role="system")
     # 4 · V2-688 — and only THEN ask whether closing was the whole request. The closing clause is removed from what
     #     the model reads: handed «close all» against an already-empty canvas it re-emits it (the context-bleed shape
     #     V2-635 catalogued), and that second close would land on whatever this same sentence just asked to open.

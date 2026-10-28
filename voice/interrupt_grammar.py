@@ -142,15 +142,15 @@ _STOP_OBJECT_RE = re.compile(
 _AND_SPLIT_RE = re.compile(r"[.;!?\n]|\sy\s|\sand\s|\spero\s|\sbut\s", re.I)
 
 
-def _closes_the_whole_canvas(n: str) -> bool:
-    """True when SOME CLAUSE of the turn orders the whole canvas closed — verb and quantifier together."""
+def _closes_the_whole_canvas(n: str, quantified: bool = False) -> bool:
+    """True when SOME CLAUSE orders the whole canvas closed — verb and quantifier (`quantified`: not a card noun alone)."""
     if _FULLSCREEN_RE.search(n):
         return False                       # a screen-state subject is never a close-all (V2-600)
     for clause in _AND_SPLIT_RE.split(n):
         c = (clause or "").strip()
         if not c or not _CLOSE_VERB_RE.search(c):
             continue
-        if not (_ALL_RE.search(c) or _quantifies_the_canvas(c)):
+        if not (_ALL_RE.search(c) or _quantifies_the_canvas(c)) or (quantified and not _quantifies_the_canvas(c)):
             continue
         try:
             from nucleo.flash.close_guards import is_negated_or_narrated
@@ -160,6 +160,10 @@ def _closes_the_whole_canvas(n: str) -> bool:
             pass                           # unreadable guard: the clause already carries verb + quantifier
         return True
     return False
+
+
+def close_scope(text: str) -> str:   # «all» when the close QUANTIFIES the canvas, "" when it names/restricts (T-02)
+    return "all" if _closes_the_whole_canvas(_norm(text), quantified=True) else ""
 
 
 def hard_interrupt(text: str) -> str | None:

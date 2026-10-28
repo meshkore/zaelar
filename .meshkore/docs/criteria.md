@@ -222,6 +222,11 @@ below is the first kind, or it names the mechanism that replaced the second.
   sparing would leave nothing to close, everything closes; every bulk close leaves one short line in his language —
   what it closed, what is still on screen, cards by name — spoken by the doors with no model reply (hard interrupt,
   action map). — since 2026-10-26 · nodes 3.133, 3.135 · `nucleo/flash/bulk_close.py`, `nucleo/flash/hard_turn.py`.
+- **CRIT-K8d · «Close all» closes ALL, and a close with no model stays in the conversation.** A close whose words
+  quantify the canvas (the grammar's own reading, `interrupt_grammar.close_scope`) spares nothing — the K8b spare is
+  only for a close with no total; and a turn answered without the model writes his line and its receipt into the
+  dialog window like a model turn (`dialog.record_turn_without_model`), so a repair («I said all») finds what it
+  repairs. — since 2026-10-28 · nodes 3.148, 3.149 · `nucleo/flash/hard_turn.py`, `nucleo/flash/dialog.py`.
 - **CRIT-K8c · A verdict vetoes a clear close only when it reads a negation; his answer to OUR question carries its
   licence.** A sure `canvas=neither` refuses a close the grammar saw only beside a sure reading of the turn as neither
   an order nor an answer (the canvas door's `close_ordered`); a turn the brief reads as an `answer` while our
