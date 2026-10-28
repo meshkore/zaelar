@@ -10,7 +10,7 @@ import inspect
 import pytest
 
 from nucleo.circuit import spec as _spec
-from nucleo.flash import write_harness as wh
+from nucleo.circuit import write_harness as wh
 
 GOAL = {"all": [{"widget": "contactos", "collection": "contacts", "where": {"title~": "Quinn"}, "expect": "present"},
                 {"widget": "contactos", "collection": "contacts", "where": {"title~": "Rowan"}, "expect": "present"},

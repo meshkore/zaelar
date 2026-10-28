@@ -1,17 +1,11 @@
 """nucleo/circuit/verdict.py — ONE vocabulary for how a request ended (refactor2710-02 T-00).
 
-There were five: the circuit's seven endings (with `retrying` and `gave_up`), the inline row's four-value rank, the
-spec/harness entry status (`open … gave_up`), the repair pass's outcomes and a shape read back from our own reply's
-words. Each reader kept its own table, so a value one of them wrote meant nothing to the next: a row the circuit
-closed `gave_up` ranked like `met`, and an `unverifiable` row read «done» in the task block.
-
-Here each verdict is declared ONCE, with everything a reader needs from it:
-
+Five tables named the same endings with their own values (a row closed `gave_up` ranked like `met`; memory decided
+«delivered» by a value's position). Now each verdict is declared ONCE, with everything a reader needs from it:
   · `ending`    — does the request end on it (a non-ending is never settled, never ranked);
   · `delivered` — did the worker hand something over (memory keeps the result; only `met` was checked);
   · `rank`      — «a later op never improves a failed row»: a settle with a lower rank does not overwrite;
-  · `row_state` — the task row's LIFECYCLE state it leaves (finished or not); what it was worth is the verdict
-                  itself, which the row carries beside it;
+  · `row_state` — the row's LIFECYCLE state (finished or not); what it was worth is the verdict beside it;
   · `ending_note_key` — the note beside a budget kill (`loop.py`); the mouth's line is `reply_<name>` (the 03);
   · `instruction` — the outcome sentence a composed delivery is built on (to the model, never to him);
   · `label`     — the event every settle emits (`kind="verdict"`), with the turn's trace.

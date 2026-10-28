@@ -1,15 +1,7 @@
 """nucleo/circuit/spec.py — a request is born with its END STATE (V2-776 L1).
 
-## The incident
-
-Demo pass 60, B1 (2026-09-29): «now let's make it prettier, find me the wallpaper cosmic eye in the sky by
-tyler young». The turn escalated a worker whose brief was «Find the wallpaper/artwork titled…». The end state
-the operator meant — *the desktop wallpaper has changed to that image* — was written nowhere: the escalation
-travelled as `{src, surface, asked}`, the worker's own `done_when` is optional and its prompt exempted «a
-search», and the turn harness knows one kind of goal (a shown card has content). B2 «set the first one as my
-background» then completed, through the screen verdict, as `results:choose` on the only open sheet — the
-monitors — and U2 had the worker asking for an OK to click a Dell. The same block had passed in 56, 58 and 59.
-Nothing that existed could have caught it, because nothing knew what «done» meant for that request.
+Nothing knew what «done» meant for a request (demo pass 60, B1: a wallpaper search whose end state — the desktop
+wallpaper has changed — was written nowhere, so the next order completed as a choice on the wrong sheet).
 
 ## The split (principles.md, the Brain Worker doctrine §2)
 
