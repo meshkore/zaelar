@@ -11,7 +11,8 @@ from .. import store
 from . import gcal, sweep
 from .reminders import _cancel_reminder, _schedule_reminder  # noqa: F401  (V2-705)
 from .details import _apply_details, _norm_attendees, _norm_status  # noqa: F401
-from . import edit, planner, recur, tasklists
+from . import edit, planner, recur, series, tasklists
+from widgets.agenda import task_read as _task_read_m
 
 
 # `_strip_accents` lives with the spoken-date resolver (V2-744); re-exported because tests reach it here.
@@ -35,8 +36,8 @@ DB_VERSION = 2
 
 def _migrate(db: dict, from_v: int) -> dict:
     # v0 → v1: pre-versioning files are already the current shape; just adopt the version field.
-    # v1 → v2 (V2-744): tasks live in NUMBERED LISTS; a task without a `listId` joins «General» (`tasklists.migrate`).
-    return tasklists.migrate(db)
+    # v1 → v2 (V2-744): tasks live in NUMBERED LISTS; a task without a `listId` joins «General» (`task_read.migrate`).
+    return _task_read_m.migrate(db)
 
 
 def load_db() -> dict:
@@ -114,7 +115,7 @@ def view_data(q: str = "") -> dict:
 
         # The TAREAS section: the operator's lists, numbered as the screen numbers them; all at once because a
         # widget cannot fetch (V2-744).
-        "tasks": tasklists.view(db),
+        "tasks": _task_read_m.view(db),
 
         "warnings": plan.get("warnings", []),
         "coaching": plan.get("coaching", []),
@@ -169,9 +170,11 @@ def radius(action: str, payload: dict | None = None) -> int | None:
 
 # The action handlers live in `actions.py` (which reads this module) (V2-778 F1-12).
 from .actions import (  # noqa: E402,F401
-    _a_drop_project, _a_add_meeting, _a_dedupe_meetings, _a_cancel_meeting, _a_set_reminder, _a_clear_range,
-    _a_clear_all, _a_move_meeting, _a_open_meeting, _a_update_meeting, _a_invite, _a_rsvp_meeting, _a_proposal,
-    _a_show_day, _a_find_free, _a_connection, _a_add_meeting_noticed, _a_restore_meeting)
+    _a_drop_project, _a_add_meeting, _a_dedupe_meetings, _a_cancel_meeting, _a_clear_range, _a_clear_all,
+    _a_move_meeting, _a_update_meeting, _a_restore_meeting)
+from .meeting_views import (  # noqa: E402,F401
+    _a_open_meeting, _a_invite, _a_rsvp_meeting, _a_proposal, _a_show_day, _a_find_free, _a_connection)
+from .notice_actions import _a_set_reminder, _a_add_meeting_noticed  # noqa: E402,F401
 from . import reminders  # noqa: E402  (the asked notice, V2-781 T513)
 from .notice import _a_add_reminder  # noqa: E402  (a notice with no appointment, refactor2710-06)
 
@@ -216,7 +219,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         payload = {**payload, "newDate": payload["day"]}   # in a move, a bare `day` is where it goes
         payload.pop("day")
     # A move is a write too: the model names its fields the way it names a meeting's ({date, start, end}).
-    payload = recur.normalize(payload) if action in ("add_meeting", "update_meeting", "move_meeting") \
+    payload = series.normalize(payload) if action in ("add_meeting", "update_meeting", "move_meeting") \
         else (payload or {})
     if action in ("move_meeting", "update_meeting", "cancel_meeting", "open_meeting"):
         payload = edit.day_out_of_title(payload)       # «Piano del martes 2026-10-13» names that day (V2-781)

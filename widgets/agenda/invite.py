@@ -2,16 +2,9 @@
 
 ## The ask
 
-The operator, 2026-09-17, reading the Telegram thread where his assistant had just negotiated a meeting,
-agreed a time, minted a Meet link and written it into the agenda — and where the other party's last message
-was «can you send me a calendar invite to: ivan@example.com», unanswered:
-
-> «Lógicamente si tenemos acceso a ese email y al conector de email y a las acciones y todo, deberíamos
-> ejecutar esa petición de Ivan. […] Pero no crees un guardarraíl o un workflow solo para eso: intenta
-> asegurarte de que el sistema tiene suficiente capacidad o inteligencia como para resolver esto él mismo.»
-
-So this is not a script for one conversation. It is the missing VERB — the agenda could create a meeting,
-edit it, answer somebody else's invitation and delete it, and had no way to invite anyone to its own.
+The other party asked, in a thread the assistant had negotiated, for a calendar invite; the agenda could create,
+edit, answer and delete a meeting but had no verb to INVITE to its own. This is that verb, not a script for one
+conversation (the operator: no guardrail or workflow just for that).
 
 ## Two rungs of ONE ladder, chosen by the MEETING, never by the recipient
 
@@ -25,8 +18,7 @@ edit it, answer somebody else's invitation and delete it, and had no way to invi
      (`mailbox.send_invitation`), which is the interoperable standard and what every client reads.
 
 ⚠️ The rung is decided by whether the meeting has a calendar behind it — NEVER by guessing the recipient's
-provider from their address. «This one looks like Apple» is a claim about somebody else's mail setup that
-nothing here can know, and it would be wrong the first time a company hosts its own domain on Google.
+provider from their address.
 
 ## Who counts as «already in this meeting»
 
