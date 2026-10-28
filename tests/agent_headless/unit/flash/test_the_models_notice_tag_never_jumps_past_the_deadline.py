@@ -52,11 +52,6 @@ def test_in_the_morning_the_asked_hour_stands(monkeypatch):
     assert R.safe_reminder_schedule("el miércoles", "", ASK) == "2026-10-14 09:00"
 
 
-def test_the_prose_backstop_says_the_same_instant(monkeypatch):
-    _at(monkeypatch, NOON)
-    assert R.dated_reminder_backstop(REPLY, ASK)["schedule"] == "2026-10-14 13:00"
-
-
 def test_a_cadence_the_models_own_future_instant_and_no_deadline_are_untouched(monkeypatch):
     _at(monkeypatch, NOON)
     assert R.safe_reminder_schedule("2026-10-21 09:00", "", ASK) == "2026-10-21 09:00", "its own reading stands"

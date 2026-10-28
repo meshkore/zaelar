@@ -84,98 +84,10 @@ def promises_a_dated_reminder(reply: str, operator_text: str = "", window=None) 
             or _asked_reminder_moment(operator_text)
             or _sched.parse_when(operator_text)
             or _asked_moment_in_window(window))
-# DATED NOTE (V2-159). Sibling of the notice backstop, for the OTHER half of the same request. The prompt says so
-# explicitly —"if the commitment has a date, also add it to the agenda… these are two different things, the entry
-# and the notice, and the operator asks for both"— yet the run ended with the cron set and NO appointment: «Te apunto la
-# renovación del seguro del coche para el jueves» with no data-op behind it.
-_NOTE_VERB_RE = _re.compile(
-    r"\b(te\s+(?:lo\s+|la\s+)?apunto|apunto|te\s+(?:lo\s+|la\s+)?anoto|anoto|"
-    r"queda\s+(?:apuntad|anotad)[oa]|lo\s+apunto|lo\s+anoto|"
-    r"(?:anado|pongo|meto)\w*\s+(?:a|en)\s+tu\s+agenda|i'?ll\s+note\s+(?:it|that)\s+down)\b", _re.I)
-# Where the date STARTS within the sentence — used both to cut the title before it and avoid dragging it into the
-# appointment text.
-_DATE_LEAD_RE = _re.compile(
-    r"\s*,?\s*\b(?:para\s+el|para|este|esta|el|on|the)?\s*\b("
-    r"lunes|martes|miercoles|jueves|viernes|sabado|domingo|"
-    r"monday|tuesday|wednesday|thursday|friday|saturday|sunday|"
-    r"manana|tomorrow|dia\s+\d{1,2})\b", _re.I)
-def dated_note_backstop(reply: str, operator_text: str = "", window=None) -> dict | None:
-    """The reply promises to WRITE DOWN a dated commitment → the `add_meeting` payload for it, else None.
-
-    V2-159, measured: the reminder half now works (one cron, right Wednesday, right prompt — V2-151/V2-153) and
-    the run still failed because the OTHER half never happened. The case demands both: the commitment REGISTERED
-    and the notice scheduled. zaelar said «Te apunto la renovación del seguro del coche para el jueves» and the
-    mechanism showed no agenda data-op at all.
-
-    Two details this shares with its sibling, and one it does not:
-      · the moment is resolved by `scheduler.parse_when`, so an expression that is not unambiguous schedules
-        nothing — a note on a guessed day is the same class of harm as an alert on one;
-      · the tail is CUT at the reminder promise before resolving. One sentence carries BOTH days («…para el
-        JUEVES y te programo un recordatorio para el MIÉRCOLES») and `parse_when` refuses a pair on purpose;
-        position is what tells them apart, exactly as in `promises_a_dated_reminder`.
-      · unlike the alert, the title matters: an agenda entry saying «el jueves» is not an entry. It comes from
-        the words between the promise verb and the date, falling back to the operator's own request.
-    """
-    n = _norm_txt(reply)
-    m = _NOTE_VERB_RE.search(n)
-    if m:
-        # STILL ASKING IS NOT SETTLED, and that rule belongs to BOTH branches. It was written for the one below
-        # («a question mark means it is still asking, and nothing gets filed on a date it has not settled») and
-        # the promise branch never got it — so a reply that promises AND asks in the same breath filed an entry
-        # built out of its own question. Reproduced from round 12 of `remember-and-remind-deadline`: «Perfecto,
-        # lo anoto. ¿A qué hora del jueves te viene bien la renovación?» put a meeting in the agenda titled
-        # «¿a que hora del».
-        #
-        # Waiting costs one turn and nothing else: this backstop is re-evaluated every turn, so the entry lands
-        # as soon as the reply stops asking — measured in the same reproduction, it lands on the turn where the
-        # date is finally settled, with the right title. Filing early costs a wrong entry that nobody will go
-        # and delete.
-        from . import clarifying as _cl      # V2-781 pair 5: «dime a qué dentista vas y te la apunto…» asks too
-        if "?" in (reply or "") or _cl.asks_for_missing_detail(reply):
-            return None
-        tail = n[m.end():]
-        cut = _REMIND_VERB_RE.search(tail)
-        if cut:
-            tail = tail[:cut.start()]
-    else:
-        # V2-167 — the reply-verb trigger alone is a treadmill. This run's model said «la cita ESTÁ EN TU AGENDA
-        # para el jueves», which asserts the state instead of promising the act, so V2-159's list missed it and
-        # the agenda stayed empty for the second run running. What does NOT change between runs is what the
-        # OPERATOR asked, so that is what the obligation is read from; the reply is then only consulted for
-        # whether the agent backed out — a question mark means it is still asking, and nothing gets filed on a
-        # date it has not settled.
-        # V2-176: the request to write it down does not EXPIRE because the operator needed another turn to get
-        # the date right. Measured: «Apúntalo» was in turn 3, turn 4 only corrected the day, and the agenda stayed
-    # empty (`n_after: 1`, only the notice) while zaelar said "I've added it to your agenda."
-        if not note_asked_in_window(window, operator_text) or "?" in (reply or ""):
-            return None
-        clause = commitment_from_window(window, operator_text) if window else commitment_clause(operator_text)
-        tail = _norm_txt(strip_note_lead(clause))
-    try:
-        from nucleo.pulse import scheduler as _sched
-    except Exception:
-        return None
-    when = _sched.parse_when(tail)
-    if not when:
-        return None
-    lead = _DATE_LEAD_RE.search(tail)
-    # The date can come BEFORE what it dates («el jueves tengo que renovar el seguro») or after it («la
-    # renovación del seguro el jueves»). Taking only the text in front of it turned the first shape into an
-    # empty title, and an agenda entry with no title is not an entry.
-    if lead:
-        title = (tail[:lead.start()] or tail[lead.end():]).strip(" ,.;:")
-    else:
-        title = tail.strip(" ,.;:")
-    for _lead_in in ("que ", "tengo que ", "he de ", "debo "):
-        if title.startswith(_lead_in):
-            title = title[len(_lead_in):]
-    if len(title) < 4:
-        title = (operator_text or "").strip()[:120]
-    return {"title": title[:120], "date": when.split(" ")[0]} if title else None
 def already_in_agenda(note: dict) -> bool:
     """Is this commitment already written down for that day?
 
-    Lives NEXT TO the write and not inside `dated_note_backstop` on purpose: that function is a pure decision
+    Lives NEXT TO the write and not inside a decision on purpose: a decision is a pure function
     over two strings and a clock, which is why it can be tested against a literal transcript. Reading a global
     store from inside it made nine of its own tests depend on the order the previous ones ran in — the same
     coupling this fix exists to remove, one layer down.
@@ -373,17 +285,6 @@ def commitment_from_window(window, current_text: str = "", max_back: int = 6) ->
         return current
     first = commitment_clause(asked_before[0])
     return first or current
-def note_asked_in_window(window, current_text: str = "", max_back: int = 6) -> bool:
-    """Did the operator ask for this to be written down — in THIS turn or in an earlier one?
-
-    The other half of the same run: the agenda entry never happened (`n_after: 1`, only the reminder job)
-    because the «apúntalo» was in turn 3 and the turn that settled the date was turn 4. An obligation does not
-    expire because the operator needed another turn to get the date right.
-    """
-    if current_text and _NOTE_ASK_RE.search(_norm_txt(current_text)):
-        return True
-    turns = [str((m or {}).get("content") or "") for m in (window or []) if (m or {}).get("role") == "user"]
-    return any(_NOTE_ASK_RE.search(_norm_txt(t)) for t in turns[-max_back:] if t)
 # The operator's own «write this down» ask. Sibling of `_REMIND_ASK_RE`, and the counterpart to the agent-side
 # `_NOTE_VERB_RE`: the obligation is defined by what HE asked for, which is far more stable than how the model
 # happens to word its confirmation — V2-159 matched «te apunto», the next run said «la cita está en tu agenda»,
@@ -462,89 +363,8 @@ def commitment_moment(operator_text: str, window=None) -> str:
     # A clause that is nothing but a date states no event, so there is nothing for the notice to precede
     # (see `clause_is_only_a_date`). Passing it on would make `reminder_before` fire the notice at once.
     return "" if clause_is_only_a_date(clause) else (_sched.parse_when(clause) or "")
-def resolved_reminder_moment(reply: str, operator_text: str = "", window=None) -> str:
-    """The moment a promised notice belongs to, with the YEAR the conversation said for that day — or ""."""
-    when = (promises_a_dated_reminder(reply, operator_text, window=window)
-            or _asked_on_the_day_just_named(reply, operator_text, window))
-    return _ry.anchored(when, reply, operator_text, window) if when else ""
 
 
-def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) -> dict | None:
-    """The whole backstop decision in ONE place: what to schedule when the model promised a notice in prose.
-
-    Both channels — `nucleo/flash/probe.py` and the voice provider — carried their own copy of this (resolve the
-    moment, then build the tag), and V2-153 is what a divergence of that shape costs: the run scheduled the
-    reminder TWICE, once per turn that promised it, because neither copy looked at what was already scheduled.
-    Measured against the real scheduler, two `create()` calls with the same spec both return ok and leave two
-    live jobs; nothing downstream deduplicates them.
-
-    Returns the tag payload, or None when there is nothing to add — either no resolvable moment, or that moment
-    is already covered. Skipping on an existing job at the same instant is the conservative side on purpose: a
-    backstop exists for the turn the model forgot, and a second alert for something the operator asked once is a
-    defect he SEES, while the model's own `cron.create` tag is not gated by this and can still schedule freely.
-    """
-    when = resolved_reminder_moment(reply, operator_text, window)
-    if not when or _ry.passed(when):        # 2026-10-11: «September 30th» said on Oct 11 rang in 2027
-        return None
-    # V2-167 · (1) the notice must land BEFORE the thing it announces, and (2) what fires must be the REMINDER,
-    # not the request that produced it. The measured job carried the operator's raw turn as its prompt, so on
-    # firing the agent would have been asked to SCHEDULE the reminder all over again — the "WHAT gets lost"
-    # this case has been dragging since V2-134, finally visible in the field that causes it.
-    # V2-176: the WHAT may have been said three turns earlier while this turn only fixes the DATE. Without a
-    # window it behaves exactly as before, so no existing caller changes behavior.
-    clause = commitment_from_window(window, operator_text) if window else commitment_clause(operator_text)
-    try:
-        from nucleo.pulse import scheduler as _sched
-    except Exception:
-        return {"schedule": when, "prompt": _reminder_prompt(reminder_body(clause, window, reply, when), operator_text),
-                "name": "aviso"}
-    clause_when = commitment_moment(operator_text, window)
-    when = reminder_before(when, clause_when)
-    if not when:
-        return None
-    try:
-        jobs = list(_sched.list_jobs(active_only=True))
-    except Exception:
-        jobs = []     # cannot read the schedule → still better to back the promise than to drop it
-    for job in jobs:
-        if str(job.get("schedule") or "").strip() == when:
-            return None
-    # V2-153 deduplicated on the exact INSTANT, and that stopped being enough once the instant can be corrected
-    # (above): the turn that CARRIES the commitment gets a corrected moment, the one that merely reaffirms it
-    # («gracias, así no se me pasa») has no commitment to correct against and would keep the uncorrected one —
-    # two different instants for one request, which is exactly the double alert V2-153 exists to prevent. A turn
-    # that neither dates a commitment nor ASKS for anything adds no new obligation, so a live notice covers it —
-    # while «recuérdame lo del taller», which also carries no date, is a new request and still gets its own.
-    asked_now = bool(_REMIND_ASK_RE.search(_norm_txt(operator_text)) or _NOTE_ASK_RE.search(_norm_txt(operator_text)))
-    if not clause_now_or_ask(clause_when, asked_now) and any(str(j.get("name") or "") == "aviso" for j in jobs):
-        return None
-    # V2-781 pair 3 — a clause that ASKED for something to be found out is not what the notice says: its answer is.
-    return {"schedule": when, "prompt": _reminder_prompt(reminder_body(clause, window, reply, when), operator_text),
-            "name": "aviso"}
-_SET_ASK_RE = _re.compile(r"\b(set\s+(?:me\s+)?(?:a|the)\s+reminder|reminder\s+for|ponme\s+(?:un|el)\s+(?:aviso|recordatorio)|"
-                         r"me\s+pones\s+(?:un|el)\s+(?:aviso|recordatorio))\b", _re.I)
-
-
-def _asked_on_the_day_just_named(reply: str, operator_text: str, window) -> str:
-    """He ASKED for a notice, the reply did not refuse it and his turn names no day → the ONE date the last reply
-    named (V2-781 pair 3: «set a reminder on the premiere day» → «I'll set a heads-up for that day», nothing set).
-    Two dates there, or none, give "" — a guessed day is worse than none."""
-    n = _norm_txt(operator_text)
-    if not (_REMIND_ASK_RE.search(n) or _SET_ASK_RE.search(n)) or _sched.parse_when(operator_text):
-        return ""
-    from . import act_repair as _ar
-    if _ar.denies_the_act(reply):
-        return ""
-    last = next((str(m.get("content") or "") for m in reversed(window or [])
-                 if (m or {}).get("role") == "assistant" and str(m.get("content") or "").strip()), "")
-    days = {_sched.parse_when(c)[:10] for c in _re.split(r"(?<=[.;!?])\s+|\band\b|\by\b", last) if c.strip()}
-    days.discard("")
-    return _sched.parse_when(last) if len(days) == 1 else ""
-
-
-def clause_now_or_ask(clause_when: str, asked_now: bool) -> bool:
-    """Does THIS turn create a new obligation? Only if it dates a commitment or asks for something."""
-    return bool(clause_when) or bool(asked_now)
 def _reminder_prompt(clause: str, operator_text: str) -> str:
     """What the agent is handed when the job fires: an instruction to NOTIFY, carrying the commitment.
 

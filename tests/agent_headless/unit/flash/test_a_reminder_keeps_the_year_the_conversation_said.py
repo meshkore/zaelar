@@ -13,7 +13,6 @@ import time
 import pytest
 
 from nucleo.pulse import scheduler as S
-from nucleo.flash import reminder_backing as B
 from nucleo.flash import reminder_guards as R
 from nucleo.flash import reminder_year as Y
 
@@ -39,19 +38,6 @@ def _at(monkeypatch, now):
     monkeypatch.setattr(S.time, "time", lambda: now)
 
 
-def test_the_conversation_said_the_year_so_the_moment_keeps_it(monkeypatch):
-    _at(monkeypatch, TODAY)
-    assert S.parse_when(ASK) == "2027-09-30 09:00"            # his words alone roll over — the trap
-    assert R.resolved_reminder_moment(REPLY, ASK, W) == "2026-09-30 09:00"
-
-
-def test_a_day_gone_by_schedules_nothing_and_the_reply_says_so(monkeypatch):
-    _at(monkeypatch, TODAY)
-    assert R.dated_reminder_backstop(REPLY, ASK, window=W) is None
-    line = B.claim_correction(REPLY, ASK, W)
-    assert "September 30th, 2026" in line and "passed" in line, line
-
-
 def test_the_model_s_own_tag_is_never_rolled_to_next_year(monkeypatch):
     """Its ISO date in the past, or his yearless words: the year said wins, and `create` then refuses the past."""
     _at(monkeypatch, TODAY)
@@ -59,33 +45,6 @@ def test_the_model_s_own_tag_is_never_rolled_to_next_year(monkeypatch):
         got = R.safe_reminder_schedule(spec, REPLY, ASK, W)
         assert got == "2026-09-30 09:00", (spec, got)
         assert not S.create("x", got, now=TODAY)["ok"]          # no job on a day already gone by
-
-
-def test_before_the_day_it_is_one_job_carrying_the_verified_fact(monkeypatch):
-    _at(monkeypatch, BEFORE)
-    got = R.dated_reminder_backstop(REPLY, ASK, window=W)
-    assert got and got["schedule"] == "2026-09-30 09:00", got
-    assert "Dexter: Resurrection" in got["prompt"] and "September 30th, 2026" in got["prompt"], got
-    assert "find out" not in got["prompt"], got
-    assert B.claim_correction(REPLY, ASK, W) == ""
-
-
-def test_no_year_said_anywhere_keeps_the_rollover(monkeypatch):
-    """«remind me on March 3» in October with no year in the conversation means next March — unchanged."""
-    _at(monkeypatch, TODAY)
-    got = R.dated_reminder_backstop("Sure, I'll set a reminder for March 3.", "remind me on March 3", window=[])
-    assert got and got["schedule"] == "2027-03-03 09:00", got
-
-
-def test_spanish_says_it_too(monkeypatch):
-    _at(monkeypatch, TODAY)
-    monkeypatch.setenv("ZAELAR_LANGUAGE", "es")
-    win = [{"role": "assistant", "content": "Se estrena el 30 de septiembre de 2026 en Showtime."},
-           {"role": "user", "content": "Vale, avísame el 30 de septiembre."}]
-    reply = "Te aviso el 30 de septiembre."
-    assert R.dated_reminder_backstop(reply, "Vale, avísame el 30 de septiembre.", window=win) is None
-    line = B.claim_correction(reply, "Vale, avísame el 30 de septiembre.", win)
-    assert "30 de septiembre de 2026" in line and "ya ha pasado" in line, line
 
 
 def test_the_mentions_carry_the_year_and_the_words():

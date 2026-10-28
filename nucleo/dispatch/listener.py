@@ -152,8 +152,11 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                                        "encargo NUEVO: no casa con ninguna tarea viva")})
             except Exception:
                 pass
-            # V2-566/V2-570 — a FOLLOW-UP is not a new errand, nor a parallel worker after a delivered fast pass;
-            # both live in `nucleo/request/append.py`, which may own the next step (then no session opens).
+            # V2-566/V2-570 — A FOLLOW-UP IS NOT A NEW ERRAND, and a follow-up of a DELIVERED listing fast
+            # pass does not spawn a parallel worker. Both decisions live in `nucleo/request/append.py`
+            # (extracted: dispatch sat one line under its ratchet ceiling): the escalation may come back with
+            # an inherited sheet, or redirected entirely to a refined fast re-run in the same box — in which
+            # case there is no session to open and the module already owns the errand's next step.
             ctx, _redirected = _d._continuity.inherit_and_maybe_rerun(
                 request, kind if kind != "generic" else _d._classify_kind(request), ctx, key)
             if _redirected:
@@ -193,8 +196,10 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                                 # would deliver the half-done work the harness had just caught.
                                 done_when=dict(ctx.get("done_when") or {}),
                                 trace_id=str(ctx.get("trace", "") or ""), heard=str(ctx.get("heard", "") or ""))
-            # V2-227 — the SURFACE is sealed here, where EVERY door passes. The brain's declaration rules; else it
-            # derives from the kind. Sealing later opens the sheet after the answer is there.
+            # V2-227 — the SURFACE is sealed here, the one point EVERY door into the dispatcher passes (the brain with its
+            # `surface`, auto-resume, the confirm gate, the cluster, Susurro). What the brain declared rules; with nothing
+            # declared (or a word outside the vocabulary) it derives from the kind. Sealing later would open the sheet
+            # once the answer is already there — exactly what this exists to prevent.
             _note_screen(key, ctx, rec)   # V2-792: its cards open on the screen that commissioned it
             _d.surfaces.set_once(rec, ctx.get("surface"))
             # …and if esa superficie es the sheet, is ABRE YA, empty and with the tab of proceso. Aqui, and no in the

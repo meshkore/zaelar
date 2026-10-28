@@ -1,9 +1,9 @@
 """A notice moved to ring soon today is SAID at the time the live job rings — read back, not recomputed (2026-10-14).
 
 `remember-and-remind-deadline` (Wednesday 2026-10-14 ~12:00): ES said «te aviso el miércoles 14 a las 9» — an
-instant already gone — and EN «I'll set that up.»; neither said when the notice really rings. `claim_correction`
-(the probe's `the_words_it_owes` and the voice's `back_and_check` both call it) now reads the turn's move back
-from the schedule and owes one sentence with that time. Frozen clock; `list_jobs` is a double.
+instant already gone — and EN «I'll set that up.»; neither said when the notice really rings. The move is the act's
+verdict, `met` at the hour the live job rings: the mouth (`nucleo/turn/reply.py`) reads it back from the schedule
+and owes one sentence with that time. Frozen clock; `list_jobs` is a double.
 """
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ import pytest
 from nucleo.pulse import notice_today as NT
 from nucleo.pulse import scheduler as S
 from nucleo.flash import notice_readback as NR
-from nucleo.flash import reminder_backing as B
+from nucleo.turn import reply as R
 
 NOON = time.mktime((2026, 10, 14, 12, 0, 0, 0, 1, -1))
 NINE = time.mktime((2026, 10, 14, 9, 0, 0, 0, 1, -1))
@@ -43,12 +43,17 @@ def test_the_english_reply_owes_it_in_english(live):
     assert "13:00" in line and "today" in line, line
 
 
-def test_both_channels_reach_it_through_the_claim_check(live):
-    assert "13:00" in B.claim_correction(REPLY, "recuérdamelo el miércoles")
-    NT.moved(NINE, ONE, NOON)
-    got = B.back_and_check(REPLY, "recuérdamelo el miércoles", window=None, emit=lambda *a, **k: None,
-                           backstop=False)
-    assert "13:00" in got, got
+def test_the_mouth_says_it_after_the_acts(live):
+    import asyncio
+    said = []
+
+    class _Speech:
+        @staticmethod
+        def sanitize(t, drop_metadata=False):
+            return t
+
+    got = asyncio.run(R.after_acts((), REPLY, said.append, _Speech))
+    assert "13:00" in got and len(said) == 1, got
 
 
 def test_no_live_job_or_a_reply_that_already_says_it_owes_nothing(live):

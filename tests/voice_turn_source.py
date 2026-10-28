@@ -111,8 +111,8 @@ _PROVIDER_CALLS = (
     ("        # V2-778 F1 — the phrase accumulator (a fragment", "_turn_fragment.hold_a_fragment(",
      ENGINE / "voice" / "engine" / "llm" / "providers" / "turn_fragment.py", "hold_a_fragment"),
     # the post-stream chain's own blocks (spliced into it once it is back inside the turn)
-    ("        # V2-778 F1 — holding the model to its words", "_ps_words.hold_the_model_to_its_words(",
-     ENGINE / "nucleo" / "flash" / "post_stream_words.py", "hold_the_model_to_its_words"),
+    ("        # V2-778 F1 — holding the model to its words", "_ps_acts.complete_the_acts(",
+     ENGINE / "nucleo" / "flash" / "post_stream_acts.py", "complete_the_acts"),
     ("        # V2-778 F1 — the light lanes the model chose", "_ps_lanes.run_the_light_lanes(",
      ENGINE / "nucleo" / "flash" / "post_stream_lanes.py", "run_the_light_lanes"),
     ("        # V2-778 F1 — settling what is pending", "_ps_settle.settle_what_is_pending(",
@@ -129,7 +129,7 @@ _SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch" / f"{x}.py"
                                                                   for x in ("notes", "record", "events", "finish")],
           (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py", ENGINE / "server" / "run_api.py"],
           (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"],
-          POST_STREAM.resolve(): [ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py" for x in ("words", "lanes", "settle")],
+          POST_STREAM.resolve(): [ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py" for x in ("acts", "lanes", "settle")],
           (ENGINE / "widgets" / "navegador" / "owner.py").resolve(): [ENGINE / "widgets" / "navegador" / "owner_login.py",
                                                                     ENGINE / "widgets" / "navegador" / "owner_actions.py",
                                                                     ENGINE / "widgets" / "navegador" / "owner_page.py"]}
@@ -196,7 +196,7 @@ _ALIASED = {(ENGINE / "nucleo" / "dispatch" / "session.py").resolve(): "_d",
             (ENGINE / "nucleo" / "flash" / "tool_executor_widget_calls.py").resolve(): "_txw",
             (ENGINE / "voice" / "engine" / "pipeline" / "agent_events.py").resolve(): "_ag",
             **{(ENGINE / "nucleo" / "flash" / f"probe_{x}.py").resolve(): "_probe" for x in ("after", "decide", "mirrors", "before")},
-            **{(ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py").resolve(): "_pst" for x in ("words", "lanes", "settle")},
+            **{(ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py").resolve(): "_pst" for x in ("acts", "lanes", "settle")},
             (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py").resolve(): "_p",
             **{(ENGINE / "nucleo" / "dispatch" / f"{x}.py").resolve(): "_d"
                for x in ("prepare", "model", "registry", "dedup_flow", "control")},
@@ -246,7 +246,7 @@ def _unlift(src: str) -> str:
         body = lines[start:fn.end_lineno]       # comments between the header and the first statement included
         ind = m["ind"]
         return _unlift("".join((ind + ln[4:]) if ln.strip() else ln for ln in body))   # module body at 4 spaces
-    return _LIFTED.sub(_back, src)
+    return _with_catalog(_LIFTED.sub(_back, src))
 
 
 #: Files whose function bodies F1 cut into called blocks: read with each block put back where it sat.
@@ -272,6 +272,44 @@ _SPLICED = {
          ("            # V2-778 F1 — saying what the brain may claim about the browser", "_lbn.say_the_browser_state(",
           ENGINE / "nucleo" / "flash" / "live_blocks_nav.py", "say_the_browser_state")], "_lb"),
 }
+
+
+#: refactor2710-05 — `_on_tool_call` dispatches through `nucleo.acts.tools.CATALOG`; a guard reads the arms put back
+#: as the `if name == …: … elif …` chain they were, at the dispatch line, with the context prefixes dropped.
+ACTS_TOOLS = ENGINE / "nucleo" / "acts" / "tools.py"
+_DISPATCH = "    arm = _acts.CATALOG.get(name)\n    if arm is not None:\n        return arm(args, _turn)\n"
+
+
+def _catalog_chain() -> str:
+    import ast as _ast
+    src = ACTS_TOOLS.read_text(encoding="utf-8")
+    lines = src.splitlines(True)
+    tree = _ast.parse(src)
+    order = [e.id for e in next(n for n in tree.body if isinstance(n, _ast.Assign) and getattr(n.targets[0], "id", "")
+                                == "CATALOG").value.generators[0].iter.elts]
+    fns = {n.name: n for n in tree.body if isinstance(n, _ast.FunctionDef)}
+    out, first = [], True
+    for name in order:
+        fn = fns[name]
+        body = [ln for ln in lines[fn.lineno:fn.end_lineno] if ln.strip() != "_x = _calls()"]
+        body = "".join(body)
+        body = re.sub(r"\bc\.", "", re.sub(r"\b_x\.", "", body))
+        out.append(f'    {"if" if first else "elif"} name == "{name}":\n' + "".join(
+            ("    " + ln) if ln.strip() else ln for ln in body.splitlines(True)))
+        first = False
+    return "".join(out)
+
+
+_DISPATCH_RE = re.compile(r"(?m)^(?P<ind>[ \t]*)arm = _acts\.CATALOG\.get\(name\)\n(?P=ind)if arm is not None:\n"
+                          r"(?P=ind)    return arm\(args, _turn\)\n")
+
+
+def _with_catalog(text: str) -> str:
+    """The dispatch line replaced by the arms it dispatches to, at its own indentation, each arm unlifted."""
+    def _back(m):
+        ind = m["ind"][4:]
+        return _unlift("".join((ind + ln) if ln.strip() else ln for ln in _catalog_chain().splitlines(True)))
+    return _DISPATCH_RE.sub(_back, text)
 
 
 def _spliced(path: Path, text: str) -> str:

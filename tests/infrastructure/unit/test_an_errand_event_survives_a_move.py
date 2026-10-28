@@ -17,7 +17,7 @@ import ast
 from pathlib import Path
 
 ENGINE = Path(__file__).resolve().parents[3]
-ROOTS = ("nucleo/dispatch", "nucleo/workers", "nucleo/errands", "nucleo/circuit")   # circuit: the worker's goal (02)
+ROOTS = ("nucleo/dispatch", "nucleo/workers", "nucleo/errands", "nucleo/circuit")   # circuit: 02 moved `goal` there
 
 FROZEN = {
     ("alert", "🕶️ worker CIEGO — sin herramientas de búsqueda"), ("alert", "🧯 worker sin proveedor en contenedor"),

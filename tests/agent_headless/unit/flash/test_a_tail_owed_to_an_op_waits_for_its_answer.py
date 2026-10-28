@@ -61,10 +61,10 @@ def test_no_op_at_all_says_nothing():
 
 
 def test_the_voice_tails_are_owed_not_sent():
-    """The two tail sites in `post_stream_words` hand the line to `data_done["owed"]`; `post_stream` settles the owed
+    """The two tail sites in `post_stream_acts` hand the line to `data_done["owed"]`; `post_stream` settles the owed
     lines after the refusal check and before the canned ack."""
-    from nucleo.flash import post_stream, post_stream_words
-    words = inspect.getsource(post_stream_words.hold_the_model_to_its_words)
+    from nucleo.flash import post_stream, post_stream_acts
+    words = inspect.getsource(post_stream_acts.complete_the_acts)
     assert "send(\" \" + speech.sanitize(_c_tail" not in words and "send(\" \" + speech.sanitize(_ar_tail" not in words
     assert words.count('data_done.setdefault("owed", []).append(') >= 2
     run = inspect.getsource(post_stream.run)

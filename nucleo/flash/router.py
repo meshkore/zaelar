@@ -68,6 +68,7 @@ class Decision:
     """What the router decided for a turn."""
     kind: str                              # 'chat' | 'style' | 'escalate'
     payload: dict[str, Any] = field(default_factory=dict)
+from nucleo.acts.tools import CATALOG   # refactor2710-05: the doors the schemas below are offered for
 from nucleo.flash.router_catalog import TOOLS   # V2-556: el catálogo (dato puro) vive aparte
 
 
@@ -145,14 +146,13 @@ def tools(context: dict | None = None) -> list[dict]:
     SCALING NOTE (V2-085): this catalog is **O(1)** — 22 fixed tools, ~29.7 KB complete / ~22.5 KB with typical
     gating. It does not grow with the widget catalog, so it is NOT the scalability bottleneck (that is the catalog,
     see `widgets/selection.py`); it is fixed cost and noise per turn, which is why it is pruned by state."""
+    # refactor2710-05: only a tool with a DOOR in `acts.tools.CATALOG` is offered — a schema nobody runs is not a tool.
     ctx = context or {}
-    if not context:
-        return TOOLS
     out = []
     for t in TOOLS:
         name = t.get("function", {}).get("name", "")
         gate = _SITUATIONAL.get(name)
-        if gate is None or gate(ctx):
+        if name in CATALOG and (not context or gate is None or gate(ctx)):
             out.append(t)
     return out
 
@@ -279,7 +279,6 @@ def is_escalation(name: str) -> bool:
 
 
 
-from nucleo.flash.playback_promise import music_query, promises_playback  # noqa: F401 — re-export (U2, 2026-09-29)
 
 # ── deterministic backstop guards (moved to router_guards.py, 2026-08-17 modularization pass) ─────────────────
 # Re-exported here so every existing call site (`router.looks_like_close(...)`, etc. — all of them import the
@@ -287,15 +286,13 @@ from nucleo.flash.playback_promise import music_query, promises_playback  # noqa
 from nucleo.flash.router_guards import (  # noqa: F401 — re-export, not a local use
     looks_like_web_task, looks_like_login_request, is_pure_show_request, show_request_blocks_data_action,
     is_music_service, looks_like_close, show_contradicts_the_order,
-    looks_like_create_widget, promises_music, promises_action, asks_for_missing_detail,
+    looks_like_create_widget, asks_for_missing_detail,
     looks_like_show_strict, looks_like_escalate_task,
-    escalate_goal_from_window, hands_public_lookup_back, promises_a_dated_reminder, dated_reminder_backstop,
-    create_widget_request, dated_note_backstop, already_in_agenda,
+    escalate_goal_from_window, hands_public_lookup_back, promises_a_dated_reminder,
+    create_widget_request, already_in_agenda,
     looks_like_marketplace_nav, looks_like_modify_widget, looks_like_bare_ref,
     is_messaging_service, looks_like_stop_work, login_site, nothing_running_for, too_thin_to_commission,
 )
-# V2-778 F2-16 — the two promise questions read the reply's VERDICT first (any language); the tables propose.
-from nucleo.flash.reply_promise import promises_action, promises_music  # noqa: E402,F401,F811
 
 
 

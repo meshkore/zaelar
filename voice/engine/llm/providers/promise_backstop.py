@@ -8,10 +8,10 @@ TWO decisions live here, and they pull in opposite directions.
 * **V2-049** — a reply that PROMISES a web errand and calls no tool used to leave the operator waiting on
   nothing («me pongo con ello» and then silence, six minutes, session ITV). So we escalate for it,
   deterministically.
-* **V2-534** — a reply that ASKS the operator for the detail it is missing is not a broken promise. Measured
-  over every firing of this gate in the operator's sessions (2026-08-17 → 2026-09-01): of ten, THREE were a
-  clarifying question, and the single escalation this backstop has ever produced was one of them — «¿Los
-  precios de qué, Ricardo? … y te lo miro», which opened a browser he never asked for.
+* **V2-534** — a CONFIDENT `handle_inline` never becomes a forced worker (V2-753 below).
+
+Since refactor2710-03 the trigger is the turn's brief (`reply.owes_an_act`: an order or an escalation, at the
+brief's confidence) and no act fired — never what our reply said.
 
 Everything it reads is the OPERATOR's words (`op_text`), never the turn text: notes are glued to the front of
 a turn as CONTEXT and one of them became an errand called «Cita en Valls». See `router.operator_words`.
@@ -21,17 +21,13 @@ from __future__ import annotations
 
 from loguru import logger
 
-# The first-person commitment rule lives in a low layer so the promise harness reads the same one
-# (`nucleo/flash/committed_reply.py`); re-exported here for the backstop and its callers.
-from nucleo.flash.committed_reply import committed  # noqa: E402,F401
 
-
-def _a_refinement_of_the_errand_it_names(spoken_text: str, op_text: str, emit) -> bool:
+def _a_refinement_of_the_errand_it_names(spoken_text: str, op_text: str, emit, brief=None) -> bool:
     """A promise that is a refinement of one of his LIVE errands goes to that errand (the probe channel runs the
     same decision, `errands_of_a_turn.promised_refinement`). True when it was sent."""
     try:
         from nucleo.turn import errands_of_a_turn as _eot
-        ref = _eot.promised_refinement(op_text, spoken_text)
+        ref = _eot.promised_refinement(op_text, spoken_text, brief)
         if not ref:
             return False
         from nucleo import dispatch as _disp_ref
@@ -55,23 +51,19 @@ def run(spoken_text: str, *, did_act: bool, op_text: str, prev_pending: list,
     from nucleo.turn import split_by_errand as _sbe
     if not did_act and _sbe.routed(op_text):
         return "routed"           # a sentence about several errands went part by part (node 2.643)
-    if not spoken_text or did_act:
+    if did_act:
         return ""
-    if _a_refinement_of_the_errand_it_names(spoken_text, op_text, emit):
+    if _a_refinement_of_the_errand_it_names(spoken_text, op_text, emit, brief):
         return "routed"
-    if not committed(spoken_text):
+    # refactor2710-03 — whether an act was owed is the brief's verdict, never our words (CRIT-K1/K2).
+    from nucleo.turn import reply as _reply
+    owed = _reply.owes_an_act(brief)
+    if not owed:
         return ""
 
     from nucleo.flash import router as _router
-    if _router.asks_for_missing_detail(spoken_text):
-        # It asked for the datum it needs, which is the correct behaviour — and the request will escalate a
-        # turn later through the window lookback (V2-132). Kept as an event so the series stays measurable.
-        emit("brain", "🙋 pregunta aclaratoria (no es promesa incumplida)", text=spoken_text[:120],
-             role="system", extra={"cat": "flash", "kind_diag": "asks_detail"})
-        return "asked"
-
-    emit("brain", "⚠️ promesa sin acción (dijo que lo haría, no disparó tool)", text=spoken_text[:120],
-         role="system", extra={"cat": "flash", "kind_diag": "promise_no_tool"})
+    emit("brain", "⚠️ promesa sin acción (dijo que lo haría, no disparó tool)", text=(spoken_text or op_text)[:120],
+         role="system", extra={"cat": "flash", "kind_diag": "promise_no_tool", "source": "brief", "owed": owed})
     try:
         if not _router.looks_like_web_task(op_text):
             return ""

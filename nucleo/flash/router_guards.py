@@ -183,35 +183,6 @@ def looks_like_create_widget(text: str) -> bool:
     return bool(_CREATE_WIDGET_RE.search(t))
 
 
-# PROMISE WITHOUT ACTION (2026-07-19, testing sea): faced with POLITE/indirect/subjunctive phrasing
-# ('¿podrías…?', 'deberías…', 'sería genial que…', 'me haría falta…'), the non-reasoning model CHATS a promise
-# ('voy a…', 'aquí lo tienes', 'me pongo con ello', 'ahora te lo abro') WITHOUT calling the tool. This is the #1
-# cause of "says it does it but does not," and patching verb by verb does NOT fix it (each conjugation is another
-# case). UNIFIED backstop gated by the promise in zaelar's REPLY (it committed) → re-derive intent with the
-# deterministic classifiers.
-_PROMISE_RE = _re.compile(
-    r"\b(voy a|te lo|te la|te los|te las|aqui (?:lo|la|los|las) tienes|aqui tienes|ahora (?:mismo|te|lo|la)|"
-    r"me pongo con|me pongo a|lo hago|la hago|enseguida|en un momento|un momento|dame un momento|lo abro|"
-    # V2-132 — measured on the `find-theatre-tickets` transcript: «Me pongo a buscarte las dos entradas» and
-    # «Todavía estoy con ello» returned False, so the promise backstop was never even considered. They are the
-    # PLAINest ways to say «estoy en ello», and exactly what appears when no task is actually running.
-    r"estoy con ello|sigo con ello|sigo buscando|sigo con la busqueda|estoy en ello|"
-    r"te aviso en cuanto|te lo confirmo en cuanto|en cuanto (?:lo|la) tenga|"
-    # First-person action with or WITHOUT a clitic: «te muestro el reloj» / «te abro X» / «te enseño X» /
-    # «te saco X» (testing-sea bug 2026-07-21: the gate required «te LO muestro» → «te muestro el reloj» slipped
-    # through and the show was not re-derived).
-    r"te (?:(?:lo|la|los|las) )?(?:abr|muestr|ense[nñ]|ensen|sac)\w*|"
-    r"voy a (?:abrir|mostrar|crear|poner|buscar)|"
-    r"estoy (?:abriendo|creando|poniendo|buscando))\b")
-# MUSIC promise in the reply ('voy a poner algo de rock', 'te pongo música') → the backstop plays it.
-_PROMISE_MUSIC_RE = _re.compile(r"\b(poner|pongo|pondre|reproduc\w*)\b[^.!?]{0,20}\b(m[uú]sica|canci|rock|jazz|algo de)\b|"
-                                r"\b(m[uú]sica|canci|rock|jazz)\b[^.!?]{0,15}\b(ahora|para ti|un momento)\b")
-
-
-def promises_music(reply: str) -> bool:
-    return bool(_PROMISE_MUSIC_RE.search(_norm_txt(reply)))
-
-
 # STRICT SHOW verbs for the promise backstop: ONLY unambiguous ones (without 'pon'/'sube'/'ver' → they collide
 # with 'pon música'/'va a poner el tiempo'/'a ver si…'). Covers 'abrir/mostrar/enseñar/sacar' in any conjugation.
 _SHOW_STRICT_RE = _re.compile(r"\b(abr\w*|muestr\w*|ensen\w*|ense[nñ]\w*|saca\w*)\b")
@@ -221,17 +192,6 @@ _SHOW_STRICT_RE = _re.compile(r"\b(abr\w*|muestr\w*|ensen\w*|ense[nñ]\w*|saca\w
 # live in `nucleo/flash/negation.py` (the architecture ratchet asked for a module, not a taller ceiling) and
 # are re-exported here so both promise gates keep one import path.
 from nucleo.flash.negation import clause_negated, unnegated_match  # noqa: F401 — re-export
-
-
-def promises_action(reply: str) -> bool:
-    """True if zaelar's REPLY promises a first-person action (it committed to doing something). Spanish here,
-    English in `nucleo/flash/promise.py` (V2-776 K4)."""
-    n = _norm_txt(reply)
-    if unnegated_match(_PROMISE_RE, n):
-        return True
-    from nucleo.flash.promise import promises_en
-    return promises_en(n)
-
 
 
 def looks_like_show_strict(text: str) -> bool:
@@ -330,23 +290,11 @@ _NON_TOPIC = frozenset({"para", "por", "con", "sin", "sobre", "desde", "hasta", 
                         "muestra", "muéstrame", "muestrame", "enseña", "enséñame", "quiero", "necesito", "puedes"})
 
 
-
-
-
-
-
-
-
-
 _SCREEN_TARGET_RE = _re.compile(r"\b(en pantalla|la pantalla|en el canvas|el widget|widget)\b", _re.I)
 
 
 _DATA_OP_RE = _re.compile(r"\b(de\s+(?:la\s+|mi\s+)?agenda|del\s+calendario|de\s+la\s+lista|"
                           r"de\s+(?:la\s+|mis\s+)?tareas|from\s+(?:the\s+)?(?:agenda|calendar|list))\b", _re.I)
-
-
-
-
 
 
 # SEARCH/NAVIGATION verbs for the marketplace guard (busca/mira/enséñame/encuentra/ver/ojea). A NAMED resale
@@ -500,10 +448,10 @@ from nucleo.flash.answer_guards import (  # noqa: F401 — re-export, not a loca
 # name from this module, and the tests reach them as `router_guards.X`): the same compatibility contract this
 # file's own docstring describes for the split that created it.
 from .reminder_guards import (  # noqa: F401 — re-export, not a local use
-    _AGENT_IMPERATIVE_RE, _DATE_LEAD_RE, _FIRST_PERSON_DUTY_RE, _NOTE_ASK_RE, _NOTE_VERB_RE, _PROMPT_S,
+    _AGENT_IMPERATIVE_RE, _FIRST_PERSON_DUTY_RE, _NOTE_ASK_RE, _PROMPT_S,
     _REMIND_ASK_RE, _REMIND_DET, _REMIND_NOUN, _REMIND_VERB_RE, _asked_reminder_moment, _longest_pending_min,
-    _reminder_prompt, already_in_agenda, clause_now_or_ask, commitment_clause, commitment_from_window,
-    dated_note_backstop, dated_reminder_backstop, holding_line, note_asked_in_window,
+    _reminder_prompt, already_in_agenda, commitment_clause, commitment_from_window,
+    holding_line,
     promises_a_dated_reminder, reminder_before, safe_reminder_prompt, safe_reminder_schedule, strip_note_lead,
 )
 
@@ -529,8 +477,6 @@ _RESEARCH_VERB_RE = _re.compile(
 # Verbs only, never topics: what may commission a worker, not what it is about.
 _EN_DIRECTIVE_RE = _re.compile(
     r"\b(open|show|close|shut|stop|call|search|find|bring|give|tell)\b", _re.I)
-
-
 
 
 # V2-778 F1 — the commission readers live in `nucleo/flash/commission_guards.py`; their names stay here, resolved

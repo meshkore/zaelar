@@ -161,10 +161,12 @@ def test_the_voice_rail_asks_WHOSE_order_before_dispatching_it():
 def test_the_turn_takes_the_SHARED_decision_and_does_not_copy_it():
     """The turn calls the one function. A copied condition costs a marker and leaves two places to edit — this
     repo's own ratchet vetoes a new mirror: «si dos canales necesitan la misma regla, extrae»."""
+    import inspect
     from nucleo.flash import frontend
-    src = (_ENGINE / "nucleo/flash/frontend.py").read_text(encoding="utf-8")
     for fn in ("card_decision", "which_card", "absent_widget_misroute"):
-        assert f"def {fn}" in src and callable(getattr(frontend, fn)), fn
+        # wherever the function lives (refactor2710-05 moved it to `nucleo/acts/`), it is ONE definition the
+        # frontend exposes — read through the object, so a move never empties this guard
+        assert callable(getattr(frontend, fn)) and f"def {fn}" in inspect.getsource(getattr(frontend, fn)), fn
         assert f"def {fn}" not in _VOICE, (
             f"`{fn}` was COPIED into the turn instead of shared — «si dos canales necesitan la misma "
             f"regla, extrae primero»")
@@ -177,9 +179,10 @@ def test_no_third_blocking_caller_was_added_to_serve_the_briefless_channel():
     ASKS, which is the behaviour asked for and cannot be wrong."""
     import ast
 
-    src = (_ENGINE / "nucleo/flash/frontend.py").read_text(encoding="utf-8")
-    fn = next(n for n in ast.walk(ast.parse(src))
-              if isinstance(n, ast.FunctionDef) and n.name == "which_card")
+    import inspect
+    import textwrap
+    from nucleo.flash import frontend
+    fn = ast.parse(textwrap.dedent(inspect.getsource(frontend.which_card))).body[0]
     # A CALL, not a mention: the comment above it names `choose_sync` on purpose, to say why there is
     # none. A substring check would have read our own explanation as the defect it explains.
     calls = {c.func.attr if isinstance(c.func, ast.Attribute) else getattr(c.func, "id", "")
