@@ -113,11 +113,11 @@ const CSS_CALENDAR = `
 
   /* ── EVENT CHIP: hue = category, INTENSITY = how settled it is ──────────────────────────────────── */
   .hb-agenda .agev{position:absolute;z-index:2;box-sizing:border-box;border-radius:7px;padding:3px 6px;overflow:hidden;
-    cursor:pointer;border:1px solid transparent;border-left:3px solid var(--evc,#3D6FE0);
-    background:color-mix(in srgb, var(--evc,#3D6FE0) 17%, transparent);min-height:20px;
+    cursor:pointer;border:1px solid color-mix(in srgb, var(--evc,#5B9BFF) 30%, transparent);border-left:3px solid var(--evc,#5B9BFF);
+    background:color-mix(in srgb, var(--evc,#5B9BFF) 24%, transparent);min-height:20px;
     display:flex;flex-direction:column;gap:1px;line-height:1.2}
   .hb-agenda .agev:hover{filter:brightness(1.07)}
-  .hb-agenda .agev.pending{background:color-mix(in srgb, var(--evc,#3D6FE0) 7%, transparent);
+  .hb-agenda .agev.pending{background:color-mix(in srgb, var(--evc,#3D6FE0) 9%, transparent);
     border:1px dashed var(--evc,#3D6FE0);border-left-width:3px;border-left-style:solid}
   .hb-agenda .agev.planned{background:color-mix(in srgb, var(--evc,#3D6FE0) 8%, transparent);
     border-left-width:2px;opacity:.92}
@@ -195,11 +195,11 @@ const CSS_CALENDAR = `
   .hb-agenda .agmev{display:flex;align-items:center;gap:5px;font-size:var(--fs-micro,12px);min-width:0;
     padding:1px 3px;border-radius:5px;cursor:pointer;line-height:1.35;border:1px solid transparent}
   .hb-agenda .agmev:hover{background:var(--hb-bubble,#313740)}
-  .hb-agenda .agmev.allday{background:color-mix(in srgb,var(--evc,#AE90FF) 18%,transparent);
-    border-left:3px solid var(--evc,#AE90FF);padding-left:5px}
+  .hb-agenda .agmev.allday{background:color-mix(in srgb,var(--evc,#AE90FF) 26%,transparent);
+    border-color:color-mix(in srgb,var(--evc,#AE90FF) 30%,transparent);border-left:3px solid var(--evc,#AE90FF);padding-left:5px}
   .hb-agenda .agmev.allday .agmdot{display:none}  .hb-agenda .agmev.allday .agmt{font-weight:600}
   .hb-agenda .agmev.pending{border:1px dashed var(--evc,#AE90FF);background:transparent}
-  .hb-agenda .agmdot{width:7px;height:7px;border-radius:50%;background:var(--evc,#AE90FF);flex:0 0 auto}
+  .hb-agenda .agmdot{width:8px;height:8px;border-radius:50%;background:var(--evc,#AE90FF);flex:0 0 auto}
   .hb-agenda .agmt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--hb-ink,#F2F4F7);font-weight:500}
   .hb-agenda .agmh{color:var(--hb-muted,#BAC2CE);font-variant-numeric:tabular-nums;flex:0 0 auto}
   .hb-agenda .agmore{font-size:var(--fs-micro,12px);font-weight:600;color:var(--hb-muted-2,#99A2AE);padding:1px 4px}  .hb-agenda .agmcell:hover .agmore{color:var(--hb-ink,#F2F4F7)}
@@ -212,9 +212,9 @@ const CSS_CALENDAR = `
   .hb-agenda .agday.today .agdaydate .d,.hb-agenda .agday.today .agdaydate .w{color:var(--hb-accent,#3D6FE0)}
   .hb-agenda .agdayevs{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:5px}
   .hb-agenda .agrow{display:flex;align-items:center;gap:9px;padding:5px 7px;border-radius:9px;min-width:0;
-    cursor:pointer;background:color-mix(in srgb, var(--evc,#3D6FE0) 10%, transparent);
-    border-left:3px solid var(--evc,#3D6FE0)}
-  .hb-agenda .agrow:hover{background:color-mix(in srgb, var(--evc,#3D6FE0) 18%, transparent)}
+    cursor:pointer;background:color-mix(in srgb, var(--evc,#5B9BFF) 16%, transparent);
+    border-left:3px solid var(--evc,#5B9BFF)}
+  .hb-agenda .agrow:hover{background:color-mix(in srgb, var(--evc,#5B9BFF) 26%, transparent)}
   .hb-agenda .agrow.pending{background:transparent;border:1px dashed var(--evc,#3D6FE0);border-left-width:3px;
     border-left-style:solid}
   .hb-agenda .agrowh{font-size:13px;color:var(--hb-muted,#5b6b82);font-variant-numeric:tabular-nums;

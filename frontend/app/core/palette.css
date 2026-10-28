@@ -119,9 +119,23 @@
   /* REMOTE CONTROL (operator, 2026-09-27): blue is the colour of «this is being driven from another session»;
      on a filled control it is the background and the ink goes white (--hb-remote-ink). */
   --hb-remote:#4C8DFF; --hb-remote-ink:#FFFFFF;
-  --hb-accent:#AE90FF; --hb-accent2:#6FD6F5; --hb-risk:#FF8A92; --hb-risk-soft:rgba(255,138,146,.16);
+  /* 2026-10-28 — THE RANGE WENT VIVID (the operator, with the restyled calendar on screen: «los verdes y los
+     lilas están descafeinados… colores vivos sobre fondo oscuro, no tutti frutti»). Same hues, same jobs, MORE
+     chroma: the mint became an emerald, the cyan a sky, the amber a gold, the rose a coral. Every one is
+     still a text colour and still measures over the V2-691 headroom on the widget ground (ok 8.8:1 · accent2
+     7.8:1 · warn 9.9:1 · risk 6.0:1); the accent itself stays — it is the identity, and at 6.1:1 it is
+     already the tightest text-bearing token on the screen, so chroma for it comes from the TINTS below. */
+  --hb-accent:#AE90FF; --hb-accent2:#2EC4FF; --hb-risk:#FF7384; --hb-risk-soft:rgba(255,115,132,.16);
   /* semantic status colors: ok/warn share the risk/accent pattern — ONE value across themes. */
-  --hb-ok:#6FE0B0; --hb-warn:#F2CE6B;
+  --hb-ok:#3DDC97; --hb-warn:#FFC53D;
+  /* THE CATEGORICAL RANGE (2026-10-28) — ten vivid colours for a thing that has a KIND: a calendar category,
+     a tag, a series in a chart, a source. They are bars, dots and tints (`color-mix(in srgb,var(--hb-c-…) 24%,
+     transparent)`), never body text, so they can be fuller than the status tokens above; the two that double
+     as text (green = --hb-ok, cyan = --hb-accent2) are the same values on purpose. Every widget reads the
+     SAME ten, so «red» means the same thing on every card and a profile can retune all of them at once.
+     The reference is the clean, saturated range of a mainstream calendar, tuned for a dark ground. */
+  --hb-c-red:#FF6259; --hb-c-orange:#FF8C42; --hb-c-amber:#FFC53D; --hb-c-green:#3DDC97; --hb-c-teal:#2DD4BF;
+  --hb-c-cyan:#2EC4FF; --hb-c-blue:#5B9BFF; --hb-c-violet:#A47CFF; --hb-c-pink:#FF77C0; --hb-c-grey:#8B98AC;
   /* V2-689 — depth by LUMINANCE, borders and spacing; the shadows are only there to lift an object off the
      desk, never to draw attention. -1 = a resting widget · -2 = a modal/floating panel · -focus = the card
      the operator is working in (one step stronger than its neighbours, not a different design). */
@@ -171,6 +185,11 @@
   --hb-remote:#1F5FE0; --hb-remote-ink:#FFFFFF;
   --hb-accent2:#0E7BAE; --hb-risk:#C9303B; --hb-risk-soft:rgba(201,48,59,.10);
   --hb-ok:#16875B; --hb-warn:#966C12;
+  /* the categorical range on paper: the same ten hues with pigment instead of light — each one over 4.5:1 on
+     white except orange (3.1:1), which is a bar colour and never text. The status tokens above stay where
+     V2-691 put them: they ARE text, and a more saturated green on white is a less legible one. */
+  --hb-c-red:#D93025; --hb-c-orange:#D45D00; --hb-c-amber:#B06000; --hb-c-green:#188038; --hb-c-teal:#0B8A7A;
+  --hb-c-cyan:#0B7DC2; --hb-c-blue:#1A66F0; --hb-c-violet:#7B3FE4; --hb-c-pink:#D8198A; --hb-c-grey:#5F6B7A;
   --hb-shadow-1:0 1px 2px rgba(16,20,26,.06), 0 4px 12px rgba(16,20,26,.07);
   --hb-shadow-2:0 2px 6px rgba(16,20,26,.08), 0 16px 40px rgba(16,20,26,.12);
   --hb-shadow-focus:0 2px 8px rgba(16,20,26,.10), 0 22px 52px rgba(16,20,26,.18);

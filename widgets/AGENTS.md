@@ -26,10 +26,17 @@ widgets feel polished and consistent with the rest. These are HARD rules — fol
   `--hb-bg-soft` panel or a `--hb-bubble` card, secondary text wants `--hb-muted`, not `--hb-muted-2`. Node
   4.170 measures this on every run and names the element and the ground it got wrong.
   **Colour is for STATE, SELECTION and IMPORTANT ACTIONS — nothing else.** `--hb-accent` (`#AE90FF`) does ALL the
-  interactive work; the rest appear rarely and only when they mean something: `--hb-ok` `#6FE0B0`, `--hb-warn`
-  `#F2CE6B`, `--hb-risk` `#FF8A92` (destructive only), `--hb-accent2` `#6FD6F5` (info/echo). `--hb-neutral` is the
+  interactive work; the rest appear rarely and only when they mean something: `--hb-ok` `#3DDC97`, `--hb-warn`
+  `#FFC53D`, `--hb-risk` `#FF7384` (destructive only), `--hb-accent2` `#2EC4FF` (info/echo). `--hb-neutral` is the
   grey for an unset state (an unfilled bar, a dot with no category); `--hb-warn-bg`/`-border`/`-ink` are the amber
-  nudge banner. **A state must never be said by colour ALONE** — pair it with a shape, an icon, a border or a word,
+  nudge banner.
+  **A thing that has a KIND takes its colour from the CATEGORICAL RANGE** (2026-10-28, the operator: vivid colours
+  on a dark ground, «no tutti frutti»): `--hb-c-red` `#FF6259` · `--hb-c-orange` `#FF8C42` · `--hb-c-amber`
+  `#FFC53D` · `--hb-c-green` `#3DDC97` · `--hb-c-teal` `#2DD4BF` · `--hb-c-cyan` `#2EC4FF` · `--hb-c-blue`
+  `#5B9BFF` · `--hb-c-violet` `#A47CFF` · `--hb-c-pink` `#FF77C0` · `--hb-c-grey` `#8B98AC`. A calendar category,
+  a tag, a chart series, a source: bars, dots and tints (`color-mix(in srgb,var(--hb-c-blue) 24%,transparent)`),
+  never body text, and never a hex of your own — the same ten mean the same things on every card, and both
+  themes and every profile carry them (`widgets/agenda/js/shared.js::HUES` is the reference consumer). **A state must never be said by colour ALONE** — pair it with a shape, an icon, a border or a word,
   or it disappears for a colourblind reader.
   **SELECTION is an accent-TINTED chip, never an inverted fill (V2-690).** The one shape for «this is the
   active tab / row / view», everywhere in the product: `background: color-mix(in srgb, var(--hb-accent) 18%,
