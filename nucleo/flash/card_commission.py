@@ -75,7 +75,7 @@ def late_catalogue(operator_text: str, *, wait_s: float = 3.5) -> tuple[str, flo
         return hit[0], hit[1]
     try:
         from nucleo import jev as _jev
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         q = _tb.catalog_question()
         if not q:
             return "", 0.0
@@ -108,7 +108,8 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
     Returns "" when unsure or when nothing can be asked; never waits past `wait_s`; never raises."""
     try:
         from nucleo import jev as _jev
-        from nucleo.flash import build_decision as _bd, turn_brief as _tb
+        from nucleo.flash import build_decision as _bd
+        from nucleo.turn import brief as _tb
         card = _bd.named_card(brief)
         if card:
             return card_for_his_words(card, operator_text)
@@ -230,7 +231,8 @@ def picture_by_verdict(brief, operator_text: str) -> dict | None:
     if brief is None:
         return None
     try:
-        from nucleo.flash import direct_action as _da, turn_brief as _tb
+        from nucleo.flash import direct_action as _da
+        from nucleo.turn import brief as _tb
         _c, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.9)
         wid, action = _da.from_brief(brief)
         if info is None or not info.get("used") or TOOL_FILLED.get(_base_card(wid)) != "show_images":
@@ -310,7 +312,8 @@ async def commission_call(commission: str, *, brief, operator_text: str, spec, w
     # Any card the verdict names may take the CALL; the read half is offered only to one that can answer.
     # An order the verdict reads as owing NO words («send rowan a telegram with the new time», wants_words=act)
     # is not answered by a read: offering one made the pass check the directory instead of sending (C5, 2/4).
-    from nucleo.flash import direct_action as _da_cc, turn_brief as _tbw
+    from nucleo.flash import direct_action as _da_cc
+    from nucleo.turn import brief as _tbw
     _w, _wi = _tbw.read(brief, _tbw.WORDS_KEY, "")
     may_read = not (_wi is not None and str(_w or "") == "act")
     _v_card, _v_act = _da_cc.from_brief(brief)
@@ -422,7 +425,8 @@ async def instead_of_a_search(query: str, *, brief, operator_text: str, spec, wi
     timer tools», and the find_free a repair ran afterwards was never heard. Only when the verdict SURELY names an
     action whose result IS the reply (`output.answer`); the card's own pass then fills the call. Never raises."""
     try:
-        from nucleo.flash import act_repair as _repair, turn_brief as _tb
+        from nucleo.flash import act_repair as _repair
+        from nucleo.turn import brief as _tb
         from widgets import effects as _fx
         choice, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.9)
         owner, _, action = str(choice or "").rpartition(":")
@@ -463,7 +467,8 @@ def present_if_show(read_req: dict, *, brief, operator_text: str, is_open: Calla
     """A read whose turn the verdict reads as «canvas: show», over a CLOSED card, brings the card through the
     one door. A question with no show in it («when is the dentist?») stays a read. True when presented."""
     try:
-        from nucleo.flash import turn_brief as _tb, widget_read as _wread
+        from nucleo.flash import widget_read as _wread
+        from nucleo.turn import brief as _tb
         wid = _wread.resolve(str((read_req.get("v") or {}).get("widget_id") or ""), operator_text)
         if not wid or is_open(wid):
             return False
@@ -488,25 +493,18 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
         wid = str(acted.get("widget_id") or "").strip().lower()
         if not wid or _danger.is_dangerous(operator_text):
             return False
-        # A SILENT show is not exempt (demo M1, 2026-09-27): «Show me a chart of Apple stock today» — the catalogue
-        # named `markets` (0.99), the model called show_widget and said nothing, and the card came up EMPTY: no
-        # `show` with the symbol, and «the last month instead» then failed on «no chart on screen yet». The
-        # promise reading needs words; the catalogue and the verdict do not.
+        # A SILENT show is not exempt (demo M1, 2026-09-27: an empty `markets` chart): the catalogue and the verdict
+        # need no words.
         spoken_text = (spoken_text or "").strip()
         if spoken_text and _cl.asks_for_missing_detail(spoken_text):
             return False
-        # …or the card was named by the catalogue for an order with more in it than «open it» (demo v3, E1:
-        # «Show me only the emails from today that need my attention» opened the card and DENIED the filter
-        # its own action declares). The pass is told to call nothing when the show was the whole order.
-        # …or the card it opened is EMPTY (demo pass 2026-09-28, M1: «how's apple stock doing today, show me the
-        # chart» → show_widget(markets), no symbol, no words, no verdict naming the action, and an empty chart).
-        # An empty card is never the whole answer to words that asked for something; the pass judges what is due.
+        # …or the catalogue named the card for an order with more in it than «open it» (demo v3 E1); the pass calls
+        # nothing when the show was the whole order. …or the card it opened is EMPTY (demo M1): an empty card is
+        # never the whole answer to words that asked for something; the pass judges what is due.
         from nucleo.flash import surface_ack as _sa
         empty = _sa.nothing_to_show(wid)
-        # …or it SPOKE on a turn the verdict reads as an order (demo pass 2026-09-28, E2: «open the most important
-        # one» → the card came up and «…so I'm opening that one», which no promise wording table knows). The pass
-        # judges its own reply — a promise or a claim gets its call, an answer or an offer does not — so the
-        # reading of the words is its job, not a verb table's.
+        # …or it SPOKE on a turn the verdict reads as an order (demo E2): the pass judges its own reply — a promise or
+        # a claim gets its call, an answer or an offer does not — never a verb table.
         # …or an ORDER whose words name no card at all (demo pass 65, E2: «open it» after «did inworld send me
         # something?» brought the mail card up and said «Here you go.» — the receipt stayed shut; the card was closed
         # when the brief fired, so no verdict could name `open`). The card came up by CONTEXT, which is a guess at the
@@ -586,7 +584,8 @@ def _a_question_writing(brief, got: dict, emit) -> bool:
     R2: «and when does anna's vacation start? show me in the calendar» opened the agenda, and the repair added
     «Anna's vacation» as a meeting nobody had asked to create. Never raises; an unreadable verdict blocks nothing."""
     try:
-        from nucleo.flash import data_ops as _do, turn_brief as _tb
+        from nucleo.flash import data_ops as _do
+        from nucleo.turn import brief as _tb
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
         if info is None or str(kind) != "question" or _do.is_view_op(got["widget_id"], got["action"]):
             return False
@@ -606,7 +605,8 @@ def question_left_to_a_lens(brief, *, ops: list, acted: dict, operator_text: str
     answers (`speak`), so this needs no reading of the reply's wording — only the verdict («question») and the fact
     that everything the turn did was a lens."""
     try:
-        from nucleo.flash import data_ops as _do, turn_brief as _tb
+        from nucleo.flash import data_ops as _do
+        from nucleo.turn import brief as _tb
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
         words, winfo = _tb.read(brief, _tb.WORDS_KEY, "")
         # a question, or an order that owes words (R3 «…and tell me the dates», M1 «how's apple doing, show me the

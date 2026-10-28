@@ -329,7 +329,7 @@ class NucleoLLMStream(llm.LLMStream):
 
         # (V2-726 A2) The turn brief is NOT fired here any more — this line runs before echo
         # suppression and before the accumulator, so it classified a fragment. Search for
-        # «JEV TURN BRIEF» below; the why is in `nucleo/flash/turn_brief.py`'s docstring.
+        # «JEV TURN BRIEF» below; the why is in `nucleo/turn/brief.py`'s docstring.
         _brief = canvas_h = None
 
         # (V2-726 A5) The Jev ROUTE pre-choice was fired here and is gone; its epitaph, with the

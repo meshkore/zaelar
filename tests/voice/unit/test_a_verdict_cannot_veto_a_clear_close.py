@@ -21,7 +21,9 @@ import threading
 
 import pytest
 
-from nucleo.flash import canvas_license, close_answer, show_target, turn_brief
+from nucleo.flash import canvas_license, close_answer, show_target
+
+from nucleo.turn import brief as turn_brief
 from widgets import instances
 
 CAR = ["results::4609d2-1", "results::187f3c-1"]

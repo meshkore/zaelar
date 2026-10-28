@@ -59,14 +59,12 @@ def _is_view(wid: str, action: str) -> bool:
 def same_card_order_after_read(brief, read_widget: str, reply: str = "") -> str:
     """The verdict's action when the turn READ the very card the order is on and stopped there, or "".
 
-    V2-781 T518 (EN `agenda-everyday-edits`): «There's no piano on Tuesday October 13» — the verdict read
-    `agenda:cancel_meeting` at 1.00, the model said «let me check», read the agenda and the
-    read's answer pass, which has no tools, said «Got it — no piano on the 13th» over a series that still held it.
-    The brief called the sentence a `comment`, so the order gate stayed shut. A statement about his own card IS an
+    V2-781 T518: «There's no piano on Tuesday October 13» — verdict `agenda:cancel_meeting` at 1.00, the model only
+    read, and the brief called it a `comment`, so the order gate stayed shut. A statement about his own card IS an
     order on it when a SURE verdict names a real op there and the brief reads an order — never for a
     question, which a read answers."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         target, t_info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.85)
         owner, _sep, act = str(target or "").rpartition(":")
         rid = str(read_widget or "").split("::")[0].strip().lower()
@@ -114,7 +112,8 @@ def order_card_after_search(brief, answer: str = "") -> str:
     no puedo». So: a card the brief names, and either a SURE order or an answer that refuses an act. A question
     answered with its fact never reaches here."""
     try:
-        from nucleo.flash import build_decision as _bd, turn_brief as _tb
+        from nucleo.flash import build_decision as _bd
+        from nucleo.turn import brief as _tb
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8)
         if not ((str(kind or "") == "order" and info) or _ar.denies_the_act(answer)):
             return ""

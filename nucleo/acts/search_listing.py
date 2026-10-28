@@ -154,7 +154,7 @@ async def listings(request: dict, args: dict, *, spec=None, on_delta=None, alrea
                  "que es nuevo (lo que ya está en la hoja).")
     said = ""
     try:
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         parts: list[str] = []
         async for delta in FastClient().stream([{"role": "system", "content": face},
                                                 {"role": "user", "content": operator_text}],

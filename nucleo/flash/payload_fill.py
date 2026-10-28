@@ -29,7 +29,7 @@ def _optional(desc) -> bool:
 
 
 def _base_of(widget_id: str) -> str:
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     return _tb._base_of(widget_id)
 
 

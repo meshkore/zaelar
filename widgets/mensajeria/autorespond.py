@@ -1,25 +1,14 @@
 #
-# autorespond.py — WHETHER an arriving message gets an automatic reply (V2-624, the go-ahead for what
-# connectors/whatsapp/client.py has long called "Phase 4").
+# autorespond.py — WHETHER an arriving message gets an automatic reply (V2-624). Same contract as policy.py: a
+# ZERO-import module, so data.py and the connector-side owner read the SAME rule; no I/O, no transport.
 #
-# Same placement contract as policy.py: a ZERO-import module inside the widget package, so the stdlib-only
-# data.py and the connector-side owner read the SAME rule — a decision that exists twice is a decision that
-# drifts. Callers pass the loaded store dict; nothing here does I/O or knows a platform's transport.
-#
-# Shape, stored in the unified messaging store (widgets/_data/mensajeria/state.json):
-#
-#     "autoresponder": { "<platform>": { "enabled": bool, "text": str, "hours": "HH:MM-HH:MM"|None } }
-#     "auto_replied":  { "<platform>|<chatId>": <ts of the last auto-reply to that chat> }
+# Shape, in the messaging store: "autoresponder": {"<platform>": {"enabled", "text", "hours": "HH:MM-HH:MM"|None}}
+# and "auto_replied": {"<platform>|<chatId>": <ts of the last auto-reply to that chat>}.
 #
 # The RULES, each one a deliberate boundary:
-#   · NEVER a group. An automatic reply inside a group chat speaks to everybody about the operator's absence
-#     and answers people who were not talking to him. Non-negotiable, not configurable.
-#   · Email only when the triage says the mail is ADDRESSED TO HIM (dirigido_a_mi): a vacation reply to every
-#     newsletter and receipt is spam with his name on it. WhatsApp/Telegram 1:1 chats are addressed to him by
-#     construction, so the flag is not required there.
-#   · One auto-reply per chat per COOLDOWN (24 h): the point is "I'm away", said once — WhatsApp's own
-#     business auto-reply behaves the same way. The ledger is DURABLE (in the store), because an in-memory
-#     guard cannot dedupe against a durable source (V2-607: the triple-announced Amazon mail).
+#   · NEVER a group: it would answer people who were not talking to him. Not configurable.
+#   · Email only when the triage says it is ADDRESSED TO HIM (dirigido_a_mi); 1:1 chats are, by construction.
+#   · One auto-reply per chat per COOLDOWN (24 h), with a DURABLE ledger in the store (V2-607).
 #   · `hours` ("HH:MM-HH:MM", local time, wrap-around allowed: "22:00-08:00") bounds WHEN it speaks; absent
 #     means whenever it is enabled. Malformed hours read as "always" — a broken config must degrade to the
 #     state the operator explicitly enabled, never to silent surprise windows.

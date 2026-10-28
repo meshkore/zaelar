@@ -108,7 +108,7 @@ def _archive(name: str, rows: list[dict], criteria: dict, score: dict) -> pathli
 
 def test_which_widget_does_he_NAME():
     from nucleo import jev
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     assert jev.enabled(), "no key: the bench cannot measure anything"
     q = tb.catalog_question()
     assert q, "the catalogue question is not being built"
@@ -134,7 +134,7 @@ def test_which_widget_does_he_NAME():
 
 def test_which_action_of_what_is_ON_SCREEN():
     from nucleo import jev
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     assert jev.enabled(), "no key: the bench cannot measure anything"
 
     rows, criteria_seen = [], {}
@@ -161,7 +161,7 @@ def test_the_brief_costs_ONE_trip_whatever_it_carries():
     """The efficiency claim, against the real API rather than a counter: the whole turn's questions
     in one request take what one question takes. Measured 2026-09-20 at 708-826 ms for four."""
     from nucleo import jev
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     assert jev.enabled(), "no key: the bench cannot measure anything"
 
     one = {tb.CANVAS_KEY: tb.build("dale al play", open_ids=[])[tb.CANVAS_KEY]}

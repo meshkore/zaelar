@@ -15,7 +15,7 @@ import pytest
 
 @pytest.fixture
 def verdict(monkeypatch):
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     state = {"target": ("agenda:find_free", 1.0)}
 
     def read(_brief, key, fallback, *, min_confidence=None):

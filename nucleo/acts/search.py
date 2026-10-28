@@ -39,7 +39,7 @@ def verdicts_from_brief(brief) -> dict:
     out: dict = {}
     try:
         from nucleo import surfaces as _sf
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         for key in (SEARCH_KEY, _tb.ESCALATE_KEY, _sf.SURFACE_KEY):
             choice, info = _tb.read(brief, key, "", min_confidence=0.0)
             if choice and isinstance(info, dict):

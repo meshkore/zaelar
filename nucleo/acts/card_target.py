@@ -16,7 +16,7 @@ def _takes(card: str, action: str, payload) -> bool:
     if not keys:
         return True
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         spec = (_fe.declared_actions(_tb._base_of(card)) or {}).get(action) or {}
         declared = spec.get("payload") if isinstance(spec, dict) else None
     except Exception:  # noqa: BLE001
@@ -81,7 +81,7 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=
     Widening it to repair the verb would put two decisions behind one verdict, and the confident-and-wrong
     one would then be twice as expensive.
     """
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     wid = (widget_id or "").strip().lower()
     name = (action or "").strip()
     if not wid or not name:

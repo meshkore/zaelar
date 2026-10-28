@@ -20,7 +20,7 @@ import pytest
 
 from nucleo.input import stt as acc
 from nucleo.flash import escalation_guard as eg
-from nucleo.flash import turn_brief as tb
+from nucleo.turn import brief as tb
 
 CUT_ES = ("¿Por qué no miras algo más antiguo, de hace dieciséis meses hacia atrás, y a partir de veinte palabras "
           "ve cogiendo mensajes hasta que des por bueno que tenemos mi estilo de escritura capturado?")

@@ -59,7 +59,7 @@ def test_an_action_only_one_of_them_declares_is_not_a_question():
 def test_nothing_is_read_when_there_is_nothing_to_decide(monkeypatch):
     """The guard that keeps this free: with one candidate the brief is never touched, so the common
     path cannot pay a read — nor drag a verdict about another card into an unrelated order."""
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     leido = {"n": 0}
     real = tb.read
     monkeypatch.setattr(tb, "read", lambda *a, **k: (leido.__setitem__("n", leido["n"] + 1), real(*a, **k))[1])
@@ -118,7 +118,7 @@ def test_a_verdict_naming_a_card_that_is_no_longer_open_is_stale(monkeypatch):
 def test_the_candidates_carry_each_cards_LIVE_rail_not_its_id():
     """«¿el vídeo o la música?» is useless with two of the same kind open. The label is the card's own
     face (`instances.card_face`), which is the only component that can say what it is showing."""
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     kind, cands = fe.which_card("musica", "play", open_ids=BOTH, brief=None)
     assert kind == "ask"
     assert cands == [tb._card_label("youtube"), tb._card_label("musica")], cands

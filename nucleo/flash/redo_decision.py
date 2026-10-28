@@ -117,7 +117,7 @@ def corrects(brief, widget: str = "") -> bool:
     if not brief:
         return False
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         # `read` applies the confidence gate itself and returns the fallback below it, so reaching this
         # value at all means it was READY and SURE. `info` is the attribution trail, not a second gate —
         # treating it as one would make an unsure verdict and a used one indistinguishable here.

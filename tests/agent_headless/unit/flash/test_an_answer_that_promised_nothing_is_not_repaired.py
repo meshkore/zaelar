@@ -28,7 +28,7 @@ def spy(monkeypatch):
 
 def _run(reply, kind="question"):
     import unittest.mock as m
-    from nucleo.flash import turn_brief as TB
+    from nucleo.turn import brief as TB
     with m.patch.object(TB, "read", lambda b, key, d="", **k: (kind, {"confidence": 1.0})):
         return asyncio.run(A.call_for_promise_or_order("do I have anything on the 16th?", reply, "agenda",
                                                        brief=object()))

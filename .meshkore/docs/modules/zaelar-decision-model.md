@@ -5,7 +5,7 @@
 > knows nothing it was not given, and nothing it answers executes anything.
 >
 > **Where the detail lives.** `nucleo/jev.py` (the only module that talks to it) and
-> `nucleo/flash/turn_brief.py` (the turn's questions). This document is the ANATOMY: the contract,
+> `nucleo/turn/brief.py` (the turn's questions). This document is the ANATOMY: the contract,
 > who may call it, from where, and the rules that do not move.
 
 ## Why it exists

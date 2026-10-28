@@ -10,7 +10,7 @@ from __future__ import annotations
 import pathlib
 
 from nucleo.flash import direct_action as _da
-from nucleo.flash import turn_brief as _tb
+from nucleo.turn import brief as _tb
 from widgets.youtube import data as yt
 
 from ._video_queue_scene import EN_CLAIM, EN_QUEUE, EN_SAID, brief, queue, titles  # noqa: F401

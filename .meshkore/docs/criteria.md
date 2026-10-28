@@ -36,7 +36,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   nodes 2.17, 3.35, 2.201.
 - **CRIT-V4 · Fillers are «smart».** A wait cover sounds only on a turn that thinks (a question, real work), never
   on a short order; a cover describes motion and never ends the turn; a promise to look with nothing behind it is
-  withdrawn. — since 2026-09-17 · nodes 2.50, 2.164, 3.58 · `voice/engine/core/filler_audio.py`,
+  withdrawn. — since 2026-09-17 · nodes 2.50, 2.164, 3.58 · `voice/engine/speech/filler_audio.py`,
   `nucleo/flash/answer_guards.py`.
 - **CRIT-V5 · A claim is not a fact.** A delivery claimed over an empty sheet becomes a follow-up; «still on it»
   is said only about live work on THIS request; a result already spoken is not news on the next turn. — since

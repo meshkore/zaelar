@@ -600,7 +600,7 @@ keeps the two from drifting):
 4. **Fast lane** (`fast_lane.py`), first hit wins: several tasks → a list (`nucleo/batch`), a known phrase
    (`nucleo/actionmap`), presence knock, rename, wall tab, small talk. A hit ends the turn with no model call.
 5. **Phrase accumulator** — a fragment waits for its continuation instead of being acted on.
-6. **Turn brief** (`nucleo/flash/turn_brief.py`, Jev) — ONE call that asks every question the turn needs
+6. **Turn brief** (`nucleo/turn/brief.py`, Jev) — ONE call that asks every question the turn needs
    (screen action, end state, …); the verdict COMPLETES the model, never contradicts it.
 7. **Input clamp, model spec per turn, recall on demand** (`nucleo/turn/recall_budget.py`), break-loop.
 8. **Pending confirmation** answered before any slow work (`confirm_gate.py`, `nucleo/turn/confirm_gates.py`).

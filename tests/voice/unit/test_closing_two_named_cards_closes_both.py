@@ -65,7 +65,7 @@ def test_the_verdicts_own_close_also_takes_the_other_named_card(monkeypatch):
     """full21 C6: the model called nothing, the verdict closed its own card (the messages) and the calendar stayed,
     while the reply said both were off the screen."""
     from nucleo.flash import direct_action as da
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     monkeypatch.setattr(tb, "read", lambda b, k, d="", min_confidence=0.0:
                         ("close", {"used": True}) if k == tb.CANVAS_KEY else ("mensajeria:close", {"used": True}))
     monkeypatch.setattr(tb, "owner_still_open", lambda brief, owner: True)

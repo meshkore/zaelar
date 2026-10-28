@@ -366,7 +366,7 @@ class Isolated:
             from nucleo.pulse import scheduler
             self._set(scheduler, "create", lambda prompt, stamp, name="": {"ok": True, "id": "bank-job"})
             self._set(scheduler, "cancel", lambda ref: None)
-            from nucleo.flash import turn_brief
+            from nucleo.turn import brief as turn_brief
             from nucleo.llm import fast_client
             if self.live:
                 self._go_live()

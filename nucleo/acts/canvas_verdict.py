@@ -8,7 +8,7 @@ from nucleo.flash import direct_action as _da
 def sure_canvas(brief) -> str:
     """The canvas gesture this turn SURELY asks for — close, minimize, fullscreen, exit_fullscreen — or ""."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
         v = str(verb or "")
         return v if v in ("close", "minimize", "fullscreen", "exit_fullscreen", "arrange") else ""
@@ -70,7 +70,7 @@ def closes_the_named_card(brief, operator_text: str, done_ops, *, floor: float =
     «close youtube» (the card) both as canvas=close. What does is whether his words call the card by what it is
     CALLED (`catalogue_names`), in any language the catalogue has — «close the video» names only what it holds."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=floor)
         if str(verb or "") != "close":
             return ""

@@ -110,7 +110,7 @@ def _canvas_order(brief) -> str:
     and «put the web in the signature too» opened the messaging card because «firma»/«mensaje» are its nouns, on a
     turn whose verdict said `canvas=neither` at 0.96. The verdict is the order; the words only name the card."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
         if not (isinstance(info, dict) and info.get("used")):
             return ""

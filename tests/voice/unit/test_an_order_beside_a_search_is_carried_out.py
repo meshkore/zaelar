@@ -33,7 +33,8 @@ class _Model:
 @pytest.fixture
 def brief(monkeypatch):
     """A brief that reads like the measured one; `set(**verdicts)` changes what it says."""
-    from nucleo.flash import build_decision as bd, turn_brief as tb
+    from nucleo.flash import build_decision as bd
+    from nucleo.turn import brief as tb
     said = {tb.REQUEST_KEY: "order", tb.WORDS_KEY: "act"}
     monkeypatch.setattr(tb, "read", lambda b, k, d="", min_confidence=None: (said[k], {"used": True})
                         if k in said else (d, None))
@@ -56,7 +57,7 @@ def model(monkeypatch):
 
 
 def test_the_order_card_needs_a_sure_order_or_a_refused_act(brief):
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     assert act_repair.order_card_after_search({"x": 1}, "It premieres October 30.") == "agenda"
     brief[tb.WORDS_KEY] = "tell"                    # the ES twin read `tell` on the same order
     assert act_repair.order_card_after_search({"x": 1}, "Se estrena el 30 de octubre.") == "agenda"

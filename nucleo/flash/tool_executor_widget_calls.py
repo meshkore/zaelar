@@ -384,7 +384,7 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
     # V2-754 — a VALID model call runs over a disagreeing verdict (a 0.99 would have RESTARTED the video); logged.
     # refactor2710-05 T-04: who wins is ONE asymmetric rule (`card.vetoes`), not a branch per incident.
     if (_dis := _txw._direct_action.completes(_brief, _cd["card"], model_action=action_name)):
-        from nucleo.flash import turn_brief as _tb_vw
+        from nucleo.turn import brief as _tb_vw
         _vw_words = str(_tb_vw.read(_brief, _tb_vw.WORDS_KEY, "")[0] or "")
         _dis_x = {"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis}
         _dis_t = f"{_cd['card']}: modelo={action_name} · veredicto={_dis}"

@@ -395,7 +395,7 @@ def _consume_jev_kind(fallback: str) -> tuple[str, dict | None]:
         return fallback, None
     try:
         from nucleo import jev as _jev
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         choice, info = _tb.read(brief, _tb.REQUEST_KEY, "")
         if not choice:
             return fallback, info

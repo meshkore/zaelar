@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def _brief(kind):
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     ev = threading.Event(); ev.set()
     return {"event": ev, "turn_id": "t", "open_ids": ["agenda"],
             "result": {tb.REQUEST_KEY: {"choice": kind, "confidence": 0.9}}}
@@ -47,7 +47,8 @@ def test_an_order_that_owes_words_is_answered_too(monkeypatch):
     """R3 «find me five days in her vacation where i'm free and tell me the dates» and M1 «how's apple stock doing
     today, show me the chart» read as ORDERS and got a view and silence. The brief's `wants_words` question (live:
     14/15 over the demo's phrases) says when an order owes an answer."""
-    from nucleo.flash import card_commission as cc, turn_brief as tb, widget_read
+    from nucleo.flash import card_commission as cc, widget_read
+    from nucleo.turn import brief as tb
     monkeypatch.setattr(widget_read, "can_answer", lambda w: True)
     b = _brief("order")
     b["result"][tb.WORDS_KEY] = {"choice": "tell", "confidence": 0.95}

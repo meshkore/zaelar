@@ -219,7 +219,7 @@ def test_the_size_of_a_card_reads_the_paid_verdict_first(monkeypatch):
     """refactor2710-04b T-04 (CRIT-K6 at the door) — the canvas verdict's own size verbs decide before the screen-size
     grammar: a sure `minimize` or `exit_fullscreen` shrinks, a sure `fullscreen` grows, even on words the grammar does
     not know; an unused verdict leaves the grammar as it was. Disarm: drop the verdict branch → the first assertion fails."""
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
 
     def reading(verb, used=True):
         return lambda handle, key, fallback, **k: ((verb, {"used": used}) if key == tb.CANVAS_KEY else (fallback, {}))

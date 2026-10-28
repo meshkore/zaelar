@@ -8,7 +8,7 @@ the slot on the monitors sheet, and the answer loop kept the LAST op's answer â€
 """
 from tests import voice_turn_source as _vts
 from nucleo.flash import data_ops, direct_action as da
-from nucleo.flash import turn_brief as tb
+from nucleo.turn import brief as tb
 
 
 def _reads(target="agenda:find_free"):

@@ -157,7 +157,7 @@ def test_the_card_declares_the_op_and_the_end_state_it_leaves():
     from nucleo.circuit import spec, verify
     from widgets import rows, runtime
     act = (runtime.get("musica") or {}).get("actions", {}).get("add_tracks") or {}
-    from nucleo.flash import turn_brief
+    from nucleo.turn import brief as turn_brief
     assert act and len(act["desc"]) <= turn_brief.MAX_DESC_CHARS, "the descriptor is written under the cut"
     assert "playlists" in rows.declared("musica")
     dw = spec.render("musica", "add_tracks", {"playlist": "Cumple"})

@@ -16,7 +16,7 @@ import time
 import pytest
 
 from nucleo.flash import answer_guards as _ag, card_commission as _cc, second_pass as _sp
-from nucleo.flash import turn_brief as _tb
+from nucleo.turn import brief as _tb
 from nucleo.circuit import spec as _spec
 
 

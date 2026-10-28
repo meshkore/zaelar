@@ -133,7 +133,7 @@ def unnamed_recipients(widget_id: str, action: str, payload, said: str = "") -> 
 
 def _surely_named(brief, sure: float = SURE) -> bool:
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         _c, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=sure)
         return bool(info is not None and info.get("used"))
     except Exception as e:  # noqa: BLE001
