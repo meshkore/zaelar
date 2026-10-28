@@ -120,26 +120,15 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         spoken_text = confirm_state["opened"]
         send(speech.sanitize(spoken_text, drop_metadata=False))
 
-    # Referencia a item sin resolver (V2-026) → preguntamos SIEMPRE, aunque el modelo ya haya dicho algo.
-    # Bug real (maratón de testing 2026-07-22): la condición exigía `not spoken_text` — si el turno NO
-    # resolvió a qué item se refería (agenda:done:"comprar pan" cuando esa tarea nunca se creó) pero el
-    # modelo YA había soltado una frase confiada ("Entendido, marca la tarea como hecha"), esa frase
-    # FALSA ganaba y la pregunta real ("¿cuál? no lo tengo claro") nunca llegaba a hablarse — la señal
-    # determinista de "no sé a qué te refieres" quedaba silenciada por la propia alucinación del modelo,
-    # justo el "nunca mudo" que el comentario original quería garantizar. `clarify["msg"]` solo se fija
-    # cuando la referencia genuinamente NO resolvió — es un hecho duro, nunca debe perder frente a lo que
-    # el modelo diga por su cuenta.
+    # An unresolved item reference (V2-026) is ALWAYS asked, even over words the model already said: a confident
+    # «done» over an item that does not exist must never silence the door's question, which is a hard fact.
     if clarify["msg"] and escalate_req["v"] is None and search_req["v"] is None:
         spoken_text = clarify["msg"]
         send(speech.sanitize(spoken_text, drop_metadata=False))
         _reply.settle_asked("clarify")      # V2-831 T-08 — the turn ends on our question: its verdict is `asked`
 
-    # Data-op despachada por tool sin frase hablada (el modelo fue directo a la tool) → ack corto (no mudo).
-    # V2-038 (test post-P1/P2): dos data-ops seguidas con el MISMO "Hecho." disparaban el loop-detector — se
-    # elige una variante que NO repita el último ack hablado (funcional consecutivo = se dice distinto).
-    # V2-633: under silent-orders (genesis default, or the operator's own rule) the SUCCESS ack stays
-    # unspoken — the visible effect is the answer. Failures still speak: dispatch_and_report (V2-607)
-    # and clarify/confirm above are questions and reports, not confirmations, and are not gated.
+    # A data-op with no spoken line gets a short ack that never repeats the last one (V2-038); under silent-orders
+    # (V2-633) the success ack stays unspoken — failures, clarify and confirm are reports, never gated.
     try:
         from nucleo import style_policy as _style_ack
         _ack_allowed = _style_ack.confirm_short_actions()

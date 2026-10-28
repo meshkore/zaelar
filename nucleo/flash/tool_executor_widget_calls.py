@@ -11,6 +11,7 @@ from nucleo.acts import card as _card   # refactor2710-05 T-02: the one licence
 from nucleo.acts import canvas as _canvas_door, message as _message_door   # V2-800: his order over a row he has seen is the yes
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import tool_executor_widget as _txw
+from nucleo.turn.reply import settle_asked as _settle_asked
 
 
 def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_widget_question, _norm_nfkd, _on_tool_call, _request_delete_confirm, _show_guard_target, _show_target_instance, _shown_ids, _spawn, acted, aside, brain, canvas_h, cron_seen, deduped, emit, escalate_req, text) -> "bool | None":
@@ -38,11 +39,8 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
     if action in ("unknown_tag_dropped",):
         _txw.logger.warning(f"unknown_tag_dropped: {(extra.get('text') or '')[:120]!r}")
         return
-    if action == "ask":
-        # V2-831 T-08 — the model declared that its reply asks him: the turn's verdict is `asked`, never «not done».
-        from nucleo.turn import reply as _reply
-        _reply.settle_asked("model")
-        return
+    if action == "ask":   # V2-831 T-08 — the model declared its reply asks him: the turn's verdict is `asked`
+        return _settle_asked("model")
     if action == "aparte":
         # V2-657 — sanctioned silence: a turn addressed to someone else in the room; resolved after the stream.
         aside["v"] = True
