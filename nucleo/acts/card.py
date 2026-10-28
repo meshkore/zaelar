@@ -92,19 +92,35 @@ def _unlicensed_close(r, wid, action, payload, *, emit=None, **_k):
 
 
 def question_keeps_unwritten(wid: str, action: str, operator_text: str, brief) -> bool:
-    """A WRITE on his QUESTION («?») while the verdict read, surely, no action on screen. Never raises (CRIT-K2)."""
+    """A WRITE on his QUESTION: a declared write marks his real app, so it needs an order. Read by the verdict — a sure
+    question (or a sure «tell me» that is not an order) — or by his «?» under a sure «no action on screen». A sure
+    target verdict naming THIS write still runs it: the verdict completes the model (CRIT-K2). Never raises."""
     try:
-        if "?" not in (operator_text or "") and "¿" not in (operator_text or ""):
-            return False
         from widgets import effects as _fx
         if not _fx.carries(wid, action, _fx.DATA_WRITE):
             return False
-        from nucleo.turn import brief as _tb
+        from nucleo.turn import brief as _tb, verdicts as _v
         choice, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=0.8)
-        return bool((info or {}).get("used")) and str(choice or "") == "none"
+        target = str(choice or "") if (info or {}).get("used") else ""
+        if target == f"{str(wid or '').split('::', 1)[0]}:{action}":
+            return False
+        if _asks_without_ordering(brief, _tb, _v):
+            return True
+        return ("?" in (operator_text or "") or "¿" in (operator_text or "")) and target == "none"
     except Exception as e:  # noqa: BLE001
         logger.debug(f"acts.card: a question unreadable ({e}) — the call runs")
         return False
+
+
+def _asks_without_ordering(brief, _tb, _v) -> bool:
+    """The brief is SURE he asked rather than ordered: `request_type = question`, or `wants_words = tell` with no sure
+    order (show-my-messages EN, 2026-10-28: «show my messages» marked one of them unread in his real app)."""
+    kind, k_info = _v.read(brief, _tb.REQUEST_KEY, "", min_confidence=_v.VETO)
+    sure_kind = str(kind or "") if (k_info or {}).get("used") else ""
+    if sure_kind == "question":
+        return True
+    said, w_info = _v.read(brief, _tb.WORDS_KEY, "", min_confidence=_v.VETO)
+    return bool((w_info or {}).get("used")) and said == "tell" and sure_kind != "order"
 
 
 def _a_question(r, wid, action, payload, **_k):

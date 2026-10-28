@@ -4511,6 +4511,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_every_import_names_a_module_that_exists.py']},
         {"id": "2.909", "title": "A song title is a NAME: every music line quotes it, so an English title inside a Spanish line never makes it an English reply, and a play with no title says «the music» in his language (refactor2710-99, use case play-music-and-build-playlist__es)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/core/test_a_song_title_is_quoted_in_every_music_line.py']},
+        {"id": "2.908", "title": "A declared WRITE needs an order: a turn the brief surely reads as a question (or a sure «tell me» that is no order) never runs one — the card is shown; an order, a lens, or a verdict naming that very write still runs (refactor2710-99, use case show-my-messages__us)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_sure_question_never_runs_a_write.py']},
         {"id": "2.896", "title": "A turn whose act WAS the words owes no «No lo he hecho»: a sure `wants_words = tell` with no errand is kept by the reply itself; an act to be done, an unsure reading or an errand keeps the receipt (refactor2710-99, use case docs-single-recipe-not-a-list__es)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_words_he_asked_for_carry_no_not_done.py']},
         {"id": "2.902", "title": "A turn that started, injected into or answered an errand never says «not done»: what a turn went through is noted once by the consequence door, and the turn's end reads it — whatever lane started the worker (refactor2710-99, use case docs-report-lands-as-document__es)",
