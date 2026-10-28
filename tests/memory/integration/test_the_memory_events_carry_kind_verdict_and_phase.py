@@ -61,7 +61,7 @@ def test_the_result_door_reports_its_verdict(events):
                 await writer.result("Found three carpenters.", task_id="t2", verdict="met")]
     assert _run(go) == [False, True]
     door = [e for e in events if e.get("task_id") in ("t1", "t2")]
-    assert [(e["task_id"], e["accepted"]) for e in door] == [("t1", False), ("t2", True)]
+    assert [(e["task_id"], e["verdict"], e["accepted"]) for e in door] == [("t1", "unmet", False), ("t2", "met", True)]
     assert "unmet" in door[0]["reason"] and door[1]["reason"] == ""
 
 

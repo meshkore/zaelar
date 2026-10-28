@@ -106,15 +106,14 @@ def _observe_timing(ms: dict, **extra) -> None:
     """The recall's cost BY PHASE as one event, so the viewer and the Master show where a slow recall went."""
     try:
         from voice.observer import emit
-        emit("memory", "recall medido", role="system",
-             text=" · ".join(f"{k[:-3]} {v:.0f} ms" for k, v in ms.items()) + f" · total {extra['total_ms']:.0f} ms",
-             extra={"layer": "recall", **ms, **extra})
+        emit("memory", "recall medido", role="system", extra={"layer": "recall", **ms, **extra},
+             text=" · ".join(f"{k[:-3]} {v:.0f} ms" for k, v in ms.items()) + f" · total {extra['total_ms']:.0f} ms")
     except Exception as e:  # noqa: BLE001 — observability NEVER breaks the recall
         logging.getLogger("zaelar.memory.retriever").debug("recall timing event not emitted: %s", e)
 
 
 def _search_lane(prompt: str, qvec, lane: str, *, k: int, limit: int, expand: bool, rerank: bool,
-                 lexical_only: bool, ms: dict | None = None) -> list[dict]:
+                 lexical_only: bool, ms: dict) -> list[dict]:
     """One lane of `search()`: channels → RRF → score → rerank → graph, all restricted to `lane`."""
     db = _db.get_db()
     from ..clock import now as _clock_now
@@ -126,7 +125,6 @@ def _search_lane(prompt: str, qvec, lane: str, *, k: int, limit: int, expand: bo
     # the read, so the symptom is only «recall got worse». Fail-open: `space_ok()` is True without a verdict.
     from .. import reembed as _reembed
     space_ok = (not lexical_only) and _reembed.space_ok() and not getattr(_emb, "last_degraded", False)
-    ms = ms if ms is not None else {}
     t0 = time.perf_counter()
     vec = vec_search(qvec, k=k, lane=lane) if space_ok else []
     para = vec_search_paraphrases(qvec, k=k, lane=lane) if space_ok else []  # V2-031 T2: third channel

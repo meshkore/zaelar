@@ -55,9 +55,11 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
             t = (m.get("text") or "").strip().replace("\n", " ")
             if not t:
                 continue
+            # An ASK is never an outcome, and a delivery nobody checked is never «done» (its verdict says which).
             if m.get("kind") == "request":
-                # An ASK, never an outcome: what became of it lives in the task store, not in this pill.
                 errands.append(f"· pidió: {t[:140]} [sin resultado registrado]")
+            elif m.get("kind") == "result" and (m.get("verdict") or "met") != "met":
+                errands.append(f"· entregado, sin verificar: {t[:140]}")
             else:
                 (errands if m.get("kind") in _ERRAND_KINDS else salient).append(f"· {t[:140]}")
     except Exception:

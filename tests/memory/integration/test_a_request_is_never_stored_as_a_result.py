@@ -90,19 +90,22 @@ def test_the_distiller_is_never_told_to_write_a_result():
     assert 'kind="result"' not in distill_prompt._SYSTEM and "kind=result" not in distill_prompt._SYSTEM
 
 
-def test_a_result_is_written_only_on_a_met_verdict(fresh_db):
+def test_a_result_is_written_only_when_the_worker_delivered(fresh_db):
+    """Delivered = `met`, or an errand whose end state was undeclared / unreadable (a trip plan, a report): its
+    deliverable is kept, stamped with that verdict. Failed, cancelled or parked errands write nothing."""
     async def scenario():
         await memapi.start()
         refused = [await writer.result("Encontró tres carpinteros en Soria.", task_id="t1", verdict=v)
-                   for v in ("failed", "partial", "", "interrumpido")]
-        written = await writer.result("Encontró tres carpinteros en Soria.", task_id="t2", verdict="met")
+                   for v in ("unmet", "gave_up", "skipped", "retrying", "cannot", "asked", "")]
+        written = [await writer.result(f"Plan de viaje a Lisboa ({v}).", task_id=f"t-{v}", verdict=v)
+                   for v in ("met", "undeclared", "unverifiable")]
         await memqueue.get_queue().join()
         await memapi.stop()
         return refused, written
     refused, written = asyncio.run(scenario())
-    assert refused == [False] * 4 and written is True
+    assert refused == [False] * 7 and written == [True] * 3
     rows = memdb.get_db().query("SELECT kind, meta FROM memories WHERE valid=1 AND kind='result'")
-    assert len(rows) == 1 and json.loads(rows[0]["meta"])["verdict"] == "met"
+    assert sorted(json.loads(r["meta"])["verdict"] for r in rows) == ["met", "undeclared", "unverifiable"]
 
 
 def test_a_stored_request_is_shown_as_an_errand_not_as_something_known_about_him(fresh_db):
@@ -115,6 +118,18 @@ def test_a_stored_request_is_shown_as_an_errand_not_as_something_known_about_him
     errands = block.split("[Encargos")[1]
     line = next(ln for ln in errands.splitlines() if "capture su estilo" in ln)
     assert line.startswith("· pidió: ") and line.endswith("[sin resultado registrado]"), line
+
+
+def test_an_unverified_delivery_is_shown_as_delivered_not_as_done(fresh_db):
+    from memory import writer as memwriter
+    memwriter.insert_memory("[tarea web] plan de viaje a Lisboa → tres días", kind="result", level="long",
+                            weight=0.9, importance=0.9, meta={"source": "worker:t1", "verdict": "undeclared"})
+    memwriter.insert_memory("[tarea web] carpinteros → tres en Soria", kind="result", level="long",
+                            weight=0.9, importance=0.9, meta={"source": "worker:t2", "verdict": "met"})
+    block, _op, _stats = memapi.compose_state()
+    lines = block.split("[Encargos")[1].splitlines()
+    assert any(ln.startswith("· entregado, sin verificar: [tarea web] plan de viaje") for ln in lines), lines
+    assert any(ln.startswith("· [tarea web] carpinteros") for ln in lines), lines
 
 
 def test_an_old_distilled_result_is_relabelled_a_request_and_a_circuit_result_is_kept(fresh_db):
@@ -131,10 +146,11 @@ def test_an_old_distilled_result_is_relabelled_a_request_and_a_circuit_result_is
     assert kinds[asked] == "request" and kinds[done] == "result"
 
 
-@pytest.mark.parametrize("verdict, kept", [("met", True), ("undeclared", False), ("unverifiable", False)])
+@pytest.mark.parametrize("verdict, kept", [("met", True), ("undeclared", True), ("unverifiable", True),
+                                           ("unmet", False), ("gave_up", False)])
 def test_a_finished_worker_writes_its_result_only_through_the_door(fresh_db, monkeypatch, verdict, kept):
     """`workers/session.py` delivers a successful errand: its pill goes through `writer.result`, so a worker that
-    SAID it was done without a `met` verdict leaves no `result` behind."""
+    SAID it was done while the circuit judged it unmet leaves no `result` behind."""
     from types import SimpleNamespace
     from nucleo.workers import session
     monkeypatch.setattr(session, "operator_safe_summary", lambda s: s)

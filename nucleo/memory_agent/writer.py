@@ -1,20 +1,21 @@
 """The pill GRAMMAR, and the one door a RESULT is written through.
 
-A pill's `kind` says what KIND of knowledge it is, and one of them is not like the others: `result` claims that
-something was DONE. The only party that knows that is the circuit that ran the errand and judged its end state
-(`verdict == "met"`). The operator's words never are — «captúrame el estilo hasta darlo por capturado» is a
-REQUEST, and stored as a result it later answered «¿has terminado?» with «Sí, está terminado» for an errand that
-had failed (V2-825 F1).
+A pill's `kind` says what KIND of knowledge it is, and `result` is not like the others: it claims an errand
+delivered. Only the circuit that ran the errand and judged its end state knows that; the operator's words never do —
+«captúrame el estilo hasta darlo por capturado» is a REQUEST, and stored as a result it answered «¿has terminado?»
+with «Sí, está terminado» for an errand that had failed (V2-825 F1).
 
 So the grammar is enforced where a pill is born, not at the reader:
   - the distiller's kinds are `profile · pref · fact · event · intent · request` (`request` = something he ASKED
-    the assistant to do, done or not). A `result` the model returns is written as a `request` — the distiller cannot know an order was carried out (`distilled_kind`).
-  - `result(...)` is the door for the circuit's verdict. It writes only on `met`; anything else is refused.
+    the assistant to do). A `result` the model returns is stored as a `request` (`distilled_kind`).
+  - `result(...)` is the door for the circuit's verdict: it writes when the worker DELIVERED (`DELIVERED`), stamping
+    the verdict so a reader tells «checked» from «delivered, unverified»; a failed or parked errand writes nothing.
 """
 from __future__ import annotations
 
-#: Written only by `result()`, on the circuit's `met` verdict.
 RESULT = "result"
+#: The circuit's verdicts (`nucleo/circuit.py`) under which the worker DELIVERED; only `met` was checked.
+DELIVERED = frozenset({"met", "undeclared", "unverifiable"})
 
 
 def distilled_kind(raw: object) -> str:
@@ -26,18 +27,17 @@ def distilled_kind(raw: object) -> str:
 
 async def result(text: str, *, task_id: str, verdict: str, level: str = "mid",
                  importance: float = 0.5, meta: dict | None = None) -> bool:
-    """Write the OUTCOME of an errand as a `result` pill — only when the circuit's verdict is `met`.
-
-    Returns True when the pill was queued. Any other verdict writes nothing: a failed or interrupted errand's
-    outcome is a fact of the task store, read from there, never from memory."""
+    """Write an errand's OUTCOME as a `result` pill (`meta.verdict` = the verdict) when the worker delivered; True
+    when queued. Any other verdict writes nothing: that outcome is a fact of the task store, never of memory."""
     text = (text or "").strip()
     v = str(verdict or "").strip().lower()
-    why = "" if text and v == "met" else ("empty text" if not text else f"verdict is {v or 'missing'}, not met")
+    why = ("" if text and v in DELIVERED
+           else "empty text" if not text else f"verdict is {v or 'missing'}, nothing delivered")
     _observe(task_id, v, why)
     if why:
         return False
     from nucleo.memory_agent.external import remember
-    stamp = {**(meta or {}), "source": f"worker:{task_id}", "verdict": "met"}
+    stamp = {**(meta or {}), "source": f"worker:{task_id}", "verdict": v}
     await remember({"text": text, "kind": RESULT, "level": level, "importance": importance, "meta": stamp})
     return True
 

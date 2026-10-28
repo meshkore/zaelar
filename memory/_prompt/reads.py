@@ -230,7 +230,7 @@ def salient_long(limit: int = 8, max_chars: int = 800) -> list[dict]:
     (µs, sin embeddings ni retriever) — SOTA "in-context availability": un humano sabe que le gusta el pádel sin
     tener que *recordarlo*. Se enchufa cacheada en el bloque del FlashBrain (memory_cache), junto al estado y al
     corto, para que lo esencial durable esté SIEMPRE disponible sin disparar el recall semántico (V2-013). Solo
-    `valid=1`, nivel durable (mid/long). Devuelve [{id, text, importance, weight, kind}]. Tolera BD vacía."""
+    `valid=1`, nivel durable (mid/long). Devuelve [{id, text, importance, weight, kind, verdict}]. Tolera BD vacía."""
     db = _db.get_db()
     # EXCLUYE los slots de FONDO namespaced (`weather:soria`, `<widget>:<clave>`, `cluster:…`) — auditoría de
     # memoria 2026-07-14: el bloque pasivo es "lo que zaelar sabe del OPERADOR" y se pinta con "dalo por sabido SIN
@@ -239,7 +239,7 @@ def salient_long(limit: int = 8, max_chars: int = 800) -> list[dict]:
     # (operator.location, goal.current…); los de fondo/widget/cluster usan `:` → quedan SUBORDINADOS a state.location
     # (fuera del pasivo). Siguen siendo recuperables por el retriever ante una pregunta EXPLÍCITA por esa ciudad.
     rows = db.query(
-        "SELECT id, text, importance, weight, kind FROM memories "
+        "SELECT id, text, importance, weight, kind, json_extract(meta,'$.verdict') AS verdict FROM memories "
         # `pref` sale de aquí porque tiene su propia línea desde V2-498 (`tastes()`): dejarlo lo pintaría DOS
         # veces en el mismo prompt. Y libera plaza — medido en la memoria del operador, una de las dos únicas
         # que llegaban al bloque era una preferencia.
@@ -259,7 +259,7 @@ def salient_long(limit: int = 8, max_chars: int = 800) -> list[dict]:
         if used + len(txt) > max_chars and out:
             break
         out.append({"id": r["id"], "text": txt, "importance": r["importance"],
-                    "weight": r["weight"], "kind": r["kind"]})
+                    "weight": r["weight"], "kind": r["kind"], "verdict": r["verdict"] or ""})
         used += len(txt)
         if len(out) >= limit:
             break

@@ -259,12 +259,7 @@ def test_dispatch_untrusted_denies_tools(fresh_db, fake_backend):
     assert "NO confiable" in b.seen_prompt
 
 
-def test_dispatch_stores_result_in_memory(fresh_db, fake_backend, monkeypatch):
-    """The delivered result reaches memory through `writer.result`, which writes only on the circuit's `met`
-    verdict (refactor2710-11 T-01): the errand's end state is judged met here; without that, nothing is stored."""
-    from nucleo import circuit
-    monkeypatch.setattr(circuit, "verdict_of", lambda rec, now=None: ("met", ""))
-
+def test_dispatch_stores_result_in_memory(fresh_db, fake_backend):
     async def run():
         await memapi.start()
         try:
