@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 2019   # refactor2710-06: measured with 04 and main merged
+TOTAL = 1975   # refactor2710-08: measured with main merged (was 2026)
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -94,7 +94,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/batch/runner.py': 1,
     'nucleo/cli/usage.py': 2,
     'nucleo/consent.py': 1,
-    'nucleo/context_packs/introduction.py': 5,
+    'nucleo/turn/prompt/packs/introduction.py': 5,
     'nucleo/danger.py': 1,
     'nucleo/dev_worker_guard.py': 1,
     'nucleo/dispatch/__init__.py': 3,
@@ -104,7 +104,10 @@ PER_FILE: dict[str, int] = {
     'nucleo/dispatch/confirm.py': 4,
     'nucleo/dispatch/listener.py': 1,
     'nucleo/dispatch/prepare.py': 6,
-    'nucleo/dispatch_prompts.py': 110,
+    'nucleo/workers/prompts/build.py': 11,    # refactor2710-08: nucleo/dispatch_prompts.py (110) split, 36 translated
+    'nucleo/workers/prompts/context.py': 10,
+    'nucleo/workers/prompts/drawer.py': 9,
+    'nucleo/workers/prompts/web.py': 44,
     'nucleo/dispatch/session.py': 6,
     'nucleo/dispatch/session_steps.py': 10,
     'nucleo/energy/lease.py': 57,
@@ -120,6 +123,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/clarifying.py': 2,
     'nucleo/flash/close_guards.py': 1,
     'nucleo/flash/data_ops.py': 1,
+    'nucleo/flash/delivery.py': 91,
     'nucleo/flash/dialog.py': 10,
     'nucleo/flash/direct_action.py': 1,
     'nucleo/flash/errand_sheet.py': 10,
@@ -135,7 +139,15 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/post_stream_acts.py': 29,
     'nucleo/flash/presence.py': 1,
     'nucleo/llm/prewarm.py': 11,
-    'nucleo/flash/prompt.py': 119,
+    'nucleo/flash/probe.py': 45,
+    'nucleo/flash/probe_after.py': 91,
+    'nucleo/flash/probe_before.py': 38,
+    'nucleo/flash/probe_decide.py': 25,
+    'nucleo/flash/probe_mirrors.py': 47,
+    'nucleo/flash/probe_scheduling.py': 37,
+    'nucleo/turn/prompt/builder.py': 4,       # refactor2710-08: nucleo/flash/prompt.py (119) split four ways
+    'nucleo/turn/prompt/live_state.py': 44,
+    'nucleo/turn/prompt/operating.py': 66,
     'nucleo/llm/provider_chain.py': 43,
     'nucleo/flash/recall_heuristics.py': 30,
     'nucleo/flash/router.py': 2,

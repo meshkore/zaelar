@@ -11,19 +11,12 @@ searching — returning empty-handed is not in its repertoire, so it fills the s
 """
 from __future__ import annotations
 
-from nucleo import dispatch_prompts as DP
-
-
-def _metodo() -> str:
-    return DP._method_block("/x/.venv/bin/python") if hasattr(DP, "_method_block") else _buscar_metodo()
+from nucleo.workers import prompts as DP
 
 
 def _buscar_metodo() -> str:
-    """The method block, regardless of which function currently composes it."""
-    import inspect
-    src = inspect.getsource(DP)
-    i = src.index("7) VERIFICA antes de cerrar")
-    return src[i - 4000: i + 4000]
+    """The method as the worker READS it (refactor2710-08: the rendered brief, not a module's source)."""
+    return DP._web_prompt("busca entradas para el concierto de Rosalía en Madrid este mes", "")
 
 
 def test_el_no_se_declara_una_ENTREGA():

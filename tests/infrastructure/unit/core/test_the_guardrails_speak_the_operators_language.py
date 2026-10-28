@@ -232,9 +232,8 @@ def test_the_prompt_AFFIRMS_the_capability_and_names_the_forbidden_sentence():
         assert verb in block, verb
     # V2-640's LIMIT travels with it — the two halves are one paragraph on purpose.
     assert "nunca sigas como si existiera" in block
-    from nucleo.flash import prompt as _p
-    import inspect
-    assert "_canvas_claim.SCREEN_BLOCK" in inspect.getsource(_p)
+    from nucleo.turn.prompt import operating
+    assert block in operating._flash_layer(set()), "the operating layer the model reads carries it"
 
 
 # ── F · Everything the operator HEARS is in his language, including the auditor and the workers ───────────
@@ -260,7 +259,7 @@ def test_the_internal_auditor_writes_its_repair_in_the_operators_language():
 def test_every_worker_prompt_carries_the_language_of_the_delivery():
     """The GENERIC worker prompt named the language NOWHERE, while every block in it is Spanish.
     Measured: a worker's delivery came back «¡Hola, Richard! Qué gusto tenerte aquí» in English session."""
-    from nucleo import dispatch_prompts as dp
+    from nucleo.workers import prompts as dp
 
     block_en = _with_language("en", dp.worker_language_block)
     assert "English" in block_en and "A PROPÓSITO" in block_en

@@ -23,7 +23,7 @@ from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
 from livekit.agents.llm import ChatChunk, ChoiceDelta
 
 from .. import registry
-from nucleo.flash.panel_canon import wall_tab_for as _wall_tab_for
+from nucleo.turn.prompt.catalogs import wall_tab_for as _wall_tab_for
 from nucleo.flash import (build_decision as _build_decision, canvas_license as _canvas_lic,  # V2-750 grammar only proposes / V2-650 a replay can be an order
                           canvas_visibility as _cvis,                          # V2-723: ONE door to present
                           close_guards as _closeg,                             # V2-635: close needs the words
@@ -31,8 +31,8 @@ from nucleo.flash import (build_decision as _build_decision, canvas_license as _
                           direct_action as _direct_action,                     # V2-741: the third rung
                           image_turn as _image_turn,                           # V2-402
                           show_target as _show_target,                         # V2-609: one target decision
-                          task_recall as _trecall,                             # V2-728: «lo del piso que te dije»
                           video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
+from nucleo.turn import task_recall as _trecall                               # V2-728: «lo del piso que te dije»
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
 from voice import brain_notes as _bnotes          # V2-678: his words, never the composed turn
 from widgets import confirm as _wconfirm, lifecycle as _wlifecycle

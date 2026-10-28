@@ -45,18 +45,19 @@ _PROSE_FLOOR = 40
 
 #: The two modules that compose what the fast turn reads. `router_catalog` is measured apart, because it
 #: already has its own ceiling in `test_router` and is counted here only so the TOTAL is honest.
-_PROSE_FILES = ("nucleo/flash/prompt.py", "nucleo/flash/live_blocks.py",
-                "nucleo/flash/live_blocks_nav.py")   # V2-778 F1: live_blocks' browser lines moved there, same sum
+_PROSE_FILES = ("nucleo/turn/prompt/builder.py", "nucleo/turn/prompt/operating.py", "nucleo/turn/prompt/live_state.py",
+                "nucleo/turn/prompt/recall.py", "nucleo/flash/live_blocks.py",
+                "nucleo/flash/live_blocks_nav.py")   # refactor2710-08: prompt.py split four ways, same sum
 
 #: Measured 2026-09-16. EDIT DOWNWARD ONLY — and the edit is the celebration.
-_MAX_PROSE = 24_929          # prompt.py 16_417 + live_blocks.py 3_395 + live_blocks_nav.py 5_117 — DOCSTRINGS OUT
+_MAX_PROSE = 24_866          # refactor2710-08: −63, the screen line and one contradiction out (was 24_929); prompt.py 16_417 + live_blocks.py 3_395 + live_blocks_nav.py 5_117 — DOCSTRINGS OUT
 #: ⚠️ V2-778 (2026-10-02) — RE-MEASURED, not raised: the count used to include every DOCSTRING of the three modules,
 #: 19_141 of its 44_070 bytes, which the model never reads. A docstring is a comment to the model, and this file's
 #: own last test says a comment costs nothing here — so writing down why a function exists was being charged as
 #: prompt prose (F0 had raised the ceiling 42_376 → 44_070 partly on that). Now only strings the model can read
 #: count, the ceiling is that exact number, and it is STRICTER than before: one new sentence in the prompt fails
 #: this test, where the old ceiling had ~19 k of documentation to hide it in. EDIT DOWNWARD ONLY.
-_MAX_TOTAL = 48_721          # the prose above 24_929 + the tool catalog 23_594 + the POLICY lines below, 198
+_MAX_TOTAL = 48_507          # refactor2710-08 (was 48_721); the prose above 24_929 + the tool catalog 23_594 + the POLICY lines below, 198
 #: V2-778 (2026-10-02) — re-measured with the docstrings out, as `_MAX_PROSE` (was 67_862 counting them).
 
 #: ⚠️ V2-713 R5 — A THIRD SOURCE, WHICH WAS ALWAYS THERE AND NEVER COUNTED. `style_policy` composes lines
@@ -125,8 +126,8 @@ def test_the_prose_of_the_turn_prompt_only_shrinks():
 def test_moving_prose_between_the_two_files_does_not_pay_anything():
     """The defect in the LOC ratchet, pinned: the total is what is measured, so an extraction to
     `live_blocks.py` no longer reads as a saving. Both files are in ONE sum, deliberately."""
-    # three since V2-778 F1: live_blocks' browser lines moved to live_blocks_nav.py, and stay in the same sum
-    assert len(_PROSE_FILES) == 3 and all((ENGINE / r).exists() for r in _PROSE_FILES)
+    # six since refactor2710-08: prompt.py split into builder/operating/live_state/recall, all in the same sum
+    assert len(_PROSE_FILES) == 6 and all((ENGINE / r).exists() for r in _PROSE_FILES)
     combined = sum(_prose_bytes(r) for r in _PROSE_FILES)
     assert combined == sum({r: _prose_bytes(r) for r in _PROSE_FILES}.values())
 

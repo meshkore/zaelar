@@ -90,9 +90,11 @@ def test_y_el_bloque_SIGUE_llegando_al_prompt():
     This is literally the failure this file exists to catch (V2-199/V2-200), applied to the extraction that
     moved it. It is checked by RENDERING, not by reading the `import`.
     """
-    from nucleo.flash import live_blocks, prompt
-    assert prompt._live_blocks is live_blocks
-    import inspect
-    assert "navegador_lines()" in inspect.getsource(prompt.live_state), (
-        "`live_state` dejó de llamar al bloque: el estado del navegador ya no llega al turno")
+    import pytest
+    from nucleo.flash import live_blocks
+    from nucleo.turn.prompt import live_state
+    with pytest.MonkeyPatch.context() as mp:
+        mp.setattr(live_blocks, "navegador_lines", lambda: ["NAVEGADOR-MARK"])
+        assert "NAVEGADOR-MARK" in live_state.live_state(), (
+            "`live_state` dejó de llamar al bloque: el estado del navegador ya no llega al turno")
 

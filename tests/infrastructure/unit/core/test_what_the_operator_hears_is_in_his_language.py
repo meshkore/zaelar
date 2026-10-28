@@ -261,7 +261,7 @@ def test_the_introduction_never_asks_a_question_the_language_does_not_have():
     """«"tú" or "usted", which do you prefer?» — asked THREE times in one English conversation on
     2026-09-12 (20:08, 20:24, 20:36). English has no T–V distinction, so there is no answer to give; the
     goal was a Spanish literal in the phase's own goal list."""
-    from nucleo.context_packs import introduction as intro
+    from nucleo.turn.prompt.packs import introduction as intro
     known = intro._known
     intro._known = lambda: {}                          # nothing learned yet: every goal is still open
     try:

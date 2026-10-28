@@ -1,4 +1,4 @@
-"""nucleo/research_prompts.py — the research-brief composer's prompt text (split out of research.py, 2026-08-17
+"""nucleo/workers/prompts/research.py — the research-brief composer's prompt text (split out of research.py, 2026-08-17
 modularization pass). `_SYSTEM` (the LLM instructions for turning a request into a structured research brief)
 and `to_prompt_block()` (the ~140-line formatter that renders a composed brief into the worker's prompt) are
 pure string assembly with no I/O and no orchestration state — the audit that led to this split found them a
@@ -8,7 +8,7 @@ Deliberately a LEAF module: it takes `min_candidates_floor` as a parameter inste
 `research.py`'s `_MIN_CANDIDATES_FLOOR` constant, so this file has zero dependency on `research.py` — avoids a
 circular import (research.py needs `_SYSTEM`/`to_prompt_block` back from here) without duplicating the
 constant's value anywhere. `research.py` re-exports `_SYSTEM` directly and wraps `to_prompt_block` with its own
-constant, so the external call shape (`research.to_prompt_block(brief)`, used by `nucleo/dispatch_prompts.py`)
+constant, so the external call shape (`research.to_prompt_block(brief)`, used by `nucleo/workers/prompts/build.py`)
 is unchanged."""
 from __future__ import annotations
 

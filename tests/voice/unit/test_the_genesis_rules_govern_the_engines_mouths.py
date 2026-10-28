@@ -198,8 +198,8 @@ def test_the_model_prompt_carries_the_silence_rule_only_while_silent():
     sp.set_pref("confirm_short_actions", False, "no me confirmes las órdenes")
     line = sp.prompt_line()
     assert line and "no digas nada" in line.lower(), "silent orders by rule: the model is told so"
-    src = (ENGINE / "nucleo/flash/prompt.py").read_text(encoding="utf-8")
-    assert "prompt_lines(" in src, "prompt.py must append the runtime-mode lines (wake-word + silence)"
+    from nucleo.turn.prompt import live_state
+    assert line in live_state.live_state(), "the live state must append the runtime-mode lines (wake-word + silence)"
     shared = (ENGINE / "nucleo/flash/style_directive.py").read_text(encoding="utf-8")
     assert "prompt_line()" in shared, "style_directive.prompt_lines must carry the policy line"
 

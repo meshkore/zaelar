@@ -79,6 +79,5 @@ def test_the_widget_generator_and_a_frozen_worker_are_not_asked(monkeypatch):
 
 def test_the_worker_prompt_announces_the_obligation():
     """A demand the worker was never told about reads as an interruption; the prompt says it is the rule."""
-    from nucleo import dispatch_prompts
-    import inspect
-    assert "OBLIGATORIO" in inspect.getsource(dispatch_prompts)
+    from tests.worker_briefs import rendered
+    assert "OBLIGATORIO" in rendered()

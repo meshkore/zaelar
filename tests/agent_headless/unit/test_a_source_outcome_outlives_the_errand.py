@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import dispatch_prompts as dp
+from nucleo.workers import prompts as dp
 from nucleo.cli import nav as nav_cli
 from nucleo.workers import source_outcomes as so
 
@@ -147,7 +147,8 @@ def test_the_line_is_bounded_however_much_is_known():
 def test_disarmed_the_prompt_wiring_hides_what_is_known(monkeypatch):
     """RED proof: with the step-0 seam cut, the record exists and the worker never sees it."""
     so.note("cars.example", so.WALL)
-    monkeypatch.setattr(dp, "_sources_line", lambda py="python": "")
+    from nucleo.workers.prompts import context
+    monkeypatch.setattr(context, "_sources_line", lambda py="python": "")   # the seam, where the brief reads it
     assert "cars.example" not in dp._build_prompt(GOAL, "", True, None)
     monkeypatch.undo()
     assert "cars.example" in dp._build_prompt(GOAL, "", True, None)

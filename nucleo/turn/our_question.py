@@ -50,7 +50,7 @@ def without_its_answer(operator_text: str, spoken: str = "", *, asked: str | Non
     text = str(operator_text or "").strip()
     if not text:
         return text
-    from nucleo.context_packs import ridden as _ridden
+    from nucleo.turn.prompt.packs import ridden as _ridden
     if not _ridden.before(text):
         return text
     q = last_question(previous_reply(spoken) if asked is None else asked)

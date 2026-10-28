@@ -43,7 +43,7 @@ def named_wall_tab(text: str) -> str:
         res = _rt.identify(text) or {}
         if res.get("match") or res.get("ambiguous"):
             return ""
-        from nucleo.flash.panel_canon import wall_tab_for
+        from nucleo.turn.prompt.catalogs import wall_tab_for
         tab = wall_tab_for(res.get("system"), text)
         norm = _rg._norm_txt(text)
         if tab.startswith("apps"):

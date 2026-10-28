@@ -19,7 +19,7 @@ A verifier reading that artifact would say “clean” about a dirty prompt. It 
 """
 import pytest
 
-from nucleo.flash import prompt as fp
+from nucleo.turn.prompt import builder as fp
 from voice import observer as ob
 
 MARCA = "PILDORA_DE_FONDO_MARCADOR"

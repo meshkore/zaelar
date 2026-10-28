@@ -87,9 +87,8 @@ def test_el_PROMPT_del_worker_lo_nombra_y_dice_para_que_sirve():
     """A verb that the prompt does not explain goes unused — the lesson of V2-219, where the worker was dying
     while learning its own CLI by trial and error. And the closed inventory of subcommands must include it, or the
     prompt itself tells it that it does not exist."""
-    import inspect
-    from nucleo import dispatch_prompts as dp
-    src = inspect.getsource(dp)
+    from tests.worker_briefs import rendered
+    src = rendered()
     assert "cli.nav visit" in src
     assert "sin perder el listado" in src, "hay que decirle PARA QUÉ, no solo que existe"
     i = src.find("ESOS son TODOS los subcomandos")

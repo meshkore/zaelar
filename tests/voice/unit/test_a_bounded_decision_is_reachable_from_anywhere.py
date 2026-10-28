@@ -273,9 +273,8 @@ def test_the_worker_reaches_it_the_SAME_WAY_it_reaches_every_other_payload(wire,
 def test_the_worker_PROMPT_declares_the_door(wire):
     """A door nobody is told about is a door nobody uses. The prompt that teaches `ask`/`act`/`say`
     teaches this one too, with the shape and with what the statuses mean."""
-    import pathlib as _p
-    src = (_p.Path(__file__).resolve().parents[3] / "nucleo" / "dispatch_prompts.py").read_text(
-        encoding="utf-8")
+    from tests.worker_briefs import rendered
+    src = rendered()
     assert "cli.bridge decide" in src, "the worker is never told the bounded-decision door exists"
     assert "abstained" in src, "…nor what «none of these fits» looks like when it answers"
 
@@ -294,7 +293,7 @@ def test_a_worker_deadline_is_bounded_by_us(wire):
 def test_task_recall_is_a_real_consumer_of_the_same_module(wire, monkeypatch):
     """«Voice, memory and a headless worker reach the same primitive» — the third one has been in
     production since V2-728, and this pins that A1 did not fork it into a parallel path."""
-    from nucleo.flash import task_recall as tr
+    from nucleo.turn import task_recall as tr
     rows = [{"id": "t1", "title": "piso", "goal": "buscar piso"},
             {"id": "t2", "title": "vuelos", "goal": "buscar vuelos"}]
     monkeypatch.setattr(tr, "candidates", lambda q, limit=5: rows)

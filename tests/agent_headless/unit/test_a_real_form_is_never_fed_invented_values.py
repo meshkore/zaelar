@@ -9,7 +9,7 @@ you cannot look past it with fake data, and a real form submits for real.
 
 Source-level on purpose (the shape of every dispatch_prompts teaching test): the prompt is the mechanism.
 """
-from nucleo import dispatch_prompts
+from nucleo.workers import prompts as dispatch_prompts
 
 
 def _web_prompt() -> str:

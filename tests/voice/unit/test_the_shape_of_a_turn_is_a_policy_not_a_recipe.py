@@ -61,16 +61,22 @@ def test_los_defaults_viven_en_el_GENESIS_que_es_dato_commiteado():
     assert g["max_sentences"] == 2 and g["one_action_per_turn"] is True
 
 
+def _operating() -> str:
+    """The operating prose AS THE MODEL READS IT (refactor2710-08: rendered, not the module's source)."""
+    from nucleo.turn.prompt import operating
+    return operating._flash_layer(set())
+
+
 def test_la_frase_ya_NO_esta_en_el_prompt():
-    src = (ENGINE / "nucleo" / "flash" / "prompt.py").read_text(encoding="utf-8")
+    src = _operating()
     assert "en 1-2 frases habladas" not in src
-    assert "UNA \"\n        \"ACCIÓN por turno" not in src
+    assert "UNA ACCIÓN por turno" not in src
 
 
 def test_lo_que_SI_es_del_medio_se_queda_en_el_prompt():
     """El contrapeso, y la línea que separa una preferencia de un mecanismo: la voz no puede leer markdown ni
     emojis, y quedarse mudo rompe el turno. Eso no es gusto del operador, es cómo funciona el canal."""
-    src = (ENGINE / "nucleo" / "flash" / "prompt.py").read_text(encoding="utf-8")
+    src = _operating()
     assert "sin markdown, emojis ni símbolos que leer" in src
     assert "nunca te quedas mudo" in src
 
@@ -130,6 +136,6 @@ def test_apagarla_la_retira_TAMBIEN_del_turno():
 def test_el_bloque_ops_NO_se_ha_vaciado_de_golpe():
     """Las otras frases siguen ahí y eso es deliberado: cada una sale cuando tenga su política, no antes.
     Un vaciado en una tanda cambiaría treinta comportamientos medidos a la vez y sin forma de atribuir nada."""
-    src = (ENGINE / "nucleo" / "flash" / "prompt.py").read_text(encoding="utf-8")
+    src = _operating()
     assert "CÓMO OPERAS" in src
     assert "te disculpes en bucle" in src, "esta aún no tiene política; sigue siendo prosa, y se dice"

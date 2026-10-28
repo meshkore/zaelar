@@ -54,7 +54,7 @@ _MAX_ROLE_WORDS = 3
 
 # `_SYSTEM` moved to research_prompts.py (2026-08-17 modularization pass) — re-exported here so `build_messages`
 # below keeps working unchanged, and so `research._SYSTEM` still resolves for anyone reading it that way.
-from nucleo.research_prompts import _SYSTEM  # noqa: F401 — re-export + used by build_messages below
+from nucleo.workers.prompts.research import _SYSTEM  # noqa: F401 — re-export + used by build_messages below
 
 
 def _spec():
@@ -188,7 +188,7 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
         if spec is None:
             logger.warning("research: sin proveedor disponible para el compositor — el worker sale SIN brief")
             raise ComposerUnavailable("sin proveedor")
-        from nucleo.dispatch_prompts import _today_block  # V2-098: canonical home, moved out of dispatch.py
+        from nucleo.workers.prompts.context import _today_block  # V2-098: canonical home, moved out of dispatch.py
         _msgs = build_messages(req, context, _today_block())
         # `no_thinking`: the composer wants the BRIEF, not the deliberation. Measured 2026-08-27 (Z.AI GLM): with
         # thinking, 1.600 `max_tokens` came back truncated («respuesta ilegible»); a bigger budget costs 67,7 s and

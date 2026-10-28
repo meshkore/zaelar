@@ -34,7 +34,6 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 FILES = {
     'nucleo/energy/meter.py': 812,
     'nucleo/llm/fast_client.py': 866,
-    'nucleo/flash/prompt.py': 816,
     'nucleo/jev/__init__.py': 590,
     'voice/engine/llm/providers/nucleo.py': 997,
 }
@@ -45,7 +44,7 @@ FUNCTIONS = {
     'memory/writer/__init__.py::insert_memory': 151,
     'nucleo/actionmap/executor.py::execute': 144,
     'nucleo/dispatch/listener.py::run_listener': 213,
-    'nucleo/dispatch_prompts.py::_web_prompt': 222,
+    'nucleo/workers/prompts/web.py::_web_prompt': 222,   # refactor2710-08: moved from nucleo/dispatch_prompts.py
     'nucleo/dispatch/session.py::_run_session': 203,
     'nucleo/dispatch/session_steps.py::build_what_it_runs_with': 132,
     'nucleo/errands/wake.py::wake': 153,
@@ -58,8 +57,12 @@ FUNCTIONS = {
     'nucleo/flash/post_stream_lanes.py::run_the_light_lanes': 435,
     'nucleo/flash/post_stream_settle.py::settle_what_is_pending': 211,
     'nucleo/flash/post_stream_acts.py::complete_the_acts': 323,
-    'nucleo/flash/prompt.py::_flash_layer': 238,
-    'nucleo/flash/prompt.py::live_state': 210,
+    'nucleo/flash/probe.py::run_turn': 481,
+    'nucleo/flash/probe_after.py::execute_what_was_decided': 148,
+    'nucleo/flash/probe_decide.py::name_the_action': 221,
+    'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 264,
+    'nucleo/turn/prompt/operating.py::_flash_parts': 237,   # refactor2710-08: moved from nucleo/flash/prompt.py (was _flash_layer)
+    'nucleo/turn/prompt/live_state.py::live_state': 202,    # refactor2710-08: moved from nucleo/flash/prompt.py
     'nucleo/flash/task_block.py::pending_task_lines': 198,
     'nucleo/flash/tool_executor_calls.py::_on_tool_call': 188,
     'nucleo/flash/tool_executor_widget.py::build': 156,
@@ -69,7 +72,7 @@ FUNCTIONS = {
     'nucleo/pulse/workers.py::WorkersPulse._supervise_workers': 172,
     'nucleo/memory_agent/ingest_steps.py::file_the_atoms': 141,
     'nucleo/memory_agent/ingest_steps.py::gate_the_utterance': 164,
-    'nucleo/research_prompts.py::to_prompt_block': 136,
+    'nucleo/workers/prompts/research.py::to_prompt_block': 136,   # refactor2710-08: moved from nucleo/research_prompts.py
     'nucleo/susurro/apply.py::apply_corrections': 161,
     'nucleo/cli/worker_api.py::_exec_allow': 293,
     'nucleo/workers/providers/claude_map.py::_map': 145,
@@ -97,6 +100,9 @@ FUNCTIONS = {
 BRANCHES = {
     'nucleo/flash/post_stream_lanes.py::run_the_light_lanes': 146,
     'nucleo/flash/post_stream_acts.py::complete_the_acts': 117,
+    'nucleo/flash/probe.py::run_turn': 124,
+    'nucleo/flash/probe_decide.py::name_the_action': 106,
+    'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 106,
     'nucleo/cli/worker_api.py::_exec_allow': 106,
     'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 108,
     'widgets/agenda/tasklists.py::apply': 115,

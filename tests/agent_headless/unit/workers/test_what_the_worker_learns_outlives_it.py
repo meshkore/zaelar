@@ -16,7 +16,7 @@ exactly what was already true on the day of the failure. What must be asserted i
 """
 import re
 
-from nucleo import dispatch_prompts as dp
+from nucleo.workers import prompts as dp
 
 ORDEN = "LO QUE AVERIGUAS SE GUARDA"
 OBJETIVO = "Busca un coche de segunda mano diésel por menos de 12.000 €"
