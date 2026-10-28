@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 
 from widgets import generator, validator
+from widgets import validator_actions as _validator_actions_m
 
 
 # ── the contract agrees with the gate ─────────────────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ def test_the_create_path_repairs_BEFORE_it_discards():
     on a build that RAN (a killed agent leaves nothing worth repairing)."""
     src = Path("widgets/generator.py").read_text(encoding="utf-8")
     code = re.sub(r"(?m)^\s*#.*$", "", src)
-    body = code[code.index("def generate_widget("):code.index("def _folder_ref(")]
+    body = code[code.index("def generate_widget("):code.index("_REPAIR_PROMPT = ")]
     i_val = body.index("ok, verr = _validate(wid, stamp_origin=True)")
     i_rep = body.index("_repair_once(wid, dst, verr, token)")
     i_dis = body.index("_discard(wid)", i_val)
@@ -98,7 +99,7 @@ def test_a_widget_written_the_way_the_contract_says_is_read_by_the_gate():
            '    handler = ACTIONS.get(action) if isinstance(action, str) else None\n'
            '    if handler is None:\n        return {"ok": False, "error": "unknown_action", "action": action}\n'
            '    return handler(action, p)\n')
-    assert validator._apply_action_names(src) == {"add", "done"}
+    assert _validator_actions_m._apply_action_names(src) == {"add", "done"}
     man = {"id": "w1", "actions": {"add": {"desc": "x"}, "done": {"desc": "x"}, "ghost": {"desc": "x"}}}
-    err = validator._validate_actions_sync(man, src)
+    err = _validator_actions_m._validate_actions_sync(man, src)
     assert err and "ghost" in err, err

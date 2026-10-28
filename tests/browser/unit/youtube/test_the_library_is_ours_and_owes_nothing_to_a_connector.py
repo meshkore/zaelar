@@ -356,16 +356,17 @@ def test_the_action_gate_follows_the_delegate_instead_of_forcing_a_god_file(sand
     import json
     import pathlib
     from widgets import validator
+    from widgets import validator_actions as _validator_actions_m
     wdir = str(pathlib.Path(yt.__file__).parent)
     src = (pathlib.Path(wdir) / "data.py").read_text(encoding="utf-8")
     man = json.loads((pathlib.Path(wdir) / "manifest.json").read_text(encoding="utf-8"))
 
-    handled = validator._apply_action_names(src, wdir)
+    handled = _validator_actions_m._apply_action_names(src, wdir)
     assert {"show_history", "set_preference", "player_quality", "open_list"} <= handled
-    assert validator._validate_actions_sync(man, src, wdir) is None
+    assert _validator_actions_m._validate_actions_sync(man, src, wdir) is None
 
     # Still closed in both directions: a declared action nothing handles, and a handled one left undeclared.
     ghost = dict(man, actions=dict(man["actions"], invented_action={"desc": "x", "payload": {}}))
-    assert "invented_action" in (validator._validate_actions_sync(ghost, src, wdir) or "")
+    assert "invented_action" in (_validator_actions_m._validate_actions_sync(ghost, src, wdir) or "")
     silent = dict(man, actions={k: v for k, v in man["actions"].items() if k != "show_history"})
-    assert "show_history" in (validator._validate_actions_sync(silent, src, wdir) or "")
+    assert "show_history" in (_validator_actions_m._validate_actions_sync(silent, src, wdir) or "")

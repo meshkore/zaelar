@@ -15,6 +15,7 @@ import os
 import pytest
 
 from widgets import generator, paths, runtime
+from widgets import generator_folders as _generator_folders_m
 
 
 @pytest.fixture
@@ -66,7 +67,7 @@ def test_the_prompt_names_the_fork_folder_not_the_shipped_one(lab, monkeypatch):
     monkeypatch.setattr(generator, "_run_agent",
                         lambda prompt, token="", *, target="": (seen.update(prompt=prompt), (True, ""))[1])
     generator.modify_widget("clock", "anything")
-    fork_ref = generator._folder_ref(os.path.join(paths.generated_root(), "clock"))
+    fork_ref = _generator_folders_m._folder_ref(os.path.join(paths.generated_root(), "clock"))
     assert fork_ref in seen["prompt"]
     assert "widgets/clock/" not in seen["prompt"].replace(fork_ref, "")
 

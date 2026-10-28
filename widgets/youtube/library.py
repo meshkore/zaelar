@@ -2,13 +2,8 @@
 # youtube/library — the widget's OWN library: followed channels, watch history, preferences and saved lists.
 #
 # Operator's standing rule (2026-09-06): "our core, our engine, our memory, our widget are the ones who have
-# control". None of this depends on a connector. The account connector, when its door can finally open,
-# only EXTENDS what lives here — it never becomes the source of truth, and nothing here degrades
-# when it is absent, because nothing here ever asks it anything.
-#
-# It lives beside data.py rather than inside it for the reason the architecture ratchet exists: data.py was
-# 843 LOC against the 900 ceiling for an unlisted file, so this arrives as a module instead of as the last
-# straw on a god file.
+# control". None of this depends on a connector: the account connector only EXTENDS what lives here, and
+# nothing here degrades when it is absent. Preference ops live in `library_prefs.py`.
 #
 import time
 
@@ -164,97 +159,6 @@ def _fill_list(db: dict, rows: list) -> int:
     return len(lst)
 
 
-# Spoken names for the enforceable keys. The operator says "calidad mínima", not "min_definition", and the
-# model relays his words: a key table that only knows its own identifiers turns every real sentence into an
-# unknown preference. One-way (spoken → key), so the answer always names the key back.
-_KEY_ALIASES = {
-    "min_definition": "min_definition", "definition": "min_definition", "quality": "min_definition",
-    "calidad": "min_definition", "calidad minima": "min_definition", "resolucion": "min_definition",
-    "resolucion minima": "min_definition", "min_quality": "min_definition",
-    "captions": "captions", "subtitles": "captions", "subtitulos": "captions",
-    "volume": "volume", "volumen": "volume",
-}
-
-_TRUE = {"1", "true", "on", "si", "yes", "activar", "activalos", "activados", "activado",
-         "ponlos", "siempre", "encender", "encendidos"}
-_FALSE = {"0", "false", "off", "no", "quitar", "quitalos", "desactivar", "desactivalos",
-          "desactivados", "desactivado", "nunca", "apagar", "apagados"}
-
-
-def _pref_value(key: str, raw) -> "tuple[object, str]":
-    """(value, error). Parses the operator's words into the type the key enforces — «720p», «sí», «al 40».
-
-    The value goes through the SAME `_norm` as the key, accents included. It did not at first, and the very
-    first sentence an operator says in Spanish — «pon los subtítulos, sí» — was refused because the table
-    held `si` and he said `sí`: a value vocabulary matched more strictly than the key vocabulary rejects
-    exactly the words the widget was written to understand."""
-    s = _norm(raw if raw is not None else "")
-    if key == "min_definition":
-        digits = "".join(ch for ch in s if ch.isdigit())
-        if not digits:
-            return None, "Dime la calidad mínima en píxeles, por ejemplo 720."
-        n = int(digits[:5])
-        if n not in (144, 240, 360, 480, 720, 1080, 1440, 2160):
-            # Not a rejection of his taste — a rejection of a number the player can never report, which
-            # would make the rule silently unenforceable (the failure this whole module is built against).
-            return None, ("Las calidades que el reproductor sabe medir son 144, 240, 360, 480, 720, 1080, "
-                          "1440 y 2160.")
-        return n, ""
-    if key == "captions":
-        if s in _TRUE:
-            return True, ""
-        if s in _FALSE:
-            return False, ""
-        return None, "Dime si quiero los subtítulos activados o desactivados."
-    if key == "volume":
-        digits = "".join(ch for ch in s if ch.isdigit())
-        if not digits:
-            return None, "Dime un volumen de 0 a 100."
-        return max(0, min(100, int(digits[:3]))), ""
-    return None, "No sé aplicar esa preferencia."
-
-
-def _apply_pref(action: str, p: dict, db: dict) -> dict:
-    """set_preference / clear_preference — rows of the rules table at `widget:youtube` (`prefs.py`, V2-806)."""
-    from . import prefs as _prefs
-    raw_key = str(p.get("key") or p.get("name") or p.get("preference") or "").strip()
-    key = _KEY_ALIASES.get(_norm(raw_key), "")
-    if action == "clear_preference":
-        _prefs.overlay(db, _ENFORCEABLE)
-        if key and key in db["prefs"]:
-            _prefs.clear_value(db, key, _ENFORCEABLE)
-            store.save(WID, db)
-            return {"ok": True, "key": key, "prefs": dict(db["prefs"])}
-        n = _norm(raw_key)
-        hit = next((x for x in db["prefs_notes"] if n and n in _norm(x.get("text"))), None)
-        if hit is not None:
-            _prefs.remove_note(db, hit["id"], _ENFORCEABLE)
-            store.save(WID, db)
-            return {"ok": True, "note": hit.get("text"), "prefs": dict(db["prefs"])}
-        return {"ok": False, "error": "not_set", "key": raw_key, "prefs": dict(db["prefs"]),
-                "message": "No tengo esa preferencia guardada."}
-    value = p.get("value") if p.get("value") is not None else p.get("level")
-    if not key:
-        # Not enforceable — and that is said out loud rather than stored as if it were a rule. The brain
-        # still receives it (a note row, published as prefs_notes), so it can honour it by judgement.
-        text = " ".join(x for x in [raw_key, "" if value is None else str(value)] if x).strip()[:200]
-        if not text:
-            return {"ok": False, "error": "no_preference",
-                    "message": "Dime qué preferencia guardo.", "enforceable": sorted(_ENFORCEABLE)}
-        _prefs.add_note(db, text, _ENFORCEABLE)
-        store.save(WID, db)
-        return {"ok": True, "stored_as": "note", "note": text, "enforceable": sorted(_ENFORCEABLE),
-                "message": ("Lo guardo y lo tendré en cuenta, pero no puedo forzarlo automáticamente: "
-                            "lo que sí aplico solo es " + ", ".join(sorted(_ENFORCEABLE)) + ".")}
-    val, err = _pref_value(key, value)
-    if err:
-        return {"ok": False, "error": "bad_value", "key": key, "message": err}
-    _prefs.set_value(db, key, val, " ".join(x for x in [raw_key, str(value)] if x), _ENFORCEABLE)
-    store.save(WID, db)
-    return {"ok": True, "stored_as": "rule", "key": key, "value": val,
-            "how": _ENFORCEABLE[key], "prefs": dict(db["prefs"])}
-
-
 def apply(action: str, p: dict, db: dict) -> "dict | None":
     """The library's actions. Returns None when `action` is not one of ours, so data.py keeps owning its own
     dispatch and the two cannot disagree about who answers what."""
@@ -266,9 +170,8 @@ def apply(action: str, p: dict, db: dict) -> "dict | None":
         if _find_channel(db, ch) is not None:
             return {"ok": True, "already": True, "channel": ch,
                     "channels": [c.get("name") for c in db.get("channels") or []]}
-        # Following a channel he has blocked is a contradiction, and leaving both standing would make his
-        # own searches drop the channel he just said he wants. The newer sentence wins, and the answer says
-        # the older one was undone — a filter that disappears in silence is a filter he cannot trust.
+        # Following a channel he has blocked is a contradiction: the newer sentence wins, and the answer says the
+        # older one was undone — a filter that disappears in silence is a filter he cannot trust.
         blocked = db.setdefault("blocked_channels", [])
         n = _norm(ch)
         unblocked = [b for b in blocked if _norm(b) == n or n in _norm(b) or _norm(b) in n]
@@ -294,9 +197,7 @@ def apply(action: str, p: dict, db: dict) -> "dict | None":
                 "channels": [c.get("name") for c in db["channels"]]}
 
     if action == "channel_videos":
-        # The latest from a channel, WITHOUT an account: search by the channel's name sorted by date and keep
-        # only the hits whose channel really matches. Honest about what it is — a search, not a subscription
-        # feed — so it works today for every operator, connected or not.
+        # The latest from a channel, WITHOUT an account: a date-sorted search kept to the hits that really match.
         from . import data
         ch = str(p.get("channel") or p.get("name") or p.get("item") or "").strip()
         if not ch:
@@ -360,6 +261,7 @@ def apply(action: str, p: dict, db: dict) -> "dict | None":
         return {"ok": True, "cleared": n}
 
     if action in ("set_preference", "clear_preference"):
+        from .library_prefs import _apply_pref    # lazy: library_prefs reads this module's names
         return _apply_pref(action, p, db)
 
     if action == "save_list":
@@ -388,8 +290,7 @@ def apply(action: str, p: dict, db: dict) -> "dict | None":
             return {"ok": False, "error": "no_list", "name": name, "lists": names,
                     "message": ("No tengo ninguna lista guardada con ese nombre." if names
                                 else "Todavía no has guardado ninguna lista.")}
-        # Opening REPLACES the queue and does not start playback — the same rule `add` and `search` follow
-        # (V2-366: only an explicit play starts a video). What is playing keeps playing.
+        # Opening REPLACES the queue and does not start playback (V2-366: only an explicit play starts a video).
         count = _fill_list(db, hit.get("items") or [])
         db["list_name"] = hit.get("name") or name
         store.save(WID, db)
@@ -408,10 +309,8 @@ def apply(action: str, p: dict, db: dict) -> "dict | None":
         return {"ok": True, "name": hit.get("name"), "lists": [L.get("name") for L in db["lists"]]}
 
     if action == "player_quality":
-        # Internal, fired by widget.js from the IFrame API's own report. This is the ONLY moment a video's
-        # definition is knowable (the results page does not publish it), so it is where a "minimum 720p"
-        # rule is checked. It WARNS and never skips: the operator asked for THIS video, and an explicit
-        # order outranks a standing filter — the same line block_channel already draws for a pasted link.
+        # Internal, from the IFrame API's report — the ONLY moment a video's definition is knowable, so a
+        # "minimum 720p" rule is checked here. It WARNS and never skips: an explicit order outranks a filter.
         vid = str(p.get("videoId") or db.get("videoId") or "").strip()
         best = best_quality(p.get("levels"))
         if not vid or not best:
