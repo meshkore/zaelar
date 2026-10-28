@@ -123,8 +123,7 @@ DOMAINS: list[dict] = [
             # no slot, so a rename could only be remembered as PROSE — which recall feeds the model (it
             # introduced itself as «Johnny» for days) while `state.assistant_name` stayed «Zaelar» and the
             # wake word with it. Four minutes of «Johnny?» ruled 🙉 AMBIENT, in a live session.
-            "tests/memory/unit/test_the_assistant_answers_to_the_name_it_gives_you.py",
-            "tests/memory/integration/test_seed_from_hermes.py"]},
+            "tests/memory/unit/test_the_assistant_answers_to_the_name_it_gives_you.py"]},
         {"id": "1.7", "title": "API HTTP de memoria", "ch": HTTP, "paths": [
             "tests/memory/integration/test_api.py", "tests/memory/integration/test_vault_api.py",
             "tests/memory/e2e/test_server_api.py"]},
