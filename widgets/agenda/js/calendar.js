@@ -78,14 +78,16 @@ export function renderGrid(host, dates, all, data, onPick, onDayPick, onSlot, on
   });
   host.appendChild(head);
 
-  // ALL-DAY band — a row above the hours, exactly where every calendar puts it.
-  const anyAllDay = visible.some(e=>e.allDay);
-  if(anyAllDay){
+  // ALL-DAY band — a row above the hours, exactly where every calendar puts it. A MULTI-DAY event is ONE bar
+  // across the days it covers (2026-10-28), clipped at the band's edges with its title said once.
+  const d0 = dates[0], dN = dates[dates.length-1];
+  const spans = all.filter(e=>e.lastDay && e.date<=dN && e.lastDay>=d0);
+  if(visible.some(e=>e.allDay) || spans.length){
     const band = el2("div","agallday"); band.style.gridTemplateColumns = cols;
     band.appendChild(el2("div","agalllb", tt("all_day_short", null, "Todo el día")));
-    dates.forEach(d=>{
-      const cell = el2("div","agallcell");
-      eventsOn(all, d).filter(e=>e.allDay).forEach(e=>{
+    dates.forEach((d,i)=>{
+      const cell = el2("div","agallcell"); cell.style.gridColumn = i+2; cell.style.paddingTop = (3 + spans.length*24)+"px";
+      eventsOn(all, d).filter(e=>e.allDay && !e.lastDay).forEach(e=>{
         const chip = el2("div", chipClasses(e)+" allday");
         chip.style.setProperty("--evc", hueOf(e));
         chip.appendChild(el2("div","agevt", e.title));
@@ -93,6 +95,13 @@ export function renderGrid(host, dates, all, data, onPick, onDayPick, onSlot, on
         cell.appendChild(chip);
       });
       band.appendChild(cell);
+    });
+    spans.forEach((e,lane)=>{
+      const a = Math.max(0, dates.indexOf(e.date)), b = e.lastDay > dN ? dates.length-1 : dates.indexOf(e.lastDay);
+      const bar = el2("div","agev allday agspan" + (e.date<d0?" cl":"") + (e.lastDay>dN?" cr":""));
+      bar.style.gridColumn = `${a+2} / ${b+3}`; bar.style.marginTop = (3 + lane*24)+"px"; bar.style.setProperty("--evc", hueOf(e));
+      bar.appendChild(el2("div","agevt", e.title)); bar.title = `${timeLabel(e)} · ${e.title}`;
+      bar.onclick = ev => { ev.stopPropagation(); onPick(e); }; band.appendChild(bar);
     });
     host.appendChild(band);
   }
@@ -179,12 +188,26 @@ export function renderMonth(host, anchor, all, data, onPick, onDayPick){
   const grid = el2("div","agmgrid");
   const weeks = Math.ceil((((first.getDay()+6)%7) + new Date(a.getFullYear(), a.getMonth()+1, 0).getDate())/7);
   grid.style.gridTemplateRows = `repeat(${weeks},minmax(66px,1fr))`; grid.style.minHeight = (weeks*66)+"px";
+  // A MULTI-DAY event is ONE bar per week it touches (2026-10-28), placed on the grid over its cells — every
+  // cell is placed explicitly so the bars never shift them — with its title once and a cut edge where the
+  // week breaks. The cells under it keep a spacer the height of the week's bar lanes.
+  const spans = all.filter(e=>e.lastDay), di = s => Math.round((parseYmd(s) - start)/864e5), bars = [];
   for(let i=0;i<weeks*7;i++){
-    const d = addDays(start, i), ds = ymd(d);
+    const d = addDays(start, i), ds = ymd(d), w = Math.floor(i/7), w0 = ymd(addDays(start, w*7)), w1 = ymd(addDays(start, w*7+6));
+    const lanes = spans.filter(e=>e.date<=w1 && e.lastDay>=w0);
     const cell = el2("div","agmcell" + (d.getMonth()!==a.getMonth()?" out":"") + (ds===today?" today":"")
-                                     + (d.getDay()%6===0?" we":""));
+                                     + (d.getDay()%6===0?" we":"") + (w===weeks-1?" last":""));
+    cell.style.gridArea = `${w+1} / ${i%7+1}`;
     cell.appendChild(el2("div","agmn", String(d.getDate())));
-    const evs = eventsOn(all, ds);
+    if(lanes.length){ const sp = el2("div","agmsp"); sp.style.height = (lanes.length*22)+"px"; cell.appendChild(sp); }
+    if(i%7===0) lanes.forEach((e,lane)=>{
+      const a1 = Math.max(0, di(e.date)-w*7), b1 = Math.min(6, di(e.lastDay)-w*7);
+      const bar = el2("div","agmev allday agspan" + (e.date<w0?" cl":"") + (e.lastDay>w1?" cr":""));
+      bar.style.gridArea = `${w+1} / ${a1+1} / auto / ${b1+2}`; bar.style.marginTop = (30 + lane*22)+"px";
+      bar.style.setProperty("--evc", hueOf(e)); bar.appendChild(el2("span","agmt", e.title));
+      bar.title = `${timeLabel(e)} · ${e.title}`; bar.onclick = ev => { ev.stopPropagation(); onPick(e); }; bars.push(bar);
+    });
+    const evs = eventsOn(all, ds).filter(e=>!e.lastDay);
     evs.forEach(e=>{
       const row = el2("div","agmev" + (e.status==="pending"?" pending":"") + (e.allDay?" allday":""));
       row.style.setProperty("--evc", hueOf(e));
@@ -197,13 +220,14 @@ export function renderMonth(host, anchor, all, data, onPick, onDayPick){
     cell.appendChild(el2("div","agmore"));
     cell.onclick = ()=>onDayPick(ds); grid.appendChild(cell);
   }
+  bars.forEach(b=>grid.appendChild(b));   // after every cell, so the cells' own nth-child rules hold
   host.appendChild(grid);
   // What a cell SHOWS is what its row can hold, measured — three chips in a tall card, one in a short one —
   // and the rest is a count, never a chip cut through its glyphs (the operator's rule from V2-693, here).
   // ~30px go to the day number, ~21px to each row; the last row of a full cell is the count itself.
   raf(()=>grid.querySelectorAll(".agmcell").forEach(c=>{
     const rows = c.querySelectorAll(".agmev"), more = c.querySelector(".agmore");
-    const n = Math.max(1, Math.floor((c.clientHeight-30)/21)), hide = rows.length > n ? rows.length-n+1 : 0;
+    const sp = c.querySelector(".agmsp"), n = Math.max(1, Math.floor((c.clientHeight-30-(sp ? sp.offsetHeight : 0))/21)), hide = rows.length > n ? rows.length-n+1 : 0;
     rows.forEach((r,i)=>{ r.style.display = i < rows.length-hide ? "" : "none"; });
     more.style.display = hide ? "" : "none"; more.textContent = hide ? tt("n_more",{n:hide},"+{n} más") : "";
   }));

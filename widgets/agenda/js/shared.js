@@ -7,21 +7,32 @@ export const SVG_NS_AG = "http://www.w3.org/2000/svg";
 // sniffing the title, which would be guessing intent (V2-095).
 // 2026-10-28 — the hues are the product's CATEGORICAL RANGE (palette.css `--hb-c-*`), not hexes of this
 // widget's own: the same ten mean the same things on every card, and a design profile retunes them at once.
+// What each colour MEANS here: a KIND of our own item (below), or WHICH CALENDAR a synced row came from (calHue).
+const C = k => `var(--hb-c-${k},#8B98AC)`;
 export const HUES = {
-  meeting:  "var(--hb-c-violet,#A47CFF)",   // an appointment with the world
-  work:     "var(--hb-c-blue,#5B9BFF)", deep: "var(--hb-c-blue,#5B9BFF)",
-  admin:    "var(--hb-c-teal,#2DD4BF)",
-  health:   "var(--hb-c-red,#FF6259)",
-  travel:   "var(--hb-c-cyan,#2EC4FF)",
-  social:   "var(--hb-c-pink,#FF77C0)",
-  personal: "var(--hb-c-green,#3DDC97)",
-  exercise: "var(--hb-c-orange,#FF8C42)",
-  break:    "var(--hb-c-grey,#8B98AC)", buffer: "var(--hb-c-grey,#8B98AC)",
-  // V2-728 — work the SYSTEM does at a moment, not an appointment the operator keeps. Its own hue because
-  // it is its own kind of thing: nobody is meeting anybody, and colouring it like a meeting would put a
-  // commitment on his calendar that he never made.
-  system:   "var(--hb-c-violet,#A47CFF)",
+  meeting:  C("violet"),                    // an appointment with the world
+  work:     C("blue"), deep: C("blue"),
+  admin:    C("teal"),
+  health:   C("red"),
+  travel:   C("cyan"),
+  social:   C("pink"),
+  personal: C("green"),
+  exercise: C("orange"),
+  break:    C("grey"), buffer: C("grey"),
+  // V2-728 — work the SYSTEM does at a moment (a reminder, a job), not an appointment the operator keeps. Its own
+  // hue because it is its own kind of thing: nobody is meeting anybody, and colouring it like a meeting would put
+  // a commitment on his calendar that he never made.
+  system:   C("amber"),
 };
+// A synced CALENDAR gets one colour, stable for its id — the same calendar is the same colour on every
+// screen and every day — unless the operator has set one (`data.calendarColors`, a token name per id;
+// nothing writes it yet). Nine hues, never grey: grey is for an unset state.
+const CAL_HUES = ["blue","green","orange","violet","pink","teal","amber","cyan","red"];
+export function calHue(id, colors){
+  const set = (colors||{})[id]; if(set) return C(set);
+  let h = 0; for(const ch of String(id||"")) h = (h*31 + ch.charCodeAt(0)) >>> 0;
+  return C(CAL_HUES[h % CAL_HUES.length]);
+}
 // Dictated category → hue key. Spanish and English, because the category is PRODUCT DATA the operator speaks.
 export const CATEGORY_HUE = {
   trabajo:"work", work:"work", oficina:"work", reunion:"meeting", meeting:"meeting",
@@ -130,21 +141,10 @@ export const CAL_SVG = {
 export function hueOf(ev){
   const cat = String(ev.category||"").toLowerCase();
   const known = CATEGORY_HUE[cat] || (HUES[cat] ? cat : null);
-  // 2026-10-28 — an uncategorised MEETING is coloured by where it came from (his own voice = the accent,
-  // Google = the echo cyan) instead of one purple for every imported row; a category he dictated still wins.
-  if(!known && (ev.kind||"meeting") === "meeting") return ev.source === "google" ? (snapHue(ev.calColor) || "var(--hb-c-cyan,#2EC4FF)") : "var(--hb-accent,#AE90FF)";
+  // 2026-10-28 — an uncategorised MEETING is coloured by WHICH CALENDAR it belongs to (a synced row) or by the
+  // accent (his own voice); a category he dictated still wins.
+  if(!known && (ev.kind||"meeting") === "meeting") return ev.calHue || "var(--hb-accent,#AE90FF)";
   return HUES[known || ev.kind] || HUES.meeting;
-}
-// A Google calendar's OWN colour, snapped to the nearest hue of the product's range: the distinction the operator
-// drew between his calendars survives (holidays green, work blue…), and nothing on the card wears a colour the
-// design system does not own. Low saturation is grey; the boundaries are the range's own hue angles.
-const C_HUES = [[0,"red"],[20,"orange"],[43,"amber"],[155,"green"],[174,"teal"],[197,"cyan"],[218,"blue"],[258,"violet"],[325,"pink"],[360,"red"]];
-export function snapHue(hex){
-  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex||"")); if(!m) return "";
-  const [r,g,b] = [0,2,4].map(i=>parseInt(m[1].slice(i,i+2),16)/255), mx = Math.max(r,g,b), d = mx-Math.min(r,g,b);
-  if(d < .12) return "var(--hb-c-grey,#8B98AC)";
-  const h = 60*(mx===r ? ((g-b)/d+6)%6 : mx===g ? (b-r)/d+2 : (r-g)/d+4);
-  return `var(--hb-c-${C_HUES.reduce((a,c)=>Math.abs(c[0]-h) < Math.abs(a[0]-h) ? c : a)[1]},#8B98AC)`;
 }
 export function eventsOf(data){
   const out = [];
@@ -162,7 +162,8 @@ export function eventsOf(data){
       // what each guest answered, and what YOU answered. The connector has written these since the first
       // import; nothing copied them here, so the detail card could not show what Google plainly knew.
       guests:Array.isArray(m.guests)?m.guests:[], organizer:m.organizer||"",
-      myRsvp:m.myRsvp||"", meetLink:m.meetLink||"", htmlLink:m.htmlLink||"", source:m.source||"", calColor:m.calendarColor||"",
+      myRsvp:m.myRsvp||"", meetLink:m.meetLink||"", htmlLink:m.htmlLink||"", source:m.source||"",
+      calHue: m.googleCalendarId ? calHue(m.googleCalendarId, data.calendarColors) : "", lastDay: allDay && m.lastDay > m.date ? String(m.lastDay) : "",
       // V2-769 — a repeating appointment arrives as its days; each one knows the rule it belongs to.
       repeat:(m.repeat && typeof m.repeat === "object") ? m.repeat : null});
   });

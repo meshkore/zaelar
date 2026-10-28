@@ -108,8 +108,8 @@ const CSS_CALENDAR = `
 
   /* ── EVENT CHIP: hue = category, INTENSITY = how settled it is ──────────────────────────────────── */
   .hb-agenda .agev{position:absolute;z-index:2;box-sizing:border-box;border-radius:7px;padding:3px 6px;overflow:hidden;
-    cursor:pointer;border:1px solid color-mix(in srgb, var(--evc,#5B9BFF) 30%, transparent);border-left:3px solid var(--evc,#5B9BFF);
-    background:color-mix(in srgb, var(--evc,#5B9BFF) 24%, transparent);min-height:20px;
+    cursor:pointer;border:1px solid color-mix(in srgb, var(--evc,#4C9AFF) 55%, transparent);border-left:3px solid var(--evc,#4C9AFF);
+    background:color-mix(in srgb, var(--evc,#4C9AFF) 30%, transparent);min-height:20px;
     display:flex;flex-direction:column;gap:1px;line-height:1.2}
   .hb-agenda .agev:hover{filter:brightness(1.07)}
   .hb-agenda .agev.pending{background:color-mix(in srgb, var(--evc,#3D6FE0) 9%, transparent);
@@ -144,7 +144,15 @@ const CSS_CALENDAR = `
   .hb-agenda .agbadges{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto}
   .hb-agenda .agbadge{display:inline-flex;align-items:center;gap:2px;font-size:12px;color:var(--hb-muted,#5b6b82);
     font-variant-numeric:tabular-nums}
-  .hb-agenda .agbadge svg{width:10px;height:10px;display:block}  .hb-agenda .agev.allday{position:static;min-height:0;padding:2px 6px}
+  .hb-agenda .agbadge svg{width:10px;height:10px;display:block}
+  /* An ALL-DAY chip is drawn SOLID in its hue with the dark ink (2026-10-28, the operator's reference: the filled
+     bars of a mainstream calendar). Every token of the range carries --canvas at ≥5.2:1; a tint of a warm hue over
+     the dark ground was what read as «brown». A multi-day bar (.agspan) is the same chip stretched over its
+     columns, square where the week cuts it (.cl / .cr). */
+  .hb-agenda .agev.allday{position:static;min-height:0;padding:2px 8px;background:var(--evc,#4C9AFF);border-color:transparent;
+    border-left-color:color-mix(in srgb,var(--evc,#4C9AFF) 60%,var(--canvas,#16191E))}
+  .hb-agenda .agev.allday .agevt{color:var(--canvas,#16191E);font-weight:600}
+  .hb-agenda .agallday .agspan{grid-row:1;align-self:start;z-index:1;margin:0 2px}
 
   /* ── NEW-APPOINTMENT COMPOSER (V2-693) ───────────────────────────────────────────────────────────── */
   .hb-agenda .agaddp{gap:9px}  .hb-agenda .agfrow{display:flex;gap:7px}  .hb-agenda .agftime{flex:1 1 auto;min-width:0}
@@ -176,7 +184,7 @@ const CSS_CALENDAR = `
   .hb-agenda .agmcell{min-height:66px;border-right:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));
     border-bottom:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));padding:4px 4px 3px;display:flex;
     flex-direction:column;gap:2px;overflow:hidden;cursor:pointer;min-width:0}
-  .hb-agenda .agmcell:nth-child(7n){border-right:0}  .hb-agenda .agmcell:nth-last-child(-n+7){border-bottom:0}
+  .hb-agenda .agmcell:nth-child(7n){border-right:0}  .hb-agenda .agmcell.last{border-bottom:0}
   .hb-agenda .agmcell.we{background:var(--hb-sidebar,#1A1E24)}
   .hb-agenda .agmcell.out{background:var(--canvas,#16191E)}  .hb-agenda .agmcell.out .agmev{opacity:.55}
   .hb-agenda .agmcell.today{background:color-mix(in srgb,var(--hb-accent,#AE90FF) 8%,var(--hb-bg,#1F242B))}
@@ -190,9 +198,14 @@ const CSS_CALENDAR = `
   .hb-agenda .agmev{display:flex;align-items:center;gap:5px;font-size:var(--fs-micro,12px);min-width:0;
     padding:1px 3px;border-radius:5px;cursor:pointer;line-height:1.35;border:1px solid transparent}
   .hb-agenda .agmev:hover{background:var(--hb-bubble,#313740)}
-  .hb-agenda .agmev.allday{background:color-mix(in srgb,var(--evc,#AE90FF) 26%,transparent);
-    border-color:color-mix(in srgb,var(--evc,#AE90FF) 30%,transparent);border-left:3px solid var(--evc,#AE90FF);padding-left:5px}
-  .hb-agenda .agmev.allday .agmdot{display:none}  .hb-agenda .agmev.allday .agmt{font-weight:600}
+  .hb-agenda .agmev.allday{background:var(--evc,#AD75FF);border-color:transparent;padding-left:6px;
+    border-left:3px solid color-mix(in srgb,var(--evc,#AD75FF) 60%,var(--canvas,#16191E))}
+  .hb-agenda .agmev.allday .agmdot{display:none}  .hb-agenda .agmev.allday .agmt{font-weight:600;color:var(--canvas,#16191E)}
+  .hb-agenda .agmev.allday:hover{filter:brightness(1.08);background:var(--evc,#AD75FF)}
+  .hb-agenda .agmgrid .agspan{align-self:start;z-index:1;margin-left:3px;margin-right:3px;height:20px;box-sizing:border-box}
+  .hb-agenda .agmsp{flex:0 0 auto}
+  .hb-agenda .agspan.cl{border-top-left-radius:0;border-bottom-left-radius:0;border-left:1px solid transparent;padding-left:8px}
+  .hb-agenda .agspan.cr{border-top-right-radius:0;border-bottom-right-radius:0}
   .hb-agenda .agmev.pending{border:1px dashed var(--evc,#AE90FF);background:transparent}
   .hb-agenda .agmdot{width:8px;height:8px;border-radius:50%;background:var(--evc,#AE90FF);flex:0 0 auto}
   .hb-agenda .agmt{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--hb-ink,#F2F4F7);font-weight:500}
@@ -207,9 +220,9 @@ const CSS_CALENDAR = `
   .hb-agenda .agday.today .agdaydate .d,.hb-agenda .agday.today .agdaydate .w{color:var(--hb-accent,#3D6FE0)}
   .hb-agenda .agdayevs{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:5px}
   .hb-agenda .agrow{display:flex;align-items:center;gap:9px;padding:5px 7px;border-radius:9px;min-width:0;
-    cursor:pointer;background:color-mix(in srgb, var(--evc,#5B9BFF) 16%, transparent);
-    border-left:3px solid var(--evc,#5B9BFF)}
-  .hb-agenda .agrow:hover{background:color-mix(in srgb, var(--evc,#5B9BFF) 26%, transparent)}
+    cursor:pointer;background:color-mix(in srgb, var(--evc,#4C9AFF) 22%, transparent);
+    border-left:3px solid var(--evc,#4C9AFF)}
+  .hb-agenda .agrow:hover{background:color-mix(in srgb, var(--evc,#4C9AFF) 32%, transparent)}
   .hb-agenda .agrow.pending{background:transparent;border:1px dashed var(--evc,#3D6FE0);border-left-width:3px;
     border-left-style:solid}
   .hb-agenda .agrowh{font-size:13px;color:var(--hb-muted,#5b6b82);font-variant-numeric:tabular-nums;

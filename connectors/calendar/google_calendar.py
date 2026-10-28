@@ -15,8 +15,8 @@
 from __future__ import annotations
 
 import datetime as _dt
+import logging, re
 import uuid as _uuid
-import logging
 
 logger = logging.getLogger("zaelar.calendar.google")
 
@@ -119,20 +119,22 @@ def event_to_meeting(ev: dict, calendar_id: str, calendar_color: str = "") -> di
         return None
     title = str(ev.get("summary") or "").strip() or "(sin título)"
     start, end = ev.get("start") or {}, ev.get("end") or {}
-    m: dict = {"title": title[:200], "source": "google",
-               "googleId": ev.get("id"), "googleCalendarId": calendar_id,
+    m: dict = {"title": title[:200], "source": "google", "googleId": ev.get("id"), "googleCalendarId": calendar_id,
                "googleUpdated": ev.get("updated") or "", "calendarColor": calendar_color or ""}
     if "date" in start:                      # all-day
         m["date"], m["allDay"] = start["date"], True
+        # Google's `end.date` is EXCLUSIVE (a one-day event ends «tomorrow»); what the calendar draws is the last
+        # day the event covers, so a trip from the 4th to the 6th arrives as one row with lastDay = the 6th.
+        if re.fullmatch(r"\d{4}-\d{2}-\d{2}", str(end.get("date") or "")):
+            last = (_dt.date.fromisoformat(end["date"]) - _dt.timedelta(days=1)).isoformat()
+            if last > start["date"]: m["lastDay"] = last
     elif "dateTime" in start:
         d, hh = _to_local_hhmm_date(start["dateTime"])
-        if not d:
-            return None
+        if not d: return None
         m["date"], m["startTime"] = d, hh
         if "dateTime" in end:
             _, eh = _to_local_hhmm_date(end["dateTime"])
-            if eh:
-                m["endTime"] = eh
+            if eh: m["endTime"] = eh
     else:
         return None
     loc = str(ev.get("location") or "").strip()
@@ -233,15 +235,14 @@ def meeting_to_event(m: dict) -> dict:
     # derived from the meeting when we have an id, and only random when we genuinely have nothing.
     if m.get("meet"):
         rid = str(m.get("googleId") or m.get("id") or "").strip() or _uuid.uuid4().hex
-        body["conferenceData"] = {"createRequest": {
-            "requestId": f"zaelar-{rid}"[:64],
-            "conferenceSolutionKey": {"type": "hangoutsMeet"}}}
+        body["conferenceData"] = {"createRequest": {"requestId": f"zaelar-{rid}"[:64],
+                                                    "conferenceSolutionKey": {"type": "hangoutsMeet"}}}
     return body
 
 
 def wants_conference(body: dict) -> bool:
-    """Does this body ask Google to MINT a conference? Read by the callers to set `conferenceDataVersion`,
-    which is the half of the contract that fails silently when it is missing (see `insert_event`)."""
+    """Does this body ask Google to MINT a conference? Read by the callers to set `conferenceDataVersion`, which
+    is the half of the contract that fails silently when it is missing (see `insert_event`)."""
     return bool((body or {}).get("conferenceData"))
 
 
@@ -330,8 +331,7 @@ def _params(body: dict, send_updates: str = "") -> "dict | None":
     return p or None
 
 
-def insert_event(client, api_base: str, token: str, calendar_id: str, body: dict,
-                 send_updates: str = "") -> dict:
+def insert_event(client, api_base: str, token: str, calendar_id: str, body: dict, send_updates: str = "") -> dict:
     try:
         # ⚠️ `conferenceDataVersion=1` is REQUIRED for `conferenceData` to be honoured. Without it Google
         # returns 200 with the event created and the conference silently DROPPED — no error, no link, and
