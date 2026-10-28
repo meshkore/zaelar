@@ -132,8 +132,10 @@ def test_un_widget_que_nadie_ha_escrito_hereda_el_comportamiento():
 def test_the_voice_turn_passes_the_payload():
     """The typed channel runs this same voice turn (`nucleo.cli.turn.run_turn`), so passing the payload here is
     passing it on both — the false green this guard once caused (V2-545) has no second copy to come from."""
-    voz = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    assert "show_request_blocks_data_action(text, wid, action_name, payload)" in voz
+    import inspect
+    from nucleo.acts import card
+    assert card._pure_show in card._LADDER[card.CALL], "the card door reads the pure-show veto at the model's call"
+    assert "show_request_blocks_data_action(text, wid, action, payload)" in inspect.getsource(card._pure_show)
 
 
 def test_cada_veto_queda_contado_en_sombra_con_su_regla():

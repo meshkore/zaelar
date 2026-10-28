@@ -62,7 +62,12 @@ def test_the_short_close_order_keeps_its_rule(screen):
     assert not CC.data_close("agenda", "close_meeting", "ya la puedes cerrar", brief=_brief("agenda:close_meeting", 0.99))
 
 
-def test_the_voice_turn_calls_the_one_door():
-    voice = (ENGINE / "nucleo/flash/tool_executor_widget_calls.py").read_text(encoding="utf-8")
-    assert "_txw._card_close.data_close(wid, action_name, text, brief=_brief)" in voice
-    assert "is_short_close_order" not in voice, "the short close reaches the voice rail through `data_close` only"
+def test_the_voice_turn_calls_the_one_door(screen):
+    """The voice rail reaches `data_close` through the card door's licence (refactor2710-05 T-02): the short close is
+    its `short-close` clause, read at the model's call, and it closes the card it names."""
+    from nucleo.acts import card
+    lic = card.licence({"brief": _brief(), "text": "Vale, ciérralo"}, "youtube", "mute", {}, at=card.CALL)
+    assert (lic.verdict, lic.clause, lic.card) == (card.CLOSE, "short-close", "youtube")
+    for door in ("nucleo/flash/tool_executor_widget_calls.py", "nucleo/acts/card.py"):
+        assert "is_short_close_order" not in (ENGINE / door).read_text(encoding="utf-8"), \
+            "the short close reaches the voice rail through `data_close` only"

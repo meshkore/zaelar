@@ -18,8 +18,15 @@ def test_a_close_op_under_a_sure_close_verdict_is_the_card(monkeypatch):
     assert not da.close_op_is_the_card(object(), "close"), "an unsure verdict keeps the card's own view op"
 
 
-def test_the_data_op_door_closes_the_card_instead():
-    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    seg = prov.split("def _apply_widget_data(", 1)[1].split("_frag_why := ", 1)[0]
-    assert "_direct_action.close_op_is_the_card(_brief, action_name)" in seg
-    assert '_tag_emit("close", {"id": _show_target.close_target(wid)})' in seg
+def test_the_data_op_door_closes_the_card_instead(monkeypatch):
+    """The card door's GATE ladder reads it first, and the gate closes the card the licence names."""
+    import inspect
+    from nucleo.acts import card
+    from nucleo.flash import direct_action as da, show_target as st, tool_executor_widget_calls as calls
+    monkeypatch.setattr(da, "sure_canvas", lambda brief: "close")
+    monkeypatch.setattr(st, "close_target", lambda wid: f"{wid}::1")
+    lic = card.licence({"brief": object(), "text": "close my mail"}, "mensajeria", "close", {}, at=card.GATE)
+    assert (lic.verdict, lic.clause, lic.card) == (card.CLOSE, "close-is-the-card", "mensajeria::1")
+    assert card._LADDER[card.GATE][0] is card._close_is_the_card, "before the fragment rule, as it was"
+    gate = inspect.getsource(calls._apply_widget_data)
+    assert '_tag_emit("close", {"id": _lic.card})' in gate

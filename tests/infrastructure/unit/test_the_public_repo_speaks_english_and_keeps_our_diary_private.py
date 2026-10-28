@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 2025
+TOTAL = 2019
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -118,7 +118,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/canvas_visibility.py': 1,
     'nucleo/flash/clarifying.py': 2,
     'nucleo/flash/close_guards.py': 1,
-    'nucleo/flash/data_ops.py': 1,
     'nucleo/flash/delivery.py': 91,
     'nucleo/flash/dialog.py': 10,
     'nucleo/flash/errand_sheet.py': 10,
@@ -155,7 +154,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/tool_executor.py': 2,
     'nucleo/flash/tool_executor_calls.py': 4,
     'nucleo/flash/tool_executor_widget.py': 2,
-    'nucleo/flash/tool_executor_widget_calls.py': 11,
+    'nucleo/flash/tool_executor_widget_calls.py': 6,
     'nucleo/flash/tool_selection.py': 2,
     'nucleo/flash/tools_media.py': 9,
     'nucleo/turn/brief_screen.py': 3,
