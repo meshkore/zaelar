@@ -255,7 +255,9 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-clip{flex:0 0 auto;width:var(--hb-ctl-h);height:var(--hb-ctl-h);border-radius:var(--hb-r-m);
      border:1px solid var(--hb-line);background:transparent;color:var(--hb-muted);cursor:pointer;
      display:flex;align-items:center;justify-content:center;transition:color var(--hb-t-fast) ease,border-color var(--hb-t-fast) ease}
-.cw-clip svg{width:17px;height:17px}
+/* V2-831 T-03 — attach over send, one column on the textarea's right, touching; both glyphs one scale. */
+.cw-actions{flex:0 0 auto;display:flex;flex-direction:column;gap:var(--sp-1)}
+.cw-actions svg{width:17px;height:17px}
 .cw-clip:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
 .cw-input.cw-dropping{outline:2px dashed var(--hb-accent);outline-offset:-6px}
 .cw-att-tray{flex:1 0 100%;display:flex;flex-direction:column;gap:var(--sp-1,4px);max-height:220px;overflow:auto}
