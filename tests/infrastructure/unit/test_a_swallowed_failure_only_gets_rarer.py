@@ -344,7 +344,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/web_auth.py': 2,
     'nucleo/flash/widget_read.py': 10,
     'nucleo/flash/words_only.py': 1,
-    'nucleo/flash/write_outcome.py': 1,
+    'nucleo/circuit/compose.py': 1,
     'nucleo/git_cli.py': 1,
     'nucleo/circuit/harness.py': 2,
     'nucleo/his_words.py': 1,

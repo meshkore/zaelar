@@ -70,7 +70,7 @@ import pathlib
 
 import pytest
 
-from nucleo.circuit import harness
+from nucleo.circuit import harness, verify
 from nucleo.flash import turn_brief as _tb
 from widgets import store
 from widgets.youtube import data as yt
@@ -264,7 +264,7 @@ def test_an_unverified_goal_says_NOTHING_in_the_prompt():
 def test_a_goal_a_verifier_found_UNMET_still_speaks(monkeypatch):
     """V2-660's protection is untouched: an empty sheet is still a fact with its rule in the prompt."""
     g = harness.note_goal(harness.KIND_WIDGET_CONTENT, "documento", "Tráeme la Declaración.")
-    monkeypatch.setattr(harness, "_widget_view", _async({"empty": True}))
+    monkeypatch.setattr(verify, "card_view", lambda _w: {"empty": True})
     assert asyncio.run(harness.verify(g)) is False
     lines = harness.prompt_lines()
     assert len(lines) == 1 and "sigue VACÍA" in lines[0] and "documento" in lines[0]
@@ -272,8 +272,8 @@ def test_a_goal_a_verifier_found_UNMET_still_speaks(monkeypatch):
 
 def test_a_goal_that_was_MET_closes_and_stops_speaking(monkeypatch):
     g = harness.note_goal(harness.KIND_WIDGET_CONTENT, "documento", "Tráeme la Declaración.")
-    monkeypatch.setattr(harness, "_widget_view", _async({"empty": False}))
-    monkeypatch.setattr(harness, "_card_is_open", lambda _w: True)
+    monkeypatch.setattr(verify, "card_view", lambda _w: {"empty": False})
+    monkeypatch.setattr(verify, "card_on_screen", lambda _w: True)
     assert asyncio.run(harness.sweep()) == [g]
     assert harness.prompt_lines() == [] and g["status"] == "met"
 
@@ -281,7 +281,7 @@ def test_a_goal_that_was_MET_closes_and_stops_speaking(monkeypatch):
 def test_an_unreadable_card_is_reported_once_so_the_silence_is_not_invisible(monkeypatch):
     """A guard that stays quiet is how this one spent a whole session being blamed on the model."""
     seen: list[str] = []
-    monkeypatch.setattr(harness, "_widget_view", _async(None))
+    monkeypatch.setattr(verify, "card_view", lambda _w: None)
     monkeypatch.setattr(harness, "_emit", lambda label, g, extra=None: seen.append(label))
     g = harness.note_goal(harness.KIND_WIDGET_CONTENT, "musica", "Pon algo.")
     assert asyncio.run(harness.verify(g)) is None
