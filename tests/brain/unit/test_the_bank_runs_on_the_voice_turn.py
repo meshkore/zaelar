@@ -32,3 +32,15 @@ def test_the_typed_dry_turn_reaches_no_door():
     doors = res.get("consequences") or []
     assert res.get("action") == "widget_data:youtube:play_item", res.get("action")
     assert doors and all(d["blocked"] for d in doors), f"a dry turn opened a door: {doors}"
+
+
+def test_the_typed_turn_builds_no_livekit_stream(monkeypatch):
+    """`cli.turn` borrows the stream's turn instead of building an `LLMStream` (its own task, its retries that would
+    re-run the turn's doors). Disarm: drive it through `brain.chat(...)` again → this raises."""
+    from voice.engine.llm.providers import nucleo
+
+    def _no_stream(*_a, **_k):
+        raise AssertionError("the typed channel built a LiveKit stream")
+    monkeypatch.setattr(nucleo.NucleoLLMStream, "__init__", _no_stream)
+    out = H.run_case(_case("demo-v7-stop-it-and-close-the-video"), channel="pipeline")
+    assert not out.error and out.decision == "close youtube", (out.decision, out.error)

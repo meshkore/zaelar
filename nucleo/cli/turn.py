@@ -1,7 +1,8 @@
 """ONE turn, typed, through the VOICE turn itself (refactor2710-01 T-02).
 
-`run_turn` drives `NucleoLLMStream` — the turn the microphone runs — without a LiveKit room: a chat context with the
-line, the stream's chunks collected instead of spoken. There is no second implementation of the turn to keep in step.
+`run_turn` runs `NucleoLLMStream`'s own turn — the one the microphone runs — without LiveKit: the turn's methods are
+borrowed whole and its two seams (the context it reads his line from, the channel it speaks into) are the typed line
+and a collector. There is no second implementation of the turn to keep in step.
 What the text channel used to change by being a different program it now changes by being a different INPUT (a typed
 `Utterance`, complete by construction) and a different CONSEQUENCE policy:
 
@@ -35,19 +36,27 @@ def reset(sid: str | None = None) -> None:
         _SESSIONS.pop(sid, None)
 
 
+class _TypedTurn:
+    """The voice turn, borrowed whole from the LiveKit stream — `_run`, `_run_inner` and the two methods they call —
+    with its two seams filled by the typed channel: the context holds HIS line, the channel collects what the turn
+    says. No `LLMStream` underneath, so no task of its own and no retry that would re-run the turn's doors."""
+
+    def __init__(self, brain, text: str):
+        from types import SimpleNamespace
+        from voice.engine.llm.providers.nucleo import NucleoLLMStream
+        self._llm = brain
+        self._chat_ctx = SimpleNamespace(items=[SimpleNamespace(role="user", text_content=text)])
+        self._said: list[str] = []
+        self._event_ch = SimpleNamespace(send_nowait=lambda chunk: self._said.append(
+            getattr(getattr(chunk, "delta", None), "content", None) or ""))
+        for name in ("_run", "_run_inner", "_superseded", "_note_death"):
+            setattr(self, name, getattr(NucleoLLMStream, name).__get__(self))
+
+
 async def _drive(brain, text: str) -> str:
-    from livekit.agents import APIConnectOptions
-    from livekit.agents.llm import ChatContext
-    ctx = ChatContext()
-    ctx.add_message(role="user", content=text)
-    parts: list[str] = []
-    # No retry: a retried turn re-runs every door it already passed.
-    async with brain.chat(chat_ctx=ctx, conn_options=APIConnectOptions(max_retry=0)) as stream:
-        async for chunk in stream:
-            piece = getattr(getattr(chunk, "delta", None), "content", None)
-            if piece:
-                parts.append(piece)
-    return "".join(parts).strip()
+    turn = _TypedTurn(brain, text)
+    await turn._run()
+    return "".join(turn._said).strip()
 
 
 def _tags(events: list[dict]) -> list[dict]:
