@@ -24,7 +24,6 @@ from memory import db as memdb
 from memory import embeddings as mememb
 from memory import secrets
 from nucleo import danger
-from nucleo.flash import probe
 from nucleo.flash import vault_carrier as vc
 
 
@@ -33,9 +32,7 @@ IBAN_TURN = ("Vale, aquí van: número de factura es 000123456789, el importe es
 SECRET_ONLY_TURN = "el IBAN es ES12 1234 5678 9012 3456 7890"
 
 
-class _Client:
-    async def stream(self, *_a, **_kw):
-        yield "Antes de mover un euro necesito que me lo confirmes."
+_SAYS = "Antes de mover un euro necesito que me lo confirmes."
 
 
 @pytest.fixture(autouse=True)
@@ -77,25 +74,37 @@ def test_no_secret_at_all_is_never_the_whole_turn():
     assert vc.secret_is_the_whole_turn("hola, qué tal", []) is False
 
 
-# ── the probe channel, which is the one the use cases run on ────────────────────────────────────────────────
-def test_the_request_survives_and_the_secret_does_not(fresh_db, monkeypatch):
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _Client)
-    res = asyncio.run(probe.run_turn(IBAN_TURN, sid="t-v141-a", ingest=False))
-    probe._SESSIONS.pop("t-v141-a", None)
+# ── the typed channel, which runs the voice turn ────────────────────────────────────────────────────────────
+def _turn(text: str):
+    """One typed turn through the voice turn, with a recorded model. Returns (result, window, model_consulted)."""
+    from tests.brain import harness as H
+    case = {"id": "v141", "lang": "es", "phrase": text, "source": "test", "screen": {"open": []}, "expect": "talk",
+            "model": {"say": _SAYS}}
+    with H.Isolated("es") as iso:
+        iso.seed(case)
+        from nucleo.cli import turn
+        try:
+            res = asyncio.run(turn.run_turn(text, sid="v141", ingest=False))
+            window = [dict(m) for m in turn._brain("v141")._window]
+        finally:
+            turn.reset("v141")
+        return res, window, H.RecordedModel.consulted
+
+
+def test_the_request_survives_and_the_secret_does_not():
+    res, window, consulted = _turn(IBAN_TURN)
     assert res["ok"] is True
-    assert res["action"] != "vault_need_create"          # the turn was NOT consumed…
+    assert consulted, "the turn was consumed by the vault instead of reaching the model"
     assert res["reply"]                                  # …and the operator got an answer
     assert "ES12 1234 5678 9012 3456 7890" not in " ".join(
-        m.get("content", "") for m in probe._session("t-v141-a").window)   # the value never survives
+        str(m.get("content", "")) for m in window)       # the value never survives
 
 
-def test_a_turn_that_is_only_a_secret_still_short_circuits(fresh_db, monkeypatch):
+def test_a_turn_that_is_only_a_secret_still_short_circuits():
     """The interception is right for its own case — and it answers with a SENTENCE now, not «(encrypted
     secret)», which is a stage direction the harness reads as an empty turn and nobody can say out loud."""
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _Client)
-    res = asyncio.run(probe.run_turn(SECRET_ONLY_TURN, sid="t-v141-b", ingest=False))
-    probe._SESSIONS.pop("t-v141-b", None)
-    assert res["action"] in ("vault_save", "vault_need_create")
+    res, _window, consulted = _turn(SECRET_ONLY_TURN)
+    assert not consulted, "a turn that is only a secret must be intercepted before the model"
     reply = " ".join(res["reply"]) if isinstance(res["reply"], list) else str(res["reply"])
     assert reply.strip()
     assert not reply.strip().startswith("(")

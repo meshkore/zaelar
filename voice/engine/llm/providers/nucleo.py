@@ -458,6 +458,17 @@ class NucleoLLMStream(llm.LLMStream):
         if 'text' in _blk:
             text = _blk['text']
 
+        # The VAULT before anything reads his words (refactor2710-01): a secret said inside a request is redacted
+        # here, so neither the brief, the memory heart nor the prompt — nor the window after them — ever holds it.
+        from voice.engine.llm.providers.vault_intercept import try_vault_intercept
+        _vault_lines: list = []
+        _vault_done, text = await try_vault_intercept(text, first_turn, _vault_lines.append, emit)
+        if _vault_done:                             # the whole turn was the secret (or a vault setting): say it, end
+            for _vault_line in _vault_lines:
+                self._event_ch.send_nowait(
+                    ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=_vault_line)))
+            return
+
         # JEV TURN BRIEF (V2-726 F1, moved here by A2): ONE call carrying every question this turn
         # reads AFTER the model — canvas verb, escalate pair, which action of which open card, and
         # what KIND of turn it is (which the filler used to ask on a second socket of its own).
@@ -717,10 +728,6 @@ class NucleoLLMStream(llm.LLMStream):
         # ever sees the text — moved to vault_intercept.py (2026-08-17 modularization pass, extraction step 1 of
         # the plan from this session's architecture audit). `send`/`emit` passed through as-is: `emit` may have
         # been locally overridden to a no-op above, and `send` is this closure's own turn-state accumulator.
-        from voice.engine.llm.providers.vault_intercept import try_vault_intercept
-        _vault_done, text = await try_vault_intercept(text, first_turn, send, emit)
-        if _vault_done:
-            return
 
         # V2-778 F1-10 — the tool executor lives in `nucleo/flash/tool_executor.py`; built here, after the last
         # rebinding of anything it captures (the vault intercept above may redact `text`).
