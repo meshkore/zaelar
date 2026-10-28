@@ -1,6 +1,5 @@
 """«Is this the same errand?»: the words of a goal, their similarity, the live task an order continues.
-Moved out of `tasks.py`; the registry's state and every module name are read through the package (`_f.<name>`), so
-a patch on `tasks` still governs every call.
+Names are read through the package (`_f.<name>`), so a patch on `tasks` governs every call.
 """
 
 import time
@@ -13,9 +12,8 @@ from widgets.navegador import tasks as _f
 def _words(s: str) -> set:
     import re as _re
     if _f._COEXIST_RE is None:
-        # Trim CLAUSES that talk about ANOTHER task ("without stopping the motorcycle task", "without closing X",
-        # "apart from the search for Y", "besides Z") — their subject belongs to ANOTHER task and polluted matching
-        # (bug 2026-07-13: "dog face WITHOUT STOPPING the motorcycle task" matched the bike because of "motorcycles").
+        # Trim CLAUSES about ANOTHER task ("without stopping the motorcycle task", "apart from the search for Y"):
+        # their subject belongs elsewhere and would pollute matching.
         _f._COEXIST_RE = _re.compile(
             r"\b(sin (parar|detener|cerrar|tocar|cancelar)|aparte de|adem[aá]s de|dejando|manteniendo)\b.*$",
             _re.I)
@@ -24,11 +22,9 @@ def _words(s: str) -> set:
 
 
 def _similar(g: set, other_goal: str) -> bool:
-    """True if word set `g` and `other_goal` are the SAME search. Anchor on the shared SUBJECT (roots len≥4, not
-    stopword/marketplace). To avoid merging different topics through an incidental mention (bug 2026-07-13: "dog face
-    without stopping the motorcycle task" matched the bike through "motorcycles"), a ONE-word anchor only counts for
-    SHORT CLARIFICATIONS (`g` ≤3 content words, e.g. "no, enduro"); a fuller request requires ≥2 shared subjects or
-    Jaccard ≥0.4. Two different topics (motorcycle vs apartment, motorcycle vs dog) do not match."""
+    """True if word set `g` and `other_goal` are the SAME search, anchored on the shared SUBJECT (roots len≥4, not
+    stopword/marketplace). A ONE-word anchor only counts for SHORT CLARIFICATIONS (`g` ≤3 content words, e.g. "no,
+    enduro"), so an incidental mention cannot merge topics; a fuller request needs ≥2 shared subjects or Jaccard ≥0.4."""
     gs = {_f._stem(w) for w in g}
     os_ = {_f._stem(w) for w in _f._words(other_goal)}
     if not gs or not os_:

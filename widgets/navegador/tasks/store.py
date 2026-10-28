@@ -1,6 +1,5 @@
 """A task's ROW in the registry: creating it, reading it, its event feed and tally, and how it ends.
-Moved out of `tasks.py`; the registry's state and every module name are read through the package (`_f.<name>`), so
-a patch on `tasks` still governs every call.
+Names are read through the package (`_f.<name>`), so a patch on `tasks` governs every call.
 """
 
 import time
@@ -10,8 +9,7 @@ from widgets.navegador import tasks as _f
 
 def create(goal: str, title: str = "", *, trace: str = "", sheet: str = "") -> str:
     """`trace`: pass it explicitly when the caller knows it (V2-108) — `_current_trace()` reads the AMBIENT context,
-    reliable only inline in a turn; `_prepare_web` creates the task inside the worker's own execution, where every
-    event of the task carried NO trace for its whole life. `title`: the errand's name (V2-799, `set_title`)."""
+    reliable only inline in a turn, not inside a worker's execution. `title`: the errand's name (V2-799, `set_title`)."""
     goal = (goal or "").strip()
     with _f._lock:
         tid = f"t{_f._next_seq('navegador.task')}"
@@ -20,15 +18,13 @@ def create(goal: str, title: str = "", *, trace: str = "", sheet: str = "") -> s
             "status": "queued", "phase": "", "phase_active": False, "events": [], "results": None,
             "question": "", "answer": "", "url": "", "page_title": "", "shot_rev": 0,
             "awaiting_login": False, "created": time.time(),
-            # V2-167: when this task last MOVED (new page or a milestone), and whether the page it sits on is a
-            # wall. Both are read by `active_progress` so the brain can tell "no news yet" from "eleven minutes
-            # on the same page" — two very different things it could not distinguish before.
+            # V2-167: when this task last MOVED (new page or milestone) and whether its page is a wall, so the brain
+            # tells "no news yet" from "eleven minutes on the same page".
             "last_progress": time.time(), "wall": "",
             # V2-044: the task is born from the phrase context (or adopted session) — explicit trace wins.
             "trace": trace or _f._current_trace(),
-            # V2-281 — THE ERRAND'S SHEET, stamped at birth like `trace`: a browser TAB outlives the worker record
-            # that opened it, so a sheet resolved later from the live registry came back "" and findings landed in
-            # the bare `results` box. Empty stays empty for a tab he drives by hand.
+            # V2-281 — THE ERRAND'S SHEET, stamped at birth like `trace` (a tab outlives the worker record that opened
+            # it). Empty stays empty for a tab he drives by hand.
             "sheet": str(sheet or "").strip(),
         }
     return tid
@@ -103,20 +99,9 @@ def add_event(task_id: str, text: str) -> None:
 def tally(task_id: str, **deltas) -> None:
     """Add to this task's harvest counters: how much was looked at, and what survived each cut.
 
-    The narrative already answered «what is it doing» («entrando en es.wallapop.com…»); this answers «how much
-    of it is there», which the operator asked for by name and which nothing on screen could say. Every number
-    here is one the pipeline ALREADY computes and used to spend on a sentence and throw away — `dedupe_by_url`
-    knows how many repeats it collapsed, `by_identity` how many rows had no name, `by_amount` how many had no
-    amount, and `_hand_over` how many of them fit in the note. Counting them is not new work, it is keeping the
-    arithmetic that was being done anyway.
-
-    Written from ONE place on purpose (`act_api._hand_over`), where all of those halves are in scope at once.
-    Spreading the increments over the pipeline would make double counting a matter of luck: `_hand_over` is
-    already guarded against re-extracting the same page (`_HANDED`), so the same page cannot inflate the total
-    by being read twice.
-
-    Unknown keys are dropped rather than stored: a typo must not quietly invent a counter that no surface reads
-    and no test covers.
+    Every number is one the pipeline ALREADY computes (`dedupe_by_url` repeats, `by_identity` unnamed, `by_amount`
+    hollow, `_hand_over` offered). Written from ONE place (`act_api._hand_over`), where all halves are in scope and
+    `_HANDED` guards against counting a page twice. Unknown keys are dropped: a typo must not invent a counter.
     """
     with _f._lock:
         t = _f._tasks.get(str(task_id))

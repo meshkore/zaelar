@@ -1,7 +1,5 @@
 """What the owner writes onto a live task: its phase, the login wait, milestones, status, goal, sheet, title and
-results.
-Moved out of `tasks.py`; the registry's state and every module name are read through the package (`_f.<name>`), so
-a patch on `tasks` still governs every call.
+results. Names are read through the package (`_f.<name>`), so a patch on `tasks` governs every call.
 """
 
 import time
@@ -49,10 +47,8 @@ def _raise_for_him(task_id: str, why: str) -> None:   # he must act in the page 
 def milestone(task_id: str, text: str) -> None:
     """A process MILESTONE (e.g. '34 listings found', 'analyzing 10 finalists') — NOT every browser action.
 
-    Goes to TWO places (2026-08-10): the card feed (ephemeral, in memory, dies with the task) and the event registry,
-    which is what can be audited later. Previously it only went to the card: milestones describing what the task FOUND
-    and DISCARDED —exactly the evidence of whether the search returned what was requested— disappeared when closing
-    it. Now they remain, with the trace of the phrase that requested the task and the actor `span`."""
+    Goes to TWO places: the card feed (ephemeral, dies with the task) and the event registry, auditable later with
+    the trace of the requesting phrase and the actor `span` — what a task FOUND and DISCARDED is the evidence."""
     _f.add_event(task_id, text)
     try:
         from voice.observer import emit
@@ -72,19 +68,11 @@ def set_status(task_id: str, status: str) -> None:
             return
         t["status"] = status
         if status in _f.ENDED_STATES:
-            # V2-197: the SAME list used by the filters. It was also written out by hand here —a third
-            # copy— and therefore `open` never recorded when it had ended: it entered the ended states and
-            # `recently_finished()` discarded it anyway because of its time window. A terminal state that does not
-            # record its time is an ending that nobody can date.
+            # V2-197: the SAME ended-states list the filters use; a terminal state that does not record its time is
+            # an ending nobody can date.
             t["finished"] = time.time()   # mark the CONTINUITY window (find_continuation)
-            # …and the SPINNER goes off with it, for the same reason the line above exists. Measured
-            # 2026-08-23 (`search-secondhand-monitor__es`): a task read `status="cancelled"` while still
-            # carrying `phase="en pausa — reanudando la gestión"` and `phase_active=True` — a resume that was
-            # never going to happen, announced by a task that had already ended. The card kept spinning and
-            # every reader of the phase saw work in flight; the round's watchdog fired on exactly that gap
-            # between what the mechanism said and what the state advertised.
-            # The phase TEXT is left alone on purpose: it is the last true thing that happened and it dates
-            # the ending. What cannot survive the ending is the claim that it is still going.
+            # …and the SPINNER goes off with it: an ended task must not keep claiming work in flight. The phase TEXT
+            # is left alone on purpose — the last true thing that happened, and it dates the ending.
             t["phase_active"] = False
     _f._notify(task_id)
 
@@ -105,10 +93,9 @@ def set_goal(task_id: str, goal: str) -> None:
 
 
 def set_sheet(task_id: str, sheet: str) -> None:
-    """Re-stamp WHOSE SHEET this tab serves (V2-571). The stamp is written once at birth (V2-281), but a tab
-    can be REUSED by a later errand (`find_continuation` in `_prepare_web`), and a stale stamp routes every
-    finding and every refresh to the predecessor's box — the exact «sello RANCIO» V2-434 measured. Only ever
-    overwrites with a REAL sheet: blanking an existing stamp would orphan findings mid-flight."""
+    """Re-stamp WHOSE SHEET this tab serves (V2-571). The stamp is written at birth (V2-281), but a tab can be
+    REUSED by a later errand (`find_continuation` in `_prepare_web`), and a stale stamp routes every finding to the
+    predecessor's box (V2-434). Only ever overwrites with a REAL sheet: blanking would orphan findings mid-flight."""
     sheet = str(sheet or "").strip()
     if not sheet:
         return

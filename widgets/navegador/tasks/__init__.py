@@ -1,48 +1,33 @@
 #
-# tasks.py — browser TASK REGISTRY (multi-task phase). Each task = one objective driven in ITS OWN tab, with
-# a live feed (events), structured results, and an optional question for the operator.
+# tasks — browser TASK REGISTRY. Each task = one objective driven in ITS OWN tab, with a live feed (events),
+# structured results, and an optional question for the operator.
 #
-# Split (decided with the operator on 2026-07-08): the ORCHESTRATOR (fast layer, brains/duo) owns the FLEET — creates
-# tasks, routes operator answers, and knows what is in progress / done / waiting; Hermes plans/analyzes each task;
-# owner.py EXECUTES it in its tab and writes progress here; data.py serves per-task state to the canvas card.
-# 1:1 mapping: card(canvas) ↔ tab(Chrome) ↔ task(this registry).
+# The ORCHESTRATOR (fast layer) owns the FLEET — creates tasks, routes operator answers, knows what is in progress /
+# done / waiting; Hermes plans each task; owner.py EXECUTES it in its tab and writes progress here; data.py serves
+# per-task state to the canvas card. 1:1: card(canvas) ↔ tab(Chrome) ↔ task(this registry).
 #
-# Intentionally in-memory: a task lives while its tab lives; a restart kills tabs, so persisting them makes no sense.
-# Same process for owner/data/duo → they all share this module (one dict).
+# In-memory on purpose: a task lives while its tab lives, and a restart kills tabs. owner/data/duo share this dict.
 #
 import itertools
 import threading
 import time
 
-# F4 (2026-08-23): the set-comparison arithmetic comes from THE yardstick module. `nucleo.matching` is pure
-# stdlib (no engine import, no cycle): this file keeps its own stemming and clarification contract — those are
-# browser-specific and measured — but the primitive underneath is the shared one, so the two judges of «same
-# errand?» can no longer drift apart silently (they did: 2026-08-21, three workers driving one tab).
+# The set-comparison arithmetic comes from THE yardstick module (`nucleo.matching`, pure stdlib, no cycle): the
+# stemming and clarification contract stay here (browser-specific), the primitive is shared so the two judges of
+# «same errand?» cannot drift apart.
 from nucleo import matching
 
 WID = "navegador"
 _lock = threading.RLock()
 _tasks: dict[str, dict] = {}          # task_id -> state
-# Task ids come from the process-identity owner (F5). Per-process is CORRECT here, unlike the results sheet
-# (32c7dc6): this registry is RAM, a task dies with its process, and its canvas card is ephemeral by design —
-# nothing durable is keyed on `tN`, so a repeated id after a restart has nothing left to collide with.
+# Task ids come from the process-identity owner (F5). Per-process is CORRECT here: this registry is RAM, a task dies
+# with its process and its card is ephemeral, so nothing durable is keyed on `tN` to collide after a restart.
 from nucleo.runtime_ids import next_seq as _next_seq
 _MAX_EVENTS = 60
 
-# A WALL is a page that STOPPED us — an anti-bot challenge, a CAPTCHA, a load error. V2-167 measured three runs that
-# ended `status=working results=null` with `awaiting_login: false`, and in two of them the browser was sitting on a
-# wall the whole time: Booking's `chal_t=` challenge and Google's `/sorry/index`. Nothing here recognised either, so
-# the only field that could have said it (`awaiting_login`, written ONLY by the real login flow) said there was
-# nothing to say — and the brain, correctly, reported no news for eleven minutes.
-#
-# URL-only ON PURPOSE. `nucleo/browser_search.py::_looks_blocked` reads the page BODY for the same class of event,
-# and it can: it owns its own page object. This registry never sees a body — `update_view` is fed url+title. Both
-# measured walls are visible in the URL, so this is what the evidence supports; a body check would need to live where
-# the body is (the owner), not here. Keeping them apart is deliberate — one predicate reading two different inputs
-# would be a predicate that lies about half its callers.
-# ── WHAT A WALL IS — extracted to `widgets/navegador/walls.py` (ratchet, V2-358). Re-exports under the
-# historical names: classification is pure and lives there; the HISTORY of walls encountered (t["walls"])
-# remains here, because it belongs to the registry.
+# A WALL is a page that STOPPED us (anti-bot challenge, CAPTCHA, load error) — V2-167. Classification is pure and
+# lives in `widgets/navegador/walls.py` (re-exported under the historical names); the HISTORY of walls hit
+# (t["walls"]) belongs to the registry. Wall-by-URL here; a body check lives where the body is (the owner tab).
 from widgets.navegador.walls import (  # noqa: F401 — re-export
     WALL_BODY_PEEK_CHARS, _WALL_BODY_MAX_CHARS, body_wall_reason, host_of, status_wall_reason, wall_reason,
 )
@@ -52,13 +37,8 @@ _MAX_WALLS = 6          # enough to say «this happens everywhere», bounded so 
 # States: queued (created) · working (executing) · needs_input (waiting for answer) · open (a page opened FOR
 # the operator, standing) · done · failed · cancelled.
 #
-# V2-197 — enumerated ONCE. `active_summaries()` and `recently_finished()` used to spell out their own subsets
-# by hand, and a state in neither list is a task the live state does not mention AT ALL: not alive, not
-# finished. The model then carries on with the last thing it knew, which is the correct thing to do when
-# nobody tells it otherwise. That hole cost `cancelled` (V2-196, measured: «infinite wait loop on a task that
-# had already failed») — and the moment the enumeration was single-sourced it turned out `open` was sitting in
-# the same hole, set by `owner.py` every time a page is opened for the operator. Two lists that must be kept in
-# sync are two lists that will not be.
+# V2-197 — enumerated ONCE: a state missing from both the active and the finished subsets is a task the live state
+# does not mention AT ALL. Two lists that must be kept in sync are two lists that will not be.
 LIVE_STATES = frozenset({"queued", "working", "needs_input"})
 ENDED_STATES = frozenset({"done", "failed", "cancelled", "open"})
 
@@ -116,10 +96,9 @@ def _current_trace() -> str:
 _COEXIST_RE = None
 
 
-# Words that do NOT identify the search SUBJECT: filler + search verbs + MARKETPLACE NAMES (two different searches —
-# a motorcycle, a sofa— share "wallapop" but are NOT the same topic) + stopwords. The real subject
-# (motorcycle/enduro/car/apartment/sofa...) anchors "this is the SAME search". Thus a short clarification ("no,
-# enduro") stays anchored to the motorcycle through the word "motorcycle", but "motorcycle" and "apartment" never merge.
+# Words that do NOT identify the search SUBJECT: filler, search verbs, MARKETPLACE NAMES (two searches can share
+# "wallapop" and not be the same topic) and stopwords. The real subject anchors "this is the SAME search": "no,
+# enduro" stays with the motorcycle, but "motorcycle" and "apartment" never merge.
 _STOP = {
     # search verbs/filler
     "buscar", "busca", "busque", "busques", "buscame", "buscando", "mostrar", "muestra", "dame", "encuentra",
@@ -146,11 +125,8 @@ _STOP_STEMMED = {_stem(w) for w in _STOP}
 
 
 # An ACTIVE browser task is "what we are doing RIGHT NOW": while it lives, any similar request is routed to IT — never
-# open a SECOND browser for the same thing (state control, 2026-07-12). The only limit is an anti-ZOMBIE guard: a task
-# hung for longer than _ZOMBIE_MAX must not block new searches forever. Previously dedup only looked at the first
-# 45-90 s FROM CREATION → a long task (marketplaces take MINUTES) stopped being protected and a late refinement ("raise
-# the price", "analyze them") spawned a TWIN browser doing the same search (bug from the 2026-07-12 session: one bike
-# search ended up opening t1 + t2 in parallel).
+# a SECOND browser for the same thing, however late the refinement (marketplaces take MINUTES). The only limit is the
+# anti-ZOMBIE guard: a task hung longer than _ZOMBIE_MAX must not block new searches forever.
 _ZOMBIE_MAX = 1800.0   # s (30 min): beyond this, an "active" task is considered hung and no longer deduplicates.
 
 
@@ -169,8 +145,8 @@ JUST_FINISHED_S = 600.0
 #: un-counts itself, which is what lets the operator read the tab as a running total instead of a snapshot.
 TALLY_KEYS = ("pages", "rows", "repeated", "unnamed", "hollow", "kept", "offered")
 
-# refactor2710-12 — the registry's code lives in its concern modules; the STATE above stays here, and they read it
-# (and every other name of this module) through the package.
+# The registry's code lives in its concern modules; the STATE above stays here, and they read it (and every other
+# name of this module) through the package.
 from widgets.navegador.tasks.store import (  # noqa: E402,F401 — re-export
     create, ensure, get, all_ids, active_ids, waiting_id, login_waiting_id, add_event, tally, is_cancelled,
     cancel, finish)
