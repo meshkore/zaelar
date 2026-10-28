@@ -272,9 +272,7 @@ def recent_lines(now: float | None = None) -> list[str]:
     now = float(now if now is not None else _t.time())
     try:
         from nucleo.circuit import ledger as _tasks
-        rows = _tasks.store().tasks_where(states=("pending", "running", "waiting", "done", "failed", "cancelled"),
-                                          modes=("now",), visible_only=True, limit=RECENT_MAX * 4,
-                                          newest_first=True, since=now - RECENT_WINDOW_S)
+        rows = _tasks.recent(since=now - RECENT_WINDOW_S, limit=RECENT_MAX * 4)
     except Exception:  # noqa: BLE001 — a record that cannot be read adds nothing, and never breaks the turn
         return []
     said: set[str] = set()
@@ -349,9 +347,7 @@ def earlier_lines(now: float | None = None) -> list[str]:
     try:
         from nucleo.circuit import ledger as _tasks
         st = _tasks.store()
-        rows = st.tasks_where(states=("pending", "running", "waiting", "done", "failed", "cancelled"),
-                              modes=("now",), visible_only=True, limit=EARLIER_MAX * 4, newest_first=True,
-                              exclude_kinds=("inline",), since=now - EARLIER_WINDOW_S)
+        rows = _tasks.recent(since=now - EARLIER_WINDOW_S, limit=EARLIER_MAX * 4, exclude_kinds=("inline",))
     except Exception as e:  # noqa: BLE001 — a record that cannot be read adds nothing, and never breaks the turn
         from loguru import logger
         logger.debug(f"earlier_lines: the request record could not be read: {e}")

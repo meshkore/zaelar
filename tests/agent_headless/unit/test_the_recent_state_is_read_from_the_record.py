@@ -1,3 +1,4 @@
+from nucleo import circuit
 """V2-776 M2 · the prompt's recent state is read from the RECORD, always (nodes 2.196, 2.197, 3.112).
 
 Manual session 7850de3f (2026-09-30): the INIT list finished at 11:19; at 12:43 the agent said «it's all still
@@ -29,7 +30,7 @@ def world(tmp_path, monkeypatch):
 
 def _inline(text, widget, action, verdict, outcome=""):
     uid = contextvars.copy_context().run(lambda: (rq.begin(text), rq.opened(widget, action))[1])
-    rq.settle(uid, verdict, outcome)
+    circuit.settle(row=uid, verdict=verdict, outcome=outcome)
     return uid
 
 
