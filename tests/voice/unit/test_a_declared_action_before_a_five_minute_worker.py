@@ -41,7 +41,7 @@ import pytest
 from nucleo.flash import canvas_license as _lic
 from nucleo.flash import direct_action as _da
 from nucleo.flash import escalation_guard as _eg
-from nucleo.flash import turn_brief as _tb
+from nucleo.turn import brief as _tb
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[3]
 _PROVIDER = _ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py"
@@ -463,7 +463,8 @@ def test_a_read_the_verdict_says_to_SHOW_brings_the_card(monkeypatch):
     src = _provider_src()
     i = src.index('if read_req["v"] is not None and escalate_req["v"] is None')
     assert "_cardc.present_if_show(read_req" in src[i:i + 1200]
-    from nucleo.flash import card_commission, turn_brief, widget_read
+    from nucleo.flash import card_commission, widget_read
+    from nucleo.turn import brief as turn_brief
     monkeypatch.setattr(widget_read, "resolve", lambda arg, text="": "agenda" if "agenda" in (arg + text) else None)
     verb = ["show"]
     monkeypatch.setattr(turn_brief, "read", lambda brief, key, fb, **k: (verb[0], {"used": True}))
@@ -626,7 +627,8 @@ def test_R3_an_unsure_screen_verdict_asks_the_catalogue_too(monkeypatch):
     screen verdict, like a sure «none», means the screen question could not say: the catalogue is asked."""
     import threading
     from nucleo import jev
-    from nucleo.flash import build_decision, card_commission as cc, turn_brief as tb
+    from nucleo.flash import build_decision, card_commission as cc
+    from nucleo.turn import brief as tb
     monkeypatch.setattr(build_decision, "named_card", lambda brief: "")
     monkeypatch.setattr(tb, "catalog_question", lambda: {"instructions": "i", "criteria": {"agenda": "a"}})
     monkeypatch.setattr(jev, "choose_sync", lambda *a, **k: {"choice": "agenda", "confidence": 0.9})

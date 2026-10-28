@@ -48,7 +48,8 @@ def answers_our_question(brief, prior: str) -> bool:
     The label only EXCLUDES; the fact that licenses is our question (bank case 3a9a082c: «Yes. Do it.» over our
     «…or drop it — which do you want?» read as `order` at 0.53, and the guard annulled the errand he agreed to)."""
     try:
-        from nucleo.flash import canvas_license as _lic, turn_brief as _tb
+        from nucleo.flash import canvas_license as _lic
+        from nucleo.turn import brief as _tb
         if not _lic.answered_an_offer(prior):
             return False
         kind, _info = _tb.read(brief, _tb.REQUEST_KEY, "")

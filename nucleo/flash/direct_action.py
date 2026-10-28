@@ -62,7 +62,7 @@ def from_brief(brief) -> tuple:
         # brief there is no verdict, and asking printed `jev read screen_action → off` noise on every video turn.
         return ("", "")
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         choice, _info = _tb.read(brief, _tb.TARGET_KEY, "")
         raw = str(choice or "").strip()
         if not raw or raw == "none":
@@ -91,7 +91,8 @@ def names_an_order(brief, *, sure: float = 0.0) -> bool:
     no hay clase» → «Vale, quito la del 6», with no tool and a card that still had both. The verdict was already
     paid for and named the action; the wording of the reply is not the evidence, the verdict is."""
     try:
-        from nucleo.flash import build_decision as _bd, turn_brief as _tb
+        from nucleo.flash import build_decision as _bd
+        from nucleo.turn import brief as _tb
         # V2-773 — either twin names the card: `screen_action` while open, the CATALOGUE while closed («Message
         # Rowan on Telegram», «Show me only today's emails» were promised or denied with no call and no repair).
         if not from_brief(brief)[1] and not _bd.named_card(brief):
@@ -292,7 +293,7 @@ def a_fragment_moves_nothing(operator_text: str, *, brief=None, last_reply: str 
     if not only_a_number(words):
         return ""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         _choice, _info = _tb.read(brief, _tb.TARGET_KEY, "")
         if _info is None:
             return ""                     # nobody asked, or nobody answered: today's path
@@ -360,7 +361,7 @@ def complete(brief, *, operator_text: str, emit, present, apply_widget_data,
     Never raises.
     """
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         if require_order:
             kind, _info = _tb.read(brief, _tb.REQUEST_KEY, "")
             if _info is None:

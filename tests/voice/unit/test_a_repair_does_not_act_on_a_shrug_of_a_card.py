@@ -12,7 +12,8 @@ import threading
 import pytest
 
 from nucleo import jev
-from nucleo.flash import build_decision, card_commission as cc, turn_brief as tb
+from nucleo.flash import build_decision, card_commission as cc
+from nucleo.turn import brief as tb
 
 
 @pytest.fixture

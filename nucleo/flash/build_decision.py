@@ -92,7 +92,7 @@ def card_mass(brief) -> str:
     card is still open — "" otherwise. Reads the verdict's own distribution; never waits, never raises."""
     try:
         from nucleo import jev as _jev
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         verdict = _jev.peek(brief)
         ans = (verdict or {}).get(_tb.TARGET_KEY) or {}
         probs = ans.get("probs") or ans.get("probabilities") or {}
@@ -123,7 +123,8 @@ def named_card(brief) -> str:
     if not brief:
         return ""
     try:
-        from nucleo.flash import direct_action as _da, turn_brief as _tb
+        from nucleo.flash import direct_action as _da
+        from nucleo.turn import brief as _tb
         owner, _action = _da.from_brief(brief)      # screen_action, re-validated against what is open
         if owner:
             return str(owner)
@@ -151,7 +152,7 @@ def verdicts(brief) -> tuple[str, str]:
     if not brief:
         return ("", "")
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         bld, _b = _tb.read(brief, BUILD_KEY, "")
         return (named_card(brief), str(bld or "").strip())
     except Exception:  # noqa: BLE001

@@ -188,7 +188,7 @@ def task_reply(words: str, v: str | None, question: str, *, brief=None, parked: 
     judged = _c._judge(question, words) if question else None
     if judged is not None:
         return None if judged == "other" else judged
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     kind, _info = _tb.read(brief, _tb.REQUEST_KEY, "") if brief is not None else ("", None)
     if kind == "answer":
         return v

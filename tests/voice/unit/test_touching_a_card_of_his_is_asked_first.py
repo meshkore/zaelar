@@ -261,7 +261,7 @@ from nucleo.flash import direct_action
 def _brief(answers: dict, *, open_ids=("youtube",)):
     """A brief handle in the REAL shape `jev.ask_many` returns — the same double nodes 2.68/2.72/2.75 use."""
     import threading
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     ev = threading.Event()
     ev.set()
     return {"event": ev, "turn_id": "t-1", "open_ids": list(open_ids),
@@ -270,7 +270,7 @@ def _brief(answers: dict, *, open_ids=("youtube",)):
 
 @pytest.fixture
 def on_screen(monkeypatch):
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: True)
 
 
@@ -284,7 +284,7 @@ def test_only_a_number_reaches_only_numbers(words, expected):
     """The narrowing that makes this guard shippable. `too_thin_to_commission` calls «páusalo» and
     «páralo» fragments too — its `_ALSO_A_VERB` hatch matches «para», and the enclitic is another token
     — and those are his commonest orders. Measured, not assumed:"""
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     assert direct_action.only_a_number(words) is expected, words
     if not expected and words:
         # …with the brief ANSWERING exactly as it did on the measured turn. Without it `_info is None`
@@ -296,14 +296,14 @@ def test_only_a_number_reaches_only_numbers(words, expected):
 
 def test_a_bare_number_with_the_verdict_silent_moves_nothing():
     """The measured turn: `screen_action = none` at 0.31 — answered, and naming nothing."""
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     b = _brief({_tb.TARGET_KEY: ("none", 0.31), _tb.REQUEST_KEY: ("answer", 1.0)})
     assert direct_action.a_fragment_moves_nothing("sesenta y nueve.", brief=b)
 
 
 def test_but_a_bare_number_the_verdict_NAMES_still_runs(on_screen):
     """A text guard may not contradict the screen verdict — V2-741 and V2-748 both paid for that."""
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     b = _brief({_tb.TARGET_KEY: ("youtube:play_result", 0.92), _tb.REQUEST_KEY: ("order", 0.9)})
     assert direct_action.a_fragment_moves_nothing("el tres", brief=b) == ""
 

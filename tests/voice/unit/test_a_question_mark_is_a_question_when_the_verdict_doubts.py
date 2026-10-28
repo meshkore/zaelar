@@ -5,7 +5,7 @@ Demo pass 66, R2 (2026-09-30): «and when does anna's vacation start? show me in
 0.02, both unsure, so `question_left_to_a_lens` never asked the card. Punctuation is language-free evidence.
 """
 from nucleo.flash import card_commission as cc
-from nucleo.flash import turn_brief as tb
+from nucleo.turn import brief as tb
 
 OPS = [{"widget_id": "agenda", "action": "show_day"}]
 

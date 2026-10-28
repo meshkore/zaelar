@@ -20,7 +20,8 @@ import threading
 import pytest
 
 from nucleo import surfaces
-from nucleo.flash import act_repair, canvas_visibility as cv, card_commission, turn_brief as tb
+from nucleo.flash import act_repair, canvas_visibility as cv, card_commission
+from nucleo.turn import brief as tb
 from nucleo.turn import promise_kept as pk
 
 #: (his words, the view a rung chose) — es and en; the deliverable is always a written document.

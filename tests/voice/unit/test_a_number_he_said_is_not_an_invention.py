@@ -75,7 +75,7 @@ import threading
 import pytest
 
 from nucleo.flash import direct_action as _da
-from nucleo.flash import turn_brief as _tb
+from nucleo.turn import brief as _tb
 from voice import observer as _obs
 from widgets import store
 from widgets.youtube import data as yt

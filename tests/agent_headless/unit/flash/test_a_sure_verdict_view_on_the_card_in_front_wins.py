@@ -67,7 +67,8 @@ def test_the_text_channel_yields_a_lens_where_the_verdict_acts(monkeypatch):
     """V2-781 pair 5 (text channel): «cámbiale el nombre al dentista, ponle X» — verdict agenda:update_meeting 0.99,
     the model called open_meeting (a lens) and said «Hecho». The voice rail already yields a lens there
     (`data_ops.a_view_where_the_verdict_acts`); the text channel did not carry the rule."""
-    from nucleo.flash import data_ops as _do, direct_action as _da, turn_brief as _tb
+    from nucleo.flash import data_ops as _do, direct_action as _da
+    from nucleo.turn import brief as _tb
     monkeypatch.setattr(_da, "from_brief", lambda _b: ("agenda", "update_meeting"))
     monkeypatch.setattr(_da, "_action_sure", lambda _b, floor=0.8: True)
     monkeypatch.setattr(_do, "is_view_op", lambda w, a: a == "open_meeting")

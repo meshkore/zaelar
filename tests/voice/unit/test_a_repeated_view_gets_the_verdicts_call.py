@@ -83,7 +83,7 @@ def test_a_read_for_an_order_on_another_card_carries_the_order_out(model, monkey
 
 def test_the_order_card_is_the_other_card_his_words_name(monkeypatch):
     from nucleo.flash import direct_action as da
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     monkeypatch.setattr(tb, "read", lambda b, k, d="", min_confidence=0.0: ("order", {"used": True}) if k == tb.REQUEST_KEY else (d, None))
     assert da.order_card_after_read({"x": 1}, "send rowan a telegram with the new time", "agenda") == "mensajeria"
     assert da.order_card_after_read({"x": 1}, "what time is it tomorrow in my calendar", "agenda") == ""

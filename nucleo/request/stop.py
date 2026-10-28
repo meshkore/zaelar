@@ -52,7 +52,7 @@ def verdict(brief) -> str | None:
     if not brief:
         return None
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         choice, info = _tb.read(brief, KEY, None)
     except Exception as e:  # noqa: BLE001 — a classifier may never break a turn
         logger.debug(f"stop_decision: verdict unreadable: {e!r}")

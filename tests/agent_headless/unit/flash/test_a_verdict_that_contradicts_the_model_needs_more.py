@@ -18,7 +18,7 @@ from tests import widget_data_rig as rig
 
 @pytest.fixture(autouse=True)
 def _open(monkeypatch):
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     monkeypatch.setattr(_tb, "owner_still_open", lambda _b, _o: True)
 
 

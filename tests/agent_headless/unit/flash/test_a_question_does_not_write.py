@@ -4,7 +4,7 @@ Demo pass 93 (2026-10-03), R2 «When does Anna's vacation start? Show it to me o
 (0.83), and the model called agenda:add_meeting — a second «Anna vacation» over the one the INIT had made.
 """
 from nucleo.acts import card
-from nucleo.flash import turn_brief as tb
+from nucleo.turn import brief as tb
 
 
 def _verdict(monkeypatch, choice, used):

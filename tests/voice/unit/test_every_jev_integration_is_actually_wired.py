@@ -76,7 +76,7 @@ def _settle(handle, timeout_s: float = 2.0):
 
 def test_the_canvas_verb_reaches_the_transport(wire):
     """Since V2-726 F1 the canvas verb rides the turn's brief, so the brief is its front door."""
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     _settle(tb.ask("abre mis mensajes"))
     assert len(wire.calls) == 1, "the canvas verb never asked Jev anything"
     canvas = wire.calls[0]["questions"].get(tb.CANVAS_KEY)
@@ -101,7 +101,8 @@ def test_the_live_integrations_are_exactly_these_two(wire):
     transport, and one that starts reaching it without being declared. Either is a §3.1 in the
     making — the first failure mode took a whole implementation to notice.
     """
-    from nucleo.flash import frontend as fe, turn_brief as tb
+    from nucleo.flash import frontend as fe
+    from nucleo.turn import brief as tb
     fired = []
     for name, fn in (("canvas", lambda: _settle(tb.ask("abre mis mensajes"))),
                      ("action", lambda: fe.repair_action("agenda", "inventada", "borra la cita"))):
@@ -135,7 +136,7 @@ def test_the_retired_route_is_gone_from_the_engine(wire):
 def test_switched_off_reaches_nothing_at_all(wire, monkeypatch):
     """`ZAELAR_JEV=0` is the parity switch. It returns None — and so does a broken integration,
     which is why `assert ... is None` can never be the proof that something is wired."""
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     monkeypatch.setenv("ZAELAR_JEV", "0")
     assert tb.ask("abre mis mensajes") is None
     assert wire.calls == [], "something talked to Jev with the kill switch on"

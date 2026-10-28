@@ -51,7 +51,7 @@ def owes_an_act(brief) -> str:
     verdict decides whether an act was owed, never our own words). "" when the brief does not say so: nothing is
     invented then, the model's turn stands."""
     try:
-        from nucleo.flash import turn_brief as tb
+        from nucleo.turn import brief as tb
         esc, e_info = tb.read(brief, tb.ESCALATE_KEY, "")
         if e_info is not None and esc == "escalate":
             return "escalate"

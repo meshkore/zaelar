@@ -78,7 +78,7 @@ def after_the_repair(spoken: str, promised: bool, widget_id: str = "", action: s
 def _answered_a_question(brief, reply: str) -> bool:
     """A SURE question (the brief) answered by a reply that refused nothing: the brief decides (refactor2710-03)."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8) if brief is not None else ("", None)
         return bool(info) and str(kind or "") == "question" and not _ar.denies_the_act(reply)
     except Exception:  # noqa: BLE001

@@ -99,7 +99,7 @@ def test_the_voice_provider_names_no_blocking_jev_call():
     hits = sorted({n for n in BLOCKING_NAMES if f"{n}(" in code})
     assert not hits, (
         f"the voice provider calls {hits} — those block the event loop on urlopen. Ask the question "
-        f"in the turn brief (`nucleo/flash/turn_brief.py`) and read the verdict with `_from_brief`.")
+        f"in the turn brief (`nucleo/turn/brief.py`) and read the verdict with `_from_brief`.")
 
 
 def test_the_brief_readers_are_what_it_uses_instead():

@@ -272,7 +272,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
                                               apply_widget_data=_apply_widget_data, acted=acted, done=data_done)
     _op_answer = None
     if read_req["v"] is None and escalate_req["v"] is None and _turn_op_tasks:
-        from nucleo.flash import turn_brief as _tbw
+        from nucleo.turn import brief as _tbw
         _wk, _wi = _tbw.read(_brief, _tbw.WORDS_KEY, "")
         _rk, _ri = _tbw.read(_brief, _tbw.REQUEST_KEY, "")
         from widgets import effects as _fx_ans
