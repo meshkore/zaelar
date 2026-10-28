@@ -61,6 +61,37 @@ def spawn_of(monkeypatch, *, spec: WorkerSpec | None = None, host_env: dict | No
     return captured
 
 
+def grok_spawn_of(monkeypatch, *, spec: WorkerSpec | None = None) -> dict:
+    """The same door for the Grok Build worker: `{"argv", "env", "kw", "prompt"}`, where `prompt` is what the
+    worker reads from its `--prompt-file` (the file is read at the spawn, before anything removes it)."""
+    from nucleo.workers.providers import grok as G
+    captured: dict = {}
+
+    async def _spawn(*argv, **kw):
+        argv = list(argv)
+        captured.update(argv=argv, env=dict(kw.pop("env", {}) or {}), kw=kw)
+        if "--prompt-file" in argv:
+            with open(argv[argv.index("--prompt-file") + 1], encoding="utf-8") as fh:
+                captured["prompt"] = fh.read()
+        return _Proc()
+
+    async def _no_pump(self):
+        return None
+
+    monkeypatch.setattr(G._spawned, "spawn", _spawn)
+    monkeypatch.setattr(G, "find_grok", lambda: "/opt/fake/grok")
+    monkeypatch.setattr(G.GrokSession, "_pump", _no_pump)
+
+    async def go():
+        s = G.GrokSession()
+        await s.start("busca carpinteros", spec=spec or WorkerSpec(task_id="t-grok"))
+        if getattr(s, "_reader_task", None):
+            await s._reader_task
+    asyncio.run(go())
+    assert captured, "start() never reached the spawn"
+    return captured
+
+
 def flag(argv: list, name: str) -> str | None:
     """The value after `name` in an argv, or None when the flag is absent."""
     return argv[argv.index(name) + 1] if name in argv else None

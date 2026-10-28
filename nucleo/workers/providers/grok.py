@@ -119,141 +119,14 @@ _ARG_ALIAS = {
 }
 
 
-def find_grok() -> str:
-    """Localiza el CLI de Grok Build. Mismo caso que `claude` y `codex`: se instala con npm bajo un nvm que NO está
-    en el PATH del server (aquí quedó en `node/v24.18.0`, mientras el proceso corre con v24.1.0)."""
-    cand = os.getenv("GROK_BIN")
-    if cand and os.path.exists(os.path.expanduser(cand)):
-        return os.path.expanduser(cand)
-    found = shutil.which("grok")
-    if found:
-        return found
-    for pat in ("~/.nvm/versions/node/*/bin/grok", "/opt/homebrew/bin/grok",
-                "/usr/local/bin/grok", "~/.local/bin/grok", "~/.bun/bin/grok"):
-        hits = glob.glob(os.path.expanduser(pat))
-        if hits:
-            return sorted(hits)[-1]
-    return ""
-
-
-def detect() -> dict:
-    """¿Está Grok Build aquí, con qué versión y con qué modelos? Lo consume el catálogo de la config para no ofrecer
-    un proveedor que no existe en esta máquina. Nunca lanza."""
-    path = find_grok()
-    out: dict = {"installed": bool(path), "path": path, "version": "", "default_model": ""}
-    if not path:
-        return out
-    try:
-        r = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=8)
-        out["version"] = ((r.stdout or r.stderr or "").strip().split() or [""])[1] \
-            if len((r.stdout or r.stderr or "").split()) > 1 else ""
-    except Exception:
-        pass
-    return out
+from nucleo.workers.providers import grok_start as _gst  # noqa: E402
 
 
 class GrokSession(ClaudeCodeSession):
     name = "grok_build"
     _prompt_path = ""   # fichero temporal del prompt (ver la nota de la cabecera); se borra al morir el proceso
 
-    async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
-        import asyncio
-
-        self._task_id = spec.task_id or ""
-        self._model = spec.model or ""
-        grok = find_grok()
-        if not grok:
-            await self._q.put(self._ev("error", fatal=True, message=(
-                "Grok Build CLI no encontrado (instálalo con `npm i -g @xai-official/grok` o define GROK_BIN)")))
-            await self._q.put(self._ev("done"))
-            self._done = True
-            return
-
-        cwd = spec.cwd or _ZAELAR
-        # El prompt a un FICHERO (ver la nota de la cabecera): `-p -` no lee stdin, y por argv un prompt con el
-        # dossier de memoria + el método revienta el límite de la línea de comandos.
-        fd, self._prompt_path = tempfile.mkstemp(prefix=f"zaelar-grok-{self._task_id or 'x'}-", suffix=".txt")
-        with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            # La nota del backend va DELANTE: explica la reja antes de que el modelo se choque con ella (ver
-            # `_BACKEND_NOTE`). Con `deny_tools` no hay puentes ni terminal, así que la nota no aplica y no se pone.
-            fh.write(prompt if spec.deny_tools else _BACKEND_NOTE + "\n" + prompt)
-        cmd = [grok, "--prompt-file", self._prompt_path, "--output-format", "streaming-messages-json",
-               "--permission-mode", "acceptEdits", "--cwd", cwd,
-               # Su TUI y sus extras no tienen sentido headless, y cada uno es superficie que no queremos:
-               # sin subagentes (el paralelismo lo gobierna NUESTRO pool `max_parallel`, no el CLI), sin plan mode
-               # (el método lo pone nuestro prompt) y sin memoria cruzada entre sesiones (la memoria del operador es
-               # `memory/`, con su escritor único — una memoria paralela dentro del CLI la partiría en dos).
-               "--no-subagents", "--no-plan", "--no-memory"]
-        if spec.resume_sid:
-            cmd += ["--resume", spec.resume_sid]
-            logger.info(f"worker[{self._task_id}]: grok REANUDA sesión {spec.resume_sid[:12]}…")
-
-        # CONTENCIÓN — el mismo invariante que Claude Code, con su misma sintaxis (probado que la aplica).
-        if spec.deny_tools:
-            # Entrada NO confiable (V2-010): sin tools y sin puentes. `--tools ''` deja el modelo sin ninguna.
-            cmd += ["--tools", "", "--deny", "Bash"]
-        else:
-            tools = list(_GROK_TOOLS)
-            cmd += ["--tools", ",".join(tools)]
-            # Bash acotado a los PUENTES y a nada más: se reusa literalmente `_BRIDGE_TOOLS` de claude_session, que
-            # es la fuente única de esa lista (y ya declara todas las formas del intérprete).
-            rules = list(_BRIDGE_TOOLS)
-            if (spec.env or {}).get("ZAELAR_NO_BRIDGE_TOOLS"):
-                rules = []
-            # **En cuanto hay UNA regla `--allow`, la allowlist pasa a ser ESTRICTA**: `--permission-mode
-            # acceptEdits` deja de aprobar nada que no esté listado, así que hay que declarar CADA tool, no solo el
-            # Bash. Lo descubrió el banco del 2026-08-13 en dos capas: primero faltaba `write` en `--tools` (y el
-            # worker rodeaba por la terminal), y al añadirlo la escritura seguía muriendo — ahora con «User
-            # cancelled the execution for tool `write`», porque nunca había tenido permiso. Las reglas van con los
-            # nombres de CLAUDE (probado: `--allow Write` habilita su `write`, `--allow Read` su `read_file`), que
-            # es justo el mapeo que ya tenemos en `_TOOL_ALIAS` — se reusa para no mantener dos listas que se
-            # desincronizarían al añadir una tool.
-            rules += sorted({_TOOL_ALIAS[t] for t in _GROK_TOOLS
-                             if t in _TOOL_ALIAS and _TOOL_ALIAS[t] != "Bash"})
-            for r in rules:
-                cmd += ["--allow", r]
-        if spec.model:
-            cmd += ["-m", spec.model]
-        if spec.extra_args:
-            cmd += list(spec.extra_args)
-
-        env = dict(os.environ)
-        env["PATH"] = os.path.dirname(grok) + os.pathsep + env.get("PATH", "")
-        env.update(spec.env or {})
-        # Grok se autentica con XAI_API_KEY (o su OAuth en ~/.grok/auth.json). La cadena de relevo Anthropic-
-        # compatible de `providers.py` es de Claude Code y aquí no significa nada: se limpia para no confundir al CLI
-        # con credenciales que no son suyas (mismo criterio que en el backend de Codex).
-        for k in ("ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_API_KEY"):
-            env.pop(k, None)
-        env["ZAELAR_WORKER"] = "1"
-        env["ZAELAR_TASK_ID"] = spec.task_id or ""
-        if spec.token:
-            env["ZAELAR_TASK_TOKEN"] = spec.token
-
-        logger.info(f"worker[{self._task_id}]: GrokSession start (model={spec.model or 'default'}, "
-                    f"deny={spec.deny_tools}, cwd={cwd})")
-        try:
-            self._proc = await _spawned.spawn(
-                *cmd, cwd=cwd, env=env,
-                stdin=asyncio.subprocess.PIPE,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-                start_new_session=True,          # grupo propio → killpg mata al grok y a sus hijos
-                limit=_STREAM_LIMIT,
-            )
-        except Exception as e:  # noqa: BLE001
-            await self._q.put(self._ev("error", message=f"no se pudo arrancar el worker: {e}", fatal=True))
-            await self._q.put(self._ev("done"))
-            self._done = True
-            return
-
-        # El prompt ya está en `--prompt-file`; stdin se cierra para que el CLI no espere entrada que no va a llegar.
-        try:
-            self._proc.stdin.close()
-            self._stdin_closed = True
-        except Exception:
-            pass
-        self._reader_task = asyncio.create_task(self._pump(), name=f"worker-pump-{self._task_id}")
+    start = _gst.start
 
     async def _pump(self) -> None:
         """El bombeo es el heredado; solo se añade borrar el fichero de prompt cuando el proceso ya terminó (antes
@@ -376,3 +249,6 @@ def _unwrap_evidence(content):
                     out.append(b)
         return out
     return content
+
+from nucleo.workers.providers.grok_start import (  # noqa: E402,F401
+    find_grok, detect)

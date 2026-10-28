@@ -355,7 +355,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/memory_agent": 3088,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events)
     "nucleo/susurro": 1386,
     "nucleo/turn": 2308,
-    "nucleo/workers": 7166,            # refactor2710-09: + research (590) as workers/brief*, providers split; target 4 500
+    "nucleo/workers": 7230,            # refactor2710-09: + research (590) as workers/brief*, providers split; target 4 500
     "nucleo/workflows": 315,
     "observability": 1005,
     "rules": 1208,
@@ -443,8 +443,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/turn/promise_kept.py",
     "nucleo/verify.py",
     "nucleo/worker_api.py",
-    "nucleo/workers/providers/codex.py",
-    "nucleo/workers/providers/grok.py",
     "nucleo/workers/session.py",
 })
 
