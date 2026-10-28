@@ -1,4 +1,4 @@
-"""nucleo/flash/write_harness.py — an inline WRITE is checked against the end state his words name, and completed once.
+"""nucleo/circuit/write_harness.py — an inline WRITE is checked against the end state his words name, and completed once.
 
 Demo pass 144 (2026-10-19), INIT step «Save Quinn and Rowan in my contacts: Quinn's Telegram is @…, and Rowan's
 email is …». The model made ONE `add_contact` (Quinn) and the step said «Done.»; p142 and p143 had made two. Rowan

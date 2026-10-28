@@ -336,11 +336,11 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
-    "nucleo/circuit": 2442,     # refactor2710-02: born — circuit, spec, harness, verify, deliverable_gate, workers/goal, tasks (ledger) MOVED in; `verdict.py`
+    "nucleo/circuit": 2577,     # refactor2710-02: born — circuit, spec, harness, verify, deliverable_gate, workers/goal, tasks (ledger), flash/write_harness MOVED in; `verdict.py`
     "nucleo/context_packs": 568,
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 29325,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/, aliased at its old path
+    "nucleo/flash": 29190,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/, aliased at its old path
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
