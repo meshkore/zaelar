@@ -125,7 +125,7 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
         named = cat if cat and cat != "none" and conf >= LATE_CATALOGUE_MIN else ""
         if named:
             # a CLOSED player named while another player is on screen: the open one owns a bare order (V2-781)
-            from nucleo.flash import player_control as _pc
+            from nucleo.acts import media as _pc
             _ids = brief.get("open_ids") if isinstance(brief, dict) and brief.get("open_ids") else None
             named = _pc.open_player_owns(named, operator_text, open_ids=_ids)
         # A guess on his words alone may not contradict the end state the brief already named (`spec`).

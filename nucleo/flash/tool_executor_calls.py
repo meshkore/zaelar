@@ -8,7 +8,7 @@ thin closure that stays in `build`, at CALL time — the same late binding a clo
 from __future__ import annotations
 
 from nucleo.acts import search as _search_door
-from nucleo.flash import player_control as _player_control
+from nucleo.acts import media as _media_door
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import resume_turn as _resume_turn   # V2-799
 from nucleo.flash import tool_executor as _tx
@@ -250,7 +250,7 @@ def _t_play_music(*, args, music_req, _brief=None, _apply_widget_data=None, acte
                  text=str(args.get("action") or "play"), extra={"cat": "flash", "kind_diag": "close_answer_not_play"})
         return
     # V2-794: a one-shot play over a SURE commission verdict is the errand, not a search query played as a title.
-    if music_req["v"] is None and esc is not None and esc["v"] is None and _player_control.commissioned(_brief, args):
+    if music_req["v"] is None and esc is not None and esc["v"] is None and _media_door.commissioned(_brief, args):
         _t_escalate_to_slowbrain(args={}, escalate_req=esc, text=text)
         esc["say"] = getattr(__import__("i18n.langs", fromlist=["x"]).current_language(), "done_just_started", "")
         if emit is not None:
@@ -259,9 +259,9 @@ def _t_play_music(*, args, music_req, _brief=None, _apply_widget_data=None, acte
         return
     # A CONTROL with the video open too: whose player? Asked once per turn, on its first music call — a control
     # that follows a play of the same turn is about the music that play put on (the collapse below).
-    if music_req["v"] is None and _apply_widget_data is not None and _player_control.voice_route(
-            "play_music", args, brief=_brief, apply_widget_data=_apply_widget_data, acted=acted, clarify=clarify,
-            emit=emit, ask_phrase=ask_phrase, operator_text=text):
+    if music_req["v"] is None and _apply_widget_data is not None and _media_door.control(
+            {"text": text, "brief": _brief}, args, tool="play_music", apply_widget_data=_apply_widget_data, acted=acted,
+            clarify=clarify, emit=emit, ask_phrase=ask_phrase).fired:
         return
     _mq = {"query": (args.get("query") or "").strip(),
            "action": (args.get("action") or "play").strip().lower()}

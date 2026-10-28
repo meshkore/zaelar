@@ -233,9 +233,9 @@ def _screen_now() -> list[str]:
 
 def _players_floor(cards) -> float | None:
     """Two PLAYERS that both declare the control are a coin the verdict settles only when sure (`PLAYER_SURE`) —
-    the bar `player_control` already set for the player tools, now for the `widget_data` path too: «turn the volume
+    the bar `acts.media` already set for the player tools, now for the `widget_data` path too: «turn the volume
     down a bit» read `musica:volume_down` 0.78 and «pause that» `youtube:pause` 0.67, both run in silence (V2-781)."""
-    from nucleo.flash import player_control as _pc
+    from nucleo.acts import media as _pc
     players = set(_pc.CARD_OF_TOOL.values())
     return _pc.PLAYER_SURE if all(str(c).split("::", 1)[0] in players for c in cards) else None
 
@@ -334,7 +334,7 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=
     # one therefore ASKS, which is not a degraded answer — it is the behaviour the operator described for
     # exactly this case, and it costs nothing and cannot be wrong. Giving the probe its own brief is a
     # cost decision (one call per text turn to serve a rare ambiguity), and it is his, not this file's.
-    # `min_confidence`: a caller whose candidates are all equally plausible asks for a SURER verdict (player_control).
+    # `min_confidence`: a caller whose candidates are all equally plausible asks for a SURER verdict (acts.media).
     choice, _info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=min_confidence)
     owner, _, verdict_action = str(choice or "").rpartition(":")
     if owner and verdict_action == name and owner in cards and _tb.owner_still_open(brief, owner):
@@ -417,7 +417,7 @@ def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = 
     Returns `{card, ask, label, text, extra}` — `card` is the widget to act on (unchanged when nothing
     moved), `ask` is the sentence to say INSTEAD of acting (empty when there is nothing to ask), and the
     rest is one observability event or nothing. It writes no state and speaks to nobody: the caller does.
-    `open_ids` is the screen when the brief carries none (see `player_control`); empty = the brief's set.
+    `open_ids` is the screen when the brief carries none (see `acts.media`); empty = the brief's set.
     """
     wid = (widget_id or "").strip().lower()
     route, alt = which_card(wid, action, open_ids=open_ids, brief=brief, payload=payload, min_confidence=min_confidence,

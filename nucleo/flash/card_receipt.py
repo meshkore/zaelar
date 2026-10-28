@@ -36,7 +36,7 @@ from loguru import logger
 CLOSE, SHOW, CONTROL = "close", "show", "control"
 #: Turn outcomes that ran nothing on a card — a question, an errand, a search.
 _NOTHING_RAN = ("clarify", "escalate", "send_to_worker", "answer_worker", "stop_worker", "search", "authenticate_web")
-#: Player tools → the card they drive (`player_control.CARD_OF_TOOL`, read lazily to keep this module light).
+#: Player tools → the card they drive (`acts.media.CARD_OF_TOOL`, read lazily to keep this module light).
 _PLAYER_SHOWS = ("play", "")
 
 
@@ -159,7 +159,7 @@ def acts_of_probe_turn(action: str, tags, tool_calls) -> list[tuple[str, str, st
             acts.append((str(args.get("widget_id") or ""), SHOW if name == "show_widget" else CLOSE, name))
         elif name == "play_video":
             acts.append(("youtube", SHOW, "play"))
-        elif name == "play_music" and action == "music":     # a moved/asked control is not the music's (`player_control`)
+        elif name == "play_music" and action == "music":     # a moved/asked control is not the music's (`acts.media`)
             act = str(args.get("action") or "").strip().lower()
             acts.append(("musica", SHOW if act in _PLAYER_SHOWS or args.get("query") else CONTROL, act))
     rank = {CLOSE: 0, SHOW: 1, CONTROL: 2}

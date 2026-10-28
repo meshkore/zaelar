@@ -4,7 +4,7 @@ Measured ES+EN 2026-10-11, the Dune trailer on `youtube` and calm music on `musi
 declaring `volume_down` and `pause`:
 
   · EN «hey, turn the volume down a bit» — the screen verdict read `musica:volume_down` at 0.78, under the bar two
-    players need (`player_control.PLAYER_SURE`), so the turn ASKED «Which one exactly? I have musica, youtube.» —
+    players need (`acts.media.PLAYER_SURE`), so the turn ASKED «Which one exactly? I have musica, youtube.» —
     and then the text channel's verdict rung (`direct_action.resolve`, V2-770) turned the music down anyway and
     the question became «Done.».
   · EN «ok leave it. pause that for a sec» — the model itself asked «Which one — the music or the Dune trailer?»,

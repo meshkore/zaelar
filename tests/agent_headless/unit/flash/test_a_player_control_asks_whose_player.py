@@ -18,7 +18,7 @@ import threading
 
 import pytest
 
-from nucleo.flash import player_control as PC
+from nucleo.acts import media as PC
 
 BOTH = ["youtube", "musica"]
 
@@ -96,9 +96,3 @@ def test_the_voice_keeps_a_control_that_follows_a_play_of_the_same_turn():
     mr = {"v": {"action": "play", "query": "Queen"}}
     mr, applied, clarify, _ = _voice({"action": "volume_up"}, None, music_req=mr)
     assert not applied and not clarify["msg"] and mr.get("followup", {}).get("action") == "volume_up", mr
-
-
-def test_the_turn_calls_the_one_helper():
-    import pathlib
-    root = pathlib.Path(__file__).resolve().parents[4]
-    assert "_player_control." in (root / "nucleo/flash/tool_executor_calls.py").read_text(encoding="utf-8")

@@ -4,7 +4,7 @@ Measured in `tres-tarjetas-y-el-video-por-alusion` (ES, 2026-10-11), the Dune tr
 on `musica`, both declaring `volume_down`:
 
   · «El de la música, el vídeo déjalo» — answering our own «¿Cuál exactamente?» — was asked the SAME question again:
-    `direct_action.named_cards` saw two cards and `player_control` found no single named player.
+    `direct_action.named_cards` saw two cards and `acts.media` found no single named player.
   · «La música, la de fondo. El YouTube déjalo como está», «No, en YouTube no: bájale a la música, el vídeo no lo
     toques», «…no es YouTube, es la música de fondo…» → `youtube.volume_down`, three turns in a row. `named_cards`
     returns the catalogue's BEST match, and the brand name «YouTube» outscores «la música» — so the card named to
@@ -13,7 +13,7 @@ on `musica`, both declaring `volume_down`:
 A sentence that names two cards is not ambiguous when one of them is named inside a clause that EXCLUDES it: a
 keep clause («déjalo», «leave the music», `naming.split_kept`), a don't-touch («no lo toques»), or a bare negation
 («no en YouTube», «not the video», «que no es YouTube»). What is left names the target. One reader for every site
-that asks «whose order is it» (`frontend.which_card`, `player_control`, `undecided`), so they cannot disagree.
+that asks «whose order is it» (`frontend.which_card`, `acts.media`, `undecided`), so they cannot disagree.
 
 It also keeps the control a turn PARKED when it asked which card: the answer that names one of the asked cards
 runs that control on it, even when the model called nothing that turn (`park` / `parked_answer`).
