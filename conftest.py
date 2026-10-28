@@ -223,6 +223,30 @@ except Exception:                                  # never let the harness's own
     pass
 
 
+# refactor2710-99 — A FAKE MODULE IN `sys.modules` IS NOT WHAT ITS PACKAGE HANDS OUT (2026-10-28).
+#
+# `monkeypatch.setitem(sys.modules, "nucleo.mesh_agents", fake)` fakes the module for `import nucleo.mesh_agents`, but
+# `from nucleo import mesh_agents` reads the PACKAGE's attribute first — and that attribute exists as soon as any earlier
+# test imported the real module. Measured: `test_the_mesh_cli_names_its_forms_when_misused` was green alone and red
+# after `test_network_rows_never_open_a_sheet_for_a_report`, which imports `nucleo.mesh_agents`. So a module put into
+# `sys.modules` is also what its parent package hands out, and the monkeypatch gives both back.
+import pytest as _pytest6
+
+_setitem = _pytest6.MonkeyPatch.setitem
+
+
+def _setitem_and_its_package(self, dic, name, value):
+    _setitem(self, dic, name, value)
+    import sys as _sys
+    if dic is _sys.modules and isinstance(name, str) and "." in name:
+        parent, _, child = name.rpartition(".")
+        if (pkg := _sys.modules.get(parent)) is not None:
+            self.setattr(pkg, child, value, raising=False)
+
+
+_pytest6.MonkeyPatch.setitem = _setitem_and_its_package
+
+
 # V2-279 — AN OPEN TRACE LEAKS INTO SUBSEQUENT TESTS (2026-08-24).
 #
 # `voice/trace.begin()` sets a ContextVar and has NO teardown: pytest runs the whole suite in one context,
