@@ -123,8 +123,8 @@ _PROVIDER_CALLS = (
 #: Other files F1 split, and the modules their code moved to. A guard that reads the old file reads them all,
 #: concatenated: the moved code stays contiguous, so an «X before Y» assertion inside it keeps its meaning.
 DISPATCH = ENGINE / "nucleo" / "dispatch" / "__init__.py"
-_SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch" / "listener.py", ENGINE / "nucleo" / "dispatch" / "session.py",
-                              ENGINE / "nucleo" / "dispatch" / "prepare.py"],
+_SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch" / f"{x}.py"
+                              for x in ("listener", "session", "prepare", "model", "registry", "dedup_flow", "control")],
           (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"],
           (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py", ENGINE / "server" / "run_api.py"],
           (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"],
@@ -196,7 +196,8 @@ _ALIASED = {(ENGINE / "nucleo" / "dispatch" / "session.py").resolve(): "_d",
             **{(ENGINE / "nucleo" / "flash" / f"probe_{x}.py").resolve(): "_probe" for x in ("after", "decide", "mirrors", "before")},
             **{(ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py").resolve(): "_pst" for x in ("words", "lanes", "settle")},
             (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py").resolve(): "_p",
-            (ENGINE / "nucleo" / "dispatch" / "prepare.py").resolve(): "_d",
+            **{(ENGINE / "nucleo" / "dispatch" / f"{x}.py").resolve(): "_d"
+               for x in ("prepare", "model", "registry", "dedup_flow", "control")},
             (ENGINE / "widgets" / "navegador" / "owner_login.py").resolve(): "_o",
             (ENGINE / "widgets" / "navegador" / "owner_actions.py").resolve(): "_o",
             (ENGINE / "widgets" / "navegador" / "owner_page.py").resolve(): "_o"}
