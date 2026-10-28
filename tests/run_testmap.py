@@ -3757,7 +3757,7 @@ DOMAINS: list[dict] = [
         {"id": "2.728", "title": "A turn that acted on a card and also escalated, read inline, launches no worker — on the text channel as on the voice",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_inline_act_settles_the_commission_on_both_channels.py"]},
         {"id": "2.729", "title": "An ordered act that leaves, sure at the operator's 70%, runs when the model only drafted it — both channels",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_ordered_send_the_model_only_drafted_is_sent.py"]},
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_ordered_send_the_model_only_drafted_is_sent.py", "tests/agent_headless/unit/flash/test_an_act_that_leaves_crosses_the_one_gate.py"]},
         {"id": "2.730", "title": "Who a send goes to is never a doubt: an act that leaves (`external.send`, the meeting invitation included) asks when its recipient is not named in his words or only a near spelling matches, and the engine never turns a draft into a send to somebody he did not name",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_who_a_send_goes_to_is_never_a_doubt.py"]},
         {"id": "2.731", "title": "A reply with nothing to answer is a refusal that says nothing was sent and which channels are not connected — never the card's state read as «Hecho.» (dictate-a-reply-honestly)",
@@ -4079,7 +4079,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_status_question_is_answered_with_the_phases.py"]},
         {"id": "2.205", "title": "What a stranger wrote reaches the model as DATA (fenced, unforgeable), and an act that "
                                  "leaves with it in context and no sure verdict is asked — voice and text alike",
-            "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_strangers_words_are_data.py"]},
+            "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_a_strangers_words_are_data.py", "tests/agent_headless/unit/flash/test_an_act_that_leaves_crosses_the_one_gate.py"]},
         {"id": "2.206", "title": "The system prompt the fast turn SENDS has a down-only ceiling on a clean install, and the "
                                  "everyday screen stays under the audit's 30k",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_turn_prompt_has_a_ceiling.py",
@@ -4766,7 +4766,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_probe_names_what_the_voice_turn_does.py"]},
         {"id": "2.106", "title": "An act that LEAVES (≥ sensitive) runs only when the verdict does not name another action — a draft never becomes a sent email",
             "ch": UNIT,
-            "paths": ["tests/voice/unit/test_an_act_that_leaves_needs_both_readers.py"]},
+            "paths": ["tests/voice/unit/test_an_act_that_leaves_needs_both_readers.py", "tests/agent_headless/unit/flash/test_an_act_that_leaves_crosses_the_one_gate.py"]},
         {"id": "2.105", "title": "A cut document digest names every section — a truncation is not an absence",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_a_cut_document_still_names_its_sections.py"]},

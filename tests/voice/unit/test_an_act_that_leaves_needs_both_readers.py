@@ -17,13 +17,3 @@ def test_a_reply_is_an_act_that_leaves_and_a_draft_is_not():
     assert f.at_least_sensitive("mensajeria", "reply")
     assert f.at_least_sensitive("mensajeria", "send_draft")
     assert not f.at_least_sensitive("mensajeria", "draft")
-
-
-def test_the_single_data_op_gate_carries_the_rule():
-    prov = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
-    i = prov.index("mode = _held_send.release(_frontend.action_mode_now(wid, action_name, payload), wid, action_name, payload, _brief)")
-    block = prov[i:i + 3000]
-    assert "_frontend.at_least_sensitive(wid, action_name)" in block
-    assert "_direct_action.completes(_brief, wid, model_action=action_name)" in block
-    assert "_apply_widget_data(_gate_card, _vdis, _vpay)" in block and "mode = _wactions.CONFIRM" in block
-    assert block.index("at_least_sensitive") < prov[i:].index("if mode == _wactions.FAST:\n")
