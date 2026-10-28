@@ -27,7 +27,7 @@ import json
 import pytest
 
 from nucleo import jev
-from nucleo.jev import decide as jev_decide
+from nucleo.jev import decision as jev_decide
 
 
 @pytest.fixture

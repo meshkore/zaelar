@@ -2,7 +2,7 @@
 
 The cost is the ROUND TRIP, not the questions (2026-09-20: p50 800 ms; 1 question 800 ms, 10 take 817 ms, 100 take
 1 041 ms): a turn asks every question it needs in ONE call — the turn's brief (`nucleo/turn/brief.py` → `ask_many`),
-`select_many` (`nucleo/jev/select.py`) or the bounded decision (`nucleo/jev/decide.py`) — never a loop over the
+`select_many` (`nucleo/jev/select.py`) or the bounded decision (`nucleo/jev/decision.py`) — never a loop over the
 single-question door. The timeout is 2 s (F5): the brief is read 2-4 s after it is fired.
 
 Protocol (https://docs.typesafe.ai, 2026-09-20): POST /v1/systemone, Bearer key, JSON {state, model: "jev-latest",
@@ -545,4 +545,4 @@ def resolve_kind(handle: dict | None, fallback: str) -> tuple[str, dict | None]:
 # ── refactor2710-07: the selection and the bounded decision live beside the client; their names stay here ──────
 from nucleo.jev.select import (  # noqa: E402,F401
     DISABLED, EMPTY, FIT, NO_MATCH, SELECTED, UNAVAILABLE, select_many, select_many_status)
-from nucleo.jev.decide import ABSTAINED, DECISION_STATUSES, EXPIRED, TOO_BIG, Decision, decide  # noqa: E402,F401
+from nucleo.jev.decision import ABSTAINED, DECISION_STATUSES, EXPIRED, TOO_BIG, Decision, decide  # noqa: E402,F401
