@@ -20,8 +20,8 @@ def messaging_on() -> bool:
         try:
             on = on or bool(__import__(f"connectors.{svc}.service", fromlist=["enabled"]).enabled())
             read += 1
-        except Exception:  # noqa: BLE001 — a connector that cannot be read does not take the tools away
-            pass
+        except Exception as e:  # noqa: BLE001 — a connector that cannot be read does not take the tools away
+            _p.logger.debug(f"turn_tools: {svc} unreadable for messaging_on: {e!r}")
     return on or not read
 
 

@@ -163,7 +163,6 @@ def ephemeral_speaker():
     return _ephemeral_speaker
 
 
-@_consequence.door("speech.out_of_band", neutral=False)
 async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify",
                  key: str = "", opens_window: bool = True, carry: bool = True, about: str = "") -> bool:
     """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises.
@@ -180,6 +179,15 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     `carry=False` — a message that must NOT ride the conversation when it cannot be said: it stays on screen (the
     event above) and that is all. A worker's interim `say` is that kind (demo pass 2026-09-28: «On the monitors: a
     Philips… no price confirmed yet» appended to the answers about Apple's chart and the music). `about`: dialog._place"""
+    lent = _TURN_SPEAKER.get()
+    if lent is not None:                  # a typed turn: its own receipt is its reply, not a delivery to anyone
+        if speak and (text or "").strip():
+            r = lent(text)
+            if asyncio.iscoroutine(r):
+                await r
+        return bool(speak)
+    if not _consequence.passes("speech.out_of_band", title=title[:80], text=text[:200], kind=kind):
+        return False
     text = (text or "").strip()
     if not text:
         return False

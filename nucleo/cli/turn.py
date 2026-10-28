@@ -61,7 +61,7 @@ async def _drive(brain, text: str) -> str:
     from voice import proactive
     turn = _TypedTurn(brain, text)
 
-    async def _say(line: str, *_a, **_k) -> None:
+    def _say(line: str, *_a, **_k) -> None:     # synchronous: a lane may fire its speaker without awaiting it
         if line:
             turn._said.append((" " if turn._said else "") + str(line))
     token = proactive._TURN_SPEAKER.set(_say)
