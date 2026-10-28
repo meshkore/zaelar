@@ -5716,6 +5716,10 @@ DOMAINS: list[dict] = [
                                  "module), «Open» puts the app on the deck through hb:open-card and closes the menu; "
                                  "every control ≥ 44px — RENDERED at 375px (V2-823)",
             "ch": UNIT, "paths": ["tests/browser/unit/mobile/test_the_menu_holds_the_apps_launcher.py"]},
+        {"id": "4.318", "title": "After a reconnect the screen adopts the engine's list of cards: an orphan it cannot "
+                                 "name goes, an unlisted card closes, a listed one opens beside, and the drift is a "
+                                 "widget/reconcile event (V2-825 F5, refactor2710-04 T-04) — RENDERED",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_screen_adopts_the_engines_cards_on_reconnect.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",

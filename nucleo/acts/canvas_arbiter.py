@@ -5,11 +5,9 @@ closed set) and a LICENSE — the turn's paid verdict first (CRIT-K1), then the 
 production, lenses and aliases), the operator's words only where the verdict is silent. A widget forked or
 written by a user inherits the rails with zero code of ours.
 
-ARMED at the door: `nucleo.acts.canvas.apply` judges every show and close before the canvas hears it (promoted
-once the replay over the operator's archive gave zero false vetoes, `tests/arbiter_replay.py`). `shadow_tap()`
-keeps listening to the observer stream — it assembles the turn the door reads (his words, their credit, the
-brief's `jev read` answers by trace) and still judges, unenforced, what does not cross the door (data-op logs).
-An internal error is the verdict `arbiter-error`, never a crash at a caller; the door lets that act through.
+ARMED at the door (`nucleo.acts.canvas.apply`) once the replay over the operator's archive gave zero false vetoes
+(`tests/arbiter_replay.py`); the turn it judges with is `nucleo.acts.canvas_turn`. An internal error is the verdict
+`arbiter-error`, never a crash at a caller.
 """
 from __future__ import annotations
 

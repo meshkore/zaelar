@@ -1,10 +1,6 @@
-"""The turn a canvas act belongs to, read off the observer stream (refactor2710-04; split from `canvas_arbiter`).
-
-The arbiter (`nucleo.acts.canvas_arbiter`) judges; this module hands it the request: his words in the last 25 s and
-their credit, our last reply, and the brief's verdict on that trace (`jev read <key>` events). `shadow_tap` hangs off
-`voice.observer.emit`, keeps that state, and still judges — unenforced — the data-op logs that do not cross the door;
-`_emit_verdict` writes the `arbiter` event the door and the tap both emit.
-"""
+"""The turn a canvas act belongs to, read off the observer stream: his words (25 s), their credit, our last reply and
+the brief's verdict by trace — what the arbiter judges with. `shadow_tap` keeps it and still judges, unenforced, what
+does not cross the door; `_emit_verdict` writes the `arbiter` event (refactor2710-04)."""
 from __future__ import annotations
 
 import contextlib

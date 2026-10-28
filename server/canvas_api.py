@@ -259,6 +259,14 @@ def _live_canvas_instances() -> list:
     return seen
 
 
+@router.post("/api/canvas/reconcile")
+async def canvas_reconcile(payload: dict):
+    """The screen's drift from the engine's list, as the browser reconciled it on reconnect (V2-825 F5)."""
+    got = {k: [str(x) for x in (payload or {}).get(k) or []][:20] for k in ("orphans", "extra", "missing")}
+    emit("widget", "reconcile", text=" · ".join(f"{k} {len(v)}" for k, v in got.items()), extra={**got, "src": "client:restore"})
+    return JSONResponse({"ok": True})
+
+
 @router.post("/api/canvas/arrange")
 async def canvas_arrange():
     """Aligns every open card into a grid — the OS-style window snap, invocable by API (V2-464).

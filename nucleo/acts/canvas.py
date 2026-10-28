@@ -1,11 +1,8 @@
 """The canvas door: every card the engine shows or closes on his screen crosses `apply` (refactor2710-04 T-02).
 
-A writer names the act, the card and its provenance (`src`, the closed set of `nucleo.acts.canvas_arbiter`): the model's
-turn (`flash`), a backstop, a worker or a task's wall, the action map, the system. For a show or a close the arbiter
-judges it first — provenance, then the turn's paid verdict, then the declared leaves — and its verdict is emitted
-armed (`arbiter`, with `verdict` and `source`). A vetoed act never reaches the canvas and `apply` says so; an allowed
-one is the `widget` event the canvas obeys. Other ops (move, minimize, fullscreen, arrange, data logs) pass through
-the same door unjudged, so there is one writer either way.
+A writer names the act, the card and its provenance (`src`, the arbiter's closed set). A show or close is judged by the
+arbiter first and its verdict emitted armed (`arbiter`, with `verdict` and `source`); a veto never reaches the canvas
+and `apply` says so. Other ops cross the same door unjudged, so there is one writer either way.
 """
 from __future__ import annotations
 

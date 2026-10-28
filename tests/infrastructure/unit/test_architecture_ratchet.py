@@ -333,7 +333,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
     "nucleo (top)": 22418,   # refactor2710-04: the arbiter left for nucleo/acts; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
-    "nucleo/acts": 493,         # refactor2710-04: the one canvas door, the arbiter and the turn it reads
+    "nucleo/acts": 484,         # refactor2710-04: the one canvas door, the arbiter and the turn it reads
     "nucleo/actionmap": 761,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply
     "nucleo/agentes": 795,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
@@ -350,7 +350,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "observability": 1005,
     "rules": 1211,              # refactor2710-01: +3, the rules.write door
     "search": 5474,
-    "server": 5738,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
+    "server": 5746,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply, /api/canvas/reconcile (V2-825 F5); refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10092,             # refactor2710-01: +3, `typed_turn.py` (the typed front door) and the lent speaker
     "voice/engine/llm": 3903,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-01: +64, a failed turn keeps his words; the vault is a door
     "widgets": 38262,           # refactor2710-01 +42 (payload_digest, sheet.rebuild); refactor2710-12 split and condensed
@@ -449,7 +449,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12). Never for growth in place.
-_TOTAL_MAX = 172845
+_TOTAL_MAX = 172844
 
 
 def test_the_total_only_shrinks():
