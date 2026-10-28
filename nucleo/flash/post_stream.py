@@ -140,7 +140,7 @@ async def run(*, FastClient, _apply_widget_data, _ask_waiting, _auth_pending, _b
     # V2-778 F1 — settling what is pending (confirmations, a waiting worker, a stop, the question owed): `post_stream_settle.py`.
     if data_done["v"] and not spoken_text and _turn_op_tasks:   # demo pass 104 C5: no «Done.» over a refusal
         spoken_text = await _data_ops.say_refusal_instead(_turn_op_tasks, data_done, send, speech) or spoken_text
-    __import__("nucleo.flash.write_harness", fromlist=["x"]).after_turn(operator_text, data_done.get("ops"), spec=spec)   # the order's end state, checked (p144)
+    __import__("nucleo.circuit.write_harness", fromlist=["x"]).after_turn(operator_text, data_done.get("ops"), spec=spec)   # the order's end state, checked (p144)
     if data_done.get("owed"):          # a tail owed to this turn's ops: said once they answered, never over a refusal
         if _owed_said := await _data_ops.say_owed_after_ops(_turn_op_tasks, data_done, send, speech):
             spoken_text = (str(spoken_text or "") + " " + " ".join(_owed_said)).strip()
