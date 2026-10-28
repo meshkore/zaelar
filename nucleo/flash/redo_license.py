@@ -37,7 +37,7 @@ def licensed(last, wid: str, said: str, *, brief=None) -> bool:
         _log.debug(f"redo_license: line 33 failed: {_e!r}")
         pass
     try:
-        from nucleo.flash import named_target as _nt
+        from nucleo.acts import named_target as _nt
         if _nt.names_it(said, wid, [wid]):
             return True
     except Exception as _e:  # noqa: BLE001

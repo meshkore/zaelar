@@ -273,7 +273,7 @@ def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None, clarif
         return ""
     # Several cards of the piece open and no word to tell them apart: the close ASKS which (node 2.645). `rid` is
     # returned so the turn counts the call as handled — its answer is the question in `clarify`, never a close.
-    from nucleo.flash import close_which as _close_which
+    from nucleo.acts import close_target as _close_which
     _act, _q = _close_which.probe_action(args, rid, text) if clarify is not None else ("", "")
     if _q:
         clarify["msg"] = _q

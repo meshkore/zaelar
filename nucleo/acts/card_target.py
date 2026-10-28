@@ -118,7 +118,7 @@ def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=
         return ("keep", None)
     # His words name the target and exclude the rest («el vídeo no lo toques», V2-781) before any verdict.
     if operator_text:
-        from nucleo.flash import named_target as _nt
+        from nucleo.acts import named_target as _nt
         named = _nt.target(operator_text, cards, name)
         if named:
             return ("keep", None) if _tb._base_of(named) == _tb._base_of(wid) else ("card", named)
@@ -221,7 +221,8 @@ def card_decision(widget_id: str, action: str, *, brief=None, ask_phrase: str = 
         # ONE question, ONE phrase: `ask_which_item` is consent's ASK_WHICH sentence and this IS that verdict (a
         # card, not a row). Cards are named as he knows them («Música, YouTube»), never by id, and the control
         # is parked so «el de la música» runs it (V2-781, `named_target`).
-        from nucleo.flash import card_receipt as _receipt, named_target as _nt
+        from nucleo.flash import card_receipt as _receipt
+        from nucleo.acts import named_target as _nt
         ids = [str(c).split(" — ", 1)[0] for c in (alt or [])]
         _nt.park(action, ids)
         try:
