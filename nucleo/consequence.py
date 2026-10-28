@@ -34,6 +34,7 @@ DOORS: dict[str, Door] = {d.name: d for d in (
     Door("worker.stop", "nucleo.dispatch_soon:cancel_soon"),
     Door("worker.answer", "nucleo.worker_api:answer_active_soon"),
     Door("widget.data", "widgets.server_api:brain_action"),
+    Door("sheet.rebuild", "widgets.results.rehydrate:sheet_from_task"),
     Door("web.login", "nucleo.flash.web_auth:start"),
     Door("music", "connectors.music:control"),
     Door("cron.create", "nucleo.scheduler:create"),
