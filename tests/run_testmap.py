@@ -5320,6 +5320,9 @@ DOMAINS: list[dict] = [
                                  "and a card sits one rung above its sheet",
             "ch": UNIT,
             "paths": ["tests/browser/e2e/widgets/test_a_result_card_fits_any_space.py"]},
+        {"id": "4.326", "title": "The widget kit's card (`hbk-card`) sits one rung above its sheet (`--hb-bg-soft` on "
+                                 "`--hb-bg`), in dark and in light — CRIT-K20 for any widget that uses the kit",
+            "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_the_kit_card_sits_one_rung_above_its_sheet.py"]},
         # V2-296 (encargo del operador, 2026-08-24). La pestaña contaba QUÉ hacía y no CUÁNTO llevaba hecho. Dos
         # nodos porque son dos averías distintas: la rejilla puede pintar perfecto cifras que nadie produce, y la
         # cadena puede producirlas y no llegar a pantalla. El de PANTALLA fija sobre todo cuándo CALLARSE —`{}`
