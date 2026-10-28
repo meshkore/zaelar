@@ -25,7 +25,6 @@ music: it plugs it in.
 """
 import pytest
 
-from nucleo.flash import probe as P
 
 
 class _Res:
@@ -47,23 +46,6 @@ def rail(monkeypatch):
 
 
 # ── the wiring ────────────────────────────────────────────────────────────────────────────────────────────
-
-def test_el_rail_de_musica_ESTA_enchufado_en_este_canal():
-    """The guard that would have been enough: the branch existed and executed nothing."""
-    from pathlib import Path
-    src = _vts.read(Path("nucleo/flash/probe.py"))
-    assert "from nucleo.flash import music_turn as _music_turn" in src
-    assert "await _music_turn.execute(music_req[" in src
-    assert "from nucleo.flash import music_flow as _mflow" in _vts.read(Path("nucleo/flash/music_turn.py"))
-
-
-def test_la_rama_de_musica_va_DENTRO_del_bloque_de_ejecucion():
-    """Outside `if execute:`, it would become a label again — and that is exactly the defect being closed."""
-    from pathlib import Path
-    src = _vts.read(Path("nucleo/flash/probe.py"))
-    i_exec, i_music = src.index("    if execute:"), src.index('elif action == "music" and music_req:')
-    assert i_exec < i_music
-
 
 def test_los_argumentos_del_modelo_llegan_al_rail():
     """`play_music` carries `action` and `query`; losing either one plays something else or nothing at all."""

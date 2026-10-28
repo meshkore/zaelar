@@ -8,8 +8,8 @@ empty wait, to a status question, while the turn's own state carried each errand
 «use the real progress the engine context already carries instead of generic placeholders».
 
 When the turn verdict says he expects to be TOLD something (`wants_words=tell`, or a `question`), and the model
-went mute over a worker call, the line is the live errands and their phase — the same data the prompt had. Both
-channels call `errands_of_a_turn.status_owed`.
+went mute over a worker call, the line is the live errands and their phase — the same data the prompt had. The voice
+turn (and the typed channel, which runs it) calls `errands_of_a_turn.status_owed`.
 """
 from __future__ import annotations
 
@@ -68,20 +68,26 @@ def test_nothing_live_is_no_status(monkeypatch):
     assert E.status_owed(SAID, _brief(wants_words="tell")) == ""
 
 
-def test_the_text_channel_says_the_status_instead_of_the_holding_line(three_live):
-    from nucleo.flash import probe_after as PA
-    out = asyncio.run(PA.the_words_it_owes(
-        _hw=True, _parts=None, _show_chose=None, action="send_to_worker", images_req=None,
-        return_extra_exec={"executed": "inject"}, sess=types.SimpleNamespace(window=[]), spoken="", tags=[],
-        text=SAID, video_req=None, brief=_brief(wants_words="tell", request_type="question")))
-    assert "Elaborating the report" in out["spoken"], out["spoken"]
-    assert "give me a moment" not in out["spoken"].lower()
+def test_the_typed_turn_says_the_status_instead_of_the_holding_line(three_live):
+    """Through the typed channel, which runs the voice turn: the model sends to the workers and says nothing."""
+    from tests.brain import harness as H
+    case = {"id": "status", "lang": "en", "phrase": SAID, "source": "test", "screen": {"open": []}, "expect": "talk",
+            "brief": {"wants_words": ("tell", 0.99), "request_type": ("question", 0.99)},
+            "model": {"tools": [{"name": "send_to_worker", "args": {"which": "the monitor", "message": SAID}},
+                                {"name": "send_to_worker", "args": {"which": "all", "message": SAID}}]}}
+    with H.Isolated("en") as iso:
+        iso.seed(case)
+        from nucleo.cli import turn
+        try:
+            res = asyncio.run(turn.run_turn(SAID, sid="status", ingest=False))
+        finally:
+            turn.reset("status")
+    assert "Elaborating the report" in res["reply"], res
+    assert "give me a moment" not in res["reply"].lower()
 
 
-def test_both_channels_ask_it():
-    # both reach `status_owed` through `split_by_errand.status_with_refined`, which adds the errands a send reached (2.644)
+def test_the_voice_turn_asks_it():
+    # the voice turn reaches `status_owed` through `split_by_errand.status_with_refined`, which adds the errands a
+    # send reached (2.644)
     assert "_sbe.status_with_refined(" in (ENGINE / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
-    assert "_sbe.status_with_refined(" in (ENGINE / "nucleo/flash/probe_after.py").read_text(encoding="utf-8")
     assert "_eot.status_owed(" in (ENGINE / "nucleo/turn/split_by_errand.py").read_text(encoding="utf-8")
-    assert "brief=_tbrief" in (ENGINE / "nucleo/flash/probe.py").read_text(encoding="utf-8").split(
-        "_probe_after.the_words_it_owes(")[1][:200]

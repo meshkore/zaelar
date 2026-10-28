@@ -44,8 +44,6 @@ def test_a_reply_already_in_the_session_language_is_left_alone(monkeypatch):
     assert not seen
 
 
-def test_both_doors_are_wired():
-    from nucleo.flash import probe
+def test_the_delivery_door_is_wired():
     from nucleo.workers import spoken_delivery
-    assert "said_in_session_language" in inspect.getsource(probe)
     assert "foreign_to_session" in inspect.getsource(spoken_delivery)

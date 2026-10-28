@@ -166,14 +166,6 @@ def test_un_turno_que_NO_es_data_op_conserva_su_ack():
 
 # ── the wiring ─────────────────────────────────────────────────────────────────────────────────────────────
 
-def test_la_boca_del_fallo_va_ANTES_del_ack_generico():
-    """`widget_data` falls into a branch that always says “Hecho.”; if the new one comes afterward, it is never reached."""
-    src = _vts.read(Path("nucleo/flash/probe.py"))
-    i_fallo = src.index('elif action == "widget_data" and isinstance(return_extra_exec, dict)')
-    i_ack = src.index('elif action in ("widget_data", "confirm_task_no"):')
-    assert i_fallo < i_ack
-
-
 # ── V2-463 — the item reference TRAVELS through the text channel ─────────────────────────────────────────
 def test_el_item_de_la_tool_llega_al_widget(monkeypatch):
     """The tool declares `item` as its own argument and this path was THROWING it away: it only passed `payload`, so

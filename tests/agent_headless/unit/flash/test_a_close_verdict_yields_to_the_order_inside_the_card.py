@@ -78,13 +78,11 @@ def test_the_measured_series_removal_does_not_close_the_agenda(verdict):
     assert VC.canvas_yields(object()) is False                # …and the bare data rung does not guess its payload
 
 
-def test_both_channels_ask_the_same_rule():
+def test_the_voice_turn_asks_the_rule():
     src = (ENGINE / "nucleo/flash/card_close.py").read_text(encoding="utf-8")   # `complete_canvas`'s body (run_gesture)
     assert ".inner_order_wins(brief, operator_text)" in src
     assert "_vcard.close_is_owed(_brief, _op_text)" in (ENGINE / "nucleo/flash/post_stream_words.py").read_text(
         encoding="utf-8")
-    assert "complete_canvas_mirror(_tbrief, operator_text, blocked=action != \"chat\" or bool(tool_calls or tags), " \
-           "calls=tool_calls)" in (ENGINE / "nucleo/flash/probe_mirrors.py").read_text(encoding="utf-8")
 
 
 # ── 2.442 · the close stands when he named a card, or the inner op is an unsure lens ──────────────────────────

@@ -46,10 +46,3 @@ def test_a_failed_op_keeps_its_failure_message():
     # the literal only passed while the code ignored which language the operator had chosen.
     from voice.engine.core import langs as _lg
     assert _lg.current_language().widget_data_failed.split("{")[0].strip() in out
-
-
-def test_the_probe_wires_it():
-    """Wiring guard (V2-199): the cases above pass whole with the probe's call deleted."""
-    from pathlib import Path
-    src = _vts.read(Path("nucleo/flash/probe.py"))
-    assert "named_ack" in src
