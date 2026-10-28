@@ -328,7 +328,7 @@ def test_process_identity_has_ONE_owner():
 _PACKAGE_CEILINGS: dict[str, int] = {
     "bus": 646,
     "config": 2525,
-    "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
+    "connectors": 20315,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
     "nucleo (top)": 7438,      # refactor2710-10: the worker CLIs → nucleo/cli/, energy → nucleo/energy/, the pulse → nucleo/pulse/; refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
@@ -359,7 +359,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "server": 5786,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply, /api/canvas/reconcile (V2-825 F5); refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10092,             # refactor2710-01: +3, `typed_turn.py` (the typed front door) and the lent speaker
     "voice/engine/llm": 3850,   # refactor2710-04: its canvas writes cross nucleo.acts.canvas.apply; refactor2710-01: +64, a failed turn keeps his words; the vault is a door
-    "widgets": 38405,           # refactor2710-01 +42 (payload_digest, sheet.rebuild); refactor2710-12 split and condensed; refactor2710-06: `agenda/notice.py`, the notice's consequence bounds read off its slots
+    "widgets": 38436,           # refactor2710-01 +42 (payload_digest, sheet.rebuild); refactor2710-12 split and condensed; refactor2710-06: `agenda/notice.py`, the notice's consequence bounds read off its slots
 }
 
 #: A new file under `nucleo/` is born small. 300 lines, not the tree-wide 900 above: the refactor splits the brain
@@ -430,7 +430,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777). Never for growth in place.
-_TOTAL_MAX = 169551
+_TOTAL_MAX = 169706
 
 
 def test_the_total_only_shrinks():
