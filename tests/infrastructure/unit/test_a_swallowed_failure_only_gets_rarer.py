@@ -58,7 +58,7 @@ def _counts() -> dict[str, int]:
 
 #: Measured on 2026-10-16 with the widened predicate (was 1147 `pass`-only on 2026-10-01) — the TOTAL may only
 #: fall, and no file may exceed its own count.
-TOTAL = 1701   # refactor2710-06: measured with 04 and main merged
+TOTAL = 1699   # refactor2710-06: measured with 04 and main merged
 PER_FILE: dict[str, int] = {
     'bus/__init__.py': 5,
     'bus/log.py': 7,
@@ -84,7 +84,6 @@ PER_FILE: dict[str, int] = {
     'daemon/paths.py': 3,
     'i18n/init/aliases.py': 2,
     'i18n/init/detect.py': 4,
-    'i18n/init/fillers.py': 3,
     'i18n/init/generate.py': 1,
     'i18n/init/smalltalk.py': 1,
     'i18n/langs.py': 3,
@@ -268,7 +267,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/agenda_said_day.py': 1,
     'nucleo/flash/amount_gate.py': 2,
     'nucleo/flash/answer_guards.py': 2,
-    'nucleo/flash/asked_site.py': 1,
     'nucleo/flash/build_decision.py': 2,
     'nucleo/flash/canvas_license.py': 10,
     'nucleo/flash/canvas_visibility.py': 4,
@@ -280,8 +278,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/connector_briefs.py': 5,
     'nucleo/flash/connector_canon.py': 1,
     'nucleo/flash/data_ops.py': 31,
-    'nucleo/flash/death_line.py': 1,
-    'nucleo/flash/delivery_repeat.py': 2,
     'nucleo/flash/direct_action.py': 25,
     'nucleo/flash/errand_sheet.py': 5,
     'nucleo/flash/escalate.py': 4,
@@ -303,14 +299,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/post_stream_acts.py': 2,
     'nucleo/flash/presence.py': 3,
     'nucleo/llm/prewarm.py': 1,
-    'nucleo/flash/probe.py': 8,
-    'nucleo/flash/probe_actionmap.py': 4,
-    'nucleo/flash/probe_after.py': 9,
-    'nucleo/flash/probe_api.py': 2,
-    'nucleo/flash/probe_before.py': 7,
-    'nucleo/flash/probe_decide.py': 2,
-    'nucleo/flash/probe_mirrors.py': 9,
-    'nucleo/flash/probe_scheduling.py': 3,
     'nucleo/flash/procs.py': 3,
     'nucleo/flash/prompt.py': 16,
     'nucleo/llm/provider_chain.py': 11,
@@ -319,7 +307,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/redo_decision.py': 2,
     'nucleo/flash/refusal_line.py': 1,
     'nucleo/flash/refusal_redirect.py': 1,
-    'nucleo/flash/reply_promise.py': 1,
     'nucleo/flash/router_guards.py': 1,
     'nucleo/flash/second_pass.py': 10,
     'nucleo/flash/segmenter.py': 1,
@@ -327,7 +314,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/show_target.py': 8,
     'nucleo/flash/site_catalog.py': 1,
     'nucleo/flash/smalltalk.py': 3,
-    'nucleo/flash/step_line.py': 1,
     'nucleo/flash/style_directive.py': 8,
     'nucleo/flash/surface_ack.py': 3,
     'nucleo/flash/task_block.py': 3,
@@ -340,7 +326,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/turn/brief_screen.py': 1,
     'nucleo/turn/verdicts.py': 1,
     'nucleo/flash/turn_perf.py': 1,
-    'nucleo/flash/two_orders.py': 1,
     'nucleo/flash/verdict_card.py': 2,
     'nucleo/flash/video_turn.py': 2,
     'nucleo/flash/wall_lane.py': 1,
