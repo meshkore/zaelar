@@ -47,39 +47,17 @@ def _players_floor(cards) -> float | None:
 
 def which_card(widget_id: str, action: str, *, open_ids=(), brief=None, payload=None,
                min_confidence: float | None = None, operator_text: str = "") -> tuple[str, object]:
-    """Which OPEN CARD a declared data-op belongs to, when more than one can do it (V2-740).
+    """Which OPEN CARD a declared data-op belongs to, when more than one can do it (V2-740). Two players share nine
+    action names by design; what was missing is what happens at that point. The brief's `screen_action` (V2-726 A4,
+    `<instance>:<action>` over every open card) already tells `youtube:play` from `musica:play`:
 
-    THE SITUATION, in the operator's words (2026-09-21): *«si tengo dos widgets que tienen las mismas
-    tools con los mismos nombres, el motor va a dar un 50% de ejecutar un play en un widget o en otro. Y
-    cuando eso pase, el flashbrain tendrá que decir: tienes dos tipos de reproductores abiertos y me
-    tienes que especificar cuál quieres. Si por contexto sabe identificarlo, perfecto.»*
+      · **Not ambiguous** → `("keep", None)`: one card can do it; nothing is read or asked.
+      · **Ambiguous and the brief knows** → `("card", wid)`: only a verdict naming THIS SAME ACTION on an open
+        card moves it (`peek`, never a wait).
+      · **Ambiguous and the brief does not know** → `("ask", [labels])`, exactly `consent.ASK_WHICH`.
 
-    And he is right that this is not a defect in the widgets: `youtube` and `musica` share NINE action
-    names by design (play, pause, next, previous, volume_up, volume_down, set_volume, play_local, ended).
-    Sharing a vocabulary is what makes them both players. What was missing is what happens at that point.
-
-    WHAT WAS ALREADY THERE AND WENT UNREAD. The turn brief has been asking exactly this question since
-    V2-726 A4 — `screen_action`, keyed `<instance>:<action>`, enumerated over every open card, carrying
-    each card's LIVE rail as its label («youtube — Apolo 11 · pausado»). With two players open it offers
-    68 options and tells `youtube:play` from `musica:play`. But the only consumer was
-    `repair_action_from_brief`, which fires *«ONLY on the invented-action path»* — so when the model
-    picked a card for a DECLARED action, nothing checked it. The verdict was paid for and thrown away.
-
-    THE SHAPE, which is the operator's third sentence and not a new mechanism:
-
-      · **Not ambiguous** → `("keep", None)`. One card can do it, or none but the named one. Nothing is
-        read, nothing is asked, no latency: the common path is untouched.
-      · **Ambiguous and the brief knows** → `("card", wid)`. The verdict is read with `peek`, never a
-        wait, and only a verdict naming THIS SAME ACTION on an open card can move it. A verdict about a
-        different action is a different question and is ignored here.
-      · **Ambiguous and the brief does not know** → `("ask", [labels])`, which is exactly
-        `consent.ASK_WHICH` — the second of the four questions V2-712 already asks, with the count and
-        the names. It is not a hardcoded question: the rule is the one the whole system uses, and what
-        changes is that the thing in doubt can now be a CARD and not only a row inside one.
-
-    ⚠️ It NEVER changes the action, only the card. «Pausa» stays «pausa»; what it decides is whose.
-    Widening it to repair the verb would put two decisions behind one verdict, and the confident-and-wrong
-    one would then be twice as expensive.
+    ⚠️ It NEVER changes the action, only the card: two decisions behind one verdict would double the cost of the
+    confident-and-wrong one.
     """
     from nucleo.turn import brief as _tb
     wid = (widget_id or "").strip().lower()

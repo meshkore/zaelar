@@ -85,13 +85,16 @@ async def execute(query: str, n: int = DEFAULT_N, more: bool = False) -> dict:
     # «MORE of those» (demo pass 2026-09-28, I2: «cool, show me a few more of those» re-ran the same search and
     # REPLACED the viewer with the same twelve): the same query asked deeper, handed to the viewer's own `add`,
     # whose merge drops what is already there — so only new pictures join.
+    # …and the SAME search asked again over a viewer that already holds it is «more» whatever the model's flag
+    # (live-i2: `show_images` without `more` re-ran it): the viewer's own query is the datum, not his words.
     shown = 0
-    if more:
-        try:
-            from widgets import store as _st
-            shown = len((_st.load("imagenes") or {}).get("items") or [])
-        except Exception:  # noqa: BLE001
-            shown = 0
+    try:
+        from widgets import store as _st
+        held = _st.load("imagenes") or {}
+        shown = len(held.get("items") or [])
+        more = more or (shown > 0 and " ".join(str(held.get("query") or "").lower().split()) == " ".join(q.lower().split()))
+    except Exception:  # noqa: BLE001
+        shown = 0
     try:
         from search import browser as _bs
         res = await _bs.images(q, n + shown if more else n)

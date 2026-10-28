@@ -227,6 +227,22 @@ def licence(request, wid: str, action: str, payload=None, *, at: str, **known) -
     return Licence()
 
 
+def his_row(brief, wid: str, action: str, payload: dict | None, said: str):
+    """The row HIS words name when a SURE verdict says this card and act are right and only the model's reference was
+    ambiguous (live-i3: `select` 0.96 over eight «Red Ferrari F40» titles, «open the second one»), or None."""
+    try:
+        from nucleo.turn import brief as _tb, verdicts
+        from widgets import refs
+        owner, _, act = str(_tb.read(brief, _tb.TARGET_KEY, "", min_confidence=verdicts.VETO)[0] or "").rpartition(":")
+        if act != action or owner.split("::", 1)[0] != str(wid).split("::", 1)[0] or not str(said or "").strip():
+            return None
+        res = refs.resolve(wid, action, "", {k: v for k, v in (payload or {}).items() if k != "item"}, order=said)
+        return res if res.ok else None
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"acts.card: his row unreadable ({e}) — the question stands")
+        return None
+
+
 def logged(lic: Licence, emit) -> Licence:
     """Emit the licence's own event (a clause that logged its reason itself carries no label)."""
     if lic.label:
