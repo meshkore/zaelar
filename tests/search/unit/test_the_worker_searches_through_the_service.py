@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 
 from nucleo.cli import usage as bridge_usage
-from nucleo.workers import session as _session
 
 
 def test_a_quoted_sentence_after_use_tool_is_the_search():
@@ -22,12 +21,87 @@ def test_a_quoted_sentence_after_use_tool_is_the_search():
     assert bridge_usage.bare_query_payload("show_widget", "results") is None
 
 
-def test_the_prompts_teach_the_quoted_form_and_no_file():
-    import inspect
+_QUOTED = 'act use_tool "<qué buscas>"'
+
+
+def _teaches_the_quoted_form(text: str) -> bool:
+    return _QUOTED in text and "busca.json" not in text
+
+
+def test_the_bridge_hint_after_a_bad_act_teaches_the_quoted_search():
+    """The way out a worker is shown when `act` dies on its arguments is the same form the guard lets through:
+    a quoted sentence, no JSON. (Its `@file` detour stays for the JSON payloads of OTHER actions, V2-379.)"""
+    from nucleo.cli import bridge
+    hint = bridge._hint_for("worker_bridge act")
+    assert 'act use_tool "<qué buscas>"' in hint
+    assert '"tool":"web_search"' not in hint, "the search taught as JSON is what the guard refuses"
+
+
+def test_the_briefs_a_worker_reads_teach_the_quoted_form_and_no_file():
+    """The text the worker RECEIVES (web brief + generic brief, rendered by the real builders) — another goal."""
     from tests.worker_briefs import rendered
-    src = rendered() + inspect.getsource(_session)
-    assert 'act use_tool \\"<qué buscas>\\"' in src or 'act use_tool "<qué buscas>"' in src
-    assert "busca.json" not in src, "the file form is what the guard refused; it must not be taught any more"
+    text = rendered("find the cheapest 27-inch 4K monitor in Barcelona")
+    assert _teaches_the_quoted_form(text), "the file form is what the guard refused; it must not be taught any more"
+
+
+class _Rec:
+    task_id = "t-relay"
+
+    def __init__(self):
+        self.injects = []
+
+
+class _Worker:
+    """What `_relay_search` touches of a session: its record and its inject (no loop → the record's queue)."""
+
+    def __init__(self):
+        self._rec = _Rec()
+
+    async def inject(self, msg):          # pragma: no cover — only with a running loop
+        self._rec.injects.append(msg)
+
+
+def test_a_worker_whose_own_search_ran_out_is_told_the_quoted_form_once(monkeypatch):
+    from nucleo.workers import session_events
+    monkeypatch.setattr("voice.observer.emit", lambda *a, **k: None)
+    w = _Worker()
+    session_events._relay_search(w)
+    session_events._relay_search(w)
+    assert len(w._rec.injects) == 1, "the relay is said once per task"
+    msg = w._rec.injects[0].text
+    assert 'act use_tool "<qué buscas>"' in msg and "{" not in msg and ".json" not in msg
+
+
+def test_the_disarm_a_brief_back_on_the_file_form_is_caught(monkeypatch):
+    """Put the drawer's search line back on the refused file form: the rendered brief must stop passing."""
+    from nucleo.workers.prompts import drawer, web
+    from tests.worker_briefs import rendered
+    orig = drawer._drawer_rules
+
+    def _file_form(py: str = "") -> str:
+        return orig(py).replace(_QUOTED, "act use_tool @busca.json")
+    monkeypatch.setattr(drawer, "_drawer_rules", _file_form)
+    monkeypatch.setattr(web, "_drawer_rules", _file_form)
+    text = rendered("find the cheapest 27-inch 4K monitor in Barcelona")
+    assert "@busca.json" in text, "the mutation did not land in the rendered brief"
+    assert not _teaches_the_quoted_form(text)
+
+
+def test_the_disarm_a_relay_back_on_the_file_form_is_caught(monkeypatch):
+    """Rebuild `_relay_search` with its spoken line on the refused file form: the relay test's check must flip."""
+    import types
+
+    from nucleo.workers import session_events
+    fn = session_events._relay_search
+    consts = tuple(c.replace(_QUOTED, "act use_tool @busca.json") if isinstance(c, str) else c
+                   for c in fn.__code__.co_consts)
+    assert consts != fn.__code__.co_consts, "the mutation did not land in the relay's line"
+    mutated = types.FunctionType(fn.__code__.replace(co_consts=consts), fn.__globals__, fn.__name__)
+    monkeypatch.setattr("voice.observer.emit", lambda *a, **k: None)
+    w = _Worker()
+    mutated(w)
+    msg = w._rec.injects[0].text
+    assert "@busca.json" in msg and _QUOTED not in msg
 
 
 def test_use_tool_returns_the_chain_dict_plus_the_service_fields(monkeypatch):

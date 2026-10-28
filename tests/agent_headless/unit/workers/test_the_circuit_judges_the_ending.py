@@ -130,11 +130,43 @@ def test_the_pulse_re_verifies_open_specs_and_closes_the_met_ones(world):
     assert circuit.tick(now=1002.0) == [] and e2["last"] is None, "an open spec is read at most every 5 s"
 
 
-def test_the_bound_comes_from_genesis_with_a_default():
-    assert isinstance(circuit.retries(), int) and circuit.retries() >= 0
-    import json, pathlib
-    g = json.loads((pathlib.Path(circuit.__file__).parents[1] / "genesis.json").read_text(encoding="utf-8"))
-    assert "circuit" in g and int(g["circuit"]["retries"]) == 2
+def _relaunches_until_the_truth(monkeypatch, cap: int = 6) -> tuple[int, str]:
+    """Close the same unmet errand, relay after relay, until the circuit stops relaunching it."""
+    esc, _parked = _stub(monkeypatch)
+    rec = _rec(done_when=GONE)
+    T.opened(rec, {"src": "voice"})
+    got = ""
+    for gen in range(cap):
+        got = circuit.close(_rec(done_when=GONE, relay_gen=gen, uid=rec.uid, goal_retried=False), relay_cap=cap + 1)
+        if got != "started":
+            break
+    return len(esc), got
+
+
+def test_with_no_override_an_unmet_ending_is_relaunched_twice_and_then_told(world, monkeypatch):
+    """The install's default bound (genesis): two relaunches carrying what is missing, then the truth."""
+    assert _relaunches_until_the_truth(monkeypatch) == (2, "unmet")
+
+
+def _override(retries: int):
+    import json
+    import os
+    import pathlib
+    p = pathlib.Path(os.environ["ZAELAR_WORKSPACE"]) / "config" / "circuit.json"
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps({"retries": retries}), encoding="utf-8")
+
+
+def test_the_installs_own_bound_overrides_the_default(world, monkeypatch):
+    _override(0)
+    assert _relaunches_until_the_truth(monkeypatch) == (0, "unmet"), "retries=0: the first unmet ending is the truth"
+
+
+def test_the_disarm_a_circuit_that_ignores_the_installs_bound_relaunches_anyway(world, monkeypatch):
+    """Disarm: the per-install layer is not read → the same override changes nothing and the default relaunches."""
+    _override(0)
+    monkeypatch.setattr(circuit, "settings", lambda: {"ask_on_give_up": True})
+    assert _relaunches_until_the_truth(monkeypatch) == (2, "unmet")
 
 
 # ── demo pass 64: a guess never relaunches, and a sheet clause reads the errand's own sheet ────────────────────
