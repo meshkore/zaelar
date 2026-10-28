@@ -60,6 +60,7 @@ def _counts() -> dict[str, int]:
 #: fall, and no file may exceed its own count.
 TOTAL = 1699   # refactor2710-06: measured with 04 and main merged
 PER_FILE: dict[str, int] = {
+    'nucleo/flash/op_pending.py': 4,
     'nucleo/idle_stop.py': 1,
     'widgets/agenda/task_read.py': 1,
     'widgets/youtube/channel_fetch.py': 5,

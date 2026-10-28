@@ -57,3 +57,15 @@ def answers_our_question(brief, prior: str) -> bool:
     except Exception as e:  # noqa: BLE001 — a classifier may never break a turn
         logger.debug(f"prior_line: answer verdict unreadable: {e}")
         return False
+
+
+def restates_our_offer(prior: str, errand: str, floor: int = 2) -> bool:
+    """The errand the model proposes RESTATES our previous line — at least `floor` content words in common — so the
+    directive came from OUR sentence and his short turn («do it», «d oit», «vale») only released it. Measured on
+    our text and the model's proposal, never on a vocabulary (live 2026-10-28: «…I can dig into that specifically if
+    you want» → «d oit» → the errand «Check for Richard (living in Spain) where and when Dexter…» was annulled as a
+    fragment because our offer carried no question mark)."""
+    def words(t: str) -> set:
+        return {w.strip(".,;:!?¿¡«»\"'()").lower() for w in str(t or "").split() if len(w.strip(".,;:!?¿¡«»\"'()")) > 3}
+    common = words(prior) & words(errand)
+    return len(common) >= floor
