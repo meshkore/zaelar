@@ -18,13 +18,6 @@ def _ctx_ids() -> tuple[list, list]:
         return [], []
 
 
-def _identify_named_ctx(rt, query: str) -> str | None:
-    """`rt.identify_named(query, open_ids, recent_ids)` with state context — the widget the phrase NAMES, never
-    the one that merely happens to be open (V2-666). Mirror of `widget_intent._identify_named`."""
-    _o, _r = _ctx_ids()
-    return rt.identify_named(query, open_ids=_o, recent_ids=_r)
-
-
 def _identify_ctx(rt, query: str) -> str | None:
     """`rt.identify(query, open_ids, recent_ids)['match']` with state context — the resolver with the same
     open>recent>catalogue narrowing used by voice. `rt` is the `widgets.runtime` module already imported by the caller."""
@@ -62,54 +55,6 @@ def _vetoed_show(text: str) -> bool:
     except Exception:
         pass
     return False
-
-
-def _show_target(text: str, context: list[dict] | None = None, last_action: str = "") -> str | None:
-    """Same criterion as `providers/nucleo.py::_show_guard_target` (PARALLEL implementation — keep in sync): a
-    SHOW verb + NO create + `runtime.identify` resolves an existing widget → the real turn converts it to show."""
-    import re
-    n = _norm_ascii(text)
-    if re.search(_NEGATED_SHOW_RE, n):
-        return None
-    if re.search(_CREATE_RE, n):
-        return None
-    if not re.search(_SHOW_VERB_RE, n):
-        return None
-    try:
-        from widgets import runtime
-        # V2-666 — a sentence that NAMES its widget is never deictic (mirror of `widget_intent._show_guard_target`,
-        # same measured turn: «Mírame, ábreme la agenda inmediatamente» → the SEARCH card, because the article
-        # «la» made the sentence «muéstramelo»-shaped and the noun he said was discarded). The name wins first.
-        named = _identify_named_ctx(runtime, text)
-        if named:
-            return named
-        # A deictic show request ("muéstramelo") gets its noun from the recent dialogue. Resolve the most recent
-        # topical utterance against the same real widget catalogue instead of forcing the model to repeat a noun.
-        # This is generic: weather, agenda, messages, music… are all resolved by runtime.identify, not a keyword map.
-        from . import router as _router
-        tail = (text or "").strip().lower().strip("¿?¡!.,;:")
-        deictic = (bool(re.search(r"\b(?:muestr|ensen|abre|saca)\w*(?:lo|la|los|las)\b", n))
-                    or any(_router.looks_like_bare_ref(token) for token in tail.split() if token))
-        if deictic:
-            for message in reversed(context or []):
-                if message.get("role") != "user":
-                    continue
-                prior = str(message.get("content") or "").strip()
-                if prior:
-                    match = _identify_ctx(runtime, prior)
-                    if match:
-                        return match
-                    break  # the grammatical antecedent is the immediately preceding user topic, never older history
-            # The preceding route is stronger than fuzzy words: a LIGHT search is rendered in the built-in
-            # `search` (Búsqueda / Tiempo) surface. This is action→surface continuity, not a topic keyword table.
-            if last_action == "search" and runtime.get("search") is not None:
-                return "search"
-        # V2-666 — no name, no antecedent: a SHOW never lands on a card «by context» (`identify`'s data-op
-        # nuance would hand back the only open card — a blind open, measured as «ponme un gráfico del Bitcoin» →
-        # youtube on the voice channel).
-        return None
-    except Exception:
-        return None
 
 
 # Extraído de `probe.py` en la pasada del trinquete (2026-09-02). Vive aquí porque es donde un lector ya lo
@@ -216,29 +161,6 @@ def resolve_show(wid_arg: str, text: str, window, last_action, guard_target) -> 
     except Exception:
         res = {"match": wid_arg if runtime.get(wid_arg) is not None else None, "system": None}
     return res, open_ids, recent_ids
-
-
-def show_instance(rid: str, text: str = "", last_spoken: str = "") -> tuple[str, str, str]:
-    """WHICH CARD of `rid` a «enséñamelo» means → `(id_to_show, question, chosen_label)`.
-
-    The SAME decision the voice channel takes in `providers/widget_intent._show_target_instance`, single-sourced
-    in `widgets/instances.resolve_show`; what lived here was the plumbing around it, written twice. V2-605 gave
-    that decision a third input (`last_spoken`, so the same question is never asked twice) and a third output
-    (which card we had to choose when the operator had already been asked and still did not pick) — a shape
-    change is exactly when two hand-copied call sites drift, and this channel is the one that historically gets
-    left behind (V2-176, V2-252, V2-539).
-
-    Fail-soft to «show the base, as always»: an unreadable canvas must not invent an ambiguity mid-turn.
-    """
-    try:
-        from server.voice_api import open_instances
-        from widgets import instances as _inst
-        out = _inst.resolve_show(rid, open_instances(), text, last_spoken)
-    except Exception:  # noqa: BLE001
-        return rid, "", ""
-    if out.get("ask"):
-        return "", str(out["ask"]), ""
-    return str(out.get("id") or rid), "", str(out.get("chose") or "")
 
 
 def show_card(rid: str, text: str = "") -> str:
@@ -387,7 +309,7 @@ def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None, clarif
     return "" if attempted and refused == attempted else rid
 
 
-def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) -> None:
+def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict, brief=None) -> None:
     """The provider's whole `fullscreen_widget` branch body (extracted paying the architecture ratchet,
     V2-635): resolve the card (V2-609, above) and route by what the turn actually SAYS. Measured 2026-09-09
     (session 34386d8f): «Johnny pausa el vídeo» became fullscreen (pure drag — no screen-size words at all),
@@ -395,8 +317,8 @@ def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) ->
     non-maximized card the toggle does the exact opposite. Shrink orders now ride the canvas `minimize`
     event (desktop.shrink: exit fullscreen → restore maximize → rail chip); a call licensed by nothing is
     discarded and counts as handled (`deduped`) — same posture as stop_worker's GUARD 2."""
-    from nucleo.flash import canvas_license as _lic
-    verdict = _lic.fullscreen_license(text)
+    from nucleo.acts import canvas as _door
+    verdict = _door.size_ordered(text, brief=brief)
     if not verdict:
         emit("brain", "🛡️ fullscreen_widget ignorado — el turno no habla de tamaño de pantalla (context-bleed)",
              text=(text or "")[:120], role="system",
@@ -451,8 +373,8 @@ def fullscreen_exit_due(text: str, *, fired: bool) -> str:
     if fired:
         return ""
     try:
-        from nucleo.flash import canvas_license as _lic
-        if _lic.fullscreen_license(text) != "minimize":
+        from nucleo.acts import canvas as _door
+        if _door.size_ordered(text) != "minimize":
             return ""
         from memory import api as _memapi
         return str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()
@@ -536,38 +458,6 @@ def _resolve_canvas_verb_single(handle: dict | None, *, min_confidence: float | 
     from nucleo import jev as _jev
     mc = _jev.MIN_CONFIDENCE if min_confidence is None else min_confidence
     return _jev.resolve_choice(handle, "neither", min_confidence=mc)
-
-
-def close_has_order(text: str, canvas_handle: dict | None = None, *, brief=None) -> tuple[bool, str]:
-    """The ONE close-order reader for both channels' [[close]] guards (V2-635 and its probe mirror).
-
-    Grammar first: `looks_like_close` saying yes ends the question. A deterministic NEGATED or
-    NARRATED close ("do not close", "you've closed") ends it the other way — it vetoes even a
-    confident Jev, because a cheap model's opinion never beats the operator's own "don't".
-    Otherwise a confident Jev "close" LICENSES the model's [[close]] (two independent readers
-    agreeing forgives a grammar miss); anything else keeps the discard. Returns `(has_order,
-    source)` with source one of "grammar" | "jev" | "none" — the emit trail says which reader
-    moved, so a misfire is attributable.
-    """
-    from . import close_guards as _cg
-    if _cg.looks_like_close(text):
-        # …unless the turn's SURE canvas verdict says it is no close at all (`canvas_license.close_license`, the
-        # backstop's rule): «You did close the document of Bitcoin without me telling you» read as an order, and
-        # the model's [[close]] closed the document he was complaining about (demo 2026-10-22).
-        from . import canvas_license as _lic
-        if brief is not None and not _lic.close_license(text, brief=brief):
-            return False, "verdict"
-        return True, "grammar"
-    if _cg.is_negated_or_narrated(text):
-        return False, "none"
-    # V2-812 T-05 — his answer to OUR «which one should I close?» carries that question's licence («Las dos.»).
-    from . import close_answer as _ca
-    if _ca.answers(brief):
-        return True, "answer"
-    verb, info = resolve_canvas_verb(canvas_handle)
-    if verb == "close" and (info or {}).get("used"):
-        return True, "jev"
-    return False, "none"
 
 
 def show_from_verb(text: str, canvas_handle: dict | None = None) -> tuple[str | None, str]:

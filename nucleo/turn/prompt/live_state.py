@@ -104,7 +104,7 @@ def live_state() -> str:
     # Se dice el MOTIVO, no un genérico: «se me ha agotado la cuota» y «me están pidiendo un captcha» llevan al
     # operador a decisiones distintas, y ninguna de las dos es esperar.
     try:
-        from nucleo import websearch as _ws_health
+        from search import web as _ws_health
         _sf = _ws_health.recent_failure()
         if _sf:
             _why = {"quota": "se ha agotado la cuota de búsqueda",

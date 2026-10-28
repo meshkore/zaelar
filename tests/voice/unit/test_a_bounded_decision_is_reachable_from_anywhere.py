@@ -176,7 +176,7 @@ def test_the_turn_brief_does_not_go_through_the_background_gate(wire):
 
 # ── the worker door ──────────────────────────────────────────────────────────────────────────────
 def test_the_policy_allows_a_bounded_decision(wire):
-    from nucleo import worker_policy as wp
+    from nucleo.cli import worker_policy as wp
     assert wp.classify_act("decide", {}) == wp.ALLOW
 
 
@@ -186,7 +186,7 @@ def test_a_real_worker_reaches_the_SAME_primitive_through_its_token(wire):
     It goes through `_exec_allow`, which is the function `/api/worker/act` calls after verifying the
     task token — so this exercises the actual door, not a mirror of it.
     """
-    from nucleo import worker_api as wapi
+    from nucleo.cli import worker_api as wapi
 
     class _Rec:
         task_id = "task-7"
@@ -206,7 +206,7 @@ def test_a_real_worker_reaches_the_SAME_primitive_through_its_token(wire):
 def test_a_worker_may_pass_a_plain_list_of_candidates(wire):
     """Workers build candidates from parsed rows, and a list is the natural shape. Accepting it here
     is what stops each worker from inventing its own id scheme."""
-    from nucleo import worker_api as wapi
+    from nucleo.cli import worker_api as wapi
 
     class _Rec:
         task_id = "task-8"
@@ -221,7 +221,7 @@ def test_the_worker_result_carries_the_DECISION_and_nothing_else(wire):
     """Credentials and other tasks' data can never reach a worker through this door — by
     construction, because `decide` returns only its own verdict. Pinned so a later 'helpful' field
     (the state? the key? the other candidates' rows?) has to argue with a test first."""
-    from nucleo import worker_api as wapi
+    from nucleo.cli import worker_api as wapi
 
     class _Rec:
         task_id = "task-9"
@@ -236,7 +236,7 @@ def test_a_malformed_worker_payload_is_an_ANSWER_not_a_crash(wire):
     """A worker that gets an exception back learns nothing and usually retries the same way. Every
     bridge in this engine fails soft with something the worker can branch on (V2-644's lesson, paid
     for with four minutes of a worker driving a browser because a silent [] blamed the module)."""
-    from nucleo import worker_api as wapi
+    from nucleo.cli import worker_api as wapi
 
     class _Rec:
         task_id = "task-10"
@@ -255,7 +255,7 @@ def test_the_worker_reaches_it_the_SAME_WAY_it_reaches_every_other_payload(wire,
     have made it unusable by the only process it was built for — a capability a worker cannot invoke
     is one it narrates instead of using. Caught by reading the prompt that teaches the bridges.
     """
-    from nucleo import worker_bridge as wb
+    from nucleo.cli import bridge as wb
     import json as _json
     monkeypatch.chdir(tmp_path)
     (tmp_path / "elige.json").write_text(_json.dumps(
@@ -275,14 +275,14 @@ def test_the_worker_PROMPT_declares_the_door(wire):
     teaches this one too, with the shape and with what the statuses mean."""
     from tests.worker_briefs import rendered
     src = rendered()
-    assert "worker_bridge decide" in src, "the worker is never told the bounded-decision door exists"
+    assert "cli.bridge decide" in src, "the worker is never told the bounded-decision door exists"
     assert "abstained" in src, "…nor what «none of these fits» looks like when it answers"
 
 
 def test_a_worker_deadline_is_bounded_by_us(wire):
     """A worker has no latency budget of its own but it does have a Bash timeout, so an unbounded
     wait would surface as a worker that died mid-errand with nothing to report."""
-    from nucleo import worker_api as wapi
+    from nucleo.cli import worker_api as wapi
     assert wapi._decide_deadline({"deadline_s": 9999}) == 20.0
     assert wapi._decide_deadline({"deadline_s": 0.01}) == 0.5
     assert wapi._decide_deadline({}) is None

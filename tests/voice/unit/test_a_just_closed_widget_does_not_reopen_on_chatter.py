@@ -10,6 +10,8 @@ his own words resolve to that widget — never on chatter.
 """
 from __future__ import annotations
 
+from nucleo.acts import canvas as _door
+
 from tests import voice_turn_source as _vts
 
 import pathlib
@@ -29,33 +31,33 @@ def _fresh(monkeypatch):
 def test_chatter_does_not_reopen_a_just_closed_widget(monkeypatch):
     _fresh(monkeypatch)
     lic.note_operator_close("youtube")
-    assert lic.reopen_license("youtube", "Avisando de de cuidado, que aquí está pasando algo.") is False
+    assert _door.reopen_ordered("youtube", "Avisando de de cuidado, que aquí está pasando algo.") is False
 
 
 def test_a_real_request_reopens_it(monkeypatch):
     _fresh(monkeypatch)
     lic.note_operator_close("youtube")
     for t in ("vuelve a abrir el youtube", "ponme otro vídeo de Ronaldinho", "muéstrame el youtube"):
-        assert lic.reopen_license("youtube", t) is True, t
+        assert _door.reopen_ordered("youtube", t) is True, t
 
 
 def test_naming_the_widget_alone_reopens_it_through_the_resolver(monkeypatch):
     """No conjugated verb, but his own words resolve to the widget with certainty (V2-082)."""
     _fresh(monkeypatch)
     lic.note_operator_close("youtube")
-    assert lic.reopen_license("youtube", "el youtube") is True
+    assert _door.reopen_ordered("youtube", "el youtube") is True
 
 
 def test_a_widget_nobody_closed_is_untouched_by_the_gate(monkeypatch):
     _fresh(monkeypatch)
-    assert lic.reopen_license("musica", "Avisando de de cuidado, que aquí está pasando algo.") is True
+    assert _door.reopen_ordered("musica", "Avisando de de cuidado, que aquí está pasando algo.") is True
 
 
 def test_the_window_expires(monkeypatch):
     _fresh(monkeypatch)
     lic.note_operator_close("youtube")
     lic._RECENT_CLOSES["youtube"] -= lic._REOPEN_WINDOW_S + 1
-    assert lic.reopen_license("youtube", "bla bla bla") is True
+    assert _door.reopen_ordered("youtube", "bla bla bla") is True
 
 
 # ── 2 · every close door records, and the turn consults ──────────────────────────────────────────────────
@@ -70,12 +72,12 @@ def test_every_close_door_notes_the_operator_close():
 
 def test_the_voice_turn_consults_the_reopen_license():
     src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert re.search(r"reopen_license\(_rid, text", src)
+    assert re.search(r"reopen_ordered\(_rid, text", src)
 
 
 def test_the_voice_guard_counts_the_turn_as_handled_not_void():
     src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    m = re.search(r"reopen_license\(_rid, text.*?elif _rid:", src, re.S)
+    m = re.search(r"reopen_ordered\(_rid, text.*?elif _rid:", src, re.S)
     assert m, "the guard block moved — re-anchor this test"
     assert 'deduped["v"] = True' in m.group(0), \
         "a discarded drag is handled (V2-635), never a void for the mute backstop"
@@ -96,23 +98,23 @@ def test_a_show_of_the_card_the_verdict_closes_is_a_closing_turn(monkeypatch):
     closed and the model still called show_widget(youtube). The text guard saw nothing; the verdict does."""
     from nucleo.flash import turn_brief as tb
     monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "close", tb.TARGET_KEY: "youtube:close"}))
-    assert lic.closing_turn(object(), "youtube") is True, "THE BUG: the card came straight back"
-    assert lic.closing_turn(object(), "agenda") is False, "a close naming another card leaves this show alone"
+    assert _door.show_under_close(brief=object(), wid="youtube", words=False) is True, "THE BUG: the card came straight back"
+    assert _door.show_under_close(brief=object(), wid="agenda", words=False) is False, "a close naming another card leaves this show alone"
 
 
 def test_a_close_naming_nobody_shows_nothing_and_any_other_verdict_shows(monkeypatch):
     from nucleo.flash import turn_brief as tb
     monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "close", tb.TARGET_KEY: "none"}))
-    assert lic.closing_turn(object(), "youtube") is True
+    assert _door.show_under_close(brief=object(), wid="youtube", words=False) is True
     monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "show"}))
-    assert lic.closing_turn(object(), "youtube") is False
+    assert _door.show_under_close(brief=object(), wid="youtube", words=False) is False
     monkeypatch.setattr(tb, "read", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no brief")))
-    assert lic.closing_turn(None, "youtube") is False, "no brief, no veto"
+    assert _door.show_under_close(brief=None, wid="youtube", words=False) is False, "no brief, no veto"
 
 
 def test_the_show_branch_asks_the_verdict_next_to_the_text_guard():
     src = _vts.read(pathlib.Path("voice/engine/llm/providers/nucleo.py"))
-    assert "if _router.show_contradicts_the_order(text) or _canvas_lic.closing_turn(_brief, _wid):" in src
+    assert "if _canvas_door.show_under_close(text, brief=_brief, wid=_wid):" in src
 
 
 def test_the_fast_lens_door_asks_the_verdict_too():
@@ -120,4 +122,17 @@ def test_the_fast_lens_door_asks_the_verdict_too():
     over the now-closed card, and the lens door brought it back as a «turn-order». A close never brings the card."""
     src = _vts.read(pathlib.Path("voice/engine/llm/providers/nucleo.py"))
     i = src.index("_fx.carries(wid, action_name, _fx.DATA_READ) and not _cvis.is_open(wid)")
-    assert "not _canvas_lic.closing_turn(_brief, wid)" in src[i:i + 200]
+    assert "not _canvas_door.show_under_close(brief=_brief, wid=wid, words=False)" in src[i:i + 200]
+
+
+def test_the_paid_verdict_naming_the_card_reopens_it_at_the_door(monkeypatch):
+    """refactor2710-04b T-03 — the door reads the turn's verdict before any word: a sure `canvas=show` whose catalogue
+    names the just-closed card brings it back even when his words alone resolve to nothing; one naming another card
+    does not. Disarm: `_shows_this` → False and the first assertion goes red."""
+    from nucleo.flash import turn_brief as tb
+    _fresh(monkeypatch)
+    lic.note_operator_close("youtube")
+    monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "show", tb.CATALOG_KEY: "youtube"}))
+    assert _door.reopen_ordered("youtube", "bla bla bla", brief=object()) is True
+    monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "show", tb.CATALOG_KEY: "agenda"}))
+    assert _door.reopen_ordered("youtube", "bla bla bla", brief=object()) is False

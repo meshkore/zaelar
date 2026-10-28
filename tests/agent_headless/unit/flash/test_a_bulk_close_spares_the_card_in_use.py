@@ -22,9 +22,12 @@ OPEN = ["documento", "navegador", "mensajeria"]
 
 
 @pytest.fixture(autouse=True)
-def _clean():
+def _clean(monkeypatch):
     done_ops.reset()
     bulk_close.reset()
+    from nucleo.acts import canvas_turn as canvas_arbiter          # the turn ordered the close: the licence the canvas door reads
+    monkeypatch.setattr(canvas_arbiter, "request_of", lambda brief=None, text=None, **k: {
+        "text": text or "", "turn_credit": True, "last_reply": "", "verdict": {"canvas": ("close", 0.9)}})
     yield
     done_ops.reset()
     bulk_close.reset()
@@ -152,11 +155,12 @@ def test_disarmed_without_the_in_use_reading_the_draft_closes_again(monkeypatch)
 def _show_on_a_close_turn(wid, monkeypatch, open_now):
     from nucleo.flash import canvas_visibility, tool_executor_calls as TEC
 
-    class _Router:
-        @staticmethod
-        def show_contradicts_the_order(text):
-            return True
+    from nucleo.acts import canvas as _door
 
+    class _Router:
+        pass
+
+    monkeypatch.setattr(_door, "show_under_close", lambda *a, **k: True)
     monkeypatch.setattr(canvas_visibility, "is_open", lambda w, known=None: open_now)
     events, emit = _collect()
     TEC._t_show_widget(args={"widget_id": wid}, _brief=None, _router=_Router, _say=None, _show_guard_target=None,

@@ -1,7 +1,7 @@
 """server/feedback_api.py — send a suggestion/bug report straight to the developers (V2-100, 2026-08-16).
 
 The one class of outbound call a self-hosted install makes: every other "phone home" path in this
-repo (`nucleo/energy_meter.py`, `observability/identity.py::_report_to_control_plane`) is gated on
+repo (`nucleo/energy/meter.py`, `observability/identity.py::_report_to_control_plane`) is gated on
 `CONTROL_PLANE_URL`/`ZAELAR_USER_ID`, which a self-host install does not set. Feedback needs to work
 for a self-hoster with no account at all, so it gets its own endpoint (`ZAELAR_FEEDBACK_URL`), which
 receives it unauthenticated and rate-limits it on its side.
@@ -75,7 +75,7 @@ def _build_evidence(session_id: str) -> dict | None:
 
 @router.get("/api/feedback")
 async def list_feedback():
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     from observability import identity as _identity
 
     url = _feedback_url()
@@ -151,7 +151,7 @@ async def _post(payload: dict):
     one goes to the anonymous route with its install id. Shared by the form and the thumbs-down (V2-760), so
     the two can never disagree about where a report goes. The configured language is added HERE, at the one
     door, so no caller can forget it."""
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     from observability import identity as _identity
     lang = _lang()
     if lang:

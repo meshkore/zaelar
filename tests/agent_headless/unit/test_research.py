@@ -124,7 +124,7 @@ def test_prompt_block_demands_facts_so_followups_are_answerable():
 
 def test_prompt_block_requires_reporting_the_real_breadth():
     block = research.to_prompt_block(research.parse(_raw()))
-    assert "agent_report considered" in block, "sin el nº de candidatos, «las 3 mejores» no es auditable"
+    assert "cli.report considered" in block, "sin el nº de candidatos, «las 3 mejores» no es auditable"
 
 
 def test_prompt_block_offers_to_keep_searching():

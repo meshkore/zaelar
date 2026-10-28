@@ -1,5 +1,5 @@
 """search/web.py — WEB SEARCH for facts and leads, the provider CHAIN (V2-022; moved from `nucleo/websearch.py`
-by V2-782, which keeps that name as an alias so every caller and test still works).
+by V2-782; the alias went in refactor2710-06).
 
 **Model-agnostic** search capability (we do not depend on the model having native search — Grok/GLM/Z.AI do not;
 Claude Code does): an internal primitive that any part of the system can call.
@@ -273,7 +273,7 @@ def _meter_search(src: str) -> None:
     that demands a rate for every paid backend still sees them."""
     if src not in _PAID_BACKENDS or src in ("openai", "gemini", "zai"):
         return
-    from nucleo import energy_meter as _energy
+    from nucleo.energy import meter as _energy
     _energy.report_search_usage(provider=src)   # the counter does not raise: `@_never_raises` lives in the module
 
 

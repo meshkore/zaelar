@@ -222,7 +222,7 @@ def test_the_worker_declares_the_bar_and_it_lands_on_its_record():
 
 
 def test_the_bridge_refuses_a_goal_that_is_not_JSON_and_says_the_shape(capsys):
-    from nucleo import agent_report
+    from nucleo.cli import report as agent_report
     assert agent_report.main(["goal", "{nope"]) == 2
     out = capsys.readouterr().out
     assert "no es JSON válido" in out and "expect" in out and "hbwidget read" in out
@@ -232,7 +232,7 @@ def test_the_worker_is_TOLD_it_can_declare_a_bar():
     """A capability nobody declares is one the model narrates instead of using (V2-540)."""
     from nucleo.workers import prompts as dispatch_prompts
     block = dispatch_prompts._METHOD_BLOCK
-    assert "agent_report goal" in block and "done_when" not in block.split("goal")[0][-200:]
+    assert "cli.report goal" in block and "done_when" not in block.split("goal")[0][-200:]
     # V2-776 L1: the condition is BORN with the errand (`nucleo/circuit/spec.py`, told as the first injected turn); the
     # worker refines it and never retires it. The old «no declares nada» exemption for searches and reports is
     # gone — an unreadable condition reads as None, never as a retry loop, so there is nothing to protect by

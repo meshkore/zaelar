@@ -20,7 +20,7 @@ import pytest
 BUDGET = {
     "language": 254,
     "operating": 3140,     # ⚠️ reads NO truth: removing it is gated on the battery (×3), not on this test
-    "resources": 2661,
+    "resources": 2665,     # re-measured with main merged (its manifests, not this section)
     "close": 20,
 }
 #: How far under its budget a block may sit before the budget must be lowered.

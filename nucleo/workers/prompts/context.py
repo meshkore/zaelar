@@ -5,7 +5,7 @@ turn's prompt never imports them.
 """
 from __future__ import annotations
 
-from nucleo.source_outcomes import worker_line as _sources_line   # V2-798: what each source did lately
+from nucleo.workers.source_outcomes import worker_line as _sources_line   # V2-798: what each source did lately
 
 def _recent_conversation_block(limit: int = 8) -> str:
     """CONVERSACIÓN RECIENTE verbatim para el prompt del worker (sesión 22:40 2026-07-16): una escalada llegaba
@@ -41,7 +41,7 @@ def _today_block() -> str:
     # VACÍA porque `date.today()` decía 2026-08-21 y toda fecha futura se leía como pasada.
     import time as _t
     try:
-        from nucleo import scheduler as _sched
+        from nucleo.pulse import scheduler as _sched
         _ahora = _t.localtime(_sched.time.time())
     except Exception:  # noqa: BLE001
         _ahora = _t.localtime()
@@ -60,15 +60,15 @@ _METHOD_BLOCK = (
     "aquí en adelante; «el de tal día» = esa fecha exacta; una cifra/precio/resultado = el VIGENTE. Distingue el "
     "PLANO: un widget con conector ES la fuente (la agenda ES el calendario de Google, mensajería ES el buzón, "
     "contactos ES el directorio): una cita se crea/cancela y un mensaje se manda CON el widget "
-    "(python -m nucleo.widget_cli), nunca conduciendo su web. Solo lo hecho en un SITIO sin conector (una reserva "
+    "(python -m nucleo.cli.widget), nunca conduciendo su web. Solo lo hecho en un SITIO sin conector (una reserva "
     "en una web, una suscripción, un pedido, un pago) se hace o deshace ALLÍ; después se refleja en el widget.\n"
     "2) PLANIFICA los pasos y LOCALIZA en memoria lo que necesites (dónde se reservó/contrató, la cita concreta, la "
-    "cuenta) con python -m nucleo.mem_cli recall \"<qué buscas>\".\n"
+    "cuenta) con python -m nucleo.cli.mem recall \"<qué buscas>\".\n"
     "3) EJECUTA la acción en la realidad con tus herramientas (navegador, etc.).\n"
     "4) REFLEJA en los widgets lo hecho FUERA, encadenado: si una gestión en un sitio externo afecta a un widget "
-    "(la reserva cancelada allí sale de la agenda, una lista se actualiza), hazlo con python -m nucleo.widget_cli "
+    "(la reserva cancelada allí sale de la agenda, una lista se actualiza), hazlo con python -m nucleo.cli.widget "
     "(LEE el widget primero con `read` y usa los ids REALES que te devuelve, nunca inventes ids); si afecta a un "
-    "hecho que zaelar recuerda, actualízalo con python -m nucleo.mem_cli remember. Un widget desactualizado (la "
+    "hecho que zaelar recuerda, actualízalo con python -m nucleo.cli.mem remember. Un widget desactualizado (la "
     "cita sigue en la agenda tras cancelarla fuera) es un fallo, no un detalle.\n"
     "4b) ENSÉÑALO EN PANTALLA siempre que la tarea produzca algo que se MIRA. Da igual el volumen: una LISTA de "
     "cualquier cosa (sitios, alojamientos, productos, anuncios, artículos, proyectos, ficheros, opciones, "
@@ -80,21 +80,21 @@ _METHOD_BLOCK = (
     "hoja ya existe y sirve para cualquier tema; programar un componente solo se justifica si el operador pidió "
     "FUNCIONALIDAD que no existe y que él maneja (un juego, un contador, una mini-app). Hazlo con la superficie "
     "genérica de presentación: "
-    "`python -m nucleo.widget_cli read results` (te devuelve su contrato y la forma EXACTA del payload) → "
+    "`python -m nucleo.cli.widget read results` (te devuelve su contrato y la forma EXACTA del payload) → "
     "entrégalo en DOS pasos, que es la ÚNICA forma probada que pasa los guardas:\n"
     "     (i)  escribe el JSON con tu tool Write a un fichero de RUTA RELATIVA en tu directorio de trabajo — "
     "`informe.json` a secas. NUNCA `/tmp/…` ni una ruta absoluta ni `TMP/`: fuera de tu directorio la escritura "
     "pide una aprobación que nadie te va a dar.\n"
-    "     (ii) `python -m nucleo.widget_cli data results present @informe.json`\n"
-    "   …y después `python -m nucleo.widget_cli show results`. **Nunca pegues el JSON en la línea de comandos ni "
+    "     (ii) `python -m nucleo.cli.widget data results present @informe.json`\n"
+    "   …y después `python -m nucleo.cli.widget show results`. **Nunca pegues el JSON en la línea de comandos ni "
     "uses un heredoc**: las comillas y las llaves los bloquea el guarda del shell. Y no te inventes un script "
     "propio para llamar a la API: el puente ya está permitido, úsalo tal cual. "
     "Ponlo en cuanto tengas resultados sólidos, y ve añadiendo con `data results append` según encuentres más: es "
     "mejor que el operador vea llenarse el informe que esperar callado al final. Cada item con su enlace REAL y, si "
     "el operador pidió verlo con fotos, su `image`. La voz final entonces es CORTA (2-3 frases: qué has encontrado "
     "y que está en pantalla) — el detalle ya lo está leyendo.\n"
-    "4c) SI LO QUE PIDIÓ SON LAS FOTOS, van al VISOR `imagenes`, no a la hoja (V2-457). La frontera es de QUÉ es la respuesta, no de si hay imágenes por medio: «enséñame fotos de X» se responde con las fotos, así que su sitio es el visor —una grande, miniaturas, y la FUENTE de cada una a la vista—; «búscame un hotel» se responde con hoteles, y ahí la foto es una columna de la ficha y se queda en la hoja. Mismos dos pasos y mismo puente: escribe el JSON a `fotos.json` y `python -m nucleo.widget_cli data imagenes show @fotos.json` (cada foto `{url, thumb, title, site, page, w, h}`), luego `show imagenes`. NUNCA vuelques un álbum en la hoja: es una tabla y se lee como una lista de enlaces, que es justo lo que el operador dijo que no quería ver.\n"
-    "4d) SI LO QUE PIDIÓ ES UNA SOLA COSA PARA LEER —una receta, un informe o resumen que escribes tú, unas instrucciones, un texto largo, un PDF— su sitio es la HOJA EN BLANCO `documento`, no la de resultados (V2-549). La frontera es la misma de siempre, de QUÉ es la respuesta: varias opciones que se comparan van a `results`; UNA cosa que se lee entera va a `documento`. Si te pidió UNA (una receta, no recetas), elige tú la mejor con tu criterio y ponla completa — devolverle la lista de candidatos es hacerle a él el trabajo que te encargó. Mismos dos pasos y mismo puente: escribe el JSON a `doc.json` y `python -m nucleo.widget_cli data documento show @doc.json` ({\"kind\":\"markdown\",\"title\":\"…\",\"source\":\"de dónde sale\",\"body\":\"# Título\\n\\ntexto markdown…\"}), luego `show documento`. Si es largo, primer `show` con la estructura y `data documento append @parte.json` por cada sección: mejor que lo vea crecer a que espere callado. El contrato entero lo tienes con `python -m nucleo.widget_cli read documento`.\n"
+    "4c) SI LO QUE PIDIÓ SON LAS FOTOS, van al VISOR `imagenes`, no a la hoja (V2-457). La frontera es de QUÉ es la respuesta, no de si hay imágenes por medio: «enséñame fotos de X» se responde con las fotos, así que su sitio es el visor —una grande, miniaturas, y la FUENTE de cada una a la vista—; «búscame un hotel» se responde con hoteles, y ahí la foto es una columna de la ficha y se queda en la hoja. Mismos dos pasos y mismo puente: escribe el JSON a `fotos.json` y `python -m nucleo.cli.widget data imagenes show @fotos.json` (cada foto `{url, thumb, title, site, page, w, h}`), luego `show imagenes`. NUNCA vuelques un álbum en la hoja: es una tabla y se lee como una lista de enlaces, que es justo lo que el operador dijo que no quería ver.\n"
+    "4d) SI LO QUE PIDIÓ ES UNA SOLA COSA PARA LEER —una receta, un informe o resumen que escribes tú, unas instrucciones, un texto largo, un PDF— su sitio es la HOJA EN BLANCO `documento`, no la de resultados (V2-549). La frontera es la misma de siempre, de QUÉ es la respuesta: varias opciones que se comparan van a `results`; UNA cosa que se lee entera va a `documento`. Si te pidió UNA (una receta, no recetas), elige tú la mejor con tu criterio y ponla completa — devolverle la lista de candidatos es hacerle a él el trabajo que te encargó. Mismos dos pasos y mismo puente: escribe el JSON a `doc.json` y `python -m nucleo.cli.widget data documento show @doc.json` ({\"kind\":\"markdown\",\"title\":\"…\",\"source\":\"de dónde sale\",\"body\":\"# Título\\n\\ntexto markdown…\"}), luego `show documento`. Si es largo, primer `show` con la estructura y `data documento append @parte.json` por cada sección: mejor que lo vea crecer a que espere callado. El contrato entero lo tienes con `python -m nucleo.cli.widget read documento`.\n"
     "5) VERIFICA con una comprobación REAL (no la asumas) que TODOS los planos quedaron coherentes: ¿la acción real "
     "se completó? ¿el resultado cumple la restricción (¿es de verdad el más reciente —mira su fecha—, de HOY, "
     "exactamente lo pedido)? ¿los widgets y la memoria reflejan ya lo hecho? Si algo no se puede certificar, "
@@ -104,7 +104,7 @@ _METHOD_BLOCK = (
     "1b) EL OBJETIVO MEDIBLE nace con el encargo (te llega como primer mensaje inyectado, «OBJETIVO MEDIBLE: …»): "
     "el motor lo comprueba solo contra la verdad del producto cuando termines, y si no se cumple te relanza "
     "diciéndote qué falta en vez de entregar algo a medias. Si al entender el encargo ves que la condición es "
-    "OTRA o más precisa, afínala con 'python -m nucleo.agent_report goal @objetivo.json'; nunca la retires. "
+    "OTRA o más precisa, afínala con 'python -m nucleo.cli.report goal @objetivo.json'; nunca la retires. "
     "Forma: {\"all\":[{\"widget\":\"agenda\",\"collection\":\"meetings\",\"where\":{\"title~\":\"X\"},"
     "\"expect\":\"present|absent\"}]} o {\"widget\":W,\"field\":\"campo\",\"is\"|\"has\":\"x\"} o "
     "{\"desktop\":\"wallpaper\",\"expect\":\"changed\"} — «where» es la misma expresión que `hbwidget rows`, "
@@ -131,8 +131,8 @@ def _mesh_first_block(py: str = "python", *, browser: bool, goal: str = "") -> s
             "Si dice que no hay agente, o el resultado no vale, sigue con tu método normal — es lo normal: ")
     return (
         cabeza
-        + f"   {py} -m nucleo.mesh_cli find \"<el encargo, tal cual lo dijo el operador>\"\n"
-        + f"   {py} -m nucleo.mesh_cli serve \"<el encargo>\" --prompt \"<el encargo con FECHAS ABSOLUTAS>\"\n"
+        + f"   {py} -m nucleo.cli.mesh find \"<el encargo, tal cual lo dijo el operador>\"\n"
+        + f"   {py} -m nucleo.cli.mesh serve \"<el encargo>\" --prompt \"<el encargo con FECHAS ABSOLUTAS>\"\n"
         "   · EN EL IDIOMA DEL OPERADOR y con sus palabras: la red hace su propio análisis y en español encuentra "
         "igual («entradas de teatro en Madrid» devuelve un agente gratis con diez eventos reales).\n"
         "   · FECHAS ABSOLUTAS (2026-09-10), nunca «esta noche»: el agente resolvió esa expresión al año pasado "

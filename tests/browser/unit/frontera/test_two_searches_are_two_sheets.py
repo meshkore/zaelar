@@ -129,7 +129,7 @@ def test_a_browser_with_no_errand_behind_it_writes_the_bare_sheet():
 def test_the_worker_bridge_resolves_the_sheet_so_the_worker_never_has_to():
     """The worker’s prompt says “deliver to the `results` sheet” (V2-257), and with instances that bare name is no
     longer an address. The BRIDGE resolves it: a worker should not need to know instance IDs."""
-    src = (ENGINE / "nucleo/worker_api.py").read_text(encoding="utf-8")
+    src = (ENGINE / "nucleo/cli/worker_api.py").read_text(encoding="utf-8")
     assert 'wid == "results"' in src and '"sheet"' in src, (
         "sin esto el worker escribe en la hoja de nadie mientras el operador mira la de su encargo")
 

@@ -163,11 +163,11 @@ def test_the_seal_is_written_only_inside_the_result_callback():
 def test_the_guard_says_what_it_threw_away():
     """The sibling guards in `_handle_widget_data_tool` carry the discarded payload in the event; this one
     logged only «agenda:cancel_meeting», so the live incident could not be diagnosed from the timeline."""
-    branch = _fast_branch()
-    head = branch.index("data-op del turno anterior re-emitida")
-    tail = branch.index("deduped[\"v\"] = True", head)
-    emitted = branch[head:tail]
-    assert "\"payload\"" in emitted and "\"action\"" in emitted, (
+    from nucleo.acts import card
+    lic = card._context_bleed({"brief": None, "text": "borra el reloj"}, "agenda", "cancel_meeting", {"id": "m1"},
+                              last_dataop=("agenda", "cancel_meeting", {"id": "m1"}, __import__("time").time()))
+    assert lic is not None and "data-op del turno anterior re-emitida" in lic.label
+    assert lic.extra == {"id": "agenda", "action": "cancel_meeting", "payload": {"id": "m1"}}, (
         "a guard that discards an action must record WHICH action and with what payload")
 
 

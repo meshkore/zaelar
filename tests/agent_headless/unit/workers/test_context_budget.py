@@ -189,11 +189,11 @@ def test_the_workdir_is_outside_the_repo_and_carries_no_CLAUDE_md():
 
 def test_the_engine_root_is_the_engine_root_and_not_a_subpackage():
     """This was a real bug caught by smoke-testing: the module lives one level deeper than the file whose pattern it
-    copied, so two `dirname` calls pointed `PYTHONPATH` at `nucleo/` and `-m nucleo.nav_cli` stopped resolving —
+    copied, so two `dirname` calls pointed `PYTHONPATH` at `nucleo/` and `-m nucleo.cli.nav` stopped resolving —
     which would have left the worker with NO bridges at all, the very fault this module exists to prevent."""
     root = workdir._ENGINE_ROOT
     assert os.path.isdir(os.path.join(root, "nucleo")), f"{root} is not the engine root"
-    assert os.path.isfile(os.path.join(root, "nucleo", "nav_cli.py"))
+    assert os.path.isfile(os.path.join(root, "nucleo", "cli", "nav.py"))
 
 
 def test_each_task_gets_a_PRIVATE_directory_so_informe_json_stops_colliding():
@@ -378,7 +378,7 @@ def _run_session(monkeypatch, events, *, goal="Busca una guitarra zurda", escala
     async def _fake_remember(p):
         return None
     monkeypatch.setattr("nucleo.memory_agent.remember", _fake_remember, raising=False)
-    monkeypatch.setattr("nucleo.energy_meter.report_worker_usage", lambda **kw: None, raising=False)
+    monkeypatch.setattr("nucleo.energy.meter.report_worker_usage", lambda **kw: None, raising=False)
 
     rec = SessionRecord(task_id="1", goal=goal)
     b = _FakeBackend(events)

@@ -12,7 +12,8 @@ import time
 
 import pytest
 
-from nucleo import his_words, worker_api, worker_policy
+from nucleo import his_words
+from nucleo.cli import worker_api, worker_policy
 
 
 class _Rec:

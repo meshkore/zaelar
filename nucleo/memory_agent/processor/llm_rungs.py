@@ -148,5 +148,5 @@ def resolve(task: str) -> tuple[str, str, str, bool]:
 
 
 def endpoint_key(url: str) -> str:
-    from nucleo.provider_keys import key_for_endpoint     # the single BY-ENDPOINT resolver (V2-098)
+    from nucleo.energy.keys import key_for_endpoint     # the single BY-ENDPOINT resolver (V2-098)
     return key_for_endpoint(url, default="local")

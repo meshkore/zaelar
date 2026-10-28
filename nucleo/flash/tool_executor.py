@@ -20,7 +20,7 @@ from loguru import logger
 
 from nucleo.flash import (build_decision as _build_decision, canvas_license as _canvas_lic,
                           canvas_visibility as _cvis, data_ops as _data_ops,
-                          image_turn as _image_turn, listing_turn as _lt,
+                          image_turn as _image_turn,
                           show_target as _show_target, video_turn as _video_turn)
 from nucleo.flash import tool_executor_widget as _widget_half
 from nucleo.turn.prompt.catalogs import wall_tab_for as _wall_tab_for

@@ -33,11 +33,11 @@ def resolved_api_key(base_url: str, explicit: str = "") -> str:
     u = (base_url or "").lower()
     if any(h in u for h in ("11434", "localhost", "127.0.0.1")):
         return "local"
-    # Single BY-ENDPOINT resolver (`nucleo/provider_keys.py`, V2-098) — this used to know only 4 of the ~9
+    # Single BY-ENDPOINT resolver (`nucleo/energy/keys.py`, V2-098) — this used to know only 4 of the ~9
     # endpoints (missing gemini/mistral/z.ai/deepseek/moonshot: pointing Susurro at one of those would have
     # silently resolved to ""). OPENAI_API_KEY fallback preserved — this client's own historical default, not
     # part of the shared resolver.
-    from nucleo.provider_keys import key_for_endpoint
+    from nucleo.energy.keys import key_for_endpoint
     return key_for_endpoint(u, default="") or os.getenv("OPENAI_API_KEY", "")
 
 
@@ -63,7 +63,7 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
     # EGRESS (T304). `meta` deliberately preserves the ORIGINAL base_url: it is what makes the viewer readable
     # ("this audit was headed to AIMLAPI"), and the actual routing is a deployment detail, not part of the event.
     # `extra` names the provider family for egress; `provider_base` is what the call is priced by.
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     provider_base = base
     base, key, extra = llm_egress.route(base, key)
     if not key:
@@ -93,7 +93,7 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
         # runs under friction, with a POWERFUL model and a large conversation window: it is among the most
         # expensive calls per unit. An attempt rejected before the retry without `response_format` is not charged
         # (a 400 does not include `usage`).
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         _energy.meter_openai_response({"usage": usage}, base_url=provider_base, model=model)
         return content, meta
     except Exception as e:  # noqa: BLE001 — fail-open duro

@@ -6,7 +6,7 @@ meant. A list is wrapped only where the action declares exactly ONE list field; 
 """
 import json
 
-from nucleo import widget_cli as WC
+from nucleo.cli import widget as WC
 
 
 def test_results_append_declares_one_list_field():

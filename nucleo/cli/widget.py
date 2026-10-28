@@ -1,0 +1,258 @@
+"""nucleo/cli/widget.py — `hbwidget`: the Brain Worker READS and OPERATES the canvas widgets (V2-061).
+
+Sibling of `hbweb` (cli.nav), `hbmem` (cli.mem), `hbnote` (cli.report), and `hbask/hbact/hbsay` (cli.bridge). It
+talks over HTTP to the live server (`/api/worker/act`), using the session id + token from the environment
+(`ZAELAR_TASK_ID` + `ZAELAR_TASK_TOKEN`, §v2·D). Fail-soft. It is the missing BRIDGE for CHAINED reality↔widget
+actions: after doing something in the real world (cancelling an appointment on a website), the worker REFLECTS the
+change in the local MIRROR (deletes the appointment from the calendar), and verifies it.
+
+    python -m nucleo.cli.widget read agenda                      # READ the widget: manifest + data + ITEMS with their ids
+    python -m nucleo.cli.widget data agenda drop '{"itemId":"m_itv_23jul"}'   # DATA-OP (uses REAL ids from `read`)
+    python -m nucleo.cli.widget data results present @informe.json           # LARGE PAYLOAD: from a file
+    python -m nucleo.cli.widget rows agenda list '{"collection":"meetings","where":{"date<":"2026-09-16"}}'
+    python -m nucleo.cli.widget rows agenda delete '{"collection":"meetings","where":{"title~":"crypto"}}'
+    python -m nucleo.cli.widget show agenda                      # shows the card on the canvas
+    python -m nucleo.cli.widget close agenda                     # closes the card
+
+PAYLOAD FROM FILE (`@path.json`, or `-` for stdin): ALWAYS use it when the payload is large or contains quotes,
+accents, URLs, or line breaks—in other words, any real report. Write the JSON to a file and pass it with `@`. Pasting
+4 KB of JSON into the command line does not work: shell quoting breaks, and if you wrap it in `"$(cat …)"`, the
+command is no longer recognizable and waits for an approval that nobody will give (real case 2026-08-02: a worker
+completed a flawless 9-minute search and the operator did not see a single result because of this).
+
+GOLDEN RULE: to operate an item, READ first (`read`) and use the REAL id it returns—NEVER invent ids or pass natural
+language here (that belongs to FlashBrain). AN OPERATION NOBODY DECLARED IS STILL POSSIBLE: `rows` takes an
+EXPRESSION over the widget's data («every meeting before today», «whose title contains crypto») — `read` gives
+you each collection's fields and id. The engine resolves it to rows and runs the widget's OWN action on each,
+so the external mirror and every guard still apply; the friction is the RADIUS, not the verb (one row runs,
+several come back asking, with the count and the names). The gate for a declared action is the catalog's:
+a FAST action is applied immediately; an
+IRREVERSIBLE (CONFIRM) action asks the operator for approval and returns a corr_id (wait for it with `python -m
+nucleo.cli.bridge wait <corr_id>`); an UNDECLARED action is DENIED (read it in the `read` manifest). Any response
+may carry ⟦NEW INSTRUCTIONS⟧ (piggyback, §v3·H).
+"""
+from __future__ import annotations
+
+import json
+import os
+import sys
+import urllib.request
+
+_BASE = os.getenv("ZAELAR_BASE", "http://localhost:43917").rstrip("/")
+
+
+def _tid_token() -> tuple[str, str]:
+    return os.getenv("ZAELAR_TASK_ID", "").strip(), os.getenv("ZAELAR_TASK_TOKEN", "").strip()
+
+
+def _act(action: str, payload: dict) -> dict:
+    tid, tok = _tid_token()
+    if not tid:
+        return {"ok": False, "error": "ZAELAR_TASK_ID no definido (no soy un worker gestionado)"}
+    body = {"task_id": tid, "token": tok, "action": action, "payload": payload}
+    try:
+        req = urllib.request.Request(
+            _BASE + "/api/worker/act", data=json.dumps(body).encode("utf-8"),
+            headers={"Content-Type": "application/json", "User-Agent": "zaelar-hbwidget/1.0"}, method="POST")
+        with urllib.request.urlopen(req, timeout=30) as r:
+            return json.loads(r.read().decode("utf-8") or "{}")
+    except Exception as e:  # noqa: BLE001
+        return {"ok": False, "error": str(e)}
+
+
+def _emit_injections(res: dict) -> None:
+    for msg in (res or {}).get("injections") or []:
+        print(f"⟦NUEVAS INSTRUCCIONES DEL OPERADOR⟧ {msg}")
+
+
+def _report(res: dict) -> int:
+    _emit_injections(res)
+    if res.get("denied"):
+        print("DENEGADO: " + str(res.get("error") or "acción no permitida (¿no está declarada en el manifest?)"))
+        return 1
+    if not res.get("ok"):
+        print("ERROR: " + str(res.get("error") or "desconocido"))
+        return 1
+    if res.get("status") == "pending":
+        print("PENDIENTE DE CONFIRMACIÓN del operador (acción irreversible). "
+              f"Espera la respuesta con: python -m nucleo.cli.bridge wait {res.get('corr_id', '')}")
+        return 0
+    if res.get("result") is not None:
+        print("OK: " + json.dumps(res["result"], ensure_ascii=False))
+    else:
+        print("OK")
+    return 0
+
+
+#: What anyone—person or model—types when encountering a new tool. `cli.nav` answers it with
+#: `exit 0` because it uses argparse; this bridge used to answer with “unknown command” and `exit 2` (V2-325).
+_AYUDA = ("--help", "-h", "help", "ayuda", "--ayuda", "-?", "/?")
+
+
+def _read_payload(raw: str, list_key: str = ""):
+    """The JSON payload of a verb, from an argument, a `@file` or `-` (stdin). `None` means «already
+    explained why it could not be read»; `{}` means «none given». Extracted so `data` and `rows` answer an
+    unreadable payload with the SAME sentence — two bridges answering one question differently is exactly
+    how V2-379 happened, and this file already says so about `cli.bridge`."""
+    payload: dict = {}
+    raw = (raw or "").strip()
+    if raw:
+        src = "argumento"
+        if raw == "-":
+            raw, src = sys.stdin.read(), "stdin"
+        elif raw.startswith("@"):
+            path, src = raw[1:], f"fichero {raw[1:]}"
+            try:
+                with open(path, encoding="utf-8") as f:
+                    raw = f.read()
+            except OSError as e:
+                # V2-203 — this message used to be the bare OSError, and the worker read it as a dead end:
+                # measured on `cheapest-monitor` (round 21), `Exit code 2 cannot read the payload from
+                # informe.json: [Errno 2] No such file or directory` ended the task with nothing delivered.
+                # It says WHAT failed and nothing about what to do, which is the fault `cli.nav` already paid
+                # for (V2-186): the bridge is the worker's only view, so a message without a way out is a
+                # message that stops it. The two facts it needs are WHERE it is looking (the path is relative,
+                # and a worker that wrote to another directory cannot tell from the error) and WHAT is
+                # actually there — writing `resultados.json` and presenting `informe.json` is invisible
+                # otherwise.
+                print(f"no puedo leer el payload de {path}: {e}")
+                if not os.path.isabs(path):
+                    here = os.getcwd()
+                    print(f"   · ruta RELATIVA a tu directorio de trabajo: {here}")
+                    # MECHANISM SHARED with `cli.bridge` (same reason as `read_payload`): two bridges that
+                    # answer the same question differently diverge again, and that divergence is exactly what
+                    # led to V2-379.
+                    from nucleo.cli import usage as _bu
+                    _hay = _bu.what_is_here()
+                    if _hay:
+                        print(f"   · {_hay}")
+                    print("   · son DOS pasos y este es el segundo: escribe primero el JSON con tu tool Write "
+                          f"a `{path}` (ruta relativa, sin /tmp/ ni rutas absolutas) y vuelve a lanzar esto.")
+                return None
+        try:
+            payload = json.loads(raw)
+        except Exception as e:  # noqa: BLE001
+            print(f"el payload ({src}) no es JSON válido: {e}")
+            return None
+        if isinstance(payload, list) and list_key:
+            payload = {list_key: payload}    # rows where the action declares ONE list: its only reading (`_list_key`)
+        if not isinstance(payload, dict):
+            print("el payload debe ser un objeto JSON")
+            return None
+    return payload
+
+
+def _declared_payload(wid: str, action: str) -> dict:
+    """The payload an action DECLARES in its widget's manifest ({field: description}), or {} if unknown."""
+    try:
+        from widgets import runtime as _rt
+        man = _rt.get(str(wid).split("::", 1)[0]) or {}
+    except Exception:  # noqa: BLE001
+        man = {}
+    acts = man.get("actions") or {}
+    spec = acts.get(action) if isinstance(acts, dict) else None
+    return spec if isinstance(spec, dict) else {}
+
+
+def _list_key(wid: str, action: str) -> str:
+    """The ONE payload field an action declares as a list, or "". best-plumber-same-day ES (2026-10-15): a worker wrote
+    its rows as a JSON array to `rows.json`, `data results append @rows.json` died with «el payload debe ser un
+    objeto JSON», and a round went to rewrapping what `append {items: [...]}` could only have meant."""
+    fields = [k for k, v in (_declared_payload(wid, action).get("payload") or {}).items() if isinstance(v, list)]
+    return fields[0] if len(fields) == 1 else ""
+
+
+def _bare_text_payload(wid: str, action: str, raw: str):
+    """A bare sentence where a JSON object was expected → that object, when the action leaves no doubt which field
+    it is. None = not a bare sentence, or ambiguous (the JSON path then explains the shape).
+
+    Demo pass 30 (2026-09-28, F1): `cli.widget data documento goto "Bottom line"` died with «no es JSON válido».
+    The worker said exactly what it meant; the action `goto` declares ONE field (`text`, and names it as its
+    `ref`). Refusing a sentence whose only possible reading is declared by the widget itself is a format error
+    on our side, not on the worker's — and every failed step costs a round and a ⚠️ on the operator's panel."""
+    t = (raw or "").strip()
+    if not t or t == "-" or t.startswith(("@", "{", "[")):
+        return None
+    spec = _declared_payload(wid, action)
+    fields = [k for k in (spec.get("payload") or {}) if isinstance(k, str)]
+    ref = spec.get("ref")
+    key = ref if isinstance(ref, str) and ref in fields else (fields[0] if len(fields) == 1 else "")
+    if not key:
+        if fields:
+            example = json.dumps({f: "…" for f in fields}, ensure_ascii=False)
+            print(f"el payload de «{action}» es un objeto JSON con sus campos, no una frase: '{example}' "
+                  f"(o escríbelo a un fichero y pásalo como @fichero.json)")
+        return None
+    return {key: t}
+
+
+def main(argv: list[str]) -> int:
+    if len(argv) < 2:
+        print(__doc__)
+        return 2
+    cmd = argv[1]
+    # ASKING FOR HELP IS NOT A FAILURE (V2-325). Measured in the studio session logs (2026-08-25): of 332 worker
+    # sessions, 81 use `cli.nav` and only 5 reach `cli.widget`—and THREE of those five die with `Exit code 2`.
+    # The first step is what kills them: the worker types `cli.widget --help`, as anyone does with a new tool,
+    # and received “unknown command: --help” with code 2. After two consecutive errors it gives up; the result is
+    # a sheet filled only with what the automatic extractor pulls from a listing, while everything the worker
+    # learns by OPENING records dies in its context.
+    #
+    # Its sibling `cli.nav` answers `--help` with exit 0 because it uses argparse, and it is the bridge that gets used.
+    # This is fixed without migrating to argparse—that would change the contract of verbs that already work—but by
+    # recognizing the question and returning SUCCESS: asking how to use something is not making a mistake.
+    if cmd in _AYUDA:
+        print(__doc__)
+        return 0
+    if cmd == "read":
+        if len(argv) < 3:
+            print("uso: hbwidget read <widget_id>")
+            return 2
+        return _report(_act("read_widget", {"id": argv[2]}))
+    if cmd == "rows":
+        # V2-707 F1 — the GENERIC data door. `read` tells you the collections and their fields; this operates
+        # over them with an EXPRESSION instead of a declared action, for the case nobody wrote an action for.
+        # The engine resolves the expression to rows and runs the widget's own action on each, so the external
+        # mirror and every guard still apply. One row runs; several come back asking, with the count and names.
+        if len(argv) < 4:
+            print("uso: hbwidget rows <widget_id> <list|put|patch|delete> [payload-json | @fichero.json]\n"
+                  "  payload: {\"collection\":\"meetings\", \"where\":{\"title~\":\"crypto\"}}\n"
+                  "  where:   campo (igual) · campo~ (contiene) · campo>= campo<= campo> campo< · campo! (distinto)\n"
+                  "           un valor de lista significa «cualquiera de estos»; sin `where` son TODAS las filas\n"
+                  "  patch lleva además {\"set\":{…}}; put lleva {\"row\":{…}}\n"
+                  "  si contesta needs_confirm, repite con \"confirmed\": true SOLO si el operador lo ha dicho")
+            return 2
+        wid, op = argv[2], argv[3]
+        body = _read_payload(argv[4] if len(argv) >= 5 else "")
+        if body is None:
+            return 2
+        return _report(_act("widget_data", {"widget_id": wid, "action": f"rows.{op}", "payload": body}))
+    if cmd in ("show", "close"):
+        if len(argv) < 3:
+            print(f"uso: hbwidget {cmd} <widget_id>")
+            return 2
+        return _report(_act(f"{cmd}_widget", {"id": argv[2]}))
+    if cmd == "data":
+        if len(argv) < 4:
+            print("uso: hbwidget data <widget_id> <action> [payload-json]")
+            return 2
+        wid, action = argv[2], argv[3]
+        raw = argv[4] if len(argv) >= 5 else ""
+        bare = _bare_text_payload(wid, action, raw)
+        if bare is not None:
+            return _report(_act("widget_data", {"widget_id": wid, "action": action, "payload": bare}))
+        payload = _read_payload(raw, _list_key(wid, action))
+        if payload is None:
+            return 2
+        return _report(_act("widget_data", {"widget_id": wid, "action": action, "payload": payload}))
+    # …and a verb that does not exist SAYS which ones do, instead of leaving the asker to guess. It is the same
+    # courtesy as `nav_cli._hint_for`: an error that does not show the way costs another full round.
+    print(f"comando desconocido: {cmd}\n"
+          f"verbos: read <widget> · data <widget> <accion> [payload|@fichero|-] · "
+          f"rows <widget> <list|put|patch|delete> [payload] · show <widget> · close <widget>\n"
+          f"ayuda:  python -m nucleo.cli.widget --help")
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))

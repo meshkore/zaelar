@@ -51,7 +51,7 @@ def on_metrics(ev, emit) -> None:
             _tid = _trace.active()
             emit("tts", f"🔊 {SETTINGS.tts_provider}", extra={"tts_ms": round(dur * 1000),
                  **({"trace": _tid} if _tid else {})})
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         # The PROVIDER is passed, not looked up inside the meter: the rate has to follow whatever
         # backend actually produced this audio, and this hook is the only place that knows it.
         # V2-778 F0-7 — the backend that SPOKE: after a failover it is the stand-in, not the selected one.
@@ -62,6 +62,6 @@ def on_metrics(ev, emit) -> None:
         dur = getattr(m, "duration", None)
         if dur:
             emit("stt", f"👂 {SETTINGS.stt_provider}", extra={"stt_ms": round(dur * 1000)})
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         _energy.report_stt_usage(audio_seconds=getattr(m, "audio_duration", None),
                                  provider=SETTINGS.stt_provider)

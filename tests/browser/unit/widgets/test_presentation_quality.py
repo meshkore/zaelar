@@ -184,7 +184,7 @@ def test_it_only_reaches_prompts_that_will_display_data():
     from widgets import presentation
     assert presentation.directive_for("Escribe un fichero con el resumen.") == ""
     assert "PRESENTACIÓN" in presentation.directive_for(
-        "entrega con `python -m nucleo.widget_cli data results present @informe.json`")
+        "entrega con `python -m nucleo.cli.widget data results present @informe.json`")
 
 
 def test_the_worker_prompt_wires_it_in(monkeypatch):

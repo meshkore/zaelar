@@ -67,7 +67,7 @@ def test_resolve_names_nothing_when_nothing_is_named(monkeypatch):
 def _isolated_agenda(tmp_path, monkeypatch):
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", tmp_path)
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
     monkeypatch.setattr(scheduler, "create", lambda prompt, stamp, name="": {"ok": True, "id": "job1"})
     monkeypatch.setattr(scheduler, "cancel", lambda ref: None)
     from widgets.agenda import data as agenda

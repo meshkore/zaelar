@@ -11,7 +11,8 @@ import re
 
 import pytest
 
-from nucleo.flash import act_repair, leave_gate, repair_grounding
+from nucleo.acts import message as leave_gate
+from nucleo.flash import act_repair, repair_grounding
 
 BOOK = {"quinn@example.com": [{"name": "Quinn", "email": "quinn@example.com"}],
         "rowan@example.com": [{"name": "Rowan Ferrer", "email": "rowan@example.com"}]}
@@ -47,7 +48,9 @@ def test_an_address_he_never_named_is_stopped_by_every_door():
 
 def test_every_payload_writing_pass_names_the_session_language(monkeypatch):
     monkeypatch.setattr(repair_grounding, "session_lang", lambda: "English")
-    src = inspect.getsource(act_repair)
+    # the passes moved beside `acts/card` (refactor2710-05 T-04) read the templates through `_ar.`: the family is read
+    from nucleo.acts import repair_after_lookup, repair_of_a_view
+    src = "\n".join(inspect.getsource(m) for m in (act_repair, repair_after_lookup, repair_of_a_view)).replace("_ar.", "")
     vague = [n for n, v in vars(act_repair).items()
              if n.startswith("_SYS") and isinstance(v, str) and "OPERATOR's language" in v]
     assert vague, "the templates moved — re-measure"

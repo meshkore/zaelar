@@ -7,7 +7,7 @@ import pytest
 from memory import db as memdb
 from memory import embeddings as mememb
 from memory import state as mstate
-from nucleo.flash import vault_rules
+from nucleo.acts import memory as vault_rules
 
 
 @pytest.fixture(autouse=True)
@@ -36,7 +36,7 @@ def fresh_db(tmp_path, monkeypatch):
     "muéstrame los secretos solo en pantalla",
 ])
 def test_detect_no_voice(txt):
-    assert vault_rules.detect(txt) == ("secrets_voice", False)
+    assert vault_rules.rule_of(txt) == ("secrets_voice", False)
 
 
 @pytest.mark.parametrize("txt", [
@@ -44,7 +44,7 @@ def test_detect_no_voice(txt):
     "léeme las contraseñas en voz alta",
 ])
 def test_detect_yes_voice(txt):
-    assert vault_rules.detect(txt) == ("secrets_voice", True)
+    assert vault_rules.rule_of(txt) == ("secrets_voice", True)
 
 
 @pytest.mark.parametrize("txt", [
@@ -53,19 +53,19 @@ def test_detect_yes_voice(txt):
     "abre el reloj",
 ])
 def test_detect_none_on_normal(txt):
-    assert vault_rules.detect(txt) is None
+    assert vault_rules.rule_of(txt) is None
 
 
 def test_detect_english():
-    assert vault_rules.detect("don't read my secrets out loud") == ("secrets_voice", False)
+    assert vault_rules.rule_of("don't read my secrets out loud") == ("secrets_voice", False)
 
 
 # ── application + persistence ───────────────────────────────────────────────────────────────────────────
 def test_apply_persists_flag(fresh_db):
     assert mstate.security_flag("secrets_voice", True) is True     # convenient default
-    off = vault_rules.apply(("secrets_voice", False))
+    off = vault_rules.apply_rule(("secrets_voice", False))
     assert mstate.security_flag("secrets_voice", True) is False    # persisted
-    on = vault_rules.apply(("secrets_voice", True))
+    on = vault_rules.apply_rule(("secrets_voice", True))
     assert mstate.security_flag("secrets_voice", True) is True
     # The confirmation is LOCALIZED (`apply` translates it according to the operator's language), so here we only
     # check the language-agnostic contract: that it confirms something and that the two directions do NOT say the same thing.

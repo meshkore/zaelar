@@ -178,5 +178,5 @@ def test_the_prompt_and_the_heartbeat_read_the_ledger(monkeypatch):
     monkeypatch.setattr(live_blocks, "harness_lines", lambda: ["HARNESS-MARK"])
     assert "HARNESS-MARK" in live_state.live_state()
     assert "harness.prompt_lines()" in _src("nucleo/flash/live_blocks.py")
-    loop = _src("nucleo/loop.py")
+    loop = _src("nucleo/pulse/loop.py") + _src("nucleo/pulse/flows.py")
     assert "await self._supervise_harness(now)" in loop and "harness.sweep(now)" in loop

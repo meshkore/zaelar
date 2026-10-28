@@ -29,6 +29,8 @@ it written down, so the canvas could not tell an honest mount from a drag.
 """
 from __future__ import annotations
 
+from nucleo.acts import canvas as _door
+
 from tests import voice_turn_source as _vts
 
 import pathlib
@@ -122,7 +124,15 @@ def test_an_open_card_is_never_raised_again(shown):
     assert "ya está abierta" in out[0][2]["detail"]
 
 
-def test_a_turn_order_opens_a_card_that_declares_no_production(shown):
+@pytest.fixture
+def asked_to_see(monkeypatch):
+    """The turn whose verdict asked to see the card — the licence the armed canvas door reads (refactor2710-04)."""
+    from nucleo.acts import canvas_turn as canvas_arbiter
+    monkeypatch.setattr(canvas_arbiter, "request_for", lambda extra=None: {
+        "text": "", "turn_credit": True, "last_reply": "", "verdict": {"canvas": ("show", 0.9)}})
+
+
+def test_a_turn_order_opens_a_card_that_declares_no_production(shown, asked_to_see):
     """The door is not «producers only»: most cards are presented because the operator asked."""
     out, emit = shown
     assert cv.present("agenda", reason="turn-order", known=[], emit=emit) is True
@@ -257,28 +267,17 @@ def test_the_reopen_license_binds_to_a_proposal_about_that_card():
     direction, since the alternative is a card resurrected over an answer to something else."""
     lic.note_operator_close("youtube")
     try:
-        assert lic.reopen_license("youtube", "vale") is False
-        assert lic.reopen_license("youtube", "vale", last_reply="¿Te apunto la cita?") is False
-        assert lic.reopen_license("youtube", "vale", last_reply="¿Lo vuelvo a abrir?") is False
-        assert lic.reopen_license("youtube", "vale", last_reply="¿Vuelvo a abrir el vídeo?") is True
+        assert _door.reopen_ordered("youtube", "vale") is False
+        assert _door.reopen_ordered("youtube", "vale", last_reply="¿Te apunto la cita?") is False
+        assert _door.reopen_ordered("youtube", "vale", last_reply="¿Lo vuelvo a abrir?") is False
+        assert _door.reopen_ordered("youtube", "vale", last_reply="¿Vuelvo a abrir el vídeo?") is True
         # …and his own words still reopen it with no proposal at all, exactly as before.
-        assert lic.reopen_license("youtube", "abre otra vez el vídeo de YouTube") is True
+        assert _door.reopen_ordered("youtube", "abre otra vez el vídeo de YouTube") is True
     finally:
         lic._RECENT_CLOSES.clear()
 
 
-def test_the_turn_and_the_arbiter_hand_over_what_we_said():
-    """A fact only one reader reads is a mirror that drifts (V2-539): the provider and the arbiter's tap both
-    pass the previous reply."""
-    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    arb = (ENGINE / "nucleo/canvas_arbiter.py").read_text(encoding="utf-8")
-    # 2026-10-22 — the line BEFORE his turn, frozen when the window is built; `_last_reply` is the reply being
-    # streamed by the time a tool runs (`prior_line`).
-    assert "last_reply=_prior_line.of(brain)" in prov
-    assert 'role == "assistant"' in arb and "last_reply=str(_last_turn" in arb
-
-
-def test_the_door_puts_the_CARD_on_screen_not_the_piece():
+def test_the_door_puts_the_CARD_on_screen_not_the_piece(asked_to_see):
     """V2-776 (2026-09-27): «Show me the monitors» resolved to the monitor sheet `results::94b220-ls1` and the door
     emitted bare `results` — the empty base — so every order on «the monitors» after it worked on nothing."""
     from nucleo.flash import canvas_visibility as cv

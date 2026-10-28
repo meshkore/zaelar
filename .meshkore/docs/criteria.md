@@ -133,11 +133,11 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-C4c · Every appointment he writes carries its notice**: a timed one ~2 h before, an all-day one at 09:00 that
   day; an asked `remind` wins; items synced from Google stay silent. — since 2026-10-10 · nodes 2.250.
 - **CRIT-C4d · A notice is a ROW and reaches him exactly once.** Every reminder, finished job and pending approval goes
-  through `nucleo/notices.py`: voice when he is at a screen, Web Push to his devices when not, `owed` (retried, then
+  through `nucleo/pulse/notices.py`: voice when he is at a screen, Web Push to his devices when not, `owed` (retried, then
   shown on the next screen) when nothing could take it — the same `dedupe_key` never twice. A DEFAULT appointment
   notice that Google Calendar alarms itself is `covered` (read at fire time); an asked one is always ours. ⏻ silences
-  the voice, never the push. — since 2026-10-25 · nodes 2.800, 2.801, 2.802, 4.271 · `nucleo/notices.py`,
-  `nucleo/webpush.py`, `nucleo/wake.py`.
+  the voice, never the push. — since 2026-10-25 · nodes 2.800, 2.801, 2.802, 4.271 · `nucleo/pulse/notices.py`,
+  `nucleo/pulse/webpush.py`, `nucleo/pulse/wake.py`.
 - **CRIT-C4b · A worker never deletes a card.** Deleting is a confirmed act (`pending_confirm`, the UI's Yes/No);
   the first verb of a request names its act, so a build that mentions deleting its own entries builds. — since
   2026-10-09 · nodes 2.246.
@@ -224,10 +224,10 @@ below is the first kind, or it names the mechanism that replaced the second.
   action map). — since 2026-10-26 · nodes 3.133, 3.135 · `nucleo/flash/bulk_close.py`, `nucleo/flash/hard_turn.py`.
 - **CRIT-K8c · A verdict vetoes a clear close only when it reads a negation; his answer to OUR question carries its
   licence.** A sure `canvas=neither` refuses a close the grammar saw only beside a sure reading of the turn as neither
-  an order nor an answer (`canvas_license.verdict_denies_close`); a turn the brief reads as an `answer` while our
+  an order nor an answer (the canvas door's `close_ordered`); a turn the brief reads as an `answer` while our
   «which one should I close?» is pending licenses the close (the cards it picks, `close_answer`) and nothing that
   starts a player (`runtime.produce`), and never a negated close. — since 2026-10-26 · nodes 3.136 ·
-  `nucleo/flash/canvas_license.py`, `nucleo/flash/close_answer.py`.
+  `nucleo/acts/canvas.py::close_ordered`, `nucleo/flash/close_answer.py`.
 - **CRIT-K9 · A classifier before the model is a PRICE** (~780 ms), paid only where the decision cannot be read
   after; a fixed table may decide alone only where a wrong answer costs nothing — a fail-open default. — since
   2026-09-22 · nodes 3.58.
@@ -277,7 +277,7 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-K25 · A held draft is part of the agent's state while it exists, whichever cards are open.** It reaches the prompt from ONE source, its pending-work row (`pending_rows` → `nucleo/pending_work.py`): recipient, subject, a bounded excerpt and the actions that act on it (`open_draft` / `draft` / `send_draft` / `discard_draft`, only those the card declares) with the payload that names it. The card's digest does not repeat it. — since 2026-10-26 · nodes 4.282 · `nucleo/pending_work.py`, `widgets/mensajeria/data.py`.
 - **CRIT-K27 · What was sent is read from the record of what left.** A widget's `recent_facts()` lines reach every turn through `nucleo/pending_work.fact_lines`; the mail card's are its sends of the last half hour as the connector sent them (head and tail of the body, so the signature is there) and what is still leaving, marked as not left yet. The timeline records the body a send of this card left with (`widget/sent` on `mensajeria`, from the connector's echo), never what he typed in his own app. — since 2026-10-26 · nodes 4.283 · `widgets/mensajeria/inbox_read.py`, `widgets/mensajeria/sent.py`, `widgets/mensajeria/owner.py`.
 - **CRIT-K28 · Reading a card answers from what its screen holds.** With a draft or one mail open on the mail card, its `read_query` returns that object (recipient, subject, body — a stranger's words fenced) and does not search the inbox; with a list on screen the inbox is searched as before. — since 2026-10-26 · nodes 4.284 · `widgets/mensajeria/inbox_read.py`.
-- **CRIT-K26 · A capability no card declares is a «not yet», never a worker; a worker never runs the operator's own controls of a card.** The turn brief asks, over the DECLARED actions of the open cards (or the catalogue's cards), whether he asks one of our cards or connectors for something none of them declares; a sure `missing` (≥0.7) makes the errand portal (`escalate_to_slowbrain`) refuse a turn-born errand (`src` voice/probe, same trace): he hears «not yet» in his language and the request becomes a suggestion row on an engine that already reports to the feedback door (a self-hosted engine sends nothing and points at the button). Unsure, absent or another turn's verdict: today's path. An action a widget declares `"worker": false` (its view navigation and settings) is DENIED to a Brain Worker. An inferred or given errand spec never keeps a term that is only the assistant's name. — since 2026-10-26 · nodes 3.121 · `nucleo/flash/capability_gap.py`, `nucleo/flash/escalate.py`, `nucleo/worker_policy.py`, `nucleo/spec.py`.
+- **CRIT-K26 · A capability no card declares is a «not yet», never a worker; a worker never runs the operator's own controls of a card.** The turn brief asks, over the DECLARED actions of the open cards (or the catalogue's cards), whether he asks one of our cards or connectors for something none of them declares; a sure `missing` (≥0.7) makes the errand portal (`escalate_to_slowbrain`) refuse a turn-born errand (`src` voice/probe, same trace): he hears «not yet» in his language and the request becomes a suggestion row on an engine that already reports to the feedback door (a self-hosted engine sends nothing and points at the button). Unsure, absent or another turn's verdict: today's path. An action a widget declares `"worker": false` (its view navigation and settings) is DENIED to a Brain Worker. An inferred or given errand spec never keeps a term that is only the assistant's name. — since 2026-10-26 · nodes 3.121 · `nucleo/flash/capability_gap.py`, `nucleo/flash/escalate.py`, `nucleo/cli/worker_policy.py`, `nucleo/spec.py`.
 - **CRIT-K29 · What he does to the running errand is the turn's verdict, not a word table.** While an errand runs the turn brief asks what THIS turn does to it (`stop_errand`, our previous line beside it): `stop`, `replace` (drop it and do this instead), `steer` (go on, but with this correction) or `keep`. A sure `stop` or `replace` lets the model's `stop_worker` run and repairs a turn whose model called nothing (an escalation it started still starts); a sure `replace` is ONE act — the turn carries the errand that takes its place, the stopped goal beside his words (`start_beside_the_stop`), and `turn_after` lets it through beside the stop, never as a refinement of the dying one; a sure `steer` relays his words to the ONE running errand (not one waiting on him) before any rung or repair pass, both channels; a sure `keep` refuses a stop dragged from an earlier turn; with no sure verdict the grammar keeps today's path. Answering a worker still beats killing it in the same turn. — since 2026-10-27 · nodes 3.134, 3.139 · `nucleo/flash/stop_decision.py`, `nucleo/flash/tool_executor_calls.py`, `nucleo/flash/post_stream_settle.py`, `nucleo/flash/post_stream_acts.py`, `nucleo/flash/probe_after.py`.
 - **CRIT-K30 · Only the engine changes the canvas, and every change says who made it.** The browser never opens, closes or moves a card from words (interim, spoken or typed); a card opens from an engine `widget show` (verdict, action map, tool). Each host names a cause for every show/close at its call site (`by`), the canvas report carries it, and only a gesture of his hands keeps `user` provenance — client code is `client:<cause>` (unnamed: `client`) on the timeline and to the arbiter, and no screen obeys either back. The observability stamp is the running build (`update/BUILD`). — since 2026-10-26 · nodes 4.115, 2.813 · `frontend/app/services/sse.js`, `voice/canvas_src.py`, `server/canvas_api.py`, `version.py`.
 - **CRIT-K31 · A phone shows every card whole: the shell's touch floor, its two exceptions, and the keyboard.** On the phone every control in a card is at least 44px and a text field 16px (below that iOS zooms); a row that directly holds controls wraps rather than push the card sideways — EXCEPT a row that manages its own width (a tab strip `role="tablist"` that scrolls sideways, a thumbnail rail or a title that ellipsizes beside its close, `data-strip`) and a box that directly holds a text field, which is one control: it never wraps and grows with its field. While a field inside a card has focus and the visual viewport is shorter than the screen, the deck covers only the visible part and the dock steps aside. Hover-only affordances do not hold space on a touch screen, and one tap opens what a double-click opens. Each app is checked in the REAL shell on iPhone 14 (WebKit) and Pixel 7 (Chromium) and its screenshots are looked at. — since 2026-10-26 · nodes 4.300, 4.301 · `frontend/mobile/app/styles.css`, `frontend/mobile/app/shell/keyboard.js`, `tests/browser/e2e/mobile/phone_pass.py`.
@@ -321,7 +321,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   verdict comes from `circuit.close`, a list step's from its ops; the prompt's recent state reads these rows, facts
   only. An inline row carries its spec, and a live one left by a previous boot is judged once from it (`met`) or
   closed as interrupted, silently. — since 2026-10-28 · nodes 2.194, 2.196, 2.198, 2.829, 3.105, 3.106, 3.113 ·
-  `nucleo/circuit/verdict.py`, `nucleo/request_row.py`, `nucleo/circuit/`, `nucleo/spec.py`, `nucleo/tasks.py`.
+  `nucleo/circuit/verdict.py`, `nucleo/circuit/` (`settle`, `spec.py`, `ledger.py`), `nucleo/request/model.py`.
 - **CRIT-E15 · A collection put together for him is an errand, and it ends in the card that holds it.** The
   escalate question reads «put together several items chosen to fit what he describes» as background work and ONE
   named item into a list as inline (measured live, 22/22); a card that holds such collections declares the op that
@@ -342,7 +342,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   wins, a later success resets the repeats, every failure expires on its own clock (a repeat lives up to ×3) and the
   quota at the provider's stated reset. The worker's step 0 carries ONE dated line (≤6 sources) and nothing when nothing
   is current; it orders mesh candidates (a hard failure asked last) and never drops one. — since 2026-10-26 · nodes
-  2.804 · `nucleo/source_outcomes.py`, `nucleo/nav_cli.py::_note_source`, `nucleo/mesh_agents.py::_note_answer`.
+  2.804 · `nucleo/workers/source_outcomes.py`, `nucleo/cli/nav.py::_note_source`, `nucleo/mesh_agents.py::_note_answer`.
 - **CRIT-E18 · A network agent gets its own time, inside one budget, and only if it is operational.** The skill call
   waits the agent's declared latency ×2, never below 60 s nor above 90 s; one `serve` is bounded by one budget and a
   second candidate gets only what is left; an agent the Oracle or its card states is not online/operational is not
@@ -467,7 +467,7 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-R8 · Paid work asks the usage lease BEFORE it starts.** If a usage lease is configured and exhausted, a
   paid call is refused (`OutOfEnergy`, never a provider failure: no relay, no light), the fuse stops the agent, and
   the UI shows the exhausted state with a link to `ZAELAR_ACCOUNT_URL` when set; with no lease configured, every
-  call is admitted. A boot probe never pays. — since 2026-10-22 · nodes 8.21, 4.247 · `nucleo/energy_lease.py::check`.
+  call is admitted. A boot probe never pays. — since 2026-10-22 · nodes 8.21, 4.247 · `nucleo/energy/lease.py::check`.
 - **CRIT-R9 · A device that cannot capture or play is red on the orb, and said.** Each of the microphone and the
   speaker has ONE derived health (`store.micHealth()` / `store.spkHealth()`); a problem (no permission, dead or
   source-muted track, capture error, playback blocked or paused, remote track ended, output lost, the agent
@@ -480,7 +480,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   said no) is the only one told as an empty account with a top-up; `lease_unrenewed` says the agent could not
   confirm its Energy. The cause persists across a restart, boot asks for a fresh lease before any stop decision,
   and the notice never says «empty» next to a battery showing Energy. — since 2026-10-26 · nodes 8.25, 4.247 ·
-  `nucleo/energy_lease.py::_renew_or_blow`, `frontend/app/core/account-link.js::noticeKind`.
+  `nucleo/energy/lease.py::_renew_or_blow`, `frontend/app/core/account-link.js::noticeKind`.
 
 ## 7 · Working here
 

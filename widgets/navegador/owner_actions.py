@@ -106,7 +106,7 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
     tasks.finish(task_id, "done" if (ok and success) else ("done" if ok else "failed"),
                  ("✅ " if (ok and success) else "") + (summary or "sin resumen"))
     # V2-257 — the card stores the FACT, the sheet stores the FINDINGS. This path had never had a way to reach
-    # the sheet: the engine's own loop does not talk to `widget_cli`, so what it found died in the card. It goes
+    # the sheet: the engine's own loop does not talk to `cli.widget`, so what it found died in the card. It goes
     # AFTER completion, as in `dispatch._finalize_web` and for the same reason: it keeps `set_results` and the
     # final state required by the V2-192 invariant together (a LIVE task cannot have results).
     if results:

@@ -11,7 +11,7 @@ worker how to fix that. No control of SCOPE was involved at any point:
   · `worker_policy.classify_act` decides a worker's `widget_data` with `action_mode_now` (V2-719, «one
     consent rule»). `send_to` declares `confirm: false` because, in a TURN, «whoever calls it is executing an
     order the operator has just given» (V2-692). The voice and text channels back that premise with a
-    verdict over his words (`leave_gate`, `tool_executor_widget_calls`). A worker has no such verdict: it
+    verdict over his words (`acts.message`, `tool_executor_widget_calls`). A worker has no such verdict: it
     borrowed the conclusion without the premise, so FAST → ALLOW.
   · The browser has the same hole: V2-712 stopped asking for consent on a form that wants his name, phone
     and email «because a booking form is the shape of the order he just gave». On an errand that was only
@@ -26,10 +26,10 @@ Otherwise it is not refused and not run: it becomes the question to him, the wor
 (`worker_api._register_ask`), and his «sí» runs it. That is «propose it and ask», never a silent drop.
 
 Named means literally: a phone or a handle appears in what he said, a name appears there as a contiguous
-phrase. That is the same yardstick `leave_gate._named_by_him` applies to a send with a stranger's text in
+phrase. That is the same yardstick `acts.message._named_by_him` applies to a send with a stranger's text in
 the context — the recipient must be his — made strict here because a worker's recipient was FOUND by the
 worker: «Fontanero Urgencia Madrid» shares two words with «necesito un fontanero… Madrid centro», and one
-shared word is what `leave_gate` accepts. No verb is read anywhere: what he asked for is decided by WHO he
+shared word is what `acts.message` accepts. No verb is read anywhere: what he asked for is decided by WHO he
 named, never by a word list.
 
 Fails toward ASKING: no words on file (a restart, a sandbox that never recorded the turn) ask.

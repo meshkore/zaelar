@@ -76,7 +76,7 @@ class _Stream:
 def spy(monkeypatch):
     """Captures what reaches Energy, and pins the provider so no request can leave the machine."""
     calls: list[dict] = []
-    import nucleo.energy_meter as em
+    import nucleo.energy.meter as em
     monkeypatch.setattr(em, "report_llm_usage", lambda **kw: calls.append(kw))
     return calls
 

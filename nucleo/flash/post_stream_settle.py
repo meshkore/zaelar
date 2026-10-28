@@ -12,6 +12,7 @@ from nucleo.flash import post_stream as _pst
 from nucleo.turn import split_by_errand as _sbe   # the status line names the errand a send reached (2.644)
 from nucleo.request import stop as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
 from nucleo.turn import reply as _reply   # refactor2710-03: the mouth speaks the verdict
+from nucleo.turn import wait_lines as _wait_lines
 
 
 async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _dialog, _filler_audio, _langs, _prev_pending, _r, _resolve_confirm, _router, _shown_ids, _turn_op_tasks=(), acted, aside, brain, clarify, confirm_state, data_done, emit, escalate_req, had_pending_confirm, llm_metrics, music_req, operator_text, search_req, send, speech, spoken_text, style_fired, text, worker_acted) -> dict:
@@ -64,7 +65,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
             and search_req["v"] is None and not acted["widget"] \
             and not data_done["v"] and not _auth_pending and len(text) <= 140:
         try:
-            from nucleo import worker_api as _wapi2
+            from nucleo.cli import worker_api as _wapi2
             if _wapi2.answer_active_soon(text):
                 worker_acted["v"] = "answer"
                 escalate_req["v"] = None        # respondía al worker, no pedía tarea nueva → no escalar
@@ -199,14 +200,14 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
                 emit("brain", "🧾 widget_data cortada por el tope → escalada con superficie documento",
                      text=_owed["head"][:120], role="system")
             else:
-                send(speech.sanitize(_fix := _pst._rg.follow_up_line(), drop_metadata=False))
+                send(speech.sanitize(_fix := _wait_lines.follow_up_line(), drop_metadata=False))
                 spoken_text = (spoken_text + " " + _fix).strip()
     except Exception as _e_h: _pst.logger.warning(f"turn repairs skipped: {_e_h}")  # noqa: BLE001,E701
 
     # Escalada sin texto hablado → frase de espera neutral (V2-029/V2-189): varía turno a turno y esquiva
     # la apertura si un filler ya sonó — en `harness_turn.holding_line`, con su historia.
     if escalate_req["v"] is not None and not spoken_text:
-        spoken_text = _pst._rg.holding_line_now(brain._window, _prev_pending, after_filler=_filler_audio.played_recently())
+        spoken_text = _wait_lines.holding_line_now(brain._window, _prev_pending, after_filler=_filler_audio.played_recently())
         send(speech.sanitize(spoken_text, drop_metadata=False))
     elif not spoken_text and worker_acted["v"] and (spoken_text := _sbe.status_with_refined(operator_text, _brief)):
         send(speech.sanitize(spoken_text, drop_metadata=False))   # a status question owes the phases (three-tasks)

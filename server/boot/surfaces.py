@@ -105,14 +105,14 @@ def prewarm_and_seams(app, active_brain) -> None:
     if active_brain() != "nucleo":
         return
     try:
-        from nucleo import browser_search, energy_meter
+        from nucleo.energy import meter as energy_meter
         from nucleo.llm import prewarm as flash_prewarm
+        from search import browser as browser_search, hooks as _search_hooks
         _running_loop = asyncio.get_running_loop()
         browser_search.set_loop(_running_loop)
         # V2-782: the search service's seams — the status light and the timeline — wired here, where the engine
         # knows them; standalone the service runs with both unset.
         try:
-            from search import hooks as _search_hooks
             from voice import health_state as _hs
             from voice.observer import emit as _emit_obs
             _search_hooks.on_chain_failure = lambda kind, detail: _hs.record("search", kind, detail)
@@ -158,7 +158,7 @@ def guardians(app, first_lifespan_entry: bool) -> None:
     # not buy any safety. A FRESH lease, always (V2-801): the one the previous process persisted is not the answer,
     # and no stop decision is taken until this request is answered.
     try:
-        from nucleo import energy_lease
+        from nucleo.energy import lease as energy_lease
         if energy_lease.enabled():
             app.state.energy_lease_task = energy_lease.start_at_boot()
     except Exception as e:
@@ -177,7 +177,7 @@ def guardians(app, first_lifespan_entry: bool) -> None:
     # engine when safe, rotates logs, evicts dead capsules). Sibling of the brain, never part of it; deterministic,
     # no LLM; fail-open (a failure here never touches voice/chat). Needs `app` to recycle the embedded LiveKit worker.
     try:
-        from nucleo import homeostasis
+        from nucleo.pulse import homeostasis
         homeostasis.start(app)
     except Exception as e:
         logger.warning(f"homeostasis start failed (voice/chat unaffected): {e}")

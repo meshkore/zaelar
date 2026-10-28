@@ -22,8 +22,8 @@ from tests import voice_turn_source as _vts
 
 import pytest
 
-from nucleo.flash import reminder_guards as _owner
-from nucleo.flash import router_guards as g
+from nucleo.turn import wait_lines as _owner
+from nucleo.turn import wait_lines as g
 from voice.engine.core import langs
 
 # `holding_line` is reached as `router_guards.holding_line` (unchanged, re-exported), but it READS
@@ -84,17 +84,6 @@ non-repetition: continuing to say the same thing four times would be the same de
     assert all(a != b for a, b in zip(said, said[1:])), said
 
 
-def test_the_chooser_is_wired_into_the_voice_turn():
-    """The provider once distinguished only the FIRST wait from the others: from the third onward they were all
-identical."""
-    from voice.engine.llm.providers import nucleo as _provider
-    # V2-661b: the voice channel calls it through `reminder_guards.holding_line_now`, which resolves the
-    # LANGUAGE on the side of the door that may read it (the V2-569 dependency ratchet) — same chooser.
-    assert "holding_line_now(" in _vts.getsource(_provider)
-    from nucleo.flash import reminder_guards as _rg
-    assert "holding_line(" in _vts.getsource(_rg.holding_line_now)
-
-
 # ── a filler that already SOUNDED burns the opener (2026-09-09, session 2bdc67ee) ──────────────────────────
 # Measured live: lead-in «Déjame que mire…» + the opener «Vale, dame un momento que lo miro.» back to back —
 # two of OUR canned waits restating each other. With `after_filler` set (the voice channel passes
@@ -137,7 +126,7 @@ def _as_english(monkeypatch):
 
 def test_a_new_errand_after_a_filler_is_not_still_anything(monkeypatch):
     _as_english(monkeypatch)
-    from nucleo.flash import reminder_guards as rg
+    from nucleo.turn import wait_lines as rg
     line = rg.holding_line_now([], prev_pending=False, after_filler=True)
     assert "still" not in line.lower(), line
     assert line == "I'll let you know as soon as I have it."
@@ -145,5 +134,5 @@ def test_a_new_errand_after_a_filler_is_not_still_anything(monkeypatch):
 
 def test_work_that_was_already_running_can_still_be_still(monkeypatch):
     _as_english(monkeypatch)
-    from nucleo.flash import reminder_guards as rg
+    from nucleo.turn import wait_lines as rg
     assert "Still on it" in rg.holding_line_now([], prev_pending=True, after_filler=True)

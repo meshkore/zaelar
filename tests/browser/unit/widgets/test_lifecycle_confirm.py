@@ -93,7 +93,7 @@ def test_answering_the_same_widget_twice_in_a_row_does_not_close_its_own_live_fl
 
 def test_an_expired_confirmation_closes_its_flow_and_queues_a_notice(monkeypatch):
     """The 90s TTL sweep must not just vanish the entry: the flow closes (so the master stops showing it as
-    active) AND the expiry gets queued so `nucleo/loop.py` can tell the operator (2026-08-16)."""
+    active) AND the expiry gets queued so `nucleo/pulse/loop.py` can tell the operator (2026-08-16)."""
     from voice import observer, trace
 
     trace.adopt("")

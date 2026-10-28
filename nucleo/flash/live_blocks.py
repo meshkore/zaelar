@@ -613,7 +613,7 @@ def _cron_line() -> str:
             'moverlo después es set_reminder. La tag es para avisos SUELTOS sin cita detrás. Si falta el '
             'día o la hora, PREGUNTA antes de programar.')
     try:
-        from nucleo import scheduler
+        from nucleo.pulse import scheduler
         jobs = scheduler.list_jobs(active_only=True)
         if jobs:
             # The time is when the ALERT rings, not when the thing happens (demo pass 2026-09-28, Z1: «ZAELAR

@@ -4,7 +4,7 @@
 its sibling for the errand whose deliverable is ONE written thing to READ — surface `informe`: the operator
 asked for a report, so the `documento` widget opens at COMMISSION time, bound to the errand, and shows a live
 process view (which sources are being looked at, what is happening) until the worker writes the report into
-it through the ordinary `widget_cli` bridge.
+it through the ordinary `cli.widget` bridge.
 
 Same three rules as the results sheet, for the same reasons:
   - opened when COMMISSIONED, not at delivery — the whole point is that the operator stops staring at nothing;
@@ -33,8 +33,8 @@ def doc_open(rec) -> None:
     except Exception:  # noqa: BLE001
         pass
     try:
-        from voice.observer import emit
-        emit("widget", "show", extra={"id": "documento", "src": f"worker:{getattr(rec, 'task_id', '')}"})
+        from nucleo.acts import canvas
+        canvas.apply("show", "documento", src=f"worker:{getattr(rec, 'task_id', '')}")
     except Exception:  # noqa: BLE001
         pass
 

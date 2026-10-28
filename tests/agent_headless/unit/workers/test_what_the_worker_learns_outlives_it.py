@@ -5,7 +5,7 @@ after 2 min; worker 2 died at 8; worker 3 delivered. In the studio DB, the ONLY 
 the entire 13:33-13:54 window is the one from the worker that delivered — **the first two workers' 21 minutes left no trace**, and
 each restart navigated, searched, and re-filtered from scratch.
 
-The capability was intact (the `mem_cli` bridge travels in the prompt, the route requires a token per task, and the precision
+The capability was intact (the `cli.mem` bridge travels in the prompt, the route requires a token per task, and the precision
 gate PASSES findings). What was missing was ASKING FOR IT — and the instruction existed: it literally said “even if the flow
 restarts,” i.e. the anti-restart protection, but it lived inside point 3, narrowed in its heading to
 “for a TRANSACTION: make a reservation, request an appointment, fill out a form, process paperwork.” A search falls into the other branch.
@@ -31,7 +31,7 @@ def test_la_orden_de_guardar_LLEGA_al_prompt_renderizado():
     for brief in (None, {"baremo": "precio y km"}):
         txt = _render(brief)
         assert ORDEN in txt, f"el worker no recibe la orden de guardar (brief={bool(brief)})"
-        assert "mem_cli remember" in txt
+        assert "cli.mem remember" in txt
 
 
 def test_la_orden_NO_vive_dentro_de_la_rama_de_GESTION():

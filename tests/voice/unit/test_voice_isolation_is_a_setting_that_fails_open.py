@@ -107,7 +107,7 @@ def test_only_a_livekit_cloud_host_counts_as_cloud():
 
 def test_the_session_start_carries_the_setting(monkeypatch):
     from voice.engine.pipeline import agent
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     monkeypatch.setattr(llm_egress, "mediated", lambda: False)
     seen = {}
 

@@ -13,16 +13,16 @@ from bus.sse import publish as _sse_publish   # ONLY gate into the observer topi
 
 
 def orchestrator_loop(active_brain) -> bool:
-    # v2 «Colmena» — orchestrator loop (nucleo/loop.py, V2-005): the v2 brain's OWN heartbeat (scheduled tasks +
+    # v2 «Colmena» — orchestrator loop (nucleo/pulse/loop.py, V2-005): the v2 brain's OWN heartbeat (scheduled tasks +
     # 🔥 sparks + memory consolidation) — completely replaces Hermes' old native cron. ONLY with BRAIN=nucleo. Same
     # loop as voice; never blocks the hot path (heavy work goes to a thread). Disabled by flag for clones that do
     # not want it.
     loop_on = active_brain() == "nucleo" and os.getenv("ZAELAR_LOOP", "1") == "1"
     if loop_on:
         try:
-            from nucleo import loop as nucleo_loop
+            from nucleo.pulse import loop as nucleo_loop
             nucleo_loop.start()
-            logger.info("Loop orquestador v2 montado (nucleo/loop.py)")
+            logger.info("Loop orquestador v2 montado (nucleo/pulse/loop.py)")
         except Exception as e:
             logger.warning(f"orchestrator loop start failed (voice/chat unaffected): {e}")
     return loop_on
@@ -31,7 +31,7 @@ def orchestrator_loop(active_brain) -> bool:
 def pulse_sse_bridge(first_lifespan_entry: bool, loop_on: bool) -> tuple:
     """(subscription, task) of the heartbeat→SSE bridge, or (None, None)."""
     # Orb ECG (V2-039) — HEARTBEAT→SSE bridge. Forwards the bus `loop.tick` event (the orchestrator loop's own
-    # ~1 Hz heartbeat, nucleo/loop.py:127) to the `observer` topic — the one consumed by GET /events — as
+    # ~1 Hz heartbeat, nucleo/pulse/loop.py:127) to the `observer` topic — the one consumed by GET /events — as
     # {kind:"pulse"}. At REST the frontend ECG beats at this REAL server rhythm (only checking crons + running
     # processes that have generated events); FlashBrain turns and live tasks already speed it up client-side.
     # Same fine-grained, decoupled pattern as the memory bridge: it goes DIRECTLY to the observer topic
@@ -82,11 +82,11 @@ def dispatcher(active_brain, first_lifespan_entry: bool) -> bool:
     # RECORDED as interrupted instead of silently disappearing (a `make restart` killed an operator search
     # without leaving a trace: no event, no ledger, no warning). It goes HERE and not earlier because the
     # escalation listener is already subscribed; re-escalation is deferred anyway. **Silent no-op when nothing
-    # was in flight**, which is the normal case for any clean boot. Separate module (`nucleo/rehydrate.py`), one
+    # was in flight**, which is the normal case for any clean boot. Separate module (`nucleo/pulse/rehydrate.py`), one
     # call, no state of its own: circumstance → function → steps aside.
     if first_lifespan_entry:
         try:
-            from nucleo import rehydrate as nucleo_rehydrate
+            from nucleo.pulse import rehydrate as nucleo_rehydrate
             _reh = nucleo_rehydrate.at_boot()
             if _reh.get("found"):
                 logger.info("Rehidratación: {} en vuelo al morir → {} reanudada(s), {} registrada(s)"

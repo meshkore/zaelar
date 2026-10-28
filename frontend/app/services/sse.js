@@ -93,6 +93,8 @@ export function openSSE(desktop) {
     // 2026-09-27: four result sheets and a document on a «blank» desktop). A re-open of this stream IS the
     // restart seen from the tab; the same takeover the boot runs decides whether the epoch moved.
     sweepOnReopen(++_opens, () => takeoverOnReset(browserTakeoverArgs()));
+    // V2-825 F5 — and the screen adopts the engine's list of cards: an orphan the engine cannot name goes.
+    sweepOnReopen(_opens, () => desktop && desktop.reconcile && desktop.reconcile());
   };
   es.onmessage = ev => {
     let d; try { d = JSON.parse(ev.data); } catch (_) { return; }
@@ -433,7 +435,7 @@ export function routeEvent(desktop, d) {
         }).catch(() => {});
       }
     } else if (d.kind === "pulse") {                                              // orchestrator loop.tick (~1 Hz)
-      // The server's own HEARTBEAT (nucleo/loop.py, bridged in server/__init__.py) → one beat of the orb's ECG.
+      // The server's own HEARTBEAT (nucleo/pulse/loop.py, bridged in server/__init__.py) → one beat of the orb's ECG.
       // At rest it marks the real rhythm (only checking crons/processes); tasks and turns speed it up (Ecg.js).
       store.pushPulse({ kind: "tick", n: d.n });
     } else if (d.kind === "brain" && d.wall) {

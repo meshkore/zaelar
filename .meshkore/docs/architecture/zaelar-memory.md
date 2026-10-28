@@ -131,7 +131,7 @@ rings, from widest to narrowest:
    is literally a running process, not a fact to remember; (b) it only matters while it runs (nobody asks "what
    phase was yesterday's finished task in?", only "how is the current one going?"); (c) mixing it with durable
    memory would bloat the database with thousands of rows of transient progress. Two bridges connect it to rings
-   1-2 without persisting it whole: **upwards** — `nucleo/loop.py` projects the RAM registry into ring 1
+   1-2 without persisting it whole: **upwards** — `nucleo/pulse/loop.py` projects the RAM registry into ring 1
    (`state.sessions`, ~1 Hz) so the FlashBrain KNOWS there are tasks in progress and can send them follow-ups;
    **on completion** — ONLY the final result, if `ok=True`, is written as a normal durable pill via
    `memory_agent.remember()` (with provenance `meta.source="worker:<id>"`) — the process disappears, the FACT it
@@ -447,7 +447,7 @@ occupying vector space. It runs inside light sleep (`memory/consolidator.py::pru
 ### DEEP sleep — the REM phase (`memory/rem.py`)
 
 The classic consolidator is **LIGHT** sleep (cheap mechanics every hour: promote/exact dedup/decay/prune/evict). The
-**REM phase** is the **DEEP** cycle (daily by default), triggered by `nucleo/loop.py` after light sleep, in which
+**REM phase** is the **DEEP** cycle (daily by default), triggered by `nucleo/pulse/loop.py` after light sleep, in which
 the memory is **ORDERED, RELATED and SYNTHESISED** — all off the hot path and with every phase ISOLATED (one
 failure does not bring sleep down):
 
@@ -563,7 +563,7 @@ The model table follows a few rules (stated at the top of `config/models.default
 - **A broker (AIMLAPI) is failover only** — second or third rung at most, never the titular of any service.
 - **Everything must be able to run in a container.** Ollama is a local server and does not exist there, which is
   why the default embeddings go through a cloud provider; Ollama remains a panel option for self-hosters.
-- **The credential is resolved PER ENDPOINT** (`nucleo/provider_keys.py`): the key follows the URL, never the
+- **The credential is resolved PER ENDPOINT** (`nucleo/energy/keys.py`): the key follows the URL, never the
   other way round, so changing a model never requires touching keys.
 
 To see the endpoints the memory tasks resolve to right now (defaults plus whatever the UI changed):
@@ -647,7 +647,7 @@ latency). A rate limit disguises itself as poor quality.
 ### Usage: both tasks REPORT consumption
 
 The HEART (`mem_processor`) and the memory router (`memllm`, which serves REM and i18n) capture the `usage` block
-of the response and report it to `nucleo/energy_meter` when metering is enabled (fire-and-forget, fail-open). The
+of the response and report it to `nucleo/energy/meter` when metering is enabled (fire-and-forget, fail-open). The
 rate of the titular model and of its stand-ins are all declared, so a failover is metered at its own rate rather
 than a generic one.
 
@@ -688,7 +688,7 @@ or touch the database directly.
   writer; it auto-classifies if you do not set `level`. You can set `slot` (singular fact → exact supersede) and
   `meta`.
 - **Are you a Brain Worker (a headless process OUTSIDE the server)?** → talk HTTP to the live server:
-  `python -m nucleo.mem_cli recall "<query>"` (read) and `… remember "<fact>" [--slot x]` (write via
+  `python -m nucleo.cli.mem recall "<query>"` (read) and `… remember "<fact>" [--slot x]` (write via
   `remember_external`: per-task token + precision gates, no access to `state` or identity slots). It preserves the
   SINGLE WRITER — never open `zaelar.db` from a worker (the worker's Bash is restricted to these CLIs precisely for
   that reason).
@@ -928,7 +928,7 @@ lives in `nucleo/memory_agent.py` + `nucleo/memory_agent/processor/distill.py`:
   fixed corpus on **four separate axes** (write-completeness · precision/no-pollution · layer+slot · $/1k turns with
   real tokens) — see §Memory models for the reasoning and the `gpt-4o-mini` veto. Writing is off the hot path, so a
   slower model costs the turn nothing. The **local OPTION** (qwen via Ollama) remains available by pointing
-  `base_url` at Ollama, for battery/privacy. It reports usage to `nucleo/energy_meter` when metering is enabled
+  `base_url` at Ollama, for battery/privacy. It reports usage to `nucleo/energy/meter` when metering is enabled
   (`energy_meter.report_llm_usage`). Env `MEM_PROCESSOR_MODEL/URL/KEY` = power-user fallback; model per invocation.
   The **credential is resolved PER ENDPOINT** (`mem_processor._key` → `_endpoint_key`, same pattern as
   `fast_client.resolved_api_key` — the key follows the URL, never the other way round), so a stale key can never be

@@ -10,7 +10,8 @@ import time
 
 import pytest
 
-from nucleo import canvas_closes, worker_api
+from nucleo import canvas_closes
+from nucleo.cli import worker_api
 from nucleo.workers.session import SessionRecord
 
 

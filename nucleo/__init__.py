@@ -20,7 +20,7 @@ Dos velocidades:
   Dispatcher + MEMORY agent ★ (composes the minimum context from `memory/`) + work agents (web/code/other).
   The result returns through the usual rails: `voice/proactive` + `voice/brain_notes`.
 
-- **Orchestrator loop** (`nucleo/loop.py`, ~1 Hz) — the thread of time: scheduled tasks (built-in cron),
+- **Orchestrator loop** (`nucleo/pulse/loop.py`, ~1 Hz) — the thread of time: scheduled tasks (built-in cron),
   🔥 sparks (spontaneous thought), memory consolidation ("sleep"), and voice+UI reporting.
 
 Substratos compartidos (NO son parte del cerebro): la **memoria** (`memory/`, V2-002/003) y el **Sistema

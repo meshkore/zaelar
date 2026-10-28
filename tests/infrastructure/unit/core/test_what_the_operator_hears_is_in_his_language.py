@@ -114,7 +114,7 @@ _BLOCKED = {"source": "none", "results": [], "ai": False,
 
 def test_the_composing_prompt_is_TOLD_why_the_search_came_back_empty():
     """The whole defect in one assertion: the reason existed, and the reader who had to explain it never saw it."""
-    from nucleo.flash import search_turn as st
+    from nucleo.acts import search as st
     sys2 = st.compose_system("what's the weather in New York?", "weather in New York", _BLOCKED, "")
     assert "captcha" in sys2.lower() or "ANTI-ROBOT" in sys2
     assert "PROHIBIDO" in sys2, "the forbidden sentence must be named, not merely discouraged"
@@ -124,14 +124,14 @@ def test_the_composing_prompt_is_TOLD_why_the_search_came_back_empty():
 def test_a_search_that_WORKED_carries_no_excuse():
     """The reason is added only when there is nothing to show. A prompt that always apologises teaches the
     model to hedge over seven good results."""
-    from nucleo.flash import search_turn as st
+    from nucleo.acts import search as st
     ok = {"source": "brave", "results": [{"title": "18°C", "snippet": "sunny"}], "ai": False}
     sys2 = st.compose_system("weather?", "weather NYC", ok, "[1] 18°C — sunny")
     assert "PROHIBIDO" not in sys2 and "captcha" not in sys2.lower()
 
 
 def test_the_measured_sentence_is_REPLACED_not_merely_logged():
-    from nucleo.flash import search_turn as st
+    from nucleo.acts import search as st
     fixed = _in("en", lambda: st.denial_repair(_MEASURED, _BLOCKED))
     assert fixed != _MEASURED
     assert "internet access" not in fixed.lower()
@@ -140,7 +140,7 @@ def test_the_measured_sentence_is_REPLACED_not_merely_logged():
 
 def test_a_true_answer_is_left_alone():
     """«I searched and found nothing» is exactly what we want said — repairing it would be the guard lying."""
-    from nucleo.flash import search_turn as st
+    from nucleo.acts import search as st
     for good in ("It's 18 degrees and sunny in New York right now.",
                  "I searched, but nothing useful came back. Want me to dig deeper?",
                  "I don't have the current weather details for New York in front of me right now."):
@@ -154,14 +154,6 @@ def test_the_denial_guard_reads_the_answer_alone():
     assert ag.a_reply_denies_the_world("No tengo acceso a internet.")
     assert ag.a_reply_denies_the_world("My knowledge cutoff means I can't help with that.")
     assert not ag.a_reply_denies_the_world("No he podido comprobarlo ahora mismo.")
-
-
-def test_the_turn_composes_through_the_one_home():
-    """WIRING GUARD (V2-555 shape): the voice seam and the old text channel's seam were a parallel implementation
-    since V2-135, and the missing half was missing in BOTH. One home is what makes that impossible again."""
-    voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert "search_turn" in voice, "voice must compose through flash/search_turn"
-    assert "compose_system(" in voice and "denial_repair(" in voice, "voice misses half the seam"
 
 
 # ── 4 · an update re-translates, and a blocking fault reaches the screen ────────────────────────────────
@@ -541,7 +533,7 @@ def test_the_retired_ones_stay_retired():
 def test_a_worker_asking_his_permission_asks_in_his_language():
     """Demo pass 2026-09-28, an English session: «Hey, the … process is asking: El worker quiere hacer
     «delete_file» en el widget «archivos» (acción irreversible). ¿Lo autorizas?»."""
-    from nucleo import worker_policy as wp
+    from nucleo.cli import worker_policy as wp
     p = {"widget_id": "archivos", "action": "delete_file"}
     en, es = _in("en", lambda: wp._confirm_question("widget_data", p)), _in("es", lambda: wp._confirm_question("widget_data", p))
     assert "delete_file" in en and "archivos" in en and "autorizas" not in en.lower()

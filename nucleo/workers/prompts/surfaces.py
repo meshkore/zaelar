@@ -10,7 +10,7 @@ from __future__ import annotations
 DOC_SURFACE_BLOCK = (
     "ENTREGA COMO INFORME (la superficie de este encargo es un DOCUMENTO): el operador pidió un ESCRITO y la "
     "hoja `documento` YA ESTÁ ABIERTA en su pantalla, enseñando tu progreso en vivo mientras trabajas — tus "
-    "fases de agent_report son lo que él lee ahí, repórtalas de verdad (qué fuente miras, qué acabas de "
+    "fases de cli.report son lo que él lee ahí, repórtalas de verdad (qué fuente miras, qué acabas de "
     "confirmar). La hoja de RESULTADOS NO está abierta para este encargo: NO entregues en `results` ni "
     "vuelques listas de candidatos — el paso 4b no aplica; aplica el 4d con `documento`. En cuanto tengas la "
     "estructura, primer `show` con el esqueleto del informe (título REAL confirmado del asunto, secciones) y "
@@ -39,10 +39,10 @@ def library_block() -> str:
             f"({shelves}) — es EXACTAMENTE lo que enseña el widget `archivos`, y NADA fuera de ese árbol aparece en "
             f"«sus archivos» (ni tu directorio de trabajo, ni el del navegador, ni Descargas del sistema). Para "
             f"GUARDAR un texto como fichero: escribe el JSON {{\"name\": \"…\", \"text\": \"…\"}} a `doc.json` y "
-            f"`python -m nucleo.widget_cli data archivos save_document @doc.json` — lo deja en documents/ y abre esa "
+            f"`python -m nucleo.cli.widget data archivos save_document @doc.json` — lo deja en documents/ y abre esa "
             f"carpeta en la tarjeta. Un fichero que ya tienes en disco (un PDF descargado) se copia dentro de "
-            f"`{root}/<carpeta>/` y luego `python -m nucleo.widget_cli data archivos refresh`. Si el texto ya está "
-            f"en la hoja `documento`, `python -m nucleo.widget_cli data documento save_to_library` lo guarda sin "
+            f"`{root}/<carpeta>/` y luego `python -m nucleo.cli.widget data archivos refresh`. Si el texto ya está "
+            f"en la hoja `documento`, `python -m nucleo.cli.widget data documento save_to_library` lo guarda sin "
             f"volver a traerlo.")
 
 
@@ -65,7 +65,7 @@ def errand_block() -> str:
     return ("SI EL ENCARGO DEPENDE DE QUE OTRA PERSONA CONTESTE (organizar una reunión, acordar una hora, "
             "pedir algo a un tercero), NO te quedes esperando: eso NO es tu trabajo y tu sesión se muere "
             "antes que la conversación. Manda el mensaje con "
-            "`python -m nucleo.widget_cli data mensajeria send_to @msg.json` incluyendo el campo "
+            "`python -m nucleo.cli.widget data mensajeria send_to @msg.json` incluyendo el campo "
             "`objective` con LO QUE HAY QUE CONSEGUIR en palabras del operador — ese campo es el que abre "
             "un ENCARGO durable, que el motor despierta solo cuando esa persona conteste, hoy o dentro de "
             "diez horas, y que apunta la cita y manda el enlace de Meet por su cuenta cuando se acuerde la "

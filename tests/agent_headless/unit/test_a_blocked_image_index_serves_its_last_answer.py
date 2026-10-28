@@ -10,7 +10,7 @@ import asyncio
 
 import pytest
 
-from nucleo import browser_search as bs
+from search import browser as bs
 
 _RIGHT = [{"url": f"https://wall.alphacoders.com/{i}.jpg", "title": "Cosmic Eye in the Sky by Tyler Young"}
           for i in range(6)]

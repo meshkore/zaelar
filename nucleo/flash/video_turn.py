@@ -107,8 +107,8 @@ def _show_card(loaded: bool) -> None:
     if not loaded:
         return
     try:
-        from voice.observer import emit as _emit
-        _emit("widget", "show", extra={"id": "youtube", "src": "flash"})
+        from nucleo.acts import canvas
+        canvas.apply("show", "youtube", src="flash", action="load")    # the load produces: the player mounts
     except Exception:  # noqa: BLE001
         pass
 
@@ -208,7 +208,7 @@ def voice_execute(args: dict, text: str, emit, apply_widget_data, deduped: dict,
         deduped["v"] = True
         return
     # V2-723 — the license checked just above is this presentation's authorization, and it says so.
-    _cvis.present("youtube", reason="turn-order", src="flash", emit=emit)
+    _cvis.present("youtube", reason="turn-order", src="flash", emit=emit, text=text, brief=brief)
     # V2-402 — a media SEARCH (action=list) fills the player's LIST, never the results sheet.
     op, lbl = voice_dispatch(args.get("action"))
     # V2-756 — y si el veredicto nombraba OTRA acción de la misma tarjeta, que quede escrito. Sesión

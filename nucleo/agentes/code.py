@@ -207,7 +207,7 @@ async def run(task) -> WorkResult:
 def _show(wid: str) -> None:
     """Abre la tarjeta del widget en el canvas (best-effort). V2-039: procedencia worker (agente de código)."""
     try:
-        from voice.observer import emit
-        emit("widget", "show", extra={"id": wid, "src": f"worker:{os.getenv('ZAELAR_TASK_ID', '') or 'code'}"})
+        from nucleo.acts import canvas
+        canvas.apply("show", wid, src=f"worker:{os.getenv('ZAELAR_TASK_ID', '') or 'code'}")
     except Exception:
         pass

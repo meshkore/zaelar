@@ -1,5 +1,5 @@
 """search/listing.py — LISTING search: products, vehicles, boats, homes — over HTTP (V2-556; moved from
-`nucleo/listing_search.py` by V2-782, alias kept).
+`nucleo/listing_search.py` by V2-782; the alias went in refactor2710-06).
 
 The third search mode `search/web.py`'s docstring names («marketplace navigation — no search
 engine returns that data») had exactly two implementations: nothing, or a browser worker that costs
@@ -99,7 +99,7 @@ def _bd_zone_unlocker() -> str:
 def _meter(provider: str) -> None:
     """Paid request → Energy, same seam as websearch. Free rungs never call this."""
     try:
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         _energy.report_search_usage(provider=provider)
     except Exception:  # noqa: BLE001 — the counter's own gates are @_never_raises; belt and braces
         pass

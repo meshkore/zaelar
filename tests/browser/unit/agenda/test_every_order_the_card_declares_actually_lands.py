@@ -74,6 +74,7 @@ _SCRIPT = [
     ("add_meeting", {"title": "Reunión con Iván", "date": "TOM", "startTime": "10:00",
                      "endTime": "11:00"}, None),
     ("set_reminder", {"title": "Reunión con Iván", "date": "TOM", "at": "09:30"}, None),
+    ("add_reminder", {"notice_at": "2099-01-01 09:00", "commitment": "renovar el seguro"}, None),
     ("move_meeting", {"title": "Reunión con Iván", "date": "TOM", "newDate": "TOM",
                       "newTime": "12:00"}, None),
     ("update_meeting", {"title": "Reunión con Iván", "date": "TOM", "location": "la oficina"}, None),

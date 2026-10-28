@@ -499,7 +499,7 @@ def board_cleared() -> int:
 
 
 def pruned(max_age_days: float = 30.0, now: float | None = None) -> int:
-    """Sleep-time hygiene, injected into the consolidator by `nucleo/loop.py`. See `tasks_store.tasks_prune`.
+    """Sleep-time hygiene, injected into the consolidator by `nucleo/pulse/loop.py`. See `tasks_store.tasks_prune`.
 
     Injected rather than imported by the consolidator for the reason the audit of 2026-08-23 fixed once
     already: `memory/` must not reach into `nucleo/`, and a lazy import inside a function is that reach with

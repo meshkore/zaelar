@@ -82,7 +82,7 @@ def _setup_env():
         load_dotenv(REPO / ".env", override=False)
         # V2-031 (2026-08-17): this line was missing here — `scale_eval.py::_setup_env` already had it (twin code,
         # nunca espejado). Sin ella, `DEEPSEEK_API_KEY` (solo vive en el credential store, no en `.env`) queda
-        # sin resolver → `nucleo/provider_keys.py::key_for_endpoint` cae a su centinela `"local"` → DeepSeek
+        # sin resolver → `nucleo/energy/keys.py::key_for_endpoint` cae a su centinela `"local"` → DeepSeek
         # 401ea CADA llamada del CORAZÓN → fallback silencioso a la heurística, exactamente la clase de bug que
         # el comentario de arriba dice haber cerrado ya para OpenAI. Reproducido en vivo invocando este runner
         # por su propia CLI (`python -m tests.memory.e2e.bot.runner`, uso documentado) sin pasar por scale_eval.
@@ -93,7 +93,7 @@ def _setup_env():
     os.environ.setdefault("MEM_PROCESSOR", "1")   # Real configured LLM CORE — the system under evolution
     # Backend de embedding PINEADO explícito (no "auto") — V2-103 (2026-08-16) añadió un re-chequeo por TTL que
     # re-sondea Ollama cada 300s cuando el backend resuelto está degradado, y nada en este arnés vuelve a llamar
-    # a `memory/reembed.py::check()` (eso solo corre desde el tick de `nucleo/loop.py`, que este runner no
+    # a `memory/reembed.py::check()` (eso solo corre desde el tick de `nucleo/pulse/loop.py`, que este runner no
     # arranca). Una corrida `--fresh` puede tardar ~90 min: un hipo transitorio de Ollama a mitad deja una parte
     # del corpus embebida en un espacio vectorial y el resto en otro tras la recuperación — ambas resoluciones
     # son "sanas" en su momento, pero sqlite-vec compara distancias sin sentido entre espacios distintos. Un

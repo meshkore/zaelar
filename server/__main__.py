@@ -40,7 +40,7 @@ from nucleo import workspace as _workspace  # noqa: E402
 _workspace.ensure()
 
 # NO PROVIDER KEY IS READ IN A MEDIATED DEPLOYMENT — decided here, before any module caches one (`llm_egress`).
-from nucleo import llm_egress as _egress  # noqa: E402
+from nucleo.energy import egress as _egress  # noqa: E402
 
 _egress.stand_in_for_provider_keys()
 

@@ -197,7 +197,7 @@ async def _run_session(task: "Task") -> None:
             prompt += trusted_blocks(getattr(rec, "surface", ""))
         if resume and (kind == "web" and trusted):
             prompt = ("REANUDAS una gestión que YA empezaste (no arranques de cero): la pestaña sigue donde la "
-                      "dejaste y los datos que ya reuniste están en memoria (consúltalos con mem_cli recall). Haz "
+                      "dejaste y los datos que ya reuniste están en memoria (consúltalos con cli.mem recall). Haz "
                       "`look` PRIMERO para ver dónde te quedaste y CONTINÚA desde ahí hasta terminar.\n\n") + prompt
         if _brief_bg is not None:
             # V2-301 — the compositor continues pensando: the worker starts YA and the address le arrives inyectada.
@@ -261,8 +261,8 @@ def _settle_unrun(_d, rec, key) -> None:
             from widgets.results import data as _sheet
             sid = _d.sheet_of(rec)
             if sid and not (_sheet.view_data(sid).get("items") or []):
-                from voice.observer import emit
-                emit("widget", "close", extra={"id": _sheet.instance_id(sid), "src": f"worker:{key}"})
+                from nucleo.acts import canvas
+                canvas.apply("close", _sheet.instance_id(sid), src=f"worker:{key}")
         elif _d.surfaces.opens_doc(surf):
             _d._docsheet.doc_close(rec)
     except Exception as e:  # noqa: BLE001

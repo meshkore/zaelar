@@ -53,8 +53,8 @@ def test_the_built_in_names_behind_the_allowlist():
     """`--allowedTools` gates permission; the CLI still ships EVERY built-in tool's JSON schema to the provider.
     DeepSeek refused the `Artifact` schema and z.ai answered 1210 on the same request (2026-09-15), so a
     three-tool worker fell through two tiers. `--tools` names the SET, derived from the allowlist."""
-    assert CS.builtin_tool_names(["Read", "Write", "Bash(/x/python -m nucleo.mem_cli:*)",
-                                  "Bash(python3 -m nucleo.nav_cli:*)"]) == ["Bash", "Read", "Write"]
+    assert CS.builtin_tool_names(["Read", "Write", "Bash(/x/python -m nucleo.cli.mem:*)",
+                                  "Bash(python3 -m nucleo.cli.nav:*)"]) == ["Bash", "Read", "Write"]
     assert CS.builtin_tool_names([]) == [], "no tools → `--tools \"\"`, which disables the whole set"
 
 

@@ -66,7 +66,7 @@ def test_the_prompt_capture_is_off_in_a_hosted_account_unless_asked(tmp_path, mo
     monkeypatch.delenv("ZAELAR_LOG_DIR", raising=False)
     monkeypatch.setenv("ZAELAR_USER_ID", "cloud-user-1")
     monkeypatch.delenv("ZAELAR_LOG_PROMPTS", raising=False)
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     assert cloud_account.is_cloud_account(), "fixture: this is a hosted account"
     assert observer.prompt_capture_on() is False
     monkeypatch.setenv("ZAELAR_LOG_PROMPTS", "1")

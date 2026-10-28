@@ -16,6 +16,8 @@ things on the operator's screen requires the operator to have said so in the ver
 """
 from __future__ import annotations
 
+from nucleo.acts import canvas as _door
+
 from tests import voice_turn_source as _vts
 
 import json
@@ -59,20 +61,20 @@ def test_a_short_bare_yes_answers_the_models_own_offer():
 
 
 def test_a_close_needs_a_close_verb_in_the_turn():
-    assert lic.close_license("Vale, Johnny, cierra el vídeo.") is True
-    assert lic.close_license("te he dicho que cierres el widget") is True
+    assert _door.close_ordered("Vale, Johnny, cierra el vídeo.")[0] is True
+    assert _door.close_ordered("te he dicho que cierres el widget")[0] is True
     for t in ("Johnny eres tonto.", "¿Y por qué lo has quitado?", "no cierres nada"):
-        assert lic.close_license(t) is False, t
+        assert _door.close_ordered(t)[0] is False, t
 
 
 def test_fullscreen_calls_need_screen_size_words_and_shrink_routes_to_minimize():
-    assert lic.fullscreen_license("Johnny pausa el vídeo.") == ""          # the measured drag
-    assert lic.fullscreen_license("Callatilla, habéis bajado un número al pelo.") == ""
+    assert _door.size_ordered("Johnny pausa el vídeo.") == ""          # the measured drag
+    assert _door.size_ordered("Callatilla, habéis bajado un número al pelo.") == ""
     for t in ("Johnny, minimiza el vídeo.", "quita la pantalla completa", "sal de pantalla completa",
               "hazlo más pequeño", "minimize the video"):
-        assert lic.fullscreen_license(t) == "minimize", t
+        assert _door.size_ordered(t) == "minimize", t
     for t in ("Pon el video a pantalla completa.", "hazlo más grande", "maximize the video"):
-        assert lic.fullscreen_license(t) == "fullscreen", t
+        assert _door.size_ordered(t) == "fullscreen", t
 
 
 # ── 2 · the leading wake word comes off before the action-map lookup ─────────────────────────────────────
@@ -160,9 +162,9 @@ def test_fullscreen_dispatch_routes_by_direction_and_discards_the_drag(monkeypat
 
 def test_the_voice_provider_gates_model_closes_and_delegates_the_bodies():
     src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    # 2026-10-22 — the same gate through `close_license` (grammar AND the turn's sure canvas verdict): a complaint
+    # 2026-10-22 — the same gate through `canvas.close_ordered` (grammar AND the turn's sure canvas verdict): a complaint
     # about a close («you did close the document») is no order either.
-    assert 'if action == "close" and not _canvas_lic.close_license(text, brief=_brief):' in src, \
+    assert '_canvas_door.close_ordered(text, brief=_brief, called=True, handle=canvas_h)' in src, \
         "a model-emitted [[close]] with no close order in the turn is drag (the «eres tonto» close)"
     # V2-753 — the data-op close keeps needing a license; what changed is WHO grants it. The bare
     # verb table was the sole decider here and it ate «Páralo, y vuelve al inicio» five times in one
@@ -170,7 +172,11 @@ def test_the_voice_provider_gates_model_closes_and_delegates_the_bodies():
     # `screen_action` verdict, and the operator's «no» vetoing both). The claim is unchanged — an
     # unlicensed close must not reach the player — so this is re-anchored, not relaxed: node 2.72
     # owns the licence's own behaviour and this line owns the WIRING.
-    assert 'if action_name == "close" and not _closeg.dataop_close_licensed(' in src, \
+    import inspect
+    from nucleo.acts import card
+    assert card._unlicensed_close in card._LADDER[card.CALL] and \
+        'if action != "close"' in inspect.getsource(card._unlicensed_close) and \
+        "_cg.dataop_close_licensed(" in inspect.getsource(card._unlicensed_close), \
         "the widget_data close (which EMPTIES the loaded video) needs the same license"
     assert "_video_turn.voice_execute(" in src and "_show_target.fullscreen_dispatch(" in src, \
         "the branch bodies live in the shared modules — one impl, both channels"
@@ -207,3 +213,18 @@ def test_the_seed_packs_carry_the_sessions_missing_phrases_in_both_languages():
         assert have.get(phrases[0]) == "minimize", lang
         assert have.get(phrases[1]) == "fullscreen", lang
         assert have.get(phrases[2]) == "close_widget", lang
+
+
+def test_the_size_of_a_card_reads_the_paid_verdict_first(monkeypatch):
+    """refactor2710-04b T-04 (CRIT-K6 at the door) — the canvas verdict's own size verbs decide before the screen-size
+    grammar: a sure `minimize` or `exit_fullscreen` shrinks, a sure `fullscreen` grows, even on words the grammar does
+    not know; an unused verdict leaves the grammar as it was. Disarm: drop the verdict branch → the first assertion fails."""
+    from nucleo.flash import turn_brief as tb
+
+    def reading(verb, used=True):
+        return lambda handle, key, fallback, **k: ((verb, {"used": used}) if key == tb.CANVAS_KEY else (fallback, {}))
+    for verb, want in (("minimize", "minimize"), ("exit_fullscreen", "minimize"), ("fullscreen", "fullscreen")):
+        monkeypatch.setattr(tb, "read", reading(verb))
+        assert _door.size_ordered("haz eso con la tarjeta", brief=object()) == want, verb
+    monkeypatch.setattr(tb, "read", reading("fullscreen", used=False))
+    assert _door.size_ordered("Johnny pausa el vídeo.", brief=object()) == ""

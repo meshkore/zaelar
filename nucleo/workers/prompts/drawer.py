@@ -60,8 +60,8 @@ def _drawer_rules(py: str = "") -> str:
     _py = (py or "").strip()
     cab = (f"INTÉRPRETE: para CUALQUIER puente (`-m nucleo.…`) usa EXACTAMENTE `{_py}`, tal cual, siempre. Está "
            f"permitido y funciona. NO uses `python` a secas ni `python3` ni rutas relativas.\n") if _py else ""
-    _puente = f"`{_py} -m nucleo.nav_cli`" if _py else "`nucleo.nav_cli`"
-    _busca = f"`{_py} -m nucleo.worker_bridge`" if _py else "`nucleo.worker_bridge`"
+    _puente = f"`{_py} -m nucleo.cli.nav`" if _py else "`nucleo.cli.nav`"
+    _busca = f"`{_py} -m nucleo.cli.bridge`" if _py else "`nucleo.cli.bridge`"
     _abs = f"`{_py}` es absoluto" if _py else "el intérprete es absoluto"
     return (cab +
             "TU CAJÓN (reglas del shell donde corres; romperlas NO da error, pide una aprobación que aquí no va a "

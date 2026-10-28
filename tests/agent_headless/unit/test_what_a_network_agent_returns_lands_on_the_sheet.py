@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import json
 
-from nucleo import mesh_cli as M
+from nucleo.cli import mesh as M
 
 
 def _run(monkeypatch, data, capsys):
     sent = []
     monkeypatch.setenv("ZAELAR_TASK_ID", "7")
-    from nucleo import mesh_agents, widget_cli
+    from nucleo import mesh_agents
+    from nucleo.cli import widget as widget_cli
     monkeypatch.setattr(mesh_agents, "serve", lambda *a, **k: {"ok": True, "agent": "ebay-finder", "data": data})
     monkeypatch.setattr(widget_cli, "_act", lambda action, payload: sent.append((action, payload)) or {"ok": True})
     M.main(["serve", "used dslr under 400"])

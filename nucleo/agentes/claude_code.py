@@ -35,9 +35,9 @@ _DEFAULT_TOOLS = ["Read"]
 # HTTP con el server vivo → preserva el escritor único) y REPORTAR su progreso al FlashBrain (`hbnote`). Bash
 # ACOTADO solo a esos CLIs (no un Bash abierto). Se añaden a la allowlist salvo en turnos no confiables.
 _MEM_TOOLS = [
-    "Bash(python -m nucleo.mem_cli:*)", "Bash(.venv/bin/python -m nucleo.mem_cli:*)",
-    "Bash(python -m nucleo.agent_report:*)", "Bash(.venv/bin/python -m nucleo.agent_report:*)",
-    "Bash(python -m nucleo.nav_cli:*)", "Bash(.venv/bin/python -m nucleo.nav_cli:*)",   # F3: conducir el navegador
+    "Bash(python -m nucleo.cli.mem:*)", "Bash(.venv/bin/python -m nucleo.cli.mem:*)",
+    "Bash(python -m nucleo.cli.report:*)", "Bash(.venv/bin/python -m nucleo.cli.report:*)",
+    "Bash(python -m nucleo.cli.nav:*)", "Bash(.venv/bin/python -m nucleo.cli.nav:*)",   # F3: conducir el navegador
 ]
 
 

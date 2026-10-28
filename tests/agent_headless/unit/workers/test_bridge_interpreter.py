@@ -1,7 +1,7 @@
 """The worker must be able to CALL its bridges on the first attempt.
 
 Discovered on 2026-08-02 as soon as the worker's narration became visible: on this machine **bare `python` does not
-exist** (only `python3` and the venv do), and the prompt literally told it `python -m nucleo.widget_cli …`. The worker
+exist** (only `python3` and the venv do), and the prompt literally told it `python -m nucleo.cli.widget …`. The worker
 obeyed, failed, and started trying variants—`.venv/bin/python`, `python3`, `python3 -m nucleo.…`—running into
 the allowlist, which matches by literal PREFIX. Each undeclared variant = an approval that nobody grants in headless
 mode. Minutes of a search were lost there, and it was invisible because only the `tool_use`s were recorded.
@@ -26,7 +26,7 @@ def test_prompt_never_ships_a_bare_python_bridge_command():
     import re
     p = _build_prompt("busca 3 piscinas y ponlas en pantalla", "", True)
     assert not re.findall(r"(?<![/\w])python3? -m nucleo\.", p)
-    assert f"{cs.bridge_python()} -m nucleo.widget_cli" in p
+    assert f"{cs.bridge_python()} -m nucleo.cli.widget" in p
 
 
 def test_prompt_states_the_interpreter_up_front():
@@ -41,13 +41,13 @@ def test_untrusted_prompt_is_left_alone():
 
 
 def test_allowlist_covers_every_bridge_x_every_spelling():
-    for mod in ("mem_cli", "agent_report", "nav_cli", "worker_bridge", "widget_cli"):
+    for mod in ("cli.mem", "cli.report", "cli.nav", "cli.bridge", "cli.widget"):
         for py in ("python", "python3", ".venv/bin/python", cs.bridge_python()):
             assert f"Bash({py} -m nucleo.{mod}:*)" in cs._BRIDGE_TOOLS, f"{py} -m nucleo.{mod} sin declarar"
 
 
 def test_git_bridge_gets_the_same_treatment():
-    assert "Bash(python3 -m nucleo.git_cli:*)" in _DEV_TOOLS
+    assert "Bash(python3 -m nucleo.cli.git:*)" in _DEV_TOOLS
     assert {"Read", "Write", "Edit"} <= set(_DEV_TOOLS)
 
 

@@ -4,7 +4,7 @@
 declares a single field (`text`) and names it as its `ref`: the sentence could only mean one thing. An action with
 several fields still refuses — and now says the shape it wants.
 """
-from nucleo import widget_cli as W
+from nucleo.cli import widget as W
 
 
 def test_a_sentence_goes_to_the_single_declared_field(monkeypatch):

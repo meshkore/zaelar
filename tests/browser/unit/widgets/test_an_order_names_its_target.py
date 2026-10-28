@@ -81,26 +81,11 @@ def test_the_voice_guard_keeps_the_search_continuity_for_a_bare_pronoun():
 
 
 # ── the probe's mirror ────────────────────────────────────────────────────────────────────────────────────
-def test_the_probe_mirror_agrees_on_both_measured_sentences(_youtube_open):
-    from nucleo.flash import show_target
-    assert show_target._show_target(_BITCOIN, [], "") is None
-    assert show_target._show_target(_AGENDA, _PRIOR, "search") == "agenda"
-
-
-def test_the_probe_mirror_keeps_the_deictic_continuity(monkeypatch):
-    from nucleo.flash import show_target
-    monkeypatch.setattr(show_target, "_identify_ctx",
-                        lambda _rt, text: "meteo-soria" if "tiempo" in text.lower() else None)
-    ctx = [{"role": "user", "content": "¿Qué tiempo hará mañana aquí?"}]
-    assert show_target._show_target("Vale, pues muéstramelo.", ctx, "") == "meteo-soria"
-
-
 def test_both_channels_ask_the_named_resolver_first():
     """A wiring guard on the CHANNELS (V2-555): the name must be consulted before any deictic hunt, in both."""
     import re
     from pathlib import Path
-    for rel, fn in (("voice/engine/llm/providers/widget_intent.py", "_identify_named("),
-                    ("nucleo/flash/show_target.py", "_identify_named_ctx(")):
+    for rel, fn in (("voice/engine/llm/providers/widget_intent.py", "_identify_named("),):   # the one channel left
         src = Path(rel).read_text(encoding="utf-8")
         code = re.sub(r"(?m)^\s*#.*$", "", src)
         named = code.index(fn)

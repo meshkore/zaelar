@@ -20,7 +20,7 @@ times.
 """
 import inspect
 
-from nucleo import nav_cli
+from nucleo.cli import nav as nav_cli
 from widgets.navegador import act_api, owner
 
 
@@ -89,7 +89,7 @@ def test_el_PROMPT_del_worker_lo_nombra_y_dice_para_que_sirve():
     prompt itself tells it that it does not exist."""
     from tests.worker_briefs import rendered
     src = rendered()
-    assert "nav_cli visit" in src
+    assert "cli.nav visit" in src
     assert "sin perder el listado" in src, "hay que decirle PARA QUÉ, no solo que existe"
     i = src.find("ESOS son TODOS los subcomandos")
     assert i > 0 and "visit" in src[i:i + 400], (

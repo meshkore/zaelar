@@ -59,7 +59,7 @@ def test_es_and_us_catalogs_pick_different_sites_for_the_same_category():
 
 def test_directive_block_tells_the_worker_to_check_memory_before_the_catalog():
     block = site_catalog.directive_block("es").lower()
-    assert "mem_cli recall" in block
+    assert "cli.mem recall" in block
     assert "manda" in block  # the override-priority wording
 
 

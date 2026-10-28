@@ -1,6 +1,6 @@
 // ============================================================================
 // ecg.js — the orb's ELECTROCARDIOGRAM (V2-039). A heart monitor whose beat is
-// zaelar's REAL pulse: each `loop.tick` from the orchestrator (nucleo/loop.py,
+// zaelar's REAL pulse: each `loop.tick` from the orchestrator (nucleo/pulse/loop.py,
 // ~1 Hz at rest — the server just checking crons/processes) draws one QRS
 // complex. When zaelar is busy (background tasks in flight, FlashBrain turns
 // closing) the rhythm ACCELERATES and the spikes grow — a resting heart that
@@ -98,7 +98,7 @@ export function startEcg(canvas) {
   //
   // BUT ONLY WHILE THE AGENT IS LIVE (2026-08-10, failure reported by the operator with a screenshot: “the ECG is
   // maxed out and the agent should be completely stopped”). The incoming pulse is from the SERVER (`loop.tick` in
-  // nucleo/loop.py, ~1 Hz), and the server keeps beating even when voice is off—so the ECG, the clearest “I'm alive”
+  // nucleo/pulse/loop.py, ~1 Hz), and the server keeps beating even when voice is off—so the ECG, the clearest “I'm alive”
   // signal on the screen, stayed fully active over a stopped agent. A stopped agent now shows a FLAT line, the honest
   // reading: it does not beat because it is not running. (The 2026-07-23 fix addressed only EXTRA load beats—
   // `activeLoad`—not the base pulse.)

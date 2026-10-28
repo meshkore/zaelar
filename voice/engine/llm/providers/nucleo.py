@@ -30,7 +30,7 @@ from nucleo.flash import (build_decision as _build_decision, canvas_license as _
                           data_ops as _data_ops, escalation_guard as _eguard,  # V2-391 / V2-677
                           direct_action as _direct_action,                     # V2-741: the third rung
                           image_turn as _image_turn,                           # V2-402
-                          listing_turn as _lt, show_target as _show_target,    # V2-609: one target decision
+                          show_target as _show_target,                         # V2-609: one target decision
                           video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
 from nucleo.turn import task_recall as _trecall                               # V2-728: «lo del piso que te dije»
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
@@ -125,7 +125,6 @@ def _extends(prev: str, cur: str) -> bool:
 from voice.engine.llm.providers import acc_notices as _accn
 from voice.engine.llm.providers import attention_turn as _attention_turn
 from nucleo.flash import harness_turn as _ht   # V2-661: what a turn OWES (shared with the probe)
-from nucleo.flash import reminder_guards as _rg   # its canned lines: holding, mute backstop, follow-up
 from nucleo.input import stt as _acc_mod   # V2-776 D0: a turn that died unanswered is un-consumed
 from nucleo import surfaces as _surfaces_mod   # demo A1 2026-09-28: an errand nobody labelled takes the brief's surface
 
@@ -347,7 +346,7 @@ class NucleoLLMStream(llm.LLMStream):
         _ask_waiting = False
         if not first_turn:
             try:
-                from nucleo import worker_api as _wapi0
+                from nucleo.cli import worker_api as _wapi0
                 _ask_waiting = _wapi0.has_pending_ask()
             except Exception:
                 _ask_waiting = False
@@ -539,7 +538,7 @@ class NucleoLLMStream(llm.LLMStream):
         # al final, cuando ya se sabe que el turno escaló de verdad.
         escalate_req: dict = {"v": None, "more": [], "surface": {}}   # V2-227: superficie declarada POR petición
         search_req = {"v": None}
-        listing_req = {"v": None}        # V2-556: la pasada rápida de anuncios (nucleo/flash/listing_turn.py)
+        listing_req = {"v": None}        # V2-556: la pasada rápida de anuncios (nucleo/acts/search_listing.py)
         recall_req = {"v": None}         # V2-056: el modelo pidió RECORDAR (tool recall) — se resuelve tras el stream
         read_req = {"v": None}           # V2-668: el modelo pidió LEER un widget (read_widget) — hermana de recall
         reopen_req = {"v": None}         # V2-728: el modelo pidió RECUPERAR el resultado de un encargo terminado

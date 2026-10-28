@@ -612,7 +612,7 @@ el bench, nunca por reputación del proveedor.**
 (system + 8 pares de few-shot); un proveedor con *prompt caching* recortaría el coste bastante más que cualquier
 sustitución de modelo.
 
-**Usage reporting:** the CORAZÓN now reports usage to `nucleo/energy_meter` when metering is enabled, with the
+**Usage reporting:** the CORAZÓN now reports usage to `nucleo/energy/meter` when metering is enabled, with the
 rate of the titular and of its whole fallback chain. **Bug de producción encontrado por el preflight:** AIMLAPI devuelve **HTTP 201** con un cuerpo
 válido para algunos modelos (`zhipu/glm-4.7`); el CORAZÓN exigía `== 200` → lo trataba como error y caía a la
 heurística lossy en silencio, en cada turno. Ahora acepta cualquier 2xx.

@@ -1,9 +1,9 @@
-"""Tests for nucleo/sparks.py (V2-005 · T73) — dual spark gate (frequency + usefulness)."""
+"""Tests for nucleo/pulse/sparks.py (V2-005 · T73) — dual spark gate (frequency + usefulness)."""
 import pytest
 
 from memory import db as memdb
 from memory import journal as memjournal
-from nucleo import sparks
+from nucleo.pulse import sparks
 
 
 @pytest.fixture

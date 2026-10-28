@@ -38,7 +38,7 @@ def ag(tmp_path, monkeypatch):
     """ISOLATED store and scheduler — never the operator's real agenda or jobs."""
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
-    from nucleo import scheduler as S
+    from nucleo.pulse import scheduler as S
     monkeypatch.setattr(S, "create", lambda prompt, stamp, **k: {"ok": True, "id": "1", "display": stamp})
     monkeypatch.setattr(S, "supersede_loose_notices", lambda *a, **k: None)
     from widgets.agenda import data as d

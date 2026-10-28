@@ -80,7 +80,7 @@ def test_the_bridge_prints_them_under_the_wall():
     import contextlib
     import io
 
-    from nucleo import nav_cli
+    from nucleo.cli import nav as nav_cli
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         nav_cli._print_state({"ok": True, "url": "https://www.booking.com/x", "title": "t",
@@ -96,7 +96,7 @@ def test_a_wall_with_no_alternative_still_prints_the_wall():
     import contextlib
     import io
 
-    from nucleo import nav_cli
+    from nucleo.cli import nav as nav_cli
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
         nav_cli._print_state({"ok": True, "url": "https://x.example/y", "title": "t",

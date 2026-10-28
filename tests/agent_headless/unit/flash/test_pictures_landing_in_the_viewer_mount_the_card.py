@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from nucleo import canvas_arbiter as arb
+from nucleo.acts import canvas_arbiter as arb
 from nucleo.flash import canvas_visibility as cv
 from widgets import effects as fx
 

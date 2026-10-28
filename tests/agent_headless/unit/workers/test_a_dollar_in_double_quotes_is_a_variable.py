@@ -27,10 +27,10 @@ def _session():
 def test_a_rejection_is_blamed_on_the_command_that_was_refused():
     s = _session()
     tool = lambda i, cmd: {"type": "tool_use", "id": i, "name": "Bash", "input": {"command": cmd}}
-    list(s._map({"type": "assistant", "message": {"content": [tool("a", "python -m nucleo.nav_cli scroll down")]}}))
+    list(s._map({"type": "assistant", "message": {"content": [tool("a", "python -m nucleo.cli.nav scroll down")]}}))
     list(s._map({"type": "user", "message": {"content": [
         {"type": "tool_result", "tool_use_id": "a", "content": "scrolled"}]}}))
-    refused = 'python -m nucleo.agent_report plan "under $400|verify"'
+    refused = 'python -m nucleo.cli.report plan "under $400|verify"'
     list(s._map({"type": "assistant", "message": {"content": [tool("b", refused)]}}))
     evs = list(s._map({"type": "user", "message": {"content": [
         {"type": "tool_result", "tool_use_id": "b", "content": "Contains simple_expansion", "is_error": True}]}}))

@@ -1,6 +1,6 @@
 """The ⏻ ON gesture revives a dead heartbeat (V2-516).
 
-Measured 2026-08-31: a syntax-broken instant of `nucleo/loop.py` (a translation pass rewriting the file
+Measured 2026-08-31: a syntax-broken instant of `nucleo/pulse/loop.py` (a translation pass rewriting the file
 at the moment the engine imported it) made the lifespan's one-shot `loop.start()` fail with a warning.
 The engine stayed up with NO pulse — crons silent, the orb's ECG flat — and the operator's ⏻, the one
 gesture that should fix a stopped state, did nothing: `runstate.start()` only resumed workers.
@@ -16,7 +16,7 @@ import asyncio
 
 import pytest
 
-from nucleo import loop as nloop
+from nucleo.pulse import loop as nloop
 from nucleo import runstate
 
 

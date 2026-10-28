@@ -150,7 +150,7 @@ def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
              f"ES el ranking (la hoja las pinta en ese orden), y cada una lleva su `score` con el `why` en una "
              f"frase: sin el porqué, el operador no puede discutir ni corregir tu criterio. Si dos empatan, "
              f"desempata con los criterios blandos y dilo.")
-    L.append("Móntalas en la superficie de resultados con `python -m nucleo.widget_cli read results` para ver el "
+    L.append("Móntalas en la superficie de resultados con `python -m nucleo.cli.widget read results` para ver el "
              "contrato exacto. IMPORTANTE para que el operador pueda PREGUNTAR después ('¿lleva desayuno?', '¿a qué "
              "hora es la entrada?'): mete los datos duros en `facts` del item y de cada pieza, y las fotos REALES "
              "en `images` — lo que no dejes ahí, zaelar no lo sabrá cuando él pregunte, y tendrá que buscarlo otra vez.")
@@ -191,7 +191,7 @@ def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
     # nothing»—so they could not know whether it was worth entering manually, changing sites, or giving up.
     L.append("\nDEJA RASTRO DE CÓMO TRABAJAS — la hoja tiene tres pestañas más y se llenan MIENTRAS buscas:\n"
              "  · FUENTES: cada sitio en el que entras (o al que no puedes entrar) se reporta con "
-             "`python -m nucleo.widget_cli data results sources @fuentes.json` → "
+             "`python -m nucleo.cli.widget data results sources @fuentes.json` → "
              "`{\"sources\":[{\"name\":…,\"url\":…,\"status\":…,\"detail\":…,\"found\":N}]}`. `status`: `ok` · "
              "`partial` (entraste pero te limitó los resultados) · `auth` (pedía sesión) · `blocked` · `error` · "
              "`pending`. Es UPSERT por url, así que puedes anunciar la fuente y actualizarla al terminar con "
@@ -213,7 +213,7 @@ def to_prompt_block(brief: dict, min_candidates_floor: int = 25) -> str:
              "`{\"changes\":[\"…\"]}`) si el operador te corrige a mitad de camino.")
     L.append(f"AMPLITUD REPORTADA: cuando entregues, di cuántos candidatos has considerado DE VERDAD y con qué "
              f"criterio has cortado, y repórtalo también con "
-             f"`python -m nucleo.agent_report considered <nº> --kept {nfin}`. Es lo que le permite al operador "
+             f"`python -m nucleo.cli.report considered <nº> --kept {nfin}`. Es lo que le permite al operador "
              f"saber si la selección es sólida o si conviene seguir buscando. Ese número es el RESUMEN de los "
              f"`rejected` que ya has ido reportando, no un sustituto: el número dice cuánto miraste, las filas "
              f"dicen qué miraste.")

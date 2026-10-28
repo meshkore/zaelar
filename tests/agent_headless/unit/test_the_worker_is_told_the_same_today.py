@@ -18,7 +18,7 @@ import time
 import pytest
 
 from nucleo.workers import prompts as dp
-from nucleo import scheduler
+from nucleo.pulse import scheduler
 
 FIJADO = time.mktime((2026, 3, 10, 9, 30, 0, 0, 0, -1))
 

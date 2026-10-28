@@ -39,7 +39,7 @@ def test_busca_y_carga_el_visor_y_reporta_lo_que_paso(monkeypatch):
         visto["cargado"] = (wid, action, len(payload.get("items") or []))
         return {"ok": True, "n": 3}
 
-    monkeypatch.setattr("nucleo.browser_search.images", _images, raising=False)
+    monkeypatch.setattr("search.browser.images", _images, raising=False)
     monkeypatch.setattr("widgets.server_api.brain_action", _brain_action, raising=False)
 
     parte = asyncio.run(image_turn.execute("Ferrari Amalfi", 3))
@@ -58,7 +58,7 @@ def test_sin_fotos_no_toca_el_visor_y_lo_dice(monkeypatch):
     async def _brain_action(*a, **k):  # pragma: no cover — must not be called
         raise AssertionError("no se toca el visor si no hay fotos")
 
-    monkeypatch.setattr("nucleo.browser_search.images", _images, raising=False)
+    monkeypatch.setattr("search.browser.images", _images, raising=False)
     monkeypatch.setattr("widgets.server_api.brain_action", _brain_action, raising=False)
     parte = asyncio.run(image_turn.execute("algo que no existe"))
     assert parte["ok"] is False and parte["count"] == 0
@@ -67,7 +67,7 @@ def test_sin_fotos_no_toca_el_visor_y_lo_dice(monkeypatch):
 def test_un_fallo_del_navegador_no_tumba_el_turno(monkeypatch):
     async def _boom(q, k):
         raise RuntimeError("chromium muerto")
-    monkeypatch.setattr("nucleo.browser_search.images", _boom, raising=False)
+    monkeypatch.setattr("search.browser.images", _boom, raising=False)
     parte = asyncio.run(image_turn.execute("Ferrari"))
     assert parte["ok"] is False and "chromium muerto" in parte["execute_error"]
 
@@ -129,7 +129,7 @@ def test_cargar_fotos_ABRE_la_tarjeta_del_visor(monkeypatch):
     async def _brain_action(wid, action, payload):
         return {"ok": True, "n": 2}
 
-    monkeypatch.setattr("nucleo.browser_search.images", _images, raising=False)
+    monkeypatch.setattr("search.browser.images", _images, raising=False)
     monkeypatch.setattr("widgets.server_api.brain_action", _brain_action, raising=False)
     import voice.observer as obs
     monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
@@ -146,7 +146,7 @@ def test_sin_fotos_NO_se_abre_ninguna_tarjeta(monkeypatch):
     async def _images(q, k):
         return {"query": q, "items": [], "source": "google", "blocked": False}
 
-    monkeypatch.setattr("nucleo.browser_search.images", _images, raising=False)
+    monkeypatch.setattr("search.browser.images", _images, raising=False)
     import voice.observer as obs
     monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
                         emitted.append((kind, label, extra or {})))
@@ -163,7 +163,7 @@ def test_cada_busqueda_emite_su_evidencia_con_la_QUERY(monkeypatch):
     async def _images(q, k):
         return {"query": q, "items": [], "source": "bing", "blocked": False}
 
-    monkeypatch.setattr("nucleo.browser_search.images", _images, raising=False)
+    monkeypatch.setattr("search.browser.images", _images, raising=False)
     import voice.observer as obs
     monkeypatch.setattr(obs, "emit", lambda kind, label, text="", role="", extra=None:
                         emitted.append((kind, label, extra or {})))

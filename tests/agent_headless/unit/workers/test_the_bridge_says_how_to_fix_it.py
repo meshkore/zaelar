@@ -19,7 +19,7 @@ the failure was mute about its own remedy.
 import os
 import tempfile
 
-from nucleo import widget_cli
+from nucleo.cli import widget as widget_cli
 
 
 def _present(tmpdir, arg="@informe.json"):

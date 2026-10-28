@@ -17,8 +17,8 @@ from __future__ import annotations
 import pytest
 
 from nucleo.workers import prompts as dp
-from nucleo import nav_cli
-from nucleo import source_outcomes as so
+from nucleo.cli import nav as nav_cli
+from nucleo.workers import source_outcomes as so
 
 DAY = 24 * 3600
 T0 = 1_800_000_000.0
@@ -132,7 +132,7 @@ def test_what_is_known_reaches_both_worker_prompts_as_one_dated_line():
     so.note("agent-a", so.SERVED, kind="agent")
     line = so.worker_line("py")
     assert line.count("\n") == 1 and "cars.example bloqueó" in line and "agent-a funcionó" in line
-    assert "py -m nucleo.source_outcomes" in line
+    assert "py -m nucleo.workers.source_outcomes" in line
     for p in (dp._build_prompt(GOAL, "", True, None), dp._web_prompt(GOAL, "", None)):
         assert "cars.example bloqueó" in p
 

@@ -24,7 +24,7 @@ reading `GET /events`.
 
 > **Navigable test map** — the whole test surface can be walked through **`tests/run_testmap.py`** (axis **domain →
 > use case → channel**, numbered `1.1`/`2.1`/…), with the narrative in **`tests/TESTMAP.md`**. One of the domains is
-> **HOMEOSTASIS** (the machine's autonomous health layer, `nucleo/homeostasis.py` /
+> **HOMEOSTASIS** (the machine's autonomous health layer, `nucleo/pulse/homeostasis.py` /
 > `tests/infrastructure/unit/core/test_homeostasis.py`).
 
 > **Map contract, schema 2** — the Observatory consumes one common tree for ALL the main types:

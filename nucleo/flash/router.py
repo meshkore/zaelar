@@ -37,10 +37,10 @@ from voice.brain_notes import operator_half as _operator_half   # a leaf: re + t
 CHAT = "chat"          # handled by the fast layer itself (conversation, state, canvas via tag)
 STYLE = "style"        # the operator set a session interaction preference
 SEARCH = "search"      # quick factual lookup on the web (web_search) — lightweight route, resolved in the turn
-from nucleo.flash.listing_turn import request_from as _lt_request_from   # V2-556: una sola forma
+from nucleo.acts.search import request_from as _lt_request_from   # V2-556: one shape for the call
 
 LISTINGS = "listings"  # V2-556: marketplace/product LISTING hunt (search_listings) — the fast module serves the
-                       # turn or escalates BY ITSELF (listing_turn.py); the model never picks fast-vs-deep
+                       # turn or escalates BY ITSELF (nucleo/acts/search_listing.py); the model never picks fast-vs-deep
 RECALL, READ_WIDGET = "recall", "read_widget"   # the MODEL decides to read: his durable memory (V2-056) or what a widget HOLDS with its card closed (V2-668) — light routes, in the turn
 REVEAL = "reveal"      # V2-060: the operator requests a stored SECRET (reveal_secret) — lightweight route; out-of-band value
 MUSIC = "music"        # V2-041: plays/controls music through a connector (play_music) — lightweight route, in the turn
@@ -274,10 +274,6 @@ def classify(tool_calls: list[tuple[str, dict]] | None) -> Decision:
     return best
 
 
-def is_escalation(name: str) -> bool:
-    return (name or "").strip() == "escalate_to_slowbrain"
-
-
 
 
 # ── deterministic backstop guards (moved to router_guards.py, 2026-08-17 modularization pass) ─────────────────
@@ -285,11 +281,11 @@ def is_escalation(name: str) -> bool:
 # whole module, none import individual names) keeps working unchanged. See router_guards.py's docstring for why.
 from nucleo.flash.router_guards import (  # noqa: F401 — re-export, not a local use
     looks_like_web_task, looks_like_login_request, is_pure_show_request, show_request_blocks_data_action,
-    is_music_service, looks_like_close, show_contradicts_the_order,
+    is_music_service, looks_like_close,
     looks_like_create_widget, asks_for_missing_detail,
     looks_like_show_strict, looks_like_escalate_task,
-    escalate_goal_from_window, hands_public_lookup_back, promises_a_dated_reminder,
-    create_widget_request, already_in_agenda,
+    escalate_goal_from_window, hands_public_lookup_back,
+    create_widget_request,
     looks_like_marketplace_nav, looks_like_modify_widget, looks_like_bare_ref,
     is_messaging_service, looks_like_stop_work, login_site, nothing_running_for, too_thin_to_commission,
 )

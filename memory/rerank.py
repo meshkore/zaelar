@@ -149,7 +149,7 @@ def _order_openai(query: str, texts: list[str]) -> list[int] | None:
     # `extra` names the provider family for egress; `provider_base` is what the call is priced by.
     provider_base, extra = base_url, {}
     if base_url:
-        from nucleo import llm_egress
+        from nucleo.energy import egress as llm_egress
         base_url, key, extra = llm_egress.route(base_url, key)
     cli = OpenAI(api_key=key, base_url=base_url, default_headers=extra or None,
                  timeout=float(os.getenv("MEMORY_RERANK_TIMEOUT", "12")))
@@ -169,7 +169,7 @@ def _order_openai(query: str, texts: list[str]) -> list[int] | None:
         # dormida y por eso pasó desapercibida — pero es una elección de CONFIG (`rerank_provider`), no
         # una imposibilidad: el día que se ponga en remoto empezaría a costar dinero real sin aparecer en
         # ninguna factura. Se mide ahora, dormida, para que encenderla no sea gratis por descuido.
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         _energy.meter_openai_response(resp, base_url=provider_base or "", model=_model())
     except Exception as e:
         logger.debug("rerank openai falló: %s", e)

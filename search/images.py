@@ -1,5 +1,5 @@
 """search/images.py — finding PICTURES is a different search from finding facts (V2-457; moved from
-`nucleo/image_search.py` by V2-782, alias kept).
+`nucleo/image_search.py` by V2-782; the alias went in refactor2710-06).
 
 `websearch` answers a question; this answers "show me". The two look alike and are not: a factual search wants
 prose it can synthesise, and a picture search wants a *file* the operator can look at, plus enough provenance

@@ -2,7 +2,7 @@
 
 A unit test must never touch live artifacts. Every file here already isolates the widget STORE
 (`store.DATA_DIR` → tmp_path), but `add_meeting`'s default reminder (V2-473) reaches
-`nucleo.scheduler.create`, which persists into `memory.journal` — the operator's REAL `zaelar.db`,
+`nucleo.pulse.scheduler.create`, which persists into `memory.journal` — the operator's REAL `zaelar.db`,
 because nothing in the test conftests overrides `ZAELAR_DB`.
 
 This stayed invisible for a reason worth keeping: the older agenda tests use PAST dates, and
@@ -20,7 +20,7 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _scheduler_never_touches_the_live_journal(monkeypatch):
-    from nucleo import scheduler
+    from nucleo.pulse import scheduler
 
     jobs: dict[str, dict] = {}
     seq = {"n": 0}

@@ -219,7 +219,7 @@ def prompt_capture_on() -> bool:
     raw = (os.getenv("ZAELAR_LOG_PROMPTS") or "").strip().lower()
     if raw:
         return raw not in ("0", "false", "no", "off")
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     return not cloud_account.is_cloud_account()
 
 
@@ -532,9 +532,9 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
     # shadow judges here instead of adding lines to N dispatch sites. Emit-only (it produces `arbiter`
     # verdict events, never touches this one), re-entrancy-guarded, fail-open, kill-switch
     # ZAELAR_ARBITER_SHADOW=0. Enforcement, when it comes (F1+), lives at the doors — never here.
-    if kind in ("widget", "transcript", "ambient"):
+    if kind in ("widget", "transcript", "ambient") or (kind == "brain" and str(label or "").startswith("jev read ")):
         try:
-            from nucleo import canvas_arbiter as _arb
+            from nucleo.acts import canvas_turn as _arb
             _arb.shadow_tap(kind, label, text, role, extra)
         except Exception:
             pass

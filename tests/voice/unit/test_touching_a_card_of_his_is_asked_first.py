@@ -185,7 +185,7 @@ def test_show_widget_refuses_an_id_that_is_not_in_the_catalogue():
     from widgets import runtime as rt
     ids = sorted(str(w.get("id") or "") for w in rt.catalog() if w.get("id"))
     assert "youtube" in ids and "--help" not in ids
-    src = inspect.getsource(__import__("nucleo.worker_api", fromlist=["x"]))
+    src = inspect.getsource(__import__("nucleo.cli.worker_api", fromlist=["x"]))
     body = src[src.index('if action in ("show_widget", "close_widget")'):]
     body = body[:body.index('if action == "widget_data"')]
     assert 'if action == "show_widget":' in body, "CLOSE is not validated: closing what is not there is harmless"
@@ -195,7 +195,7 @@ def test_show_widget_refuses_an_id_that_is_not_in_the_catalogue():
 
 def test_the_refusal_hands_the_worker_the_list_it_needed():
     """A worker that gets an id wrong needs the catalogue, not a «no»."""
-    src = inspect.getsource(__import__("nucleo.worker_api", fromlist=["x"]))
+    src = inspect.getsource(__import__("nucleo.cli.worker_api", fromlist=["x"]))
     assert '", ".join(_ids)' in src
 
 
@@ -322,8 +322,10 @@ def test_the_guard_sits_at_the_ONE_point_both_branches_converge_on():
     # CODE only: the comment above the call names the function too, and a disarm that deleted the call
     # and left the comment stayed green.
     body = "\n".join(l for l in body.splitlines() if not l.strip().startswith("#"))
-    assert "a_fragment_moves_nothing" in body
-    assert body.index("a_fragment_moves_nothing") < body.index("action_mode_now"), (
+    from nucleo.acts import card
+    assert card._a_fragment in card._LADDER[card.GATE], "the card door's GATE ladder holds the fragment rule"
+    assert "at=_card.GATE" in body
+    assert body.index("at=_card.GATE") < body.index("action_mode_now"), (
         "it has to decide BEFORE the call enters the consent gate")
 
 

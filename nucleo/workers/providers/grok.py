@@ -53,7 +53,7 @@ from .claude import _BRIDGE_TOOLS, ClaudeCodeSession, _STREAM_LIMIT, _ZAELAR
 # rules below. `write`/`search_replace` are here because their absence killed runs (bench 2026-08-13: the worker
 # detoured through the terminal and the allowlist denied it). Not added: `spawn_subagent`, `scheduler_*`,
 # `ask_user_question` (we own pool, cron and `hbask`), image/video. ⚠️ Grok has NO `web_fetch` (only `web_search`):
-# pages are opened via the bridges `nucleo.worker_bridge` / `nucleo.nav_cli`, told in the prompt (`_BACKEND_NOTE`).
+# pages are opened via the bridges `nucleo.cli.bridge` / `nucleo.cli.nav`, told in the prompt (`_BACKEND_NOTE`).
 _GROK_TOOLS = ("run_terminal_command", "read_file", "write", "search_replace", "list_dir", "grep",
                "web_search", "todo_write")
 
@@ -66,8 +66,8 @@ Tu terminal está acotada A PROPÓSITO: `run_terminal_command` solo puede ejecut
 Cuando eso pasa, el CLI te lo dirá con el texto «User cancelled the execution for tool `run_terminal_command`».
 **Eso NO es el operador cancelando ni una orden de parar**: es la reja de permisos rechazando un comando que no
 está en la lista. NO abandones la tarea — reformula usando los puentes y sigue.
-Para abrir una URL concreta no tienes `web_fetch`: usa la `web_search` de Zaelar por `nucleo.worker_bridge` o el
-navegador real por `nucleo.nav_cli`. Para dejar ficheros usa tu tool `write`, no la terminal.
+Para abrir una URL concreta no tienes `web_fetch`: usa la `web_search` de Zaelar por `nucleo.cli.bridge` o el
+navegador real por `nucleo.cli.nav`. Para dejar ficheros usa tu tool `write`, no la terminal.
 """
 
 # Su vocabulario → el nuestro. Se traduce para que `_tool_step`/`_tool_phase` de `claude_session` (la fuente única

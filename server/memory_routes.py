@@ -213,7 +213,7 @@ async def memory_recall(query: str = Body("", embed=True), k: int = Body(8, embe
 
 def _worker_source(task_id: str, token: str) -> str | None:
     """Per-task auth for the write bridge (2026-07-14 audit): same scheme as `/api/worker/act` —
-    the worker sends its `ZAELAR_TASK_ID`/`ZAELAR_TASK_TOKEN` (headers, set by `mem_cli`), and they are verified
+    the worker sends its `ZAELAR_TASK_ID`/`ZAELAR_TASK_TOKEN` (headers, set by `cli.mem`), and they are verified
     against the dispatch RAM registry. Returns the provenance label, or None if authorization fails.
     `ZAELAR_MEM_API_OPEN=1` = hatch for local dev/scripts (`source="local"` is stamped)."""
     if task_id and token:
@@ -237,7 +237,7 @@ async def memory_remember(text: str = Body(..., embed=True), slot: str = Body(""
                           x_zaelar_token: str = Header("", alias="X-Zaelar-Token")):
     """MEMORY bridge for Brain Workers (V2-036/V2-038): WRITING through the ONE authorized writer
     (async queue), preserving the single-writer invariant. Hardened in the 2026-07-14 audit:
-    it requires the worker's PER-TASK token (headers from `mem_cli`) and goes through
+    it requires the worker's PER-TASK token (headers from `cli.mem`) and goes through
     `memory_agent.remember_external` — the same precision gates as voice, with no access to `state` or identity slots."""
     t = (text or "").strip()
     if not t:

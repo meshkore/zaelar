@@ -4,7 +4,7 @@ The operator saw 6–8s on the FIRST turn and about 1s thereafter. The cause: th
 (AIMLAPI/Grok behind Cloudflare) establishes TLS, performs the handshake, and starts the model cold. We absorb
 that HERE, during server startup—while the frontend renders the brain-mesh loader—with a MINIMAL fire-and-forget
 query, so the model is warm (~1s) when the user can interact. It also warms search Chromium
-(`nucleo/browser_search`). It never blocks startup or raises.
+(`search/browser`). It never blocks startup or raises.
 """
 from __future__ import annotations
 
@@ -72,7 +72,7 @@ def _emit_prewarm(what: str, ms: int, model: str, *, ttft: int | None = None,
 
 async def _warm_browser() -> None:
     try:
-        from nucleo import browser_search
+        from search import browser as browser_search
         t0 = time.time()
         ok = await browser_search.ensure_started()
         ms = int((time.time() - t0) * 1000)

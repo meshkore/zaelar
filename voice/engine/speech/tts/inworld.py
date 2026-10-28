@@ -35,10 +35,10 @@ DEFAULT_MODEL = "inworld-tts-2"
 
 @registry.register("inworld")
 def build():
-    # EGRESS: a mediated deployment speaks through egress with its own credential (`nucleo.llm_egress`). The plugin
+    # EGRESS: a mediated deployment speaks through egress with its own credential (`nucleo.energy.egress`). The plugin
     # joins ABSOLUTE paths (`urljoin(base, "/tts/v1/…")`), which drops any path in the base: egress recognises
     # `/tts/v1/` as Inworld's own, so only the host of the routed URL matters here.
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     key = (os.getenv("INWORLD_API_KEY") or getattr(SETTINGS, "inworld_api_key", "") or "").strip()
     base_url, key = llm_egress.route_url(llm_egress.base_of("inworld") + "/", key)
     kwargs = dict(

@@ -3,9 +3,9 @@
 `tres-tarjetas-y-el-video-por-alusion`: the Dune trailer on `youtube`, calm music on `musica`, both declaring
 `volume_down`. «La música, la de fondo. El YouTube déjalo como está» / «No, en YouTube no: bájale a la música, el vídeo
 no lo toques» / «…no es YouTube, es la música de fondo…» ran `youtube.volume_down` three turns in a row: the catalogue's
-best match for the sentence was the brand name, and `player_control` took it as the player he named. One reader now
+best match for the sentence was the brand name, and `acts.media` took it as the player he named. One reader now
 splits a sentence into the cards it targets and the cards it excludes (keep clause, don't-touch, a negation next to the
-name) — `named_target` — and `which_card`, `player_control` and `undecided` all ask it before any verdict.
+name) — `named_target` — and `which_card`, `acts.media` and `undecided` all ask it before any verdict.
 """
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def test_which_card_takes_the_named_target_over_a_none_or_wrong_verdict(screen):
 
 
 def test_the_player_tool_moves_to_the_named_player_never_to_the_excluded_one(screen):
-    from nucleo.flash import player_control as PC
+    from nucleo.acts import media as PC
     for text in ("La música, la de fondo. El YouTube déjalo como está.",
                  "No, en YouTube no: bájale a la música, el vídeo no lo toques."):
         p = PC.plan("play_music", "volume_down", "", brief=_brief("none", 0.58), operator_text=text)

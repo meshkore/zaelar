@@ -59,6 +59,6 @@ def test_an_interim_word_that_finds_no_quiet_moment_stays_on_screen(monkeypatch)
 
 def test_the_worker_say_route_does_not_carry():
     import inspect
-    from nucleo import worker_api
+    from nucleo.cli import worker_api
     src = inspect.getsource(worker_api.worker_say)
     assert "carry=False" in src

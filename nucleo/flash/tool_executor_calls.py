@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace as _SimpleNamespace
 
-from nucleo.flash import player_control as _player_control
+from nucleo.acts import canvas as _canvas_door, media as _media_door
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import resume_turn as _resume_turn   # V2-799
 from nucleo.flash import tool_executor as _tx
@@ -84,7 +84,7 @@ def _t_play_music(*, args, music_req, _brief=None, _apply_widget_data=None, acte
                  text=str(args.get("action") or "play"), extra={"cat": "flash", "kind_diag": "close_answer_not_play"})
         return
     # V2-794: a one-shot play over a SURE commission verdict is the errand, not a search query played as a title.
-    if music_req["v"] is None and esc is not None and esc["v"] is None and _player_control.commissioned(_brief, args):
+    if music_req["v"] is None and esc is not None and esc["v"] is None and _media_door.commissioned(_brief, args):
         _t_escalate_to_slowbrain(args={}, escalate_req=esc, text=text)
         esc["say"] = getattr(__import__("i18n.langs", fromlist=["x"]).current_language(), "done_just_started", "")
         if emit is not None:
@@ -92,9 +92,9 @@ def _t_play_music(*, args, music_req, _brief=None, _apply_widget_data=None, acte
                  text=f"play «{str(args.get('query') or '')[:80]}» → escalate", extra={"cat": "flash", "tool": "play_music"})
         return
     # A CONTROL with the video open too: whose player? Asked once, on the turn's first music call.
-    if music_req["v"] is None and _apply_widget_data is not None and _player_control.voice_route(
-            "play_music", args, brief=_brief, apply_widget_data=_apply_widget_data, acted=acted, clarify=clarify,
-            emit=emit, ask_phrase=ask_phrase, operator_text=text):
+    if music_req["v"] is None and _apply_widget_data is not None and _media_door.control(
+            {"text": text, "brief": _brief}, args, tool="play_music", apply_widget_data=_apply_widget_data, acted=acted,
+            clarify=clarify, emit=emit, ask_phrase=ask_phrase).fired:
         return
     _mq = {"query": (args.get("query") or "").strip(),
            "action": (args.get("action") or "play").strip().lower()}
@@ -128,7 +128,7 @@ def _t_show_widget(*, args, _brief, _router, _say, _show_guard_target, _show_tar
         # GUARD (V2-567): a CLOSE order is not answered with a show («Cierra los contactos» → show(mensajeria)
         # made two mutations); the show is dropped, the close backstop closes. V2-750: grammar only PROPOSES;
         # `build_decision` composes the verdict with `build_or_use` (zh/ja/hi 6/9 → 9/9, node 2.68).
-        if _router.show_contradicts_the_order(text) or _tx._canvas_lic.closing_turn(_brief, _wid):
+        if _canvas_door.show_under_close(text, brief=_brief, wid=_wid):
             # V2-807 T-08 — a show of an ALREADY open card on a close turn is the model KEEPING it; nothing
             # opens, and the keep is remembered so the same sentence's bulk close spares it.
             from nucleo.flash import bulk_close as _bulk, canvas_visibility as _cvis_keep
@@ -146,14 +146,14 @@ def _t_show_widget(*, args, _brief, _router, _say, _show_guard_target, _show_tar
             emit("brain", "🏗️ show_widget→CREATE: se escala al generador (no es un show)", text=_bd[1][:60], role="system")
         else:
             from widgets import runtime
-            # Resolve WITH CERTAINTY (V2-082) — in show_target.resolve_show since V2-650b.
-            _res, _open, _recent = _tx._show_target.resolve_show(
-                _wid, text, brain._window, brain._last_action, _show_guard_target)
+            # Resolved WITH CERTAINTY (V2-082) by the canvas door's own resolver (`canvas.resolve`, refactor2710-04).
+            from nucleo.acts import canvas as _door
+            _res, _open, _recent = _door.resolve(_wid, text, brain._window, brain._last_action, _show_guard_target)
             _rid = _res.get("match") or ""
             _rid = _rid if (_rid and runtime.get(_rid.split("::", 1)[0]) is not None) else ""
             _sys = _res.get("system")
             # V2-650b: a widget he JUST closed does not reopen over chatter (a re-emitted discarded show).
-            if _rid and not _tx._canvas_lic.reopen_license(_rid, text, _open, _recent):
+            if _rid and not _door.reopen_ordered(_rid, text, open_ids=_open, recent_ids=_recent, brief=_brief):
                 emit("brain", "🛡️ show de un widget recién cerrado sin pedirlo — ignorado "
                      "(context-bleed)", text=_rid, role="system")
                 deduped["v"] = True
@@ -237,7 +237,8 @@ def _t_arrange_canvas(*, _tool_fired, acted, emit):
     # existed. A whole-canvas action: the same emit as the REST endpoint.
     if "arrange_canvas" not in _tool_fired:
         _tool_fired.add("arrange_canvas")
-        emit("widget", "arrange", extra={"src": "flash"})
+        from nucleo.acts import canvas
+        canvas.apply("arrange", src="flash", emit=emit)
         emit("brain", "▦ arrange_canvas → canvas", role="system")
         acted["widget"] = True
 
@@ -460,7 +461,7 @@ def _t_answer_worker(*, args, emit, worker_acted, fired=None):
     ans = (args.get("answer") or "").strip()
     if ans:
         try:
-            from nucleo import worker_api as _wapi
+            from nucleo.cli import worker_api as _wapi
             if _wapi.answer_active_soon(ans):
                 worker_acted["v"] = "answer"
                 fired is not None and fired.add("answer_worker")    # the close backstop reads it (three-tasks)

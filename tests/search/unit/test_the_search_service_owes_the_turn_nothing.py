@@ -6,7 +6,7 @@ timeline) are callables in `search/hooks.py` the server sets at boot. A new impo
 the brain again, and what would stop it running as its own process.
 
 Allowed from `nucleo`: the leaf helpers the whole engine shares (`nucleo.errors`, `nucleo.workspace`,
-`nucleo.energy_meter`). Allowed from the engine: `i18n` (the language table) and the standard library.
+`nucleo.energy.meter`). Allowed from the engine: `i18n` (the language table) and the standard library.
 """
 from __future__ import annotations
 
@@ -17,11 +17,11 @@ ENGINE = Path(__file__).resolve().parents[3]
 SEARCH = ENGINE / "search"
 
 FORBIDDEN_PREFIXES = ("nucleo.flash", "voice", "widgets", "server", "memory", "connectors", "frontend")
-# `nucleo.energy_lease` (V2-785): the gate asked BEFORE a paid index is called — the meter's twin, and a leaf.
-# `nucleo.llm_egress` (2026-10-23): the door a paid index's URL passes in a mediated deployment — the lease's twin
+# `nucleo.energy.lease` (V2-785): the gate asked BEFORE a paid index is called — the meter's twin, and a leaf.
+# `nucleo.energy.egress` (2026-10-23): the door a paid index's URL passes in a mediated deployment — the lease's twin
 # for WHERE the call goes, and a leaf like it.
-ALLOWED_NUCLEO = {"nucleo.errors", "nucleo.workspace", "nucleo.energy_meter", "nucleo.energy_lease",
-                  "nucleo.llm_egress"}
+ALLOWED_NUCLEO = {"nucleo.errors", "nucleo.workspace", "nucleo.energy.meter", "nucleo.energy.lease",
+                  "nucleo.energy.egress"}
 
 
 def _imports(path: Path):
@@ -31,7 +31,9 @@ def _imports(path: Path):
             for a in node.names:
                 yield a.name, node.lineno
         elif isinstance(node, ast.ImportFrom) and node.module and not node.level:
-            yield node.module + "".join(f".{a.name}" for a in node.names if node.module == "nucleo"), node.lineno
+            pkg = node.module == "nucleo" or (ENGINE / node.module.replace(".", "/")).is_dir()
+            for a in (node.names if pkg else [None]):
+                yield node.module + (f".{a.name}" if a else ""), node.lineno
 
 
 def test_search_never_imports_the_turn_the_motor_or_the_widgets():
@@ -43,18 +45,6 @@ def test_search_never_imports_the_turn_the_motor_or_the_widgets():
             if mod.startswith("nucleo") and mod not in ALLOWED_NUCLEO:
                 bad.append(f"{p.relative_to(ENGINE)}:{line} reaches into {mod} (only {sorted(ALLOWED_NUCLEO)} are leaves)")
     assert not bad, "\n".join(bad)
-
-
-def test_the_old_names_are_aliases_of_the_same_module_object():
-    """`from nucleo import websearch` and `from search import web` are ONE module: a patch through either name
-    reaches both, so the existing tests and callers keep measuring the product."""
-    import nucleo
-    from nucleo import browser_search, image_search, listing_extract, listing_search, websearch
-    import search.browser, search.extract, search.images, search.listing, search.web  # noqa: E401
-    assert websearch is search.web and nucleo.websearch is search.web
-    assert listing_search is search.listing and listing_extract is search.extract
-    assert browser_search is search.browser and image_search is search.images
-    assert websearch.search is search.web.search
 
 
 def test_the_hooks_are_no_ops_until_the_host_sets_them():

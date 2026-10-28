@@ -2,10 +2,10 @@
 is emitted, a network agent's rows keep their rating, and the research brief respects the size he said."""
 from __future__ import annotations
 
-from nucleo import mesh_cli
-
+from nucleo.cli import mesh as mesh_cli
+from nucleo.acts import search as search_routing
+from nucleo.flash import turn_brief
 from nucleo.workers import brief as research
-from nucleo.flash import search_routing, turn_brief
 from search.route import SEARCH_KEY
 
 

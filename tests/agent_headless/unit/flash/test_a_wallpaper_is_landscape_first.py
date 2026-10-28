@@ -16,7 +16,7 @@ def test_the_landscape_picture_leads_a_wallpaper_search(tmp_path, monkeypatch):
 
     async def images(q, n):
         return {"items": pics, "source": "google"}
-    import nucleo.browser_search as bs
+    import search.browser as bs
     monkeypatch.setattr(bs, "images", images)
 
     async def brain_action(wid, act, payload):
@@ -41,7 +41,7 @@ def test_a_picture_that_can_become_the_backdrop_leads(tmp_path, monkeypatch):
 
     async def images(q, n):
         return {"items": pics, "source": "google"}
-    import nucleo.browser_search as bs
+    import search.browser as bs
     monkeypatch.setattr(bs, "images", images)
     monkeypatch.setattr(dp, "fetchable", lambda url, timeout=2.5: "open" in url)
 

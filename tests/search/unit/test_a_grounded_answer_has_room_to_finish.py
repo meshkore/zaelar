@@ -45,7 +45,7 @@ def _sent_body(monkeypatch, model: str) -> dict:
     monkeypatch.setattr(httpx, "Client", _Client)
     monkeypatch.setenv("GEMINI_API_KEY", "placeholder")
     monkeypatch.setenv("GEMINI_SEARCH_MODEL", model)
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     monkeypatch.setattr(energy_meter, "report_search_usage", lambda **kw: None)
     gemini.search("¿A qué hora abre mañana el Prado y cuánto cuesta la entrada?")
     return seen["body"]

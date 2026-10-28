@@ -6,7 +6,7 @@ pass that composes the answer from the results could not see the chart and said 
 here; I can only talk» — and the next two turns repeated that false limit.
 """
 from nucleo import canvas_focus as cf
-from nucleo.flash import search_turn as st
+from nucleo.acts import search as st
 
 
 def test_the_cards_of_this_turn_reach_the_search_answer():

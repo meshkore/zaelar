@@ -76,8 +76,11 @@ def test_the_hatches_of_the_write_guard_are_unchanged():
 
 
 def test_the_provider_calls_the_extracted_predicate_and_keeps_no_copy():
+    import inspect
+    from nucleo.acts import card
+    assert card._context_bleed in card._LADDER[card.FAST], "the card door reads the rule before an op runs"
+    assert "_do.is_context_bleed(" in inspect.getsource(card._context_bleed)
     src = _vts.read("voice/engine/llm/providers/nucleo.py")
-    assert "_data_ops.is_context_bleed(" in src
     assert "(time.time() - _last[3]) < 120" not in src, "the inline copy of the rule must be gone"
 
 
@@ -198,7 +201,11 @@ def test_an_identical_retry_of_a_refused_op_is_dropped_and_a_corrected_one_runs(
     assert not d.is_identical_retry_of_refused("imagenes", "select", {})
     import pathlib as _pl
     src = _vts.read(_pl.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
-    assert "if _data_ops.is_identical_retry_of_refused(wid, action_name, payload):" in src
+    from nucleo.acts import card
+    d.remember_refusal("imagenes", "select", {})
+    lic = card.licence({"brief": None, "text": "the last month instead"}, "imagenes", "select", {}, at=card.FAST)
+    assert (lic.verdict, lic.clause) == (card.DROP, "refused-again"), "the card door drops the identical re-send"
+    d._REFUSED["v"] = None
     assert "_data_ops.remember_refusal(_w, _a, _p)" in src, "the seal must remember the refusal too"
 
 

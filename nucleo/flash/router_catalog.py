@@ -13,7 +13,7 @@ router change that drops the bench does not ship).
 from __future__ import annotations
 
 from nucleo.flash import tools_media as _tools_media   # V2-457: las definiciones de medios
-from nucleo.flash.listing_turn import TOOL_DEF as _LISTING_TOOL   # V2-556: su contrato vive con su módulo
+from nucleo.acts.search import TOOL_DEF as _LISTING_TOOL   # V2-556: its contract lives with its door
 from nucleo.flash.widget_read import TOOL_DEF as _READ_WIDGET_TOOL   # V2-668: a question about a widget reads it
 
 # ── function catalog (OpenAI-compatible) offered to the fast model ─────────────────────────────────────
@@ -345,7 +345,7 @@ TOOLS: list[dict] = [
             },
         },
     },
-    _LISTING_TOOL,   # V2-556: la definición vive con su módulo (`listing_turn.TOOL_DEF`)
+    _LISTING_TOOL,   # V2-556: la definición vive con su módulo (`acts.search.TOOL_DEF`)
     # V2-668 — the fourth door: `widget_data` acts, `recall` remembers his life, `web_search` reads the world;
     # what his OWN widgets store had no reader (the Hacienda hour, session 53de97d4). Contract lives with its module.
     _READ_WIDGET_TOOL,
@@ -652,9 +652,8 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "set_cluster_objective",
-            # T-02 (audit 2026-07-26): the `perms.gate_dev_by_objective` guard (V2-076)
-            # requires the OPERATOR to set the objective of a cluster relationship before an allowed 'code'
-            # permission may launch a dev-worker — but until this tool there was NO way to set it
+            # T-02 (audit 2026-07-26): the `perms.gate_dev_by_objective` guard (V2-076) requires the OPERATOR to set
+            # a cluster relationship's objective before 'code' may launch a dev-worker — and until this there was NO way to set it
             # (capsule.objective was only READ, never WRITTEN). Operator-only by construction: the cluster turn
             # (untrusted profile) has its OWN filtered catalog (nucleo/flash/cluster.py
             # `_gated_tools_and_handler`, only escalate_to_slowbrain/web_search) — a peer can NEVER reach

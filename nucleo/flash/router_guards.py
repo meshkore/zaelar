@@ -19,9 +19,9 @@ import time as _time
 
 # V2-356 — at MODULE LEVEL, not inside the function: the hidden-coupling ratchet is explicit
 # ("more imports inside functions = more hidden cycles; fix it by EXTRACTING, not importing later") and
-# there is no cycle to hide here — `nucleo.scheduler` imports nothing from `flash`. The other six lazy imports in
+# there is no cycle to hide here — `nucleo.pulse.scheduler` imports nothing from `flash`. The other six lazy imports in
 # this file predate this and remain as they were: reducing the debt belongs to whoever touches it, not whoever passes by.
-from nucleo import scheduler as _sched
+from nucleo.pulse import scheduler as _sched
 # Re-exported so `router.asks_for_missing_detail` keeps working: it lives apart because it is the one guard
 # that must NOT normalize its input (see its own module).
 from nucleo.flash.clarifying import asks_for_missing_detail  # noqa: F401 — re-export
@@ -123,8 +123,8 @@ def is_music_service(site: str = "", text: str = "") -> bool:
 # The CLOSE-order grammar lives in `close_guards.py` (extracted 2026-09-09, V2-631) — re-exported here so
 # every existing call site (`router.looks_like_close(...)`, the two internal callers below) keeps working.
 from .close_guards import (  # noqa: F401
-    _CLOSE_VERB_RE, _DELETE_VERB_RE, _NARRATED_CLOSE_RE, _NO_CLOSE_RE, _NO_OPEN_RE, _OPEN_VERB_RE,
-    looks_like_close, show_contradicts_the_order,
+    _CLOSE_VERB_RE, _DELETE_VERB_RE, _NARRATED_CLOSE_RE, _NO_CLOSE_RE,
+    looks_like_close,
 )
 
 # show_widget execution GUARD (2026-07-17): CREATING a NEW widget is ESCALATED to the generator (code), NOT
@@ -441,19 +441,6 @@ from nucleo.flash.answer_guards import (  # noqa: F401 — re-export, not a loca
     a_continuity_claim_over_nothing, an_empty_wait_answers_a_question, answer_needs_a_source,
 )
 
-# ── the PROMISED-REMINDER guards (moved to reminder_guards.py, 2026-09-02 ratchet pass) ───────────────────────
-# 26 guards that form a closed set: they reference each other and the shared text helpers above, and nothing
-# that stayed here uses any of them — which is why the dependency runs one way and nothing is imported back.
-# Re-exported so every existing call site keeps working unchanged (`router.py` re-exports several of these by
-# name from this module, and the tests reach them as `router_guards.X`): the same compatibility contract this
-# file's own docstring describes for the split that created it.
-from .reminder_guards import (  # noqa: F401 — re-export, not a local use
-    _AGENT_IMPERATIVE_RE, _FIRST_PERSON_DUTY_RE, _NOTE_ASK_RE, _PROMPT_S,
-    _REMIND_ASK_RE, _REMIND_DET, _REMIND_NOUN, _REMIND_VERB_RE, _asked_reminder_moment, _longest_pending_min,
-    _reminder_prompt, already_in_agenda, commitment_clause, commitment_from_window,
-    holding_line,
-    promises_a_dated_reminder, reminder_before, safe_reminder_prompt, safe_reminder_schedule, strip_note_lead,
-)
 
 
 # A TURN TOO THIN TO COMMISSION A WORKER (fix03, session 6d19df41, 2026-09-18).

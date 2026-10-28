@@ -125,13 +125,13 @@ def _decide(request: str, kind: str = "generic"):
         await asyncio.sleep(0.05)      # let a scheduled rerun task run against the stub and finish
         return out
 
-    import nucleo.flash.listing_turn as LT
-    orig = LT.run
-    LT.run = lambda *a, **k: reruns.append((a, k)) or {"delivered": False, "n": 0, "ctx": "", "sheet": ""}
+    import nucleo.acts.search as LT
+    orig = LT.fast_pass
+    LT.fast_pass = lambda *a, **k: reruns.append((a, k)) or {"delivered": False, "n": 0, "ctx": "", "sheet": ""}
     try:
         ctx, redirected = asyncio.run(run())
     finally:
-        LT.run = orig
+        LT.fast_pass = orig
     return ctx, redirected
 
 
@@ -158,7 +158,7 @@ def test_an_unrelated_errand_neither_inherits_nor_redirects():
 
 
 def test_an_escalation_that_declared_its_own_box_is_left_alone():
-    """`listing_turn.run`'s own auto-escalation already carries its sheet — re-deciding it here would be a
+    """`search_listing.fast_pass`'s own auto-escalation already carries its sheet — re-deciding it here would be a
     second yardstick, and it is also what makes the redirect→insufficient→worker chain loop-free."""
     ended.note_listing_delivery(_DELIVERY_GOAL, _SHEET, n=20)
     ctx, redirected = errand_continuity.inherit_and_maybe_rerun(
@@ -181,7 +181,7 @@ def _drive(monkeypatch, request: str, *, deliveries: list | None = None, consume
     monkeypatch.setattr(dispatch, "about_a_live_errand", lambda *a, **k: "")
     monkeypatch.setattr(dispatch, "get_backend", lambda *a, **k: _FakeBackend())
     monkeypatch.setattr(dispatch, "_name_errand", lambda rec: None)
-    monkeypatch.setattr("nucleo.flash.listing_turn.run",
+    monkeypatch.setattr("nucleo.acts.search.fast_pass",
                         lambda *a, **k: reruns.append({"args": a, "kw": k})
                         or {"delivered": True, "n": 5, "ctx": "· fila", "sheet": k.get("sheet", "")})
 
@@ -251,7 +251,7 @@ def test_a_fresh_unrelated_errand_still_spawns_normally(monkeypatch):
 def test_a_delivered_rerun_pushes_a_note_naming_the_rows(monkeypatch):
     pushed: list = []
     monkeypatch.setattr("voice.brain_notes.push", lambda text: pushed.append(text))
-    monkeypatch.setattr("nucleo.flash.listing_turn.run",
+    monkeypatch.setattr("nucleo.acts.search.fast_pass",
                         lambda *a, **k: {"delivered": True, "n": 4,
                                          "ctx": "· Catamarán Bali 4.6 — 1.500 EUR", "sheet": _SHEET})
     asyncio.run(errand_continuity._rerun(_ESCALATION, _SHEET))
@@ -263,7 +263,7 @@ def test_a_delivered_rerun_pushes_a_note_naming_the_rows(monkeypatch):
 def test_an_insufficient_rerun_pushes_nothing_the_escalation_speaks_for_itself(monkeypatch):
     pushed: list = []
     monkeypatch.setattr("voice.brain_notes.push", lambda text: pushed.append(text))
-    monkeypatch.setattr("nucleo.flash.listing_turn.run",
+    monkeypatch.setattr("nucleo.acts.search.fast_pass",
                         lambda *a, **k: {"delivered": False, "n": 0, "ctx": "", "sheet": _SHEET,
                                          "escalated": 9})
     asyncio.run(errand_continuity._rerun(_ESCALATION, _SHEET))

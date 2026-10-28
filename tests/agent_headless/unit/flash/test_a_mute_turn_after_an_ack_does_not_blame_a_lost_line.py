@@ -7,7 +7,7 @@ the live work IS what it is about.
 """
 from types import SimpleNamespace
 
-from nucleo.flash import reminder_guards as rg
+from nucleo.turn import wait_lines as rg
 from voice import endpointing
 
 

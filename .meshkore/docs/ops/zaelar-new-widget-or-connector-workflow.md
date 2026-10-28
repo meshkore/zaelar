@@ -226,7 +226,7 @@ The rule, then:
    against a widget whose words are all in the other one fails. And they are ADDED: an English word never
    replaces its Spanish equivalent.
 - **`worker_guide`** if a Brain Worker is meant to deliver here: tell it the TWO steps (write the JSON to a
-  relative file with Write, then `python -m nucleo.widget_cli data <id> <action> @file`). Pasting JSON on the
+  relative file with Write, then `python -m nucleo.cli.widget data <id> <action> @file`). Pasting JSON on the
   command line is blocked by the quotes and by the shell guard.
 
 ---

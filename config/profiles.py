@@ -118,7 +118,7 @@ def deployment() -> str:
     The deployment is therefore never asked; it is read from the one thing that can tell, the env var a
     hosted deployment sets.
     """
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     return "cloud" if cloud_account.is_cloud_account() else "self_host"
 
 

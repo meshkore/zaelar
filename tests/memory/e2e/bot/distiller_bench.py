@@ -131,7 +131,7 @@ CANDIDATES: dict[str, tuple[str, str]] = {
 
 # $ per 1M tokens (input, output). PUBLISHED rate from the provider serving that id — web-verified on
 # 2026-08-09 (see §12.3 of the benchmark doc). RE-VERIFY periodically: prices change without notice.
-# Used here and, for the winner, duplicated in `nucleo/energy_meter.py`.
+# Used here and, for the winner, duplicated in `nucleo/energy/meter.py`.
 PRICES: dict[str, tuple[float, float]] = {}   # se rellena desde prices.json si existe (ver _load_prices)
 
 STATE = {"operator_name": "Ricart", "location": "Soria", "language": "es"}

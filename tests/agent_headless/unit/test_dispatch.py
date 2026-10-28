@@ -158,7 +158,7 @@ def test_web_prompt_has_verify_before_close():
 
 
 def test_web_prompt_warns_against_nonexistent_nav_cli_subcommands():
-    """V2-099 live finding (2026-08-17): the worker sometimes calls `nucleo.nav_cli automate`/`act`, neither
+    """V2-099 live finding (2026-08-17): the worker sometimes calls `nucleo.cli.nav automate`/`act`, neither
     of which exists (nav_cli's real set: snapshot/look/navigate/click/type/select_option/click_at/type_at/
     scroll/press/extract) — each guess burns a full turn on a CLI usage error instead of progress."""
     wp = dispatch._web_prompt("busca algo", "")
@@ -181,7 +181,7 @@ def test_web_prompt_carries_the_trusted_site_catalog(monkeypatch):
     for entry in site_catalog.SITE_CATALOG["es"].values():
         assert entry.url in wp
     # a preference the operator has actually stated must be checked BEFORE this catalog, every time
-    assert "mem_cli recall" in wp
+    assert "cli.mem recall" in wp
 
 
 def test_the_worker_is_told_WHICH_site_to_start_at_and_it_follows_the_locale(monkeypatch):
@@ -548,7 +548,7 @@ def test_breadth_is_absent_not_zero_when_it_does_not_apply():
 # The operator saw it twice the same day: «it ran out of time», with the sheet half done.
 def test_the_research_budget_was_reserved_for_a_kind_nobody_assigned():
     """Tests the INCOHERENCE motivating the fix: the budget exists and is twice the generic budget."""
-    from nucleo.loop import OrchestratorLoop
+    from nucleo.pulse.loop import OrchestratorLoop
     L = OrchestratorLoop()
     assert L._budget_for("research") == 1200.0
     assert L._budget_for("generic") == 600.0
@@ -640,7 +640,7 @@ def test_a_dead_composer_costs_direction_never_time(fresh_db, monkeypatch):
     """Con el compositor caído la tarea sale SIN dirigir (sin amplitud ni baremo) pero con el presupuesto de una
     investigación — que la petición SEA una investigación no depende de que el compositor esté vivo."""
     from nucleo.workers import brief as research
-    from nucleo.loop import OrchestratorLoop
+    from nucleo.pulse.loop import OrchestratorLoop
     rec = dispatch.SessionRecord(task_id="c1", goal="busca vacaciones en Baleares", kind="generic")
     dispatch._SESSIONS["c1"] = rec
     try:
@@ -908,7 +908,7 @@ def test_the_stall_threshold_has_ONE_definition():
     """The loop's supervisor speaks up on its own and the prompt now states the same fact — two copies of this
     number is how the proactive notice and the agent you just asked end up disagreeing."""
     from nucleo import dispatch as d
-    from nucleo.loop import OrchestratorLoop
+    from nucleo.pulse.loop import OrchestratorLoop
     assert OrchestratorLoop()._stuck_secs == d.STUCK_SECS
 
 

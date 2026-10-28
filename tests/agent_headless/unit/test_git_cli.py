@@ -5,7 +5,7 @@
 # AUTHORIZED by the operator; any other repo or absence of authorization is REJECTED. The guards are tested
 # without network access (they do not actually clone).
 #
-from nucleo import git_cli
+from nucleo.cli import git as git_cli
 
 
 class _NS:

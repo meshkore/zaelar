@@ -56,7 +56,7 @@ def search(q: str, k: int = 8) -> dict:
         return {"query": q, "answer": "", "results": [], "source": "zai"}
     payload = {"search_engine": os.getenv("ZAI_SEARCH_ENGINE", "search-prime"), "search_query": q,
                "count": max(1, min(int(k), 20)), "content_size": "medium"}
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     url, key = llm_egress.route_url(_ENDPOINT, key)
     with httpx.Client(timeout=_TIMEOUT) as c:
         resp = c.post(url, headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
@@ -65,6 +65,6 @@ def search(q: str, k: int = 8) -> dict:
         raise RuntimeError(f"zai web_search: HTTP {resp.status_code} {resp.text[:160]}")
     results = parse(resp.json(), k)
     if results:
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         _energy.report_search_usage(provider="zai")
     return {"query": q, "answer": "", "results": results, "source": "zai"}

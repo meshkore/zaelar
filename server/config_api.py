@@ -64,7 +64,7 @@ async def get_config():
         out["credentials"] = []
     out["catalog"] = _catalog_for_ui()
     try:
-        from nucleo import cloud_account
+        from nucleo.energy import account as cloud_account
         out["cloud_profile"] = cloud_account.is_cloud_account()
         out["account_url"] = cloud_account.account_url()
     except Exception:
@@ -149,7 +149,7 @@ async def set_v2(payload: dict | None = None):
         return JSONResponse({"ok": False, "error": "missing section/patch"}, status_code=400)
     if section in _CLOUD_LOCKED_V2_SECTIONS:
         try:
-            from nucleo import cloud_account
+            from nucleo.energy import account as cloud_account
             if cloud_account.is_cloud_account():
                 return JSONResponse(
                     {"ok": False, "error": "provider/model selection is centrally managed in the cloud profile"},

@@ -111,7 +111,7 @@ class SessionNotes:
                 f"Reescríbelo: UN solo comando por llamada (sin `&&`, `;`, `|` ni `$(…)`), sin SALIR de tu "
                 f"directorio (no solo `cd`: tampoco `ls`/`find`/`cat` de carpetas del repo — los puentes "
                 f"funcionan desde donde estás), y solo los puentes `{py} -m nucleo.…` — "
-                "para abrir una página `nav_cli`, para buscar `worker_bridge`, nada de `curl` ni scripts propios. "
+                "para abrir una página `cli.nav`, para buscar `cli.bridge`, nada de `curl` ni scripts propios. "
                 "Si lo que necesitabas no se puede hacer así, DILO en tu entrega en vez de terminar en silencio."
             )
         except Exception as e:  # noqa: BLE001

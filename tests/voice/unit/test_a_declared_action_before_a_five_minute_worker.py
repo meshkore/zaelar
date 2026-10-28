@@ -644,9 +644,11 @@ def test_finding_is_knowing_and_an_act_order_is_not_offered_a_read():
     """full11 C2: «find me a free 45 minutes tomorrow afternoon to talk with rowan» — the commission pass booked
     the meeting (nobody asked). C5: offered a read, the pass checked the directory instead of sending. Live: C2 read
     4/4; C5 with no read offered, send 3/4."""
+    import inspect
     from pathlib import Path
-    src = (Path(__file__).resolve().parents[3] / "nucleo/flash/act_repair.py").read_text("utf-8")
     from nucleo.flash import act_repair as _arc     # V2-778 F2-19: the prompt is read as the model gets it, not as laid out
+    # the commission pass lives where it moved (refactor2710-05 T-04): read through the object, its `_ar.` alias dropped
+    src = inspect.getsource(_arc.call_or_read_for_commission).replace("_ar.", "")
     assert "FINDING, searching or telling him something" in _arc._SYS_COMMISSION and "may_read and _wr0.can_answer(wid)" in src
     cc = (Path(__file__).resolve().parents[3] / "nucleo/flash/card_commission.py").read_text("utf-8")
     assert "may_read = not (_wi is not None and str(_w or \"\") == \"act\")" in cc

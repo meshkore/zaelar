@@ -1,5 +1,5 @@
 """search/browser.py — FREE Google search via a persistent, WARM headless Chromium (V2-024; moved from
-`nucleo/browser_search.py` by V2-782, which keeps that name as an alias).
+`nucleo/browser_search.py` by V2-782; the alias went in refactor2710-06).
 
 Operator's idea: instead of paying for Perplexity/Tavily, use a private Chromium to search Google and leverage
 its synthesis (AI Overview / featured snippet), parsing the result. Free "forever" — in exchange for fragility

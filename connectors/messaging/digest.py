@@ -8,7 +8,7 @@
 #
 # Division of labour, per the domain-stores doctrine:
 #   - this module OWNS the table and the distillation prompt (domain data, lives in archive.db);
-#   - the LLM hook is INJECTED by the caller (nucleo/loop wires `memllm.chat_sync` in, the same
+#   - the LLM hook is INJECTED by the caller (nucleo/pulse/loop wires `memllm.chat_sync` in, the same
 #     `synthesize_fn` pattern `memory/rem.py` lives by — connectors do not import brains);
 #   - writing anything to the AGENDA from a digest is deliberately NOT here (F3b, needs the operator's
 #     explicit OK: an agent creating reminders out of group chatter is his call, not a default).

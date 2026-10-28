@@ -93,7 +93,9 @@ def _calls() -> set:
             if not isinstance(n, ast.Call) or not n.args or not isinstance(n.args[0], ast.Constant):
                 continue
             name = n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", "")
-            if name in _NAMES:
+            if name == "apply":   # the canvas door (`nucleo.acts.canvas.apply("<op>", …)`) emits ("widget", "<op>")
+                found.add(("emit", "widget", n.args[0].value))
+            elif name in _NAMES:
                 second = n.args[1].value if len(n.args) > 1 and isinstance(n.args[1], ast.Constant) else None
                 found.add((name, n.args[0].value, second))
     return found

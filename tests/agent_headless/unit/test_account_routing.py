@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from nucleo import account_routing
+from nucleo.energy import routing as account_routing
 
 
 CP = "https://control-plane.example.com"
