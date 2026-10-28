@@ -6494,8 +6494,8 @@ DOMAINS: list[dict] = [
                                 "freezer it FINDS and tests/infrastructure under the watchdog; one red step fails the "
                                 "command and the rest still run (refactor2710-99)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_the_clean_clone_check_is_one_command.py"]},
-        {"id": "7.80", "title": "The widget render tests run in the default gate: the watchdog lets in ONE declared render "
-                                "folder whose suite needs no live service, the live suites stay behind --include-live, a "
+        {"id": "7.80", "title": "The browser render tests run in the default gate: the watchdog lets in the declared render "
+                                "folders whose suite needs no live service, the live suites stay behind --include-live, a "
                                 "changed widget/shell JS or CSS selects the renders that load it, and the gate refuses to "
                                 "sweep without Playwright (V2-831 T-14)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_the_renders_run_in_the_gate.py"]},

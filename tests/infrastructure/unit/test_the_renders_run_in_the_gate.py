@@ -32,7 +32,8 @@ def _rel(paths):
 
 def test_the_default_sweep_runs_the_widget_renders_and_still_skips_the_live_suites():
     dirs = _rel(watchdog.leaf_dirs([watchdog.TESTS], include_live=False))
-    assert "tests/browser/e2e/widgets" in dirs, "the widget renders are not in the default sweep"
+    for render in ("widgets", "chat", "feedback", "mensajeria", "mobile", "onboarding"):
+        assert f"tests/browser/e2e/{render}" in dirs, f"the {render} renders are not in the default sweep"
     live = {d for d in dirs if any(m in "/" + d + "/" for m in watchdog._LIVE)}
     allowed = {d for d in live if any(r in "/" + d + "/" for r in watchdog._RENDER)}
     assert live == allowed, f"a live-marked folder entered the default sweep without the render entry: {live - allowed}"

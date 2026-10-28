@@ -37,8 +37,8 @@ nothing failed and nothing hung. A JSON report lands in `tests/runs/watchdog-*.j
 
 **The widget renders are in the default sweep (V2-831 T-14).** `/e2e/`, `/integration/`, `/benchmarks/` and `/lab/`
 folders stay behind `--include-live` (real models, LiveKit, the network), except the folders listed in `_RENDER` in
-`tests/watchdog.py` — today only `tests/browser/e2e/widgets` (299 tests, ~3 min): a local Chromium with every engine
-route mocked. A folder joins that entry only if its suite's `suite.json` declares no live requirement (node 7.80
+`tests/watchdog.py` — today the six Playwright folders of `tests/browser/e2e` (widgets, chat, feedback, mensajeria,
+mobile, onboarding: 414 tests, ~5.5 min): a local Chromium with every engine route mocked. A folder joins that entry only if its suite's `suite.json` declares no live requirement (node 7.80
 checks it). `--impacted` also follows browser files: a changed `.js`/`.css` selects the tests that name its path, its
 `/static/` URL, or the widget whose client they mount.
 
@@ -55,7 +55,7 @@ use case (completable) lands there too, keyed `uc:<case>`. A developer drains th
 **The merge gate is LOCAL — nothing runs on GitHub** (operator's decision, 2026-10-28: no CI, no nightly; the only
 workflows left are the tag-driven ones — `release.yml` deploys the cloud, `daemon-artifacts.yml` builds the installers).
 `tests/gate.sh` is the gate: syntax sweep, ruff (F + E9), the deterministic sweep through `tests/watchdog.py` and the
-recorded decision bank — ~8 min on the operator's Mac (~3 of them the widget renders; the gate refuses to run without
+recorded decision bank — ~11 min on the operator's Mac (~5.5 of them the browser renders; the gate refuses to run without
 Playwright, because skipped renders would read as a green). **When it runs is a choice, not a reflex**: not on every commit of
 an initiative (fourteen commits are not fourteen sweeps), but before a merge, and while developing only the cheap form
 `./tests/gate.sh --impacted origin/main` (seconds: what the diff can reach). A red found at merge time is the same red.

@@ -3,8 +3,8 @@
 # Run it from engine/ (or a worktree with `.venv` linked) on the branch you are about to merge:
 #   ./tests/gate.sh                 # full gate: syntax, ruff, deterministic sweep, recorded bank
 #   ./tests/gate.sh --impacted REF  # the cheap form while developing: only what the diff vs REF reaches
-# Exit code is the gate's verdict. The wide sweep takes ~8 min on the operator's Mac, ~3 of them the widget
-# render tests (tests/browser/e2e/widgets — a local Chromium, every engine route mocked; V2-831 T-14).
+# Exit code is the gate's verdict. The wide sweep takes ~11 min on the operator's Mac, ~5.5 of them the browser
+# render tests (the Playwright folders of tests/browser/e2e — a local Chromium, every engine route mocked; V2-831 T-14).
 set -e
 cd "$(dirname "$0")/.."
 PY=./.venv/bin/python

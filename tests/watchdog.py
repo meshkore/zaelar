@@ -66,8 +66,10 @@ _LIVE = ("/e2e/", "/integration/", "/benchmarks/", "/lab/")
 # widget/shell with every engine route mocked, so it is deterministic and belongs in the default sweep (V2-831
 # T-14 — 49 render reds sat on main because nothing ran them). ONE explicit entry, not a folder-name rule: its
 # suite must declare no live requirement in its `suite.json` (enforced by
-# `test_a_render_folder_in_the_default_sweep_needs_no_live_service`). Measured 2026-10-28: 299 tests, ~3 min.
-_RENDER = ("/tests/browser/e2e/widgets/",)
+# `test_a_render_folder_in_the_default_sweep_needs_no_live_service`). Measured 2026-10-28: 414 tests, ~5.5 min
+# (widgets 299 · ~3 min; the other five 115 · ~2.5 min, 0 skipped).
+_RENDER = tuple(f"/tests/browser/e2e/{d}/" for d in
+                ("widgets", "chat", "feedback", "mensajeria", "mobile", "onboarding"))
 
 
 def label_of(path) -> str:
