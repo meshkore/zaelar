@@ -215,3 +215,62 @@ def test_the_cards_of_a_row_are_the_same_box(m):
 def test_a_card_is_one_rung_above_its_sheet(m):
     r = m["wide"]
     assert r["cardBg"] == r["softBg"] and r["cardBg"] != r["sheetBg"], r
+
+
+# CRIT-K20 on the rendered grid (refactor2710-12; these two used to be read in the source, node 4.10): the payload's
+# `columns` only CAPS the distribution, and the gap the grid subtracts is the gap it paints — a copied number made
+# `auto-fill` drop a column on a 1 420 px sheet.
+_GRID = """(id) => {
+  const grid = document.getElementById(id).querySelector('.hr-grid');
+  const cards = [...grid.querySelectorAll('.hr-card')].map(c => c.getBoundingClientRect());
+  const top = cards.length ? Math.round(cards[0].top) : 0;
+  const row = cards.filter(r => Math.round(r.top) === top);
+  return {cols: row.length, gridW: grid.clientWidth, cardW: row.length ? row[0].width : 0,
+          spacing: row.length > 1 ? row[1].left - row[0].right : null,
+          gap: parseFloat(getComputedStyle(grid).columnGap)};
+}"""
+_CAPS = {"wide_free": (1420, None), "wide_cap2": (1420, 2), "narrow_cap4": (340, 4)}
+
+
+def _grids():
+    async def run():
+        from playwright.async_api import async_playwright
+        palette = open(_PALETTE, encoding="utf-8").read()
+        hosts = "".join(f"<div style='width:{w}px'><div id='{k}'></div></div>" for k, (w, _) in _CAPS.items())
+        html = f"<!doctype html><html><head><meta charset='utf-8'><style>{palette}</style></head><body>{hosts}</body></html>"
+        async with async_playwright() as pw:
+            b = await pw.chromium.launch(headless=True, args=["--no-sandbox"])
+            pg = await b.new_page(viewport={"width": 1600, "height": 1400})
+            await pg.route("http://zaelar.test/", lambda route: asyncio.ensure_future(
+                route.fulfill(status=200, content_type="text/html", body=html)))
+            await pg.route("https://dead.invalid/**", lambda route: asyncio.ensure_future(route.abort()))
+            await pg.goto("http://zaelar.test/")
+            await widget_client.mount(pg, "results")
+            sheet = {**SHEET, "items": SHEET["items"] * 2}
+            for k, (_, cap) in _CAPS.items():
+                await pg.evaluate("""([id, d]) => window.render(document.getElementById(id), d, {
+                    action: async () => ({ok: true}), top: () => {}, scroll: () => {}})""",
+                                  [k, {**sheet, **({"columns": cap} if cap else {})}])
+            await pg.wait_for_timeout(300)
+            out = {k: await pg.evaluate(_GRID, k) for k in _CAPS}
+            await b.close()
+            return out
+    return asyncio.run(run())
+
+
+@pytest.fixture(scope="module")
+def grids(m):
+    return _grids()
+
+
+def test_the_payload_only_caps_the_columns_the_width_decides(grids):
+    assert grids["wide_free"]["cols"] >= 3, grids["wide_free"]
+    assert grids["wide_cap2"]["cols"] == 2, grids["wide_cap2"]
+    assert grids["narrow_cap4"]["cols"] == 1, "a cap is a ceiling, never a number of columns to force"
+
+
+def test_the_gap_the_grid_subtracts_is_the_gap_it_paints(grids):
+    g = grids["wide_free"]
+    assert g["spacing"] is not None and abs(g["spacing"] - g["gap"]) <= 1, g
+    left = g["gridW"] - (g["cols"] * g["cardW"] + (g["cols"] - 1) * g["gap"])
+    assert left < g["cardW"] + g["gap"], f"room for one more column was left empty: {g}"
