@@ -2,6 +2,7 @@
 a part, a source, a rejected row, the summary and the criteria may carry, their caps, and the word-boundary clip.
 `data` re-exports every name (`data._clean_item`, `data._MAX_ITEMS`).
 """
+import logging
 import unicodedata as _ud
 from html.parser import HTMLParser
 
@@ -95,8 +96,8 @@ def _plain(text) -> str:
         try:
             p.feed(s), p.close()
             s = "".join(p.out)
-        except Exception:  # noqa: BLE001 — unparseable markup keeps its raw text rather than losing the row
-            pass
+        except Exception as e:  # noqa: BLE001 — unparseable markup keeps its raw text rather than losing the row
+            logging.getLogger(__name__).debug("results: markup kept raw, it did not parse (%s)", e)
     return " ".join(s.split())
 
 
