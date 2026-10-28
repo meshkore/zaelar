@@ -154,6 +154,7 @@ class OrchestratorLoop(workers.WorkersPulse, flows.FlowsPulse, due.DuePulse):
         await self._maybe_spark(now)
         await self._maybe_consolidate(now)
         self._close_idle_session()
+        self._maybe_idle_stop(now)
         _emit("loop.tick", {"ts": now, "n": self._ticks})
 
     def _close_idle_session(self) -> None:
@@ -166,6 +167,15 @@ class OrchestratorLoop(workers.WorkersPulse, flows.FlowsPulse, due.DuePulse):
         try:
             from observability import identity
             identity.close_if_idle()
+        except Exception:
+            pass
+
+    def _maybe_idle_stop(self, now: float) -> None:
+        """Offers the pulse to the idle stop (`nucleo/idle_stop.py`): off unless the deployment sets
+        `ZAELAR_IDLE_STOP_MIN`, and when on it only ever asks the server to exit cleanly."""
+        try:
+            from nucleo import idle_stop
+            idle_stop.maybe_stop(now)
         except Exception:
             pass
 

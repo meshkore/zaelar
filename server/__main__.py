@@ -65,7 +65,16 @@ if __name__ == "__main__":
     # (prod sets 8080). Every other port the instance opens is fixed too; the list is `scripts/zaelar.py::PORTS`.
     host = os.getenv("HOST", "localhost"); port = int(os.getenv("PORT", "43917"))
     logger.info(f"Assistant (voice) on http://{host}:{port}")
-    servers = [uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning"))]
+    # A bounded stop: open connections (an SSE tab) get 5 s to close instead of holding the shutdown forever. The
+    # lifespan below has its own budget (`server/lifespan.py`); together they end well inside a platform's
+    # stop timeout, so the process exits on its own instead of being killed.
+    servers = [uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level="warning",
+                                             timeout_graceful_shutdown=5))]
+
+    # The idle stop (`nucleo/idle_stop.py`, off unless ZAELAR_IDLE_STOP_MIN is set) asks for the SAME graceful
+    # shutdown a signal would start — status 0, no signal re-raised.
+    from nucleo import idle_stop as _idle_stop
+    _idle_stop.request_exit(lambda: [setattr(s, "should_exit", True) for s in servers])
 
     async def _serve_all():
         await asyncio.gather(*(s.serve() for s in servers))
