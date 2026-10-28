@@ -340,7 +340,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/circuit": 2597,     # refactor2710-02: born (moves + verdict.py); 02b: the row half of request.model.settle MOVED in as circuit.settle, flash/write_outcome MOVED in (compose.py)
     "nucleo/context_packs": 568,
     "nucleo/dispatch": 2448,   # refactor2710-09 T-01: moved from top and split; target 1 200
-    "nucleo/energy": 2269,       # refactor2710-10: born — meter, lease, tariffs, limits, routing, account, egress, keys MOVED from the top
+    "nucleo/energy": 2012,       # refactor2710-10: born — meter, lease, tariffs, limits, routing, account, egress, keys MOVED from the top
     "nucleo/pulse": 2783,        # refactor2710-10: born — loop split into loop/workers/flows/due/signals (same beat); scheduler, sparks, homeostasis, wake, cron_api, rehydrate, notices, webpush, notice_today MOVED
     "nucleo/errands": 2548,
     "nucleo/cli": 2900,         # refactor2710-10: the worker CLIs MOVED in (nav, mesh, widget, mem, git, report, bridge, worker_api/policy, sandbox, usage); 01: born
@@ -377,8 +377,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/dispatch/confirm.py",
     "nucleo/dispatch/prepare.py",
     "nucleo/dispatch_prompts.py",
-    "nucleo/energy/lease.py",
-    "nucleo/energy/meter.py",
     "nucleo/errands/__init__.py",
     "nucleo/errands/book.py",
     "nucleo/errands/wake.py",
@@ -443,7 +441,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777). Never for growth in place.
-_TOTAL_MAX = 169750
+_TOTAL_MAX = 169493
 
 
 def test_the_total_only_shrinks():
