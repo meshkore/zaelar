@@ -1,6 +1,5 @@
 """Watching the login window until the session is established, then resuming the paused tasks; and the headless
-probes that tell whether a site already has a session. Moved out of `owner_login.py`.
-"""
+probes that tell whether a site already has a session."""
 from __future__ import annotations
 
 from widgets.navegador import owner as _o
@@ -159,10 +158,9 @@ async def _find_login_affordance(page) -> bool:
 
 
 async def _already_authenticated(site: str) -> bool:
-    """Is there ALREADY a session on `site`? Navigate headless and verify that it is NOT a login screen AND there is
-    NO visible 'sign in' button (the site already shows your account). Avoids reopening login when already inside
-    (bug 2026-07-10: resumed the search and reopened Wallapop login while already authenticated). Best-effort: if in
-    doubt return False (better to check login than act without an account)."""
+    """Is there ALREADY a session on `site`? Navigate headless and verify it is NOT a login screen AND shows NO visible
+    'sign in' button — so login is never reopened when already inside. Best-effort: in doubt return False (better to
+    check login than act without an account)."""
     if not site:
         return False
     from widgets.navegador import agent

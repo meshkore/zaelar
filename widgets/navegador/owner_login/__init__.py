@@ -1,13 +1,10 @@
 """The browser's LOGIN flow: reaching a site's login, the visible window the operator signs in through, watching
-for the session, and resuming the tasks that were waiting for it (V2-778 F1, 2026-10-01).
+for the session, and resuming the tasks that were waiting for it (V2-778 F1).
 
-Moved out of `widgets/navegador/owner.py` (1,713 lines) with no behaviour change. Every module-level name these
-functions read — each other included — is read through the owner (`_o.<name>`), so a patch on `owner` still
-governs every call, and the owner imports them back under their names. The two pieces of module state the login
-flips (`_visible_override`, `_auth_active`) stay the owner's: what was `global` there is `_o.<name>` here.
-
-A package since refactor2710-12: `authenticate` (reaching the login and opening the window) and `watch` (waiting for
-the session and resuming). This facade re-exports every name, so `owner` imports them from here as before.
+Every module-level name these functions read — each other included — is read through the owner (`_o.<name>`), so a
+patch on `owner` governs every call; the owner imports them back under their names. The state the login flips
+(`_visible_override`, `_auth_active`) stays the owner's. Modules: `authenticate` (reaching the login, opening the
+window) and `watch` (waiting for the session, resuming); this facade re-exports every name.
 """
 from __future__ import annotations
 

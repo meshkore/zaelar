@@ -1,6 +1,5 @@
 """The browser's login ceremony: reaching a site's login page and opening the window the operator signs in
-through (here, on a connected daemon, or blocked when no window can reach him). Moved out of `owner_login.py`.
-"""
+through (here, on a connected daemon, or blocked when no window can reach him)."""
 from __future__ import annotations
 
 from widgets.navegador import owner as _o
@@ -93,8 +92,7 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
     if not task_id:
         task_id = tasks.create(f"Iniciar sesión · {site or url}", title=f"Login · {site or url}")
     _o._auth_resume.setdefault(task_id, {"goal": goal, "plan": plan, "site": site})
-    # GUARD: is there ALREADY a session? Then do NOT open any login — confirm it and continue the task (bug: it
-    # reopened Wallapop login while already authenticated). Headless check, no window.
+    # GUARD: a session ALREADY there → open no login; confirm it and continue the task (headless check, no window).
     if await _o._already_authenticated(site):
         auth_memory.record_session_established(site)
         # search objective to resume: the task's objective, or the one left in the memory checkpoint (auth_pending).
@@ -119,10 +117,9 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
             tasks.finish(task_id, "done", "Ya tenías sesión iniciada.")
         await _o._resume_paused_tasks()                              # resume OTHER tasks paused by login (if any)
         return
-    # V2-822 — WHERE the window for him can open is one question with one answer (`nucleo/browser_window.py`): on a
-    # machine with a display it opens here; with no display, only on his computer through a connected daemon that
-    # declares it can; otherwise nowhere, and the process is BLOCKED with that state instead of waiting for a window
-    # that cannot exist (2026-08-03: it looped forever on a headless relaunch that silently stayed headless).
+    # V2-822 — WHERE his window can open has one answer (`nucleo/browser_window.py`): here with a display, else on his
+    # computer through a connected daemon that declares it can; otherwise nowhere, and the process is BLOCKED with
+    # that state instead of waiting for a window that cannot exist.
     from nucleo import browser_window
     reach = browser_window.reach()
     if not reach:
