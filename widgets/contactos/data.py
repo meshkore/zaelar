@@ -199,9 +199,11 @@ from .digest import people_named, prompt_digest, ref_index  # noqa: E402,F401 â€
 
 # The action handlers live in `actions.py` (which reads this module) (V2-778 F1-12).
 from .actions import (  # noqa: E402,F401
-    _a_add_contact, _a_update_contact, _a_set_channel, _a_add_channel, _a_show_sources, _a_remove_contact,
-    _a_set_favorite, _a_hide_contact, _a_sync_source, _a_link_contact, _a_show_contact_members, _a_show_view,
-    _a_show_contact, _a_set_auto, _a_sync_contacts, _a_set_flag, _a_restore_contact)
+    _a_add_contact, _a_update_contact, _a_set_channel, _a_add_channel, _a_remove_contact, _a_set_favorite,
+    _a_hide_contact, _a_link_contact, _a_set_flag, _a_restore_contact)
+from .views import (  # noqa: E402,F401
+    _a_show_sources, _a_sync_source, _a_show_contact_members, _a_show_view, _a_show_contact, _a_set_auto,
+    _a_sync_contacts)
 
 
 # `apply_action` is a table lookup; the contract gate reads the table's keys (`widgets/validator._table_actions`).

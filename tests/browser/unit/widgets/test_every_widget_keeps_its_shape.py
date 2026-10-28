@@ -16,7 +16,6 @@ PY_MAX, JS_MAX = 400, 600
 #: Over the shape today, owned by a later pass (agenda: refactor2710-06 hands its rules over first). Only shrink.
 GRANDFATHERED = {
     "agenda/actions.py": 634, "agenda/recur.py": 489, "agenda/tasklists.py": 551,
-    "contactos/actions.py": 472,
     "youtube/actions.py": 594, "youtube/channels.py": 614, "youtube/library.py": 452,
 }
 #: widget → (Python lines, client lines), measured 2026-10-28 (results +4 from refactor2710-01, merged). Lower it when a
