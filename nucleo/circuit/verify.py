@@ -130,6 +130,27 @@ def _scalar(clause: dict) -> bool | None:
     return (not _truth.is_empty(cur)) if expect == "present" else _truth.is_empty(cur)
 
 
+def card_view(wid: str) -> dict | None:
+    """A card's view as the product declares it (`truth.widget_view`); None when unreadable (an `error` VALUE)."""
+    try:
+        from nucleo import truth as _truth
+        return _truth.widget_view(wid)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"verify: view of {wid} unreadable: {e}")
+        return None
+
+
+def card_on_screen(wid: str) -> bool | None:
+    """On screen = open minus minimized (a docked sheet is not in front of him); None when the canvas is unreadable."""
+    try:
+        from nucleo import truth as _truth
+        state = _truth.canvas_state(wid)
+        return None if state is None else state in ("visible", "maximized")
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"verify: canvas of {wid} unreadable: {e}")
+        return None
+
+
 def _canvas(clause: dict) -> bool | None:
     from nucleo import truth as _truth
     state = _truth.canvas_state(str(clause.get("canvas") or ""))

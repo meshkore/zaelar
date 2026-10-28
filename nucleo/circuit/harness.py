@@ -1,15 +1,11 @@
 """nucleo/circuit/harness.py — the ERRAND HARNESS: what END STATE a turn implied, verified against the REAL state.
 
-V2-660 (operator directive, 2026-09-11): «cuando obtiene permiso para realizar una acción falta terminar
-de cerrar el círculo … un arnés dinámico que comprueba que lo pedido se ha conseguido — el documento
-correcto, en el idioma pedido, el visor abierto y el documento cargado — y solo entonces se informa al
-usuario». Measured the same night (session 0141a72a): after his «Adelante», the model said «Claro, aquí
-tienes el texto completo de la Declaración…» having run ONE web_search — the `documento` card was open
-and EMPTY, and nothing in the engine compared the claim with the screen until he complained.
+V2-660: after his «Adelante» the model said «aquí tienes el texto completo» over an EMPTY `documento` card, and
+nothing compared the claim with the screen until he complained (session 0141a72a).
 
 WHAT THIS IS. A small ledger of GOALS — (kind, target, the operator's words) — born when a turn implies
-an end state, verified by a closed set of VERIFIERS that read the product's own truth (the widget's
-`view_data()`, the open-cards state), and consulted at three seams:
+an end state, verified by the readers of the product's own truth (`verify.card_view`, `verify.card_on_screen`), and
+consulted at three seams:
   · turn end (both channels): a reply that CLAIMS delivery («aquí lo tienes», «ya está en pantalla»)
     over an UNMET goal is a false claim — the turn adds the honest follow-up and hands the errand to the
     machinery that can deliver it (escalation with the doc surface), instead of letting the sentence stand;
@@ -111,36 +107,16 @@ def reset() -> None:
 
 
 # ── the verifiers (the RESOURCE half: read the product's own truth, never a copy of it) ─────────────────
-async def _widget_view(wid: str) -> dict | None:
-    """V2-776 L2 — the one reader (`nucleo/truth.py`): the instance rides as `q`, and an `error` VALUE is what
-    makes a view unreadable — not the key (four seeds always carry `error: ""`)."""
-    try:
-        from nucleo import truth as _truth
-        return _truth.widget_view(wid)
-    except Exception as e:  # noqa: BLE001
-        logger.debug(f"harness: view of {wid} unreadable: {e}")
-        return None
-
-
-def _card_is_open(wid: str) -> bool | None:
-    """On screen = open minus minimized (pass 59, S1: a docked sheet counted as open)."""
-    try:
-        from nucleo import truth as _truth
-        state = _truth.canvas_state(wid)
-        return None if state is None else state in ("visible", "maximized")
-    except Exception:
-        return None
-
-
 async def verify(goal: dict) -> bool | None:
     """True = met · False = unmet · None = this goal's truth cannot be read (the harness stays silent).
 
     The verdict is REMEMBERED on the goal (`last`) because the prompt cannot await one: see `prompt_lines`.
     """
+    from nucleo.circuit import verify as _verify
     goal["checks"] = int(goal.get("checks") or 0) + 1
     out: bool | None = None
     if goal["kind"] == KIND_WIDGET_CONTENT:
-        view = await _widget_view(goal["target"])
+        view = _verify.card_view(goal["target"])
         if not view or "empty" not in view or str(view.get("error") or "").strip():
             out = None                       # a widget that does not declare emptiness is unverifiable
             if goal.get("last_seen") != "unreadable":
@@ -149,7 +125,7 @@ async def verify(goal: dict) -> bool | None:
             out = False
             goal["why"] = "empty"
         else:
-            opened = _card_is_open(goal["target"])
+            opened = _verify.card_on_screen(goal["target"])
             out = True if opened is None else bool(opened)
             goal["why"] = "" if out else "off_screen"
     goal["last"] = out
