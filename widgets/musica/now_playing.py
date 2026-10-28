@@ -1,6 +1,5 @@
 # musica — the LIVE reading: the Spotify connection, what is playing now (with a short-lived cache for the digest's
-# per-turn read), and the live fields the card composes over the stored db (refactor2710-12 T-03: moved out of
-# `data.py`, which re-exports every name here).
+# per-turn read), and the live fields the card composes over the stored db (`data.py` re-exports every name).
 import logging
 import time
 
@@ -49,10 +48,8 @@ def _read_now_playing() -> "dict | None":
         if not np:
             return None
         t = np.track
-        # V2-717 — where the song IS, so the card can draw a progress bar for a device that is not here.
-        # `progress_ms` is a photograph taken at THIS read (the card advances it with its own clock) and
-        # `duration_ms` is what makes it meaningful; either at 0 means «this provider does not say», and the
-        # card then draws no bar at all rather than one pinned at zero.
+        # Where the song IS, for a remote device's progress bar: `progress_ms` is taken at THIS read (the card
+        # advances it); either at 0 means «not reported» and no bar is drawn (V2-717).
         return {"playing": bool(np.playing), "device": np.device or "", "volume": np.volume, "provider": np.provider,
                 "title": (t.title if t else ""), "artist": (t.artist if t else ""),
                 "album": (t.album if t else ""), "art": (t.art if t else ""),
@@ -72,12 +69,9 @@ def _live_fields(db: dict, fresh_s: float = 0.0) -> dict:
     yt = dict(db.get("yt") or {})
     # mode = what the bar shows: spotify (remote device), youtube (hidden audio), or idle.
     loc = _local.display(db)
-    # V2-638 — a file we hold is the third thing the bar can be showing. It wins over the connector
-    # modes because it is the one playing IN the page: `local_audio.play` clears the yt block, so the
-    # two can never be set at once and the order here only decides what an inconsistent db shows.
-    # V2-812 — the bar shows the player that MAKES the sound: a song started in this page's player while a Spotify
-    # account is connected (no Spotify device on the screen that asked) is the page player's, and the Spotify reading
-    # of a device elsewhere is not what he hears.
+    # A library file wins over the connector modes: it plays IN the page, and `local_audio.play` clears the yt
+    # block (V2-638). The bar shows the player that MAKES the sound: a page-player song beats a Spotify reading
+    # of a device elsewhere (V2-812).
     in_page = (db.get("source") or {}).get("provider") == "youtube" and yt.get("videoId")
     mode = "local" if loc else ("youtube" if in_page else ("spotify" if connected else
                                                            ("youtube" if yt.get("videoId") else "idle")))
@@ -98,9 +92,8 @@ def _live_fields(db: dict, fresh_s: float = 0.0) -> dict:
 
 
 def _current_track_from_live(live: dict) -> "dict | None":
-    """Currently playing song (Spotify or YouTube-audio), so it can be saved into a favorites list. Takes
-    the already-composed LIVE state (`_live_fields`'s return) so a caller who has it — `_compose`, on
-    every render — need not pay for `_spotify_status()` a second time."""
+    """Currently playing song (Spotify or YouTube-audio), so it can be saved into a favorites list. Takes the
+    already-composed LIVE state so `_compose` need not pay for `_spotify_status()` twice."""
     np = live.get("now_playing")
     if np and np.get("title"):
         return {"title": np.get("title") or "", "artist": np.get("artist") or "",

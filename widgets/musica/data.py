@@ -93,10 +93,8 @@ def _fav_ref(db: dict) -> dict:
 
 def view_data(q: str = "") -> dict:
     d = _compose(_load_db())
-    # `art_cache` (V2-629) is server bookkeeping — up to 600 tiny entries the card never reads — so it
-    # rides along in `_compose`'s return ONLY because `_persist` reuses that same function to write the
-    # disk file back whole (see its docstring): stripping it THERE would delete the cache on the next
-    # save. Stripped here instead, where it only shrinks what actually crosses the wire.
+    # `art_cache` is server bookkeeping the card never reads. Stripped HERE, not in `_compose`: `_persist` writes
+    # `_compose`'s return back whole, so stripping there would delete the cache on the next save (V2-629).
     d.pop("art_cache", None)
     return d
 
@@ -159,10 +157,8 @@ def _push_recent(db: dict, t: dict) -> None:
 def _play_track(track: dict, db: "dict | None" = None) -> "dict":
     """Plays ONE track. A `local:` uri is a file WE hold and plays in the page (V2-638); everything else goes
     through the connector seam (Spotify if there is an account, otherwise YouTube-audio). Fail-safe.
-
-    The local branch needs the db because that is where the player state lives, so callers that have one pass
-    it; a caller without one keeps the old behaviour and a local track simply falls through to the connector,
-    which refuses it honestly rather than pretending."""
+    The local branch needs the db (the player state lives there); without one a local track falls through to the
+    connector, which refuses it."""
     if db is not None and _local.is_local(track):
         return _local.play(db, track)
     from connectors import music
@@ -184,9 +180,8 @@ def _uri_now(track: dict) -> str:
 
 def _find_or_create_playlist(db: dict, name: str) -> "tuple[dict, bool]":
     """Resolve a spoken list name to the real playlist, CREATING it when it does not exist (V2-384).
-    Measured live: «save it in a list called Curro» answered «Done.» with nothing behind —
-    the model gets ONE call, and demanding create_playlist + add_to_playlist as two is how that call
-    resolves to nothing. Returns (playlist, created)."""
+    The model gets ONE call: demanding create_playlist + add_to_playlist as two leaves nothing behind.
+    Returns (playlist, created)."""
     pl = _find_playlist(db, name)
     if pl is not None:
         return pl, False
@@ -200,8 +195,8 @@ def _find_or_create_playlist(db: dict, name: str) -> "tuple[dict, bool]":
     return pl, True
 
 
-# refactor2710-12 T-03 — the live reading, the track/list model, the cover art and the brain's readers live in their
-# own modules; every name is re-exported here, where the siblings, the runtime and the tests look for it.
+# The live reading, the track/list model, the cover art and the brain's readers live in their own modules; every
+# name is re-exported here, where the siblings, the runtime and the tests look for it.
 from .now_playing import (  # noqa: E402,F401
     _NP_FRESH_S, _current_track_from_live, _fresh_now_playing, _live_fields, _now_playing, _np_last,
     _read_now_playing, _spotify_status)
@@ -214,8 +209,7 @@ from .digest import (  # noqa: E402,F401
     _screen_word, prompt_digest, ref_index)
 
 
-# V2-778 F1-12 — the action handlers live in `actions.py`, imported back under their names (that module
-# reads this one).
+# The action handlers live in `actions.py` (which reads this module) (V2-778 F1-12).
 from .actions import (  # noqa: E402,F401
     _a_refresh, _a_enrich_art, _a_create_playlist, _a_add_to_playlist,
     _a_remove_from_playlist, _a_favorite_current, _a_play_playlist, _a_open_view, _a_back, _a_play_local, _a_seek,
@@ -227,9 +221,7 @@ from .player import (  # noqa: E402
 from .sound import player_audio as _a_player_audio  # noqa: E402 — V2-812: what the page player really lets be heard
 
 
-# V2-778 F1-12 — one function per action (in `actions.py`), and `apply_action` is the table lookup. Each body
-# is the branch it was, moved verbatim; the contract gate reads the table's keys
-# (`widgets/validator._table_actions`).
+# `apply_action` is a table lookup; the contract gate reads the table's keys (`widgets/validator._table_actions`).
 
 
 ACTIONS = {

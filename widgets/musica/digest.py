@@ -1,5 +1,5 @@
-# musica — what the BRAIN reads of the card: the voice reference index and the now-playing digest (refactor2710-12
-# T-03: moved out of `data.py`, which re-exports both because the runtime looks them up there).
+# musica — what the BRAIN reads of the card: the voice reference index and the now-playing digest (`data.py`
+# re-exports both because the runtime looks them up there).
 import logging
 
 from i18n import langs as _langs   # V2-778 F3-30: hints are read back aloud, in the agent's language
@@ -25,9 +25,8 @@ def ref_index() -> list:
 
 def prompt_digest() -> str:
     """What the OPEN card shows, for the brain (V2-812): the song, WHICH player makes the sound and where, playing or
-    paused, the volume, and whether the browser keeps it silent. Asked «is it muted?» over a card showing a song, the
-    brain only had the list index — no lists, so «the card is EMPTY» — and answered that it had no data. Empty
-    string when nothing plays: the lists line (`refs.items_line`) is then the whole truth."""
+    paused, the volume, and whether the browser keeps it silent. Empty string when nothing plays: the lists line
+    (`refs.items_line`) is then the whole truth."""
     try:
         db = _d._load_db()
         live = _d._live_fields(db, fresh_s=_d._NP_FRESH_S)

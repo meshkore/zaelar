@@ -1,34 +1,25 @@
-# musica — cover-art ENRICHMENT through the iTunes Search API, cached per song (refactor2710-12 T-03: moved out of
-# `data.py`, which re-exports every name here).
+# musica — cover-art ENRICHMENT through the iTunes Search API, cached per song (`data.py` re-exports every name).
 import time
 
 
 
-# Cover-art ENRICHMENT (V2-629): a track with no art yet (typed into a list, imported, or a legacy row from
-# before the connector started giving out YouTube thumbnails for free) gets looked up ONCE against the iTunes
-# Search API — free, no key, no auth — and the result is cached forever by (artist, title) so the SAME song
-# never pays a second network round trip, on this machine or the next request. `_ART_MISS_COOLDOWN_S` bounds
-# only the NEGATIVE case (nothing found): a transient API hiccup or a temporarily-misspelled title should not
-# become a permanent "no art" verdict, but a song that genuinely is not in iTunes' catalog should not be
-# re-queried on every render either.
+# A track with no art is looked up ONCE against iTunes (free, no key) and cached by (artist, title) (V2-629).
+# `_ART_MISS_COOLDOWN_S` bounds only the NEGATIVE case: a hiccup is not a permanent "no art", nor is a song
+# missing from the catalog re-queried on every render.
 _ART_MISS_COOLDOWN_S = 14 * 24 * 3600
 _ART_CACHE_CAP = 600
 
 
 # ── Cover-art ENRICHMENT for tracks the connector never resolved (V2-629) ────────────────────────────────
-# A track typed straight into a list (`add_to_playlist {title, artist}`, no `query`), or a legacy row from
-# before the connector started giving out YouTube thumbnails, has no art and never will on its own. This is
-# the SLOW, cached path the widget asks for lazily, on demand, once per song — never on the play critical
-# path (`_track_from_resolved` above already covers the fast, zero-cost case for anything actually played
-# through YouTube-audio).
+# The SLOW, cached path the widget asks for lazily, once per song — never on the play critical path
+# (`_track_from_resolved` covers anything actually played through YouTube-audio).
 def _art_cache_key(title: str, artist: str) -> str:
     return _d._norm((title or "") + "|" + (artist or ""))
 
 
 def _itunes_lookup(title: str, artist: str) -> "tuple[str, str]":
-    """(art_url, album) from the iTunes Search API — free, no key, no auth. Best-effort, fail-open: a network
-    hiccup or a song iTunes does not carry must never break the widget, it just stays without art. The one
-    iTunes client lives in the connector (`connectors/music/itunes.py`, V2-795), shared with search/browse."""
+    """(art_url, album) from iTunes. Fail-open: the song just stays without art. The one iTunes client lives in
+    `connectors/music/itunes.py` (V2-795)."""
     from connectors.music import itunes
     return itunes.cover(title, artist)
 
@@ -58,10 +49,8 @@ def _backfill_art(db: dict, key: str, art: str, album: str) -> None:
 
 
 def _enrich_art(db: dict, title: str, artist: str) -> "tuple[str, str]":
-    """Cached iTunes lookup: a HIT is cached forever (an album's art does not change); a MISS is cached only
-    for `_ART_MISS_COOLDOWN_S` — a transient API hiccup, or a title that reads oddly, should not become a
-    permanent "no art" verdict, but a song genuinely absent from iTunes' catalog should not be re-queried on
-    every render either."""
+    """Cached iTunes lookup: a HIT is cached forever (an album's art does not change); a MISS only for
+    `_ART_MISS_COOLDOWN_S`."""
     key = _art_cache_key(title, artist)
     if not key or key == "|":
         return "", ""

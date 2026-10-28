@@ -1,6 +1,5 @@
 # musica — the TRACK and LIST model: a track built from a payload or a resolved provider track, the display
-# clean-up of an upload title, and the resolution of a spoken list or track reference (refactor2710-12 T-03: moved
-# out of `data.py`, which re-exports every name here).
+# clean-up of an upload title, and the resolution of a spoken list or track reference (`data.py` re-exports all).
 import re
 
 
@@ -19,19 +18,16 @@ _ARTIST_TITLE_SEP = re.compile(r"\s+[-–—:]\s+")   # "Artist - Title" / "Arti
 
 def _split_artist_title(text: str) -> "tuple[str, str]":
     """Best-effort split of a combined search string into (artist, title), on an EXPLICIT delimiter only.
-    Plain concatenation ('Madonna Papa Don't Preach', no separator) is left untouched — there is no music
-    metadata source here to guess the boundary from, and a wrong guess would be worse than none."""
+    Plain concatenation is left untouched: with no metadata to guess from, a wrong split is worse than none."""
     parts = _ARTIST_TITLE_SEP.split(text, maxsplit=1)
     if len(parts) == 2 and parts[0].strip() and parts[1].strip():
         return parts[0].strip(), parts[1].strip()
     return "", text.strip()
 
 
-# YouTube upload titles carry boilerplate no album ever had ("(Official Video)", "[Lyric Video]"…). Stripped
-# for DISPLAY ONLY — the STORED title never changes, so this stays reversible and the no-restart guard
-# (V2-047 F5, which compares queries against the stored `yt.query`) is untouched. Only a KNOWN, closed set of
-# upload tags is removed, applied repeatedly because an upload sometimes stacks two ("Song (Official Video)
-# (4K)") — never a guess, the same discipline `_split_artist_title` follows: recognize, don't invent.
+# YouTube upload boilerplate ("(Official Video)", "[Lyric Video]"…) stripped for DISPLAY ONLY — the STORED title
+# never changes, so the no-restart guard on `yt.query` is untouched (V2-047 F5). Only a KNOWN, closed set of tags,
+# applied repeatedly for stacked ones: recognize, don't invent.
 _YT_TAG_RE = re.compile(
     r"\s*[\(\[]\s*(?:official\s*(?:music\s*)?(?:video|audio|lyric\s*video)?|lyrics?(?:\s*video)?|"
     r"audio\s*(?:only)?|visualizer|hq|hd|4k|remaster(?:ed)?(?:\s*\d{2,4})?)\s*[\)\]]\s*$",
@@ -52,11 +48,9 @@ def _clean_yt_title(title: str) -> str:
 
 
 def _yt_display(yt: dict) -> dict:
-    """The `yt` block reshaped for what the card SHOWS: upload boilerplate stripped from the raw video title,
-    and an artist split off an explicit 'Artist - Title' delimiter when the connector could not name one
-    separately (YouTube never does — Spotify already gives artist/title apart). Never mutates the stored
-    block: all the OTHER fields (`videoId`/`cmd_seq`/`paused`/`volume`/`queue`) pass through byte-identical,
-    which is what `widget.js::syncYtPlayer`'s equality checks depend on."""
+    """The `yt` block reshaped for what the card SHOWS: boilerplate stripped, an artist split off an explicit
+    delimiter. Never mutates the stored block: the OTHER fields pass through byte-identical, which
+    `widget.js::syncYtPlayer`'s equality checks depend on."""
     if not yt or not yt.get("videoId"):
         return yt or {}
     out = dict(yt)
@@ -111,10 +105,8 @@ def _find_playlist(db: dict, ref) -> "dict | None":
 
 
 def _closest_playlist(db: dict, ref) -> "dict | None":
-    """Last-resort resolution for a SPOKEN reference the exact/containment finder missed: the STT
-    garbles a name it has never seen («Trublo» for «True Blue», measured live 2026-09-10 — the play
-    failed with a raw code while the operator was naming his only list). Normalized, space-stripped
-    similarity; only a CLEAR, UNIQUE winner resolves (≥0.6 with the runner-up under 0.5). Anything
+    """Last-resort resolution for a SPOKEN reference STT garbled («Trublo» for «True Blue»). Normalized,
+    space-stripped similarity; only a CLEAR, UNIQUE winner resolves (≥0.6, runner-up under 0.5). Anything
     murkier stays a refusal that names what exists — never a guess between two plausible lists."""
     from difflib import SequenceMatcher
     nref = _d._norm(str(ref or "")).replace(" ", "")
@@ -153,11 +145,8 @@ def _resolve_track_index(tracks: list, item) -> "int | None":
 
 
 def _track_from_resolved(query: str, track) -> dict:
-    """What actually gets remembered in Recent/Top when the card plays a bare query: the RESOLVED provider
-    `Track` (real title, artist, album and — since V2-629 — free cover art) when the connector found one,
-    the operator's own words otherwise. Before this, `_push_recent` stored exactly the spoken/typed query
-    forever, so Home kept showing the raw search string even after the connector had already resolved a
-    clean title and free YouTube-thumbnail art for it."""
+    """What gets remembered in Recent/Top when the card plays a bare query: the RESOLVED provider `Track` (title,
+    artist, album, cover art) when the connector found one, the operator's own words otherwise."""
     title = getattr(track, "title", "") if track is not None else ""
     if not title:
         return {"title": query, "query": query}
