@@ -126,6 +126,8 @@ def test_a_findings_case_must_require_the_results_SHEET():
     # through `scheduled_jobs`, like `remember-and-remind-deadline`, not through the results sheet.
     exempt = {"quick-fact-opening-hours", "remember-and-remind-deadline",
               "find-a-future-release-and-remind-me",
+              # A fact validated for his country (2026-10-28): the answer is spoken, not a results sheet.
+              "verify-streaming-premiere-abroad",
               # Remembering who you are is delivered through conversation: there is no results sheet to require.
               "knows-who-i-am-without-being-told-again",
               # A dictated reply with WhatsApp NOT linked is delivered by speaking the truth with an outcome

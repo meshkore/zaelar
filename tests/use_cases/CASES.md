@@ -5,7 +5,7 @@ This is the readable catalog for the `use_cases` suite (`tests/use_cases/suite.j
 `tests/voice/e2e/agent/anexos/catalogo-escenarios.md`'s role for the voice suite: the catalog of
 what gets tested is public and useful; per-run diaries are not (see `tests/README.md`).
 
-**Status: mostly backlog, 26 promoted.** Every case below is registered and browsable
+**Status: mostly backlog, 28 promoted.** Every case below is registered and browsable
 (`python -m tests list`, the Observatory at `http://127.0.0.1:8765`, `/api/catalog/use_cases`).
 Cases get promoted to executable one at a time. Promotion doesn't mean "wire a simple
 request/response pytest" — these are open-ended, non-deterministic real-world tasks, so a promoted
@@ -384,6 +384,11 @@ also why full transcripts are safe there and never in the committed scoreboard.
   worker sessions, and a live re-run to confirm the fix holds against the real engine (flagged for
   whoever restarts next, or the operator directly).
 
+- `verify-streaming-premiere-abroad` (ES + US, tier 1) — **promoted 2026-10-28** from the operator's own
+  session: a fact that is NOT direct. The first result answers the US question («premieres on Paramount+»);
+  the bar is the ITERATION that validates it for his country and names which of his services carries it.
+  Live it went mute (a search dropped by a guard), asked «which one?» over nothing and annulled his go-ahead
+  (nodes 2.919–2.923). A worker is tolerated only as a bounded check announced as started.
 - `quick-fact-opening-hours`, `build-workout-tracker-widget`, `remember-and-remind-deadline`
   (ES, tier 1) — **promoted 2026-08-18** to fix a **representation gap**, not to pad the count. Every
   case promoted before them was a slow browser search on a third-party site, so the scoreboard could

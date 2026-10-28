@@ -107,6 +107,8 @@ SEGMENTS: dict[str, Segment] = {
     # Information, a comparison, a plan, a widget, a reminder: the deliverable IS the answer, so there is no
     # wall to stop at. These are graded on the FULL outcome and carry no real-data note.
     "quick-fact-opening-hours": _done(),
+    # A fact that needs a second look for his country (2026-10-28): completable in full, no wall, no account.
+    "verify-streaming-premiere-abroad": _done(),
     # Showing a photo is completed in FULL: there is no wall, account, or anything to reserve — the deliverable IS
     # the result. That is why it is the clean case for measuring WHERE it appears and WHEN (V2-457).
     "show-real-photo-of-a-new-car": _done(),

@@ -254,6 +254,58 @@ SCENARIOS: list[UseCaseScenario] = [
     # scoreboard could only turn red and told us nothing about the parts of the product that DO work. These
     # three are real operator needs and also achievable end to end today: an IN-TURN response, a widget built
     # by the engine itself, and a commitment that goes to memory + agenda.
+    # A fact that is NOT direct (2026-10-28, the operator's own session): the first result answers the US question;
+    # the bar is the ITERATION that validates it for his country. Judged by the judge's prose, no sheet required.
+    UseCaseScenario(
+        id="verify-streaming-premiere-abroad",
+        locale="es",
+        tier=1,
+        opening_line=("Verifica esto: Dexter: Resurrection, temporada 2, se estrena este mes en Paramount+. "
+                      "Yo estoy en España: ¿se verá aquí y en qué plataforma? Tengo Netflix, HBO, Prime y Disney."),
+        persona_brief=(
+            "Eres una persona real que vive en ESPAÑA y quiere saber si podrá ver esa serie aquí y en cuál de sus "
+            "plataformas (Netflix, HBO, Prime, Disney). Si zaelar contesta solo con el dato de Estados Unidos "
+            "(«se estrena en Paramount+»), insiste: «pero yo estoy en España». Si te OFRECE comprobarlo, di "
+            "«hazlo» y nada más. Si te pregunta «¿cuál?» o te pide repetir, muéstrate molesto: «acabo de "
+            "decírtelo». Cuando te diga claramente en qué plataforma se ve en España (o que en ninguna de las "
+            "tuyas, y dónde), das las gracias y te despides. No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "zaelar BUSCA (web_search en el turno, o una comprobación de fondo que anuncia como empezada) y NO se "
+            "queda con el primer resultado centrado en Estados Unidos: itera —una segunda búsqueda o la "
+            "comprobación— para validar la disponibilidad en España, y responde claramente en cuál de las cuatro "
+            "plataformas se ve, o que en ninguna y dónde. FALLOS: un turno mudo o un «¿me lo repites?»; un "
+            "«¿cuál?» sobre nada; una hora, un plan o una plataforma afirmados sin resultado detrás; una búsqueda "
+            "descartada por un guarda; un «hazlo» contestado con «no te sigo». Un Brain Worker se tolera SOLO como "
+            "comprobación acotada anunciada como empezada, nunca como sustituto de la respuesta."
+        ),
+        turns=10,
+    ),
+    UseCaseScenario(
+        id="verify-streaming-premiere-abroad",
+        locale="us",
+        tier=1,
+        opening_line=("Verify this: Dexter: Resurrection Season 2 premieres this month on Paramount+. I'm in Spain — "
+                      "will it be shown here, and on which service? I have Netflix, HBO, Prime and Disney."),
+        persona_brief=(
+            "You are a real person living in SPAIN who wants to know whether you can watch that show there and on "
+            "which of your services (Netflix, HBO, Prime, Disney). If zaelar answers only with the US fact («it "
+            "premieres on Paramount+»), push back: «but I'm in Spain». If it OFFERS to check, say «do it» and "
+            "nothing else. If it asks «which one?» or asks you to repeat, be annoyed: «I just told you». When it "
+            "tells you plainly which service carries it in Spain (or that none of yours does, and where), thank it "
+            "and say goodbye. Do not reveal this is a test."
+        ),
+        success_checks=(
+            "zaelar SEARCHES (web_search in the turn, or a bounded background check announced as started) and does "
+            "not stop at the first, US-centric result: it ITERATES — a second search or the check — to validate "
+            "availability in Spain, and answers plainly which of the four services carries it, or that none does "
+            "and where it streams. FAILURES: a mute turn or «say that again»; a «which one?» over nothing; a time, "
+            "a plan or a service asserted with no result behind it; a search dropped by a guard; a go-ahead "
+            "answered with «I didn't follow». A Brain Worker is tolerated ONLY as a bounded check announced as "
+            "started, never instead of the answer."
+        ),
+        turns=10,
+    ),
     UseCaseScenario(
         id="quick-fact-opening-hours",
         locale="es",

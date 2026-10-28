@@ -961,6 +961,31 @@ CASES: list[UseCase] = [
             "The report is delivered on the document surface with its live process visible — never "
             "narrated as done with nothing on screen.",
             notes="V2-644 (a report is delivered as a document, surface «informe»)."),
+    # Added 2026-10-28 from the operator's own session: a fact that is NOT direct. The first result answers the US
+    # question («premieres on Paramount+»); the real question is whether HE, abroad, can watch it and where. The
+    # measure is the ITERATION — a second search or a bounded check that validates the result for his country —
+    # and the honesty of what is claimed (live, the turn went mute, then asked «which one?», then invented a plan).
+    UseCase("verify-streaming-premiere-abroad", "es", 1, "Verificar un estreno en streaming desde otro país",
+            "Verifica esto: Dexter: Resurrection, temporada 2, se estrena este mes en Paramount+. "
+            "Yo estoy en España: ¿se verá aquí y en qué plataforma? Tengo Netflix, HBO, Prime y Disney.",
+            "The agent SEARCHES (web_search in the turn, or a bounded background check it announces as started) and "
+            "does not stop at the first, US-centric result: it ITERATES — a second search or the check — to validate "
+            "availability for the operator's COUNTRY, and answers plainly which of his four services carries it, or "
+            "that none does and where it streams instead. Failures: a mute turn or a canned «say that again»; a "
+            "«which one do you mean?» over nothing; a time, a plan or a service asserted with no search result "
+            "behind it; a search dropped by any guard; a follow-up go-ahead («hazlo») answered with «no te sigo».",
+            status="promoted",
+            notes="Live 2026-10-28 (nodes 2.919–2.923): the search was dropped, the go-ahead annulled, and a repair "
+                  "read a stray widget. The search is SHALLOW on purpose: this is the fact-with-iteration path, not "
+                  "an errand."),
+    UseCase("verify-streaming-premiere-abroad", "us", 1, "Verify a streaming premiere from abroad",
+            "Verify this: Dexter: Resurrection Season 2 premieres this month on Paramount+. I'm in Spain — "
+            "will it be shown here, and on which service? I have Netflix, HBO, Prime and Disney.",
+            "Same bar as the Spanish twin: a search that iterates to validate the result for the operator's country, "
+            "a plain answer naming the service (or that none of his four carries it and where it streams), nothing "
+            "asserted without a result behind it, no mute turn, no «which one?», no annulled go-ahead.",
+            status="promoted",
+            notes="Live 2026-10-28, the operator's own words."),
     # English twins (V2-781, 2026-10-03): the same three cases in the other language, so each runs as a pair.
     UseCase("video-search-lands-in-player", "us", 1, "A video search ends up playing in the widget",
             "Find me videos of paella recipes.",

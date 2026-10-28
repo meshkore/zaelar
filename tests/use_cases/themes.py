@@ -86,7 +86,8 @@ _assign("search",
         "search-holiday-rental", "used-car-search-wallapop", "house-search-los-angeles",
         "buy-known-product", "show-real-photo-of-a-new-car", "compare-broadband-plans",
         "compare-phone-plans", "compare-insurance-quotes", "found-next-apartment",
-        "things-to-do-nearby-weekend", "kid-friendly-activity-nearby", "quick-fact-opening-hours")
+        "things-to-do-nearby-weekend", "kid-friendly-activity-nearby", "quick-fact-opening-hours",
+        "verify-streaming-premiere-abroad")
 
 _assign("booking",
         "restaurant-tonight-madrid", "restaurant-tonight-nyc", "search-restaurant-occasion",
