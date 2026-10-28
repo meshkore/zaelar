@@ -371,7 +371,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/provider_health.py': 3,
     'nucleo/rails.py': 1,
     'nucleo/rehydrate.py': 7,
-    'nucleo/request_row.py': 1,
+    'nucleo/request/model.py': 1,
     'nucleo/research.py': 7,
     'nucleo/reset.py': 4,
     'nucleo/runstate.py': 4,

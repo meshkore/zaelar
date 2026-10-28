@@ -334,7 +334,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
-    "nucleo (top)": 22415,      # refactor2710-02: circuit.py moved to nucleo/circuit/; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
+    "nucleo (top)": 22306,      # refactor2710-02: circuit.py and request_row.py moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
@@ -345,6 +345,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/flash": 31550,
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
+    "nucleo/request": 144,      # refactor2710-02: born — request_row.py MOVED in as `model.py`; `heard()`, his words for the errand
     "nucleo/susurro": 1386,
     "nucleo/turn": 2169,
     "nucleo/workers": 6453,
