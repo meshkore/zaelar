@@ -359,6 +359,8 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
         if escalate_req["v"] is None:
             escalate_req["v"] = text
         return
+    if not res.ok and res.needs == "ambiguous":     # a sure verdict on this act: his words name the row (2.901)
+        res = _card.his_row(_brief, wid, action_name, payload, _txw._bnotes.operator_half(text)) or res
     if not res.ok:
         acted["widget"] = True                      # lo ATENDIMOS (preguntando) — no caer a escalate/fallback
         # V2-754 — before «which one?»: a verdict naming ANOTHER action here means the doubt was the action.
