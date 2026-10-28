@@ -1,18 +1,7 @@
 """widgets/agenda/recur.py — a REPEATING appointment: one row with a rule, expanded wherever it is read (V2-769).
 
-THE MEASUREMENT (operator's own agenda, 2026-09-25, session a96fdea7). He dictated two weekly appointments
-running until June 2027 — «llevar a Abril a flauta travesera» on Thursdays 15:30-16:15 and «piano de Abril» on
-Tuesdays 15:15-16:00. What the store held afterwards:
-
-    {"title": "Llevar a Abril a flauta travesera", "date": "2026-10-01", ..., "category": "recursiva",
-     "notes": "Todos los jueves de 15:30 a 16:15"}
-    {"title": "Piano de Abril", "date": "2026-09-22", ..., "category": "familia"}
-
-One date each. The first time the model had no field to say «every Thursday», so it smuggled the rule into
-`category` and `notes`. The second time it DID send it — `recurrence: "weekly", repeatUntil: "2027-06-30"` —
-and `add_meeting` dropped both keys without a word, the reply said «desde el 22 de septiembre hasta junio de
-2027», and the week after next was empty. His words: *«es un poco un desastre manejar una simple agenda… no
-solo poner un ítem un día, sino también hacerlo recursivo entre el período que yo te digo»*.
+THE MEASUREMENT (2026-09-25): two weekly appointments dictated «until June 2027» were stored as ONE date each —
+the rule smuggled into `category`/`notes`, or sent as `recurrence` and dropped by `add_meeting` without a word.
 
 THE SHAPE. A series is ONE meeting row carrying
 
@@ -362,71 +351,6 @@ def to_rrule(rep: dict) -> str:
 
 # ── what the agenda's writes call (kept here: `data.py` sits at its line ceiling) ──────────────────────────
 
-#: Every key `add_meeting`/`update_meeting` understand. Anything else a write carries is REPORTED back, never
-#: dropped in silence — the dropped `recurrence` is how his Tuesdays vanished while the reply promised them.
-MEETING_KEYS = frozenset(("title", "date", "startTime", "time", "endTime", "notes", "details", "location",
-                          "place", "category", "attendees", "people", "with", "status", "confirmed", "allDay",
-                          "all_day", "meet", "newTitle", "id", "item", "widget_id", "action",
-                          # a DURATION says the end (V2-773): read by add_meeting and move_meeting alike
-                          "duration", "durationMinutes", "duration_minutes", "minutes", "length") + ALL_KEYS)
-
-
-def ignored_keys(payload: dict) -> list[str]:
-    """The keys of a write that carried a value and that nothing here reads."""
-    return [k for k, v in (payload or {}).items()
-            if k not in MEETING_KEYS and not str(k).startswith("_") and v not in (None, "", [], {}, False)]
-
-
-def attach(new: dict, payload: dict, today: str) -> str:
-    """Give a NEW meeting its rule, if the write carries one. Returns why it could not ("" when fine).
-    The row's `date` becomes the first day the rule lands on, so «los martes» said on a Friday starts on a
-    Tuesday."""
-    rep, why = parse(payload, str(new.get("date") or today), _date(today))
-    if why:
-        return why
-    if rep:
-        new["date"] = first_on_or_after(rep, str(new.get("date") or today))
-        new["repeat"] = rep
-    return ""
-
-
-def update(m: dict, payload: dict, today: str) -> str:
-    """Change the rule of an EXISTING meeting: set it, replace it, move only its end («hasta diciembre»), or
-    drop it («ya no se repite»). Returns why it could not ("" when fine or when nothing about it was said)."""
-    if not any(k in (payload or {}) for k in ALL_KEYS):
-        return ""
-    raw = next((payload[k] for k in RULE_KEYS if k in payload), None)
-    if raw is False or (isinstance(raw, str) and _fold(raw) in _NONE_WORDS):
-        m.pop("repeat", None)
-        return ""
-    cur = m.get("repeat") if isinstance(m.get("repeat"), dict) else None
-    if cur and raw is None and not any(payload.get(k) for k in DAYS_KEYS):
-        until, ok = parse_until(next((payload[k] for k in UNTIL_KEYS if payload.get(k)), ""), _date(today))
-        if not ok:
-            return "no entiendo hasta cuándo se repite — manda `until` como YYYY-MM-DD"
-        cur["until"] = until
-        return ""
-    rep, why = parse(payload, str(m.get("date") or today), _date(today))
-    if why:
-        return why
-    if rep:
-        if cur and cur.get("skip"):
-            rep["skip"] = cur["skip"]
-        m["date"] = first_on_or_after(rep, str(m.get("date") or today))
-        m["repeat"] = rep
-    return ""
-
-
-def weekday(date: str) -> int:
-    """Monday = 0, the convention every `days` list here uses."""
-    d = _date(date)
-    return d.weekday() if d else 0
-
-
-def on(m: dict, date: str) -> bool:
-    """Does this row name `date` — its own day, or one its rule lands on? The selector every edit shares."""
-    return str(m.get("date") or "") == date or (isinstance(m.get("repeat"), dict) and occurs_on(m, date))
-
 
 def skip(m: dict, date: str) -> bool:
     """Cancel ONE occurrence of a series. True when there was one on that day to cancel."""
@@ -439,50 +363,5 @@ def skip(m: dict, date: str) -> bool:
 
 
 # ── the model's own names for the fields, before anything reads them ─────────────────────────────────────
-# Measured in the live use case (2026-09-25, sandbox 20260925-125624): the model sees action NAMES, never their
-# payload shapes (`widgets/brief.py`, on purpose — shapes cost tokens every turn), so it NAMES the fields
-# itself. It got the end right (`endDate` → until) and the rest wrong for us: the series landed on the day it
-# was said (a Friday), all-day, because `startDate`, `start` and `dayOfWeek` were keys nobody read. A natural
-# alias must never cost the fact (the V2-341/V2-473 rule), so they are mapped HERE, once, for every write.
-_HHMM = re.compile(r"^\s*\d{1,2}([:h.]\d{2})?\s*(h|am|pm)?\s*$", re.I)
-_DATE_ALIASES = ("startDate", "start_date", "fromDate", "from_date", "from", "desde", "firstDate", "first_date",
-                 "day", "dia")
-_START_ALIASES = ("start", "startHour", "start_hour", "hour", "hora", "startAt", "horaInicio", "hora_inicio",
-                  "start_time", "starttime")
-_END_ALIASES = ("end", "endHour", "end_hour", "endAt", "horaFin", "hora_fin", "end_time", "endtime")
-_DAYS_ALIASES = ("dayOfWeek", "day_of_week", "weekday", "byday", "dia_semana", "diaSemana")
 
 
-def normalize(payload: dict) -> dict:
-    """A copy of `payload` with the model's natural field names mapped onto the agenda's own — only where the
-    canonical key is absent, so an explicit field always wins. `start`/`end` go to the HOUR when they look like
-    one and to the DAY when they look like a date (`end` as a date is the END of a series)."""
-    p = dict(payload or {})
-
-    def _take(keys):
-        for k in keys:
-            if p.get(k) not in (None, "", []):
-                return k, p.pop(k)
-        return None, None
-    for k in ("start", "end"):
-        v = p.get(k)
-        if isinstance(v, str) and _date(v) and not _HHMM.match(v):
-            p.pop(k)
-            p.setdefault("date" if k == "start" else "until", v)
-    if not p.get("date"):
-        k, v = _take(_DATE_ALIASES)
-        if k:
-            p["date"] = v
-    if not (p.get("startTime") or p.get("time")):
-        k, v = _take(_START_ALIASES)
-        if k:
-            p["startTime"] = v
-    if not p.get("endTime"):
-        k, v = _take(_END_ALIASES)
-        if k:
-            p["endTime"] = v
-    if not any(p.get(k) for k in DAYS_KEYS):
-        k, v = _take(_DAYS_ALIASES)
-        if k:
-            p["days"] = v
-    return p

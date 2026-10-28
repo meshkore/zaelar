@@ -90,6 +90,7 @@ def in_window(db: dict, payload: dict) -> list[dict]:
     # V2-769 — a SERIES contributes the days it has inside the window (copies carrying `seriesDate`), so
     # the count, the keepers and the refusal all see what the calendar shows.
     from . import recur
+    from widgets.agenda import series as _series_m
     return [m for m in recur.expand(db.get("meetings", []), lo, hi) if lo <= str(m.get("date") or "") <= hi]
 
 
@@ -170,6 +171,7 @@ def clear_range(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     # V2-769 — a series loses the DAYS inside the window, never the whole series: «vacía esta semana» must
     # leave next week's piano where it is.
     from . import recur
+    from widgets.agenda import series as _series_m
     skipped = 0
     for occ in [m for m in doomed if m.get("seriesDate")]:
         ser = _series_of(db, occ)
@@ -213,8 +215,9 @@ def _matches(db: dict, payload: dict) -> list[dict]:
     date = _data._resolve_date(raw_date) if raw_date else ""
     out = []
     from . import recur
+    from widgets.agenda import series as _series_m
     for m in db.get("meetings", []):
-        if date and not recur.on(m, date):             # V2-769 — one day of a series names the series
+        if date and not _series_m.on(m, date):             # V2-769 — one day of a series names the series
             continue
         ftitle = textmatch.fold(m.get("title") or "")
         if not ftitle:
@@ -242,20 +245,8 @@ def dup_key(m: dict) -> tuple[str, str, str]:
 def dedupe_meetings(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     """KEEP ONE of each identical group and remove the copies. The action «simplify to one» needed (V2-710).
 
-    Measured 2026-09-16, session `7a22136c`:
-
-        he      «Okay. I see two. Items today at the same time.»
-        zaelar  «You're right — two entries at 11:30 today… duplicates of the same appointment. Would you
-                 like me to remove one of them?»
-        he      «Yes, please. Simplify to one.»
-        engine  BOTH gone
-        he      «I said simplify to one, not delete both… the smart move would have been deleting one of
-                 those. But you just did delete the two of them.»
-
-    Nothing misread him. `cancel_meeting` removes every identical copy ON PURPOSE — eleven copies of one
-    «Dentist» are a sync artifact, not eleven appointments, and asking «which of the eleven?» would be the
-    absurd question. The model had no other action to reach for, so it reached for that one. The gap was in
-    the VOCABULARY, not in the resolution: there was no way to say «leave one».
+    «Simplify to one» once removed BOTH: `cancel_meeting` removes every identical copy on purpose (eleven copies
+    of one «Dentist» are a sync artifact), and there was no way to say «leave one». The gap was VOCABULARY.
 
     `title`/`date` NARROW which groups are touched; with neither, every duplicate group in the calendar is
     collapsed. A group is identical title + day + hour — the same key `cancel_meeting` calls one
@@ -333,6 +324,7 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     # V2-769 — WITH a date, one day of a series is cancelled and the rest of the series stays («este jueves no
     # hay flauta»). Without one — or with `whole` — the series goes entirely, like any appointment.
     from . import recur
+    from widgets.agenda import series as _series_m
     _day = _data._resolve_date(str(payload.get("date") or "")) if str(payload.get("date") or "").strip() else ""
     # V2-770 — «a partir de enero ya no hay piano»: the series ENDS the day before; nothing earlier is touched.
     from . import edit
