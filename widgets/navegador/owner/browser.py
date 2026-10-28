@@ -1,7 +1,6 @@
 """`TaskBrowser`: one task's own tab — opening it, capturing it, navigating, closing popups, closing it. Its
-actions and its reads of the page are the mixins in `browser_steps` and `browser_page`.
-Moved out of `owner.py`; the owner's state and every module name are read through the package (`_o.<name>`), so a
-patch on `owner` still governs every call.
+actions and its reads of the page are the mixins in `browser_steps` and `browser_page`. The owner's state and every
+name are read through the package (`_o.<name>`), so a patch on `owner` governs every call.
 """
 
 import asyncio
@@ -29,11 +28,9 @@ class TaskBrowser(_StepsMixin, _PageMixin):
             return self.page
         await _o._ensure_page()                 # ensure the window (persistent context) + main tab
         self.page = await _o._context.new_page()   # new TAB in the SAME window
-        # V2-358 — the HTTP STATUS of the page the tab is standing on, kept fresh by the response stream (goto
-        # AND click-driven navigations). It is the wall signal no needle can miss: coches.net serves its block
-        # with TWO different bodies («…eres un bot» and a bare «Ups! Parece que algo no va bien…») but the SAME
-        # 403 — measured live 2026-08-27 (round 08:03: the worker hammered the identical URL four times, no
-        # wall, no alts, sheet 0). Subresources never touch this: main-frame document responses only.
+        # V2-358 — the HTTP STATUS of the page the tab stands on, kept fresh by the response stream (goto AND
+        # click-driven navigations): the wall signal no body needle can miss (one 403, many block pages).
+        # Main-frame document responses only.
         self.last_status = 0
         def _on_response(r):
             try:
@@ -51,8 +48,8 @@ class TaskBrowser(_StepsMixin, _PageMixin):
     def _emit(self, label: str, text: str = "", **extra) -> None:
         # Observer only (/debug). Clicks/navigation/captures do NOT go to the card feed: the feed tells the PROCESS
         # (phases + milestones), not every action. Milestones are pushed by the flow (_automate) with tasks.milestone.
-        # V2-044: each navigation step is chained to the phrase that requested the task (the owner runs in the server
-        # loop, without turn context → the trace lives in the task registry).
+        # V2-044: each navigation step is chained to the phrase that requested the task (no turn context in the
+        # server loop → the trace lives in the task registry).
         if "trace" not in extra:
             try:
                 from widgets.navegador import tasks as _tasks
@@ -79,10 +76,8 @@ class TaskBrowser(_StepsMixin, _PageMixin):
             title = await page.title()
         except Exception:
             pass
-        # V2-167 (second half): the tab is the ONLY place that holds both the URL and the text, so it is the only
-        # place that can spot a wall served in the BODY with an ordinary URL (measured: entradas.com answering an
-        # event page with an Akamai «Access Denied»). Bounded and best-effort — a capture must never fail because
-        # the text could not be read, and the predicate that judges it only looks at short pages anyway.
+        # V2-167 (second half): the tab is the ONLY place holding both URL and text, so the only one that can spot a
+        # wall served in the BODY of an ordinary URL. Bounded and best-effort: a capture never fails for the text.
         from widgets.navegador import tasks
         body = ""
         try:
@@ -99,10 +94,8 @@ class TaskBrowser(_StepsMixin, _PageMixin):
         try:
             await page.goto(url, wait_until="domcontentloaded")
             await _o._dismiss_overlays(page)
-            # AND IT RECORDS WHICH PAGE IT WAS DONE FOR. Without this, the sweep runs TWICE per navigation: here
-            # and again in the look that follows, because the URL has just changed and that is precisely the
-            # condition that triggers the sweep. It is the same toll just removed from `look`, charged through
-            # the other gate.
+            # ...and it records WHICH PAGE it was done for, so the look that follows does not sweep again just
+            # because the URL has just changed.
             self._overlays_host = _o._host_of(getattr(page, "url", "") or url)
             await asyncio.sleep(0.35)
         except Exception as e:
@@ -111,9 +104,8 @@ class TaskBrowser(_StepsMixin, _PageMixin):
         await self._capture()
 
     async def _reap_popups(self) -> None:
-        """TASK 3 — avoid accumulating tabs: close popups (target=_blank) that the website opens after clicking (seen:
-        30 tabs in one study). If the popup was the listing we meant to view, ABSORB its URL into OUR tab and close it
-        → one listing = same tab, processed and discarded. Never touches another task's tab."""
+        """Avoid accumulating tabs: close popups (target=_blank) the site opens after a click. If the popup was the
+        listing we meant to view, ABSORB its URL into OUR tab and close it. Never touches another task's tab."""
         try:
             ctx = self.page.context
         except Exception:

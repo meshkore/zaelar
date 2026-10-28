@@ -1,7 +1,6 @@
 """`TaskBrowser`'s actions (`_StepsMixin`): one step of the automator or the bridge, every route that reaches
-the mouse or the keyboard behind the one gate, and the operator's OK for an irreversible click.
-Moved out of `owner.py`; the owner's state and every module name are read through the package (`_o.<name>`), so a
-patch on `owner` still governs every call.
+the mouse or the keyboard behind the one gate, and the operator's OK for an irreversible click. The owner's state
+and every name are read through the package (`_o.<name>`), so a patch on `owner` governs every call.
 """
 
 import asyncio
@@ -22,12 +21,8 @@ class _StepsMixin:
         try:
             if action == "navigate":
                 await self._goto(_o._normalize_url(str(args.get("url", ""))))
-                # V2-152: reaching a page is a MILESTONE by this module's own definition (what the task DID, not
-                # every click), and nothing in the worker-driven path ever appended one — `_automate` pushes the
-                # milestones and that is the built-in loop, not the path a Brain Worker drives. So `steps` was
-                # structurally 0 and `last_event` empty for the whole life of a worker task, and the brain had a
-                # step COUNT of zero to answer «¿cómo va?» with. `_goto` already captures the view on success, so
-                # `url` is not the gap here; the FEED is.
+                # V2-152: reaching a page is a MILESTONE (what the task DID, not every click); in the worker-driven
+                # path nothing else appends one, so `steps`/`last_event` would stay empty for «¿cómo va?».
                 from widgets.navegador import tasks
                 tasks.milestone(self.task_id, f"🌐 abrió {page.url[:120]}")
                 return True, f"navegado a {page.url}"
@@ -40,9 +35,8 @@ class _StepsMixin:
                 await self._capture()
                 return True, "desplazado"
             if action == "press":
-                # V2-711 T1 — this pressed Enter with NO gate of any kind, and Enter inside a form is a
-                # submit: the same consequence as the click the gate next door was guarding. Gated on the
-                # FOCUSED element, which is what Enter acts on.
+                # V2-711 T1 — Enter inside a form is a submit, the same consequence the click gate guards: gated
+                # on the FOCUSED element, which is what Enter acts on.
                 key = str(args.get("key", "Enter")) or "Enter"
                 if key.lower() in ("enter", "numpadenter", "return"):
                     ok, why = await self._may_act(page, None)
@@ -60,22 +54,14 @@ class _StepsMixin:
             ref = int(args.get("ref", 0))
             h = self.refs.get(ref)
             if h is None:
-                # V2-248 — AN EXPIRED REF SAID WHAT WAS HAPPENING BUT NOT HOW TO RECOVER. Same contract as node 4.20
-                # and V2-203: the bridge SAYS what it knows, and an error also says how to recover. Measured by the
-                # harness on 2026-08-21 (`ref 26 does not exist`, the V2-212 form): it is one of the three causes
-                # that made a worker die on its own, while the recovery —look again— was one command away.
-                #
-                # It is deliberately NOT retried using only the new snapshot: numbers are ASSIGNED during a look,
-                # so 26 in the new look is a different element. Retrying would click something else.
+                # V2-248 — an expired ref says how to RECOVER (look again), not only what happened. Deliberately NOT
+                # retried with the new snapshot: numbers are ASSIGNED per look, so 26 there is a different element.
                 return False, _o._stale_ref_reason(ref, self.refs, getattr(self, "refs_url", ""),
                                                 getattr(page, "url", "") or "")
             if action == "click":
-                # CONFIRM-GATE (safety): if the click looks IRREVERSIBLE, STOP and ask the operator for OK
-                # BEFORE clicking. The automator never buys/publishes/deletes/books blindly.
-                # V2-711 T1: this used to be the ONLY gated route and it judged the LABEL alone — 21 of 30
-                # real button labels walked through it, «Reservar» and «Confirmar reserva» among them — and
-                # it failed OPEN when the element could not be described. All four routes share `_may_act`
-                # now, which reads the element's CONTEXT as well as its words and fails CLOSED.
+                # CONFIRM-GATE (safety): an IRREVERSIBLE-looking click STOPS for the operator's OK BEFORE clicking.
+                # All four routes share `_may_act` (V2-711 T1), which reads the element's CONTEXT as well as its
+                # words and fails CLOSED when it cannot be described.
                 ok, why = await self._may_act(page, h)
                 if not ok:
                     return False, why
@@ -124,9 +110,8 @@ class _StepsMixin:
         """`click_at`/`type_at`: act on a point of the screenshot (the VISION route), gated like every other route
         that reaches the mouse or the keyboard."""
         x, y = float(args.get("x", 0)), float(args.get("y", 0))
-        # V2-711 T1 — the VISION route, which `nucleo/nav_cli.py` RECOMMENDS to the worker («VISION
-        # flow (robust for forms)»), reached the mouse with no gate at all: the recommended path was
-        # the unguarded one. The element under the pixel is resolved BEFORE the mouse moves.
+        # V2-711 T1 — the VISION route (the one `nav_cli` recommends for forms) is gated too: the element under
+        # the pixel is resolved BEFORE the mouse moves.
         if action == "click_at":
             ok, why = await self._may_act(page, None, at=(x, y))
             if not ok:
@@ -154,7 +139,7 @@ class _StepsMixin:
 
     async def _confirm(self, label: str) -> bool:
         """Ask the operator for OK on an irreversible action and WAIT for the response (by voice, routed to this task).
-        Returns True if approved. Timeout ~60s → do not execute (fail-safe). Cancellable."""
+        Returns True if approved. `_CONFIRM_TIMEOUT` without an answer → do not execute (fail-safe). Cancellable."""
         from widgets.navegador import tasks
         tasks.ask(self.task_id, _click_reason.card_question(label))
         try:

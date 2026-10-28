@@ -1,7 +1,5 @@
 """The owner's lifecycle: a cheap start (Chromium launches on first use), stop, closing the window while keeping
-the profile, and whether it runs headless.
-Moved out of `owner.py`; the owner's state and every module name are read through the package (`_o.<name>`), so a
-patch on `owner` still governs every call.
+the profile, and whether it runs headless. Names are read through the package (`_o.<name>`).
 """
 
 import os
@@ -53,10 +51,9 @@ async def _close_browser() -> None:
 
 
 def _headless() -> bool:
-    """HEADLESS by DEFAULT (2026-07-08): runs IN THE BACKGROUND, without a window → it does not steal the operator's
-    focus/cursor (they can type on their computer while the bot automates) and it does not need to be watched —
-    screenshots are enough. To SEE IT (manual driving / LOGIN), enable visible mode: store `navegador_visible=true`,
-    env ZAELAR_NAVEGADOR_VISIBLE=1, or authenticate's runtime override."""
+    """HEADLESS by DEFAULT: runs in the background without a window, so it never steals the operator's focus.
+    To SEE IT (manual driving / LOGIN): store `navegador_visible=true`, env ZAELAR_NAVEGADOR_VISIBLE=1, or
+    authenticate's runtime override."""
     if _o._visible_override is not None:      # authenticate forces visible for login, then returns to headless
         return not _o._visible_override
     if os.environ.get("ZAELAR_NAVEGADOR_VISIBLE", "").strip().lower() in ("1", "true", "yes"):

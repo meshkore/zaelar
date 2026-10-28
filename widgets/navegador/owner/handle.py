@@ -1,7 +1,6 @@
 """The owner's mailbox (`handle`), the cookie/consent banner it clears after each navigation, and the reason an
-expired element ref gives.
-Moved out of `owner.py`; the owner's state and every module name are read through the package (`_o.<name>`), so a
-patch on `owner` still governs every call.
+expired element ref gives. The owner's state and every name are read through the package (`_o.<name>`), so a
+patch on `owner` governs every call.
 """
 
 import asyncio
@@ -12,14 +11,8 @@ from widgets.navegador import owner as _o
 
 
 def _host_of(url: str) -> str:
-    """The DOMAIN of a URL — the granularity at which cookie consent exists.
-
-    It was stored by URL, and `type --submit` in a search engine CHANGES the URL: the following look would
-    scan everything again. Measured in the 19:39 run on `search-buy-guitar__es`: `type` worked (at 19:39:07
-    the capture was already `/search?keywords=guitarra+acustica`) and the bridge still reported a timeout at
-    25 s, three times in a row. A CMP is per domain: accepted on wallapop.com, it does not reappear while
-    moving within it.
-    """
+    """The DOMAIN of a URL — the granularity at which cookie consent exists. A CMP accepted on a domain does not
+    reappear while moving within it, and keying by URL made every `type --submit` (new URL) sweep again."""
     try:
         from urllib.parse import urlparse
         return (urlparse(url).netloc or "").lower()
@@ -38,8 +31,7 @@ async def _dismiss_overlays(page) -> None:
         if btn:
             await btn.click(timeout=2000)
             _o._emit("dismiss_overlay", "cmp-accept")
-            # WAIT until the banner is fully CLOSED before returning (otherwise the screenshot still shows the wall —
-            # consentmanager close takes ~1-2s, longer than the previous fixed 0.4s sleep).
+            # WAIT until the banner is fully CLOSED before returning, or the screenshot still shows it.
             try:
                 await page.wait_for_selector(combined, state="hidden", timeout=2500)
             except Exception:
@@ -48,11 +40,8 @@ async def _dismiss_overlays(page) -> None:
     except Exception:
         pass
     # 2) Text/generic-selector fallback, in ALL frames (some CMPs live in an iframe), without waits.
-    #
-    # ONE query per frame, not one PER SELECTOR. It used to be N frames × M selectors round-tripped, and a
-    # results page with ad iframes has many frames: measured, the full sweep cost ~15-20 s in Wallapop search.
-    # The selectors are combined into one —which is what step (1) immediately above already does— so the
-    # browser resolves the list in one go.
+    # ONE query per frame (the selectors combined, as step 1 does), not one PER SELECTOR: a results page with ad
+    # iframes has many frames, and N × M round trips cost seconds.
     _combined = ", ".join(_o._COOKIE_SELECTORS)
     for fr in page.frames:
         try:
@@ -134,10 +123,9 @@ async def handle(action: str, payload: dict) -> None:
 
 
 # ── TaskBrowser: ONE TAB dedicated to a task ─────────────────────────────────────────────────────────────────
-# Encapsulates its page + mouse + refs and exposes the SAME interface that agent.py expects from `owner`
-# (snapshot_for_agent / agent_act / screenshot_b64 / _emit), so it can drive ITS tab without touching the main tab
-# state (browse_web). 1:1 mapping: task ↔ tab ↔ canvas card. All tabs live in the SAME window (shared persistent
-# context). Reuses page-parametric helpers (_human_*, _dismiss_overlays, _describe_el).
+# Its page + mouse + refs behind the SAME interface agent.py expects from `owner` (snapshot_for_agent / agent_act /
+# screenshot_b64 / _emit), so it drives ITS tab without touching the main tab. task ↔ tab ↔ canvas card, 1:1, all
+# in the SAME window (shared persistent context).
 def _stale_ref_reason(ref: int, refs: dict, snap_url: str, now_url: str) -> str:
     """Why that `ref` is invalid and WHAT to do, in one line the worker can use without guessing."""
     nums = sorted(int(k) for k in (refs or {}))
