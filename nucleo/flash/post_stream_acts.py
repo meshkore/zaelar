@@ -1,25 +1,24 @@
-"""The post-stream chain holds the model to its WORDS: a pure show over a spurious tool, a ghost worker, the third rung, the escalate gate's evidence, promised reminders and dated notes, an order on a card that was never called (V2-778 F1, 2026-10-01).
+"""The post-stream chain COMPLETES the acts a turn owed: a pure show over a spurious tool, a ghost worker, the third
+rung, the escalate gate's evidence, an order on a card that was never called, a search the card answers (V2-778 F1).
 
-Moved out of `nucleo/flash/post_stream.py::run` (951 lines) with no behaviour change. Every name the block read
-from `post_stream` is read through it (`_pst.<name>`), so a patch on `post_stream` still governs it. The function
-takes the chain's locals it read as keyword arguments and returns the ones the rest of `run` reads, only when
-bound.
+Was `post_stream_words.py`. Since refactor2710-03 nothing here reads our reply's words to decide: whether an act was
+owed is the brief's verdict (`nucleo/turn/reply.owes_an_act`) and what the turn says is the mouth's
+(`nucleo/turn/reply.py`). What is left are act repairs — owed to the act sections (refactor2710-04/05/06), not to the
+mouth. Every name the block read from `post_stream` is read through it (`_pst.<name>`), so a patch on `post_stream`
+still governs it.
 """
 from __future__ import annotations
 
-from nucleo.flash import agenda_claims as _agc   # «I've removed it» with no call → its cancel_meeting
 from nucleo.flash import card_commission as _cardc_ws
-from nucleo.flash import note_backstop as _nb    # the dated-note backstop's one decision, both channels
 from nucleo.flash import post_stream as _pst
 from nucleo.flash import second_pass as _second_pass   # a question the state answers, composed (2026-10-21)
 from nucleo.request import stop as _stop_decision   # V2-820: a correction of the running errand reaches it
-from nucleo.flash import reminder_backing as _rback   # promise → job, claim → checked (both halves)
 from nucleo.flash import verdict_card as _vcard     # a sure close that an inner order outranks is not owed
 from nucleo.turn import split_by_errand as _sbe   # a sentence about several errands goes part by part (2.643)
 from nucleo.turn import promise_kept as _pk      # a promise ends ran, repaired or said undone (V2-790)
 
 
-async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
+async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _has_workers, _prompt_mod, _repeat_repair, _router, _show_guard_target, _tag_emit, _tool_fired, _turn_op_tasks, acted, brain, canvas_h, clarify, cron_seen, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, text, worker_acted) -> dict:
     spoken_text = "".join(spoken).strip()
     _stop_decision.steer(_brief, _router.operator_words(operator_text, text), worker_acted=worker_acted, emit=emit, escalate_req=escalate_req)  # V2-820: first
     # GUARD DETERMINISTA de SHOW puro (V2-023, ampliado 2026-07-14). "muéstrame el de mensajería" / "abre la
@@ -154,34 +153,6 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
             emit("brain", "🧭 escalada por guard (marketplace→navegar / modificar-widget→generador)",
                  text=_guard_text[:80], role="system")
 
-    # BACKSTOP DE AVISO PROMETIDO (V2-146, impl PARALELA con el probe — cablear en AMBOS): el modelo prometió
-    # el recordatorio en PROSA y no emitió la tag, así que `scheduled_jobs.created` salió vacío mientras el
-    # turno decía «te avisaré el miércoles». El ejecutor de tags funciona y el prompt lo pide con todas las
-    # letras: faltaba hacerlo cuando el modelo no lo hace. Solo con un momento RESOLUBLE — la función
-    # devuelve "" ante cualquier expresión que no sea inequívoca, porque un aviso mal fechado no se nota
-    # hasta el día que no suena.
-    # V2-153: the probe's same decision. 2026-10-10: a CLAIMED reminder is checked against the schedule.
-    if spoken_text and (_fix := _rback.back_and_check(spoken_text, operator_text, window=brain._window, emit=emit,
-                                                      backstop=not cron_seen["v"])):
-        send(speech.sanitize(_fix, drop_metadata=False))
-        spoken_text = f"{spoken_text} {_fix}"
-
-    # BACKSTOP DEL APUNTE CON FECHA (V2-159, espejo del probe — cablear en AMBOS). La OTRA mitad del mismo
-    # encargo: el caso pide las dos cosas —el compromiso registrado y el aviso— y la corrida salió con el
-    # cron puesto y ninguna cita. Solo si el turno no hizo ya una data-op.
-    if spoken_text and not data_done["v"]:
-        try:
-            _note = _nb.note_to_file(spoken_text, operator_text, window=brain._window, emit=emit)   # one decision
-            if _note:
-                import widgets as _w_note
-                await _w_note.dispatch_tag("widget.data", {"id": "agenda", "data": {
-                    "action": "add_meeting", "payload": _note}})
-                emit("widget", "🗓️ cita apuntada por backstop (lo prometió sin emitir la data-op)",
-                     text=f"{_note['date']} · {_note['title']}", role="system",
-                     extra={"id": "agenda", "act": "add_meeting", "backstop": True})
-        except Exception:
-            pass
-
     # EVERY tool the model can answer with counts — demo pass 2026-09-28, I1: «show me a red ferari f40» called
     # show_images, the pictures came up, and the verdict «completed» the «empty» turn with a YouTube search too.
     _completed = ""                     # the action the verdict's completion ran, if it ran one (pass 90, S2)
@@ -234,8 +205,8 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
                  extra={"cat": "flash", "widget": _ar_wid, "action": "close"})
             _ar_wid = ""
         _ar_vo, _ar_va = _pst._direct_action.from_brief(_brief)    # full41 E3: a refusal of the verdict's declared act
-        _ar = await _agc.or_repair(_op_text, spoken_text, lambda: _act_repair.call_for_promise_or_order(_op_text,
-            spoken_text, _ar_wid, _ar_va if _ar_vo == _ar_wid else "", spec=spec, window=list(brain._window), outcome=_pk_out) if _ar_wid else None)
+        _ar = await _act_repair.call_for_promise_or_order(_op_text, spoken_text, _ar_wid, _ar_va if _ar_vo == _ar_wid
+            else "", spec=spec, window=list(brain._window), outcome=_pk_out) if _ar_wid else None
         # Demo pass 67, B1: a promise to find a wallpaper, the catalogue naming the EMPTY picture viewer, and no
         # call from the pass — the promise backstop then spent a worker. That order is the picture search.
         _pic = None if (_ar or not _ar_wid) else _cardc_ar.picture_search_for(_ar_wid, _op_text)
@@ -256,7 +227,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
                  text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
                  extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
             # the words did not promise it (they may have REFUSED it): what was done is said after them
-            _ar_tail = _act_repair.after_the_repair(spoken_text, _router.promises_action(spoken_text),
+            _ar_tail = _act_repair.after_the_repair(spoken_text, False,
                                                     _ar["widget_id"], _ar["action"])
             if _ar_tail:
                 data_done.setdefault("owed", []).append(_ar_tail.strip())   # said once the op answered (V2-783 P0-2)

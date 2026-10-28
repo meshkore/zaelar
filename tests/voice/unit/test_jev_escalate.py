@@ -88,24 +88,17 @@ def test_failed_disabled_and_empty_never_annul(monkeypatch):
 # confident `handle_inline` alone produced the engine's oldest failure — a promise the operator
 # heard with nothing on the board. `handle_inline` means «no worker needed», not «already done».
 
-def test_a_promise_in_the_reply_VETOES_the_annulment():
-    """The case that costs money in the wrong direction: Jev is confidently wrong, we already said
-    we would do it, and the commission is the only thing that would have made that true."""
-    for reply in ("Te lo busco ahora mismo.",
-                  "Voy a mirar los vuelos y te digo.",
-                  "Déjame que lo compruebe.",
-                  "Te pongo algo de rock."):
-        v = _eg.annulment_verdict("handle_inline", reply=reply, acted=False, anything_running=False)
-        assert v["annul"] is False, f"a promised errand was annulled: {reply!r}"
-        assert v["disposition"] == _eg.PROMISED
-
-
-def test_a_NEGATED_promise_is_not_a_promise():
-    """«No voy a buscarlo» commits to nothing. The clause arithmetic is V2-534's and lives in
-    `nucleo/flash/negation.py`; this only proves the gate inherits it instead of re-deriving it."""
-    v = _eg.annulment_verdict("handle_inline", reply="No voy a buscarlo, no hace falta.",
-                             acted=False, anything_running=False)
-    assert v["disposition"] != _eg.PROMISED
+def test_an_owed_order_VETOES_the_annulment(monkeypatch):
+    """The case that costs money in the wrong direction: Jev's escalate key is confidently `handle_inline`, the brief
+    reads an ORDER, and nothing ran — the commission is the only thing that would make the order true. The brief
+    decides, never our words (refactor2710-03)."""
+    from nucleo.turn import reply as _reply
+    monkeypatch.setattr(_reply, "owes_an_act", lambda brief: "order" if brief == "ORDER" else "")
+    for said in ("Te lo busco ahora mismo.", "", "Done."):
+        v = _eg.annulment_verdict("handle_inline", reply=said, acted=False, anything_running=False, brief="ORDER")
+        assert v["annul"] is False and v["disposition"] == _eg.PROMISED, said
+    v = _eg.annulment_verdict("handle_inline", reply="Te lo busco ahora mismo.", acted=False, anything_running=False)
+    assert v["disposition"] != _eg.PROMISED, "no order in the brief: the words commit to nothing"
 
 
 def test_a_real_inline_result_lets_the_annulment_through():
@@ -157,13 +150,15 @@ def test_a_verdict_that_is_not_handle_inline_never_annuls():
         assert v["annul"] is False and v["disposition"] == _eg.DELEGATED
 
 
-def test_every_outcome_is_a_NAMED_disposition():
+def test_every_outcome_is_a_NAMED_disposition(monkeypatch):
     """A commission that simply disappears is the failure this gate exists to prevent, so there is
     no unnamed exit: each of the four paths ends on a constant the timeline can be counted by."""
+    from nucleo.turn import reply as _reply
+    monkeypatch.setattr(_reply, "owes_an_act", lambda brief: "order" if brief == "ORDER" else "")
     named = {_eg.DELEGATED, _eg.HANDLED_INLINE, _eg.PROMISED, _eg.UNRESOLVED}
-    seen = {_eg.annulment_verdict(c, reply=r, acted=a, anything_running=w)["disposition"]
+    seen = {_eg.annulment_verdict(c, reply="", acted=a, anything_running=w, brief=b)["disposition"]
             for c in ("handle_inline", "escalate")
-            for r in ("", "Te lo busco.")
+            for b in (None, "ORDER")
             for a in (True, False)
             for w in (True, False)}
     assert seen <= named and len(seen) == 4, seen

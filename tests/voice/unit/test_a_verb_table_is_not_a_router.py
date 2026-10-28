@@ -274,8 +274,8 @@ def test_the_verdict_alone_can_send_an_unkept_order_to_a_worker():
     o = _brief({_tb.ESCALATE_KEY: ("escalate", 1.0), _tb.REQUEST_KEY: ("order", 0.99)})
     assert _da.verdict_escalates(o, answered=True), "an order is work even when the reply sounds finished"
     src = _vts.read(_ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert src.count("_direct_action.verdict_escalates(_brief, answered=not _router.promises_action(spoken_text))") == 2, (
-        "both backstop gates pass whether the reply answered")
+    assert src.count("_direct_action.verdict_escalates(_brief, answered=bool(spoken_text))") == 2, (
+        "both backstop gates pass whether the model said anything — never what our words promised (refactor2710-03)")
 
 
 def test_a_repair_that_may_write_needs_a_sure_action_verdict(monkeypatch):

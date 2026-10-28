@@ -53,7 +53,7 @@ def note(kind: str, label: str, role: str = "", extra: dict | None = None) -> No
         cid = str(e.get("id") or "").strip()
         if label == "action_failed" and cid:
             # The `data:<act>` event is the ORDER, emitted before dispatch; a control the card refused did not
-            # happen, and the receipt must not name it (`flash.transport_receipt`, 2026-10-11).
+            # happen, and the receipt must not name it (`turn.reply_receipts.player`, 2026-10-11).
             with _lock:
                 _state["failed"].append((cid.split("::", 1)[0], str(e.get("action") or "")))
             return

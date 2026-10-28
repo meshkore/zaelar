@@ -130,7 +130,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/post_stream.py': 2,
     'nucleo/flash/post_stream_lanes.py': 89,
     'nucleo/flash/post_stream_settle.py': 59,
-    'nucleo/flash/post_stream_words.py': 29,
+    'nucleo/flash/post_stream_acts.py': 29,
     'nucleo/flash/presence.py': 1,
     'nucleo/llm/prewarm.py': 11,
     'nucleo/flash/probe.py': 45,

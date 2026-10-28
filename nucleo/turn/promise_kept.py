@@ -12,7 +12,7 @@ and got the same promise again. Three ways the existing repair never opened:
     act reached him unqualified;
   · a second pass that called nothing told nobody whether the words promised nothing or the card could not do it.
 
-The mechanism, one door shared by the voice turn (`post_stream_words` + `turn_after`) and the text channel
+The mechanism, one door shared by the voice turn (`post_stream_acts` + `turn_after`) and the text channel
 (`probe_mirrors`):
 
   1. `card_for_the_repair` — when no verdict names a card: the card of a call the MODEL made this turn that did not
@@ -112,32 +112,23 @@ def _not_kept_line() -> str:
         return ""
 
 
-def honest_line(reply: str, outcome: dict | None, *, acted: bool) -> str:
-    """The words owed when a reply committed and nothing ran — "" when something ran or nothing was committed.
+def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) -> str:
+    """The words owed when the turn owed an act and nothing ran — "" when something ran or nothing was owed.
 
     · the pass declared it cannot  → its own sentence (or the i18n line);
     · the pass's call was swallowed by a guard → the i18n line (a claim over a discarded op is not «done»);
-    · the pass read the words and called nothing → nothing (its judgement stands over any wording reader);
-    · no pass could run (no card) and the reply still owes it (`owed`: the verdict first) → the i18n line."""
-    if acted or not (reply or "").strip():
+    · the pass read the turn and called nothing → nothing (its judgement stands);
+    · no pass could run (no card) and the brief says an act was owed (`owed`) → the i18n line."""
+    if acted:
         return ""
     kind = str((outcome or {}).get("kind") or "")
-    if kind in (CALL, STARTED):
+    if kind in (CALL, STARTED, JUDGED):
         return ""
     if kind == CANNOT:
         return str((outcome or {}).get("say") or "").strip() or _not_kept_line()
     if kind == SWALLOWED:
         return _not_kept_line()
-    if kind == JUDGED:
-        return ""
-    try:
-        from nucleo.flash import act_repair as _ar
-        if _ar.words_shape(reply) in ("asked", "asked_which"):
-            return ""                       # a question waits for HIM; nothing was owed yet
-    except Exception as _e:  # noqa: BLE001
-        _log.debug(f"promise_kept: line 141 failed: {_e!r}")
-        pass
-    return _not_kept_line() if owed(reply) else ""
+    return _not_kept_line() if owed(brief) else ""
 
 
 def _state_holds(open_ids=None) -> bool:
@@ -154,65 +145,49 @@ def _state_holds(open_ids=None) -> bool:
         return False
 
 
-def owed(reply: str, *, open_ids=None) -> bool:
-    """Does a reply that ran nothing (and had no pass) owe «not done»? The reply's verdict before any table (CRIT-K1):
-
-    · the verdict holds the act for HIS word (`ask_first`, at any confidence) → nothing owed: the next act is his
-      choice («they're on screen — tell me the number and I'll play it»);
-    · the verdict read no promise → only a CLAIM of a done state can still owe it, and only when no op of this request
-      left that state on screen;
-    · a promise (verdict, or the tables when the verdict is absent) → owed; a claim alone → owed unless it holds."""
+def owed(brief, *, open_ids=None) -> bool:
+    """Does a turn that ran nothing (and had no pass) owe «not done»? The brief's verdict decides (CRIT-K1): an order or
+    an escalation at its confidence, unless an op of this request already left that state on screen (V2-792)."""
     try:
-        from nucleo.circuit import harness as _harness
-        from nucleo.flash import reply_promise as _rp
-        from nucleo.flash import router_guards as _rg
-        from nucleo.flash import committed_reply as _pb
-        if not reply or _rp.held_for_him(reply):
-            return False
-        if _rp.verdict(reply) == "act":
-            return True                     # the verdict IS the evidence: no table has to know his language (V2-794)
-        if _rp.verdict(reply) != "none" and (_pb.committed(reply) or _rg.promises_action(reply)):
-            return True
-        return _harness.claims_done(reply) and not _state_holds(open_ids)
+        from nucleo.turn import reply as _reply
+        return bool(_reply.owes_an_act(brief)) and not _state_holds(open_ids)
     except Exception as _e:  # noqa: BLE001
         _log.debug(f"promise_kept: owed failed: {_e!r}")
         return False
 
 
-def close(reply: str, outcome: dict | None, *, acted: bool, emit=None) -> str:
+def close(reply: str, outcome: dict | None, *, acted: bool, emit=None, brief=None) -> str:
     """`honest_line`, said on the timeline when it is owed. Both channels call this at the end of the turn."""
-    line = honest_line(reply, outcome, acted=acted)
+    line = honest_line(reply, outcome, acted=acted, brief=brief)
     if line and emit is not None:
         try:
             emit("brain", "🤝 promesa cerrada — dice que no lo ha hecho", text=line[:160], role="system",
-                 extra={"cat": "flash", "kind_diag": "promise_closed",
+                 extra={"cat": "flash", "kind_diag": "promise_closed", "source": "brief",
                         "outcome": str((outcome or {}).get("kind") or "no_pass"), "reply": (reply or "")[:160]})
         except Exception as _e:  # noqa: BLE001
             _log.debug(f"promise_kept: line 154 failed: {_e!r}")
-            pass
     return line
 
 
 # ── a promise of work handed over LATER starts its errand (V2-794) ──────────────────────────────────────────
 
-def deferred_errand(reply: str, outcome: dict | None, *, acted: bool, model_calls=()) -> bool:
-    """Does this reply owe an ERRAND rather than a «not done»? Pure; never raises.
+def deferred_errand(reply: str, outcome: dict | None, *, acted: bool, model_calls=(), brief=None) -> bool:
+    """Does this turn owe an ERRAND rather than a «not done»? Pure; never raises.
 
-    «I'll put the forty together for you… you'll have them on the card in a while»: the reply's verdict read `act`, the
-    model called nothing, no card took a second pass, and nothing was started — so «in a while» was a promise
-    nobody would keep. When the reply's own verdict says its result comes LATER (`reply_promise.defers`), the only
-    thing that can keep it is a worker, whatever the escalate question guessed before the reply existed. Not when:
-    something ran or was routed; the model made any call (a call a guard ate is the honest line's case, V2-753);
-    the pass ran a call, declared it cannot, or was swallowed; the reply holds the act for his word."""
+    «I'll put the forty together for you… you'll have them on the card in a while»: the brief said the turn commissions
+    background work (`escalate`), the model called nothing, no card took a second pass, and nothing was started — so
+    «in a while» was a promise nobody would keep; only a worker can keep it. Not when: something ran or was routed;
+    the model made any call (a call a guard ate is the honest line's case, V2-753); the pass ran a call, declared it
+    cannot, or was swallowed."""
     try:
-        if acted or not (reply or "").strip():
+        if acted:
             return False
         if str((outcome or {}).get("kind") or "") not in ("", JUDGED):
             return False
         if any(isinstance(c, dict) and c.get("name") for c in (model_calls or ())):
             return False
-        from nucleo.flash import reply_promise as _rp
-        return not _rp.held_for_him(reply) and _rp.verdict(reply) == "act" and _rp.defers(reply)
+        from nucleo.turn import reply as _reply
+        return _reply.owes_an_act(brief) == "escalate"
     except Exception as _e:  # noqa: BLE001
         _log.debug(f"promise_kept: deferred_errand failed: {_e!r}")
         return False
@@ -223,7 +198,7 @@ def start_deferred(reply: str, outcome: dict | None, *, acted: bool, brief, mode
     """The voice door: start the errand a deferred promise owes, through the turn's own escalation (the same portal
     every escalation crosses). True when it was started — the turn end then owes no line."""
     if escalate is None or not (op_text or "").strip() or not deferred_errand(reply, outcome, acted=acted,
-                                                                              model_calls=model_calls):
+                                                                              model_calls=model_calls, brief=brief):
         return False
     try:
         from nucleo import surfaces as _surf
@@ -309,16 +284,19 @@ def landed(call, outcome: dict, *, run, acted: dict, data_done: dict, escalate_r
 
 
 def say_after(reply: str, data_done: dict, *, acted, send, speech, window: list, emit, turn=None) -> str:
-    """The voice turn end: a deferred promise's errand started, else the honest line, spoken after what streamed and
-    kept in the dialog window. `turn` = `(brief, model_calls, op_text, escalate)` of the voice turn, or None."""
+    """The voice turn end: a deferred promise's errand started, else the honest line, said by the mouth
+    (`nucleo/turn/reply.py`, verdict `cannot` or `unmet`) after what streamed and kept in the dialog window.
+    `turn` = `(brief, model_calls, op_text, escalate)` of the voice turn, or None."""
     outcome = data_done.setdefault("promise", {}) if isinstance(data_done, dict) else None
-    if turn and start_deferred(reply, outcome, acted=bool(acted), brief=turn[0], model_calls=turn[1], op_text=turn[2],
+    brief = turn[0] if turn else None
+    if turn and start_deferred(reply, outcome, acted=bool(acted), brief=brief, model_calls=turn[1], op_text=turn[2],
                                escalate=turn[3], emit=emit):
         return ""
-    line = close(reply, outcome, acted=bool(acted), emit=emit)
+    line = close(reply, outcome, acted=bool(acted), emit=emit, brief=brief)
     if line:
-        send(" " + speech.sanitize(line, drop_metadata=False))
+        from nucleo.turn import reply as _reply
+        verdict = "cannot" if str((outcome or {}).get("kind") or "") == CANNOT else "unmet"
+        _reply.speak([_reply.Outcome(verdict, "turn", "promise", said=line)], (reply or "").strip(), send, speech)
         if window and window[-1].get("role") == "assistant":
             window[-1]["content"] = (str(window[-1].get("content") or "") + " " + line).strip()
     return line
-
