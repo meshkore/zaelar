@@ -430,7 +430,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777). Never for growth in place.
-_TOTAL_MAX = 169866   # demo sandbox 2026-10-28: +135 for the declared mechanisms of nodes 2.925-2.930, the ack, the one op-answer door and the steer's readers, each with its test
+_TOTAL_MAX = 169809   # T-17: +78 over 169731 from #77's declared mechanisms (nodes 2.925-2.930); pay back by the next deletion pass. T-09b deleted 35 dead lines (widget_action_tag, tasks_due, by_memory)
 
 
 def test_the_total_only_shrinks():
