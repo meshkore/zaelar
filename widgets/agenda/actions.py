@@ -236,23 +236,11 @@ def _a_clear_range(action, payload, db, _extra) -> dict:
 
 
 def _a_clear_all(action, payload, db, _extra) -> dict:
-    # EMPTY THE ENTIRE AGENDA in ONE action (2026-08-14, session b70a45d0).
-    #
-    # The operator asked «vacía la agenda por completo, hoy y siempre» SIX times in four minutes and it was not
-    # emptied. It was not a model failure: this API simply **could not express that intention**. There were only
-    # single-item actions (`drop` one task, `cancel_meeting` one meeting, `drop_project` one project), so the
-    # FlashBrain could only remove one thing per turn — and each turn said «hecho», which was true of the action
-    # it had triggered and false of what it had been asked to do. On the 4th attempt it escalated to a worker,
-    # which died holding the authorization because of another, separate failure.
-    #
-    # When a frequent intention does not fit in the declared vocabulary, the model has no way to get it right:
-    # the answer is to expand the vocabulary, not fine-tune the prompt. The two slowest turns of the session
-    # (25.6 s of TTFT each) were precisely the ones spent on this impossible decision.
-    #
-    # IRREVERSIBLE → the manifest marks it `confirm:true`, and the gate in `widgets/confirm.py` asks for yes/no first.
-    # All THREE lists are emptied: without them, «por completo» would still be false. Projects are FROZEN
-    # (`frozen`, the same state as `drop_project`) instead of being deleted: they are the operator's working
-    # memory, and they asked for an empty agenda, not to lose what each project was about.
+    # EMPTY THE ENTIRE AGENDA in ONE action (2026-08-14): «vacía la agenda por completo» was asked SIX times and never
+    # done, because the API could only remove ONE thing per turn — when a frequent intention does not fit the declared
+    # vocabulary, the vocabulary grows; the prompt is not tuned. IRREVERSIBLE → `confirm:true` in the manifest, the gate
+    # in `widgets/confirm.py` asks first. All THREE lists are emptied; projects are FROZEN (as `drop_project`), not
+    # deleted: they are the operator's working memory, and he asked for an empty agenda, not to lose them.
     for t in db.get("tasks", []):
         if t.get("status") in (None, "todo", "in_progress"):
             t["status"] = "dropped"
