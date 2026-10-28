@@ -19,8 +19,7 @@ def _a_show_sources(action, payload, q, db, contacts, now) -> dict:
 
 
 def _a_sync_source(action, payload, q, db, contacts, now) -> dict:
-    # ONE pass of ONE source, on demand. The permanent half is `sources.tick`; this is «trae mis
-    # contactos de Telegram ahora».
+    # ONE pass of ONE source, on demand («bring my Telegram contacts now»); the permanent half is `sources.tick`.
     from . import sources
     res = sources.sync_now(str(payload.get("source") or "").strip().lower())
     if not res.get("ok"):
@@ -96,8 +95,7 @@ def _a_set_auto(action, payload, q, db, contacts, now) -> dict:
     # V2-701 — «eso debería quedarse conectado de forma permanente». The switch is the state; the
     # background tick reads it every pass, so turning it off stops the next one with nothing to cancel.
     on = _d._truthy(payload.get("auto"), default=True)
-    # V2-714 — ONE switch per source, and the same switch for both halves of it: «no vamos a poner dos
-    # opciones… un botón de sincronizar que se queda activado». Naming a source routes to that source;
+    # V2-714 — ONE switch per source, the same for both halves of it. Naming a source routes to that source;
     # naming none keeps meaning Google, which is what every existing caller means.
     src = str(payload.get("source") or "").strip().lower()
     if src:
