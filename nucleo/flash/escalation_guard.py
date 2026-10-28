@@ -96,7 +96,7 @@ def escalation_text(operator_text: str, turn_text: str) -> str:
     return ""
 
 
-def is_a_fragment(operator_text: str, *, brief=None, last_reply: str = "") -> bool:
+def is_a_fragment(operator_text: str, *, brief=None, last_reply: str = "", errand: str = "") -> bool:
     """`router_guards.too_thin_to_commission`, minus the one shape the brief already tells us about.
 
     THE DEFECT (live session 092569ab, 2026-09-21, the very first turn). The engine offered to deal
@@ -121,6 +121,8 @@ def is_a_fragment(operator_text: str, *, brief=None, last_reply: str = "") -> bo
     from nucleo.flash import prior_line as _prior
     if _prior.answers_our_question(brief, last_reply):
         return False                      # he is answering us: the errand is ours, not his to repeat
+    if errand and _prior.restates_our_offer(last_reply, errand):
+        return False                      # the errand is OUR offer, released by his short go-ahead (2026-10-28)
     return True
 
 
@@ -140,7 +142,7 @@ def drop_if_fragment(escalate_req: dict, *, operator_text: str, brief=None,
         # V2-820 T-06 — the turn's words as the verdict read them: a «vale» after his own cut request is not the
         # whole of what the model was answering, and the commission came from the cut words.
         if not escalate_req.get("v") or not is_a_fragment(_tb.judged_text(brief, operator_text), brief=brief,
-                                                          last_reply=last_reply):
+                                                          last_reply=last_reply, errand=str(escalate_req.get("v") or "")):
             return False
         if emit:
             emit("brain", "🧭 escalada anulada — el turno es un fragmento, no un encargo",

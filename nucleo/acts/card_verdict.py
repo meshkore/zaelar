@@ -56,10 +56,13 @@ def _canvas_leans_close(brief) -> bool:
 
 
 def _action_sure(brief, floor: float = 0.8) -> bool:
+    """The verdict SURELY names a card action (`card:action`). A sure «none» is the opposite fact — live 2026-10-28:
+    «in what channel… I have netflix, hbo, prime, disney» read `none` at 1.00, and a search guard took that sure
+    reading for «a sure order on a card» and dropped the model's web search; the turn ended mute."""
     try:
         from nucleo.turn import brief as _tb
-        _c, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=floor)
-        return bool(info) and bool(info.get("used"))
+        c, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=floor)
+        return bool(info) and bool(info.get("used")) and ":" in str(c or "") and str(c) != "none"
     except Exception:  # noqa: BLE001
         return False
 

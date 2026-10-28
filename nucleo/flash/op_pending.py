@@ -13,11 +13,8 @@ from loguru import logger
 
 
 def _note(text: str) -> None:
-    try:
-        from voice import brain_notes
-        brain_notes.push(text)
-    except Exception:  # noqa: BLE001
-        pass
+    from voice import brain_notes          # best-effort by itself: never raises
+    brain_notes.push(text)
 
 
 def _emit(label: str, wid: str, action: str, text: str = "", **extra) -> None:
@@ -78,18 +75,11 @@ async def still_running(wid: str, action: str, res: dict, *, seal=None, row: str
 
 
 def _settle(row: str, verdict: str, outcome: str) -> None:
-    if not row:
-        return
-    try:
-        from nucleo import circuit as _circuit
+    if row:
+        from nucleo import circuit as _circuit   # the one writer of «done»; it logs and returns on a bad verdict
         _circuit.settle(row=row, verdict=verdict, outcome=outcome)
-    except Exception:  # noqa: BLE001
-        pass
 
 
 def _seal(seal, ok: bool) -> None:
     if callable(seal):
-        try:
-            seal(ok)
-        except Exception:  # noqa: BLE001
-            pass
+        seal(ok)
