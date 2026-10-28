@@ -41,7 +41,7 @@ def relay_out_of_fuel(rec, relay_cap: int) -> None:
             and rec.status != "cancelled" and rec.relay_gen < relay_cap):
         rec.context_retried = True
         try:
-            from nucleo.flash import escalate as _esc
+            from nucleo.acts import errand as _esc
             _esc.escalate_to_slowbrain(context_handoff(rec), context={
                 "src": "context_handoff", "kind": rec.kind, "trace": rec.trace_id,
                 "sheet": str(getattr(rec, "sheet", "") or ""),   # the sheet belongs to the ERRAND, not the session
@@ -70,7 +70,7 @@ def relay_out_of_fuel(rec, relay_cap: int) -> None:
         nxt = rec.provider_down.get("next") or ""
         if nxt:
             try:
-                from nucleo.flash import escalate as _esc
+                from nucleo.acts import errand as _esc
                 _esc.escalate_to_slowbrain(rec.goal, context={
                     "src": "provider_failover", "kind": rec.kind, "trace": rec.trace_id,
                     "sheet": str(getattr(rec, "sheet", "") or ""),   # the sheet belongs to the ERRAND, not the session
@@ -132,7 +132,7 @@ def restart_stalled(rec) -> None:
         if row is None or int(row.get("attempts") or 0) >= STALL_RESTARTS:
             return
         _tasks.store().task_patch(uid, attempts=int(row.get("attempts") or 0) + 1)
-        from nucleo.flash import escalate as _esc
+        from nucleo.acts import errand as _esc
         _esc.escalate_to_slowbrain(context_handoff(rec), context={
             "src": "stall_restart", "kind": rec.kind, "trace": rec.trace_id,
             "sheet": str(getattr(rec, "sheet", "") or ""),

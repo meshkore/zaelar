@@ -15,7 +15,8 @@ Two things the second run of `three-tasks-at-once` measured in the live task reg
 """
 from __future__ import annotations
 
-from nucleo.flash import escalate, router_guards
+from nucleo.acts import errand as escalate
+from nucleo.flash import router_guards
 
 _NOTE = "[SISTEMA] Brain worker · Tarea completada: No he podido encontrar monitores de segunda mano ≤150€"
 _OPENING = ("Oye, tengo tres cosas. Hazme un informe sobre coches eléctricos para ciudad, búscame un monitor "

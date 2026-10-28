@@ -210,7 +210,7 @@ def _the_errand_registries_start_empty():
     measured 2026-10-11, two `turn/` files passed alone and failed in their folder. Cleared per test, only when the
     modules are already loaded (importing them here would change what the suite imports)."""
     import sys
-    esc, ended = sys.modules.get("nucleo.flash.escalate"), sys.modules.get("nucleo.workers.ended")
+    esc, ended = sys.modules.get("nucleo.acts.errand"), sys.modules.get("nucleo.workers.ended")
     if esc is not None:
         esc._tasks.clear()
     if ended is not None:

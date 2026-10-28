@@ -32,7 +32,7 @@ def test_concurrent_callers_never_share_a_value():
 def test_escalate_ids_come_from_the_owner_and_reset_still_works():
     """`escalate.reset()` is a TEST hook and keeps its contract: after it, ids restart at 1. Production never
     rewinds — which is why anything durable keyed on these ids composes `boot_id()` in (dispatch.sheet_id_for)."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     escalate.reset()
     t1 = escalate.escalate_to_slowbrain("busca una cosa concreta")
     assert t1 == 1

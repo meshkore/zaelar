@@ -51,7 +51,7 @@ def _rec(**kw):
 def _stub(monkeypatch):
     escalations: list = []
     parked: list = []
-    from nucleo.flash import escalate as esc
+    from nucleo.acts import errand as esc
     from nucleo.dispatch import confirm as dc
     monkeypatch.setattr(esc, "escalate_to_slowbrain", lambda req, context=None: escalations.append((req, context or {})) or 1)
     monkeypatch.setattr(dc, "remember_offer", lambda request, *, context, question: parked.append((request, context, question)))

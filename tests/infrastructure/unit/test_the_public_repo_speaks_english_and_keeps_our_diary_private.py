@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 2026   # refactor2710-06: measured with 04 and main merged
+TOTAL = 1988   # refactor2710-06: measured with 10 merged
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -123,7 +123,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/dialog.py': 10,
     'nucleo/flash/direct_action.py': 1,
     'nucleo/flash/errand_sheet.py': 10,
-    'nucleo/flash/escalate.py': 16,
+    'nucleo/acts/errand.py': 1,
     'nucleo/llm/fast_client.py': 55,
     'nucleo/flash/hard_turn.py': 1,
     'nucleo/flash/live_blocks.py': 84,

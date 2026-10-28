@@ -1,8 +1,8 @@
-"""Tests for nucleo/flash/escalate.py (V2-004 · T64) — escalation stub: registration + bus event."""
+"""Tests for nucleo/acts/errand.py (V2-004 · T64) — escalation stub: registration + bus event."""
 import pytest
 
 import bus
-from nucleo.flash import escalate
+from nucleo.acts import errand as escalate
 
 
 @pytest.fixture(autouse=True)
