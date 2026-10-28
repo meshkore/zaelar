@@ -368,23 +368,62 @@ def voice_rules_line() -> str:
 # through — read it without opening it, deliver into the deliverable. An errand that delivers no card opens nothing;
 # one that builds or fills a card of his opens that card. Reading, writing and closing are never refused.
 
-def refused(rec, action: str, payload: dict) -> str:
-    """Why this `show_widget` is refused ("" = let it through)."""
-    if action != "show_widget" or not isinstance(payload, dict):
-        return ""
+def not_the_deliverable(rec, wid: str) -> str | None:
+    """None when an errand may show `wid` (it IS or carries the deliverable), else its deliverable card ("" = none).
+    The ONE licence of an errand's show (refactor2710-15): the Request's surface, never the worker's words."""
     from nucleo import surfaces
     surface = str(getattr(rec, "surface", "") or "")
     own = surfaces.deliverable_card(surface)
-    wid = str(payload.get("id") or payload.get("widget_id") or "").split("::", 1)[0].strip().lower()
-    if not wid:
+    wid = str(wid or "").split("::", 1)[0].strip().lower()
+    if not wid or wid in _end_state_cards(rec):
+        return None
+    if surfaces.delivers_no_card(surface):
         return ""
-    if surfaces.delivers_no_card(surface) and wid not in _end_state_cards(rec):
-        _refusal_event(rec, wid, "")
-        return (f"this errand delivers no card — its result is told (or simply done), so it opens nothing on his "
-                f"screen and «{wid}» stays closed. Read it with read_widget (nothing opens) and report your result.")
-    if not own or wid == own:
+    return None if (not own or wid == own) else own
+
+
+def errand_of(src: str):
+    """The errand a canvas act comes from (`worker:<task>`, or `sheet:<sheet>` its search fills), else None."""
+    kind, _, ref = str(src or "").partition(":")
+    if not ref:
+        return None
+    from nucleo.dispatch import registry
+    if kind == "worker":
+        return registry.get_record(ref)
+    if kind == "sheet":
+        from nucleo import dispatch as _d
+        return next((r for r in _d._SESSIONS.values() if str(getattr(r, "sheet", "") or "") == ref), None)
+    return None
+
+
+def a_step_not_a_show(src: str, wid: str, *, emit=None) -> bool:
+    """True when an errand's show is one of its STEPS, not its deliverable: told as a `step`, nothing opens."""
+    try:
+        rec = errand_of(src)
+        if rec is None or (own := not_the_deliverable(rec, wid)) is None:
+            return False
+        if emit is None:
+            from voice.observer import emit
+        task = str(getattr(rec, "task_id", "") or "")
+        emit("step", "↳ a step of the errand, kept off his screen", role="system",
+             extra={"id": wid, "deliverable": own, "task": task, "src": src})
+        return True
+    except Exception as e:  # noqa: BLE001 — an unreadable errand never hides a card: the show goes on
+        __import__("logging").getLogger(__name__).debug("deliverable licence unreadable: %s", e)
+        return False
+
+
+def refused(rec, action: str, payload: dict) -> str:
+    """Why this `show_widget` is refused ("" = let it through), said to the worker with the way through."""
+    if action != "show_widget" or not isinstance(payload, dict):
+        return ""
+    wid = str(payload.get("id") or payload.get("widget_id") or "").split("::", 1)[0].strip().lower()
+    if (own := not_the_deliverable(rec, wid)) is None:
         return ""
     _refusal_event(rec, wid, own)
+    if not own:
+        return (f"this errand delivers no card — its result is told (or simply done), so it opens nothing on his "
+                f"screen and «{wid}» stays closed. Read it with read_widget (nothing opens) and report your result.")
     return (f"this errand's deliverable is the «{own}» card, and it is the only card the errand opens on his screen — "
             f"«{wid}» stays closed. Read it with read_widget (nothing opens) and deliver your result into «{own}».")
 
