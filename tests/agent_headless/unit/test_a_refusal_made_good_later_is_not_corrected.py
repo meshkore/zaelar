@@ -1,5 +1,5 @@
 """A refused op that a later write of the SAME card action made good is not «corrected» out loud (refactor2710-99,
-node 2.904).
+node 2.910).
 
 Use case `remember-and-remind-deadline__us` (2026-10-28, 3/5): the first `add_reminder` attempts were refused («notice_at
 is missing», «that day is already gone»), the next one landed — `scheduled_jobs` had it — and after his goodbye the
