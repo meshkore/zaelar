@@ -332,7 +332,7 @@ class OrchestratorLoop:
                     _rec = dispatch.get_record(tid)
                     _v, _missing = _circuit.ending_note(_rec) if _rec is not None else ("", "")
                     from nucleo.circuit import verdict as _verdict
-                    _line = getattr(_verdict.of(_v), "line_key", "")      # each verdict declares its line
+                    _line = getattr(_verdict.of(_v), "ending_note_key", "")      # each verdict declares its line
                     if _line:
                         note = " " + self._say(_line, missing=_missing[:160])
                 except Exception:  # noqa: BLE001
