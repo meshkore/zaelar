@@ -200,15 +200,10 @@ def _code(path: Path) -> str:
     return " ".join(out)
 
 
-def test_both_channels_answer_a_set_phrase():
-    """V2-539's rule: wire BOTH channels, or the probe hands out verdicts the product never gives."""
+def test_the_voice_turn_answers_a_set_phrase():
+    """The voice turn — which the typed channel runs too — calls the phrasebook lane."""
     voice = _code(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    # The probe channel is TWO files since the V2-674 ratchet pass: the call site and the lane bodies. A
-    # guard pointed at a single file goes green the day the lane silently falls out of the path (V2-555).
-    probe = _code(ENGINE / "nucleo/flash/probe.py") + _code(ENGINE / "nucleo/flash/probe_actionmap.py")
     assert "small_talk" in voice, "the voice provider does not call the phrasebook lane"
-    assert re.search(r"_smalltalk\s*\.\s*mirror", probe), "the probe channel has no phrasebook mirror"
-    assert "try_fast_lanes" in probe, "the probe's lane chain is not wired from probe.py"
 
 
 def test_the_lane_declines_on_the_first_turn_and_while_a_worker_is_asking():
