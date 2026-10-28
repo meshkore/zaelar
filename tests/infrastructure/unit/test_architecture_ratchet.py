@@ -330,3 +330,165 @@ def test_process_identity_has_ONE_owner():
             born.append(f"{rel}:{line}: {m.group(0).strip()}")
     assert not born, ("un contador de módulo nació fuera del dueño — usa runtime_ids.next_seq(name), y si el id "
                       "debe sobrevivir a un reinicio, compón boot_id():\n  " + "\n  ".join(born))
+
+
+# ── 2026-10-27, refactor2710-00: the PACKAGE ratchet ─────────────────────────────────────────────────────────
+# The per-file table above caught god files but not god PACKAGES: `nucleo/flash` grew to 176 files and 37k lines
+# one small, under-the-ceiling module at a time, and nothing went red. The deep refactor (V2-826) is measured
+# against these totals — the same line count `python -m tests.infrastructure.import_graph --summary` prints, bucketed by its
+# `package_of`. Edit DOWNWARD when a section lands (that edit is the section's exit); a new bucket is red until
+# someone writes its number here on purpose.
+_PACKAGE_CEILINGS: dict[str, int] = {
+    "bus": 646,
+    "config": 2525,
+    "connectors": 20313,
+    "library": 805,
+    "memory": 9117,
+    "nucleo (top)": 24101,
+    "nucleo/actionmap": 755,
+    "nucleo/agentes": 793,
+    "nucleo/batch": 903,
+    "nucleo/context_packs": 568,
+    "nucleo/errands": 2563,
+    "nucleo/flash": 36974,
+    "nucleo/memory_agent": 1949,
+    "nucleo/susurro": 1386,
+    "nucleo/turn": 2308,
+    "nucleo/workers": 6463,
+    "nucleo/workflows": 315,
+    "observability": 1005,
+    "rules": 1208,
+    "search": 5474,
+    "server": 5783,
+    "voice": 10089,
+    "voice/engine/llm": 3836,
+    "widgets": 38624,
+}
+
+#: A new file under `nucleo/` is born small. 300 lines, not the tree-wide 900 above: the refactor splits the brain
+#: into doors and mechanisms, and a 400-line file there is a second concern waiting to be named. The files that were
+#: already over it on 2026-10-27 are grandfathered BY NAME and the list only shrinks — when one drops under the
+#: line, it leaves the list in the same commit.
+_NUCLEO_NEW_FILE_MAX = 300
+_NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
+    "nucleo/actionmap/executor.py",
+    "nucleo/batch/runner.py",
+    "nucleo/canvas_arbiter.py",
+    "nucleo/circuit.py",
+    "nucleo/consent.py",
+    "nucleo/danger.py",
+    "nucleo/dispatch.py",
+    "nucleo/dispatch_confirm.py",
+    "nucleo/dispatch_prepare.py",
+    "nucleo/dispatch_prompts.py",
+    "nucleo/energy_lease.py",
+    "nucleo/energy_meter.py",
+    "nucleo/errands/__init__.py",
+    "nucleo/errands/book.py",
+    "nucleo/errands/wake.py",
+    "nucleo/errands/watch.py",
+    "nucleo/flash/accumulator.py",
+    "nucleo/flash/act_repair.py",
+    "nucleo/flash/answer_guards.py",
+    "nucleo/flash/canvas_license.py",
+    "nucleo/flash/canvas_visibility.py",
+    "nucleo/flash/card_close.py",
+    "nucleo/flash/card_commission.py",
+    "nucleo/flash/data_ops.py",
+    "nucleo/flash/delivery.py",
+    "nucleo/flash/dialog.py",
+    "nucleo/flash/direct_action.py",
+    "nucleo/flash/escalation_guard.py",
+    "nucleo/flash/fast_client.py",
+    "nucleo/flash/frontend.py",
+    "nucleo/flash/listing_turn.py",
+    "nucleo/flash/live_blocks.py",
+    "nucleo/flash/payload_fill.py",
+    "nucleo/flash/post_stream_lanes.py",
+    "nucleo/flash/post_stream_words.py",
+    "nucleo/flash/probe.py",
+    "nucleo/flash/probe_after.py",
+    "nucleo/flash/probe_mirrors.py",
+    "nucleo/flash/prompt.py",
+    "nucleo/flash/provider_chain.py",
+    "nucleo/flash/reminder_guards.py",
+    "nucleo/flash/router.py",
+    "nucleo/flash/router_catalog.py",
+    "nucleo/flash/router_guards.py",
+    "nucleo/flash/second_pass.py",
+    "nucleo/flash/segmenter.py",
+    "nucleo/flash/show_target.py",
+    "nucleo/flash/site_catalog.py",
+    "nucleo/flash/task_block.py",
+    "nucleo/flash/tool_executor_calls.py",
+    "nucleo/flash/tool_executor_widget_calls.py",
+    "nucleo/flash/tool_selection.py",
+    "nucleo/flash/turn_brief.py",
+    "nucleo/flash/widget_data_turn.py",
+    "nucleo/flash/widget_read.py",
+    "nucleo/homeostasis.py",
+    "nucleo/jev.py",
+    "nucleo/loop.py",
+    "nucleo/mem_processor.py",
+    "nucleo/memllm.py",
+    "nucleo/memory_agent/gates.py",
+    "nucleo/memory_agent/ingest_steps.py",
+    "nucleo/memory_agent/lang_marks.py",
+    "nucleo/mesh_agents.py",
+    "nucleo/nav_cli.py",
+    "nucleo/notices.py",
+    "nucleo/research.py",
+    "nucleo/runstate.py",
+    "nucleo/scheduler.py",
+    "nucleo/sheets.py",
+    "nucleo/spec.py",
+    "nucleo/susurro/apply.py",
+    "nucleo/susurro/engine.py",
+    "nucleo/tasks.py",
+    "nucleo/turn/promise_kept.py",
+    "nucleo/verify.py",
+    "nucleo/worker_api.py",
+    "nucleo/workers/claude_session.py",
+    "nucleo/workers/codex_session.py",
+    "nucleo/workers/grok_session.py",
+    "nucleo/workers/providers.py",
+    "nucleo/workers/session.py",
+})
+
+
+def _package_totals() -> dict[str, int]:
+    from tests.infrastructure.import_graph import package_of, product_modules
+
+    totals: dict[str, int] = {}
+    for _name, (path, src) in product_modules().items():
+        bucket = package_of(path)
+        totals[bucket] = totals.get(bucket, 0) + src.count("\n") + 1
+    return totals
+
+
+def test_a_package_only_shrinks():
+    totals = _package_totals()
+    over = [f"{pkg}: {n} > {_PACKAGE_CEILINGS[pkg]}" for pkg, n in sorted(totals.items())
+            if pkg in _PACKAGE_CEILINGS and n > _PACKAGE_CEILINGS[pkg]]
+    born = sorted(set(totals) - set(_PACKAGE_CEILINGS))
+    assert not over, "a package GREW — the refactor only removes lines:\n  " + "\n  ".join(over)
+    assert not born, f"a new package bucket has no ceiling yet — write its number in _PACKAGE_CEILINGS: {born}"
+
+
+def test_a_new_nucleo_file_is_born_small():
+    over, shrunk = [], []
+    for rel, p in _engine_py_files():
+        if not rel.startswith("nucleo/"):
+            continue
+        n = _loc(p)
+        if rel in _NUCLEO_GRANDFATHERED:
+            if n <= _NUCLEO_NEW_FILE_MAX:
+                shrunk.append(rel)
+        elif n > _NUCLEO_NEW_FILE_MAX:
+            over.append(f"{rel}: {n} LOC")
+    missing = sorted(f for f in _NUCLEO_GRANDFATHERED if not (ENGINE / f).exists())
+    assert not over, (f"a nucleo file is over {_NUCLEO_NEW_FILE_MAX} lines — split it by concern:\n  "
+                      + "\n  ".join(over))
+    assert not shrunk and not missing, (
+        "a grandfathered file is now under the line or gone — take it off _NUCLEO_GRANDFATHERED: "
+        f"{shrunk + missing}")

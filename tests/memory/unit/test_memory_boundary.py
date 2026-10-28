@@ -42,7 +42,9 @@ def _production_files() -> list[pathlib.Path]:
     """Production .py files: excluding `memory/` (it is the implementation) and `tests/` (may touch internals)."""
     out = []
     for p in REPO.rglob("*.py"):
-        s = str(p)
+        # Relative to the engine, with a leading slash so the patterns still anchor: a checkout that LIVES under
+        # `.claude/worktrees/` would otherwise skip every one of its own files and read «nothing imports memory».
+        s = "/" + p.relative_to(REPO).as_posix()
         if any(d in s for d in _SKIP_DIRS):
             continue
         out.append(p)

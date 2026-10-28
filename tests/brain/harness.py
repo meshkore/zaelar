@@ -462,6 +462,14 @@ def _relative_day(spec: str) -> _dt.date:
 
 
 # ── run ───────────────────────────────────────────────────────────────────────────────────────────────────
+def _a_model_turn(event: dict) -> bool:
+    """Live mode has no recorded model to ask, so «was the model consulted?» is read from the turn's perf row. The
+    action-map lane writes that same row with an EMPTY system prompt (it answers without the model), so the row alone
+    counted every action-map hit as a model turn and turned `forbid: model` red on exactly the turns it protects.
+    A model turn is the row with a prompt behind it."""
+    return str(event.get("label") or "").startswith("🧾 turno") and int(event.get("system_chars") or 0) > 0
+
+
 def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False, channel: str = "probe") -> Outcome:
     """One case, fully isolated, through the headless turn. Never raises for a product failure: the
     outcome carries it, so a run over the whole bank reports every red instead of stopping at the first."""
@@ -509,8 +517,7 @@ def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False, channel
         out.action = str(res.get("action") or "")
         reply = res.get("reply")
         out.reply = " ".join(reply) if isinstance(reply, list) else str(reply or "")
-        out.model_consulted = (any(str(e.get("label") or "").startswith("🧾 turno") for e in out.events)   # the turn's perf row
-                               if live else RecordedModel.consulted)
+        out.model_consulted = (any(_a_model_turn(e) for e in out.events) if live else RecordedModel.consulted)
         out.decision = decision_of(res, out.tool_calls) if res else ""
         out.also, out.cards_touched = _secondary(res, out.tool_calls, out.decision)
     return out
