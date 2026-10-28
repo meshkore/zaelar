@@ -91,8 +91,8 @@ def test_the_text_channel_actually_calls_it():
     reached it."""
     import inspect
 
-    from nucleo.flash import probe_api
-    assert "ensure_for_text" in inspect.getsource(probe_api.say)
+    from nucleo.cli import api
+    assert "ensure_for_text" in inspect.getsource(api.say)
 
 
 def test_but_NOT_from_run_turn_itself(monkeypatch):
@@ -103,8 +103,8 @@ def test_but_NOT_from_run_turn_itself(monkeypatch):
     The HTTP edge is where a real operator is on the other side; `run_turn` is a library function."""
     import inspect
 
-    from nucleo.flash import probe
-    assert "ensure_for_text" not in inspect.getsource(probe.run_turn)
+    from nucleo.cli import turn
+    assert "ensure_for_text" not in inspect.getsource(turn.run_turn)
 
 
 def test_but_the_voice_provider_does_NOT(monkeypatch):
