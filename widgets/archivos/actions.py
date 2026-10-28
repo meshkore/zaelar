@@ -1,10 +1,8 @@
 """Archivos' action handlers — one function per action (or per family sharing one body), dispatched by
 `data.ACTIONS`.
 
-Split out of `data.py`, which keeps the contract and the table. Every handler opens with `_begin`: the prelude
-the old single dispatch ran for every action (load, seed the torrents section, bring the Biblioteca to the front
-for a library verb). Shared helpers are read back through the `data` module, so a test that patches one there
-(`_svc`) is honoured here too.
+Every handler opens with `_begin` (load, seed the torrents section, bring the Biblioteca to the front for a library
+verb). Shared helpers are read through `data`, so a test that patches one there (`_svc`) is honoured here.
 """
 from __future__ import annotations
 
@@ -36,9 +34,8 @@ def _torrent(act: str, payload: dict) -> dict:
 
 
 def _a_sync_providers(act: str, payload: dict) -> dict:
-    # Cheap, read-only-feeling refresh of the header's provider chips — the icon row must be able to show
-    # "Drive"/"OneDrive" BEFORE the operator ever opens the connect wizard. Mirrors `youtube`'s own
-    # `sync_platforms` (V2-597): the card asks once when stale, `view_data` never touches the network.
+    # Refresh of the header's provider chips, so they show before the connect wizard is ever opened. The card asks
+    # once when stale; `view_data` never touches the network (as `youtube`'s `sync_platforms`, V2-597).
     db = _begin(act)
     svc = _d._svc()
     if svc is None:
@@ -90,9 +87,8 @@ def _local_write(act: str, payload: dict) -> dict:
 
 
 def _a_save_document(act: str, payload: dict) -> dict:
-    # V2-661 — a TEXT becomes a file ON A SHELF, whatever the provider on screen: the library is the one
-    # place a file the operator asks for can land (a worker wrote the Declaration into the browser
-    # widget's data dir — the only path it knew — and then watched this card not show it).
+    # A TEXT becomes a file ON A SHELF, whatever the provider on screen: the library is the one place a file the
+    # operator asks for lands (V2-661).
     return _save_document(_begin(act), payload)
 
 

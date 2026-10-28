@@ -1,17 +1,13 @@
 """The agent's OWN library as Archivos' default provider: shelves, listing, search, open, and the local-only writes.
-
-Split out of `data.py` (V2-658 behaviour unchanged). Shared helpers are read back through the `data` module.
+Shared helpers are read back through the `data` module.
 """
 from __future__ import annotations
 
 from . import data as _d
 
 # ── local library ──────────────────────────────────────────────────────────────────────────────────────────
-# `library/paths.py::KINDS` names FOLDERS ("images", "documents" — plural, genesis-facing) while
-# `library/formats.py::kind_of()` classifies a FILE ("image", "document" — singular). The two vocabularies
-# never had to meet before this widget: every other caller only ever filtered by "video"/"audio", where
-# singular and plural happen to coincide. Mapped here rather than in `library/` itself — changing a shared
-# module's contract for one caller is a bigger, riskier edit than translating at the one seam that needs it.
+# `library/paths.py::KINDS` names FOLDERS ("images", plural) while `library/formats.py::kind_of()` classifies a
+# FILE ("image", singular). Translated at this one seam rather than changing the shared `library/` contract.
 _FMT_KIND = {"video": "video", "audio": "audio", "documents": "document", "images": "image"}
 
 
@@ -182,10 +178,8 @@ def _handle_local_nav(db: dict, act: str, payload: dict) -> dict:
 
 
 def _same_machine() -> bool:
-    """Is the browser reading this card on the SAME machine the engine runs on? Self-host: yes, always — the
-    engine process already IS the operator's own computer, so opening a Finder/Explorer window on it shows
-    the operator something real. A container deployment: no — there is no local disk of the operator's to reveal, and
-    trying would open a window on a remote, usually headless, server nobody is looking at."""
+    """Is the browser reading this card on the SAME machine the engine runs on? Self-host: yes. A container
+    deployment: no — revealing a file would open a window on a remote, usually headless, server."""
     try:
         from nucleo.cloud_account import is_cloud_account
         return not is_cloud_account()
@@ -216,11 +210,8 @@ def _handle_local_write(db: dict, act: str, payload: dict) -> dict:
     if not fid:
         return _d._err("dime QUÉ archivo")
     if act == "reveal_local_file":
-        # Read-only from the LIBRARY's point of view (never touches the file) — kept in the "write" gate
-        # anyway because, like the others, it makes no sense for a cloud provider (V2-658: the operator
-        # caught a real duplicate — double-clicking an unplayable local file downloaded a SECOND copy into
-        # his Mac's own Downloads folder, when the file already sat on that same Mac's disk in Zaelar's own
-        # library). Local + self-host: reveal it in place. Anything else: nothing to reveal.
+        # Never touches the file, but sits in the "write" gate because it makes no sense for a cloud provider.
+        # Local + self-host: reveal it in place instead of downloading a second copy (V2-658).
         if not _same_machine():
             return _d._err("el agente está en la nube: aquí no hay una carpeta local que abrir — descarga el "
                         "archivo si lo quieres en este ordenador")

@@ -1,7 +1,4 @@
-"""`save_document`: a TEXT becomes a file on a library shelf, and the card lands on it (V2-661).
-
-Split out of `data.py`.
-"""
+"""`save_document`: a TEXT becomes a file on a library shelf, and the card lands on it (V2-661)."""
 from __future__ import annotations
 
 from . import data as _d

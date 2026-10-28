@@ -1,47 +1,32 @@
 """A real file manager — the agent's OWN library first, the operator's cloud drives beside it (V2-658).
 
-Born as a read-only cloud-drive browser (V2-557). The operator's redesign: **one widget for files**, shaped
-like any file manager — folders you navigate with rename/copy/delete, a file you double-click to open — with
-the agent's own storage (`library/`, V2-638: video/audio/documents/images/downloads) as the DEFAULT provider,
-and each connected cloud service (Drive, OneDrive, …) reachable from an icon in the header, exactly the
-platform-icon-row shape `mensajeria`/`youtube` already use. His framing, verbatim in spirit: the WIDGET carries
-every function: a connector that cannot do something (rename, in Drive's case — no write API here yet) simply
-does not offer it; that is the connector's limit, never this widget's.
+The agent's storage (`library/`, V2-638: video/audio/documents/images/downloads) is the DEFAULT provider; each
+connected cloud service (Drive, OneDrive, …) is reachable from an icon in the header. The WIDGET carries every
+function: a connector that cannot do something simply does not offer it.
 
 ## Two providers, one vocabulary
 
-`open_folder`/`go_up`/`go_home`/`search_files`/`open_file`/`refresh` work the same whatever `db.provider` is —
-only what a `folderId`/`fileId` MEANS differs: for `local` it is a shelf id (`shelf:video`) or a library-relative
-path; for a cloud provider it is that provider's own id, unchanged from V2-557. `rename_file`/`copy_file`/
-`delete_file` are LOCAL ONLY — writing into someone's Drive is a different, bigger decision (V2-557's own
-closing note), so a cloud provider answers those with a plain refusal naming the limit, never a silent no-op.
+`open_folder`/`go_up`/`go_home`/`search_files`/`open_file`/`refresh` work the same whatever `db.provider` is; only
+what a `folderId`/`fileId` MEANS differs (a shelf id or library-relative path for `local`, the provider's own id for
+a cloud one). `rename_file`/`copy_file`/`delete_file` are LOCAL ONLY: a cloud provider refuses them by name, never
+with a silent no-op — writing into someone's Drive is a separate decision (V2-557).
 
-## Why the library has no real nested folders
+## The library has no real nested folders
 
-`library/index.py::listing(kind=...)` classifies every file by EXTENSION across the whole tree, not by which
-physical folder it sits in — the five shelves are a classification, not a directory an operator can create
-subfolders inside. So "navigating a folder" here is one level deep, by design, not a cut corner: a `cut`/`paste`
-between shelves would silently misfile a video into "Documentos" while `listing(kind="video")` kept finding it
-anyway (it reads the extension, not the folder), which is a worse file manager than none. `copy_file` (a plain
-in-place duplicate) is the operation that stays honest under that model; a real move is not offered.
+`library/index.py::listing(kind=...)` classifies files by EXTENSION, so the shelves are a classification, not
+directories: navigation is one level deep by design. A move between shelves would misfile silently, so only
+`copy_file` (an in-place duplicate) is offered.
 
 ## Opening a file routes to the widget that can play it
 
-A widget must never call another widget's package directly (`widgets/AGENTS.md`'s isolation rule). `nucleo/
-library_router` is the sanctioned `nucleo/`-layer hand-off — the same shape `nucleo/torrent_router.py` and
-`nucleo/docsheet.py` already use — so this file never reaches into the video/music widgets' own code. A
-playable image or document opens
-INLINE (this card's own lightweight preview, `preview` in the action's reply — building a second reader is
-cheaper and safer than reaching into `imagenes`/`documento`'s own stores); a playable video/audio hands off and
-raises the player card; anything else is refused with the reason and a download link (`library/formats.py`'s own
-`refusal()` — the operator's pendrive escape hatch).
+A widget never imports another widget's package: `nucleo/library_router` is the hand-off. Images and documents open
+INLINE (`preview` in the reply); playable video/audio hands off and raises the player card; anything else is
+refused with `library/formats.py::refusal()` and a download link.
 
-## Reaching `connectors`/`library` is the pre-existing exemption
+## Reaching `connectors`/`library`
 
-`archivos` is on the hand-reviewed `_STDLIB_EXEMPT` list (`widgets/validator.py`) since V2-557 — a cloud token
-refreshed in the credential store has no stdlib equivalent. The cloud import stays DEFERRED for the same reason
-as before (module import must not pay for `httpx`); `library.*` is pure stdlib underneath and costs nothing to
-import, but is still reached lazily from inside functions, matching the file's own established shape.
+`archivos` is on the validator's `_STDLIB_EXEMPT` list (a cloud token refresh has no stdlib equivalent). The cloud
+import stays DEFERRED (module import must not pay for `httpx`); `library.*` is also reached lazily.
 """
 from __future__ import annotations
 
@@ -64,9 +49,8 @@ _LIBRARY_VERBS = ("refresh", "open_folder", "go_up", "go_home", "search_files", 
 
 _SHELF_LABEL = {"video": "Vídeo", "audio": "Audio", "documents": "Documentos",
                 "images": "Imágenes", "downloads": "Descargas"}
-# The reverse of `_FMT_KIND` (defined below) — a file's `library/formats.py` kind ("document") back to its
-# shelf key ("documents"), so a row can name WHERE it lives. Only meaningful across a flat listing (a search
-# spans every shelf); a plain single-shelf folder already says its shelf in the breadcrumb.
+# The reverse of `local._FMT_KIND` — a file's kind ("document") back to its shelf key ("documents"), so a row in a
+# flat listing (a search spans every shelf) can name WHERE it lives.
 _SHELF_OF_FMT = {"video": "video", "audio": "audio", "document": "documents", "image": "images"}
 
 
@@ -80,9 +64,8 @@ def _seed() -> dict:
 
 def _migrate(db: dict, from_v: int) -> dict:
     if from_v < 2:
-        # v1 could only ever be a cloud drive (provider "" meant "nothing connected yet"). v2's default
-        # provider is the agent's own library, so a bare/empty provider now means LOCAL, not "please connect
-        # something" — force a fresh listing under the new shape rather than replaying a stale cloud one.
+        # v2's default provider is the agent's library: an empty provider means LOCAL, and the stale v1 cloud
+        # listing is dropped for a fresh one.
         db["provider"] = db.get("provider") or "local"
         db["folder_id"] = ""
         db["trail"] = []

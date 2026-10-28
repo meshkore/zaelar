@@ -1,6 +1,5 @@
 """The operator's connected cloud drives as an Archivos provider: status fold, listing and navigation (V2-557).
-
-Split out of `data.py`. The connector itself is reached through `data._svc()` by the caller.
+The connector itself is reached through `data._svc()` by the caller.
 """
 from __future__ import annotations
 
