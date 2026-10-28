@@ -172,7 +172,11 @@ def test_the_voice_provider_gates_model_closes_and_delegates_the_bodies():
     # `screen_action` verdict, and the operator's «no» vetoing both). The claim is unchanged — an
     # unlicensed close must not reach the player — so this is re-anchored, not relaxed: node 2.72
     # owns the licence's own behaviour and this line owns the WIRING.
-    assert 'if action_name == "close" and not _closeg.dataop_close_licensed(' in src, \
+    import inspect
+    from nucleo.acts import card
+    assert card._unlicensed_close in card._LADDER[card.CALL] and \
+        'if action != "close"' in inspect.getsource(card._unlicensed_close) and \
+        "_cg.dataop_close_licensed(" in inspect.getsource(card._unlicensed_close), \
         "the widget_data close (which EMPTIES the loaded video) needs the same license"
     assert "_video_turn.voice_execute(" in src and "_show_target.fullscreen_dispatch(" in src, \
         "the branch bodies live in the shared modules — one impl, both channels"

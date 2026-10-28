@@ -188,7 +188,7 @@ def test_the_voice_turn_calls_the_one_close_door_and_does_not_copy_the_rule():
     voz = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
     # V2-781: the turn reaches it through the ONE data-op close door (`card_close.data_close`), which is the only
     # caller of the short-close rule on the `widget_data` path.
-    assert "_card_close.data_close(" in voz
+    assert "at=_card.CALL" in voz and "_cc.data_close(" in (ENGINE / "nucleo" / "acts" / "card.py").read_text()
     door = _vts.read(ENGINE / "nucleo" / "flash" / "card_close.py")
     assert "is_short_close_order(operator_text)" in door
     assert "len(text.split()) <= 5" not in voz, (

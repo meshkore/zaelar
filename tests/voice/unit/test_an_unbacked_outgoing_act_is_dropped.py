@@ -11,9 +11,12 @@ ENGINE = Path(__file__).resolve().parents[3]
 
 
 def test_the_unbacked_act_is_dropped_with_a_note_and_no_confirmation():
+    import inspect
+    from nucleo.acts import card
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    seg = prov.split("elif _direct_action.verdict_elsewhere(_brief, wid):", 1)[1].split("def _log_dataop", 1)[0]
-    assert "no se ejecuta" in seg
-    assert "_bn_drop.push(" in seg and "NO se ejecutó" in seg and "no la pidió" in seg
-    assert "return" in seg
-    assert "_wactions.CONFIRM" not in seg, "asked instead of dropped is what «ok book it» answered"
+    gate = prov.split("at=_card.LEAVES), emit).verdict != _card.RUN:", 1)[1].split("def _log_dataop", 1)[0]
+    assert gate.lstrip().startswith("return"), "a dropped act ends the gate"
+    seg = inspect.getsource(card._leaves_for_another_card)
+    assert "no se ejecuta" in seg and "DROP" in seg
+    assert "_bn.push(" in seg and "NO se ejecutó" in seg and "no la pidió" in seg
+    assert "CONFIRM" not in seg, "asked instead of dropped is what «ok book it» answered"

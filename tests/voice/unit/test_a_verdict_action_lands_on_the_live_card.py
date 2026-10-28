@@ -23,7 +23,29 @@ def test_a_base_with_no_instance_stays_the_base(monkeypatch):
     assert da.card_to_present("markets", "show me the chart") == "markets"
 
 
-def test_both_rungs_present_through_the_narrowing_door():
-    src = (ENGINE / "nucleo/flash/direct_action.py").read_text(encoding="utf-8")
-    assert src.count('present(card_to_present(rung["widget"], operator_text), reason="turn-order"') == 2
-    assert 'present(rung["widget"], reason="turn-order"' not in src
+_RUNG = {"widget": "results", "action": "layout", "payload": {"view": "side"}, "label": "compare", "source": "brief"}
+
+
+def _live_sheet(monkeypatch):
+    from server import voice_api
+    monkeypatch.setattr(voice_api, "open_instances", lambda: ["agenda", "results::18fe36-ls1"])
+    presented, applied = [], []
+    return presented, applied, (lambda wid, **kw: presented.append(wid)), (lambda *a: applied.append(a))
+
+
+def test_both_rungs_present_through_the_narrowing_door(monkeypatch):
+    """Run both rungs (refactor2710-05: read by what they do, not by their text): the declared action that takes a
+    commission's place (`take_rung`) and the verdict completing the model (`complete`) each bring up the LIVE sheet,
+    never a bare `results` beside it — and the data-op itself still names the card the verdict named."""
+    from nucleo.flash import direct_action as da
+    from nucleo.flash import verdict_card
+    presented, applied, present, apply = _live_sheet(monkeypatch)
+    monkeypatch.setattr(da, "resolve", lambda *a, **k: dict(_RUNG))
+    assert da.take_rung({"v": "compare them side by side", "more": []}, brief=None, operator_text="compare them side by side",
+                        emit=lambda *a, **k: None, present=present, apply_widget_data=apply)
+    monkeypatch.setattr(da, "from_brief", lambda brief: ("results", "layout"))
+    monkeypatch.setattr(verdict_card, "canvas_yields", lambda brief: True)
+    assert da.complete(None, operator_text="compare them side by side", emit=lambda *a, **k: None, present=present,
+                       apply_widget_data=apply, require_order=False) == "layout"
+    assert presented == ["results::18fe36-ls1", "results::18fe36-ls1"], presented
+    assert [a[0] for a in applied] == ["results", "results"]

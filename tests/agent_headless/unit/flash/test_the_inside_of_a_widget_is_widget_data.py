@@ -157,10 +157,13 @@ def test_the_voice_rail_shows_the_card_AND_applies_the_view():
     """«Ábreme el Telegram» asks for two things at once: the card in front and that lens selected. The rail
     does both instead of guessing which one was meant — that is what dissolves the card-vs-inside ambiguity
     the text-matching version tried (and failed) to resolve."""
-    src = _vts.read(ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    i = src.index("show_request_blocks_data_action")
-    window = src[i:i + 1200]
-    assert window.count('_tag_emit("show"') >= 2, \
+    import inspect
+    from nucleo.acts import card
+    from nucleo.flash import tool_executor_widget_calls as _tw
+    rail = inspect.getsource(_tw._handle_widget_data_tool)
+    i = rail.index("at=_card.CALL")
+    window = rail[i:i + 900]
+    assert "_tag_emit(_lic.verdict" in window and '_tag_emit("show"' in window, \
         "the VIEW branch must also show the card, not only apply the data-op"
-    assert "descartada" in window, \
+    assert "descartada" in inspect.getsource(card._pure_show), \
         "the discarded action must be in the event: logging only the widget id left the live incident traceless"
