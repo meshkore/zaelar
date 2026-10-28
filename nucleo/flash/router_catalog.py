@@ -652,9 +652,8 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "set_cluster_objective",
-            # T-02 (audit 2026-07-26): the `perms.gate_dev_by_objective` guard (V2-076)
-            # requires the OPERATOR to set the objective of a cluster relationship before an allowed 'code'
-            # permission may launch a dev-worker — but until this tool there was NO way to set it
+            # T-02 (audit 2026-07-26): the `perms.gate_dev_by_objective` guard (V2-076) requires the OPERATOR to set
+            # a cluster relationship's objective before 'code' may launch a dev-worker — and until this there was NO way to set it
             # (capsule.objective was only READ, never WRITTEN). Operator-only by construction: the cluster turn
             # (untrusted profile) has its OWN filtered catalog (nucleo/flash/cluster.py
             # `_gated_tools_and_handler`, only escalate_to_slowbrain/web_search) — a peer can NEVER reach
