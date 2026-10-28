@@ -7,7 +7,7 @@ consumer downstream (brain notes, worker leads, the results sheet) with wrong-ma
 findings. `_ddg_href` already unwraps ORGANIC redirects; the ad rows passed through whole. An ad row is
 recognized by its URL alone and skipped at the SOURCE, so no consumer ever sees it.
 """
-from nucleo import websearch as W
+from search import web as W
 
 _AD = ("https://duckduckgo.com/y.js?ad_domain=idealo.es&ad_provider=bingv7aa&ad_type=txad"
        "&click_metadata=abc&u3=https%3A%2F%2Fwww.bing.com")

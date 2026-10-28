@@ -10,7 +10,7 @@ the fork INSIDE the imperative — the same lesson V2-222 paid for in `task_bloc
 
 These assert the PROPERTY (the rows reach the face and the order to say them exists), never the wording.
 """
-from nucleo.flash import listing_turn as LT
+from nucleo.acts import search_listing as LT
 
 
 def _res(delivered: bool, n: int, ctx: str) -> dict:
@@ -46,13 +46,3 @@ def test_the_delivered_face_carries_the_rows_and_forbids_inventing():
     assert "AUDI Q5" in face
     assert "No inventes" in face
     assert "búscame un coche diésel por menos de 12 mil" in face, "la petición literal ancla la respuesta"
-
-
-def test_the_voice_turn_calls_the_shared_face():
-    """The wording lives once: the whole sequence (fast pass → face → stream) is `listing_turn.voice_turn`, and the
-    turn calls that body instead of keeping its own copy of the face, which would drift without any noise."""
-    from voice.engine.llm.providers import nucleo as voice_provider
-    src = _vts.getsource(voice_provider)
-    assert "voice_turn(" in src, "the voice turn does not use the shared body"
-    assert "anuncios provisionales en su hoja" not in src, "the voice turn keeps a copy of the face"
-    assert "ANUNCIOS ENCONTRADOS" not in src, "the voice turn keeps a copy of the delivered face"

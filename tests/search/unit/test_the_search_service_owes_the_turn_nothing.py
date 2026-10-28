@@ -45,18 +45,6 @@ def test_search_never_imports_the_turn_the_motor_or_the_widgets():
     assert not bad, "\n".join(bad)
 
 
-def test_the_old_names_are_aliases_of_the_same_module_object():
-    """`from nucleo import websearch` and `from search import web` are ONE module: a patch through either name
-    reaches both, so the existing tests and callers keep measuring the product."""
-    import nucleo
-    from nucleo import browser_search, image_search, listing_extract, listing_search, websearch
-    import search.browser, search.extract, search.images, search.listing, search.web  # noqa: E401
-    assert websearch is search.web and nucleo.websearch is search.web
-    assert listing_search is search.listing and listing_extract is search.extract
-    assert browser_search is search.browser and image_search is search.images
-    assert websearch.search is search.web.search
-
-
 def test_the_hooks_are_no_ops_until_the_host_sets_them():
     from search import hooks
     hooks.chain_failed("quota", "x")          # unset → nothing happens, nothing raises

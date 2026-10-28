@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import websearch as W
+from search import web as W
 
 
 @pytest.fixture(autouse=True)

@@ -7,7 +7,7 @@ the instruction that turns a one-search fact into a Brain Worker on the operator
 """
 from __future__ import annotations
 
-from nucleo.flash import search_turn as st
+from nucleo.acts import search as st
 
 _Q = "¿A qué hora abre mañana el Museo del Prado y cuánto cuesta la entrada general?"
 

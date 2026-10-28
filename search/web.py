@@ -1,5 +1,5 @@
 """search/web.py — WEB SEARCH for facts and leads, the provider CHAIN (V2-022; moved from `nucleo/websearch.py`
-by V2-782, which keeps that name as an alias so every caller and test still works).
+by V2-782; the alias went in refactor2710-06).
 
 **Model-agnostic** search capability (we do not depend on the model having native search — Grok/GLM/Z.AI do not;
 Claude Code does): an internal primitive that any part of the system can call.

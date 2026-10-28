@@ -263,6 +263,27 @@ def test_remember_external_never_touches_identity_or_state(fresh_db):
     assert row is not None and "worker:t9" in (row["meta"] or "")  # stamped provenance
 
 
+def test_remember_external_never_writes_a_result_by_default(fresh_db):
+    """The pill grammar decides the kind: no kind is a fact, and a worker's own «result» is a request until the
+    circuit's verdict writes one (`writer.result`, V2-825 F1)."""
+    from nucleo import memory_agent
+
+    async def run():
+        await memapi.start()
+        try:
+            await memory_agent.remember_external({"text": "El piso de Gràcia cuesta 1.200 € al mes."}, source="worker:t2")
+            await memory_agent.remember_external({"text": "Reserva hecha en el Hotel Arts.", "kind": "result"},
+                                                 source="worker:t2")
+            await asyncio.sleep(0.3)
+        finally:
+            await memapi.stop()
+    asyncio.run(run())
+    d = memdb.get_db()
+    assert d.query_one("SELECT kind FROM memories WHERE text LIKE '%Gràcia%'")["kind"] == "fact"
+    assert d.query_one("SELECT kind FROM memories WHERE text LIKE '%Hotel Arts%'")["kind"] == "request"
+    assert d.query_one("SELECT COUNT(*) c FROM memories WHERE kind='result'")["c"] == 0
+
+
 def test_remember_external_keeps_work_slots_and_rejects_questions(fresh_db):
     from nucleo import memory_agent
 

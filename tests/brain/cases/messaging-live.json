@@ -2860,6 +2860,7 @@
    "worker"
   ],
   "accept": [
+   "data-op agenda:add_reminder",
    "data-op agenda:set_reminder",
    "data-op agenda:add_meeting"
   ],

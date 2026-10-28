@@ -110,7 +110,7 @@ def test_the_hard_exclusions_survive():
 #: Where each channel calls the shared decision: voice in `widget_intent`, text in `show_target` (the body
 #: extracted from `probe.py` on this pass's ratchet). Named per CHANNEL, not per file — this very guard went red
 #: when the extraction moved the call, which is the behaviour a source guard has to have (V2-555).
-@pytest.mark.parametrize("rel", ["voice/engine/llm/providers/widget_intent.py", "nucleo/flash/show_target.py"])
+@pytest.mark.parametrize("rel", ["voice/engine/llm/providers/widget_intent.py"])   # the text channel went (refactor2710-01)
 def test_both_channels_pass_the_last_spoken_line_to_the_resolver(rel):
     """The anti-loop hangs on `last_spoken`. A channel that does not pass it goes on asking forever, and it does
     so in GREEN — the resolver still answers, it just never learns it already asked."""

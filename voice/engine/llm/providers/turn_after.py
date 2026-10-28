@@ -8,6 +8,7 @@ governs it. `close_the_turn` takes the turn's locals it read as keyword argument
 """
 from __future__ import annotations
 
+from nucleo.turn import wait_lines as _wait_lines
 from voice.engine.llm.providers import nucleo as _p, turn_errands as _turn_errands
 from nucleo.turn import promise_kept as _promise_kept   # a promise ends ran, repaired or said undone (V2-790)
 from voice.engine.llm.providers import promise_backstop as _promise_backstop   # promise → escalation (V2-049)
@@ -32,7 +33,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
     if not spoken_text and not _tool_handled:
         try:
             from voice.engine.core import langs                      # V2-603: the shared decision
-            spoken_text = _p._rg.mute_backstop(brain._window, langs.current_language(), _prev_pending,
+            spoken_text = _wait_lines.mute_backstop(brain._window, langs.current_language(), _prev_pending,
                                               operator_text=_op_text)
         except Exception:
             spoken_text = _p._say().still_on_it if _prev_pending else _p._say().say_again

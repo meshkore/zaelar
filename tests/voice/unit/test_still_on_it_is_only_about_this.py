@@ -5,7 +5,7 @@ only when that work is about what he just asked (the conservative V2-176 predica
 from tests import voice_turn_source as _vts
 from types import SimpleNamespace as NS
 
-from nucleo.flash import reminder_guards as rg
+from nucleo.turn import wait_lines as rg
 
 LANG = NS(filler_still_working="Still on it.", mute_lines=("Sorry, I lost that.",), mute_stuck="stuck")
 

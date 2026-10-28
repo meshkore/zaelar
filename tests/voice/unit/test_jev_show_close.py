@@ -181,15 +181,6 @@ def _fake_catalogue(monkeypatch, match: str | None):
     monkeypatch.setattr(_rt, "get", lambda wid: {"id": wid} if wid and wid == match else None)
 
 
-def test_a_confident_show_with_a_real_target_licenses_it(_isolated, monkeypatch):
-    """The behavior this wiring adds: the Spanish-stem grammar never sees the English verb in
-    «show me the agenda», Jev independently reads a show order with confidence, and the existing
-    catalogue resolves it → license. Removing the license branch turns this red."""
-    assert st._show_target("show me the agenda") is None  # the grammar miss this rescues
-    _fake_catalogue(monkeypatch, "agenda")
-    assert st.show_from_verb("show me the agenda", _sure_show_handle()) == ("agenda", "jev")
-
-
 def test_create_vetoes_even_a_confident_show(_isolated, monkeypatch):
     """Creating is not showing: «créame un widget…» + a Jev false-positive must still license
     nothing. Removing the veto turns this red."""

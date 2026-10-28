@@ -4,7 +4,9 @@
   "version": "0.3.0",
   "owner": "Zaelar",
   "licence": "SUL-1.0",
-  "connector_families": ["agenda"],
+  "connector_families": [
+    "agenda"
+  ],
   "title": "Agenda",
   "description": "Tu calendario y tareas: citas, reuniones, tu día, huecos libres («find me a free slot», «cuándo estoy libre»), listas de tareas. Vistas de día, semana, mes y lista; citas por categoría con aviso, asistentes y confirmación; planifica el día y hace de coach.",
   "whenToUse": "Cuando pide su agenda, su día, sus citas, su planning o coaching. TAMBIÉN sus TAREAS y sus LISTAS («ábreme las tareas», «la lista de la compra»): las personales del operador viven aquí, no en Procesos. Y la agenda —no mensajería— tiene el conector de GOOGLE CALENDAR.",
@@ -118,6 +120,14 @@
         "title": "string (título de la cita, aunque sea parcial — OPCIONAL: sin él y con date, TODAS las citas de ese día)",
         "date": "YYYY-MM-DD o «mañana»/día de la semana (con title filtra; SIN title = todas las citas de ese día)",
         "at": "HH:MM del día de la cita, YYYY-MM-DD (otro día, a la hora de la cita) o YYYY-MM-DD HH:MM"
+      }
+    },
+    "add_reminder": {
+      "desc": "un AVISO suelto, sin cita («recuérdame el miércoles renovar el seguro», «avísame en una hora»): el instante lo das tú en `notice_at`; si es para una CITA, va en `remind` de add_meeting",
+      "payload": {
+        "notice_at": "YYYY-MM-DD HH:MM — cuándo suena el aviso (instante absoluto, OBLIGATORIO)",
+        "commitment": "string — qué hay que recordarle, con sus palabras (opcional)",
+        "commitment_at": "YYYY-MM-DD HH:MM — cuándo ocurre lo que se recuerda, si lo dijo (opcional): el aviso nunca cae después"
       }
     },
     "dedupe_meetings": {

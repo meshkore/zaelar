@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import json
 
-from nucleo import websearch as W
+from search import web as W
 from tests.use_cases.e2e.agent import verify as V
 
 _REAL_PAGE = ("<html><body><!--> DuckDuckGo Unfortunately, bots use DuckDuckGo too. Please complete the "

@@ -176,7 +176,7 @@ def continues_ended(request: str, kind: str, ended: list[dict]) -> tuple[str, di
 #    results sheet instead of opening a second box beside it (`continues_ended`, above).
 # 2. THE LINEAR GATE (the operator's doctrine): a search resolves linearly. The FIRST escalation that continues a
 #    just-DELIVERED fast pass re-runs that pass with the escalation's full request into the inherited sheet, and
-#    `listing_turn.run` keeps its own verdict (enough → a pushed note names the rows; not enough → it escalates by
+#    `acts.search.fast_pass` keeps its own verdict (enough → a pushed note names the rows; not enough → it escalates by
 #    itself, and the consumed refinement mark lets that one through). A wrong redirect costs one ≤10 s pass; a wrong
 #    spawn costs minutes, dollars and a second box. Never for `web`/`code`/`dev`/`memory`. Fail-soft throughout.
 
@@ -233,11 +233,11 @@ async def _rerun(request: str, sheet: str) -> None:
 
     The verdict stays with the module (V2-556's principle, extended to cover the model's stray escalation):
     a delivery is announced by PUSHED note — the route measured 3/3 against the prompt line's 0/13 (V2-222) —
-    and an insufficient pass escalates by itself from inside `run`, carrying this very sheet.
+    and an insufficient pass escalates by itself from inside `fast_pass`, carrying this very sheet.
     """
     try:
-        from nucleo.flash import listing_turn
-        res = await asyncio.to_thread(listing_turn.run, request, operator_text=request, sheet=sheet)
+        from nucleo.acts import search as _search
+        res = await asyncio.to_thread(_search.fast_pass, request, operator_text=request, sheet=sheet)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"errand_continuity: la re-pasada rápida falló ({e!r})")
         return

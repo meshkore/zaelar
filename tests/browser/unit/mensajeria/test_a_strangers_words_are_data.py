@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests import widget_data_rig as rig
+
 from nucleo import untrusted as U
 from widgets.mensajeria import inbox_read as IR
 
@@ -85,7 +87,8 @@ def test_a_mesh_agents_answer_is_neutralised_and_labelled(monkeypatch, capsys):
 
 
 def test_a_send_with_a_strangers_words_in_context_and_no_sure_verdict_is_asked(monkeypatch):
-    from nucleo.flash import direct_action as DA, leave_gate as LG
+    from nucleo.acts import message as LG
+    from nucleo.flash import direct_action as DA
     U.seen()
     monkeypatch.setattr(DA, "from_brief", lambda brief: ("", ""))
     assert LG.needs_asking(None, "mensajeria", "forward") is True
@@ -97,10 +100,18 @@ def test_a_send_with_a_strangers_words_in_context_and_no_sure_verdict_is_asked(m
     assert LG.needs_asking(None, "mensajeria", "forward") is False, "no stranger's words: today's rule"
 
 
-def test_the_gate_in_front_of_an_act_that_leaves_asks_it():
-    from pathlib import Path
-    src = (Path(__file__).resolve().parents[4] / "nucleo" / "flash" / "tool_executor_widget_calls.py").read_text("utf-8")
-    i = src.index("mode = _held_send.release(_frontend.action_mode_now(wid, action_name, payload), wid, action_name, payload, _brief)")
-    block = src[i:]
-    assert "_leave_gate.asked_if_leaving(" in block and block.index("_leave_gate.asked_if_leaving(") < block.index(
-        "if mode == _wactions.FAST:\n")
+@pytest.fixture()
+def gate_scene(tmp_path, monkeypatch):
+    from nucleo import his_words, untrusted
+    rig.scene(tmp_path, monkeypatch)
+    yield
+    untrusted.reset()
+    his_words.reset()
+
+
+def test_a_reply_runs_and_with_a_strangers_words_in_context_it_is_asked(gate_scene, monkeypatch):
+    out = rig.run("mensajeria", "reply", {"n": 1, "text": "ok, thanks"}, said="reply ok thanks", monkeypatch=monkeypatch)
+    assert [a for _w, a, _p in out.ran] == ["reply"] and not out.asked, out
+    U.seen()
+    out = rig.run("mensajeria", "reply", {"n": 1, "text": "ok, thanks"}, said="reply ok thanks", monkeypatch=monkeypatch)
+    assert not out.ran and [a for _w, a, _p in out.asked] == ["reply"], out

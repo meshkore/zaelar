@@ -105,14 +105,14 @@ def prewarm_and_seams(app, active_brain) -> None:
     if active_brain() != "nucleo":
         return
     try:
-        from nucleo import browser_search, energy_meter
+        from nucleo import energy_meter
         from nucleo.llm import prewarm as flash_prewarm
+        from search import browser as browser_search, hooks as _search_hooks
         _running_loop = asyncio.get_running_loop()
         browser_search.set_loop(_running_loop)
         # V2-782: the search service's seams — the status light and the timeline — wired here, where the engine
         # knows them; standalone the service runs with both unset.
         try:
-            from search import hooks as _search_hooks
             from voice import health_state as _hs
             from voice.observer import emit as _emit_obs
             _search_hooks.on_chain_failure = lambda kind, detail: _hs.record("search", kind, detail)

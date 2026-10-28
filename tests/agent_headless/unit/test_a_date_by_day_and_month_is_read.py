@@ -11,7 +11,6 @@ import time
 import pytest
 
 from nucleo import scheduler as S
-from nucleo.flash import reminder_guards as R
 
 NOW = time.mktime((2026, 10, 9, 23, 0, 0, 0, 1, -1))     # Friday 9 Oct 2026, 23:00
 
@@ -32,8 +31,3 @@ def test_a_day_and_month_is_read(said, want):
 def test_a_wrong_or_missing_date_stays_unread():
     assert S.parse_when("el 31 de febrero", now=NOW) == ""
     assert S.parse_when("pronto", now=NOW) == ""
-
-
-def test_the_promise_to_remind_on_that_day_is_backed():
-    assert R._REMIND_VERB_RE.search(R._norm_txt("queda apuntado para avisarte el 30 de octubre"))
-    assert R._REMIND_VERB_RE.search(R._norm_txt("I'll get the reminder set up for October 30"))

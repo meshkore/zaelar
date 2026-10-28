@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from nucleo.flash import act_repair as _act_repair, escalation_guard as _eg, post_stream as _pst
 from nucleo.flash import close_answer as _close_answer
+from nucleo.acts import canvas_turn as _arbiter
+from nucleo.acts import canvas as _door
 from nucleo.turn import brief as _brief_q, reply as _reply
 
 
@@ -64,7 +66,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
                 pass
             acted["widget"] = True
             _shown_ids.add(_pw)          # V2-660: a shown card is an end state the harness verifies
-            _pst._cvis.present(_pw, reason="turn-order", src="flash", emit=emit)
+            _pst._cvis.present(_pw, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
             emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
             from nucleo.flash import card_commission as _cc_fill
             _fill = _cc_fill.search_to_fill(_pw, _op_text)    # demo pass 93, V1: an empty catalogue is its search
@@ -182,8 +184,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             acted["widget"] = True
             acted["closed"] = True
             for _cid in with_also_named(_t.get("ids") or [_t["id"] or _cw], text):
-                emit("widget", "close", extra={"id": _cid, "src": "flash"})
-                _pst._canvas_lic.note_operator_close(_cid)                     # V2-650b
+                if _door.apply("close", _cid, src="flash", emit=emit, request=_arbiter.request_of(_brief, operator_text or text)):
+                    _pst._canvas_lic.note_operator_close(_cid)                 # V2-650b
             emit("brain", "🙈 close por backstop (cerrar widget nombrado sin [[close]])",
                  text=_cw, role="system")
             # cerrar un widget NO es tarea de worker → cancela la escalada espuria (evita el bucle de 3 min)
@@ -234,7 +236,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         _after = await _act_repair.after_a_read(_brief, _op_text, _rw, "".join(spoken).strip(), spec=spec,
                                                 window=list(brain._window))    # V2-781 T518: or this same card
         if _after:
-            _pst._cvis.present(_after["widget_id"], reason="turn-order", src="flash", emit=emit)
+            _pst._cvis.present(_after["widget_id"], reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief)
             _apply_widget_data(_after["widget_id"], _after["action"], _after["payload"])
             acted["widget"] = True
             data_done["v"] = True
@@ -251,7 +253,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         _re = await _pst.asyncio.to_thread(_pst._trecall.voice_turn, reopen_req["v"], operator_text or text, _brief)
         acted["widget"], escalate_req["v"] = (False, operator_text or text) if _re.get("escalate") else (True, None)
         if _re["show"]:
-            _tag_emit("show", {"id": _re["show"]})
+            _tag_emit("show", {"id": _re["show"], "src": f"recall:{_re['show']}"})   # the reopened errand's sheet
         elif _re["ask"]:
             clarify["msg"] = _say().ask_which_item.format(cands=_re["ask"])
         elif not _re.get("escalate"):   # refactor2710-03: nothing like it, no worker — the verdict is `asked`
@@ -270,56 +272,18 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             # gate below (V2-026: a hard "I don't know what you mean" never loses to invented prose).
             clarify["msg"] = _say().ask_which_item_bare
 
-    # BÚSQUEDA WEB FACTUAL (V2-022): ruta LIGERA — se resuelve EN ESTE turno (NO es el navegador pesado del
-    # SlowBrain). La búsqueda es I/O de red → FUERA del event loop (to_thread). La EXTRACCIÓN reusa el MISMO
-    # modelo rápido que el turno ya paga (coste marginal ≈0): 2º pase con los snippets como contexto →
-    # respuesta hablada. Proveedor por capas (calidad primero): respuesta-IA (Perplexity/Tavily) → snippets
-    # (Brave) → gratis (DDG). Compartido con el SlowBrain. Ver nucleo/websearch.py.
-    # V2-210 — AQUÍ NO. El backstop de «un dato del mundo no se improvisa» vive en el canal de texto
-    # (`probe.py`) y este canal se queda FUERA a propósito, que es lo contrario de lo que pide la regla de
-    # implementación paralela y por eso se escribe.
-    #
-    # La razón es una asimetría real entre los dos canales: la voz EMITE los deltas del modelo según llegan,
-    # así que cuando el turno llega hasta aquí la frase inventada YA SE HA DICHO. Sustituirla es imposible y
-    # añadir la versión con fuente detrás significa hablar dos veces en toda pregunta de horarios o precios
-    # — una regresión en el canal del operador, cambiada por un defecto que en este canal nadie ha medido.
-    #
-    # El arreglo BUENO para la voz es el mismo disparo pero ANTES de generar (si la pregunta es de un dato
-    # del mundo, se busca primero y el modelo compone con los resultados), que es además lo que el modelo
-    # hace cuando acierta. Eso toca `_run_inner` antes del stream y quiere su propia medición de latencia.
+    # WEB FACT (V2-022): the light route, answered in THIS turn by the search door (`nucleo.acts.search.fact`: shadow
+    # route, `find`, the results row with its evidence), off the event loop; the composing pass reuses the turn's
+    # fast model. V2-210: the «a world fact is never improvised» backstop does NOT run here — voice has already
+    # SPOKEN the invented sentence by now, so replacing it would mean speaking twice; the good fix is searching
+    # before generating, which wants its own latency measurement.
     if search_req["v"] is not None and reveal_req["v"] is None:
         query = search_req["v"]
-        emit("brain", "🔎 búsqueda web", text=query, role="system")
         _cover_work("search")     # the slowest light route measured (7.2 s end to end) — V2-669
-        _t_s = _pst.time.time()
-        try:
-            from nucleo.flash import search_routing as _sr      # V2-782: the fact door is the service's (shadow route + find)
-            res = await _pst.asyncio.to_thread(_sr.fact_search, query, brief=_brief, emit=emit, channel="voice")
-            ctx = _sr.format_results(res)
-        except Exception as e:  # noqa: BLE001
-            _pst.logger.warning(f"web_search falló (voz sigue): {e}")
-            res, ctx = {"source": "none", "results": []}, ""
-        # EVIDENCIA (2026-08-10): además del proveedor y el número, se guarda QUÉ VOLVIÓ — título, URL y un
-        # trozo del snippet de cada resultado, más la respuesta sintetizada si el proveedor la dio. Sin esto
-        # se podía auditar que el sistema BUSCÓ, nunca si respondió con lo que traía: la fila decía «7
-        # resultados» y el contenido que el modelo leyó se perdía para siempre. Presupuestada en
-        # `observability.evidence` (se recorta, no se resume) y best-effort: si falla, el evento sale igual.
-        _ev = {"source": res.get("source"), "ai": bool(res.get("ai")), "ms": round((_pst.time.time() - _t_s) * 1000),
-               "n": len(res.get("results", [])), **({"failure": res["failure"]} if res.get("failure") else {})}
-        try:
-            from observability import evidence as _evd
-            _ev["evidence"] = _evd.web_results(res.get("results"))
-            _ans = _evd.body(res.get("answer"))
-            if _ans:
-                _ev["evidence"]["answer"] = _ans
-        except Exception:
-            pass
-        emit("search", "🔎 resultados web", text=query, role="system", extra=_ev)
-        # V2-676 — the prompt (and the REASON an empty search was empty) now lives in ONE home shared with
-        # the probe channel: `flash/search_turn`. It was a parallel implementation these two files had been
-        # apologising for since V2-135, and the half that was missing in BOTH is what cost the operator his
-        # «don't you have access to the Internet?» turn.
-        from nucleo.flash import search_turn as _st
+        from nucleo.acts import search as _st
+        _found = await _pst.asyncio.to_thread(_st.fact, {"text": operator_text, "brief": _brief}, {"query": query},
+                                              emit=emit, channel="voice")
+        res, ctx = _found.data["res"], _found.data["ctx"]
         from nucleo import canvas_focus as _cf_s
         sys2 = _st.compose_system(operator_text, query, res, ctx,
                                   today=_pst.time.strftime("%A %d %b %Y (%Y-%m-%d)"), on_screen=_cf_s.this_turn_cards())
@@ -340,11 +304,12 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         brain._last_action = "search"
 
     # BÚSQUEDA DE ANUNCIOS (V2-556): ruta LIGERA hermana de web_search. La pasada rápida corre FUERA del
-    # event loop y el MÓDULO decide solo (listing_turn.run): o hay filas reales en la hoja y este 2º pase
+    # event loop y el MÓDULO decide solo (acts.search.fast_pass): o hay filas reales en la hoja y este 2º pase
     # las cuenta, o él mismo ya escaló a un worker que HEREDA la hoja y este 2º pase dice honestamente que
     # la búsqueda a fondo está en marcha. Se salta si el turno además escaló (escalate_req): dos workers
     # corriendo la misma caza es exactamente el defecto del fontanero (c480413b), no una redundancia sana.
-    if _pst._lt.runs_alone(listing_req, reveal_req, escalate_req):   # a DIFFERENT hunt rides with the escalations
+    from nucleo.acts import search as _sd
+    if _sd.runs_alone(listing_req, reveal_req, escalate_req):   # a DIFFERENT hunt rides with the escalations
         emit("brain", "🛒 búsqueda de anuncios", text=listing_req["v"]["query"], role="system")
         _buf_reset()   # descarta cualquier resto de tags del 1º pase antes de componer la respuesta
         _said_before = "".join(spoken).strip()
@@ -356,8 +321,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             _buf_add(_d)
             send(speech.inline(take(False)))
 
-        await _pst._lt.voice_turn(listing_req["v"], operator_text or text, spec=spec, on_delta=_listing_delta,
-                             already_said=_said_before)
+        await _sd.listings({"text": operator_text or text}, listing_req["v"], spec=spec, on_delta=_listing_delta,
+                           already_said=_said_before)
         send(speech.sanitize(take(True), drop_metadata=False))
         spoken_text = "".join(spoken).strip()
         brain._last_action = "listings"
@@ -418,7 +383,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         # checks the claim against the widget's own declaration and refuses to raise an open card.
         if ok and str(_extra.get("surface") or "") == "widget":
             _pst._cvis.present(str(_extra.get("widget") or ""), reason="producer-mount",
-                          action=mq.get("action") or "", src="flash", emit=emit)
+                          action=mq.get("action") or "", src="flash", emit=emit, text=operator_text, brief=_brief)
         # No re-anunciar un no-op (F5): si la reproducción fue "ya suena eso", el modelo ya habló; no encajes
         # el "ya está sonando" salvo que el modelo callara.
         _is_noop = bool(_extra.get("noop"))

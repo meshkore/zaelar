@@ -4,7 +4,7 @@ Measured in `tres-tarjetas-y-el-video-por-alusion` (2026-10-10), the trailer and
 volume down a bit» read `musica:volume_down` at 0.54 (EN) and «bájale un poco el volumen» at 0.60 (ES). Both above
 Jev's 0.5 floor, so `which_card` kept the model's `play_music` and the music went down in silence — «Done — turning
 the music down.» The case calls it what it is: choosing in silence and getting it right is luck. Below
-`player_control.PLAYER_SURE` the operator is asked which (`consent.ASK_WHICH`'s sentence).
+`acts.media.PLAYER_SURE` the operator is asked which (`consent.ASK_WHICH`'s sentence).
 
 And the neighbour that keeps it from becoming a nag: a player his words NAME («turn the music down», «baja el
 vídeo») decides before any verdict, sure or not.
@@ -15,7 +15,7 @@ import threading
 
 import pytest
 
-from nucleo.flash import player_control as PC
+from nucleo.acts import media as PC
 
 BOTH = ["youtube", "musica", "agenda"]
 

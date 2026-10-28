@@ -23,7 +23,7 @@ from loguru import logger
 from nucleo.flash import (canvas_license as _canvas_lic, canvas_visibility as _cvis, card_close as _card_close, close_guards as _closeg,
                           data_ops as _data_ops, direct_action as _direct_action,
                           escalation_guard as _eguard, prior_line as _prior_line, harness_turn as _ht, image_turn as _image_turn, resume_turn as _resume_turn,
-                          listing_turn as _lt, reminder_guards as _rg, show_target as _show_target,
+                          show_target as _show_target,
                           task_recall as _trecall)
 from nucleo.flash.panel_canon import wall_tab_for as _wall_tab_for
 from nucleo.turn import errands_of_a_turn as _eot

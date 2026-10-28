@@ -74,7 +74,7 @@ def test_the_text_channel_yields_a_lens_where_the_verdict_acts(monkeypatch):
     monkeypatch.setattr(_tb, "read", lambda b, key, d="", **k: ("act", {"confidence": 1.0}))
     monkeypatch.setattr(_da, "resolve", lambda *a, **k: {"widget": "agenda", "action": "update_meeting",
                                                          "payload": {"title": "Dentista", "newTitle": "Revisión"}})
-    from nucleo.flash import reply_or_forward as _rof
+    from nucleo.acts import message_repair as _rof
     monkeypatch.setattr(_rof, "forward_of", lambda *a, **k: None)
     got = VC.retarget(object(), "agenda", "open_meeting", {"title": "Dentista"}, "cámbiale el nombre al dentista")
     assert got == ("agenda", "update_meeting", {"title": "Dentista", "newTitle": "Revisión"}), got

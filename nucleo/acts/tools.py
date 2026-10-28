@@ -8,6 +8,8 @@ of `nucleo/flash/tool_executor_calls.py` is read through `_x`, looked up at call
 """
 from __future__ import annotations
 
+from nucleo.acts import search as _search
+
 
 def _calls():
     from nucleo.flash import tool_executor_calls
@@ -33,7 +35,8 @@ def widget_data(args: dict, c) -> None:
         if _pic:
             c._tool_fired.add("show_images")
             c.images_req["v"] = _pic
-            _x._tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=c.emit)
+            _x._tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=c.emit, text=c.operator_text,
+                             brief=c._brief)
             c.emit("brain", "🖼️ fotos → visor imagenes (un show vacío del visor es la búsqueda)",
                  text=_pic["query"][:80], role="system")
             return
@@ -67,7 +70,7 @@ def web_search(args: dict, c) -> None:
 def search_listings(args: dict, c) -> None:
     _x = _calls()
     # V2-556 — UNA por turno; la forma de la petición es del módulo (`listing_turn.request_from`).
-    c.listing_req["v"] = c.listing_req["v"] or _x._tx._lt.request_from(args, c.text)
+    c.listing_req["v"] = c.listing_req["v"] or _search.request_from(args, c.text)
 
 
 def recall(args: dict, c) -> None:
@@ -121,7 +124,8 @@ def show_images(args: dict, c) -> None:
     if "show_images" not in c._tool_fired:
         c._tool_fired.add("show_images")
         c.images_req["v"] = _x._tx._image_turn.request_from([{"name": c.name, "args": args}])
-        _x._tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=c.emit)
+        _x._tx._cvis.present("imagenes", reason="turn-order", src="flash", emit=c.emit, text=c.operator_text,
+                             brief=c._brief)
         c.emit("brain", "🖼️ fotos → visor imagenes", text=c.images_req["v"]["query"][:80], role="system")
 
 

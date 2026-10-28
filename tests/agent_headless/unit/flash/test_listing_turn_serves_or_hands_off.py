@@ -11,16 +11,16 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo.flash import listing_turn
+from nucleo.acts import search_listing
 
 
 @pytest.fixture()
 def rig(monkeypatch):
-    """A recording rig around everything listing_turn touches: search result is programmable, sheet writes and
+    """A recording rig around everything search_listing touches: search result is programmable, sheet writes and
     escalations are recorded, nothing reaches disk or the bus."""
     calls = {"present": [], "begin": [], "escalate": [], "emit": []}
 
-    import nucleo.listing_search as LS
+    import search.listing as LS
     import widgets.results.data as sheet
     import nucleo.flash.escalate as esc
     import voice.observer as obs
@@ -60,7 +60,7 @@ def test_enough_listings_are_presented_and_no_worker_is_launched(rig):
     state["result"] = {"items": _items(6), "sources": [{"tier": "fetch", "target": "mkt.example",
                                                         "status": "ok", "n": 6, "kept": 6}],
                       "needs_browser": False, "reason": ""}
-    out = listing_turn.run("coche diésel segunda mano", price_max=12000,
+    out = search_listing.fast_pass("coche diésel segunda mano", price_max=12000,
                            operator_text="Búscame un coche de segunda mano diésel por menos de 12 mil")
     assert out["delivered"] is True and out["n"] == 6
     assert calls["escalate"] == []                      # served in-turn: no worker, no racing errand
@@ -78,7 +78,7 @@ def test_not_enough_escalates_with_the_same_sheet_inherited(rig):
     state["result"] = {"items": _items(2), "sources": [{"tier": "fetch", "target": "wall.example",
                                                         "status": "blocked", "note": "403"}],
                       "needs_browser": True, "reason": "only 2 found"}
-    out = listing_turn.run("moto 125", operator_text="Búscame una moto de 125 por menos de 2500")
+    out = search_listing.fast_pass("moto 125", operator_text="Búscame una moto de 125 por menos de 2500")
     assert out["delivered"] is False and out["escalated"] == 71
     assert len(calls["escalate"]) == 1
     esc = calls["escalate"][0]
@@ -93,22 +93,22 @@ def test_not_enough_escalates_with_the_same_sheet_inherited(rig):
 
 def test_a_search_that_explodes_never_reaches_the_turn(rig, monkeypatch):
     state, calls = rig
-    import nucleo.listing_search as LS
+    import search.listing as LS
     monkeypatch.setattr(LS, "search", lambda q: (_ for _ in ()).throw(RuntimeError("boom")))
-    out = listing_turn.run("portátil", operator_text="quiero un portátil")
+    out = search_listing.fast_pass("portátil", operator_text="quiero un portátil")
     assert out["delivered"] is False
     assert calls["escalate"], "a broken fast pass still hands the errand to the deep pass"
 
 
 def test_compose_context_speaks_rows_without_urls():
-    ctx = listing_turn.compose_context({"items": _items(3)})
+    ctx = search_listing.compose_context({"items": _items(3)})
     assert "Anuncio 0" in ctx and "Madrid" in ctx
     assert "https://" not in ctx, "the spoken context must never carry URLs — the voice would read them"
 
 
 def test_empty_query_is_refused_without_side_effects(rig):
     state, calls = rig
-    out = listing_turn.run("", operator_text="")
+    out = search_listing.fast_pass("", operator_text="")
     assert out["delivered"] is False and out["n"] == 0
     assert calls["present"] == [] and calls["escalate"] == []
 
@@ -121,7 +121,7 @@ def test_a_delivery_is_recorded_as_a_fact_the_engine_can_see(rig):
     from nucleo.workers import ended
     state, calls = rig
     state["result"] = {"items": _items(6), "sources": [], "needs_browser": False, "reason": ""}
-    out = listing_turn.run("alquiler de catamaranes empresas",
+    out = search_listing.fast_pass("alquiler de catamaranes empresas",
                            operator_text="Búscame si hay empresas de alquiler de catamaranes en plan")
     rows = ended.recent_listing_deliveries()
     assert len(rows) == 1
@@ -136,14 +136,14 @@ def test_a_hand_off_records_no_delivery(rig):
     from nucleo.workers import ended
     state, calls = rig
     state["result"] = {"items": [], "sources": [], "needs_browser": True, "reason": "empty"}
-    listing_turn.run("moto 125", operator_text="Búscame una moto de 125")
+    search_listing.fast_pass("moto 125", operator_text="Búscame una moto de 125")
     assert ended.recent_listing_deliveries() == []
 
 
 def test_an_inherited_sheet_is_reused_never_reminted(rig):
     state, calls = rig
     state["result"] = {"items": _items(5), "sources": [], "needs_browser": False, "reason": ""}
-    out = listing_turn.run("catamaranes 45 pies Barcelona", operator_text="la caza afinada",
+    out = search_listing.fast_pass("catamaranes 45 pies Barcelona", operator_text="la caza afinada",
                            sheet="results--heredada")
     assert out["sheet"] == "results--heredada"
     assert not calls["begin"] and calls["rename"][0]["sheet"] == "results--heredada", \
@@ -156,7 +156,7 @@ def test_an_inherited_sheet_with_nothing_found_is_not_wiped(rig):
     the operator is reading, in exchange for nothing (the «estrenar = borrar» failure V2-259 closed)."""
     state, calls = rig
     state["result"] = {"items": [], "sources": [], "needs_browser": True, "reason": "empty"}
-    out = listing_turn.run("catamaranes 45 pies", operator_text="la caza afinada", sheet="results--heredada")
+    out = search_listing.fast_pass("catamaranes 45 pies", operator_text="la caza afinada", sheet="results--heredada")
     assert calls["begin"] == [] and calls["present"] == [], "the previous delivery must stay on screen"
     assert calls["rename"] and calls["rename"][0]["sheet"] == "results--heredada"
     assert calls["escalate"] and calls["escalate"][0]["context"].get("sheet") == "results--heredada", \

@@ -119,19 +119,6 @@ _CUANDO_VALE = ('Vale «mañana a las 9», «el miércoles a las 18:00», un dí
                 '«every 30m» para algo que se repite, o un cron de 5 campos «0 9 * * 3».')
 
 
-def _safe_reminder_prompt(text: str) -> str:
-    """Normalize a cron prompt to the REMINDER form — same rule as the other two gates (V2-214).
-
-    Safeguard: this action already works today, and losing a reminder the worker was able to create because of an import
-    peor que dejar pasar una redacción cruda.
-    """
-    try:
-        from nucleo.flash.router_guards import safe_reminder_prompt
-        return safe_reminder_prompt(text)
-    except Exception:  # noqa: BLE001
-        return text
-
-
 async def _exec_allow(action: str, payload: dict, rec) -> dict:
     payload = payload or {}
     if action == "decide":
@@ -200,11 +187,9 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
                 return {"ok": False, "error": f"ya has programado {len(mias)} avisos en esta tarea, que es el "
                                               f"tope. Si necesitas otro, cancela uno o dilo en tu entrega."}
             name = f"{(payload.get('name') or what)[:80]} [worker:{tid}]"
-            # V2-480 — THE THIRD GATE. `safe_reminder_prompt` has existed since V2-214 and its docstring says «so
-            # that the TWO gates to the scheduler say the same thing»; this action is the THIRD, born later
-            # (V2-249), and never called it. A cron's reader is the AGENT at another time, so leaving the operator's
-            # words asks it to TAKE NOTES — the loop this whole area exists to close.
-            what = _safe_reminder_prompt(what)
+            # V2-480: a cron's reader is the AGENT at another time, so the job tells it to NOTIFY (the agenda's rule)
+            from widgets.agenda import notice as _notice
+            what = _notice.prompt_for({"commitment": what}) or what
             out = await asyncio.to_thread(scheduler.create_unless_ringing, what, spec, name)   # one alarm per instant
             if not out.get("ok"):
                 # It knows the form; let it say so (same contract as V2-203).
@@ -318,14 +303,17 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
                                               f"reopen it. Your result stays in the card for when he asks; "
                                               f"say in one line that it is ready."}
         try:
-            from voice.observer import emit
+            from nucleo.acts import canvas
             _src = f"worker:{getattr(rec, 'task_id', '')}"        # V2-039: provenance — Brain Worker command
-            extra = {"id": str(wid), "src": _src} if action == "show_widget" else {"src": _src}
+            extra = {}
             _tid = getattr(rec, "trace_id", "")                   # V2-044: HTTP handler without context → session trace
             if _tid:
                 extra["trace"] = _tid
                 extra["span"] = f"worker:{getattr(rec, 'task_id', '')}"
-            emit("widget", "show" if action == "show_widget" else "close", extra=extra)
+            # a worker's close names its card: with no id the canvas closes EVERY card (refactor2710-04)
+            if not str(wid or "").strip():
+                return {"ok": False, "error": "close_widget needs the card it closes"}
+            canvas.apply("show" if action == "show_widget" else "close", str(wid), src=_src, **extra)
             return {"ok": True, "result": {"widget": wid}}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)}

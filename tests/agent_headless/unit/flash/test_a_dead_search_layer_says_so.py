@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import websearch
+from search import web as websearch
 
 
 @pytest.fixture(autouse=True)

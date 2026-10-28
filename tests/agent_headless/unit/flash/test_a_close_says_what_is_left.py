@@ -66,15 +66,6 @@ def test_a_bare_done_over_a_close_says_what_closed_and_what_is_left(screen, engl
     assert out == "I've closed Music. Still on screen: YouTube and Calendar."
 
 
-def test_a_reply_that_skipped_the_close_gets_it_appended(screen, spanish):
-    reply = "Vale, dejo la música puesta. El jueves lo tienes libre."
-    acts = CR.acts_of_probe_turn("widget_data", [], [
-        {"name": "widget_data", "args": {"widget_id": "youtube", "action": "close"}},
-        {"name": "widget_data", "args": {"widget_id": "agenda", "action": "show_day"}}])
-    out = CR.complete(reply, acts)
-    assert out.startswith(reply) and "He cerrado YouTube." in out and "Sigue en pantalla: Música y Agenda." in out
-
-
 def test_a_reply_that_already_says_it_all_is_left_alone(screen, english):
     reply = "I've closed the music; the video and the calendar are still up."
     assert CR.complete(reply, [("musica", CR.CLOSE, "close")]) == reply
@@ -85,7 +76,3 @@ def test_a_shared_control_names_its_card(screen, spanish):
     screen["open"] = ["musica", "agenda"]
     assert CR.complete("Vale.", [("musica", CR.CONTROL, "volume_down")]) == "Vale.", "one player: nothing to tell apart"
 
-
-def test_a_question_or_an_errand_carries_no_receipt():
-    assert CR.acts_of_probe_turn("clarify", [], [{"name": "play_music", "args": {"action": "volume_down"}}]) == []
-    assert CR.acts_of_probe_turn("escalate", [{"action": "close", "extra": {"id": "agenda"}}], []) == []

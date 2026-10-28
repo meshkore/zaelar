@@ -59,6 +59,7 @@ _HIS_TURNS = [
 _AGENDA_ORDERS = {
     "add_meeting": "apúntame una reunión con Iván el jueves a las diez",
     "set_reminder": "ponme un aviso media hora antes de la reunión del jueves",
+    "add_reminder": "recuérdame el miércoles a las nueve renovar el seguro del coche",
     "dedupe_meetings": "quita las reuniones repetidas del jueves",
     "cancel_meeting": "cancela la reunión con Iván del jueves",
     "restore_meeting": "vuelve a ponerme la reunión con Iván que cancelé",
