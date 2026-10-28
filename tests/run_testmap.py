@@ -4593,6 +4593,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_every_cli_a_worker_runs_starts.py']},
         {"id": "2.836", "title": "The pulse keeps its period and order after the split into `nucleo/pulse/` (loop + workers/flows/due parts): one beat runs every step in the same order and ends with `loop.tick`; the loop sleeps `tick_s` (1 s) between beats (refactor2710-10)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_the_pulse_keeps_its_period_and_order.py']},
+        {"id": "2.837", "title": "The pulse's, the energy's and the CLIs' events survive the move out of the top of nucleo/: the (kind, label) pairs and kinds emitted by nucleo/pulse, nucleo/energy, nucleo/cli and workers/source_outcomes are frozen at the flat files' set (V2-826 §2b, refactor2710-10)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/test_a_pulse_or_energy_event_survives_a_move.py']},
         {"id": "2.830", "title": "The worker bridge has no product importer and is alive: it is the CLI a worker runs (`python -m nucleo.cli.bridge ask|act|say|wait|decide`) — in the worker's allowlist, taught by the prompt, runnable as a module (refactor2710-09)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_the_worker_bridge_is_a_live_cli.py']},
         {"id": "2.638", "title": "A past errand he names by a word only its TITLE has is that errand: «el de Gràcia» over Gràcia/Sant Antoni picks without the chooser, accent-folded; shared words, both names, or a goal-only word («last month») stay a question (flat-hunt-recall, 2026-10-14)",
