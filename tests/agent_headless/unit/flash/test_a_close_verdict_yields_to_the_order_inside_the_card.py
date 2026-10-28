@@ -76,6 +76,22 @@ def test_no_sure_close_no_question(verdict):
     assert VC.inner_order_wins(object(), "quita el piano") == ""
 
 
+# ── an ARRANGE yields to a sure action on a card too (demo sandbox 2026-10-28, S2) ────────────────────────────
+
+@pytest.mark.parametrize("said", ["compare them side by side", "ponlos uno al lado del otro"])
+def test_a_sure_action_on_the_sheet_wins_over_the_arrange_gesture(verdict, said):
+    """canvas=arrange 0.92 AND `results:layout` 1.00: the desktop was tidied, the rows never laid side by side, and
+    «the side-by-side is up now» was said over nothing. The gesture names no card; the action does."""
+    verdict.update(canvas="arrange", action=("results::1e8f0d-ls1", "layout"), conf=1.0)
+    assert VC.inner_order_wins(object(), said) == "sure"
+    assert _canvas(verdict, said) == "" and verdict["tags"] == []
+
+
+def test_an_unsure_action_keeps_the_arrange(verdict):
+    verdict.update(canvas="arrange", action=("results::1e8f0d-ls1", "layout"), conf=0.6)
+    assert VC.inner_order_wins(object(), "tidy up the screen a bit") == ""
+
+
 # ── 2.443 · the claim backing cancels the whole series he named by one word ───────────────────────────────────
 
 def _agenda():
