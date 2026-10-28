@@ -12,6 +12,19 @@ from nucleo import pending_work as _pending_work   # V2-799: resume_task is offe
 from voice.engine.llm.providers import nucleo as _p
 
 
+def messaging_on() -> bool:
+    """Is ANY messaging connector on — mail too? (bank case msg-es-email-new: with only the mail connected the turn
+    was offered no messaging tool and answered «no tengo conector de correo»). None readable → fail-open."""
+    on, read = False, 0
+    for svc in ("whatsapp", "telegram", "email"):
+        try:
+            on = on or bool(__import__(f"connectors.{svc}.service", fromlist=["enabled"]).enabled())
+            read += 1
+        except Exception:  # noqa: BLE001 — a connector that cannot be read does not take the tools away
+            pass
+    return on or not read
+
+
 async def choose_the_tools(*, _router, brain, emit, first_turn, had_pending_confirm, llm_metrics, self, text) -> dict:
     try:
         from widgets.navegador import tasks as _nt
@@ -40,17 +53,7 @@ async def choose_the_tools(*, _router, brain, emit, first_turn, had_pending_conf
         _cluster_conn = False
     # V2-085 — tres CAPACIDADES reales más (nunca palabras del turno: hechos del sistema). Todas fail-OPEN:
     # si el sondeo peta, la tool se ofrece igual y no le quitamos nada al operador.
-    try:
-        from connectors.whatsapp import service as _wa1
-        _msg_on = _wa1.enabled()
-    except Exception:
-        _msg_on = False
-    if not _msg_on:
-        try:
-            from connectors.telegram import service as _tg1
-            _msg_on = _tg1.enabled()
-        except Exception:
-            _msg_on = True                  # no se pudo sondear ninguno → fail-open
+    _msg_on = messaging_on()
     try:
         from memory import vault as _vault1
         _has_vault1 = _vault1.exists()

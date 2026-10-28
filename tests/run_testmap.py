@@ -4634,6 +4634,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/brain/unit/test_the_typed_turn_leaves_the_brain_as_the_voice_does.py']},
         {"id": "2.824", "title": "A stop that names the activity to stop («Stop showing me the Social tab», «para de mostrarme los correos») runs the turn; a bare «stop talking», «para de hablar», «silencio» stays a hard interrupt",
             "ch": UNIT, "paths": ['tests/voice/unit/test_a_stopped_activity_is_not_silence.py']},
+        {"id": "2.825", "title": "With only the mail connected the voice turn still offers the messaging tools: every messaging connector counts toward «messaging is on», none readable fails open",
+            "ch": UNIT, "paths": ['tests/voice/unit/test_mail_alone_is_messaging.py']},
         {"id": "2.822", "title": "Several row numbers («4,5,6») reach the action's declared plural key (`items`) when every number is a row of the card; otherwise the single-row resolution answers as before",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_several_row_numbers_reach_the_plural_key.py']},
         {"id": "2.815", "title": "A use-case sandbox boots beside the operator's running engine: it takes its own one-engine lock inside its throwaway workspace (it owns no voice slot, port or connector the lock guards)",
