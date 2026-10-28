@@ -74,7 +74,6 @@ PER_FILE: dict[str, int] = {
     'i18n/langspec.py': 10,
     'memory/_prompt.py': 75,
     'memory/consolidator.py': 33,
-    'memory/embeddings.py': 66,
     'memory/episodic.py': 1,
     'memory/graph_ppr.py': 2,
     'memory/kv_store.py': 12,

@@ -19,6 +19,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import pytest
 
 from memory import embeddings as emb
+from memory.embeddings import cloud
 
 _HANDSHAKE_S = 0.5
 _BUDGET_S = 0.8          # nucleo/turn/recall_budget.py's default
@@ -57,7 +58,7 @@ def provider(monkeypatch):
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "openai", "embed_model": "text-embedding-3-small",
                                                   "embed_base_url": f"http://127.0.0.1:{srv.server_port}/v1",
                                                   "embed_api_key": "test-key"})
-    monkeypatch.setattr(emb, "_HTTP", None)                                 # a fresh pool for this provider
+    monkeypatch.setattr(cloud, "_HTTP", None)                               # a fresh pool for this provider
     emb.reset()
     yield
     srv.shutdown()

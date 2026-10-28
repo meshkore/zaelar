@@ -25,8 +25,9 @@ def test_a_failed_embedding_keeps_the_providers_words():
     is stubbed by the suite's conftest — no test reaches the network — so the recording seam is what is tested.)"""
     from pathlib import Path
     from memory import embeddings as E
-    E._note_failure(RuntimeError("You have no credits remaining (insufficient_quota)"))
+    from memory.embeddings import cloud
+    cloud._note_failure(RuntimeError("You have no credits remaining (insufficient_quota)"))
     assert "insufficient_quota" in E.last_error()
     root = Path(__file__).resolve().parents[3]
-    assert "_note_failure(e)" in (root / "memory/embeddings.py").read_text("utf-8").split("def _cloud_embed(")[1]
+    assert "_note_failure(ex)" in (root / "memory/embeddings/cloud.py").read_text("utf-8").split("def _cloud_embed(")[1]
     assert "the provider said: {_why}" in (root / "memory/retriever/recall.py").read_text("utf-8")

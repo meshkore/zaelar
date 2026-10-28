@@ -429,7 +429,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/jev.py",
     "nucleo/loop.py",
     "nucleo/memory_agent/gates.py",
-    "nucleo/memory_agent/ingest_steps.py",
     "nucleo/memory_agent/lang_marks.py",
     "nucleo/mesh_agents.py",
     "nucleo/nav_cli.py",

@@ -49,15 +49,15 @@ INVERSE_IMPORTS_DEBT: dict[tuple[str, str], str] = {
         "while DORMANT so that turning the remote reranker on is never free by accident. A registered-callback "
         "design reopens exactly that hole for any process that forgets to register — real money going unbilled, "
         "silently, in exchange for layer purity. Deferred import inside an opt-in branch is the cheaper trade.",
-    ("memory/embeddings.py", "nucleo.energy_meter"):
+    ("memory/embeddings/cloud.py", "nucleo.energy_meter"):
         "meters the CLOUD embedding call (V2-501). Same trade as rerank above, and the argument is stronger "
         "here: the reranker is dormant, this runs on every insert AND every query. Deferred import inside the "
         "cloud branch, right after a successful response; the local backends never reach it.",
-    ("memory/embeddings.py", "nucleo.energy_lease"):
+    ("memory/embeddings/cloud.py", "nucleo.energy_lease"):
         "the energy lease gate in front of the CLOUD embedding call (V2-785). The meter's twin: one counts the "
         "spend after it, this refuses it before it when the machine holds no lease. Same deferred import, same "
         "cloud branch, and the same reason a callback would not do — a process that forgot to register would spend.",
-    ("memory/embeddings.py", "nucleo.llm_egress"):
+    ("memory/embeddings/cloud.py", "nucleo.llm_egress"):
         "WHERE the cloud embedding call goes (2026-10-23): in a mediated deployment it leaves through egress with "
         "the account's own credential instead of a provider key held in this process. Same pair as rerank above "
         "(egress travels with the meter), same deferred import in the same cloud branch; a callback a process could "
@@ -73,18 +73,18 @@ def _inverse_imports() -> set[tuple[str, str]]:
     """`(memory/<file>, nucleo.<module>)` for every import of nucleo inside memory/, at the granularity the
     debt table speaks: the first module level under `nucleo`."""
     found: set[tuple[str, str]] = set()
-    for p in (REPO / "memory").glob("*.py"):
+    for p in (REPO / "memory").rglob("*.py"):              # a module split into a folder stays in scope
         for line in p.read_text(encoding="utf-8").splitlines():
             m = _FROM_DOTTED_RE.match(line) or _IMPORT_RE.match(line)
             if m:
-                found.add((f"memory/{p.name}", f"nucleo.{m.group(1)}"))
+                found.add((p.relative_to(REPO).as_posix(), f"nucleo.{m.group(1)}"))
                 continue
             m = _FROM_PLAIN_RE.match(line)
             if m:  # each imported name IS a module here
                 for n in m.group(1).split(","):
                     n = n.split(" as ")[0].split("#")[0].strip()
                     if n:
-                        found.add((f"memory/{p.name}", f"nucleo.{n}"))
+                        found.add((p.relative_to(REPO).as_posix(), f"nucleo.{n}"))
     return found
 
 
