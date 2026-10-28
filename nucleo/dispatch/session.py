@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 async def _run_session(task: "Task") -> None:
     """Crea and conduce UNA session bajo the pool. Never lanza (corre como task suelta)."""
     from nucleo import danger
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
 
     key = str(task.id)
     req = (task.request or "").strip()
@@ -46,8 +46,11 @@ async def _run_session(task: "Task") -> None:
         kind = _d._classify_kind(req)
     trusted = bool(task.trusted)
 
-    # CONFIRM-GATE of irreversibles (V2-007) — before of start nothing.
-    if trusted and danger.is_dangerous(req) and not bool(task.context.get("confirmed")):
+    # CONFIRM-GATE (V2-007): the ONE act-or-ask rule over the errand's class — the brief's `errand_class` carried in its
+    # context, the money vocabulary only when there is none (refactor2710-06 T-03) — before anything starts.
+    from nucleo.acts import errand as _errand
+    _cls = _errand.class_of(task.context.get("errand_class"), req)
+    if trusted and _errand.asks_first(_cls, confirmed=bool(task.context.get("confirmed"))):
         _d.logger.info(f"dispatch: tarea {key} PARA por confirm-gate: {req[:80]}")
         rec = _d._SESSIONS.get(key)
         if rec:
@@ -64,28 +67,10 @@ async def _run_session(task: "Task") -> None:
             _d.sync_state()
         return
 
-    # THE GATE FOR TOUCHING A CARD OF HIS (V2-757, 2026-09-23). A card of his is not built and not
-    # rewritten without him having said so, out loud, knowing he said it.
-    #
-    # MEASURED LIVE (session f84f91ef). With the mic open, the operator dictated a several-minute design
-    # brief to ANOTHER conversation («hace el header ese más bonito», «todos los gráficos a la misma
-    # escala», «un grid de veinte puntos»). The turn read it as his to us — `escalate_or_inline=escalate`
-    # at 0.73, and neither of the turn's two questions contradicts that, because it WAS an errand; what it
-    # was not is OURS — answered «lo mando hacer», and a Brain Worker started rewriting `widgets/youtube`.
-    # Forty seconds later: «Olvídate de eso, no va por ti», and the worker carried on. A minute after
-    # that: «Lo de modificar el widget de YouTube ha sido un error, y no estaba hablando contigo. Eso lo
-    # tienes que parar y deshacer».
-    #
-    # THE OPERATOR'S RULE, from that same session: «hay que pedir confirmación siempre que pidamos crear
-    # un widget o modificar un widget… que sea algo de sistema, porque así nos evitaremos que se empiecen
-    # a generar widgets por ahí fuera de cualquier manera».
-    #
-    # IT GOES HERE, AND THE PLACE IS HALF THE REPAIR: the generator has six doors (voice, text, probe, V2-118's
-    # backstop, the promise backstop, a promoted injection) and `_run_session` is the ONE that starts a worker, with
-    # `kind` already classified — `kind == "code"` IS «this rewrites a card», decided by `errand_kind`, not a verb list.
-    #
-    # Out of scope: the CLUSTER dev worker with code permission (V2-076). That one never touches the
-    # operator's catalogue — it brings its own repo and its own authorisation.
+    # THE GATE FOR TOUCHING A CARD OF HIS (V2-757): a card of his is not built or rewritten unless he said so, knowing
+    # he said it (session f84f91ef: a design brief dictated to ANOTHER conversation started a worker rewriting his
+    # YouTube card). Here because `_run_session` is the ONE door that starts a worker, with `kind == "code"` already
+    # decided by `errand_kind`. The cluster dev worker (V2-076) is out of scope: it brings its own repo and licence.
     if (kind == "code" and not bool(task.context.get("confirmed"))
             and not _d._dev_worker_params(task.context)):
         from nucleo.request import kind as _ek_gate
@@ -111,14 +96,8 @@ async def _run_session(task: "Task") -> None:
     rec.label = _d._default_label(kind, req)
     _d.sync_state()
 
-    # LA CADENA ENTERA DORMIDA: no is lanza nothing (V2-314). Spawning here is a GUARANTEED death — every tier of
-    # the worker chain is in cooldown, and the CLI would burn ~30 s in the pool to die in two. What made this
-    # invisible is that `providers.pick()` returns None both when the chain is EMPTY (self-host, no keys: run
-    # the local license, the promised fail-open) and when every tier is asleep — so the cooldown we record for
-    # the LICENSE tier could never bite, and we spawned straight back into the provider that had just said no.
-    # Measured in `find-concert-tickets__es` (2026-08-25 10:53-10:56): license marked out-of-quota until 14:20,
-    # then spawned into twice more inside three minutes — 1.8 s, 3.9 s, 1.9 s of life, and a person told three
-    # times that a search was starting. `exhausted_until()` is the seam that tells the two Nones apart.
+    # THE WHOLE CHAIN ASLEEP starts nothing (V2-314): `providers.pick()` is None both for an EMPTY chain (self-host:
+    # the local licence, fail-open) and an all-in-cooldown one; `exhausted_until()` tells the two apart.
     try:
         from nucleo.workers import providers as _prov, quota_wait as _qwait
         _sleep_reason = _prov.exhausted_reason()

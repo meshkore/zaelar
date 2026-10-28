@@ -265,7 +265,7 @@ def _schedule(entries: list[dict], delay: float) -> None:
     async def _later() -> None:
         try:
             await asyncio.sleep(max(0.0, delay))
-            from nucleo.flash import escalate
+            from nucleo.acts import errand as escalate
             for ent in entries:
                 try:
                     # REANUDAR NO ES «NO ME VALE, BUSCA MÁS». `_compose_brief` casa el objetivo contra las rondas

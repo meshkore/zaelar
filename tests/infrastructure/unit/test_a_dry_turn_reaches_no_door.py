@@ -44,7 +44,7 @@ def test_a_dry_turn_closes_every_door_but_memory_when_ingesting():
 
 def test_inside_a_dry_turn_the_funnels_do_nothing(monkeypatch):
     from nucleo.pulse import scheduler
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     from widgets import server_api
 
     published, dispatched = [], []

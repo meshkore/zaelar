@@ -84,6 +84,7 @@ PER_FILE: dict[str, int] = {
     'memory/slots.py': 15,
     'memory/state.py': 41,
     'memory/vault_api.py': 1,
+    'nucleo/acts/errand.py': 1,
     'nucleo/acts/tools.py': 4,
     'nucleo/cli/report.py': 3,
     'nucleo/agentes/claude_code.py': 11,

@@ -329,7 +329,7 @@ def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
                         dup = ""
                 if not dup:
                     try:
-                        from nucleo.flash import escalate
+                        from nucleo.acts import errand as escalate
                         child = str(escalate.escalate_to_slowbrain(
                             req, context={"src": "susurro", "reason": reason, "trace": trace}) or "")
                         ok = bool(child)

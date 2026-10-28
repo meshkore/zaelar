@@ -100,7 +100,7 @@ def _observe_write(kind, level, slot, meta) -> None:
     try:
         from voice.observer import emit
         emit("memory", f"píldora escrita · {kind}", role="system",
-             extra={"layer": "write", "kind": kind, "level": level, "slot": slot or "",
+             extra={"layer": "write", "pill_kind": kind, "level": level, "slot": slot or "",
                     "source": str((meta or {}).get("source") or "")})
     except Exception as e:  # noqa: BLE001 — observability NEVER breaks the memory
         logger.debug(f"memory_agent: write event not emitted: {e}")

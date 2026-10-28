@@ -21,7 +21,7 @@ import pytest
 
 from nucleo import dispatch
 from nucleo.dispatch import confirm as dc
-from nucleo.flash import escalate as esc
+from nucleo.acts import errand as esc
 from nucleo.turn import errands_of_a_turn as E
 from nucleo.turn import named_errand
 

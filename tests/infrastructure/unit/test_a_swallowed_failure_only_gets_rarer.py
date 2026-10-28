@@ -58,7 +58,7 @@ def _counts() -> dict[str, int]:
 
 #: Measured on 2026-10-16 with the widened predicate (was 1147 `pass`-only on 2026-10-01) — the TOTAL may only
 #: fall, and no file may exceed its own count.
-TOTAL = 1701   # refactor2710-06: measured with 04 and main merged
+TOTAL = 1699   # refactor2710-06: measured with 10 merged
 PER_FILE: dict[str, int] = {
     'bus/__init__.py': 5,
     'bus/log.py': 7,
@@ -284,7 +284,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/delivery_repeat.py': 2,
     'nucleo/flash/direct_action.py': 25,
     'nucleo/flash/errand_sheet.py': 5,
-    'nucleo/flash/escalate.py': 4,
+    'nucleo/acts/errand.py': 4,
     'nucleo/flash/escalation_guard.py': 5,
     'nucleo/llm/fast_client.py': 16,
     'nucleo/flash/frontend.py': 1,

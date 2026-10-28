@@ -126,3 +126,26 @@ def test_the_voice_close_guard_answers_false(monkeypatch):
         text="Desde el principio.")
     assert out is False and deduped["v"] is True
     assert not any(a[0] == "widget" for a in rows), "the refused close must not reach the canvas"
+
+
+# The card door's LOAD clause: the same licence, read without a word table (refactor2710-06 T-01).
+def _load(said, *, query="", last_reply=""):
+    from nucleo.acts import card
+    return card.licence({"brief": None, "text": said}, "youtube", "load", at=card.LOAD, query=query,
+                        last_reply=last_reply).verdict
+
+
+def test_the_door_runs_a_load_he_named_and_drops_one_he_did_not(player):
+    from nucleo.acts import card
+    assert _load("Venga, ponnos un vídeo de Madonna.", query="Madonna") == card.RUN
+    assert _load("Put on a few Maradona videos, back to back.", query="Maradona videos") == card.RUN
+    assert _load("Muy bien, señora.", query="Madonna") == card.DROP, "praise names nothing to play"
+    assert _load("Muy bien, señora.") == card.DROP, "no verdict and nothing named: fail-closed"
+
+
+def test_a_yes_to_our_offer_to_play_runs_it(player, monkeypatch):
+    from nucleo.acts import card
+    from nucleo.flash import prior_line
+    monkeypatch.setattr(prior_line, "answers_our_question", lambda brief, prior: True)
+    assert _load("Sí.", last_reply="¿Te pongo un vídeo de Dune en YouTube?") == card.RUN
+    assert _load("Sí.", last_reply="¿Quieres que lo apunte en la agenda?") == card.DROP

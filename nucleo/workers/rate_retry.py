@@ -130,7 +130,7 @@ def relaunch_after_rate(rec, relay_cap: int, *, schedule=None) -> bool:
 
         def _go():
             try:
-                from nucleo.flash import escalate as _esc
+                from nucleo.acts import errand as _esc
                 _esc.escalate_to_slowbrain(goal, context=ctx)
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"worker[{tid}]: rate-limit relaunch failed: {e}")

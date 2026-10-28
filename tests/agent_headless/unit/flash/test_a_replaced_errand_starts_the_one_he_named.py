@@ -171,5 +171,5 @@ def test_the_steer_runs_before_the_promise_pass():
 
 
 def test_the_question_offers_the_four_answers():
-    assert set(sd.question("")["criteria"]) == {"stop", "replace", "steer", "keep"}
-    assert [c for c in sd.CHOICES if sd.ends(c)] == ["stop", "replace"]
+    assert set(sd.question("")["criteria"]) == {"stop", "stop_all", "replace", "steer", "keep"}
+    assert [c for c in sd.CHOICES if sd.ends(c)] == ["stop", "stop_all", "replace"]
