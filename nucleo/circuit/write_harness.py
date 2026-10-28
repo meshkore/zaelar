@@ -84,6 +84,7 @@ def goal_on(done_when, card: str, order: str = "") -> dict | None:
 async def check(order: str, writes: list, *, spec=None, settle_s: float = SETTLE_S) -> int:
     """Run the loop once; the number of repair calls applied. Never raises."""
     try:
+        from nucleo import circuit as _circuit
         from nucleo.circuit import spec as _spec, verify as _verify
         card = writes[0][0]
         goal = goal_on(await _spec.infer(order), card, order)
@@ -91,7 +92,9 @@ async def check(order: str, writes: list, *, spec=None, settle_s: float = SETTLE
             return 0
         await asyncio.sleep(settle_s)
         e = _spec.open(goal, text=order, source="turn+inferred", widget=card)
-        if _spec.attest(e) is not False:
+        if (read := _spec.attest(e)) is not False:
+            if read:
+                _circuit.settle(e, verdict="met")
             return 0
         calls = await _missing_calls(order, card, [a for _, a in writes], _verify.missing(goal), spec=spec)
         from widgets.server_api import brain_action
@@ -102,7 +105,8 @@ async def check(order: str, writes: list, *, spec=None, settle_s: float = SETTLE
             emit("brain", "🔁 arnés: la orden pedía más de lo que se hizo — completado", role="system",
                  text=f"{card}: {', '.join(a for a, _ in calls)}", extra={"cat": "flash", "widget": card})
             await asyncio.sleep(settle_s)
-            _spec.attest(e)
+            if _spec.attest(e):
+                _circuit.settle(e, verdict="met")
         return len(calls)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"write harness: {type(e).__name__}: {e}")

@@ -207,8 +207,8 @@ def _settle_inline_after_restart(uid: str, now: float) -> int:
         from nucleo.circuit import spec as _spec
         e = _spec.of_task(uid)
         if e and _spec.attest(dict(e), now=now) is True:
-            from nucleo.request import model as _rq
-            _rq.settle(uid, "met")
+            from nucleo import circuit as _circuit
+            _circuit.settle(row=uid, verdict="met")
             return 1
     except Exception as ex:  # noqa: BLE001 — an unreadable spec is just an interrupted request
         logger.debug(f"tasks: inline spec of {uid} not readable after restart ({ex})")

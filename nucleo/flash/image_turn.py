@@ -252,10 +252,10 @@ def _lang() -> str:
 
 
 def _row_end(action: str, ok: bool, outcome: str) -> None:
-    """The picture search is a request like any data-op (V2-776 M1): its row, and how it ended."""
-    try:
+    try:   # the picture search is a request like any data-op (V2-776 M1): its row, and how it ended
+        from nucleo import circuit as _circuit
         from nucleo.request import model as _rq
-        _rq.settle(_rq.opened("imagenes", action), "met" if ok else "unmet", outcome)
+        _circuit.settle(row=_rq.opened("imagenes", action), verdict="met" if ok else "unmet", outcome=outcome)
     except Exception:  # noqa: BLE001
         pass
 

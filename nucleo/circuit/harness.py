@@ -76,8 +76,9 @@ def _ledger():
 def _expire(now: float) -> None:
     for g in _ledger().open_specs(now):
         if g.get("source") == SOURCE and now - float(g.get("born") or now) > TTL_S:
-            g["status"], g["why"] = "unverifiable", "expired"   # never read before its time ran out
-            g["met_at"] = now
+            g["why"] = "expired"                               # never read before its time ran out
+            from nucleo import circuit as _circuit
+            _circuit.settle(g, verdict="unverifiable", now=now)
             _emit("🕰 arnés: objetivo caducado sin verificar", g)
 
 
@@ -166,7 +167,8 @@ async def sweep(now: float | None = None) -> list[dict]:
         except Exception:
             ok = None
         if ok:
-            g["status"], g["met_at"] = "met", now
+            from nucleo import circuit as _circuit
+            _circuit.settle(g, verdict="met", now=now)
             _emit("✅ arnés: objetivo conseguido", g)
             closed.append(g)
     return closed

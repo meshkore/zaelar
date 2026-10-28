@@ -345,8 +345,8 @@ async def _say_it_did_not_run(wid: str, action_name: str, exc: BaseException, *,
         pass
     if row:
         try:
-            from nucleo.request import model as _rq
-            _rq.settle(row, "unmet", res["error"])
+            from nucleo import circuit as _circuit
+            _circuit.settle(row=row, verdict="unmet", outcome=res["error"])
         except Exception:  # noqa: BLE001
             pass
     if callable(seal):
@@ -477,16 +477,16 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
             pass
     if _row:
         try:
-            from nucleo.request import model as _rq
+            from nucleo import circuit as _circuit
             if _refused:
-                _rq.settle(_row, "unmet", str(res.get("message") or res.get("error") or "")[:200])
+                _circuit.settle(row=_row, verdict="unmet", outcome=str(res.get("message") or res.get("error") or "")[:200])
             elif _spec_entry is None:
-                _rq.settle(_row, "undeclared")
+                _circuit.settle(row=_row, verdict="undeclared")
             elif _attested is not False:
-                _rq.settle(_row, _rq.verdict_of_attest(_attested))
-            elif _spec_entry is not None and _unchanged(_spec_entry):
-                _spec_entry["status"] = "unverifiable"          # the circuit leaves it: a replay, not a failure
-                _rq.settle(_row, "unverifiable", "sin cambio visible: la tarjeta ya estaba así")
+                _circuit.settle(_spec_entry, row=_row, verdict=_circuit.verdict.from_attest(_attested).name)
+            elif _spec_entry is not None and _unchanged(_spec_entry):   # a replay, not a failure: the circuit leaves it
+                _circuit.settle(_spec_entry, row=_row, verdict="unverifiable",
+                                outcome="sin cambio visible: la tarjeta ya estaba así")
             # False: the widget may still be catching up — the circuit's pulse settles it (met, or unmet after
             # its grace), and the row with it.
         except Exception:  # noqa: BLE001
