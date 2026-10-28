@@ -309,7 +309,7 @@ def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None, clarif
     return "" if attempted and refused == attempted else rid
 
 
-def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) -> None:
+def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict, brief=None) -> None:
     """The provider's whole `fullscreen_widget` branch body (extracted paying the architecture ratchet,
     V2-635): resolve the card (V2-609, above) and route by what the turn actually SAYS. Measured 2026-09-09
     (session 34386d8f): «Johnny pausa el vídeo» became fullscreen (pure drag — no screen-size words at all),
@@ -317,8 +317,8 @@ def fullscreen_dispatch(args: dict, text: str, tag_emit, emit, deduped: dict) ->
     non-maximized card the toggle does the exact opposite. Shrink orders now ride the canvas `minimize`
     event (desktop.shrink: exit fullscreen → restore maximize → rail chip); a call licensed by nothing is
     discarded and counts as handled (`deduped`) — same posture as stop_worker's GUARD 2."""
-    from nucleo.flash import canvas_license as _lic
-    verdict = _lic.fullscreen_license(text)
+    from nucleo.acts import canvas as _door
+    verdict = _door.size_ordered(text, brief=brief)
     if not verdict:
         emit("brain", "🛡️ fullscreen_widget ignorado — el turno no habla de tamaño de pantalla (context-bleed)",
              text=(text or "")[:120], role="system",
@@ -373,8 +373,8 @@ def fullscreen_exit_due(text: str, *, fired: bool) -> str:
     if fired:
         return ""
     try:
-        from nucleo.flash import canvas_license as _lic
-        if _lic.fullscreen_license(text) != "minimize":
+        from nucleo.acts import canvas as _door
+        if _door.size_ordered(text) != "minimize":
             return ""
         from memory import api as _memapi
         return str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()
@@ -458,38 +458,6 @@ def _resolve_canvas_verb_single(handle: dict | None, *, min_confidence: float | 
     from nucleo import jev as _jev
     mc = _jev.MIN_CONFIDENCE if min_confidence is None else min_confidence
     return _jev.resolve_choice(handle, "neither", min_confidence=mc)
-
-
-def close_has_order(text: str, canvas_handle: dict | None = None, *, brief=None) -> tuple[bool, str]:
-    """The ONE close-order reader for both channels' [[close]] guards (V2-635 and its probe mirror).
-
-    Grammar first: `looks_like_close` saying yes ends the question. A deterministic NEGATED or
-    NARRATED close ("do not close", "you've closed") ends it the other way — it vetoes even a
-    confident Jev, because a cheap model's opinion never beats the operator's own "don't".
-    Otherwise a confident Jev "close" LICENSES the model's [[close]] (two independent readers
-    agreeing forgives a grammar miss); anything else keeps the discard. Returns `(has_order,
-    source)` with source one of "grammar" | "jev" | "none" — the emit trail says which reader
-    moved, so a misfire is attributable.
-    """
-    from . import close_guards as _cg
-    if _cg.looks_like_close(text):
-        # …unless the turn's SURE canvas verdict says it is no close at all (`canvas_license.close_license`, the
-        # backstop's rule): «You did close the document of Bitcoin without me telling you» read as an order, and
-        # the model's [[close]] closed the document he was complaining about (demo 2026-10-22).
-        from . import canvas_license as _lic
-        if brief is not None and not _lic.close_license(text, brief=brief):
-            return False, "verdict"
-        return True, "grammar"
-    if _cg.is_negated_or_narrated(text):
-        return False, "none"
-    # V2-812 T-05 — his answer to OUR «which one should I close?» carries that question's licence («Las dos.»).
-    from . import close_answer as _ca
-    if _ca.answers(brief):
-        return True, "answer"
-    verb, info = resolve_canvas_verb(canvas_handle)
-    if verb == "close" and (info or {}).get("used"):
-        return True, "jev"
-    return False, "none"
 
 
 def show_from_verb(text: str, canvas_handle: dict | None = None) -> tuple[str | None, str]:

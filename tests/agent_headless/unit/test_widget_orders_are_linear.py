@@ -8,11 +8,13 @@ mutations, and the operator asking why three open cards cannot be handled «line
 
 Three fixes, three guards here:
 1. the seed table covers OPEN and CLOSE for EVERY card — measured before: close existed for 2 of 14 widgets;
-2. a close order is never answered with a show (`show_contradicts_the_order`, applied in BOTH channels);
+2. a close order is never answered with a show (`canvas.show_under_close`, the door's, applied in BOTH channels);
 3. the fast close DECLINES when live work sits behind the widget — killing an errand is richer than hiding a
    card, so that turn belongs to the model.
 """
 from __future__ import annotations
+
+from nucleo.acts import canvas as _door
 
 from tests import voice_turn_source as _vts
 
@@ -96,7 +98,7 @@ def test_one_phrase_one_opinion():
     "no abras nada, cierra los contactos",   # a NEGATED open licenses nothing
 ])
 def test_a_close_order_licenses_no_show(text):
-    assert router.show_contradicts_the_order(text)
+    assert _door.show_under_close(text)
 
 
 @pytest.mark.parametrize("text", [
@@ -106,14 +108,14 @@ def test_a_close_order_licenses_no_show(text):
     "no cierres nada, enséñame la agenda",        # negated close → not a close order
 ])
 def test_but_a_licensed_or_absent_close_keeps_its_show(text):
-    assert not router.show_contradicts_the_order(text)
+    assert not _door.show_under_close(text)
 
 
 def test_the_voice_turn_applies_the_guard():
     """V2-539's lesson: a rule carried IN PROSE is not applied — the voice turn (which the typed channel runs too)
     must call the shared guard."""
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert "show_contradicts_the_order" in voice, "the voice turn dropped the guard"
+    assert "_canvas_door.show_under_close(text, brief=_brief, wid=_wid)" in voice, "the voice turn dropped the guard"
 
 
 # ── 3 · the fast close declines over live work ───────────────────────────────────────────────────────────

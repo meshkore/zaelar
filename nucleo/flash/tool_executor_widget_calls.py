@@ -8,7 +8,7 @@ closure has. Module-level names of `tool_executor_widget` are read through it (`
 from __future__ import annotations
 
 from nucleo.acts import card as _card   # refactor2710-05 T-02: the one licence
-from nucleo.acts import message as _message_door   # V2-800: his order over a row he has seen is the yes
+from nucleo.acts import canvas as _canvas_door, message as _message_door   # V2-800: his order over a row he has seen is the yes
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import tool_executor_widget as _txw
 
@@ -111,16 +111,18 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
              text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_inside_card"})
         deduped["v"] = True
         return False                  # V2-787: a refused close says so to its caller (`close_dispatch`)
-    if action == "close" and not _txw._canvas_lic.close_license(text, brief=_brief):
-        # …unless Jev confidently reads a close order (T-jev-show-close): two readers agreeing forgive a miss.
-        _has_order, _order_src = _txw._show_target.close_has_order(text, canvas_h, brief=_brief)
+    if action == "close":
+        # the one close licence (the door's): his words, completed by the turn's brief; a model's call is forgiven a
+        # grammar miss only by a sure `canvas=close` (T-jev-show-close) — `source` says which reader moved.
+        _has_order, _order_src = _canvas_door.close_ordered(text, brief=_brief, called=True, handle=canvas_h)
         if not _has_order:
             emit("brain", "🛡️ close ignorado — el operador no ha pedido cerrar nada (context-bleed)",
                  text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_without_order"})
             deduped["v"] = True
             return False              # V2-787: a refused close says so to its caller (`close_dispatch`)
-        emit("brain", "🔓 close licenciado por Jev (la gramática no veía orden, dos lectores de acuerdo)",
-             text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_jev_licensed"})
+        if _order_src != "grammar":
+            emit("brain", "🔓 close licenciado por Jev (la gramática no veía orden, dos lectores de acuerdo)",
+                 text=(text or "")[:120], role="system", extra={"cat": "flash", "kind_diag": "close_jev_licensed"})
     if action == "show":
         contextual = _txw._show_target.named_or_guess(extra, lambda: _show_guard_target(text, brain._window, brain._last_action))  # V2-807 T-06
         if contextual:
@@ -278,7 +280,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
             # A LENS on a closed card brings the card (V2-773 final pass, C2: `agenda:show_day` changed a day
             # nobody could see). A write is not this: it may run behind the screen on purpose.
             elif (_fx.carries(wid, action_name, _fx.DATA_READ) and not _txw._cvis.is_open(wid)
-                  and not _txw._canvas_lic.closing_turn(_brief, wid)):   # V2-773 E5: a close never brings the card
+                  and not _canvas_door.show_under_close(brief=_brief, wid=wid, words=False)):   # V2-773 E5: a close never brings the card
                 _txw._cvis.present(wid, reason="turn-order", action=action_name, src="flash", emit=emit, text=text, brief=_brief)
         except Exception:
             pass

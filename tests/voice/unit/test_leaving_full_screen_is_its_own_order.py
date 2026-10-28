@@ -177,7 +177,7 @@ def test_the_voice_turn_runs_the_completion_before_the_close_backstop_and_marks_
     whole widget (the V2-600 incident)."""
     src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     i = src.index("_show_target.fullscreen_exit_backstop(")
-    j = src.index('if (not acted.get("closed")) and _canvas_lic.close_license(text, brief=_brief)')
+    j = src.index('if (not acted.get("closed")) and _door.close_ordered(text, brief=_brief)[0]')
     assert i < j, "the completion runs AFTER the close backstop — a leave order could be read as a close"
     body = src[i:j]
     assert 'fired="fullscreen_widget" in _tool_fired' in body, "it does not know whether the model already acted"
