@@ -22,6 +22,8 @@ TTL_S = 1800.0
 _MAX = 32
 
 _seen: list[tuple[str, float]] = []
+#: Which (card, action) WRITE landed when — what a later op made good of an earlier refused one (refactor2710-99).
+_landed: list[tuple[str, str, float]] = []
 
 
 def _fold(text: str) -> str:
@@ -42,6 +44,8 @@ def note(wid: str, action: str, text: str, res, *, now: float | None = None) -> 
     """After a data-op: remember the sentence when the op was a WRITE that landed."""
     if not isinstance(res, dict) or res.get("ok") is False or res.get("error") or _is_view(wid, action):
         return
+    _landed.append((str(wid or "").split("::", 1)[0].strip().lower(), str(action or ""), time.time() if now is None else now))
+    del _landed[:-_MAX]
     folded = _fold(text)
     if not folded:
         return
@@ -58,5 +62,12 @@ def served(content: str, *, now: float | None = None) -> bool:
     return any(now - at <= TTL_S and f" {c} " in f" {s} " for s, at in _seen)
 
 
+def landed_since(wid: str, action: str, since: float) -> bool:
+    """Did a write of this card action LAND after `since`? (a retry that made good an earlier refusal)"""
+    w = str(wid or "").split("::", 1)[0].strip().lower()
+    return any(lw == w and la == action and at > since for lw, la, at in _landed)
+
+
 def reset() -> None:
     _seen.clear()
+    _landed.clear()

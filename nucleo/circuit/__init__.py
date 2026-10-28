@@ -146,6 +146,22 @@ def _say_now(e: dict, missing: str) -> bool:
     return True
 
 
+def _made_good_later(e: dict) -> bool:
+    """A later write of the SAME card action landed after this one was born — the retry that made it good (refactor2710-99:
+    «I couldn't set that Wednesday reminder» said after the reminder was set by the next attempt). Said on the timeline."""
+    try:
+        from nucleo.flash import served_writes
+        if not (e.get("widget") and e.get("action")
+                and served_writes.landed_since(e["widget"], e["action"], float(e.get("born") or 0))):
+            return False
+        from nucleo.circuit import spec as _spec
+        _spec._emit("↪️ spec: superada por una escritura posterior de la misma acción — no se corrige", e)
+        return True
+    except Exception as ex:  # noqa: BLE001 — unreadable: the correction is said as before
+        logger.debug(f"circuit: made-good check skipped ({ex})")
+        return False
+
+
 def _settle_unmet_inline(e: dict, now: float) -> None:
     """An inline action whose declared end state never came true: the verdict is `unmet`, said ONCE.
 
@@ -164,6 +180,8 @@ def _settle_unmet_inline(e: dict, now: float) -> None:
         pass
     if e.get("reported"):
         return                               # the op was refused and `report_failure` already told the model
+    if _made_good_later(e):
+        return                               # a later write of the same card action landed: nothing left to correct
     if _say_now(e, missing):
         return                               # he ordered it and it did not happen: said NOW, not at his next turn
     try:

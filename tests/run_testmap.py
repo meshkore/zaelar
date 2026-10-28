@@ -4515,6 +4515,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_a_started_errand_is_never_not_done.py']},
         {"id": "2.903", "title": "The stop backstop says «stopped» in his language: its two lines are `stopped_now` / `stopped_also` of the language pack, never a literal (refactor2710-99, use case docs-single-recipe-not-a-list__us, V2-694)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_stop_backstop_speaks_his_language.py']},
+        {"id": "2.904", "title": "A refused op that a later write of the same card action made good is not corrected out loud: the circuit asks whether one landed after it before saying «I couldn't» (refactor2710-99, use case remember-and-remind-deadline__us)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/test_a_refusal_made_good_later_is_not_corrected.py']},
         {"id": "2.894", "title": "A module faked in sys.modules is also what its package hands out (`from pkg import mod`), and both come back — the root conftest's monkeypatch, so a fake never depends on whether an earlier test imported the real one (refactor2710-99)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_a_faked_module_is_what_its_package_hands_out.py']},
         {"id": "2.900", "title": "An unsure end state never refuses a SURE action verdict: refusing a completion is a veto, so an end state below 0.85 cannot stop a sure screen_action from completing the model (msg-es-more-chats); an unsure action keeps the gate, a sure end state still refuses (refactor2710-99)",
