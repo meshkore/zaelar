@@ -11,7 +11,7 @@ from nucleo.flash import act_repair as _act_repair, escalation_guard as _eg, pos
 from nucleo.flash import close_answer as _close_answer
 from nucleo.acts import canvas_turn as _arbiter
 from nucleo.acts import canvas as _door
-from nucleo.turn import reply as _reply
+from nucleo.turn import brief as _brief_q, reply as _reply
 
 
 async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_add, _buf_reset, _cardc, _close_target, _cover_work, _identify, _identify_system, _named_by_verdict, _no_tool, _op_text, _prompt_mod, _router, _rv, _say, _show_target_instance, _shown_ids, _t, _tag_emit, _tool_fired, _turn_op_tasks, acted, attention, brain, clarify, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, spoken_text, take, text, with_also_named) -> dict:
@@ -144,8 +144,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
     if (not acted.get("closed")) and _pst._canvas_lic.close_license(text, brief=_brief) \
             and not _router.looks_like_create_widget(text) \
             and not _pst._card_close.music_keeps_its_turn(music_req, _op_text) and not data_done["v"] \
-            and not _pst._closeg.taken_elsewhere(_tool_fired) \
-            and not attention.mentions_fullscreen(text):
+            and not _pst._closeg.taken_elsewhere(_tool_fired) and not _brief_q.names_elsewhere(_brief) \
+            and not attention.mentions_fullscreen(text):   # refactor2710-07: he named no card that is on screen
         try:
             from memory import api as _memapi
             _openw = list((_memapi.state() or {}).get("open_widgets") or [])

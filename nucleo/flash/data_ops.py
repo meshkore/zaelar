@@ -32,7 +32,7 @@ import time
 
 from nucleo.flash import op_receipt as _receipt
 from nucleo.flash import refusal_line as _rline
-from nucleo.flash import two_orders as _two
+from nucleo.turn import verdicts as _verdicts
 from nucleo.circuit import compose as _outcome
 
 #: Techo of data-ops by turn. Cinco enlaces pegados of a vez es a request; cincuenta es a model roto.
@@ -50,7 +50,7 @@ def _ident(args: dict) -> tuple[str, str, str]:
 
 def admite_data_op(args: dict, ya: list[dict], brief=None) -> bool:
     """¿Se ejecuta ESTA data-op, habiendo ejecutado already `already`? Decision shared by the two canales.
-    `brief`: two actions its verdict heard in his sentence are two orders, not a menu (`two_orders`)."""
+    `brief`: two actions its verdict heard in his sentence are two orders, not a menu (`verdicts.both_heard`)."""
     wid, accion, payload = _ident(args)
     if not wid or not accion:
         return False
@@ -61,7 +61,7 @@ def admite_data_op(args: dict, ya: list[dict], brief=None) -> bool:
         if (wid, accion, payload) == (p_wid, p_accion, p_payload):
             return False                      # duplicado exacto → la cita doble
         if wid == p_wid and accion != p_accion and not _distinct_targets(args, previa) \
-                and not _two.both_heard(brief, wid, accion, p_accion):
+                and not _verdicts.both_heard(brief, wid, accion, p_accion):
             return False                      # otra acción sobre el mismo widget → la enumeración
     return True
 

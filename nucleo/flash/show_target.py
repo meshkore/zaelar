@@ -252,6 +252,9 @@ def close_target(widget_id: str) -> str:
             if focus:
                 return focus
         return wid
+    from nucleo.turn import brief as _brief
+    if _brief.names_elsewhere(_brief.of_this_turn()):   # refactor2710-07: he named something that is not a card here
+        return ""
     return canvas_focus.last_turn_card(ids) or (ids[0] if len(ids) == 1 else "")
 
 
@@ -264,6 +267,9 @@ def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None, clarif
     C6). `done` is the turn's set of cards already closed — each card once, never a second close of the same."""
     rid = close_target(str(args.get("widget_id") or ""))
     if not rid:
+        return ""
+    if (_b := __import__("nucleo.turn.brief", fromlist=["x"])).names_elsewhere(_b.of_this_turn(), against_a_call=True):
+        emit("brain", "🚫 close vetoed: he named no card on screen", text=rid, role="system")
         return ""
     # Several cards of the piece open and no word to tell them apart: the close ASKS which (node 2.645). `rid` is
     # returned so the turn counts the call as handled — its answer is the question in `clarify`, never a close.

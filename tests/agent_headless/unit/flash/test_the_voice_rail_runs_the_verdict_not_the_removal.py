@@ -23,7 +23,7 @@ def _voice(answers, action="remove", said=SAID):
 
 def test_the_move_is_dispatched_and_the_removal_is_not(queue):
     queue(QUEUE)
-    got, sent, seen = _voice({"screen_action": ("youtube:move", 1.0)})
+    got, sent, seen = _voice({"screen_action": ("youtube:move", 1.0), "item_ref": ("youtube#5", 0.9)})   # «el último… no»
     assert got == "move"
     assert sent == [("youtube", "move", {"item": "4", "after": "1"})], sent
     assert seen, "the swap is on the timeline"

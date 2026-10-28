@@ -159,15 +159,19 @@ def test_the_handler_writes_off_the_turn_says_it_once_and_hands_the_session_back
     monkeypatch.setattr(proactive, "notify", notify)
     _answer(monkeypatch, {"op": "add", "say": "Entendido: sin muletillas.",
                           "rows": [{"scope": "voice", "kind": "pref", "key": "fillers", "value": "off"}]})
-    spawned, events = [], []
+    events = []
 
     class Brain:
         _directive = ""
     brain = Brain()
-    style_directive.handle("sin muletillas", "sin muletillas, por favor", brain,
-                           lambda *a, **k: events.append((a, k)), lambda coro, name: spawned.append(coro))
+    emit = lambda *a, **k: events.append((a, k))  # noqa: E731
+    style_directive.handle("sin muletillas", "sin muletillas, por favor", brain, emit)
     assert brain._directive == "sin muletillas", "obeyed at once, before the rows exist"
-    asyncio.run(spawned[0])
+
+    async def _turn_end():      # the post-stream chain settles it: no identity verdict → a rule, written off the turn
+        await style_directive.settle(brain, None, emit)
+        await asyncio.gather(*list(style_directive._TASKS))
+    asyncio.run(_turn_end())
     assert brain._directive == "" and said == ["Entendido: sin muletillas."]
     assert any("user rule guardada" in a[1] and k["extra"]["scope"] == "voice" for a, k in events)
 

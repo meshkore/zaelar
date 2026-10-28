@@ -1,69 +1,46 @@
-"""The PRESENCE knock, as vocabulary + the probe channel's mirror (V2-640).
+"""The PRESENCE knock and the bare call by name, read as ACTION-MAP ROWS (V2-640, V2-665, refactor2710-07).
 
-«¿Sigues ahí?» is a knock on the door, not a task. The DETECTOR lives here — in nucleo, the neutral ground —
-so both channels read the same words: the voice lane (`voice/.../fast_lane.presence`, which owns speaking)
-imports it downward, and the probe channel calls `mirror()` below (parallel impl, V2-539's rule: wire BOTH
-channels or the probe hands out verdicts the product never gives). The voice-side vocabulary (`langs.spec`)
-is INJECTED by the caller, never imported: the dependency-direction ratchet (7.32) refused probe modules
-reaching into `voice.engine.core`, and it was right — see `probe_actionmap.py`'s docstring.
+«¿Sigues ahí?» is a knock on the door, not a task, and «Johnny.» alone is an address, not a request: both are answered
+without a model by the voice lane (`voice/.../fast_lane.presence`, which owns speaking). What they ARE is declared data —
+`do: presence` and `do: address` rows of the language's action-map pack (`i18n/genesis/<lang>/actionmap.json`) — so a new
+language adds knocks as a translation; the regex that read them is gone. The lane's vocatives (`langs.smalltalk_book`)
+are INJECTED by the caller, never imported: this module is neutral ground (dependency-direction ratchet, 7.32).
 """
 from __future__ import annotations
 
-import re
-import unicodedata
-
-_PRESENCE_BODY_RE = re.compile(
-    r"^(?:oye |hola |hey |eh )?(?:"
-    r"(?:sigues|estas) (?:ahi|por ahi|conmigo)(?: o no| o que)?"
-    r"|me (?:oyes|escuchas|recibes)(?: bien)?(?: o no)?"
-    r"|hay alguien(?: ahi)?"
-    r"|(?:estas|sigues) (?:disponible|operativo|conectado|despierto|vivo)(?: o no)?"
-    r"|estas(?: ahi)?"
-    r"|are you (?:there|still there|listening|awake|alive|okay|with me)"
-    r"|can you hear me"
-    r"|(?:you )?still there"
-    # V2-674 — measured in the operator's own English session (sid daa7a385): «Hey, mate. You there?» reached
-    # a model and got «Let me check that for you…». The knock without a verb is the commonest spoken form.
-    r"|(?:so |hey )?(?:you|u)(?: still)? (?:there|around|awake|with me)"
-    r"|anybody there"
-    r")$")
-
 
 def _norm(text: str) -> str:
-    t = unicodedata.normalize("NFKD", (text or "").lower())
-    t = "".join(c for c in t if not unicodedata.combining(c))
-    return re.sub(r"\s+", " ", re.sub(r"[¿?¡!.,;:]+", " ", t)).strip()
+    from nucleo.actionmap import normalize
+    return normalize(text)
+
+
+def _row(text: str, assistant_name: str, vocatives: tuple[str, ...]) -> tuple[str, bool]:
+    """`(do, named)`: the action-map row the utterance is once the assistant's name and the language's generic
+    vocatives are taken out («Hey, mate. You there?» → «hey you there»), and whether his name was in it. ≤7 words.
+    `do` is "bare" when nothing is left, "" when what is left is no row of the active language."""
+    from nucleo.actionmap import normalize, store
+    n = f" {normalize(text)} "
+    if not n.strip() or len(n.split()) > 7:
+        return "", False
+    named = False
+    for name in sorted({normalize(x) for x in ({assistant_name} | set(assistant_names())) if x}, key=len, reverse=True):
+        if name and f" {name} " in n:
+            n, named = n.replace(f" {name} ", " "), True
+    voc = {normalize(v) for v in vocatives} - {""}
+    rest = " ".join(w for w in n.split() if w not in voc)
+    if not rest:
+        return "bare", named
+    return str(((store.index().get(rest) or {}).get("action") or {}).get("do") or ""), named
 
 
 def is_presence_check(text: str, assistant_name: str = "", vocatives: tuple[str, ...] = ()) -> bool:
-    """True only when the WHOLE utterance is a presence knock (≤7 words). A leading vocative — the
-    assistant's own name, «oye» — is stripped first (V2-635's lesson: a leading name must not hide a known
-    phrase); any other content means a real turn and falls through to the model.
+    """True only when the WHOLE utterance is a presence knock: a `presence` row of the action map once his name and
+    the vocatives are out (refactor2710-07 — the rows replaced the regex, so a language adds knocks as DATA).
 
     `vocatives` are the GENERIC forms of address of the operator's language, handed in by the caller from the
-    phrasebook (V2-674) rather than hardcoded here: «Hey, mate. You there?» was measured reaching a model and
-    being answered «Let me check that for you…», and the only word standing between it and this function was
-    «mate». Injected, never imported, for the same reason the probe injects `spec` — this module is neutral
-    ground and must not reach into the voice catalog."""
-    n = _norm(text)
-    if not n or len(n.split()) > 7:
-        return False
-    if vocatives:
-        voc = {_norm(v) for v in vocatives} - {""}
-        # Removed WHEREVER they appear, not only at the ends: the measured sentence was «Hey, mate. You
-        # there?», whose address sits in the MIDDLE once the clause break is normalized away. Safe because
-        # the remainder still has to match a presence phrase EXACTLY, inside a seven-word ceiling.
-        n = " ".join(w for w in n.split() if w not in voc)
-        if not n:
-            return False                  # an address and nothing else — `is_summons` owns that shape
-    for name in sorted({x for x in ({_norm(assistant_name)} | set(assistant_names())) if x},
-                       key=len, reverse=True):
-        if n.startswith(name + " "):
-            n = n[len(name):].strip()
-            break
-        if n == name:
-            return False                  # a bare call by name is a summons — `is_summons` below owns it
-    return bool(_PRESENCE_BODY_RE.match(n))
+    phrasebook (V2-674): «Hey, mate. You there?» was measured reaching a model, and the only word standing between
+    it and this function was «mate». Removed WHEREVER they appear: the remainder still has to be a row exactly."""
+    return _row(text, assistant_name, vocatives)[0] == "presence"
 
 
 # A bare call by NAME is an address, not a request — it opens the window and asks for attention, and the only
@@ -73,9 +50,6 @@ def is_presence_check(text: str, assistant_name: str = "", vocatives: tuple[str,
 # a summons. Six seconds later a second bare «Johnny.» got «Dime, Ricardo.», which is the right answer: the
 # most frequent utterance in wake-word mode was non-deterministic, and half the time it acted. Now it never
 # reaches a model and never reaches a tool.
-_SUMMONS_LEAD_RE = re.compile(r"^(?:oye|hey|eh|hola|perdona|oiga)\s+")
-_SUMMONS_TAIL_RE = re.compile(r"\s+(?:por favor|porfa|please)$")
-
 
 def assistant_names() -> tuple[str, ...]:
     """Every word that counts as HIS NAME, normalized — the wake words the attention gate actually uses.
@@ -99,40 +73,7 @@ def assistant_names() -> tuple[str, ...]:
 
 
 def is_summons(text: str, assistant_name: str = "") -> bool:
-    """True when the WHOLE utterance is the assistant's name and nothing else (a leading interjection and a
-    trailing courtesy are allowed — they carry no request either). Anything after the name is a real turn."""
-    n = _norm(text)
-    if not n:
-        return False
-    n = _SUMMONS_TAIL_RE.sub("", _SUMMONS_LEAD_RE.sub("", n)).strip()
-    if not n:
-        return False
-    names = {x for x in ({_norm(assistant_name)} | set(assistant_names())) if x}
-    return n in names
-
-
-def mirror(text: str, sess, trace_id: str, spec, vocatives: tuple[str, ...] = ()) -> dict | None:
-    """The PROBE channel's answer to a presence knock — the finished response dict, or None to fall through.
-    Deterministic twin of the voice lane: first phrase of the honest pool (busy vs idle), the exchange lands
-    in the window (the V2-605 canned-line lesson), and `action: "presence"` says no model resolved it."""
-    try:
-        aname = ""                      # `assistant_names()` is the authority; this stays for an explicit caller
-        if not (is_presence_check(text, aname, vocatives) or is_summons(text, aname)):
-            return None
-        busy = False
-        try:
-            from nucleo import dispatch
-            busy = dispatch.has_active()
-        except Exception:
-            pass
-        pool = list(getattr(spec(), "presence_busy" if busy else "presence_idle", ()) or ())
-        if not pool:
-            return None
-        phrase = pool[0]
-        from nucleo.flash import dialog
-        dialog.push_user(sess.window, text)
-        sess.window.append({"role": "assistant", "content": phrase})
-        return {"ok": True, "reply": [phrase], "action": "presence", "tool_calls": [], "tags": [],
-                "trace": trace_id}
-    except Exception:
-        return None
+    """True when the WHOLE utterance is the assistant's name and nothing else, or his name with only an `address`
+    row around it («oye Johnny, por favor»): they carry no request either. Anything else after the name is a turn."""
+    do, named = _row(text, assistant_name, ())
+    return named and do in ("bare", "address")

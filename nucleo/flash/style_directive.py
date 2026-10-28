@@ -1,5 +1,5 @@
-"""The set_style_directive handler, whole (V2-046 A1 + V2-633 + V2-806). Identity actions get first refusal (a
-rename / the attention-mode toggle ride the same tool); everything else is a RULE, understood ONCE when it is
+"""The set_style_directive handler, whole (V2-046 A1 + V2-633 + V2-806). A rename or the attention-mode toggle rides the
+same tool and is decided after the model by the brief's verdict (`nucleo/turn/identity`); everything else is a RULE, understood ONCE when it is
 written: `rules.shape.write` makes one structured model call against the declared vocabulary and stores, removes
 or lists rows of the rules table — style knobs, permission gates and notes alike, by scope. The session layer
 (`brain._directive`) carries his sentence only until its rows exist, and the agent repeats back once, in plain
@@ -12,16 +12,39 @@ import asyncio
 from loguru import logger
 
 
-def handle(directive: str, text: str, brain, emit, spawn) -> bool:
-    """Run the whole directive path. Returns True when identity_actions consumed the turn — the caller must
-    stop there (the identity handler speaks and acts on its own)."""
-    from nucleo.flash import identity_actions as _ident   # rename/attention-mode toggle
-    if _ident.handle_voice(directive, emit, spawn):
-        return True
+def handle(directive: str, text: str, brain, emit, _spawn=None, *, name: str = "") -> bool:
+    """Run the directive path. A rename or the attention mode is decided AFTER the model by the brief's
+    `identity_change` verdict (`nucleo/turn/identity.settle`, called from the post-stream chain): the call is parked
+    on the brain until then. Returns False — the turn goes on."""
     brain._directive = directive         # obeyed at once, until the rows exist
+    brain._style_call = (directive, name, text)
     emit("brain", "🎯 directiva de estilo fijada", text=directive, role="system")
-    spawn(write_rule(directive, text, emit, brain), "user-rule")
     return False
+
+
+#: The rule writes this module started off the turn (kept so they are not collected mid-flight).
+_TASKS: set = set()
+
+
+async def settle(brain, brief, emit) -> None:
+    """The parked `set_style_directive` of this turn: an identity change when the brief surely says so, else a rule."""
+    call = getattr(brain, "_style_call", None)
+    brain._style_call = None
+    if not call:
+        return
+    directive, name, text = call
+    from nucleo.turn import brief as _brief, identity
+    handle = brief if brief is not None else _brief.of_this_turn()
+    ev = handle.get("event") if isinstance(handle, dict) else None
+    if ev is not None:
+        await asyncio.to_thread(ev.wait, 1.5)        # read AFTER the model: the verdict usually landed already
+    if await identity.settle(handle, name, emit):
+        if getattr(brain, "_directive", None) == directive:
+            brain._directive = ""
+        return
+    task = asyncio.get_running_loop().create_task(write_rule(directive, text, emit, brain), name="user-rule")
+    _TASKS.add(task)
+    task.add_done_callback(_TASKS.discard)
 
 
 async def write_rule(directive: str, text: str, emit, brain=None, *, speak: bool = True) -> dict:
@@ -114,17 +137,3 @@ def prompt_lines(mstate: dict) -> list[str]:
     except Exception:
         pass
     return lines
-
-
-async def handle_probe(d: str, text: str, sess, ingest: bool):
-    """Probe-channel mirror (this module owns the tool in BOTH channels). Returns the identity action label when
-    identity_actions consumed the directive, else None after writing the rule (gated to real turns)."""
-    from nucleo.flash import identity_actions as _ident
-    act = await _ident.handle_probe(d, ingest=ingest) if d else None
-    if act or not d:
-        return act
-    sess.directive = d
-    if ingest:
-        from voice.observer import emit
-        await write_rule(d, text, emit, sess)
-    return None

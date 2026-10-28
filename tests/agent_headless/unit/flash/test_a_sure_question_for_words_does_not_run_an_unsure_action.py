@@ -17,7 +17,7 @@ import threading
 import pytest
 
 from nucleo.flash import direct_action as DA
-from nucleo.flash import words_only as WO
+from nucleo.turn import verdicts as WO
 
 
 def _brief(*, screen="youtube:next", screen_conf=0.54, words="tell", words_conf=1.0, kind="question", kind_conf=0.99):

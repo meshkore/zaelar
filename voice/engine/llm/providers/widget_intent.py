@@ -126,10 +126,9 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
     canvas verdict (V2-807 T-07). Returns True if it ACTED (so the caller marks acted["widget"] and the login
     fallback does not steal the turn — V2-023).
 
-    What it acts on is the verdict, never a verb table: with `canvas=neither`, unsure or absent, it does nothing
-    and the model's own calls stand. A show needs a card his words NAME (`_identify_named`, never «by context»);
-    a close that names no card closes the cards he is not using (`bulk_close.close_all`, V2-807 T-08 — the draft
-    he was correcting closed with everything else on «close what you don't need»).
+    It acts on the verdict, never a verb table. A show needs a card his words NAME (`_identify_named`); a close that
+    names no card closes the cards he is not using (`bulk_close.close_all`, V2-807 T-08) — unless what he named is
+    not a card on screen (`brief.names_elsewhere`, refactor2710-07).
 
     `ask` is where a question goes (V2-259 F3). Asking IS acting: the turn resolves with the question."""
     n = _norm_nfkd(text)
@@ -143,6 +142,8 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
     try:
         if order == "close":
             wid = _identify_named(text)
+            if not wid and __import__("nucleo.turn.brief", fromlist=["x"]).names_elsewhere(brief):
+                return False
             if not wid:
                 from nucleo.flash import bulk_close as _bulk
                 _bulk.close_all(emit, src="flash", text=text, brief=brief)

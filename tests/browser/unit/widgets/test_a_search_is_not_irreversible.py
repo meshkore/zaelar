@@ -105,13 +105,22 @@ def test_the_gate_refuses_a_confirmation_with_no_question_and_the_view_contradic
 
 # ── the trigger: a bare name is an address, not an errand ────────────────────────────────────────────────
 @pytest.fixture()
-def _renamed():
-    """His engine is called «Johnny», and that is where the name REALLY lives."""
+def _renamed(monkeypatch, tmp_path):
+    """His engine is called «Johnny», and that is where the name REALLY lives — over a fresh Spanish action map,
+    whose `address`/`presence` rows say what may sit around the name (refactor2710-07)."""
+    from memory import db as memdb
+    from nucleo.actionmap import store
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
+    memdb.reset_db()
+    monkeypatch.setattr(store, "active_lang", lambda: "es")
+    store.invalidate()
     from voice import attention
     prev = attention.assistant_name()
     attention.set_assistant_name("Johnny")
     yield
     attention.set_assistant_name(prev)
+    store.invalidate()
+    memdb.reset_db()
 
 
 @pytest.mark.parametrize("txt", ["Johnny.", "johnny", "Oye Johnny", "Johnny, por favor", "zaelar"])
@@ -140,29 +149,3 @@ def test_the_name_is_read_where_a_rename_actually_lands(_renamed):
     for rel in (("voice", "engine", "llm", "providers", "fast_lane.py"), ("nucleo", "flash", "presence.py")):
         src = (ENG.joinpath(*rel)).read_text(encoding="utf-8")
         assert "from config.settings import" not in src, f"{rel[-1]} still reads the name from the settings file"
-
-
-def test_both_channels_answer_a_summons_without_a_model():
-    """Parallel implementations (V2-252/V2-539): the voice lane speaks it, the probe mirrors it."""
-    import inspect
-
-    from nucleo.flash import presence as _p
-    from voice.engine.llm.providers import fast_lane as _fl
-    assert "is_summons(text, _aname)" in inspect.getsource(_fl.presence), \
-        "the voice lane must answer a summons in its own fast lane, never through the model"
-    assert "is_summons(text, aname)" in inspect.getsource(_p.mirror), "the probe channel must mirror it"
-
-
-def test_the_probe_channel_answers_a_summons_end_to_end(_renamed, monkeypatch):
-    """The measured failure ran through the MODEL. Driving the real mirror proves no model is reached."""
-    from nucleo.flash import presence as _p
-    from voice.engine.core import langs
-    called = {"n": 0}
-
-    class _Sess:
-        def __init__(self):
-            self.window = []
-    monkeypatch.setattr(_p, "_push", lambda *a, **k: called.__setitem__("n", called["n"] + 1), raising=False)
-    out = _p.mirror("Johnny.", _Sess(), "T1", lambda: langs.LANGUAGES["es"])   # `spec` is a CALLABLE
-    assert out and out.get("action") == "presence", f"a summons must not reach the model: {out}"
-    assert not (out.get("tool_calls") or out.get("tools")), "and it must fire no tool at all"

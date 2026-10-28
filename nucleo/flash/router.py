@@ -252,7 +252,8 @@ def decide(name: str, args: dict | None = None) -> Decision:
                                 "alias": (args.get("alias") or "").strip(),
                                 "op": "remove" if _op.startswith("rem") or _op in ("quitar", "borrar") else "add"})
     if name == "set_style_directive":
-        return Decision(STYLE, {"directive": (args.get("directive") or "").strip()})
+        return Decision(STYLE, {"directive": (args.get("directive") or "").strip(),
+                                "name": (args.get("name") or "").strip()})
     if name == "send_to_worker":
         return Decision(INJECT, {"which": (args.get("which") or "").strip(),
                                  "message": (args.get("message") or "").strip()})

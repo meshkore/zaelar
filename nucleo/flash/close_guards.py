@@ -146,6 +146,8 @@ def the_only_card(text: str, open_widgets, *, brief=None):
     if brief is not None:
         try:
             from nucleo.flash import turn_brief as _tb
+            if _tb.names_elsewhere(brief):        # refactor2710-07: what he named is not a card on screen
+                return None
             verb, info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
             if info is not None and str(verb or "") != "close":
                 return None
