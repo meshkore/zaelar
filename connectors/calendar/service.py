@@ -317,16 +317,33 @@ def invite(meeting: dict, emails: list, provider_id: str = _DEFAULT_PROVIDER) ->
     return {"ok": True, "added": added, "already": [a for a in want if a not in added], "meeting": enriched}
 
 
-def delete_event(meeting: dict, provider_id: str = _DEFAULT_PROVIDER) -> dict:
-    import httpx
+class Session:
+    """ONE prepared token and ONE HTTP client for a run of calls — a bulk order pays the handshake once, not per row
+    (175 deletes took minutes one by one, 2026-10-28). `err` is set when the provider is not usable."""
+
+    def __init__(self, provider_id: str = _DEFAULT_PROVIDER):
+        import httpx
+        self.provider, self.token, self.err = _prepared(provider_id)
+        self.client = httpx.Client() if not self.err else None
+
+    def close(self) -> None:
+        if self.client is not None:
+            self.client.close()
+
+
+def delete_event(meeting: dict, provider_id: str = _DEFAULT_PROVIDER, *, session: "Session | None" = None) -> dict:
     gid, cid = meeting.get("googleId"), meeting.get("googleCalendarId")
     if not gid or not cid:
         return {"ok": False, "error": "esta cita no viene de Google Calendar"}
-    p, tok, err = _prepared(provider_id)
-    if err:
-        return err
-    with httpx.Client() as client:
-        return _gc.delete_event(client, p.api_base, tok, cid, gid)
+    own = session is None
+    s = Session(provider_id) if own else session
+    if s.err:
+        return s.err
+    try:
+        return _gc.delete_event(s.client, s.provider.api_base, s.token, cid, gid)
+    finally:
+        if own:
+            s.close()
 
 
 def brain_state() -> str:

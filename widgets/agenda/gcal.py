@@ -182,19 +182,11 @@ def rsvp_google(m: dict, answer: str) -> tuple[bool, str]:
     return True, ""
 
 
-def delete_google(m: dict) -> bool:
-    """Delete this meeting's Google event. True when it is really gone THERE, False when it is not.
-
-    ⚠️ This returned None and swallowed both the exception AND the service's own `{"ok": False}` (V2-693).
-    A refusal, a 404, an expired token and a network drop were all indistinguishable from success — so
-    `cancel_meeting` and `clear_range` removed the local row, reported «borradas: N», and the next sync
-    quietly pulled the survivors back from Google. Measured on the operator's own calendar the same day:
-    42 rows reported deleted, four of them still in Google afterwards with their `updated` stamp untouched
-    — proof they had never been asked to go. He had already said what that costs: «necesitamos un sistema
-    estable».
-
-    A row that is not `source: google` has nothing to delete there and answers True: there is no debt.
-    Still best-effort in the sense that it never raises — but the caller now LEARNS, and can say so."""
+def delete_google(m: dict, *, session=None) -> bool:
+    """Delete this meeting's Google event. True when it is really gone THERE, False when it is not — a refusal, a 404,
+    an expired token and a network drop are NOT success (V2-693: 42 rows «deleted», four still in Google, the next
+    sync pulled them back). A row that is not from Google owes nothing there and answers True. Never raises.
+    `session` (node 2.918): a prepared connector session shared by a bulk delete."""
     if m.get("source") != "google" and not m.get("googleSeriesId"):
         return True
     s = svc()
@@ -203,7 +195,7 @@ def delete_google(m: dict) -> bool:
     if m.get("googleSeriesId"):          # V2-769 — our series: deleting its MASTER takes every instance
         m = {**m, "googleId": m["googleSeriesId"]}
     try:
-        res = s.delete_event(m) or {}
+        res = (s.delete_event(m, session=session) if session is not None else s.delete_event(m)) or {}
     except Exception as e:  # noqa: BLE001
         logger.warning(f"agenda: no pude borrar «{m.get('title')}» de Google ({e!r})")
         return False
@@ -213,21 +205,36 @@ def delete_google(m: dict) -> bool:
     return True
 
 
+def delete_many(rows: list) -> tuple[list, list]:
+    """`(gone, stuck)` for a BULK delete: the same per-row verdict as `delete_google`, over ONE connector session (one
+    token, one client — node 2.918). A row Google refuses STAYS; a row that lives nowhere in Google is gone."""
+    s = svc()
+    session = None
+    if s is not None and hasattr(s, "Session") and any(m.get("source") == "google" or m.get("googleSeriesId") for m in rows):
+        try:
+            session = s.Session()
+            if session.err:                               # not usable: every row goes through the single door
+                session.close()
+                session = None
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"agenda: no Google session for the bulk delete ({e!r})")
+            session = None
+    gone, stuck = [], []
+    try:
+        for m in rows:
+            ok = delete_google(m, session=session) if session is not None else delete_google(m)
+            (gone if ok else stuck).append(m)
+    finally:
+        if session is not None:
+            session.close()
+    return gone, stuck
+
+
 def connected() -> bool:
-    """True when a Google Calendar account is linked RIGHT NOW.
-
-    ⚠️ `service.status()` answers `{"ok": …, "providers": [ … ]}` — a DICT, not the list of rows
-    `oauth.status()` returns. The first version of this function iterated the facade's answer directly, so
-    it walked the dict's KEYS, called `.get` on a string, raised, and its own `except` turned that into
-    `False` — **always**. It measured nothing, and the guard it feeds could never fire.
-
-    It stayed green because both fixtures that exercise it monkeypatch THIS function: a double with the
-    wrong shape is only caught by a case that refuses to use the double. `test_connected_reads_the_REAL_
-    facade_shape` is that case.
-
-    Fail-safe: an unreadable connector answers False, which is the side that still lets the operator reach
-    the connect button — refusing to connect is a worse failure than offering it twice.
-    """
+    """True when a Google Calendar account is linked RIGHT NOW. ⚠️ `service.status()` answers a DICT with `providers`,
+    not `oauth.status()`'s list — the first version walked the dict's keys and its own `except` made it False ALWAYS
+    (`test_connected_reads_the_REAL_facade_shape` keeps it honest). Fail-safe: an unreadable connector answers False,
+    the side that still offers the connect button."""
     s = svc()
     if s is None:
         return False

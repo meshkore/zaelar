@@ -64,16 +64,41 @@ def _call_widget(wid: str, fn: str, caller):
     return caller(target)
 
 
+#: Hooks that outlived the pool timeout and are STILL RUNNING (a thread cannot be killed): token → future. A timeout is
+#: not a verdict on the work (V2-743); the brain waits for the real result through `wait_pending` and reports it late.
+_PENDING: dict[str, "asyncio.Future"] = {}
+_PENDING_WAIT = float(os.environ.get("WIDGETS_DATA_PENDING_WAIT", "900"))
+
+
 async def _run_widget(wid: str, fn: str, caller):
     """Run a widget hook off the event loop with a hard timeout. Returns _MISSING (no module/hook) or the hook's
-    result; a timeout or crash becomes a degraded {"error": …} instead of stalling or 500-ing the server."""
+    result; a crash becomes a degraded {"error": …}; a timeout becomes {"error": …, "pending": token} — the hook
+    keeps running and `wait_pending(token)` hands over what it finally answered."""
     fut = asyncio.get_running_loop().run_in_executor(_POOL, lambda: _call_widget(wid, fn, caller))
     try:
-        return await asyncio.wait_for(fut, timeout=_TIMEOUT)
+        return await asyncio.wait_for(asyncio.shield(fut), timeout=_TIMEOUT)
     except asyncio.TimeoutError:
-        return {"error": f"widget '{wid}' timed out after {_TIMEOUT:.0f}s"}
+        token = f"{wid}:{fn}:{id(fut)}"
+        _PENDING[token] = fut
+        return {"error": f"widget '{wid}' timed out after {_TIMEOUT:.0f}s", "pending": token}
     except Exception as e:
         return {"error": f"widget '{wid}' failed: {type(e).__name__}: {e}"}
+
+
+async def wait_pending(token: str, timeout: float | None = None):
+    """The real answer of a hook that outlived its turn, or None when nothing is pending under `token` or it did not
+    finish within `timeout` (then it is still running, and nobody may claim it did or did not land)."""
+    fut = _PENDING.pop(str(token or ""), None)
+    if fut is None:
+        return None
+    try:
+        res = await asyncio.wait_for(asyncio.shield(fut), timeout=_PENDING_WAIT if timeout is None else timeout)
+    except asyncio.TimeoutError:
+        _PENDING[token] = fut
+        return None
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"widget failed: {type(e).__name__}: {e}"}
+    return {"error": "no data module"} if res is _MISSING else res
 
 
 # PUBLIC facade for other domains (nucleo/cli/worker_api, Susurro...): run a widget hook with the SAME isolation (bounded

@@ -196,6 +196,7 @@
  "done_not_on_card": "It isn't on the card yet, so it's not done.",
  "done_just_started": "I'm on it — it isn't done yet.",
  "data_ack": "Done.",
+ "data_done_count": "Done — {n} items.",
  "data_ack_went_ahead": "I've gone ahead and done it, as you asked.",
  "data_ack_went_with": "I went with the likeliest one — tell me if you meant something else.",
  "promise_not_kept": "I haven't done it — I couldn't carry it out from here.",

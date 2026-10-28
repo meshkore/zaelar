@@ -196,6 +196,7 @@
  "done_not_on_card": "Todavía no está en la tarjeta, así que no está hecho.",
  "done_just_started": "Me pongo con ello; todavía no está hecho.",
  "data_ack": "Hecho.",
+ "data_done_count": "Hecho: {n} elementos.",
  "data_ack_went_ahead": "Ya lo he hecho, tal como lo pediste.",
  "data_ack_went_with": "He ido con lo más probable; si era otra cosa, dímelo.",
  "promise_not_kept": "No lo he hecho: desde aquí no he podido ejecutarlo.",

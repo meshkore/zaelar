@@ -393,6 +393,9 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         except Exception:  # noqa: BLE001
             pass
     await _report_ignored(wid, action_name, res)
+    if not receipt and isinstance(res, dict) and _receipt.is_pool_timeout(res) and res.get("pending"):
+        from nucleo.flash import op_pending as _op_pending        # node 2.917: still running, reported when it ends
+        return await _op_pending.still_running(wid, action_name, res, seal=seal, row=_row)
     if callable(seal):
         try:
             seal(not (isinstance(res, dict) and res.get("ok") is False))

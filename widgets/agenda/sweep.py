@@ -157,7 +157,6 @@ def clear_range(db: dict, payload: dict) -> tuple[dict, list[dict]]:
                 "detail": (f"No he borrado nada: {names} no está en ese tramo, así que no podía conservarlo. "
                            f"Ahí hay: {'; '.join(have[:12]) or '(nada)'}.")}, []
     doomed = [m for m in rows if not kept(m, keep)]
-    gone, stuck = [], []
     # V2-769 — a series loses the DAYS inside the window, never the whole series: «vacía esta semana» must
     # leave next week's piano where it is.
     from . import recur
@@ -168,12 +167,9 @@ def clear_range(db: dict, payload: dict) -> tuple[dict, list[dict]]:
         if ser is not None and recur.skip(ser, occ["date"]):
             skipped += 1
     doomed = [m for m in doomed if not m.get("seriesDate")]
-    for m in doomed:
-        if gcal.delete_google(m):
-            _data._cancel_reminder(m)
-            gone.append(m)
-        else:
-            stuck.append(m)
+    gone, stuck = gcal.delete_many(doomed)
+    for m in gone:
+        _data._cancel_reminder(m)
     db["meetings"] = [m for m in db.get("meetings", []) if m not in gone]
     for b in list(db.get("blocks", [])):
         if lo <= str(b.get("date") or "") <= hi:
@@ -288,13 +284,9 @@ def cancel_every(db: dict, hits: list[dict], *, plural: bool = False) -> tuple[d
     turns of «quitarlas todas» answered with «which one?»), and the tail of `cancel_meeting` otherwise. One trash
     entry holds the set (`restore_meeting` brings it all back); a row Google refuses STAYS (the `clear_range` lesson)."""
     from . import data as _data, meeting_trash
-    gone, stuck = [], []
-    for m in hits:
-        if gcal.delete_google(m):
-            _data._cancel_reminder(m)
-            gone.append(m)
-        else:
-            stuck.append(m)
+    gone, stuck = gcal.delete_many(hits)                 # one Google client for the whole set (node 2.918)
+    for m in gone:
+        _data._cancel_reminder(m)
     meeting_trash.put(db, "delete", gone)
     db["meetings"] = [m for m in db.get("meetings", []) if m not in gone]
     dates = sorted({str(m.get("date") or "") for m in gone})
