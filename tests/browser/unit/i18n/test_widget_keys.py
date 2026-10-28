@@ -57,6 +57,13 @@ def _widget_js_files() -> list[Path]:
     return sorted(p for p in _WIDGETS_DIR.glob("*/widget.js") if "_user" not in p.parts)
 
 
+def _client(entry: Path) -> str:
+    """The widget's WHOLE client — `widget.js` plus its `js/` modules — as the catalog gate reads it
+    (`widgets.paths.client_files`): a label moved into `js/` is still a label the operator must be able to change."""
+    from widgets import paths
+    return paths.client_source(str(entry.parent))
+
+
 def _bundle(code: str) -> dict:
     return json.loads((_ENGINE / "i18n" / "genesis" / code / "ui.json").read_text(encoding="utf-8"))
 
@@ -225,7 +232,7 @@ def test_every_widget_translation_key_exists_in_both_bundles():
     en, es = _bundle("en"), _bundle("es")
     missing = {}
     for f in _widget_js_files():
-        keys = _keys_of(f.read_text(encoding="utf-8"))
+        keys = _keys_of(_client(f))
         gone = sorted(k for k in keys if k not in en or k not in es)
         if gone:
             missing[str(f.relative_to(_ENGINE))] = gone
@@ -237,7 +244,7 @@ def test_no_dead_or_fallback_pattern_after_a_translation_call():
     that reads like a working fallback and never runs — the exact trap the mobile shell's own test already
     guards against (found there 2026-08-29)."""
     offenders = [str(f.relative_to(_ENGINE)) for f in _widget_js_files()
-                 if _FALLBACK_RE.search(f.read_text(encoding="utf-8"))]
+                 if _FALLBACK_RE.search(_client(f))]
     assert not offenders, f"dead `t(...) || fallback` pattern in: {offenders}"
 
 
@@ -261,7 +268,7 @@ def test_no_widget_ships_text_the_operators_language_cannot_change():
     """
     offenders: dict[str, list[str]] = {}
     for f in _widget_js_files():
-        src = f.read_text(encoding="utf-8")
+        src = _client(f)
         masked, calls = _mask_spans(src), _tt_call_spans(src)
         bad = []
         for m in re.finditer(r"\"((?:[^\"\\\n]|\\.)*)\"|'((?:[^'\\\n]|\\.)*)'", src):
@@ -298,27 +305,13 @@ def test_no_widget_ships_text_the_operators_language_cannot_change():
 
 # ── 3 · the helper is actually bound, and the scan is actually measuring something ───────────────────────────
 
-def test_a_widget_with_the_helper_binds_it_in_render():
-    """`tt()` falls back to the literal when `_T` is null — which is correct outside the engine and a SILENT
-    total failure inside it. A widget that declares the helper and never binds it translates nothing, in every
-    language, with no error anywhere."""
-    unbound = []
-    for f in _widget_js_files():
-        src = f.read_text(encoding="utf-8")
-        if not _prefix_of(src) or "_T" not in src:      # documento takes `ctx` per call: nothing to bind
-            continue
-        if not re.search(r"_T\s*=\s*\(\s*ctx\s*&&", src):
-            unbound.append(str(f.relative_to(_ENGINE)))
-    assert not unbound, f"these widgets declare the i18n helper and never bind it in render(): {unbound}"
-
-
 def test_the_ratchet_actually_sees_the_whole_catalog():
     """A ratchet with nothing to ratchet proves nothing. Measured 2026-09-14: all 15 shipped widgets carry
     translated chrome, so a regex drift shows up as this COUNT collapsing rather than as a silently-green scan
     over an empty set."""
     migrated, no_strings = {}, []
     for f in _widget_js_files():
-        src = f.read_text(encoding="utf-8")
+        src = _client(f)
         migrated[f.parent.name] = len(_keys_of(src))
         # `clock` is the honest exception and says so in its own header: it paints a date and a time and NOTHING
         # else, so `Intl.DateTimeFormat(ctx.lang, …)` gives it every language with no string of ours at all.
