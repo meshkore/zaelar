@@ -16,12 +16,11 @@ RENDERED, not read. A source test would say the listener exists; only layout say
 gesture on the whole canvas that knew a chat column could be there.
 """
 import asyncio
-import pathlib
-import re
 
 import pytest
 
-DESKTOP = pathlib.Path("frontend/app/widgets/desktop.js")
+from tests.browser import desktop_client
+
 
 _HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
   :root{ --chatdock-l:0px; --chatdock-r:0px; }
@@ -100,23 +99,6 @@ def _inside(card, desk, slack=2):
             and card["bottom"] <= desk["bottom"] + slack)
 
 
-def _module_source() -> str:
-    """desktop.js with its top-of-file imports stubbed — the geometry under test does not use i18n, and this
-    page (a single `route`-mocked HTML string, no static file server behind it) cannot resolve a REAL import of
-    ../core/*.js. A regex anchored to ONE specific import line (V2-613 added a second, `store.js`, for
-    `ctx.lang`) silently stops matching new ones and leaves an unresolved module specifier that fails the whole
-    script tag — every `window.__Desktop` wait then times out with no error a human would connect to i18n."""
-    src = DESKTOP.read_text(encoding="utf-8")
-    src = re.sub(r'^import \{ t as tr \}.*$', 'const tr = (k) => k;', src, count=1, flags=re.M)
-    src = re.sub(r'^import \* as store from .*$', 'const store = { lang: () => "en" };', src, count=1, flags=re.M)
-    # A leftover `^import ` line is an UNRESOLVED module specifier on this route-mocked page (no static file
-    # server behind it) — the exact class of failure a NEW import silently reintroduces if this function is not
-    # updated alongside it. Fail loud here instead of a 30s `wait_for_function` timeout with no clue why.
-    leftover = re.findall(r'^import .*$', src, flags=re.M)
-    assert not leftover, f"_module_source() does not stub: {leftover} — every import needs a stub line above"
-    return src + "\nwindow.__Desktop = Desktop;\n"
-
-
 async def _boot(pw):
     b = await pw.chromium.launch(headless=True, args=["--no-sandbox"])
     pg = await b.new_page(viewport={"width": 1400, "height": 900})
@@ -125,8 +107,7 @@ async def _boot(pw):
     await pg.route("http://zaelar.test/", lambda r: asyncio.ensure_future(
         r.fulfill(status=200, content_type="text/html", body=_HTML)))
     await pg.goto("http://zaelar.test/")
-    await pg.add_script_tag(content=_module_source(), type="module")
-    await pg.wait_for_function("() => !!window.__Desktop")
+    await desktop_client.mount(pg)
     await pg.evaluate(_SETUP)
     return b, pg, errors
 
