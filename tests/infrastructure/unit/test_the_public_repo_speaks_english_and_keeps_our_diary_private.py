@@ -166,8 +166,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/video_turn.py': 7,
     'nucleo/homeostasis.py': 38,
     'nucleo/jev.py': 2,
-    'nucleo/mem_processor.py': 103,
-    'nucleo/memllm.py': 6,
     'nucleo/memory_agent/external.py': 1,
     'nucleo/memory_agent/gates.py': 2,
     'nucleo/memory_agent/ingest.py': 3,
