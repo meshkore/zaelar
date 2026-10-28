@@ -82,11 +82,11 @@ def dispatcher(active_brain, first_lifespan_entry: bool) -> bool:
     # RECORDED as interrupted instead of silently disappearing (a `make restart` killed an operator search
     # without leaving a trace: no event, no ledger, no warning). It goes HERE and not earlier because the
     # escalation listener is already subscribed; re-escalation is deferred anyway. **Silent no-op when nothing
-    # was in flight**, which is the normal case for any clean boot. Separate module (`nucleo/rehydrate.py`), one
+    # was in flight**, which is the normal case for any clean boot. Separate module (`nucleo/pulse/rehydrate.py`), one
     # call, no state of its own: circumstance → function → steps aside.
     if first_lifespan_entry:
         try:
-            from nucleo import rehydrate as nucleo_rehydrate
+            from nucleo.pulse import rehydrate as nucleo_rehydrate
             _reh = nucleo_rehydrate.at_boot()
             if _reh.get("found"):
                 logger.info("Rehidratación: {} en vuelo al morir → {} reanudada(s), {} registrada(s)"

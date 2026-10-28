@@ -89,7 +89,7 @@ async def events(dev: str = ""):
         try:
             yield f"data: {json.dumps({'kind':'session','label':'SSE','voice_dev':_screens.holder()})}\n\n"
             try:
-                from nucleo import notices as _notices   # V2-796: what no channel could take is shown here
+                from nucleo.pulse import notices as _notices   # V2-796: what no channel could take is shown here
                 _notices.drain_to_screen(dev)
             except Exception as e:  # noqa: BLE001 — a ledger hiccup never costs the stream
                 logger.warning(f"events: owed notices not drained: {e!r}")

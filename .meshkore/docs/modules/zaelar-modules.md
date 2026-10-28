@@ -93,7 +93,7 @@ env-first). It runs at two speeds:
   `attention.clamp_input` caps the turn length (`ZAELAR_FAST_MAX_INPUT`) while PRESERVING an explicit command clause
   instead of blindly truncating the tail. Signal to watch: the `ambient` event (see `zaelar-observability.md`).
 - **Orchestrator + cron** — `nucleo/pulse/loop.py` (~1 Hz) runs the orchestration; `nucleo/pulse/scheduler.py` is zaelar's OWN
-  cron backed by `memory.journal`; `nucleo/cron_api.py` exposes `/api/cron` (the ⏰ panel); `nucleo/pulse/sparks.py` fires
+  cron backed by `memory.journal`; `nucleo/pulse/cron_api.py` exposes `/api/cron` (the ⏰ panel); `nucleo/pulse/sparks.py` fires
   scheduled tasks + double-gated "sparks", triggers the memory consolidator off the hot path, and reports by voice +
   UI. All mounted in the server lifespan under `BRAIN=nucleo`.
 - **Rails (`nucleo/rails.py` + `nucleo/flash/music_flow.py`)** — the orchestration pattern for common

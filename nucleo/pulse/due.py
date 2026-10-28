@@ -61,9 +61,9 @@ class DuePulse:
         await self._retry_owed(now)
 
     async def _report_wake(self, now: float) -> None:
-        """V2-796 — tell a deployment that stops idle machines when the next notice is due (`nucleo/wake.py`)."""
+        """V2-796 — tell a deployment that stops idle machines when the next notice is due (`nucleo/pulse/wake.py`)."""
         try:
-            from nucleo import wake
+            from nucleo.pulse import wake
             await wake.flush(now)
         except Exception as e:  # noqa: BLE001
             logger.debug(f"loop: wake report failed: {e!r}")
@@ -72,7 +72,7 @@ class DuePulse:
         if self._deliver is not _default_deliver:
             return False                          # a test double: the old contract, nothing pushes
         try:
-            from nucleo import notices
+            from nucleo.pulse import notices
             return bool(notices.devices())
         except Exception as e:  # noqa: BLE001 — unreadable: behave as before (postpone while stopped)
             logger.debug(f"loop: push devices unreadable: {e!r}")
@@ -94,7 +94,7 @@ class DuePulse:
             except Exception as e:  # noqa: BLE001 — unknown means ours: a notice too many beats a lost one
                 logger.debug(f"loop: covered_by failed: {e!r}")
         try:
-            from nucleo import notices
+            from nucleo.pulse import notices
             await notices.notify(name.removeprefix("aviso: ") or "zaelar", prompt, kind="reminder",
                                  key=f"job:{job.get('id')}:{fired_for}", covered_by=covered,
                                  detail={"job": job.get("id"), "origin": d.get("origin") or "cron"})
@@ -106,7 +106,7 @@ class DuePulse:
         if self._deliver is not _default_deliver:
             return
         try:
-            from nucleo import notices
+            from nucleo.pulse import notices
             await notices.retry_owed(now)
         except Exception as e:  # noqa: BLE001
             logger.debug(f"loop: retry_owed failed: {e!r}")

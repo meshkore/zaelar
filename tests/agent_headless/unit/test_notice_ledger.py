@@ -2,7 +2,7 @@
 
 Before this, a due reminder went to the voice and, with nobody listening, became a note for the brain's NEXT turn:
 nothing recorded whether «the car's ITV expires on Thursday» ever reached him, and nothing could reach his phone.
-`nucleo/notices.py` is the one door; these tests pin its four promises and the Web Push wire format it relies on.
+`nucleo/pulse/notices.py` is the one door; these tests pin its four promises and the Web Push wire format it relies on.
 """
 from __future__ import annotations
 
@@ -17,7 +17,8 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-from nucleo import notices, runstate, webpush
+from nucleo import runstate
+from nucleo.pulse import notices, webpush
 
 
 def _b64u(b: bytes) -> str:

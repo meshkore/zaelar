@@ -20,7 +20,7 @@ DAWN = time.mktime((2026, 10, 14, 7, 30, 0, 0, 1, -1))
 
 @pytest.fixture(autouse=True)
 def _isolated(tmp_path, monkeypatch):
-    from nucleo import notice_today
+    from nucleo.pulse import notice_today
     from nucleo.pulse import scheduler
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", tmp_path)

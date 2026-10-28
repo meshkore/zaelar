@@ -1,4 +1,4 @@
-"""nucleo/notice_today.py — a notice asked for TODAY whose hour has already gone rings soon today, and is said.
+"""nucleo/pulse/notice_today.py — a notice asked for TODAY whose hour has already gone rings soon today, and is said.
 
 Measured on `remember-and-remind-deadline` (ES + __us, Wednesday 2026-10-14 ~12:00): «Apúntame que el jueves
 tengo que renovar el seguro del coche, y recuérdamelo el miércoles». Today WAS Wednesday and the default 09:00

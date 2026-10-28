@@ -1,7 +1,7 @@
-"""nucleo/source_outcomes.py — what each external SOURCE did the last times a worker used it (V2-798).
+"""nucleo/workers/source_outcomes.py — what each external SOURCE did the last times a worker used it (V2-798).
 
-    python -m nucleo.source_outcomes          # the fresh facts, newest first (JSON)
-    python -m nucleo.source_outcomes --all    # including the ones that already expired
+    python -m nucleo.workers.source_outcomes          # the fresh facts, newest first (JSON)
+    python -m nucleo.workers.source_outcomes --all    # including the ones that already expired
 
 ## The class this closes
 
@@ -199,7 +199,7 @@ def worker_line(py: str = "python", now: float | None = None) -> str:
         rep = f", {v['n']}×" if v["n"] > 1 else ""
         parts.append(f"{v['source']} {_SAY[v['outcome']]} ({when}{rep})")
     return ("   · VISTO EN ENCARGOS ANTERIORES (hechos con fecha que caducan solos, no una lista de dónde ir): "
-            + " · ".join(parts) + f". Detalle: {py} -m nucleo.source_outcomes\n")
+            + " · ".join(parts) + f". Detalle: {py} -m nucleo.workers.source_outcomes\n")
 
 
 def forget(source: str = "") -> None:

@@ -95,7 +95,7 @@ const PY_SOURCES = ["widgets/server_api.py", "widgets/client_files.py",   // ref
                     "server/canvas_api.py",   // V2-778 F1: the canvas routes left voice_api.py
                     "server/run_api.py", "server/reset_api.py",   // refactor2710-13: voice_api sub-routers
                     "server/connectors_api.py",   // refactor2710-13: mounted by config_api
-                    "nucleo/cli/worker_api.py", "nucleo/cron_api.py", "memory/server_api.py", "server/livekit_api.py",
+                    "nucleo/cli/worker_api.py", "nucleo/pulse/cron_api.py", "memory/server_api.py", "server/livekit_api.py",
                     "server/feedback_api.py", "server/i18n_api.py"];
 const declared = new Set();
 for (const f of PY_SOURCES) {

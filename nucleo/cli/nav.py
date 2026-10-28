@@ -392,7 +392,7 @@ def _note_source(cmd: str, res: dict) -> None:
     and `extract` found no named row on it — or found some, which is the positive fact that makes a site worth
     starting with. Fail-soft: the worker's answer is printed whatever happens here."""
     try:
-        from nucleo import source_outcomes as so
+        from nucleo.workers import source_outcomes as so
         src = so.source_of_url(str((res or {}).get("url") or ""))
         if not src or not res.get("ok"):
             return

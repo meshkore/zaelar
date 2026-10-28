@@ -1,4 +1,4 @@
-"""nucleo/webpush.py — send a Web Push message to a browser, with no third-party push library (V2-796).
+"""nucleo/pulse/webpush.py — send a Web Push message to a browser, with no third-party push library (V2-796).
 
 Two standards, both small enough to own:
   · RFC 8291 / RFC 8188 — the payload is encrypted for the browser (`aes128gcm`): an ephemeral ECDH P-256 key

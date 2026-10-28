@@ -1,4 +1,4 @@
-"""nucleo/wake.py — tell the deployment when this engine must be awake for its next notice (V2-796).
+"""nucleo/pulse/wake.py — tell the deployment when this engine must be awake for its next notice (V2-796).
 
 The loop that fires notices lives inside this process. A deployment that stops an idle engine (scale-to-zero
 containers) would otherwise sleep straight through a reminder set for next Tuesday: the job is stored correctly

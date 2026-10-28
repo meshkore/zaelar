@@ -4,7 +4,7 @@ Measured on `remember-and-remind-deadline` (Wednesday 2026-10-14, noon): the rep
 las 9» — an instant already gone — while the job went in for another moment altogether. Reply and job have to
 agree, and the job is the one that rings: so the time said is READ BACK from the live schedule, never recomputed.
 
-`nucleo.notice_today` notes every move it makes (the agenda's notice and the model's tag both go through it); this
+`nucleo.pulse.notice_today` notes every move it makes (the agenda's notice and the model's tag both go through it); this
 reads the turn's latest move, checks a live job really rings at that instant, and returns the sentence the reply
 owes — "" when nothing moved, the job is not there, or the reply already says that hour.
 """
@@ -14,7 +14,7 @@ import logging
 import re
 import time
 
-from nucleo import notice_today as _nt
+from nucleo.pulse import notice_today as _nt
 from nucleo.pulse import scheduler as _sched
 
 logger = logging.getLogger(__name__)

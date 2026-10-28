@@ -50,7 +50,7 @@ from .reminder_fact import reminder_body, tidy_clause
 # negation/question check. The names stay here for every reader that imports them.
 from . import reminder_promise as _rp
 from . import reminder_year as _ry   # the year the conversation said; a day gone by schedules nothing
-from nucleo import notice_today as _nt   # an hour gone today rings soon today, and the reply says when
+from nucleo.pulse import notice_today as _nt   # an hour gone today rings soon today, and the reply says when
 _log = _logging.getLogger(__name__)
 _REMIND_NOUN, _REMIND_DET, _REMIND_VERB_RE = _rp._NOUN_ES, _rp._DET_ES, _rp.PROMISE_RE
 def promises_a_dated_reminder(reply: str, operator_text: str = "", window=None) -> str:

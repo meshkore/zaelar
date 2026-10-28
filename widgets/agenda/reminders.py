@@ -39,7 +39,7 @@ def _schedule_reminder(title: str, date: str, start: str, at: str = "", before_m
         if asked:
             # An ASKED notice for today whose hour is gone rings soon today, never next week (2026-10-14),
             # and never after the item it announces.
-            from nucleo import notice_today as _nt
+            from nucleo.pulse import notice_today as _nt
             when = _nt.ring_at(when, _t.time(), before=target)
             if when > target:
                 return "", "el aviso caería después de la cita"

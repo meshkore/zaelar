@@ -1,7 +1,7 @@
 """A deployment that stops idle engines learns when the next notice is due (V2-796, node 2.802).
 
 The loop that fires notices runs inside the engine; a stopped process sleeps straight through next Tuesday's
-reminder. `nucleo/wake.py` reports the NEXT due instant after every schedule change, debounced, and does nothing at
+reminder. `nucleo/pulse/wake.py` reports the NEXT due instant after every schedule change, debounced, and does nothing at
 all where nobody is listening (self-host).
 """
 from __future__ import annotations
@@ -10,7 +10,7 @@ import asyncio
 
 import pytest
 
-from nucleo import wake
+from nucleo.pulse import wake
 from nucleo.pulse import scheduler
 
 

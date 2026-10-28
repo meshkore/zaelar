@@ -173,7 +173,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/mesh_agents.py': 1,
     'nucleo/cli/mesh.py': 5,
     'nucleo/protected_core.py': 20,
-    'nucleo/rehydrate.py': 44,
+    'nucleo/pulse/rehydrate.py': 44,
     'nucleo/workers/brief_parse.py': 2,
     'nucleo/workers/brief_store.py': 3,
     'nucleo/runstate.py': 4,

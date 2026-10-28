@@ -332,7 +332,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
-    "nucleo (top)": 9861,      # refactor2710-10: the worker CLIs → nucleo/cli/, energy/accounting → nucleo/energy/, loop+scheduler+sparks+homeostasis → nucleo/pulse/; 09: dispatch* → nucleo/dispatch/, research → workers/brief
+    "nucleo (top)": 8641,      # refactor2710-10: the worker CLIs → nucleo/cli/, energy/accounting → nucleo/energy/, loop+scheduler+sparks+homeostasis → nucleo/pulse/; 09: dispatch* → nucleo/dispatch/, research → workers/brief
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
@@ -340,7 +340,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/context_packs": 568,
     "nucleo/dispatch": 2443,   # refactor2710-09 T-01: moved from top and split; target 1 200
     "nucleo/energy": 2269,       # refactor2710-10: born — meter, lease, tariffs, limits, routing, account, egress, keys MOVED from the top
-    "nucleo/pulse": 1808,        # refactor2710-10: born — loop split into loop/workers/flows/due/signals (same beat), scheduler, sparks, homeostasis MOVED
+    "nucleo/pulse": 2800,        # refactor2710-10: born — loop split into loop/workers/flows/due/signals (same beat); scheduler, sparks, homeostasis, wake, cron_api, rehydrate, notices, webpush, notice_today MOVED
     "nucleo/errands": 2548,
     "nucleo/cli": 2912,         # refactor2710-10: the worker CLIs MOVED in (nav, mesh, widget, mem, git, report, bridge, worker_api/policy, sandbox, usage); 01: born
     "nucleo/flash": 29062,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/, aliased at its old path
@@ -350,7 +350,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/request": 954,     # refactor2710-02: born — request_row (model), errand_kind/title, dedup+continuity (append), stop_decision MOVED in
     "nucleo/susurro": 1386,
     "nucleo/turn": 2169,
-    "nucleo/workers": 6940,    # refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
+    "nucleo/workers": 7168,    # refactor2710-10: source_outcomes MOVED in from the top; refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
     "nucleo/workflows": 315,
     "observability": 1005,
     "rules": 1211,              # refactor2710-01: +3, the rules.write door
@@ -421,7 +421,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/memory_agent/gates.py",
     "nucleo/mesh_agents.py",
     "nucleo/cli/nav.py",
-    "nucleo/notices.py",
+    "nucleo/pulse/notices.py",
     "nucleo/runstate.py",
     "nucleo/pulse/scheduler.py",
     "nucleo/sheets.py",

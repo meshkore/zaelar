@@ -1,4 +1,4 @@
-"""nucleo/rehydrate.py — REHIDRATACIÓN: recoger el trabajo que un reinicio dejó a medias.
+"""nucleo/pulse/rehydrate.py — REHIDRATACIÓN: recoger el trabajo que un reinicio dejó a medias.
 
 El registro de sesiones vivas (`dispatch._SESSIONS`) es RAM: cuando el proceso muere —un `make restart`, un crash,
 la homeostasis reviviendo el worker de voz— los Brain Workers en vuelo mueren **en silencio**. Observado en vivo

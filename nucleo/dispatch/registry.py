@@ -175,9 +175,9 @@ def sync_state() -> None:
         _d._last_sync = snap
         memory.set_state({"activity": labels, "sessions": sess})
         # REHYDRATION (2026-08-12): the same change leaves a timestamped DURABLE trace in `sys_kv`, so the next
-        # start knows what was in flight (a restart killed a search without a trace). See `nucleo/rehydrate.py`.
+        # start knows what was in flight (a restart killed a search without a trace). See `nucleo/pulse/rehydrate.py`.
         try:
-            from nucleo import rehydrate as _rehydrate
+            from nucleo.pulse import rehydrate as _rehydrate
             _rehydrate.remember(sess)
         except Exception:
             pass

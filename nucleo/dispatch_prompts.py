@@ -9,7 +9,7 @@ keep working unchanged.
 from __future__ import annotations
 
 from nucleo.workers import brief as research
-from nucleo.source_outcomes import worker_line as _sources_line   # V2-798: what each source did lately
+from nucleo.workers.source_outcomes import worker_line as _sources_line   # V2-798: what each source did lately
 
 
 def _recent_conversation_block(limit: int = 8) -> str:

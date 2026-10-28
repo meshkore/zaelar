@@ -70,7 +70,7 @@ self.addEventListener("fetch", (event) => {
 });
 
 // ============================================================================
-// WEB PUSH (V2-796) — the engine's notice ledger (`nucleo/notices.py`) reaches this browser when no screen is in
+// WEB PUSH (V2-796) — the engine's notice ledger (`nucleo/pulse/notices.py`) reaches this browser when no screen is in
 // front of him. The payload is already the final words: {id, kind, title, body, url, tag}. Two handlers, no cache:
 //   · push — show it. iOS and Chromium both REQUIRE a visible notification for every push (`userVisibleOnly`),
 //     so a payload that fails to parse still shows something rather than being dropped (a dropped push gets the

@@ -6,7 +6,7 @@
 and it also carried that day's comment-translation batch. `nucleo/danger.py` came out of it with a
 one-line docstring — the bare sentence «Documentation translated to English.» — and **93** comments
 replaced by the literal «# translated implementation note». Same damage in `nucleo/agent_api.py` (9) and
-`nucleo/cron_api.py`
+`nucleo/pulse/cron_api.py`
 (7): 109 across three files, out of 777 the batch walked.
 
 That is the worst possible place for it. This repo's method IS that each pattern carries beside it the

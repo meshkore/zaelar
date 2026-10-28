@@ -80,7 +80,7 @@ FlashBrain model on Ollama → zero per-turn cost. Zero-install STT fallback: `S
 
 The brain runs **in-process** inside the server; the `server/` lifespan starts the FlashBrain provider, the
 orchestrator loop (`nucleo/pulse/loop.py`), its own cron/scheduler (`nucleo/pulse/scheduler.py`, panel at `/api/cron`,
-`nucleo/cron_api.py`), and the memory queue consumer. Nothing to install or upgrade separately.
+`nucleo/pulse/cron_api.py`), and the memory queue consumer. Nothing to install or upgrade separately.
 
 **Two speeds.** **FlashBrain** (`nucleo/flash/`) owns the hard-realtime voice turn (~sub-second) and is exposed to
 the voice engine as the provider `voice/engine/llm/providers/nucleo.py`. **SlowBrain** (`nucleo/dispatch/` +

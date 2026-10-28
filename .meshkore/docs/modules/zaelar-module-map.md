@@ -36,7 +36,7 @@ start with `make run` → `python -m server`.
   invalidation on `memory.updated`), and semantic recall (`prompt.compose_recall`) is **on demand**
   (`prompt.needs_recall`) and **off the event loop** (`asyncio.to_thread`) — a chit-chat turn never triggers the
   retriever. `nucleo/pulse/loop.py` (~1 Hz) + `nucleo/pulse/scheduler.py` (**the engine's OWN cron**, backed by
-  `memory.journal`) + `nucleo/cron_api.py` (`/api/cron`, the ⏰ panel) + `nucleo/pulse/sparks.py` (double-gated sparks) =
+  `memory.journal`) + `nucleo/pulse/cron_api.py` (`/api/cron`, the ⏰ panel) + `nucleo/pulse/sparks.py` (double-gated sparks) =
   the **orchestrator loop** (scheduled tasks + proactivity + triggers the memory consolidator off the hot path +
   reports by voice and UI; mounted in the lifespan with `BRAIN=nucleo`). `nucleo/dispatch/` (dispatcher: composes
   the prompt [context + task] → CodeAgent with a per-invocation model, consumes `escalate.requested` from the bus,

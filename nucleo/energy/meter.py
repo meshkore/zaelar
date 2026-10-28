@@ -459,7 +459,7 @@ async def _post_usage_cloud_account(energy: float, kind: str, meta: dict | None 
 #
 # Vive en `sys_kv`, NUNCA en el estado raíz: `memory.api.compose_state` vuelca cada escalar del estado al prompt
 # como «Clave: valor.», así que un saldo ahí viajaría en todos los turnos de voz (misma razón que en
-# `nucleo/rehydrate.py`).
+# `nucleo/pulse/rehydrate.py`).
 _KV_KEY = "energy:balance"
 _state: dict = {"balance": None, "capacity": None, "at": 0.0, "src": "", "plan": None}
 _loaded = False

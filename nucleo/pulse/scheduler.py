@@ -385,7 +385,7 @@ def _board(jid) -> None:
     except Exception:  # noqa: BLE001 — a board that failed to update must never lose the reminder
         pass
     try:
-        from nucleo import wake        # V2-796 — the next due instant may have moved: report it (debounced)
+        from nucleo.pulse import wake        # V2-796 — the next due instant may have moved: report it (debounced)
         wake.note_changed()
     except Exception as e:  # noqa: BLE001 — the reminder is stored; only the wake report may lag a pulse
         __import__("logging").getLogger("zaelar.scheduler").debug(f"scheduler: wake note failed: {e!r}")

@@ -1,4 +1,4 @@
-"""nucleo/notices.py — the ONE door for a notice the agent owes the operator, and the ledger of how it ended (V2-796).
+"""nucleo/pulse/notices.py — the ONE door for a notice the agent owes the operator, and the ledger of how it ended (V2-796).
 
 A reminder that rings, a commission that finished, an approval the agent is waiting on: each is a ROW in `notices`
 (`memory/schema.py`), keyed by a `dedupe_key`, and each row ends in exactly one state:
@@ -137,7 +137,7 @@ def _url_for(row: dict, device: dict) -> str:
 def push(row: dict) -> int:
     """Send `row` to every subscribed device. Returns how many push services accepted it. Blocking: call it in a
     thread from async code."""
-    from nucleo import webpush
+    from nucleo.pulse import webpush
     accepted = 0
     for d in _targets():
         msg = {"id": row["id"], "kind": row.get("kind") or "info", "title": row.get("title") or "zaelar",

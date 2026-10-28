@@ -344,7 +344,7 @@ _SPOKEN: dict[str, bool] = {}
 async def _deliver_confirm(rec: "SessionRecord") -> None:
     try:
         # V2-796 — an errand waiting on his yes is a notice that must reach him: his phone when he is away.
-        from nucleo import notices as _notices
+        from nucleo.pulse import notices as _notices
         _res = await _notices.notify("zaelar", rec.result_summary, kind="approval", key=f"approval:{rec.task_id}",
                                      speak=True, detail={"task": rec.task_id})
         _SPOKEN[str(rec.task_id)] = "voice" in str(_res.get("channel") or "")
