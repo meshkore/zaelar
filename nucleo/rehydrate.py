@@ -152,9 +152,8 @@ def classify(sessions: list[dict], *, at: float, now: float, marks: dict | None 
             continue
         goal = str(s.get("goal") or "").strip()
         kind = str(s.get("kind") or "generic")
-        # `uid` — the DURABLE row of this errand. `task_uid(id)` recomputed after the restart names a row of the
-        # NEW boot, so the original stayed «pending» forever while a resumed worker opened a third one (demo run,
-        # 2026-09-26: one five-day search left three rows on the board).
+        # `uid` — the DURABLE row. `task_uid(id)` after a restart names a row of the NEW boot: the original stayed
+        # «pending» forever while a resumed worker opened a third (2026-09-26: one search, three rows on the board).
         ent = {"id": str(s.get("id") or "?"), "uid": str(s.get("uid") or ""), "goal": goal, "kind": kind,
                "phase": str(s.get("phase") or ""), "age_s": int(age)}
         n = int((marks.get(_goal_key(goal)) or {}).get("n") or 0)
@@ -173,6 +172,7 @@ def classify(sessions: list[dict], *, at: float, now: float, marks: dict | None 
         elif len(resume) >= MAX_RESUME:
             ent["why"] = f"tope de {MAX_RESUME} reanudaciones por arranque"
         else:
+            ent["why"] = "se cortó al reiniciar y la reanudo"      # V2-825 F6: every entry says why
             resume.append(ent)
             continue
         buried.append(ent)
@@ -222,7 +222,7 @@ def at_boot(*, now: float | None = None, schedule: bool = True, delay: float | N
         from nucleo import tasks as _tasks
         for ent in plan["buried"] + plan["resume"]:
             _tasks.interrupted({"id": ent["id"], "uid": ent.get("uid", ""), "kind": ent.get("kind", ""),
-                                "goal": ent.get("goal", ""),
+                                "goal": ent.get("goal", ""), "why": ent.get("why", ""),
                                 "started_at": float(snap.get("at") or now)})
     except Exception:  # noqa: BLE001
         pass
@@ -237,7 +237,7 @@ def at_boot(*, now: float | None = None, schedule: bool = True, delay: float | N
         from voice.observer import emit
         for ent in plan["resume"]:
             emit("task", "🔁 lo reanudo — se cortó al reiniciar", role="system", text=ent["goal"][:160],
-                 extra={"id": ent["id"], "work": ent["kind"], "age_s": ent["age_s"]})
+                 extra={"id": ent["id"], "work": ent["kind"], "age_s": ent["age_s"], "reason": ent.get("why", "")})
         for ent in plan["buried"]:
             emit("task", "✂️ se cortó al reiniciar y no la reanudo", role="system", text=ent["goal"][:160],
                  extra={"id": ent["id"], "work": ent["kind"], "age_s": ent["age_s"],

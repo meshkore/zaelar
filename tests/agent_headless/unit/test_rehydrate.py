@@ -412,3 +412,17 @@ def test_the_resumed_worker_continues_the_same_row(fresh_db):
 
     asyncio.run(_run())
     assert calls and calls[0][1].get("task_uid") == "oldboot-1", "a resume is a continuation, like a relay"
+
+
+def test_every_entry_says_why_and_the_row_carries_it(monkeypatch):
+    """V2-825 F6 (refactor2710-02 T-05): a cut errand's WHY reaches its row, so the next turn's task block reads it —
+    the resumed one too, which used to leave no reason anywhere. Disarm: drop the `why` from `tasks.interrupted`."""
+    now = time.time()
+    plan = R.classify([_live(), _live(id="2", paused=True)], at=now - 60, now=now)
+    assert all(e.get("why") for e in plan["resume"] + plan["buried"]), plan
+    from nucleo import tasks
+    rows: dict = {}
+    monkeypatch.setattr(tasks._ts, "task_get", lambda uid: rows.get(uid))
+    monkeypatch.setattr(tasks._ts, "task_put", lambda row: rows.__setitem__(row["id"], row))
+    tasks.interrupted({"id": "7", "uid": "u7", "goal": "un vinilo", "why": "la habías pausado tú"})
+    assert rows["u7"]["outcome"].endswith("la habías pausado tú"), rows

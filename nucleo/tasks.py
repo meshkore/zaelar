@@ -511,15 +511,15 @@ def interrupted(entry: dict) -> None:
     # The row the errand REALLY has: after a restart `task_uid(tid)` names the NEW boot's row, not this one.
     uid = str((entry or {}).get("uid") or "").strip() or task_uid(tid)
     now = int(time.time())
+    said = "interrumpido por un reinicio del motor" + (f" — {entry['why']}" if entry.get("why") else "")   # F6
     if _ts.task_get(uid) is None:
         _ts.task_put({"id": uid, "title": str(entry.get("goal") or ""), "goal": str(entry.get("goal") or ""),
                       "kind": str(entry.get("kind") or "generic"), "mode": "now", "state": "failed",
                       "visible": True, "origin": "voz", "created_at": int(entry.get("started_at") or now),
                       "started_at": int(entry.get("started_at") or 0) or now, "finished_at": now,
-                      "outcome": "interrumpido por un reinicio del motor"})
+                      "outcome": said})
         return
-    _ts.task_patch(uid, state="failed", finished_at=now,
-                   outcome="interrumpido por un reinicio del motor")
+    _ts.task_patch(uid, state="failed", finished_at=now, outcome=said)
 
 
 def board_cleared() -> int:
