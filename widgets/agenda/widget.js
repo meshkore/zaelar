@@ -9,8 +9,8 @@
 // people are coming. The card FILLS its frame and the grid scrolls inside it, so nothing is ever clipped.
 
 import { CSS } from "./js/style.js";
-import { I18N, tt, fmtDate, raf, ymd, parseYmd, addDays, startOfWeek, mins, fmtCount, el2, svgEl,
-  ICO_PREV, ICO_NEXT, ICO_PLUG, eventsOf, eventsOn, HOUR_PX, hourRange } from "./js/shared.js";
+import { I18N, tt, fmtDate, raf, ymd, parseYmd, addDays, startOfWeek, mins, fmtCount, el2, svgEl, ICO_CAL,
+  ICO_CHECK, ICO_PREV, ICO_NEXT, ICO_PLUG, eventsOf, eventsOn, HOUR_PX, hourRange } from "./js/shared.js";
 import { renderGrid, renderMonth } from "./js/calendar.js";
 import { renderList, renderTasks } from "./js/list.js";
 import { renderAdd, renderDetail } from "./js/detail.js";
@@ -90,7 +90,8 @@ export function render(el, data, ctx){
   const sub = el2("div","agsub");
   const secs = el2("div","agsec");
   [["agenda", tt("sec_agenda", null, "Agenda")], ["tasks", tt("sec_tasks", null, "Tareas")]].forEach(([id,label])=>{
-    const b = el2("button","agsecb" + (S.sec === id ? " on" : ""), label);
+    const b = el2("button","agsecb" + (S.sec === id ? " on" : ""));
+    b.appendChild(svgEl(id === "agenda" ? ICO_CAL : ICO_CHECK)); b.appendChild(el2("span", null, label));   // a phone shows the mark
     b.dataset.sec = id;
     b.onclick = ()=>{ S.sec = id; S.sel = null; S.tlAsk = ""; render(el, data, ctx); };
     secs.appendChild(b);
@@ -123,10 +124,8 @@ export function render(el, data, ctx){
     return;                       // the calendar's toolbar, views and overlays belong to the other half
   }
 
-  // ── toolbar — ONE row: ‹ Hoy › · the range · the four views (2026-10-28, the operator: four stacked
-  // bands of chrome before the grid). The brand disc went with it: the window's own mark already says
-  // «calendar», and the header standard draws no second one. The sources and the plug live in the band
-  // above, in the slot V2-746 left for exactly this.
+  // ── the toolbar lives INSIDE the band (2026-10-28, the operator: all the chrome in two lines, the window's
+  // bar and this one): ‹ Hoy › · the range · the views, then the slot with the sources and the plug.
   const bar = el2("div","agbar");
   let rangeTxt = "", dates = [];
   if(S.view === "week"){
@@ -176,7 +175,7 @@ export function render(el, data, ctx){
   const vsel = document.createElement("select"); vsel.className = "agviewsel"; vsel.title = tt("view", null, "Vista");
   VIEWS.forEach(([id,label])=>{ const o = document.createElement("option"); o.value = id; o.textContent = label;
     o.selected = S.view === id; vsel.appendChild(o); });
-  vsel.onchange = ()=>{ S.view = vsel.value; S.sel = null; render(el, data, ctx); }; views.appendChild(vsel); bar.appendChild(views); el.appendChild(bar);
+  vsel.onchange = ()=>{ S.view = vsel.value; S.sel = null; render(el, data, ctx); }; views.appendChild(vsel); bar.appendChild(views); sub.appendChild(bar);
   const right = el2("div","agviewsright");
   const defCal = renderDefaultCalendar(data, ctx);
   if(defCal) right.appendChild(defCal);

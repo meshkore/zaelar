@@ -11,15 +11,9 @@ const CSS_CALENDAR = `
     color:var(--hb-ink,#0d1622);width:100%;height:100%;box-sizing:border-box;container-type:inline-size;
     display:flex;flex-direction:column;gap:0;position:relative;min-height:0}
 
-  /* ── TOOLBAR: ‹ Hoy › · the range · the four views — ONE row (2026-10-28) ─────────────────────────
-     The operator, with the card on screen: four stacked bands of chrome before the grid. Two now: the
-     Calendar/Tasks band (with the sources and the plug in its right-hand slot, per the widget header
-     standard) and this strip on surface-2 — the hb-toolbar language, the band that separates a surface's
-     CHROME from its CONTENT. V2-690's rules hold: no second full-weight line, no brand disc beside the
-     window's own mark, the range at 14/600 one step under the window title. */
-  .hb-agenda .agbar{display:flex;align-items:center;gap:var(--sp-2,8px);padding:var(--sp-1,4px) var(--sp-2,8px);
-    flex:0 0 auto;min-width:0;background:var(--hb-bg-soft,#272D35);margin-bottom:var(--sp-3,12px);
-    border:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));border-radius:var(--hb-r-m,10px)}
+  /* ── TOOLBAR: ‹ Hoy › · the range · the four views, the middle of the band (2026-10-28). No brand disc
+     beside the window's own mark (header standard), the range at 14/600 one step under the window title. */
+  .hb-agenda .agbar{display:flex;align-items:center;gap:var(--sp-2,8px);flex:1 1 0;min-width:0;flex-wrap:wrap}
   /* the range is the CONTENT's header, so it sits one step under the window title rather than over it —
      a 15/700 range beside a 14/600 window name inverted the hierarchy it was supposed to express. */
   .hb-agenda .agrange{font-size:14px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;
@@ -34,14 +28,15 @@ const CSS_CALENDAR = `
     font-weight:600;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
   .hb-agenda .agnav button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}  .hb-agenda .agnav svg{width:13px;height:13px;display:block}
 
-  /* ── THE VIEWS: the right half of the toolbar row; under 640px of card the four tabs fold into ONE
-     <select> with the same four labels (a container query on the widget root — the card's width, not the
-     window's, is what decides) and the default-calendar picker steps aside for the plug. ─────────────── */
+  /* ── THE VIEWS, and the three widths of the band. Container queries on the widget root: the CARD's width
+     decides, not the window's, so a narrow desk card and the phone take the same steps. ≤1040: the account
+     picker becomes a compact chip. ≤820: the four tabs fold into ONE <select> with the same four labels and
+     the picker steps aside (the plug is the door to the same place). ≤560 (a phone): the section switch
+     shows its mark instead of its word, the provider icons yield to the plug, the controls close ranks.
+     The tier rules sit at the END of the sheet (style_panels.js): same specificity, the later rule wins. ── */
   .hb-agenda .agviews{display:flex;align-items:center;gap:var(--sp-1,4px);flex:0 0 auto;margin-left:auto;min-width:0}
   .hb-agenda .agviewsel{display:none;height:var(--hb-ctl-h-sm,32px);font-size:13px;border-radius:var(--hb-r-s,8px);
     border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);padding:0 6px}
-  @container (max-width:640px){ .hb-agenda .agtab{display:none} .hb-agenda .agviewsel{display:block}
-    .hb-agenda .agcaldefsel{display:none} }
   .hb-agenda .agtab{border:0;background:none;color:var(--hb-muted,#5b6b82);border-radius:999px;
     padding:var(--sp-2,8px) var(--sp-3,12px);font-size:13px;font-weight:600;cursor:pointer;line-height:1.2;
     white-space:nowrap;flex:0 0 auto;font-family:var(--sans,system-ui)}
