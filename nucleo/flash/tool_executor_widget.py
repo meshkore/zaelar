@@ -23,6 +23,8 @@ from widgets import row_lens as _row_lens  # demo pass 140 R2, read as _txw._row
 from nucleo.flash import reply_or_forward as _rof  # demo pass 110 E3, read as _txw._rof
 from nucleo.flash import ordered_send as _ordered_send  # live bench E3 2026-10-15, read as _txw._ordered_send
 from nucleo.flash import verdict_card as _vcard  # demo pass 114 I3, read as _txw._vcard
+from nucleo import canvas_arbiter as _arbiter
+from nucleo.acts import canvas as _door
 from voice import brain_notes as _bnotes
 from widgets import confirm as _wconfirm
 
@@ -60,8 +62,8 @@ def build(*, self, brain, emit, text, operator_text, _brief, canvas_h, aside, cr
                          extra={"options": _t["options"]})
                     return
                 for _cid in with_also_named(_t.get("ids") or [_t["id"] or wid], turn_text):
-                    emit("widget", "close", extra={"id": _cid, "src": "flash"})
-                    _canvas_lic.note_operator_close(_cid)                 # V2-650b
+                    if _door.apply("close", _cid, src="flash", emit=emit, request=_arbiter.request_of(_brief, turn_text)):
+                        _canvas_lic.note_operator_close(_cid)             # V2-650b
                 emit("brain", "🙈 cerrar (no borrar) — guard cerrar≠borrar", text=wid, role="system")
                 acted["widget"] = True
                 acted["closed"] = True

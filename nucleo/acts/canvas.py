@@ -10,6 +10,7 @@ the same door unjudged, so there is one writer either way.
 from __future__ import annotations
 
 from nucleo import canvas_arbiter as _arb
+from voice import canvas_src
 
 #: The ops the arbiter licenses; every other op crosses the door as it is.
 JUDGED = ("show", "close")
@@ -26,7 +27,8 @@ def apply(op: str, wid: str = "", *, src: str, text: str = "", role: str = "", r
         req = request if request is not None else _arb.request_for(extra)
         v = _arb.decide(op, wid, src, action=str(extra.get("action") or ""), **req)
         _arb._emit_verdict(op, wid, src, str(extra.get("action") or ""), v, shadow=False, brief=req.get("verdict"))
-        if not v.allow and v.rule != "arbiter-error":     # an arbiter that broke fails open, its verdict on record
+        # an arbiter that broke fails open; a REPORT of what the screen already did is recorded, judged, never held
+        if not v.allow and v.rule != "arbiter-error" and not canvas_src.is_report(src):
             return False
     if emit is None:
         from voice.observer import emit

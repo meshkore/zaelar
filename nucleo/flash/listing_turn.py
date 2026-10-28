@@ -393,8 +393,8 @@ def run(query: str, *, price_max=None, price_min=None, condition: str = "",
             sheet_mod.apply_action("present", payload)
         sheet_mod.prune_sheets()
         try:
-            from voice.observer import emit as _emit
-            _emit("widget", "show", extra={"id": sheet_mod.instance_id(sid), "src": "listing_turn"})
+            from nucleo.acts import canvas
+            canvas.apply("show", sheet_mod.instance_id(sid), src=f"sheet:{sid}")   # the sheet this tool just filled
         except Exception:  # noqa: BLE001
             pass
     except Exception as e:  # noqa: BLE001 — rows that cannot reach the sheet must not kill the turn

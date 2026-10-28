@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from nucleo.flash import act_repair as _act_repair, escalation_guard as _eg, post_stream as _pst
 from nucleo.flash import close_answer as _close_answer
+from nucleo import canvas_arbiter as _arbiter
+from nucleo.acts import canvas as _door
 
 
 async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_add, _buf_reset, _cardc, _close_target, _cover_work, _identify, _identify_system, _named_by_verdict, _no_tool, _op_text, _prompt_mod, _router, _rv, _say, _show_target_instance, _shown_ids, _t, _tag_emit, _tool_fired, _turn_op_tasks, acted, attention, brain, clarify, data_done, emit, escalate_req, images_req, listing_req, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, spoken_text, take, text, with_also_named) -> dict:
@@ -194,8 +196,8 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             acted["widget"] = True
             acted["closed"] = True
             for _cid in with_also_named(_t.get("ids") or [_t["id"] or _cw], text):
-                emit("widget", "close", extra={"id": _cid, "src": "flash"})
-                _pst._canvas_lic.note_operator_close(_cid)                     # V2-650b
+                if _door.apply("close", _cid, src="flash", emit=emit, request=_arbiter.request_of(_brief, operator_text or text)):
+                    _pst._canvas_lic.note_operator_close(_cid)                 # V2-650b
             emit("brain", "🙈 close por backstop (cerrar widget nombrado sin [[close]])",
                  text=_cw, role="system")
             # cerrar un widget NO es tarea de worker → cancela la escalada espuria (evita el bucle de 3 min)

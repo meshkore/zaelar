@@ -39,6 +39,11 @@ def _emitted() -> tuple[set, set]:
                 if not isinstance(n, ast.Call):
                     continue
                 name = n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", "")
+                if name == "apply" and n.args and isinstance(n.args[0], ast.Constant):
+                    # the canvas door (`nucleo.acts.canvas.apply("<op>", …)`) emits ("widget", "<op>") for its caller
+                    kinds.add("widget")
+                    pairs.add(("widget", n.args[0].value))
+                    continue
                 if name not in ("emit", "_emit") or not n.args or not isinstance(n.args[0], ast.Constant):
                     continue
                 kind = n.args[0].value

@@ -107,8 +107,8 @@ def _show_card(loaded: bool) -> None:
     if not loaded:
         return
     try:
-        from voice.observer import emit as _emit
-        _emit("widget", "show", extra={"id": "youtube", "src": "flash"})
+        from nucleo.acts import canvas
+        canvas.apply("show", "youtube", src="flash", action="load")    # the load produces: the player mounts
     except Exception:  # noqa: BLE001
         pass
 

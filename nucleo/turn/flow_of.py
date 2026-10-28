@@ -125,7 +125,8 @@ def late_fold(target: str, ctx: dict) -> str:
              extra={"cat": "flash", "flow": target, "orphan_sheet": orphan, "v": "V2-784"})
         if orphan:
             from widgets.results import data as _sheet
-            emit("widget", "close", extra={"id": _sheet.instance_id(orphan), "src": "flow_of"})
+            from nucleo.acts import canvas
+            canvas.apply("close", _sheet.instance_id(orphan), src="system:flow_of", emit=emit)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"flow_of: could not report/close the late fold into {target}: {e}")
     return orphan

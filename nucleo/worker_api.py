@@ -318,14 +318,17 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
                                               f"reopen it. Your result stays in the card for when he asks; "
                                               f"say in one line that it is ready."}
         try:
-            from voice.observer import emit
+            from nucleo.acts import canvas
             _src = f"worker:{getattr(rec, 'task_id', '')}"        # V2-039: provenance — Brain Worker command
-            extra = {"id": str(wid), "src": _src} if action == "show_widget" else {"src": _src}
+            extra = {}
             _tid = getattr(rec, "trace_id", "")                   # V2-044: HTTP handler without context → session trace
             if _tid:
                 extra["trace"] = _tid
                 extra["span"] = f"worker:{getattr(rec, 'task_id', '')}"
-            emit("widget", "show" if action == "show_widget" else "close", extra=extra)
+            # a worker's close names its card: with no id the canvas closes EVERY card (refactor2710-04)
+            if not str(wid or "").strip():
+                return {"ok": False, "error": "close_widget needs the card it closes"}
+            canvas.apply("show" if action == "show_widget" else "close", str(wid), src=_src, **extra)
             return {"ok": True, "result": {"widget": wid}}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)}

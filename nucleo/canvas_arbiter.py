@@ -45,7 +45,7 @@ _SRC_DETERMINISTIC = ("actionmap", "interrupt")
 def decide(op: str, wid: str, src: str, *, action: str = "", payload: dict | None = None,
            text: str = "", turn_credit: bool = True, model_acted: bool = False,
            open_ids=(), recent_ids=(), last_reply: str = "", verdict: dict | None = None,
-           card_closed: bool = False) -> Verdict:
+           card_closed: bool = False, answered: bool = False) -> Verdict:
     """The whole pyramid, pure. `op` ∈ show|close|data|screen. `src` is the V2-039 provenance string
     (`user`, `system`, `worker:<tid>`, `wall:<tid>`, `actionmap`, `flash`, `backstop`). `text` is the operator's
     turn; `turn_credit` is False only for a turn judged ambient. `verdict` is the turn's paid brief,
@@ -55,7 +55,7 @@ def decide(op: str, wid: str, src: str, *, action: str = "", payload: dict | Non
         return _decide(op, wid, src, action=action, payload=payload or {}, text=text,
                        turn_credit=turn_credit, model_acted=model_acted,
                        open_ids=open_ids, recent_ids=recent_ids, last_reply=last_reply, verdict=verdict or {},
-                       card_closed=card_closed)
+                       card_closed=card_closed, answered=answered)
     except Exception as e:  # noqa: BLE001
         return _v(False, "arbiter-error", error=str(e)[:120])
 
@@ -67,7 +67,7 @@ _OPS = ("show", "close", "data", "screen")
 
 
 def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
-            open_ids, recent_ids, last_reply="", verdict=None, card_closed=False) -> Verdict:
+            open_ids, recent_ids, last_reply="", verdict=None, card_closed=False, answered=False) -> Verdict:
     op = (op or "").strip().lower()
     wid = (wid or "").strip().lower()
     base_src = (src or "system").split(":", 1)[0].strip().lower()
@@ -91,8 +91,8 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
             return _v(True, "engine-echo")
     if base_src in _SRC_SYSTEM:
         return _v(True, "lifecycle")
-    if base_src in ("wall", "recall"):
-        # a task's own card: its wall raising it, or the sheet of the errand this turn reopened
+    if base_src in ("wall", "recall", "sheet"):
+        # a task's own card: its wall raising it, the errand this turn reopened, the sheet a tool just filled
         return _v(True, "task-owned", tid=(src.split(":", 1) + [""])[1], via=base_src)
     if base_src.startswith("worker"):
         # F0: a worker mutation is admitted with its task on record; F1 adds the ownership check
@@ -110,6 +110,8 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
         return _v(False, "ambient-turn")
 
     # ── level 3 · the turn's PAID verdict licenses first (CRIT-K1); the word leaves only where it is silent ──
+    if answered and op in ("show", "close"):
+        return _v(True, "verdict-answer")       # his answer to the question WE asked about which card (`answers`)
     licensed = _verdict_licence(op, wid, action, verdict or {})
     if licensed is not None:
         return licensed

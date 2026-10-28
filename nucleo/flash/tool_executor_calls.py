@@ -436,7 +436,8 @@ def _t_arrange_canvas(*, _tool_fired, acted, emit):
     # Acción del CANVAS entero: sin id que resolver, el mismo emit que el endpoint REST.
     if "arrange_canvas" not in _tool_fired:
         _tool_fired.add("arrange_canvas")
-        emit("widget", "arrange", extra={"src": "flash"})
+        from nucleo.acts import canvas
+        canvas.apply("arrange", src="flash", emit=emit)
         emit("brain", "▦ arrange_canvas → canvas", role="system")
         acted["widget"] = True
 

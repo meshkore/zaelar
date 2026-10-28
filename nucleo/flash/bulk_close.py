@@ -135,23 +135,25 @@ def _open_instances() -> list[str]:
 
 
 def close_all(emit, *, src: str, text: str = "", said: str = "", extra: dict | None = None,
-              open_ids=None) -> list[str]:
+              open_ids=None, brief=None) -> list[str]:
     """Close every card he is not using. Returns the cards spared ([] = the bare close-all went out).
 
     `text` is his sentence (read to see whether it names a card in use); `said` is the phrase a caller already
-    attaches to its canvas events (the action map does), passed through unchanged."""
-    base = dict(extra or {})
-    base["src"] = src
-    kw = {"text": said} if said else {}
+    attaches to its canvas events (the action map does), passed through unchanged. Each close crosses the canvas
+    door with the turn (`brief`, his sentence)."""
+    from nucleo import canvas_arbiter
+    from nucleo.acts import canvas
+    base = {k: v for k, v in (extra or {}).items() if k not in ("id", "src")}
+    req = canvas_arbiter.request_of(brief, text)
     opened = list(open_ids) if open_ids is not None else _open_instances()
     spare = spare_for(opened, text, emit=emit, src=src)
     if not spare:
-        emit("widget", "close", extra=base, **kw)
-        _note(closed=opened, kept=[], opened=opened)
+        if canvas.apply("close", "", src=src, text=said, emit=emit, request=req, **base):
+            _note(closed=opened, kept=[], opened=opened)
         return []
     for cid in opened:
         if cid not in spare:
-            emit("widget", "close", extra={**base, "id": cid}, **kw)
+            canvas.apply("close", cid, src=src, text=said, emit=emit, request=req, **base)
     emit("brain", "🧷 bulk close: the card in use stays", text=",".join(spare), role="system",
          extra={"cat": "flash", "kept": spare, "src": src})
     _note(closed=[c for c in opened if c not in spare], kept=spare, opened=opened)

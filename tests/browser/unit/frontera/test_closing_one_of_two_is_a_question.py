@@ -134,22 +134,6 @@ def test_colliding_titles_get_disambiguated_instead_of_repeated():
 
 # ── 3) the rule lives ONCE ─────────────────────────────────────────────────────────────────────────────────────
 
-def test_every_close_path_goes_through_the_one_decision():
-    """`nucleo.py` emits `widget/close` with an id from THREE points (the close≠delete guard, the turn backstop, and
-    the canvas fallback). The V2-199 wiring guardrail: a decision that nobody calls only proves that the
-    code compiles. The fourth time this week that the rule had been — or was about to be — duplicated."""
-    src = VOICE.read_text(encoding="utf-8", errors="replace")
-    con_id = [ln for ln in src.splitlines()
-              if 'emit("widget", "close"' in ln and '"id"' in ln]
-    assert len(con_id) >= 3, "cambiaron los puntos de cierre: revisa que TODOS pasen por _close_target"
-    for ln in con_id:
-        # V2-530: the id now comes from the loop over `_t["ids"]` (the shared decision returns a LIST, so
-        # «both» is expressible). Reading `_t["id"]` is still fine; a literal or a bare variable is not.
-        assert '_t["id"]' in ln or "_cid" in ln, \
-            f"este cierre no pasa por la decisión compartida: {ln.strip()}"
-    assert src.count("def _close_target(") == 1, "la decisión tiene que estar escrita UNA vez"
-
-
 def test_the_ambiguity_is_answered_by_ASKING_and_not_by_staying_silent():
     """Asking ALSO counts as having acted: if the fallback returned False, the login fallback would take the
     turn as if nobody had done anything — the bug documented by V2-023."""

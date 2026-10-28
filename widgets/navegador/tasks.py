@@ -504,9 +504,9 @@ def set_login_wait(task_id: str, on: bool, *, blocked: str = "") -> None:
 def _raise_for_him(task_id: str, why: str) -> None:   # he must act in the page → the errand's ONE card (V2-797)
     try:
         from nucleo import errand_card
-        from voice.observer import emit
+        from nucleo.acts import canvas
         card = errand_card.card_for(task_id, must_act=True)
-        card and emit("widget", "show", extra={"id": card, "src": f"{why}:{task_id}"})
+        card and canvas.apply("show", card, src=f"wall:{task_id}", why=why)   # the task raises its own card
     except Exception:
         pass
 

@@ -296,7 +296,8 @@ def run_gesture(brief, *, tag_emit, emit, operator_text: str = "") -> str:
             return ""
         if verb == "arrange":
             # the whole canvas, no card to pick: the same emit `arrange_canvas` and POST /api/canvas/arrange make
-            emit("widget", "arrange", extra={"src": "flash"})
+            from nucleo.acts import canvas
+            canvas.apply("arrange", src="flash", emit=emit)
             emit("brain", "🎯 el veredicto completa al modelo (sin tool) — arrange", role="system",
                  extra={"cat": "flash", "action": "arrange", "said": (operator_text or "")[:120]})
             return verb

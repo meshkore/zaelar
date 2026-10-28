@@ -151,7 +151,8 @@ async def run(task) -> WorkResult:
             navtasks.set_goal(tid, goal)   # la aclaración MANDA (el FlashBrain envía la petición ya autocontenida)
         except Exception:
             pass
-        _emit("widget", "show", extra={"id": navtasks.inst_id(tid)})
+        from nucleo.acts import canvas
+        canvas.apply("show", navtasks.inst_id(tid), src=f"wall:{tid}", emit=_emit)
         if status in ("queued", "working", "needs_input"):
             # ACTIVA → se refina EN MARCHA: el bucle re-lee el objetivo actualizado en el siguiente paso.
             try:
@@ -186,7 +187,8 @@ async def run(task) -> WorkResult:
     # (1) crea la TAREA y abre su tarjeta YA (una tarjeta arrastrable por tarea; varias en paralelo).
     task_id = navtasks.create(goal)
     inst = navtasks.inst_id(task_id)
-    _emit("widget", "show", extra={"id": inst})
+    from nucleo.acts import canvas
+    canvas.apply("show", inst, src=f"wall:{task_id}", emit=_emit)
     _emit("brain", "🤖 tarea de navegador creada (SlowBrain)", text=f"{task_id}: {goal}", role="system",
           extra={"id": inst})
 

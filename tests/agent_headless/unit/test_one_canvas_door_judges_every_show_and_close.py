@@ -73,6 +73,65 @@ def test_disarm_a_door_that_skips_the_arbiter_lets_the_unlicensed_show_through(m
     assert widget, "the disarm did not land"
 
 
+def test_a_report_of_what_the_screen_did_is_recorded_even_when_the_tree_would_veto_it(stream):
+    widget = []
+    assert canvas.apply("close", "agenda", src="client:console", request=NOTHING, emit=_sink(widget)) is True
+    assert widget and [e for e in stream if e[0] == "arbiter"][-1][2]["allow"] is False, "judged, recorded, not held"
+
+
+# ── the door is the ONLY writer: no product code emits a canvas op around it ──────────────────────────────────
+
+_OPS = {"show", "close", "minimize", "fullscreen", "move", "arrange"}
+#: Writers whose label is computed and is not a canvas op (with what they emit).
+_NOT_OPS = {"nucleo/flash/canvas_visibility.py": "the refusals of a show («presentación suprimida»)",
+            "widgets/lifecycle.py": "delete / restore of a widget, after its confirm gate",
+            "widgets/confirm.py": "the confirm prompt and its cancel",
+            "nucleo/flash/data_ops.py": "a corrected data-op's diagnosis",
+            "nucleo/flash/tool_executor_widget_calls.py": "the data-op log `data:<action>`",
+            "widgets/rows.py": "a rows op's audit line",
+            "widgets/server_api.py": "the generator's audit line"}
+
+
+def _scan(rel: str, source: str) -> list[str]:
+    import ast
+    out = []
+    for n in ast.walk(ast.parse(source)):
+        if not (isinstance(n, ast.Call) and len(n.args) >= 2 and isinstance(n.args[0], ast.Constant)
+                and n.args[0].value == "widget"):
+            continue
+        name = n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", "")
+        if name not in ("emit", "_emit", "_say"):
+            continue
+        label = n.args[1]
+        if isinstance(label, ast.Constant) and label.value in _OPS:
+            out.append(f"{rel}:{n.lineno} {label.value}")
+        elif not isinstance(label, ast.Constant) and rel not in _NOT_OPS:
+            out.append(f"{rel}:{n.lineno} <computed label>")
+    return out
+
+
+def _writers_around_the_door() -> list[str]:
+    from pathlib import Path
+    engine = Path(__file__).resolve().parents[3]
+    out = []
+    for root in ("nucleo", "voice", "server", "widgets", "connectors"):
+        for p in (engine / root).rglob("*.py"):
+            rel = p.relative_to(engine).as_posix()
+            if rel != "nucleo/acts/canvas.py" and "/_user/" not in rel:
+                out += _scan(rel, p.read_text(encoding="utf-8"))
+    return out
+
+
+def test_every_canvas_op_crosses_the_one_door():
+    assert not _writers_around_the_door(), "these write the canvas around nucleo.acts.canvas.apply: " + \
+        "; ".join(_writers_around_the_door())
+
+
+def test_disarm_a_bare_write_is_named():
+    bare = 'from voice.observer import emit\nemit("widget", "show", extra={"id": "agenda"})\nemit("widget", op)\n'
+    assert _scan("nucleo/x.py", bare) == ["nucleo/x.py:2 show", "nucleo/x.py:3 <computed label>"]
+
+
 def test_a_broken_arbiter_fails_open_with_its_verdict_on_record(monkeypatch, stream):
     monkeypatch.setattr(arb, "_decide", lambda *a, **k: 1 / 0)
     widget = []

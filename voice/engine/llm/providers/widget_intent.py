@@ -145,7 +145,7 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
             wid = _identify_named(text)
             if not wid:
                 from nucleo.flash import bulk_close as _bulk
-                _bulk.close_all(emit, src="flash", text=text)
+                _bulk.close_all(emit, src="flash", text=text, brief=brief)
                 return True
             _t = _close_target(wid, text)
             if _t["ask"]:
@@ -155,9 +155,12 @@ def _widget_fallback(text: str, emit, ask=None, last_spoken: str = "", brief=Non
                          extra={"options": _t["options"]})
                     return True
                 return False        # sin canal para preguntar, mejor no cerrar a ciegas
-            for _cid in (_t.get("ids") or [_t["id"] or wid]):
-                emit("widget", "close", extra={"id": _cid, "src": "flash"})
-            return True
+            from nucleo import canvas_arbiter
+            from nucleo.acts import canvas
+            req = canvas_arbiter.request_of(brief, text)
+            done = [canvas.apply("close", _cid, src="flash", emit=emit, request=req)
+                    for _cid in (_t.get("ids") or [_t["id"] or wid])]
+            return any(done)
         wid = _identify_named(text)
         if wid:
             # V2-605 F2 — the instance, as the close branch resolves it: «Enséñame el navegador» with four cards
