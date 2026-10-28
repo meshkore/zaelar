@@ -119,7 +119,7 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     · the pass's call was swallowed by a guard → the i18n line (a claim over a discarded op is not «done»);
     · the pass read the turn and called nothing → nothing (its judgement stands);
     · no pass could run (no card) and the brief says an act was owed (`owed`) → the i18n line."""
-    if acted:
+    if acted or words_were_the_act(brief):
         return ""
     kind = str((outcome or {}).get("kind") or "")
     if kind in (CALL, STARTED, JUDGED):
@@ -129,6 +129,21 @@ def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) ->
     if kind == SWALLOWED:
         return _not_kept_line()
     return _not_kept_line() if owed(brief) else ""
+
+
+def words_were_the_act(brief) -> bool:
+    """The brief is SURE what he asked for was words (`wants_words = tell`) and no errand: the reply that says them IS the
+    act, so there is no «not done» to tell (a recipe told from memory, a question answered). refactor2710-99."""
+    try:
+        from nucleo.turn import brief as _tb, verdicts
+        esc, e_info = verdicts.read(brief, _tb.ESCALATE_KEY, "")
+        if e_info and e_info.get("used") and esc == "escalate":
+            return False
+        said, info = verdicts.read(brief, _tb.WORDS_KEY, "", min_confidence=verdicts.VETO)
+        return bool(info and info.get("used")) and said == "tell"
+    except Exception as _e:  # noqa: BLE001 — an unreadable brief leaves the receipt where it was
+        _log.debug(f"promise_kept: words verdict unreadable: {_e!r}")
+        return False
 
 
 def _state_holds(open_ids=None) -> bool:
