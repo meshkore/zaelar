@@ -251,14 +251,103 @@ def test_light_mode_gets_the_grafito_paper_not_an_inverted_navy(playwright_avail
     assert m["probeColor"] == _rgb("6D4AE8"), f"the accent gains pigment on paper for contrast: {m}"
 
 
-def test_the_config_panel_offers_the_system():
-    """Source contract for the ⚙ seam: the Apariencia tab exists, renders the profile catalog, and every
-    control routes through the theme service (which is what persists to the account)."""
-    src = (APP / "components/ConfigPanel.js").read_text(encoding="utf-8")
-    assert '{ id: "apariencia" }' in src, "the tab must be declared"
-    assert "sec_apariencia" in src and "THEMES" in src, "the pane renders the catalog"
-    for call in ("setThemeProfile", "setThemeCustom"):
-        assert f"themeSvc.{call}" in src, f"controls must go through the theme service: {call}"
+_PREVIEW = '''
+import sys; sys.path.insert(0, %r)
+import uvicorn
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from server import pages, i18n_api
+app = FastAPI(); app.include_router(pages.router); app.include_router(i18n_api.router)
+app.mount("/static", StaticFiles(directory=%r), name="static")
+uvicorn.run(app, host="127.0.0.1", port=%d, log_level="critical")
+'''
+
+_PANE = """async () => {
+  const side = document.querySelector('.cf-nav.cf-side');
+  const entry = side && side.querySelector('.cf-nav-top[data-tab="apariencia"]');
+  const vis = el => { if (!el) return false; const r = el.getBoundingClientRect();
+                      return r.width > 0 && r.height > 0 && getComputedStyle(el).display !== 'none'; };
+  const themes = Object.keys((await import('/static/app/core/themes.js?v=1')).THEMES);
+  const cards = [...document.querySelectorAll('.cf-th-card')];
+  return {
+    menu: !!side, entry: vis(entry), label: entry ? entry.textContent.trim() : '',
+    entryOn: !!(entry && entry.classList.contains('on')),
+    themes, cards: cards.map(c => c.dataset.profile), on: cards.filter(c => c.classList.contains('on')).map(c => c.dataset.profile),
+    lsProfile: localStorage.getItem('hb_theme_profile'),
+  };
+}"""
+
+
+@pytest.fixture(scope="module")
+def config_pane(playwright_available):
+    """The ⚙ panel RENDERED on the real frontend (its own preview server, never the operator's engine): the
+    «Apariencia» entry of the left menu, its profile catalog, and one profile chosen by a click."""
+    import os
+    import socket
+    import subprocess
+    import sys
+    import time
+    from playwright.sync_api import sync_playwright
+    s = socket.socket(); s.bind(("127.0.0.1", 0)); port = s.getsockname()[1]; s.close()
+    engine = os.path.abspath(".")
+    proc = subprocess.Popen([sys.executable, "-c", _PREVIEW % (engine, os.path.join(engine, "frontend"), port)],
+                            cwd=engine, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        for _ in range(60):
+            try:
+                socket.create_connection(("127.0.0.1", port), timeout=0.5).close(); break
+            except OSError:
+                time.sleep(0.5)
+        else:  # pragma: no cover
+            pytest.skip("preview server never came up")
+        with sync_playwright() as pw:
+            b = pw.chromium.launch(headless=True, args=["--no-sandbox"])
+            ctx = b.new_context(viewport={"width": 1280, "height": 800})
+            # This tab already had its first run (`core/first-run.js` wipes and reloads once per tab otherwise).
+            ctx.add_init_script("try { sessionStorage.setItem('hb_first_run_takeover', '1'); } catch (_) {}")
+            pg = ctx.new_page()
+            errors = []
+            pg.on("pageerror", lambda e: errors.append(str(e)))
+            pg.goto(f"http://127.0.0.1:{port}/", wait_until="domcontentloaded")
+            pg.wait_for_timeout(2200)
+            pg.evaluate("() => document.querySelectorAll('.boot-ovl, .lang-onb, .lang-onb-veil').forEach(e => e.remove())")
+            pg.click("#cfgBtn")
+            pg.wait_for_timeout(700)
+            entry = pg.locator('.cf-side .cf-nav-top[data-tab="apariencia"]')
+            if entry.count():                       # absent → the assertions below say so, not a click timeout
+                entry.first.click()
+                pg.wait_for_timeout(400)
+            out = {"opened": pg.evaluate(_PANE), "picked": None}
+            pick = next((p for p in out["opened"]["cards"] if p not in out["opened"]["on"]), None)
+            if pick:
+                pg.click(f'.cf-th-card[data-profile="{pick}"]')
+                pg.wait_for_timeout(400)
+            out["picked"], out["chosen"], out["errors"] = pick, pg.evaluate(_PANE), errors
+            b.close()
+        return out
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:  # pragma: no cover
+            proc.kill()
+
+
+def test_the_config_panel_offers_the_system(config_pane):
+    """The ⚙ seam, rendered: «Apariencia» is an entry of the panel's ONE left menu (since 2026-10-26 the top tabs
+    are gone), its pane paints the whole profile catalog, and a click on a profile goes through the theme service
+    — the one that persists it — so the choice is the panel's state AND the browser's."""
+    o = config_pane["opened"]
+    assert o["menu"] and o["entry"], f"the left menu must carry a visible «Apariencia» entry: {o}"
+    labels = {json.loads(pathlib.Path(f"i18n/genesis/{lang}/ui.json").read_text(encoding="utf-8"))
+              .get("config.tab.apariencia") for lang in ("es", "en")}
+    assert o["label"] in labels, f"the entry must read the bundle's label, got {o['label']!r} (bundles: {labels})"
+    assert o["entryOn"], "the entry clicked must be the one marked as the open area"
+    assert sorted(o["cards"]) == sorted(o["themes"]), f"the pane must paint every profile: {o['cards']} vs {o['themes']}"
+    c = config_pane["chosen"]
+    assert c["on"] == [config_pane["picked"]], f"the clicked profile must become the chosen one: {c['on']}"
+    assert c["lsProfile"] == config_pane["picked"], f"the theme service must persist it: {c['lsProfile']}"
+    assert config_pane["errors"] == [], config_pane["errors"]
     for lang in ("es", "en"):
         bundle = json.loads(pathlib.Path(f"i18n/genesis/{lang}/ui.json").read_text(encoding="utf-8"))
         assert bundle.get("config.tab.apariencia"), f"{lang}: the tab label must exist"

@@ -79,11 +79,14 @@ def run():
 
 def _boot(pg, url, *, power_off):
     pg.goto(url, wait_until="domcontentloaded")
-    pg.evaluate("(off) => { try { localStorage.setItem('hb_power_off', off ? '1' : '0'); } catch (_) {} }",
-                power_off)
-    pg.reload(wait_until="domcontentloaded")
     pg.wait_for_timeout(2200)
     pg.evaluate("() => document.querySelectorAll('.boot-ovl, .lang-onb, .lang-onb-veil').forEach(e=>e.remove())")
+    # ⏻ the way the product sets it: through its one door (`services/power.js`), AFTER boot. A value seeded in
+    # localStorage before boot is exactly what a fresh install wipes (`core/first-run.js`, V2-735), so seeding it
+    # measured a wiped flag, not the composer.
+    pg.evaluate("(off) => import('/static/app/services/power.js?v=1').then(m => m.setPower(off, 'test'))",
+                power_off)
+    pg.wait_for_timeout(300)
     # Open the wall on its chat tab, the way the operator finds it.
     pg.evaluate("""() => import('/static/app/core/store.js?v=2').then(m => {
         m.setChatTab('chat'); m.setChatOpen(true);
@@ -98,6 +101,9 @@ def measured(run):
     with sync_playwright() as pw:
         b = pw.chromium.launch(headless=True, args=["--no-sandbox"])
         ctx = b.new_context(viewport={"width": 1280, "height": 900})
+        # This tab has already had its first run: `core/first-run.js` wipes our namespace and reloads ONCE per tab,
+        # guarded by this sessionStorage key — unguarded, the wipe lands AFTER the ⏻ press below and takes it away.
+        ctx.add_init_script("try { sessionStorage.setItem('hb_first_run_takeover', '1'); } catch (_) {}")
         pg = ctx.new_page()
         errors = []
         pg.on("pageerror", lambda e: errors.append(str(e)))

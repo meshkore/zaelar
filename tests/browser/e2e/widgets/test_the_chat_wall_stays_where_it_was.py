@@ -106,7 +106,7 @@ def measured(run):
         # Open it the way the product does, through the store the components share.
         pg.evaluate("""async () => {
           const s = await import('/static/app/core/store.js?v=2');
-          s.setChatTab('procesos'); s.setChatOpen(true);
+          s.setChatTab('tareas'); s.setChatOpen(true);
         }""")
         pg.wait_for_timeout(500)
         # Move it somewhere unmistakable and let the panel save that rect.
@@ -156,13 +156,13 @@ def test_it_comes_back_IN_THE_SAME_PLACE(measured):
 def test_it_comes_back_ON_THE_SAME_TAB(measured):
     """Finding «Chat» after leaving it on the tab he was reading is the same loss one level down.
 
-    V2-728 — the fixture still ASKS for «procesos», on purpose: that is the name the voice router answers and
-    the name sitting in the localStorage of anyone who used the wall before today. What it must come back on
-    is «tareas», the tab that absorbed it. Pinning the old string here would pin the migration instead of the
-    behaviour, and would go green the day the mapping broke.
+    V2-744 — the tab's id is «procesos» again (the word «tarea» went to his own agenda). The fixture ASKS for the
+    old name «tareas» on purpose: it is what an operator's stored action-map rows and old localStorage carry, and
+    the store normalises it (`_TAB_ALIAS`). What it must come back on is «procesos». Asking with the current id
+    would pin nothing about that mapping and would stay green the day it broke.
     """
     saved = measured["after"]["saved"] or {}
-    assert saved.get("tab") == "tareas", saved
+    assert saved.get("tab") == "procesos", saved
 
 
 # ── V2-608: docking the wall must ANNOUNCE that the canvas changed shape ────────────────────────────────────
