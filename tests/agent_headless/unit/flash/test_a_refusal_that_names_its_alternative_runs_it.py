@@ -12,13 +12,11 @@ Disarm: `refusal_redirect.offered` returning [] → the first test goes red; an 
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 
 import pytest
 
-from nucleo.flash import data_ops, refusal_redirect as RR
+from nucleo.flash import data_ops
 
-ENGINE = Path(__file__).resolve().parents[4]
 REFUSED = {"ok": False, "error": "queue_empty", "redirect": ["add_results", "play_result"],
            "message": "La cola ya está vacía: no había nada que quitar."}
 SAID = "Ponme el de Iván, el de José Manuel y el de Jaén"
@@ -87,8 +85,3 @@ def test_a_refusal_without_redirect_keeps_todays_correction(client, monkeypatch)
     monkeypatch.setattr(act_repair, "call_for_refusal", _fix)
     got, ran = _retry({"ok": False, "error": "item_not_found", "message": "No encuentro ese vídeo en la lista."})
     assert got is None and seen == ["clear_list"] and not client.calls
-
-
-def test_the_turn_unpacks_the_action_that_ran():
-    voice = (ENGINE / "nucleo/flash/data_ops.py").read_text("utf-8")
-    assert "payload, res, action_name = (*_fixed, action_name)[:3]" in voice

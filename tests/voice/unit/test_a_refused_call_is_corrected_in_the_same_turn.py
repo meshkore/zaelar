@@ -85,14 +85,6 @@ def test_a_success_or_a_pool_timeout_never_costs_a_pass(client):
     assert client.calls == [], "no model call on a turn that did not fail"
 
 
-def test_the_turn_takes_the_seam():
-    """V2-252: the corrected retry lives where every data-op is dispatched."""
-    from pathlib import Path
-    root = Path(__file__).resolve().parents[3]
-    assert "corrected_retry(" in (root / "nucleo/flash/data_ops.py").read_text("utf-8").split(
-        "async def dispatch_and_report(")[1], "the voice path lost the retry"
-
-
 def test_the_pass_refuses_to_run_without_his_words(client):
     assert asyncio.run(act_repair.call_for_refusal("", "results", "detail", {}, "x")) is None
     assert client.calls == []

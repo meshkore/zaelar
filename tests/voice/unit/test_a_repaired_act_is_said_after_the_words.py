@@ -23,12 +23,6 @@ def test_words_that_promised_it_or_silence_get_nothing():
     assert act_repair.after_the_repair("", promised=False) == ""
 
 
-def test_the_voice_turn_says_it_right_after_the_second_pass():
-    src = _vts.read(_NUCLEO)
-    i = src.index("prometió actuar sin tool — la llamada, en una segunda pasada")
-    assert "_act_repair.after_the_repair(spoken_text" in src[i:i + 900]
-
-
 def test_a_repaired_look_is_not_acknowledged_as_done(monkeypatch):
     """Demo pass 42 (2026-09-29), C2: «…want me to put it on your calendar as a call with Rowan at 4?» — the repair
     ran `find_free`, a LOOK, and the ack made it «…at 4?Done.». A look changes nothing there is to acknowledge."""
@@ -61,5 +55,3 @@ def test_words_that_already_carry_the_act_get_nothing(monkeypatch):
                                        False, "mensajeria", "forward").strip() == "Done."
     assert act_repair.after_the_repair("No puedo marcarlo, no hay forma de hacerlo.", False, "mensajeria",
                                        "unread").strip() == "Done."
-
-

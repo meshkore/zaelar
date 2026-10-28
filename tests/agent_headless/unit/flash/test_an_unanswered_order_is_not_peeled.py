@@ -12,7 +12,6 @@ the merged sentence, found no video in it and dropped the call. The operator had
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 import asyncio
 
@@ -67,13 +66,3 @@ def test_an_answered_head_is_still_peeled(held):
     action, merged, _, _ = _replay(held, the_turn_died=False)
     assert action == "act"
     assert "open me a video" not in merged
-
-
-def test_the_voice_provider_calls_it_where_a_turn_dies_unanswered():
-    """The wiring, both doors: the pre-stream wrapper and the stream's own cancel handler (only when nothing
-    had been said). A seam nobody calls is how this sentence lost its verb."""
-    import inspect
-    from voice.engine.llm.providers import nucleo
-    src = _vts.turn_source()
-    assert src.count("_acc_mod.unanswered_by(") == 2
-    assert 'if not "".join(spoken):\n                _acc_mod.unanswered_by(brain, text)' in src

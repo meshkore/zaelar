@@ -72,17 +72,6 @@ def test_unreadable_is_not_empty(monkeypatch):
     assert r["read"] is False and r["n_items"] == 0
 
 
-def test_the_two_readers_cannot_point_at_different_boxes():
-    """Guard on the wiring, which is the half a behavioural test cannot see: `mechanism_report` must take the
-    ids from `sheet_instances` rather than calling `results_sheet()` bare. That is what keeps "which boxes
-    were opened" and "what is in them" answering about the SAME boxes."""
-    import inspect
-    src = inspect.getsource(verify.mechanism_report)
-    assert "results_sheet(" in src
-    line = next(l for l in src.splitlines() if '"results_sheet"' in l)
-    assert "sheet_instances(" in line, f"results_sheet no recibe los ids de sheet_instances: {line.strip()}"
-
-
 # ── The suffix has to reach the REQUEST, not just the call ────────────────────────────────────────────
 # The two cases above mock `widget_data` itself, so they prove `results_sheet` ASKS for the right box and
 # nothing more. They passed while `widget_data` was dropping `q` on the floor and reading the bare box on

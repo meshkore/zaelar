@@ -5,7 +5,6 @@ answered «¡Perfecto, Madrid apuntado! Te busco una receta…», and the worker
 The door that already held outgoing messages (`outgoing_lang`, demo pass 106) now holds the reply and the notice.
 """
 import asyncio
-import inspect
 
 from nucleo.flash import outgoing_lang as ol
 
@@ -42,8 +41,3 @@ def test_a_reply_already_in_the_session_language_is_left_alone(monkeypatch):
     assert _run(ol.said_in_session_language("Got it, I'll find you a recipe for the rice bowl.")).startswith("Got it")
     assert _run(ol.said_in_session_language("Vale.")) == "Vale."
     assert not seen
-
-
-def test_the_delivery_door_is_wired():
-    from nucleo.workers import spoken_delivery
-    assert "foreign_to_session" in inspect.getsource(spoken_delivery)

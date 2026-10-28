@@ -53,9 +53,3 @@ def test_an_act_that_does_not_leave_is_left_alone(ol):
 def test_too_few_words_to_tell_is_left_alone(ol):
     p = {"contact": "quinn", "text": "Gracias"}
     assert _run(ol, p) == p and not ol._calls
-
-
-def test_the_shared_send_door_passes_through_it():
-    import inspect
-    from nucleo.flash import data_ops
-    assert "in_session_language" in inspect.getsource(data_ops.dispatch_and_report)

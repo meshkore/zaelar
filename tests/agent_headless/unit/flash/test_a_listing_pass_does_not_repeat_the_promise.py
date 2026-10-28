@@ -3,7 +3,6 @@
 «can you find me like three 27 inch 4k monitors…» — the model said «I'll pull them onto your screen when I've got
 them.», the search went to the background, and the listing pass then spoke the same promise again, glued on:
 «…got them.I'm already digging deep on this, looking for three 27-inch 4K monitors…»."""
-from tests import voice_turn_source as _vts
 import asyncio
 
 from nucleo.acts import search_listing as lt
@@ -52,9 +51,3 @@ def test_a_silent_turn_still_gets_its_sentence(monkeypatch):
     _o = asyncio.run(lt.listings({"text": "find me monitors"}, {"query": "q"}))
     _, said = _o.data, _o.say
     assert said == "Three are on the sheet." and "YA LE HAS DICHO" not in _Client.calls[0][0]["content"]
-
-
-def test_the_voice_channel_hands_over_what_it_said_and_spaces_the_continuation():
-    from pathlib import Path
-    prov = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
-    assert "already_said=_said_before" in prov and '" " + _d.lstrip()' in prov

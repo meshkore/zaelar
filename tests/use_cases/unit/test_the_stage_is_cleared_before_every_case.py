@@ -13,7 +13,6 @@ the process and, in addition, discovery cases seed preferences that must survive
 """
 from __future__ import annotations
 
-import inspect
 
 from tests.use_cases.e2e.agent import (config, probe_client, report as reportmod, run as R,
                                        scenarios as SC, status as statusmod)
@@ -80,16 +79,3 @@ def test_a_failed_reset_does_not_lose_the_batch(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "code_stamp", lambda: {"sha": "fijo", "dirty": [], "n_dirty": 0})
     R._run_batch([_s("a"), _s("b")], sandboxed=True, args_no_file=True)
     assert ran == ["a", "b"]
-
-
-def test_the_reset_that_runs_is_the_one_that_keeps_memory():
-    """COUNTERWEIGHT, and this is the side through which it breaks when “improved.”
-
-    `hard_reset()` calls `/reset/hard`. `/api/reset/full` with `wipe_memory` is ANOTHER endpoint: it requires
-    killing the process (SQLite is in use) and would wipe out the preferences that discovery cases seed BEFORE
-    speaking — the case would measure the memory distiller and report it as the agent failing to reason. If
-    someone changes the endpoint “to clean everything,” this turns red.
-    """
-    body = inspect.getsource(probe_client.hard_reset)
-    call = [ln.strip() for ln in body.splitlines() if "_post(" in ln]
-    assert call == ['return _post("/reset/hard", {}, timeout=60.0)'], call

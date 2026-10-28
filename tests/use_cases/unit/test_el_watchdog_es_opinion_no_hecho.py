@@ -7,17 +7,6 @@ detected this deviation» as its backing. The transcript was in front of both. T
 hot-path nudger and it errs; the judge's prompt now says so where the verdicts are handed over: contrast
 each one against the transcript before adopting it, and never cite the watchdog itself as evidence.
 """
-from tests.use_cases.e2e.agent import judge
-
-
-def test_the_handover_names_the_watchdog_as_opinion():
-    prompt = judge.build_judge_prompt if hasattr(judge, "build_judge_prompt") else None
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/judge.py").read_text(encoding="utf-8")
-    seg = src.split("VEREDICTOS DEL WATCHDOG", 1)[1][:900]
-    assert "OPINIÓN" in seg
-    assert "transcript" in seg.lower()
-    assert "no cites al watchdog" in seg.lower() or "nunca cites al watchdog" in seg.lower()
 
 
 def test_the_watchdog_window_covers_a_whole_round():

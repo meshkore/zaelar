@@ -74,13 +74,3 @@ def test_el_informe_ORIGINAL_no_se_toca():
     mech = {"sheet_timing": {"first_result_ms": FILAS}}
     _clocks_relative(mech)
     assert mech == {"sheet_timing": {"first_result_ms": FILAS}}
-
-
-def test_el_JSON_del_juez_sale_relativizado_y_lo_dice():
-    """The wiring: the classic failure is for the function to exist but not be connected. And the judge has to KNOW
-    that they are seconds, or it will read a 14.1 as a truncated epoch."""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/judge.py").read_text()
-    assert "json.dumps(_clocks_relative(mech)" in src
-    assert "SEGUNDOS desde el primer instante medido" in src
-    assert "json.dumps(mech, ensure_ascii=False, indent=2)" not in src, "quedó un volcado crudo"

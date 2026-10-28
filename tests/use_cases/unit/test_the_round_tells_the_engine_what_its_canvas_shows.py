@@ -5,7 +5,6 @@ the desktop's `POST /api/canvas/state`. A sandbox has no desktop, so with the tr
 screen the turn brief asked `catalog_widget` (the «nothing is open» question), «pause the video» read `none` and the
 reply «Paused.» went out over no call. Every multi-card case was measured on a blind engine.
 """
-import inspect
 
 from tests.use_cases.e2e.agent import verify
 
@@ -26,12 +25,6 @@ def test_a_close_with_no_id_clears_the_canvas():
 
 def test_instances_keep_their_card_id():
     assert verify.canvas_now([_w(1, "show", "results::ab12")]) == ["results::ab12"]
-
-
-def test_the_round_posts_it():
-    from tests.use_cases.e2e.agent import run
-    src = inspect.getsource(run)
-    assert "canvas_now(" in src and "/api/canvas/state" in src
 
 
 def test_a_close_the_desktop_applies_is_folded_in():

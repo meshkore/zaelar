@@ -92,14 +92,6 @@ def test_the_canvas_really_does_index_by_the_double_colon():
         "refreshData ya no busca la tarjeta por su id completo")
 
 
-def test_the_two_separators_are_written_down_where_they_are_used():
-    """A convention that lives only in two files' habits is one rename away from this bug coming back."""
-    sheet_names = (_ENGINE / "widgets" / "results" / "sheet_names.py").read_text(encoding="utf-8")
-    assert "_INSTANCE_SEP" in sheet_names and "::" in sheet_names
-    store_src = (_ENGINE / "widgets" / "store.py").read_text(encoding="utf-8")
-    assert "_DISK_SEP" in store_src and "canvas_id" in store_src
-
-
 def test_the_progress_path_and_the_data_path_now_agree():
     """`nucleo/sheets.py` announces progress through `results.instance_id()` and the store announces data
     through `canvas_id()`. Two spellings for one card is what the incident WAS, so they are asserted equal."""

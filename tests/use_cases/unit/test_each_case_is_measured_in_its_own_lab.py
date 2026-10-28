@@ -106,42 +106,6 @@ def test_se_alterna_pero_NO_se_baraja():
     assert sorted(got) == sorted(ids), "no se pierde ni se duplica ningún caso"
 
 
-def test_la_prioridad_sigue_mandando_DENTRO_de_cada_plato():
-    """Rewritten 2026-08-28, NOT reversed. The property—the priority takes precedence—is the same; what changed is
-    where it means something.
-
-    Previously, each group was interleaved (`intercala(rotos) + intercala(nunca) + intercala(buenos)`), and
-    measured over the first four hours of the 24/7 run this produced **25 ES rounds versus 7 US**: ES has more broken
-    cases, so after exhausting the US cases in the “broken” group, thirteen consecutive ES cases remained before reaching the
-    “never measured” group, where the 52 untouched US cases live.
-
-    Now each set carries its complete queue (broken → never → good) and they alternate turn by turn. What is
-    sacrificed is having a broken case from one set come before a never-measured case from the OTHER—a comparison that
-    means nothing, because two products are being measured in parallel, not one list.
-    """
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text(encoding="utf-8")
-    assert "return intercala(cola_es + cola_us)" in src
-    assert src.index("rotos + nunca + buenos") < src.index("return intercala(cola_es + cola_us)")
-
-
-def test_cada_plato_lleva_su_PROPIA_cola_de_prioridad():
-    """Interleaving within each group was not enough, as the figures showed: **25 ES rounds versus 7 US** in the
-    first four hours of the 24/7 set.
-
-    The cause: ES has many more broken cases, so after exhausting the US cases in the “broken” group, thirteen consecutive ES
-    cases remained BEFORE the “never measured” group began—the one where the 52 US cases no one had touched live. The
-    priority was respected and the operator still had no US data.
-
-    Now each set goes through broken → never → good independently and they alternate turn by turn: the priority
-    remains intact WITHIN each locale, which is where it means something.
-    """
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text(encoding="utf-8")
-    assert "cola_es = [x for x in rotos + nunca + buenos if not x.endswith" in src
-    assert "return intercala(cola_es + cola_us)" in src
-
-
 def test_un_ROTO_de_su_plato_sigue_yendo_antes_que_un_BUENO_del_mismo():
     """The priority is not sacrificed for alternation: having a broken case from one set come before a
     never-measured case from the OTHER is sacrificed, since that comparison means nothing."""

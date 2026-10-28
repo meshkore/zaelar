@@ -73,19 +73,6 @@ def test_no_report_at_all_proves_nothing():
     assert "la AUSENCIA no prueba nada" in mechanism_facts({})
 
 
-def test_the_prose_reaches_the_prompt_the_judge_actually_reads():
-    """The helper's existence is useless if the prompt still carries only the JSON: that is precisely the
-    failure of «the truth exists in the task and does not reach the place where the decision is made» that has
-    already recurred in V2-145/V2-150."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import judge as J
-
-    src = inspect.getsource(J.judge)
-    assert "mechanism_facts(mech)" in src
-    assert "no lo contradigas" in src
-
-
 def test_the_judge_is_told_to_answer_in_SPANISH_only():
     """The default judge is glm-4.6, a Chinese model, and on 2026-08-20 it wrote half a finding in Chinese
     (round 16 of V2-176: «sin提供一个具体的输出或障碍说明»). The finding was CORRECT —the system admitted

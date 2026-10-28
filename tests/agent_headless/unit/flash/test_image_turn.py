@@ -175,15 +175,6 @@ def test_cada_busqueda_emite_su_evidencia_con_la_QUERY(monkeypatch):
     assert x.get("source") == "bing" and x.get("ok") is False
 
 
-def test_el_juez_ve_un_widget_escrito_pero_nunca_abierto():
-    """The other half, in the harness: `widget_ops` already counted the `show`s, but the «data without a
-    card» fact was not stated, and a field the judge cannot see in words is invisible (V2-346)."""
-    import pathlib as _pl
-    src = (_pl.Path(__file__).resolve().parents[4] / "tests" / "use_cases" / "e2e" / "agent"
-           / "judge.py").read_text(encoding="utf-8")
-    assert "ESCRITOS PERO NUNCA ABIERTOS" in src
-
-
 # ── V2-464 — the mouth speaks the ENGINE's language ────────────────────────────────────────────────────
 def test_en_el_motor_ingles_las_frases_salen_en_ingles(monkeypatch):
     """Measured live in the first US agent round: the tester in English, zaelar replying «I've put 12

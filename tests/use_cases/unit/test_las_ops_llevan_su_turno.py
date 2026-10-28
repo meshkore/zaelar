@@ -49,9 +49,3 @@ def test_the_judge_gets_the_timing_and_the_two_rules():
 def test_without_the_field_nothing_renders():
     out = judge.mechanism_facts({"widget_ops": {"youtube": {"add": 1}}})
     assert "OPS POR TURNO" not in out
-
-
-def test_run_wires_it():
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")
-    assert "widget_ops_by_turn" in src

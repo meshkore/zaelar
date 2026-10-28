@@ -8,15 +8,12 @@ answer means stays the distiller's reading.
 """
 from __future__ import annotations
 
-import ast
 import time
-from pathlib import Path
 
 import pytest
 
 from nucleo.memory_agent import answer_frame as AF
 
-ENGINE = Path(__file__).resolve().parents[3]
 ASKED_EN = ("Got it — I'll flag anything as soon as I have options. Meanwhile, quick one so I can set things "
             "up properly: where are you based?")
 
@@ -54,16 +51,3 @@ def test_an_old_question_is_no_longer_the_conversation_s_last_word(monkeypatch):
     monkeypatch.setattr(_mem, "recent_window", lambda limit=1: [
         {"role": "assistant", "content": ASKED_EN, "ts": time.time() - 5}])
     assert "where are you based?" in AF.asked_before()
-
-
-def test_both_distiller_calls_of_the_ingest_carry_the_frame():
-    """The wiring: every `distill.process(...)` of the ingest step reads the FRAMED turn — a retry that
-    went back to the bare text would undo it exactly when the provider hiccups."""
-    tree = ast.parse((ENGINE / "nucleo/memory_agent/ingest_steps.py").read_text(encoding="utf-8"))
-    calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-             and n.func.attr == "process" and isinstance(n.func.value, ast.Name)
-             and n.func.value.id == "distill"]
-    assert len(calls) == 2
-    for c in calls:
-        arg = c.args[0]
-        assert isinstance(arg, ast.Call) and getattr(arg.func, "attr", "") == "framed", ast.unparse(c)

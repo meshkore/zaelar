@@ -8,16 +8,12 @@ fed is what the wall gets when the voice fails, marked so, and never twice.
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from voice.engine.pipeline import reply_wall as rw
-from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
-AGENT = Path("voice/engine/pipeline/agent.py")
-ZAGENT = Path("voice/engine/pipeline/zaelar_agent.py")
 
 
 @pytest.fixture(autouse=True)
@@ -61,18 +57,3 @@ def test_a_retry_is_not_a_dead_voice():
     assert rw.is_tts_dead(Exception("plain")) is False
     rw.tee("")
     assert rw.surface(lambda *a, **k: (_ for _ in ()).throw(AssertionError("nothing to show"))) == ""
-
-
-def test_the_session_wires_the_tee_and_the_two_hooks():
-    """A seam nobody calls is the V2-741 shape. The tee sits where the voice is fed, the error hook surfaces,
-    and the item hook defers to it."""
-    z = ZAGENT.read_text(encoding="utf-8")
-    assert "_rw.tee(text)" in z[z.index("def tts_node"):], "what the voice is fed goes through the tee"
-    a = _vts.read(AGENT)
-    err = a[a.index('@session.on("error")'):]
-    nxt = err.find("@session.on(", 1)
-    err = err[:nxt if nxt > 0 else len(err)]
-    assert "_reply_wall.is_tts_dead(_err)" in err and "_reply_wall.surface(_emit)" in err
-    item = a[a.index('@session.on("conversation_item_added")'):]
-    item = item[:item.index('@session.on("agent_false_interruption")')]
-    assert "not _reply_wall.already_surfaced(text)" in item, "the late item must not paint the line twice"

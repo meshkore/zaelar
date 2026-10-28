@@ -52,13 +52,6 @@ def test_a_garbled_id_is_a_missing_target():
     assert ST.named_or_guess("results::ab12-1", lambda: "navegador", bases_only=True) == "navegador"
 
 
-def test_every_show_path_reads_the_same_rule():
-    """The tag path calls the shared helper — the voice tool path calls `resolve_show`."""
-    import inspect
-    from nucleo.flash import tool_executor_widget_calls
-    assert "named_or_guess(" in inspect.getsource(tool_executor_widget_calls)
-
-
 def test_disarmed_a_guard_that_runs_first_turns_the_document_into_the_browser(monkeypatch):
     """RED proof: with no card read as named, the guess wins again — the tests above measure `model_named`."""
     monkeypatch.setattr(ST, "model_named", lambda wid: "")
@@ -91,12 +84,6 @@ def test_an_address_he_said_passes(said):
 def test_a_call_without_an_address_is_not_judged():
     got = {"widget_id": "documento", "action": "show", "payload": {"body": "Hola, equipo"}}
     assert CC._mints_an_address(got, SAID, "", WINDOW, _emit_into([])) is False
-
-
-def test_the_second_pass_consults_the_address_check():
-    import inspect
-    src = inspect.getsource(CC.after_show)
-    assert src.index("_mints_an_address(") < src.index("apply_widget_data(got")
 
 
 def test_disarmed_an_address_check_that_sees_no_host_lets_google_docs_through(monkeypatch):

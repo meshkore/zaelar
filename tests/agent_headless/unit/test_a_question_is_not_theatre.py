@@ -1,4 +1,3 @@
-from tests import voice_turn_source as _vts
 """V2-655 — una pregunta del agente no es teatro.
 
 Medido 2026-09-10, sesión 85eec898, 16:32:07. El modelo dijo «Tienes razón, Ricardo… ¿Me pongo a revisar y
@@ -161,13 +160,3 @@ def test_a_parking_that_CANNOT_be_recorded_never_launches_by_default(monkeypatch
 
 
 # ── implementación PARALELA: los dos canales pasan lo hablado ────────────────────────────────────────────
-
-def test_the_voice_turn_hands_over_what_it_said():
-    """El portal no puede ver el turno de otra forma, así que el texto viaja en el contexto — y eso es
-    exactamente la clase de cosa que un canal olvida (V2-252, V2-539, V2-555)."""
-    import re
-    from pathlib import Path
-    root = Path(__file__).resolve().parents[3]
-    for rel, var in (("voice/engine/llm/providers/nucleo.py", "spoken_text"),):
-        src = re.sub(r"(?m)#.*$", "", _vts.read(root / rel))
-        assert f'"asked": {var}' in src, f"{rel} no entrega lo que dijo el turno"

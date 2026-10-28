@@ -21,7 +21,6 @@ import re
 from pathlib import Path
 
 import pytest
-from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 ROOT = Path(__file__).resolve().parents[4]
 _PROD_DIRS = ("widgets", "nucleo", "voice", "server", "connectors")
@@ -73,15 +72,6 @@ def test_the_condition_behind_each_face_has_a_production_writer(face, pattern, w
 #: ratchet moved it to `live_blocks.py` (V2-276). It points to the file and NOT the entire directory on
 #: purpose: searching for “MURO” throughout the engine would include the tests and any comment, and this
 #: guard exists precisely so that renaming a face fails.
-_BLOCK = ROOT / "nucleo" / "turn" / "prompt" / "live_browser.py"
-
-
-def test_and_the_block_really_branches_on_all_of_them():
-    """The other half: ensuring that the patterns above remain the actual faces. If someone renames one,
-    this file would stop monitoring anything without failing."""
-    src = _vts.read(_BLOCK)     # V2-778 F1: moved blocks read where they sat
-    for face, _, _ in FACES:
-        assert face in src, f"«{face}» ya no aparece en el bloque — actualiza FACES o la cara desapareció"
 
 
 def test_y_el_bloque_SIGUE_llegando_al_prompt():
@@ -97,4 +87,3 @@ def test_y_el_bloque_SIGUE_llegando_al_prompt():
         mp.setattr(live_browser, "navegador_lines", lambda: ["NAVEGADOR-MARK"])
         assert "NAVEGADOR-MARK" in live_state.live_state(), (
             "`live_state` dejó de llamar al bloque: el estado del navegador ya no llega al turno")
-

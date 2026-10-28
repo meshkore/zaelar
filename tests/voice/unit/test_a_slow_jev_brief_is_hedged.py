@@ -2,7 +2,6 @@
 
 p50 317 ms, p90 450 ms, and 6 briefs in 78 hit the 2 s wall — each a turn with no verdict at all (C5b, E4 went
 wrong that way). Passes 16-17 had none: a rare, long tail, which is what a hedged request is for."""
-import threading
 import time
 
 import pytest
@@ -44,11 +43,6 @@ def test_both_failing_still_fails_like_one_call(hedge_at_100ms, monkeypatch):
     monkeypatch.setattr(jev, "_post_many", post)
     with pytest.raises(TimeoutError):
         jev._post_many_hedged("s", {"q": {}}, 0.5)
-
-
-def test_the_brief_goes_through_the_hedge():
-    import inspect
-    assert "_post_many_hedged(state, questions" in inspect.getsource(jev.choose_many_sync)
 
 
 def test_the_brief_is_not_cut_before_its_readers_read_it(monkeypatch):

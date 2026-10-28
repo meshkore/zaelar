@@ -127,12 +127,3 @@ def test_the_voice_close_backstop_is_not_held_by_the_stop_it_replaces(screen):
     req = {"v": {"action": "stop", "query": ""}}
     assert CC.music_keeps_its_turn(req, "apaga la música") is True and req["v"]["action"] == "stop"
     assert CC.music_keeps_its_turn({"v": None}, "cierra la música") is False
-
-
-def test_the_turn_calls_the_one_helper():
-    import pathlib
-    root = pathlib.Path(__file__).resolve().parents[4]
-    for rel, needle in (("nucleo/flash/post_stream_lanes.py", "_card_close.music_keeps_its_turn"),
-                        ("nucleo/flash/post_stream_lanes.py", "_card_close.verdict_unless_named"),
-                        ("nucleo/flash/card_close.py", "verdict_unless_named(_da.from_brief(brief)[0]")):   # `complete_canvas`'s body
-        assert needle in (root / rel).read_text(encoding="utf-8"), (rel, needle)

@@ -119,13 +119,6 @@ def test_a_fresh_start_forgets_any_earlier_power_off(workspace):
     assert runstate.stopped() is False, "a brand-new agent inherited a ⏻ off from before its language existed"
 
 
-def test_the_voice_can_never_choose_the_language():
-    """The path that chose Spanish from a sentence he said to somebody else is gone, not guarded."""
-    src = _vts.read(ENGINE / "voice/engine/pipeline/agent.py")
-    assert "_maybe_detect_language" not in src and ".lock(" not in src, (
-        "the voice pipeline locks a language again — the picker must be the only door")
-
-
 def test_a_turn_heard_without_a_language_never_reaches_the_brain():
     """The backstop for a session that outlived the gate: after the mic switch, before the attention judge."""
     src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")

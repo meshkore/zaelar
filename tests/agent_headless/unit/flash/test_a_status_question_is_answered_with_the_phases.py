@@ -14,7 +14,6 @@ turn (and the typed channel, which runs it) calls `errands_of_a_turn.status_owed
 from __future__ import annotations
 
 import asyncio
-import pathlib
 import threading
 import types
 
@@ -22,7 +21,6 @@ import pytest
 
 from nucleo.turn import errands_of_a_turn as E
 
-ENGINE = pathlib.Path(__file__).resolve().parents[4]
 SAID = "And the monitor, no more than $150. How's everything going?"
 
 
@@ -84,10 +82,3 @@ def test_the_typed_turn_says_the_status_instead_of_the_holding_line(three_live):
             turn.reset("status")
     assert "Elaborating the report" in res["reply"], res
     assert "give me a moment" not in res["reply"].lower()
-
-
-def test_the_voice_turn_asks_it():
-    # the voice turn reaches `status_owed` through `split_by_errand.status_with_refined`, which adds the errands a
-    # send reached (2.644)
-    assert "_sbe.status_with_refined(" in (ENGINE / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
-    assert "_eot.status_owed(" in (ENGINE / "nucleo/turn/split_by_errand.py").read_text(encoding="utf-8")

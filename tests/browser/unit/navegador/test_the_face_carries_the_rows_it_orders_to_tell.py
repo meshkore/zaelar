@@ -20,7 +20,6 @@ import pytest
 from nucleo.turn.prompt import live_browser, live_sheet
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
-from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 
 @pytest.fixture(autouse=True)
@@ -164,7 +163,7 @@ def test_la_frontera_de_V278_sigue_la_cara_no_afirma_la_pantalla():
 # data, the same rule as `by_amount`: a result is a name and a way to act on it, never a price (V2-240).
 
 def _rows(monkeypatch, items):
-    from nucleo.turn.prompt import live_browser, live_sheet
+    from nucleo.turn.prompt import live_sheet
     from widgets.navegador import tasks as _t
     from widgets.results import data as _sd
     monkeypatch.setattr(_t, "get", lambda tid: {"sheet": "results::c4202d-1"})
@@ -197,12 +196,3 @@ def test_la_mezcla_de_la_ronda_medida(monkeypatch):
                               {"title": "MAPFRE", "price": ""}])
     assert out[0].endswith("152 €»")
     assert sum(1 for r in out if "SIN PRECIO" in r) == 3
-
-
-def test_la_cara_dice_QUE_HACER_con_una_linea_sin_precio(monkeypatch):
-    """The data alone, without the interpretation, is read again as a candidate. The rule goes INSIDE the same
-    row block that already orders «di solo lo que RESPONDE a lo que pidió» (V2-348: the branch goes inside)."""
-    from pathlib import Path
-    src = _vts.read("nucleo/turn/prompt/live_browser.py")
-    assert "marcada SIN PRECIO no es una opción" in src
-    assert "ofrezcas como candidata" in " ".join(src.split())

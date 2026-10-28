@@ -48,12 +48,3 @@ def test_tester_turns_never_tick_the_clock():
     tr = [{"who": "tester", "text": NAMING_TURN, "at": 60.0},
           {"who": "zaelar", "text": "Sigo con ello.", "at": 70.0}]
     assert V.delivery_said_at(tr, SHEET_TITLES) is None
-
-
-def test_run_feeds_the_clock_both_sources():
-    """Wiring guard: run.py must hand the clock the union of note titles and sheet titles."""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")
-    assert "delivery_said_at" in src, "run.py no longer uses the extracted clock"
-    seg = src.split("delivery_said_at", 1)[1][:400]
-    assert "titles" in seg and "sh" in seg

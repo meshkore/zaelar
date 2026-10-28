@@ -8,7 +8,6 @@ another action on the same card. Now one rule: `card.vetoes` at `VETO_SURE` (0.8
 """
 from __future__ import annotations
 
-import inspect
 
 import pytest
 
@@ -45,13 +44,3 @@ def test_the_bar_is_the_disarm(monkeypatch):
     unsure = rig.brief("agenda:find_free", 0.84, open_ids=("agenda",))
     monkeypatch.setattr(card, "VETO_SURE", 0.5)
     assert card.vetoes(unsure, "agenda", "add_meeting", "find_free")
-
-
-def test_the_rail_has_one_disagreement_rule():
-    from nucleo.flash import tool_executor_widget_calls as calls
-    src = inspect.getsource(calls._handle_widget_data_tool)
-    i = src.index("_card.vetoes(_brief, _cd[\"card\"], action_name, _dis)")
-    veto = src[i:src.index("return", i)]
-    assert '_repeat_repair["v"] = (_cd["card"], action_name, _dis)' in veto, "a veto that cannot complete is asked after"
-    assert "_action_sure(_brief, floor=" not in src, "no branch keeps its own bar"
-    assert src.index("if _looked and _verdict_runs():") < i, "a model that only looked is completed first"

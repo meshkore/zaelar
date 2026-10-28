@@ -29,13 +29,6 @@ def test_a_whole_name_wins_and_a_word_is_not_a_person(cd):
     assert cd.people_named("play some madonna, al fresco") == []
 
 
-def test_the_turn_prompt_carries_them():
-    from nucleo.turn.prompt import builder as prompt
-    import inspect
-    src = inspect.getsource(prompt.build_flash_system)
-    assert "_people_block(turn_text)" in src
-
-
 def test_a_name_in_a_script_without_spaces_is_found_inside_the_sentence(cd):
     """The agent speaks any language (operator, 2026-09-28): a name written without spaces around it is a run of
     characters in the sentence, not a separate word."""

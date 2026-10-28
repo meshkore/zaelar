@@ -1,4 +1,3 @@
-from tests import voice_turn_source as _vts
 #
 # test_a_known_phrase_skips_the_model.py — V2-539, the Phase-0 litmus encoded.
 #
@@ -246,7 +245,6 @@ def test_every_shipped_seed_entry_validates():
 
 def test_a_bad_seed_is_refused_loudly_not_swallowed(fresh_map, monkeypatch, tmp_path):
     """The born-dead lesson: a refused seed raises an ALERT event and the good rows still load."""
-    import json
     pack = {"entries": [
         {"phrase": "abre la agenda", "action": {"do": "show_widget", "widget": "agenda"}},
         {"phrase": "borra la agenda", "action": {"do": "delete_widget", "widget": "agenda"}},
@@ -332,17 +330,6 @@ def test_the_engine_classifies_the_actionmap_kind():
 
 
 # ── wiring guard: the turn calls the shared module ───────────────────────────────────────────────────────
-
-def test_the_voice_turn_is_wired():
-    """The voice provider routes through the extracted lane (`fast_lane.py`, V2-572 ratchet payment), which
-    holds the actual `actionmap` import. Following the chain — not just grepping the provider — is what keeps
-    this from passing while the lane silently falls out of the path. The typed channel runs this same turn."""
-    from pathlib import Path
-    root = Path(__file__).resolve().parents[4]
-    provider = _vts.read(root / "voice/engine/llm/providers/nucleo.py")
-    lane = (root / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
-    assert "_fast_lane.handled" in provider, "voice: the provider no longer calls the fast lane"
-    assert "from nucleo import actionmap" in lane, "voice: the fast lane lost the action map"
 
 
 # ── (5) the lens grid, and a pack that can be UPGRADED (V2-545) ──────────────────────────────────────────

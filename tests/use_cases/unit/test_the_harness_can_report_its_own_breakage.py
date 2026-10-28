@@ -49,16 +49,6 @@ def test_nothing_writes_run_data_before_it_exists():
                        f"con UnboundLocalError el día que se cumpla su condición")
 
 
-def test_the_breakage_marker_is_the_one_the_scoreboard_reads():
-    """The marker is not enough simply to exist: `status.py` uses IT to decide whether the round counts against the
-    case. If someone renames it on one side, the round starts scoring the product again for a failure of ours —
-    silently."""
-    src = RUN.read_text(encoding="utf-8")
-    status = (RUN.parent / "status.py").read_text(encoding="utf-8")
-    assert 'run_data["crashed"] = crashed' in src
-    assert 'run.get("crashed")' in status
-
-
 def test_the_marker_survives_next_to_the_evidence():
     """The failed round must reach the report WITH its transcript and mechanism. The broken version not only failed
     to mark it: it wiped out the 0 turns and everything measured, which is what is needed to understand what

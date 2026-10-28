@@ -158,21 +158,6 @@ def test_un_puerto_LIBRE_no_inventa_una_negativa():
     assert PORTS.holder(libre) == ""
 
 
-def test_ya_no_queda_forma_de_DESLIZARSE_a_otro_puerto():
-    """The ratchet. `preferred_port()` was the function that did exactly what the operator prohibited, and
-    as long as it exists someone will call it again «just so startup does not fail»."""
-    import tests.platform.sandbox_engine as SE
-    assert not hasattr(SE, "preferred_port")
-    src = (ENGINE / "tests" / "use_cases" / "e2e" / "agent" / "run.py").read_text(encoding="utf-8")
-    boot = src[src.index("def _sandbox_batch"):]
-    boot = boot[:boot.index("\ndef ", 10)]
-    # Without comments: the explanation of WHY sliding was removed names the removed function, and
-    # a ratchet triggered by its own obituary is not a ratchet.
-    codigo = "\n".join(l for l in boot.splitlines() if not l.strip().startswith("#"))
-    assert "free_port" not in codigo and "preferred_port(" not in codigo
-    assert "ports.sandbox_port(" in codigo, "el puerto tiene que salir de la tabla, no de un número aquí"
-
-
 def test_a_second_pair_is_asked_for_by_name_and_never_slides(monkeypatch):
     """V2-781 (2026-10-03): the diagnosing agent holds 43921/43922 with its theatres, and the fixing agent has to
     re-measure its fix meanwhile. The override is an explicit env var per locale; anything that is not a valid

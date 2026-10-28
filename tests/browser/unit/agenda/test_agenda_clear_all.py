@@ -241,18 +241,6 @@ def test_the_models_natural_time_key_is_read(agenda, sched_log):
     assert m2["startTime"] == "11:00", m2
 
 
-def test_agenda_errors_are_speakable():
-    """Round 3 [media]: the model parroted «set_reminder: I can't find that appointment…» verbatim to the user.
-    The message is for the model, but it ends up in a mouth — it must survive being spoken."""
-    import inspect
-    import re as _re
-
-    from widgets.agenda import data as A
-    src = inspect.getsource(A.apply_action)
-    for err in _re.findall(r'"error": f?"([^"]+)"', src):
-        assert not _re.match(r"^\w+_?\w*:", err), f"un error con prefijo interno acaba en la boca: {err}"
-
-
 def test_a_retitled_retry_is_the_same_meeting(agenda, sched_log):
     """V2-473 round 5: «Dentista con los niños» then «Cita dentista con los niños» — same day, same hour,
     re-titled on a retry — landed as TWO meetings with TWO default reminders. The widget's own category

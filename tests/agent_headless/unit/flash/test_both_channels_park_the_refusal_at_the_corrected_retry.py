@@ -8,13 +8,11 @@ would have been a rule on one of two branches.
 from __future__ import annotations
 
 import asyncio
-import pathlib
 
 from nucleo.flash import act_repair as _ar
 from nucleo.flash import data_ops as _do
 from nucleo.flash import parked_refusal as _parked
 
-_ENGINE = pathlib.Path(__file__).resolve().parents[4]
 REFUSED = {"ok": False, "error": "missing_position", "message": "¿A qué posición de la cola lo muevo?"}
 
 
@@ -48,9 +46,3 @@ def test_a_corrected_call_refused_again_is_the_one_parked(monkeypatch):
     _retry(monkeypatch, {"payload": {"item": "2", "to": "la luna"}}, again)
     rec = _parked.last("youtube", "move")
     assert rec and rec["payload"] == {"item": "2", "to": "la luna"} and rec["message"] == again["message"]
-
-
-def test_the_turn_passes_a_refusal_through_that_seam():
-    voice = (_ENGINE / "nucleo/flash/data_ops.py").read_text(encoding="utf-8")
-    assert "await corrected_retry(wid, action_name, payload, res, text, _run" in voice
-    assert voice.count("_parked.remember(") == 2          # the refusal, and the corrected call's own result

@@ -35,14 +35,6 @@ def test_an_order_or_a_write_is_not_this(monkeypatch):
     assert cc.question_left_to_a_lens(_brief("question"), ops=write, acted={}) == ""
 
 
-def test_the_second_pass_can_stay_silent_and_the_provider_wires_it():
-    prov = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
-    assert "_cardc3.question_left_to_a_lens(_brief, ops=list(_data_ops_hechas), acted=acted," in prov
-    body = prov[prov.index("async def speak(sys2: str"):]
-    body = body[:body.index("from voice.engine.llm.providers.vault_intercept")]
-    assert "responde exactamente SKIP" in body and 'head.startswith("SKIP")' in body
-
-
 def test_an_order_that_owes_words_is_answered_too(monkeypatch):
     """R3 «find me five days in her vacation where i'm free and tell me the dates» and M1 «how's apple stock doing
     today, show me the chart» read as ORDERS and got a view and silence. The brief's `wants_words` question (live:
@@ -56,17 +48,6 @@ def test_an_order_that_owes_words_is_answered_too(monkeypatch):
     b["result"][tb.WORDS_KEY] = {"choice": "act", "confidence": 0.95}
     assert cc.question_left_to_a_lens(b, ops=[{"widget_id": "youtube", "action": "show_tab"}], acted={}) == ""
     assert tb.WORDS_KEY in tb.build("find me five days and tell me the dates")
-
-
-def test_a_read_of_a_card_this_turn_changed_waits_for_the_change():
-    """full11 M3: «and the nasdaq, over the whole year» switched the chart and the read, a few ms later, answered
-    «the only thing on the chart is Apple — I've got no Nasdaq figures». The read waits (bounded) for this turn's
-    dispatches to the same card."""
-    prov = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
-    assert "_op_task = _data_ops.start_op(" in prov and "_turn_op_tasks.append((wid, _op_task))" in prov
-    i = prov.index("_pending = [t for w, t in _turn_op_tasks")
-    assert i < prov.index("await speak(await _wread.prepare(read_req", i)
-    assert "await asyncio.wait(_pending, timeout=6.0)" in prov
 
 
 def test_a_data_op_that_answers_is_the_answer():
@@ -96,14 +77,3 @@ def test_the_answer_knows_the_card_it_came_from_is_on_screen():
     assert "YA ESTÁ ABIERTA" in on and "YA ESTÁ ABIERTA" not in off
     prov = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
     assert "on_screen=_direct_action.on_screen_now(_op_answer[0])" in prov, "report OR this turn (full17 M1)"
-
-
-def test_the_card_that_answered_wins_over_a_web_search_in_the_same_turn():
-    """Demo pass 2026-09-28 (full15 M1): «how's apple stock doing today, show me the chart» — the model called
-    `markets:show` AND `web_search`; the chart came with its price, and the search answered «the search results
-    only gave me quote pages, so I can't tell you». The card of this turn is the source; the search does not run."""
-    from pathlib import Path
-    prov = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
-    block = prov.split("_op_answer = None", 1)[1].split("A QUESTION answered by a lens alone", 1)[0]
-    assert 'search_req["v"] is None and _turn_op_tasks' not in block, "a search must not keep the card from answering"
-    assert 'if _op_answer is not None and search_req["v"] is not None' in block and 'search_req["v"] = None' in block

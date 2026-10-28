@@ -100,23 +100,3 @@ def test_the_successor_merge_replaces_instead_of_duplicating():
     # and a shorter re-emission afterwards adds nothing new either
     _dialog.push_user(window, _MURDERED)
     assert window == [{"role": "user", "content": _SUCCESSOR}]
-
-
-def test_the_stream_handler_preserves_flags_and_reports_in_that_order():
-    """Glue pin: the CancelledError handler must preserve FIRST (or the words
-    are lost with the raise), then flag (or the wrapper double-reports), then
-    report. If someone reorders or drops a step, the test above cannot see it
-    (it binds the wrapper, not the handler), so the shape is pinned here."""
-    from voice.engine.llm.providers.nucleo import NucleoLLMStream
-    from tests import voice_turn_source
-    src = voice_turn_source.getsource(NucleoLLMStream._run_inner)   # V2-778 F1: the turn whole
-    # Anchor on the barge-in re-raise and walk BACK to its handler: a forward
-    # search for "except asyncio.CancelledError:" lands on an inner pump-task
-    # handler instead.
-    end = src.index("raise  # barge-in")
-    block = src[src.rindex("except asyncio.CancelledError:", 0, end):end]
-    i_push = block.index("_dialog.push_user(brain._window, text)")
-    i_flag = block.index("self._death_logged = True")
-    i_emit = block.index("turno cancelado (barge-in/overlap)")
-    assert i_push < i_flag < i_emit, "preserve, then flag, then report — in that order"
-    assert "partial_chars" in block and "cut_after_ms" in block

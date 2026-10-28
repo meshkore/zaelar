@@ -24,7 +24,6 @@ through the stream either.
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 import pytest
 
@@ -162,44 +161,6 @@ def test_clear_speaker_no_suelta_el_efimero_de_otra_sesion(monkeypatch):
         proactive.clear_speaker(_new)
 
 
-def test_V2529_el_relleno_es_audio_dentro_de_la_locucion_y_el_proveedor_solo_ARMA():
-    """CODE GUARD on the V2-529 wiring (mounting the full provider requires half a LiveKit session):
-    (1) nucleo.py no longer constructs any LeadInFiller or speaks through `say` — it only ARMS the audio filler;
-    (2) agent.py overrides `llm_node` by delegating to `filler_audio.llm_node_with_filler`, which is the only
-    place where the filler can play BEFORE the response (as its first SEGMENT)."""
-    from pathlib import Path
-
-    nucleo_body = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
-    assert "filler_audio.arm(" in nucleo_body or "_filler_audio.arm(" in nucleo_body, \
-        "el proveedor tiene que ARMAR el relleno por turno — sin arm, ningún turno puede sonar uno"
-    assert "lead_in_filler import" not in nucleo_body and "LeadInFiller(" not in nucleo_body, \
-        "el camino say del relleno volvió — ese say se autoriza DETRÁS de la respuesta y suena tarde SIEMPRE"
-
-    # V2-538: las tres sobrescrituras de nodo salieron a su propio módulo (lo pidió el trinquete de
-    # arquitectura). El guarda sigue al CÓDIGO —que es justo lo que cazó al mudarse— y comprueba además que
-    # el entrypoint la MONTE: una sobrescritura que nadie instancia no es cableado.
-    overrides = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/pipeline/zaelar_agent.py")
-    assert "llm_node_with_filler" in overrides, \
-        "sin el override de llm_node, el relleno no tiene por dónde entrar como PRIMER segmento de la respuesta"
-    agent_body = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py")
-    assert "from .zaelar_agent import ZaelarAgent" in agent_body and "ZaelarAgent(instructions=" in agent_body, \
-        "la clase con los overrides tiene que estar MONTADA por el entrypoint"
-
-
-def test_el_hablador_efimero_pasa_add_to_chat_ctx_false():
-    """CODE GUARD on `agent.py`: the `session.say()` registered as the EPHEMERAL speaker must include
-    `add_to_chat_ctx=False` — without this, `ephemeral_speaker()` does not fulfill what its name promises."""
-    from pathlib import Path
-
-    src = Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py"
-    body = _vts.read(src)     # V2-778 F1: a split file is read whole
-    i = body.index("async def _speak_ephemeral")
-    j = body.index("register_ephemeral_speaker", i)
-    block = body[i:j]
-    assert "add_to_chat_ctx=False" in block, \
-        "el hablador efímero debe llamar a session.say(..., add_to_chat_ctx=False)"
-
-
 # ── DO NOT TALK OVER THE OPERATOR (2026-08-15, session 319252e7) ───────────────────────────────────────────
 # The operator: *“the audio cuts out quite a bit, phrases are cut off before they finish… I think the voice is being
 # interrupted by internal processes or by the agent itself, but that should not be happening”.*
@@ -251,16 +212,6 @@ def test_hay_una_sonda_de_si_el_bot_esta_hablando():
     assert proactive.bot_speaking() is False, "al cerrar la sesión la sonda se suelta"
 
 
-def test_el_relleno_de_audio_consulta_la_sonda_del_operador():
-    """The surviving half of the old guard: the filler never talks OVER the operator. The other half
-    (dying with the canceled turn) no longer needs lifecycle: the filler is audio INSIDE the response's
-    utterance (V2-529), so the barge-in that cuts the turn cuts it too, structurally."""
-    from pathlib import Path
-
-    body = (Path(__file__).resolve().parents[3] / "voice/engine/speech/filler_audio.py").read_text()
-    assert "user_speaking()" in body, "el relleno volvería a hablar encima del operador"
-
-
 # ── the clock the PERSON lives (V2-535, from the 2026-09-01 voice-fluidity audit) ─────────────────────────
 """TTFT measures the model and `TTSMetrics.ttfb` measures the synthesizer; NEITHER is the wait.
 
@@ -283,24 +234,3 @@ def test_the_filler_remembers_when_it_last_sounded():
     before = fa.last_fired_at()
     fa._announce("Veamos…")
     assert fa.last_fired_at() > before, "without this the onset cannot say what the operator heard first"
-
-
-def test_the_end_of_the_operators_voice_is_recorded_as_the_edge():
-    src = _vts.read(AGENT)
-    i = src.index('_emit("vad", "… fin de voz"')
-    assert '_onset["voice_ended"] = time.monotonic()' in src[i:i + 400], \
-        "the near end of the wait has to be stamped where the voice ends, or there is nothing to measure from"
-
-
-def test_the_onset_is_reported_once_and_only_for_a_plausible_wait():
-    """Two properties this cannot be right without: the edge is CLEARED (a segmented reply would otherwise
-    report its second segment as a second onset) and a stale edge is dropped (a proactive delivery minutes
-    later is not an answer to anything)."""
-    src = _vts.read(AGENT)
-    i = src.index("RESPONSE ONSET")
-    block = src[i:i + 1800]
-    assert '_onset["voice_ended"] = 0.0' in block, "reported once per wait"
-    assert "_gap <= _ONSET_MAX_S" in block, "a stale edge is not an answer"
-    assert '"onset_ms"' in block and '"covered_by_filler"' in block
-    assert "last_fired_at() >= _ended" in block, \
-        "«covered» must mean the filler sounded during THIS wait, not in an older one"

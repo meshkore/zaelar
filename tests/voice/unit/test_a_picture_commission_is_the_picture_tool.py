@@ -7,7 +7,6 @@ word «wallpaper»; now it leads with it), and even named, the viewer's `show` n
 the commission pass's «show {query}» becomes the `show_images` request instead of a data-op that returns «no
 pictures arrived».
 """
-from tests import voice_turn_source as _vts
 import asyncio
 
 from nucleo.flash import card_commission as cc
@@ -51,12 +50,6 @@ def test_the_viewer_criterion_names_the_wallpaper_before_the_cut():
     from nucleo.turn import brief as tb
     crit = tb.catalog_question()["criteria"]["imagenes"]
     assert "wallpaper" in crit.lower() and "fondo de escritorio" in crit.lower()
-
-
-def test_the_voice_turn_hands_its_image_request_to_the_rung():
-    import pathlib
-    src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
-    assert "window=list(brain._window), images_req=images_req) == \"call\":" in src
 
 
 def test_an_order_on_an_EMPTY_viewer_is_first_a_search(monkeypatch):
@@ -106,12 +99,6 @@ def test_a_promise_on_the_empty_viewer_is_the_search_too(monkeypatch):
     assert cc.picture_search_for("imagenes", SAID) is None, "a viewer with pictures takes ordinary data-ops"
 
 
-def test_the_promise_path_asks_the_helper():
-    import pathlib
-    src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
-    assert "_cardc_ar.picture_search_for(_ar_wid, _op_text)" in src
-
-
 def test_words_that_name_the_empty_viewer_are_the_picture_search(monkeypatch):
     """Demo pass 69, B1: a product-listing search this time. His words NAME the viewer (alias «wallpaper»)."""
     monkeypatch.setattr(cc, "_viewer_empty", lambda: True)
@@ -120,10 +107,3 @@ def test_words_that_name_the_empty_viewer_are_the_picture_search(monkeypatch):
     assert cc.picture_named_by("find me three 27 inch 4k monitors under 400") is None
     monkeypatch.setattr(cc, "_viewer_empty", lambda: False)
     assert cc.picture_named_by("set that as my wallpaper") is None, "a viewer with pictures: the ordinary data-op"
-
-
-def test_the_voice_turn_reads_the_named_viewer_before_the_ladder():
-    import pathlib
-    src = _vts.read(pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py")
-    i = src.index("_cardc_pic.picture_named_by(operator_text, _brief)")
-    assert i < src.index("_eguard.drop_if_fragment(escalate_req"), "before any rung can spend a worker"

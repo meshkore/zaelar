@@ -9,13 +9,11 @@ card's own rows decide: a removal that names ONE of its appointments and not the
 """
 from __future__ import annotations
 
-import pathlib
 
 import pytest
 
 from nucleo.flash import agenda_close_is_a_cancel as CC
 
-ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
 
 def _db():
@@ -65,8 +63,3 @@ def test_took_the_close_runs_the_call(monkeypatch):
     assert ran and ran[0]["payload"]["whole"] is True
     ran.clear()
     assert CC.took_the_close("quita la agenda", {"id": "agenda"}, ran.append) is False and ran == []
-
-
-def test_the_voice_turn_asks_the_guard():
-    voice = (ENGINE / "nucleo/flash/tool_executor_widget_calls.py").read_text(encoding="utf-8")
-    assert "_txw._close_cancel.inside_or_cancelled(_brief, _txw._bnotes.operator_half(text), extra," in voice

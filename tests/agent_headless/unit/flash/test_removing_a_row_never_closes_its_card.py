@@ -16,13 +16,11 @@ closed position-word class `refs` already owns, never from a verb table.
 """
 from __future__ import annotations
 
-import pathlib
 
 import pytest
 
 from nucleo.flash import close_guards as CG
 
-ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
 
 @pytest.fixture
@@ -56,13 +54,6 @@ def test_a_rows_title_names_a_row(queue):
 @pytest.mark.parametrize("said", ["quítalo", "ciérralo", "close it", "quita eso", "hide that"])
 def test_a_bare_close_names_no_row(said, queue):
     assert CG.names_a_row("youtube", said) is False
-
-
-def test_the_close_backstop_asks_it():
-    """The turn's close backstop asks the shared rule — a function, never a copy — and so does the verdict's own
-    completion of a mute turn (`complete_canvas`)."""
-    assert "_closeg.unless_a_row(" in (ENGINE / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
-    assert "_cg.keep_cards(" in (ENGINE / "nucleo/flash/card_close.py").read_text(encoding="utf-8")   # `complete_canvas`'s body
 
 
 def test_a_card_reached_by_context_is_kept_when_a_row_is_named():

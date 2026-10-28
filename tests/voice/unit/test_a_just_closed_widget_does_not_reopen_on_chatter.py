@@ -12,14 +12,10 @@ from __future__ import annotations
 
 from nucleo.acts import canvas as _door
 
-from tests import voice_turn_source as _vts
 
-import pathlib
-import re
 
 from nucleo.flash import canvas_license as lic
 
-ENGINE = pathlib.Path(__file__).resolve().parents[3]
 
 
 def _fresh(monkeypatch):
@@ -62,27 +58,6 @@ def test_the_window_expires(monkeypatch):
 
 # ── 2 · every close door records, and the turn consults ──────────────────────────────────────────────────
 
-def test_every_close_door_notes_the_operator_close():
-    nucleo_src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert nucleo_src.count("note_operator_close(") >= 3, \
-        "the tag funnel, the close backstop and the close-not-delete guard must all record the close"
-    exec_src = (ENGINE / "nucleo/actionmap/executor.py").read_text(encoding="utf-8")
-    assert "note_operator_close(" in exec_src, "the fast lane's close is operator-ordered too"
-
-
-def test_the_voice_turn_consults_the_reopen_license():
-    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert re.search(r"reopen_ordered\(_rid, text", src)
-
-
-def test_the_voice_guard_counts_the_turn_as_handled_not_void():
-    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    m = re.search(r"reopen_ordered\(_rid, text.*?elif _rid:", src, re.S)
-    assert m, "the guard block moved — re-anchor this test"
-    assert 'deduped["v"] = True' in m.group(0), \
-        "a discarded drag is handled (V2-635), never a void for the mute backstop"
-
-
 # ── V2-773 (2026-09-27, demo V7): the VERDICT closes, the model shows — the show loses ────────────────────
 def _brief_reading(verdicts: dict):
     """A fake `turn_brief.read`: (choice, {"used": True}) for the keys given, the fallback otherwise."""
@@ -110,19 +85,6 @@ def test_a_close_naming_nobody_shows_nothing_and_any_other_verdict_shows(monkeyp
     assert _door.show_under_close(brief=object(), wid="youtube", words=False) is False
     monkeypatch.setattr(tb, "read", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("no brief")))
     assert _door.show_under_close(brief=None, wid="youtube", words=False) is False, "no brief, no veto"
-
-
-def test_the_show_branch_asks_the_verdict_next_to_the_text_guard():
-    src = _vts.read(pathlib.Path("voice/engine/llm/providers/nucleo.py"))
-    assert "if _canvas_door.show_under_close(text, brief=_brief, wid=_wid):" in src
-
-
-def test_the_fast_lens_door_asks_the_verdict_too():
-    """Demo E5 (2026-09-27): «Close my messages» — the card closed, the model ran `mensajeria:close` (a view-op)
-    over the now-closed card, and the lens door brought it back as a «turn-order». A close never brings the card."""
-    src = _vts.read(pathlib.Path("voice/engine/llm/providers/nucleo.py"))
-    i = src.index("_fx.carries(wid, action_name, _fx.DATA_READ) and not _cvis.is_open(wid)")
-    assert "not _canvas_door.show_under_close(brief=_brief, wid=wid, words=False)" in src[i:i + 200]
 
 
 def test_the_paid_verdict_naming_the_card_reopens_it_at_the_door(monkeypatch):

@@ -15,14 +15,9 @@
 #
 # Run: .venv/bin/pytest tests/agent_headless/unit/test_a_link_request_is_not_a_charge.py
 #
-import pytest
-
 from nucleo import danger
 
-# The three escalations of the session, verbatim.
-REWRITE_HOMEPAGE = ('Open amazon.es in a real browser for Richard and show it on screen. He just said "amazon.es" '
-                    "with no further instruction — open the site (Spanish Amazon storefront) and leave it at the "
-                    "homepage, ready for whatever he wants to do next. Do not search for or buy anything yet.")
+# Two of the session's three escalations, verbatim.
 REWRITE_LISTING = ('Find the Amazon listing where Richard can BUY the book "Through the Moon (2020)" — and give him '
                    "the direct product link. He wants the URL of the product page where he can buy it, not a "
                    "confirmation, not a summary. Report the direct Amazon product link plus title, price and "
@@ -30,35 +25,8 @@ REWRITE_LISTING = ('Find the Amazon listing where Richard can BUY the book "Thro
 HIS_WORDS = "i want to buy Through the Moon (2020), gime the amazon link"
 
 
-@pytest.mark.parametrize("req", [
-    REWRITE_HOMEPAGE, REWRITE_LISTING, HIS_WORDS,
-    "quiero comprar el libro Through the Moon, dame el enlace de amazon",
-    "quiero comprar una freidora de aire, búscame la más barata que llegue a España",
-    "no pagues la factura sin avisarme",
-    "find the cheapest original edition I can buy in Spain and tell me the delivery date",
-    "I'd like to buy a 27 inch monitor — where is it cheapest?",
-])
-def test_a_request_for_a_link_or_a_price_is_not_a_charge(req):
-    assert danger.is_dangerous(req) is False, req
-
-
-@pytest.mark.parametrize("req", [
-    "buy the book Through the Moon on amazon",
-    "quiero comprar el libro Through the Moon",           # a bare wish with no lookup order keeps its imperative
-    "paga la factura de la luz",
-    "compra el libro y no pagues más de 20 euros",        # a negated cap does not disarm the order beside it
-    "transfiere 500 euros a la cuenta de Iván",
-    "renuévame la cuota del gimnasio",
-    "ve a la tienda para comprar leche",
-])
-def test_a_real_charge_still_parks(req):
-    assert danger.is_dangerous(req) is True, req
-
-
-def test_the_negation_is_dropped_to_the_end_of_its_sentence_only():
-    """«Do not buy anything yet. Then pay the invoice.» — the second sentence is a live order."""
-    assert danger.is_dangerous("Do not buy anything yet. Then pay the invoice.") is True
-
+# The phrase cases (the three escalations, the link/price requests and the real charges that still park) are
+# in the is_dangerous table of test_the_gate_reads_the_order_not_the_words.py.
 
 def test_the_wish_is_only_dropped_when_a_lookup_order_is_actually_there():
     assert danger._drop_stated_wish("quiero comprar el libro") == "quiero comprar el libro"

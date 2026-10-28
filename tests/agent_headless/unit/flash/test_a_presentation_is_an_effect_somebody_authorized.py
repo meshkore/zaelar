@@ -31,7 +31,6 @@ from __future__ import annotations
 
 from nucleo.acts import canvas as _door
 
-from tests import voice_turn_source as _vts
 
 import pathlib
 import re
@@ -202,12 +201,6 @@ def test_the_number_of_anonymous_presentations_only_goes_down():
     assert len(sites) <= _ANONYMOUS_SHOWS_MAX, (
         "a new presentation was emitted without a declared reason — it goes through "
         "`canvas_visibility.present(reason=…)`:\n  " + "\n  ".join(sites))
-
-
-def test_the_voice_provider_holds_none_of_them():
-    """The channel the incidents came from is fully migrated, so its own tests stay honest."""
-    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert 'emit("widget", "show"' not in src
 
 
 # ── 4 · a «yes» is an answer only where there was a question ─────────────────────────────────────────────

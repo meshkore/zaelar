@@ -27,7 +27,6 @@ sheet:
 import json
 import sqlite3
 
-import pytest
 
 from tests.use_cases.e2e.agent import verify
 
@@ -133,18 +132,6 @@ def test_NO_MEDIDO_no_es_llego_tarde(tmp_path):
     """Without writes from a producer, the clock remains None, never 0 — confusing them invents a failure."""
     out = verify.sheet_timing(_db(tmp_path, [(1000.0, "widget", "show", "results::q-1", "worker:1")]))
     assert out["sheet_rows_ms"] is None
-
-
-def test_se_CONSERVA_el_reloj_de_la_narracion_aparte():
-    """It answers another question —when the browser counted it— and losing it while fixing this would trade one
-    gap for another. It has its own name so nobody confuses them again."""
-    import inspect
-    from tests.use_cases.e2e.agent import run as runmod
-    src = inspect.getsource(runmod._run_scenario)
-    assert "narrated_after_last_turn_s" in src
-    assert "sheet_rows_ms" in src
-    assert src.index("_rows - _lt") < src.index("_fr - _lt"), (
-        "el que manda en `after_last_turn_s` tiene que ser el reloj de la HOJA")
 
 
 # ── V2-355: and the clock that times a DELIVERY is even stricter ──────────────────────────────

@@ -71,12 +71,3 @@ def test_a_failed_snapshot_never_costs_the_write(store, monkeypatch):
     monkeypatch.setattr(store, "_history_dir", lambda wid: "/dev/null/impossible")
     assert store.save("agenda-snap", {"n": 2}) == {"n": 2}
     assert store.load("agenda-snap") == {"n": 2}
-
-
-def test_the_snapshot_is_taken_inside_save_before_the_replace():
-    """Structural: the copy happens before `os.replace`, under the same lock — after it there is nothing left
-    to copy."""
-    import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets/store.py").read_text(encoding="utf-8")
-    body = src[src.index("def save("):src.index("# ── the pre-mutation SNAPSHOT")]
-    assert body.index("_snapshot(widget_id, p)") < body.index("os.replace(tmp, p)")

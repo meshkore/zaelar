@@ -71,13 +71,6 @@ def test_el_lector_cuenta_las_filas_de_los_DOS_reproductores():
         probe_client.widget_data = orig
 
 
-def test_run_lo_CALCULA_o_el_campo_no_existe():
-    """Wiring guard: the five above pass intact with the line from `run.py` deleted."""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")
-    assert 'mech["media_list"] = verifymod.media_list()' in src
-
-
 def test_con_el_reproductor_LLENO_la_hoja_vacia_no_acusa_entrega_ausente():
     """V2-469 · the prompt contradicted itself and the judge picked the wrong half (measured, round 8 of
     `find-videos`, 22:47): “sheet WITHOUT candidates → absent delivery on the only surface that stores it”

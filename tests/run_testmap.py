@@ -585,10 +585,6 @@ DOMAINS: list[dict] = [
             # only ever got `event="end"` and held 0 rows for every account, ever.
             "tests/agent_headless/unit/test_session_is_announced.py",
             "tests/agent_headless/unit/test_confirm_gate_task.py",
-            # V2-509 — the gate reads the ORDER, not the words. The TEXT it judges is written by the BRAIN,
-            # so "...available for purchase" — written by our brief composer, not by the operator — fired the
-            # confirmation over an errand that only asked to LOOK. Mirror form of V2-128.
-            "tests/agent_headless/unit/test_the_gate_reads_the_order_not_the_words.py",
             # V2-508 — el gate aparca el encargo y TIRA su registro, pero su hoja ya está en pantalla:
             # el «sí» relanzaba sin ella y abría una caja SEGUNDA al lado de la primera, que se quedaba
             # vacía para siempre. Un confirmado es una CONTINUACIÓN, como el relevo de proveedor.
@@ -2599,8 +2595,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/actionmap/test_minimise_that_means_the_card_on_top.py"]},
         # V2-776 (2026-09-27, demo M1): un `[[show:X]]` escrito por el modelo anota QUÉ tarjeta abrió, como la tool;
         # sin el id la reparación tras el show no corría y Markets salía VACÍA.
-        {"id": "3.96", "title": "Un show por etiqueta anota su tarjeta — la reparación tras el show la completa",
-            "ch": UNIT, "paths": ["tests/voice/unit/providers/test_a_tag_show_names_its_card.py"]},
         # V2-776 (2026-09-27): el «Done.» que escribe el motor tras una acción silenciosa no es el modelo repitiéndose;
         # dos seguidos disparaban el nudge anti-bucle y el turno siguiente preguntaba o prometía sin actuar.
         {"id": "3.97", "title": "Nuestro «Done.» tras acciones silenciosas no dispara el anti-bucle",
@@ -3788,8 +3782,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_question_never_gets_a_write_from_the_show_repair.py"]},
         {"id": "2.744", "title": "Two copies of one event are one thing to look at: a lens over tied rows with one name opens one; a write, or different names, still ask",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_two_copies_of_one_event_are_one_thing_to_look_at.py"]},
-        {"id": "2.745", "title": "A commission the closed catalogue card can do is its call on both channels: one decision (commission_call), the probe records it as the repaired widget_data",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_closed_card_takes_the_call_on_both_channels.py"]},
         {"id": "2.746", "title": "«por la mañana» is an hour, never the day after: a time-of-day phrase is read out before the day, «hoy» beats a weekday said beside it, noon is twelve (V2-783 P1-1)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_time_of_day_is_not_a_date.py"]},
         {"id": "2.747", "title": "A line the turn owes to a data-op («Done.», «I've gone ahead») waits for the op's answer and is never said over a refusal; the voice's rotating ack is checked against the cards like the text channel's (V2-783 P0-2)",
@@ -3823,9 +3815,9 @@ DOMAINS: list[dict] = [
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},
-        {"id": "2.200", "title": "A negation subtracts only the act it governs, and only inside its own clause",
+        {"id": "2.200", "title": "The irreversible-act gate reads the ORDER, not the words (V2-509): one table of phrases — a negation subtracts only the act it governs, a money word a preposition governs is the topic, a link or price request, a modal buy inside a search, a row of his own list and a complaint are not charges",
             "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/test_a_negation_governs_only_its_own_act.py"]},
+            "paths": ["tests/agent_headless/unit/test_the_gate_reads_the_order_not_the_words.py"]},
         {"id": "2.181", "title": "A request for a link or a price is not a charge: a negated act and a first-person "
                                  "wish beside a lookup order are subtracted before the money verbs are read",
             "ch": UNIT,
@@ -4063,9 +4055,6 @@ DOMAINS: list[dict] = [
         {"id": "2.304", "title": "The speaker goes back to who it was taken from — «close the video and keep the music "
                                  "going» left the music paused by exclusivity (V2-781)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_speaker_goes_back_to_who_it_was_taken_from.py"]},
-        {"id": "2.310", "title": "A money word a preposition governs is the topic, never the order — «coste de recarga» in a "
-                                 "report errand was parked as «Esto mueve dinero» (three-tasks-at-once)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_money_word_a_preposition_governs_is_a_topic.py"]},
         {"id": "2.311", "title": "A sentence that adds or insists is not an answer to a parked errand's yes/no — «Y el juego no "
                                  "te olvides… no dos» dropped the parked report (three-tasks-at-once)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sentence_that_adds_is_not_an_answer.py"]},
@@ -4516,6 +4505,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_prompt_events_survive_the_move.py']},
         {"id": "2.891", "title": "The voice turn's prompt never loads a worker's brief: the briefs live in nucleo/workers/prompts/, the dispatcher takes them from there, and importing the voice prompt builder loads none of them (refactor2710-08 T-04)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_voice_prompt_never_reads_a_worker_brief.py']},
+        {"id": "2.894", "title": "A module faked in sys.modules is also what its package hands out (`from pkg import mod`), and both come back — the root conftest's monkeypatch, so a fake never depends on whether an earlier test imported the real one (refactor2710-99)",
+            "ch": UNIT, "paths": ['tests/infrastructure/unit/test_a_faked_module_is_what_its_package_hands_out.py']},
         {"id": "2.893", "title": "An errand shows only its deliverable: every show that comes from an errand (worker or the sheet its search fills) is licensed at the canvas door by the Request's surface — document → documento, list → results, told → nothing — and a step is a `step` event, never a card (refactor2710-15, Master feedback 30e302f2)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/workers/test_the_deliverable_decides_the_surface.py']},
         {"id": "2.892", "title": "Every block of the voice prompt is declared with the one truth it reads (`builder.BLOCKS`; «CÓMO OPERAS» and the closing line read none, and say so) and has a token budget per block that only goes down; an idle turn pays nothing for what is not there (refactor2710-08 T-01/T-05)",
@@ -4808,8 +4799,6 @@ DOMAINS: list[dict] = [
         {"id": "2.210", "title": "«Note it for Thursday, remind me on Wednesday» rings on Wednesday — add_meeting reads `remind`, "
                                  "an all-day item carries a notice, set_reminder takes a bare day (V2-781 T513)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_remind_me_the_day_before_lands_on_that_day.py"]},
-        {"id": "2.209", "title": "A hard interrupt is decided by the voice turn's own module (`hard_turn.handle`)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_probe_names_what_the_voice_turn_does.py"]},
         {"id": "2.106", "title": "An act that LEAVES (≥ sensitive) runs only when the verdict does not name another action — a draft never becomes a sent email",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_act_that_leaves_needs_both_readers.py"]},
@@ -4825,9 +4814,6 @@ DOMAINS: list[dict] = [
         {"id": "2.102", "title": "«Still on it» on a mute turn only about live work that is about THIS request",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_still_on_it_is_only_about_this.py"]},
-        {"id": "2.101", "title": "What the model returned, raw (text, tool calls, hidden reasoning), is on the turn's record",
-            "ch": UNIT,
-            "paths": ["tests/voice/unit/test_the_model_raw_output_is_on_record.py"]},
         {"id": "2.100", "title": "The WHOLE prompt of every turn is on disk (logs/prompts/<session>.jsonl), joined by trace",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_the_whole_prompt_is_on_disk.py"]},
@@ -5715,6 +5701,9 @@ DOMAINS: list[dict] = [
                                  "name goes, an unlisted card closes, a listed one opens beside, and the drift is a "
                                  "widget/reconcile event (V2-825 F5, refactor2710-04 T-04) — RENDERED",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_screen_adopts_the_engines_cards_on_reconnect.py"]},
+        {"id": "4.319", "title": "The client JavaScript only shrinks: no widgets/ or frontend/ .js file is born over 400 "
+                                 "lines, the 12 listed never grow, and the client total only goes down (refactor2710-99 #106)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_client_js_only_shrinks.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",

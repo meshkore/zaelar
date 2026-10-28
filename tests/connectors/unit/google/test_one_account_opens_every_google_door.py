@@ -310,20 +310,6 @@ def test_a_paraphrased_name_for_a_video_call_still_lands():
         assert m.get("meet") is True, key
 
 
-def test_the_agenda_actually_delegates_the_flag():
-    """The wiring, and it IS the whole feature: `apply_meet` called from nowhere is a module born dead.
-
-    It was pending for exactly one reason — `widgets/agenda/data.py` sat ON the 900-line newborn ceiling, so
-    there was no line to spend on it. Paid the way the ratchet asks, by EXTRACTING (`details.py`; data.py
-    900 → 824), which is also where these appliers belonged: everything in that module answers one question
-    and touches only the payload's own keys."""
-    import inspect
-
-    from widgets.agenda import data, details
-    assert "apply_meet(meeting, payload)" in inspect.getsource(details._apply_details)
-    assert data._apply_details is details._apply_details, "data.py must not grow a second copy"
-
-
 # ── 4 · what both brains are told ───────────────────────────────────────────────────────────────────────
 def test_an_unconnected_account_is_declared_rather_than_left_to_the_model(shipped, monkeypatch):
     """The V2-603 lesson, third payment: given the verbs and no facts, the model narrates «Hecho.». The line

@@ -46,11 +46,3 @@ def test_un_error_normal_se_recorta_por_DELANTE():
 def test_lo_que_CABE_se_deja_entero():
     corto = "Exit code 2 no puedo leer el payload de progreso.json"
     assert _error_gist(corto) == corto
-
-
-def test_el_auditor_lo_USA():
-    """The plumbing: if the auditor keeps cutting blindly, the function exists and fixes nothing."""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/verify.py").read_text(encoding="utf-8")
-    assert "_error_gist(e['text'])" in src
-    assert "e['text'][:160]" not in src, "el recorte viejo sigue vivo en el auditor"

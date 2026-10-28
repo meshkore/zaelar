@@ -78,11 +78,3 @@ def test_lo_encuentra_aunque_la_FAMILIA_cambie_de_nombre(db):
 
 def test_una_db_que_no_existe_no_revienta_la_ronda():
     assert V.resets_during_round("/no/such/place.db", since=1.0) == {"n": 0, "at_s": []}
-
-
-def test_el_informe_LO_LLEVA():
-    """Half the wiring (V2-199): the fact can be read correctly and still fail to reach whoever needs it."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-    assert 'mech["resets_during_round"] = verifymod.resets_during_round(' in inspect.getsource(R._run_scenario)

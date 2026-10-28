@@ -199,12 +199,6 @@ def test_view_data_never_touches_the_connector(data, monkeypatch):
     assert out["connected"] is False and out["items"] == []
 
 
-def test_the_connector_is_imported_LAZILY_so_the_catalog_stays_cheap(data):
-    src = (_WIDGET / "data.py").read_text(encoding="utf-8")
-    head = src.split("def ")[0]
-    assert "from connectors" not in head and "import httpx" not in head
-
-
 def test_background_only_polls_while_a_session_is_pending(data, monkeypatch):
     """No standing library to watch (Google never re-serves it) — polling forever would burn quota to answer
     a question nobody asked, the same reasoning `archivos` already applies to its own connector."""

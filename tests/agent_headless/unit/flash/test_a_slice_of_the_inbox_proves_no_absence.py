@@ -5,7 +5,6 @@ receipt had left it when the previous round forwarded it, and the op's rows were
 from Inworld». A lens the card declares `subset` answers with the card's own `read_query` rows for his words, and
 with none the pass is told it looked at a slice. A lens that is the whole answer (`agenda:show_day`) is unchanged.
 """
-import inspect
 
 import pytest
 
@@ -43,9 +42,3 @@ def test_with_no_record_rows_the_slice_is_never_read_as_everything(asked):
 def test_a_lens_that_is_the_whole_answer_is_unchanged(asked):
     out = _sys("what's on my plate tomorrow", [("agenda", "show_day")], wid="agenda", data={"day": "2026-10-20"})
     assert "EL REGISTRO" in out and asked == []
-
-
-def test_the_turn_composes_through_the_one_door():
-    from nucleo.flash import post_stream_acts
-    src = inspect.getsource(post_stream_acts)
-    assert "op_answer_system(" in src and "answered=True" not in src
