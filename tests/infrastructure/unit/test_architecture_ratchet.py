@@ -190,7 +190,6 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # → `probe_scheduling.py`. A closed unit over five of run_turn's locals; moved byte for byte.
     "nucleo/flash/probe.py": (1109, 68),   # 2026-10-01 V2-778 F1: the post-model blocks → probe_after.py
     "widgets/results/data.py": (991, 5),
-    "memory/api.py": (1026, 17),   # 2026-10-01 V2-778 F1: the workflows table → memory/workflows_store.py
     "nucleo/flash/prompt.py": (834, 29),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
     # branch in the worker directive: inject before killing—directive prose, nothing extractable)
     # 26-09-11: V2-675 · −21 — the CRON line moved to `live_blocks.py` (same precedent as the browser and
@@ -344,16 +343,16 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "config": 2525,
     "connectors": 20288,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow
     "library": 805,
-    "memory": 9117,
-    "nucleo (top)": 21602,             # refactor2710-09 T-01: the eight dispatch* files left for nucleo/dispatch/
+    "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
+    "nucleo (top)": 20082,             # refactor2710-09 T-01: the eight dispatch* files left for nucleo/dispatch/
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 903,
     "nucleo/context_packs": 568,
-    "nucleo/dispatch": 2499,           # refactor2710-09 T-01: moved from top as is; target 1 200
+    "nucleo/dispatch": 2496,           # refactor2710-09 T-01: moved from top and split; target 1 200
     "nucleo/errands": 2563,
     "nucleo/flash": 36974,
-    "nucleo/memory_agent": 1949,
+    "nucleo/memory_agent": 3088,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events)
     "nucleo/susurro": 1386,
     "nucleo/turn": 2308,
     "nucleo/workers": 6463,
@@ -430,11 +429,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/homeostasis.py",
     "nucleo/jev.py",
     "nucleo/loop.py",
-    "nucleo/mem_processor.py",
-    "nucleo/memllm.py",
     "nucleo/memory_agent/gates.py",
-    "nucleo/memory_agent/ingest_steps.py",
-    "nucleo/memory_agent/lang_marks.py",
     "nucleo/mesh_agents.py",
     "nucleo/nav_cli.py",
     "nucleo/notices.py",

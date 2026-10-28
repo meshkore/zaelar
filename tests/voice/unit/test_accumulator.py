@@ -30,7 +30,7 @@ from nucleo.flash import accumulator as acc
 async def _stub_incomplete(text: str) -> tuple[str, str]:
     """Default layer-2 stub for every test below: always agrees with a lexical "incomplete" verdict, fast and
     with zero network. Without this, every pre-V2-102 test whose fragments are lexically incomplete would fire a
-    REAL `judge()` call (network, `nucleo.memllm`) on each `offer()` — slow, flaky, and needs a live credential
+    REAL `judge()` call (network, `nucleo.memory_agent.processor.llm`) on each `offer()` — slow, flaky, and needs a live credential
     the test sandbox doesn't have. Tests that actually exercise the judge (§ layer 2 below) inject their own
     `acc.set_judge(...)` fake instead."""
     return "incomplete", ""

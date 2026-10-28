@@ -43,8 +43,8 @@ LIVE = [("t1", "Busca en marketplaces de segunda mano una guitarra acústica par
 
 def test_una_pregunta_de_seguimiento_va_al_encargo_vivo(monkeypatch):
     """The measured case: “Any news yet?” opened its own research worker."""
-    import nucleo.memllm as memllm
-    monkeypatch.setattr(memllm, "chat_sync", _judge('{"about": 1}'))
+    from nucleo.memory_agent.processor import llm
+    monkeypatch.setattr(llm, "chat_sync", _judge('{"about": 1}'))
     assert dispatch.about_a_live_errand("¿Alguna novedad ya?", LIVE) == "t1"
 
 
@@ -52,16 +52,16 @@ def test_un_encargo_DISTINTO_sigue_abriendo_el_suyo(monkeypatch):
     """The counterbalance, without which this would be worse than the defect: searching for a guitar and
     searching for a camera are two errands, and swallowing the second would leave the operator without their
     request and with no way to see it."""
-    import nucleo.memllm as memllm
-    monkeypatch.setattr(memllm, "chat_sync", _judge('{"about": 0}'))
+    from nucleo.memory_agent.processor import llm
+    monkeypatch.setattr(llm, "chat_sync", _judge('{"about": 0}'))
     assert dispatch.about_a_live_errand("Ahora búscame una cámara réflex", LIVE) == ""
 
 
 def test_SIN_nada_vivo_no_se_le_pregunta_a_nadie(monkeypatch):
     """What makes it cheap: the first errand in a conversation—the common case—pays for no call."""
-    import nucleo.memllm as memllm
+    from nucleo.memory_agent.processor import llm
     called = []
-    monkeypatch.setattr(memllm, "chat_sync", lambda *a, **k: called.append(1) or '{"about": 1}')
+    monkeypatch.setattr(llm, "chat_sync", lambda *a, **k: called.append(1) or '{"about": 1}')
     assert dispatch.about_a_live_errand("Busca una guitarra", []) == ""
     assert not called, "sin encargos vivos no hay nada que decidir"
 
@@ -71,34 +71,34 @@ def test_lo_ILEGIBLE_deja_pasar_el_encargo(monkeypatch, raw):
     """FAIL-OPEN, and direction is the decision. A model that does not answer cannot swallow a request:
     the operator whose errand disappears has no way to see it, while an extra worker IS VISIBLE on screen—
     which is exactly how this defect was found."""
-    import nucleo.memllm as memllm
-    monkeypatch.setattr(memllm, "chat_sync", _judge(raw))
+    from nucleo.memory_agent.processor import llm
+    monkeypatch.setattr(llm, "chat_sync", _judge(raw))
     assert dispatch.about_a_live_errand("¿cómo va?", LIVE) == ""
 
 
 def test_una_excepcion_tampoco_traga_el_encargo(monkeypatch):
-    import nucleo.memllm as memllm
+    from nucleo.memory_agent.processor import llm
     def _boom(*a, **k):
         raise RuntimeError("sin red")
-    monkeypatch.setattr(memllm, "chat_sync", _boom)
+    monkeypatch.setattr(llm, "chat_sync", _boom)
     assert dispatch.about_a_live_errand("¿cómo va?", LIVE) == ""
 
 
 def test_un_numero_FUERA_DE_RANGO_no_se_redondea_al_vecino(monkeypatch):
     """A number that nobody offered means the model did not answer the question. Choosing the closest one
     would tie the operator’s request to an errand chosen at random."""
-    import nucleo.memllm as memllm
+    from nucleo.memory_agent.processor import llm
     for bad in ('{"about": 9}', '{"about": 3}'):
-        monkeypatch.setattr(memllm, "chat_sync", _judge(bad))
+        monkeypatch.setattr(llm, "chat_sync", _judge(bad))
         assert dispatch.about_a_live_errand("¿cómo va?", LIVE) == ""
 
 
 def test_el_menu_que_ve_el_modelo_lleva_los_encargos_VIVOS(monkeypatch):
     """Without the objectives in front of it, the question cannot be answered: it must be possible to say
     WHICH ONE it concerns."""
-    import nucleo.memllm as memllm
+    from nucleo.memory_agent.processor import llm
     j = _judge('{"about": 2}')
-    monkeypatch.setattr(memllm, "chat_sync", j)
+    monkeypatch.setattr(llm, "chat_sync", j)
     assert dispatch.about_a_live_errand("¿y el de Roma?", LIVE) == "t2"
     assert "guitarra" in j.seen["user"] and "Roma" in j.seen["user"]
     assert "¿y el de Roma?" in j.seen["user"]
@@ -106,9 +106,9 @@ def test_el_menu_que_ve_el_modelo_lleva_los_encargos_VIVOS(monkeypatch):
 
 def test_es_BARATO_por_construccion(monkeypatch):
     """It runs before a worker the operator is waiting for: neither a large token budget nor temperature."""
-    import nucleo.memllm as memllm
+    from nucleo.memory_agent.processor import llm
     j = _judge('{"about": 0}')
-    monkeypatch.setattr(memllm, "chat_sync", j)
+    monkeypatch.setattr(llm, "chat_sync", j)
     dispatch.about_a_live_errand("algo", LIVE)
     assert j.seen["kw"]["max_tokens"] <= 64
     assert j.seen["kw"]["temperature"] == 0.0

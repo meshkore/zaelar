@@ -80,8 +80,13 @@ def test_an_embedding_through_egress_names_its_client(mediated, monkeypatch):
     monkeypatch.setattr(energy_lease, "check", lambda *_a, **_k: True)
     seen: dict = {}
     _capture(monkeypatch, seen)
+
+    def fake_post(url, body, headers, timeout):        # the embedding's door is its pooled POST, not `urlopen`
+        seen["url"], seen["ua"] = url, headers.get("User-Agent")
+        raise _Captured()
+    monkeypatch.setattr(embeddings, "_post_json", fake_post)
     # The suite stubs `_cloud_embed` so no test reaches a paid provider by accident; this one wants the real
-    # function — its network door is `urlopen`, faked above.
+    # function.
     real = getattr(embeddings, "_GENUINE_CLOUD_EMBED", embeddings._cloud_embed)
     try:
         real(["hola"])

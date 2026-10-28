@@ -83,9 +83,11 @@ def test_aqui_se_APLICA_la_regla_que_ya_existe():
 def test_la_regla_sigue_teniendo_UNA_casa():
     """If someone copies it again, this case will not catch that—but it will catch this surface stopping its use of the
     shared rule, which is the half within my control."""
+    import importlib
     import inspect
-    assert "def background_slot_off_topic" in inspect.getsource(
-        __import__("memory.api", fromlist=["x"]))
+    from memory import api
+    home = importlib.import_module(api.background_slot_off_topic.__module__)
+    assert home.__name__.startswith("memory.api") and "def background_slot_off_topic" in inspect.getsource(home)
 
 
 def test_si_la_regla_no_esta_se_enseña_de_MAS_y_nunca_de_menos(monkeypatch, memoria):

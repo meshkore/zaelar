@@ -1,10 +1,10 @@
 """rem_synth_bench.py — REM sleep SYNTHESIS model benchmark (V2-056 · 2026-08-09 round).
 
-Passes each candidate the REAL task (`nucleo/memllm.synthesize_concept_groups`, using the same prompt/parsing as
+Passes each candidate the REAL task (`nucleo/llm_tasks.synthesize_concept_groups`, using the same prompt/parsing as
 sleep) over 8 fixture groups with known facts, 3 runs, and scores it MECHANICALLY.
 
 **QUALITY matters here, not price — the opposite of the HEART benchmark** (§12.3). Structural reason, not opinion:
-`memory/rem.py` sends ALL groups in **A single call** (`memllm.synthesize_concept_groups`), with
+`memory/rem.py` sends ALL groups in **A single call** (`llm_tasks.synthesize_concept_groups`), with
 `MAX_GROUPS=8` groups × `pills[:12]` pills, **once a day** (`rem_every_hours=24`). That is about 365 calls per
 year per user with the input bounded by design: **cost does NOT scale with memory size**. A model that costs 10×
 more still costs cents per year, while a bad insight contaminates long-term memory (it is written with
@@ -22,7 +22,7 @@ SIX axes:
   5. NON-INVENTION  — the insight cannot assert anything NOT present in the pills (a list of forbidden terms per
                       group, plausible but absent). This is the MOST costly failure: a consolidated hallucination
                       enters durable memory appearing to be a fact.
-  6. $/SLEEP and $/YEAR — using REAL tokens (`memllm.last_usage()`) × published rates (`prices.json`).
+  6. $/SLEEP and $/YEAR — using REAL tokens (`llm.last_usage()`) × published rates (`prices.json`).
 
 Usage: PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/rem_synth_bench.py [--models a,b] [--runs 3] [--preflight]
 Verdicts → zaelar-model-benchmarks.md §12.4.
@@ -44,7 +44,7 @@ sys.path.insert(0, str(REPO))
 load_dotenv(REPO / ".env")
 load_dotenv(REPO / ".meshkore/credentials/zaelar.env", override=True)
 
-from nucleo import memllm  # noqa: E402
+from nucleo.memory_agent.processor import llm, llm_tasks  # noqa: E402
 
 AIML = "https://api.aimlapi.com/v1"
 OPENAI = "https://api.openai.com/v1"
@@ -263,7 +263,7 @@ def main() -> None:
         for name in names:
             url, model = CANDIDATES[name]
             t0 = time.time()
-            r = memllm.synthesize_concept_groups(GROUPS[:1], model_override=model, url_override=url)
+            r = llm_tasks.synthesize_concept_groups(GROUPS[:1], model_override=model, url_override=url)
             ms = round((time.time() - t0) * 1000)
             print(f"  {'OK   ' if r else 'FALLO'} {name:24s} {ms:6d}ms  {len(r)} insight(s)", flush=True)
         return
@@ -275,9 +275,9 @@ def main() -> None:
         lats, axes, usages, notes = [], [], [], []
         for _ in range(max(1, args.runs)):
             t0 = time.time()
-            res = memllm.synthesize_concept_groups(GROUPS, model_override=model, url_override=url)
+            res = llm_tasks.synthesize_concept_groups(GROUPS, model_override=model, url_override=url)
             lats.append(round((time.time() - t0) * 1000))
-            u = memllm.last_usage()
+            u = llm.last_usage()
             if u.get("prompt_tokens"):
                 usages.append(u)
             ax, nt = score(res)

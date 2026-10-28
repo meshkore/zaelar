@@ -73,7 +73,7 @@ def _parse(raw: str) -> dict[str, list[str]]:
 
 
 def _generate_sync(code: str) -> dict[str, list[str]]:
-    from nucleo import memllm
+    from nucleo.memory_agent.processor import llm
     from i18n.init.generate import language_name
     from widgets.system_surfaces import SYSTEM_SURFACES
 
@@ -89,7 +89,7 @@ def _generate_sync(code: str) -> dict[str, list[str]]:
                                             "examples": list(w.get("aliases") or w.get("keywords") or [])[:4]}
     except Exception as e:  # noqa: BLE001 — the system surfaces alone are still worth a pack
         logger.warning(f"i18n.aliases: widget catalog unavailable, surfaces only: {e}")
-    raw = memllm.chat_sync("i18n", _system(language_name(code)), json.dumps(payload, ensure_ascii=False),
+    raw = llm.chat_sync("i18n", _system(language_name(code)), json.dumps(payload, ensure_ascii=False),
                            max_tokens=4000, temperature=0.2, timeout=90.0)
     return _parse(raw or "")
 

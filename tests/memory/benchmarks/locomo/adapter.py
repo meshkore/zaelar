@@ -170,11 +170,11 @@ def retrieve(question: str, *, limit: int = 20) -> list[dict]:
 
 
 def answer(question: str, mems: list[dict]) -> str:
-    from nucleo import memllm
+    from nucleo.memory_agent.processor import llm
     if not mems:
         return "NO INFORMATION AVAILABLE"
     ctx = "\n".join(f"- {m['text']}" for m in mems)
-    out = memllm.chat_sync("rem", _ANSWER_SYSTEM, f"MEMORY:\n{ctx}\n\nQUESTION: {question}",
+    out = llm.chat_sync("rem", _ANSWER_SYSTEM, f"MEMORY:\n{ctx}\n\nQUESTION: {question}",
                            max_tokens=120, temperature=0.0, timeout=90.0,
                            model_override=ANSWERER_MODEL, url_override=BROKER_URL)
     return (out or "").strip()
@@ -184,10 +184,10 @@ def judge(question: str, gold: str, got: str) -> bool | None:
     """True/False, or **None when the judge itself did not answer** — which is not the same as WRONG and must not
     be counted as one. A judge outage scored as a wrong answer silently deflates the result and looks like a
     memory regression."""
-    from nucleo import memllm
+    from nucleo.memory_agent.processor import llm
     if not (got or "").strip():
         return False
-    out = memllm.chat_sync("rem", _JUDGE_SYSTEM,
+    out = llm.chat_sync("rem", _JUDGE_SYSTEM,
                            f"QUESTION: {question}\nGOLD: {gold}\nANSWER: {got}",
                            max_tokens=6, temperature=0.0, timeout=90.0,
                            model_override=JUDGE_MODEL, url_override=BROKER_URL)

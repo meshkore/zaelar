@@ -154,11 +154,11 @@ def test_search_drops_the_vector_channels_when_the_space_does_not_match(fresh_db
 
     llamadas = {"vec": 0, "para": 0, "fts": 0}
     orig_vec, orig_para, orig_fts = memret.vec_search, memret.vec_search_paraphrases, memret.fts_search
-    monkeypatch.setattr(memret, "vec_search",
+    monkeypatch.setattr(memret.recall, "vec_search",
                         lambda *a, **k: (llamadas.__setitem__("vec", llamadas["vec"] + 1), orig_vec(*a, **k))[1])
-    monkeypatch.setattr(memret, "vec_search_paraphrases",
+    monkeypatch.setattr(memret.recall, "vec_search_paraphrases",
                         lambda *a, **k: (llamadas.__setitem__("para", llamadas["para"] + 1), orig_para(*a, **k))[1])
-    monkeypatch.setattr(memret, "fts_search",
+    monkeypatch.setattr(memret.recall, "fts_search",
                         lambda *a, **k: (llamadas.__setitem__("fts", llamadas["fts"] + 1), orig_fts(*a, **k))[1])
 
     out = memret.search("Toby", rerank=False)
@@ -177,7 +177,7 @@ def test_search_uses_the_vector_channels_when_the_space_matches(fresh_db, monkey
 
     vistos = {"vec": 0}
     orig_vec = memret.vec_search
-    monkeypatch.setattr(memret, "vec_search",
+    monkeypatch.setattr(memret.recall, "vec_search",
                         lambda *a, **k: (vistos.__setitem__("vec", vistos["vec"] + 1), orig_vec(*a, **k))[1])
     memret.search("Toby", rerank=False)
     assert vistos["vec"] == 1

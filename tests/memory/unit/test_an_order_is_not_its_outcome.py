@@ -10,21 +10,21 @@ slides by Friday» stays a fact, and «Play something by Madonna» still yields 
 
 This is the prompt contract, pinned so it cannot be edited away silently; the measurement is the evidence.
 """
-from nucleo import mem_processor as mp
+from nucleo.memory_agent.processor import distill_prompt
 
 
 def test_the_distiller_is_told_an_order_is_not_its_outcome():
-    s = mp._SYSTEM
+    s = distill_prompt._SYSTEM
     assert "UNA ORDEN NO ES SU RESULTADO" in s
     i = s.index("UNA ORDEN NO ES SU RESULTADO")
     rule = s[i:i + 1200]
     assert "Pidió al asistente que" in rule, "the request form the pill must take"
-    assert 'kind="result"' in rule
+    assert 'kind="request"' in rule, "an order is a request — a result is only the circuit's (writer.result)"
     assert "INFORMA de algo que ya existe" in rule, "a fact he reports stays a fact"
     assert "le gusta Madonna" in rule, "what an order reveals about him is still inferred"
 
 
 def test_it_sits_next_to_the_rule_that_keeps_requests():
-    s = mp._SYSTEM
+    s = distill_prompt._SYSTEM
     assert s.index("NUNCA descartes PETICIONES") < s.index("UNA ORDEN NO ES SU RESULTADO") \
         < s.index("★ FECHAS RELATIVAS"), "the two request rules must read together"

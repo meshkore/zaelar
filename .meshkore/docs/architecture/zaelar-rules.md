@@ -116,7 +116,7 @@ row — not even a global `allow` — reaches them.
 ## Writing a rule
 
 A new spoken rule is structured ONCE, when it is written: one structured model call (the same off-turn
-seat the engine uses for small strict-JSON tasks, `nucleo/memllm.py`) is handed the sentence and the declared
+seat the engine uses for small strict-JSON tasks, `nucleo/memory_agent/processor/llm.py`) is handed the sentence and the declared
 vocabulary and answers `{op, scope, kind, key, value, except, until}`. The scope is validated against the
 vocabulary; a scope nobody declared becomes the nearest declared ancestor. If no model answers, the sentence is
 kept as a `note` at `global` — what every rule was before scopes existed. The agent repeats the stored row back

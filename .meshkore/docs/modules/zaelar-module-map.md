@@ -42,7 +42,7 @@ start with `make run` → `python -m server`.
   the prompt [context + task] → CodeAgent with a per-invocation model, consumes `escalate.requested` from the bus,
   delivers by voice and UI) + `nucleo/memory_agent.py` ★ (the MEMORY agent, the single writer to `memory/`; its
   `compose_context` is the worker's **multi-axis dossier**: profile without mission + rules + ⚠️ critical items
-  ALWAYS + recall + `by_concepts` + agenda, durables only, `to_thread`) + `nucleo/mem_processor.py` ★ (the WRITE
+  ALWAYS + recall + `by_concepts` + agenda, durables only, `to_thread`) + `nucleo/memory_agent/processor/distill.py` ★ (the WRITE
   heart: a fast non-reasoning model configured under `§memory` — default `deepseek/deepseek-v4-flash`, chosen by the
   distiller benchmark in `zaelar-model-benchmarks.md` §12.3 for matching completeness and precision at a lower cost;
   `gpt-4o-mini` is excluded because it writes facts in the wrong language into identity slots. Key PER ENDPOINT +
@@ -91,7 +91,7 @@ start with `make run` → `python -m server`.
   α·rel+β·rec+γ·imp+δ·use → local cross-encoder **reranker** `memory/rerank.py` → graph_expand) · graph ·
   consolidator (LIGHT sleep: Ebbinghaus decay PER WINDOW + dedup + prune_invalid + eviction by weight, pinned rows
   untouchable) · **`memory/rem.py`** (DEEP sleep, the daily «REM phase» — repairs `embed_pending` vectors + SEMANTIC
-  dedup by cosine + INSIGHTS per concept [`slot=insight:<c>`, an LLM hook injected from `nucleo/memllm.py`,
+  dedup by cosine + INSIGHTS per concept [`slot=insight:<c>`, an LLM hook injected from `nucleo/memory_agent/processor/llm.py`,
   configurable model — benchmarks §12.4] + hygiene with an alert; kill-switch `ZAELAR_REM`) · **episodic** layer
   (it absorbed the old `files/`: paste/drop → `memory/server_api.py` → `memory.write_episode`, binary + searchable
   summary, lazy load) · facade + `memory.updated` signal on the bus.

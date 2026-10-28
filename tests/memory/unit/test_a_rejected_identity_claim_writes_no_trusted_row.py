@@ -44,13 +44,13 @@ def fresh_db(tmp_path, monkeypatch):
 
 
 def _distiller_says(monkeypatch, atom: dict):
-    from nucleo import mem_processor as mp
+    from nucleo.memory_agent.processor import distill, distill_config
 
     async def _process(_t, state=None):
         return [dict(atom)]
 
-    monkeypatch.setattr(mp, "process", _process)
-    monkeypatch.setattr(mp, "enabled", lambda: True)
+    monkeypatch.setattr(distill, "process", _process)
+    monkeypatch.setattr(distill_config, "enabled", lambda: True)
 
 
 def _ingest(text: str, channel: str = "voice") -> None:

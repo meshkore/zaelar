@@ -216,7 +216,7 @@ holds the **operator's own secrets** — Netflix password, IBAN/card, crypto acc
 so zaelar can serve them on request without them ever sitting in the clear.
 
 - **Classification at write is FAIL-CLOSED** (opposite of the memory fail-open rule). The CORAZÓN
-  (`nucleo/mem_processor.py`) decides "is this a secret?" via deterministic patterns (Luhn card / IBAN / BIP-39
+  (`nucleo/memory_agent/processor/distill.py`) decides "is this a secret?" via deterministic patterns (Luhn card / IBAN / BIP-39
   seed / `0x…` EVM key / `sk-…` / "password/PIN of …") **plus** LLM classification; **when in doubt, encrypt**. A
   secret leaking into a plaintext pill = privacy broken, so a false negative is unacceptable.
 - **Crypto = asymmetric sealed box + envelope with N unlock methods.** A keypair: the **public key lives in the

@@ -27,7 +27,7 @@ ENGINE = Path(__file__).resolve().parents[3]
 
 #: Measured 2026-10-19 at 295ff4ec (366 files). Lower these when you remove; never raise them.
 MAX_REGEXES = 543   # V2-806: the spoken-rule parsers (consent, style, scope, removal, sentences) went
-MAX_WORD_TABLES = 476  # 2026-10-26: remeasured once state records and constant unpacking stopped counting (was 514)
+MAX_WORD_TABLES = 475  # refactor2710-11: a dimension row that guessed one width for a multi-width family went (was 476)
 
 
 def _strings(v) -> int:

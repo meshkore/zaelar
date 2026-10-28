@@ -5,7 +5,7 @@ Measured on the operator's own engine, minutes after a restart: the row read
     Memoria · CORAZÓN — «gpt-4.1-mini · 0 fallos — escribiendo por heurística»   (in red)
 
 while the heart was distilling normally (pills 3285-3292 written in that same minute, served by the titular).
-Two halves of one sentence, from two different places: «0 fallos» came from `mem_processor.status()`, and the
+Two halves of one sentence, from two different places: «0 fallos» came from `distill_health.status()`, and the
 red came from `health_state["memory"]` — a key FOURTEEN writers share (the heart, REM, the retriever, the
 embedding backend, the turn's recall budget). What had actually happened was a recall that did not close in
 its 0.8 s budget, which fires on ~0.6 % of turns and held the light red for the full 600 s TTL each time. That
@@ -32,9 +32,9 @@ from voice import health_state
 
 def _memory_row(monkeypatch, *, heart: dict, recorded: tuple[str, str] | None):
     """The memory item as /api/status really builds it, with the heart and the shared light in a known state."""
-    from nucleo import mem_processor
+    from nucleo.memory_agent.processor import distill_health
 
-    monkeypatch.setattr(mem_processor, "status", lambda: heart)
+    monkeypatch.setattr(distill_health, "status", lambda: heart)
     health_state.clear("memory")
     if recorded:
         health_state.record("memory", recorded[0], recorded[1])

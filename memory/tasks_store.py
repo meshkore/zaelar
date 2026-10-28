@@ -8,7 +8,7 @@ Why the task is a durable row at all. Operator, 2026-09-20: *«si le digo resér
 ya no quiero ir a nada más… ya me olvido de esa tarea»*. Forgetting only works if somebody else remembers,
 and before this nobody did for long: live work sat in a RAM dict that a restart emptied, finished work in a
 50-capped JSON blob, and the RESULT inside a widget sheet that a hard cap of eight deleted on the ninth
-search. See the v6→v7 note in `memory/schema.py` for the five stores this replaces.
+search. See the v6→v7 note in `memory/schema/` for the five stores this replaces.
 
 TWO WRITE RATES, and keeping them apart is the point. A task row changes a handful of times in its life
 (created, started, waiting, finished); the worker's phase/step/pct change every second and stay in
@@ -33,9 +33,9 @@ INLINE_RETENTION_S = 48 * 3600          # V2-776 M1 — see `tasks_prune`
 
 _COLUMNS = ("id", "title", "goal", "kind", "mode", "state", "visible", "origin", "schedule", "surface",
             "sheet", "trace_id", "parent_id", "outcome", "created_at", "started_at", "due_at", "finished_at",
-            # V2-776 D1 — the worker's live state (see the v7→v8 note in `memory/schema.py`)
+            # V2-776 D1 — the worker's live state (see the v7→v8 note in `memory/schema/`)
             "phase", "progress", "heartbeat_at", "reported_at", "error_class", "attempts",
-            # V2-776 M — the circuit's verdict on how the request ended (see the v8→v9 note in `memory/schema.py`)
+            # V2-776 M — the circuit's verdict on how the request ended (see the v8→v9 note in `memory/schema/`)
             "verdict")
 
 

@@ -59,7 +59,7 @@ configurable providers: cloud by default so that every deployment measures the s
   person's; if they speak German, everything moves to German — see `voice/engine/core/langs.py`,
   `ZAELAR_LANGUAGE`). The memory is NOT multilingual inside: the **HEART distils every pill in the canonical
   language** (`state.language`), **translating** whatever the operator says in another language — and **never
-  discards a durable fact because it came in another language** (`nucleo/mem_processor._render`). So READING is
+  discards a durable fact because it came in another language** (`nucleo/memory_agent/processor/distill_prompt.render`). So READING is
   always same-language (no cross-lingual gap, no complexity of indexing N languages). The FlashBrain DOES
   **understand** several languages (STT + model) and its gates/heuristics are es/en tolerant, but what is STORED
   and RECALLED stays in the operator's language. *Why:* a multilingual memory multiplies the cost (embeddings and
@@ -463,7 +463,7 @@ failure does not bring sleep down):
    without a slot) — the consolidator's exact dedup only runs hourly, a window wide enough for the same literal
    fact, said two turns in a row, to be stored twice.
 3. **`synthesize(hook)`** — the only phase with an LLM, **INJECTED by the caller** (the memory does NOT import
-   brains; the loop wires `nucleo/memllm.synthesize_concept_groups`, same pattern as `summarize_fn`): it groups
+   brains; the loop wires `nucleo/memory_agent/processor/llm_tasks.synthesize_concept_groups`, same pattern as `summarize_fn`): it groups
    durable pills by **CONCEPT** (the `edges` graph) and distils **1 high-level INSIGHT per group**
    (`kind='insight'`, **`slot=insight:<concept>`** → REWRITTEN on every sleep, not accumulated). It turns 30 loose
    facts into "what zaelar KNOWS about you" (the reflection of Generative Agents / sleep-time compute). Fail-open
@@ -473,7 +473,7 @@ failure does not bring sleep down):
    anything** (history is kept intact). That way the insight does not sit ON TOP of raw pills that keep competing
    at full weight forever. **Precisely because it displaces, no insight is written and nothing is demoted without
    passing a fidelity gate:**
-   1. **`verify_fn`** (`nucleo/memllm.verify_insight_grounded`, wired by the loop next to
+   1. **`verify_fn`** (`nucleo/memory_agent/processor/llm_tasks.verify_insight_grounded`, wired by the loop next to
       `synthesize_concept_groups`) is the **ARBITER when available**: a FRESH call, independent of the one that
       generated the insight, asking whether every claim is backed by the data — fail-**CLOSED** (no clear answer =
       not trustworthy), the opposite of the other memory tasks, because losing a legitimate insight is cheaper than
@@ -494,7 +494,7 @@ failure does not bring sleep down):
 Cadence: persistent marker **`sys_kv.rem_last_run`** + `config §memory.rem_every_hours` (default 24h, min 1h; env
 `ZAELAR_REM_SECS` wins if set). **Kill switch `ZAELAR_REM=0`**. Synthesis model by config
 (`§memory.rem_model/rem_base_url/rem_api_key`; defaults in `config/models.default.json` §memory_rem — see §Memory
-models), resolved by the **internal router `nucleo/memllm.py`** (models PER TASK of the memory module, key PER
+models), resolved by the **internal router `nucleo/memory_agent/processor/llm.py`** (models PER TASK of the memory module, key PER
 ENDPOINT — a key sent to the wrong endpoint must be impossible by construction).
 
 > **Robustness rules of the synthesis call.** `_REM_SYSTEM` ends with the output-contract example
@@ -534,9 +534,9 @@ cost the voice turn nothing.
 
 | task | what it does | default (`config/models.default.json`) | cadence | evidence |
 |---|---|---|---|---|
-| **HEART** (`nucleo/mem_processor.py`) | distils every turn into pills + metadata | **DeepSeek Flash DIRECT** (`api.deepseek.com`), stand-in OpenAI `gpt-4.1-mini` | **every turn** | §12.3 |
-| **REM sleep** (`nucleo/memllm.py`) | groups durable pills by concept → 1 insight | **DeepSeek Flash DIRECT**, stand-in OpenAI `gpt-4.1-mini` | **once a day** | §12.4 |
-| **Embeddings** (`memory/embeddings.py`) | text → vector for semantic search | OpenAI `text-embedding-3-small` at 768 dims, **no stand-in** (see above) | every durable write + every recall | `models.default.json` §embeddings |
+| **HEART** (`nucleo/memory_agent/processor/distill.py`) | distils every turn into pills + metadata | **DeepSeek Flash DIRECT** (`api.deepseek.com`), stand-in OpenAI `gpt-4.1-mini` | **every turn** | §12.3 |
+| **REM sleep** (`nucleo/memory_agent/processor/llm.py`) | groups durable pills by concept → 1 insight | **DeepSeek Flash DIRECT**, stand-in OpenAI `gpt-4.1-mini` | **once a day** | §12.4 |
+| **Embeddings** (`memory/embeddings/`) | text → vector for semantic search | OpenAI `text-embedding-3-small` at 768 dims, **no stand-in** (see above) | every durable write + every recall | `models.default.json` §embeddings |
 
 The same defaults serve every deployment, self-hosted or not; any of them can be changed from the UI.
 
@@ -919,7 +919,7 @@ no need for writes and reads to be immediate, so a SLOWER, MORE PRECISE write mo
 other hand, is paid by the FlashBrain IN the turn (composing the prompt, answering, acting) → it **NEVER carries an
 LLM or synchronous memory I/O** (it would block the voice). The "heart" that decides, for each thing the operator
 says, **whether it is stored, WHERE (STATE/SHORT/LONG/DISCARD), with what importance/TTL and under which `slot`**,
-lives in `nucleo/memory_agent.py` + `nucleo/mem_processor.py`:
+lives in `nucleo/memory_agent.py` + `nucleo/memory_agent/processor/distill.py`:
 
 - **`mem_processor.process(text, state) → list|None`** — the **LLM processor**. Default model: DeepSeek Flash
   DIRECT (`api.deepseek.com`), stand-in OpenAI `gpt-4.1-mini` (`config/models.default.json` §memory_writer; config
@@ -1179,13 +1179,13 @@ have local models installed for other reasons (self-hosting, tests unrelated to 
 list` showing something does not mean the memory uses it. The memory has TWO model-decision families, completely
 separate:
 
-1. **Embeddings (the retriever's vectors)** — `memory/embeddings.py`, config `§memory.embed_provider/embed_model`.
+1. **Embeddings (the retriever's vectors)** — `memory/embeddings/`, config `§memory.embed_provider/embed_model`.
    Default: the cloud provider declared in `config/models.default.json` §embeddings; Ollama `embeddinggemma` as a
    panel option; `fastembed`→`hash` as safety nets (the space is never mixed silently,
    `writer.py::_embed_sig_ok()`). **It takes no part in writing/reasoning about what is remembered** — it only turns
    text into a vector for semantic search.
-2. **Writing/synthesis (reasoning about what to store or summarise)** — the HEART (`nucleo/mem_processor.py`) and the
-   REM synthesis (`nucleo/memllm.py`, including the fidelity gate `verify_insight_grounded`). Defaults in
+2. **Writing/synthesis (reasoning about what to store or summarise)** — the HEART (`nucleo/memory_agent/processor/distill.py`) and the
+   REM synthesis (`nucleo/memory_agent/processor/llm.py`, including the fidelity gate `verify_insight_grounded`). Defaults in
    `config/models.default.json` (§memory_writer, §memory_rem): a DeepSeek Flash model through the direct endpoint
    with OpenAI `gpt-4.1-mini` as stand-in; a local model (qwen via Ollama) can be configured instead.
 
@@ -1238,20 +1238,20 @@ the distiller conversation context so a correction without a subject is attribut
   enforcement**: if the active embedding model does not match the database's signature (or is degraded), the pill is
   marked `meta.embed_pending` instead of inserting a vector from ANOTHER space (the REM phase repairs it) — vector
   spaces are never mixed silently.
-- `memory/embeddings.py` — embeddings client (cloud provider by default · Ollama `embeddinggemma` option · fastembed
+- `memory/embeddings/` — embeddings client (cloud provider by default · Ollama `embeddinggemma` option · fastembed
   and hashing safety nets).
 - `memory/retriever.py` — hot path: vec ∥ fts ∥ paraphrases → RRF → weighted score → rerank → graph_expand.
 - `memory/state.py` — fixed table (µs read, no search).
-- `memory/graph.py` (+ `memory/graph_ppr.py`) — edges (link/expand, multi-hop PPR).
+- `memory/graph_ppr.py` (+ `writer.link`) — edges and multi-hop PPR expansion (the retriever reads them).
 - `memory/episodic.py` — files/PDFs: searchable embedded summary + lazy load of the binary.
 - `memory/consolidator.py` — the LIGHT "sleep" job (hourly: promote/exact dedup/decay PER WINDOW/prune_invalid/evict).
 - **`memory/rem.py`** — DEEP sleep, the "REM phase" (daily): repair_embeddings + semantic_dedup + synthesize
   (insights per concept, injected LLM hook) + hygiene. See §DEEP sleep.
 - `memory/api.py` — the public facade (write[+`slot`/`meta`]/write_now/query/**recent_short**/state/set_state/
   reinforce/pin/unpin/link/load_episode/consolidate/**map**).
-- **`nucleo/mem_processor.py`** — the LLM processor (defaults in `config/models.default.json` §memory_writer; local
+- **`nucleo/memory_agent/processor/distill.py`** — the LLM processor (defaults in `config/models.default.json` §memory_writer; local
   qwen option) that DISTILS every turn into pills; it lives in `nucleo/` (it is write-side brain, not substrate) but
   it is the heart that decides what goes into `memory/`. See §The write HEART.
-- **`nucleo/memllm.py`** — the internal per-TASK model router of the memory module (task `rem`, plus `i18n`), config
+- **`nucleo/memory_agent/processor/llm.py`** — the internal per-TASK model router of the memory module (task `rem`, plus `i18n`), config
   `§memory.<task>_*` + key PER ENDPOINT; the memory receives the hook INJECTED (it does not import brains).
 - Data: `zaelar.db` (SQLite) in `memory/_data/` (gitignored). Override with `ZAELAR_DB`.

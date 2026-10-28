@@ -390,8 +390,7 @@ def test_the_degraded_recall_line_compares_the_signatures_instead_of_printing_bo
     """Live it printed «(cloud:text-embedding-3-small:768) does not match the indexed one
     (cloud:text-embedding-3-small:768)» — the same string twice — while the real cause was an
     embedder with no credits. A diagnostic that accuses the wrong file spends the reader's trust."""
-    src = inspect.getsource(pathlib.Path(_ENGINE / "memory" / "retriever.py").read_text) if False else \
-        (_ENGINE / "memory" / "retriever.py").read_text(encoding="utf-8")
+    src = (_ENGINE / "memory" / "retriever" / "recall.py").read_text(encoding="utf-8")
     block = src[src.index("def _warn_wrong_space") if "def _warn_wrong_space" in src else 0:]
     block = block[:block.index("espacio vectorial descuadrado") + 200]
     assert "active == stored" in block, (
