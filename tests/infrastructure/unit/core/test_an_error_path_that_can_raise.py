@@ -8,18 +8,15 @@ engine log contained `IndexError: list index out of range` from
 `"".splitlines()` is `[]`, so ANY exception without a message —`TimeoutError()`, `CancelledError()`, a bare
 `RuntimeError('')`— makes the line crash on its own.
 
-What makes it serious is WHERE it was: all fifteen copies lived inside an `except`, and the one in `probe.py`
-is the handler that classifies the provider failure and decides the chain RELAY. A provider failing silently took
+What makes it serious is WHERE it was: all fifteen copies lived inside an `except`, and the one in the old text channel's `probe.py`
+was the handler that classifies the provider failure and decides the chain RELAY. A provider failing silently took
 down the failure handler — the turn returned 500 and **the relay never happened**. The safety net broke precisely
 when it was needed, and the symptom pointed to something else.
 """
-import ast
 import asyncio
 import pathlib
-import re
 
 from nucleo.errors import brief
-from tests import voice_turn_source as _vts   # V2-778 F1: the probe's turn is read whole
 
 # parents[4], not [3]: this file lives one level deeper than `test_architecture_ratchet.py`. With [3] the
 # scan pointed to `tests/`, so it reported its own docstring and did not find the engine.
@@ -78,18 +75,3 @@ def test_no_production_handler_slices_splitlines_without_a_guard():
     assert not ofensores, ("un manejador vuelve a cortar `splitlines()[0]` sin guarda — usa "
                            "`nucleo.errors.brief(e)`:\n  " + "\n  ".join(ofensores))
 
-
-def test_the_handler_that_decides_the_relay_uses_it():
-    """The specific site that brought down the run: if it builds its message by hand again, the relay will break
-    again when a provider fails silently.
-
-    The first version anchored on «the FIRST occurrence of `provider_failure`» and used a text window, not
-    a property: V2-309 added a mention higher up, the window moved, and the guard accused correct code
-    (2026-08-25). What matters is that the handler's MESSAGE comes from the helper — so it anchors
-    on the specific assignment, which is what decides the relay."""
-    src = _vts.read(ENGINE / "nucleo" / "flash" / "probe.py")
-    assert "provider_failure" in src, "desapareció el manejador de fallo de proveedor del probe"
-    assert "_err = _brief(" in src, (
-        "el manejador del relevo dejó de usar el helper: si su mensaje se construye a mano, un proveedor "
-        "cayendo en silencio vuelve a llevarse por delante al manejador del fallo")
-    assert not re.search(r"str\(\w+\)\.splitlines\(\)\[0\]", src), "volvió la forma que revienta"
