@@ -97,7 +97,7 @@ def _settle_row(e: dict, verdict: str, outcome: str = "") -> None:
     """The request row this inline spec belongs to (V2-776 M1) ends with the same verdict."""
     if e.get("row"):
         try:
-            from nucleo import request_row as _rq
+            from nucleo.request import model as _rq
             _rq.settle(str(e["row"]), verdict, outcome)
         except Exception:  # noqa: BLE001
             pass

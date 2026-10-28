@@ -172,7 +172,7 @@ def ended_early(rec, *, state: str, outcome: str = "") -> None:
 #: A worker commission's durable id: `<boot_id>-<seq>` (see `task_uid`). Lists, errands and scheduled jobs
 #: have their own namespaced ids and their own owners, so the reconciler never touches them.
 _WORKER_UID = re.compile(r"^([0-9a-f]{6})-\d+$")
-#: An inline request's row (`nucleo/request_row.py`): `<boot_id>-i<seq>`.
+#: An inline request's row (`nucleo/request/model.py`): `<boot_id>-i<seq>`.
 _INLINE_UID = re.compile(r"^([0-9a-f]{6})-i\d+$")
 
 
@@ -216,7 +216,7 @@ def _settle_inline_after_restart(uid: str, now: float) -> int:
         from nucleo import spec as _spec
         e = _spec.of_task(uid)
         if e and _spec.attest(dict(e), now=now) is True:
-            from nucleo import request_row as _rq
+            from nucleo.request import model as _rq
             _rq.settle(uid, "met")
             return 1
     except Exception as ex:  # noqa: BLE001 — an unreadable spec is just an interrupted request

@@ -205,7 +205,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                                 # …and HOW SUCCESS IS MEASURED (V2-707 F2): a relay that dropped the condition
                                 # would deliver the half-done work the harness had just caught.
                                 done_when=dict(ctx.get("done_when") or {}),
-                                trace_id=str(ctx.get("trace", "") or ""))   # V2-044: encadena a la frase origen
+                                trace_id=str(ctx.get("trace", "") or ""), heard=str(ctx.get("heard", "") or ""))
             # V2-227 — the SURFACE is sealed here, the one point EVERY door into the dispatcher passes (the brain with its
             # `surface`, auto-resume, the confirm gate, the cluster, Susurro). What the brain declared rules; with nothing
             # declared (or a word outside the vocabulary) it derives from the kind. Sealing later would open the sheet

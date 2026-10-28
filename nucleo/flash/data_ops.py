@@ -345,7 +345,7 @@ async def _say_it_did_not_run(wid: str, action_name: str, exc: BaseException, *,
         pass
     if row:
         try:
-            from nucleo import request_row as _rq
+            from nucleo.request import model as _rq
             _rq.settle(row, "unmet", res["error"])
         except Exception:  # noqa: BLE001
             pass
@@ -429,9 +429,9 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         _spec_entry = _spec.open_for_action(wid, action_name, payload, text=text)
     except Exception:  # noqa: BLE001
         _spec_entry = None
-    # V2-776 M1 — the request this op belongs to is a ROW, opened by its first op (see `nucleo/request_row.py`).
+    # V2-776 M1 — the request this op belongs to is a ROW, opened by its first op (see `nucleo/request/model.py`).
     try:
-        from nucleo import request_row as _rq
+        from nucleo.request import model as _rq
         _row = _rq.opened(wid, action_name, text=text)
     except Exception:  # noqa: BLE001
         _row = ""
@@ -477,7 +477,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
             pass
     if _row:
         try:
-            from nucleo import request_row as _rq
+            from nucleo.request import model as _rq
             if _refused:
                 _rq.settle(_row, "unmet", str(res.get("message") or res.get("error") or "")[:200])
             elif _spec_entry is None:

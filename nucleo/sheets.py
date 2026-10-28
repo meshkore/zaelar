@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import time
 
+from loguru import logger
+
 from nucleo import surfaces
 from nucleo.runtime_ids import boot_id as _boot_id
 
@@ -351,6 +353,21 @@ def row_sheet(uid, mine: str = "") -> str:
         return uid
 
 
+def _hear(sheet: str, words: str) -> None:
+    """His commissioning sentence reaches the errand's sheet, so its row door judges rows by his words (the Request
+    carries them, `request.model.heard`). Never raises."""
+    if not words or not sheet:
+        return
+    try:
+        from widgets.results import category_gate
+        if category_gate.hear(sheet, words):
+            from voice.observer import emit
+            emit("widget", "📋 his commissioning words reached the errand's sheet", role="system",
+                 extra={"sheet": sheet, "words": words[:120]})
+    except Exception as e:  # noqa: BLE001 — a sheet that cannot hear him keeps today's behaviour
+        logger.warning(f"sheets: his words did not reach {sheet} — {type(e).__name__}: {e}")
+
+
 def _sheet_open(rec, *, show: bool = True) -> None:
     """OPEN the sheet when COMMISSIONED, which is the entire gesture of scope C: without this the operator sees nothing
     until there is a response, leaving the screen contract fulfilled in a test and absent in the product.
@@ -405,6 +422,7 @@ def _sheet_open(rec, *, show: bool = True) -> None:
         _sheet.prune_sheets()          # the sheet persists deliberately; N instances cannot grow without a ceiling
     except Exception:  # noqa: BLE001
         pass
+    _hear(_sid, str(getattr(rec, "heard", "") or ""))
     if not show:
         return
     try:

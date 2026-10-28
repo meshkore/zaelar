@@ -1,6 +1,6 @@
 """An inline request's row survives a restart honestly (V2-778 F3-26, 2026-10-01).
 
-Every request that acts opens a durable row (`nucleo/request_row.py`, V2-776 M1), but its end state — the spec
+Every request that acts opens a durable row (`nucleo/request/model.py`, V2-776 M1), but its end state — the spec
 the circuit re-verifies — lived only in RAM. A restart between the op and the pulse's verdict left the row
 `running` FOREVER: the reconciler that closes orphaned rows matched worker ids (`<boot>-<n>`) and an inline
 row is `<boot>-i<n>`, so nothing ever settled it, and «what is still going on» kept listing a request that no
@@ -53,7 +53,7 @@ def test_the_inline_spec_is_persisted_on_its_row(fresh_db, monkeypatch):
     """The data-op door: once the op has its row, the spec it owes is written on that row."""
     import asyncio
 
-    from nucleo import request_row as _rq
+    from nucleo.request import model as _rq
     from nucleo.flash import data_ops
     import widgets
 

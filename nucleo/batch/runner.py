@@ -215,7 +215,7 @@ async def _store_rule(goal: str) -> dict:
 
 
 async def _turn(turn, text: str, sid: str, step: str = "") -> dict:
-    from nucleo import request_row as _rq
+    from nucleo.request import model as _rq
     tok = _rq.under(step)            # V2-776 M3 — the step's ops are rows hanging from the step
     try:
         return await turn(text, sid=sid, ingest=False, execute=True, lists=False)

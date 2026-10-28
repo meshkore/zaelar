@@ -1,4 +1,4 @@
-"""nucleo/request_row.py — every request that ACTS is a row of `tasks`, the inline ones included (V2-776 M1).
+"""nucleo/request/model.py — every request that ACTS is a row of `tasks`, the inline ones included (V2-776 M1).
 
 ## Why
 
@@ -56,6 +56,20 @@ def begin(text: str, *, parent: str = "", origin: str = "voz", trace: str = "") 
 
 def current() -> dict | None:
     return _TURN.get()
+
+
+def heard() -> str:
+    """His words this turn, our system notes left out — what an errand the turn opens carries to its sheet, so the
+    row door judges rows by HIS subject, never by a title the model wrote (find-concert-tickets ES). Never raises."""
+    turn = _TURN.get()
+    if not turn:
+        return ""
+    try:
+        from voice.brain_notes import operator_half
+        words = operator_half(str(turn.get("text") or ""))
+    except Exception:  # noqa: BLE001 — without the splitter the text is taken as it came
+        words = str(turn.get("text") or "")
+    return " ".join(words.split("[SISTEMA]")[0].split())
 
 
 def _surface(widget: str) -> str:

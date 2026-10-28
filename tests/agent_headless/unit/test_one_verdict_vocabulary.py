@@ -61,7 +61,7 @@ def rows(monkeypatch):
 
 
 def test_a_settle_writes_the_declared_state_and_emits_with_the_rows_trace(rows, monkeypatch):
-    from nucleo import request_row
+    from nucleo.request import model as request_row
     from voice import observer
     seen: list = []
     monkeypatch.setattr(observer, "emit", lambda kind, label, text="", role="", extra=None: seen.append(
@@ -74,7 +74,7 @@ def test_a_settle_writes_the_declared_state_and_emits_with_the_rows_trace(rows, 
 
 
 def test_a_non_ending_is_never_settled(rows):
-    from nucleo import request_row
+    from nucleo.request import model as request_row
     rows["r2"] = {"id": "r2", "verdict": "", "state": "running"}
     for name in ("started", "asked", "skipped", "retrying", "nonsense"):
         request_row.settle("r2", name)
