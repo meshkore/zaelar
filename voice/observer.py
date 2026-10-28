@@ -104,7 +104,7 @@ _CAT = {
     # plumbing, its own kind because "the operator closed the mic" and "the mic was open and we heard this" must
     # be separable at a glance — the incident that created it (session 85eec898) was invisible precisely because
     # the switch left NO trace anywhere and the transcripts looked like an ordinary conversation.
-    "mic": "system",
+    "mic": "system", "smalltalk": "flash", "presence": "flash",   # the last two: turns answered without a model
     "metric": "system", "vad": "system", "cluster": "system", "perf": "system",
     "stt": "system", "tts": "system", "bot_speech": "system", "state": "system",
     "session": "system", "timing": "system", "notify": "system", "consequence": "system",
