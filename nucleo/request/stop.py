@@ -77,12 +77,12 @@ def verdict(brief) -> str | None:
     return choice if info is not None and choice in CHOICES else None
 
 
-def ordered(brief, *, grammar: bool) -> bool:
-    """Did he order the running errand to stop in this turn? The sure verdict decides; without one, the grammar
-    the caller handed in. Read by the tool gate (may the model's `stop_worker` run?) and by the backstop that
-    repairs a turn whose model called nothing."""
-    v = verdict(brief)
-    return grammar if v is None else ends(v)
+def model_stop(brief, *, grammar: bool) -> str:
+    """The MODEL called `stop_worker`: `run` · `veto` · `ask_which` (`nucleo/turn/verdicts`); no verdict → `grammar`."""
+    from nucleo.turn import verdicts
+    if (out := verdicts.against_the_model(brief, KEY, ends)) != verdicts.RUN:
+        return out
+    return verdicts.RUN if (verdict(brief) is not None or grammar) else verdicts.VETOED
 
 
 def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = None) -> list:

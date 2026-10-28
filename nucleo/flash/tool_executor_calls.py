@@ -644,27 +644,21 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
              text=f"{which or 'todo'}", role="system",
              extra={"cat": "flash", "kind_diag": "stop_after_answer"})
         return
-    # ── GUARD 2: MATAR EXIGE QUE EL OPERADOR LO HAYA DICHO ────────────────────────────────────────
-    # Mismo espíritu que el guarda de context-bleed de las data-ops (~L797), para lo irreversible:
-    # sin orden de parar EN el turno del operador, el `stop_worker` es arrastre del anterior. En la
-    # sesión, el stop nació de una queja de DOS TURNOS ANTES sobre widgets («los dos navegadores no se
-    # tenían que haber abierto»), cancelada por barge-in — el modelo la arrastró y la hizo un hachazo.
-    # OJO con «para»: en castellano es preposición mucho más a menudo que verbo («para nada», «para
-    # ti»), y por eso no entra suelto — de hecho «para» a secas solo calla la voz, nunca para tareas
-    # (regla del operador). Se piden formas inequívocas.
-    # …unless his turn ANSWERS a question we just put to him (demo 2026-10-22: «…running for 15 minutes now. Want
-    # me to stop it or keep going?» → «Yes, please» was refused here, and the search ran on). The order to stop
-    # was in OUR sentence; the model read his yes and chose the stop. That is not drag from an earlier turn.
-    # V2-807 T-14 — …and the turn's own verdict decides when it is sure (`stop_decision`): «para inmediatamente esa
-    # tarea que está en marcha» was refused here because the word table below did not list that word order. The
-    # table and the answer-to-our-question check are the fallback when no sure verdict exists.
+    # ── GUARD 2: killing needs his order in THIS turn — a stop the model drags from an earlier turn is context bleed
+    # (2026-08-14). Read asymmetrically (refactor2710-07, `stop.model_stop`): a sure verdict decides, an unsure one that
+    # disagrees is asked, and only with no verdict at all do his words (or his yes to our own offer) stand in.
     from nucleo.request import stop as _stop_decision
-    if not _stop_decision.ordered(brief, grammar=bool(_says_stop(text)
-                                                     or _prior_line.answers_our_question(brief, prior))):
+    _may = _stop_decision.model_stop(brief, grammar=bool(_says_stop(text)
+                                                         or _prior_line.answers_our_question(brief, prior)))
+    if _may == "veto":
         emit("brain", "🛡️ stop_worker ignorado — el operador no ha pedido parar nada (context-bleed)",
              text=(text or "")[:120], role="system",
              extra={"cat": "flash", "kind_diag": "stop_without_order", "which": which or "todo"})
         return
+    if _may != "run":     # refactor2710-07: an unsure verdict against the model's stop is asked, never refused silently
+        clarify["msg"], worker_acted["v"] = _say().stop_doubt, "stop"
+        return emit("brain", "❓ stop_worker en duda — se pregunta", text=(text or "")[:120], role="system",
+                    extra={"cat": "flash", "kind_diag": "stop_asked", "which": which or "todo"})
     try:
         from nucleo import dispatch as _d
         # GUARD matar-TODO (sesión 23:15 2026-07-16, T49): ante «si solo es una tarea» el modelo llamó

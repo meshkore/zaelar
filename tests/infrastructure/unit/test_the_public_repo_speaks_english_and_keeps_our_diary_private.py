@@ -158,7 +158,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/tool_executor_widget_calls.py': 64,
     'nucleo/flash/tool_selection.py': 2,
     'nucleo/flash/tools_media.py': 9,
-    'nucleo/flash/turn_brief.py': 3,
+    'nucleo/turn/brief_screen.py': 3,
     'nucleo/flash/video_turn.py': 7,
     'nucleo/homeostasis.py': 38,
     'nucleo/jev.py': 2,

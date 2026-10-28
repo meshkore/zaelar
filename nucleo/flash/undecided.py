@@ -54,20 +54,9 @@ def why(brief, widget_id: str, action: str, *, operator_text: str = "", model_wo
 
 
 def sure_order(brief, widget_id: str, action: str) -> bool:
-    """Is the turn read as an ORDER, and its action as exactly `widget_id:action`, both at or above the operator's
-    `consent.intent_act_at`? The one place a doubt is weighed against his threshold. Never raises."""
-    try:
-        from nucleo import consent
-        from nucleo.flash import turn_brief as _tb
-        floor = consent.intent_act_at()
-        kind, k_info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=floor)
-        target, t_info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=floor)
-        owner, _sep, name = str(target or "").rpartition(":")
-        return bool(k_info and t_info) and str(kind) == "order" and name == action \
-            and owner.split("::", 1)[0].lower() == str(widget_id or "").split("::", 1)[0].lower()
-    except Exception as e:  # noqa: BLE001
-        logger.debug(f"undecided: sure_order skipped — {e}")
-        return False
+    """Moved to `nucleo/turn/verdicts.sure_order` (refactor2710-07)."""
+    from nucleo.turn import verdicts
+    return verdicts.sure_order(brief, widget_id, action)
 
 
 def a_question_holds(brief, words: str) -> bool:
