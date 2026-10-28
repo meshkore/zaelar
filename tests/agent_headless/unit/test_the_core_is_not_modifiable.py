@@ -129,7 +129,7 @@ def test_the_tools_and_the_cwd_follow_the_ERRAND_not_its_kind():
 
 def _gateway(monkeypatch):
     """The ONE gateway every escalation passes through, with its id mint and its bus recorded (nothing spawns)."""
-    from nucleo.flash import escalate as gw
+    from nucleo.acts import errand as gw
     seen = {"minted": 0, "bus": []}
 
     def mint(_name):

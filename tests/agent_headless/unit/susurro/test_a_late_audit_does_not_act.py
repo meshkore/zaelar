@@ -63,7 +63,7 @@ def test_what_happened_BEFORE_the_window_does_not_count():
 
 def test_a_stale_worker_action_and_repair_are_dropped_but_the_finding_lands(monkeypatch, tmp_path):
     from nucleo import dispatch
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     from voice import brain_notes
     launched: list = []
     monkeypatch.setattr(dispatch, "active_sessions", lambda: [])
@@ -88,7 +88,7 @@ def test_a_stale_worker_action_and_repair_are_dropped_but_the_finding_lands(monk
 def test_a_fresh_window_still_acts(monkeypatch):
     """The other direction — otherwise «drop everything» would pass the test above."""
     from nucleo import dispatch
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     launched: list = []
     monkeypatch.setattr(dispatch, "active_sessions", lambda: [])
     monkeypatch.setattr(escalate, "escalate_to_slowbrain", lambda req, **kw: launched.append(req) or 9)

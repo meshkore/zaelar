@@ -26,7 +26,7 @@ def world(tmp_path, monkeypatch):
     monkeypatch.setattr(quota_wait, "_PARKS", {})
     state = {"until": time.time() + 600, "launched": [], "said": []}
     monkeypatch.setattr(providers, "exhausted_until", lambda: state["until"])
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     monkeypatch.setattr(escalate, "escalate_to_slowbrain",
                         lambda goal, context=None, **kw: state["launched"].append((goal, context or {})) or 1)
     yield state

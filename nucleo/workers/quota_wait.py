@@ -173,7 +173,7 @@ async def fire(detail: dict, deliver) -> None:
         return
     await deliver("zaelar", _lang().worker_chain_resumed.format(goal=goal[:70]))
     try:
-        from nucleo.flash import escalate as _esc
+        from nucleo.acts import errand as _esc
         _esc.escalate_to_slowbrain(goal, context={**{k: v for k, v in ctx.items() if v}, "src": "quota_resume"})
     except Exception as e:  # noqa: BLE001
         logger.warning(f"quota_wait: relaunch of «{goal[:60]}» failed: {e}")

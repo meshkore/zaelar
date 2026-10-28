@@ -383,7 +383,7 @@ async def _spawn_child(payload: dict, rec) -> dict:
     if not req:
         return {"ok": False, "error": "spawn sin request"}
     try:
-        from nucleo.flash import escalate
+        from nucleo.acts import errand as escalate
         cid = escalate.escalate_to_slowbrain(str(req), context={
             "src": "worker", "kind": (payload.get("kind") or "generic"),
             "parent_task_id": rec.task_id, "depth": depth + 1})

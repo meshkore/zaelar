@@ -279,7 +279,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/delivery_repeat.py': 2,
     'nucleo/flash/direct_action.py': 25,
     'nucleo/flash/errand_sheet.py': 5,
-    'nucleo/flash/escalate.py': 4,
+    'nucleo/acts/errand.py': 4,
     'nucleo/flash/escalation_guard.py': 5,
     'nucleo/llm/fast_client.py': 16,
     'nucleo/flash/frontend.py': 1,

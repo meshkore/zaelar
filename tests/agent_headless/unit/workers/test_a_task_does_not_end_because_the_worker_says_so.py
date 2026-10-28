@@ -132,7 +132,7 @@ def test_a_met_condition_names_no_gap(agenda):
 
 def _finished(rec, monkeypatch, escalations):
     """Drive the REAL harness over a record, with the escalation stubbed so nothing is launched."""
-    from nucleo.flash import escalate as esc
+    from nucleo.acts import errand as esc
     from nucleo import circuit
     monkeypatch.setattr(esc, "escalate_to_slowbrain",
                         lambda req, context=None: escalations.append((req, context or {})) or 1)

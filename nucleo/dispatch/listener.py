@@ -250,7 +250,7 @@ def _absorb_into(pdup: str, request: str, key: str) -> str:
 def _close_folded(key: str) -> None:
     try:
         if str(key).isdigit():
-            from nucleo.flash import escalate as _esc
+            from nucleo.acts import errand as _esc
             _esc.finish(int(key), "")
     except Exception as e:  # noqa: BLE001 — the fold already happened; a registry that cannot close is logged
         logger.debug(f"dispatch: folded escalation {key} not closed — {type(e).__name__}: {e}")

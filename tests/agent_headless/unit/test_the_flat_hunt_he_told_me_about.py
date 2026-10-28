@@ -141,7 +141,7 @@ class _Worker(WorkerBackend):
 
 async def _hand_over_the_errand(monkeypatch, phrase: str) -> tuple[list, list]:
     """Drive the REAL dispatcher through one commission. Returns (rows while live, rows once done)."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     gate = asyncio.Event()
     holder: dict = {}
     monkeypatch.setattr(dispatch, "get_backend", lambda spec: holder.setdefault("b", _Worker(gate)))

@@ -48,7 +48,7 @@ _LIVE = [{"id": "t1", "goal": "Busca en fuentes de torrent el archivo X", "statu
 
 def test_a_stopped_agent_resumes_NOTHING(monkeypatch):
     fired = []
-    monkeypatch.setattr("nucleo.flash.escalate.escalate_to_slowbrain",
+    monkeypatch.setattr("nucleo.acts.errand.escalate_to_slowbrain",
                         lambda req, **k: fired.append(req) or 1)
     _trail(monkeypatch, _LIVE)
     asyncio.run(runstate.stop("operator"))
@@ -104,7 +104,7 @@ def test_an_UNREADABLE_switch_does_not_authorise_spending(monkeypatch):
         raise RuntimeError("sys_kv no está listo")
     monkeypatch.setattr(runstate, "stopped", _boom)
     fired = []
-    monkeypatch.setattr("nucleo.flash.escalate.escalate_to_slowbrain",
+    monkeypatch.setattr("nucleo.acts.errand.escalate_to_slowbrain",
                         lambda req, **k: fired.append(req) or 1)
     monkeypatch.setattr(R, "forget", lambda: pytest.fail("no puede consumir el rastro sin saber si puede"))
     _trail(monkeypatch, _LIVE)
@@ -116,7 +116,7 @@ def test_a_RUNNING_agent_still_resumes_exactly_as_before(monkeypatch):
     """El contrapeso: este módulo existe para que un reinicio no pierda trabajo. Si el gate se pasa de
     listo, el arreglo cuesta más que el fallo."""
     fired = []
-    monkeypatch.setattr("nucleo.flash.escalate.escalate_to_slowbrain",
+    monkeypatch.setattr("nucleo.acts.errand.escalate_to_slowbrain",
                         lambda req, **k: fired.append(req) or 1)
     _trail(monkeypatch, _LIVE)
     asyncio.run(runstate.start("operator"))

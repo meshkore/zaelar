@@ -132,7 +132,7 @@ async def _tell(title: str) -> None:
 
 def _to_the_worker(commission: str, operator_text: str) -> bool:
     try:
-        from nucleo.flash import escalate
+        from nucleo.acts import errand as escalate
         escalate.escalate_to_slowbrain(commission or operator_text, context={"src": "compose_rung"})
     except Exception as e:  # noqa: BLE001
         logger.warning(f"compose_rung: the fallback escalation failed too: {e}")

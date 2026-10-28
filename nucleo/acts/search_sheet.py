@@ -109,7 +109,7 @@ def _hand_on(delivered: bool, asked: str, sid: str, n: int) -> int:
             from nucleo.workers import ended as _ended
             _ended.note_listing_delivery(asked, sid, n=n)
             return 0
-        from nucleo.flash.escalate import escalate_to_slowbrain
+        from nucleo.acts.errand import escalate_to_slowbrain
         return escalate_to_slowbrain(asked, context={"sheet": sid, "surface": "lista"})
     except Exception as e:  # noqa: BLE001
         logger.warning(f"acts.search_sheet: no hand-on ({e!r})")

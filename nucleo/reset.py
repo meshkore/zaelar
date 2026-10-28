@@ -38,7 +38,7 @@ def _snapshot_navegador() -> list[dict]:
 
 def _snapshot_escalations() -> list[dict]:
     try:
-        from nucleo.flash import escalate
+        from nucleo.acts import errand as escalate
         return [{"request": (p.get("request") or "")[:160]} for p in escalate.pending()]
     except Exception:
         return []
@@ -93,7 +93,7 @@ def abandon_work(*, source: str = "reset") -> dict:
     from nucleo.workers import quota_wait   # an errand parked for the quota's reset is work too (never raises)
     killed["parked"] = quota_wait.forget("")
     try:
-        from nucleo.flash import escalate
+        from nucleo.acts import errand as escalate
         killed["escaladas"] = len(escalate.pending())
         escalate.reset()
     except Exception as e:  # noqa: BLE001

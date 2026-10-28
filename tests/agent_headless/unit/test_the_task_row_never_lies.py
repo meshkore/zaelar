@@ -42,7 +42,7 @@ def test_a_worker_at_work_reads_running_not_pending(fresh_db, monkeypatch):
 
 def test_a_commission_stopped_at_the_widget_gate_leaves_no_live_row(fresh_db, monkeypatch):
     """The gate asks; the «sí» dispatches a fresh commission with its own row. The asked one must not linger."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
 
     async def _quiet(rec):
         return None

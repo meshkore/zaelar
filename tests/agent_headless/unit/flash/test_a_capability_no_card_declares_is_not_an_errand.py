@@ -18,7 +18,7 @@ import threading
 import pytest
 
 from nucleo.flash import capability_gap as G
-from nucleo.flash import escalate as E
+from nucleo.acts import errand as E
 
 
 def _brief(choice: str, conf: float) -> dict:

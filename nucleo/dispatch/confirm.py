@@ -329,7 +329,7 @@ def resolve_confirm(ok: bool, task_id: str = "") -> dict | None:
     if p.get("sheet"):
         ctx["sheet"] = str(p["sheet"])
     try:
-        from nucleo.flash import escalate as _esc
+        from nucleo.acts import errand as _esc
         _esc.escalate_to_slowbrain(request, context=ctx)
     except Exception:
         logger.warning("resolve_confirm: no se pudo re-lanzar la tarea confirmada")

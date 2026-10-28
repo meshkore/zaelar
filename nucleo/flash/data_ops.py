@@ -93,7 +93,7 @@ def _distinct_targets(a: dict, b: dict) -> bool:
 # words of the real problem existed, in-process, at 11:19:03. The operator was never told; he was told
 # «La autentificación de Google quedó completada», then «Hecho.», then «Te conecto YouTube ahora mismo».
 #
-# The rails are the ones a finished background worker already uses (`nucleo/flash/escalate.py`): speak it
+# The rails are the ones a finished background worker already uses (`nucleo/acts/errand.py`): speak it
 # through `voice/proactive` AND leave a `[SISTEMA]` note so the NEXT turn also knows. Nothing here invents
 # wording for the failure — the widget's own `error`/`message` is what the operator hears, because the widget
 # is the only layer that knows why it could not act.

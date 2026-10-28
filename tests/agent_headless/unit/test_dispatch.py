@@ -320,7 +320,7 @@ def test_find_duplicate_by_text_overlap(monkeypatch):
 def test_listener_dedups_second_identical_escalation(fresh_db, fake_backend, monkeypatch):
     """With a LIVE task, a nearly identical second escalation is INJECTED, NOT relaunched (the two-chip bug). A
     live session is seeded beforehand to avoid depending on the first task's startup timing."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     from nucleo.workers.session import SessionRecord
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
     injected: list = []
@@ -360,7 +360,7 @@ def test_listener_dedups_second_identical_escalation(fresh_db, fake_backend, mon
 # a `SessionRecord` for that trace — `has_live_trace` stays False forever, and without an explicit close here the
 # flow would be stuck OPEN forever, a worse regression than the premature-close bug this whole guard exists for.
 def test_listener_closes_the_flow_explicitly_when_rejected_while_halted(fresh_db, fake_backend, monkeypatch):
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     from nucleo import runstate
 
     monkeypatch.setattr(runstate, "stopped", lambda: True)
@@ -386,7 +386,7 @@ def test_listener_closes_the_flow_explicitly_when_rejected_while_halted(fresh_db
 
 
 def test_listener_closes_the_flow_explicitly_on_dedup_inject(fresh_db, fake_backend, monkeypatch):
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     from nucleo.workers.session import SessionRecord
 
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
@@ -424,7 +424,7 @@ def test_listener_closes_the_flow_explicitly_on_dedup_inject(fresh_db, fake_back
 
 
 def test_listener_consumes_escalate_requested(fresh_db, fake_backend):
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
 
     async def run():
         bus.reset()
@@ -815,7 +815,7 @@ def test_listener_funde_el_flujo_en_vez_de_cerrarlo_cuando_la_sesion_viva_tiene_
     El hermano de arriba (`..._closes_the_flow_explicitly_on_dedup_inject`) cubre el caso contrario a propósito: su
     sesión viva NO tiene `trace_id`, así que no hay nada que fundir y el cierre explícito sigue siendo obligatorio.
     Los dos juntos son la pareja que impide arreglar uno rompiendo el otro."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     from nucleo.workers.session import SessionRecord
     from voice import trace
 
@@ -919,7 +919,7 @@ def test_the_stall_threshold_has_ONE_definition():
 # de la hoja pasaría igual con la línea de `run_listener` borrada — la lección de V2-199, que un test que no
 # recorre el camino real prueba que el código compila.
 def test_listener_opens_the_sheet_when_the_errand_lands_on_it(fresh_db, fake_backend, monkeypatch):
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
 
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
     opened: list = []
@@ -956,7 +956,7 @@ def test_listener_opens_the_sheet_when_the_errand_lands_on_it(fresh_db, fake_bac
 
 def test_listener_does_not_touch_the_sheet_for_an_errand_that_is_only_spoken(fresh_db, fake_backend, monkeypatch):
     """The converse: a voice-only request neither opens nor clears a sheet the operator may have open with something else."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
 
     monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
     opened: list = []

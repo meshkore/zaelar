@@ -333,7 +333,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
     "nucleo (top)": 15626,    # refactor2710-07: jev.py became the nucleo/jev package; refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved); refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved); refactor2710-06: the five search aliases deleted
-    "nucleo/acts": 2136,        # refactor2710-05: the tool catalogue (T-01) + what frontend.py decided about a card (T-05); refactor2710-06: the search, memory (vault), media (player) and message doors, from nucleo/flash
+    "nucleo/acts": 2381,        # refactor2710-05: the tool catalogue (T-01) + what frontend.py decided about a card (T-05); refactor2710-06: the search, memory (vault), media (player) and message doors, from nucleo/flash; the errand door (escalate MOVED in, T-03)
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 884,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
@@ -342,7 +342,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/dispatch": 2448,   # refactor2710-09 T-01: moved from top and split; target 1 200
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 22796,      # refactor2710-02: the model client MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts; refactor2710-02: the model client (7 files) MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-06: search_turn, search_routing, listing_turn folded into acts/search; vault_carrier, vault_flow, vault_rules into acts/memory; player_control, player_outcome into acts/media; the wait lines of reminder_guards into nucleo/turn; the reminder rails (reminder_guards, reminder_fact, reminder_year, reminder_promise) went
+    "nucleo/flash": 22551,      # refactor2710-02: the model client MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts; refactor2710-02: the model client (7 files) MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-06: search_turn, search_routing, listing_turn folded into acts/search; vault_carrier, vault_flow, vault_rules into acts/memory; player_control, player_outcome into acts/media; the wait lines of reminder_guards into nucleo/turn; the reminder rails (reminder_guards, reminder_fact, reminder_year, reminder_promise) went
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/jev": 759,          # refactor2710-07: born — jev.py split into the client, select and decide (dead calls out)
     "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED

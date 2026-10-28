@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 async def _run_session(task: "Task") -> None:
     """Crea and conduce UNA session bajo the pool. Never lanza (corre como task suelta)."""
     from nucleo import danger
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
 
     key = str(task.id)
     req = (task.request or "").strip()

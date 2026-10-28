@@ -1,4 +1,4 @@
-"""nucleo/flash/escalate.py — FlashBrain → SlowBrain escalation (V2-004 · T64; REAL escalation closed in V2-007 · T87).
+"""nucleo/acts/errand.py — the errand door (refactor2710-06 T-03, moved from nucleo/flash/escalate.py): FlashBrain → SlowBrain escalation (V2-004 · T64; REAL escalation closed in V2-007 · T87).
 
 When a turn needs memory/tools/reasoning, FlashBrain calls this seam (via function-calling, not a text tag —
 language-agnostic; see `router.py`). It records the intent (so live status can say "I'm still working on it, give

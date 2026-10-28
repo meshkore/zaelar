@@ -47,7 +47,7 @@ def test_the_yes_carries_that_sheet_back_through_the_normal_door(monkeypatch):
     """The «sí» relaunches by the SAME door as any escalation — the only thing that changes is what it
     carries. `sheet` has to be in there or `_sheet_open` mints a fresh box beside the abandoned one."""
     seen: list = []
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     monkeypatch.setattr(escalate, "escalate_to_slowbrain",
                         lambda request, context=None, **k: seen.append((request, dict(context or {}))))
     dispatch.remember_confirm("1", _REQ, _Task(), sheet="boot99-1")
@@ -62,7 +62,7 @@ def test_the_yes_carries_that_sheet_back_through_the_normal_door(monkeypatch):
 def test_a_no_relaunches_nothing(monkeypatch):
     """The other direction: dropping the errand must not resurrect it just because it now carries a sheet."""
     seen: list = []
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     monkeypatch.setattr(escalate, "escalate_to_slowbrain",
                         lambda request, context=None, **k: seen.append(request))
     dispatch.remember_confirm("1", _REQ, _Task(), sheet="boot99-1")
@@ -74,7 +74,7 @@ def test_an_errand_with_no_sheet_carries_none(monkeypatch):
     """Not every errand opens a sheet (`surfaces` decides). An empty one must not travel as a real id, or the
     relaunch would inherit a box that does not exist and stop opening its own."""
     seen: list = []
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     monkeypatch.setattr(escalate, "escalate_to_slowbrain",
                         lambda request, context=None, **k: seen.append(dict(context or {})))
     dispatch.remember_confirm("1", "cancela mi suscripción a Netflix", _Task())

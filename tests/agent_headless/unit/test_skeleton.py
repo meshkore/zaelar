@@ -12,7 +12,7 @@ def test_import_tree():
     for mod in [
         "nucleo",
         "nucleo.flash", "nucleo.flash.router", "nucleo.llm.fast_client",
-        "nucleo.flash.frontend", "nucleo.flash.procs", "nucleo.flash.escalate",
+        "nucleo.flash.frontend", "nucleo.flash.procs", "nucleo.acts.errand",
         "nucleo.loop", "nucleo.dispatch", "nucleo.memory_agent",
         "nucleo.agentes", "nucleo.agentes.base", "nucleo.agentes.claude_code", "nucleo.agentes.codex",
     ]:
@@ -42,7 +42,8 @@ def test_codeagent_interface_is_abstract():
 
 def test_flash_pieces_built():
     # V2-004: the FlashBrain pieces are NO longer stubs (frontend.show composes a tag; escalate logs + emits to the bus).
-    from nucleo.flash import frontend, escalate
+    from nucleo.flash import frontend
+    from nucleo.acts import errand as escalate
     assert frontend.show("agenda") == "[[show:agenda]]"
     tid = escalate.escalate_to_slowbrain("haz algo")
     assert isinstance(tid, int) and tid > 0
