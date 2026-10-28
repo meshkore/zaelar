@@ -79,6 +79,6 @@ def test_las_DOS_puertas_del_worker_lo_usan():
     """The plumbing: `read_widget` and the data path are two different places, and fixing only one leaves the
     worker resolving a name for reading and failing with the same name when writing."""
     from pathlib import Path
-    src = Path("nucleo/cli/worker_api.py").read_text(encoding="utf-8")
+    src = Path("nucleo/cli/worker_api_exec.py").read_text(encoding="utf-8")
     assert src.count("from widgets import naming as _nm") == 2
     assert "el widget «{wid}» no existe" not in src, "queda una puerta con el mensaje viejo"

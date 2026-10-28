@@ -23,4 +23,4 @@ def test_another_instant_is_scheduled():
 
 
 def test_the_worker_door_uses_it():
-    assert "scheduler.create_unless_ringing, what, spec, name" in open("nucleo/cli/worker_api.py", encoding="utf-8").read()
+    assert "scheduler.create_unless_ringing, what, spec, name" in open("nucleo/cli/worker_api_exec.py", encoding="utf-8").read()
