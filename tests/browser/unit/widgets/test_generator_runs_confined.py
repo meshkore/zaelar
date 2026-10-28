@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 
 from widgets import generator
+from widgets import generator_folders as _generator_folders_m
 
 
 import pytest
@@ -106,4 +107,4 @@ def test_an_unwritable_jail_refuses_to_start(monkeypatch, tmp_path):
 def test_the_prompt_folder_is_absolute(tmp_path):
     """The cwd is a scratch dir now, so a relative folder ref would resolve against nothing."""
     d = str(tmp_path / "widgets" / "x")
-    assert os.path.isabs(generator._folder_ref(d))
+    assert os.path.isabs(_generator_folders_m._folder_ref(d))

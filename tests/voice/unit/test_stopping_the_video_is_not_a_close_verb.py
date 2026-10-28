@@ -61,7 +61,6 @@ Run: .venv/bin/pytest tests/voice/unit/test_stopping_the_video_is_not_a_close_ve
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 import json
 import pathlib
@@ -74,7 +73,6 @@ from nucleo.flash import direct_action as _da
 from nucleo.turn import brief as _tb
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[3]
-_PROVIDER = _ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py"
 
 #: His sentence, verbatim from the transcript. A paraphrase would be a test of a test.
 HIS_WORDS = "Páralo, y vuelve al al inicio."
@@ -110,9 +108,38 @@ def test_the_screen_question_does_not_behead_the_routing_sentence():
         "with it gone the phrase measured `none` at 0.77")
 
 
+def _past_ninety(card: str) -> list[tuple[str, str, str]]:
+    """Every declared action of `card` whose description runs past the old 90-char cut: (key, desc, criterion)."""
+    from widgets import runtime
+    q = _tb.target_question([card])
+    out = []
+    for name, spec in (runtime.get(card) or {}).get("actions", {}).items():
+        desc = str((spec if isinstance(spec, dict) else {}).get("desc") or "")
+        key = f"{card}:{name}"
+        if len(desc) > 120 and key in q["criteria"]:
+            out.append((key, desc, q["criteria"][key]))
+    return out
+
+
 def test_the_cut_is_a_named_bound_and_not_a_number_in_the_middle_of_a_line():
-    """A magic number in two channels that must agree is the R3 class (see `is_short_order`)."""
-    assert _tb.MAX_DESC_CHARS >= 200, "the bare 90 is what beheaded the answer"
+    """A magic number in two channels that must agree is the R3 class (see `is_short_order`). Read on what the
+    question CARRIES, on another card (the agenda): what a description says between char 90 and the bound arrives."""
+    assert _tb.MAX_DESC_CHARS >= 200
+    long_ones = _past_ninety("agenda")
+    assert long_ones, "the premise: the agenda declares descriptions longer than the old cut"
+    for key, desc, criterion in long_ones:
+        assert desc[90:_tb.MAX_DESC_CHARS].strip()[:40] in criterion, f"{key}: the part past char 90 never arrived"
+        if len(desc) > _tb.MAX_DESC_CHARS + 40:
+            assert desc[_tb.MAX_DESC_CHARS:_tb.MAX_DESC_CHARS + 40] not in criterion, f"{key}: the question stays bounded"
+
+
+def test_the_disarm_a_cut_back_at_90_beheads_the_routing_sentence(monkeypatch):
+    """The bound put back at the bare 90 that beheaded `show_tab`: what a description says past it is gone again."""
+    from nucleo.turn import brief_screen
+    monkeypatch.setattr(brief_screen, "MAX_DESC_CHARS", 90)
+    assert brief_screen.MAX_DESC_CHARS == 90, "the mutation landed"
+    for key, desc, criterion in _past_ninety("agenda"):
+        assert desc[90:].strip()[:40] not in criterion, key
 
 
 def test_the_question_stays_bounded():
@@ -202,23 +229,56 @@ def test_the_decision_is_attributable(on_screen):
 
 # ── 4 · THE SEAM — a verdict nobody reads is what V2-750 already paid for ─────────────────────────
 
-def test_the_data_op_guard_actually_asks_the_licence():
-    import inspect
+def _call_licence(said: str, brief):
+    """The card door's licence over the model's `youtube:close` call, at the moment it is read (`CALL`)."""
     from nucleo.acts import card
-    body = inspect.getsource(card._unlicensed_close)
-    i = body.index('if action != "close"')
-    assert "dataop_close_licensed" in body[i:i + 200], (
-        "the guard must consult the shared reader, not `looks_like_close` alone")
+    return card.licence({"brief": brief, "text": said}, "youtube", "close", {}, at=card.CALL)
 
 
-def test_the_pure_show_gate_asks_the_verdict_too():
-    """The OTHER gate that ate a close in the same session (`gate_shadow · pure-show`, +3073.7), on
-    «…y tampoco vuelves al inicio a ver el catálogo» — a sentence with «ver» in it."""
-    import inspect
+#: The other half of the same session (+3053.7), in English this time: no close verb, the verdict reads the close.
+HIS_WORDS_EN = "Ugh, wrong one. Stop it and go back to the start."
+
+
+@pytest.mark.parametrize("said", [HIS_WORDS, HIS_WORDS_EN])
+def test_the_data_op_guard_actually_asks_the_licence(on_screen, said):
+    """The card door runs his `close` data-op on the verdict the grammar could not see, and drops it without one."""
     from nucleo.acts import card
-    body = inspect.getsource(card._pure_show)
-    i = body.index("show_request_blocks_data_action(text, wid, action, payload)")
-    assert "_da.endorses" in body[i:i + 220]
+    assert _call_licence(said, _brief({_tb.TARGET_KEY: ("youtube:close", 0.93)})).verdict == card.RUN
+    lic = _call_licence("Johnny eres tonto", None)
+    assert (lic.verdict, lic.clause) == (card.DROP, "unlicensed-close"), "no close of his and no verdict: drag"
+
+
+def test_the_disarm_a_guard_that_reads_only_the_grammar_drops_his_stop(on_screen, monkeypatch):
+    """The guard's reader cut back to the verb table: his compound order is eaten again, five times in 90 s."""
+    from nucleo.acts import card
+    monkeypatch.setattr(_cg, "dataop_close_licensed", lambda text, wid, brief=None, emit=None: _cg.looks_like_close(text))
+    assert not _cg.dataop_close_licensed(HIS_WORDS, "youtube"), "the mutation landed"
+    lic = _call_licence(HIS_WORDS, _brief({_tb.TARGET_KEY: ("youtube:close", 0.93)}))
+    assert (lic.verdict, lic.clause) == (card.DROP, "unlicensed-close")
+
+
+#: The sentence the pure-show gate ate a close on (`gate_shadow · pure-show`, +3073.7) — it has «ver» in it.
+PURE_SHOW = "Y tampoco vuelves al inicio a ver el catálogo"
+
+
+def test_the_pure_show_gate_asks_the_verdict_too(on_screen):
+    """The OTHER gate that ate a close in the same session: a pure show order shows the card instead of running the
+    model's `close` — unless the verdict names that very action on this card."""
+    from nucleo.acts import card
+    assert _da.endorses(_brief({_tb.TARGET_KEY: ("youtube:close", 0.93)}), "youtube", "close")
+    assert _call_licence(PURE_SHOW, _brief({_tb.TARGET_KEY: ("youtube:close", 0.93)})).verdict == card.RUN
+    lic = _call_licence(PURE_SHOW, None)
+    assert (lic.verdict, lic.clause, lic.card) == (card.SHOW, "pure-show", "youtube"), "no verdict: today's show"
+    other = _call_licence(PURE_SHOW, _brief({_tb.TARGET_KEY: ("youtube:pause", 0.99)}))
+    assert other.verdict == card.SHOW, "a verdict for ANOTHER action of the card licenses nothing"
+
+
+def test_the_disarm_a_pure_show_gate_that_ignores_the_verdict_eats_the_close(on_screen, monkeypatch):
+    from nucleo.acts import card
+    monkeypatch.setattr(_da, "endorses", lambda *a, **k: False)
+    assert not _da.endorses(_brief({_tb.TARGET_KEY: ("youtube:close", 0.93)}), "youtube", "close"), "landed"
+    lic = _call_licence(PURE_SHOW, _brief({_tb.TARGET_KEY: ("youtube:close", 0.93)}))
+    assert (lic.verdict, lic.clause) == (card.SHOW, "pure-show")
 
 
 def test_endorses_is_an_exact_match_on_card_and_action(on_screen):

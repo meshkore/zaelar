@@ -9,6 +9,7 @@ pass. The gate now reads the table's keys as the handled names.
 from __future__ import annotations
 
 from widgets import validator
+from widgets import validator_actions as _validator_actions_m
 
 _DATA = '''def _a_play(action, p):
     return {"ok": True}
@@ -38,24 +39,24 @@ def _man(*names):
 
 
 def test_the_table_keys_are_the_handled_actions():
-    assert validator._apply_action_names(_DATA) == {"play", "pause", "stop"}
-    assert validator._validate_actions_sync(_man("play", "pause", "stop"), _DATA) is None
+    assert _validator_actions_m._apply_action_names(_DATA) == {"play", "pause", "stop"}
+    assert _validator_actions_m._validate_actions_sync(_man("play", "pause", "stop"), _DATA) is None
 
 
 def test_a_declared_action_the_table_lacks_is_dead():
-    err = validator._validate_actions_sync(_man("play", "pause", "stop", "ghost"), _DATA)
+    err = _validator_actions_m._validate_actions_sync(_man("play", "pause", "stop", "ghost"), _DATA)
     assert err and "ghost" in err, err
 
 
 def test_a_table_entry_the_manifest_lacks_is_invisible():
-    err = validator._validate_actions_sync(_man("play", "pause"), _DATA)
+    err = _validator_actions_m._validate_actions_sync(_man("play", "pause"), _DATA)
     assert err and "stop" in err, err
 
 
 def test_a_table_apply_action_does_not_read_is_not_counted():
     """Only a table `apply_action` actually consults: a module-level dict it never names is not its dispatch."""
     src = _DATA.replace("h = ACTIONS.get(action)", "h = None")
-    assert validator._apply_action_names(src) == set()
+    assert _validator_actions_m._apply_action_names(src) == set()
 
 
 # refactor2710-12 — the table READ OFF the `_a_<action>` names: no list of action words written twice, and the gate
@@ -78,12 +79,12 @@ def apply_action(action, payload=None):
 
 
 def test_a_table_read_off_the_handler_names_is_gated_both_ways():
-    assert validator._apply_action_names(_DERIVED) == {"play", "stop", "pause", "rewind"}
-    assert validator._validate_actions_sync(_man("play", "stop", "pause", "rewind"), _DERIVED) is None
-    assert "ghost" in validator._validate_actions_sync(_man("play", "stop", "pause", "rewind", "ghost"), _DERIVED)
-    assert "rewind" in validator._validate_actions_sync(_man("play", "stop", "pause"), _DERIVED)
+    assert _validator_actions_m._apply_action_names(_DERIVED) == {"play", "stop", "pause", "rewind"}
+    assert _validator_actions_m._validate_actions_sync(_man("play", "stop", "pause", "rewind"), _DERIVED) is None
+    assert "ghost" in _validator_actions_m._validate_actions_sync(_man("play", "stop", "pause", "rewind", "ghost"), _DERIVED)
+    assert "rewind" in _validator_actions_m._validate_actions_sync(_man("play", "stop", "pause"), _DERIVED)
 
 
 def test_disarm_the_derived_table_fail_opens_without_its_reader(monkeypatch):
-    monkeypatch.setattr(validator, "_bound_names", lambda tree: set())
-    assert validator._validate_actions_sync(_man("play", "ghost"), _DERIVED) is None, "nothing read → fail-open"
+    monkeypatch.setattr(_validator_actions_m, "_bound_names", lambda tree: set())
+    assert _validator_actions_m._validate_actions_sync(_man("play", "ghost"), _DERIVED) is None, "nothing read → fail-open"

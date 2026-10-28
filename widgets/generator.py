@@ -22,11 +22,13 @@ from nucleo import workspace as _workspace
 # Static + runtime contract validation lives in its own module (V2-098): no shared mutable state with the
 # orchestration below it. Re-exported by name so existing callers (tests/widget_harness.py, server_api.py, tests)
 # keep working unchanged against `generator._validate`/`generator._validate_background`/etc.
-from .validator import (_validate, _validate_actions_sync, _validate_background,  # noqa: F401
-                         _apply_action_names, _defines_function, _keyword_collisions,
-                         _scan_data_py, _scan_widget_js)
+from .validator import _keyword_collisions, _scan_data_py, _validate  # noqa: F401
+from .validator_actions import (_apply_action_names, _defines_function,  # noqa: F401
+                                 _validate_actions_sync, _validate_background)
+from .validator_js import _scan_widget_js  # noqa: F401
 
 from widgets import paths
+from widgets import generator_folders as _generator_folders  # split out (refactor2710-99)
 
 HERE = paths.BUILTIN_ROOT                                  # …/zaelar/widgets
 ZAELAR = os.path.dirname(HERE)                             # …/zaelar  (the agent's cwd — widget CODE
@@ -38,58 +40,7 @@ ZAELAR = os.path.dirname(HERE)                             # …/zaelar  (the ag
 GEN_TIMEOUT = float(os.getenv("WIDGET_GEN_TIMEOUT", "480"))
 GEN_MODEL = os.getenv("WIDGET_GEN_MODEL", "")              # optional override, e.g. "sonnet"
 
-_RESERVED = {"generator", "server_api", "runtime", "store", "brief", "_data", "__pycache__"}
 _lock = threading.Lock()                                   # one agent at a time
-
-# In-flight generation journal — a server restart kills the headless agent mid-build with no trace. Each job is
-# recorded here when it starts and removed when it ends, so on boot resume_interrupted_generations() (server_api)
-# can relaunch creates / report broken modifies instead of leaving the operator with a silent "done" that never
-# landed. NOT a widget store: it's the generator's own journal, hence the underscore name no safe_id() can take.
-# Same `<workspace>/widgets/_data` root as `store.DATA_DIR` — unset ZAELAR_WORKSPACE = byte-identical
-# to the old `HERE/_data` path (workspace.root() falls back to the engine repo root).
-JOBS_FILE = os.path.join(str(_workspace.root()), "widgets", "_data", "_jobs.json")
-_jobs_lock = threading.Lock()
-
-
-def _jobs_read() -> dict:
-    try:
-        return json.load(open(JOBS_FILE, encoding="utf-8"))
-    except Exception:
-        return {}
-
-
-def _jobs_write(jobs: dict) -> None:
-    try:
-        os.makedirs(os.path.dirname(JOBS_FILE), exist_ok=True)
-        tmp = JOBS_FILE + ".tmp"
-        json.dump(jobs, open(tmp, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-        os.replace(tmp, JOBS_FILE)
-    except Exception as e:
-        logger.warning(f"widget-agent: could not persist jobs journal: {e}")
-
-
-def _job_start(kind: str, wid: str, payload: dict) -> None:
-    import time
-    with _jobs_lock:
-        jobs = _jobs_read()
-        jobs[wid] = {"id": wid, "kind": kind, "payload": payload, "started_at": time.time()}
-        _jobs_write(jobs)
-
-
-def _job_end(wid: str) -> None:
-    with _jobs_lock:
-        jobs = _jobs_read()
-        if jobs.pop(wid, None) is not None:
-            _jobs_write(jobs)
-
-
-def take_pending_jobs() -> list[dict]:
-    """Drain the journal (boot-time): return jobs a previous process left in flight and clear the file."""
-    with _jobs_lock:
-        jobs = _jobs_read()
-        if jobs:
-            _jobs_write({})
-        return list(jobs.values())
 
 
 def _find_claude() -> str:
@@ -107,36 +58,6 @@ def _find_claude() -> str:
         if hits:
             return sorted(hits)[-1]
     return ""
-
-
-def safe_id(raw: str) -> str:
-    """A filesystem/catalog-safe widget id: lowercase, [a-z0-9_-], trimmed."""
-    s = re.sub(r"[^a-z0-9_-]+", "-", (raw or "").strip().lower()).strip("-_")
-    return s[:40]
-
-
-# Filler words that must NOT enter a new widget id. Without this, deriving the id from the whole request produced
-# junk ids from the instruction text itself (2026-07-15 session). Bilingual es/en. Keep the first 3 content words.
-_ID_FILLER = {
-    "crea", "crear", "cree", "creame", "haz", "hazme", "hacer", "genera", "generar", "generame", "monta", "montame",
-    "construye", "disena", "nuevo", "nueva", "widget", "tarjeta", "panel", "cuadro", "implementar", "implementa",
-    "quiero", "necesito", "ponme", "dame", "un", "una", "el", "la", "los", "las", "de", "del", "que", "para", "por",
-    "con", "en", "y", "o", "a", "al", "me", "mi", "su", "lo", "capacidad", "capaz", "poder", "pueda",
-    "make", "create", "build", "new", "a", "an", "the", "of", "to", "for", "with", "that", "widget", "card",
-}
-
-
-def _concise_id(spec: str) -> str:
-    """Derive a short meaningful id from the request: normalize accents, remove filler, and keep the first 3
-    content words. Fall back to the raw slug if nothing remains. Avoid junk ids derived from the whole instruction."""
-    import unicodedata
-    n = "".join(c for c in unicodedata.normalize("NFKD", (spec or "")) if not unicodedata.combining(c)).lower()
-    toks = [t for t in re.split(r"[^a-z0-9]+", n) if t and t not in _ID_FILLER and len(t) > 1]
-    return safe_id("-".join(toks[:3])) or safe_id(spec)
-
-
-def exists(wid: str) -> bool:
-    return bool(wid) and paths.dir_for(wid) is not None
 
 
 _CONTRACT = """A zaelar widget is a folder widgets/<id>/ with:
@@ -291,7 +212,7 @@ def _run_agent_once(prompt: str, token: str = "", *, target: str) -> tuple[bool,
     target = os.path.realpath(target)
     workdir = tempfile.mkdtemp(prefix="zaelar-gen-")
     settings_path = os.path.join(tempfile.gettempdir(),
-                                 f"zaelar-gen-guard-{os.getpid()}-{safe_id(token) or 'x'}.json")
+                                 f"zaelar-gen-guard-{os.getpid()}-{_generator_folders.safe_id(token) or 'x'}.json")
     try:
         _guard.write_settings_file(settings_path)
     except Exception as e:  # noqa: BLE001
@@ -417,26 +338,26 @@ def failure_class(error: str) -> str:
 def generate_widget(spec: str, wid: str = "", title: str = "", token: str = "") -> dict:
     """Build a NEW widget folder with the atomic agent. Returns {ok, id, existed?, error?}. `token` (V2-038) =
     Brain Worker ID → the subprocess can be TERMINATED with generator.kill(token)."""
-    wid = safe_id(wid) or safe_id(title) or _concise_id(spec)
+    wid = _generator_folders.safe_id(wid) or _generator_folders.safe_id(title) or _generator_folders._concise_id(spec)
     if not wid:
         return {"ok": False, "error": "could not derive a widget id"}
-    if wid in _RESERVED:
+    if wid in _generator_folders._RESERVED:
         return {"ok": False, "error": f"reserved id '{wid}'"}
     if not (spec or "").strip():
         return {"ok": False, "error": "empty spec"}
-    if exists(wid):                                    # never re-create — the circuit shows the existing one
+    if _generator_folders.exists(wid):                                    # never re-create — the circuit shows the existing one
         return {"ok": True, "id": wid, "existed": True}
     logger.info(f"widget-agent: CREATE '{wid}' (atomic, headless)…")
-    _job_start("create", wid, {"spec": spec.strip(), "title": title})
+    _generator_folders._job_start("create", wid, {"spec": spec.strip(), "title": title})
     try:
         with _lock:                                    # one agent at a time
             dst = paths.new_dir(wid)
             os.makedirs(dst, exist_ok=True)            # the jail root must exist before the agent starts
             ran, err = _run_agent(
-                _CREATE_PROMPT.format(wid=wid, spec=spec.strip(), folder=_folder_ref(dst)),
+                _CREATE_PROMPT.format(wid=wid, spec=spec.strip(), folder=_generator_folders._folder_ref(dst)),
                 token=token, target=dst)
         if not ran:
-            _discard(wid)                              # a killed/timed-out agent may leave a half-written folder
+            _generator_folders._discard(wid)                              # a killed/timed-out agent may leave a half-written folder
             return {"ok": False, "id": wid, "error": err, "error_class": failure_class(err)}
         ok, verr = _validate(wid, stamp_origin=True)
         repaired = False
@@ -448,12 +369,12 @@ def generate_widget(spec: str, wid: str = "", title: str = "", token: str = "") 
             ok, verr = _repair_once(wid, dst, verr, token)
             repaired = ok
         if not ok:
-            _discard(wid)                              # never leave debris in the catalog — delete the bad folder
+            _generator_folders._discard(wid)                              # never leave debris in the catalog — delete the bad folder
             return {"ok": False, "id": wid, "error": verr}
         logger.info(f"widget-agent: '{wid}' created + validated ✓" + (" (after one repair pass)" if repaired else ""))
         return {"ok": True, "id": wid, **({"repaired": True} if repaired else {})}
     finally:
-        _job_end(wid)
+        _generator_folders._job_end(wid)
 
 
 _REPAIR_PROMPT = (
@@ -474,7 +395,7 @@ def _repair_once(wid: str, dst: str, error: str, token: str = "") -> tuple[bool,
     error is the NEW one, so the operator's trace says what stood after the repair, not before."""
     logger.warning(f"widget-agent: '{wid}' failed the gate ({error}) → one repair pass")
     with _lock:                                        # same one-agent-at-a-time rule as the build
-        ran, err = _run_agent(_REPAIR_PROMPT.format(wid=wid, error=(error or "")[:300], folder=_folder_ref(dst)),
+        ran, err = _run_agent(_REPAIR_PROMPT.format(wid=wid, error=(error or "")[:300], folder=_generator_folders._folder_ref(dst)),
                               token=token, target=dst)
     if not ran:
         return False, f"{error} (repair pass did not run: {err})"
@@ -485,69 +406,14 @@ def _repair_once(wid: str, dst: str, error: str, token: str = "") -> tuple[bool,
     return False, f"{verr} (after one repair pass; first failure: {(error or '')[:120]})"
 
 
-def _folder_ref(d: str) -> str:
-    """The target folder as the headless agent must address it: ABSOLUTE, always. The agent's cwd is a private
-    scratch directory since V2-601 T-04 (it used to be the repo root — see `_run_agent`), so a relative path
-    would resolve against a folder that holds nothing. Before V2-515 the prompts hardcoded `widgets/<id>/`,
-    which silently pointed the agent at ENGINE SOURCE whenever the real target was the generated root — with a
-    mounted workspace that meant every generated widget landed in the ephemeral checkout instead of the volume."""
-    return os.path.realpath(d)
-
-
-def _fork_shipped(wid: str, src: str) -> str:
-    """A SHIPPED widget is never edited in place (V2-515): copy it into the generated root and hand the
-    edit THAT folder. The copy shadows the original everywhere (catalog, identify, widget.js serving,
-    python imports), so from here on "the user's musica" IS this fork — while the shipped folder keeps
-    receiving engine updates untouched underneath, which is exactly what makes `restore` meaningful."""
-    import time
-    dst = paths.new_dir(wid)
-    shutil.rmtree(dst, ignore_errors=True)                 # debris of a half-built fork never survives
-    shutil.copytree(src, dst, ignore=shutil.ignore_patterns("__pycache__"))
-    man_p = os.path.join(dst, "manifest.json")
-    try:
-        man = json.load(open(man_p, encoding="utf-8"))
-    except Exception:
-        man = {"id": wid}
-    man["origin"] = "user"
-    try:
-        import version as _v
-        engine = str(getattr(_v, "VERSION", "") or "")
-    except Exception:
-        engine = ""
-    man["forked_from"] = {"origin": "builtin", "engine": engine, "date": time.strftime("%Y-%m-%d")}
-    json.dump(man, open(man_p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
-    # The import shadow needs a REGULAR package: a namespace portion loses to a regular one later in the
-    # search path, and the shipped folder always has __init__.py.
-    open(os.path.join(dst, "__init__.py"), "a").close()
-    paths.forget_modules(wid)
-    from . import runtime as _runtime
-    _runtime.invalidate()
-    logger.info(f"widget-agent: '{wid}' FORKED from shipped source → {dst}")
-    return dst
-
-
-def _discard(wid: str) -> None:
-    """Remove a freshly-CREATED widget folder that failed to build/validate, so a partial (e.g. manifest but no
-    widget.js) never lingers in the catalog. Only ever called on the create path — modify has its own rollback."""
-    wid = safe_id(wid)
-    if not wid or wid in _RESERVED:
-        return
-    try:
-        # The folder the CREATE path wrote, which is always the generated root — never a built-in that happens
-        # to share the id. A rollback must not be able to delete engine source.
-        shutil.rmtree(paths.new_dir(wid), ignore_errors=True)
-    except Exception:
-        pass
-
-
 def modify_widget(wid: str, change: str, token: str = "") -> dict:
     """Modify an EXISTING widget with the atomic agent (e.g. 'add a column with price + seller'). BACKS UP the
     working version first and RESTORES it if the edit doesn't validate — so an iteration can't break a good widget.
     `token` (V2-038) makes the subprocess TERMINABLE (generator.kill(token))."""
     import shutil
     import tempfile
-    wid = safe_id(wid)
-    if not exists(wid):
+    wid = _generator_folders.safe_id(wid)
+    if not _generator_folders.exists(wid):
         return {"ok": False, "id": wid, "error": "widget not found"}
     if not (change or "").strip():
         return {"ok": False, "id": wid, "error": "empty change"}
@@ -555,7 +421,7 @@ def modify_widget(wid: str, change: str, token: str = "") -> dict:
     forked = False
     if paths.is_repo_source(d):
         try:
-            d = _fork_shipped(wid, d)
+            d = _generator_folders._fork_shipped(wid, d)
             forked = True
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "id": wid, "error": f"could not fork the shipped widget: {e}"}
@@ -567,10 +433,10 @@ def modify_widget(wid: str, change: str, token: str = "") -> dict:
         except Exception:
             bak = None
     logger.info(f"widget-agent: MODIFY '{wid}' (atomic, headless)…")
-    _job_start("modify", wid, {"change": change.strip()})
+    _generator_folders._job_start("modify", wid, {"change": change.strip()})
     try:
         with _lock:
-            ran, err = _run_agent(_MODIFY_PROMPT.format(wid=wid, change=change.strip(), folder=_folder_ref(d)),
+            ran, err = _run_agent(_MODIFY_PROMPT.format(wid=wid, change=change.strip(), folder=_generator_folders._folder_ref(d)),
                                   target=d,
                                   token=token)
         ok, verr = (_validate(wid, stamp_origin=True) if ran else (False, err))
@@ -589,4 +455,4 @@ def modify_widget(wid: str, change: str, token: str = "") -> dict:
         logger.info(f"widget-agent: '{wid}' modified + validated ✓")
         return {"ok": True, "id": wid, "modified": True}
     finally:
-        _job_end(wid)
+        _generator_folders._job_end(wid)

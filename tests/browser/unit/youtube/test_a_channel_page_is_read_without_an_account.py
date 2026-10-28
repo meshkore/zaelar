@@ -2,7 +2,7 @@
 # channel's own PAGE (videos, lives, shorts, playlists), paged, cached and refreshed on every visit. All of it
 # is read from the public pages a browser sees; nothing signs in and nothing subscribes on YouTube.
 #
-# No network here: `channels._get` is replaced by canned pages shaped like the real ones (measured against
+# No network here: `channel_fetch._get` is replaced by canned pages shaped like the real ones (measured against
 # youtube.com the same day), so what is under test is OUR parsing, caching and merging.
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import time
 
 import pytest
 
-from widgets.youtube import channels, data
+from widgets.youtube import channel_fetch, channels, data
 
 
 def _page(lockups=(), tabs=("videos", "streams", "shorts", "playlists"), header=True, grid_token="GRIDTOK",
@@ -66,7 +66,7 @@ def _playlist(pid, title, n):
     ("10 mil vídeos", 10000), ("10K videos", 10000), ("1,234 views", 1234), ("1.234 visualizaciones", 1234),
     ("1,2 M", 1200000), ("6 vídeos", 6), ("", 0), ("sin número", 0)])
 def test_a_count_reads_as_a_number_in_spanish_and_english(text, n):
-    assert channels.count(text) == n
+    assert channel_fetch.count(text) == n
 
 
 @pytest.mark.parametrize("text,s", [
@@ -74,13 +74,13 @@ def test_a_count_reads_as_a_number_in_spanish_and_english(text, n):
     ("hace 1 h", 3600), ("hace 1 d", 86400), ("Emitido hace 5 días", 432000), ("hace 2 meses", 5184000),
     ("hace 7 minutos", 420), ("hace 1 año", 31536000), ("2,3 K", -1), ("", -1)])
 def test_a_relative_date_reads_as_seconds_in_spanish_and_english(text, s):
-    assert channels.age_seconds(text) == s
+    assert channel_fetch.age_seconds(text) == s
 
 
 # ── the page ─────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_the_header_gives_the_card_facts_and_the_sections_come_from_their_URLS():
-    head = channels._header(channels._initial_data(_page(tabs=("videos", "shorts"))))
+    head = channel_fetch._header(channel_fetch._initial_data(_page(tabs=("videos", "shorts"))))
     assert head["subscribers"] == 77200 and head["videos"] == 1200
     assert head["handle"] == "@canalprueba" and head["avatar"].endswith("s160"), "the largest picture"
     assert head["tabs"] == ["videos", "shorts"], "only the sections the channel HAS, found by URL"
@@ -88,10 +88,10 @@ def test_the_header_gives_the_card_facts_and_the_sections_come_from_their_URLS()
 
 def test_videos_lives_and_playlists_become_flat_rows():
     now = int(time.time())
-    d = channels._initial_data(_page([_video("AAAAAAAAAA1", "Uno"), _video("AAAAAAAAAA2", "Dos", live=True,
+    d = channel_fetch._initial_data(_page([_video("AAAAAAAAAA1", "Uno"), _video("AAAAAAAAAA2", "Dos", live=True,
                                                                            age="", views="120 espectadores"),
                                       _playlist("PL1", "Mi lista", 6)]))
-    rows = channels._items("videos", d, now)
+    rows = channel_fetch._items("videos", d, now)
     assert [r["id"] for r in rows] == ["AAAAAAAAAA1", "AAAAAAAAAA2", "PL1"]
     v = rows[0]
     assert (v["title"], v["views"], v["age"], v["duration"], v["live"]) == ("Uno", 2300, 3600, "14:56", False)
@@ -101,10 +101,10 @@ def test_videos_lives_and_playlists_become_flat_rows():
 
 
 def test_load_more_takes_the_GRIDS_token_never_a_neighbours():
-    d = channels._initial_data(_page([_video("AAAAAAAAAA1", "Uno")]))
-    assert channels._cont_token(d) == "GRIDTOK"
-    d = channels._initial_data(_page([_video("AAAAAAAAAA1", "Uno")], grid_token=""))
-    assert channels._cont_token(d) == "", "a grid with no token of its own has no next page"
+    d = channel_fetch._initial_data(_page([_video("AAAAAAAAAA1", "Uno")]))
+    assert channel_fetch._cont_token(d) == "GRIDTOK"
+    d = channel_fetch._initial_data(_page([_video("AAAAAAAAAA1", "Uno")], grid_token=""))
+    assert channel_fetch._cont_token(d) == "", "a grid with no token of its own has no next page"
 
 
 def test_a_refresh_prepends_what_is_new_and_never_drops_what_was_there():
@@ -141,8 +141,8 @@ def yt(monkeypatch, tmp_path):
                                       "subscriberCountText": {"simpleText": "@canalprueba"}}}
             return '<script>var ytInitialData = ' + json.dumps({"c": [ch]}) + ';</script>'
         return _page(pages["first"])
-    monkeypatch.setattr(channels, "_get", fake_get)
-    monkeypatch.setattr(channels, "_continue", lambda tok: channels._initial_data(
+    monkeypatch.setattr(channel_fetch, "_get", fake_get)
+    monkeypatch.setattr(channel_fetch, "_continue", lambda tok: channel_fetch._initial_data(
         _page([_video("AAAAAAAAAA%d" % i, "V%d" % i) for i in range(3, 40)], grid_token=""))
         if tok == "GRIDTOK" else {})
     data.apply_action("follow_channel", {"channel": "Canal de Prueba"})
@@ -221,7 +221,7 @@ def test_youtube_not_answering_keeps_what_was_cached(yt, monkeypatch):
 
     def down(url):
         raise OSError("offline")
-    monkeypatch.setattr(channels, "_get", down)
+    monkeypatch.setattr(channel_fetch, "_get", down)
     r = data.apply_action("refresh_channel", {})
     assert r["ok"] is False and r["error"] == "fetch_failed"
     assert len(data.view_data()["channel_page"]["items"]) == 2

@@ -196,13 +196,13 @@ def test_a_row_written_before_the_lists_existed_still_pushes_its_one_number():
 def test_googles_other_numbers_are_ADDED_and_never_replace_ours(ct):
     """The same rule `takes_over` protects one field over: a number he typed here is his, so Google
     removing one never removes ours — the card's ✕ is the door for that."""
-    from widgets.contactos import gcontacts
+    from widgets.contactos import gmerge
     db = ct.load_db()
-    gcontacts.merge_imported(db, [{"name": "Acme", "phone": "600111222",
+    gmerge.merge_imported(db, [{"name": "Acme", "phone": "600111222",
                                    "phones": [{"value": "600111222", "label": "Móvil"}],
                                    "googleId": "people/1"}])
     row = db["contacts"][0]
     model.add_detail(row, "phones", "910000000", "el que puse yo")
-    gcontacts.merge_imported(db, [{"name": "Acme", "phones": [{"value": "600111222", "label": "Móvil"}],
+    gmerge.merge_imported(db, [{"name": "Acme", "phones": [{"value": "600111222", "label": "Móvil"}],
                                    "googleId": "people/1"}])
     assert [r["value"] for r in row["phones"]] == ["600111222", "910000000"], row["phones"]

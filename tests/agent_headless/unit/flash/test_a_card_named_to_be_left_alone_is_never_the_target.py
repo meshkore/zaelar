@@ -10,13 +10,11 @@ name) — `named_target` — and `which_card`, `acts.media` and `undecided` all 
 from __future__ import annotations
 
 import threading
-from pathlib import Path
 
 import pytest
 
 from nucleo.acts import named_target as NT
 
-ENGINE = Path(__file__).resolve().parents[4]
 THREE = ["youtube", "musica", "agenda"]
 
 
@@ -115,6 +113,40 @@ def test_the_rung_runs_the_named_card_and_never_the_excluded_one(screen):
     assert U.why(_brief("youtube:volume_down", 0.6), "youtube", "volume_down", operator_text=text) == "shared"
 
 
-def test_the_voice_turn_hands_his_words_to_the_card_decision():
-    voice = (ENGINE / "nucleo/flash/tool_executor_widget_calls.py").read_text(encoding="utf-8")
-    assert "payload=payload, operator_text=_txw._bnotes.operator_half(text))" in voice
+def _voice_turn(phrase: str, lang: str):
+    """The model takes the brand name and calls `youtube.volume_down`; the screen verdict is torn (`none` 0.58). Through
+    the voice turn itself (the bank harness: the real `run_turn`, a recorded model, every consequence door dry)."""
+    from tests.brain import harness as H
+    case = {"id": "left-alone", "lang": lang, "phrase": phrase, "source": "node 2.470", "expect": "talk",
+            "screen": {"open": list(THREE)}, "brief": {"screen_action": ["none", 0.58]},
+            "model": {"say": "", "tools": [{"name": "widget_data",
+                                            "args": {"widget_id": "youtube", "action": "volume_down"}}]}}
+    try:
+        out = H.run_case(case)
+    finally:
+        from nucleo import canvas_closes, canvas_focus, done_ops
+        from nucleo.flash import bulk_close, canvas_license
+        canvas_focus._reset()
+        done_ops.reset()
+        bulk_close.reset()
+        canvas_closes._reset_for_tests()
+        canvas_license._RECENT_CLOSES.clear()
+    assert not out.error, out.error
+    return out
+
+
+@pytest.mark.parametrize("said,lang", [("La música, la de fondo. El YouTube déjalo como está.", "es"),
+                                       ("turn the music down, leave the video alone", "en")])
+def test_the_voice_turn_hands_his_words_to_the_card_decision(said, lang):
+    """The card decision reads HIS words in the voice turn: the volume goes down on the music, never on the video."""
+    out = _voice_turn(said, lang)
+    assert out.decision == "data-op musica:volume_down" and "youtube" not in out.cards_touched, out.all_decisions
+
+
+def test_the_disarm_a_card_decision_deaf_to_his_sentence_never_reaches_the_music(monkeypatch):
+    """`named_target.target` answering "" (his sentence unread): the turn is back to the verdict alone, which cannot
+    tell the two players apart — it asks instead of lowering the music he named."""
+    monkeypatch.setattr(NT, "target", lambda *a, **k: "")
+    assert NT.target("La música, la de fondo.", THREE, "volume_down") == "", "the mutation landed"
+    out = _voice_turn("La música, la de fondo. El YouTube déjalo como está.", "es")
+    assert out.decision != "data-op musica:volume_down", out.all_decisions
