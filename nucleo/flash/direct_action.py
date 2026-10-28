@@ -127,7 +127,7 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
 
     Returns `{widget, action, payload, key, source, label}`.
     """
-    from nucleo.acts import named_target as _nt   # his answer to our own «which card?» (V2-781)
+    from nucleo.flash import named_target as _nt   # his answer to our own «which card?» (V2-781)
     p_card, p_action = _nt.parked_answer(operator_text or commission)
     if p_card:
         return {"widget": p_card, "action": p_action, "payload": {}, "key": "", "source": "parked-answer",

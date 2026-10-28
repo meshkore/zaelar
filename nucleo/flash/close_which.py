@@ -1,6 +1,4 @@
-"""Which card a close means (refactor2710-04b T-06: `close_which` + `close_identify`, beside the canvas door).
-
-A `close_widget` on a piece with several cards open, and no word to tell them apart, ASKS which (node 2.645).
+"""A `close_widget` on a piece with several cards open, and no word to tell them apart, ASKS which (node 2.645).
 
 two-searches-two-sheets (ES, 2026-10-14, sandbox 024032-es): a plumber hunt and a car hunt, each with its own
 results sheet open, and «cierra los resultados». The model called `close_widget(results)`; `show_target.close_target`
@@ -57,20 +55,3 @@ def _emit(card: str, question: str) -> None:
              extra={"cat": "flash", "ask": question[:160]})
     except Exception as e:  # noqa: BLE001
         logger.debug(f"close_which: emit failed — {e}")
-
-
-# ── the card a close BACKSTOP reads from his words (was `close_identify`) ──
-#: The card a close BACKSTOP reads from his words — never one he told to stay (both channels, 2026-10-14).
-def identify(text: str, open_ids) -> dict:
-    """`runtime.identify` over the close words of `text`; `{}` when the card it reaches is one he told to stay."""
-    ids = list(open_ids or [])
-    try:
-        from widgets import instances as _inst, naming as _naming, runtime as _rt
-        res = _rt.identify(_naming.without_kept(text), open_ids=ids) or {}
-        stay = {_inst.base_of(k) for k in _inst.kept_named(text, ids)}
-    except Exception as e:  # noqa: BLE001
-        logger.debug(f"close_identify: skipped — {e}")
-        return {}
-    if res.get("match") and _inst.base_of(str(res["match"])) in stay:
-        return {}
-    return res

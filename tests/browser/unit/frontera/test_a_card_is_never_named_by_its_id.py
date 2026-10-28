@@ -122,7 +122,7 @@ def test_the_show_question_and_its_choice_follow_the_same_rule():
 
 
 def test_the_tool_path_question_has_no_id():
-    from nucleo.acts import close_target as close_which
+    from nucleo.flash import close_which
     _sheet("4609d2-1", "", [{"title": "a"}])
     _sheet("187f3c-1", "", [{"title": "b"}])
     card, question = close_which.resolve("results", "cierra el resto de aplicaciones", open_ids=CAR)

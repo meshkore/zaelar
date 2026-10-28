@@ -157,7 +157,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         # wins» picked the worker's browser card, and the backstop closed THAT). Already closed → nothing to do.
         _vc = _pst._card_close.verdict_unless_named(_pst._direct_action.verdict_card(_brief), _op_text, _openw) if _pst._direct_action.sure_canvas(_brief) == "close" else ""
         try:
-            from nucleo.acts import close_target as _ci_close   # never a card he keeps (2026-10-14)
+            from nucleo.flash import close_identify as _ci_close   # never a card he keeps (2026-10-14)
             # los ABIERTOS desempatan ("cierra el vídeo": vídeo empata navegador↔youtube; gana el abierto)
             _idc = ({"match": _vc if _vc in _openw else ""} if _vc
                     else _ci_close.identify(text, _openw))
