@@ -126,15 +126,6 @@ def test_without_a_sure_verdict_nothing_is_started(monkeypatch):
     assert not escalated, "a worker costs minutes: only the verdict may start one, never a table"
 
 
-def test_the_text_channel_turns_it_into_its_escalate_action(monkeypatch):
-    words, reply = LATER["es_songs"]
-    _verdict(monkeypatch, reply, "act", when="later")
-    spoken, action = pk.text_turn_end(reply, action="chat", outcome={}, operator_text=words, model_calls=[])
-    assert action == "escalate" and spoken == reply
-    spoken, action = pk.text_turn_end(NOW["es"], action="chat", outcome={}, operator_text="x", model_calls=[])
-    assert action == "chat"
-
-
 def test_the_voice_turn_end_hands_the_door_its_turn():
     from pathlib import Path
 

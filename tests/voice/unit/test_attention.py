@@ -284,7 +284,7 @@ def test_the_stt_rendering_of_pantalla_completa_is_not_a_close_all():
 
 
 def test_mentions_fullscreen_is_the_one_copy_both_backstops_read():
-    """The generic close backstops (voice provider + probe mirror) veto on this helper: a turn that mentions
+    """The voice turn's generic close backstop vetoes on this helper: a turn that mentions
     fullscreen is about a screen STATE — leaving it, or narrating it — never a whole-widget close order for a
     backstop to guess. Measured 2026-09-05: the operator's complaint «te he dicho que cerraras la pantalla
     completa, no que cerraras el widget del vídeo» made the backstop close `youtube` AGAIN, twice."""
@@ -388,26 +388,23 @@ def test_session_701fcc1b_the_agent_never_goes_deaf_mid_conversation():
         attention.note_directed(now=t0 + dt)    # the caller's side of the contract when it handles the turn
 
 
-def test_both_close_backstops_are_wired_to_the_fullscreen_veto():
-    """WIRING guard (V2-600): the veto lives once (`mentions_fullscreen`) and BOTH generic close backstops —
-    the voice provider's and the probe mirror's — must consult it, or the next «cierra la pantalla completa»
-    complaint closes the widget again in whichever channel lost the line (the V2-252 drift, measured here on
-    2026-09-05). Anchored on the backstop's own conditional (the close test + `looks_like_create_widget`
-    in one statement), never on the whole file; comments are stripped first so a comment naming the helper
-    cannot stand in for the call (the V2-573 trap).
+def test_the_close_backstop_is_wired_to_the_fullscreen_veto():
+    """WIRING guard (V2-600): the veto lives once (`mentions_fullscreen`) and the voice turn's generic close
+    backstop must consult it, or the next «cierra la pantalla completa» complaint closes the widget again (the
+    V2-252 drift, measured here on 2026-09-05). The typed channel runs this same turn
+    (`nucleo.cli.turn.run_turn`), so this one backstop covers both. Anchored on the backstop's own conditional
+    (the close test + `looks_like_create_widget` in one statement), never on the whole file; comments are
+    stripped first so a comment naming the helper cannot stand in for the call (the V2-573 trap).
 
-    V2-752 — the two channels now spell that close test DIFFERENTLY and the anchor accepts both. The voice
-    provider asks `canvas_license.close_license(text, brief=…)`, so the turn's own canvas verdict can refuse
-    a close the grammar proposed — it closed his card three times in session fce3eff3, twice while he was
-    complaining about the first one. The probe mirror still calls `looks_like_close` bare, and that is not
-    drift being papered over: **the text channel fires no brief at all**, so it has no verdict to read. The
-    day it does, this anchor is where the two spellings meet again."""
+    V2-752 — the voice provider asks `canvas_license.close_license(text, brief=…)`, so the turn's own canvas
+    verdict can refuse a close the grammar proposed — it closed his card three times in session fce3eff3,
+    twice while he was complaining about the first one. The anchor still accepts the bare `looks_like_close`
+    spelling too."""
     import pathlib
     import re
 
     root = pathlib.Path(__file__).resolve().parents[3]
-    files = [root / "voice" / "engine" / "llm" / "providers" / "nucleo.py",
-             root / "nucleo" / "flash" / "probe.py"]
+    files = [root / "voice" / "engine" / "llm" / "providers" / "nucleo.py"]
     for path in files:
         src = "\n".join(line.split("#", 1)[0] for line in _vts.read(path).splitlines())
         spans = [m.start() for m in re.finditer(r"(?:looks_like_close|close_license)\(text[,)]", src)
