@@ -60,15 +60,16 @@ _SRC_DETERMINISTIC = ("actionmap", "interrupt")
 
 def decide(op: str, wid: str, src: str, *, action: str = "", payload: dict | None = None,
            text: str = "", turn_credit: bool = True, model_acted: bool = False,
-           open_ids=(), recent_ids=(), last_reply: str = "") -> Verdict:
+           open_ids=(), recent_ids=(), last_reply: str = "", verdict: dict | None = None) -> Verdict:
     """The whole pyramid, pure. `op` ∈ show|close|data|screen. `src` is the V2-039 provenance string
-    (`user`, `system`, `worker:<tid>`, `actionmap`, `flash`, `backstop`). `text` is the operator's turn;
-    `turn_credit` is False only for a turn judged ambient. Never raises: an unreadable input is judged
-    on the strictest branch rather than crashing a caller that sits near the hot path."""
+    (`user`, `system`, `worker:<tid>`, `wall:<tid>`, `actionmap`, `flash`, `backstop`). `text` is the operator's
+    turn; `turn_credit` is False only for a turn judged ambient. `verdict` is the turn's paid brief,
+    `{key: (choice, confidence)}` for `canvas`, `screen_action`, `catalog_widget`. Never raises: an unreadable
+    input is judged on the strictest branch rather than crashing a caller that sits near the hot path."""
     try:
         return _decide(op, wid, src, action=action, payload=payload or {}, text=text,
                        turn_credit=turn_credit, model_acted=model_acted,
-                       open_ids=open_ids, recent_ids=recent_ids, last_reply=last_reply)
+                       open_ids=open_ids, recent_ids=recent_ids, last_reply=last_reply, verdict=verdict or {})
     except Exception as e:  # noqa: BLE001
         return _v(False, "arbiter-error", error=str(e)[:120])
 
@@ -80,7 +81,7 @@ _OPS = ("show", "close", "data", "screen")
 
 
 def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
-            open_ids, recent_ids, last_reply="") -> Verdict:
+            open_ids, recent_ids, last_reply="", verdict=None) -> Verdict:
     op = (op or "").strip().lower()
     wid = (wid or "").strip().lower()
     base_src = (src or "system").split(":", 1)[0].strip().lower()
@@ -90,11 +91,13 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
     # ── level 1 · WHO ────────────────────────────────────────────────────────────────────────────────
     if base_src in _SRC_OPERATOR:
         return _v(True, "operator-hands")
+    from voice import canvas_src
+    if src == canvas_src.CLIENT:
+        return _v(True, "report")           # the canvas telling what it already did: nothing to obey or veto
     if base_src == "client":
         # V2-807 T-15: a change the canvas reports from its OWN code. A restore or a reset is lifecycle; the
         # echo of an engine command was judged at the command; any other client code (a fast path, an
         # unnamed cause) has no hand behind it and walks the license branch like the model.
-        from voice import canvas_src
         cause = canvas_src.cause_of(src)
         if cause in canvas_src.LIFECYCLE:
             return _v(True, "lifecycle", cause=cause)
@@ -102,6 +105,8 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
             return _v(True, "engine-echo")
     if base_src in _SRC_SYSTEM:
         return _v(True, "lifecycle")
+    if base_src == "wall":
+        return _v(True, "task-owned", tid=(src.split(":", 1) + [""])[1], via="wall")   # a task's own card
     if base_src.startswith("worker"):
         # F0: a worker mutation is admitted with its task on record; F1 adds the ownership check
         # (does this corr_id own the surface it touches) against the dispatcher's registry.
@@ -117,7 +122,12 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
     if not turn_credit:
         return _v(False, "ambient-turn")
 
-    # ── level 3 · WHAT (closed op classes; the leaves are the proven license modules) ────────────────
+    # ── level 3 · the turn's PAID verdict licenses first (CRIT-K1); the word leaves only where it is silent ──
+    licensed = _verdict_licence(op, wid, action, verdict or {})
+    if licensed is not None:
+        return licensed
+
+    # ── level 4 · WHAT (closed op classes; the leaves are the proven license modules) ────────────────
     from nucleo.flash import canvas_license as _lic
 
     if op == "close":
@@ -170,6 +180,36 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
         return _v(False, "data-drag")
 
     return _v(False, "unknown-op", op=op)
+
+
+#: A brief answer at or above this confidence licenses; a contrary one at or above `_SURE` vetoes.
+_LICENCE_MIN = 0.5
+_SURE = 0.85
+
+
+def _verdict_licence(op: str, wid: str, action: str, verdict: dict) -> Verdict | None:
+    """The brief's answer about THIS act, or None when it said nothing usable (the word leaves then decide).
+    `screen_action` naming this card's action wins over `canvas`; `catalog_widget` naming the card licenses its
+    show even under a sure `canvas=neither` — «neither» says the turn has no canvas verb, the catalogue says
+    which card answers it."""
+    base = wid.split("::", 1)[0]
+    canvas, ccf = verdict.get("canvas") or ("", 0.0)
+    target, tcf = verdict.get("screen_action") or ("", 0.0)
+    card, kcf = verdict.get("catalog_widget") or ("", 0.0)
+    if op == "data" and target == f"{base}:{action}" and tcf >= _LICENCE_MIN:
+        return _v(True, "verdict-action", confidence=round(tcf, 2))
+    if op == "close" and canvas == "close" and ccf >= _LICENCE_MIN:
+        return _v(True, "verdict-close", confidence=round(ccf, 2))
+    if op == "show":
+        if canvas == "close" and ccf >= _LICENCE_MIN:
+            return _v(False, "verdict-close-not-show", confidence=round(ccf, 2))
+        if canvas == "show" and ccf >= _LICENCE_MIN:
+            return _v(True, "verdict-show", confidence=round(ccf, 2))
+        if card == base and kcf >= _LICENCE_MIN:
+            return _v(True, "verdict-catalog", confidence=round(kcf, 2))
+    if op in ("show", "close") and canvas and canvas != op and ccf >= _SURE:
+        return _v(False, "verdict-against", canvas=canvas, confidence=round(ccf, 2))
+    return None
 
 
 # ── leaves that read the MANIFEST (fork-safe: a user widget brings its own vocabulary) ──────────────────
@@ -245,6 +285,19 @@ def _enabled() -> bool:
 _TURN_TTL_S = 25.0
 _last_turn: dict = {"text": "", "ts": 0.0, "credit": True, "reply": ""}
 _in_tap = False                     # re-entrancy guard: our own verdict emit must not re-enter the tap
+#: trace → {key: (choice, confidence)}: the brief's answers, read off its `jev read <key>` events.
+_reads: dict[str, dict] = {}
+_READS_KEPT = 64
+
+
+def _note_read(ex: dict) -> None:
+    from nucleo.flash import turn_brief as _tb
+    trace, key = str(ex.get("trace") or ""), str(ex.get("question") or "")
+    if not trace or key not in (_tb.CANVAS_KEY, _tb.TARGET_KEY, _tb.CATALOG_KEY):
+        return
+    _reads.setdefault(trace, {})[key] = (str(ex.get("choice") or ""), float(ex.get("confidence") or 0))
+    while len(_reads) > _READS_KEPT:
+        _reads.pop(next(iter(_reads)))
 
 #: op labels as they travel on the observer's `widget` events today.
 _SHOW_LABELS = ("show",)
@@ -276,6 +329,9 @@ def shadow_tap(kind: str, label: str, text: str, role: str, extra: dict | None) 
             # V2-723: a bare «yes» licenses media only as the answer to something WE asked, so the tap
             # has to remember our side of the conversation too — one line, same shape as his.
             _last_turn["reply"] = str(text or "")
+            return
+        if kind == "brain" and str(label or "").startswith("jev read "):
+            _note_read(ex)
             return
         if kind == "ambient":
             # the gate's own verdict for the turn: 🙉 removes credit, 👂 restores it
@@ -311,9 +367,10 @@ def shadow_tap(kind: str, label: str, text: str, role: str, extra: dict | None) 
         # `extra` (V2-039's action log); show/close do not, so those borrow the assembled last turn.
         turn, credit = (str(text or ""), True) if op == "data" and text else _turn_text()
         payload = ex.get("payload") if isinstance(ex.get("payload"), dict) else {}
+        brief = dict(_reads.get(str(ex.get("trace") or ""), {}))
         verdict = decide(op, wid, src, action=action, payload=payload, text=turn, turn_credit=credit,
-                         last_reply=str(_last_turn.get("reply") or ""))
-        _emit_verdict(op, wid, src, action, verdict, shadow=True)
+                         last_reply=str(_last_turn.get("reply") or ""), verdict=brief)
+        _emit_verdict(op, wid, src, action, verdict, shadow=True, brief=brief)
     except Exception:  # noqa: BLE001
         pass
     finally:
@@ -328,7 +385,8 @@ def _prov_src(wid: str) -> str:
         return "system"
 
 
-def _emit_verdict(op: str, wid: str, src: str, action: str, verdict: Verdict, *, shadow: bool) -> None:
+def _emit_verdict(op: str, wid: str, src: str, action: str, verdict: Verdict, *, shadow: bool,
+                  brief: dict | None = None) -> None:
     try:
         from voice.observer import emit
         face = ("✅ permitiría" if verdict.allow else "⛔ vetaría") if shadow else \
@@ -337,6 +395,8 @@ def _emit_verdict(op: str, wid: str, src: str, action: str, verdict: Verdict, *,
              text=f"{op} {wid}" + (f":{action}" if action else ""),
              role="system",
              extra={"op": op, "id": wid, "action": action, "src": src, "allow": verdict.allow,
-                    "rule": verdict.rule, "shadow": shadow, **({"ev": verdict.evidence} if verdict.evidence else {})})
+                    "rule": verdict.rule, "shadow": shadow, "source": src,
+                    "verdict": {k: {"choice": c, "confidence": round(f, 2)} for k, (c, f) in (brief or {}).items()},
+                    **({"ev": verdict.evidence} if verdict.evidence else {})})
     except Exception:  # noqa: BLE001
         pass
