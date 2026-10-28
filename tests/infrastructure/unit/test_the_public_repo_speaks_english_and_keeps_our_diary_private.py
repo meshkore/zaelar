@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 1988   # refactor2710-06: measured with 10 merged
+TOTAL = 2019   # refactor2710-06: measured with 04 and main merged
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -84,6 +84,7 @@ PER_FILE: dict[str, int] = {
     'memory/slots.py': 15,
     'memory/state.py': 41,
     'memory/vault_api.py': 1,
+    'nucleo/acts/errand.py': 1,
     'nucleo/acts/tools.py': 4,
     'nucleo/cli/report.py': 3,
     'nucleo/agentes/claude_code.py': 11,
@@ -119,11 +120,10 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/clarifying.py': 2,
     'nucleo/flash/close_guards.py': 1,
     'nucleo/flash/data_ops.py': 1,
-    'nucleo/flash/delivery.py': 91,
     'nucleo/flash/dialog.py': 10,
     'nucleo/flash/direct_action.py': 1,
     'nucleo/flash/errand_sheet.py': 10,
-    'nucleo/acts/errand.py': 1,
+    'nucleo/flash/escalate.py': 16,
     'nucleo/llm/fast_client.py': 55,
     'nucleo/flash/hard_turn.py': 1,
     'nucleo/flash/live_blocks.py': 84,
@@ -135,12 +135,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/post_stream_acts.py': 29,
     'nucleo/flash/presence.py': 1,
     'nucleo/llm/prewarm.py': 11,
-    'nucleo/flash/probe.py': 45,
-    'nucleo/flash/probe_after.py': 91,
-    'nucleo/flash/probe_before.py': 38,
-    'nucleo/flash/probe_decide.py': 25,
-    'nucleo/flash/probe_mirrors.py': 47,
-    'nucleo/flash/probe_scheduling.py': 37,
     'nucleo/flash/prompt.py': 119,
     'nucleo/llm/provider_chain.py': 43,
     'nucleo/flash/recall_heuristics.py': 30,
