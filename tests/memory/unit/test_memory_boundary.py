@@ -35,7 +35,9 @@ def _submodules() -> set[str]:
     """The REAL submodules of `memory/`, read from disk. Needed because the dominant form in this repo is
     `from memory import db as memdb` (the submodule travels in the NAME list, not after a dot), so telling
     "imports the facade" apart from "imports internals" requires knowing which names are modules."""
-    return {p.stem for p in (REPO / "memory").glob("*.py") if p.stem != "__init__"}
+    root = REPO / "memory"
+    return ({p.stem for p in root.glob("*.py") if p.stem != "__init__"}
+            | {p.parent.name for p in root.glob("*/__init__.py")})   # a split module is a package
 
 
 def _production_files() -> list[pathlib.Path]:
