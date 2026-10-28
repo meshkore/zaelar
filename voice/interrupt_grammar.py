@@ -162,8 +162,7 @@ def _closes_the_whole_canvas(n: str, quantified: bool = False) -> bool:
     return False
 
 
-def close_scope(text: str) -> str:
-    """«all» when the close QUANTIFIES the canvas («close all»); "" when it names or restricts it (V2-831 T-02)."""
+def close_scope(text: str) -> str:   # «all» when the close QUANTIFIES the canvas, "" when it names/restricts (T-02)
     return "all" if _closes_the_whole_canvas(_norm(text), quantified=True) else ""
 
 
