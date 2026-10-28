@@ -5,7 +5,7 @@ promised twice, finally pasted the full text inline into one widget_data — `fi
 discarded — and the turn fell to «Perdona, ¿me lo repites?» over an errand it had in hand).
 
 Content that exceeds a voice turn is a WORKER's delivery (V2-644's doc surface): the rescue escalates the
-turn's request, naming what the model was trying to write, in BOTH channels."""
+turn's request, naming what the model was trying to write."""
 import os
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
@@ -44,7 +44,7 @@ def test_the_drop_record_carries_the_head_of_what_was_being_written():
 
 
 def test_the_voice_channel_wires_the_rescue():
-    # V2-661: the decision moved to the shared seam `nucleo/flash/harness_turn.py` (both channels call it);
+    # V2-661: the decision moved to the shared seam `nucleo/flash/harness_turn.py` (the turn calls it);
     # the guard follows the CHANNEL, per V2-555 — the invariant is unchanged.
     seam = _src("nucleo/flash/harness_turn.py")
     assert "oversized_widget_write" in seam
@@ -56,14 +56,6 @@ def test_the_voice_channel_wires_the_rescue():
     i = prov.index("_ht.rescue(")
     j = prov.index('if escalate_req["v"] is not None and not spoken_text:')
     assert i < j, "the rescue must run BEFORE the mute-escalation holding line, so the turn speaks it"
-
-
-def test_the_probe_mirrors_the_rescue_as_a_synthesized_escalation():
-    probe = _src("nucleo/flash/probe.py")
-    assert "harness_turn as _ht_p" in probe and "_ht_p.mirror_probe(" in probe
-    i = probe.index("_ht_p.mirror_probe(")
-    j = probe.index('names = _probe_decide._reply_as_card_call([t["name"] for t in tool_calls], tool_calls)')
-    assert i < j, "the synthesized escalate must exist before the action classification reads the names"
 
 
 def test_the_documento_manifest_teaches_against_inline_long_texts():

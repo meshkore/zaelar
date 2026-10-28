@@ -96,19 +96,13 @@ def test_the_first_turn_always_greets_through_the_brain(monkeypatch):
     assert not handled, "the kickoff owns the first turn (memory-aware greeting)"
 
 
-def test_both_channels_actually_wire_the_lane():
-    """The parallel-impl rule (V2-539's own lesson): a lane that exists only as a function is dead code —
-    the VOICE provider must call it and the PROBE channel must mirror it, or the product and the test
-    channel disagree in silence."""
+def test_the_voice_turn_actually_wires_the_lane():
+    """A lane that exists only as a function is dead code: the VOICE provider (the turn the typed channel runs too)
+    must call it, through the ONE detector."""
     import os
     eng = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
     prov = _vts.read(os.path.join(eng, "voice/engine/llm/providers/nucleo.py"))
     assert "_fast_lane.presence(" in prov, "the voice provider no longer calls the presence lane"
-    # The probe CHANNEL is two files since V2-674 (the lane chain moved to `probe_actionmap.py` paying the
-    # architecture ratchet). A wiring guard names the CHANNEL, never one file — V2-555's lesson.
-    probe = (open(os.path.join(eng, "nucleo/flash/probe.py")).read()
-             + open(os.path.join(eng, "nucleo/flash/probe_actionmap.py")).read())
-    assert "_presence.mirror(" in probe, "the probe channel lost its presence mirror (parallel impl)"
     lane = open(os.path.join(eng, "voice/engine/llm/providers/fast_lane.py")).read()
     assert "from nucleo.flash.presence import is_presence_check" in lane, \
-        "both channels must read ONE detector (nucleo/flash/presence.py) or they drift apart"
+        "the lane must read ONE detector (nucleo/flash/presence.py)"
