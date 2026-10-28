@@ -31,7 +31,7 @@
   "id": "session-3a9a082c-close-the-weekend",
   "lang": "en",
   "phrase": "Close the weekend.",
-  "source": "operator session (anonymised) turn #24: nothing called «the weekend» was open and the engine CLOSED the video; the next turn he said «Not weekend» and the model explained the only card was the video · green on the voice turn (refactor2710-01)",
+  "source": "operator session (anonymised) turn #24: nothing called «the weekend» was open and the engine CLOSED the video; the next turn he said «Not weekend» and the model explained the only card was the video",
   "screen": {
    "open": [
     "youtube"
@@ -45,7 +45,8 @@
   "forbid": [
    "close",
    "worker"
-  ]
+  ],
+  "open": "refactor2710-07: whether the thing he names is a card on screen is a brief verdict — live, Jev reads canvas=close 0.94 and the model closes too; with no brief the unnamed-close backstop takes the only card by design (never deaf to «ciérralo»)"
  },
  {
   "id": "session-3a9a082c-open-my-messages",
