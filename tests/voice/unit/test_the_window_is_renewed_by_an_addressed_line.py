@@ -242,12 +242,23 @@ def test_an_errand_from_a_request_or_with_no_line_runs():
     assert "79" not in dispatch._PENDING_CONFIRM
 
 
-def test_the_worker_door_calls_the_gate():
-    """Wiring: the gate exists for every worker only if `_run_session` — the one door — asks it."""
-    import inspect
+def test_the_worker_door_calls_the_gate(monkeypatch):
+    """Wiring: the gate exists for every worker only if `_run_session` — the one door — asks it. Run the door: a
+    trusted, harmless errand reaches the gate with its own key and words, and a parked line starts nothing."""
+    from nucleo import dispatch
+    from nucleo.dispatch import confirm as dispatch_confirm
     from nucleo.dispatch import session as dispatch_session
-    src = inspect.getsource(dispatch_session._run_session)
-    assert "unlicensed_gate(task, key, req)" in src
+    asked = []
+
+    async def _gate(task, key, req, **kw):
+        asked.append((key, req))
+        return True                                   # parked: the door must stop here
+
+    monkeypatch.setattr(dispatch_confirm, "unlicensed_gate", _gate)
+    monkeypatch.setattr(dispatch, "_SESSIONS", {})
+    task = dispatch.Task(id="81", request="find flights to Lisbon", kind="research", context={})
+    asyncio.run(dispatch_session._run_session(task))
+    assert asked == [("81", "find flights to Lisbon")], asked
 
 
 def test_the_gate_registers_the_line_before_it_renews_the_window():
