@@ -57,7 +57,7 @@ _MEASURE = """() => {
   if (!el) return {mounted: false};
   const tabs = [...el.querySelectorAll('.agtab')];
   const on = tabs.find(t => t.classList.contains('on'));
-  const rows = [...el.querySelectorAll('.agcalrow')];
+  const icons = [...el.querySelectorAll('.agconnicon')];
   return {
     mounted: true,
     tabs: tabs.map(t => t.textContent),
@@ -67,20 +67,28 @@ _MEASURE = """() => {
     today_marked: !!el.querySelector('.agdh.today, .agmcell.today, .agday.today'),
     month_view: !!el.querySelector('.agmgrid'),
     list_view: !!el.querySelector('.aglist'),
-    cal_count: rows.length,
-    cal_names: rows.map(r => (r.querySelector('.agcalname') || {}).textContent || ''),
-    cal_states: rows.map(r => (r.querySelector('.agcalst') || {}).textContent || ''),
-    cal_svgs: rows.filter(r => r.querySelector('.agcalico svg path')).length,
-    cal_lit: rows.filter(r => (r.querySelector('.agcalst') || {classList:{contains:()=>false}})
-                                .classList.contains('on')).length,
-    note: (el.querySelector('.agpanel .agnote') || {}).textContent || '',
+    // The connector icons beside the plug (2026-10-04: the card's door to ⚙ Conectores, no panel of its own).
+    icon_count: icons.length,
+    icon_titles: icons.map(b => b.title),
+    icon_svgs: icons.filter(b => b.querySelector('svg path')).length,
+    icon_doors: icons.filter(b => !b.disabled).length,
+    icon_lit: icons.filter(b => b.classList.contains('on')).length,
+    in_card_panel: el.querySelectorAll('.agpanel, .agcalrow').length,
+    plug: el.querySelectorAll('.agcalbtn').length,
+    opened: (window.__cx || []).slice(),
   };
 }"""
 
 
-def _run(steps):
+_RENDER = """([d, lang]) => { window.__cx = window.__cx || [];
+  window.render(document.getElementById('host'), d,
+                {action: async () => ({}), lang, openConnector: id => window.__cx.push(id)}); }"""
+
+
+def _run(steps, lang="es", clicks=()):
     """Paint once, then apply each `data` in `steps` through the SAME element — the way a live refresh does,
-    which is the only way the 'does not move on a plain refresh' half can be observed at all."""
+    which is the only way the 'does not move on a plain refresh' half can be observed at all. `lang` is the
+    host's `ctx.lang` (the card shapes dates with it); `clicks` are selectors clicked after the LAST step."""
     async def go():
         from playwright.async_api import async_playwright
         async with async_playwright() as pw:
@@ -95,10 +103,13 @@ def _run(steps):
             await pg.goto("http://zaelar.test/")
             await widget_client.mount(pg, "agenda")
             out = []
-            for data in steps:
-                await pg.evaluate(
-                    "d => window.render(document.getElementById('host'), d, {action: async () => ({})})", data)
+            for i, data in enumerate(steps):
+                await pg.evaluate(_RENDER, [data, lang])
                 await pg.wait_for_timeout(60)
+                if i == len(steps) - 1:
+                    for sel in clicks:
+                        await pg.click(sel, force=True)
+                        await pg.wait_for_timeout(40)
                 m = await pg.evaluate(_MEASURE)
                 m["errors"] = errors
                 out.append(m)
@@ -171,81 +182,47 @@ def test_week_and_month_are_reachable_by_voice_too(playwright_available):
     assert li["list_view"], "«la lista» must reach the Schedule view (V2-643)"
 
 
-def test_a_date_beyond_the_horizon_lands_on_THAT_date_instead_of_lying(playwright_available):
+@pytest.mark.parametrize("lang,month", [("es", "octubre"), ("en", "october")])
+def test_a_date_beyond_the_horizon_lands_on_THAT_date_instead_of_lying(playwright_available, lang, month):
     """The horizon is today..+6, so «el 20 de octubre» used to have no tab and was redirected to its month.
     Since V2-643 a day view can show ANY date (meetings arrive for all of them), so it simply goes there.
-    What must never happen — landing silently on today — is what this checks."""
-    m = _run([{**_BASE, "view": {"sel": "2026-10-20", "n": 1}}])[0]
+    What must never happen — landing silently on today — is what this checks. The range is written in the
+    language the HOST passes (`ctx.lang`), so it is checked in two of them."""
+    m = _run([{**_BASE, "view": {"sel": "2026-10-20", "n": 1}}], lang=lang)[0]
     assert m["view"] == "day", m
-    assert "20" in m["range"] and ("octubre" in m["range"].lower()), m["range"]
+    assert "20" in m["range"] and month in m["range"].lower(), m["range"]
 
 
-def test_the_calendar_connectors_are_readable_rows_with_real_logos(playwright_available):
-    """The operator's V2-643 complaint about the old strip: «los iconos son tan pequeños y están apelmazados
-    que no se sabe qué significa ninguno». They live in their own panel now, one labelled row each, still with
-    real inline <path> logos — a widget that pulled them from a CDN would be a blank strip offline."""
-    m = _open_calendars()
-    assert m["cal_count"] == 3, m["cal_count"]
-    assert m["cal_svgs"] == 3, "each provider needs its own drawn logo, not a letter"
-    assert all(n.strip() for n in m["cal_names"]), "every row NAMES its provider"
+def test_every_calendar_provider_is_a_drawn_logo_named_in_its_tooltip(playwright_available):
+    """The operator's V2-643 complaint: «no se sabe qué significa ninguno». One icon per provider the data
+    names, each a real inline <path> logo (a CDN logo is a blank strip offline) and each naming its provider."""
+    m = _run([_BASE])[0]
+    assert m["icon_count"] == 3, m
+    assert m["icon_svgs"] == 3, "each provider needs its own drawn logo, not a letter"
+    for c, title in zip(_BASE["calendars"], m["icon_titles"]):
+        assert title.startswith(c["label"]), (c["label"], title)
 
 
-def test_the_panel_tells_the_TRUTH_that_none_is_built_yet(playwright_available):
-    """`connectors/` holds six connectors and not one is a calendar. Every row must read as not linked, and
-    saying WHY out loud is deliberate (the connector-catalogue rule: the wishlist is public)."""
-    m = _open_calendars()
-    # The presence assertion is not decoration: without it, a panel that painted NOTHING would satisfy both
-    # lines below vacuously (`all([])` is True) and this test would guard an empty screen.
-    assert m["cal_count"] == 3, m["cal_count"]
-    assert m["cal_lit"] == 0, "nothing may look connected while no calendar connector exists"
-    assert all("disponible" in t for t in m["cal_states"]), m["cal_states"]
+def test_only_a_built_connector_is_a_door_and_nothing_looks_linked_that_is_not(playwright_available):
+    """Google is the only calendar with a connector behind it: its icon is the one live control, iCloud and
+    CalDAV are visible and inert. Nothing reads as linked while the data says nothing is — and the same icon
+    DOES light once Google is connected, so the zero below is a measurement and not a dead selector."""
+    off = _run([_BASE])[0]
+    assert off["icon_doors"] == 1, "only the built connector may be clickable"
+    assert off["icon_lit"] == 0, "nothing may look connected while no calendar is linked"
+    linked = {**_BASE, "calendars": [{**_BASE["calendars"][0], "status": "connected"}] + _BASE["calendars"][1:]}
+    assert _run([linked])[0]["icon_lit"] == 1, "a linked Google has to read as linked"
 
 
-def _open_calendars():
-    """Paint, then open the calendars panel — where the connectors live since V2-643."""
-    async def go():
-        from playwright.async_api import async_playwright
-        async with async_playwright() as pw:
-            b = await pw.chromium.launch(headless=True, args=["--no-sandbox"])
-            pg = await b.new_page(viewport={"width": 760, "height": 900})
-
-            async def _page(route):
-                await route.fulfill(status=200, content_type="text/html", body=_HTML)
-            await pg.route("http://zaelar.test/", _page)
-            await pg.goto("http://zaelar.test/")
-            await widget_client.mount(pg, "agenda")
-            await pg.evaluate(
-                "d => window.render(document.getElementById('host'), d, {action: async () => ({})})", _BASE)
-            await pg.click(".agcalbtn")
-            await pg.wait_for_timeout(60)
-            m = await pg.evaluate(_MEASURE)
-            await b.close()
-            return m
-    return asyncio.run(go())
-
-
-def test_clicking_a_provider_explains_where_the_appointments_actually_live(playwright_available):
-    async def go():
-        from playwright.async_api import async_playwright
-        async with async_playwright() as pw:
-            b = await pw.chromium.launch(headless=True, args=["--no-sandbox"])
-            pg = await b.new_page(viewport={"width": 760, "height": 900})
-
-            async def _page(route):
-                await route.fulfill(status=200, content_type="text/html", body=_HTML)
-            await pg.route("http://zaelar.test/", _page)
-            await pg.goto("http://zaelar.test/")
-            await widget_client.mount(pg, "agenda")
-            await pg.evaluate(
-                "d => window.render(document.getElementById('host'), d, {action: async () => ({})})", _BASE)
-            await pg.click(".agcalbtn")
-            await pg.wait_for_timeout(60)
-            m = await pg.evaluate(_MEASURE)
-            await b.close()
-            return m
-    m = go and asyncio.run(go())
-    assert "Google Calendar" in " ".join(m["cal_names"]), m["cal_names"]
-    assert "Zaelar" in m["note"], m["note"]
+def test_the_plug_and_the_google_icon_open_the_google_connector_in_settings(playwright_available):
+    """Since 2026-10-04 linking lives in ONE place, ⚙ Conectores, and the card only opens it (`ctx.openConnector`)
+    on ITS connector — the voice and the buttons share that door. So: the plug and the Google icon each open
+    `google`, an inert provider opens nothing, and the card never draws a connect panel of its own."""
+    m = _run([_BASE], clicks=[".agcalbtn", ".agconnicon:nth-child(1)", ".agconnicon:nth-child(2)"])[0]
+    assert m["plug"] == 1, m
+    assert m["opened"] == ["google", "google"], m["opened"]
+    assert m["in_card_panel"] == 0, "the card draws no connect panel of its own — that is ⚙ Conectores' job"
+    assert m["errors"] == [], m["errors"]
 
 
 def test_a_view_pushed_a_moment_ago_is_honoured_by_a_FRESHLY_mounted_widget(playwright_available):

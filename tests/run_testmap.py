@@ -3171,8 +3171,9 @@ DOMAINS: list[dict] = [
         # (que la vista empujada mueva la pestaña de verdad, RENDERIZANDO, y que el manifest la declare) y de
         # paso la tira de conectores de calendario de la cabecera, que es honesta a propósito: hoy ninguno está
         # construido y el icono lo dice.
-        {"id": "4.94", "title": "La AGENDA obedece por voz: `show_day` mueve el día que se ve (renderizado) y "
-                                "la cabecera enseña los conectores de calendario sin mentir sobre ellos",
+        {"id": "4.94", "title": "The AGENDA obeys voice: `show_day` moves the day on screen, dated in the host's "
+                                "language (rendered); its plug and Google icon open the Google connector in ⚙ "
+                                "Conectores, and the unbuilt calendars stay visible and inert",
             "ch": UNIT, "paths": ["tests/browser/e2e/widgets/test_agenda_render.py",
                                   "tests/browser/unit/agenda/test_show_day_is_an_action_not_a_promise.py"]},
         # V2-639 — LA AGENDA CONTESTA A LA VOZ. Medido en vivo (0c2af370 18:12 y c4ad8332 19:27, 2026-09-09):
@@ -3328,10 +3329,10 @@ DOMAINS: list[dict] = [
         # y su ✕), una carpeta muy anidada en la nube se colapsa con «…», a partir de ~900px aparece una barra
         # lateral (los cinco estantes + cada servicio) como segundo camino —nunca sustituto— de los chips del
         # header, y el asistente de conectores gana un ✕ arriba, siempre alcanzable sin hacer scroll.
-        {"id": "4.104", "title": "ARCHIVOS: la biblioteca local es el gestor por defecto (rename/copy/delete), "
-                                 "la nube ofrece solo lo que puede, y dice lo que su permiso NO puede ver "
-                                 "(contrato + renderizado); la ruta nunca repite la búsqueda, y hay barra "
-                                 "lateral + salida siempre visible del asistente de conectores",
+        {"id": "4.104", "title": "FILES: the local library is the default manager (rename/copy/delete), the cloud "
+                                 "offers only what it can and says what its permission can NOT see (contract + "
+                                 "rendered); the trail never repeats the search, a wide card has a sidebar, and "
+                                 "linking opens ⚙ Conectores on that connector — never a connect screen in the card",
             "ch": UNIT, "paths": [
                 "tests/browser/unit/archivos/test_the_explorer_is_generic_and_says_what_it_cannot_see.py",
                 "tests/browser/e2e/widgets/test_archivos_render.py"]},

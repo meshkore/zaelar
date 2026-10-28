@@ -105,7 +105,26 @@ def _agenda_data():
 STUB_JS = ('export function render(el, data){ el.style.minHeight = "240px";'
            ' el.textContent = "W:" + ((data && data.title) || "?"); }')
 ROUTE_RE = re.compile(
-    r"^https?://[^/]+/(widgets(/.*)?|api/(canvas/.*|desktop/epoch|client-log|run|status|ui-event))(\?.*)?$")
+    r"^https?://[^/]+/(widgets(/.*)?|api/(canvas/.*|desktop/epoch|client-log|run|status|ui-event|connectors))(\?.*)?$")
+
+# The inventory `GET /api/connectors` answers (the registry's descriptor shape), one of each state the ⚙
+# Conectores screen draws: a linked Google account with one service on and one off, a linked and an unlinked
+# messaging account, an unconfigured cloud drive. Without it the section paints its load-error line and the
+# pass measures one sentence instead of the screen.
+_CONNECTORS = {"connectors": [
+    {"id": "google", "label": "Google Calendar", "family": "agenda", "auth": "oauth", "connected": True,
+     "status": "connected", "detail": "", "config": {}},
+    {"id": "google-contacts", "label": "Google Contacts", "family": "contactos", "auth": "oauth",
+     "connected": False, "status": "off", "detail": "", "config": {}},
+    {"id": "google-account", "label": "Google", "family": "google", "auth": "oauth", "connected": True,
+     "status": "connected", "detail": "", "config": {"app_configured": True}},
+    {"id": "telegram", "label": "Telegram", "family": "mensajeria", "auth": "qr", "connected": True,
+     "status": "connected", "detail": "", "config": {}},
+    {"id": "whatsapp", "label": "WhatsApp", "family": "mensajeria", "auth": "qr", "connected": False,
+     "status": "off", "detail": "", "config": {}},
+    {"id": "gdrive", "label": "Google Drive", "family": "archivos", "auth": "oauth", "connected": False,
+     "status": "unconfigured", "detail": "", "config": {}},
+]}
 
 _AUDIT = r"""() => {
   const px = v => parseFloat(v) || 0;
@@ -203,6 +222,8 @@ def _route(r):
         return j({"items": [], "live": []})
     if path in ("/api/canvas/state", "/api/client-log", "/api/ui-event"):
         return j({"ok": True})
+    if path == "/api/connectors":
+        return j(_CONNECTORS)
     if path == "/api/run":
         return j({"state": "running", "running": True})
     if path.startswith("/widgets/agenda/js/"):
@@ -264,7 +285,8 @@ def measured():
             # The connectors screen the operator named in the pass before this one. Reached by CLASS, never
             # by its label: the first version matched /onect/i, which finds «Conectores» and misses
             # «Connectors», so under the shell's default language this pass silently re-measured the
-            # calendar. `.agcalbtn` is the header's own door into that screen and there is exactly one.
+            # calendar. `.agcalbtn` is the card's door to its connector, and since 2026-10-04 that door is
+            # the ⚙ Conectores section opened on Google (`ctx.openConnector`), not a panel inside the card.
             # V2-746 — the agenda's OTHER half. The audit has only ever seen the calendar, and the memory
             # this test left behind said so in as many words: «extender 4.170 por widget seguramente
             # encuentre más tipografía bajo 12px». It did — four labels of the tasks table were under the
@@ -320,8 +342,10 @@ def test_the_audit_actually_saw_the_screen(measured):
     assert has(desk, "aghour"), \
         "the calendar grid never rendered — the smallest type in the product went unmeasured"
     assert has(desk, "cw-tabname"), "the chat wall never opened"
-    assert has(conn, "agcalname"), \
-        "the connectors screen never opened — that pass measured the calendar again"
+    # `.cf-gsvc-name` is a service row of a connector's page in ⚙ Conectores: it exists on no other screen,
+    # so the card's plug has to have reached that section, on the Google connector, for it to be measured.
+    assert has(conn, "cf-gsvc-name"), \
+        "the ⚙ Conectores screen never opened — that pass measured the calendar again"
     # V2-746 — the tasks half, anchored the same way: `agt-list` is a row of the lists table and exists on
     # no other screen, so this cannot go green over a pass that re-measured the calendar.
     tasks = [r for r in rows if r["screen"] == "agenda+tasks"]
