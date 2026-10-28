@@ -4525,6 +4525,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_verdict_that_contradicts_the_model_needs_more.py']},
         {"id": "2.829", "title": "One vocabulary for how a request ended: each of the eight verdicts declares delivered, rank, row state, line and event; older names read as it; a later op never improves a failed row; a non-ending is never settled; every settle emits with the row's trace (refactor2710-02 T-00)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_one_verdict_vocabulary.py']},
+        {"id": "2.887", "title": "An event's extra never renames the event: a colliding identity key (kind, label, sequence, clocks) is kept as extra_<key> (refactor2710-99 finding (a))",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_an_extra_never_renames_its_event.py"]},
         {"id": "2.886", "title": "An errand sent without a done_when is born with the end state the brief already read, rendered from the template a card on screen declares; none otherwise (refactor2710-06 T-03)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_errand_is_born_with_the_end_state_the_brief_read.py"]},
         {"id": "2.885", "title": "Stopping EVERY running errand needs the brief's sure stop_all: anything less stops the one his words name or asks which, never a word in his sentence (refactor2710-06 T-03)",

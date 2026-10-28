@@ -427,6 +427,14 @@ _writer_thread = _threading.Thread(target=_writer_loop, name="observer-writer", 
 _writer_thread.start()
 
 
+def _merge(ev: dict, extra: dict | None) -> None:
+    """`extra`'s fields into the event, which they never rename: a key that collides with the event's own identity
+    (`kind`, `label`, its sequence and clocks) is kept as `extra_<key>` (a memory pill's `kind: result` made its event
+    a `result` the Master could not classify)."""
+    for k, v in (extra or {}).items():
+        ev[f"extra_{k}" if k in ("i", "t_ms", "rel_ms", "kind", "label") else k] = v
+
+
 def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | None = None):
     """Record one debug event: in-memory ring + rolling buffer + per-session file + SSE subscribers.
 
@@ -441,8 +449,7 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
     # (vl2 topic) kept this separately; with the observer unified, it is marked ephemeral here.
     if kind == "interim":
         ev = {"kind": "interim", "label": label, "text": text, "role": role}
-        if extra:
-            ev.update(extra)
+        _merge(ev, extra)
         try:
             from bus import sse as _bus_sse
             _bus_sse.publish(ev)
@@ -471,8 +478,7 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
     _seq["n"] += 1
     ev = {"i": _seq["n"], "t_ms": round(ts), "rel_ms": round(ts - _t0["v"]), "kind": kind,
           "label": label, "text": text, "role": role}
-    if extra:
-        ev.update(extra)
+    _merge(ev, extra)
     # CATEGORY for the viewer filter (V2-037): groups kinds into a few families. The caller can force it with
     # extra={"cat": ...}; otherwise, it is derived from kind. System/Code (`system`) = internal/perf events, OFF by default.
     if "cat" not in ev:
@@ -527,11 +533,8 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
         _bus_sse.publish(ev)
     except Exception:
         pass
-    # CANVAS ARBITER — F0 SHADOW TAP (V2-653). This stream is the one funnel EVERY canvas command already
-    # travels through (`widget` events with `src`, V2-039) and every operator turn (`transcript`), so the
-    # shadow judges here instead of adding lines to N dispatch sites. Emit-only (it produces `arbiter`
-    # verdict events, never touches this one), re-entrancy-guarded, fail-open, kill-switch
-    # ZAELAR_ARBITER_SHADOW=0. Enforcement, when it comes (F1+), lives at the doors — never here.
+    # CANVAS ARBITER TAP (V2-653; armed at the door by refactor2710-04): this stream carries every canvas command and
+    # every turn, so the turn the door judges with is assembled here. Emit-only, re-entrancy-guarded, fail-open.
     if kind in ("widget", "transcript", "ambient") or (kind == "brain" and str(label or "").startswith("jev read ")):
         try:
             from nucleo.acts import canvas_turn as _arb
@@ -592,18 +595,9 @@ def stamp_identity(ev: dict) -> dict:
         except Exception:
             pass
         if ev.get("cat") in ("system", "pulse") or stopped:
-            # Background noise NEVER fabricates a session (2026-08-15, real finding: closing a session emits
-            # its own "end" event, category `system` — with the `setdefault` below that REOPENED a new session
-            # in the act of closing the previous one, and the same with any ⏻ event (`run`/stop/start) fired
-            # while the agent is stopped. `session_info()` ONLY READS (never opens); with none open, the event
-            # goes out with no `sid` instead of lying with a freshly-invented one.
-            #
-            # 2026-08-16, real finding #2: the `cat` check alone wasn't enough — reloading the browser tab with
-            # the agent globally STOPPED (⏻ off, `runstate.stopped()`) still fired ordinary `widget`/`ui` state
-            # transitions (cat="widget", not system/pulse), and THOSE self-opened a brand-new "live" session
-            # via `session_id()` below, immediately re-appearing in the flow viewer as "EN CURSO" the
-            # instant the page was refreshed. “Stopped means stopped” (V2-092) has to mean nothing self-opens a
-            # session while stopped, independent of what category the triggering event happens to carry.
+            # Background noise NEVER fabricates a session: closing one emitted its own «end» and reopened a new one (2026-08-15),
+            # and a page reload with the agent ⏻ stopped self-opened a «live» one (2026-08-16). «Stopped means stopped» (V2-092):
+            # `session_info()` only reads; with none open the event goes out with no `sid`.
             ev.setdefault("sid", _ident.session_info().get("session_id") or "")
         else:
             ev.setdefault("sid", _ident.session_id())
