@@ -989,7 +989,9 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-nav-item:hover{background:var(--hb-hover);color:var(--hb-ink)}
 /* selection is never colour ALONE (the operator's rule): the active row also carries an accent rail and a
    raised ground, so it survives a colourblind reader and a dimmed screen. */
-.cf-nav-item.active{background:var(--hb-bubble);color:var(--hb-accent);
+/* T-15: the label is the accent one step toward the ink (as --hb-accent-fill is): the raw accent on the raised
+   ground measured 4.7:1, under the 5.5 headroom the readability audit holds (node 4.170). */
+.cf-nav-item.active{background:var(--hb-bubble);color:color-mix(in srgb,var(--hb-accent) 70%,var(--hb-ink));
   box-shadow:inset 2px 0 0 var(--hb-accent)}
 .cf-scroll{flex:1 1 auto;overflow-y:auto;padding:32px 40px 96px}
 .cf-panel{max-width:760px;margin:0}
@@ -1019,10 +1021,10 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .cf-foot button:hover{filter:brightness(1.08)}
 .cf-foot button:disabled{opacity:.5;cursor:default}
 .cf-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:var(--fs-micro);font-weight:700}
-.cf-ok{background:color-mix(in srgb,var(--hb-ok) 16%,transparent);color:var(--hb-ok)}
+.cf-ok{background:color-mix(in srgb,var(--hb-ok) 16%,transparent);color:color-mix(in srgb,var(--hb-ok) 70%,var(--hb-ink))}   /* raw ok on its wash: 3.48:1 on paper (T-15) */
 .cf-warn{background:var(--hb-warn-bg);color:var(--hb-warn-ink)}
 .cf-error{background:var(--hb-risk-soft);color:var(--hb-risk)}
-.cf-off,.cf-unknown{background:var(--hb-bubble);color:var(--hb-muted-2)}
+.cf-off,.cf-unknown{background:var(--hb-bubble);color:var(--hb-muted)}   /* muted-2 on the bubble was 4.64:1 (T-15) */
 /* Conectores: a list, then ONE connector behind a breadcrumb with its step-by-step guide (ConnectorWizard.js).
    2026-10-04 — one column, one thing at a time, no box inside a box: a hero (mark · name · state · one line), a
    VERTICAL stepper whose open step carries its text and its Back/Next, and the form flat on the last step. Every
