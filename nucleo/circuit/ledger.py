@@ -566,7 +566,7 @@ def scheduled_mirrored(entry: dict) -> None:
 
 
 # ── thin reads, so `memory.tasks_store` keeps ONE importer ───────────────────────────────────────────────
-# `nucleo/flash/task_recall.py` and `widgets/results/rehydrate.py` both need to read the ledger, and both
+# `nucleo/turn/task_recall.py` and `widgets/results/rehydrate.py` both need to read the ledger, and both
 # reaching in directly would make the memory boundary a three-caller seam rather than a one-caller one. The
 # boundary ratchet (`tests/memory/unit/test_memory_boundary.py`) counts exactly that, and paying it by
 # raising its ceiling would be the move its own docstring tells you not to make.

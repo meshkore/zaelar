@@ -333,7 +333,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/style_directive.py': 8,
     'nucleo/flash/surface_ack.py': 3,
     'nucleo/flash/task_block.py': 3,
-    'nucleo/flash/task_recall.py': 2,
+    'nucleo/turn/task_recall.py': 2,
     'nucleo/flash/titular_watch.py': 6,
     'nucleo/flash/tool_executor_calls.py': 3,
     'nucleo/flash/tool_executor_widget_calls.py': 8,

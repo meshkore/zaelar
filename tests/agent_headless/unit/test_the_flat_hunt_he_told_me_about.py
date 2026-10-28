@@ -34,7 +34,7 @@ from memory import embeddings as mememb
 from memory import tasks_store as ts
 from nucleo import dispatch
 from nucleo.circuit import ledger as tasks
-from nucleo.flash import task_recall as tr
+from nucleo.turn import task_recall as tr
 from nucleo.workers.base import WorkerBackend, WorkerEvent, WorkerSpec
 from tests.waiting import until
 from widgets import store

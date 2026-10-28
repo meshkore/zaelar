@@ -176,7 +176,7 @@ def test_task_recall_asks_differently_when_nobody_answered(wire, monkeypatch):
     """The behaviour the status exists for. Five candidates the chooser REJECTED have been narrowed;
     five it never saw have not. Both end in a question, and only one of them may claim it looked."""
     rows = [{"id": f"t{i}", "title": f"encargo {i}", "goal": "g"} for i in range(1, 4)]
-    from nucleo.flash import task_recall as tr
+    from nucleo.turn import task_recall as tr
     monkeypatch.setattr(tr, "candidates", lambda q, limit=5: rows)
 
     wire.answers.update({f"cand_{i}": ("no", 0.9) for i in (1, 2, 3)})
@@ -195,7 +195,7 @@ def test_task_recall_asks_differently_when_nobody_answered(wire, monkeypatch):
 def test_a_single_candidate_still_costs_nothing(wire, monkeypatch):
     """Unchanged by A6a, and worth pinning beside it: one candidate is taken without asking. Paying
     800 ms to confirm what nothing contradicts is the call V2-726 exists to stop making."""
-    from nucleo.flash import task_recall as tr
+    from nucleo.turn import task_recall as tr
     monkeypatch.setattr(tr, "candidates", lambda q, limit=5: [{"id": "t1", "title": "x"}])
     out = tr.resolve("lo del piso")
     assert out["ok"] is True and out["how"] == "único"

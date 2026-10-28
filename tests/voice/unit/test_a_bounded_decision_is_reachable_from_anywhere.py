@@ -294,7 +294,7 @@ def test_a_worker_deadline_is_bounded_by_us(wire):
 def test_task_recall_is_a_real_consumer_of_the_same_module(wire, monkeypatch):
     """«Voice, memory and a headless worker reach the same primitive» — the third one has been in
     production since V2-728, and this pins that A1 did not fork it into a parallel path."""
-    from nucleo.flash import task_recall as tr
+    from nucleo.turn import task_recall as tr
     rows = [{"id": "t1", "title": "piso", "goal": "buscar piso"},
             {"id": "t2", "title": "vuelos", "goal": "buscar vuelos"}]
     monkeypatch.setattr(tr, "candidates", lambda q, limit=5: rows)

@@ -91,7 +91,7 @@ def test_a_new_process_reads_what_the_last_one_did():
 
 def test_reopening_a_task_never_offers_an_inline_request():
     """M5 — `reopen_task` reopens REPORTS; a session's thirty agenda adds must not turn it into a question."""
-    from nucleo.flash import task_recall
+    from nucleo.turn import task_recall
     for i in range(4):
         _inline(f"add the flat viewing number {i} to my calendar", "agenda", "add_meeting", "met")
     ts.task_put({"id": "w-flat", "title": "Find a flat to rent in Madrid", "goal": "find me a flat in Madrid",

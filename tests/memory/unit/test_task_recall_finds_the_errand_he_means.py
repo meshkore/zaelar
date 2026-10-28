@@ -9,7 +9,7 @@ import pytest
 
 from memory import db as memdb
 from memory import tasks_store as ts
-from nucleo.flash import task_recall as tr
+from nucleo.turn import task_recall as tr
 from widgets import store
 
 
