@@ -31,7 +31,7 @@ import { clearDebugBuffer } from "./debugbus.js?v=2";
 import { startVisualizer } from "./visualizer.js?v=2";
 import { SpeakerID } from "../lib/speaker-id.js?v=1";
 import * as wake from "./wakeword.js?v=1";
-import { createEffect } from "../core/reactive.js?v=1";
+import { createEffect, createSignal } from "../core/reactive.js?v=2";   // T-18: ?v=1 was a 2nd instance, blind to the store
 import { t } from "../core/i18n.js?v=1";
 import * as health from "./device-health.js?v=1";
 import { MIC_MODES as _MIC_MODES, defaultMicMode, captureConstraints } from "./mic-profile.js?v=1";
@@ -173,6 +173,7 @@ function _startHeartbeat() {
     api.sessionHeartbeat(SID, mic.beat()).then((r) => {   // V2-654: the beat re-asserts the mic switch, free
       if (r && r.ok === false && started) _lostVoice("heartbeat");   // another tab is alive → yield, not two mics
     });
+    _sendTap();   // V2-831 T-18: and the tap's park, so a lost packet or a fresh agent session self-corrects
   }, 4000);
 }
 // We lost the voice: yield it, say WHO has it — the remote-control blue, not «stalled» amber (operator, demo
@@ -331,21 +332,18 @@ export function getAudit() { return audit; }
 export function isActive() { return started; }
 
 // ---- mic / camera toggles ----
-// V2-654: this is the TRANSPORT half only — it moves the audio and nothing else. The state, the icon, the
-// storage and the engine belong to `services/mic.js`, the single door; this function is what that door installs
-// via `mic.useTransport()`. `setMicrophoneEnabled` returns a PROMISE: its rejection was never caught by the
-// try/catch that wrapped it (a sync catch cannot see an async rejection), so a failed publish change was a
-// silent divergence between icon and microphone. Caught explicitly now — and the track's own `enabled` flag is
-// set regardless, because that one is synchronous and is what actually makes the wire go quiet.
+// V2-654: the TRANSPORT half only — state, icon, storage and engine belong to `services/mic.js`, which installs
+// this via `mic.useTransport()`. The PROMISE of `setMicrophoneEnabled` is caught (a sync catch never saw its
+// rejection: a silent icon/mic divergence), and the track's synchronous `enabled` is what makes the wire quiet.
 //
-// V2-749 — THE TAP IS A SECOND AXIS, AND IT COMPOSES HERE. `voice/mic_input.py` carries a standing rule from
-// 2026-09-10: the microphone switch and the attention mode «may never be written in terms of each other» —
-// one is the operator's own hand, the other is what the agent does with what it hears. The wake-word PARK is
-// neither: it is the transport asking «is anybody going to read this audio?», and answering no while the
-// agent is cold. So it never writes `mic.setMuted`, it is never persisted, and it never reaches
-// `POST /api/mic`. It meets the switch at exactly one place — this line — where the audio either goes out or
-// does not, and the switch keeps its veto: a closed microphone stays closed whatever the tap wants.
+// V2-749 — the wake-word PARK is a second axis («is anybody going to read this audio?»), neither the switch nor
+// the attention mode: it never writes `mic.setMuted`, is never persisted, and meets the switch only here, where
+// a closed microphone keeps its veto. V2-831 T-18: a parked (muted) track still yields frames at the agent and a
+// cloud STT bills each one, so the park is also TOLD to the engine (`zaelar-tap` → `voice/mic_input.py`, which
+// closes the session's audio input) on every change and every heartbeat — a lost packet or a fresh agent session
+// (born unparked, against deafness) heals within one beat. The mute needs no packet: `POST /api/mic` carries it.
 let _tapParked = false;
+const [_parkedSig, _setParkedSig] = createSignal(false);
 function _applyMicTransport(want) {
   const off = want || _tapParked;
   if (stream) stream.getAudioTracks().forEach(t => t.enabled = !off);
@@ -353,17 +351,19 @@ function _applyMicTransport(want) {
     try { Promise.resolve(room.localParticipant.setMicrophoneEnabled(!off)).catch(() => {}); } catch (_) {}
   }
 }
-// Park/unpark WITHOUT touching the switch: re-assert through the same transport so there is still one place
-// that moves the audio. A no-op when the value has not changed — this is driven by a reactive effect.
+const _sendTap = () => _publish("zaelar-tap", { parked: _tapParked });
+// Park/unpark WITHOUT touching the switch, through the same transport; a no-op when unchanged (effect-driven).
 export function setTapParked(parked) {
   const next = !!parked;
   if (next === _tapParked) return _tapParked;
   _tapParked = next;
+  _setParkedSig(next);
   _applyMicTransport(mic.muted());
+  _sendTap();
   try { api.clientLog(next ? "🔇 grifo aparcado (modo palabra)" : "🔊 grifo abierto", { state: next ? "parked" : "open" }); } catch (_) {}
   return _tapParked;
 }
-export function tapParked() { return _tapParked; }
+export function tapParked() { _parkedSig(); return _tapParked; }   // reactive: the Orb greys mic+speaker (T-18)
 export function applyMic() { mic.applyNow("session"); }
 export function applyCam() { if (stream) stream.getVideoTracks().forEach(t => t.enabled = !store.camOff()); }
 export function toggleMic() { mic.toggle("orb"); }
@@ -1038,10 +1038,6 @@ export function sendText(text) {
   return _publishText(t);
 }
 
-// CHAT MODE = VOICE OFF (V2-054 T1.2): enables/disables server voice SYNTHESIS (topic zaelar-voice).
-// With audio OFF, the LiveKit pipeline does NOT invoke TTS (text-only branch) → no synthesis latency or cost;
-// la respuesta sigue apareciendo en el ChatWall por SSE. Best-effort: si no hay sesión, no-op (al conectar el
-// efecto de ChatWall lo re-aplica).
 // V2-749 — the sentence the cheap ear heard, on its own topic. `text` carries the wake word, so the engine's
 // gate rules it directed by itself; `before` is what he said in the seconds ahead of the name and is fed to
 // `attention.note_preroll()` so the turn behind it arrives whole.
@@ -1060,11 +1056,13 @@ export function sendWake(spot) {
   } catch (_) { return false; }
 }
 
-export function setVoiceOutput(enabled) {
+// The 🔊 icon → server voice SYNTHESIS on/off (zaelar-voice): off = no TTS at all; replies still reach the ChatWall.
+export function setVoiceOutput(enabled) { return _publish("zaelar-voice", { audio: enabled !== false }); }
+// One data-channel write: `{t: topic, ...body}`, reliable. False = not connected, or not sent.
+function _publish(topic, body) {
   if (!room || room.state !== ConnectionState.Connected) return false;
   try {
-    const payload = new TextEncoder().encode(JSON.stringify({ t: "zaelar-voice", audio: enabled !== false }));
-    room.localParticipant.publishData(payload, { reliable: true, topic: "zaelar-voice" });
+    room.localParticipant.publishData(new TextEncoder().encode(JSON.stringify({ t: topic, ...body })), { reliable: true, topic });
     return true;
   } catch (_) { return false; }
 }

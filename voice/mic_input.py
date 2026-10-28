@@ -1,45 +1,17 @@
+# mic_input.py — THE microphone switch (V2-654) and THE input door to the STT (V2-831 T-18).
 #
-# mic_input.py — THE microphone switch (V2-654).
+# ONE server-side fact — is his microphone muted? — that everything acting on what it heard asks (session 85eec898:
+# the icon moved, the audio did not, and he was transcribed for seven minutes). `frontend/app/services/mic.js`
+# writes it, the ~4 s heartbeat re-asserts it. Muted is STICKY (the safe side of a dead client); boot is OPEN
+# (a stale client must never leave the agent deaf). NOT the attention mode: it is his own hand — consulted first,
+# never lifted by a wake word, and lifting it changes no attention state.
 #
-# ONE fact, held server-side: is the operator's microphone input muted? Everything that ACTS on what the
-# microphone heard asks HERE, and nothing else decides it.
-#
-# WHY THIS EXISTS (measured 2026-09-10, session 85eec898). The mute lived only in the browser, spread across
-# SIX writers, and four of them (`main.js` boot, the ⏻ power button on both shells, `DockBar`) wrote the icon's
-# signal + localStorage and NEVER touched the audio: `applyMic()` was not on their path. So the 🎤 icon showed
-# CLOSED while the track kept publishing, the engine transcribed the operator for seven minutes, escalated an
-# errand off what it heard — and nothing anywhere could notice, because the engine had no notion of a microphone
-# switch at all. The operator's verdict, verbatim: «cuando yo desactivo el icono, ese estado es total … el estado
-# se debe controlar en un solo sitio y controla todo el sistema. No puede fallar nunca.»
-#
-# The client half (`frontend/app/services/mic.js`) is the single DOOR that writes; this module is the single
-# HOLDER that the rest of the engine reads. They are kept in step by the heartbeat (~4s), so a divergence in
-# either direction self-corrects without anyone having to remember to re-assert.
-#
-# DIRECTION OF FAILURE — deliberate and asymmetric:
-#   • muted is STICKY: once told, it stays until explicitly lifted. A client that mutes and then dies (crash,
-#     tab killed, network gone) leaves the engine muted, which is the safe side of the accident.
-#   • the boot default is OPEN, because at boot no microphone has been captured yet and a stale/absent client
-#     must never be able to leave the agent deaf forever — deafness is the OTHER failure the same session paid
-#     for (16 turns discarded in a row while the operator asked what was wrong).
-#
-# NOT THE ATTENTION MODE, and the two may never be written in terms of each other (operator, 2026-09-10).
-# The 🤖 wake-word mode is how a permanently OPEN microphone is made livable: audio keeps arriving, it keeps
-# being transcribed, and `voice/attention.py` decides turn by turn what was addressed to us — a wake word or
-# an open conversation window effectively switches the agent's ear on and off by VOICE, and that is
-# necessary, not a workaround. Nothing here changes any of it: those rules stay exactly as they were.
-#
-# THIS switch is the other axis — the operator's own hand shutting the input. Hence the order and the
-# asymmetry: a hard close is consulted FIRST and no wake word can lift it (he did not authorise us to hear
-# him at all), while lifting the close changes no attention state whatsoever — the mode he had is the mode he
-# gets back. And a turn this switch swallows never reaches `note_directed()`, so it cannot open or refresh a
-# conversation window on its way out.
-#
-# NOT a privacy boundary against the browser: if the published track really is live, audio still reaches STT and
-# the transcript still appears in observability. That is on purpose — the transcript is the EVIDENCE that a
-# divergence happened, and hiding it is what made this cost seven minutes to see. What the switch guarantees is
-# that no muted audio ever reaches the BRAIN: no model, no tool, no widget, no memory, no errand.
-#
+# THE INPUT DOOR: a cloud STT bills every frame it is PUSHED (Deepgram: one report per 5 s), so closed states
+# used to cost what an open mic did (12 usage reports a minute for silence). The one rule,
+#     feeds_stt() = not muted  and  not parked  and  not stopped (⏻),
+# is re-applied on every write to the session's audio INPUT, whose room input then drops frames before VAD and
+# STT. A future closed state joins the conjunction, never a gate elsewhere; `blocks_turn` stays as the backstop;
+# `parked` (the wake-word mode's TRANSPORT fact, `wakeword.js`) is never persisted and resets with each session.
 from __future__ import annotations
 
 import threading
@@ -47,6 +19,8 @@ import time
 
 _mx = threading.Lock()
 _state = {"muted": False, "at": 0.0, "source": ""}
+_tap = {"parked": False}
+_input = {"sink": None, "applied": None}   # the live session's `(enabled) -> None`; one voice holder at a time
 
 
 def is_muted() -> bool:
@@ -70,37 +44,77 @@ def set_muted(muted: bool, *, source: str = "frontend", now: float | None = None
         changed = muted != bool(_state["muted"])
         _state["muted"], _state["at"], _state["source"] = muted, now, (source or "")[:40]
     if changed:
-        _emit(muted, source, dev)
+        _say("🎤⃠ micrófono CERRADO" if muted else "🎤 micrófono abierto",
+             extra={"muted": muted, "src": source, **({"dev": dev} if dev else {})})
+    apply_input()
     return {"ok": True, "muted": muted, "changed": changed}
 
 
-def blocks_turn(text: str) -> bool:
-    """THE rule: does the switch swallow this turn? True = it does not exist — no model, no tool, no widget,
-    no memory, no errand.
+def set_parked(parked: bool) -> None:
+    """The browser parked (or unparked) its track for the wake word; applied at once, so the unpark of a spotted
+    name opens the STT before the sentence behind it arrives."""
+    with _mx:
+        _tap["parked"] = bool(parked)
+    apply_input()
 
-    It is consulted BEFORE the attention gate on purpose: «closed» is not an opinion about who was being
-    addressed, it is that we were not authorised to hear him, so no conversation window and no wake word may
-    lift it.
 
-    The TYPED turn is the only exemption, and it is exactly the use case — the microphone is closed IN ORDER
-    to type. Consumed one-shot (`attention.consume_typed`, no time window): with a window, typing and then
-    speaking would walk the spoken turn straight through the closed switch.
+def feeds_stt() -> bool:
+    """THE input rule: may audio reach the speech recogniser right now? Every closed state answers no."""
+    with _mx:
+        if _state["muted"] or _tap["parked"]:
+            return False
+    from nucleo import runstate
+    return not runstate.stopped()
 
-    That this ever fires MEANS the browser kept publishing audio with the icon shut — the 2026-09-10 failure
-    (session 85eec898), where four of the state's six writers moved the icon and not the track. Which is why
-    the event carries the TEXT: it is the evidence of the divergence, and without it that cost seven minutes
-    to see."""
-    from voice import attention
-    if attention.consume_typed():
-        return False
-    if not is_muted():
-        return False
+
+def use_input(sink) -> None:
+    """The voice session installs its input setter. It APPLIES at once (a session born with the mic closed feeds
+    not one frame) and starts unparked."""
+    with _mx:
+        _input["sink"], _input["applied"], _tap["parked"] = sink, None, False
+    apply_input()
+
+
+def clear_input(sink) -> None:
+    """Only OUR sink: when the voice moves, the next session registers before this one closes."""
+    with _mx:
+        if _input["sink"] is sink:
+            _input["sink"], _input["applied"] = None, None
+
+
+def apply_input() -> bool | None:
+    """Push `feeds_stt()` into the live input — only on a CHANGE, so the ~4 s beat never flaps the lever (and the
+    beat is what carries a ⏻ stop made elsewhere to the input). Returns what is applied; None = no session."""
+    with _mx:
+        sink, applied = _input["sink"], _input["applied"]
+    if sink is None:
+        return None
+    want = feeds_stt()
+    if applied is want:
+        return want
+    with _mx:
+        _input["applied"] = want
     try:
-        from voice.observer import emit
-        emit("mic", "🎤⃠ turno DESCARTADO — el micrófono está cerrado", text=(text or "")[:200], role="user",
-             extra={"muted": True, "src": snapshot().get("source") or ""})
-    except Exception:  # noqa: BLE001
-        pass
+        sink(want)
+    except Exception as e:  # noqa: BLE001 — never fatal on the hot path; forgetting it makes the next beat retry
+        with _mx:
+            _input["applied"] = None
+        _say("⚠️ audio input lever failed", extra={"stt_input": want, "error": str(e)[:160]})
+        return None
+    _say("👂 audio input OPEN (STT)" if want else "👂⃠ audio input CLOSED (no STT)", extra={"stt_input": want})
+    return want
+
+
+def blocks_turn(text: str) -> bool:
+    """The BACKSTOP: does the switch swallow this turn? True = no model, tool, widget, memory or errand. Asked
+    BEFORE the attention gate (closed is not an opinion about who was addressed). The typed turn is the one
+    exemption, consumed one-shot (`attention.consume_typed`) — the mic is closed IN ORDER to type. Firing at all
+    means audio reached the STT with the switch closed, so the event carries the TEXT: it is the evidence."""
+    from voice import attention
+    if attention.consume_typed() or not is_muted():
+        return False
+    _say("🎤⃠ turno DESCARTADO — el micrófono está cerrado", text=(text or "")[:200], role="user",
+         extra={"muted": True, "src": snapshot().get("source") or ""})
     return True
 
 
@@ -108,14 +122,14 @@ def reset() -> None:
     """Back to the boot default (open). For tests and for a full engine reset — NOT a way to lift a mute."""
     with _mx:
         _state.update(muted=False, at=0.0, source="")
+        _tap["parked"] = False
+        _input.update(sink=None, applied=None)
 
 
-def _emit(muted: bool, source: str, dev: str = "") -> None:
-    """Observability, never fatal: this module is called from the turn's hot path and from a route handler, and
-    neither may die because the observer is unavailable."""
+def _say(label: str, *, role: str = "system", **kw) -> None:
+    """Observability, never fatal: called from the turn's hot path and from route handlers."""
     try:
         from voice.observer import emit
-        emit("mic", "🎤⃠ micrófono CERRADO" if muted else "🎤 micrófono abierto",
-             role="system", extra={"muted": muted, "src": source, **({"dev": dev} if dev else {})})
+        emit("mic", label, role=role, **kw)
     except Exception:  # noqa: BLE001
         pass

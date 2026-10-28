@@ -13,8 +13,7 @@ from voice.engine.pipeline import agent as _ag
 def _on_data(packet, *, _emit, _json, _wake, session) -> None:
     try:
         topic = getattr(packet, "topic", None)
-        # PTT (V2-015): the frontend publishes push-to-talk state on topic `zaelar-ptt`; in
-        # ZAELAR_ATTENTION=ptt this is the signal marking a turn as directed (see voice/attention.py).
+        # PTT (V2-015): push-to-talk state marks a turn as directed in ZAELAR_ATTENTION=ptt (voice/attention.py).
         if topic == "zaelar-ptt":
             try:
                 from voice import attention
@@ -22,35 +21,30 @@ def _on_data(packet, *, _emit, _json, _wake, session) -> None:
             except Exception:
                 pass
             return
-        # THE CHEAP EAR SPEAKS (V2-749). In a wake-word mode the paid STT is PARKED: no audio leaves
-        # the browser until a free, browser-local recogniser hears the assistant's own name
-        # (`frontend/app/services/wakeword.js`). It arrives in TWO phases, and the split is the whole
-        # difference between a wake word that works and one that looks broken.
-        #
-        # ⚠️ WHY TWO (measured 2026-09-22, session 5789bad4). The first build only believed a FINAL
-        # result — the safe choice against a fragment the recogniser later rewrites. But Chrome only
-        # finalises when you STOP TALKING, so the operator, who kept going, had his five «Johnny»s
-        # delivered as ONE final **33.5 s after the session started**: «he estado diciendo la palabra
-        # Johnny mucho tiempo y la primera vez le ha costado mucho… si dicen Johnny cuatro veces
-        # después de darle el botón de Start y no funciona se van a preocupar». The latency of a
-        # finals-only spot is not a number, it is «however long he keeps speaking».
-        #
-        # `spot` (from an INTERIM) is cheap and reversible: it opens the tap and the window, and the
-        # ring lights AT ONCE. A false one costs a few seconds of STT, never a wrong action.
-        # `final` is the BACKSTOP for the one case the spot alone leaves silent — he said the name and
-        # nothing else, so the paid STT, which only came up mid-word, heard nothing to answer.
-        #
-        # `before` is the half of the sentence that came BEFORE the name and is the point of doing it
-        # this way rather than like a smart speaker: «muéstrame el tiempo, Johnny» must not arrive as
-        # «Johnny». It feeds `note_preroll`, which is the tail `reclaim_ambient_tail` (10 s) already
-        # reclaims — the turn right behind it glues the two back together with no new branch.
-        #
-        # A browser that lies about having heard the word buys the same turn a browser that types it
-        # into the chat already buys: the exposure this seam already had.
+        # V2-831 T-18 — the tap's park reaches the input door (`voice/mic_input.py::feeds_stt`): a parked (muted)
+        # remote track still yields frames here, and a cloud STT bills every frame it is pushed.
+        if topic == "zaelar-tap":
+            try:
+                from voice import mic_input
+                mic_input.set_parked(bool(_json.loads(bytes(packet.data).decode("utf-8")).get("parked")))
+            except Exception as te:  # noqa: BLE001
+                _ag.logger.warning("zaelar-tap handler: %s", te)
+            return
+        # THE CHEAP EAR SPEAKS (V2-749). In a wake-word mode the paid STT is PARKED until a free, browser-local
+        # recogniser hears the assistant's name (`frontend/app/services/wakeword.js`). TWO phases, because Chrome
+        # only finalises when you STOP TALKING (session 5789bad4: five «Johnny»s arrived as ONE final 33.5 s in):
+        # `spot` (an INTERIM) opens the tap and the window at once — a false one costs seconds of STT, never an
+        # action; `final` is the backstop for the name said alone, which the paid STT came up too late to hear.
+        # `before` is what he said BEFORE the name («muéstrame el tiempo, Johnny» must not arrive as «Johnny»),
+        # fed to `note_preroll` for `reclaim_ambient_tail` (10 s) to glue back. A browser that lies about the
+        # word buys only what typing it into the chat already buys.
         if topic == "zaelar-wake":
             try:
                 _d = _json.loads(bytes(packet.data).decode("utf-8"))
                 _phase = (_d.get("phase") or "final").strip()
+                if _phase == "spot":   # a spot OPENS the tap: open the input too, even if `zaelar-tap` was lost
+                    from voice import mic_input
+                    mic_input.set_parked(False)
                 _txt = (_d.get("text") or "").strip()
                 _before = (_d.get("before") or "").strip()
                 # V2-802 T-08: the pre-roll exists for words the paid STT did NOT hear (tap parked). With the
@@ -99,24 +93,15 @@ def _on_data(packet, *, _emit, _json, _wake, session) -> None:
                 _emit("alert", "zaelar-wake falló", text=str(we)[:160])
                 _ag.logger.warning("zaelar-wake handler: %s", we)
             return
-        # SILENCE = OPERATOR decision (V2-054 · redefined in V2-088). The frontend publishes {audio:false}
-        # when the operator MUTES with the 🔊 icon, and {audio:true} when re-enabled. With audio_enabled=False
-        # the LiveKit pipeline does NOT invoke TTS (agent_activity: audio_output=None → text-only branch) → ZERO
-        # synthesis: saves latency and cost, and is the difference between «muted» and «turning down the volume».
-        #
-        # It is NO LONGER triggered by opening the chat. That was V2-054 (“chat mode = voice off”) and rested
-        # on a false premise: that opening the panel meant “I prefer to read.” The panel has four tabs, and
-        # users may open it to inspect processes, crons, or clusters without wanting to silence anyone. Chat
-        # and voice are now independent; the icon is the SOLE owner of silence. The response ALWAYS reaches
-        # the ChatWall through the transcript/assistant event (conversation_item_added), which is independent
-        # of audio: chat, subtitles, and voice are three views of the same thing, not mutually exclusive modes.
+        # SILENCE = OPERATOR decision (V2-088): the 🔊 icon publishes {audio:false|true}. Output disabled → the
+        # pipeline takes its text-only branch → ZERO synthesis (cost and latency), «muted» not «volume down».
+        # The chat no longer triggers it (V2-054's premise was false); replies always reach the ChatWall through
+        # `conversation_item_added`, independent of audio. The input side's twin is `open_mic_door` (T-18).
         if topic == "zaelar-voice":
             try:
                 want = bool(_json.loads(bytes(packet.data).decode("utf-8")).get("audio", True))
                 session.output.set_audio_enabled(want)
-                # The label matters: it is what an agent reads in `/api/debug` to diagnose “no sound.”
-                # It used to say “chat mode,” but since V2-088 that is no longer the cause — muting is ALWAYS
-                # a decision made by the operator with the icon. A label pointing to a false cause costs hours.
+                # The label is what `/api/debug` shows for «no sound»: name the true cause (the icon, V2-088).
                 _emit("session", "voz ON (síntesis activa)" if want
                       else "voz OFF (el operador silenció con el icono 🔊 — sin TTS)",
                       role="system")
@@ -134,6 +119,25 @@ def _on_data(packet, *, _emit, _json, _wake, session) -> None:
             return receive_typed(txt, _emit=_emit, session=session)
     except Exception as e:
         _ag.logger.warning("chat-text data handler: %s", e)
+
+
+def open_mic_door(*, session, _emit=None):
+    """V2-831 T-18 — installs THE input door: `voice/mic_input.py` decides whether audio may reach the STT, this
+    hands it the session's audio INPUT (disabled, the room input drops every frame before VAD and STT). Called
+    by the entrypoint ON the session's loop and BEFORE `session.start`; writes from other threads (HTTP routes)
+    are hopped onto that loop. Uninstalled on close, only if still ours."""
+    from voice import mic_input
+    loop = _ag.asyncio._get_running_loop()   # None outside a loop, without raising
+
+    def _set(enabled: bool) -> None:
+        if loop is None or loop.is_closed() or _ag.asyncio._get_running_loop() is loop:
+            session.input.set_audio_enabled(bool(enabled))
+        else:
+            loop.call_soon_threadsafe(session.input.set_audio_enabled, bool(enabled))
+
+    mic_input.use_input(_set)
+    session.on("close", lambda _ev=None: mic_input.clear_input(_set))
+    return _set
 
 
 def receive_typed(txt: str, *, _emit, session, dev: str = "") -> None:
@@ -219,13 +223,8 @@ def on_state_change(state: "_ag.State", *, _ONSET_MAX_S, _STATE_TRACE_SAFE, _air
     _busy["bot"] = speaking
     if speaking:
         _air.on_speaking()
-    # RESPONSE ONSET (V2-535) — the clock the PERSON lives: from the moment their voice ends to the moment
-    # audio actually sounds. Both edges were already emitted, in two different handlers, and nobody paired
-    # them: TTFT and the TTS ttfb each measure a leg, and neither is the wait. Reported ONCE per wait (the
-    # edge is cleared) so a segmented reply does not report its second segment as a second onset, and only
-    # when the wait is plausibly this turn's — a proactive delivery minutes later is not an answer to
-    # anything. `covered` says whether what sounded first was the filler or the reply itself, which is the
-    # difference between «it answered in 2 s» and «it made a noise in 1.1 s and answered in 2 s».
+    # RESPONSE ONSET (V2-535): from the end of HIS voice to the first audio that sounds — the wait he lives.
+    # Once per wait, only when plausibly this turn's; `covered` = the filler, not the reply, sounded first.
     if speaking and _onset.get("voice_ended"):
         _ended = _onset["voice_ended"]
         _gap = _ag.time.monotonic() - _ended
@@ -250,18 +249,14 @@ def on_state_change(state: "_ag.State", *, _ONSET_MAX_S, _STATE_TRACE_SAFE, _air
     _emit("state", state.value, role="system", extra={"state": state.value, **({"trace": _tid} if _tid else {})})
     _emit("bot_speech", "speaking" if speaking else "idle",
           extra={"speaking": speaking, **({"trace": _tid} if _tid else {})})
-    # Wake-word window: zaelar's own speech holds/re-anchors an OPEN conversation window, so `window_s()`
-    # measures real silence after its last word (2026-09-09). It only OPENS one for an utterance that
-    # `note_addressed_speech` armed — which, since V2-749b, includes the kickoff greeting in the modes
-    # where the tap parks: there the greeting asks a question into a microphone nobody would open.
+    # Wake-word window: our own speech holds/re-anchors an OPEN window, so `window_s()` measures his real
+    # silence; it only OPENS one for speech `note_addressed_speech` armed (the kickoff greeting, V2-749b).
     try:
         from voice import attention as _attn
         _attn.note_bot_speech(speaking)
     except Exception:
         pass
-    # Nothing is still sounding at this instant — this is the safe point to close any flow that finished
-    # generate text WHILE the bot was still narrating the response (operator report, 2026-08-16: the turn
-    # disappeared from the flow viewer during TTS). See `nucleo.py::_maybe_close_flow`/`drain_pending_flow_closes`.
+    # Nothing sounds now: close flows that finished while the reply was narrated (`drain_pending_flow_closes`).
     if not speaking:
         try:
             from voice.engine.llm.providers.nucleo import drain_pending_flow_closes
@@ -275,26 +270,19 @@ def _on_user_state(ev, *, _busy, _emit, _onset, sm) -> None:
     new = getattr(ev.new_state, "value", ev.new_state)
     was_bot_speaking = _busy["bot"]
     _busy["user"] = (new == "speaking")
-    # VOICE OBSERVABILITY: until now the observer (/events, the /debug list) did NOT see the user's VAD edge
-    # of the user or the instant when their voice OVERLAPS zaelar's speech (barge-in). Without this it was impossible
-    # to diagnose "noise cut speech". Now it is visible: voice detected · barge-in · end of voice.
+    # VOICE OBSERVABILITY: his VAD edges and barge-in, so «noise cut speech» can be diagnosed.
     if new == "speaking":
         if was_bot_speaking:
-            # ONLY this case is safe to label with active() (source audit 2026-08-16): a barge-in interrupts
-            # speech that ALREADY has a trace — it is THE SAME turn, not one about to begin. "voice
-            # detected"/"end of voice" (below) ALWAYS precede the trace of the turn they will trigger —
-            # attaching active() would assign the PREVIOUS conversation's trace more often than the correct one;
-            # leave them unforced, like the operator transcript (same criterion, see voice/trace.py).
+            # ONLY a barge-in may carry active() (audit 2026-08-16): it interrupts a turn that HAS a trace;
+            # the voice edges below precede theirs, so labelling them would pick the previous turn (voice/trace.py).
             from voice import trace as _trace
             _tid = _trace.active()
-            # V2-661: `edge` is the client's key — the ring on the orb holds while his voice is ACTIVE
-            # and re-arms its window when it stops (sse.js), instead of dying mid-sentence on a timer.
+            # V2-661: `edge` holds the orb's ring while his voice is ACTIVE and re-arms it after (sse.js).
             _emit("vad", "✂️ barge-in — voz pisa la locución (LiveKit corta el TTS)",
                   role="user", extra={"over_agent": True, "edge": "on", **({"trace": _tid} if _tid else {})})
         else:
             _emit("vad", "🎤 voz detectada (VAD)", role="user", extra={"over_agent": False, "edge": "on"})
-        # V2-660 — the window measures the operator's SILENCE, which ends HERE, not when the STT
-        # finalizes the sentence (a 4-second sentence begun inside a 5 s window used to be judged outside it).
+        # V2-660 — the window measures his SILENCE, which ends HERE, not at the STT's final.
         try:
             from voice import attention as _attn_onset
             _attn_onset.note_speech_onset()
@@ -345,11 +333,8 @@ def _int_kwargs() -> dict:
 
 
 async def _speak(text: str, *, _busy, _emit, _on_session_loop, session) -> None:
-    # INSTRUMENTATION (V2-047 F7): record `say` with whether speech/a live turn existed at start → measurable
-    # in /debug. The SERIALIZATION requested by this comment (queue `say` until the live handle finishes)
-    # has existed since 2026-08-31: `voice/proactive.py` puts each notify into a FIFO ticket queue and
-    # speaks ONE AT A TIME, so `bot_in_flight=True` here no longer means «it will cut»; it measures whether
-    # the queue is doing its job — if it is often True again, the queue is broken, not this code.
+    # INSTRUMENTATION (V2-047 F7): `say` with whether speech/a live turn existed at start. `voice/proactive.py`
+    # serialises notifies (FIFO, 2026-08-31), so a frequent `bot_in_flight=True` here means that queue broke.
     _bot0, _usr0 = _busy["bot"], _busy["user"]
     try:
         _emit("tts", "say (entrega proactiva)", text=(text or "")[:120], role="assistant",
@@ -360,9 +345,7 @@ async def _speak(text: str, *, _busy, _emit, _on_session_loop, session) -> None:
         await session.say((text or "").strip(), allow_interruptions=True)   # call AND await on the session loop
     _t0 = _ag.time.perf_counter()
     await _on_session_loop(_do_say)
-    # OBSERVABILITY the operator asked for (2026-08-31): the delivery's REAL playout time, next to the
-    # synthesized audio length TTSMetrics already reports. `playout_ms` ≪ the audio duration is the
-    # one-glance tell of a cut — exactly the comparison that took a log dig to make today.
+    # The REAL playout time next to TTSMetrics' audio length (2026-08-31): ≪ means the delivery was cut.
     try:
         _emit("tts", "say (entrega proactiva) COMPLETADA", role="assistant",
               extra={"playout_ms": round((_ag.time.perf_counter() - _t0) * 1000)})
@@ -401,11 +384,9 @@ def _on_item(ev, *, _emit) -> None:
     if role == "user":
         from nucleo.input import typed as _order
         _order.note_committed()   # whatever he was saying is a turn now: a typed order held behind it may go
-    # V2-773 — already on the wall because the voice could not say it (reply_wall.surface): not twice.
+    # V2-773 — already on the wall (reply_wall.surface): not twice.
     if role == "assistant" and text and not _ag._reply_wall.already_surfaced(text):
-        # SAFE to label with active() (source audit 2026-08-16, unlike the OPERATOR transcript below in
-        # _on_transcript): the assistant item is added AFTER the turn's LLM+TTS chain has run — its trace
-        # already exists; it is not about to begin.
+        # SAFE to carry active() (audit 2026-08-16): the assistant item lands after the turn's LLM+TTS ran.
         from voice import trace as _trace
         _tid = _trace.active()
         _emit("transcript", "zaelar", text=text, role="assistant",
@@ -421,13 +402,11 @@ def _on_item(ev, *, _emit) -> None:
 def _on_transcript(ev, *, _emit, _wake) -> None:
     if ev.is_final:
         _wake["last_user_final"] = _ag.time.time()
-        # → observer/SSE: chat wall + the front-end voice-command fast-path (show/close widgets) consume this.
+        # → observer/SSE: the chat wall + the front-end voice-command fast path.
         _emit("transcript", "🗣", text=ev.transcript, role="user")
     else:
         _emit("interim", "…", text=ev.transcript, role="user")   # live, UI-only (dedup/no-disk in observer)
-        # INSTANT wake-word spotting (2026-09-09): a regex over the interim stream — the orb lights the
-        # moment the word is HEARD, not after STT-final + the turn gate (measured 1-3s late). Signal only:
-        # the turn's real verdict is still the gate's.
+        # INSTANT wake-word spotting (2026-09-09) over the interim stream: the orb lights on HEARING; signal only.
         try:
             from voice import attention as _attn_spot
             if _attn_spot.mode() in ("smart", "wakeword") and _attn_spot.has_wakeword(ev.transcript):

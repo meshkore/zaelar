@@ -1707,6 +1707,11 @@ DOMAINS: list[dict] = [
                                 "ruido de la sala no toca los contadores",
             "ch": UNIT, "paths": [
                 "tests/voice/unit/test_if_it_talks_to_you_it_listens_to_you.py"]},
+        {"id": "3.150", "title": "No closed state feeds a frame to the STT: mic closed, ⏻ off and a tap waiting "
+                                 "for the wake word close the session's audio INPUT (0 frames, 0 STT usage); "
+                                 "reopening gives the ear back (V2-831 T-18)",
+            "ch": UNIT, "paths": [
+                "tests/voice/unit/test_a_closed_microphone_feeds_no_audio_to_stt.py"]},
         {"id": "3.26", "title": "El interruptor del micrófono manda en el motor: titular único, la ruta y el "
                                 "latido que lo re-afirman, y el turno que no existe con el micro cerrado",
             "ch": UNIT, "paths": [
@@ -5041,6 +5046,11 @@ DOMAINS: list[dict] = [
                                  "llega hasta 20,8 s tarde, encuentra SU fila por trace en vez de duplicarla",
             "ch": UNIT,
             "paths": ["tests/browser/unit/chat/test_a_line_the_voice_never_said_is_never_written.py"]},
+        {"id": "4.327", "title": "Mic and speaker LILAC while listening, GREY at full strength (no slash, no "
+                                 "meter) while the tap waits for the wake word, crossed out when closed — "
+                                 "rendered, against the palette tokens (V2-831 T-18)",
+            "ch": UNIT,
+            "paths": ["tests/browser/e2e/widgets/test_the_mic_is_grey_while_the_wake_word_waits.py"]},
         {"id": "4.209", "title": "Los tres cables del grifo aparcado: el muro PREGUNTA antes de pintar, el "
                                  "aparcado exige un oído armado y nunca escribe el interruptor del micro, y "
                                  "el motor contesta al tema que el navegador publica",
