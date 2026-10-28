@@ -3093,6 +3093,11 @@
  {
   "id": "msg-en-mail-route",
   "lang": "en",
+  "connectors": [
+   "whatsapp",
+   "telegram",
+   "email"
+  ],
   "phrase": "Put the emails from amazon.com in Primary",
   "source": "V2-807 T-03 (2026-10-26): his mail criteria over the provider's categories are a verdict over what is declared, ES+EN",
   "screen": {
