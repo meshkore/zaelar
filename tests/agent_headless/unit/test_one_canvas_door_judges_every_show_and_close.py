@@ -151,6 +151,15 @@ def test_disarm_a_door_grown_past_its_ceiling_is_caught(tmp_path):
     assert _door_lines(tmp_path) > CANVAS_DOOR_MAX
 
 
+def test_every_provenance_the_writers_use_gets_a_verdict():
+    """Each declared provenance a writer stamps must come back as a Verdict from the tree — a branch that forgets its
+    verdict broke the action map's fast lane once (refactor2710-04), silently, behind its fail-open."""
+    for src in ("actionmap", "interrupt", "system", "system:reset", "worker:7", "wall:t1", "recall:x", "sheet:s",
+                "user", "client", "client:restore", "flash", "backstop"):
+        v = arb.decide("close", "agenda", src, text="", verdict={})
+        assert isinstance(v, arb.Verdict) and v.rule != "arbiter-error", (src, v)
+
+
 def test_a_broken_arbiter_fails_open_with_its_verdict_on_record(monkeypatch, stream):
     monkeypatch.setattr(arb, "_decide", lambda *a, **k: 1 / 0)
     widget = []

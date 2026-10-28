@@ -50,10 +50,11 @@ def decide(op: str, wid: str, src: str, *, action: str = "", payload: dict | Non
     `{key: (choice, confidence)}` for `canvas`, `screen_action`, `catalog_widget`. Never raises: an unreadable
     input is judged on the strictest branch rather than crashing a caller that sits near the hot path."""
     try:
-        return _decide(op, wid, src, action=action, payload=payload or {}, text=text,
-                       turn_credit=turn_credit, model_acted=model_acted,
-                       open_ids=open_ids, recent_ids=recent_ids, last_reply=last_reply, verdict=verdict or {},
-                       card_closed=card_closed, answered=answered)
+        v = _decide(op, wid, src, action=action, payload=payload or {}, text=text,
+                    turn_credit=turn_credit, model_acted=model_acted,
+                    open_ids=open_ids, recent_ids=recent_ids, last_reply=last_reply, verdict=verdict or {},
+                    card_closed=card_closed, answered=answered)
+        return v if isinstance(v, Verdict) else _v(False, "arbiter-error", error="a branch gave no verdict")
     except Exception as e:  # noqa: BLE001
         return _v(False, "arbiter-error", error=str(e)[:120])
 
@@ -92,7 +93,7 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
     if base_src.startswith("worker"):
         return _v(True, "task-owned", tid=(src.split(":", 1) + [""])[1])
     if base_src in _SRC_DETERMINISTIC:
-        return                                  # the seeded phrase IS the licence (V2-539/V2-567) _v(True, "seeded-grammar")
+        return _v(True, "seeded-grammar")       # the seeded phrase IS the licence (V2-539/V2-567)
 
     # ── level 2 · model / backstop share the license branch; a backstop must also not duplicate ─────
     if base_src == "backstop" and model_acted:
