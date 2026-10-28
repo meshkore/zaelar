@@ -15,6 +15,8 @@ from memory import tasks_store as ts
 from nucleo import dispatch
 from tests.agent_headless.unit.test_a_commission_leaves_a_durable_row import (  # noqa: F401 — fixtures
     _commission, _hash_backend, _no_sessions_left_behind, fresh_db)
+# The row is written before the worker session registers: read the session against a clock (refactor2710-99, #113).
+from tests.waiting import until
 
 
 def test_an_existing_database_gains_the_state_columns(tmp_path, monkeypatch):
@@ -51,7 +53,7 @@ def test_the_pulse_beat_writes_the_workers_state_into_its_row(fresh_db, monkeypa
     async def _go():
         live, _ = await _commission(monkeypatch, "búscame piso de alquiler en Gràcia", release=False)
         uid = live[0]["id"]
-        tid = next(iter(dispatch._SESSIONS))
+        tid = await until(lambda: next(iter(dispatch._SESSIONS), None), "the worker session to register")
         dispatch.session_plan(tid, "buscar|comparar|entregar")
         dispatch.session_progress(tid, "comparando precios", done=1)
         dispatch.session_phase(tid, "comparando precios")
@@ -71,7 +73,7 @@ def test_a_worker_report_sets_its_self_report_clock(fresh_db, monkeypatch):
 
     async def _go():
         await _commission(monkeypatch, "búscame piso en Gràcia", release=False)
-        tid = next(iter(dispatch._SESSIONS))
+        tid = await until(lambda: next(iter(dispatch._SESSIONS), None), "the worker session to register")
         before = dispatch.get_record(tid).reported_at
         await agent_api.agent_report(tid=tid, token="", phase="leyendo anuncios", note="", plan="",
                                      progress=None, done=None, pct=None, considered=None, kept=None,
