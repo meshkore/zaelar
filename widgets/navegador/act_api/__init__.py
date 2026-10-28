@@ -18,7 +18,7 @@ router = APIRouter()
 
 def _shot_path(task_id: str) -> str:
     """Absolute PNG path of this tab's viewport (written by TaskBrowser._capture after each action), or '' when the
-    file is not there: `nav_cli` turns a non-empty value into «read this file», so a missing PNG must never be
+    file is not there: `cli.nav` turns a non-empty value into «read this file», so a missing PNG must never be
     advertised; empty sends the worker to the text snapshot (V2-205)."""
     try:
         import os

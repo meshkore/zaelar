@@ -1,6 +1,6 @@
 """nucleo/cli/widget.py — `hbwidget`: the Brain Worker READS and OPERATES the canvas widgets (V2-061).
 
-Sibling of `hbweb` (nav_cli), `hbmem` (mem_cli), `hbnote` (agent_report), and `hbask/hbact/hbsay` (worker_bridge). It
+Sibling of `hbweb` (cli.nav), `hbmem` (cli.mem), `hbnote` (cli.report), and `hbask/hbact/hbsay` (cli.bridge). It
 talks over HTTP to the live server (`/api/worker/act`), using the session id + token from the environment
 (`ZAELAR_TASK_ID` + `ZAELAR_TASK_TOKEN`, §v2·D). Fail-soft. It is the missing BRIDGE for CHAINED reality↔widget
 actions: after doing something in the real world (cancelling an appointment on a website), the worker REFLECTS the
@@ -84,7 +84,7 @@ def _report(res: dict) -> int:
     return 0
 
 
-#: What anyone—person or model—types when encountering a new tool. `nav_cli` answers it with
+#: What anyone—person or model—types when encountering a new tool. `cli.nav` answers it with
 #: `exit 0` because it uses argparse; this bridge used to answer with “unknown command” and `exit 2` (V2-325).
 _AYUDA = ("--help", "-h", "help", "ayuda", "--ayuda", "-?", "/?")
 
@@ -93,7 +93,7 @@ def _read_payload(raw: str, list_key: str = ""):
     """The JSON payload of a verb, from an argument, a `@file` or `-` (stdin). `None` means «already
     explained why it could not be read»; `{}` means «none given». Extracted so `data` and `rows` answer an
     unreadable payload with the SAME sentence — two bridges answering one question differently is exactly
-    how V2-379 happened, and this file already says so about `worker_bridge`."""
+    how V2-379 happened, and this file already says so about `cli.bridge`."""
     payload: dict = {}
     raw = (raw or "").strip()
     if raw:
@@ -109,7 +109,7 @@ def _read_payload(raw: str, list_key: str = ""):
                 # V2-203 — this message used to be the bare OSError, and the worker read it as a dead end:
                 # measured on `cheapest-monitor` (round 21), `Exit code 2 cannot read the payload from
                 # informe.json: [Errno 2] No such file or directory` ended the task with nothing delivered.
-                # It says WHAT failed and nothing about what to do, which is the fault `nav_cli` already paid
+                # It says WHAT failed and nothing about what to do, which is the fault `cli.nav` already paid
                 # for (V2-186): the bridge is the worker's only view, so a message without a way out is a
                 # message that stops it. The two facts it needs are WHERE it is looking (the path is relative,
                 # and a worker that wrote to another directory cannot tell from the error) and WHAT is
@@ -119,7 +119,7 @@ def _read_payload(raw: str, list_key: str = ""):
                 if not os.path.isabs(path):
                     here = os.getcwd()
                     print(f"   · ruta RELATIVA a tu directorio de trabajo: {here}")
-                    # MECHANISM SHARED with `worker_bridge` (same reason as `read_payload`): two bridges that
+                    # MECHANISM SHARED with `cli.bridge` (same reason as `read_payload`): two bridges that
                     # answer the same question differently diverge again, and that divergence is exactly what
                     # led to V2-379.
                     from nucleo import bridge_usage as _bu
@@ -166,7 +166,7 @@ def _bare_text_payload(wid: str, action: str, raw: str):
     """A bare sentence where a JSON object was expected → that object, when the action leaves no doubt which field
     it is. None = not a bare sentence, or ambiguous (the JSON path then explains the shape).
 
-    Demo pass 30 (2026-09-28, F1): `widget_cli data documento goto "Bottom line"` died with «no es JSON válido».
+    Demo pass 30 (2026-09-28, F1): `cli.widget data documento goto "Bottom line"` died with «no es JSON válido».
     The worker said exactly what it meant; the action `goto` declares ONE field (`text`, and names it as its
     `ref`). Refusing a sentence whose only possible reading is declared by the widget itself is a format error
     on our side, not on the worker's — and every failed step costs a round and a ⚠️ on the operator's panel."""
@@ -192,13 +192,13 @@ def main(argv: list[str]) -> int:
         return 2
     cmd = argv[1]
     # ASKING FOR HELP IS NOT A FAILURE (V2-325). Measured in the studio session logs (2026-08-25): of 332 worker
-    # sessions, 81 use `nav_cli` and only 5 reach `widget_cli`—and THREE of those five die with `Exit code 2`.
-    # The first step is what kills them: the worker types `widget_cli --help`, as anyone does with a new tool,
+    # sessions, 81 use `cli.nav` and only 5 reach `cli.widget`—and THREE of those five die with `Exit code 2`.
+    # The first step is what kills them: the worker types `cli.widget --help`, as anyone does with a new tool,
     # and received “unknown command: --help” with code 2. After two consecutive errors it gives up; the result is
     # a sheet filled only with what the automatic extractor pulls from a listing, while everything the worker
     # learns by OPENING records dies in its context.
     #
-    # Its sibling `nav_cli` answers `--help` with exit 0 because it uses argparse, and it is the bridge that gets used.
+    # Its sibling `cli.nav` answers `--help` with exit 0 because it uses argparse, and it is the bridge that gets used.
     # This is fixed without migrating to argparse—that would change the contract of verbs that already work—but by
     # recognizing the question and returning SUCCESS: asking how to use something is not making a mistake.
     if cmd in _AYUDA:

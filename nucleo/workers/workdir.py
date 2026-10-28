@@ -123,7 +123,7 @@ def env_for_task(env: dict | None = None) -> dict:
 def extra_dirs() -> list[str]:
     """Directories a confined worker DEPENDS on being able to read, as absolute paths.
 
-    Only the browser's data directory today: `nav_cli` answers every action with an absolute
+    Only the browser's data directory today: `cli.nav` answers every action with an absolute
     `widgets/_data/navegador/shot-<task>.png` and instructs the worker to open it with `Read` (V2-049 vision).
     Verified live that the CLI already allows that read without being told (see the module docstring) — this makes
     the dependency EXPLICIT rather than incidental. Empty list if it cannot be resolved: the worker keeps the TEXT

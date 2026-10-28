@@ -233,7 +233,7 @@ def _state(overall, r: dict) -> str:
     # A worker that decides not to navigate does not name `nav_cli`; one whose bridge does not answer does.
     _wb = mech_.get("worker_bridges") or {}
     if (_pj.get("read") and not _pj.get("n_pages")
-            and (_wb.get("by_bridge") or {}).get("nav_cli")
+            and (_wb.get("by_bridge") or {}).get("cli.nav")
             and _wb.get("sessions_with_exit2")):
         return _infra(r, "el puente del navegador no contestó: el worker llamó a nav_cli, la sesión murió en "
                          "Exit code 2 y NINGUNA página se alcanzó (cuelgue del Chromium o del bridge)")

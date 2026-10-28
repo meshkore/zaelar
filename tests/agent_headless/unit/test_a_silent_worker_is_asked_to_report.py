@@ -47,7 +47,7 @@ def test_a_worker_that_never_reported_is_told_to(monkeypatch):
     rec = _live(monkeypatch)
     _pulse(L.OrchestratorLoop(deliver=_noop), time.time())
     assert rec.session.said == [L.REPORT_DEMAND]
-    assert "agent_report phase" in L.REPORT_DEMAND, "the demand must name the command the worker actually has"
+    assert "cli.report phase" in L.REPORT_DEMAND, "the demand must name the command the worker actually has"
 
 
 def test_it_is_asked_again_only_after_another_window(monkeypatch):

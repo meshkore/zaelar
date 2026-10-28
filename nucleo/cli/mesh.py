@@ -9,7 +9,7 @@ already served this kind of errand. Both print JSON on stdout and never fail har
 agent that will not answer all come back as `{"ok": false, "reason": …}`, and the worker carries on with the
 browser exactly as it does today.
 
-Sibling of `nav_cli` (`hbweb`) and deliberately its OPPOSITE in cost: a browser errand is minutes of driving a
+Sibling of `cli.nav` (`hbweb`) and deliberately its OPPOSITE in cost: a browser errand is minutes of driving a
 real Chromium through defences built to stop it — measured, an entire run spent on Booking's anti-bot
 challenge — while this is one HTTP round-trip. So the order in the worker's method is: ask the mesh, and only
 open a browser when nobody answers.

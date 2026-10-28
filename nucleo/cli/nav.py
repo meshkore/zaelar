@@ -217,8 +217,8 @@ def _print_state(res: dict) -> None:
     # V2-212 — TWO RELATED COMMANDS WITH DIFFERENT SIGNATURES, and the worker mixed them up. Measured in
 # `book-hotel-night-known__es` (2026-08-20 15:29):
 #
-#     Exit code 2 usage: nav_cli type_at [-h] [--submit] x y text
-#     nav_cli type_at: error: argument y: invalid int value: 'Hotel Palacio de la Merced Burgos reservas 3'
+#     Exit code 2 usage: cli.nav type_at [-h] [--submit] x y text
+#     cli.nav type_at: error: argument y: invalid int value: 'Hotel Palacio de la Merced Burgos reservas 3'
 #
 # `type` takes a [ref] from the snapshot and `type_at` takes COORDINATES from the capture: it wrote the text where
 # `y` belongs, exactly what happens when one command's arity is used with the other's name. And argparse's `usage`
@@ -265,8 +265,8 @@ def _hint_for(prog: str) -> str:
         return ("   · `click_at` es de VISIÓN y va con COORDENADAS: `click_at <x> <y>` (de la captura de `look`).\n"
                 "   · Con un [ref] del snapshot el comando es `click <ref>`.")
     # V2-369 — verbs that take a URL. Measured in `rental-car-automatic-airport__es` (2026-08-27): the
-    # worker wrote `nav_cli navigate` with NO ARGUMENT at 32 s, received only the `usage:`, and **wrote it again
-    # without an argument 42 s later**; `visit` did the same. In the SAME session, bare `worker_bridge act` —which
+    # worker wrote `cli.nav navigate` with NO ARGUMENT at 32 s, received only the `usage:`, and **wrote it again
+    # without an argument 42 s later**; `visit` did the same. In the SAME session, bare `cli.bridge act` —which
     # does provide a hint—failed ONCE and was not repeated. That is the measure: the one with a hint self-corrects;
     # the one that only receives the form repeats it. The first three minutes were lost there and the task reached
     # no rental site; the sheet ended up with search-results-page titles.
@@ -291,20 +291,20 @@ def _ref(v: str) -> int:
 
     `dom.py` renderiza cada elemento como `[2] button "Buscar"` y el propio encabezado de `_print_state` dice
     «usa el numero [ref] con click/type» — o sea que la forma con corchetes es la que el worker tiene DELANTE
-    cuando escribe el comando. Medido en los logs de sesion del plato: `nav_cli type: error: argument ref:
+    cuando escribe el comando. Medido en los logs de sesion del plato: `cli.nav type: error: argument ref:
     invalid int value: '[2]'`. Same rule as V2-306/V2-219: copying literally what we show it must not cost a turn.
     """
     return int(str(v).strip().strip("[]"))
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="nav_cli", description="Conduce el navegador de zaelar (worker Claude Code)")
+    ap = argparse.ArgumentParser(prog="cli.nav", description="Conduce el navegador de zaelar (worker Claude Code)")
     sub = ap.add_subparsers(dest="cmd", required=True, parser_class=_GuidedParser)
     sub.add_parser("snapshot", help="estado + elementos interactivos de la página actual")
     sub.add_parser("look", help="VISIÓN: captura la página → ruta PNG para Read + coordenadas para click_at/type_at")
     # V2-306 — `open`/`goto` are ALIASES of navigate, and it is the CLI that was wrong, not the worker (the
     # V2-219 rule). Measured on `find-best-hotel-city__es` (2026-08-25 02:22): TWO workers in a row wrote
-    # `nav_cli open <url>` — the natural verb, and the one our own recipe teaches in prose («para ABRIR una
+    # `cli.nav open <url>` — the natural verb, and the one our own recipe teaches in prose («para ABRIR una
     # page uses…») — and burned their turns on «invalid choice: 'open'» while the round ended with an empty
     # sheet. An alias keeps the semantics identical; a hint on the error would still cost the failed call.
     n = sub.add_parser("navigate", aliases=["open", "goto"], help="ir a una URL"); n.add_argument("url")
@@ -327,10 +327,10 @@ def main(argv: list[str] | None = None) -> int:
     v.add_argument("url"); v.add_argument("--chars", type=int, default=2500)
     # V2-341 — TWO MORE FORMS THAT THE CLI REJECTED AND THE WORKER WRITES ON ITS OWN. Same rule as V2-306: when
     # the natural usage is unambiguous, the CLI is the one that is wrong. Measured across ALL test-rig session logs
-    # (41 contract errors involving `nav_cli`):
+    # (41 contract errors involving `cli.nav`):
     #
     #     18x  `open <url>`                    <- already closed by V2-306; the 18 are earlier
-    #      5x  `nav_cli <url>` without a verb  <- a standalone URL can only be `navigate`
+    #      5x  `cli.nav <url>` without a verb  <- a standalone URL can only be `navigate`
     #      5x  `type_at <ref> "text"`         <- confusing `type` (ref) with `type_at` (coordinates)
     #
     # The two cases closed here are NOT guesses about intent: a string beginning with http(s) cannot be any other

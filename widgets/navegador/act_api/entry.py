@@ -128,7 +128,7 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             return await _f._act_extract(tb, task_id, args)
         if action in ("navigate", "click", "type", "select_option", "scroll", "press", "click_at", "type_at"):
             # The address BEFORE, to tell what changed (V2-293). Read from the tab's record
-            # because it is all that survives between bridge calls: `nav_cli` is one process per action.
+            # because it is all that survives between bridge calls: `cli.nav` is one process per action.
             _before = ""
             try:
                 from widgets.navegador import tasks as _t0

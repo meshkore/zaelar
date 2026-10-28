@@ -38,7 +38,7 @@ def _tool_phase(tool: str, tin: dict | None = None) -> str:
         return _say("web_search", "searching the web") + "…"
     if t.startswith("bash"):
         c = str((tin or {}).get("command") or "").lower()
-        if "nav_cli" in c:
+        if "cli.nav" in c:
             for verb, key, en in (("snapshot", "nav_look", "looking at the page"),
                                   ("navigate", "nav_navigate", "opening a page"),
                                   ("click", "nav_interact", "interacting with the page"),
@@ -48,13 +48,13 @@ def _tool_phase(tool: str, tin: dict | None = None) -> str:
                 if f" {verb}" in c:
                     return _say(key, en) + "…"
             return _say("nav_drive", "driving the browser") + "…"
-        if "agent_report" in c:
+        if "cli.report" in c:
             return ""                                   # la fase la pone el propio hbnote (más rica) — no pisar
-        if "mem_cli" in c:
+        if "cli.mem" in c:
             return _say("mem_recall", "checking memory") + "…"
-        if "widget_cli" in c:
+        if "cli.widget" in c:
             return _say("widget_update", "updating a widget") + "…"
-        if "worker_bridge" in c:
+        if "cli.bridge" in c:
             return _say("zaelar_consult", "checking with zaelar") + "…"
         return _say("system_step", "running a step") + "…"
     if t in ("write", "edit", "multiedit"):
@@ -116,15 +116,15 @@ def _nav_target(cmd: str, verb: str) -> str:
 
 
 def _bash_step(cmd: str):
-    """Un comando Bash acotado a un PUENTE → dónde/qué. Devuelve None para no emitir fila (agent_report)."""
+    """Un comando Bash acotado a un PUENTE → dónde/qué. Devuelve None para no emitir fila (cli.report)."""
     c = (cmd or "").lower()
-    if "nav_cli" in c:
+    if "cli.nav" in c:
         verb = next((v for v in ("navigate", "click", "type", "scroll", "snapshot", "extract", "press", "back")
                      if re.search(rf"\b{v}\b", c)), "")
         return {"where": "navegador", "action": verb or "conduce", "target": _nav_target(cmd, verb)[:160]}
-    if "agent_report" in c:
+    if "cli.report" in c:
         return None                                  # la fase legible la fija el propio hbnote — no duplicar
-    if "mem_cli" in c:
+    if "cli.mem" in c:
         if "recall" in c:
             return {"where": "memoria", "action": "recall", "target": _quoted(cmd)[:120]}
         if "remember" in c:
@@ -133,12 +133,12 @@ def _bash_step(cmd: str):
             tgt = (f"[{slot}] " if slot else "") + _quoted(cmd)
             return {"where": "memoria", "action": "guarda", "target": tgt[:120]}
         return {"where": "memoria", "action": "memoria", "target": ""}
-    if "widget_cli" in c:
-        m = re.search(r"widget_cli\s+(read|data|show|close)\s+([\w-]+)", cmd)
+    if "cli.widget" in c:
+        m = re.search(r"cli\.widget\s+(read|data|show|close)\s+([\w-]+)", cmd)
         verb = m.group(1) if m else "opera"
         wid = m.group(2) if m else ""
         return {"where": "widget", "action": verb, "target": wid[:80]}
-    if "worker_bridge" in c:
+    if "cli.bridge" in c:
         verb = next((v for v in ("ask", "act", "say") if re.search(rf"\b{v}\b", c)), "")
         return {"where": "zaelar", "action": verb or "consulta", "target": _quoted(cmd)[:120]}
     return {"where": "sistema", "action": "ejecuta", "target": _cmd_head(cmd)}

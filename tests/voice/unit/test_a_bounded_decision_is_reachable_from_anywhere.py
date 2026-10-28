@@ -275,7 +275,7 @@ def test_the_worker_PROMPT_declares_the_door(wire):
     import pathlib as _p
     src = (_p.Path(__file__).resolve().parents[3] / "nucleo" / "dispatch_prompts.py").read_text(
         encoding="utf-8")
-    assert "worker_bridge decide" in src, "the worker is never told the bounded-decision door exists"
+    assert "cli.bridge decide" in src, "the worker is never told the bounded-decision door exists"
     assert "abstained" in src, "…nor what «none of these fits» looks like when it answers"
 
 

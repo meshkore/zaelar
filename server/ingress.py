@@ -80,7 +80,7 @@ def is_own_worker_door(path: str, peer_loopback: bool) -> bool:
     """A worker this process spawned, calling one of its own doors back over loopback (V2-789).
 
     The engine's workers talk to their engine through `ZAELAR_BASE` (`nucleo.engine_url`, a loopback address):
-    `agent_report`, `nav_cli`, `mem_cli`, `widget_cli`, the worker bridge. They hold no session cookie and never
+    `cli.report`, `cli.nav`, `cli.mem`, `cli.widget`, the worker bridge. They hold no session cookie and never
     can — the session belongs to the browser — so every such call was refused as `no_session` (401) and the
     worker lost its reports and its browser. A loopback peer IS this process's own machine, so «whose session
     is this?» has only one answer, and the doors (`operator_gate.WORKER_DOORS`) each verify the worker on their

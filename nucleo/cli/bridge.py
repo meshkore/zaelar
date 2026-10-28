@@ -156,10 +156,10 @@ def _cmd_say(text: str) -> int:
     return 0 if res.get("ok") else 1
 
 
-# V2-219 — measured in `hotel-under-15-days`: `Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} … error:
+# V2-219 — measured in `hotel-under-15-days`: `Exit code 2 usage: cli.bridge [-h] {ask,wait,act,say} … error:
 # the following arguments are required`. The worker got stuck there and the round ended with ZERO searches. A `usage`
-# message shows the form but not what to do, which is the dead end already paid for by `nav_cli` (V2-212) and the
-# payload bridge (V2-203). It hurts more here than anywhere else: `worker_bridge` is how the worker REQUESTS a
+# message shows the form but not what to do, which is the dead end already paid for by `cli.nav` (V2-212) and the
+# payload bridge (V2-203). It hurts more here than anywhere else: `cli.bridge` is how the worker REQUESTS a
 # search, so dying on its arguments leaves it blind for the rest of the task.
 def _hint_for(prog: str) -> str:
     if prog.endswith("act"):
@@ -210,7 +210,7 @@ def _hint_decide() -> str:
 
 def main(argv: list[str] | None = None) -> int:
     import argparse
-    ap = argparse.ArgumentParser(prog="worker_bridge", description="Puentes del Brain Worker (ask/act/say/wait)")
+    ap = argparse.ArgumentParser(prog="cli.bridge", description="Puentes del Brain Worker (ask/act/say/wait)")
     sub = ap.add_subparsers(dest="cmd", required=True, parser_class=bridge_usage.guided(_hint_for))
     pa = sub.add_parser("ask", help="pregunta al usuario y ESPERA la respuesta")
     pa.add_argument("question")

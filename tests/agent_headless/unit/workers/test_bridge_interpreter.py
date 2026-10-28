@@ -41,7 +41,7 @@ def test_untrusted_prompt_is_left_alone():
 
 
 def test_allowlist_covers_every_bridge_x_every_spelling():
-    for mod in ("mem_cli", "agent_report", "nav_cli", "worker_bridge", "widget_cli"):
+    for mod in ("cli.mem", "cli.report", "cli.nav", "cli.bridge", "cli.widget"):
         for py in ("python", "python3", ".venv/bin/python", cs.bridge_python()):
             assert f"Bash({py} -m nucleo.{mod}:*)" in cs._BRIDGE_TOOLS, f"{py} -m nucleo.{mod} sin declarar"
 

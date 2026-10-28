@@ -383,8 +383,7 @@ def _worker_state() -> tuple[bool, bool]:
     already lists. Never raises — unknown state reads as «no», which is the escalating answer.
     """
     try:
-        from nucleo import dispatch as _dispatch
-        from nucleo.cli import worker_api as _wapi
+        import nucleo.dispatch as _dispatch, nucleo.cli.worker_api as _wapi
         return bool(_dispatch.has_active()), bool(_wapi.has_pending_ask())
     except Exception:  # noqa: BLE001
         return False, False

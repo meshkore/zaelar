@@ -90,7 +90,7 @@ def test_el_PROMPT_del_worker_lo_nombra_y_dice_para_que_sirve():
     import inspect
     from nucleo import dispatch_prompts as dp
     src = inspect.getsource(dp)
-    assert "nav_cli visit" in src
+    assert "cli.nav visit" in src
     assert "sin perder el listado" in src, "hay que decirle PARA QUÉ, no solo que existe"
     i = src.find("ESOS son TODOS los subcomandos")
     assert i > 0 and "visit" in src[i:i + 400], (

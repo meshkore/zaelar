@@ -59,7 +59,7 @@ def _dev_prompt(req: str, repo: str) -> str:
         "1. Clónalo:  python -m nucleo.cli.git clone repo   (queda en ./repo)\n"
         "2. Escribe/edita el código dentro de ./repo con Read/Write/Edit.\n"
         "3. Commit + push:  python -m nucleo.cli.git commit repo -m \"<mensaje>\"  y luego  python -m nucleo.cli.git push repo\n"
-        "NO tienes acceso a la memoria del operador, a otros repos, ni a Bash abierto (solo el puente git_cli). "
+        "NO tienes acceso a la memoria del operador, a otros repos, ni a Bash abierto (solo el puente cli.git). "
         "Si algo requiere más permisos, dilo y termina — no lo fuerces.\n\n"
         f"TAREA: {req}")
 

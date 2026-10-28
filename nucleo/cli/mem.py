@@ -58,7 +58,7 @@ def _recall(query: str, k: int = 8, source: str = "", kind: str = "", hours: flo
     """Each printed line carries its provenance — `- [when · lane/kind · source · who] text` (V2-802 T-06) — so a
     worker can quote where something is on record, or say it is not."""
     if not query.strip() and source != "conversation":
-        print("uso: mem_cli recall \"<consulta>\"", file=sys.stderr)
+        print("uso: cli.mem recall \"<consulta>\"", file=sys.stderr)
         return 2
     payload: dict = {"query": query, "k": k}
     if source:
@@ -78,7 +78,7 @@ def _recall(query: str, k: int = 8, source: str = "", kind: str = "", hours: flo
 
 def _remember(text: str, slot: str = "", kind: str = "") -> int:
     if not text.strip():
-        print("uso: mem_cli remember \"<dato>\" [--slot X] [--kind Y]", file=sys.stderr)
+        print("uso: cli.mem remember \"<dato>\" [--slot X] [--kind Y]", file=sys.stderr)
         return 2
     payload: dict = {"text": text}
     if slot:
@@ -96,7 +96,7 @@ def _remember(text: str, slot: str = "", kind: str = "") -> int:
 
 def main(argv: list[str] | None = None) -> int:
     import argparse
-    ap = argparse.ArgumentParser(prog="mem_cli", description="Puente de memoria de zaelar para agentes Claude Code")
+    ap = argparse.ArgumentParser(prog="cli.mem", description="Puente de memoria de zaelar para agentes Claude Code")
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("recall", help="pide recuerdos relevantes a una consulta")
     r.add_argument("query")

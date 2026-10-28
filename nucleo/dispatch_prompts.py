@@ -130,7 +130,7 @@ _METHOD_BLOCK = (
 # `kind="web"` lo que `site_catalog.category_of` reconoce, y ese detector pide un verbo de RESERVA —
 # «resérvame hotel en Nueva York» → `hotel_booking`, pero «búscame el mejor hotel de Nueva York» → `None`, o
 # sea `generic`. Un hotel BUSCADO (que es como lo dice el operador) caía en el prompt genérico, que no
-# nombraba `mesh_cli` en ninguna línea: la red no es que se descartara, es que el worker no sabía que existe.
+# nombraba `cli.mesh` en ninguna línea: la red no es que se descartara, es que el worker no sabía que existe.
 #
 # Se arregla por el PROMPT y no por el enrutador a propósito. Ensanchar `category_of` para que una búsqueda
 # cuente como transaccional MUEVE a `kind="web"` encargos que hoy resuelve un worker genérico —y el propio
@@ -213,7 +213,7 @@ def _known_route_line(goal: str) -> str:
 DOC_SURFACE_BLOCK = (
     "ENTREGA COMO INFORME (la superficie de este encargo es un DOCUMENTO): el operador pidió un ESCRITO y la "
     "hoja `documento` YA ESTÁ ABIERTA en su pantalla, enseñando tu progreso en vivo mientras trabajas — tus "
-    "fases de agent_report son lo que él lee ahí, repórtalas de verdad (qué fuente miras, qué acabas de "
+    "fases de cli.report son lo que él lee ahí, repórtalas de verdad (qué fuente miras, qué acabas de "
     "confirmar). La hoja de RESULTADOS NO está abierta para este encargo: NO entregues en `results` ni "
     "vuelques listas de candidatos — el paso 4b no aplica; aplica el 4d con `documento`. En cuanto tengas la "
     "estructura, primer `show` con el esqueleto del informe (título REAL confirmado del asunto, secciones) y "
@@ -647,12 +647,12 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         f"{py} -m nucleo.cli.report progress \"<hecho>\" --done <n>\n"
         f"• Fase legible puntual (tarjeta): {py} -m nucleo.cli.report phase \"<qué haces>\"\n"
         f"• Preguntar al operador y ESPERAR su respuesta: {py} -m nucleo.cli.bridge ask \"<pregunta>\"\n"
-        f"• Leer un dato que zaelar ya sepa:  {py} -m nucleo.cli.mem recall \"<consulta>\" (lo DICHO, literal: mem_cli history \"<tema>\")\n"
+        f"• Leer un dato que zaelar ya sepa:  {py} -m nucleo.cli.mem recall \"<consulta>\" (lo DICHO, literal: cli.mem history \"<tema>\")\n"
         # Entrada de CATÁLOGO, no una orden: el QUÉ y el PORQUÉ viven una sola vez, en «LO QUE AVERIGUAS SE
         # GUARDA» (V2-344). Dejar aquí también un motivo («para no volver a pedirlo») era media instrucción
         # suelta, y dos mitades en dos sitios es como una decisión se separa de sí misma sin avisar.
         f"• GUARDAR un dato que reúnas: {py} -m nucleo.cli.mem remember \"<dato>\" --slot task.<algo>\n\n"
-        "⚠️ ESOS son TODOS los subcomandos de `nav_cli` que existen — snapshot, look, navigate, click, type, "
+        "⚠️ ESOS son TODOS los subcomandos de `cli.nav` que existen — snapshot, look, navigate, click, type, "
         "select_option, click_at, type_at, scroll, press, extract, visit. NO existen `automate`, `act` ni otro; "
         "invocarlos falla con «invalid choice» y quema un turno entero sin avanzar. `extract` NO lleva texto "
         "de argumento (solo `--limit N` opcional) y `scroll` lleva un número de píxeles, nunca la palabra "
@@ -676,9 +676,9 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         "3) RECONOCE primero, pregunta UNA vez, ejecuta después (para una GESTIÓN: reservar/pedir cita, rellenar y "
         "enviar un formulario, tramitar, contratar):\n"
         "   a. RECON: recorre el flujo hasta VER el formulario real y ENUMERA todos los datos que pedirá (matrícula, "
-        "fecha de matriculación, DNI, nombre, email, teléfono, estación, día/hora…). Consulta `mem_cli recall` lo que "
+        "fecha de matriculación, DNI, nombre, email, teléfono, estación, día/hora…). Consulta `cli.mem recall` lo que "
         "zaelar ya sepa.\n"
-        "   b. PIDE DE GOLPE lo que falte: una SOLA `worker_bridge ask` con TODOS los datos que te faltan a la vez "
+        "   b. PIDE DE GOLPE lo que falte: una SOLA `cli.bridge ask` con TODOS los datos que te faltan a la vez "
         "(no de uno en uno, no vayas y vengas). Espera la respuesta. NUNCA inventes valores.\n"
         # V2-652 — measured live (session 7f77e2cc): the worker typed the placeholder NIF «12345678Z» into
         # Hacienda's REAL form twice, the census validation refused, and it kept grinding the same modal for
@@ -700,7 +700,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         +
         "4) SOLO te detienen dos cosas: un CAPTCHA o un LOGIN/pago que exija credenciales que no tienes. Todo lo demás "
         "(entender la página, aceptar cookies, elegir en un desplegable/calendario, rellenar y enviar) lo resuelves TÚ "
-        "con visión — no es excusa para parar. Un muro de verdad NO se reintenta: la respuesta de `nav_cli` trae "
+        "con visión — no es excusa para parar. Un muro de verdad NO se reintenta: la respuesta de `cli.nav` trae "
         "`wall` cuando la página te ha parado (verificación anti-robot, captcha, error de carga), y en cuanto lo "
         "veas deja de darte contra él. Haz DOS cosas, en este orden: (a) vuelve al PASO 0 y prueba la red con ese "
         "encargo —un agente de la red no tiene captcha—, y (b) si tampoco, PÁRATE y dilo: qué sitio te bloqueó, con "
@@ -744,7 +744,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         # del que entregó — los 21 minutos de los dos primeros no dejaron rastro, y cada relanzamiento renavegó,
         # rebuscó y refiltró desde cero.
         #
-        # La capacidad estaba ENTERA: `mem_cli` viaja en los puentes, la ruta exige token por tarea y el gate de
+        # La capacidad estaba ENTERA: `cli.mem` viaja en los puentes, la ruta exige token por tarea y el gate de
         # precisión PASA hallazgos (probado: «Milanuncios: VW Golf VII 1.6 TDI 2018, 11.400 €» pasa; solo rechaza
         # preguntas reificadas). Lo que faltaba era PEDIRLO: la única orden fuerte de guardar —y decía literalmente
         # «aunque el flujo se reinicie», o sea la protección anti-relanzamiento— vivía dentro del punto 3, acotado
@@ -766,7 +766,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         f"abierto coches.net» o «he aceptado las cookies» no es un hallazgo, es ruido, y llenar la memoria de eso "
         f"la estropea para todos.\n\n"
         # V2-257 — DÓNDE se ve lo que encuentra. Este prompt no nombraba la hoja ni una sola vez (medido:
-        # 0 ocurrencias de `widget_cli` y 0 de `results`), así que el worker no tenía forma de saber que existe —
+        # 0 ocurrencias de `cli.widget` y 0 de `results`), así que el worker no tenía forma de saber que existe —
         # mientras `dispatch._sheet_open` se la abría al operador delante, vacía, en cuanto encargaba. Nombrarla
         # tiene además un efecto colateral buscado: `_with_presentation` engancha sola los presupuestos de campo
         # de esa superficie al ver su id en el texto.

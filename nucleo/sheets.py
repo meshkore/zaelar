@@ -112,7 +112,7 @@ def errand_goal_for_nav_task(nav_task: str, sessions=()) -> str:
     """WHAT the errand behind this browser tab was asked to do ("" when no errand owns it).
 
     Demo pass 75 (2026-10-03): the monitor errand (a research worker, not `kind=web`) drove the browser through
-    `nav_cli`, so its tab was named after the TASK and carried no goal of its own. Every extraction then reached the
+    `cli.nav`, so its tab was named after the TASK and carried no goal of its own. Every extraction then reached the
     voice turn as «a tab found this and does NOT say which errand it belongs to» — twelve times in one pass — and the
     model narrated stray tabs in turns about the calendar («tidy up the screen» answered with «I'd close the extra
     tabs»). The owner was one lookup away, by the SAME rule `sheet_for_nav_task` already uses to deliver its rows.
@@ -266,7 +266,7 @@ def sheet_browser(sheet: str = "", sessions=(), live_states=()) -> dict:
     the persisted phases are the history, a frozen screenshot pretending to be a browser is not.
 
     A tab is looked up under BOTH names an errand can give it — `rec.nav_task` when `_prepare_web` reserved
-    one, the errand's own `task_id` otherwise (the `nav_cli` fallback, same two-name rule as
+    one, the errand's own `task_id` otherwise (the `cli.nav` fallback, same two-name rule as
     `sheet_for_nav_task`). With several live tabs on one sheet, the most recently MOVING one wins: a dead
     capture painted over a live one is the screen lying about where the work is.
     """

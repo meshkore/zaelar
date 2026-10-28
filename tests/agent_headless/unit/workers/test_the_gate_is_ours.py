@@ -62,7 +62,7 @@ def test_the_prompt_names_the_alternative_to_curl():
     """“Don't use curl” without saying what to use instead is how a worker starts writing its own script — which
     the delivery recipe already had to forbid separately."""
     h = _header()
-    assert "curl" in h and "nav_cli" in h and "worker_bridge" in h
+    assert "curl" in h and "cli.nav" in h and "cli.bridge" in h
 
 
 def test_the_prompt_says_an_approval_request_is_a_DEAD_END():
@@ -114,7 +114,7 @@ def test_a_denial_gets_a_corrective_turn(text):
         await asyncio.sleep(0)
         assert len(s._b.sent) == 1
         msg = s._b.sent[0]
-        assert "NADIE puede aprobarlo" in msg and "nav_cli" in msg
+        assert "NADIE puede aprobarlo" in msg and "cli.nav" in msg
         # …and the SECOND collision is answered too, instead of dying unheard.
         s._maybe_unstick_permission({"text": text})
         await asyncio.sleep(0)

@@ -241,8 +241,7 @@ class OrchestratorLoop:
         (one at a time, with attribution, §v3·B/M), and warns of STUCK/TIMEOUT (never kills blindly §v3·Q7).
         Best-effort; a failure here never brings down the loop."""
         try:
-            from nucleo import dispatch
-            from nucleo.cli import worker_api
+            import nucleo.dispatch as dispatch, nucleo.cli.worker_api as worker_api
         except Exception:
             return
         # (1) coalesced projection RAM → STATE (source of truth = RAM; not per-event).

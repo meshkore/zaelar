@@ -15,7 +15,7 @@ them outlived the process that saw it.
 
 A small durable table keyed by SOURCE — a site host, a network agent id, a search provider — holding, per
 outcome, when it was last seen, how many times, and a short detail. Written at the doors that already observe
-the fact (`nav_cli` for walls and extracts, `mesh_agents.ask` for agent answers, `providers.note_tool_blindness`
+the fact (`cli.nav` for walls and extracts, `mesh_agents.ask` for agent answers, `providers.note_tool_blindness`
 for a search provider out of quota). Read back as ONE compact line in the worker's step 0 and through the CLI
 above.
 

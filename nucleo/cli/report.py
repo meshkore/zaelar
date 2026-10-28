@@ -41,7 +41,7 @@ def _post(payload: dict) -> int:
     if not tid:
         print("ZAELAR_TASK_ID no definido (no soy un worker gestionado) — ignoro", file=sys.stderr)
         return 0
-    # V2-350 — el token viaja TAMBIÉN por esta puerta. Ya estaba en el entorno (lo usa `mem_cli`) y esta era la
+    # V2-350 — el token viaja TAMBIÉN por esta puerta. Ya estaba en el entorno (lo usa `cli.mem`) y esta era la
     # única de las dos que no lo miraba: un worker HUÉRFANO —vivo, con el registro de su task_id ya sustituido
     # por el de su relevo— se comía un 403 al publicar y en cambio escribía sus notas en el estado del NUEVO.
     payload = {"tid": tid, "token": os.getenv("ZAELAR_TASK_TOKEN", ""), **payload}
@@ -75,7 +75,7 @@ def parser():
     `phase` and `progress` in one sentence, and a worker that glued the flag onto `phase` (2026-10-14) lost its
     report to a usage error."""
     import argparse
-    ap = argparse.ArgumentParser(prog="agent_report", description="Worker progress report to the FlashBrain")
+    ap = argparse.ArgumentParser(prog="cli.report", description="Worker progress report to the FlashBrain")
     sub = ap.add_subparsers(dest="cmd", required=True)
     for name, helptext in (("phase", "set the session's readable phase (visible to the operator)"),
                            ("note", "leave a trace in observability"),

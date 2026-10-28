@@ -108,7 +108,7 @@ def classify_act(action: str, payload: dict) -> str:
         # THE GENERIC DATA DOOR IS OPEN TO THE WORKER IT WAS BUILT FOR (V2-710 T0.2). `widgets/rows.py`
         # (V2-707 F1) was born from a sentence about the Brain Worker — «puede perfectamente ver la
         # estructura de los datos y borrarlo todo […] el resto también tiene que ser posible» — and every
-        # piece shipped except this wire: `widget_cli` documents `hbwidget rows`, `read_widget` hands over
+        # piece shipped except this wire: `cli.widget` documents `hbwidget rows`, `read_widget` hands over
         # the collection schema to write the expression with, and then the branch below answered DENY for
         # all four ops, because `frontend.action_mode` returns None for anything not DECLARED in the
         # manifest and `rows.*` is not declared there BY DESIGN — it is the door for what nobody declared.

@@ -2,7 +2,7 @@
 
 Measured on 2026-08-28 in `weekend-plan-barcelona__es`: the round was archived with two `error_interno`
 anomalies, and the judge wrote that «the worker technically failed while extracting the price». What the
-worker had actually done was launch `nav_cli` and `worker_bridge` WITHOUT a subcommand — argparse responds
+worker had actually done was launch `cli.nav` and `cli.bridge` WITHOUT a subcommand — argparse responds
 with a `usage:` block and **code 2**, so a discovery probe reaches us dressed exactly like a crash. Two of
 the four failures marked in that round were the model reading the menu, and the mechanism note paid the price.
 
@@ -11,16 +11,16 @@ failure sends an agent to fix something that never happened, and costs more than
 
 The rule —and why this one rather than «code 2 does not matter»— is that **the missing argument itself must
 be `cmd`**: then nobody selected a subcommand and someone is reading the menu. A bad argument in a REAL
-subcommand (`nav_cli click` without a ref) also says «arguments are required» and also exits with 2, and that
+subcommand (`cli.nav click` without a ref) also says «arguments are required» and also exits with 2, and that
 IS a broken call: a request was made and could not be served.
 """
 from __future__ import annotations
 
 from nucleo.workers.probes import is_menu_probe
 
-_BARE_NAV = ("usage: nav_cli [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,"
-             "type_at,scroll,press,extract,visit} ... nav_cli: error: the following arguments are required: cmd")
-_BARE_BRIDGE = ("usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: the following "
+_BARE_NAV = ("usage: cli.nav [-h] {snapshot,look,navigate,open,goto,click,type,select_option,click_at,"
+             "type_at,scroll,press,extract,visit} ... cli.nav: error: the following arguments are required: cmd")
+_BARE_BRIDGE = ("usage: cli.bridge [-h] {ask,wait,act,say} ... cli.bridge: error: the following "
                 "arguments are required: cmd")
 
 
@@ -32,7 +32,7 @@ def test_las_dos_sondas_reales_de_la_ronda():
 
 def test_una_llamada_rota_de_verdad_sigue_siendo_un_error():
     """The sensitivity half, and the one that matters: a request was made and could not be served."""
-    roto = ("usage: nav_cli click [-h] ref ... nav_cli click: error: the following arguments are "
+    roto = ("usage: cli.nav click [-h] ref ... cli.nav click: error: the following arguments are "
             "required: ref")
     assert not is_menu_probe(roto)
 
@@ -44,7 +44,7 @@ def test_una_cli_ajena_no_es_asunto_nuestro():
 
 def test_un_error_normal_no_se_ablanda():
     for txt in ("Traceback (most recent call last): ConnectionRefusedError",
-                "Exit code 1 · timeout after 30s", "", "usage: nav_cli [-h] {snapshot}"):
+                "Exit code 1 · timeout after 30s", "", "usage: cli.nav [-h] {snapshot}"):
         assert not is_menu_probe(txt), txt
 
 

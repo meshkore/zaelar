@@ -31,7 +31,7 @@ def test_dev_context_scoped_params():
 
 def test_dev_prompt_scopes_to_repo_and_bridge():
     pr = dispatch._dev_prompt("haz el backtester", "meshkore/algo").lower()
-    assert "meshkore/algo" in pr and "git_cli" in pr
+    assert "meshkore/algo" in pr and "cli.git" in pr
     assert "temporal" in pr or "aislada" in pr              # makes the cwd isolation clear
 
 

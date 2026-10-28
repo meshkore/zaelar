@@ -181,7 +181,7 @@ def test_web_prompt_carries_the_trusted_site_catalog(monkeypatch):
     for entry in site_catalog.SITE_CATALOG["es"].values():
         assert entry.url in wp
     # a preference the operator has actually stated must be checked BEFORE this catalog, every time
-    assert "mem_cli recall" in wp
+    assert "cli.mem recall" in wp
 
 
 def test_the_worker_is_told_WHICH_site_to_start_at_and_it_follows_the_locale(monkeypatch):

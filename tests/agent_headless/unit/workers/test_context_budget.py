@@ -193,7 +193,7 @@ def test_the_engine_root_is_the_engine_root_and_not_a_subpackage():
     which would have left the worker with NO bridges at all, the very fault this module exists to prevent."""
     root = workdir._ENGINE_ROOT
     assert os.path.isdir(os.path.join(root, "nucleo")), f"{root} is not the engine root"
-    assert os.path.isfile(os.path.join(root, "nucleo", "nav_cli.py"))
+    assert os.path.isfile(os.path.join(root, "nucleo", "cli", "nav.py"))
 
 
 def test_each_task_gets_a_PRIVATE_directory_so_informe_json_stops_colliding():

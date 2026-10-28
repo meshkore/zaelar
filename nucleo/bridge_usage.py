@@ -1,6 +1,6 @@
 """nucleo/bridge_usage.py — a bridge's argument error says what to DO, not just what the shape is.
 
-V2-212 taught this on `nav_cli type_at`: argparse prints the FORM (`usage: … x y text`) and the parser's own
+V2-212 taught this on `cli.nav type_at`: argparse prints the FORM (`usage: … x y text`) and the parser's own
 complaint (`invalid int value: 'Hotel Palacio…'`), and neither tells a headless worker how to get out. It burns
 the turn. That is the same dead end four bridges paid for on 2026-08-20 — a message that says WHAT failed and
 nothing about WHAT NOW.
@@ -127,7 +127,7 @@ def what_is_here(limit: int = 8) -> str:
 def read_payload(raw: str) -> tuple[str, str, str]:
     """`(texto, de_dónde, error)` para un payload que puede venir en línea, por `@fichero` o por `-` (stdin).
 
-    V2-379 — la convención existía SOLO en `widget_cli` y `worker_bridge act` no la tenía, así que a ese puente
+    V2-379 — la convención existía SOLO en `cli.widget` y `cli.bridge act` no la tenía, así que a ese puente
     el JSON solo se le podía pasar en línea… y en línea NO CABE: nuestra propia puerta de permisos rechaza un
     argumento con llaves y comillas dentro («Contains brace with quote character (expansion obfuscation)»).
 
@@ -136,8 +136,8 @@ def read_payload(raw: str) -> tuple[str, str, str]:
         63,5 s  ⚠️ Contains brace with quote character   ← la puerta bloquea el JSON en línea
         67,6 s  ✏️ escribe 24316c-1/search.json          ← el worker se inventa el rodeo por fichero
         69,2 s  ⚠️ Exit code 1 payload JSON inválido     ← y el puente no sabe leer ficheros
-        73,1 s  usage: worker_bridge act …               ← a ciegas
-        77,5 s  usage: worker_bridge act …               ← otra vez
+        73,1 s  usage: cli.bridge act …               ← a ciegas
+        77,5 s  usage: cli.bridge act …               ← otra vez
         85,1 s  ✏️ escribe 24316c-1/use_tool.json        ← y otra
 
     Ocho errores internos y cero resultados. El worker dio con la solución correcta él solo —escribir el JSON a

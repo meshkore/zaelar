@@ -27,10 +27,7 @@ router = APIRouter()
 
 
 # ── per-action policy (§v3·J) ───────────────────────────────────────────────────────────────────────────────
-# ALLOW/CONFIRM/DENY vocab, the prestable/deny tool sets, _KNOWN_ACTS, deny_reason(), classify_act() and
-# _confirm_question() moved to nucleo/cli/worker_policy.py (2026-08-17 modularization pass) — pure decision
-# logic, no I/O. Re-exported here so every existing call site (worker_api.classify_act(...), direct
-# `from nucleo.cli.worker_api import deny_reason` in tests, etc.) keeps working unchanged.
+# The pure decision logic lives in worker_policy.py; re-exported so callers keep `worker_api.classify_act(...)`.
 from nucleo.cli.worker_policy import (  # noqa: F401 — re-export
     ALLOW, CONFIRM, DENY, _PRESTABLE_TOOLS, _DENY_TOOLS, _KNOWN_ACTS, deny_reason, classify_act,
     _confirm_question,

@@ -81,11 +81,11 @@ def _item_step(kind: str, it: dict):
         # acotado de Claude Code: si no, todo el trabajo de un worker de Codex se ve como «sistema».
         low = cmd.lower()
         from nucleo.workers.progress import say as _say
-        for needle, where, phase in (("nav_cli", "navegador", _say("nav_drive", "driving the browser") + "…"),
-                                     ("mem_cli", "memoria", _say("mem_recall", "checking memory") + "…"),
-                                     ("widget_cli", "widget", _say("widget_update", "updating a widget") + "…"),
-                                     ("worker_bridge", "zaelar", _say("zaelar_consult", "checking with zaelar") + "…"),
-                                     ("agent_report", "", "")):
+        for needle, where, phase in (("cli.nav", "navegador", _say("nav_drive", "driving the browser") + "…"),
+                                     ("cli.mem", "memoria", _say("mem_recall", "checking memory") + "…"),
+                                     ("cli.widget", "widget", _say("widget_update", "updating a widget") + "…"),
+                                     ("cli.bridge", "zaelar", _say("zaelar_consult", "checking with zaelar") + "…"),
+                                     ("cli.report", "", "")):
             if needle in low:
                 if not where:
                     return None                       # hbnote fija su propia fase — no duplicar

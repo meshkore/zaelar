@@ -1,6 +1,6 @@
 #
-# git_cli.py — BOUNDED git BRIDGE for the dev worker (V2-076). Same pattern as the other CLI bridges (mem_cli,
-# nav_cli, widget_cli): a worker NEVER uses bare `Bash(git:*)` (git can escape to arbitrary execution through hooks,
+# git_cli.py — BOUNDED git BRIDGE for the dev worker (V2-076). Same pattern as the other CLI bridges (cli.mem,
+# cli.nav, cli.widget): a worker NEVER uses bare `Bash(git:*)` (git can escape to arbitrary execution through hooks,
 # aliases, or `git -c core.sshCommand=…`). Instead, the worker calls THIS CLI, which exposes only
 # safe operations and REFUSES any repo that is not AUTHORIZED by the operator (`ZAELAR_ALLOWED_REPO`, injected by
 # `dispatch` from the cluster permissions profile). Thus, an escalation from an agent-to-agent conversation can only
@@ -24,7 +24,7 @@ def _allowed_repo() -> str:
 
 
 def _fail(msg: str) -> int:
-    print(f"git_cli: {msg}", file=sys.stderr)
+    print(f"cli.git: {msg}", file=sys.stderr)
     return 2
 
 
@@ -35,7 +35,7 @@ def _run(args: list[str], cwd: str | None = None) -> int:
     try:
         p = subprocess.run(args, cwd=cwd, capture_output=True, text=True, env=env, timeout=120)
     except Exception as e:  # noqa: BLE001
-        print(f"git_cli: git falló: {type(e).__name__}: {e}", file=sys.stderr)
+        print(f"cli.git: git falló: {type(e).__name__}: {e}", file=sys.stderr)
         return 1
     if p.stdout:
         print(p.stdout.strip())
@@ -109,7 +109,7 @@ def cmd_push(a) -> int:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(prog="git_cli", description="Puente git acotado al repo autorizado (V2-076).")
+    ap = argparse.ArgumentParser(prog="cli.git", description="Puente git acotado al repo autorizado (V2-076).")
     sub = ap.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("clone"); c.add_argument("dir"); c.add_argument("--repo", default=""); c.set_defaults(fn=cmd_clone)
     c = sub.add_parser("commit"); c.add_argument("dir"); c.add_argument("--message", "-m", default="update"); c.set_defaults(fn=cmd_commit)
