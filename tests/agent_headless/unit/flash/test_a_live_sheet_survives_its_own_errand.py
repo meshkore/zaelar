@@ -4,7 +4,7 @@ Audit V2-783 P1-2 (2026-10-16), three holes the sheet gates did not cover:
   · `_a_criteria` emptied the sheet whenever the brief's `goal` changed — and a worker re-words its goal mid-errand,
     so a paraphrase wiped the delivered rows. A NAMED sheet belongs to one errand (`sheet_id_for(task_id)`); only
     the shared sheet, or an explicit `reset`, starts over;
-  · `listing_turn.run` on an INHERITED sheet (the same hunt refined) opened it `fresh`, losing its criteria, the
+  · `search_listing.fast_pass` on an INHERITED sheet (the same hunt refined) opened it `fresh`, losing its criteria, the
     sentence that opened it and the rows he rejected;
   · the delivery backstop read the rows of the FIRST live task, so with two errands running the reply about one
     carried the other's rows (the judge's «the result is in another card»).
@@ -12,7 +12,8 @@ Audit V2-783 P1-2 (2026-10-16), three holes the sheet gates did not cover:
 from __future__ import annotations
 
 from widgets.results import data as sheet_mod
-from nucleo.flash import live_blocks, listing_turn
+from nucleo.acts import search_listing
+from nucleo.flash import live_blocks
 
 _SHEET = "results--t-live-1"
 
@@ -38,7 +39,7 @@ def test_an_explicit_reset_still_starts_over():
 
 
 def test_an_inherited_sheet_is_not_opened_fresh(monkeypatch):
-    import nucleo.listing_search as LS
+    import search.listing as LS
     begun = []
     monkeypatch.setattr(LS, "search", lambda q: {"items": [{"title": "LG 27", "url": "https://x/lg", "price": 120,
                                                             "currency": "EUR", "source": "x"}] * 6,
@@ -49,8 +50,8 @@ def test_an_inherited_sheet_is_not_opened_fresh(monkeypatch):
     monkeypatch.setattr(sheet_mod, "prune_sheets", lambda *a, **k: 0)
     from nucleo.workers import ended
     monkeypatch.setattr(ended, "note_listing_delivery", lambda *a, **k: None)
-    listing_turn.run("monitor 27", operator_text="un monitor de 27", sheet=_SHEET)
-    listing_turn.run("monitor 27", operator_text="un monitor de 27")
+    search_listing.fast_pass("monitor 27", operator_text="un monitor de 27", sheet=_SHEET)
+    search_listing.fast_pass("monitor 27", operator_text="un monitor de 27")
     assert begun == ["renamed", True], "an inherited sheet is renamed, never opened fresh"
 
 

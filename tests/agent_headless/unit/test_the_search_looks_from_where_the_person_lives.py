@@ -28,19 +28,19 @@ def _fresh(monkeypatch, module: str, lang: str, **env):
 
 
 def test_an_english_engine_searches_from_the_us(monkeypatch):
-    B = _fresh(monkeypatch, "nucleo.browser_search", "en")
+    B = _fresh(monkeypatch, "search.browser", "en")
     assert B._where() == ("en", "us")
 
 
 def test_a_spanish_engine_keeps_searching_from_spain(monkeypatch):
     """The half that must not regress: this was the behaviour of always, and it was right for one deployment."""
-    B = _fresh(monkeypatch, "nucleo.browser_search", "es")
+    B = _fresh(monkeypatch, "search.browser", "es")
     assert B._where() == ("es", "es")
 
 
 def test_the_env_vars_still_win(monkeypatch):
     """An English speaker living in Madrid is a real person, and the language does not tell you the country."""
-    B = _fresh(monkeypatch, "nucleo.browser_search", "en",
+    B = _fresh(monkeypatch, "search.browser", "en",
                BROWSER_SEARCH_HL="en", BROWSER_SEARCH_GL="es")
     assert B._where() == ("en", "es")
 
@@ -48,15 +48,15 @@ def test_the_env_vars_still_win(monkeypatch):
 def test_the_web_search_header_follows_too(monkeypatch):
     """`Accept-Language` outranks the query: a Spanish header makes a US site answer in euros however the
     question was phrased."""
-    W = _fresh(monkeypatch, "nucleo.websearch", "en")
+    W = _fresh(monkeypatch, "search.web", "en")
     assert W._accept_language().startswith("en-US")
-    W = _fresh(monkeypatch, "nucleo.websearch", "es")
+    W = _fresh(monkeypatch, "search.web", "es")
     assert W._accept_language().startswith("es-ES")
 
 
 def test_and_an_unreadable_language_falls_back_to_english_rather_than_dying(monkeypatch):
     """Fail-open, towards the product default (English, never a silent Spanish): a search must never die
     because the language could not be read."""
-    W = _fresh(monkeypatch, "nucleo.websearch", "es")
+    W = _fresh(monkeypatch, "search.web", "es")
     monkeypatch.setattr("voice.engine.core.langs.current_code", lambda: (_ for _ in ()).throw(RuntimeError("x")))
     assert W._accept_language().startswith("en-US")

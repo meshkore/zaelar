@@ -67,9 +67,9 @@ def test_chain_resolves_fuzzy_via_websearch_and_extract(_iso, monkeypatch):
         return _ok(track=_track())                                  # the canonical query succeeds
 
     monkeypatch.setattr("connectors.music.control", _control)
-    monkeypatch.setattr("nucleo.websearch.search", lambda q, k=5: {"results": [{"title": "Come Fly With Me - Wikipedia",
+    monkeypatch.setattr("search.web.search", lambda q, k=5: {"results": [{"title": "Come Fly With Me - Wikipedia",
                                                                                 "snippet": "Frank Sinatra song"}]})
-    monkeypatch.setattr("nucleo.websearch.format_results", lambda res, limit=5: "Come Fly With Me — Frank Sinatra")
+    monkeypatch.setattr("search.web.format_results", lambda res, limit=5: "Come Fly With Me — Frank Sinatra")
 
     async def _extract(sys, user):
         assert "vuela conmigo" in user
@@ -86,8 +86,8 @@ def test_chain_resolves_fuzzy_via_websearch_and_extract(_iso, monkeypatch):
 def test_chain_fail_keeps_isolated_run_and_asks_more(_iso, monkeypatch):
     monkeypatch.setattr("connectors.music.control",
                         lambda action, q="", uri="", pct=0, prefer="": _no_track(q))
-    monkeypatch.setattr("nucleo.websearch.search", lambda q, k=5: {"results": []})
-    monkeypatch.setattr("nucleo.websearch.format_results", lambda res, limit=5: "")
+    monkeypatch.setattr("search.web.search", lambda q, k=5: {"results": []})
+    monkeypatch.setattr("search.web.format_results", lambda res, limit=5: "")
 
     async def _extract(sys, user):
         raise AssertionError("sin contexto no se llama al extractor")
@@ -103,8 +103,8 @@ def test_chain_fail_keeps_isolated_run_and_asks_more(_iso, monkeypatch):
 def test_extract_no_means_unresolved(monkeypatch):
     monkeypatch.setattr("connectors.music.control",
                         lambda action, q="", uri="", pct=0, prefer="": _no_track(q))
-    monkeypatch.setattr("nucleo.websearch.search", lambda q, k=5: {"results": [{"t": "x"}]})
-    monkeypatch.setattr("nucleo.websearch.format_results", lambda res, limit=5: "resultados varios")
+    monkeypatch.setattr("search.web.search", lambda q, k=5: {"results": [{"t": "x"}]})
+    monkeypatch.setattr("search.web.format_results", lambda res, limit=5: "resultados varios")
 
     async def _extract(sys, user):
         return "NO"

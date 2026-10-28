@@ -58,7 +58,7 @@ def captured(fresh_db, monkeypatch):
         async def complete(self, *_a, **_kw):
             return ""
 
-    import nucleo.websearch as ws
+    import search.web as ws
     monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _Client)
     monkeypatch.setattr(ws, "search", lambda q, **k: {"source": "test", "ai": False, "results": [], "answer": ""})
     monkeypatch.setattr(ws, "format_results", lambda r: "(sin resultados)")

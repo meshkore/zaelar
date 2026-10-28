@@ -78,7 +78,6 @@ _MOTOR_REACH: set[tuple[str, str]] = {
     ("nucleo/agentes/web.py", "voice.engine.core"),
     ("nucleo/dispatch_prompts.py", "voice.engine.core"),
     ("nucleo/flash/image_turn.py", "voice.engine.core"),
-    ("nucleo/flash/listing_turn.py", "voice.engine.core"),
     ("nucleo/flash/memory_cache.py", "voice.engine.core"),
     ("nucleo/flash/prompt.py", "voice.engine.core"),
     ("nucleo/flash/reminder_guards.py", "voice.engine.core"),

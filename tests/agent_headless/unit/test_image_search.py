@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 
-from nucleo import image_search
+from search import images as image_search
 
 _FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "google_images_ferrari_amalfi.txt")
 

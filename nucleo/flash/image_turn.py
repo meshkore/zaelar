@@ -93,7 +93,7 @@ async def execute(query: str, n: int = DEFAULT_N, more: bool = False) -> dict:
         except Exception:  # noqa: BLE001
             shown = 0
     try:
-        from nucleo import browser_search as _bs
+        from search import browser as _bs
         res = await _bs.images(q, n + shown if more else n)
         res = res if isinstance(res, dict) else {}
         items = [it for it in (res.get("items") or []) if isinstance(it, dict) and it.get("url")]

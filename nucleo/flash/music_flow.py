@@ -5,7 +5,7 @@ pipeline is DETERMINISTIC and lives IN CODE (the FlashBrain remains non-reasonin
 
   1. **act directly** — `music.control(play, query)`: provider search engines (Spotify/YouTube) are already
      tolerant of fuzziness; if they get it right, done (~1-2s).
-  2. **resolve** — if `no_track`: web search using the **WARM Chromium** from startup (`nucleo/websearch`,
+  2. **resolve** — if `no_track`: web search using the **WARM Chromium** from startup (`search/web`,
      V2-024 prewarm) → "song <track>".
   3. **validate/extract** — 2nd pass of the SAME model already paid for by the turn (`web_search` pattern): from the snippets,
      extract the canonical `Artist - Title` (or NO if it is unclear). The caller PROVIDES the extractor (async) — this
@@ -131,7 +131,7 @@ async def run(action: str, query: str, *, extract=None):
 
     # 2 · RESOLVE — websearch (warm Chromium from prewarm; falls back in layers if unavailable)
     try:
-        from nucleo import websearch
+        from search import web as websearch
         web = await asyncio.to_thread(websearch.search, f"canción {query}")
         ctx = websearch.format_results(web)
     except Exception as e:  # noqa: BLE001

@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 2497
+TOTAL = 2448   # refactor2710-06 T-05: measured after the search door (listing_turn went)
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -123,7 +123,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/llm/fast_client.py': 55,
     'nucleo/flash/frontend.py': 3,
     'nucleo/flash/hard_turn.py': 1,
-    'nucleo/flash/listing_turn.py': 1,
     'nucleo/flash/live_blocks.py': 84,
     'nucleo/flash/live_blocks_nav.py': 104,
     'nucleo/llm/model_spec.py': 7,

@@ -32,7 +32,7 @@ def test_a_query_under_a_sibling_key_still_searches(monkeypatch):
     """Forgiving on the key, strict on the emptiness: `q`, `text`, `search` and `consulta` are the shapes a
     worker actually writes, and all of them must reach the engine's search — not come back empty."""
     seen = []
-    monkeypatch.setattr("nucleo.websearch.search", lambda q, *a, **k: seen.append(q) or
+    monkeypatch.setattr("search.web.search", lambda q, *a, **k: seen.append(q) or
                         {"query": q, "answer": "", "results": [], "source": "test", "ai": False})
     for key in ("query", "q", "text", "search", "consulta"):
         out = _run({"tool": "web_search", "args": {key: f"empresa {key}"}})
@@ -41,7 +41,7 @@ def test_a_query_under_a_sibling_key_still_searches(monkeypatch):
 
 
 def test_the_canonical_top_level_query_still_works(monkeypatch):
-    monkeypatch.setattr("nucleo.websearch.search", lambda q, *a, **k:
+    monkeypatch.setattr("search.web.search", lambda q, *a, **k:
                         {"query": q, "answer": "", "results": [], "source": "test", "ai": False})
     out = _run({"tool": "web_search", "query": "Acme Ventures SL"})
     assert out.get("ok") is True

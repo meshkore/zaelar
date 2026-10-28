@@ -121,7 +121,7 @@ async def _flash_route(user_text: str) -> dict:
 
 async def _compose_from_search(query: str, spec) -> dict:
     """Replica of nucleo.py's 2nd pass: searches (off-loop) and composes the spoken response from the results."""
-    from nucleo import websearch as ws
+    from search import web as ws
     from nucleo.llm.fast_client import FastClient
     from nucleo.flash import prompt as P
     t0 = time.time()

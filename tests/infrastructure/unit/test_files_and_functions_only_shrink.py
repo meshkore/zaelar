@@ -52,7 +52,6 @@ FUNCTIONS = {
     'nucleo/errands/wake.py::wake': 153,
     'nucleo/input/stt.py::Accumulator._offer': 129,   # 2026-10-22: `offer` → wrapper + `_offer`
     'nucleo/llm/fast_client.py::FastClient._stream_inner': 267,
-    'nucleo/flash/listing_turn.py::run': 121,
     'nucleo/flash/live_blocks.py::navegador_lines': 147,
     'nucleo/flash/live_blocks_nav.py::read_the_browser_tasks': 133,
     'nucleo/flash/live_blocks_nav.py::say_the_browser_state': 147,

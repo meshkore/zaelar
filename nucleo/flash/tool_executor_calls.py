@@ -7,6 +7,7 @@ thin closure that stays in `build`, at CALL time — the same late binding a clo
 """
 from __future__ import annotations
 
+from nucleo.acts import search as _search_door
 from nucleo.flash import player_control as _player_control
 from nucleo.flash import prior_line as _prior_line
 from nucleo.flash import resume_turn as _resume_turn   # V2-799
@@ -99,8 +100,8 @@ def _on_tool_call(name: str, args: dict, *, _apply_widget_data, _brief, _closed_
         if search_req["v"] is None or _word_overlap(q, text) > _word_overlap(search_req["v"], text):
             search_req["v"] = q
     elif name == "search_listings":
-        # V2-556 — UNA por turno; la forma de la petición es del módulo (`listing_turn.request_from`).
-        listing_req["v"] = listing_req["v"] or _tx._lt.request_from(args, text)
+        # V2-556 — UNA por turno; la forma de la petición es del módulo (`acts.search.request_from`).
+        listing_req["v"] = listing_req["v"] or _search_door.request_from(args, text)
     elif name == "recall":
         # V2-056: el MODELO decide recordar (V2-022 aplicado a la memoria). Se resuelve tras el stream,
         # fuera del event loop; la heurística needs_recall queda como prefetch.

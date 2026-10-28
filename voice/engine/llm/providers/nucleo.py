@@ -30,7 +30,7 @@ from nucleo.flash import (build_decision as _build_decision, canvas_license as _
                           data_ops as _data_ops, escalation_guard as _eguard,  # V2-391 / V2-677
                           direct_action as _direct_action,                     # V2-741: the third rung
                           image_turn as _image_turn,                           # V2-402
-                          listing_turn as _lt, show_target as _show_target,    # V2-609: one target decision
+                          show_target as _show_target,                         # V2-609: one target decision
                           task_recall as _trecall,                             # V2-728: «lo del piso que te dije»
                           video_turn as _video_turn)                           # V2-556 / V2-457: no cycles
 # V2-515 (ratchet): ONE import replaces eight lazy `from widgets import confirm` — confirm.py never imports voice.
@@ -541,7 +541,7 @@ class NucleoLLMStream(llm.LLMStream):
         # al final, cuando ya se sabe que el turno escaló de verdad.
         escalate_req: dict = {"v": None, "more": [], "surface": {}}   # V2-227: superficie declarada POR petición
         search_req = {"v": None}
-        listing_req = {"v": None}        # V2-556: la pasada rápida de anuncios (nucleo/flash/listing_turn.py)
+        listing_req = {"v": None}        # V2-556: la pasada rápida de anuncios (nucleo/acts/search_listing.py)
         recall_req = {"v": None}         # V2-056: el modelo pidió RECORDAR (tool recall) — se resuelve tras el stream
         read_req = {"v": None}           # V2-668: el modelo pidió LEER un widget (read_widget) — hermana de recall
         reopen_req = {"v": None}         # V2-728: el modelo pidió RECUPERAR el resultado de un encargo terminado

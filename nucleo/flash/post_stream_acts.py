@@ -142,7 +142,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
     # («me pongo con ello», «te lo abro», «voy a poner…») SIN llamar a la tool → causa nº1 de "dice que lo hace y
     # no lo hace". Gated por la promesa en la RESPUESTA (zaelar se comprometió) → re-derivamos la intención con
     # los clasificadores DETERMINISTAS. GENERALIZA sobre todas las conjugaciones (no se parchea verbo a verbo).
-    # V2-556: elegir la pasada rápida de anuncios YA es actuar (ver `listing_turn.voice_turn`).
+    # V2-556: elegir la pasada rápida de anuncios YA es actuar (see `acts.search.listings`).
     # The two guards themselves, and WHY they read the operator's words, live in `escalation_guard`.
     if (escalate_req["v"] is None and listing_req["v"] is None and not acted["widget"]
             and not data_done["v"] and not music_req["v"]):

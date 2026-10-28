@@ -1,5 +1,5 @@
 """search/listing.py — LISTING search: products, vehicles, boats, homes — over HTTP (V2-556; moved from
-`nucleo/listing_search.py` by V2-782, alias kept).
+`nucleo/listing_search.py` by V2-782; the alias went in refactor2710-06).
 
 The third search mode `search/web.py`'s docstring names («marketplace navigation — no search
 engine returns that data») had exactly two implementations: nothing, or a browser worker that costs

@@ -13,7 +13,7 @@ router change that drops the bench does not ship).
 from __future__ import annotations
 
 from nucleo.flash import tools_media as _tools_media   # V2-457: las definiciones de medios
-from nucleo.flash.listing_turn import TOOL_DEF as _LISTING_TOOL   # V2-556: su contrato vive con su módulo
+from nucleo.acts.search import TOOL_DEF as _LISTING_TOOL   # V2-556: its contract lives with its door
 from nucleo.flash.widget_read import TOOL_DEF as _READ_WIDGET_TOOL   # V2-668: a question about a widget reads it
 
 # ── function catalog (OpenAI-compatible) offered to the fast model ─────────────────────────────────────
@@ -345,7 +345,7 @@ TOOLS: list[dict] = [
             },
         },
     },
-    _LISTING_TOOL,   # V2-556: la definición vive con su módulo (`listing_turn.TOOL_DEF`)
+    _LISTING_TOOL,   # V2-556: la definición vive con su módulo (`acts.search.TOOL_DEF`)
     # V2-668 — the fourth door: `widget_data` acts, `recall` remembers his life, `web_search` reads the world;
     # what his OWN widgets store had no reader (the Hacienda hour, session 53de97d4). Contract lives with its module.
     _READ_WIDGET_TOOL,

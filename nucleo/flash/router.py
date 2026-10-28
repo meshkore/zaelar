@@ -37,10 +37,10 @@ from voice.brain_notes import operator_half as _operator_half   # a leaf: re + t
 CHAT = "chat"          # handled by the fast layer itself (conversation, state, canvas via tag)
 STYLE = "style"        # the operator set a session interaction preference
 SEARCH = "search"      # quick factual lookup on the web (web_search) — lightweight route, resolved in the turn
-from nucleo.flash.listing_turn import request_from as _lt_request_from   # V2-556: una sola forma
+from nucleo.acts.search import request_from as _lt_request_from   # V2-556: one shape for the call
 
 LISTINGS = "listings"  # V2-556: marketplace/product LISTING hunt (search_listings) — the fast module serves the
-                       # turn or escalates BY ITSELF (listing_turn.py); the model never picks fast-vs-deep
+                       # turn or escalates BY ITSELF (nucleo/acts/search_listing.py); the model never picks fast-vs-deep
 RECALL, READ_WIDGET = "recall", "read_widget"   # the MODEL decides to read: his durable memory (V2-056) or what a widget HOLDS with its card closed (V2-668) — light routes, in the turn
 REVEAL = "reveal"      # V2-060: the operator requests a stored SECRET (reveal_secret) — lightweight route; out-of-band value
 MUSIC = "music"        # V2-041: plays/controls music through a connector (play_music) — lightweight route, in the turn

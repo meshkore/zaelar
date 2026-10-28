@@ -18,7 +18,7 @@ def viewer(tmp_path, monkeypatch):
     async def images(q, n):
         seen["n"] = n
         return {"items": deeper[:n], "source": "google"}
-    import nucleo.browser_search as bs
+    import search.browser as bs
     monkeypatch.setattr(bs, "images", images)
 
     async def brain_action(wid, act, payload):

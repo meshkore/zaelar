@@ -12,7 +12,7 @@ import threading
 
 import pytest
 
-from nucleo.flash import listing_turn
+from nucleo.acts import search_listing
 from nucleo.turn import flow_of, launches
 
 FRAGMENT = "Okay. Can you find me, like, three twenty seven inch four k monitors?"
@@ -34,9 +34,9 @@ def hunts(monkeypatch):
         return {"delivered": False, "n": 0, "sheet": kw.get("sheet") or kw.get("new_sheet"), "escalated": 0,
                 "reason": "", "ctx": ""}
 
-    monkeypatch.setattr(listing_turn, "run", fake_run)
-    monkeypatch.setattr(listing_turn, "FAST_PASS_BUDGET_S", 0.3)
-    monkeypatch.setattr(listing_turn, "_taken_line", lambda: "")
+    monkeypatch.setattr(search_listing, "fast_pass", fake_run)
+    monkeypatch.setattr(search_listing, "FAST_PASS_BUDGET_S", 0.3)
+    monkeypatch.setattr(search_listing, "_taken_line", lambda: "")
     monkeypatch.setattr("nucleo.request.append.about_a_live_errand", lambda text, live: "")
     monkeypatch.setattr("nucleo.dispatch.pending_summaries", lambda: [])
     monkeypatch.setattr("nucleo.flash.escalate.pending", lambda: [])
@@ -47,11 +47,11 @@ def hunts(monkeypatch):
 
 def test_the_sentence_that_finishes_a_cancelled_fragment_reuses_its_sheet(hunts):
     async def scene():
-        first = asyncio.ensure_future(listing_turn.voice_turn(REQ, FRAGMENT))
+        first = asyncio.ensure_future(search_listing.listings({"text": FRAGMENT}, REQ))
         await asyncio.sleep(0.05)
         first.cancel()                               # he kept talking: the fragment's turn is cancelled
         await asyncio.sleep(0.05)
-        await listing_turn.voice_turn(REQ, WHOLE)
+        await search_listing.listings({"text": WHOLE}, REQ)
 
     asyncio.run(scene())
     assert len(hunts) == 2
@@ -72,7 +72,8 @@ def test_a_request_about_a_live_worker_is_injected_not_hunted_again(hunts, monke
                         lambda: [{"id": "7", "request": FRAGMENT, "sheet": "S7"}])
     monkeypatch.setattr("nucleo.dispatch.get_record", lambda tid: None)
     monkeypatch.setattr("nucleo.dispatch.inject", fake_inject)
-    res, _ = asyncio.run(listing_turn.voice_turn(REQ, WHOLE))
+    _o = asyncio.run(search_listing.listings({"text": WHOLE}, REQ))
+    res, _ = _o.data, _o.say
     assert sent == [("7", WHOLE)] and not hunts, "the refinement started a second hunt beside the live worker"
     assert res["joined"] == "7" and res["sheet"] == "S7"
 

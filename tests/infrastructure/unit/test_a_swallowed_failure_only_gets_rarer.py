@@ -58,7 +58,7 @@ def _counts() -> dict[str, int]:
 
 #: Measured on 2026-10-16 with the widened predicate (was 1147 `pass`-only on 2026-10-01) — the TOTAL may only
 #: fall, and no file may exceed its own count.
-TOTAL = 1741
+TOTAL = 1723   # refactor2710-06 T-05: measured after the search door (listing_turn, search_routing went)
 PER_FILE: dict[str, int] = {
     'bus/__init__.py': 5,
     'bus/log.py': 7,
@@ -281,7 +281,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/harness_turn.py': 2,
     'nucleo/flash/image_turn.py': 2,
     'nucleo/flash/leave_gate.py': 3,
-    'nucleo/flash/listing_turn.py': 6,
     'nucleo/flash/live_blocks.py': 14,
     'nucleo/flash/meeting_time.py': 2,
     'nucleo/flash/memory_cache.py': 5,
@@ -315,7 +314,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/reply_or_forward.py': 1,
     'nucleo/flash/reply_promise.py': 1,
     'nucleo/flash/router_guards.py': 1,
-    'nucleo/flash/search_routing.py': 1,
     'nucleo/flash/second_pass.py': 10,
     'nucleo/flash/segmenter.py': 1,
     'nucleo/flash/show_guard.py': 1,

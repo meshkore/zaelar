@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import listing_extract, listing_search
-from nucleo.listing_search import ListingQuery
+from search import extract as listing_extract, listing as listing_search
+from search.listing import ListingQuery
 
 
 # ── extraction: JSON-LD ──────────────────────────────────────────────────────────────────────────

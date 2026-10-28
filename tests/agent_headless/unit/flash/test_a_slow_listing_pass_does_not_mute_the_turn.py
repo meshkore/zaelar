@@ -6,7 +6,7 @@ and moves on; the search finishes in its thread and writes the sheet as it alway
 import asyncio
 import time
 
-from nucleo.flash import listing_turn as lt
+from nucleo.acts import search_listing as lt
 
 
 def _slow_run(*a, **k):
@@ -15,14 +15,15 @@ def _slow_run(*a, **k):
 
 
 def test_the_turn_speaks_and_moves_on_while_the_search_finishes(monkeypatch):
-    monkeypatch.setattr(lt, "run", _slow_run)
+    monkeypatch.setattr(lt, "fast_pass", _slow_run)
     monkeypatch.setattr(lt, "FAST_PASS_BUDGET_S", 0.1)
     monkeypatch.setattr(lt, "_taken_line", lambda: "I'll let you know as soon as I have it.")
     got = []
 
     async def _turn():
         t0 = time.monotonic()
-        res, said = await lt.voice_turn({"query": "27 inch 4k monitor"}, "find me monitors", on_delta=got.append)
+        _o = await lt.listings({"text": "find me monitors"}, {"query": "27 inch 4k monitor"}, on_delta=got.append)
+        res, said = _o.data, _o.say
         return res, said, time.monotonic() - t0
     res, said, took = asyncio.run(_turn())     # asyncio.run joins the search thread on shutdown: measured inside
     assert took < 0.5, "the turn did not wait for the search"
@@ -30,15 +31,16 @@ def test_the_turn_speaks_and_moves_on_while_the_search_finishes(monkeypatch):
 
 
 def test_a_promise_already_spoken_is_not_repeated(monkeypatch):
-    monkeypatch.setattr(lt, "run", _slow_run)
+    monkeypatch.setattr(lt, "fast_pass", _slow_run)
     monkeypatch.setattr(lt, "FAST_PASS_BUDGET_S", 0.1)
     monkeypatch.setattr(lt, "_taken_line", lambda: "On it.")
-    res, said = asyncio.run(lt.voice_turn({"query": "q"}, "find me monitors", already_said="I'm on it — …"))
+    _o = asyncio.run(lt.listings({"text": "find me monitors"}, {"query": "q"}, already_said="I'm on it — …"))
+    res, said = _o.data, _o.say
     assert res["pending"] is True and said == ""
 
 
 def test_a_fast_search_keeps_the_composed_face(monkeypatch):
-    monkeypatch.setattr(lt, "run", lambda *a, **k: {"delivered": True, "n": 3, "escalated": 0, "ctx": "", "sheet": "s"})
+    monkeypatch.setattr(lt, "fast_pass", lambda *a, **k: {"delivered": True, "n": 3, "escalated": 0, "ctx": "", "sheet": "s"})
     monkeypatch.setattr(lt, "compose_face", lambda res, text: "FACE")
 
     class _Client:
@@ -49,5 +51,6 @@ def test_a_fast_search_keeps_the_composed_face(monkeypatch):
             yield "Three on the sheet."
     from nucleo.llm import fast_client
     monkeypatch.setattr(fast_client, "FastClient", _Client)
-    res, said = asyncio.run(lt.voice_turn({"query": "q"}, "find me monitors"))
+    _o = asyncio.run(lt.listings({"text": "find me monitors"}, {"query": "q"}))
+    res, said = _o.data, _o.say
     assert not res.get("pending") and said == "Three on the sheet."
