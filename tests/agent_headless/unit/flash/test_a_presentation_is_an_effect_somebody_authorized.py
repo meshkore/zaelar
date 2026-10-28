@@ -29,6 +29,8 @@ it written down, so the canvas could not tell an honest mount from a drag.
 """
 from __future__ import annotations
 
+from nucleo.acts import canvas as _door
+
 from tests import voice_turn_source as _vts
 
 import pathlib
@@ -265,12 +267,12 @@ def test_the_reopen_license_binds_to_a_proposal_about_that_card():
     direction, since the alternative is a card resurrected over an answer to something else."""
     lic.note_operator_close("youtube")
     try:
-        assert lic.reopen_license("youtube", "vale") is False
-        assert lic.reopen_license("youtube", "vale", last_reply="¿Te apunto la cita?") is False
-        assert lic.reopen_license("youtube", "vale", last_reply="¿Lo vuelvo a abrir?") is False
-        assert lic.reopen_license("youtube", "vale", last_reply="¿Vuelvo a abrir el vídeo?") is True
+        assert _door.reopen_ordered("youtube", "vale") is False
+        assert _door.reopen_ordered("youtube", "vale", last_reply="¿Te apunto la cita?") is False
+        assert _door.reopen_ordered("youtube", "vale", last_reply="¿Lo vuelvo a abrir?") is False
+        assert _door.reopen_ordered("youtube", "vale", last_reply="¿Vuelvo a abrir el vídeo?") is True
         # …and his own words still reopen it with no proposal at all, exactly as before.
-        assert lic.reopen_license("youtube", "abre otra vez el vídeo de YouTube") is True
+        assert _door.reopen_ordered("youtube", "abre otra vez el vídeo de YouTube") is True
     finally:
         lic._RECENT_CLOSES.clear()
 

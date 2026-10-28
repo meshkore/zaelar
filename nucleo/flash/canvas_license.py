@@ -144,28 +144,6 @@ def _producing_vocabulary() -> tuple[str, ...]:
     return tuple(out)
 
 
-def bare_affirmative(text: str) -> bool:
-    """A SHORT yes and nothing else — the shape that can only mean «do the thing you just proposed»."""
-    n = _NEG_MEDIA_RE.sub(" ", _norm_txt(_his_words(text)))
-    return len(n.split()) <= 4 and bool(_AFFIRM_RE.search(n))
-
-
-def offer_about(wid: str, last_reply: str) -> bool:
-    """Was OUR still-pending question a proposal about THIS widget? (V2-724)
-
-    The sibling of `offer_of_media` for the other effect a “yes” can authorize: putting a card back. Same
-    correction behind both — an affirmative answers ONE proposal, so the proposal has to be the one whose
-    effect is about to be spent — and the same declared source, the certainty resolver every show uses."""
-    w = str(wid or "").split("::", 1)[0].strip().lower()
-    if not w or not answered_an_offer(last_reply):
-        return False
-    try:
-        from widgets import runtime
-        return str((runtime.identify(str(last_reply)) or {}).get("match") or "").split("::", 1)[0] == w
-    except Exception:  # noqa: BLE001
-        return False
-
-
 def offer_of_media(last_reply: str) -> bool:
     """Was OUR still-pending question a proposal to PLAY something? (V2-724)
 
@@ -385,33 +363,3 @@ def note_operator_close(wid: str) -> None:
             _RECENT_CLOSES[w] = _time.time()
     except Exception:
         pass
-
-
-def reopen_license(wid: str, text: str, open_ids=None, recent_ids=None, last_reply: str = "") -> bool:
-    """False only when the model shows a widget the operator JUST ordered closed and the turn's words
-    ask for nothing of the kind. Measured live 2026-09-10 (sid 3d394…): «Johnny, cierra el widget de
-    YouTube» closed it, and eight seconds later room chatter («Avisando de… cuidado, que aquí está
-    pasando algo») made the model re-emit its previously DISCARDED show_widget — the card reopened over
-    nobody's order. Same doctrine as the close/video/fullscreen licenses: what appears on the operator's
-    screen needs the operator's words in the turn that fires it. A widget not recently closed is
-    untouched by this gate; a recently closed one reopens on a conjugated media/show request
-    (`video_license`) or when the operator's OWN words resolve to that widget through the certainty
-    resolver every show already uses — never on chatter."""
-    w = str(wid or "").strip().lower()
-    ts = _RECENT_CLOSES.get(w)
-    if not ts or (_time.time() - ts) > _REOPEN_WINDOW_S:
-        return True
-    if video_license(text, last_reply):
-        return True
-    # …and an affirmative answering a proposal about THIS card reopens it: that proposal's own effect is
-    # the presentation, which media's grammar has no reason to recognise (V2-724).
-    if bare_affirmative(text) and offer_about(w, last_reply):
-        return True
-    try:
-        from widgets import runtime
-        m = runtime.identify(text, open_ids=list(open_ids or []), recent_ids=list(recent_ids or [])) or {}
-        return m.get("match") == w
-    except Exception:
-        # An unreadable resolver over a just-closed widget: staying closed is the cheap wrong — the
-        # operator can reopen with a word; a card resurrected over chatter is the measured bug.
-        return False

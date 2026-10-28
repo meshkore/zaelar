@@ -79,9 +79,7 @@ def _denies_close(brief) -> bool:
         kind, kinfo = _tb.read(brief, _tb.REQUEST_KEY, "")
         return bool(kinfo and kinfo.get("used")) and str(kind or "") not in ("order", "answer")
     except Exception as e:  # noqa: BLE001 — an unread brief is no negation: the close the grammar saw stands
-        from loguru import logger
-        logger.debug(f"canvas.close_ordered: brief unread — {e}")
-        return False
+        return _unread("close_ordered: brief unread", e)
 
 
 # A CLOSE order answered with an OPEN is not obedience (V2-567: one close order, two mutations). Grammar, not intent
@@ -121,6 +119,60 @@ def _closes_this(brief, wid: str) -> bool:
             return t.split(":", 1)[0] == w
         return True
     except Exception as e:  # noqa: BLE001 — an unread brief vetoes nothing
-        from loguru import logger
-        logger.debug(f"canvas.show_under_close: brief unread — {e}")
+        return _unread("show_under_close: brief unread", e)
+
+
+def reopen_ordered(wid: str, text: str = "", *, open_ids=None, recent_ids=None, last_reply: str = "",
+                   brief=None) -> bool:
+    """May a show bring back `wid`? Not a card he JUST closed over chatter (V2-650b; refactor2710-04b T-03): it comes
+    back on the paid verdict (`canvas=show` naming it), a media/show request, a short yes to OUR offer about that very
+    card (V2-724), or his words resolving to it with certainty. A card not closed within the window is untouched."""
+    from nucleo.flash import canvas_license as _lic
+    w = str(wid or "").strip().lower()
+    ts = _lic._RECENT_CLOSES.get(w)
+    if not ts or (_lic._time.time() - ts) > _lic._REOPEN_WINDOW_S or _shows_this(brief, w):
+        return True
+    if _lic.video_license(text, last_reply) or (_bare_yes(text) and _offer_about(w, last_reply)):
+        return True
+    try:
+        from widgets import runtime
+        return (runtime.identify(text, open_ids=list(open_ids or []), recent_ids=list(recent_ids or [])) or {}).get("match") == w
+    except Exception as e:  # noqa: BLE001 — staying closed is the cheap wrong; a card back over chatter is the bug
+        return _unread("reopen_ordered: resolver unreadable", e)
+
+
+def _shows_this(brief, w: str) -> bool:
+    try:
+        from nucleo.flash import turn_brief as _tb
+        verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
+        if str(verb or "") != "show" or not (info or {}).get("used"):
+            return False
+        card, cinfo = _tb.read(brief, _tb.CATALOG_KEY, "")
+        target, tinfo = _tb.read(brief, _tb.TARGET_KEY, "")
+        return any((i or {}).get("used") and str(c or "").split(":", 1)[0] == w for c, i in ((card, cinfo), (target, tinfo)))
+    except Exception as e:  # noqa: BLE001 — an unread brief licenses nothing here
+        return _unread("reopen_ordered: brief unread", e)
+
+
+def _bare_yes(text: str) -> bool:
+    from nucleo.flash import canvas_license as _lic
+    n = _lic._NEG_MEDIA_RE.sub(" ", _lic._norm_txt(_lic._his_words(text)))
+    return len(n.split()) <= 4 and bool(_lic._AFFIRM_RE.search(n))
+
+
+def _offer_about(w: str, last_reply: str) -> bool:
+    from nucleo.flash import canvas_license as _lic
+    if not w or not _lic.answered_an_offer(last_reply):
         return False
+    try:
+        from widgets import runtime
+        return str((runtime.identify(str(last_reply)) or {}).get("match") or "").split("::", 1)[0] == w
+    except Exception as e:  # noqa: BLE001
+        return _unread("reopen_ordered: offer unreadable", e)
+
+
+def _unread(where: str, e: Exception) -> bool:
+    """A licence that could not read its input says so and licenses nothing — the cheap wrong at this door."""
+    from loguru import logger
+    logger.debug(f"canvas.{where} — {e}")
+    return False

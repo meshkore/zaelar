@@ -153,7 +153,7 @@ def _t_show_widget(*, args, _brief, _router, _say, _show_guard_target, _show_tar
             _rid = _rid if (_rid and runtime.get(_rid.split("::", 1)[0]) is not None) else ""
             _sys = _res.get("system")
             # V2-650b: a widget he JUST closed does not reopen over chatter (a re-emitted discarded show).
-            if _rid and not _tx._canvas_lic.reopen_license(_rid, text, _open, _recent):
+            if _rid and not _door.reopen_ordered(_rid, text, open_ids=_open, recent_ids=_recent, brief=_brief):
                 emit("brain", "🛡️ show de un widget recién cerrado sin pedirlo — ignorado "
                      "(context-bleed)", text=_rid, role="system")
                 deduped["v"] = True
