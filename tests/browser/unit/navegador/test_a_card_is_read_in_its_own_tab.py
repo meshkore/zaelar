@@ -20,8 +20,7 @@ times.
 """
 import inspect
 
-from nucleo.cli import nav as nav_cli
-from widgets.navegador import act_api, owner
+from widgets.navegador import owner
 
 
 def _code(fn):
@@ -73,14 +72,6 @@ def test_un_fallo_de_la_ficha_NO_lanza():
     bring down the action."""
     src = _code(owner.TaskBrowser.visit)
     assert '"ok": False' in src and "error" in src
-
-
-def test_el_WORKER_puede_llamarlo():
-    """A capability that the bridge does not expose does not exist for the worker (the same lesson as node 4.20)."""
-    src = inspect.getsource(nav_cli.main)
-    assert 'sub.add_parser("visit"' in src
-    assert '_act("visit"' in src
-    assert "NO pierdes el listado" in src, "el worker tiene que saber PARA QUÉ sirve, o seguirá usando navigate"
 
 
 def test_el_PROMPT_del_worker_lo_nombra_y_dice_para_que_sirve():

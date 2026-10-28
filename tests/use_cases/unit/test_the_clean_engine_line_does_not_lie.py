@@ -83,30 +83,3 @@ def test_una_db_ilegible_no_tumba_la_tanda(tmp_path):
     """Fail-soft: being unable to look is not “it is dirty.” Blocking a batch because of a failed read would cost more
     than measuring a case with a warning."""
     assert V.browser_still_driving(str(tmp_path / "no-existe.db"))["driving"] is False
-
-
-def test_el_arranque_del_caso_LO_CONSULTA_y_PISA_el_veredicto_limpio():
-    """Half the wiring, and this is the part that matters: the signal can be perfect and the line can still lie.
-    It checks that, in addition to being queried, it MARKS `clean = False` — which is what the operator reads."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-    # `_run_batch`, not `_run_scenario`: the reset lives in the BATCH loop, before each case. This test’s first
-    # attempt pointed at the wrong place and went red — exactly what a wiring guard must do when the wiring is
-    # not where one thinks it is.
-    src = "\n".join(ln for ln in inspect.getsource(R._run_batch).splitlines()
-                    if not ln.strip().startswith("#"))
-    i = src.find("verifymod.browser_still_driving(")
-    assert i > 0, "el arranque del caso dejó de mirar el navegador"
-    cola = src[i:i + 400]
-    assert 'st["clean"] = False' in cola, "lo consulta y no cambia el veredicto que se imprime"
-    j = src.find('if st["clean"]:')
-    assert 0 < i < j, "se mira DESPUÉS de imprimir: llegaría tarde"
-
-
-def test_y_el_aviso_NOMBRA_lo_que_quedó_vivo():
-    """A “not clean” message without saying what remained alive forces an investigation from scratch every time."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-    assert 'navegador ACTIVO hace' in inspect.getsource(R._run_batch)

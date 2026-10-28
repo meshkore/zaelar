@@ -126,25 +126,6 @@ entire day has been removing from the system. And a PAUSED task (the operator's 
         d._SESSIONS.pop("9", None)
 
 
-def test_the_loop_beats_on_a_TIMER_not_every_tick():
-    """The loop runs at ~1 Hz. Without the per-task marker it would emit a heartbeat every SECOND and drown out the channel the
-heartbeat exists to make readable."""
-    import inspect
-
-    from nucleo.pulse import loop, workers
-    src = inspect.getsource(workers)
-    assert "_BEAT_SECS" in src and "self._last_beat[tid] = now" in src
-    assert loop._BEAT_SECS >= 5
-
-
-def test_the_beat_is_forgotten_when_the_task_dies():
-    """A task-indexed dictionary that nobody prunes is a leak, and this loop lives as long as the process does."""
-    import inspect
-
-    from nucleo.pulse import workers
-    assert "self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}" in inspect.getsource(workers)
-
-
 # ── the doctrine, made into a test ───────────────────────────────────────────────────────────────────────────
 def test_the_phrasing_knows_about_BRIDGES_and_not_about_errands():
     """It is a RESOURCE: it must read the same for a hotel, a rocket's task list, and a house

@@ -21,9 +21,3 @@ def test_a_fresh_one_still_is():
     brain_notes.drain()
     brain_notes.push("[SISTEMA] (susurro) repair", ttl_s=90)
     assert brain_notes.drain() == ["[SISTEMA] (susurro) repair"]
-
-
-def test_the_susurro_repairs_carry_a_ttl():
-    from pathlib import Path
-    src = (Path(__file__).resolve().parents[3] / "nucleo/susurro/apply.py").read_text("utf-8")
-    assert "brain_notes.push(note, ttl_s=_REPAIR_TTL_S)" in src

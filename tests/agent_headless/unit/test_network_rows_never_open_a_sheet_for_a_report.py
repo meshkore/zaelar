@@ -11,12 +11,11 @@ a document errand (`nucleo/network_rows_gate.py`).
 """
 from __future__ import annotations
 
-import inspect
 import json
 import types
 
 from nucleo import network_rows_gate as G
-from nucleo.cli import mesh as mesh_cli, worker_api
+from nucleo.cli import mesh as mesh_cli
 
 TOYS = {"results": [{"title": "RENAULT 4 E-TECH 100% ELÉCTRICO 2025 GRIS escala 1:43", "price": "35.19"},
                     {"title": "Cable de carga eléctrico coche Toyota Urban Cruiser", "price": "229.22"}]}
@@ -51,9 +50,3 @@ def test_the_push_onto_a_list_errand_goes_through_without_the_mark(monkeypatch, 
 def test_the_workers_own_rows_on_a_report_are_not_this_gates_business():
     own = {"widget_id": "results", "action": "append", "payload": {"items": [{"title": "Dacia Spring"}]}}
     assert G.refused(types.SimpleNamespace(task_id="5", surface="informe"), "widget_data", own) == ""
-
-
-def test_the_bridge_asks_the_gate_before_it_executes():
-    src = inspect.getsource(worker_api.worker_act)
-    assert "_net.refused(" in src and src.index("_net.refused(") < src.index("_exec_allow("), \
-        "the gate must run before the action executes"

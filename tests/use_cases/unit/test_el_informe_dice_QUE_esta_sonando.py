@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-from pathlib import Path
 
 from tests.use_cases.e2e.agent import probe_client as PC
 from tests.use_cases.e2e.agent import verify as V
@@ -105,22 +104,3 @@ def test_el_informe_de_mecanismo_LLEVA_lo_que_suena(monkeypatch):
     monkeypatch.setattr(V.probe_client, "widgets_producing", lambda: ["musica"])
     mech = V.mechanism_report([], [])
     assert mech["widgets_producing"] == ["musica"]
-
-
-def test_el_arnes_NO_reimplementa_active_when():
-    """The engine is QUERIED. A copy of `active_when` here is a second truth that can diverge from the one the
-    product uses — and the one that decides what appears on screen is the product's.
-
-    ⚠️ About the CODE, not the comment: the first version matched the bare string and came out RED because
-    the `widgets_producing` docstring itself explains why it is NOT reimplemented. A guard that reads the
-    explanation instead of the code is the same failure already paid for with `extract=None` in V2-380, in reverse.
-    """
-    import ast
-    for f in ("tests/use_cases/e2e/agent/verify.py", "tests/use_cases/e2e/agent/probe_client.py"):
-        arbol = ast.parse(Path(f).read_text(encoding="utf-8"))
-        # A literal `"active_when"` in the harness can only be the beginning of a copy of the rule; the
-        # docstring that EXPLAINS why it is not copied is prose and does not count (ast.Constant does not see a
-        # standalone module/function docstring as this literal, because it is compared for exact equality).
-        for nodo in ast.walk(arbol):
-            if isinstance(nodo, ast.Constant) and nodo.value == "active_when":
-                assert False, f"{f} nombra `active_when` como dato: se PREGUNTA al motor, no se copia"

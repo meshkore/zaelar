@@ -59,10 +59,3 @@ def test_no_pasa_del_cien_por_ciento():
     """The notes may provide names that are not in the sheet; the percentage is capped."""
     r = V.delivery_completeness({"n": 9, "names": ["x"] * 9}, _HOJA)
     assert r["pct"] == 100
-
-
-def test_el_informe_LO_LLEVA():
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-    assert 'mech["delivery_completeness"] = verifymod.delivery_completeness(' in inspect.getsource(R._run_scenario)

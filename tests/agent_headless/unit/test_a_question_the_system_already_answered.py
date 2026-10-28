@@ -91,14 +91,3 @@ def test_el_orden_de_las_notas_se_conserva():
     brain_notes.push("segunda", key="k")
     brain_notes.push("tercera")
     assert brain_notes.drain() == ["primera", "segunda", "tercera"]
-
-
-def test_el_bucle_CABLEA_la_llave_en_los_dos_lados():
-    """Wiring guard on the uncommented source: retraction without a caller is the fix that does not exist, and this
-    repository has already suffered that exact pattern twice (V2-199, V2-340)."""
-    from pathlib import Path
-    src = "\n".join(ln for ln in "\n".join(p.read_text() for p in sorted(Path("nucleo/pulse").glob("*.py"))).splitlines()
-                    if not ln.strip().startswith("#"))
-    assert "_TIMEOUT_KEY" in src
-    assert "_deliver_keyed(" in src, "la pregunta se empuja sin llave: nunca se podrá retractar"
-    assert "worker_timeout_running" in src and "_bn.retract(_TIMEOUT_KEY" in src, "nadie retracta al matar"

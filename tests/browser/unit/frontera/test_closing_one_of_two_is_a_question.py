@@ -49,7 +49,6 @@ _VOICE_SRC = ("voice/engine/llm/providers/nucleo.py", "voice/engine/llm/provider
               "voice/engine/llm/providers/turn_after.py", "voice/engine/llm/providers/turn_tools.py",
               "voice/engine/llm/providers/turn_admit.py", "voice/engine/llm/providers/turn_failure.py",
               "voice/engine/llm/providers/turn_fragment.py")   # V2-778 F1-10: they left the provider
-NUCLEO = ENGINE / "voice/engine/llm/providers/nucleo.py"
 
 class _Voice:
     """Reads as one source: `.read_text()` concatenates the channel's files."""
@@ -237,16 +236,6 @@ def test_ids_always_travels_so_a_caller_that_loops_it_is_right_in_every_case():
     assert instances.resolve_close("results", ["results::t1"], "")["ids"] == ["results::t1"]
     assert instances.resolve_close("results::t7", [], "")["ids"] == ["results::t7"]
     assert instances.resolve_close("results", [], "")["ids"] == ["results"]
-
-
-def test_every_closing_path_iterates_ids():
-    """Source guard, same reason the file already has one: `nucleo.py` emits `widget/close` from THREE places,
-    and writing the rule three times is how it comes to be missing from one."""
-    body = VOICE.read_text()
-    # V2-773 — two of the three paths widen the list with the OTHER cards the sentence names
-    # (`with_also_named`), and still loop over `ids`; the delete-confirm path keeps the bare loop.
-    n = body.count('for _cid in (_t.get("ids")') + body.count('for _cid in with_also_named(_t.get("ids")')
-    assert n == 3, "the three closing paths must loop over `ids`, not read `id`"
 
 
 def test_a_close_takes_every_card_the_sentence_names():

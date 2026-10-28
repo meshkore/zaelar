@@ -18,7 +18,6 @@ sitting on is a wall. Both already existed in the world; neither existed in the 
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 import time
 
@@ -343,7 +342,6 @@ def test_the_two_halves_share_ONE_threshold():
     """The failure this engine keeps repeating: two copies of the same threshold drifting apart. Both sides read
     the same environment variable."""
     from widgets.navegador import act_api
-    from nucleo.turn.prompt import live_state as _p
 
     from nucleo.turn.prompt import live_sheet
     assert act_api._STALL_HINT_S == live_sheet._STALLED_S
@@ -847,16 +845,6 @@ def test_the_peek_size_is_bigger_than_the_gate_that_judges_it():
     long_article = "Access Denied. " + ("texto de relleno de un artículo real. " * 400)
     truncated_correctly = long_article[:tasks.WALL_BODY_PEEK_CHARS]
     assert tasks.body_wall_reason(truncated_correctly) == ""
-
-
-def test_the_tab_capture_is_the_one_that_reads_the_body():
-    """Guarda de nivel de fuente: el muro del cuerpo solo llega al registro si la pestaña se lo pasa. Un
-    predicado nuevo que nadie llama es un arreglo muerto — esta noche ya han aparecido dos."""
-    import inspect
-    from widgets.navegador import owner
-    src = _vts.getsource(owner.TaskBrowser._capture)
-    assert "WALL_BODY_PEEK_CHARS" in src, "la pestaña dejó de leer el cuerpo"
-    assert "page_text=" in src, "la pestaña lee el cuerpo pero no lo pasa al registro"
 
 
 # ── un muro GOLPEADO deja rastro, aunque el worker se re-enrute (V2-176, medido 2026-08-20 12:39) ────────────

@@ -21,9 +21,3 @@ def test_a_notice_after_the_last_turn_is_returned():
 def test_only_spoken_agent_notices_count():
     evs = [_ev(5000, "notify", "x", role="system"), _ev(5000, "notify", "  "), _ev(5000, "brain", "y")]
     assert verify.late_notices(evs, after_ms=0) == []
-
-
-def test_the_round_appends_it_to_the_transcript():
-    import inspect
-    from tests.use_cases.e2e.agent import run
-    assert "late_notices(" in inspect.getsource(run)

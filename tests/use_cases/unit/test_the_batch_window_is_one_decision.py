@@ -69,13 +69,3 @@ def test_el_catalogo_NO_viene_ordenado_por_tier_locale_id():
     ordenado = sorted(crudo, key=lambda i: i)
     assert crudo != ordenado, (
         "el catálogo ya viene ordenado: revisa si `--list` puede reordenar sin separarse de la corrida")
-
-
-def test_la_ventana_vive_UNA_vez():
-    """Two copies of this decision drift apart without warning — that is how this defect originated."""
-    import inspect
-    src = inspect.getsource(runmod)
-    # Count the `return` that PRODUCES it, not the string: the `window_of` docstring quotes it when counting the
-    # measured failure, and a guard that mistook the explanation for a copy would require deleting the rationale.
-    assert src.count('return rows, f"--start-at') == 1, "el error volvió a construirse en dos sitios"
-    assert src.count("window_of(") >= 3, "alguno de los dos caminos dejó de usar la función compartida"

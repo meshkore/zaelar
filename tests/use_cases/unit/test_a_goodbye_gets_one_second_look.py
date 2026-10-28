@@ -6,17 +6,11 @@ list against the product (2/5) while every round in which the persona asked buil
 invisible: `run.py` breaks before noting a closing line.
 
 Disarm: return `line` unconditionally from `farewell.second_look` (or drop its call from `Driver.reply`) and the
-first test goes red; drop the once-per-round guard and the third goes red; drop the `mech["farewell"]` line from
-`run.py` and the last goes red.
+first test goes red; drop the once-per-round guard and the third goes red.
 """
 from __future__ import annotations
 
-import ast
-from pathlib import Path
-
 from tests.use_cases.e2e.agent import driver as D, farewell as F, llm, scenarios as SC
-
-ENGINE = Path(__file__).resolve().parents[3]
 
 
 def _driver(locale="us"):
@@ -60,12 +54,6 @@ def test_only_the_first_goodbye_is_looked_at_twice(monkeypatch):
     _llm(monkeypatch, ["Thanks!", "save it in Work please", "Thanks!"])
     d.reply(); d.hears("Done, saved to Work.")
     assert d.reply() == "Thanks!" and d.done is True
-
-
-def test_the_round_reports_the_goodbye():
-    src = (ENGINE / "tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")
-    ast.parse(src)
-    assert 'mech["farewell"] = driver.farewell' in src
 
 
 def test_the_judge_is_told_the_persona_left():

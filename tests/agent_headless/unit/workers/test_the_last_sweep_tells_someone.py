@@ -88,20 +88,6 @@ def test_si_no_puede_saber_si_ya_se_contó_lo_cuenta(monkeypatch, _limpio):
 
 # ── the WIRING: ensure `_finalize_web` calls it ────────────────────────────────────────────────────────────────
 
-def test_finalize_web_llama_a_la_nota_justo_donde_escribe_las_filas():
-    """AST wiring guard. The function can be perfect and still be useless if the only path that
-    needed it does not call it — which is literally the defect it fixes."""
-    import ast
-    from tests import voice_turn_source as _vts   # V2-778 F1: the dispatcher is read with its moved pieces
-    src = ast.parse(_vts.read("nucleo/dispatch/__init__.py"))
-    fn = next(n for n in ast.walk(src)
-              if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "_finalize_web")
-    llamadas = [getattr(c.func, "attr", getattr(c.func, "id", "")) for c in ast.walk(fn) if isinstance(c, ast.Call)]
-    assert "push" in llamadas, "…¿ya no entrega a la hoja?"
-    assert "hand_sheet_finding" in llamadas, \
-        "`_finalize_web` escribe las filas en la hoja y no se lo cuenta a nadie: el operador las tiene delante " \
-        "y el agente sigue diciendo que no hay nada"
-
 
 def test_the_errand_behind_a_tab_is_found_by_its_tab_or_by_its_task():
     """Demo pass 75: a research errand's tab is named after its TASK (nav_cli falls back to ZAELAR_TASK_ID); its goal

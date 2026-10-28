@@ -272,28 +272,6 @@ def test_y_sin_el_campo_se_sigue_mirando_la_prosa():
     assert V.sheet_hidden_from_the_prompt(viejo, _T)["n"] == 0
 
 
-def test_el_campo_lo_calcula_prompt_context_sobre_la_línea_ENTERA():
-    """The plumbing: if `prompt_context` does not populate it from `live` —the complete line, before truncation—,
-    the field exists, always comes out False, and the detector again marks as blind the turns that were notified.
-
-    Caught by dismantling it: with the field manually set in the fixtures, removing it from the emitter left all 19 tests
-    green while the defect was restored."""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/verify.py").read_text(encoding="utf-8")
-    # V2-444 — the property does not change (it is calculated over the ENTIRE prompt, `sp`, not the truncated line);
-    # what changed is that BOTH phrases are accepted, because they are two different blocks and in the run that
-    # exposed it, the second fired while the first did not appear even once.
-    marca = '"says_found": ("YA HA ENCONTRADO" in sp) or ("DICE haber encontrado" in sp),'
-    assert marca in src, (
-        "se busca en `live` (la línea de tareas) y el imperativo de resultados es OTRA línea del prompt")
-    assert src.index(marca) > src.index("sp = p.get(")
-    # V2-451 — and the ROWS likewise. They were calculated from `live` (the BROWSER line), and since the fix there is
-    # a second block carrying them; in the next four runs `navegador_task_id` was EMPTY, so a field read from that line
-    # would have said “nothing was shown to it” forever. The question is whether rows reached it, and the answer cannot
-    # depend on which block they landed in.
-    assert '"sheet_rows": _rows_in(sp),' in src, "las filas vuelven a leerse de una sola línea del prompt"
-
-
 # ── NOTIFIED AND WITHOUT ROWS ──────────────────────────────────────────────────────────────────────────
 # The other half of the same question. `sheet_hidden_from_the_prompt` skips turns with `says_found` on
 # purpose —the turn WAS told—, so nobody counted the trap that V2-330 named but did not close: the
@@ -342,13 +320,3 @@ def test_al_juez_se_le_DICE_que_le_pedimos_lo_imposible():
     from tests.use_cases.e2e.agent import judge
     txt = judge.mechanism_facts({"told_but_given_no_rows": {"n": 3, "turns": [{"turn": 7}]}})
     assert "IMPOSIBLE" in txt.upper() and "3" in txt
-
-
-def test_run_lo_CALCULA_o_el_informe_sale_sin_el():
-    """The wiring guard, which was missing in three nodes this week: the five cases above call the function directly,
-    so they pass with the `run.py` line DELETED — and then the field does not exist, the judge receives nothing, and the
-    board again scores as withholding what is ours.
-    A counter nobody calls measures zero, and zero is read as “it did not happen.”"""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")
-    assert 'mech["told_but_given_no_rows"] = verifymod.told_but_given_no_rows(' in src

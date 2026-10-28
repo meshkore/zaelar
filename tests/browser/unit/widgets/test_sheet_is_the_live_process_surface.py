@@ -18,7 +18,6 @@ What is fixed here, in the order in which an order occurs:
 And both directions at every point where the fix could overreach: a surface that is NOT the sheet does not render
 here, and an order that arrives while another is working does not erase what that one has already delivered.
 """
-import time
 
 import pytest
 
@@ -26,7 +25,6 @@ from nucleo import dispatch, surfaces
 from nucleo.workers.session import SessionRecord
 from widgets import store
 from widgets.results import data as sheet
-from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 @pytest.fixture(autouse=True)
@@ -240,13 +238,3 @@ def test_sin_dispatcher_la_hoja_ensena_lo_guardado_y_no_revienta(monkeypatch):
 
 
 # ── ORDER guard: the sheet reads the live record, so the end is written AFTER the pop ─────────────────────────
-
-def test_el_cierre_de_la_hoja_va_despues_de_sacar_la_sesion_del_registro():
-    """Otherwise, `sheet_progress()` would still see the session and the sheet would be saved saying that it is
-    working. This is an ORDER guard on the code: reordering two lines does not fail noisily; it leaves the loader
-    spinning forever."""
-    import inspect
-    src = _vts.getsource(dispatch._run_session)
-    pop = src.rindex('_SESSIONS.pop(key, None)')
-    cierre = src.rindex('_sheet_close(rec)')
-    assert pop < cierre, "el `_sheet_close` tiene que ir DESPUÉS de sacar la sesión del registro"

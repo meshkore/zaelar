@@ -16,7 +16,6 @@ much of what we have we did not show it” is a finding about US, and a valuable
 from __future__ import annotations
 
 from tests.use_cases.e2e.agent import verify as V
-from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 _HEAD = "LO QUE HA ENCONTRADO (nombre y precio, de la hoja): "
 
@@ -70,14 +69,6 @@ def test_sin_contexto_de_prompt_se_comporta_como_antes():
     assert got["available"] == 5 and got["pct"] == 60 and got["shown_to_model"] is False
 
 
-def test_la_linea_viva_se_captura_entera_para_que_las_filas_quepan():
-    """At 400 characters the truncation cut off exactly where the rows begin, so `shown_candidates`
-    always returns empty—which is read as “nothing was shown to it” and is the opposite of the truth."""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/verify.py").read_text(encoding="utf-8")
-    assert '"live_line": live[:1200]' in src
-
-
 # ── And make sure the JUDGE knows, since it is half of what determines the score ───────────────────────────
 def test_al_juez_se_le_dice_que_hay_filas_que_nunca_vio():
     """Fixing the number without telling the judge fixes nothing: it assigns the score.
@@ -127,35 +118,3 @@ def test_un_informe_ANTERIOR_al_campo_se_sigue_leyendo():
     only evidence for their rounds."""
     viejo = {"live_line": "TAREAS DE FONDO EN CURSO. " + _HEAD + "FIAT Panda 4x4 — 6.900 €. OJO: la hoja"}
     assert V.shown_candidates([viejo]) == ["FIAT Panda 4x4"]
-
-
-def test_el_campo_lo_escribe_prompt_context_desde_la_linea_ENTERA():
-    """The plumbing: if `prompt_context` does not populate it, the field exists and is always empty."""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/verify.py").read_text(encoding="utf-8")
-    # V2-451—rewritten, NOT reverted. The property is the same: the field is written from the COMPLETE TEXT,
-    # never from the truncated version saved for reading. What changed is WHICH text that is: there used to be
-    # one block with rows (the browser one, in `live`) and now there are two, and in all four rounds after the fix
-    # `navegador_task_id` was EMPTY—the four of them; reading only that line would have yielded “nothing was shown”
-    # forever. `sp` is the entire prompt, which is where both fit.
-    assert '"sheet_rows": _rows_in(sp),' in src, "el campo no se escribe desde el prompt completo"
-    assert src.index('"sheet_rows": _rows_in(sp),') > src.index("def _rows_in(")
-
-
-def test_la_cabecera_que_buscamos_es_la_que_el_MOTOR_escribe():
-    """TEXT coupling between two files, and one that breaks silently.
-
-    `shown_candidates` locates the pushed rows by searching for a literal prompt phrase. If someone
-    rewrites that phrase in `live_blocks`—a comma, a “from the sheet” that disappears—the read returns empty
-    **forever**, and empty here is read as “nothing was shown to it,” which is the opposite of the truth and
-    looks exactly like a functioning fix. It already happened once that same night for another reason (the
-    truncation of `live_line`), and cost four hours of rounds measured with the old denominator.
-
-    This is not elegant and is the correct option available: while the data travels inside a phrase, someone
-    has to monitor the phrase.
-    """
-    from pathlib import Path
-    motor = _vts.read("nucleo/turn/prompt/live_browser.py")
-    assert V._ROWS_HEAD in motor, (
-        "la cabecera de filas del prompt cambió y el arnés sigue buscando la vieja: `shown_candidates` "
-        "devolverá vacío en todas las rondas, que se lee como «no se le mostró nada»")

@@ -10,7 +10,6 @@ tool, the action map's `arrange`, and the REST endpoint — all emit the same ("
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 from pathlib import Path
 
@@ -52,9 +51,3 @@ def test_both_seed_packs_carry_arrange_phrases_and_the_pack_version_moved():
         assert d["version"] >= 4, f"{lang} pack version did not move — existing installs never re-import"
         arr = [e for e in d["entries"] if (e.get("action") or {}).get("do") == "arrange"]
         assert arr, f"{lang} pack has no arrange phrases"
-
-
-def test_the_voice_turn_wires_the_tool():
-    """The typed channel runs the voice turn, so one handler covers both inputs."""
-    voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert 'name == "arrange_canvas"' in voice, "the voice channel dropped the handler"

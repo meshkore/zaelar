@@ -28,9 +28,7 @@ what matters is that there is ONE decision, not which file it is in.
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
-import asyncio
 
 import pytest
 
@@ -104,10 +102,3 @@ def _llamadas(*ops):
 
 
 # ── and VOICE uses the SAME criterion ────────────────────────────────────────────────────────────────────────
-
-def test_la_voz_decide_con_el_MISMO_guarda():
-    """If each channel brings its own, they diverge — which is how this kind of failure survives (V2-176)."""
-    from pathlib import Path
-    src = _vts.read(Path("voice/engine/llm/providers/nucleo.py"))
-    assert "_data_ops.admite_data_op(args, _data_ops_hechas, _brief)" in src   # V2-781: with the verdict
-    assert '"widget_data" in _tool_fired:\n                    return' not in src

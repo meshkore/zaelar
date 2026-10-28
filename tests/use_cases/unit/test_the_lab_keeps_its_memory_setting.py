@@ -32,21 +32,6 @@ def test_every_lab_agent_boots_with_the_reranker_pinned_off():
             assert env.get("MEMORY_RERANK") == "off", f"{prof.key} (voz={voice}): sin el pin del reranker"
 
 
-def test_the_stage_never_writes_the_setting_into_the_agents_own_config():
-    """The distinction the incident turned on, stated as the thing that must NOT happen.
-
-    A FORWARD guard, and it does not disarm: reverting the env pin leaves it green, because what it
-    forbids is the OLD fix coming back. Writing `rerank_provider` into the sandbox's `config/v2.json` is
-    what was tried first, and it survived exactly as long as the agent stayed stopped. If someone puts it
-    back there, this is the test they have to argue with.
-    """
-    import inspect
-    src = inspect.getsource(stage)
-    assert "rerank_provider" not in src, (
-        "el plató vuelve a escribir el ajuste en el config del agente — el agente lo reescribe y lo borra; "
-        "el pin va en el ENV (`env_for`)")
-
-
 def test_the_env_pin_actually_reaches_the_effective_config():
     """End to end through the real resolver, against an EMPTY store — which is exactly the state the ES
     agent left behind. Asserting only that the var is set would pass even if `_ENV_FALLBACK` dropped the

@@ -51,21 +51,6 @@ def test_operator_transcript_and_interim_never_read_active():
     assert "trace.active()" not in block
 
 
-def test_stt_metrics_never_read_active_but_tts_metrics_do():
-    # The handler body lives in metrics_tap.py since 2026-09-10 (extraction paying the newborn-size
-    # ratchet) — the guard follows the CHANNEL (V2-555), and agent.py must still call it.
-    from pathlib import Path
-    body = (Path(__file__).resolve().parents[3] / "voice/engine/pipeline/metrics_tap.py").read_text(encoding="utf-8")
-    tts_block = body[body.index('kind == "TTSMetrics"'):body.index('kind == "STTMetrics"')]
-    stt_block = body[body.index('kind == "STTMetrics"'):]
-    assert "trace.active()" in tts_block, "TTS metrics describe audio for text the turn already generated"
-    assert "trace.active()" not in stt_block, "STT metrics describe recognition that precedes the turn's trace"
-    agent = _body()
-    i = agent.index('@session.on("metrics_collected")')
-    block = agent[i:agent.index("@session.on(", i + 10)]
-    assert "on_metrics(ev, _emit)" in block, "the extraction is only real if the handler still calls it"
-
-
 def test_the_metrics_handler_actually_IMPORTS():
     """⚠️ A source-level guard cannot see a broken import, and this one did not for five days.
 

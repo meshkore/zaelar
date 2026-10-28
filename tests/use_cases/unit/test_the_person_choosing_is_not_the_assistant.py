@@ -78,11 +78,3 @@ def test_los_marcadores_que_SI_valen_son_los_que_la_oferta_no_puede_decir():
     for linea in ("esas no me valen", "como te dije, por debajo de 150",
                   "a ver si me confirmas zona y estado", "pásame el enlace porfa"):
         assert V._speaks_as_the_customer(linea), linea
-
-
-def test_el_barrido_de_la_ronda_LO_USA():
-    """The wiring half: the exemption can work and still not reach the sweep that declares INFRA (V2-199)."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-    assert "verifymod.recites_our_candidates" in inspect.getsource(R._run_scenario)

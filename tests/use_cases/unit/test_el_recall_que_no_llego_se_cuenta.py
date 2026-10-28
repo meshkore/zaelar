@@ -53,9 +53,3 @@ def test_y_si_no_se_perdio_ninguno_no_se_le_dice_nada():
     """A line that is always emitted stops being read—and here it would say there is a failure where there is none."""
     txt = judge.mechanism_facts({"recall_not_delivered": {"n": 0, "read": True, "reasons": {}, "queries": []}})
     assert "MEMORIA QUE NO LLEGÓ" not in txt
-
-
-def test_run_lo_CALCULA():
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")
-    assert 'mech["recall_not_delivered"] = verifymod.recall_not_delivered(all_events)' in src

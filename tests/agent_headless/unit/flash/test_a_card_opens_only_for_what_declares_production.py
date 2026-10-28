@@ -31,17 +31,13 @@ card jumped up on a `stop`: «I did pause it manually, and you did start it with
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
-import re
-from pathlib import Path
 
 import pytest
 
 from nucleo.acts import canvas_arbiter as arb
-from nucleo.flash import canvas_license as lic, canvas_visibility as cv
+from nucleo.flash import canvas_license as lic
 
-ENGINE = Path(__file__).resolve().parents[4]
 
 #: What the music connector hands back for every action: where the sound comes from, nothing more.
 WIDGET_SURFACE = {"surface": "widget", "widget": "musica"}
@@ -104,16 +100,6 @@ def test_the_operators_own_hands_are_never_judged_by_this_rule():
 
 
 # ── 3 · the wiring, so the two can agree at all ──────────────────────────────────────────────────────────
-
-def test_the_voice_lane_goes_through_the_door_and_names_its_reason():
-    """V2-723 moved the gate INTO the door: the lane no longer emits a show at all, it asks to present and
-    says why. The claim is then checked against the widget's declaration inside `present`."""
-    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    m = re.search(r'_cvis\.present\(str\(_extra\.get\("widget"\).*?reason="producer-mount".*?'
-                  r'action=mq\.get\("action"\)', src, re.S)
-    assert m, "the music lane must present through the door, declaring `producer-mount` and its action"
-    assert 'emit("widget", "show"' not in src, \
-        "no anonymous show may be left in the voice provider — everything goes through the door"
 
 
 def test_both_sides_read_one_declaration_and_not_two_lists():

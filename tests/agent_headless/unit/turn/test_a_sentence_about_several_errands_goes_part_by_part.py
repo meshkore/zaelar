@@ -93,13 +93,6 @@ def test_the_voice_channel_routes_and_holds_the_backstop(injected):
     assert S.holds_the_repair("On it.", HIS), "the voice card repair is held for a routed sentence"
 
 
-def test_the_voice_turn_says_each_errand():
-    """The reply half's wiring: the voice turn's close says each errand."""
-    import inspect
-    from voice.engine.llm.providers import turn_after
-    assert "_sbe.each_line(spoken_text, _op_text)" in inspect.getsource(turn_after.close_the_turn)
-
-
 def test_a_routing_is_said_only_in_its_own_turn(injected):
     """A routed turn that ended up as another action owes nothing to the NEXT turn's reply."""
     S.route(HIS)

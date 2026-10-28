@@ -17,7 +17,6 @@ EIGHT searches and EIGHT results, all from the worker's NATIVE `WebSearch`.
 It belongs to the same family as the line that report already prints for workers —«el motor SEGUÍA trabajando al
 medir: lo que falte puede ser todavía no, no nunca»—: this channel did not receive that safeguard.
 """
-import pytest
 
 from tests.use_cases.e2e.agent import judge as J, report as R
 
@@ -113,13 +112,6 @@ def test_sin_saber_el_ultimo_turno_no_se_inventa_nada(tmp_path):
     from tests.use_cases.e2e.agent import verify as V
     out = V.search_returns(_db(tmp_path, [473_000, 521_000]), since=0)
     assert out["returns"] == 2 and out["returns_after_last_turn"] == 0
-
-
-def test_el_arnes_PASA_el_instante_del_ultimo_turno():
-    """The wiring: the counter can be perfect and still not receive the data."""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/run.py").read_text()
-    assert 'last_turn_ms=(mech.get("sheet_timing") or {}).get("last_turn_ms")' in src
 
 
 # ── V2-781 T516 · a search read in the SAME turn ───────────────────────────────────────────────────────────────

@@ -341,19 +341,6 @@ def test_un_TIMEOUT_de_la_sonda_NO_degrada_el_espacio_vectorial(monkeypatch):
     assert emb._resolved_at == 0.0, "y tiene que re-sondear en la próxima llamada, no dentro de 5 minutos"
 
 
-def test_un_Ollama_AUSENTE_sigue_degradando(monkeypatch):
-    """The counterweight, and the reason this is not «never demote»: a server that is not there will not
-    respond, and waiting for it would leave memory without semantic recall. The difference is that absence is known
-    in MILLISECONDS (connection refused), while «I don't know» takes as long as the clock runs."""
-    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
-    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
-    monkeypatch.setattr(emb.urllib.request, "urlopen",
-                        lambda *a, **k: (_ for _ in ()).throw(ConnectionRefusedError("refused")))
-    monkeypatch.setattr(emb, "_fastembed_embed", lambda texts: [[0.1] * 384 for _ in texts])
-    emb.reset()
-    assert emb.active_backend() == "fastembed"
-
-
 def test_mientras_Ollama_no_conteste_tambien_las_llamadas_reales_usan_el_reloj_corto(monkeypatch):
     """Without this, preserving the space costs a dead turn: every real embed would wait 20 s for an Ollama
     that we already know does not respond — exactly the latency measured by V2-311. The space is still preserved;

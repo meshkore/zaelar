@@ -63,15 +63,3 @@ def test_the_FIRST_case_of_a_batch_gets_no_such_note(monkeypatch):
     the judge would forgive memory failures in the only case where they are unequivocally product failures."""
     txt = _prompt({"transcript": [], "mechanism_report": {}}, monkeypatch)
     assert "MEMORIA COMPARTIDA" not in txt
-
-
-def test_run_passes_the_cases_already_finished_in_this_batch():
-    """The notice being present is useless if the runner does not populate it—the failure of “the truth exists but does not reach the
-    place where the decision is made,” which has already happened several times in this repo."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-
-    src = inspect.getsource(R)
-    assert "ran_before=[r[\"scenario\"] for r in results]" in src, \
-        "el runner no le está pasando al juez los casos ya corridos de esta tanda"

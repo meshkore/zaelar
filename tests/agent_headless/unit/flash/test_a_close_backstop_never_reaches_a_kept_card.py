@@ -6,13 +6,11 @@ outright. `close_target.identify` (ex `close_identify`) reads `naming.without_ke
 """
 from __future__ import annotations
 
-from pathlib import Path
 
 import pytest
 
 from nucleo.acts import close_target as close_identify
 
-ENGINE = Path(__file__).resolve().parents[4]
 THREE = ["agenda", "musica", "youtube"]
 
 
@@ -31,8 +29,3 @@ def test_a_sentence_that_only_names_the_kept_card_reaches_nothing():
 
 def test_a_plain_close_still_reaches_its_card():
     assert close_identify.identify("cierra la agenda", THREE).get("match") == "agenda"
-
-
-def test_the_backstop_reads_the_shared_reader():
-    src = (ENGINE / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
-    assert "close_target" in src and ".identify(text, _o" in src

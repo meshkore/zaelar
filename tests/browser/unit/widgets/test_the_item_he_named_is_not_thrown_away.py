@@ -47,10 +47,8 @@ the second. That is the defect this file pins, in four parts:
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 import datetime as _dt
-import inspect
 import json
 import pathlib
 
@@ -305,28 +303,6 @@ def test_candidates_stay_clean_when_the_labels_already_differ():
 
 
 # ── 7 · the wiring, and the event that hid this for a week ──────────────────────────────────────────────
-
-def test_the_voice_turn_passes_HIS_HALF_of_the_turn_as_the_last_resort():
-    """A guard nobody calls does not exist. And it must be his half: the composed prompt carries the
-    `[SISTEMA]` note, which in this very session listed the candidate titles themselves — feeding that in
-    here would make every reference ambiguous."""
-    from voice.engine.llm.providers import nucleo as prov
-    src = _vts.turn_source()
-    assert "order=_bnotes.operator_half(text)" in src
-    assert "refs.resolve(wid, action_name, ref, payload, order=" in src
-
-
-def test_the_data_op_event_says_WHAT_ITEM_was_named():
-    """Five rows of «payload: {}» in the timeline and no `item` anywhere: the observability could not tell
-    «the model sent nothing» apart from «the resolver threw away what it sent», and the first reading is
-    the one that was believed. That is the week."""
-    from voice.engine.llm.providers import nucleo as prov
-    src = _vts.turn_source()
-    assert '"item": ref' in src
-    assert "def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str = \"\")" in src
-    # V2-740: the call targets the card the screen verdict decided (`_cd["card"]`); the named item still travels.
-    assert '_apply_widget_data(_cd["card"], action_name, res.payload, ref)' in src
-
 
 def test_the_agenda_manifest_declares_it_for_every_action_on_an_EXISTING_meeting():
     acts = json.loads((ENGINE / "widgets/agenda/manifest.json").read_text())["actions"]

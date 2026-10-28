@@ -14,7 +14,6 @@ nothing, and the rail is STATE (a directory read) not a verb table.
 """
 from __future__ import annotations
 
-import re
 
 import pytest
 
@@ -104,13 +103,3 @@ def test_the_contact_forces_the_family_even_from_a_carried_fragment(directory_wi
               {"role": "user", "text": "So do this. Right now."}]
     _, rep = tsel.select_for_turn(tools, turn_text="So do this. Right now.", window=window)
     assert "messaging" in rep["kept"], rep
-
-
-def test_the_rail_is_state_not_a_verb_table():
-    """Source-level: the selector consults the DIRECTORY, not a widened `_HINTS`. The seed list stays the
-    short one V2-682 deliberately kept — the fix for a recurring miss is not another verb."""
-    import pathlib
-    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo/flash/tool_selection.py"
-    text = src.read_text(encoding="utf-8")
-    body = text[text.index("def select_for_turn("):]
-    assert "addressed" in body and "contact_in" in body

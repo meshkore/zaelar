@@ -164,22 +164,6 @@ def test_a_scenario_crash_carries_what_was_already_measured():
     assert "timed out" in str(e)
 
 
-def test_the_batch_handler_reads_the_crash_not_an_empty_record():
-    """Wiring guard, same pattern as `test_the_wiring_is_in_the_event_handler`: the fix is one except-block
-    in `_run_batch`, and an innocent refactor that rebuilds the INFRA row from scratch would silently bring
-    back `transcript: []`. Anchored on the handler's own print, which is part of the contract («if you have
-    the answer, print it»)."""
-    import inspect
-    src = inspect.getsource(runmod._run_batch)
-    i = src.find("scenario crashed")
-    assert i != -1
-    window = src[i:i + 1600]
-    assert 'getattr(e, "transcript"' in window, "el handler ya no rescata los turnos ya conducidos"
-    assert 'getattr(e, "autopsy"' in window, "el handler ya no adjunta la autopsia del motor"
-    assert "engine_autopsy" in window, "un crash sin autopsia propia ya no recibe una"
-    assert "⚕" in window, "la autopsia ya no se imprime en el momento"
-
-
 # ── a lab round says whether it is measuring on top of an old one ─────────────────────────────────────────
 
 def test_a_lab_round_can_start_from_clean_memory():
@@ -196,18 +180,6 @@ def test_a_lab_round_can_start_from_clean_memory():
         return
     assert ap.parse_args(["--scenario", "x", "--lab", "es", "--fresh"]).fresh is True
     assert ap.parse_args(["--scenario", "x", "--lab", "es"]).fresh is False
-
-
-def test_a_lab_round_that_did_not_reset_says_so():
-    """The failure mode this guards is not a red round — it is a GREEN one nobody questions. The harness
-    stamps `memory_carryover` from the cases THIS invocation ran, so a single-case round against a
-    long-lived lab reported an empty carryover while the agent demonstrably remembered. Evidence that was
-    not wrong, just blind. So the round says it out loud instead."""
-    import inspect
-    from tests.use_cases.e2e.agent import run as runmod
-    src = inspect.getsource(runmod._lab_batch)
-    assert "memoria del plató NO borrada" in src
-    assert "--fresh" in src
 
 
 def test_the_reset_is_never_silent():

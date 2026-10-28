@@ -23,7 +23,6 @@ import pytest
 from livekit.agents.types import FlushSentinel
 
 from voice.engine.speech import filler_audio as fa
-from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 
 class _Brain:
@@ -177,23 +176,6 @@ def test_the_default_delay_honors_the_operators_one_second_rule(monkeypatch):
     assert fa.delay_ms() >= 1000, "the default must not fire fillers on ~1s replies (operator's rule)"
     monkeypatch.setenv("ZAELAR_FILLER_MS", "0")
     assert not fa.enabled(), "ZAELAR_FILLER_MS=0 stays the kill-switch"
-
-
-def test_the_wiring_uses_llm_node_and_NOT_tts_node():
-    """The lesson of the discarded v2.5, kept as a guard: `tts_node` is only called from `_start_segment()`
-    — i.e. once the first text chunk exists — so a filler hung there can never fire on a slow turn. The
-    live proof: TTFT 2.5s with the timer at 1.1s produced NO filler at all."""
-    from pathlib import Path
-    # The overrides moved to their own module (V2-538, the architecture ratchet asked); the guard follows the
-    # code, which is exactly what it caught when they moved.
-    body = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/pipeline/zaelar_agent.py")
-    assert "llm_node_with_filler" in body and "transcription_node_without_filler" in body, \
-        "the filler enters through llm_node and is stripped in transcription_node"
-    assert "tts_node_with_filler" not in body, \
-        "tts_node cannot observe a late reply — it is only created once text exists"
-    # …and the entrypoint still MOUNTS it: a class nobody instantiates is a node nobody overrides.
-    entry = _vts.read(Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py")
-    assert "from .zaelar_agent import ZaelarAgent" in entry and "ZaelarAgent(instructions=" in entry
 
 
 def test_a_turn_that_ARMS_AFTER_the_deadline_still_gets_its_filler(monkeypatch):

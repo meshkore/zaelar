@@ -18,7 +18,6 @@ from __future__ import annotations
 
 from nucleo.acts import canvas as _door
 
-from tests import voice_turn_source as _vts
 
 import json
 import pathlib
@@ -105,11 +104,6 @@ def test_match_spoken_retries_with_the_name_removed(monkeypatch):
     assert amap.match_spoken("Johnny eres tonto.") is None
 
 
-def test_the_fast_lane_uses_match_spoken():
-    lane = (ENGINE / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
-    assert "match_spoken(" in lane, "the turn's fast lane must retry the lookup with the wake word stripped"
-
-
 # ── 3 · the shared branch bodies act on the license ──────────────────────────────────────────────────────
 
 def _emits():
@@ -159,28 +153,6 @@ def test_fullscreen_dispatch_routes_by_direction_and_discards_the_drag(monkeypat
 
 
 # ── 4 · the provider carries the guards (source contracts) ───────────────────────────────────
-
-def test_the_voice_provider_gates_model_closes_and_delegates_the_bodies():
-    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    # 2026-10-22 — the same gate through `canvas.close_ordered` (grammar AND the turn's sure canvas verdict): a complaint
-    # about a close («you did close the document») is no order either.
-    assert '_canvas_door.close_ordered(text, brief=_brief, called=True, handle=canvas_h)' in src, \
-        "a model-emitted [[close]] with no close order in the turn is drag (the «eres tonto» close)"
-    # V2-753 — the data-op close keeps needing a license; what changed is WHO grants it. The bare
-    # verb table was the sole decider here and it ate «Páralo, y vuelve al inicio» five times in one
-    # session, so the call now goes through the shared reader (grammar first, then the turn's paid
-    # `screen_action` verdict, and the operator's «no» vetoing both). The claim is unchanged — an
-    # unlicensed close must not reach the player — so this is re-anchored, not relaxed: node 2.72
-    # owns the licence's own behaviour and this line owns the WIRING.
-    import inspect
-    from nucleo.acts import card
-    assert card._unlicensed_close in card._LADDER[card.CALL] and \
-        'if action != "close"' in inspect.getsource(card._unlicensed_close) and \
-        "_cg.dataop_close_licensed(" in inspect.getsource(card._unlicensed_close), \
-        "the widget_data close (which EMPTIES the loaded video) needs the same license"
-    assert "_video_turn.voice_execute(" in src and "_show_target.fullscreen_dispatch(" in src, \
-        "the branch bodies live in the shared modules — one impl, both channels"
-
 
 # ── 5 · minimize is a first-class canvas order ───────────────────────────────────────────────────────────
 

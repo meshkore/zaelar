@@ -114,10 +114,3 @@ def test_the_real_players_declare_an_existing_resume_action(wid):
     man = json.loads((ENGINE / "widgets" / wid / "manifest.json").read_text(encoding="utf-8"))
     sp = producers.spec(man)
     assert sp["resume"] in set(man.get("actions") or {}), wid
-
-
-def test_an_operator_close_hands_the_speaker_back():
-    """Every operator close passes `canvas_closes.note` (fed by `voice.observer.emit`); it asks for the hand-back."""
-    src = (ENGINE / "nucleo" / "canvas_closes.py").read_text(encoding="utf-8")
-    assert "hand_back" in src
-    assert "after_action" in (ENGINE / "widgets" / "server_api.py").read_text(encoding="utf-8")

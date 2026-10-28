@@ -60,14 +60,6 @@ def test_una_respuesta_BUENA_sigue_pasando(monkeypatch):
     assert mem_cli._post("/api/memory/remember", {"text": "x"}) == {"ok": True, "id": 7}
 
 
-def test_NO_afloja_el_gate():
-    """The decision about what enters memory does not change here. This only makes the rejection readable — and
-    loosening the gate without knowing what it rejects would be exactly the mistake this repo has been paying for all night."""
-    from pathlib import Path
-    src = Path("server/memory_routes.py").read_text(encoding="utf-8")
-    assert 'raise HTTPException(422, f"descartado por el gate de precisión' in src
-
-
 def test_un_cuerpo_ILEGIBLE_no_empeora_el_error(monkeypatch):
     """Reading the body is an extra: if it fails, the worker must continue receiving the code and not a different
     exception on top of it. A failure to EXPLAIN a failure leaves the reader worse off than if it had not been

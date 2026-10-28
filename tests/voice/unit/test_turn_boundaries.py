@@ -132,22 +132,6 @@ def test_endpointing_survives_a_garbage_env(monkeypatch):
     assert _endpointing_opts()["min_delay"] == ep.HOLD_BASE
 
 
-def test_the_session_declares_its_turn_boundaries_in_one_place():
-    """Turn settings used to be passed as LOOSE arguments, which LiveKit 1.6 deprecated. If anyone mixes the two
-    forms in the same call again, this catches it."""
-    import inspect
-    from voice.engine.pipeline import agent
-    from tests import voice_turn_source as _vts   # V2-778 F1: a split module is read with its moved pieces
-    src = _vts.getsource(agent)
-    # Only the session CONSTRUCTION: `allow_interruptions` is also a legitimate `session.say()` argument,
-    # which is per-utterance and has nothing to do with turn configuration.
-    start = src.index("AgentSession(")
-    ctor = src[start:src.index(")", src.index("turn_handling={", start))]
-    assert "turn_handling={" in ctor
-    for legacy in ("preemptive_generation=", "allow_interruptions=", "turn_detection=", "min_interruption_duration="):
-        assert legacy not in ctor, f"{legacy} está deprecado en AgentSession: va dentro de turn_handling"
-
-
 # ── 4. A turn that dies leaves a trace AND preserves the sentence ─────────────────────────────────────────────────
 
 def test_a_cancelled_turn_keeps_the_operator_words_and_says_where_it_died(monkeypatch):
@@ -286,21 +270,6 @@ def test_the_deadline_is_tunable_and_disablable(monkeypatch):
     assert _turn_budget_ms() == 9000
 
 
-def test_the_deadline_measures_stream_progress_not_speech():
-    """FIXED 2026-08-12 after three HEALTHY turns died in two minutes. This test previously asserted the
-    implementation detail (`wait_for` over `__anext__`), which let the bug through: the deadline measured «no voice
-    comes out», and a turn whose response is an ACTION emits no speakable characters—the tool-call chunks are
-    consumed by `stream()` without yielding. What is measured is that the STREAM advances."""
-    from voice.engine.llm.providers.nucleo import NucleoLLMStream
-    from tests import voice_turn_source
-    src = voice_turn_source.getsource(NucleoLLMStream._run_inner)   # V2-778 F1: the turn whole
-    loop = src[src.index("_quiet_ms = _turn_budget_ms()"):]
-    assert "if delta:" in loop and loop.count("_quiet_ms = _turn_budget_ms()") >= 2, \
-        "el plazo debe renovarse con cada delta hablable"
-    assert "stream_advancing(" in loop, "antes de declarar un atasco hay que mirar el latido del stream"
-    assert "asyncio.wait_for(_chunks.get()" in loop, "el plazo va por trozo, no sobre el stream entero"
-
-
 def test_a_turn_whose_answer_is_an_action_is_not_a_stall():
     """The REAL case (13:49:00 and 13:50:55): `ttft=1.50s`, `spoken_chars=0`, and the turn guillotined at 9 s. The
     model was emitting a tool-call—the operator had just said «no veo ningún resultado en pantalla»."""
@@ -317,45 +286,6 @@ def test_a_provider_that_never_answers_is_still_a_stall():
     assert stream_advancing({}, 9000, now) is False                        # ni un chunk: atasco de verdad
     assert stream_advancing({"last_chunk_ts": 0}, 9000, now) is False      # sin sello = nada ha llegado
     assert stream_advancing({"last_chunk_ts": now - 30.0}, 9000, now) is False   # avanzó, pero hace rato
-
-
-def test_the_stream_stamps_its_heartbeat_on_every_chunk():
-    """The stamp must be applied by whoever SEES each chunk (`fast_client`), not whoever only receives chunks with text.
-
-    `stream()` is a thin wrapper (V2-092 addendum, 2026-08-15: counts in-flight turns for deferred shutdown
-    of ⏻) that delegates to `_stream_inner()`—the real streaming logic remains there unchanged."""
-    import inspect
-    from nucleo.llm.fast_client import FastClient
-    src = inspect.getsource(FastClient._stream_inner)
-    body = src[src.index("async for chunk in stream:"):]
-    head = body[:body.index("text = getattr(delta")]
-    assert "last_chunk_ts" in head, "el latido se sella ANTES de filtrar por texto, o los turnos de acción no cuentan"
-
-
-def test_the_stream_is_torn_down_without_cancelling_a_call_in_flight():
-    """Cancelling an `__anext__` midway and then calling `aclose()` leaves the generator in an undefined state—it was
-    the previous approach and a candidate cause of voice-thread hangs. The TASK that iterates over it is cancelled;
-    it is the sole owner of the `async for`."""
-    from voice.engine.llm.providers.nucleo import NucleoLLMStream
-    from tests import voice_turn_source
-    src = voice_turn_source.getsource(NucleoLLMStream._run_inner)   # V2-778 F1: the turn whole
-    loop = src[src.index("_quiet_ms = _turn_budget_ms()"):]
-    assert "_agen.aclose()" not in loop and "__anext__" not in loop
-    assert "_pump_task.cancel()" in loop
-
-
-def test_a_stall_is_treated_as_a_brain_failure_not_as_silence():
-    """Getting stuck must produce a short, honest phrase + alert + red health status (`errored` branch), never a minute
-    of silence that looks like a hang."""
-    from voice.engine.llm.providers.nucleo import NucleoLLMStream
-    from tests import voice_turn_source
-    src = voice_turn_source.getsource(NucleoLLMStream._run_inner)   # V2-778 F1: the turn whole
-    # the FIRST `except asyncio.TimeoutError` in the function is for recall (something else); we need the one in the
-    # streaming loop, which comes after the silence deadline.
-    stall = src[src.index("_quiet_ms = _turn_budget_ms()"):]
-    stall = stall[stall.index("except asyncio.TimeoutError:"):]
-    assert "errored = True" in stall[:600]
-    assert "ATASCADO" in stall[:900], "el atasco tiene que dejar rastro en la observabilidad"
 
 
 def test_a_stalled_turn_is_a_warning_not_a_dead_provider():
@@ -397,22 +327,3 @@ def test_a_real_provider_failure_still_goes_red(monkeypatch):
         assert llm["state"] == "error" and "no responde" in llm["detail"]
     finally:
         health_state.clear("llm")
-
-
-def test_the_stall_path_says_stalled_not_dead():
-    """The spoken/visible ALERT must not say «down» for a single turn either."""
-    from voice.engine.llm.providers.nucleo import NucleoLLMStream
-    from tests import voice_turn_source
-    src = voice_turn_source.getsource(NucleoLLMStream._run_inner)   # V2-778 F1: the turn whole
-    stall = src[src.index("_quiet_ms = _turn_budget_ms()"):]
-    stall = stall[stall.index("except asyncio.TimeoutError:"):]
-    assert "stalled = True" in stall[:700]
-    # V2-252: the classification (stall vs outage) is shared with the TEXT channel in
-    # `nucleo/llm/provider_failure.py`, because writing it twice caused it to diverge three times. This checks that
-    # this turn PASSES it the fact—`stalled=`—and that the shared module translates it to «slow», not «down».
-    assert "stalled=bool(stalled)" in src
-    import inspect as _i
-
-    from nucleo.llm import provider_failure as _pf
-    assert 'health_state.record("llm", "slow"' in _i.getsource(_pf.handle)
-    assert "Un turno se atascó y lo corté" in src

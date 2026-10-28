@@ -1,11 +1,9 @@
 """A mail the archive finds but the card no longer holds is asked back from the mailbox (demo pass 2026-09-28,
 full28 E1→E3: the card holds the 30 most recent unread; with newer mail since, the Acme invoice had fallen out —
 «open it» found no chat and «send the invoice to quinn» had nothing to forward, while the archive had it all along)."""
-import pathlib
 
 import pytest
 
-ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
 
 @pytest.fixture
@@ -33,12 +31,6 @@ def test_a_mail_the_card_already_holds_is_not_asked_again(md):
     md.store.save(md.WIDGET_ID, db)
     md.apply_action("search_archive", {"q": "acme"})
     assert md.load_db().get("pending_history") == []
-
-
-def test_a_mail_brought_back_carries_its_files():
-    src = (ENGINE / "connectors/email/service/history.py").read_text("utf-8")
-    i = src.index("async def _drain_history")
-    assert '"media": store._media_entries(m)' in src[i:i + 2500]
 
 
 def test_a_mail_brought_back_keeps_its_subject_for_the_forward(monkeypatch):

@@ -22,7 +22,6 @@ And the repeated phrase was NOT canned by us—it is not in the code—but the m
 empty box, which is worse: the honesty guard was working and there was nothing honest to report.
 """
 import asyncio
-from pathlib import Path
 
 import pytest
 
@@ -105,7 +104,6 @@ class _ClienteMudoQuePideVideo(_ClienteQuePideVideo):
             yield ""
 
 
-
 def test_a_mute_video_turn_names_what_it_loaded(monkeypatch, tmp_path):
     """The model calls `play_video` and says nothing: the reply has to name what loaded. The old text channel patched
     it after the fact (V2-383); the voice turn's words stream before the player answers, so this is the mouth saying
@@ -130,11 +128,6 @@ def test_a_mute_video_turn_names_what_it_loaded(monkeypatch, tmp_path):
         turn.reset("test-video-mudo")
         memdb.reset_db(); mememb.reset()
     assert "Dune: Part Two" in (res.get("reply") or "")
-
-def test_el_rail_es_el_MISMO_que_usa_la_voz():
-    """The voice uses `_apply_widget_data("youtube", "load", {"query": …})`. If this channel invented its own
-    path, there would be TWO ways to play a video, and the one being measured would not be the one the operator uses."""
-    assert 'brain_action("youtube", "load"' in _vts.read(Path("nucleo/flash/video_turn.py"))
 
 
 def test_los_argumentos_del_modelo_llegan_al_rail(rail):

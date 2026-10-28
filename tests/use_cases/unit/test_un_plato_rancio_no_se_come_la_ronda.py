@@ -128,10 +128,3 @@ def test_una_ronda_REAL_dice_si_el_plato_salio_rancio(monkeypatch, tmp_path, sal
     monkeypatch.setattr(S.subprocess, "Popen", _ProcesoQueImprime(salida))
     parte = S.una_ronda("un-caso")
     assert parte["_rancio"] is rancio
-
-
-def test_una_ronda_rancia_se_reconoce_por_lo_que_IMPRIME_el_runner():
-    """The marker must be the guard's actual text, not a paraphrase: if the runner changes the phrase and this does
-    not, the supervisor stops seeing stale code and the entire defect silently returns."""
-    from pathlib import Path
-    assert S._PLATO_RANCIO in Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")

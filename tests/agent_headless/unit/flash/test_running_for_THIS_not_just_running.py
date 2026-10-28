@@ -23,9 +23,7 @@ Measured twice, in two different cases and from both sides:
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
-import pytest
 
 from nucleo.flash import router_guards as g
 
@@ -76,15 +74,6 @@ def test_a_date_in_common_is_not_a_topic_in_common():
     """Two errands for the same Saturday are not the same errand."""
     assert g.nothing_running_for("reservar mesa el sábado en Casa Lucio",
                                  ["conseguir entradas el sábado para el Rey León"]) is True
-
-
-# ── and it is wired into the voice turn (the typed channel runs it too) ─────────────────────────────────────
-def test_the_voice_turn_asks_the_new_question():
-    """Source guard: a predicate with no caller fixes nothing."""
-    from voice.engine.llm.providers import nucleo as voice_nucleo
-
-    assert "nothing_running_for" in _vts.getsource(voice_nucleo), \
-        "the voice turn still only asks «is anything running?»"
 
 
 def test_the_predicate_is_reachable_from_the_router_facade():

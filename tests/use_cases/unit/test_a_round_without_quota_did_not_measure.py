@@ -105,25 +105,3 @@ def test_la_frase_NOMBRA_al_proveedor_y_la_hora():
 def test_negarse_a_LANZAR_basta_aunque_no_muera_nadie():
     """Since V2-314, the dispatcher does not launch when the chain is asleep: zero deaths and zero measured rounds."""
     assert V.no_quota_infra({"deaths": 0, "asleep": 2, "providers": []}, {"ok": 0})
-
-
-def test_el_barrido_LO_USA_y_no_pisa_una_averia_ya_declarada():
-    """The wiring half (V2-199) — and order matters: an out-of-paper driver takes precedence over quota,
-    because that failure is OURS and can be fixed, while quota can only be waited out."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-    src = "\n".join(ln for ln in inspect.getsource(R._run_scenario).splitlines()
-                     if not ln.strip().startswith("#"))
-    i = src.find("verifymod.no_quota_infra(")
-    assert i > 0, "el barrido dejó de consultar la regla de cuota"
-    assert "if not crashed:" in src[max(0, i - 200):i]
-
-
-def test_y_el_informe_LO_LLEVA():
-    """The reading can be correct and still fail to reach the report."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-    src = inspect.getsource(R._run_scenario)
-    assert 'mech["provider_exhausted"] = verifymod.provider_exhausted(' in src

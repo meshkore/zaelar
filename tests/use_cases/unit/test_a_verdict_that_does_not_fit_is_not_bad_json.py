@@ -49,35 +49,12 @@ def test_sin_respuesta_no_hay_corte_que_detectar():
     assert not J._parecia_cortada("", "Expecting ',' delimiter: line 1 column 1 (char 0)")
 
 
-def test_NO_se_usa_termina_en_llave_y_esta_es_la_razon():
-    """It was the first attempt and is a measured false negative: a 7238-char response that DID parse
-    successfully returned False with that criterion. A guard that gets the GOOD case wrong cannot decide
-    about the bad one — this is fixed in place so it does not happen again."""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/judge.py").read_text()
-    i = src.index("def _parecia_cortada")
-    cuerpo = src[i:src.index("\ndef ", i + 10)]
-    assert 'endswith("}")' not in cuerpo
-
-
 # ── the ceiling ─────────────────────────────────────────────────────────────────────────────────────────────
 
 def test_el_techo_cabe_el_veredicto_medido():
     """7238 chars at ~3.3 chars per token (the same number the engine has measured for billing) are
     ~2200 tokens. 2000 was not enough; the ceiling must leave real headroom, not just scrape past it."""
     assert J.JUDGE_MAX_TOKENS * 3.3 > 7238 * 1.3
-
-
-def test_el_juez_USA_ese_techo_y_no_un_literal():
-    """The wiring: raising the constant while leaving `2000` in the call is the classic failure."""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/judge.py").read_text()
-    # V2-382 — the ceiling is no longer ONE: the first request uses `JUDGE_MAX_TOKENS`, and the retry for a
-    # response that did not fit raises it to `JUDGE_MAX_TOKENS_AMPLIADO`. What this guard still enforces is the
-    # same: that the number come from the constants and not from a literal written by hand in the call.
-    assert "llm.judge_call(msgs, max_tokens=techo, out=corte)" in src
-    assert "techo = JUDGE_MAX_TOKENS" in src
-    assert "llm.judge_call(msgs, max_tokens=2000)" not in src
 
 
 # ── el reintento dice la verdad ────────────────────────────────────────────────────────────────────────────

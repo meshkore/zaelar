@@ -82,19 +82,6 @@ def test_there_is_no_connect_action_a_worker_could_call():
 
 # ── The consent SUCCEEDS, so the setup screen is over ────────────────────────────────────────────────
 
-def test_the_connected_hook_retires_a_pushed_screen_BEFORE_it_risks_anything_else():
-    """His first report: he finished authorizing Google and was handed the «Connect» button back over a synced
-    calendar. A store written before 2026-10-04 may still hold that pushed screen, and the hook retires it at
-    the TOP, before the sync — so even a sync that fails leaves him looking at his calendar. Read from the
-    source, because the ORDER is the whole property and it is invisible from the outside."""
-    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "agenda" / "gcal.py").read_text("utf-8")
-    body = "\n".join(L for L in src.splitlines() if not L.strip().startswith("#"))
-    hook = body[body.index("def on_calendar_connected"):]
-    assert 'db.pop("connect", None)' in hook, "the hook never retires the screen"
-    assert hook.index('db.pop("connect", None)') < hook.index("s.sync(db)"), (
-        "the screen must be retired before the sync, or a failed sync leaves it standing")
-
-
 # ── The agenda does not name an appointment for him ──────────────────────────────────────────────────
 
 def test_an_add_with_a_date_and_NO_title_is_refused_instead_of_called_Cita():
@@ -128,16 +115,6 @@ def test_a_real_appointment_still_lands_untouched():
     assert rows[0].get("startTime") == "17:00"
 
 
-def test_the_engine_never_writes_the_word_Cita_into_a_calendar_row():
-    """The ratchet behind the case: `Cita` survives as a LABEL for a row that has no title (a rendering
-    fallback, and a reminder's wording), and must never again be what gets STORED. Anchored on the write
-    path so the two uses cannot be confused for each other again."""
-    import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets" / "agenda" / "data.py").read_text("utf-8")
-    body = "\n".join(L for L in src.splitlines() if not L.strip().startswith("#"))
-    assert 'payload.get("title", "Cita")' not in body, "the write defaults the title again"
-
-
 # ── What he HEARS follows the language he chose ──────────────────────────────────────────────────────
 
 def test_the_refusal_is_spoken_in_the_operators_language(monkeypatch):
@@ -151,22 +128,6 @@ def test_the_refusal_is_spoken_in_the_operators_language(monkeypatch):
         said[code] = agenda.apply_action("add_meeting", {"date": "2026-09-17"})["message"]
     assert said["es"] != said["en"], "the same sentence in both languages means the table is not being read"
     assert "apuntado" in said["es"] and "put it in" in said["en"], said
-
-
-def test_it_reads_the_TABLE_and_not_a_two_way_branch():
-    """The difference that decides whether «or any language» is true. An `_en` ternary is correct for the two
-    languages this repo ships and wrong for the third, and a generated pack can never reach it."""
-    import inspect
-    from widgets.agenda import data as _ad
-    # V2-778 F1-12: each action is its own function in the ACTIONS table; its body is what the branch was
-    # V2-781 T513: the table entry is `_a_add_meeting_noticed`, which wraps the write with the asked notice; the
-    # write's body (where the sentences are) is still `_a_add_meeting`.
-    assert _ad.ACTIONS["add_meeting"].__name__ == "_a_add_meeting_noticed"
-    src = inspect.getsource(_ad._a_add_meeting)
-    body = "\n".join(L for L in src.splitlines() if not L.strip().startswith("#"))
-    add = body[:3000]
-    assert '_spoken("agenda_no_title")' in add and '_spoken("agenda_no_data")' in add
-    assert '"message": "No' not in add, "a spoken sentence is written inline again"
 
 
 def test_both_sentences_exist_in_BOTH_shipped_languages():

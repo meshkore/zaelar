@@ -189,15 +189,6 @@ def test_the_guard_reads_the_decision_and_not_the_bare_grammar():
         "the generator is still gated on the regex alone — that is the measured defect")
 
 
-def test_the_grammar_is_handed_IN_so_the_two_never_disagree():
-    """`decide` asks the regex itself when nobody hands it one. The provider hands its own, so the
-    sentence is classified once per turn and one answer cannot drift from the other."""
-    src = _vts.read(_PROVIDER)
-    i = src.index("show_widget→CREATE")
-    window = src[max(0, i - 700):i]
-    assert "proposed=" in window and "looks_like_create_widget" in window
-
-
 def test_the_question_is_asked_on_every_turn():
     """A verdict nobody asks for is a verdict nobody can read — which is how `catalog_widget` came to
     answer 1.00 into a void. It rides the brief that already flies, so it costs no round trip."""

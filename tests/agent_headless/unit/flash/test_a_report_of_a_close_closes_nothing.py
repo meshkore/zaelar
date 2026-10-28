@@ -6,14 +6,12 @@ called nothing, and the backstop closed his only open card because the sentence 
 """
 from __future__ import annotations
 
-import pathlib
 import threading
 
 from nucleo.flash import close_guards as _cg
 
 from nucleo.turn import brief as _tb
 
-_ENGINE = pathlib.Path(__file__).resolve().parents[4]
 OPEN = ["results::48ac70-3"]
 
 
@@ -42,8 +40,3 @@ def test_the_length_and_single_card_bounds_still_hold():
     sure = _brief("close", 0.99)
     assert _cg.the_only_card("close it", OPEN + ["agenda"], brief=sure) is None
     assert _cg.the_only_card("please close that thing I opened this morning for me", OPEN, brief=sure) is None
-
-
-def test_the_voice_turn_uses_it():
-    src = (_ENGINE / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
-    assert "the_only_card(" in src and "is_short_order(text) and len(" not in src

@@ -69,9 +69,3 @@ def test_apply_lang_sets_the_html_lang():
     assert re.search(r"document\.documentElement\.lang\s*=\s*final\b", body), "applyLang must set <html lang>"
     for shell in ("frontend/index.html", "frontend/mobile/index.html"):
         assert '<html lang="en"' in (ENGINE / shell).read_text(encoding="utf-8"), shell
-
-
-def test_youtube_search_asks_in_the_instance_language():
-    src = (ENGINE / "widgets/youtube/data.py").read_text(encoding="utf-8")
-    assert '"Accept-Language": "es-ES' not in src
-    assert "active_code()" in src

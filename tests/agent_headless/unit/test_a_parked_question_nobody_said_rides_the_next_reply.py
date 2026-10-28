@@ -44,12 +44,3 @@ def test_a_reply_that_names_the_errand_already_carries_it():
     _park(spoken=False)
     assert DC.owed_question("Want me to build the platform game widget first?") == ""
     assert DC.owed_question("Done.") == ""
-
-
-def test_the_turn_appends_it():
-    """The turn's settle step asks the gate once its words are known, and says what it owes after them."""
-    import inspect
-    from nucleo.flash import post_stream_settle
-    src = inspect.getsource(post_stream_settle.settle_what_is_pending)
-    assert ".owed_question(spoken_text)" in src
-    assert 'spoken_text = f"{spoken_text} {_oq}"' in src

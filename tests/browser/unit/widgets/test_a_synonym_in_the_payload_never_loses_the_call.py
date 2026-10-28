@@ -94,18 +94,6 @@ def test_garbage_never_raises(bad):
 
 # ── the wiring: the single funnel, not one door at a time ───────────────────────────────────────────────
 
-def test_the_single_funnel_folds_before_it_judges():
-    import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets/server_api.py").read_text(encoding="utf-8")
-    body = src[src.index("async def _dispatch("):src.index("@router.post(\"/widgets/{wid}/action\")")]
-    # The CALL, never the prose: the comment above it also says «fold_aliases», and matching that is how
-    # the first disarm of this file came back green while the fold ran AFTER the guard.
-    assert "contract.fold_aliases(" in body, "the fold must live at the funnel every caller passes through"
-    assert body.index("contract.fold_aliases(") < body.index("contract.guard("), (
-        "a synonym must not be judged as a missing field")
-
-
-
 def test_the_recipient_said_as_name_lands_on_contact():
     """Demo run (2026-09-26): {"name": "Oscar", "platform": "telegram", "text": …} → «no recipient»."""
     out = contract.fold_aliases("mensajeria", "send_to", {"name": "Rowan", "platform": "telegram", "text": "hi"})

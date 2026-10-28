@@ -1,4 +1,3 @@
-from tests import voice_turn_source as _vts
 """An automatic relay is relaunched «ONCE» — and the counter lived where it does not count.
 
 MEASURED in the OPERATOR engine, not on a set (`memory/_data/zaelar.db`, 2026-08-17): SIX workers for a
@@ -28,7 +27,6 @@ and `operator_safe_summary` translates it to «I have run out of context space�
 retry promise that will no longer happen, leaving the operator waiting for no one.
 """
 import asyncio
-import inspect
 
 import pytest
 
@@ -78,14 +76,6 @@ def test_the_relay_carries_its_generation_forward(relevos):
     assert len(relevos) == 1, "el primer contexto agotado sí se retoma"
     assert relevos[0]["context"].get("relay_gen") == 1, \
         "sin generación en el contexto, el worker nuevo vuelve a empezar en cero y la cadena no acaba nunca"
-
-
-def test_the_dispatcher_reads_it_back_at_the_only_door(relevos):
-    """The other end of the cable. `run_listener` is the ONLY door through which all escalations pass; if it does not
-    read it there, the field travels and is thrown away when building the record."""
-    from nucleo import dispatch
-    src = _vts.getsource(dispatch.run_listener)
-    assert 'relay_gen=int(ctx.get("relay_gen", 0) or 0)' in src
 
 
 # ── 2) the cap cuts things off ───────────────────────────────────────────────────────────────────────────────

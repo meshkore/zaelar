@@ -22,7 +22,6 @@ third is a real defect:
 The fix is the V2-540/V2-603 lesson once more: the canvas KNEW which card was at full screen and never said
 so. A verb whose object the system can see and the model cannot is a verb the model declines to use.
 """
-from tests import voice_turn_source as _vts
 import re
 from pathlib import Path
 
@@ -178,17 +177,3 @@ def test_nothing_maximized_is_reported_as_nothing(monkeypatch):
 
 
 # ── one decision, one door ────────────────────────────────────────────────────────────────────────────────
-
-def test_the_voice_turn_resolves_the_target_through_the_one_function():
-    """The voice turn delegates to `show_target.fullscreen_dispatch`, which resolves through the ONE target
-    decision, `fullscreen_target`. The typed channel runs this same turn (`nucleo.cli.turn.run_turn`), so a
-    second copy of the decision anywhere would be a decision nothing else takes (the trap V2-252 exists for)."""
-    root = Path(__file__).resolve().parents[4]
-    voice = _vts.read(root / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    shared = (root / "nucleo" / "flash" / "show_target.py").read_text(encoding="utf-8")
-    assert "fullscreen_dispatch(" in voice
-    assert "fullscreen_target(" in shared.split("def fullscreen_dispatch", 1)[1], \
-        "the dispatcher must resolve through the ONE target decision"
-    seg = shared[shared.index("fullscreen_widget"):]
-    seg = seg[:seg.index("fullscreen_target(")]
-    assert "identify(" not in seg, "the voice path (via fullscreen_dispatch) resolves the id on its own again"

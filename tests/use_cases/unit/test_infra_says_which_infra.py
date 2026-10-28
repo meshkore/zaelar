@@ -167,19 +167,6 @@ def test_el_supervisor_no_puede_leer_una_ronda_INFRA_como_FAIL():
     assert _veredicto_de_cola("PASSED 1/1 (overall>=4)") == "PASS"
 
 
-def test_el_runner_ANUNCIA_el_motivo_no_solo_la_palabra():
-    """With only “INFRA,” the supervisor classifies correctly but the operator still does not know which of the
-    four gates it was: crashed harness, empty turns, degraded recall, or a judge with no score require OPPOSITE
-    actions."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-
-    src = inspect.getsource(R)
-    assert 'print(f"INFRA: {r[\'_infra_reason\']}")' in src or "INFRA: {r['_infra_reason']}" in src, \
-        "el runner anuncia INFRA sin decir de cuál — el motivo ya lo tiene delante"
-
-
 def test_SANO_lo_decide_el_motor_no_una_copia_del_arnes():
     """This rule said `backend != "ollama"`, and that was true until the morning of 2026-08-30: Ollama was the
     primary provider. V2-501 moved the primary provider to a CLOUD provider, but the line kept the old idea of

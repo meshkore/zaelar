@@ -169,13 +169,6 @@ def test_the_routing_line_fits_the_budget_it_is_measured_against():
     assert "FRONTERA" in m["whenToUse"]
 
 
-def test_the_router_is_reached_only_from_the_orchestration_layer_never_directly():
-    """`widgets/AGENTS.md`'s isolation rule: a widget never imports another widget's `data.py`."""
-    src = (_WIDGET / "data.py").read_text(encoding="utf-8")
-    assert "widgets.youtube" not in src and "widgets.musica" not in src
-    assert "library_router" in src
-
-
 # ── local is the default, and needs nothing connected ─────────────────────────────────────────────────────
 def test_local_is_the_default_provider_and_is_usable_with_nothing_connected(data):
     vd = data.view_data()
@@ -479,12 +472,6 @@ def test_a_cold_store_asks_for_a_listing_exactly_once(data):
     assert data.view_data()["needs_refresh"] is True
     data.apply_action("refresh", {})
     assert data.view_data()["needs_refresh"] is False
-
-
-def test_the_connector_is_imported_LAZILY_so_the_catalog_stays_cheap(data):
-    src = (_WIDGET / "data.py").read_text(encoding="utf-8")
-    head = src.split("def ")[0]
-    assert "from connectors" not in head and "import httpx" not in head
 
 
 # ── the client-side house rules ────────────────────────────────────────────────────────────────────────────

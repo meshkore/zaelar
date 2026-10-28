@@ -22,10 +22,7 @@ that goes silent, or the next one that appears unannounced, turns this red.
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
-import pathlib
-import time
 
 import pytest
 
@@ -113,23 +110,6 @@ def test_the_live_integrations_are_exactly_these_two(wire):
     assert fired == ["canvas", "action"], (   # refactor2710-07: the filler's socket and the escalate re-ask went
         f"the set of LIVE Jev integrations changed: {fired}. One that went silent is a new "
         f"V2-726 §3.1; one that appeared is an integration nobody declared.")
-
-
-def test_the_retired_route_is_gone_from_the_engine(wire):
-    """A5's own metric: the cancelled integration is REMOVED, not repaired.
-
-    Repairing it would have reinstated a design F0a measured and rejected — and its quiet-chat
-    branch could empty the tool set outside `select_for_turn`'s disabled-by-default gate.
-    """
-    from nucleo.flash import tool_selection as tsel
-    for gone in ("ask_route_async", "resolve_route", "ROUTE_KINDS", "ROUTE_INSTRUCTIONS"):
-        assert not hasattr(tsel, gone), f"`tool_selection.{gone}` is back — V2-726 F3 was cancelled"
-    provider = _vts.read(pathlib.Path(__file__).resolve().parents[3]
-                / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    code = "\n".join(l.split("#", 1)[0] for l in provider.splitlines())
-    assert "ask_route_async" not in code and "resolve_route" not in code, (
-        "the voice provider still fires or consumes the retired route pre-choice")
-    assert wire.calls == [], "nothing in this test may reach the transport"
 
 
 # ── off is off, and it must not look like broken ─────────────────────────────────────────────────

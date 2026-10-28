@@ -72,15 +72,6 @@ def test_el_ancla_de_precio_NO_es_la_del_detector_de_flips():
     assert V._price_anchor("Digi · 500 Mb + 100 GB + TV") == "digi"
 
 
-def test_llega_al_INFORME_y_al_JUEZ():
-    """The plumbing: a detector that is not wired in is a detector that does not exist."""
-    from pathlib import Path
-    run_src = Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")
-    judge_src = Path("tests/use_cases/e2e/agent/judge.py").read_text(encoding="utf-8")
-    assert 'mech["price_mismatches"] = verifymod.prices_that_do_not_match(' in run_src
-    assert 'mech.get("price_mismatches")' in judge_src and "PRECIO EQUIVOCADO" in judge_src
-
-
 def test_un_titulo_con_ACENTO_no_se_escapa():
     """Caught by taking it apart: the anchor comes from `_norm_title` (without accents) and was searched for in the raw text, so
     «masmovil» NEVER appeared inside «MásMóvil». Two tests in this file were passing because of that

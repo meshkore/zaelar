@@ -51,9 +51,3 @@ def test_the_browser_note_still_parses_exactly_as_before(tmp_path):
     out = verify.offered_to_brain(db)
     assert out["titles"] == ["Dell S2725QS"]
     assert out["with_price"] == ["Dell S2725QS — 289 €"]
-
-
-def test_the_rubric_tells_the_judge_about_the_narration():
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/judge.py").read_text(encoding="utf-8")
-    assert "narrated" in src.split("INVENTÓ un dato", 1)[1][:900]

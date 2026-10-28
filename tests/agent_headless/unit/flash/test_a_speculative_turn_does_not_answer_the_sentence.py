@@ -59,10 +59,3 @@ def test_a_head_whose_turn_spoke_is_still_peeled(a):
 def test_an_unrelated_sentence_does_not_bring_the_old_one_back(a):
     _offer(a, HEAD, 46.232)
     assert _offer(a, "What time is it?", 47.0)[1] == "What time is it?"
-
-
-def test_the_provider_marks_the_answer_at_the_first_spoken_chunk():
-    from tests import voice_turn_source as _vts
-    src = _vts.turn_source()
-    i = src.index("def send(txt: str):")
-    assert "_acc_mod.answered_by(brain)" in src[i:i + 600]

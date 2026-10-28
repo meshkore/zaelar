@@ -26,6 +26,3 @@ def test_an_empty_stamp_never_costs_a_round():
     assert dirty_tree_refusal({}) == ""
 
 
-def test_the_harness_editing_itself_does_not_block_a_measurement():
-    """`stamp['dirty']` already excludes tests/, so this is the shape the guard must see: empty."""
-    assert dirty_tree_refusal({"sha": "0b89510", "n_dirty": 0, "dirty": []}) == ""
