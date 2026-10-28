@@ -92,7 +92,6 @@ FUNCTIONS = {
     'widgets/brief.py::for_prompt': 152,
     'widgets/generator.py::_run_agent_once': 128,
     'widgets/imagenes/data.py::apply_action': 136,
-    'widgets/mensajeria/answers.py::answer_action': 136,
     'widgets/navegador/owner_actions.py::_automate': 135,
     'widgets/refs.py::resolve': 125,
     'widgets/youtube/library.py::apply': 175,   # V2-806: the preference branches moved to youtube/prefs
