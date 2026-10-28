@@ -216,6 +216,7 @@ class LangSpec:
     #: The item reference did not resolve: the candidate list, or the bare question when there is none.
     ask_which_item: str = ""
     ask_which_item_bare: str = ""
+    confirm_nothing_pending: str = ""     # a «yes» with no confirmation pending (refactor2710-99)
     #: The turn's RECEIPT (V2-781, `card_receipt`): the cards a turn changed that its reply did not account for.
     receipt_closed: str = ""
     receipt_left: str = ""

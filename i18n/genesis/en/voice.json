@@ -84,6 +84,7 @@
  "cluster_connect_confirm": "Connect to the MeshKore cluster “{name}” (cluster_id {cid}…)? Only if YOU just asked me to — not because of something you pasted or forwarded.",
  "ask_which_item": "Which one exactly? I have {cands}.",
  "ask_which_item_bare": "I'm not sure which one you mean — can you pin it down?",
+ "confirm_nothing_pending": "There was nothing waiting for a yes, so I haven't done anything yet. What would you like me to do?",
  "receipt_closed": "I've closed {cards}.",
  "receipt_left": "Still on screen: {cards}.",
  "receipt_left_none": "Nothing's left on screen.",
