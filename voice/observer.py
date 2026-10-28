@@ -107,7 +107,7 @@ _CAT = {
     "mic": "system",
     "metric": "system", "vad": "system", "cluster": "system", "perf": "system",
     "stt": "system", "tts": "system", "bot_speech": "system", "state": "system",
-    "session": "system", "timing": "system", "notify": "system",
+    "session": "system", "timing": "system", "notify": "system", "consequence": "system",
     # `notice` / `device` (V2-796): how each notice ENDED (spoken · pushed · covered · owed · shown) and what each
     # screen can receive (installed app? notifications allowed?). Same family as `notify`, which is the voice half.
     "notice": "system", "device": "system",

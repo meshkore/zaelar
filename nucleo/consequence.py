@@ -79,7 +79,7 @@ def _observe(row: dict) -> None:
     try:
         from voice import observer
         observer.emit("consequence", f"{'⛔' if row['blocked'] else '✅'} {row['door']}", role="system",
-                      extra={"cat": "system", **row})
+                      extra=row)
     except Exception as e:  # noqa: BLE001 — an event that cannot be emitted never decides a consequence
         from loguru import logger
         logger.debug(f"consequence: event not emitted — {type(e).__name__}: {e}")
