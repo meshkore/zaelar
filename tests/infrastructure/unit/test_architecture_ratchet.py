@@ -372,7 +372,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/consent.py",
     "nucleo/danger.py",
     "nucleo/dispatch/confirm.py",
-    "nucleo/dispatch/prepare.py",
     "nucleo/energy/lease.py",
     "nucleo/energy/meter.py",
     "nucleo/errands/__init__.py",
