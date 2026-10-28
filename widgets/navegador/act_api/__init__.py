@@ -1,10 +1,8 @@
-"""widgets/navegador/act_api.py: BROWSER BRIDGE for Claude Code agents (V2-036 F3).
+"""widgets/navegador/act_api: the BROWSER BRIDGE for Claude Code agents (V2-036 F3).
 
-Exposes the owner's `TaskBrowser` primitives as a synchronous request/response API so a headless Claude Code agent
-can drive zaelar's Chromium step by step (navigate/click/type/scroll/snapshot/extract) with its own intelligence.
-This replaces the cheap DOM->vision loop. It runs in the uvicorn loop, the same loop as the backed browser
-owner, so it can call `TaskBrowser` methods directly rather than through the fire-and-forget mailbox. Invoked by
-the `nucleo/nav_cli.py` CLI (`hbweb`). Local/loopback: same trust model as the rest of the API.
+Exposes the owner's `TaskBrowser` primitives (navigate/click/type/scroll/snapshot/extract) as a synchronous
+request/response API for the `nucleo/nav_cli.py` CLI (`hbweb`). It runs in the uvicorn loop, the same loop as the
+browser owner, so it calls `TaskBrowser` directly. Loopback: same trust model as the rest of the API.
 """
 import asyncio
 
@@ -19,21 +17,9 @@ router = APIRouter()
 
 
 def _shot_path(task_id: str) -> str:
-    """Absolute PNG path for this tab's viewport, written by TaskBrowser._capture after each action, so the worker
-    can read it with Read. Best-effort: if anything fails, return '' and the worker continues with text snapshot.
-
-    V2-205 — it used to return the path whether or not the PNG was THERE, and `nav_cli` turns a non-empty value
-    into an instruction: «MÍRALA con Read "<path>"». So every action taken before the first successful capture
-    —or after one that failed— sent the worker to read a file that does not exist. Measured in two independent
-    runs (`find-theatre-tickets__es` 15:06, and the same family reported on `cheapest-monitor`):
-
-        worker/task «📄 archivo ⚠️ error»: File does not exist.
-        Note: your current working directory is /private/var/.../T/zaelar-workers/2
-
-    The path was never the problem — it is absolute, and V2-117 confirmed the CLI already allows reading outside
-    the working directory. What was wrong is ADVERTISING it. The text snapshot is the documented fallback right
-    here in this docstring; an empty return takes it, and `nav_cli` simply prints no VISTA line.
-    """
+    """Absolute PNG path of this tab's viewport (written by TaskBrowser._capture after each action), or '' when the
+    file is not there: `nav_cli` turns a non-empty value into «read this file», so a missing PNG must never be
+    advertised; empty sends the worker to the text snapshot (V2-205)."""
     try:
         import os
         from widgets import store
@@ -45,10 +31,9 @@ def _shot_path(task_id: str) -> str:
 
 
 def _emit_nav(nav_tid: str, label: str, text: str) -> None:
-    """V2-048: observability row for a browser action result: which page it reached / what it found. This is what
-    the command itself does NOT say and only the browser knows. Label differs from the intent `step`, avoiding
-    collisions with `navegador` flood-dedup. Stamps trace/span for the worker owning the tab. Best-effort, never
-    raises."""
+    """Observability row for a browser action's result (page reached / what was found), which only the browser
+    knows (V2-048). Its label differs from the intent `step` to dodge `navegador` flood-dedup; stamps the owning
+    worker's trace/span. Never raises."""
     try:
         from voice.observer import emit
         from nucleo import dispatch
@@ -90,8 +75,7 @@ _PHASE_TARGET = {           # de qué argumento sale el «target» que la frase 
 _TPL_MIN_CHARS = 12
 _TPL_MIN_ROWS = 3
 
-# refactor2710-12 — the bridge's code lives in its concern modules (`entry` holds the route, registered on `router`
-# above); they read every name of this module through the package.
+# Concern modules (`entry` registers the route on `router`) read every name of this module through the package.
 from widgets.navegador.act_api.guards import (  # noqa: E402,F401 — re-export
     _with_wall, _query_of, _with_url_change, _with_stall)
 from widgets.navegador.act_api.pick import (  # noqa: E402,F401 — re-export
