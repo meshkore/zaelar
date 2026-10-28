@@ -63,7 +63,7 @@ def _verdict(monkeypatch, wanted_sources, calls):
 
 
 def _escalations(monkeypatch):
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     got = []
     monkeypatch.setattr(escalate, "escalate_to_slowbrain", lambda req, context=None: got.append((req, context)) or 1)
     return got
@@ -272,13 +272,15 @@ def test_the_prompt_carries_pending_rows_only_when_there_are_any():
     lines = pending_work.prompt_lines()
     assert lines[0].startswith("PENDIENTE") and any("b00t01-1" in l and "Reservar mesa en Soria" in l for l in lines)
     assert any(l.startswith("· mensajeria:") for l in lines), "a row the mail card holds for his word is listed"
-    from nucleo.flash import live_blocks
-    assert live_blocks.pending_work_lines() == lines
+    from nucleo.turn.prompt import live_history
+    from nucleo.turn.prompt import live_state
+    assert live_history.pending_work_lines() == lines
+    assert all(line in live_state.live_state() for line in lines), "the rows are built and never reach the turn"
 
 
 def _live_state_pending(with_rows: bool) -> list[str]:
-    """The PENDIENTE block as the turn prompt's live state carries it (`prompt.live_state`)."""
-    from nucleo.flash import prompt
+    """The PENDIENTE block as the turn prompt's live state carries it (`nucleo.turn.prompt.live_state`)."""
+    from nucleo.turn.prompt import live_state as prompt
     if with_rows:
         _errand(uid="b00t01-4", goal="Find a dentist open on Saturday", outcome="Two fit — want me to book one?")
         _held_email()
@@ -296,8 +298,8 @@ def test_the_turn_prompt_carries_the_pending_block_only_when_rows_exist():
 
 def test_the_disarm_a_live_state_without_the_pending_block(monkeypatch):
     """Disarm: when the live block yields nothing, the prompt loses the rows the model resumes by id."""
-    from nucleo.flash import live_blocks
-    monkeypatch.setattr(live_blocks, "pending_work_lines", lambda: [])
+    from nucleo.turn.prompt import live_history
+    monkeypatch.setattr(live_history, "pending_work_lines", lambda: [])
     assert _live_state_pending(True) == []
 
 

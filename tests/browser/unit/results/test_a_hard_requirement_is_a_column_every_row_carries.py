@@ -77,6 +77,6 @@ def test_without_hard_requirements_nothing_is_stamped(sheet):
 
 
 def test_a_list_errand_worker_is_told_to_declare_them():
-    from nucleo.dispatch_prompts import trusted_blocks
+    from nucleo.workers.prompts.surfaces import trusted_blocks
     assert H.worker_block() in trusted_blocks("lista")
     assert H.worker_block() not in trusted_blocks("informe")

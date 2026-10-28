@@ -29,7 +29,7 @@ def test_a_message_to_a_person_is_an_act_that_leaves():
 @pytest.fixture
 def verdict(monkeypatch):
     from nucleo.flash import direct_action as da
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     state = {"v": ("agenda", "find_free"), "sure": True}
     monkeypatch.setattr(da, "from_brief", lambda brief: state["v"])
     monkeypatch.setattr(da, "_action_sure", lambda brief, floor=0.8: state["sure"])

@@ -48,7 +48,7 @@ import threading
 import pytest
 
 from nucleo.flash import direct_action as _da
-from nucleo.flash import turn_brief as _tb
+from nucleo.turn import brief as _tb
 from widgets import enums as _enums
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[3]

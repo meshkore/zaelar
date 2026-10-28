@@ -57,14 +57,14 @@ def test_the_model_has_an_explicit_rate(service, kind, rung):
     assert rate != energy_meter._FALLBACK_RATE_USD, (
         f"{service}.{kind} names «{model}» and the meter has NO row for it, so it bills at the punitive "
         f"catch-all {energy_meter._FALLBACK_RATE_USD} $/1M. Add its real price (from the provider's own "
-        f"pricing page, never from memory) to `_MODEL_RATES` in nucleo/energy/meter.py."
+        f"pricing page, never from memory) to `_MODEL_RATES` in nucleo/energy/meter_rates.py."
     )
 
 
 def test_no_rate_is_written_twice():
     """A repeated key in the literal keeps the LAST value and silently voids the first — which is exactly
     how `deepseek-v4-pro` kept a stale price while its corrected row sat right there, unread."""
-    source = (ENGINE / "nucleo" / "energy" / "meter.py").read_text(encoding="utf-8")
+    source = (ENGINE / "nucleo" / "energy" / "meter_rates.py").read_text(encoding="utf-8")
     for table in ("_MODEL_RATES", "_RATES_PER_1M_TOKENS_USD", "_CACHED_READ_RATES_USD"):
         start = source.index(f"{table}:")
         body = source[start:source.index("\n}", start)]

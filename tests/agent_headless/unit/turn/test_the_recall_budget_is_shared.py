@@ -32,7 +32,7 @@ def test_a_slow_retriever_does_NOT_take_the_turn_down(monkeypatch):
     actually matters on a live server: that the TURN remains free within its budget. The slow thread finishes alone,
     at its own pace, with nobody waiting for it."""
     import time as _t
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
     monkeypatch.setattr(prompt_mod, "compose_recall", lambda q, t=None: (_t.sleep(2), ("bloque", [1]))[1])
 
@@ -49,7 +49,7 @@ def test_a_slow_retriever_does_NOT_take_the_turn_down(monkeypatch):
 
 
 def test_a_broken_retriever_degrades_instead_of_raising(monkeypatch):
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
 
     def _boom(q, t=None):
         raise RuntimeError("simulado")
@@ -59,7 +59,7 @@ def test_a_broken_retriever_degrades_instead_of_raising(monkeypatch):
 
 def test_a_recall_within_budget_arrives_whole(monkeypatch):
     """The counterpart, without which «does not hang» could be satisfied by never remembering anything."""
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     monkeypatch.setattr(prompt_mod, "compose_recall", lambda q, t=None: (f"RECUERDO: {q}", [7]))
     assert asyncio.run(recall_budget.compose("los hijos")) == ("RECUERDO: los hijos", [7])
 
@@ -123,7 +123,7 @@ def _slow(seconds=0.4):
 
 def test_a_recall_over_budget_leaves_a_row_in_the_timeline(monkeypatch):
     """Without this the loss is only a dict key the turn throws away and a `logging.info` with no timestamp."""
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     filas = _capture(monkeypatch)
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
     monkeypatch.setattr(prompt_mod, "compose_recall", _slow())
@@ -140,7 +140,7 @@ def test_a_recall_over_budget_leaves_a_row_in_the_timeline(monkeypatch):
 
 def test_a_recall_over_budget_turns_the_status_light_amber(monkeypatch):
     """The row records what happened AFTERWARD; the light is the only thing visible WHILE it happens."""
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     from voice import health_state
     _capture(monkeypatch)
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
@@ -154,7 +154,7 @@ def test_a_recall_over_budget_turns_the_status_light_amber(monkeypatch):
 
 def test_a_recall_INSIDE_budget_says_nothing(monkeypatch):
     """The counterpart. A warning that always appears is not a warning: it is noise, and people learn to ignore it."""
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     from voice import health_state
     filas = _capture(monkeypatch)
     monkeypatch.setattr(prompt_mod, "compose_recall", lambda q, t=None: ("RECUERDO", [7]))
@@ -170,7 +170,7 @@ def test_it_does_NOT_wipe_an_unrelated_memory_warning(monkeypatch):
 
     Clearing it on exit — the reflexive «service healthy again» gesture — would erase a warning this module did not
     set and cannot judge. It is allowed to age out with its TTL, just as the rest of `memory/` does."""
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     from voice import health_state
     _capture(monkeypatch)
     health_state.record("memory", "degraded", "espacio vectorial descuadrado")
@@ -193,7 +193,7 @@ def test_an_abandoned_recall_does_NOT_write_its_cost_into_the_turn(monkeypatch):
     The thread is deliberately awaited: the failure exists only AFTER it finishes, so a case that does not give it
     time to finish always passes, with or without the fix."""
     import time as _t
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     _capture(monkeypatch)
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
 
@@ -215,7 +215,7 @@ def test_an_abandoned_recall_does_NOT_write_its_cost_into_the_turn(monkeypatch):
 
 def test_a_recall_within_budget_DOES_report_its_cost(monkeypatch):
     """The counterpart: isolating the abandoned thread must not cost us the valid metric."""
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     _capture(monkeypatch)
 
     def _a_tiempo(q, t=None):
@@ -250,7 +250,7 @@ def _con_notas(monkeypatch):
 def test_a_late_recall_becomes_the_next_turns_note(monkeypatch):
     import time as _t
 
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     notas = _con_notas(monkeypatch)
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
 
@@ -278,7 +278,7 @@ def test_a_late_recall_after_another_turn_asked_is_DROPPED(monkeypatch):
     has already moved elsewhere — V2-254's hijacking dressed up as an improvement."""
     import time as _t
 
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     notas = _con_notas(monkeypatch)
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
 
@@ -305,7 +305,7 @@ def test_a_late_EMPTY_recall_queues_nothing(monkeypatch):
     """An empty block that arrives late is not a note: it would report that there was nothing, twice."""
     import time as _t
 
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     notas = _con_notas(monkeypatch)
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
     monkeypatch.setattr(prompt_mod, "compose_recall", lambda q, t=None: (_t.sleep(0.2), ("", []))[1])
@@ -339,7 +339,7 @@ def _con_refuerzo(monkeypatch, ids_seleccionados=(7,)):
 
 
 def test_a_delivered_recall_reinforces_and_only_the_selected_pills(monkeypatch):
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     _capture(monkeypatch)
     reforzado, _compose = _con_refuerzo(monkeypatch)
     monkeypatch.setattr(prompt_mod, "compose_recall", _compose)
@@ -353,7 +353,7 @@ def test_a_delivered_recall_reinforces_and_only_the_selected_pills(monkeypatch):
 def test_an_ABANDONED_recall_reinforces_NOTHING(monkeypatch):
     """The measured defect: the thread still finishes, and until now its reinforcement was applied to a turn that did not see it."""
     import time as _t
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
     _capture(monkeypatch)
     reforzado, _compose = _con_refuerzo(monkeypatch)
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "50")
@@ -421,7 +421,7 @@ def test_composing_the_recall_does_NOT_count_as_using_the_memory():
     forbidden string (it has already brought down two string-based guards in this codebase)."""
     import ast
     import inspect
-    from nucleo.flash import prompt as prompt_mod
+    from nucleo.turn.prompt import recall as prompt_mod
 
     arbol = ast.parse(inspect.getsource(prompt_mod.compose_recall))
     llamadas = [n for n in ast.walk(arbol) if isinstance(n, ast.Call)

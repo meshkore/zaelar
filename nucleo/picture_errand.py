@@ -64,7 +64,7 @@ def from_screen(brief, reading: str) -> str:
     if reading not in ("", _s.LIST, _s.ITEM):
         return reading
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         verdict, info = _tb.read(brief, "corrects_last", "")
     except Exception:  # noqa: BLE001
         return reading

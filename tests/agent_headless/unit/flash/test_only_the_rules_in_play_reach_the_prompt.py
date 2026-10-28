@@ -70,10 +70,15 @@ def test_memory_composes_no_rules():
     assert "Wish" not in block and "REGLAS DEL OPERADOR" not in block
 
 
-def test_the_voice_turn_and_the_worker_read_the_table():
+def test_the_voice_turn_and_the_worker_read_the_table(monkeypatch):
     import pathlib
+    from nucleo.flash import memory_cache
+    from nucleo.turn.prompt import builder
+    from rules import prompt as rules_prompt
     root = pathlib.Path(__file__).resolve().parents[4]
-    assert "_rules_prompt.voice_block()" in (root / "nucleo/flash/prompt.py").read_text("utf-8")
+    monkeypatch.setattr(memory_cache, "get", lambda: ("", ""))
+    monkeypatch.setattr(rules_prompt, "voice_block", lambda: "\n\nRULES-IN-PLAY-MARK")
+    assert "RULES-IN-PLAY-MARK" in builder.build_flash_system(turn_text="hola")[0]
     assert '_rnotes.for_surface("worker")' in (root / "nucleo/memory_agent/dossier.py").read_text("utf-8")
     assert '_rnotes.for_surface("voice")' in (root / "nucleo/circuit/__init__.py").read_text("utf-8")
 

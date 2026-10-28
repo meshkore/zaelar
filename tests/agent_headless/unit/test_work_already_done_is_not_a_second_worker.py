@@ -32,7 +32,7 @@ pass, `recent_listing_deliveries`). Nobody taught it about a finished DATA-OP, e
 
 And upstream of that, the auditor's diagnosis was wrong for a reason worth fixing rather than working
 around: its window carried the conversation, the turn decisions, the event ring and the state — and not the
-one fact that settles «was this attended?». `live_blocks.done_ops_lines()` had been putting that in the
+one fact that settles «was this attended?». `live_record.done_ops_lines()` had been putting that in the
 FAST brain's prompt since V2-707 F6. Giving one reader of a question the ledger and not the other is how
 the two came to disagree about whether the calendar had been emptied.
 
@@ -128,10 +128,10 @@ def test_the_audit_window_carries_what_already_ran():
 def test_both_readers_of_the_question_use_the_same_ledger():
     """The fast brain's prompt and the auditor's window. A fix wired into one and not the other is
     something this codebase has already paid for five times."""
-    from nucleo.flash import live_blocks
+    from nucleo.turn.prompt import live_record
     done_ops.note("agenda", "clear_range", {"from": "2026-09-17", "to": "2026-09-17"},
                   n=11, destructive=True)
-    assert "agenda:clear_range" in "\n".join(live_blocks.done_ops_lines())
+    assert "agenda:clear_range" in "\n".join(live_record.done_ops_lines())
     assert "agenda:clear_range" in swindow.executed_block()
 
 

@@ -4,9 +4,7 @@ recent-conversation block should fire; `compose_recent_block()` composes the lat
 classifiers plus one self-contained memory read — no dependency on prompt.py's ESTADO-composition machinery
 (state/tools/widgets), which is why the audit that led to this split found them a clean, separable concern.
 
-Re-exported from prompt.py, which several callers still import by name (`from nucleo.flash.prompt import
-build_flash_system, needs_recall`, etc. — voice/engine/llm/providers/nucleo.py, probe_api.py, and
-tests/voice/e2e/agent/model_bench.py all do this), so no external call site changed."""
+Its callers (the voice turn's `turn_prompt`, the typed CLI, the benches) import it by name from here."""
 from __future__ import annotations
 
 import re as _re

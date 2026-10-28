@@ -65,7 +65,7 @@ async def tasks_reopen(payload: dict | None = None):
 
     Operator, 2026-09-20: *«si el usuario quiere ver cómo ha terminado, se va a esa lista, le da el botón y
     ve los datos derivados»*. The button had nowhere to call. The voice path could already do this
-    (`reopen_task` → `nucleo/flash/task_recall.py`), but a voice tool is not reachable from a click, and the
+    (`reopen_task` → `nucleo/turn/task_recall.py`), but a voice tool is not reachable from a click, and the
     click is the gesture the operator described.
 
     The sheet may be long gone — eight is the cap and a busy week passes it — so this REBUILDS it from

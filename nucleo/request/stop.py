@@ -1,13 +1,9 @@
 """Is THIS turn an order to stop the errand running now? One enumerated question in the turn's brief (V2-807 T-14).
 
-The tool gate (`tool_executor_calls._t_stop_worker`) refuses a `stop_worker` he did not order this turn (a complaint
-dragged forward must not kill a live errand); the settle backstop stops the errand when he ordered it and the model
-called nothing. Whether he ordered it is a judgement, so it is asked in the brief the turn already pays for, only
-while an errand is live — never a word table. A sure verdict DECIDES (CRIT-K1); with none, the caller's grammar keeps
-today's path. V2-820 adds two answers:
-  · REPLACE — he drops the errand AND names the work that takes its place: one act; it stops like a stop and the
-    turn's errand starts beside it with the stopped one's goal carried (`replacement`).
-  · STEER — he changes what the running errand must do or where it looks: it goes on, with his words relayed.
+Whether he ordered a stop is a judgement, asked in the brief only while an errand is live — never a word table; a
+sure verdict DECIDES (CRIT-K1), and with none the caller's grammar keeps today's path. REPLACE (V2-820) stops it and
+starts the work he named with its goal carried; STEER relays his correction; STOP_ALL (refactor2710-06) stops every
+running errand, and only when sure.
 """
 from __future__ import annotations
 
@@ -19,17 +15,18 @@ INSTRUCTIONS = (
     "A background task (an errand the assistant is working on for the operator) is running right now. What does "
     "the operator, in THIS message, do to that running task — in any wording, word order or language? Answer "
     "'stop' when he orders it stopped, cancelled or abandoned and asks for nothing in its place (a «yes» to our own "
-    "offer to stop it is a stop). Answer 'replace' when he abandons it AND asks, in this message, for different work "
+    "offer to stop it is a stop). Answer 'stop_all' when he orders EVERY running task stopped, not just one. Answer 'replace' when he abandons it AND asks, in this message, for different work "
     "instead («not that, do this other thing»). Answer 'steer' when the task should go on but he changes what it must "
     "do, where it must look or how (its scope, source, criteria or deliverable). Answer 'keep' for anything else: a "
     "complaint or comment about something earlier, a question about the task, an unrelated new request, or an order "
     "about a card on screen, a video, music or the assistant's voice.")
 
 #: The four answers, named once (V2-820 added `replace` and `steer`).
-STOP, REPLACE, STEER, KEEP = "stop", "replace", "steer", "keep"
+STOP, STOP_ALL, REPLACE, STEER, KEEP = "stop", "stop_all", "replace", "steer", "keep"
 
 CHOICES = {
     STOP: "he orders the task running now to stop or be cancelled, and asks for nothing in its place",
+    STOP_ALL: "he orders EVERY running task stopped (all of them, both), not just one",
     REPLACE: "he abandons the running task AND asks for different work in its place, in this message",
     STEER: "the running task goes on, but he corrects what it must do, where it must look or how",
     KEEP: "anything else: no order about that running task in this message",
@@ -37,7 +34,15 @@ CHOICES = {
 
 def ends(v) -> bool:
     """Does this answer end the running errand? A replace stops it exactly like a stop does."""
-    return v == STOP or v == REPLACE
+    return v in (STOP, STOP_ALL, REPLACE)
+
+
+def all_ordered(brief) -> bool:
+    """A SURE «stop every task» (≥ `verdicts.VETO`): killing several distinct errands is irreversible, so anything
+    less stops only the one his words name, or asks which (fail-closed)."""
+    from nucleo.turn import verdicts
+    choice, info = verdicts.read(brief, KEY, None, min_confidence=verdicts.VETO)
+    return bool(info) and choice == STOP_ALL
 
 
 def question(last_reply: str = "") -> dict:
@@ -52,7 +57,7 @@ def verdict(brief) -> str | None:
     if not brief:
         return None
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         choice, info = _tb.read(brief, KEY, None)
     except Exception as e:  # noqa: BLE001 — a classifier may never break a turn
         logger.debug(f"stop_decision: verdict unreadable: {e!r}")

@@ -195,7 +195,7 @@ def present_for_call(widget_id: str, action: str, *, brief=None, card: str = "",
     except Exception as e:  # noqa: BLE001 — an unreadable declaration is not a reason to cover the screen
         logger.debug(f"present_for_call: declaration of {wid}:{action} unreadable — {e!r}")
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
         if info is not None and str(verb or "") == "show":
             return present(target, reason="turn-order", action=action, src=src, known=known, emit=emit, brief=brief)
@@ -232,7 +232,7 @@ def a_view_is_not_the_deliverable(widget_id: str, action: str, brief=None, decla
         if _fx.DATA_READ not in _fx.of(wid, str(action or "").strip()):
             return False
         from nucleo import surfaces as _sf
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         verb, info = _tb.read(brief, _tb.CANVAS_KEY, "") if brief is not None else ("", None)
         if info is not None and str(verb or "") == "show":
             return False

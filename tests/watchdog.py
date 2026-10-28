@@ -94,7 +94,7 @@ def leaf_dirs(roots: list[Path], *, include_live: bool) -> list[Path]:
 #
 # Not a hand-written table of "this folder belongs to that suite" — that kind of map is a guess that
 # rots the first time a module moves. The signal used here is the one the code itself states: a test
-# that imports `nucleo.flash.turn_brief` is a test that change can break. A changed test file is
+# that imports `nucleo.turn.brief` is a test that change can break. A changed test file is
 # always selected; a changed source file selects every test that names its module. Anything the grep
 # cannot see (a fixture reaching production through a string, a template, a JS bundle) is exactly why
 # this is a fast pre-check and the wide sweep stays the safety net before a commit lands.

@@ -12,7 +12,7 @@ halves have their case here, because fixing only the first would send hotel phot
 """
 from __future__ import annotations
 
-from nucleo import dispatch_prompts as DP
+from nucleo.workers import prompts as DP
 
 
 def _recipe() -> str:

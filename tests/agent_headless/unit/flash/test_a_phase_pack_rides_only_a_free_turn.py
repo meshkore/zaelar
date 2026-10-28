@@ -3,20 +3,15 @@
 ES round 2026-10-11, t10: «…¿Sigo con algo o le damos a la agenda?» → «Una cosa antes de nada: ¿cómo te llamas? Y si
 quieres te cuento en un momento qué puedo hacer por ti.» EN: «did you turn down the music or the video?» → «…By the
 way, I don't think I've caught your name yet.»; «pause the video.» → «…Meanwhile, Alex, where are you based?». The
-introduction pack said in prose «solve his request first»; the model did not. Now `context_packs.compose(turn_text)`
+introduction pack said in prose «solve his request first»; the model did not. Now `packs.compose(turn_text)`
 sends no pack at all unless `free_turn.is_free` — no question mark, no order verb, a short sentence.
 """
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
-from nucleo import context_packs as CP
-from nucleo.context_packs import free_turn as F
-
-ENGINE = Path(__file__).resolve().parents[4]
-
+from nucleo.turn.prompt import packs as CP
+from nucleo.turn.prompt.packs import free_turn as F
 
 @pytest.mark.parametrize("text,why", [
     ("Perfecto, música cerrada. Te quedan el tráiler pausado y la agenda abierta. ¿Sigo con algo o le damos a la agenda?",
@@ -57,7 +52,11 @@ def test_compose_still_sends_the_pack_on_a_free_turn(one_pack):
     assert "ASK HIS NAME" in CP.compose()          # callers without a turn text keep today's behaviour
 
 
-def test_the_turn_prompt_hands_the_turn_text_to_the_packs():
-    src = (ENGINE / "nucleo/flash/prompt.py").read_text(encoding="utf-8")
-    assert "+ _packs.compose(turn_text)" in src
-    assert "+ _packs.compose()" not in src
+def test_the_built_prompt_carries_the_pack_only_on_a_free_turn(one_pack, monkeypatch):
+    """By behaviour, on the prompt the model reads (refactor2710-08 rewrote the source read): the builder hands the
+    turn's text to the packs, so the same engine sends the pack on «hola» and withholds it on a question."""
+    from nucleo.flash import memory_cache
+    from nucleo.turn.prompt import builder as prompt
+    monkeypatch.setattr(memory_cache, "get", lambda: ("", ""))
+    assert "ASK HIS NAME" in prompt.build_flash_system(turn_text="hola, buenos días")[0]
+    assert "ASK HIS NAME" not in prompt.build_flash_system(turn_text="¿Sigo con algo o le damos a la agenda?")[0]

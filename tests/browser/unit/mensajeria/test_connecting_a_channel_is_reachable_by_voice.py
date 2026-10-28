@@ -5,7 +5,7 @@ else — no dialog, no question about which mail provider. V2-520 answered with 
 (`open_connectors` + a `connect_focus` the card honoured once). On 2026-10-04 the widgets' own connect
 screens were removed: there is ONE door to connect a service, the ⚙ «Conectores» section opened on that
 connector with its step-by-step guide (`show_panel(panel='conectores', connector=…)`, canon in
-`nucleo/flash/connector_canon.py`; by hand, `ctx.openConnector` from the card's plug or a channel icon).
+`nucleo/turn/prompt/catalogs.py`; by hand, `ctx.openConnector` from the card's plug or a channel icon).
 
 What this file pins is the same intent on the new door: the phrase names a connector the section knows,
 the manifest tells the brain WHERE connecting lives instead of declaring a connect action of its own, and
@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo.flash.connector_canon import canon_connector
+from nucleo.turn.prompt.catalogs import canon_connector
 
 MANIFEST = Path(__file__).resolve().parents[4] / "widgets" / "mensajeria" / "manifest.json"
 WIDGET_JS = MANIFEST.with_name("widget.js")

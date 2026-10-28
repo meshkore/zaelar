@@ -16,7 +16,7 @@ the fork goes INSIDE the imperative.
 import pytest
 
 from nucleo import dispatch as D
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_tasks
 from nucleo.workers.session import SessionRecord
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
@@ -45,7 +45,7 @@ def _errand_with_rows(sheet="v556-1"):
 def test_the_status_order_itself_forks_on_what_was_delivered():
     """The order about «¿tienes algo?» has to name the delivered rows, not only the step."""
     _errand_with_rows()
-    st = "\n".join(LB.pending_task_lines())
+    st = "\n".join(live_tasks.pending_task_lines())
     orden = st[st.index("Si el operador pregunta el estado"):][:600]
     assert "ENCONTRADO (en su hoja)" in orden, "la primera orden sobre el estado sigue hablando SOLO del paso"
     assert "AUDI A3 1.6TDI S Line Edition 81kW — 10.990 EUR" in st, "las filas tienen que estar ahí"
@@ -54,7 +54,7 @@ def test_the_status_order_itself_forks_on_what_was_delivered():
 def test_a_stall_may_only_be_claimed_when_the_block_says_so():
     """37 s is not a stall. The permission to say «se ha atascado» is tied to the block's own words."""
     _errand_with_rows(sheet="v556-2")
-    st = "\n".join(LB.pending_task_lines())
+    st = "\n".join(live_tasks.pending_task_lines())
     assert "ENCALLADA o SIN AVANZAR" in st
     assert "ENCALLADA:" not in st and "SIN AVANZAR:" not in st, "esta tarea NO está encallada: es la premisa"
 
@@ -62,5 +62,5 @@ def test_a_stall_may_only_be_claimed_when_the_block_says_so():
 def test_the_anti_negation_branch_is_still_there():
     """The paragraph V2-222 added stays: this change puts the fork EARLIER, it does not replace it."""
     _errand_with_rows(sheet="v556-3")
-    st = "\n".join(LB.pending_task_lines())
+    st = "\n".join(live_tasks.pending_task_lines())
     assert "negar una entrega que el operador tiene" in st

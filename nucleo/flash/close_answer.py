@@ -35,7 +35,7 @@ def answers(brief) -> bool:
     if brief is None or not pending():
         return False
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
         return str(kind or "") == "answer" and bool(info and info.get("used"))
     except Exception as e:  # noqa: BLE001

@@ -107,7 +107,7 @@ def block() -> str:
 
 
 def install() -> None:
-    from ..context_packs import Pack, register
+    from nucleo.turn.prompt.packs import Pack, register
     # AFTER the introduction (order 10): meeting each other frames the conversation, an errand in flight is
     # news within it.
     register(Pack(id="errands", title="Encargos abiertos", order=20, active=is_active, block=block))

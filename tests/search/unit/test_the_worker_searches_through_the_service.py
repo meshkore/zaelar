@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import asyncio
 
-from nucleo import dispatch_prompts
 from nucleo.cli import usage as bridge_usage
 from nucleo.workers import session as _session
 
@@ -25,7 +24,8 @@ def test_a_quoted_sentence_after_use_tool_is_the_search():
 
 def test_the_prompts_teach_the_quoted_form_and_no_file():
     import inspect
-    src = inspect.getsource(dispatch_prompts) + inspect.getsource(_session)
+    from tests.worker_briefs import rendered
+    src = rendered() + inspect.getsource(_session)
     assert 'act use_tool \\"<qué buscas>\\"' in src or 'act use_tool "<qué buscas>"' in src
     assert "busca.json" not in src, "the file form is what the guard refused; it must not be taught any more"
 

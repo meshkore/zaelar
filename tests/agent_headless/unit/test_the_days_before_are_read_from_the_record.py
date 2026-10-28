@@ -10,7 +10,7 @@ import pytest
 
 from memory import db as memdb
 from memory import tasks_store as ts
-from nucleo.flash import task_block as tb
+from nucleo.turn.prompt import live_history
 
 
 @pytest.fixture(autouse=True)
@@ -35,7 +35,7 @@ def _list(lid, title, goal, ago, steps_done, steps):
 @pytest.mark.parametrize("goal", ["DEMO INITIALIZATION", "Inicialización de la demo", "Weekly errands for the house"])
 def test_a_list_from_yesterday_is_in_the_turn_with_its_steps(goal):
     _list("lista:y", "26 × Assistant name Johnny", goal, 26 * 3600, 25, 26)
-    [line] = tb.earlier_lines()
+    [line] = live_history.earlier_lines()
     assert "26 × Assistant name Johnny" in line and "una lista de 26 tareas" in line and "(25/26 hechas)" in line
     assert goal[:20] in line, "what it was, in his words — a composed title does not answer «the long prompt I sent»"
     import datetime as dt
@@ -52,7 +52,7 @@ def test_the_recent_window_and_the_old_ones_are_left_out():
                  "created_at": int(now - 14 * 86400), "finished_at": int(now - 14 * 86400)})
     ts.task_put({"id": "inl", "title": "an agenda add", "goal": "g", "kind": "inline", "state": "done",
                  "created_at": int(now - 30 * 3600), "finished_at": int(now - 30 * 3600)})
-    [line] = tb.earlier_lines(now=now)
+    [line] = live_history.earlier_lines(now=now)
     assert line.endswith(": ninguna."), "the recent block says the first, the week ends before the second"
 
 
@@ -61,19 +61,21 @@ def test_an_empty_week_is_said_with_its_range():
     blank the model fills with a guess or a worker."""
     import datetime as dt
     now = time.time()
-    [line] = tb.earlier_lines(now=now)
-    assert dt.datetime.fromtimestamp(now - tb.EARLIER_WINDOW_S).strftime("%Y-%m-%d") in line and "ninguna" in line
+    [line] = live_history.earlier_lines(now=now)
+    assert dt.datetime.fromtimestamp(now - live_history.EARLIER_WINDOW_S).strftime("%Y-%m-%d") in line and "ninguna" in line
 
 
 def test_bounded_and_facts_only():
     for i in range(12):
         _list(f"lista:{i}", f"list number {i} " + "x" * 60, "g", 8 * 3600 + i * 3600, 1, 1)
-    [line] = tb.earlier_lines()
-    assert line.count(" | ") <= tb.EARLIER_MAX - 1 and len(line) <= tb.EARLIER_MAX_CHARS + 200
+    [line] = live_history.earlier_lines()
+    assert line.count(" | ") <= live_history.EARLIER_MAX - 1 and len(line) <= live_history.EARLIER_MAX_CHARS + 200
     for rule in ("NUNCA", "NO ", "DILO", "debes"):
         assert rule not in line, f"facts only — «{rule}» is an instruction"
 
 
-def test_the_turn_prompt_carries_it():
-    src = open("nucleo/flash/prompt.py", encoding="utf8").read()
-    assert "_live_blocks.earlier_lines()" in src, "the block is built and never reaches the turn"
+def test_the_turn_prompt_carries_it(monkeypatch):
+    from nucleo.turn.prompt import live_history
+    from nucleo.turn.prompt import live_state
+    monkeypatch.setattr(live_history, "earlier_lines", lambda: ["EARLIER-MARK"])
+    assert "EARLIER-MARK" in live_state.live_state(), "the block is built and never reaches the turn"

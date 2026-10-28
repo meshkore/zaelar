@@ -21,7 +21,7 @@ from __future__ import annotations
 import pytest
 
 from nucleo import dispatch
-from nucleo.flash import prompt
+from nucleo.turn.prompt import builder as prompt
 from nucleo.flash import router_guards as g
 
 

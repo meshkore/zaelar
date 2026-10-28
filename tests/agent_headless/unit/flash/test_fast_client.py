@@ -388,7 +388,7 @@ def test_a_dropped_action_survives_the_turn_that_lost_it():
 
 def test_and_reaches_the_live_state_saying_it_did_NOT_happen():
     from nucleo.llm import fast_client as fc
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import live_state as _p
 
     fc.clear_drops()
     fc._drop_tool_call({"finish_reason": "length"}, "escalate_to_slowbrain", "{bad")
@@ -402,7 +402,7 @@ def test_and_reaches_the_live_state_saying_it_did_NOT_happen():
 def test_but_it_is_said_ONCE_and_not_forever():
     """A fact repeated in every state stops being a fact and becomes noise — and this one has already been said."""
     from nucleo.llm import fast_client as fc
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import live_state as _p
 
     fc.clear_drops()
     fc._drop_tool_call({}, "show_widget", "{bad")
@@ -426,7 +426,7 @@ def test_and_an_old_drop_is_not_this_conversation():
 def test_and_a_turn_with_nothing_dropped_says_nothing():
     """The sensitivity: without this, “report the drop” and “always report” pass alike."""
     from nucleo.llm import fast_client as fc
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import live_state as _p
 
     fc.clear_drops()
     assert "NO LLEGÓ A EJECUTARSE" not in _p.live_state()

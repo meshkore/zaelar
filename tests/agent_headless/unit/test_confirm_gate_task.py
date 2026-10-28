@@ -46,14 +46,14 @@ def test_the_brain_can_SEE_that_something_is_parked():
 
 
 def test_the_live_state_carries_it():
-    from nucleo.flash import prompt
+    from nucleo.turn.prompt import live_state as prompt
     dispatch.remember_confirm("9", "paga la factura de la luz", _Task())
     assert "CONFIRMACIÓN PENDIENTE de una acción IRREVERSIBLE" in prompt.live_state()
 
 
 def test_a_yes_re_dispatches_the_SAME_request_with_confirmed_set(monkeypatch):
     sent: list = []
-    from nucleo.flash import escalate as esc
+    from nucleo.acts import errand as esc
     monkeypatch.setattr(esc, "escalate_to_slowbrain",
                         lambda req, context=None: sent.append((req, dict(context or {}))) or 1)
     dispatch.remember_confirm("9", "cancela mi suscripción a Netflix", _Task(context={"src": "probe"}))
@@ -69,7 +69,7 @@ def test_a_yes_re_dispatches_the_SAME_request_with_confirmed_set(monkeypatch):
 
 def test_a_no_drops_it_and_launches_nothing(monkeypatch):
     sent: list = []
-    from nucleo.flash import escalate as esc
+    from nucleo.acts import errand as esc
     monkeypatch.setattr(esc, "escalate_to_slowbrain", lambda req, context=None: sent.append(req) or 1)
     dispatch.remember_confirm("9", "paga la factura de la luz", _Task())
     out = dispatch.resolve_confirm(False)
@@ -244,7 +244,7 @@ def test_the_memory_of_an_expired_one_does_not_last_forever():
 
 def test_and_it_reaches_the_live_state():
     """This codebase's recurring failure: the fact exists but does not reach the place where the decision is made."""
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import live_state as _p
 
     tid = _ask()
     dispatch._PENDING_CONFIRM[tid]["ts"] = time.time() - (dispatch._CONFIRM_TTL + 100)

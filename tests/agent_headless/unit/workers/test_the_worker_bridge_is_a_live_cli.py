@@ -21,7 +21,7 @@ def test_the_worker_may_run_it():
 
 
 def test_the_prompt_teaches_it():
-    from nucleo.dispatch_prompts import _build_prompt
+    from nucleo.workers.prompts import _build_prompt
     assert "python -m nucleo.cli.bridge ask" in _build_prompt("busca un carpintero en Soria", "", True, None)
 
 

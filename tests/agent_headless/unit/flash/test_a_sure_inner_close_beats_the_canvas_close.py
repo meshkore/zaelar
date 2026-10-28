@@ -14,7 +14,7 @@ from nucleo.flash import direct_action as DA
 
 @pytest.fixture
 def brief(monkeypatch):
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     st = {"conf": 1.0, "ran": []}
     monkeypatch.setattr(DA, "sure_canvas", lambda b: "close")
     monkeypatch.setattr(DA, "from_brief", lambda b: ("agenda", "close_meeting"))

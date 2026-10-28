@@ -60,7 +60,7 @@ def test_a_refinement_is_folded_in_and_returns_the_waiting_question():
 
 def test_the_yes_carries_the_refinements_with_the_errand(monkeypatch):
     seen: list = []
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     monkeypatch.setattr(escalate, "escalate_to_slowbrain",
                         lambda request, context=None, **k: seen.append(request))
     dispatch.remember_confirm("3", HIS_WORDS, _Task())
@@ -135,7 +135,7 @@ class _FakeBackend(WorkerBackend):
 
 
 def _drive(monkeypatch, *, parked: tuple[str, str] | None, request: str, context: dict | None = None):
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     from voice import brain_notes
 
     rows: list = []

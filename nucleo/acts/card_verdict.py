@@ -10,7 +10,7 @@ def verdict_card(brief) -> str:
     """The card the verdict names, OPEN OR NOT — for a close, a card already gone is an answer («nothing left to
     do»), not a reason to look for another one (demo pass 2026-09-28, V7)."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         choice, _info = _tb.read(brief, _tb.TARGET_KEY, "")
         owner, sep, _name = str(choice or "").rpartition(":")
         return owner if sep else ""
@@ -41,7 +41,7 @@ def order_is_inside(brief, widget_id: str = "") -> bool:
 
 def _action_sure(brief, floor: float = 0.8) -> bool:
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         _c, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=floor)
         return bool(info) and bool(info.get("used"))
     except Exception:  # noqa: BLE001
@@ -55,7 +55,7 @@ def verdict_shows(brief) -> bool:
     said «Bringing the monitor comparison back up» and called nothing. The promise backstop that shows the named
     card gated on a verb table that knows «te lo abro», not «bringing it back up»; the verdict was already paid for."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
         if info is None or str(verb or "") != "show":
             return False
@@ -73,7 +73,7 @@ def aims_at_a_card(brief) -> bool:
     «stop the background work» and CANCELLED the two errands launched a minute earlier. A verdict that names
     a card says whose the order is; a worker kill over it is the wrong reading of the same words."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         if _da.from_brief(brief)[0]:
             return True
         verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "neither")
@@ -96,7 +96,7 @@ def verdict_escalates(brief, *, answered: bool = False) -> bool:
     nothing, and the promise backstop only knew the verb tables («hazme/búscame…»), so no errand was born.
     The verdict was paid for; it is the evidence the backstop was missing."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         esc, info = _tb.read(brief, _tb.ESCALATE_KEY, "")
         if info is None or str(esc or "") != "escalate":
             return False
@@ -115,7 +115,7 @@ def order_over_a_card_left_undone(brief) -> bool:
     pass got no call, the escalation verdict was unsure (0.15), the reply said «on its way» and nothing was on
     its way. The caller supplies «nothing called, nothing asked»; this reads only the verdicts."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         kind, k = _tb.read(brief, _tb.REQUEST_KEY, "")
         if k is None or str(kind) != "order":
             return False
@@ -133,7 +133,7 @@ def reads_as_order(brief) -> bool:
     the promise-wording table knew neither «I'll pull up» nor «I'll put»). The repair finds the card through the
     late catalogue question and judges its own reply; a verb table is not needed for either."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "")
         if info is not None and str(kind or "") == "order":
             return True
@@ -217,7 +217,7 @@ def order_card_after_read(brief, operator_text: str, read_widget: str) -> str:
     """The card an ORDER is on when the turn read a DIFFERENT card for it, or "": the brief is sure it is an order
     and his words name exactly one other card (by its name, an alias or a word it declares)."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         kind, info = _tb.read(brief, _tb.REQUEST_KEY, "", min_confidence=0.8)
         if str(kind or "") != "order" or not info:
             return ""

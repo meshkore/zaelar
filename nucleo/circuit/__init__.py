@@ -266,7 +266,7 @@ def _close(rec, relay_cap: int) -> str:
             # ITERATE — carrying WHAT IS MISSING, so the relaunch starts from the gap instead of from zero.
             rec.goal_retried = True
             try:
-                from nucleo.flash import escalate as _esc
+                from nucleo.acts import errand as _esc
                 _esc.escalate_to_slowbrain(
                     f"{rec.goal}\n\n[ARNÉS] Esto quedó SIN cumplir y es lo que hay que terminar: {missing}. "
                     f"Lo demás ya está hecho: no lo repitas.",

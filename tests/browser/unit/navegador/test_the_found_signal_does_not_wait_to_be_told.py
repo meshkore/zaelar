@@ -20,7 +20,7 @@ moment this is most needed is precisely when the worker is no longer there (V2-2
 """
 import pytest
 
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_browser, live_sheet
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
 
@@ -40,13 +40,13 @@ def _sheet_with(sheet: str, titles: list[str]):
 def test_la_cara_dispara_con_las_filas_de_la_hoja_sin_que_el_worker_avise():
     tid = T.create("Busca un monitor de segunda mano", sheet="v284-1")
     _sheet_with("v284-1", ["MSI MAG 276CXF 27 280Hz Gaming Monitor"])
-    assert LB._found_candidates(tid) is True
+    assert live_sheet._found_candidates(tid) is True
 
 
 def test_y_ese_era_el_agujero_sin_hoja_no_hay_nada_que_leer():
     """Regression check: with the sheet empty, the face remains silent, as it should."""
     tid = T.create("Busca un monitor de segunda mano", sheet="v284-vacia")
-    assert LB._found_candidates(tid) is False
+    assert live_sheet._found_candidates(tid) is False
 
 
 def test_una_fila_SIN_nombre_no_es_un_resultado():
@@ -62,7 +62,7 @@ def test_una_fila_SIN_nombre_no_es_un_resultado():
                                    "items": [{"title": "", "url": "https://x.example/categoria"}]})
     assert (SHEET.view_data("v284-2") or {}).get("items") == [], (
         "la hoja dejó de descartar la fila sin nombre: ahora el filtro de `_sheet_has_rows` SÍ es el mecanismo")
-    assert LB._found_candidates(tid) is False
+    assert live_sheet._found_candidates(tid) is False
 
 
 def test_una_pestana_SIN_encargo_detras_no_mira_ninguna_hoja():
@@ -75,7 +75,7 @@ def test_una_pestana_SIN_encargo_detras_no_mira_ninguna_hoja():
     SHEET.apply_action("present", {"sheet": "", "title": "Resultados",
                                    "items": [{"title": "Guitarra de otra ronda", "price": "100 €"}]})
     assert (SHEET.view_data("") or {}).get("items"), "la caja de nadie tiene que estar llena para que muerda"
-    assert LB._found_candidates(T.create("el operador abre una web")) is False
+    assert live_sheet._found_candidates(T.create("el operador abre una web")) is False
 
 
 def test_el_reporte_del_worker_SIGUE_valiendo():
@@ -88,7 +88,7 @@ def test_el_reporte_del_worker_SIGUE_valiendo():
     D._SESSIONS.clear()
     D._SESSIONS["w1"] = rec
     try:
-        assert LB._found_candidates(tid) is True      # with the sheet still empty
+        assert live_sheet._found_candidates(tid) is True      # with the sheet still empty
     finally:
         D._SESSIONS.clear()
 
@@ -101,7 +101,7 @@ def test_y_la_cara_LLEGA_al_estado_cuando_la_hoja_tiene_filas():
     tid = T.create("Busca un monitor de segunda mano", sheet="v284-4")
     T.set_status(tid, "working")
     _sheet_with("v284-4", ["Monitor Dell 27 P2714H LED"])
-    state = "\n".join(LB.navegador_lines())
+    state = "\n".join(live_browser.navegador_lines())
     assert "YA HA ENCONTRADO ALGO" in state
     # V2-330: without written rows, the instruction is to tell the truth about what exists, not recite what it lacks.
     # V2-443 — the NO-ROWS branch changed its text (it now marks the count as coming from the worker), so the

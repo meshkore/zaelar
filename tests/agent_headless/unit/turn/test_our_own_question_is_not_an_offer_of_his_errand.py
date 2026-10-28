@@ -20,7 +20,7 @@ import pytest
 
 from nucleo import dispatch
 from nucleo.dispatch import confirm as dc
-from nucleo.flash import escalate as esc
+from nucleo.acts import errand as esc
 
 GAME = "Crear un NUEVO widget de juego de plataformas tipo Super Mario (saltar, moverse, enemigos)"
 NOTE = ("[SISTEMA] Aviso para el operador (zaelar): Si no te he entendido mal, me pides que te CONSTRUYA una tarjeta "

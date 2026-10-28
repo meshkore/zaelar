@@ -19,8 +19,8 @@ from __future__ import annotations
 import pytest
 
 from nucleo import dispatch
-from nucleo import dispatch_prompts
-from nucleo.flash import prompt
+from nucleo.workers import prompts as dispatch_prompts
+from nucleo.turn.prompt import builder as prompt
 from nucleo.flash import router_guards as g
 from nucleo.flash import site_catalog as sc
 

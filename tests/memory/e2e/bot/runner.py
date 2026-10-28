@@ -180,12 +180,13 @@ def _brain_view(q: str) -> tuple[str, bool]:
     SOLO si el gate `needs_recall` dispara (`compose_recall`). Es exactamente lo que el cerebro tiene en el prompt
     — sin LLM en la lectura. Devuelve (texto_normalizado, recall_disparado)."""
     from nucleo.flash import memory_cache as _mc
-    from nucleo.flash import prompt as _p
+    from nucleo.flash import recall_heuristics as _rh
+    from nucleo.turn.prompt import recall as _p
     try:
         block, _op = _mc._compose()
     except Exception:
         block = ""
-    fired = _p.needs_recall(q)
+    fired = _rh.needs_recall(q)
     recall = ""
     if fired:
         try:

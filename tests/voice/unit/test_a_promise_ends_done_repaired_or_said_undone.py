@@ -77,7 +77,7 @@ def test_with_the_decision_model_silent_the_card_in_front_gets_the_pass(silent_j
 def test_a_verdict_that_answered_keeps_the_models_path(monkeypatch, youtube_in_front):
     """CRIT-K2: with a verdict present (even an unsure one) the focus guess stays out — only the model's own call."""
     import threading
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     ev = threading.Event(); ev.set()
     brief = {"event": ev, "turn_id": "t", "open_ids": ["youtube"],
              "result": {tb.REQUEST_KEY: {"choice": "comment", "confidence": 0.62}}}

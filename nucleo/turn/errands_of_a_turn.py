@@ -103,7 +103,7 @@ def status_owed(operator_text: str, brief) -> str:
     that» — an empty wait to a status question, with every errand's phase in the turn's own state. The line names
     each live errand by its label (its request when it has none yet) and its phase. "" when the verdict did not ask
     for words, or nothing is live — the caller then keeps its own line."""
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     if brief is None:
         return ""
     words, _i = _tb.read(brief, _tb.WORDS_KEY, "")

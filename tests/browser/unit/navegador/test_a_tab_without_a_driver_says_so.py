@@ -13,7 +13,7 @@ automatic resume — while somebody is going to pick it up, it is not orphaned).
 import pytest
 
 from nucleo import dispatch as D
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_browser, live_sheet
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
 
@@ -44,7 +44,7 @@ def _errand_tab(*, driver: bool) -> str:
 
 
 def _state() -> str:
-    return "\n".join(LB.navegador_lines())
+    return "\n".join(live_browser.navegador_lines())
 
 
 def test_an_errand_tab_with_no_live_session_is_reported_as_driverless():
@@ -83,4 +83,4 @@ def test_delivering_still_wins_but_the_fact_travels_with_it():
 
 def test_unreadable_registries_mean_NO_orphan():
     """Fail-open with direction: saying that an errand died when it is still alive is worse than keeping quiet."""
-    assert LB._driver_is_gone("no-existe", {}) is False
+    assert live_sheet._driver_is_gone("no-existe", {}) is False

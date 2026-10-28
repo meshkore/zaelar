@@ -36,7 +36,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   nodes 2.17, 3.35, 2.201.
 - **CRIT-V4 · Fillers are «smart».** A wait cover sounds only on a turn that thinks (a question, real work), never
   on a short order; a cover describes motion and never ends the turn; a promise to look with nothing behind it is
-  withdrawn. — since 2026-09-17 · nodes 2.50, 2.164, 3.58 · `voice/engine/core/filler_audio.py`,
+  withdrawn. — since 2026-09-17 · nodes 2.50, 2.164, 3.58 · `voice/engine/speech/filler_audio.py`,
   `nucleo/flash/answer_guards.py`.
 - **CRIT-V5 · A claim is not a fact.** A delivery claimed over an empty sheet becomes a follow-up; «still on it»
   is said only about live work on THIS request; a result already spoken is not news on the next turn. — since
@@ -53,7 +53,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   `set_style_directive.name` — nothing is read from his words; a rename takes one model turn
   (`nucleo/turn/identity.py`, refactor2710-07). — since 2026-09-22 · nodes 2.56.
 - **CRIT-V9 · A phase pack rides only a FREE turn.** A question, an order or a long sentence gets its answer and
-  no introduction block that turn (`nucleo/context_packs/free_turn.py`, `context_packs.compose(turn_text)`).
+  no introduction block that turn (`nucleo/turn/prompt/packs/free_turn.py`, `context_packs.compose(turn_text)`).
   — since 2026-10-11 · nodes 2.474.
 - **CRIT-V10 · The microphone is only parked over an ear that has HEARD.** In a wake-word mode the browser's
   recogniser may close the paid tap only after it has returned a result; its `onstart` proves nothing, and
@@ -208,7 +208,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   its query is absent from his words; a `play_video` whose query terms he said in this turn runs (any language,
   no verb table), minus the player's declared vocabulary and minus what the player already holds (praise naming
   what plays reloads nothing). A close the canvas route refuses is neither logged as done nor counted as an act. —
-  since 2026-10-24 · nodes 2.771 · `nucleo/flash/canvas_license.names_what_to_play`, `show_target.close_dispatch`.
+  since 2026-10-24 · nodes 2.771 · the card door's `LOAD` clause (`nucleo/acts/card`), `show_target.close_dispatch`.
 - **CRIT-K6 · The canvas that counts is the tab holding the voice session**; a fullscreen card covers everything
   and always has an exit; leaving fullscreen is its own, idempotent order. — since 2026-09-24 · nodes 2.91, 2.78,
   2.79.
@@ -233,7 +233,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   2026-09-22 · nodes 3.58.
 - **CRIT-K10 · A card named only to be LEFT ALONE is never the target.** With several open cards declaring the
   same control, his sentence decides before any verdict: the card it names as the target wins, a card inside a
-  keep / don't-touch / negation clause is excluded (`nucleo/flash/named_target.py`); a «which card?» the engine
+  keep / don't-touch / negation clause is excluded (`nucleo/acts/named_target.py`); a «which card?» the engine
   asks parks the control, is phrased with the cards' display names, and his next answer naming one of them runs
   it; two players settle on a verdict only at `PLAYER_SURE` (0.9). — since 2026-10-11 · nodes 2.470, 2.471, 2.472.
 - **CRIT-K10b · A card is named by what it shows, never by its id.** Every «which card?» names an instance by its

@@ -1,38 +1,30 @@
 """widgets/directory.py — WHO a name is, and HOW to reach that person (V2-683).
 
-The layer module every outbound door asks before writing to somebody. It sits beside `brief.py` and
-`refs.py` for the same reason they do: the knowledge is about the CATALOG of widgets, not about one of
-them, and a widget that needed it would otherwise have to import another widget.
+The layer module every outbound door asks before writing to somebody; beside `brief.py` and `refs.py` because
+the knowledge is about the CATALOG of widgets, not one of them.
 
 Three questions, and each one has exactly one honest answer here:
 
-  · `resolve(name)`   — WHO did he mean? Returns the matching contacts, never a guess. Zero or several is
-                        an answer, not a failure: the caller ASKS (the `refs.py` doctrine — a wrong
-                        recipient is the one mistake an outbound door can make that cannot be undone).
+  · `resolve(name)`   — WHO did he mean? The matching contacts, never a guess; zero or several and the caller
+                        ASKS (a wrong recipient is the one outbound mistake that cannot be undone).
   · `channel_for(c)`  — by WHICH channel? The preferred one if he fixed it, else the one he actually uses
                         (volume), else the only one there is. Ambiguity with no preference answers None.
-  · `note_inbound()`  — passive learning (V2-052's closed decision 3): every message that arrives already
-                        carries an identity for its platform, so the contacts he really talks to build
-                        their own channel list. It NEVER creates a contact and never writes on an
-                        ambiguous match: a directory that fills itself with strangers is worse than one
-                        that stays empty.
+  · `note_inbound()`  — passive learning (V2-052): an arriving message carries its platform identity, so the
+                        contacts he talks to build their channel list. It NEVER creates a contact and never
+                        writes on an ambiguous match.
 
 ## What a channel is
 
     {"platform": "telegram", "handle": "@ivanm", "chatId": "123456",
      "source": "operator|observed|field", "last_seen": 1757700000.0, "volume": 14}
 
-`handle` is what the connector needs to OPEN a conversation (a username, a phone, an address); `chatId` is
-what identifies it once it exists. A channel may carry either or both — Telegram can start from a handle
-and learns its chatId on the first exchange; email's address is both at once.
+`handle` OPENS a conversation (username, phone, address); `chatId` identifies it once it exists — either or both.
 
 ## The one asymmetry, written down on purpose
 
 A stored `email` field IS an email channel: the address is the whole capability, so it is derived. A stored
-`phone` is NOT a WhatsApp channel — having somebody's number is not proof they use WhatsApp, and deriving
-one would let «mándale un WhatsApp» reach a number that never agreed to be reachable there. So a phone is
-offered only when the caller NAMES whatsapp explicitly (he asked for that channel, and a number that has no
-WhatsApp fails loudly at the bridge, which is an honest answer) and never as the automatic choice.
+`phone` is NOT a WhatsApp channel (a number is no proof they use WhatsApp): a phone is offered only when the
+caller NAMES whatsapp explicitly, never as the automatic choice.
 """
 from __future__ import annotations
 
@@ -293,13 +285,8 @@ def note_inbound(platform: str, msg: dict) -> bool:
 def note_reached(platform: str, chat_id, contact_id: str) -> bool:
     """A message we SENT resolved this contact to a real conversation id — learn it (V2-693).
 
-    ⚠️ Until today this was discovered and thrown away, and it is how the directory grew a twin. The
-    operator asks by name, `resolve_target` hands the connector a HANDLE («@northfund_demo»), the connector
-    asks the platform who that is and gets back a numeric chat id — the only place that id exists. Nobody
-    wrote it down. So when the same person answered, `_match_sender` had a numeric id on one side and an
-    `@handle` on the other, matched nothing, and the reply arrived as a stranger; a later `add_contact`
-    then created a SECOND row for one person with one Telegram account. His words: «¿cómo vamos a tener dos
-    contactos que tienen el mismo nickname de Telegram?».
+    The connector learns the numeric chat id from a HANDLE, and nobody wrote it down: the reply then matched
+    nothing, arrived as a stranger, and a later `add_contact` made a twin row for one Telegram account.
 
     Same rule as `note_inbound`: the chatId follows the traffic, the operator's own handle is never
     overwritten. Never raises — a directory that cannot learn must not break a send that already happened.
@@ -375,13 +362,9 @@ def namer(people: list[dict] | None = None):
         name = namer()
         name("whatsapp", "34600111222@s.whatsapp.net", fallback="Mamá ❤")  ->  {"name": "mama", "photo": ""}
 
-    Order, each step only when the previous one has nothing:
-      1. the contact that already holds this conversation (a channel learned or set on it);
-      2. the contact whose phone (or address, for mail) is the one this conversation's id carries;
-      3. the platform's own display name (`fallback`: pushname, Telegram name, a mail's display name);
-      4. the bare id, without its transport suffix.
-    A contact match must be UNIQUE: two rows holding the same number is an ambiguity, and the platform's own
-    name is then more honest than either of them."""
+    Order, each step only when the previous one has nothing: the contact holding this conversation → the contact
+    whose phone/address the id carries → the platform's display name (`fallback`) → the bare id. A contact match
+    must be UNIQUE: two rows with the same number is an ambiguity, and the platform's name is then more honest."""
     if people is None:
         try:
             from .contactos import data as _cd

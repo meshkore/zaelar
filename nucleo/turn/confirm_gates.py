@@ -154,7 +154,7 @@ def _named_parked(words: str) -> str:
 
 def operator_words(text: str) -> str:
     """The turn without the `[SISTEMA]` notes glued in front: our notice's «sin tu OK» is not his vote."""
-    from nucleo.flash import escalate as _esc
+    from nucleo.acts import errand as _esc
     return _esc.strip_system_notes(text) if "[SISTEMA]" in (text or "") else (text or "")
 
 
@@ -188,7 +188,7 @@ def task_reply(words: str, v: str | None, question: str, *, brief=None, parked: 
     judged = _c._judge(question, words) if question else None
     if judged is not None:
         return None if judged == "other" else judged
-    from nucleo.flash import turn_brief as _tb
+    from nucleo.turn import brief as _tb
     kind, _info = _tb.read(brief, _tb.REQUEST_KEY, "") if brief is not None else ("", None)
     if kind == "answer":
         return v

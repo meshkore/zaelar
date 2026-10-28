@@ -60,7 +60,7 @@ def relevos(monkeypatch):
     def _fake(request, context=None, **_kw):
         vistos.append({"request": request, "context": dict(context or {})})
 
-    import nucleo.flash.escalate as _esc
+    import nucleo.acts.errand as _esc
     monkeypatch.setattr(_esc, "escalate_to_slowbrain", _fake)
 
     async def _no_deliver(_rec):

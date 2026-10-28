@@ -19,7 +19,7 @@ SURE = {"request_type": "question", "wants_words": "tell", "escalate_or_inline":
 @pytest.fixture
 def brief(monkeypatch):
     verdicts = dict(SURE)
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     monkeypatch.setattr(tb, "read", lambda handle, key, fallback, **k: (verdicts.get(key, fallback), None))
     return verdicts
 

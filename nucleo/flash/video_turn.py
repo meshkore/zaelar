@@ -197,14 +197,12 @@ def voice_execute(args: dict, text: str, emit, apply_widget_data, deduped: dict,
     cambiado otra vez?» each RELOADED the playing video (2026-09-09, session 34386d8f) — the model dragging
     its previous call into a turn that asked for nothing. A discarded drag counts as handled (`deduped`):
     silence over chatter is design (V2-633), not a void for the mute backstop to apologize over."""
-    from nucleo.flash import canvas_license as _lic, canvas_visibility as _cvis
+    from nucleo.acts import card as _card
+    from nucleo.flash import canvas_visibility as _cvis
     q = (args.get("query") or "").strip()
-    # V2-741 — the turn's own verdict is consulted BEFORE the veto, not after. The grammar table had
-    # no «preparar» and ate a real order; the brief had already answered `youtube:search` at 0.97.
-    if not _lic.video_license(text, last_reply, brief=brief, query=q):
-        emit("brain", "🛡️ play_video ignorado — el turno no pide ningún vídeo (context-bleed)",
-             text=(text or "")[:120], role="system",
-             extra={"cat": "flash", "kind_diag": "video_without_order", "query": q[:80]})
+    # The load's licence is the card door's (`card.LOAD`): his order read from the verdict, never a word table.
+    if _card.logged(_card.licence({"brief": brief, "text": text}, "youtube", "load", at=_card.LOAD,
+                                  last_reply=last_reply, query=q), emit).verdict != _card.RUN:
         deduped["v"] = True
         return
     # V2-723 — the license checked just above is this presentation's authorization, and it says so.

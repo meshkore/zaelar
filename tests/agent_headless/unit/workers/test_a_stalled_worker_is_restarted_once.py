@@ -35,7 +35,7 @@ def fresh_db(tmp_path, monkeypatch):
 @pytest.fixture
 def escalations(monkeypatch):
     sent = []
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     monkeypatch.setattr(escalate, "escalate_to_slowbrain", lambda req, context=None: sent.append((req, context)))
     return sent
 

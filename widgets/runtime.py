@@ -1,8 +1,5 @@
-#
-# Widget runtime — catalog + identification (HANDOFF §3). Built to scale to thousands: one folder per widget,
-# each with a manifest.json; the catalog is just the index; code (widget.js) loads lazily in the browser.
-# This module is the ONLY thing the rest of the app talks to for widgets — fully isolated from the voice core.
-#
+# Widget runtime — catalog + identification (HANDOFF §3): one folder + manifest.json per widget, code loaded lazily
+# in the browser. The ONLY thing the rest of the app talks to for widgets — isolated from the voice core.
 import difflib
 import json
 import os
@@ -154,12 +151,8 @@ def _aliases_of(w: dict) -> list[str]:
     """Widget IDENTITY aliases (V2-082): `name`|`title`|id + manifest `aliases` (or legacy `keywords` as seed —
     keyword ≡ alias). ONLY opening signal; description no longer opens anything. Normalized, deduped.
 
-    V2-694 — and the name the operator READS is one of them. `widgets/naming.py` (the worker's door) went
-    through `registry`, so it already answered to a translated label; THIS index is built straight off the
-    manifests, so the voice did not. Measured with the bundles in place and nothing else changed: «messages»,
-    «downloads» and «browser» all resolved to None here while resolving correctly one module over — an English
-    operator could read «Messages» on the card and not be able to say it. The manifest's own name stays in the
-    list, so the Castilian keeps opening it too."""
+    V2-694 — the translated name the operator READS is one of them (as in `widgets/naming.py`), so an English
+    operator can say «Messages»; the manifest's own name stays, so the Castilian keeps opening it too."""
     native = str(w.get("name") or w.get("title") or w.get("id") or "").strip()
     shown = _display_name("widgets", str(w.get("id") or ""), native)
     seed = w.get("aliases") or w.get("keywords") or []
@@ -223,11 +216,8 @@ def _alias_score(q: str, q_padded: str, q_tokens: list, aliases: list, alias_tok
     for a in aliases:
         if f" {a} " in q_padded:                            # whole alias, word-aligned
             score += 3 if (" " in a or len(a) > 6) else 2
-    # Voice tolerance matches only tokens that are a COMPLETE alias by themselves ('watsap'≈'wasap'), never an
-    # inner token of a multi-word alias. An inner token is not a name for the piece — the alias finds the piece,
-    # its fragments name nothing. Measured 2026-09-03: «…a través del restaurante o…» fuzzy-matched 'restante'
-    # (from the timer's alias 'tiempo restante') at 0.842, reached the certainty bar on that alone, and the close
-    # backstop then closed the timer AND cancelled the reservation escalation the operator was shouting for.
+    # Voice tolerance matches only tokens that are a COMPLETE alias by themselves ('watsap'≈'wasap'), never an inner
+    # token of a multi-word alias (2026-09-03: «restaurante» fuzzy-matched the timer's 'tiempo restante' at 0.842).
     whole = [a for a in aliases if " " not in a and len(a) > 4]
     fuzzy = 0.0
     for t in q_tokens:                                      # tolerance for voice typos: 'watsap'≈'wasap'
@@ -266,10 +256,8 @@ def rank(query: str, limit: int = 8) -> list[tuple[float, dict]]:
     """PUBLIC widget ranking against a phrase, ONLY by name/alias — the same signal (and cached index) used by
     `identify()`, but returning the top N instead of requiring an unambiguous winner.
 
-    Exists for PROGRESSIVE SELECTION (`widgets/selection.py`): with a catalog of thousands, the prompt cannot carry
-    the whole catalog, so the widget the operator NAMES in the phrase is PROMOTED to the top-K through this path —
-    without it, a widget at position 4,000 would be invisible to the model. This is RETRIEVAL, not understanding: it
-    does not interpret verb or intent, only name/alias similarity.
+    Exists for PROGRESSIVE SELECTION (`widgets/selection.py`): the widget he NAMES is promoted to the top-K, so one
+    at position 4,000 is not invisible. RETRIEVAL, not understanding: only name/alias similarity.
 
     Returns [(score, manifest)] sorted desc, already filtered by `_THRESHOLD` (below that there is no real signal).
     Cost: O(N) over an already normalized in-RAM index (~µs per widget); does no I/O and does not re-parse manifests."""
@@ -290,15 +278,12 @@ def rank(query: str, limit: int = 8) -> list[tuple[float, dict]]:
 def identify(query: str, open_ids: list | None = None, recent_ids: list | None = None) -> dict:
     """Resolve a voice/text request to a PIECE by NAME or ALIAS, with CERTAINTY (V2-082).
 
-    Hard rules (reverse previous fuzzy matching, which caused confusion):
-    - **Only NAME/ALIAS opens.** `description`/`whenToUse` no longer scores — no more "opened by thematic similarity".
-      Voice tolerance (difflib) ONLY over alias tokens.
-    - **The word "widget"** in the phrase scopes to USER widgets (ignore system surfaces).
-    - **Named system object** (chat/config/debug...) → `system` = its id and `match` = None (a surface is never
-      returned as a user widget). The caller routes the surface (show_panel / toggle).
-    - **No name/alias match → `match` = None.** The caller does NOT open the most similar one: it ASKS naturally.
-      Only nuance: if no alias matches but there is ONE open widget, operate on it (`by_context`) — it is what the
-      operator has in front of them (data-op over the piece on screen), not a blind open.
+    Hard rules:
+    - **Only NAME/ALIAS opens**; voice tolerance (difflib) ONLY over alias tokens, never description/whenToUse.
+    - **The word "widget"** scopes to USER widgets; a **named system object** (chat/config/debug…) → `system` = its
+      id and `match` = None — the caller routes the surface.
+    - **No name/alias match → `match` = None**: the caller ASKS. Only nuance: with ONE open widget, operate on it
+      (`by_context`) — what he has in front of him, not a blind open.
 
     Returns {match, ambiguous, candidates, score, system, by_context}. `open_ids`/`recent_ids` break ties by priority:
     open > recently used (V2-078)."""
@@ -379,9 +364,7 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
 
     # 3) a named system surface beats a WEAK widget: if the system scores >= the best widget, do NOT return a widget
     #    (prevents 'open chat' from landing on a widget with 'chats' as alias).
-    #    A TIE is not a win: «muéstrame la conversación con Luis» names the wall («conversación») and a messaging
-    #    conversation («conversación con») equally, and a lane acting on either is a coin toss. Ambiguous → no lane
-    #    acts on a name; the turn is decided with the whole sentence.
+    #    A TIE is not a win (the wall and a messaging conversation, equally): no lane acts on a name.
     if system_id is not None and system_score > top_score:
         match, ambiguous = None, False
     elif system_id is not None and top is not None and system_score == top_score:
@@ -404,13 +387,8 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
 def identify_named(query: str, open_ids: list | None = None, recent_ids: list | None = None) -> str | None:
     """The widget the phrase NAMES — by alias or name only, never by context. `None` when it names none.
 
-    V2-666. `identify()` has one deliberate nuance: with no alias match and ONE open card, it returns that card
-    (`by_context`), because a data-op with no noun («súbele el volumen») means the thing in front of the
-    operator. That nuance is right for OPERATING and wrong for OPENING — and the show guards consumed it as if
-    it were a name. Measured live (session 53de97d4, 10:33:27): «ponme un gráfico de la evolución del Bitcoin»
-    with the YouTube card open resolved to `youtube` (score 0.0, zero candidates, `by_context: True`), the guard
-    stole the model's escalation, opened the video card and said «Aquí lo tienes». A blind open of the only open
-    card, which is exactly what `identify()`'s own docstring says it never does.
+    V2-666. `identify()`'s `by_context` nuance (ONE open card) is right for OPERATING and wrong for OPENING: a
+    Bitcoin chart with the YouTube card open once resolved to `youtube` and the guard opened the video card.
 
     A SHOW decision asks «which card did he name?», and this is that question with no fallback. The context
     still breaks a TIE between real alias matches (open > recent), as before."""

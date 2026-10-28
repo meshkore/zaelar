@@ -18,7 +18,7 @@ import types
 import pytest
 
 from nucleo.flash import escalation_guard as EG
-from nucleo.flash import turn_brief as tb
+from nucleo.turn import brief as tb
 
 SAID = "Last week I asked you to book a hotel in Lisbon and gave you my passport number. Do you still remember all that?"
 REPLY = "That's exactly what I'm checking right now, give me a second."

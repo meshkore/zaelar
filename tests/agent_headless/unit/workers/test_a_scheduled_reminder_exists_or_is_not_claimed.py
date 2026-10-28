@@ -138,7 +138,7 @@ def test_un_fallo_del_diario_NO_se_devuelve_como_programado(agenda, monkeypatch)
 def test_al_worker_se_le_DICE_que_puede_programar():
     """WIRING GUARD (V2-199): a capability the model does not know it has does not exist. That is exactly what
     happened with the interpreter on 2026-08-02 — the worker spent minutes guessing at something that already worked."""
-    from nucleo import dispatch_prompts as dp
+    from nucleo.workers import prompts as dp
     p = dp._build_prompt("recuérdale el miércoles llamar al fontanero", "", True)
     assert "act schedule" in p
     assert '"when"' in p and '"prompt"' in p
@@ -146,7 +146,7 @@ def test_al_worker_se_le_DICE_que_puede_programar():
 
 def test_y_que_si_FALLA_no_diga_que_lo_ha_programado():
     """The other half of the harness’s bar: if it could not be done, the pill cannot say “scheduled”."""
-    from nucleo import dispatch_prompts as dp
+    from nucleo.workers import prompts as dp
     p = dp._build_prompt("recuérdale el miércoles llamar al fontanero", "", True)
     assert "NO digas que lo has programado" in p
 
@@ -163,7 +163,7 @@ def test_cada_ejemplo_que_le_damos_SE_ENTIENDE(cuando, agenda):
 def test_los_ejemplos_del_PROMPT_son_los_mismos_que_parsean():
     """And ensure the prompt does not teach forms the error does not mention (or vice versa): two different lists of examples
     drift apart without warning, and the worker ends up trying the invalid one."""
-    from nucleo import dispatch_prompts as dp
+    from nucleo.workers import prompts as dp
     p = dp._build_prompt("recuérdale algo", "", True)
     for cuando in ("mañana a las 9", "el miércoles a las 18:00", "every 30m", "0 9 * * 3"):
         assert cuando in p, f"«{cuando}» parsea pero no se le enseña"

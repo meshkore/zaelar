@@ -71,7 +71,7 @@ async def _flash_route(user_text: str) -> dict:
     """Runs the REAL FlashBrain on `user_text`: composes the system, provides router.TOOLS, and captures the decision.
     Returns {route, query, spoken, calls}. route ∈ {search, escalate, chat, delete, auth, style, other}."""
     from nucleo.llm.fast_client import FastClient, spec_from_config
-    from nucleo.flash import prompt as P
+    from nucleo.turn.prompt import builder as P
     from nucleo.flash.router import TOOLS
 
     recall_block = ""
@@ -123,7 +123,7 @@ async def _compose_from_search(query: str, spec) -> dict:
     """Replica of nucleo.py's 2nd pass: searches (off-loop) and composes the spoken response from the results."""
     from search import web as ws
     from nucleo.llm.fast_client import FastClient
-    from nucleo.flash import prompt as P
+    from nucleo.turn.prompt import builder as P
     t0 = time.time()
     res = await asyncio.to_thread(ws.search, query)
     ctx = ws.format_results(res)

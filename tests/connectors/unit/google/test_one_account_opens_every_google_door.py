@@ -353,19 +353,14 @@ def test_with_no_client_at_all_it_says_the_doors_cannot_be_opened(tmp_path, monk
     assert "no hay cliente OAuth" in line and "NO digas que los conectas" in line
 
 
-def test_the_turn_prompt_consults_it():
-    """Wiring, structural: a fact nobody injects is a fact the model never had.
-
-    Anchored on the module that OWNS the block (`flash/connector_briefs.py`), not on `prompt.py` where it
-    used to live — V2-555's lesson: a wiring guard pinned to a file goes red the next time somebody pays the
-    architecture ratchet by extracting, and then gets weakened instead of repointed. The second assertion is
-    the one that matters: `prompt.py` must still REACH the composer."""
-    import inspect
-
-    from nucleo.flash import connector_briefs, prompt
-    assert "from connectors.google import brain as _gb" in inspect.getsource(connector_briefs)
-    assert "_gb.brain_state()" in inspect.getsource(connector_briefs)
-    assert "connector_briefs" in inspect.getsource(prompt._connector_briefs)
+def test_the_turn_prompt_consults_it(monkeypatch):
+    """Wiring, by behaviour: a fact nobody injects is a fact the model never had. With Google not usable, the turn's
+    connector facts carry Google's own state line (refactor2710-08: read through `catalogs.connector_facts`)."""
+    from connectors.google import brain
+    from nucleo.turn.prompt import operating as prompt
+    monkeypatch.setattr(brain, "connected_services", lambda: [])
+    monkeypatch.setattr(brain, "brain_state", lambda: "GOOGLE-STATE-LINE")
+    assert "GOOGLE-STATE-LINE" in prompt._connector_briefs(set(), "what do I have tomorrow?")
 
 
 # ── V2-686: the brain is told WHICH DOOR, not just that a door exists ───────────────────────────────────

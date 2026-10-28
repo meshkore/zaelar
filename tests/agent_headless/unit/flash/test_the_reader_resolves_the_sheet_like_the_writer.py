@@ -38,7 +38,7 @@ when the worker is replaced or dies (V2-281). The registry is BACKUP, exactly as
 """
 import pytest
 
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_browser, live_sheet
 
 FILAS = [{"title": "MERCEDES-BENZ Clase A 200 d", "price": "39.900 €"},
          {"title": "CHRYSLER Sebring 200C 2.0CRD Limited", "price": "2.500 €"},
@@ -71,9 +71,9 @@ def test_con_sello_se_lee_por_el_sello(plató):
     """The usual path, unchanged: the seal takes precedence and the registry is not even queried (V2-281)."""
     plató["sello"] = "results::9a37af-1"
     plató["registro"] = "results::OTRA-COSA"
-    assert LB._sheet_top_rows("t1", 3)
-    assert "Clase A" in LB._sheet_top_rows("t1", 3)[0]
-    assert LB._sheet_has_rows("t1") is True
+    assert live_sheet._sheet_top_rows("t1", 3)
+    assert "Clase A" in live_sheet._sheet_top_rows("t1", 3)[0]
+    assert live_sheet._sheet_has_rows("t1") is True
 
 
 def test_SIN_sello_el_lector_pregunta_al_registro_como_hace_el_escritor(plató):
@@ -81,17 +81,17 @@ def test_SIN_sello_el_lector_pregunta_al_registro_como_hace_el_escritor(plató):
     empty forever. The writer succeeds through the backup; the reader remained blind."""
     plató["sello"] = ""
     plató["registro"] = "results::9a37af-1"
-    filas = LB._sheet_top_rows("t1", 3)
+    filas = live_sheet._sheet_top_rows("t1", 3)
     assert filas, "rows=0 con doce coches en la hoja: es el silencio de las nueve veces"
     assert "Clase A" in filas[0]
-    assert LB._sheet_has_rows("t1") is True
+    assert live_sheet._sheet_has_rows("t1") is True
 
 
 def test_y_entonces_el_backstop_de_entrega_SI_ve_las_filas(plató):
     """The full consequence, at the point where it was measured: `any_live_task_rows` is what the backstop consumes."""
     plató["sello"] = ""
     plató["registro"] = "results::9a37af-1"
-    goal, filas = LB.any_live_task_rows(3)
+    goal, filas = live_browser.any_live_task_rows(3)
     assert len(filas) == 3, "esto es el `rows=0` del evento de silencio, que salió nueve veces"
     assert "coche de segunda mano" in goal, "sin el encargo, el backstop no puede juzgar frescura"
 
@@ -101,14 +101,14 @@ def test_sin_sello_y_sin_registro_no_se_inventa_nada(plató):
     `results` box would announce the rows from another task."""
     plató["sello"] = ""
     plató["registro"] = ""
-    assert LB._sheet_top_rows("t1", 3) == []
-    assert LB._sheet_has_rows("t1") is False
-    assert LB.any_live_task_rows(3) == ("", [])
+    assert live_sheet._sheet_top_rows("t1", 3) == []
+    assert live_sheet._sheet_has_rows("t1") is False
+    assert live_browser.any_live_task_rows(3) == ("", [])
 
 
 def test_una_hoja_que_existe_pero_esta_VACIA_no_es_un_hallazgo(plató):
     """Resolving the address is not the same as having rows: a newly opened sheet resolves correctly and contains nothing."""
     plató["sello"] = "results::recien-abierta"
     plató["registro"] = ""
-    assert LB._sheet_top_rows("t1", 3) == []
-    assert LB._sheet_has_rows("t1") is False
+    assert live_sheet._sheet_top_rows("t1", 3) == []
+    assert live_sheet._sheet_has_rows("t1") is False

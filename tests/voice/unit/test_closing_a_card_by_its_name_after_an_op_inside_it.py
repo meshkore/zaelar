@@ -11,7 +11,7 @@ from nucleo.flash import direct_action as da
 
 @pytest.fixture
 def close_verdict(monkeypatch):
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     monkeypatch.setattr(tb, "read", lambda brief, key, default="", min_confidence=0.0:
                         ("close", {}) if key == tb.CANVAS_KEY else (default, {}))
     monkeypatch.setattr(da, "_open_now", lambda: ["youtube", "agenda"])
@@ -126,7 +126,7 @@ def test_tidying_the_screen_is_a_canvas_gesture_the_verdict_can_complete(monkeyp
     """full21 C5b: «tidy up the screen a bit» → «screen's sorted» with no call; the canvas verdict could only say
     `neither`, because laying the cards out was not one of its gestures."""
     from nucleo.flash import show_target as st
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     assert "arrange" in st.CANVAS_VERBS
     monkeypatch.setattr(tb, "read", lambda b, k, d="", min_confidence=0.0:
                         ("arrange", {"used": True}) if k == tb.CANVAS_KEY else (d, None))

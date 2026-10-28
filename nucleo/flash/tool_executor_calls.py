@@ -280,7 +280,7 @@ def _t_authenticate_web(*, args, _start_web_auth, emit, escalate_req, text):
     if _kind_v in (_wa_v.KIND_MUSIC, _wa_v.KIND_MESSAGING):
         # INVARIANT (2026-07-16, V2-045): Spotify, WhatsApp, Telegram and email are never logged into via the
         # browser; since 2026-10-04 they connect in ONE place, the ⚙ Conectores section on that connector.
-        from nucleo.flash.connector_canon import canon_connector as _cc
+        from nucleo.turn.prompt.catalogs import canon_connector as _cc
         _cx = _cc(_site) or _cc(text) or ("spotify" if _kind_v == _wa_v.KIND_MUSIC else "")
         emit("panel", "open", extra={"tab": "conectores", "src": "flash", **({"connector": _cx} if _cx else {})})
         emit("brain", f"🔌 connect → Conectores section ({_cx or 'list'}), not the browser", text=_site or text[:60],
@@ -404,14 +404,10 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
     # answer_worker («Sí, autorizado: borra TODA la agenda») + stop_worker killed the answered task and
     # «Vale, se lo digo» was false. Answering and killing in one turn: the (non-destructive) answer wins.
     if worker_acted["v"] == "answer":
-        emit("brain", "🛡️ stop_worker ignorado — este turno ACABA de responder al worker",
-             text=f"{which or 'todo'}", role="system",
-             extra={"cat": "flash", "kind_diag": "stop_after_answer"})
+        emit("brain", "🛡️ stop_worker ignorado — este turno ACABA de responder al worker", text=f"{which or 'todo'}",
+             role="system", extra={"cat": "flash", "kind_diag": "stop_after_answer"})
         return
-    # ── GUARD 2: stopping needs HIS order in THIS turn — a stop the model drags from an earlier turn is context bleed
-    # (2026-08-14); «para» alone only hushes the voice. Read asymmetrically (refactor2710-07, `stop.model_stop`): a sure
-    # verdict decides, an unsure one that disagrees is asked, and only with no verdict do his words (or his yes to our
-    # own offer, demo 2026-10-22) stand in.
+    # ── GUARD 2: stopping needs HIS order in THIS turn, read asymmetrically (`stop.model_stop`, refactor2710-07).
     from nucleo.request import stop as _stop_decision
     _may = _stop_decision.model_stop(brief, grammar=bool(_says_stop(text)
                                                          or _prior_line.answers_our_question(brief, prior)))
@@ -426,16 +422,14 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
                     extra={"cat": "flash", "kind_diag": "stop_asked", "which": which or "todo"})
     try:
         from nucleo import dispatch as _d
-        # GUARD stop-ALL (session 23:15 2026-07-16, T49): «si solo es una tarea» → stop_worker(todo) killed
-        # BOTH live sessions. Irreversible: «todo» over distinct goals needs his explicit all/both; else the
-        # matching session (`resolve_sessions`), and with no clear match nothing is killed (ask).
-        import re as _re_stop
+        # GUARD stop-ALL (session 23:15 2026-07-16, T49): «si solo es una tarea» → stop_worker(todo) killed BOTH live
+        # sessions. «todo» over distinct goals needs the brief's SURE `stop_all` (`stop.all_ordered`); else the matching
+        # session (`resolve_sessions`), and with no clear match nothing is killed (ask).
         _w = which or "todo"
         if _w == "todo":
             _live = _d.pending_summaries()
             _goals = {(s.get("request") or "")[:60] for s in _live}
-            _says_all = bool(_re_stop.search(r"\b(todo|todos|todas|ambos|ambas|all|both|everything)\b",
-                                             _norm_nfkd(text)))
+            _says_all = _stop_decision.all_ordered(brief)
             if len(_goals) > 1 and not _says_all:
                 _match = _d.resolve_sessions(text)
                 if len(_match) == 1:

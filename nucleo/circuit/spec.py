@@ -235,7 +235,7 @@ def end_state_verdict(brief) -> str:
     if not brief:
         return ""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         choice, _info = _tb.read(brief, END_KEY, "")
         raw = str(choice or "").strip()
         return "" if raw in ("", "none") else raw

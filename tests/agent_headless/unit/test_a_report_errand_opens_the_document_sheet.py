@@ -162,7 +162,7 @@ def test_without_a_dispatcher_the_sheet_fails_soft(doc_data):
 
 # ── the worker's delivery contract flips ────────────────────────────────────────────────────────────────────
 def test_the_report_block_sends_the_worker_to_documento_and_away_from_results():
-    from nucleo.dispatch_prompts import DOC_SURFACE_BLOCK as b
+    from nucleo.workers.prompts import DOC_SURFACE_BLOCK as b
     assert "documento" in b and "append" in b
     assert re.search(r"NO entregues en `results`", b), "without the prohibition, step 4b still wins"
     assert "Elaborando el informe" in b, "the operator asked for this exact phase before the writing starts"
@@ -182,6 +182,7 @@ def test_dispatch_wires_every_doc_branch_the_sheet_already_has():
     # V2-661: the prompt BLOCKS a trusted worker gets (this one + the library block) compose in one place,
     # `dispatch_prompts.trusted_blocks`; dispatch calls it. The guard follows the CHANNEL (V2-555).
     assert "trusted_blocks(getattr(rec, \"surface\", \"\"))" in _DISPATCH_SRC
-    _PROMPTS_SRC = (pathlib.Path(__file__).resolve().parents[3] / "nucleo" / "dispatch_prompts.py").read_text(
-        encoding="utf-8")
-    assert "DOC_SURFACE_BLOCK" in _PROMPTS_SRC and "opens_doc(surface" in _PROMPTS_SRC
+    from nucleo import surfaces
+    from nucleo.workers import prompts
+    assert prompts.DOC_SURFACE_BLOCK in prompts.trusted_blocks(surfaces.DOC)
+    assert prompts.DOC_SURFACE_BLOCK not in prompts.trusted_blocks(surfaces.LIST)

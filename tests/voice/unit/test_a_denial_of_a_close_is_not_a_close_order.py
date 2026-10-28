@@ -28,7 +28,9 @@ from nucleo.acts import canvas as _door
 
 import threading
 
-from nucleo.flash import canvas_license, router_guards, turn_brief
+from nucleo.flash import canvas_license, router_guards
+
+from nucleo.turn import brief as turn_brief
 
 
 def _brief(canvas: str | None, conf: float = 0.95, kind: str | None = "complaint"):

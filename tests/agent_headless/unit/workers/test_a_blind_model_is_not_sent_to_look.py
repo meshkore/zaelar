@@ -25,7 +25,7 @@ import os
 import pytest
 
 from nucleo.cli import nav as nav_cli
-from nucleo.dispatch_prompts import _web_prompt
+from nucleo.workers.prompts import _web_prompt
 from nucleo.workers import providers
 
 

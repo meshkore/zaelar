@@ -9,7 +9,9 @@ from __future__ import annotations
 import pathlib
 import threading
 
-from nucleo.flash import close_guards as _cg, turn_brief as _tb
+from nucleo.flash import close_guards as _cg
+
+from nucleo.turn import brief as _tb
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[4]
 OPEN = ["results::48ac70-3"]

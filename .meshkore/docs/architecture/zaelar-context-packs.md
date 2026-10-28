@@ -4,7 +4,7 @@
 kinds of prompt it is. Three of them already had a home; this is the fourth, and putting a phase instruction
 in one of the other three is a specific, repeatable defect.
 
-Code: `nucleo/context_packs/`. Seam: `nucleo/flash/prompt.py::build_flash_system`.
+Code: `nucleo/turn/prompt/packs/`. Seam: `nucleo/flash/prompt.py::build_flash_system`.
 
 ---
 

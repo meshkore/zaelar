@@ -108,7 +108,7 @@ def verdict_denies_show(brief) -> bool:
     """Did the brief SURELY read the canvas as anything but a show (neither, close…)? Then a show grammar's guess
     over the same words is overruled (V2-807 T-06; CRIT-K1). Absent or unsure verdict → False, today's path."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         verb, info = _tb.read(brief, _tb.CANVAS_KEY, "")
         return bool(isinstance(info, dict) and info.get("used")) and str(verb or "") not in ("", "show")
     except Exception as e:  # noqa: BLE001
@@ -273,7 +273,7 @@ def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None, clarif
         return ""
     # Several cards of the piece open and no word to tell them apart: the close ASKS which (node 2.645). `rid` is
     # returned so the turn counts the call as handled — its answer is the question in `clarify`, never a close.
-    from nucleo.flash import close_which as _close_which
+    from nucleo.acts import close_target as _close_which
     _act, _q = _close_which.probe_action(args, rid, text) if clarify is not None else ("", "")
     if _q:
         clarify["msg"] = _q
@@ -446,7 +446,7 @@ def resolve_canvas_verb(handle: dict | None, *, min_confidence: float | None = N
     mc = _jev.MIN_CONFIDENCE if min_confidence is None else min_confidence
     verdict = _jev.peek(handle)
     if isinstance(verdict, dict) and "_latency_ms" in verdict:      # a brief, not a lone question
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         return _jev.read(handle, _tb.CANVAS_KEY, "neither", min_confidence=mc)
     return _resolve_canvas_verb_single(handle, min_confidence=mc)
 

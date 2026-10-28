@@ -19,7 +19,7 @@ from nucleo.flash import card_commission as cc
 @pytest.fixture
 def catalogue(monkeypatch):
     from nucleo import jev
-    from nucleo.flash import turn_brief
+    from nucleo.turn import brief as turn_brief
     calls: list = []
     answer = {"v": {"choice": "musica", "confidence": 0.44}}
     monkeypatch.setattr(turn_brief, "catalog_question", lambda: {"instructions": "i", "criteria": {"musica": "m"}})

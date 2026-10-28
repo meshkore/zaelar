@@ -27,7 +27,7 @@ import pytest
 
 from nucleo.actionmap import executor
 from nucleo.flash import router_catalog
-from nucleo.flash.panel_canon import canon_panel
+from nucleo.turn.prompt.catalogs import canon_panel
 from widgets import runtime
 
 ENGINE = Path(__file__).resolve().parents[3]
@@ -61,7 +61,7 @@ def test_a_named_widget_is_never_stolen_by_the_catalogue(phrase, widget):
     ("abre mis widgets personalizados", "apps-custom"), ("Enséñame el catálogo de aplicaciones.", "apps"),
 ])
 def test_asking_for_HIS_widgets_opens_the_custom_sub_tab(phrase, tab):
-    from nucleo.flash.panel_canon import apps_tab
+    from nucleo.turn.prompt.catalogs import apps_tab
     assert apps_tab(phrase) == tab
 
 
@@ -90,7 +90,7 @@ def test_the_video_cards_own_catalogue_is_not_this_one():
 
 def test_the_provider_routes_the_surface_to_the_panel():
     """Source anchors, because the branch lives in the middle of the provider's streaming loop: a named surface
-    that is a TAB of the wall is forwarded through ONE reader (`panel_canon.wall_tab_for`)."""
+    that is a TAB of the wall is forwarded through ONE reader (`catalogs.wall_tab_for`)."""
     prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
     assert "elif _wall_tab_for(_sys, text):" in prov
     assert 'emit("panel", "open", extra={"tab": _wall_tab_for(_sys, text), "src": "flash"})' in prov
@@ -111,7 +111,7 @@ def test_a_promise_to_open_the_tab_with_no_tool_opens_it():
     ("chat", "abre el chat", "chat"), ("config", "abre los ajustes", ""), (None, "hola", ""),
 ])
 def test_only_a_tab_of_the_wall_becomes_a_panel_event(sid, phrase, tab):
-    from nucleo.flash.panel_canon import wall_tab_for
+    from nucleo.turn.prompt.catalogs import wall_tab_for
     assert wall_tab_for(sid, phrase) == tab
 
 
@@ -163,7 +163,7 @@ def test_the_packs_were_versioned_so_existing_installs_import_them():
     ("abre el chat", "chat"),
 ])
 def test_an_order_that_names_the_tab_is_decided_by_the_name(phrase, tab):
-    from nucleo.flash.wall_lane import named_wall_tab
+    from nucleo.acts.wall_tab import named_wall_tab
     assert named_wall_tab(phrase) == tab
 
 
@@ -172,7 +172,7 @@ def test_an_order_that_names_the_tab_is_decided_by_the_name(phrase, tab):
     "cierra las apps", "hazme un widget de recetas", "crea una app de notas", "no me abras las apps",
 ])
 def test_the_lane_leaves_everything_else_to_the_model(phrase):
-    from nucleo.flash.wall_lane import named_wall_tab
+    from nucleo.acts.wall_tab import named_wall_tab
     assert named_wall_tab(phrase) == "", phrase
 
 

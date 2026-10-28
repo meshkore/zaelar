@@ -161,7 +161,7 @@ async def small_talk(brain, text: str, emit, *, first_turn: bool, window_max: in
     # al inicio», and it belongs HERE rather than inside the pack: the pack writes prompt, and a lane that
     # never reaches a model would not read it.
     try:
-        from nucleo import context_packs
+        from nucleo.turn.prompt import packs as context_packs
         if context_packs.active_ids():
             return False
     except Exception:  # noqa: BLE001
@@ -276,12 +276,12 @@ _ACKS: set = set()   # the receipts in flight — a reference so the loop does n
 # ── WALL TAB lane (V2-761) ───────────────────────────────────────────────────────────────────────────────
 # «Ábreme la lista de widgets» names a tab of the wall with certainty; the model called `show_panel` for it 10-13
 # times in 18 and otherwise refused, promised with nothing behind it, or spent a worker listing what the tab
-# already shows. The verdict lives in `nucleo/flash/wall_lane.py` (the probe reads the same one).
+# already shows. The verdict lives in `nucleo/acts/wall_tab.py` (the probe reads the same one).
 async def wall_tab(brain, text: str, emit, *, first_turn: bool, window_max: int) -> bool:
     """Open the wall on the tab his words name, without the model. False = not such an order → turn untouched."""
     if first_turn or (getattr(brain, "_acc", None) and brain._acc.fragments):
         return False
-    from nucleo.flash.wall_lane import named_wall_tab
+    from nucleo.acts.wall_tab import named_wall_tab
     tab = named_wall_tab(text)
     if not tab:
         return False

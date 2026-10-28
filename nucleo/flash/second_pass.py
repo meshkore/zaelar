@@ -67,7 +67,7 @@ async def recall_spoken(text: str, query: str, spec, emit, speak) -> str | None:
     import asyncio as _asyncio
     import time as _time
 
-    from nucleo.flash import prompt as _prompt_mod
+    from nucleo.turn.prompt import builder as _prompt_mod
     from nucleo.flash import recall_heuristics as _rh
     emit("brain", "🧠 recall por tool", text=query, role="system")
     _t = _time.time()
@@ -103,7 +103,8 @@ async def recall_answer(text: str, query: str, spec, sanitize=None) -> str:
     post-processor (the probe passes speech+dialog's), so this module never reaches into the motor for one —
     the dependency-direction ratchet (7.32) caught exactly that import here on its second day of life."""
     try:
-        from nucleo.flash import dialog, prompt as _prompt, recall_heuristics as _rh
+        from nucleo.flash import dialog, recall_heuristics as _rh
+        from nucleo.turn.prompt import builder as _prompt
         rblock, _ = await asyncio.to_thread(_prompt.compose_recall, query)
         if not (rblock or "").strip() and _rh.names_thread_position(text):
             # fix02, SAME rule as the voice half above and no wider (review 2026-09-20): the turn points at
@@ -128,7 +129,8 @@ async def bare_ack_repair(operator_text: str, window: list, spec) -> str:
     """The missing answer, composed with the recent window as context. Returns "" on any failure — the caller
     keeps what it had rather than crashing a live turn over a repair."""
     try:
-        from nucleo.flash import dialog, prompt as _prompt
+        from nucleo.flash import dialog
+        from nucleo.turn.prompt import builder as _prompt
         ctx = "\n".join(f"{m.get('role', '?')}: {str(m.get('content', ''))[:300]}"
                         for m in (window or [])[-8:] if isinstance(m, dict))
         sys2 = (_prompt._lang_lock()
@@ -151,7 +153,8 @@ async def empty_wait_repair(operator_text: str, window: list, spec) -> str:
     answers with what it has or says honestly what it would need to do, instead of promising ghost work.
     Returns "" on any failure — the caller keeps what it had."""
     try:
-        from nucleo.flash import dialog, prompt as _prompt
+        from nucleo.flash import dialog
+        from nucleo.turn.prompt import builder as _prompt
         ctx = "\n".join(f"{m.get('role', '?')}: {str(m.get('content', ''))[:300]}"
                         for m in (window or [])[-8:] if isinstance(m, dict))
         sys2 = (_prompt._lang_lock()
@@ -174,7 +177,8 @@ async def mute_cover_repair(operator_text: str, window: list, spec) -> str:
     honestly; it may never leave the lead-in hanging. Returns "" on any failure — the caller then speaks
     the deterministic closer instead, because this turn ending mute is the one outcome that cannot happen."""
     try:
-        from nucleo.flash import dialog, prompt as _prompt
+        from nucleo.flash import dialog
+        from nucleo.turn.prompt import builder as _prompt
         ctx = "\n".join(f"{m.get('role', '?')}: {str(m.get('content', ''))[:300]}"
                         for m in (window or [])[-8:] if isinstance(m, dict))
         sys2 = (_prompt._lang_lock()
@@ -236,7 +240,8 @@ async def promise_repair(operator_text: str, reply: str, window: list, spec, emi
     or the read comes back empty — the caller then speaks the deterministic retraction, because a promise
     that stays in the air is the one outcome that cannot happen."""
     try:
-        from nucleo.flash import dialog, prompt as _prompt, widget_read as _wread
+        from nucleo.flash import dialog, widget_read as _wread
+        from nucleo.turn.prompt import builder as _prompt
         # HIS sentence is the order; the reply only echoes it, and can name more than one card (full38 Z1: «what's
         # on my plate tomorrow» → «let me pull up your day and your messages» read the MESSAGES). His words first,
         # then the catalogue on his words, and the reply's naming last.
@@ -354,7 +359,8 @@ async def answered_from_state(verdict: dict | None, operator_text: str, window: 
     if not verdict or verdict.get("disposition") != "answered":
         return ""
     try:
-        from nucleo.flash import dialog, prompt as _prompt
+        from nucleo.flash import dialog
+        from nucleo.turn.prompt import builder as _prompt
         ctx = "\n".join(f"{m.get('role', '?')}: {str(m.get('content', ''))[:300]}"
                         for m in (window or [])[-8:] if isinstance(m, dict))
         sys2 = (_prompt._lang_lock()

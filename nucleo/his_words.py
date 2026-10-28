@@ -26,7 +26,7 @@ _ring: list[tuple[float, str]] = []
 def note(text: str, *, ts: float | None = None) -> None:
     """Record one operator turn. A turn that is only system notes records nothing."""
     try:
-        from nucleo.flash.escalate import strip_system_notes
+        from nucleo.acts.errand import strip_system_notes
         t = strip_system_notes(str(text or ""))
     except Exception:  # noqa: BLE001 — unreadable notes: keep nothing rather than a note as his words
         return

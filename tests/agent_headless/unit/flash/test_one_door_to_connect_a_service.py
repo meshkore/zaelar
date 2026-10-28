@@ -9,7 +9,7 @@ turn), by a known phrase (the action map) and by hand (`ctx.openConnector`).
 
 Three things are pinned here, each disarm-proved:
   1. the connector argument — an id, a product name, a word in ES or EN — lands on the
-     catalog id the section knows (`nucleo/flash/connector_canon.py`), '' for garbage;
+     catalog id the section knows (`nucleo/turn/prompt/catalogs.py`), '' for garbage;
   2. no widget keeps a connect door (a ratchet over `widgets/*/manifest.json` and `actions.py`/`data.py`);
   3. a browser «login» to Spotify / WhatsApp / Telegram / email is redirected to the section and NEVER opens a browser.
 """
@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo.flash import connector_canon as CC
+from nucleo.turn.prompt import catalogs as CC
 from nucleo.flash import router
 from nucleo.flash import tool_executor_calls as TEC
 from nucleo.flash import web_auth
@@ -301,7 +301,7 @@ def test_the_voice_arm_reads_the_shared_decision():
     """The voice arm reads `web_auth.decide`, the one table of WHICH services are redirected (V2-176)."""
     import inspect
     assert "web_auth" in inspect.getsource(TEC._t_authenticate_web) and ".decide(" in inspect.getsource(TEC._t_authenticate_web)
-    assert "connector_canon" in inspect.getsource(TEC._t_authenticate_web), "the arm no longer names the connector"
+    assert "canon_connector" in inspect.getsource(TEC._t_authenticate_web), "the arm no longer names the connector"
     for site, text, kind in [("spotify", "conéctame a Spotify", web_auth.KIND_MUSIC),
                              ("telegram", "vincula mi Telegram", web_auth.KIND_MESSAGING),
                              ("gmail.com", "conéctame a mi Gmail", web_auth.KIND_MESSAGING)]:

@@ -48,7 +48,7 @@ def test_before_worker_spends_the_tool_not_the_worker(monkeypatch):
 
 
 def test_the_viewer_criterion_names_the_wallpaper_before_the_cut():
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     crit = tb.catalog_question()["criteria"]["imagenes"]
     assert "wallpaper" in crit.lower() and "fondo de escritorio" in crit.lower()
 

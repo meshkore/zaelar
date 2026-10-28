@@ -13,7 +13,7 @@ import pytest
 from memory import db as memdb
 from memory import tasks_store as ts
 from nucleo.request import model as rq
-from nucleo.flash import task_block as tb
+from nucleo.turn.prompt import live_history
 
 
 @pytest.fixture(autouse=True)
@@ -43,7 +43,7 @@ def test_the_finished_list_and_the_inline_requests_are_facts_in_the_prompt():
                  "state": "done", "parent_id": "lista:1", "finished_at": int(now - 3800)})
     _inline("show me a red ferrari f40", "imagenes", "show", "met", "12 fotos")
     _inline("play the second one", "youtube", "play_result", "unmet", "No hay resultados de búsqueda")
-    [line] = tb.recent_lines(now=now + 5)
+    [line] = live_history.recent_lines(now=now + 5)
     assert "26 × Assistant identity» · HECHA · hace 61 min" in line
     assert "«show me a red ferrari f40» · HECHA (comprobado en pantalla)" in line
     assert "«play the second one» · FALLÓ (no se cumplió)" in line
@@ -57,8 +57,8 @@ def test_six_lines_at_most_and_bounded_in_size():
     now = time.time()
     for i in range(10):
         _inline(f"request number {i} " + "x" * 80, "agenda", "add_meeting", "met", "y" * 120)
-    [line] = tb.recent_lines(now=now + 5)
-    assert line.count(" | ") <= tb.RECENT_MAX - 1 and len(line) <= tb.RECENT_MAX_CHARS + 200
+    [line] = live_history.recent_lines(now=now + 5)
+    assert line.count(" | ") <= live_history.RECENT_MAX - 1 and len(line) <= live_history.RECENT_MAX_CHARS + 200
 
 
 def test_a_waiting_request_quotes_its_question():
@@ -66,7 +66,7 @@ def test_a_waiting_request_quotes_its_question():
     ts.task_put({"id": "w1", "title": "Book a table at Botín", "goal": "book", "kind": "web", "state": "waiting",
                  "created_at": int(now - 60), "started_at": int(now - 60)})
     ts.task_patch("w1", progress={"ask": "For how many people?"})
-    [line] = tb.recent_lines(now=now)
+    [line] = live_history.recent_lines(now=now)
     assert "ESPERA TU RESPUESTA" in line and "te preguntó: «For how many people?»" in line
 
 
@@ -78,20 +78,20 @@ def test_old_rows_and_a_running_worker_are_left_to_their_own_blocks(monkeypatch)
     monkeypatch.setattr(dispatch, "active_sessions", lambda: [{"uid": "live1", "status": "running"}])
     ts.task_put({"id": "live1", "title": "monitors", "goal": "g", "kind": "web", "state": "running",
                  "created_at": int(now - 30)})
-    assert tb.recent_lines(now=now) == []
+    assert live_history.recent_lines(now=now) == []
 
 
 def test_a_new_process_reads_what_the_last_one_did():
     """3.112 — nothing in RAM: the rows alone make the block (a restart, an hour of silence)."""
     _inline("move the call to four", "agenda", "move_meeting", "met")
     memdb.reset_db(); memdb.get_db()        # a fresh connection over the same file, as after a restart
-    [line] = tb.recent_lines()
+    [line] = live_history.recent_lines()
     assert "move the call to four" in line
 
 
 def test_reopening_a_task_never_offers_an_inline_request():
     """M5 — `reopen_task` reopens REPORTS; a session's thirty agenda adds must not turn it into a question."""
-    from nucleo.flash import task_recall
+    from nucleo.turn import task_recall
     for i in range(4):
         _inline(f"add the flat viewing number {i} to my calendar", "agenda", "add_meeting", "met")
     ts.task_put({"id": "w-flat", "title": "Find a flat to rent in Madrid", "goal": "find me a flat in Madrid",
@@ -104,6 +104,6 @@ def test_a_live_errand_with_a_third_party_is_left_to_its_own_block():
     now = time.time()
     ts.task_put({"id": "e1", "title": "Meeting with Iván", "goal": "arrange a meeting", "kind": "encargo",
                  "state": "waiting", "created_at": int(now - 60)})
-    assert tb.recent_lines(now=now) == []
+    assert live_history.recent_lines(now=now) == []
     ts.task_patch("e1", state="done", finished_at=int(now))
-    assert "Meeting with Iván" in tb.recent_lines(now=now)[0]
+    assert "Meeting with Iván" in live_history.recent_lines(now=now)[0]

@@ -17,8 +17,8 @@ from __future__ import annotations
 import asyncio
 import os
 
-from .fast_client import FastClient, ModelSpec
-from .prompt import build_cluster_system
+from nucleo.llm.fast_client import FastClient, ModelSpec
+from nucleo.turn.prompt.builder import build_cluster_system
 
 # Tope of time of the turn of cluster. Off-voice no there is presion of latencia of time real, PERO the tier can ser a
 # RAZONADOR that a veces tarda: without cap, a turn colgaria the task of the bridge. Cap generoso but acotado; al trigger
@@ -32,7 +32,7 @@ def _gated_tools_and_handler(tool_names, escalate_ctx):
     of action concedida a a peer: `escalate_to_slowbrain` → a worker ACOTADO (the contexto `escalate_ctx` lleva
     trusted=False + dev/repo/execute, it enforcea `dispatch`). Sin duplicar router ni escalate."""
     from .router import TOOLS
-    from .escalate import escalate_to_slowbrain
+    from nucleo.acts.errand import escalate_to_slowbrain
     names = set(tool_names or ())
     tools = [t for t in TOOLS if t.get("function", {}).get("name") in names]
     if not tools:

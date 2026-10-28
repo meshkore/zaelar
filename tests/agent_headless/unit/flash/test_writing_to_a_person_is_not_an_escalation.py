@@ -76,14 +76,14 @@ def test_the_catalog_still_fits_its_ceiling():
 # ── the worker's method ─────────────────────────────────────────────────────────────────────────────────
 
 def test_the_worker_is_told_the_connected_widget_is_the_source():
-    from nucleo import dispatch_prompts as dp
+    from nucleo.workers import prompts as dp
     text = _norm(dp._METHOD_BLOCK)
     assert "es la fuente" in text and "la agenda es el calendario" in text
     assert "solo espejos" not in text and "nunca el objetivo" not in text
 
 
 def test_the_worker_operates_a_connected_widget_with_the_cli_never_its_web():
-    from nucleo import dispatch_prompts as dp
+    from nucleo.workers import prompts as dp
     text = _norm(dp._METHOD_BLOCK)
     assert "nunca conduciendo su web" in text
 
@@ -105,12 +105,15 @@ def test_the_phantom_data_op_still_is():
 # ── the four surfaces agree, structurally ───────────────────────────────────────────────────────────────
 
 def test_no_prompt_surface_teaches_the_mirror_doctrine_any_more():
-    """Source-level: the word that named the retired doctrine may survive in comments explaining WHY it was
-    retired, never in a string the model reads."""
-    for rel in ("nucleo/flash/router_catalog.py", "nucleo/dispatch_prompts.py"):
-        src = (ENGINE / rel).read_text(encoding="utf-8")
-        code = re.sub(r"(?m)^\s*#.*$", "", src)                       # drop comment lines
-        strings = re.findall(r'"([^"\n]*)"', code)
-        offenders = [x for x in strings if re.search(r"\bespejos?\b", x, re.I) and "solo nombra" not in x
-                     and "hecho fuera" not in x.lower()]
-        assert not offenders, f"{rel} still teaches the mirror doctrine: {offenders[:3]}"
+    """The word that named the retired doctrine never appears in what a model READS: the tool catalog and the
+    worker briefs as rendered (refactor2710-08: rendered, not the modules' source)."""
+    import json
+    from nucleo.flash import router_catalog
+    from nucleo.workers import prompts
+    surfaces = {"tools": json.dumps(router_catalog.TOOLS, ensure_ascii=False),
+                "web": prompts._web_prompt("escríbele a Marta que llego tarde", ""),
+                "generic": prompts._build_prompt("escríbele a Marta que llego tarde", "", True)}
+    for name, text in surfaces.items():
+        offenders = [s for s in re.split(r"(?<=[.!?])\s+", text) if re.search(r"\bespejos?\b", s, re.I)
+                     and "solo nombra" not in s and "hecho fuera" not in s.lower()]
+        assert not offenders, f"{name} still teaches the mirror doctrine: {offenders[:3]}"

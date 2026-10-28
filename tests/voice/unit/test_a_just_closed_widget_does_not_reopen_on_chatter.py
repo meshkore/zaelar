@@ -96,14 +96,14 @@ def _brief_reading(verdicts: dict):
 def test_a_show_of_the_card_the_verdict_closes_is_a_closing_turn(monkeypatch):
     """«Stop it and close the video widget»: canvas=close (1.00), screen_action=youtube:close (0.97); the player
     closed and the model still called show_widget(youtube). The text guard saw nothing; the verdict does."""
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "close", tb.TARGET_KEY: "youtube:close"}))
     assert _door.show_under_close(brief=object(), wid="youtube", words=False) is True, "THE BUG: the card came straight back"
     assert _door.show_under_close(brief=object(), wid="agenda", words=False) is False, "a close naming another card leaves this show alone"
 
 
 def test_a_close_naming_nobody_shows_nothing_and_any_other_verdict_shows(monkeypatch):
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "close", tb.TARGET_KEY: "none"}))
     assert _door.show_under_close(brief=object(), wid="youtube", words=False) is True
     monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "show"}))
@@ -129,7 +129,7 @@ def test_the_paid_verdict_naming_the_card_reopens_it_at_the_door(monkeypatch):
     """refactor2710-04b T-03 — the door reads the turn's verdict before any word: a sure `canvas=show` whose catalogue
     names the just-closed card brings it back even when his words alone resolve to nothing; one naming another card
     does not. Disarm: `_shows_this` → False and the first assertion goes red."""
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     _fresh(monkeypatch)
     lic.note_operator_close("youtube")
     monkeypatch.setattr(tb, "read", _brief_reading({tb.CANVAS_KEY: "show", tb.CATALOG_KEY: "youtube"}))

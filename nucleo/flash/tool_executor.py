@@ -23,7 +23,7 @@ from nucleo.flash import (build_decision as _build_decision, canvas_license as _
                           image_turn as _image_turn,
                           show_target as _show_target, video_turn as _video_turn)
 from nucleo.flash import tool_executor_widget as _widget_half
-from nucleo.flash.panel_canon import wall_tab_for as _wall_tab_for
+from nucleo.turn.prompt.catalogs import wall_tab_for as _wall_tab_for
 from nucleo.flash.surface_ack import saved_state_is_empty as _surface_is_empty
 from voice import brain_notes as _bnotes
 

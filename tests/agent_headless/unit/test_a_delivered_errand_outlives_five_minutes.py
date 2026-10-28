@@ -37,7 +37,7 @@ def _ended(tid: str, goal: str, *, ok: bool = True, status: str = "done", ago: f
 
 
 def _block() -> str:
-    from nucleo.flash import prompt as _p
+    from nucleo.turn.prompt import live_state as _p
     return next((ln for ln in _p.live_state().splitlines() if ln.startswith("TAREAS DE FONDO — YA ACABADAS")), "")
 
 

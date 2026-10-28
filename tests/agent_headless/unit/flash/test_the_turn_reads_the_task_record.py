@@ -16,7 +16,7 @@ import pytest
 from memory import db as memdb
 from memory import tasks_store as ts
 from nucleo import dispatch
-from nucleo.flash import prompt
+from nucleo.turn.prompt import live_state as prompt
 
 
 @pytest.fixture

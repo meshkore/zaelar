@@ -18,7 +18,7 @@ import threading
 import pytest
 
 from nucleo.flash import data_ops as RG
-from nucleo.flash import turn_brief as tb
+from nucleo.turn import brief as tb
 
 
 def _brief(probs: dict) -> dict:

@@ -37,7 +37,7 @@ def starting(existing: list[dict]) -> list[dict]:
     """Escalations asked in the last `STARTING_S` seconds that no live or parked errand is yet. Never raises."""
     out: list[dict] = []
     try:
-        from nucleo.flash import escalate as _esc
+        from nucleo.acts import errand as _esc
         for t in _esc.pending():
             req = str(t.get("request") or "")
             if req and int(t.get("secs") or 0) <= STARTING_S and not _already(req, existing + out):

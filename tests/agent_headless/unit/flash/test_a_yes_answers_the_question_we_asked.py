@@ -11,7 +11,9 @@ import pathlib
 import threading
 from types import SimpleNamespace
 
-from nucleo.flash import dialog, escalation_guard as _eg, prior_line, turn_brief as _tb
+from nucleo.flash import dialog, escalation_guard as _eg, prior_line
+
+from nucleo.turn import brief as _tb
 from nucleo.flash import tool_executor_calls as _calls
 
 _ENGINE = pathlib.Path(__file__).resolve().parents[4]

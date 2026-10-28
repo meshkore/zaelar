@@ -13,7 +13,7 @@ import threading
 
 import pytest
 
-from nucleo.flash import named_target as NT
+from nucleo.acts import named_target as NT
 
 THREE = ["youtube", "musica", "agenda"]
 

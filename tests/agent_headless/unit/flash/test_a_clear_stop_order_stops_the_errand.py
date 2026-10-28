@@ -19,7 +19,7 @@ import pytest
 
 from nucleo.request import stop as sd
 from nucleo.flash import tool_executor_calls as _calls
-from nucleo.flash import turn_brief as _tb
+from nucleo.turn import brief as _tb
 
 #: Stop orders in several languages and word orders — the grammar below is told it read NONE of them.
 STOP_BANK = [
@@ -113,7 +113,7 @@ def test_the_question_is_asked_only_while_an_errand_runs(monkeypatch):
     monkeypatch.setattr(jev, "enabled", lambda: False, raising=False)
     with_worker = _tb.build("para esa tarea", has_workers=True, last_reply="¿La paro?")
     assert sd.KEY in with_worker and "¿La paro?" in with_worker[sd.KEY]["instructions"]
-    assert set(with_worker[sd.KEY]["criteria"]) == {"stop", "replace", "steer", "keep"}   # V2-820
+    assert set(with_worker[sd.KEY]["criteria"]) == {"stop", "stop_all", "replace", "steer", "keep"}   # V2-820; refactor2710-06: stop_all
     assert sd.KEY not in _tb.build("para esa tarea", has_workers=False)
 
 

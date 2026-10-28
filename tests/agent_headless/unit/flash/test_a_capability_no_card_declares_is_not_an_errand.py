@@ -18,7 +18,7 @@ import threading
 import pytest
 
 from nucleo.flash import capability_gap as G
-from nucleo.flash import escalate as E
+from nucleo.acts import errand as E
 
 
 def _brief(choice: str, conf: float) -> dict:
@@ -71,7 +71,7 @@ def test_only_this_turns_verdict_and_only_turn_born_errands_are_judged(portal):
 
 def test_the_question_is_asked_over_what_the_cards_declare():
     from nucleo.flash import frontend as fe
-    from nucleo.flash import turn_brief as tb
+    from nucleo.turn import brief as tb
     q = G.question(["agenda"])
     assert q and set(q["criteria"]) == {G.MISSING, G.DECLARED, G.WORK}
     declared = list(fe.declared_actions("agenda"))

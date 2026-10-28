@@ -31,14 +31,9 @@ from nucleo.cli import usage as bridge_usage
 _BASE = os.getenv("ZAELAR_BASE", "http://localhost:43917").rstrip("/")
 
 
-#: How long we wait for one browser action before giving up on the ANSWER (not on the action). The error
-#: message NAMES this number, so it lives once: two literals drift and then the hint states a wrong figure.
-# The browser is a DIRECT CONNECTION: an action that works completes in seconds. Measured against the
-# live test rig on a real site: `navigate` 4.2 s · `look` 4.2 s · `extract` 0.05 s. It was 90 —twenty
-# times the real cost— and that is not “ample margin”: a hang consumes a third of the round before anyone notices.
-# Measured on 2026-08-24 in `search-buy-guitar__es`: 90 of 250 seconds in a `type` that HAD ALREADY WRITTEN the
-# text. Operator rule that same day: “there are no ninety-second timeouts under any circumstances.” 25 s is still
-# six times the real cost; it is not enough to conceal a hang.
+#: How long we wait for one browser ANSWER (not the action). The error message names this number, so it lives once.
+#: A working action takes seconds (measured: navigate/look 4.2 s, extract 0.05 s); 25 s is six times that and too
+#: short to conceal a hang — no ninety-second timeouts.
 _ACT_TIMEOUT_S = 25
 
 
@@ -61,23 +56,11 @@ def _act(action: str, args: dict) -> dict:
 def _transport_error(e: Exception, action: str) -> str:
     """What went wrong AND how to get out of it — because this CLI is the worker's whole view of this side.
 
-    Measured on `search-secondhand-monitor__es` (2026-08-24 00:56): two `🧭 navegador ⚠️ error` reading
-    «Exit code 1 ERROR: timed out», ninety seconds apart, and the round delivered zero results after having
-    reached the right page. `str(socket.timeout())` is literally the two words «timed out» — true, and it
-    says nothing about what to do. Same family as V2-203/V2-212/V2-248 and the same contract as node 4.20:
-    what the bridge knows, it SAYS, and a failure also says how to get out of it.
-
-    The distinction that changes what the worker does next, and it is the whole point of splitting these:
-
-      · TIMEOUT — we gave up on the ANSWER; the action may well still be RUNNING in the browser. The
-        natural reaction is to repeat it, and repeating is the one thing that cannot work: it queues a
-        second action on a browser that is already busy. The way out is to LOOK at where the page actually
-        ended up.
-      · UNREACHABLE — the engine is not answering at all. Nothing in the browser will move, so retrying the
-        same command forever is what a worker does when nobody tells it otherwise.
-
-    Anything else keeps its own text: inventing a diagnosis for a failure we did not anticipate is how a
-    hint stops being information (V2-248's lesson — reject rather than guess).
+    A bare «timed out» says nothing about what to do (node 4.20: a failure also says how to get out of it).
+      · TIMEOUT — we gave up on the ANSWER; the action may still be RUNNING. Repeating it queues a second action
+        on a busy browser, so the way out is to LOOK at where the page ended up.
+      · UNREACHABLE — the engine is not answering; nothing will move, so stop retrying and deliver.
+    Anything else keeps its own text: no invented diagnosis (V2-248 — reject rather than guess).
     """
     txt = str(e) or e.__class__.__name__
     low = txt.lower()
@@ -93,147 +76,11 @@ def _transport_error(e: Exception, action: str) -> str:
     return txt
 
 
-def _sees() -> bool:
-    """Does the model driving this session read images? The serving stage declares this
-    (`nucleo/workers/providers.vision_env`) and it arrives through the environment, which this CLI inherits from the worker.
-
-    **Absent = yes**, the established behavior: an incorrect “cannot see” leaves a worker that could see blind,
-    and that is a silent failure; an incorrect “can see” costs one failed `Read`, and the worker continues via the DOM."""
-    return (os.environ.get("ZAELAR_NAV_VISION") or "").strip().lower() not in ("0", "false", "no")
-
-
-#: Playwright failures encountered by the worker that do NOT say what to do. The raw message is preserved —it is
-#: accurate and helps whoever debugs it— and the way out is appended, which is the only thing missing for the worker.
-_QUE_HACER = (
-    ("not attached to the dom",
-     "El elemento ya no existe: la página se ha redibujado desde que miraste. Haz `look` otra vez y usa un "
-     "ref del listado NUEVO — repetir el mismo número volverá a fallar."),
-    ("element is not a <select>",
-     "Eso no es un desplegable de verdad: muchos sitios los dibujan con divs. Haz `look` y haz `click` en el "
-     "control y luego en la opción, como haría una persona."),
-    ("timeout", "La página no ha contestado a tiempo. NO repitas la misma acción —se encolaría encima—: haz "
-                "`look` para ver dónde ha quedado y decide desde ahí."),
-)
-
-
-def _salida(error: str) -> str:
-    """What to do next if this error has a known way out. `` if it does not.
-
-    Measured on 2026-08-28 on the 24/7 test rig: **seven** `click` calls against dead elements (“Element is not
-    attached to the DOM”) across two rounds, and the message said nothing else. Its sibling —the ref outside the
-    view— has always said so (“Run `look` … do not invent refs or retry the same one”), and that asymmetry has no
-    justification: both are the same problem, an expired ref.
-    """
-    low = (error or "").lower()
-    for aguja, salida in _QUE_HACER:
-        if aguja in low:
-            return salida
-    return ""
-
-
-def _print_state(res: dict) -> None:
-    if not res.get("ok"):
-        _err = str(res.get("error") or res.get("msg") or "desconocido")
-        _sal = _salida(_err)
-        print("ERROR: " + _err + (f" · {_sal}" if _sal else ""))
-        return
-    if "listings" in res:
-        print(json.dumps(res.get("listings", []), ensure_ascii=False, indent=2))
-        if (res.get("door") or {}).get("note"):          # the sheet's door turned rows away: say which and why
-            print(f"⚠️ SHEET: {res['door']['note']}")
-        return
-    if res.get("msg"):
-        print(res["msg"])
-    # THE TWO FACTS THAT CHANGE WHAT TO DO NEXT GO FIRST — and until now they were thrown away here.
-    # `/api/navegador/act` annotates every response with `wall` (V2-167: the page STOPPED us — anti-bot, CAPTCHA,
-    # load error, «Access Denied» in the body) and with `hint`/`stalled_s` (V2-186: this page has not moved in
-    # minutes). Both were added so the WORKER could act on them, because what comes back through this CLI is the
-    # worker's entire view of the page — and this printer never printed either. Measured across four rounds of
-    # `find-theatre-tickets__es` and `restaurant-tonight-madrid`: fourteen captures of one page over twenty
-    # minutes, a whole run spent against Booking's challenge, and a task reported `done` while the operator was
-    # told “it still had not signaled.” Two fixes that travelled over HTTP and died one line short of their reader.
-    # First, because a worker reads top-down and a wall means «stop trying here», not «keep scrolling».
-    if res.get("wall"):
-        print(f"⛔ MURO: {res['wall']} — esta página NO te va a dejar seguir. No insistas aquí: prueba otro "
-              f"sitio, o si ya tienes algo aprovechable, extráelo y cierra.")
-        # V2-213: and WHICH ONE. “Try another site” without naming one is a wish; the stuck worker is the one that does not know where to go. The alternatives are listed with the host that just blocked us excluded.
-        for _a in (res.get("wall_alts") or [])[:3]:
-            print(f"   → prueba en {_a.get('name', '')}: {_a.get('url', '')}")
-        # V2-470 — when the walls span SEVERAL sites, the browser channel itself is being refused and another
-        # retailer is a treadmill, not an alternative. Measured (`cheapest-monitor__us` round 11): 28
-        # navigations across four walled retailers with `web_search` available the whole time, sheet 0 rows.
-        _streak = res.get("wall_streak") or {}
-        if _streak:
-            _sites = ", ".join(_streak.get("sites") or [])
-            print(f"⛔ RACHA DE MUROS: ya te han bloqueado {_streak.get('n')} veces en varios sitios ({_sites}). "
-                  f"NO sigas navegando para conseguir estos datos: pídelos con la búsqueda web por el puente —\n"
-                  f'   python -m nucleo.cli.bridge act use_tool \'{{"tool":"web_search","args":{{"query":"<qué buscas>"}}}}\'\n'
-                  f"   (los precios y fichas suelen venir en los propios resultados). Si de verdad necesitas la "
-                  f"página, cambia a un dominio que NO esté en la lista de bloqueados.")
-    if res.get("hint"):
-        print(f"⚠️ AVISO: {res['hint']}")
-    print(f"URL: {res.get('url', '')}")
-    if res.get("url_change"):
-        # V2-293 — the DELTA, the only thing the worker cannot deduce: it has the current address, but not the
-        # previous one. It goes NEXT TO the URL and before the elements because it is a consequence of the action
-        # just performed, and the worker reads top to bottom. Measured: it wanted a MAXIMUM price of €150 and the
-        # page switched to `min_sale_price=750` — the filter landed on another field and in the opposite direction,
-        # without saying so.
-        print(f"CAMBIÓ EN LA DIRECCIÓN: {res['url_change']} — es el filtro que la página ha aplicado DE VERDAD. "
-              f"Si no es el que querías, deshazlo o vuelve a intentarlo; no sigas contando con el que pediste.")
-    print(f"TÍTULO: {res.get('title', '')}")
-    # V2-049 VISION: if there is a capture, tell the worker to LOOK at it with Read (the page as a human sees it)
-    # and act by coordinates with click_at/type_at — the robust path for forms/date-pickers/selects.
-    shot = res.get("shot")
-    if shot and not _sees():
-        # V2-289 — the model driving this session does NOT read images, so offering it the capture sends it to a
-        # place from which it can only return empty-handed. Measured with DeepSeek taking over
-        # (`search-buy-guitar__es`, 2026-08-24 11:23): it ran `Read` on the PNG and replied “The capture could not
-        # be read (unsupported format). Continuing via DOM,” and again four steps later — a ~300–530 KB `Read` per
-        # action to rediscover the same thing, plus a narration of the failure for the operator, who had no use for
-        # it. The capture CONTINUES TO BE WRITTEN: it is what the operator sees in the browser card, and that
-        # surface does not depend on who is driving.
-        #
-        # And it SAYS that it is unavailable instead of staying silent, because the text path is what remains and an
-        # name is read as meaning the capture failed (which is something else, with its own warning just below).
-        print("VISTA: no disponible para este modelo (no lee imágenes). Trabaja con los ELEMENTOS de abajo y "
-              "usa click/type con su número [ref] — click_at/type_at piden coordenadas de una captura que no "
-              "puedes mirar.")
-    elif shot:
-        vp = res.get("viewport") or {"width": 1280, "height": 800}
-        print(f"VISTA (captura {vp['width']}×{vp['height']} px — MÍRALA con Read \"{shot}\" y actúa con "
-              f"click_at/type_at usando las coordenadas en píxeles): {shot}")
-    elif res.get("viewport"):
-        # V2-205 — `look` EXISTS to produce a capture, so a `look` that returns none is not «nothing to say»: it
-        # is a failure of the very thing that was asked for. `viewport` is what marks the answer as coming from
-        # that command, so this cannot fire on a plain `snapshot`. Without the line the worker gets `ok` and
-        # silence, which reads as success, and it loses the vision path without ever knowing.
-        print("⚠️ AVISO: la captura no llegó a escribirse, así que NO hay vista que mirar en este paso. "
-              "Sigue con los ELEMENTOS de abajo (camino de texto) o vuelve a intentar `look` tras navegar.")
-    els = res.get("elements") or ""
-    print("ELEMENTOS INTERACTIVOS (usa el número [ref] con click/type):\n" + (els or "(ninguno)"))
-
-
-    # V2-212 — TWO RELATED COMMANDS WITH DIFFERENT SIGNATURES, and the worker mixed them up. Measured in
-# `book-hotel-night-known__es` (2026-08-20 15:29):
-#
-#     Exit code 2 usage: cli.nav type_at [-h] [--submit] x y text
-#     cli.nav type_at: error: argument y: invalid int value: 'Hotel Palacio de la Merced Burgos reservas 3'
-#
-# `type` takes a [ref] from the snapshot and `type_at` takes COORDINATES from the capture: it wrote the text where
-# `y` belongs, exactly what happens when one command's arity is used with the other's name. And argparse's `usage`
-# states the FORM but not the ERROR — the same kind of silent message as V2-203's `informe.json`: it says what
-# failed and nothing about what to do, leaving the worker with nowhere to go.
+# V2-212 — `type` takes a [ref], `type_at` takes COORDINATES; a worker mixing them gets only argparse's `usage`
+# (the FORM, not the error), so `_hint_for` adds what to do.
 _SCROLL_STEP = 800
-# V2-219 — `scroll down` is what a worker writes, and it is not unreasonable: every other tool it has ever
-# driven takes a direction there. Measured FOUR times across TWO unrelated cases the same day
-# (`hotel-under-15-days` and the Bilbao round): `argument dy: invalid int value: 'down'`, Exit code 2, turn
-# burned. Its own manual says `scroll 800`, so it KNOWS the syntax and does not use it — which is the signal
-# that the syntax is the thing that is wrong, not the worker.
-#
-# Accepting the word is not a hardcoded verb table (the thing this repo refuses to build): nothing here is
-# CLASSIFYING intent. The direction is already the argument; this only stops the CLI from rejecting the most
-# natural way to write it.
+# V2-219 — `scroll down` is what a worker writes. Accepting the word classifies no intent: the direction already
+# IS the argument; this only stops the CLI rejecting its most natural spelling.
 _SCROLL_WORDS = {"down": _SCROLL_STEP, "abajo": _SCROLL_STEP, "up": -_SCROLL_STEP, "arriba": -_SCROLL_STEP,
                  "bottom": _SCROLL_STEP * 5, "top": -_SCROLL_STEP * 5}
 
@@ -325,20 +172,9 @@ def main(argv: list[str] | None = None) -> int:
     e = sub.add_parser("extract", help="raspar anuncios/resultados"); e.add_argument("--limit", type=int, default=14)
     v = sub.add_parser("visit", help="abrir UNA ficha en otra pestaña, leerla y cerrarla (NO pierdes el listado)")
     v.add_argument("url"); v.add_argument("--chars", type=int, default=2500)
-    # V2-341 — TWO MORE FORMS THAT THE CLI REJECTED AND THE WORKER WRITES ON ITS OWN. Same rule as V2-306: when
-    # the natural usage is unambiguous, the CLI is the one that is wrong. Measured across ALL test-rig session logs
-    # (41 contract errors involving `cli.nav`):
-    #
-    #     18x  `open <url>`                    <- already closed by V2-306; the 18 are earlier
-    #      5x  `cli.nav <url>` without a verb  <- a standalone URL can only be `navigate`
-    #      5x  `type_at <ref> "text"`         <- confusing `type` (ref) with `type_at` (coordinates)
-    #
-    # The two cases closed here are NOT guesses about intent: a string beginning with http(s) cannot be any other
-    # verb, and `type_at` with TWO arguments where the second is not a number can only be the usual `type` command.
-    # Each costs a worker turn and, measured in the car round, five chained errors left the sheet empty.
-    #
-    # WATCH THE INDEX: `main(argv=None)` lets argparse read `sys.argv[1:]`, so the VERB is at position 0 here —
-    # not 1. Writing it as `argv[1]` crashed on every real invocation and passed the tests, which pass a list.
+    # V2-341 — two unambiguous forms the worker writes: `cli.nav <url>` (a bare URL can only be `navigate`) and
+    # `type_at <ref> "text"` (two args, the second not a number, can only be `type`). Not guesses about intent.
+    # WATCH THE INDEX: the VERB is at position 0 of `sys.argv[1:]`, not 1 (tests pass a list and hid that crash).
     argv = list(sys.argv[1:] if argv is None else argv)
     if argv:
         if argv[0].startswith(("http://", "https://")):
@@ -403,6 +239,10 @@ def _note_source(cmd: str, res: dict) -> None:
             so.note(src, so.SERVED if named else so.EXTRACT_EMPTY, detail=f"{len(named)} rows")
     except Exception as e:  # noqa: BLE001
         print(json.dumps({"source_note_failed": str(e)[:200]}), file=sys.stderr)
+
+
+from nucleo.cli.nav_print import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
+    _QUE_HACER, _print_state, _salida, _sees)
 
 
 if __name__ == "__main__":

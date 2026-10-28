@@ -22,7 +22,7 @@ import pytest
 from nucleo import jev
 from nucleo.acts import media as pc
 from nucleo.flash import build_decision, card_commission as cc, repair_grounding as rg
-from nucleo.flash import turn_brief as tb
+from nucleo.turn import brief as tb
 
 PLAY_ES = "Dale, ¿y qué está sonando ahora?"
 

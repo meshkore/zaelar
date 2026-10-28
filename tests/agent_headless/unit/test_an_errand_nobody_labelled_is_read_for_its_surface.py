@@ -11,7 +11,7 @@ import inspect
 import threading
 
 from nucleo import surfaces
-from nucleo.flash import turn_brief as _tb
+from nucleo.turn import brief as _tb
 
 
 def _brief(choice, conf):

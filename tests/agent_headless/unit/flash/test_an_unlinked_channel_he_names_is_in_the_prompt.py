@@ -17,12 +17,12 @@ def _nothing_linked(monkeypatch):
 
 def test_naming_whatsapp_with_nothing_linked_brings_its_state_and_the_way_to_link_it(monkeypatch):
     _nothing_linked(monkeypatch)
-    from nucleo.flash import connector_briefs as cb
-    out = cb.for_prompt(set(), "Reply to Marta on WhatsApp that I'll be there at nine")
+    from nucleo.turn.prompt import catalogs as cb
+    out = cb.connector_facts(set(), "Reply to Marta on WhatsApp that I'll be there at nine")
     assert "WhatsApp: SIN conectar" in out and "show_panel(panel='conectores'" in out, out[:400]
 
 
 def test_an_idle_turn_pays_nothing_for_it(monkeypatch):
     _nothing_linked(monkeypatch)
-    from nucleo.flash import connector_briefs as cb
-    assert "CONECTORES activos" not in cb.for_prompt(set(), "what do I have tomorrow?")
+    from nucleo.turn.prompt import catalogs as cb
+    assert "CONECTORES activos" not in cb.connector_facts(set(), "what do I have tomorrow?")

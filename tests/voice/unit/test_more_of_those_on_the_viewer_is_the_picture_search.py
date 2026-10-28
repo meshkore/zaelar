@@ -17,7 +17,8 @@ from nucleo.flash import image_turn as it
 def verdict(monkeypatch, tmp_path):
     from widgets import store
     monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
-    from nucleo.flash import direct_action as _da, turn_brief as _tb
+    from nucleo.flash import direct_action as _da
+    from nucleo.turn import brief as _tb
     state = {"target": ("imagenes:add", 0.99)}
 
     def read(_brief, key, fallback, *, min_confidence=None):

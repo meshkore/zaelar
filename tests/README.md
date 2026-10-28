@@ -75,7 +75,7 @@ A wide sweep is cheap now, but it is still not the answer to every change:
 - **While iterating** — the test file you wrote, and its disarm. Breaking the product and watching the
   test go red is what proves a test measures anything.
 - **Before you commit** — `--impacted <base>`. It selects tests by the imports they actually declare
-  (a test that names `nucleo.flash.turn_brief` is a test your change can break), not by a hand-written
+  (a test that names `nucleo.turn.brief` is a test your change can break), not by a hand-written
   folder map that rots the first time a module moves. What a grep cannot see — a fixture reaching
   production through a string, a template, a JS bundle — is exactly why this is a pre-check.
 - **Before handing work over, and after anything that crosses two domains** — the full sweep.

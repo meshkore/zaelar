@@ -187,14 +187,13 @@ def test_it_only_reaches_prompts_that_will_display_data():
         "entrega con `python -m nucleo.cli.widget data results present @informe.json`")
 
 
-def test_the_worker_prompt_wires_it_in():
-    import inspect
-    # Prompt composition (_build_prompt/_web_prompt/_with_presentation) moved to its own module (V2-098) — the
-    # source now lives in dispatch_prompts.py; dispatch.py only imports and calls it.
-    from nucleo import dispatch_prompts
-    src = inspect.getsource(dispatch_prompts)
-    assert "_with_presentation" in src
-    assert src.count("_with_presentation(") >= 3, "el genérico Y el de web, más la definición"
+def test_the_worker_prompt_wires_it_in(monkeypatch):
+    """Both builders pass their brief through the presentation rules — by behaviour (refactor2710-08)."""
+    from nucleo.workers.prompts import build, web
+    for mod in (build, web):
+        monkeypatch.setattr(mod, "_with_presentation", lambda p: p + "\nPRESENTATION-MARK")
+    from tests.worker_briefs import rendered
+    assert rendered().count("PRESENTATION-MARK") == 2, "el genérico Y el de web"
 
 
 # ── 5. A payload that breaks the card leaves a TRACE (a prompt is not a guarantee) ────────────────────────────────

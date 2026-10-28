@@ -107,7 +107,7 @@ def question() -> dict:
 def from_brief(brief) -> str:
     """The brief's SURE reading of the surface, or "" — the escalation fills it only when the model declared none."""
     try:
-        from nucleo.flash import turn_brief as _tb
+        from nucleo.turn import brief as _tb
         choice, info = _tb.read(brief, SURFACE_KEY, "", min_confidence=0.7)
         from nucleo import picture_errand as _pe       # the screen's own reading when his words were unsure
         return own_card(brief) or _pe.from_screen(brief, normalize(choice) if info is not None else "")

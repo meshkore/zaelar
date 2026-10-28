@@ -116,6 +116,6 @@ def test_BOTH_worker_doors_go_through_it():
     """`read_widget` and `widget_data` — the live session hit the ceiling through both, because several of
     the agenda's own actions answer with the whole view."""
     import re
-    src = re.sub(r"#[^\n]*", "", (__import__("pathlib").Path("nucleo/cli/worker_api.py")
+    src = re.sub(r"#[^\n]*", "", (__import__("pathlib").Path("nucleo/cli/worker_api_exec.py")
                                   .read_text(encoding="utf-8")))
     assert src.count("_wv.bounded(") == 2, "both doors, measured on the code and not on a comment"
