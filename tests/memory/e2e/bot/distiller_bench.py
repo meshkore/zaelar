@@ -24,7 +24,7 @@ FOUR SEPARATE axes (previously merged into a single %, which hid where a model w
      `dest` correcto (state/short/long), `slot` canónico correcto Y —el error caro— `slot=None` en los hechos
      ADITIVOS (una alergia NO es `operator.diet`: si lo fuera, un cambio de dieta borraría la alergia), `change`
      (update/correction) y `kind` (intent) donde toca.
-  4. $/1k TURNS — with REAL provider tokens (`mem_processor.last_usage()`, captured by the module itself
+  4. $/1k TURNS — with REAL provider tokens (`distill.last_usage()`, captured by the module itself
      desde 2026-08-09) × tarifa publicada. NO estimados: el prompt del CORAZÓN son ~3.700 tokens de input FIJOS
      (system + 8 pares de few-shot), así que el coste lo domina el input y una estimación por chars se desvía.
 
@@ -318,19 +318,19 @@ async def run_model(name: str, url: str, model: str) -> dict:
 
     # Capture EXACT usage per call (last_usage() is global and would be overwritten under concurrency)
     usages: list[dict] = []
-    _orig_record = distill_health.record_usage
+    _orig_record = distill.record_usage
 
     def _capture(u):                                  # noqa: ANN001
         if isinstance(u, dict):
             usages.append({k: u.get(k) for k in ("prompt_tokens", "completion_tokens")})
         _orig_record(u)
-    distill_health.record_usage = _capture                       # type: ignore[assignment]
+    distill.record_usage = _capture                       # type: ignore[assignment]
 
     sem = asyncio.Semaphore(6)
     try:
         results = await asyncio.gather(*[_one_case(c, sem) for c in CASES])
     finally:
-        distill_health.record_usage = _orig_record               # type: ignore[assignment]
+        distill.record_usage = _orig_record               # type: ignore[assignment]
 
     by_id = {r["case"]: r for r in results}
     comp_score = comp_total = 0.0
@@ -420,7 +420,7 @@ async def _preflight(names: list[str]) -> None:
         atoms = await distill.process("Me llamo Marta y vivo en Lugo.", state=STATE)
         ms = round((time.time() - t0) * 1000)
         state = "OK" if isinstance(atoms, list) else "FALLO"
-        extra = f" ({len(atoms)} píldoras, in={distill_health.last_usage().get('prompt_tokens')})" if isinstance(atoms, list) else \
+        extra = f" ({len(atoms)} píldoras, in={distill.last_usage().get('prompt_tokens')})" if isinstance(atoms, list) else \
                 f" — {distill_health.status()['last_error'][:110]}"
         print(f"  {state:5s} {name:26s} {ms:6d}ms{extra}", flush=True)
 

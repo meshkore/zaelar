@@ -1,8 +1,7 @@
-"""The HEART's health and its metered usage.
+"""The HEART's health: the failure streak, the ◉, and who served the last pill.
 
-A credential or endpoint failure here can never be a debug line again (the heart was once down two days in
-silence): a streak of consecutive failures raises the ◉ through `health_state` past `ALERT_AFTER`, and recovery
-clears it. `status()` also says WHO served the last pill, so a relayed write is distinguishable from a normal one.
+A failure here is never a debug line (the heart was once down two days in silence): a failure streak past
+`ALERT_AFTER` turns the ◉ amber, recovery clears it. Metering lives with the call (`distill.record_usage`).
 """
 from __future__ import annotations
 
@@ -19,7 +18,6 @@ _last_error: str = ""
 _last_ok_ts: float = 0.0
 _alerted = False
 served_rung: tuple[str, str] | None = None     # (base_url, model) of the rung that served the LAST distillation
-_last_usage: dict = {}
 
 
 def status() -> dict:
@@ -63,19 +61,3 @@ def mark_fail(err: str) -> None:
         except Exception:
             pass
 
-
-def last_usage() -> dict:
-    """Tokens of the LAST distillation (`{prompt_tokens, completion_tokens, total_tokens}`), `{}` if the provider
-    did not return them. Diagnostics / bench only."""
-    return dict(_last_usage)
-
-
-def record_usage(usage: dict | None, *, base_url: str | None = None, model: str | None = None) -> None:
-    """Metered against the rung that ACTUALLY served: a relay billed at the titular's row is silent mis-billing."""
-    global _last_usage
-    if not isinstance(usage, dict):
-        _last_usage = {}
-        return
-    _last_usage = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
-    from nucleo import energy_meter as _energy
-    _energy.meter_openai_response({"usage": usage}, base_url=base_url or cfg.url(), model=model or cfg.model())

@@ -43,6 +43,7 @@ _sem = asyncio.Semaphore(_CONCURRENCY)
 _QUEUE_MAX = max(0, int(os.getenv("MEM_PROCESSOR_QUEUE_MAX", "2")))
 _QUEUE_WAIT = float(os.getenv("MEM_PROCESSOR_QUEUE_WAIT", "15"))   # s max wait for the slot
 _waiters = 0
+_last_usage: dict = {}
 
 
 def _is_local(url: str) -> bool:
@@ -122,7 +123,7 @@ async def _through_rungs(rungs: list[tuple[str, str]], payload: dict) -> tuple[l
                     raise RuntimeError(f"respuesta vacía de {rung_model} (finish_reason="
                                        f"{(data.get('choices') or [{}])[0].get('finish_reason')})")
                 atoms = _parse(content)
-                health.record_usage(data.get("usage"), base_url=rung_url, model=rung_model)
+                record_usage(data.get("usage"), base_url=rung_url, model=rung_model)
                 health.mark_ok()
                 served = (rung_url, rung_model)
                 health.served_rung = served      # V2-758: the panel asks `status()` who is answering
@@ -162,6 +163,23 @@ async def _post(rung_url: str, payload: dict, timeout_s: float) -> dict:
                     raise _PermanentError(f"HTTP {r.status} de {url}: {body}")
                 raise RuntimeError(f"HTTP {r.status} de {url}: {body}")
             return await r.json()
+
+
+def last_usage() -> dict:
+    """Tokens of the LAST distillation (`{prompt_tokens, completion_tokens, total_tokens}`), `{}` if the provider
+    did not return them. Diagnostics / bench only."""
+    return dict(_last_usage)
+
+
+def record_usage(usage: dict | None, *, base_url: str | None = None, model: str | None = None) -> None:
+    """Metered against the rung that ACTUALLY served: a relay billed at the titular's row is silent mis-billing."""
+    global _last_usage
+    if not isinstance(usage, dict):
+        _last_usage = {}
+        return
+    _last_usage = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
+    from nucleo import energy_meter as _energy
+    _energy.meter_openai_response({"usage": usage}, base_url=base_url or cfg.url(), model=model or cfg.model())
 
 
 def _note_relay(served: tuple[str, str], fails: list[str]) -> None:
