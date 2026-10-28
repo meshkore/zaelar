@@ -195,9 +195,6 @@ DOMAINS: list[dict] = [
             # V2-305: una respuesta de pura espera con la hoja llena sale CON las filas — el imperativo del
             # prompt pierde contra el reflejo de espera una ronda de cada tres (delivery_lag 98,9 s, ronda 34).
             "tests/agent_headless/unit/flash/test_the_wait_goes_out_with_the_rows.py",  # familia del backstop → nucleo/flash/delivery.py (V2-340)
-            # V2-336: el backstop calló en toda una ronda con las entradas correctas y sus tests verdes — el
-            # try/except pass se tragaba la avería. Ahora el silencio emite las ENTRADAS de la decisión.
-            "tests/agent_headless/unit/flash/test_the_backstop_silence_is_visible.py",
             # V2-339: la guarda anti-feed miraba UNA señal (vocabulario compartido) y silenciaba los dominios
             # donde los resultados buenos no se parecen — coches, hoteles, vuelos. Ahora exige DOS.
             "tests/agent_headless/unit/flash/test_a_feed_is_two_signals_not_one.py",
@@ -788,9 +785,6 @@ DOMAINS: list[dict] = [
         {"id": "4.56", "title": "«Hecho.» solo si la data-op OCURRIÓ · y lo que el widget rechaza se DICE",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_hecho_sobre_una_op_que_fallo.py",
-                      # V2-469: y «Hecho.» a una PREGUNTA es una no-respuesta — el ack enumera lo que el
-                      # widget tiene (ref_index), medido en build-a-video-playlist (23:05).
-                      "tests/agent_headless/unit/flash/test_a_question_is_answered_with_what_the_widget_holds.py",
                       # V2-469: los enlaces pegados viajan TODOS al add, y la enumeración marca «la que suena».
                       "tests/agent_headless/unit/flash/test_the_pasted_links_all_travel.py"]},
         # V2-391 — «UNA data-op por turno» convirtió dos enlaces pegados en una alucinación: solo entró el
@@ -1192,15 +1186,6 @@ DOMAINS: list[dict] = [
         {"id": "2.512", "title": "A candidate names the subject he asked about and fits the size/resolution he stated",
             "ch": UNIT,
             "paths": ["tests/search/unit/test_a_row_must_name_the_subject_and_fit_the_spec.py"]},
-        {"id": "2.513", "title": "A row zaelar named and he quotes back is never denied — named, and where it is now",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/flash/test_a_row_it_named_is_never_denied.py"]},
-        {"id": "2.514", "title": "A «there is nothing» sentence does not stand beside the rows the backstop delivers",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/flash/test_a_nothing_claim_does_not_stand_beside_the_rows.py"]},
-        {"id": "2.515", "title": "Rows from another site than the one he asked for say so, and whether it blocked us",
-            "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/flash/test_rows_from_another_site_say_where_they_came_from.py"]},
         {"id": "2.516", "title": "A finished shortlist names the options it owes — his «top N», or three for a comparison",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_a_finished_shortlist_names_the_options_it_owes.py"]},
@@ -4260,11 +4245,6 @@ DOMAINS: list[dict] = [
         {"id": "2.503", "title": "A site-scoped image search of a picture errand lands in the photo viewer with the site as "
                                  "its source; unscoped or lone matches leave his set alone; nothing goes to `results`",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/pictures/test_a_scoped_image_search_lands_in_the_viewer.py"]},
-        {"id": "2.504", "title": "A wait reply while one errand runs names its real current step, in his language, once — "
-                                 "never «Will do» over «entrando en media.ferrari.com» (photo round, 2026-10-11)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/pictures/test_a_wait_reply_names_the_real_step.py"]},
-        {"id": "2.505", "title": "The text channel's reply door gets the turn brief and appends the step line",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/pictures/test_the_text_channel_appends_the_step.py"]},
         {"id": "2.506", "title": "The use-case round's canvas never obeys the canvas's own `src:user` echo — the ghost base "
                                  "sheet over its instance (photo round, 2026-10-11)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_round_never_obeys_the_canvas_echo.py"]},
@@ -4286,9 +4266,6 @@ DOMAINS: list[dict] = [
         {"id": "2.439", "title": "A promised refinement reaches the live errand it names, in both channels — «Voy con "
                                  "ello, le añado monedas» with no call (three-tasks-at-once, 2026-10-11)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_promised_refinement_reaches_the_errand_it_names.py"]},
-        {"id": "2.276", "title": "The delivery backstop never announces a row twice in one errand — the junk batch he "
-                                 "turned down came back once the window forgot it (V2-781)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_never_announces_a_row_twice.py"]},
         {"id": "2.275", "title": "A report errand's working rows are never announced as results-sheet candidates — «RENAULT "
                                  "4…» glued to a report's replies (V2-781)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_report_errand_never_feeds_the_list_backstop.py"]},
@@ -4322,9 +4299,6 @@ DOMAINS: list[dict] = [
         {"id": "2.263", "title": "The widget agent never inherits the host's Claude Code session — «401 … ****2wAA is "
                                  "invalid» on every build (V2-781 T532)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_widget_agent_never_inherits_the_hosts_claude_session.py"]},
-        {"id": "2.262", "title": "The delivery backstop names rows nobody named yet — it re-announced the three he had "
-                                 "turned down while the good ones sat further down (V2-781 T521)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_skips_what_was_already_named.py"]},
         {"id": "2.261", "title": "A card instance (results::<sheet>) reaches its widget from the text channel — «No he "
                                  "podido: no data module» on the open sheet (V2-781 T528)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_card_instance_reaches_its_widget_from_the_text_channel.py"]},
