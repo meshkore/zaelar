@@ -125,6 +125,8 @@
  "objective_which_peer": "Which agent, and on which cluster, is that objective for?",
  "stop_which_worker": "I have several different tasks running — which one exactly am I stopping?",
  "stop_doubt": "Do you want me to stop the task that's running, then?",
+ "stopped_now": "Okay, I'm stopping it.",
+ "stopped_also": "I've stopped that task.",
  "still_on_it": "Still on it.",
  "say_again": "Sorry, say that again?",
  "kickoff_prompt": "This is the first turn. Greet me in 1-2 sentences, warm and short; if you already know my name from your MEMORY, use it and do NOT ask who I am; if you don't, introduce yourself in one line and ask me my name. Then stop.",

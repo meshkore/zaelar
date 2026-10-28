@@ -273,6 +273,9 @@ class LangSpec:
     stop_which_worker: str = ""
     #: refactor2710-07 — the model stopped the errand and the brief, unsure, read otherwise: asked, never refused silently.
     stop_doubt: str = ""
+    #: refactor2710-99 — the stop backstop stopped an errand the model did not: said alone, or after the model's words.
+    stopped_now: str = ""
+    stopped_also: str = ""
     #: The mute backstop's LAST resort — what he hears when even the backstop that composes «never mute»
     #: raised. Found by the same ratchet pass, in the same file, in an English session.
     still_on_it: str = ""
