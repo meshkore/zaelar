@@ -109,7 +109,7 @@ def test_an_unsure_verdict_takes_the_deliverable_the_escalation_declared():
     assert not cv.a_view_is_not_the_deliverable("mensajeria", "mail_folder", asked, declared="informe")
 
 
-def test_t61_replayed_the_worker_keeps_the_errand_on_both_channels(monkeypatch):
+def test_t61_replayed_the_worker_keeps_the_errand(monkeypatch):
     """Red on the released behaviour: `before_worker` ran `mensajeria:mail_folder {sent}`, cleared the escalation
     («🎯 acción declarada en vez de un worker») and the reply «voy con el correo enviado…» had nothing behind it."""
     monkeypatch.setattr(card_commission, "named_or_catalogue", lambda b, t: "mensajeria")
@@ -118,7 +118,7 @@ def test_t61_replayed_the_worker_keeps_the_errand_on_both_channels(monkeypatch):
         return {"kind": "call", "widget_id": "mensajeria", "action": "mail_folder", "payload": {"folder": "sent"}}
     monkeypatch.setattr(act_repair, "call_or_read_for_commission", _view)
     commission = "Analizar su ESTILO DE ESCRITURA usando EXCLUSIVAMENTE los correos ENVIADOS…"
-    # voice: the escalation the model made, its surface recorded per request (`tool_executor_calls`)
+    # the escalation the model made, its surface recorded per request (`tool_executor_calls`)
     esc = {"v": commission, "more": [], "surface": {commission: "informe"}}
     ran: list = []
     got = asyncio.run(card_commission.before_worker(
@@ -126,8 +126,3 @@ def test_t61_replayed_the_worker_keeps_the_errand_on_both_channels(monkeypatch):
         present=lambda *a, **k: None, apply_widget_data=lambda *a: ran.append(a)))
     assert got == "" and not ran, "no view ran in its place"
     assert esc["v"] == commission, "the escalation survives: the worker starts"
-    # text channel: the same declaration read from the model's tool call
-    calls = [{"name": "escalate_to_slowbrain", "args": {"request": commission, "surface": "informe"}}]
-    assert not asyncio.run(card_commission.probe_instead_of_a_worker(
-        calls, commission, brief=_brief(**T61_BRIEF), operator_text=T61, spec=None))
-    assert [c["name"] for c in calls] == ["escalate_to_slowbrain"]

@@ -152,15 +152,23 @@ def test_with_nothing_readable_the_retraction_is_deterministic_and_in_both_langu
     for code in ("es", "en"):
         rep = getattr(langs.spec(code), "promise_retracted", "")
         assert rep and len(rep.split()) <= 30, code
-    assert asyncio.run(sp.probe_hollow_repairs("is it done?", "Let me check that now.", [], langs.spec("en"))) \
-        == ("Let me check that now. " + langs.spec("en").promise_retracted)
+    assert _hollow(monkeypatch, langs.spec("en")) == ("Let me check that now. " + langs.spec("en").promise_retracted)
+
+
+def _hollow(monkeypatch, spec):
+    """The voice turn's one seam for hollow-turn repairs, with nothing running and nothing acted."""
+    from nucleo import dispatch
+    monkeypatch.setattr(dispatch, "has_active", lambda: False)
+    return asyncio.run(sp.hollow_repairs("is it done?", "Let me check that now.", [], spec, did_act=False,
+                                         covered=False, speak=lambda *_a: None, emit=lambda *a, **k: None))
 
 
 def test_both_channels_carry_the_branch():
-    """V2-252: the seam is shared, so the branch lives in it and not in one caller."""
+    """V2-252: the seam is shared, so the branch lives in it and not in one caller. The typed channel runs the
+    voice turn (`nucleo.cli.turn.run_turn`), so the one seam is the one branch."""
     src = open("nucleo/flash/second_pass.py", encoding="utf-8").read()
-    assert src.count("a_promise_left_hanging(") == 2, "voice and probe must both carry the branch"
-    assert src.count("promise_repair(") >= 3        # the def + both callers
+    assert src.count("a_promise_left_hanging(") == 1, "the shared seam carries the branch exactly once"
+    assert src.count("promise_repair(") >= 2        # the def + the seam's call
 
 
 def test_a_read_widget_counts_as_the_look_so_the_promise_is_not_repaired_twice():
@@ -282,7 +290,7 @@ def test_the_retraction_sounds_with_the_spec_the_live_turn_passes(monkeypatch):
     monkeypatch.setattr(widget_read, "resolve", lambda *_a, **_k: None)
     monkeypatch.setattr(sp, "_card_the_catalogue_names", lambda *_a, **_k: asyncio.sleep(0, ""))
     monkeypatch.setattr(langs, "current_language", lambda: langs.spec("en"))
-    out = asyncio.run(sp.probe_hollow_repairs("is it done?", "Let me check that now.", [], _ModelSpec()))
+    out = _hollow(monkeypatch, _ModelSpec())
     assert out == "Let me check that now. " + langs.spec("en").promise_retracted
 
 

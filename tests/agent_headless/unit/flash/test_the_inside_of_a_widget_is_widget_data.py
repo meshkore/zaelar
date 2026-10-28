@@ -160,15 +160,6 @@ def test_the_widget_whose_JOB_is_showing_may_run_the_action_that_shows():
     assert router.show_request_blocks_data_action("enséñame las fotos", "imagenes", "clear")
 
 
-def test_the_probe_channel_mirrors_the_pure_show_guard():
-    """The probe reported `widget_data open {name:'Francisco'}` for the very sentence the voice rail turned
-    into a bare show: it mirrors several provider guards but had never mirrored this one, so the test
-    channel gave a FALSE GREEN on the defect it was being used to diagnose."""
-    src = _vts.read(ENGINE / "nucleo" / "flash" / "probe.py")
-    assert "show_request_blocks_data_action" in src, \
-        "a guard that only one of the two rails carries makes the probe report a decision the product never takes"
-
-
 def test_the_voice_rail_shows_the_card_AND_applies_the_view():
     """«Ábreme el Telegram» asks for two things at once: the card in front and that lens selected. The rail
     does both instead of guessing which one was meant — that is what dissolves the card-vs-inside ambiguity

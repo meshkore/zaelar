@@ -52,4 +52,3 @@ def test_both_channels_run_it_where_data_ops_converge():
     from nucleo.flash import tool_executor_widget_calls as voice, widget_data_turn as text
     assert "_row_lens.retarget(" in inspect.getsource(voice._apply_widget_data)
     assert "_row_lens.retarget(" in inspect.getsource(text.execute)
-    assert "row_lens" in inspect.getsource(text.plan_dry)
