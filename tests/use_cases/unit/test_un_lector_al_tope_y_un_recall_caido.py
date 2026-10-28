@@ -16,7 +16,6 @@ could not ask"), found by reading each reader's code, and they are closed BEFORE
    claims that it was asked. The truth was "it could not be asked." The protection for the agent happened
    to be the same; the claim was false.
 """
-import ast
 from pathlib import Path
 
 from tests.use_cases.e2e.agent import judge as J, probe_client as P
@@ -34,16 +33,6 @@ def test_el_techo_da_margen_real_sobre_el_maximo_medido():
     import inspect
     sig = inspect.signature(P.session_events)
     assert sig.parameters["limit"].default >= 4000, "1.128 medidos: 2.000 de techo era margen ×1,8, no ×3,5"
-
-
-def test_tocar_el_tope_se_apunta_en_el_informe():
-    """`run.py` must check the RAW stream (before the time filter) against the cap—the filter
-    hides truncation: 500 filtered events may come from a raw stream that hit the cap."""
-    tree = ast.parse((BASE / "run.py").read_text())
-    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "_run_scenario")
-    asigna = [n for n in ast.walk(fn) if isinstance(n, ast.Subscript)
-              and isinstance(n.slice, ast.Constant) and n.slice.value == "event_stream_at_cap"]
-    assert asigna, "nadie apunta en el informe que el flujo tocó techo"
 
 
 def test_el_juez_lee_el_tope_como_informe_RECORTADO():

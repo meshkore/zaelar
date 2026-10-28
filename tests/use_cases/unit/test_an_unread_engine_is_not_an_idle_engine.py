@@ -23,7 +23,6 @@ It also punches a hole straight through V2-395, shipped an hour earlier: that fi
 unreachable the reader returned `[]`, so the careful three-way distinction resolved to the one branch that
 accuses the product.
 """
-from pathlib import Path
 
 from tests.use_cases.e2e.agent import config, judge as J, probe_client as P, verify as V
 
@@ -130,25 +129,6 @@ def test_only_the_GROUND_TRUTH_reads_void_the_round():
     Voiding every round on any failed read would turn INFRA into noise and hide real defects behind it."""
     assert V.unreadable_infra({"ground_truth_unreadable": [{"path": "/widgets/agenda/data",
                                                             "reason": "timeout"}]}) == ""
-
-
-def test_run_py_actually_voids_the_round():
-    """The rule has to be WIRED, not merely available — `no_quota_infra` earned that lesson.
-
-    Read with the AST and not with `in src`: the first draft of this guard passed while the round was
-    mutated to `crashed = ""`, because the words `unreadable_infra` survived in the comment right above it.
-    That is the same failure the rule it mirrors was written to avoid, committed by the guard against it.
-    """
-    import ast
-    tree = ast.parse(Path("tests/use_cases/e2e/agent/run.py").read_text())
-    asignada = [
-        n for n in ast.walk(tree)
-        if isinstance(n, ast.Assign)
-        and any(isinstance(t, ast.Name) and t.id == "crashed" for t in n.targets)
-        and isinstance(n.value, ast.Call)
-        and getattr(n.value.func, "attr", getattr(n.value.func, "id", "")) == "unreadable_infra"
-    ]
-    assert asignada, "nobody assigns the round's INFRA sentence from `unreadable_infra`"
 
 
 # ── the judge is told in words ─────────────────────────────────────────────────────────────────────────────

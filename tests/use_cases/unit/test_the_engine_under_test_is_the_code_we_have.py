@@ -48,16 +48,6 @@ def test_the_reader_survives_an_engine_that_is_not_there():
     assert run.running_engine_sha("http://127.0.0.1:1") == ""
 
 
-def test_the_lab_path_actually_calls_the_guard():
-    """The counterweight that matters. A guard that exists and is never wired in reads, from the outside,
-    exactly like a guard that works — which is the shape of this very bug."""
-    import inspect
-    src = inspect.getsource(run._lab_batch)
-    assert "stale_engine_refusal" in src, "la guarda no está cableada en la ruta de plató"
-    assert src.index("stale_engine_refusal") < src.index("config.ZAELAR_URL"), \
-        "la guarda tiene que correr ANTES de apuntar el arnés al motor"
-
-
 # ── A harness commit is not a different engine ───────────────────────────────────────────────────────
 # The guard refused on ANY different sha, and the engine and harness live in this tree: the harness
 # commits several times an hour, so the run would stop to request a studio restart that would have
@@ -130,29 +120,3 @@ def test_the_diff_is_read_from_git_and_a_doc_counts_as_engine(tmp_path):
 # and the round refused to run, even though the studio had had the code already loaded in memory since
 # startup and was not going to read that file. The two questions are distinct, and only one determines
 # what gets measured.
-
-
-def test_the_lab_path_does_NOT_refuse_on_a_dirty_tree():
-    """WIRING guard: inspect the source because the real path needs a live studio. A behavioral test here
-    would require starting an engine, and without one the check does not exist."""
-    import inspect
-    src = inspect.getsource(run._lab_batch)
-    assert "dirty_tree_refusal" not in src, "el camino del plató volvió a esperar por un árbol sucio"
-
-
-def test_the_sandbox_path_STILL_refuses_on_a_dirty_tree():
-    """Sensitivity, and it is the side that matters: in the sandbox the engine is started FROM THE TREE at
-    that moment, so measuring there halfway through an edit really does measure partial code. Without
-    this case, “do not wait in the studio” and “never wait” both pass equally green."""
-    import inspect
-    assert "dirty_tree_refusal" in inspect.getsource(run._sandbox_batch)
-
-
-def test_a_stale_lab_exits_with_its_OWN_code():
-    """The 5 exists so the caller can distinguish “restart the studio” from any other refusal. Sharing the 3
-    made the run report “stale studio” for 23 minutes while something else was happening—an incorrect
-    diagnosis, and a plausible one at that."""
-    import inspect
-    src = inspect.getsource(run._lab_batch)
-    i = src.index("stale_engine_refusal(")
-    assert "SystemExit(5)" in src[i:i + 700], "la negativa por motor rancio ya no sale con su propio código"

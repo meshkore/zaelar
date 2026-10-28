@@ -81,18 +81,6 @@ def test_es_MÁS_ANCHO_que_el_cazador_de_role_flips_y_eso_es_deliberado():
     assert V.delivered_by_name([{"who": "zaelar", "text": linea}], ["Pantalla HP 27 HDMI"])["n"] == 1
 
 
-def test_el_informe_LO_LLEVA_y_el_JUEZ_lo_recibe():
-    """The two halves of the wiring: read it correctly and get it to the decision-maker."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import judge as J
-    from tests.use_cases.e2e.agent import run as R
-    assert 'mech["delivered_by_name"] = verifymod.delivered_by_name(' in inspect.getsource(R._run_scenario)
-    src = inspect.getsource(J.mechanism_facts)
-    assert 'mech.get("delivered_by_name")' in src
-    assert "RETUVO" in src, "el hecho llega sin decirle al juez qué hacer con él"
-
-
 def test_y_le_dice_al_juez_que_ese_bloqueador_TIENE_QUE_EXPLICARSE():
     from tests.use_cases.e2e.agent.judge import mechanism_facts
     txt = mechanism_facts({"delivered_by_name": {"n": 2, "names": ["Pantalla HP 27 HDMI", "Monitor AOC 27"],

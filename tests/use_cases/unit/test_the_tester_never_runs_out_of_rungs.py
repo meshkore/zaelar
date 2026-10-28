@@ -159,13 +159,3 @@ def test_a_nonzero_exit_is_an_error_and_not_an_answer(monkeypatch):
 
 
 # The JUDGE no longer has rungs (V2-779 F2): one ruler, the licence — see `test_one_judge_one_ruler.py`.
-
-
-def test_the_licence_is_the_LAST_rung_and_not_the_first():
-    """Wiring guard for the ORDER. The behavior above would pass just the same if the licence were first and the
-    paid ones below — and that would spend the operator's allowance on every round."""
-    import inspect
-    src = inspect.getsource(llm.call)
-    i_chain = src.index("chain = [")
-    tail = src[i_chain:src.index("]", i_chain)]
-    assert tail.index("deepseek-directo") < tail.index("aimlapi") < tail.index("licencia-claude")

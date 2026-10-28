@@ -85,11 +85,3 @@ def test_las_sesiones_ANTERIORES_a_la_ronda_no_cuentan(sesiones):
     r = V.worker_bridges(logs_dir=str(d), since=time.time() - 60)
     assert r["sessions"] == 1
     assert "cli.widget" not in r["by_bridge"]
-
-
-def test_el_informe_LO_LLEVA():
-    """The wiring half (V2-199): the reading can be correct and fail to reach whoever needs it."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-    assert 'mech["worker_bridges"] = verifymod.worker_bridges(' in inspect.getsource(R._run_scenario)

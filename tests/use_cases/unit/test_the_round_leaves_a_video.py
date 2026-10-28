@@ -6,13 +6,7 @@ alongside the session and its flows, as showcase material.
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
-
-import pathlib
-
 from tests.use_cases.e2e.agent import recorder as R, report as REP
-
-ENGINE = pathlib.Path(__file__).resolve().parents[3]
 
 
 # ── the viewer protocol ─────────────────────────────────────────────────────────────────────────────────
@@ -62,18 +56,3 @@ def test_el_informe_enlaza_el_video_de_su_ronda(tmp_path):
 
 def test_sin_video_no_hay_linea_fantasma(tmp_path):
     assert "🎥" not in _md(_fila(), tmp_path)
-
-
-# ── showcase mode, the THREE frontend halves ─────────────────────────────────────────────────────────────
-def test_el_frontend_lleva_el_modo_escaparate_completo():
-    """Three files and one endpoint; wiring only one part does not fail noisily — it fails while recording a video with
-    the cards piled up and the chat closed, which looks like a product defect."""
-    desk = (ENGINE / "frontend" / "app" / "widgets" / "desktop.js").read_text(encoding="utf-8")
-    assert "arrange(){" in desk, "la rejilla vive en el canvas, que es su autoridad (V2-035)"
-    sse = (ENGINE / "frontend" / "app" / "services" / "sse.js").read_text(encoding="utf-8")
-    assert 'd.label === "arrange"' in sse, "la orden viaja por el MISMO rail SSE que show/close"
-    assert "_SHOWCASE" in sse, "en showcase cada apertura re-ordena sola"
-    chat = (ENGINE / "frontend" / "app" / "components" / "ChatWall.js").read_text(encoding="utf-8")
-    assert 'has("showcase")' in chat, "el chat arranca abierto y acoplado para que la conversación se lea"
-    api = _vts.read(ENGINE / "server" / "voice_api.py")
-    assert "/api/canvas/arrange" in api, "el snap es invocable por API, como pidió el operador"

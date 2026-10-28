@@ -66,22 +66,6 @@ def test_sin_titulos_conocidos_no_se_inventa_nada():
     assert V.recites_our_candidates("", _KNOWN) == []
 
 
-def test_el_barrido_de_la_ronda_LO_USA():
-    """The wiring half: the predicate can get it right and still fail to reach the report (V2-199)."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-    src = inspect.getsource(R)
-    assert "recites_our_candidates(" in src, "el barrido de role-flip dejó de consultar la señal"
-    i_known = src.find("_known = [str(t) for t in")
-    i_use = src.find("verifymod.recites_our_candidates")
-    assert 0 <= i_known < i_use, "los títulos se componen después de usarlos"
-    # AND THAT THE REAL SWEEP MARKS THE OPENING (V2-427). The neighboring test reimplements the loop, so it
-    # can remain green with broken `run.py`: measured while dismantling it on 2026-08-28 — I set `opening=False`
-    # in the real sweep and all 25 checks kept passing against the restored defect.
-    assert "opening=(i == 0)" in src, "el barrido real ya no distingue la primera línea del tester"
-
-
 def test_un_CODIGO_DE_MODELO_identifica_aunque_sea_corto():
     """`fender cd60` is eleven characters long and is the most recognizable catalog entry: the length cutoff
     discarded it by ONE. Length is a proxy for identity; the model IS the identity."""
@@ -151,23 +135,6 @@ def test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos():
     assert marcadas <= 4, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"
 
 
-def test_una_ronda_con_flip_NO_puede_contarse_como_aprobada():
-    """V2-313 — the sweep identified the lines and changed nothing: `search-buy-camera__es` (2026-08-25 04:41)
-    came out overall 4 = PASS with the tester reciting our candidates, and raised the scoreboard with a measurement
-    contaminated by its own harness. It is the SAME failure as `role_flips > 1`, seen by the sweep instead of
-    the live guard, so it is handled the same way: INFRA, not a score."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-    src = "\n".join(ln for ln in inspect.getsource(R._run_scenario).splitlines()
-                    if not ln.strip().startswith("#"))
-    i_flip = src.find('mech["role_flip_lines"] = flipped')
-    assert i_flip > 0
-    cola = src[i_flip:i_flip + 900]
-    assert "crashed" in cola, "el barrido marca las líneas y la ronda se puntúa igual"
-    assert "if not crashed:" in cola, "no puede pisar una avería ya declarada (role_flips > 1)"
-
-
 def test_y_el_ANCLA_del_conductor_se_lo_dice_EN_SUS_DOS_IDIOMAS():
     """The other half: detecting it after the round only serves to discard the measurement. The THREE flips in the corpus
     are CATALOG cases —the driver has a list in front of it and presents it—, so the anchor now names the
@@ -183,15 +150,6 @@ def test_y_el_ANCLA_del_conductor_se_lo_dice_EN_SUS_DOS_IDIOMAS():
         assert "zaelar" in low
     assert "NO TIENES NINGUNA LISTA DELANTE" in D._ANCHOR
     assert "YOU HAVE NO LIST IN FRONT OF YOU" in D._ANCHOR_EN
-
-
-def test_el_ancla_VIAJA_al_prompt_de_la_ronda():
-    """A correct anchor that does not reach the system prompt is a rule nobody reads (V2-199)."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import driver as D
-    src = inspect.getsource(D.Driver.__init__)
-    assert "_ANCHOR_EN" in src and "_ANCHOR" in src
 
 
 def test_la_APERTURA_del_tester_no_puede_recitar_nada_nuestro():

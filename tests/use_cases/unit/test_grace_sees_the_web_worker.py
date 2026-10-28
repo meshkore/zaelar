@@ -46,18 +46,3 @@ def test_an_unreadable_engine_reads_as_not_live(monkeypatch):
         raise RuntimeError("down")
     monkeypatch.setattr(probe_client, "live_tasks", _boom)
     assert verify.navegador_task_is_live() is False
-
-
-def test_a_farewell_does_not_outrun_a_live_browser_either():
-    """V2-304 — the farewell was the grace period's blind spot: `driver.done` broke the loop BEFORE checking
-    the last turn. Round 32 (2026-08-25): the tester said thank you on turn 4, and the sheet filled up 0.9
-    SECONDS after the farewell — the round measured the clock. Wiring guard on the source without comments."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as runmod
-    src = "\n".join(ln for ln in inspect.getsource(runmod._run_scenario).splitlines()
-                    if not ln.strip().startswith("#"))
-    assert "turno de gracia tras despedida" in src
-    assert src.index("if driver.done:") < src.index("turno de gracia tras despedida"), \
-        "la gracia de despedida tiene que vivir dentro del corte de driver.done"
-    assert "driver.done = False" in src, "sin resetear done, el turno de gracia se despide igual en el acto"

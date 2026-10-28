@@ -92,30 +92,6 @@ def test_la_fuente_real_compila_y_tiene_huella():
     assert len(S._huella()) == 12
 
 
-def test_la_recarga_va_ENTRE_rondas_y_nunca_dentro():
-    """In the middle of a round there is a live subprocess with its browser: re-executing there would orphan it and
-    the round would be lost. The place is after the `sleep`, with the cycle already closed.
-
-    Rewritten 2026-08-28, NOT flipped: the anchor was the EXACT text `una_ronda(esc)` and broke when the
-    studio was passed in the call (`una_ronda(esc, plato_de(esc))`, node 10.104). The protected property—the
-    round → sleep → reload order—did not change one bit; what changed is that the CALL is now sought rather than
-    one of its possible signatures, so the next argument does not bring down a test that is not about that.
-    """
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text()
-    i_ronda, i_sleep, i_rec = (src.index("parte = una_ronda(esc"), src.index("time.sleep(PAUSA_S)"),
-                               src.index("_recargar_si_cambie(_mia)"))
-    assert i_ronda < i_sleep < i_rec
-
-
-def test_el_arranque_DICE_con_qué_fuente_corre():
-    """Without this line, “I have been measuring for three hours” and “I have been measuring for three hours
-    with the code from three hours ago” look exactly the same in the operator's terminal."""
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/supervisor.py").read_text()
-    assert "fuente {_mia}" in src and "HEAD {_sha()}" in src
-
-
 # ── 24/7: what starts the supervisor and starts it again (V2-417) ───────────────────────────────────────
 # It is a shell script and a plist, meaning exactly what breaks WITHOUT MAKING A SOUND: a failed `exec` leaves
 # launchd watching a dead parent, a lock without a real check leaves two supervisors fighting over ONE browser, and

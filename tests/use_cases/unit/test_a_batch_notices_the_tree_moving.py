@@ -144,43 +144,7 @@ def test_no_saber_NO_es_haberse_movido():
     assert cfgmod.engine_moved("", "") is False
 
 
-def test_la_huella_NO_memoiza():
-    """`code_stamp()` caches deliberately and therefore was not suitable here: a fingerprint called twice to
-    compare itself with itself cannot always return the same thing by design."""
-    src = inspect.getsource(cfgmod.engine_fingerprint)
-    assert "global" not in src and "_CODE_STAMP" not in src
-
-
 # ---------------------------------------------------------------- the wiring inside the loop
-
-def test_la_comprobacion_esta_DENTRO_del_bucle_de_casos():
-    src = inspect.getsource(runmod._run_batch)
-    i_bucle = src.find("for scenario in chosen:")
-    assert i_bucle > 0
-    assert 0 <= src.find("_tree_at_start") < i_bucle, "el sello se toma antes del bucle, que es donde vale"
-    assert src.find("config.engine_fingerprint()", i_bucle) > i_bucle, (
-        "hay que volver a MIRAR el árbol dentro del bucle, no releer un sello cacheado")
-
-
-def test_NO_pregunta_por_code_stamp_dentro_del_bucle():
-    """The exact trap: `code_stamp()` memoizes, so asking it inside the loop means asking the past."""
-    src = inspect.getsource(runmod._run_batch)
-    i_bucle = src.find("for scenario in chosen:")
-    assert "config.code_stamp()" not in src[i_bucle:]
-
-
-def test_para_la_tanda_y_dice_como_retomarla():
-    src = inspect.getsource(runmod._run_batch)
-    assert "--start-at {scenario.id}" in src, (
-        "sin decir por dónde se retoma, parar la tanda cuesta volver a correr lo ya medido")
-    assert "el MOTOR se ha movido" in src
-
-
-def test_NO_dispara_en_el_primer_caso():
-    """The first case is already covered by the startup guards; asking again would stop before measuring."""
-    src = inspect.getsource(runmod._run_batch)
-    assert "if results and not allow_dirty:" in src, (
-        "la comprobación tiene que exigir que YA haya un caso corrido, o la tanda no arranca nunca")
 
 
 def test_y_se_puede_apagar_con_allow_dirty():

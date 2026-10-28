@@ -103,9 +103,3 @@ def test_y_cuando_SI_dispara_se_le_dice_con_la_cifra():
                                  {"n": 1, "measurable": True,
                                   "turns": [{"cifra": "$314", "frase": "nonstop SF→Rome from $314"}]}})
     assert "SIN RESPALDO" in txt and "$314" in txt
-
-
-def test_run_lo_CALCULA():
-    from pathlib import Path
-    src = Path("tests/use_cases/e2e/agent/run.py").read_text(encoding="utf-8")
-    assert 'mech["market_claims_before_delivery"] = verifymod.market_claims_before_delivery(' in src

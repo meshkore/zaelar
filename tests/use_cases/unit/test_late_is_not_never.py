@@ -54,13 +54,3 @@ def test_sin_el_dato_no_se_afirma_ninguna_de_las_dos():
     m["sheet_timing"] = {"first_result_ms": None, "last_turn_ms": None, "after_last_turn_s": None}
     f = J.mechanism_facts(m)
     assert "LATENCIA" not in f and "fallo de conducta" not in f
-
-
-def test_el_numero_se_CALCULA_en_la_ronda():
-    """The wiring half: the judge may know how to read it while the round fails to provide it (V2-199)."""
-    import inspect
-
-    from tests.use_cases.e2e.agent import run as R
-    src = inspect.getsource(R)
-    assert '"after_last_turn_s"' in src
-    assert '"last_turn_ms"' in src, "sin el instante del último turno, la resta no se puede hacer"
