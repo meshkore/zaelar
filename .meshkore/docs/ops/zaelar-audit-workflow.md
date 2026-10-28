@@ -103,7 +103,7 @@ and at the end a list of **Findings ordered by severity**.
    in about a second with a model PER INVOCATION (not a global env) and decides when to escalate. Check that its
    real tools `escalate_to_slowbrain`/`set_style_directive` are declared in `nucleo/flash/router.py` and that
    escalation is enforced in code (not only in the prompt) for what the Flash cannot do.
-4. **Two speeds — SlowBrain**: `nucleo/dispatch.py` composes the [context+task] prompt → `CodeAgent`
+4. **Two speeds — SlowBrain**: `nucleo/dispatch/` composes the [context+task] prompt → `CodeAgent`
    (`nucleo/agentes/`) async, consumes `escalate.requested` from the bus and delivers through `voice/proactive`
    (voice+UI); `nucleo/memory_agent.py` is the ONLY writer of `memory/`. Check that the SlowBrain never blocks
    the hot voice path and that the CodeAgent model is per invocation (`config/v2.py`, `code_agent` section).

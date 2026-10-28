@@ -63,7 +63,7 @@ def test_a_build_that_never_ran_is_not_repaired_and_carries_its_class(monkeypatc
 
 def test_the_worker_session_records_the_class_and_says_it(monkeypatch):
     """The wiring to the row and to the operator: the backend's result reaches `rec.error_class`."""
-    from nucleo.workers.generator_session import GeneratorBackend
+    from nucleo.workers.providers.generator import GeneratorBackend
     from nucleo.workers.session import SessionRecord, WorkerSession
     from nucleo.agentes import code as _code
     monkeypatch.setattr(_code, "widget_action", lambda req: ("create", ""))

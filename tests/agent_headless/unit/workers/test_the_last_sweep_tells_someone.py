@@ -93,7 +93,7 @@ def test_finalize_web_llama_a_la_nota_justo_donde_escribe_las_filas():
     needed it does not call it — which is literally the defect it fixes."""
     import ast
     from tests import voice_turn_source as _vts   # V2-778 F1: the dispatcher is read with its moved pieces
-    src = ast.parse(_vts.read("nucleo/dispatch.py"))
+    src = ast.parse(_vts.read("nucleo/dispatch/__init__.py"))
     fn = next(n for n in ast.walk(src)
               if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == "_finalize_web")
     llamadas = [getattr(c.func, "attr", getattr(c.func, "id", "")) for c in ast.walk(fn) if isinstance(c, ast.Call)]

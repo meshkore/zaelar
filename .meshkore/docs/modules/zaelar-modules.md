@@ -57,10 +57,10 @@ env-first). It runs at two speeds:
   (heuristic `prompt.needs_recall`, es/en) and **off the event loop** (`asyncio.to_thread`). A chat turn never
   fires the retriever, so it closes ~1s; the per-turn latency breakdown is emitted as a `timing` event on `/debug`
   (baseline vs. after in `zaelar-model-benchmarks.md §4`).
-- **SlowBrain** (`nucleo/dispatch.py` + `nucleo/memory_agent.py` + `nucleo/agentes/`) — the **async** tier off the
+- **SlowBrain** (`nucleo/dispatch/` + `nucleo/memory_agent.py` + `nucleo/agentes/`) — the **async** tier off the
   voice path. `nucleo/agentes/` is a `CodeAgent` interface with headless adapters (Claude Code `claude -p`, Codex)
   chosen from `config/v2.py` `code_agent` section (`CODE_AGENT_*`). `nucleo/memory_agent.py` is the **memory agent**
-  — the SINGLE writer to `memory/`, composing minimal context by heuristic + a cheap LLM router. `nucleo/dispatch.py`
+  — the SINGLE writer to `memory/`, composing minimal context by heuristic + a cheap LLM router. `nucleo/dispatch/`
   is the dispatcher: it composes a dynamic prompt `[context + task]` for the CodeAgent (model per invocation),
   consumes `escalate.requested` off the bus, and delivers by voice + UI (`voice/proactive`).
 - **Escalation** — the FlashBrain calls the tool `escalate_to_slowbrain(request)` (an OpenAI-compatible function

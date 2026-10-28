@@ -166,7 +166,7 @@ def test_the_card_title_is_the_errand_name_and_a_summary_never_overwrites_it():
 
 
 def test_a_browser_card_is_born_with_the_errands_name_and_renamed_with_it():
-    src = (ROOT / "nucleo/dispatch_prepare.py").read_text(encoding="utf-8")
+    src = (ROOT / "nucleo/dispatch/prepare.py").read_text(encoding="utf-8")
     assert "navtasks.create(req, _errand_name(rec, req)" in src
     assert "_navtasks.set_title(rec.nav_task, t)" in src
 

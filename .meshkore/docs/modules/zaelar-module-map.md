@@ -38,7 +38,7 @@ start with `make run` → `python -m server`.
   retriever. `nucleo/loop.py` (~1 Hz) + `nucleo/scheduler.py` (**the engine's OWN cron**, backed by
   `memory.journal`) + `nucleo/cron_api.py` (`/api/cron`, the ⏰ panel) + `nucleo/sparks.py` (double-gated sparks) =
   the **orchestrator loop** (scheduled tasks + proactivity + triggers the memory consolidator off the hot path +
-  reports by voice and UI; mounted in the lifespan with `BRAIN=nucleo`). `nucleo/dispatch.py` (dispatcher: composes
+  reports by voice and UI; mounted in the lifespan with `BRAIN=nucleo`). `nucleo/dispatch/` (dispatcher: composes
   the prompt [context + task] → CodeAgent with a per-invocation model, consumes `escalate.requested` from the bus,
   delivers by voice and UI) + `nucleo/memory_agent.py` ★ (the MEMORY agent, the single writer to `memory/`; its
   `compose_context` is the worker's **multi-axis dossier**: profile without mission + rules + ⚠️ critical items
@@ -238,7 +238,7 @@ monkeypatches keep working. Look here before grepping for a name that seems to h
 - `nucleo/flash/commission_guards.py` — the commission readers (out of `router_guards.py`).
 - `nucleo/flash/anthropic_sse.py` — the Anthropic SSE parser (out of `fast_client.py`).
 - `nucleo/flash/payload_fill.py` — the payload fills of a direct widget action (out of `direct_action.py`).
-- `nucleo/dispatch_listener.py` — the escalation listener; `dispatch.py` stays the facade.
+- `nucleo/dispatch/listener.py` — the escalation listener; `dispatch.py` stays the facade.
 - `nucleo/workers/session_notes.py` — the session's notes as a mixin; `nucleo/workers/tool_steps.py` — tool-step readers.
 - `memory/workflows_store.py` — the `workflows` table (out of the memory facade).
 - `server/canvas_api.py` — the canvas routes, on their own router (out of `voice_api.py`).

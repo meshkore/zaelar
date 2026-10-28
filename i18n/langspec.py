@@ -299,6 +299,7 @@ class LangSpec:
     amounts_unbacked: str = ""
     worker_gave_up_context: str = ("")
     worker_command_denied: str = ("")
+    worker_reach_gap: str = ("")
     worker_stalled: str = ("")
     worker_spinning: str = ("")
     worker_gave_up_provider: str = ("")

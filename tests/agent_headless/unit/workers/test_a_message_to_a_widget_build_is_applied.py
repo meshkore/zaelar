@@ -13,7 +13,7 @@ import asyncio
 import pytest
 
 from i18n import langs
-from nucleo.workers import generator_session as gs
+from nucleo.workers.providers import generator as gs
 
 GAME = "Crear un widget nuevo: un juego de plataformas tipo Super Mario, jugable con teclado"
 

@@ -1,6 +1,6 @@
 """What a worker's tool call LOOKS like on the operator's timeline: where, what, target (V2-778 F1, 2026-10-01).
 
-Moved out of `nucleo/workers/claude_session.py` (over its size ceiling): the readers that turn one `tool_use`
+Moved out of `nucleo/workers/providers/claude.py` (over its size ceiling): the readers that turn one `tool_use`
 into a step row `{where, action, target}` and its phase (V2-048) — the bash command's head, a navigation's target,
 a short path. Unchanged; `claude_session` imports every name back and its methods (which Grok's session
 overrides) still call them.

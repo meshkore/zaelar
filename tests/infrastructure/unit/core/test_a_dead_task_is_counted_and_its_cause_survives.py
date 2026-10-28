@@ -106,20 +106,35 @@ def test_la_ruta_del_payload_es_la_PLANA_que_el_bus_escribe():
 
 # ── R4 · la causa se clasifica UNA vez y viaja ──────────────────────────────────────────────────────────
 
-def test_note_failure_devuelve_la_CAUSA_no_solo_el_relevo():
+def test_note_failure_returns_the_CAUSE_not_only_the_relay(monkeypatch):
+    """Checked at the door (refactor2710-09): the rung that failed comes back with the KIND computed where the text
+    was classified, so the adapter never classifies it a second time."""
     from nucleo.workers import providers as P
-    src = pathlib.Path(P.__file__).read_text(encoding="utf-8")
-    assert '"kind": kind, "provider": t["name"]' in src, "la causa tiene que salir de donde se calcula"
+    rung = {"name": "relay-a", "base_url": "https://relay.example.test", "plan": "test"}
+    picks = iter([rung, None])
+    set_calls = []
+    monkeypatch.setattr(P, "pick", lambda: next(picks))
+    monkeypatch.setattr(P, "_store", type("S", (), {"set": lambda self, n, u: set_calls.append(n)})())
+    out = P.note_failure("API Error: 400 [1210][Invalid API parameter, please check the documentation.]")
+    assert out["kind"] == "broken" and out["provider"] == "relay-a" and out["next"] == "", out
+    assert set_calls == ["relay-a"], "the failing rung is put on cooldown under its own name"
 
 
-def test_el_adaptador_ya_no_reclasifica_el_texto_para_decidir_si_avisa():
-    """El agujero exacto: `broken` lo reconoce `is_broken_request` y NO `classify_failure`, así que la
-    condición `if nxt is not None or classify_failure(...)` dejaba mudo un broken sin relevo."""
-    src = (ENGINE / "nucleo" / "workers" / "claude_session.py").read_text(encoding="utf-8")
-    body = src[src.index("is_context_overflow"):src.index('yield self._ev("result"')]
-    codigo = "\n".join(l for l in body.splitlines() if not l.strip().startswith("#"))
-    assert "classify_failure" not in codigo, "sigue reconstruyendo una clasificación que ya venía hecha"
-    assert "if cause:" in codigo, "un kind reconocido tiene que producir chip, con o sin relevo"
+def test_the_adapter_no_longer_reclassifies_the_text_to_decide_whether_to_warn(monkeypatch):
+    """The exact hole: `broken` is recognised by `is_broken_request` and NOT by `classify_failure`, so the condition
+    `if nxt is not None or classify_failure(...)` left a broken request with no relay MUTE. Read through the stream
+    reader: a rejected request with no relay still produces its chip, carrying the cause `note_failure` computed."""
+    from nucleo.workers import providers as P
+    from nucleo.workers.providers.claude import ClaudeCodeSession
+    monkeypatch.setattr(P, "note_failure", lambda text, tier=None: {"kind": "broken", "provider": "relay-a",
+                                                                    "next": "", "detail": "x"})
+    s = ClaudeCodeSession()
+    s._tier = {"name": "relay-a", "base_url": "https://relay.example.test"}
+    text = "API Error: 400 [1210][Invalid API parameter, please check the documentation.]"
+    events = list(s._map({"type": "result", "subtype": "error", "is_error": True, "result": text}))
+    down = [e for e in events if e.type == "provider_down"]
+    assert down and down[0].data["kind"] == "broken" and down[0].data["next"] == "", [e.type for e in events]
+
 
 
 def test_un_broken_SIN_RELEVO_produce_causa(monkeypatch, tmp_path):
@@ -136,21 +151,23 @@ def test_un_broken_SIN_RELEVO_produce_causa(monkeypatch, tmp_path):
     ("broken", "el proveedor RECHAZA nuestras peticiones"),
     ("", "proveedor caído"),
 ])
-def test_el_chip_dice_QUE_fallo_en_vez_de_sin_cuota_siempre(kind, esperado):
+def test_el_chip_dice_QUE_fallo_en_vez_de_sin_cuota_siempre(monkeypatch, kind, esperado):
     """Lo que el operador lee decide lo que HACE: una cuota dice «espera», una credencial dice «arréglala»,
-    una petición rechazada no dice ninguna de las dos."""
-    src = (ENGINE / "nucleo" / "workers" / "session.py").read_text(encoding="utf-8")
-    body = src[src.index('elif ev.type == "provider_down"'):src.index('elif ev.type == "progress"')]
-    assert f'"{esperado}"' in body or f"'{esperado}'" in body
-    if kind:
-        assert f'"{kind}"' in body
+    una petición rechazada no dice ninguna de las dos. Leído del chip que la sesión pinta."""
+    from tests.agent_headless.unit.workers import session_door as door
+    s = door.session(monkeypatch)
+    door.event(s, "provider_down", provider="relay-a", next="", kind=kind, text="x")
+    assert s.chips and s.chips[-1][0] == esperado and s.chips[-1][2] is False, s.chips
 
 
-def test_session_no_vuelve_a_leer_el_texto_del_error():
-    """Sería la TERCERA clasificación de la misma cadena. La causa llega como dato."""
-    src = (ENGINE / "nucleo" / "workers" / "session.py").read_text(encoding="utf-8")
-    body = src[src.index('elif ev.type == "provider_down"'):src.index('elif ev.type == "progress"')]
-    assert "classify_failure" not in body and "is_broken_request" not in body
+def test_session_no_vuelve_a_leer_el_texto_del_error(monkeypatch):
+    """Sería la TERCERA clasificación de la misma cadena. La causa llega como dato: con el texto de una cuota
+    agotada y `kind` vacío, la sesión no lo reclasifica — el chip dice lo que dice el dato."""
+    from tests.agent_headless.unit.workers import session_door as door
+    s = door.session(monkeypatch)
+    door.event(s, "provider_down", provider="relay-a", next="relay-b", kind="",
+               text="Weekly Limit Exhausted. Your limit will reset at 2026-11-02")
+    assert s.chips[-1][0] == "proveedor caído" and "relevo a relay-b" in s.chips[-1][1], s.chips
 
 
 # ── R3 · la regla del cierre corto la comparten los dos canales, como FUNCIÓN ───────────────────────────
