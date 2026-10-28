@@ -163,6 +163,21 @@ def ephemeral_speaker():
     return _ephemeral_speaker
 
 
+def _carry_to_the_next_turn(title: str, text: str, *, key: str, carry: bool) -> None:
+    """No live voice: the delivery becomes a [SISTEMA] note the agent says in its next turn (V2-220)."""
+    if not carry:
+        return
+    try:
+        from voice import brain_notes
+        # V2-666: «después de contestarle», never «primero» — the note rides BEHIND his words now
+        # (`brain_notes.compose_turn`), and its own wording must not undo that order.
+        brain_notes.push(f"[SISTEMA] Aviso para el operador ({title or 'zaelar'}): {text[:400]} "
+                         f"Díselo con tus palabras DESPUÉS de contestar a lo que te ha pedido — todavía no "
+                         f"lo sabe.", key=key)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"proactive notify (nota al cerebro) failed: {e}")
+
+
 async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify",
                  key: str = "", opens_window: bool = True, carry: bool = True, about: str = "") -> bool:
     """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises.
@@ -207,17 +222,7 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
     # The note is an INSTRUCTION, never the bare phrase (V2-214): its reader is the AGENT at a later moment, so
     # handing it prose reads as something to file rather than something to say.
     if not (speak and _speaker is not None):
-        if not carry:
-            return False
-        try:
-            from voice import brain_notes
-            # V2-666: «después de contestarle», never «primero» — the note rides BEHIND his words now
-            # (`brain_notes.compose_turn`), and its own wording must not undo that order.
-            brain_notes.push(f"[SISTEMA] Aviso para el operador ({title or 'zaelar'}): {text[:400]} "
-                             f"Díselo con tus palabras DESPUÉS de contestar a lo que te ha pedido — todavía no "
-                             f"lo sabe.", key=key)
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"proactive notify (nota al cerebro) failed: {e}")
+        _carry_to_the_next_turn(title, text, key=key, carry=carry)
         return False
     # SPEECH GATE: the UI keeps the raw text (debug), but the SPEAKER only ever gets clean operator-facing prose.
     # If nothing speakable survives (pure metadata / markdown / empty), stay silent on voice — the UI already has it.
