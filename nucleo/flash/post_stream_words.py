@@ -225,7 +225,7 @@ async def hold_the_model_to_its_words(*, _apply_widget_data, _brief, _data_ops_h
                  text=f"{_ar['widget_id']}:{_ar['action']}", role="system",
                  extra={"cat": "flash", "widget": _ar["widget_id"], "action": _ar["action"]})
             # the words did not promise it (they may have REFUSED it): what was done is said after them
-            _ar_tail = _act_repair.after_the_repair(spoken_text, _router.promises_action(spoken_text),
+            _ar_tail = _act_repair.after_the_repair(spoken_text, False,
                                                     _ar["widget_id"], _ar["action"])
             if _ar_tail:
                 data_done.setdefault("owed", []).append(_ar_tail.strip())   # said once the op answered (V2-783 P0-2)

@@ -121,10 +121,13 @@ def test_a_claim_over_a_swallowed_call_is_never_left_as_done(reply):
     assert pk.close(reply, {"kind": pk.SWALLOWED}, acted=True) == "", "something ran: nothing to add"
 
 
-def test_no_card_and_a_committing_reply_still_ends_honestly():
-    assert pk.close("Lo hago ahora mismo: le quito el silencio.", {}, acted=False)
-    assert pk.close("¿Cuál de los dos quieres que abra?", {}, acted=False) == "", "a question waits for him"
-    assert pk.close("Es el último de su canal.", {}, acted=False) == "", "an answer promised nothing"
+def test_no_card_and_an_owed_order_still_ends_honestly(monkeypatch):
+    """refactor2710-03: the BRIEF says an act was owed (an order), never the words — the same three replies, read by
+    the brief alone."""
+    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: "order" if b == "ORDER" else "")
+    for said in ("Lo hago ahora mismo: le quito el silencio.", "¿Cuál de los dos quieres que abra?", ""):
+        assert pk.close(said, {}, acted=False, brief="ORDER"), said
+        assert pk.close(said, {}, acted=False, brief=None) == "", "no order in the brief: nothing owed"
 
 
 # ── the voice door, driven ──────────────────────────────────────────────────────────────────────────────
@@ -205,12 +208,16 @@ def test_the_voice_turn_end_says_it_after_the_backstop():
 
 
 @pytest.mark.parametrize("routed", ["routed", "asked"])
-def test_a_backstop_that_routed_or_asked_owes_no_line(routed):
-    assert pk.close("Me pongo con ello ahora mismo.", {}, acted=bool(routed)) == ""
+def test_a_backstop_that_routed_or_asked_owes_no_line(routed, monkeypatch):
+    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: "order")
+    turn = ("ORDER", [], "x", None)
+    assert pk.close("Me pongo con ello ahora mismo.", {}, acted=bool(routed), brief="ORDER") == ""
     said: list = []
     window = [{"role": "assistant", "content": "Lo hago ahora mismo."}]
     speech = SimpleNamespace(sanitize=lambda t, **k: t)
-    pk.say_after("Lo hago ahora mismo.", {}, acted=routed, send=said.append, speech=speech, window=window, emit=None)
+    pk.say_after("Lo hago ahora mismo.", {}, acted=routed, send=said.append, speech=speech, window=window, emit=None,
+                 turn=turn)
     assert not said
-    pk.say_after("Lo hago ahora mismo.", {}, acted="", send=said.append, speech=speech, window=window, emit=None)
+    pk.say_after("Lo hago ahora mismo.", {}, acted="", send=said.append, speech=speech, window=window, emit=None,
+                 turn=turn)
     assert said and window[-1]["content"].endswith(said[0].strip()), "the line is said AND kept in the window"

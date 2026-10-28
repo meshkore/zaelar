@@ -155,16 +155,16 @@ def how_far(e: dict, lang) -> str:
     return lang.errand_running_for.format(min=secs // 60) if secs >= 60 else lang.errand_under_way
 
 
-def promised_refinement(operator_text: str, spoken: str) -> str:
+def promised_refinement(operator_text: str, spoken: str, brief=None) -> str:
     """The LIVE errand a promise with no tool call is about — the one his sentence names most — or "".
 
     three-tasks-at-once (ES, 2026-10-11 02:04): «¿y al juego le puedes poner monedas?» → «Voy con ello, le añado
     monedas» and no call at all; the promise backstops only re-escalate a web-looking order, so a refinement of a
     running errand was promised and dropped. Bounded on the consequence: his own words go to the errand they name,
     through the same injection `send_to_worker` uses. A parked errand is left to the confirmation gate, which folds
-    the words into it; a reply that asks him for a detail promised nothing."""
-    from nucleo.flash import reply_promise as _rp, router as _router
-    if not (spoken or "").strip() or not _rp.promises_action(spoken) or _router.asks_for_missing_detail(spoken):
+    the words into it. Whether an act was owed is the brief's verdict (`reply.owes_an_act`), never our words."""
+    from nucleo.turn import reply as _reply
+    if not _reply.owes_an_act(brief):
         return ""
     from nucleo.turn import our_question as _oq        # his answer to our phase's question is not for the errand
     operator_text = _oq.without_its_answer(operator_text, spoken)

@@ -337,7 +337,6 @@
  ],
  "promise_retracted": "Sorry — I haven't actually looked at that yet, and nothing is running. Tell me what to check and I'll do it right now.",
  "promise_retracted_busy": "Sorry — I haven't actually looked at that yet. Tell me what to check and I'll do it right now.",
- "still_running_truth": "For the record, this is still running: {titles}. Say «stop it» and I'll stop it.",
  "composed_on_screen": "«{title}» is on your screen.",
  "first_rows_notice": "The first ones for «{title}» are in: {rows}. They're on your sheet.",
  "tell_me_cues": [

@@ -46,6 +46,22 @@ class Outcome:
     said: str = ""              # the act's OWN sentence from its fact (a card's message, a notice read back): it wins
 
 
+def owes_an_act(brief) -> str:
+    """"escalate" | "order" | "" — the turn's brief says, at its confidence, that this turn owed an act (CRIT-K1: a
+    verdict decides whether an act was owed, never our own words). "" when the brief does not say so: nothing is
+    invented then, the model's turn stands."""
+    try:
+        from nucleo.flash import turn_brief as tb
+        esc, e_info = tb.read(brief, tb.ESCALATE_KEY, "")
+        if e_info is not None and esc == "escalate":
+            return "escalate"
+        kind, k_info = tb.read(brief, tb.REQUEST_KEY, "")
+        return "order" if (k_info is not None and kind == "order") else ""
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"reply: the brief was not read — {e!r}")
+        return ""
+
+
 def _value(verdict) -> str:
     """The verdict's name in the one vocabulary (`nucleo.circuit.verdict`); "" for a name no verdict has."""
     v = V.of(getattr(verdict, "name", verdict))
@@ -148,6 +164,28 @@ def _notice_moved(said: str) -> list[Outcome]:
     return [Outcome(V.MET.name, "cron", "create", said=text)] if text else []
 
 
+def _errands_that_died(said: str) -> list[Outcome]:
+    """An errand that ENDED unmet (failed, not cancelled) is `unmet`, said ONCE by the mouth — the record says it
+    died, whatever the model's words promised. Skipped when the words already named it by its title or goal."""
+    out: list[Outcome] = []
+    try:
+        from nucleo import dispatch
+        low = (said or "").lower()
+        for row in dispatch.recently_ended_sessions():
+            if row.get("ok") or str(row.get("status") or "") == "cancelled" or row.get("mouth_said"):
+                continue
+            name = str(row.get("title") or row.get("goal") or "").strip()
+            live = dispatch._ENDED_SESSIONS.get(str(row.get("id")))
+            if live is not None:
+                live["mouth_said"] = True
+            if name and name.lower() not in low:
+                out.append(Outcome(V.UNMET.name, "errand", str(row.get("id") or ""), object=_quoted(name),
+                                   reason=_quoted(name)))
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"reply: the ended errands were not read — {e!r}")
+    return out
+
+
 def line(outcome: Outcome) -> str:
     """The sentence for ONE outcome, from the bundle key of its verdict. "" when the verdict has nothing to say."""
     value = _value(outcome.verdict)
@@ -212,5 +250,6 @@ def speak(outcomes: list[Outcome], said: str, send, speech) -> str:
 async def after_acts(tasks, said: str, send, speech, timeout: float = WAIT_S) -> str:
     """The turn's acts ended (its data-ops answered, or `timeout` passed): the lines of what they declared and of
     what the data-ops ended in, after `said`."""
-    outcomes = taken() + _notice_moved(said) + (await of_ops(tasks, timeout) if tasks else [])
+    outcomes = (taken() + _notice_moved(said) + _errands_that_died(said)
+                + (await of_ops(tasks, timeout) if tasks else []))
     return speak(outcomes, said, send, speech) if outcomes else said

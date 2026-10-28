@@ -61,18 +61,17 @@ below is the first kind, or it names the mechanism that replaced the second.
   says the i18n `say_again`; the first turn (the kickoff greeting) answers nothing he said and says the i18n
   `kickoff_fallback` instead, or nothing — never «say that again» (`turn_failure._fallback_line`).
   — since 2026-10-24 · nodes 2.770.
-- **CRIT-V12 · A promise ends in one of three states, never in a log line.** A reply that promises or claims an act
-  and fired nothing that ran gets ONE second pass on a card — the verdict's, else the card of the model's own call a
-  guard discarded, else (decision model silent) the card his last turn acted on or the one open; the pass makes the
-  call, or declares `cannot_do`, or judges the words promised nothing. A repaired call a guard swallows is not done;
-  when nothing ran and nothing was routed, he hears that it was not done (the pass's sentence or the i18n
-  `promise_not_kept`) — both channels through `nucleo/turn/promise_kept.py`. Nothing is owed when the reply's
-  verdict holds the act for HIS word (`ask_first`, at any confidence — the verdict speaks before any table), nor
-  when a claimed state is one an op of this request left on screen and nothing refused. A sure `act` verdict is
-  owed on its own, no phrase table asked; and a promise of work handed over LATER (the reply's own `reply_when`
-  verdict), with nothing run, no model call and no pass that ran or refused, starts its errand through the turn's
-  escalation instead of a «not done» (`promise_kept.deferred_errand`). — since 2026-10-24 ·
-  nodes 2.790, 2.794, 2.796.
+- **CRIT-V12 · An owed act ends in one of three states, never in a log line.** Whether the turn OWED an act is the
+  brief's verdict (`reply.owes_an_act`: an order or a sure escalation at its confidence), never our reply's words
+  (refactor2710-03). A turn that owed one and fired nothing that ran gets ONE second pass on a card — the verdict's,
+  else the card of the model's own call a guard discarded, else (decision model silent) the card his last turn acted
+  on or the one open; the pass makes the call, or declares `cannot_do`, or judges nothing is owed. A repaired call a
+  guard swallows is not done; when nothing ran and nothing was routed, he hears that it was not done (the pass's
+  sentence or the i18n `promise_not_kept`), said by the mouth (`nucleo/turn/reply.py`, verdict `cannot` or `unmet`)
+  through `nucleo/turn/promise_kept.py`. Nothing is owed when the brief does not say an act was owed, nor when a
+  claimed state is one an op of this request left on screen and nothing refused. A sure `escalate` with nothing run,
+  no model call and no pass that ran or refused starts its errand through the turn's escalation instead of a «not
+  done» (`promise_kept.deferred_errand`). — since 2026-10-24 · nodes 2.790, 2.794, 2.796.
 - **CRIT-V15 · Inside the attention window a line is still judged, and only an addressed line keeps it open.** In
   `always` the window admits without waiting (deafness inside a conversation is the worse failure), and the line is
   judged beside the turn by the same judge, which answers two questions — addressed? a clear request?

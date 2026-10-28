@@ -544,8 +544,6 @@ class LangSpec:
     #: …and while a worker IS running (2026-10-22: «…and nothing is running» was said over two live workers). It
     #: retracts the look only and says nothing about the state — the live list is the panel's to show.
     promise_retracted_busy: str = ("")
-    #: Said when the reply claimed work stopped / nothing running and the task record says otherwise. `{titles}`.
-    still_running_truth: str = ("")
     #: Said when a document was written in one request and is on screen (`compose_rung`). `{title}`.
     composed_on_screen: str = ("")
     #: The FIRST backed rows of an errand he asked to be told about, said once (`nucleo/turn/first_rows_notice`).

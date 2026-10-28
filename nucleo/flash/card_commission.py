@@ -512,7 +512,8 @@ async def after_show(acted: dict, *, brief, operator_text: str, spoken_text: str
         # when the brief fired, so no verdict could name `open`). The card came up by CONTEXT, which is a guess at the
         # object, never the act; «show me the calendar» names its card and is left alone.
         by_context = _da.reads_as_order(brief) and not _da.named_cards(operator_text)
-        if not (acted.get("show_suppressed") or (spoken_text and _router.promises_action(spoken_text))
+        from nucleo.turn import reply as _reply
+        if not (acted.get("show_suppressed") or _reply.owes_an_act(brief) == "order"
                 or _da.names_an_order(brief, sure=0.8) or named_or_catalogue(brief, operator_text) == wid
                 or (spoken_text and _da.names_an_order(brief)) or empty or by_context):
             return False

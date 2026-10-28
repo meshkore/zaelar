@@ -3840,9 +3840,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/susurro/test_a_late_audit_does_not_act.py"]},
         # Demo passes 33-54 (2026-09-29) — the audit's fixes, one node each.
-        {"id": "2.179", "title": "The promise detector speaks English — twenty replies measured on the demo",
-            "ch": UNIT,
-            "paths": ["tests/voice/unit/test_an_english_promise_is_a_promise.py"]},
         {"id": "2.178", "title": "hbmesh names its two forms when a worker misuses it",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_the_mesh_cli_names_its_forms_when_misused.py"]},
@@ -3882,9 +3879,6 @@ DOMAINS: list[dict] = [
         {"id": "2.167", "title": "A verdict's action brings up the live card, never a bare phantom",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_verdict_action_lands_on_the_live_card.py"]},
-        {"id": "2.166", "title": "An English promise of playback is kept by the music backstop, with the title its words carry",
-            "ch": UNIT,
-            "paths": ["tests/voice/unit/test_an_english_promise_to_play_is_kept.py"]},
         {"id": "2.165", "title": "A card brought back from minimized re-tiles the desk if it lands on another",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_a_card_brought_back_retiles_the_desk.py"]},
@@ -4101,9 +4095,6 @@ DOMAINS: list[dict] = [
         # V2-809 — disarmed 2026-10-26 (live-block wiring, image as a content part, PDF page cap, pixel cap, detach) → each red.
         {"id": "2.814", "title": "The turn sees what he just attached to the chat as STATE — name, kind, size and the reading made at upload, within one budget, nothing without one — the image read by a model that receives it, the readers bounded (V2-809)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_turn_sees_what_he_attached.py"]},
-        {"id": "2.207", "title": "Whether the reply PROMISED an act or music is read by a verdict in any language; the "
-                                 "phrase tables decide only when the verdict cannot (V2-778 F2-16)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_promise_is_read_in_any_language.py"]},
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},

@@ -492,7 +492,8 @@ def test_a_show_with_a_promise_on_it_is_not_the_act(monkeypatch):
     from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router
     monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
     monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: r.endswith("?"))
-    monkeypatch.setattr(router, "promises_action", lambda r: "let me" in r)
+    owed = {"v": "order"}                     # the brief reads an order (refactor2710-03: never our words)
+    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: owed["v"])
     monkeypatch.setattr(direct_action, "names_an_order", lambda b: False)
     answer = {"widget_id": "mensajeria", "action": "show_view", "payload": {"platform": "email", "window_h": 24}}
 
@@ -505,14 +506,15 @@ def test_a_show_with_a_promise_on_it_is_not_the_act(monkeypatch):
     acted = {"widget_id": "mensajeria", "show_suppressed": False}
     assert asyncio.run(card_commission.after_show(acted, spoken_text="On it — let me pull your inbox up", **kw))
     assert applied == [("mensajeria", "show_view", {"platform": "email", "window_h": 24})]
-    # a bare show («show me my messages, here it is») with no promise and no suppressed show asks nothing
+    # a bare show («show me my messages, here it is») the brief owes nothing on, and no suppressed show, asks nothing
+    owed["v"] = ""
     assert not asyncio.run(card_commission.after_show(acted, spoken_text="Here are your messages.", **kw))
     # a suppressed show over the open card asks even without a promise wording
     answer = {"widget_id": "mensajeria", "action": "open", "payload": {"item": "Cryptonite"}}
     assert asyncio.run(card_commission.after_show({"widget_id": "mensajeria", "show_suppressed": True},
                                                    spoken_text="Opening that one now.", **kw))
     assert applied[-1] == ("mensajeria", "open", {"item": "Cryptonite"})
-    # a reply that ASKS for the detail it needs is not a promise left hanging
+    # nothing owed by the brief: whatever the words say, no pass
     assert not asyncio.run(card_commission.after_show(acted, spoken_text="What should the reply say?", **kw))
 
 
@@ -525,7 +527,7 @@ def test_a_show_of_a_catalogue_named_card_asks_for_the_rest_of_the_order(monkeyp
     from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router
     monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
     monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: False)
-    monkeypatch.setattr(router, "promises_action", lambda r: False)
+    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: "")
     monkeypatch.setattr(direct_action, "names_an_order", lambda b, **k: False)
     monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "mensajeria")
     from nucleo.flash import surface_ack
@@ -554,7 +556,7 @@ def test_a_silent_show_of_a_catalogue_named_card_still_asks_for_the_rest(monkeyp
     from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router
     monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
     monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: r.endswith("?"))
-    monkeypatch.setattr(router, "promises_action", lambda r: "let me" in r)
+    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: "")
     monkeypatch.setattr(direct_action, "names_an_order", lambda b, **k: False)
     monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "markets")
     from nucleo.flash import surface_ack
@@ -584,7 +586,7 @@ def test_a_spoken_claim_over_a_show_on_an_order_gets_its_pass(monkeypatch):
     from nucleo.flash import act_repair, card_commission, clarifying, direct_action, router, surface_ack
     monkeypatch.setattr(danger, "is_dangerous", lambda t: False)
     monkeypatch.setattr(clarifying, "asks_for_missing_detail", lambda r: False)
-    monkeypatch.setattr(router, "promises_action", lambda r: False)
+    monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda b: "")
     monkeypatch.setattr(direct_action, "names_an_order", lambda b, sure=0.0: not sure)
     monkeypatch.setattr(card_commission, "named_or_catalogue", lambda brief, text, **k: "")
     monkeypatch.setattr(surface_ack, "nothing_to_show", lambda wid: False)
