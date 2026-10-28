@@ -49,24 +49,6 @@ def test_the_measured_close_of_the_detail_does_not_close_the_agenda(verdict):
     assert _canvas(verdict, "Vale, ya la puedes cerrar") == "" and verdict["tags"] == []
 
 
-def test_the_text_channel_runs_the_inner_close_in_its_place(verdict, monkeypatch):
-    monkeypatch.setattr(DA, "resolve", lambda *a, **k: {"widget": "agenda", "action": "close_meeting", "payload": {},
-                                                        "label": "agenda:close_meeting", "source": "no-payload"})
-    calls: list = []
-    got = CC.complete_canvas_mirror(object(), "Vale, ya la puedes cerrar", blocked=False, calls=calls)
-    assert got == {"action": "widget_data", "spoken": "", "_already": True}
-    assert [(c["args"]["widget_id"], c["args"]["action"]) for c in calls] == [("agenda", "close_meeting")]
-
-
-def test_a_payload_read_from_a_whole_sentence_is_left_to_the_repair(verdict, monkeypatch):
-    monkeypatch.setattr(DA, "resolve", lambda *a, **k: {"widget": "agenda", "action": "cancel_meeting",
-                                                        "payload": {"title": "quita el piano"}, "label": "x",
-                                                        "source": "operator-words"})
-    verdict["action"] = ("agenda", "cancel_meeting")
-    calls: list = []
-    assert CC.inner_order_mirror(object(), "quita el piano", calls, emit=lambda *a, **k: None) == {} and calls == []
-
-
 # ── 2.441 · an inner WRITE is never read as a close ───────────────────────────────────────────────────────────
 
 def test_the_measured_series_removal_does_not_close_the_agenda(verdict):

@@ -288,20 +288,3 @@ def is_minimized(widget_id: str) -> bool:
     except Exception:  # noqa: BLE001
         return False
 
-
-def mount_needed(extra: dict | None, action: str, *, known=None) -> bool:
-    """Does this result need its widget's card ON SCREEN, and is it not there already?
-
-    `extra` is the connector's result block: `surface` says where the output lives and `widget` names the
-    card. Both are read as facts about the OUTPUT — the decision below is the manifest's."""
-    ex = extra if isinstance(extra, dict) else {}
-    wid = str(ex.get("widget") or "").strip().lower()
-    if not wid or str(ex.get("surface") or "").strip() != "widget":
-        return False
-    if is_open(wid, known=known):
-        return False
-    try:
-        from widgets import producers
-        return bool(producers.starts_production(wid, str(action or "").strip()))
-    except Exception:  # noqa: BLE001 — an unreadable declaration never moves the flag
-        return False

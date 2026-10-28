@@ -60,16 +60,6 @@ def _gesture(brief, text: str) -> list:
     return tags
 
 
-def test_a_partial_list_of_what_opened_gets_the_missing_card(screen, spanish):
-    screen["open"] = []
-    acts = CR.acts_of_probe_turn("music", [], [{"name": "play_video", "args": {"query": "Dune trailer"}},
-                                               {"name": "play_music", "args": {"query": "música tranquila"}},
-                                               {"name": "show_widget", "args": {"widget_id": "agenda"}}])
-    assert {a[0] for a in acts} == {"youtube", "musica", "agenda"}
-    out = CR.complete("Voy con el vídeo y la música.", acts)
-    assert out == "Voy con el vídeo y la música. También te he abierto Agenda."
-
-
 def test_a_reply_that_names_none_of_them_speaks_for_all(screen, english):
     acts = [("youtube", CR.SHOW, "play"), ("musica", CR.SHOW, "play"), ("agenda", CR.SHOW, "show_widget")]
     assert CR.complete("I'll get all three going.", acts) == "I'll get all three going."

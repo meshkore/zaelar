@@ -59,64 +59,6 @@ def _fresh_reopen_state():
 
 # ── 1 · the flag moves only for what the widget declares ─────────────────────────────────────────────────
 
-@pytest.mark.parametrize("action", CONTROLS)
-def test_a_control_never_opens_the_card(action):
-    """The three that actually happened to him: pause re-opened the card he had closed, and volume_up put
-    it back in front of him while he was talking about something else."""
-    assert cv.mount_needed(WIDGET_SURFACE, action, known=[]) is False
-
-
-@pytest.mark.parametrize("action", PRODUCERS)
-def test_a_declared_producer_opens_it_because_the_sound_lives_there(action):
-    """Not a courtesy: the audio is a hidden iframe INSIDE the card, so a play off screen is silence."""
-    assert cv.mount_needed(WIDGET_SURFACE, action, known=[]) is True
-
-
-@pytest.mark.parametrize("action", PRODUCERS + CONTROLS)
-def test_an_open_card_is_never_shown_again(action):
-    """The other half of the dance: a `show` on an open card raises and refocuses it, jumping in front of
-    whatever he was reading. If it is open there is nothing to open."""
-    assert cv.mount_needed(WIDGET_SURFACE, action, known=["musica"]) is False
-
-
-def test_an_instance_id_counts_as_the_same_card():
-    assert cv.mount_needed(WIDGET_SURFACE, "play", known=["musica::t2"]) is False
-
-
-def test_output_that_does_not_live_in_the_card_never_touches_the_canvas():
-    """Spotify plays on a device: there is no surface to mount, so the screen is not part of the act."""
-    assert cv.mount_needed({"surface": "device", "widget": "musica"}, "play", known=[]) is False
-    assert cv.mount_needed({}, "play", known=[]) is False
-    assert cv.mount_needed(None, "play", known=[]) is False
-
-
-def test_an_undeclared_action_leaves_the_card_where_the_operator_put_it():
-    """Fails toward NOT moving the flag — the direction that cannot surprise him."""
-    assert cv.mount_needed(WIDGET_SURFACE, "", known=[]) is False
-    assert cv.mount_needed(WIDGET_SURFACE, "nonexistent_action", known=[]) is False
-    assert cv.mount_needed({"surface": "widget", "widget": "no_such_widget"}, "play", known=[]) is False
-
-
-def test_the_open_set_is_read_from_the_canvas_own_report(monkeypatch):
-    """`open_widgets` is written by the frontend, which is authoritative for the canvas, and normalized to
-    base ids — so this reads the flag the operator himself moves when he clicks the close button."""
-    from memory import api as memapi
-    monkeypatch.setattr(memapi, "state", lambda: {"open_widgets": ["musica::t1", "Agenda"]})
-    assert cv.open_ids() == frozenset({"musica", "agenda"})
-    assert cv.is_open("musica") and cv.is_open("agenda") and not cv.is_open("youtube")
-    assert cv.mount_needed(WIDGET_SURFACE, "play") is False      # already open → no show
-
-    monkeypatch.setattr(memapi, "state", lambda: {"open_widgets": []})
-    assert cv.mount_needed(WIDGET_SURFACE, "play") is True
-
-
-def test_an_unreadable_state_costs_a_show_and_never_a_lost_playback(monkeypatch):
-    from memory import api as memapi
-    monkeypatch.setattr(memapi, "state", lambda: (_ for _ in ()).throw(RuntimeError("db down")))
-    assert cv.open_ids() == frozenset()
-    assert cv.mount_needed(WIDGET_SURFACE, "play") is True
-
-
 # ── 2 · the arbiter judges by the SAME declaration ───────────────────────────────────────────────────────
 
 def test_the_arbiter_calls_an_honest_mount_a_mount_and_not_a_drag():
@@ -189,6 +131,3 @@ def test_both_sides_read_one_declaration_and_not_two_lists():
         assert producers.starts_production("musica", action) is True, action
     for action in CONTROLS:
         assert producers.starts_production("musica", action) is False, action
-    arb_src = (ENGINE / "nucleo/canvas_arbiter.py").read_text(encoding="utf-8")
-    vis_src = (ENGINE / "nucleo/flash/canvas_visibility.py").read_text(encoding="utf-8")
-    assert "producers.starts_production" in arb_src and "producers.starts_production" in vis_src
