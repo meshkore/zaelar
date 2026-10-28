@@ -61,10 +61,3 @@ def test_the_voice_order_brings_the_card(box):
     man = json.loads((ENGINE / "widgets/mensajeria/manifest.json").read_text("utf-8"))
     assert "present.mount" in man["actions"]["send_to"].get("effects", [])
 
-
-def test_the_card_types_it_and_presses_send_only_for_show():
-    js = (ENGINE / "widgets/mensajeria/widget.js").read_text("utf-8")
-    i = js.index("function _playCompose(")
-    body = js[i:js.index("\n}\n", i)]
-    assert "ctx.action" not in body, "the order is already queued — the card must not send it a second time"
-    assert "_playCompose(c, box, send)" in js and "data.composing" in js

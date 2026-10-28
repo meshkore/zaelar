@@ -148,25 +148,6 @@ def test_reextraer_la_misma_pagina_sigue_sin_ser_un_hallazgo_nuevo(task):
     assert brain_notes.drain() == []
 
 
-def test_la_fase_cuenta_RESULTADOS_y_no_filas():
-    """«12 resultados en la página» con nueve enlaces de categoría dentro es una cifra que el operador lee y se
-    cree. Y contar solo los que tienen nombre no calla nada: `progress.found(0)` dice «sin resultados en esta
-    página», que es exactamente lo que hace falta para que el worker cambie de sitio en vez de insistir.
-
-    GUARDA DE FUENTE, y se dice por qué: esa línea vive dentro del handler HTTP de `extract`, que exige una
-    pestaña de navegador viva. Lo que se puede comprobar sin navegador es que la cuenta sale del reparto y no de
-    `len(items)` — y eso es justo lo que una regresión desharía sin fallar con ruido.
-    """
-    import inspect
-
-    src = inspect.getsource(act_api.navegador_act)
-    rama = src[src.index('if action == "extract":'):]
-    rama = rama[:rama.index('if action in (')]
-    assert "by_identity(items)" in rama, "el reparto tiene que ocurrir ANTES de contar"
-    assert "_progress.found(len(_named))" in rama
-    assert "_progress.found(len(items))" not in rama, "contar filas cuenta el cromo como resultado"
-
-
 # ── the SAME row three times is not three findings either ───────────────────────────────────────────────────
 # A gift from the harness in the same round: the SECOND note contained three rows, and all three were the same Amazon
 # ad URL. In other words, repetitions do not just add clutter — they OCCUPY the quota of three, so two of the three

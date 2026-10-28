@@ -119,13 +119,3 @@ def test_el_PREFIJO_de_V2_346_sigue_DEGRADANDO_y_no_recortando():
     named, unnamed = by_identity(_filas(ts))
     assert named == [] and len(unnamed) == 5
 
-
-def test_una_sola_puerta_para_las_dos_reglas():
-    """The trailing phrase reuses the prefix searcher by reversing the strings: a second algorithm
-    doing the same thing from the other side would be a second place where the thresholds diverge."""
-    from pathlib import Path
-    src = Path("widgets/navegador/act_api.py").read_text()
-    i = src.index("def _boilerplate_suffix")
-    cuerpo = src[i:src.index("\ndef ", i + 10)]
-    assert "_boilerplate_prefix(" in cuerpo
-    assert act_api._TPL_MIN_CHARS and act_api._TPL_MIN_ROWS

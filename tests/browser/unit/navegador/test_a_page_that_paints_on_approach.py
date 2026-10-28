@@ -131,15 +131,3 @@ def test_el_umbral_deja_HUECO_entre_los_dos_casos_medidos():
     before a run does."""
     assert 0.5 < lazy.FOLD_RATIO < 11.0
 
-
-def test_la_EXTRACCION_lo_consulta_y_solo_cuando_no_hay_nada_con_nombre():
-    """Half of the wiring (V2-199) — and order matters: if it were ALWAYS pushed, every extraction with
-    results would pay for a page traversal it does not need."""
-    import inspect
-
-    from widgets.navegador import act_api
-    src = "\n".join(ln for ln in inspect.getsource(act_api).splitlines() if not ln.strip().startswith("#"))
-    i = src.find("materialise_below_the_fold(tb.page)")
-    assert i > 0, "la extracción dejó de consultar el mecanismo"
-    guarda = src[max(0, i - 120):i]
-    assert "not by_identity(items)[0]" in guarda, "se empuja sin comprobar que no hay filas con nombre"

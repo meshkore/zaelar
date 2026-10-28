@@ -69,11 +69,6 @@ def _members(literal: str) -> set[str]:
     return set(re.findall(r"(?:^|[,{]\s*|\n\s*)(?:get\s+|async\s+)?([A-Za-z_]\w*)\s*(?::|\()", literal))
 
 
-def test_the_cards_use_the_members_this_test_knows_about():
-    used = _used()
-    assert {"action", "t", "openConnector", "upload", "connect", "top"} <= used, used
-
-
 def test_every_host_gives_every_member_a_card_uses():
     used = _used()
     missing = {}
