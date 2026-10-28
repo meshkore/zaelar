@@ -39,7 +39,7 @@ async def _human_click_handle(page, h, mouse: dict) -> None:
     try:
         box = await h.bounding_box()
     except Exception:  # noqa: BLE001
-        box = None                                     # despegado del DOM: que lo diga el `click` de abajo
+        box = None                                     # detached from the DOM: the `click` below says so
     if box:
         tx = box["x"] + box["width"] / 2 + random.uniform(-4, 4)
         ty = box["y"] + box["height"] / 2 + random.uniform(-3, 3)

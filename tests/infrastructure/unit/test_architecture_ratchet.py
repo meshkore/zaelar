@@ -162,7 +162,6 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # hands last_status to every capture — the wall signal no needle can miss, measured on coches.net's two
     # bodies for the same 403). Inherent to the tab object (self/page); the WALL classification itself was
     # extracted instead (tasks.py → walls.py, 904→774, staying out of the table).
-    "widgets/navegador/owner.py": (1714, 43),
     # 2026-09-02: 1374 → 789, and 15 → 7 lazy imports. The ratchet asked for an extraction and got two:
     # `reminder_guards.py` (the 26 guards for a PROMISED dated notice — a closed set that nothing left
     # behind uses) and `text_norm.py` (the three text helpers BOTH halves need, which is why neither could
@@ -189,7 +188,6 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # slice of it: the three SCHEDULING backstops (promise→tag, execute the cron tags, write the commitment)
     # → `probe_scheduling.py`. A closed unit over five of run_turn's locals; moved byte for byte.
     "nucleo/flash/probe.py": (1109, 68),   # 2026-10-01 V2-778 F1: the post-model blocks → probe_after.py
-    "widgets/results/data.py": (991, 5),
     "memory/api.py": (1026, 17),   # 2026-10-01 V2-778 F1: the workflows table → memory/workflows_store.py
     "nucleo/flash/prompt.py": (834, 29),   # 25-08: 41be5cb V2-311 step 3 · 26-08: +3 V2-342 (the COMPLAINT
     # branch in the worker directive: inject before killing—directive prose, nothing extractable)
@@ -363,7 +361,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "server": 5736,        # refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10089,
     "voice/engine/llm": 3836,
-    "widgets": 38624,
+    "widgets": 38223,
 }
 
 #: A new file under `nucleo/` is born small. 300 lines, not the tree-wide 900 above: the refactor splits the brain

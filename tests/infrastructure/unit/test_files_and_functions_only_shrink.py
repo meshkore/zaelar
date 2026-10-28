@@ -40,8 +40,6 @@ FILES = {
     'nucleo/jev.py': 824,
     'nucleo/mem_processor.py': 831,
     'voice/engine/llm/providers/nucleo.py': 997,
-    'widgets/navegador/owner.py': 883,
-    'widgets/navegador/tasks.py': 828,
 }
 
 FUNCTIONS = {
@@ -102,10 +100,6 @@ FUNCTIONS = {
     'widgets/generator.py::_run_agent_once': 128,
     'widgets/imagenes/data.py::apply_action': 136,
     'widgets/mensajeria/answers.py::answer_action': 136,
-    'widgets/navegador/act_api.py::_hand_over': 169,
-    'widgets/navegador/act_api.py::navegador_act': 125,
-    'widgets/navegador/agent.py::run_task': 134,
-    'widgets/navegador/owner.py::TaskBrowser.agent_act': 124,
     'widgets/navegador/owner_actions.py::_automate': 135,
     'widgets/refs.py::resolve': 125,
     'widgets/youtube/library.py::apply': 175,   # V2-806: the preference branches moved to youtube/prefs

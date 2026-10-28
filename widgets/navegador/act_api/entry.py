@@ -71,8 +71,8 @@ async def _act_extract(tb, task_id: str, args: dict) -> dict:
     _named, _unnamed = _f.by_identity(items)
     _extra = f" (+{len(_unnamed)} enlaces sin nombre)" if _unnamed else ""
     _f._emit_nav(task_id, "🧭 resultados", f"{len(_named)} anuncios/resultados en la página{_extra}")
-    _f._say_phase(task_id, _progress.found(len(_named)))   # V2-227 B1: «12 resultados», el hito que pidió
-    _f._hand_over(task_id, items)      # V2-223: a la hoja y a la conversación, no solo al worker
+    _f._say_phase(task_id, _progress.found(len(_named)))   # V2-227 B1: «12 results», the milestone he asked for
+    _f._hand_over(task_id, items)      # V2-223: to the sheet and the conversation, not only to the worker
     return {"ok": True, "listings": items, "n": len(items), **_door.take(_f._sheet_of(task_id)), "url": str(getattr(tb.page, "url", "") or "")}  # V2-798: the SOURCE
 
 
@@ -127,8 +127,8 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
         if action == "extract":
             return await _f._act_extract(tb, task_id, args)
         if action in ("navigate", "click", "type", "select_option", "scroll", "press", "click_at", "type_at"):
-            # La dirección de ANTES, para poder contar qué cambió (V2-293). Se lee del registro de la pestaña
-            # porque es lo único que sobrevive entre invocaciones del puente: `nav_cli` es un proceso por acción.
+            # The address BEFORE, to tell what changed (V2-293). Read from the tab's record
+            # because it is all that survives between bridge calls: `nav_cli` is one process per action.
             _before = ""
             try:
                 from widgets.navegador import tasks as _t0

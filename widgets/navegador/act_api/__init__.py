@@ -57,12 +57,12 @@ _STALL_HINT_S = int(__import__("os").environ.get("ZAELAR_NAV_STALLED_S", "120") 
 _HYDRATE_WAIT_S = float(__import__("os").environ.get("ZAELAR_NAV_HYDRATE_S", "2") or 2)
 
 
-from nucleo.workers import progress as _progress   # V2-227: la frase que lee una persona
+from nucleo.workers import progress as _progress   # V2-227: the sentence a person reads
 
-_HANDED: dict[str, str] = {}          # V2-223: última extracción entregada por tarea (no repetir la misma)
+_HANDED: dict[str, str] = {}          # V2-223: the last extraction handed over per task (never repeat the same one)
 
 
-_PHASE_TARGET = {           # de qué argumento sale el «target» que la frase enseña al operador
+_PHASE_TARGET = {           # which argument the «target» the sentence shows the operator comes from
     "navigate": "url", "open": "url", "goto": "url", "visit": "url",
     "type": "text", "type_at": "text",
     "click": "ref", "select_option": "value",
