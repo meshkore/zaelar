@@ -244,12 +244,8 @@ def end_state_verdict(brief) -> str:
 
 
 def card_contradicts(brief, wid: str) -> str:
-    """Why `wid` cannot be the card of this order, or "" when it can (demo 2026-10-22).
-
-    «…to make it happen. I need the plan of five days.» — the brief named the end state `results:empty` (a Brain
-    Worker's sheet), and the LATE catalogue, asked on the words alone, named `agenda` at 0.77: the promise repair
-    then wrote «happen. I need the plan of five days.» into his agenda as a task. A card none of whose declared
-    actions attests the end state the brief named is not the order's card. No end-state verdict → no objection."""
+    """Why `wid` cannot be the card of this order, or "" when it can (demo 2026-10-22: a late catalogue guess of
+    `agenda` over an end state on the results sheet): a card none of whose actions attests that end state."""
     want = end_state_verdict(brief)
     base = str(wid or "").split("::", 1)[0].strip().lower()
     if not want or not base or want.split(":", 1)[0] == base:
@@ -261,16 +257,24 @@ def card_contradicts(brief, wid: str) -> str:
     return f"the phrase's end state is «{want}» and no action of {base} attests it"
 
 
-def gate_completion(brief, wid: str, action: str) -> str:
-    """Why a verdict COMPLETION of `wid:action` must not fire, or "" when it may.
+def _a_sure_action_outranks_the_end_state(brief) -> bool:
+    """Refusing a completion is a veto: a SURE action verdict is not refused by an end state below the veto bar
+    (msg-es-more-chats: `chats_more` 1.00 refused by `mensajeria:empty` 0.72). Never raises."""
+    try:
+        from nucleo.turn import brief as _tb, verdicts
+        _a, act = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=verdicts.VETO)
+        _e, end = _tb.read(brief, END_KEY, "", min_confidence=verdicts.VETO)
+        return bool((act or {}).get("used")) and not (end or {}).get("used")
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"spec: verdict confidences unreadable ({e}) — the gate reads as before")
+        return False
 
-    B2 (pass 60): the phrase's end state was the wallpaper; the only open card was the monitors sheet, and the
-    empty turn was completed as `results:choose`. A completion is the ENGINE's own inference (the model called
-    nothing), so it is held to the engine's own reading of the phrase: when the brief names an attestable end
-    state, the completed action has to be one that attests it. A valid call of the model is not gated here
-    (V2-754: a valid call runs, whatever the verdict says)."""
+
+def gate_completion(brief, wid: str, action: str) -> str:
+    """Why a verdict COMPLETION of `wid:action` must not fire, or "" when it may: the engine's own inference is held
+    to the end state the brief named (B2, pass 60: the wallpaper was not `results:choose`)."""
     want = end_state_verdict(brief)
-    if not want:
+    if not want or _a_sure_action_outranks_the_end_state(brief):
         return ""
     tpl = template_of(wid, action)
     have = target_of(tpl) if tpl is not None else ""
@@ -420,10 +424,8 @@ def born(rec, ctx: dict | None = None) -> None:
         dw = dict(getattr(rec, "done_when", None) or {})
         uid = str(getattr(rec, "uid", "") or "")
         if dw and not (ctx or {}).get("relay_gen"):
-            # Demo pass 62: the model's own `done_when` on `escalate` was born without a baseline («the wallpaper
-            # CHANGED» could never be judged → «unverifiable», and the ending said «I couldn't verify it») and
-            # unsanitised (`documento.documents`, a collection nobody declares). It goes through what an inferred
-            # one does; nothing readable left → inferred, as if it had come without one.
+            # Demo pass 62: the model's own `done_when` goes through what an inferred one does (a baseline, sanitised);
+            # nothing readable left → inferred, as if it had come without one.
             dw = _sanitize(_without_the_assistants_name(dw) or {}) or {}
             if dw:
                 dw = bind_sheet(dw, (ctx or {}).get("sheet") or getattr(rec, "sheet", ""))
@@ -718,11 +720,8 @@ def parse(text) -> dict | None:
 def session_goal(tid, done_when: dict) -> None:
     """HOW SUCCESS IS MEASURED, declared by the worker at the start (`hbnote goal`) — V2-707 F2.
 
-    The operator's own framing: «tiene que saber identificar la tarea que ha propuesto el usuario y
-    determinar cuál es la manera de medir el éxito… si no hemos llegado, es capaz de iterar hasta que lo
-    consiga». The model writes the condition (it is the one that understood the errand); the ENGINE checks
-    it against the product's truth in `_finish`, and that asymmetry is the whole point — a task can no
-    longer end because a worker SAID it ended.
+    The model writes the condition (it understood the errand); the ENGINE checks it against the product's truth in
+    `_finish` — a task can no longer end because a worker SAID it ended.
 
     Only ever SET, never cleared by a later report: a worker that re-declares mid-run may refine its
     condition, but a `goal` call with nothing in it must not quietly retire the bar it set for itself."""

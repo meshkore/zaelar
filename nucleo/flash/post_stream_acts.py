@@ -204,6 +204,14 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
             emit("brain", "🔁 prometió cerrar sin tool — cierra la tarjeta", text=_ar_wid, role="system",
                  extra={"cat": "flash", "widget": _ar_wid, "action": "close"})
             _ar_wid = ""
+        from nucleo.acts import canvas_verdict as _cverdict
+        if _ar_wid and _cverdict.show_owed(_brief, _ar_wid) and _pst._cvis.present(
+                _ar_wid, reason="turn-order", src="flash", emit=emit, text=operator_text, brief=_brief):
+            # J009: «muéstramelo» answered «te lo dejo abierto» with no call — the sure verdict completes the show
+            acted["widget"], _no_tool, acted["widget_id"] = True, False, acted.get("widget_id") or _ar_wid
+            emit("brain", "🎯 el veredicto completa al modelo — show", text=_ar_wid, role="system",
+                 extra={"cat": "flash", "widget": _ar_wid, "action": "show"})
+            _ar_wid = ""
         _ar_vo, _ar_va = _pst._direct_action.from_brief(_brief)    # full41 E3: a refusal of the verdict's declared act
         _ar = await _act_repair.call_for_promise_or_order(_op_text, spoken_text, _ar_wid, _ar_va if _ar_vo == _ar_wid
             else "", spec=spec, window=list(brain._window), outcome=_pk_out) if _ar_wid else None

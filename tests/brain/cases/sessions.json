@@ -46,7 +46,16 @@
    "close",
    "worker"
   ],
-  "brief": {"canvas": ["close", 0.94], "names_a_card": ["elsewhere", 0.9]},
+  "brief": {
+   "canvas": [
+    "close",
+    0.94
+   ],
+   "names_a_card": [
+    "elsewhere",
+    0.9
+   ]
+  },
   "note": "refactor2710-07: whether the thing he names is a card on screen is the brief's `names_a_card` verdict — live, Jev read canvas=close 0.94; with no brief the unnamed-close backstop still takes the only card (never deaf to «ciérralo»)"
  },
  {
@@ -430,5 +439,32 @@
    "worker"
   ],
   "note": "Was open until refactor2710-99 seeded the map its recording assumed (empty, there was no second place to select): V2-776 B1: a CLAIM of completion («I've highlighted…») with no call — the verb table misses it and the screen verdict live was 0.78, under the repair's 0.8 write floor"
+ },
+ {
+  "id": "journey-j009-show-it-and-leave-it-open",
+  "lang": "es",
+  "phrase": "Vale, pues muéstramelo y déjalo abierto.",
+  "source": "journey J009 (2026-10-28): the model promised «te dejo abierta la tarjeta del tiempo» and called nothing; the sure show verdict completes it",
+  "screen": {
+   "open": []
+  },
+  "model": {
+   "say": "Lo tienes: te dejo abierta la tarjeta del tiempo para Valencia.",
+   "tools": []
+  },
+  "brief": {
+   "canvas": [
+    "show",
+    0.95
+   ],
+   "catalog_widget": [
+    "search",
+    0.92
+   ]
+  },
+  "expect": "show search",
+  "forbid": [
+   "worker"
+  ]
  }
 ]

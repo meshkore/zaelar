@@ -74,7 +74,8 @@ def decision(name: str, args: dict, wid: str) -> dict | None:
 
 async def compose(got: dict, operator_text: str, spec, window=None) -> str:
     """The text, from ONE request with room for it. "" on any failure."""
-    from nucleo.flash import act_repair as _ar, prompt as _prompt, second_pass as _sp
+    from nucleo.flash import act_repair as _ar, second_pass as _sp
+    from nucleo.turn.prompt import builder as _prompt
     try:
         from i18n import langs as _langs
         lang = _langs.current_language().name

@@ -16,6 +16,17 @@ def sure_canvas(brief) -> str:
         return ""
 
 
+def show_owed(brief, card: str) -> bool:
+    """A sure `canvas = show` with a card the verdict names: an order to SHOW it, whether or not the model called (CRIT-K2)."""
+    try:
+        from nucleo.turn import brief as _tb
+        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
+        return bool(card) and str(verb or "") == "show"
+    except Exception as e:  # noqa: BLE001 — an unreadable verdict owes nothing
+        __import__("logging").getLogger(__name__).debug("show verdict unreadable: %s", e)
+        return False
+
+
 def named_cards(operator_text: str) -> list[str]:
     """Every card his words NAME (alias or name, never context) — «the calendar and the messages» is two."""
     try:
