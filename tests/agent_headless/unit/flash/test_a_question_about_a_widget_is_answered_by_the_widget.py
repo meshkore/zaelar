@@ -178,7 +178,8 @@ def test_both_channels_end_in_the_SAME_module():
 # code is how a silent regression ships.
 def test_recall_spoken_composes_from_the_memory_block_and_speaks_it_once(monkeypatch):
     import asyncio as _a
-    from nucleo.turn.prompt import builder as _prompt_mod, second_pass
+    from nucleo.flash import second_pass
+    from nucleo.turn.prompt import builder as _prompt_mod
 
     monkeypatch.setattr(_prompt_mod, "compose_recall", lambda q: ("· le gusta el jazz", ["p1"]))
     monkeypatch.setattr(_prompt_mod, "_lang_lock", lambda: "LOCK")
@@ -201,7 +202,8 @@ def test_recall_spoken_composes_from_the_memory_block_and_speaks_it_once(monkeyp
 def test_recall_spoken_still_speaks_when_memory_comes_back_empty(monkeypatch):
     """An empty recall is a fact, not a reason to go mute — the block says so in the prompt."""
     import asyncio as _a
-    from nucleo.turn.prompt import builder as _prompt_mod, second_pass
+    from nucleo.flash import second_pass
+    from nucleo.turn.prompt import builder as _prompt_mod
 
     monkeypatch.setattr(_prompt_mod, "compose_recall", lambda q: ("", []))
     monkeypatch.setattr(_prompt_mod, "_lang_lock", lambda: "LOCK")
@@ -218,7 +220,8 @@ def test_recall_spoken_still_speaks_when_memory_comes_back_empty(monkeypatch):
 def test_a_broken_recall_never_breaks_the_turn(monkeypatch):
     """`compose_recall` does embeddings over HTTP — it can fail, and the voice turn must still speak."""
     import asyncio as _a
-    from nucleo.turn.prompt import builder as _prompt_mod, second_pass
+    from nucleo.flash import second_pass
+    from nucleo.turn.prompt import builder as _prompt_mod
 
     def _boom(q):
         raise RuntimeError("ollama down")

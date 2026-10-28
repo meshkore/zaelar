@@ -35,15 +35,15 @@ def _dos_cajas(monkeypatch):
 
 
 def test_el_caso_MEDIDO_deja_de_ser_ciego(_dos_cajas):
-    from nucleo.flash import live_blocks as LB
-    assert LB._sheet_has_rows("f1743e-2") is True, "las filas están en la heredada y el prompt decía que no"
+    from nucleo.turn.prompt import live_sheet
+    assert live_sheet._sheet_has_rows("f1743e-2") is True, "las filas están en la heredada y el prompt decía que no"
 
 
 def test_y_las_FILAS_salen_de_la_misma_caja_que_la_señal(_dos_cajas):
     """Si la señal dice que hay algo y las líneas salen de otra caja, el prompt afirma que tiene resultados y
     no puede nombrarlos — peor que las dos cosas por separado."""
-    from nucleo.flash import live_blocks as LB
-    filas = LB._sheet_top_rows("f1743e-2")
+    from nucleo.turn.prompt import live_sheet
+    filas = live_sheet._sheet_top_rows("f1743e-2")
     assert filas and "Iberia directo 21:50" in filas[0]
 
 
@@ -67,12 +67,12 @@ def test_sin_relevo_no_hay_segunda_caja(monkeypatch):
 def test_una_hoja_vacía_de_VERDAD_sigue_diciendo_que_no(monkeypatch):
     """Y la otra mitad, que es la que evita convertir esto en un «siempre hay algo»."""
     from nucleo.flash import errand_sheet as ES
-    from nucleo.flash import live_blocks as LB
+    from nucleo.turn.prompt import live_sheet
     import widgets.results.data as _rd
     monkeypatch.setattr(ES, "_sheet_of_tab", lambda *_a, **_k: "results::a")
     monkeypatch.setattr(ES, "_registro_de_tab", lambda *_a, **_k: "results::b")
     monkeypatch.setattr(_rd, "view_data", lambda *_a, **_k: {"items": []})
-    assert LB._sheet_has_rows("x") is False
+    assert live_sheet._sheet_has_rows("x") is False
 
 
 def test_el_LECTOR_y_solo_el_lector():
@@ -81,4 +81,4 @@ def test_el_LECTOR_y_solo_el_lector():
     fuera = subprocess.run(["grep", "-rn", "boxes_of_tab", "--include=*.py", "nucleo/", "widgets/"],
                            capture_output=True, text=True).stdout
     ficheros = {l.split(":")[0] for l in fuera.splitlines() if l.strip()}
-    assert ficheros <= {"nucleo/flash/errand_sheet.py", "nucleo/flash/live_blocks.py"}, ficheros
+    assert ficheros <= {"nucleo/flash/errand_sheet.py", "nucleo/turn/prompt/live_sheet.py", "nucleo/turn/prompt/live_browser.py"}, ficheros

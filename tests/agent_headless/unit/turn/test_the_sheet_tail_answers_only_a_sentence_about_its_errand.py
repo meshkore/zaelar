@@ -18,7 +18,7 @@ import pytest
 
 from nucleo import dispatch
 from nucleo.dispatch import confirm as dc
-from nucleo.flash import live_blocks
+from nucleo.turn.prompt import live_browser
 from nucleo.turn import errands_of_a_turn as E
 from nucleo.turn import named_errand
 
@@ -43,7 +43,7 @@ def three(monkeypatch):
 
 
 def _rows(monkeypatch, rows):
-    monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: (MONITOR["request"], list(rows)))
+    monkeypatch.setattr(live_browser, "any_live_task_rows", lambda n=3: (MONITOR["request"], list(rows)))
 
 
 WAIT = "Vale, dame un momento que lo miro."

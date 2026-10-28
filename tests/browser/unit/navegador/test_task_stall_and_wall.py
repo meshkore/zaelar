@@ -345,8 +345,8 @@ def test_the_two_halves_share_ONE_threshold():
     from widgets.navegador import act_api
     from nucleo.turn.prompt import live_state as _p
 
-    from nucleo.flash import live_blocks as _lb
-    assert act_api._STALL_HINT_S == _lb._STALLED_S
+    from nucleo.turn.prompt import live_sheet
+    assert act_api._STALL_HINT_S == live_sheet._STALLED_S
 
 
 # ── V2-187: a fact that cannot be said aloud is a fact that does not arrive ────────────────────────────────

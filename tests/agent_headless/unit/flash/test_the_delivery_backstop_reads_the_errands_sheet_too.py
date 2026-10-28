@@ -8,7 +8,7 @@ now falls back to the errand's sheet, the same source the prompt shows.
 """
 from __future__ import annotations
 
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_browser
 
 
 def test_an_errand_sheet_without_a_browser_task_is_read(monkeypatch):
@@ -20,7 +20,7 @@ def test_an_errand_sheet_without_a_browser_task_is_read(monkeypatch):
                                                           "sheet": "results::ab12"}])
     monkeypatch.setattr(ES, "rows_of_sheet", lambda sheet, n=3: ["«Canon Rebel T7 — $274.99»", "«Nikon D3100 — $219.95»"]
                         if sheet == "results::ab12" else [])
-    goal, rows = LB.any_live_task_rows()
+    goal, rows = live_browser.any_live_task_rows()
     assert goal == "used DSLR under $400" and rows == ["Canon Rebel T7 — $274.99", "Nikon D3100 — $219.95"]
 
 
@@ -29,4 +29,4 @@ def test_nothing_live_reads_nothing(monkeypatch):
     from nucleo import dispatch as D
     monkeypatch.setattr(NT, "active_summaries", lambda: [])
     monkeypatch.setattr(D, "pending_summaries", lambda: [])
-    assert LB.any_live_task_rows() == ("", [])
+    assert live_browser.any_live_task_rows() == ("", [])

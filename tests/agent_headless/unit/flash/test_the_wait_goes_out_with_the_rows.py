@@ -60,13 +60,13 @@ def test_una_hoja_de_DOCE_filas_viaja_entera_hasta_su_techo_de_tamano(monkeypatc
     accessories) and `find-best-hotel-city__us` round 6 with TWELVE hotels, two below the operator's cap,
     showing the faces. The turn concluded about the total of a set it had not seen in full.
     """
-    from nucleo.flash import live_blocks as LB
+    from nucleo.turn.prompt import live_sheet
 
     filas = [{"title": f"Hotel {i:02d}", "price": f"${100 + i}"} for i in range(12)]
-    monkeypatch.setattr(LB, "boxes_of_tab", lambda t: ["results"], raising=False)
+    monkeypatch.setattr(live_sheet, "boxes_of_tab", lambda t: ["results"], raising=False)
     monkeypatch.setattr("widgets.results.data.view_data", lambda c=None: {"items": filas}, raising=False)
 
-    out = LB._sheet_top_rows("t1")
+    out = live_sheet._sheet_top_rows("t1")
     assert len(out) == 12, f"se enseñaron {len(out)} de 12: el tope no subió"
     assert "Hotel 11" in out[-1], out[-1]
     assert not any("no listados aquí" in r for r in out), "avisa de un resto que no existe"
@@ -80,15 +80,15 @@ def test_y_el_techo_de_TAMANO_manda_sobre_el_conteo(monkeypatch):
     not put anything it pleases into the prompt. A test pretending that it cuts at twelve would make a false claim
     about the code it is supposed to protect.
     """
-    from nucleo.flash import live_blocks as LB
+    from nucleo.turn.prompt import live_sheet
 
     filas = [{"title": "H" * 70, "price": f"${i}"} for i in range(30)]
-    monkeypatch.setattr(LB, "boxes_of_tab", lambda t: ["results"], raising=False)
+    monkeypatch.setattr(live_sheet, "boxes_of_tab", lambda t: ["results"], raising=False)
     monkeypatch.setattr("widgets.results.data.view_data", lambda c=None: {"items": filas}, raising=False)
 
-    out = LB._sheet_top_rows("t1", 30)
+    out = live_sheet._sheet_top_rows("t1", 30)
     cuerpo = [r for r in out if "no listados aquí" not in r]
     assert len(cuerpo) < 30, "el techo de tamaño no cortó nada con treinta filas largas"
-    assert sum(len(r) for r in cuerpo) <= LB._SHEET_ROWS_BUDGET + 100, "el bloque se pasó de su techo"
+    assert sum(len(r) for r in cuerpo) <= live_sheet._SHEET_ROWS_BUDGET + 100, "el bloque se pasó de su techo"
     # V2-374 — what remains outside is still COUNTED: cutting off and staying quiet brings back the original defect.
     assert any("no listados aquí" in r for r in out), "cortó y se calló el resto"

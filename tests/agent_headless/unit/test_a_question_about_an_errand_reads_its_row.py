@@ -38,22 +38,22 @@ def _failed_row(st) -> None:
 
 
 def test_the_failed_errand_is_named_with_its_failure(ledger_db):
-    from nucleo.flash import task_block
+    from nucleo.turn.prompt import live_history
     _failed_row(ledger_db)
-    lines = " ".join(task_block.recent_lines())
+    lines = " ".join(live_history.recent_lines())
     assert "Hotel en Sevilla" in lines and "FALLÓ" in lines and "no se cumplió" in lines, lines
     assert "120 €" in lines, "what came of it travels with the row"
 
 
 def test_without_its_row_there_is_nothing_to_answer_from(ledger_db):
-    from nucleo.flash import task_block
-    assert "Hotel en Sevilla" not in " ".join(task_block.recent_lines())
+    from nucleo.turn.prompt import live_history
+    assert "Hotel en Sevilla" not in " ".join(live_history.recent_lines())
 
 
 def test_the_task_block_reads_the_rows_through_the_one_reader(ledger_db, monkeypatch):
     """`ledger.recent` is the one reader: with it empty, the row in the store is not named — nothing reads around it."""
     from nucleo.circuit import ledger
-    from nucleo.flash import task_block
+    from nucleo.turn.prompt import live_history
     _failed_row(ledger_db)
     monkeypatch.setattr(ledger, "recent", lambda **_kw: [])
-    assert "Hotel en Sevilla" not in " ".join(task_block.recent_lines())
+    assert "Hotel en Sevilla" not in " ".join(live_history.recent_lines())

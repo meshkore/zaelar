@@ -474,7 +474,7 @@ def record_phase(rec, phase: str, phases_kept: int = 0) -> bool:
     # The reason for the mark is in `live_blocks.worker_phase_is_a_claim`. It deliberately comes BEFORE deduplication:
     # the marked and unmarked lines are the same phrase, and collapsing them would hide precisely that distinction.
     try:
-        from nucleo.flash import live_blocks as _lb
+        from nucleo.turn.prompt import live_sheet as _lb
         if _lb.worker_phase_is_a_claim(_p, sheet_of(r)):
             _p = "💬 " + _p
     except Exception:  # noqa: BLE001

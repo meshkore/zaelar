@@ -20,7 +20,7 @@ decided by a coin toss). This test fixes the fact that both halves travel togeth
 """
 import pytest
 
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_browser
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
 
@@ -36,7 +36,7 @@ def _face(goal: str, sheet: str, items: list[dict]) -> str:
     tid = T.create(goal, sheet=sheet)
     T.set_status(tid, "working")
     SHEET.apply_action("present", {"sheet": sheet, "title": "Resultados", "items": items})
-    return "\n".join(LB.navegador_lines())
+    return "\n".join(live_browser.navegador_lines())
 
 
 def test_el_imperativo_PIDE_lo_que_encaja_no_lo_que_hay():

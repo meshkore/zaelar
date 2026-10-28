@@ -25,7 +25,7 @@ transcript»— and we wrote it ourselves.
 """
 import pytest
 
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_browser
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
 
@@ -43,7 +43,7 @@ def _estado(goal, sheet, items):
     T.set_results(tid, {"conclusion": "", "items": [{"title": "algo"}]})   # the task DID find something
     if items:
         SHEET.apply_action("present", {"sheet": sheet, "title": "Resultados", "items": items})
-    return "\n".join(LB.navegador_lines())
+    return "\n".join(live_browser.navegador_lines())
 
 
 def test_sin_filas_NO_se_le_ordena_recitar():

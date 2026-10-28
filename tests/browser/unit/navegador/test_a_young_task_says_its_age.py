@@ -12,7 +12,7 @@ milestones) and the face tells the model to use it verbatim — grounding the wo
 """
 import pytest
 
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_browser
 from widgets.navegador import tasks as T
 
 
@@ -24,7 +24,7 @@ def _clean():
 
 
 def _state() -> str:
-    return "\n".join(LB.navegador_lines())
+    return "\n".join(live_browser.navegador_lines())
 
 
 def test_the_age_travels_in_active_progress():

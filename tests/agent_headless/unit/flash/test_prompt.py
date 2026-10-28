@@ -4,8 +4,8 @@ import pytest
 from memory import api as memapi
 from memory import db as memdb
 from memory import embeddings as mememb
-from nucleo.flash import live_blocks as _lb, memory_cache, recall_heuristics as _rh
-from nucleo.turn.prompt import builder as prompt
+from nucleo.flash import memory_cache, recall_heuristics as _rh
+from nucleo.turn.prompt import builder as prompt, live_record
 
 
 @pytest.fixture(autouse=True)
@@ -105,7 +105,7 @@ def test_the_cron_line_makes_a_spoken_reminder_insufficient():
     """V2-121 · `remember-and-remind-deadline`. Saying «I'll remind you» does not schedule anything; the prompt has to
     say it explicitly, because the run measured three turns claiming it was scheduled with zero
     mechanism behind it."""
-    line = _lb._cron_line()
+    line = live_record._cron_line()
     assert "[[cron.create]]" in line
     assert "EN ESE TURNO" in line
     assert "YYYY-MM-DD HH:MM" in line       # the format that makes a one-time reminder EXPRESSIBLE

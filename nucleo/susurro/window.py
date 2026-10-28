@@ -111,7 +111,7 @@ def executed_block() -> str:
     the other reader of the same question, and giving one of them the ledger and not the other is how they
     came to disagree about whether the work happened."""
     try:
-        from nucleo.flash import live_blocks as _lb
+        from nucleo.turn.prompt import live_record as _lb
         return _clip("\n".join(_lb.done_ops_lines()), 900)
     except Exception:
         return ""

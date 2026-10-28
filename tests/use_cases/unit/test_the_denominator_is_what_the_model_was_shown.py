@@ -155,7 +155,7 @@ def test_la_cabecera_que_buscamos_es_la_que_el_MOTOR_escribe():
     has to monitor the phrase.
     """
     from pathlib import Path
-    motor = _vts.read("nucleo/flash/live_blocks.py")
+    motor = _vts.read("nucleo/turn/prompt/live_browser.py")
     assert V._ROWS_HEAD in motor, (
         "la cabecera de filas del prompt cambió y el arnés sigue buscando la vieja: `shown_candidates` "
         "devolverá vacío en todas las rondas, que se lee como «no se le mostró nada»")

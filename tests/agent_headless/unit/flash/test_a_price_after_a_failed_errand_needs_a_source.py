@@ -22,7 +22,7 @@ def failed(monkeypatch):
     monkeypatch.setattr(dispatch, "pending_summaries", lambda: [])
     monkeypatch.setattr(dispatch, "recently_ended_sessions",
                         lambda *a, **k: [{"goal": "iPhone 17", "status": "error", "ok": False}])
-    from nucleo.flash import live_blocks
-    monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: ("", []))
+    from nucleo.turn.prompt import live_browser
+    monkeypatch.setattr(live_browser, "any_live_task_rows", lambda n=3: ("", []))
     amount_gate.note_search({"results": []})
 

@@ -25,7 +25,7 @@ it cannot see (V2-330).
 """
 import pytest
 
-from nucleo.flash import live_blocks as LB
+from nucleo.turn.prompt import live_sheet
 from widgets.navegador import tasks as T
 from widgets.results import data as SHEET
 
@@ -58,32 +58,32 @@ def hoja():
 
 
 def test_la_ronda_medida_ya_DICE_que_hay_nueve_mas(hoja):
-    filas = LB._sheet_top_rows(hoja(CAMARAS), 5)
+    filas = live_sheet._sheet_top_rows(hoja(CAMARAS), 5)
     assert len(filas) == 6, "cinco candidatos y la línea que cuenta el resto"
     assert "9 candidato(s) más" in filas[-1]
 
 
 def test_las_cinco_filas_SIGUEN_saliendo_enteras(hoja):
     """Counting the remainder must not cost even one of the rows that are actually listed."""
-    filas = LB._sheet_top_rows(hoja(CAMARAS), 5)
+    filas = live_sheet._sheet_top_rows(hoja(CAMARAS), 5)
     assert filas[0] == "«Cámara profesional Canon EOS 550D — 200 €»"
     assert sum(1 for f in filas if f.startswith("«")) == 5
 
 
 def test_con_la_hoja_JUSTA_no_se_dice_nada(hoja):
     """Sensitivity: five out of five hides nothing, and a suffix that always appears ceases to be a signal."""
-    filas = LB._sheet_top_rows(hoja(CAMARAS[:5]), 5)
+    filas = live_sheet._sheet_top_rows(hoja(CAMARAS[:5]), 5)
     assert len(filas) == 5
     assert not any("más" in f for f in filas)
 
 
 def test_con_MENOS_filas_que_el_tope_tampoco(hoja):
-    filas = LB._sheet_top_rows(hoja(CAMARAS[:2]), 5)
+    filas = live_sheet._sheet_top_rows(hoja(CAMARAS[:2]), 5)
     assert len(filas) == 2
 
 
 def test_una_sola_escondida_se_dice_igual(hoja):
-    filas = LB._sheet_top_rows(hoja(CAMARAS[:6]), 5)
+    filas = live_sheet._sheet_top_rows(hoja(CAMARAS[:6]), 5)
     assert "1 candidato(s) más" in filas[-1]
 
 
@@ -91,23 +91,23 @@ def test_las_filas_SIN_NOMBRE_no_se_cuentan_como_candidatos(hoja):
     """A row without a title has no thing identity (V2-234), so counting it would inflate the number and make it
     believe that we are hiding findings that do not exist."""
     items = CAMARAS[:5] + [{"title": "", "price": "1 €"}, {"title": "  ", "price": "2 €"}]
-    filas = LB._sheet_top_rows(hoja(items), 5)
+    filas = live_sheet._sheet_top_rows(hoja(items), 5)
     assert len(filas) == 5, filas
 
 
 def test_la_linea_NO_afirma_la_pantalla(hoja):
     """V2-278: never say where it lives. It says that they are in the SHEET —a write that already happened, just like the
     other five— and never “on screen”."""
-    filas = LB._sheet_top_rows(hoja(CAMARAS), 5)
+    filas = live_sheet._sheet_top_rows(hoja(CAMARAS), 5)
     assert "en pantalla" not in filas[-1]
 
 
 def test_el_tope_de_UNO_tambien_cuenta(hoja):
-    filas = LB._sheet_top_rows(hoja(CAMARAS), 1)
+    filas = live_sheet._sheet_top_rows(hoja(CAMARAS), 1)
     assert len(filas) == 2 and "13 candidato(s) más" in filas[-1]
 
 
 def test_sin_hoja_no_hay_filas_ni_coletilla():
     tid = T.create("un encargo sin hoja detrás")
-    assert LB._sheet_top_rows(tid, 5) == []
+    assert live_sheet._sheet_top_rows(tid, 5) == []
     T._tasks.clear()
