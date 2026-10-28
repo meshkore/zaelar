@@ -20,7 +20,7 @@ import pytest
     ("abre el muro", "chat"),
 ])
 def test_the_wall_lane_opens_the_wall_only_when_the_wall_is_meant(phrase, wall):
-    from nucleo.flash.wall_lane import named_wall_tab
+    from nucleo.acts.wall_tab import named_wall_tab
     assert named_wall_tab(phrase) == wall
 
 
