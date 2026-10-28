@@ -64,12 +64,25 @@ def passes(door: str, **what) -> bool:
     if door not in DOORS:
         raise KeyError(f"undeclared consequence door: {door!r} — add it to consequence.DOORS with its funnel")
     blocked = door in _blocked.get()
+    row = {"door": door, "blocked": blocked,
+           **{k: (v if isinstance(v, (str, int, float, bool)) or v is None else str(v)[:200]) for k, v in what.items()}}
     ledger = _ledger.get()
     if ledger is not None:
-        ledger.append({"door": door, "blocked": blocked,
-                       **{k: (v if isinstance(v, (str, int, float, bool)) or v is None else str(v)[:200])
-                          for k, v in what.items()}})
+        ledger.append(row)
+    _observe(row)
     return not blocked
+
+
+def _observe(row: dict) -> None:
+    """Every door reached is a `consequence` event on the timeline (the observer stamps the turn's trace), live or
+    dry: the verdict of this mechanism is visible where every other one is. Never raises."""
+    try:
+        from voice import observer
+        observer.emit("consequence", f"{'⛔' if row['blocked'] else '✅'} {row['door']}", role="system",
+                      extra={"cat": "system", **row})
+    except Exception as e:  # noqa: BLE001 — an event that cannot be emitted never decides a consequence
+        from loguru import logger
+        logger.debug(f"consequence: event not emitted — {type(e).__name__}: {e}")
 
 
 def door(name: str, *, neutral=None):

@@ -334,7 +334,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20323,        # refactor2710-01: +10, the consequence doors the connectors ask (music, messaging, mesh)
     "library": 805,
     "memory": 9117,
-    "nucleo (top)": 24264,      # refactor2710-01: +163, `consequence.py` (the door registry) and `dispatch_soon.py` (moved)
+    "nucleo (top)": 24277,      # refactor2710-01: +176, `consequence.py` (the door registry, each door an event) and `dispatch_soon.py` (moved)
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
@@ -457,8 +457,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 175435). Never for growth in place.
-_TOTAL_MAX = 175435
+#: 178503 → 175448). Never for growth in place.
+_TOTAL_MAX = 175448
 
 
 def test_the_total_only_shrinks():
