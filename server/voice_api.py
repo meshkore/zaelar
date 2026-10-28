@@ -2,7 +2,7 @@
 
 The WebRTC transport, ICE/TURN negotiation and the audio pipeline are owned by the LiveKit engine now
 (voice/engine/ + the embedded worker + server/livekit_api.py). This module keeps only the engine-agnostic
-HTTP surface the front still needs: user name, the SSE event stream (observer), debug/status/providers panels,
+HTTP surface the front still needs: user name, the SSE event stream (observer), debug/status panels,
 the ⚙ settings + voice catalog, and client-log ingestion. No Pipecat, no /api/offer, no /api/ice-servers.
 """
 import asyncio
@@ -28,9 +28,10 @@ from . import run_api as _run_api
 from . import state as S
 from .canvas_api import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
     _live_canvas_instances, _prune_ghost_sheets, _sheet_ids_on_disk, canvas_arrange, canvas_layout, canvas_state)
+from .run_api import mic_switch  # noqa: F401 — moved, imported back under its name
 
 router = APIRouter()
-router.include_router(_run_api.router)      # /api/run*, /api/workers/*, /api/energy, /api/desktop/epoch
+router.include_router(_run_api.router)      # /api/run*, /api/mic, /api/energy, /api/desktop/epoch
 router.include_router(_reset_api.router)    # /reset, /reset/hard, /api/reset/full
 
 
@@ -119,44 +120,6 @@ async def debug_stacks():
     return JSONResponse(_stacks.collect())
 
 
-@router.get("/api/providers")
-async def providers():
-    """The provider CATALOG actually wired in code: per function, the current default + the alternatives we have
-    configured (NOT hypothetical). Powers the Modules screen. Policy: prefer free/local by default where it works.
-    Voice data (STT/TTS/VAD) now comes from the LiveKit engine (voice/engine)."""
-    from voice.engine.core.config import SETTINGS
-
-    def has(*keys):
-        return any(os.getenv(k) for k in keys)
-
-    def opt(label, cost, usable, default=False, needs=""):
-        return {"label": label, "cost": cost, "usable": bool(usable), "default": default, "needs": needs}
-
-    import importlib.util
-    stt_cur = SETTINGS.stt_provider
-    tts_cur = SETTINGS.tts_provider
-    whisper_ok = importlib.util.find_spec("faster_whisper") is not None
-    kokoro_reachable = True  # local Kokoro-FastAPI endpoint (SETTINGS.kokoro_url); assumed present if selected
-    functions = [
-        # STT · voice → text — engine providers: voxtral (cloud), deepgram (cloud), whisper_local (on-machine).
-        {"fn": "STT · voz → texto", "options": [
-            opt("Voxtral · Mistral (cloud)", "paid·barato", has("MISTRAL_API_KEY"), stt_cur == "voxtral", "MISTRAL_API_KEY"),
-            opt("Deepgram Nova-3 (cloud)", "free·tier", has("DEEPGRAM_API_KEY"), stt_cur == "deepgram", "DEEPGRAM_API_KEY"),
-            opt("Whisper local (privado · gratis)", "free·local", whisper_ok, stt_cur == "whisper_local", "faster-whisper")]},
-        # TTS · text → voice — engine providers: cartesia (cloud), kokoro_local (on-machine).
-        {"fn": "TTS · texto → voz", "options": [
-            opt("Cartesia Sonic", "paid", has("CARTESIA_API_KEY"), tts_cur == "cartesia", "CARTESIA_API_KEY"),
-            opt("Kokoro local (es/en · privado)", "free·local", kokoro_reachable, tts_cur == "kokoro_local", "Kokoro-FastAPI local")]},
-        {"fn": "LLM · modelo (cerebro)", "options": [
-            # Non-reasoners only on the voice path (hard rule): a reasoner does not close the turn → zaelar goes mute.
-            opt(f"{os.getenv('LLM_MODEL','deepseek/deepseek-v4-flash')} · AIMLAPI", "paid·barato", has("AIMLAPI_KEY", "LLM_API_KEY"), True, "AIMLAPI_KEY"),
-            opt("gpt-4.1 · AIMLAPI (validado · más caro)", "paid", has("AIMLAPI_KEY"), False, "AIMLAPI_KEY"),
-            opt("Cualquier endpoint OpenAI-compatible", "varía", True, False, "LLM_BASE_URL + LLM_API_KEY")]},
-        {"fn": "VAD · turno", "options": [opt("Silero (LiveKit, server-side)", "free·local", True, True)]},
-    ]
-    return JSONResponse({"functions": functions})
-
-
 @router.get("/api/status")
 async def status():
     """SYSTEM STATUS for the ⓘ panel: is Hermes up, is voice live, are the external APIs (LLM/STT/TTS) healthy or
@@ -235,32 +198,6 @@ async def client_log(payload: dict):
     text = str(payload.get("text", ""))[:300]
     return JSONResponse(emit("client", label, text=text, extra={k: payload[k] for k in
                              ("device", "muted", "enabled", "state", "rms", "raw", "dev") if k in payload}))
-
-
-@router.post("/api/mic")
-async def mic_switch(payload: dict):
-    """V2-654 — THE microphone switch, told to the engine. The browser's `services/mic.js` is the only writer and
-    it calls here on every change AND on every (re)connect; the session heartbeat re-asserts the same value every
-    ~4s, so a divergence between icon and engine cannot outlive one beat.
-
-    Before this route the mute existed ONLY in the browser and only as an icon signal: four of its six writers
-    never touched the audio track, so the engine heard a microphone the operator had closed and had no way to
-    know (session 85eec898). Reading it is `voice/mic_input.py`; the gate that uses it is in the turn path."""
-    from voice import mic_input
-    muted = bool((payload or {}).get("muted"))
-    src = str((payload or {}).get("src") or "frontend")[:40]
-    dev = str((payload or {}).get("dev") or "")[:40]
-    from server.livekit_api import speaks_for_the_mic
-    if not speaks_for_the_mic(dev):
-        return JSONResponse({"ok": True, "muted": mic_input.is_muted(), "ignored": "not_the_voice_holder"})
-    return JSONResponse(mic_input.set_muted(muted, source=src, dev=dev))
-
-
-@router.get("/api/mic")
-async def mic_state():
-    """The engine's own answer, so the client can VERIFY instead of assuming its write landed."""
-    from voice import mic_input
-    return JSONResponse(mic_input.snapshot())
 
 
 @router.post("/api/ui-event")

@@ -1,4 +1,4 @@
-"""Run state, workers, energy and the desktop epoch — the routes the ⏻ button and the top bar read (from
+"""Run state, the microphone switch, energy and the desktop epoch — the routes the ⏻ button and the top bar read (from
 `server/voice_api.py`, refactor2710-13 T-03). Mounted through `voice_api.router`."""
 import os
 
@@ -32,29 +32,6 @@ async def energy():
         return JSONResponse({"cloud": False, "known": False}, headers={"Cache-Control": "no-cache"})
 
 
-@router.post("/api/workers/pause")
-async def workers_pause():
-    """V2-065 (operator ⏻ button): freezes live Brain Workers WITHOUT killing them (SIGSTOP to the backend) — unlike
-    /reset/hard, this is reversible with /api/workers/resume. Voice/mic are stopped by `session.stop()` on the
-    client; this endpoint freezes what was already working in the background."""
-    try:
-        from nucleo import dispatch
-        return JSONResponse({"ok": True, "paused": dispatch.pause_all()})
-    except Exception as e:  # noqa: BLE001
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
-
-
-@router.post("/api/workers/resume")
-async def workers_resume():
-    """Resume (SIGCONT) the workers that /api/workers/pause left frozen. They continue exactly where they were — no
-    restart."""
-    try:
-        from nucleo import dispatch
-        return JSONResponse({"ok": True, "resumed": dispatch.resume_all()})
-    except Exception as e:  # noqa: BLE001
-        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
-
-
 @router.get("/api/run")
 async def run_get():
     """V2-092: is the agent RUNNING or STOPPED? The server owns the truth (`nucleo/runstate.py`), not browser
@@ -67,7 +44,7 @@ async def run_get():
 @router.post("/api/run/stop")
 async def run_stop():
     """STOP the agent: freeze Brain Workers (SIGSTOP, reversible) and SUSPEND widgets that are producing (music,
-    video…). Replaces /api/workers/pause on the ⏻ button — same thing plus everything else. Returns what was frozen,
+    video…). The ⏻ button: freezes the workers and everything else. Returns what was frozen,
     so the operator log is not a list of intentions."""
     try:
         from nucleo import runstate
@@ -101,3 +78,29 @@ async def desktop_epoch():
     except Exception:
         pass
     return JSONResponse({"epoch": epoch})
+
+
+@router.post("/api/mic")
+async def mic_switch(payload: dict):
+    """V2-654 — THE microphone switch, told to the engine. The browser's `services/mic.js` is the only writer and
+    it calls here on every change AND on every (re)connect; the session heartbeat re-asserts the same value every
+    ~4s, so a divergence between icon and engine cannot outlive one beat.
+
+    Before this route the mute existed ONLY in the browser and only as an icon signal: four of its six writers
+    never touched the audio track, so the engine heard a microphone the operator had closed and had no way to
+    know (session 85eec898). Reading it is `voice/mic_input.py`; the gate that uses it is in the turn path."""
+    from voice import mic_input
+    muted = bool((payload or {}).get("muted"))
+    src = str((payload or {}).get("src") or "frontend")[:40]
+    dev = str((payload or {}).get("dev") or "")[:40]
+    from server.livekit_api import speaks_for_the_mic
+    if not speaks_for_the_mic(dev):
+        return JSONResponse({"ok": True, "muted": mic_input.is_muted(), "ignored": "not_the_voice_holder"})
+    return JSONResponse(mic_input.set_muted(muted, source=src, dev=dev))
+
+
+@router.get("/api/mic")
+async def mic_state():
+    """The engine's own answer, so the client can VERIFY instead of assuming its write landed."""
+    from voice import mic_input
+    return JSONResponse(mic_input.snapshot())

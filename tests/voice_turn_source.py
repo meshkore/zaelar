@@ -126,7 +126,7 @@ DISPATCH = ENGINE / "nucleo" / "dispatch.py"
 _SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py", ENGINE / "nucleo" / "dispatch_session.py",
                               ENGINE / "nucleo" / "dispatch_prepare.py"],
           (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"],
-          (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py"],
+          (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py", ENGINE / "server" / "run_api.py"],
           (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"],
           POST_STREAM.resolve(): [ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py" for x in ("words", "lanes", "settle")],
           (ENGINE / "widgets" / "navegador" / "owner.py").resolve(): [ENGINE / "widgets" / "navegador" / "owner_login.py",

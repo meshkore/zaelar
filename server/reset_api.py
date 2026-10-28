@@ -44,19 +44,26 @@ async def reset():
     return JSONResponse(emit("session", "RESET"))
 
 
-@router.post("/reset/hard")
-async def reset_hard(request: Request = None):
-    """Deliberate HARD RESET (frontend «Reset» button, after confirmation). Careful sequence: FREEZE in-flight work
-    in STATE memory, leave the order RECORD in short-term memory, KILL background processes, then clear the canvas
-    (close all widgets) + session + log. See `nucleo/reset.py`."""
+def _live_reset() -> tuple[dict, dict]:
+    """The sequence every hard reset shares, live: freeze and kill the work (`nucleo/reset.py`), a NEW session (new id
+    + observability reset, not just a clean log), and close ALL canvas cards (frontend: desktop.closeAll())."""
     try:
         from nucleo import reset as _reset
         summary = _reset.reset_all()
     except Exception:  # noqa: BLE001
         summary = {"frozen": 0, "killed": {}, "error": True}
     S.reset_session_state()
-    ses = rotate_session("reset")          # NEW SESSION (new id + observability reset), not just a clean log
-    emit("widget", "close", extra={})      # close ALL canvas cards (frontend: desktop.closeAll())
+    ses = rotate_session("reset")
+    emit("widget", "close", extra={})
+    return summary, ses
+
+
+@router.post("/reset/hard")
+async def reset_hard(request: Request = None):
+    """Deliberate HARD RESET (frontend «Reset» button, after confirmation). Careful sequence: FREEZE in-flight work
+    in STATE memory, leave the order RECORD in short-term memory, KILL background processes, then clear the canvas
+    (close all widgets) + session + log. See `nucleo/reset.py`."""
+    summary, ses = _live_reset()
     return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary, "by": _who_asked(request),
                                                         "session": ses.get("session_id", "")}))
 
@@ -81,14 +88,7 @@ async def reset_full(payload: dict | None = None, request: Request = None):
     wipe_files = bool(p.get("wipe_files"))
 
     # ALWAYS base (observability + desktop): same sequence as /reset/hard, live, no restart.
-    try:
-        from nucleo import reset as _reset
-        summary = _reset.reset_all()
-    except Exception:  # noqa: BLE001
-        summary = {"frozen": 0, "killed": {}, "error": True}
-    S.reset_session_state()
-    ses = rotate_session("reset")           # NEW SESSION (new id + observability reset), not just a clean log
-    emit("widget", "close", extra={})
+    summary, ses = _live_reset()
 
     if not wipe_memory and not wipe_credentials and not wipe_profile and not wipe_files:
         return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary, "restarting": False,
