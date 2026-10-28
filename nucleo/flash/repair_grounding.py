@@ -50,7 +50,7 @@ def recipient_was_named(wid: str, action: str, payload: dict, operator_text: str
 def send_backed_by_verdict(brief, wid: str, action: str) -> bool:
     """An act that LEAVES, composed by a pass whose card came from his WORDS, runs only when the verdict puts the
     order on that card (`screen_action` target or `catalog_widget`, licence floor). A named recipient is not an
-    ordered send (node 2.920: a pass mailed Andrew over «save … in my contacts»). Fail-closed: no brief, no send."""
+    ordered send (node 2.926: a pass mailed Andrew over «save … in my contacts»). Fail-closed: no brief, no send."""
     try:
         from widgets import effects as _fx
         if not _fx.carries(wid, action, _fx.EXTERNAL_SEND):

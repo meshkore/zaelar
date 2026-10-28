@@ -40,7 +40,7 @@ def _src_rank(src: str) -> int:
 def begin_turn() -> None:
     """His next turn begins: what this turn touched becomes «the previous turn». ONE boundary for both channels: the
     voice reaches it through its final transcript (`note`), the typed channel (`cli/turn.run_turn`) calls it — it
-    emits no transcript, so its window never rotated (node 2.922). An untouched turn keeps the previous window."""
+    emits no transcript, so its window never rotated (node 2.928). An untouched turn keeps the previous window."""
     with _lock:
         if _state["current"]:
             _state["previous"] = _state["current"]

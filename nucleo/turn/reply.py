@@ -121,9 +121,11 @@ async def of_ops(tasks, timeout: float = WAIT_S) -> list[Outcome]:
                 out.append(Outcome(V.STARTED.name, card, action))
                 continue
             out.append(of_op(card, action, t.result()))
-        except Exception as e:  # noqa: BLE001 — a task that raised is an op that did not land
-            logger.debug(f"reply: {card}:{action} raised — {e!r}")
-            out.append(Outcome(V.UNMET.name, card, action))
+        except Exception as e:  # noqa: BLE001 — an unreadable verdict claims NOTHING (live 2026-10-28: «check the
+            # chat» answered with his 19 chats and then «I couldn't get that done», from this branch, over an op the
+            # card never refused). The failure the card reports is the only «unmet»; a raise here is ours to log.
+            logger.warning(f"reply: {card}:{action} — its verdict could not be read: {e!r}")
+            out.append(Outcome(V.STARTED.name, card, action))
     return out
 
 

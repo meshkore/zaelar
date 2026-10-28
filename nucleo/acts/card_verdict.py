@@ -56,10 +56,13 @@ def _canvas_leans_close(brief) -> bool:
 
 
 def _action_sure(brief, floor: float = 0.8) -> bool:
+    """The verdict SURELY names a card action (`card:action`). A sure «none» is the opposite fact — live 2026-10-28:
+    «in what channel… I have netflix, hbo, prime, disney» read `none` at 1.00, and a search guard took that sure
+    reading for «a sure order on a card» and dropped the model's web search; the turn ended mute."""
     try:
         from nucleo.turn import brief as _tb
-        _c, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=floor)
-        return bool(info) and bool(info.get("used"))
+        c, info = _tb.read(brief, _tb.TARGET_KEY, "", min_confidence=floor)
+        return bool(info) and bool(info.get("used")) and ":" in str(c or "") and str(c) != "none"
     except Exception:  # noqa: BLE001
         return False
 
@@ -248,7 +251,7 @@ def order_card_after_read(brief, operator_text: str, read_widget: str) -> str:
         owner = str(target or "").rpartition(":")[0]
         if t_info and owner and _da._base_of(owner) == _da._base_of(read_widget):
             return ""
-        # …and the CATALOGUE verdict is the same evidence for a card off screen (node 2.920: «save … in my contacts:
+        # …and the CATALOGUE verdict is the same evidence for a card off screen (node 2.926: «save … in my contacts:
         # … Telegram … email» wrote the contact, the grammar named the messages card, a pass mailed Andrew).
         card, c_info = _tb.read(brief, _tb.CATALOG_KEY, "", min_confidence=_v.LICENCE)
         if c_info and str(card or "") not in ("", "none") and _da._base_of(str(card)) == _da._base_of(read_widget):

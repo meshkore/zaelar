@@ -54,7 +54,7 @@ def close_ordered(text: str, *, brief=None, called: bool = False, handle=None) -
     `source` is grammar | verdict | answer | jev | none, so the trail says which reader moved."""
     from nucleo.flash import canvas_license as _lic, close_answer as _ca, close_guards as _cg
     his = _lic._his_words(text)
-    if _cg.looks_like_close(his) or _cg.whole_canvas_close(his):   # ONE licence, both readers (node 2.919)
+    if _cg.looks_like_close(his) or _cg.whole_canvas_close(his):   # ONE licence, both readers (node 2.925)
         return (False, "verdict") if brief is not None and _denies_close(brief) else (True, "grammar")
     if _cg.is_negated_or_narrated(his):
         return False, "none"

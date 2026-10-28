@@ -227,7 +227,7 @@ def fullscreen_target(widget_id: str, text: str = "") -> str:
 def at_full_screen() -> str:
     """The card at full screen NOW, or "": the canvas report (`state.maximized_widget`), else the full screen his own
     order set and nothing undid (`canvas_focus.ordered_fullscreen`). ONE reader for every door — the verdict completion
-    read focus instead and «go back to normal size» found no target with two cards open (node 2.921)."""
+    read focus instead and «go back to normal size» found no target with two cards open (node 2.927)."""
     try:
         from memory import api as _memapi
         maxw = str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()

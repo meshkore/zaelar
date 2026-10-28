@@ -6,7 +6,7 @@ from nucleo.flash import direct_action as _da
 
 
 def _veto() -> float:
-    """A SURE canvas gesture is read at the ONE veto floor, not a private 0.9 (minimize at 0.87 found no gesture, 2.924)."""
+    """A SURE canvas gesture is read at the ONE veto floor, not a private 0.9 (minimize at 0.87 found no gesture, 2.930)."""
     return __import__("nucleo.turn.verdicts", fromlist=["x"]).VETO
 
 

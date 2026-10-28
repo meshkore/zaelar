@@ -69,7 +69,7 @@ def looks_like_close(text: str) -> bool:
 
 def whole_canvas_close(text: str) -> bool:
     """The hard-interrupt reader's close of the WHOLE canvas («clear everything off the screen») — read by the close
-    licence beside `looks_like_close`, which alone vetoed the engine's own close as drag (node 2.919)."""
+    licence beside `looks_like_close`, which alone vetoed the engine's own close as drag (node 2.925)."""
     try:
         from voice import attention as _att
         return _att.hard_interrupt(text) == "close"

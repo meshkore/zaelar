@@ -224,6 +224,9 @@ async def _card_the_catalogue_names(operator_text: str, wait_s: float = 3.0) -> 
             return ""
         cat, conf = await asyncio.to_thread(_cc.late_catalogue, operator_text, wait_s=wait_s)
         cat = cat.split(":")[0]
+        if cat == "none" and conf >= _jev.MIN_CONFIDENCE:
+            return "none"                 # a SURE «no card»: the caller stops looking (live 2026-10-28: a user widget
+            #                               named «shows» was read for «Dexter… which of your services»)
         if cat and cat != "none" and conf >= _jev.MIN_CONFIDENCE and runtime.get(cat) is not None:
             return cat
     except Exception:  # noqa: BLE001
@@ -246,6 +249,8 @@ async def promise_repair(operator_text: str, reply: str, window: list, spec, emi
         # on my plate tomorrow» → «let me pull up your day and your messages» read the MESSAGES). His words first,
         # then the catalogue on his words, and the reply's naming last.
         wid = _wread.resolve("", operator_text or "") or await _card_the_catalogue_names(operator_text)
+        if wid == "none":                 # the reader is SURE no card is involved: the reply's words cannot overrule it
+            return ""
         if not wid:
             wid = _wread.resolve("", reply or "")
         if not wid:
