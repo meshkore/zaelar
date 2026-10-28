@@ -63,15 +63,12 @@ export function fmtDate(d, opts, fb){ const f=intl(opts); return f ? f.format(d)
 // ── date helpers (local time, no libraries) ───────────────────────────────────────────────────────────
 // Optional browser surface — a widget must render (and a headless DOM stub must be able to drive it) even
 // where these do not exist; neither carries behaviour, only polish.
-export function raf(fn){ try{ if(typeof requestAnimationFrame === "function") requestAnimationFrame(fn); else fn(); }
-  catch(_){} }
+export function raf(fn){ try{ if(typeof requestAnimationFrame === "function") requestAnimationFrame(fn); else fn(); }catch(_){} }
 
 export const _pad = n => String(n).padStart(2,"0");
 export function ymd(d){ return `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`; }
-export function parseYmd(s){
-  const p = String(s||"").split("-").map(Number);
-  return (p[0] && p[1] && p[2]) ? new Date(p[0], p[1]-1, p[2]) : new Date();
-}
+export function parseYmd(s){ const p = String(s||"").split("-").map(Number);
+  return (p[0] && p[1] && p[2]) ? new Date(p[0], p[1]-1, p[2]) : new Date(); }
 export function addDays(d, n){ const x = new Date(d.getTime()); x.setDate(x.getDate()+n); return x; }
 export function startOfWeek(d){ const x=new Date(d.getTime()); x.setDate(x.getDate()-((x.getDay()+6)%7)); return x; }  // Monday
 export function mins(hhmm){ const p=String(hhmm||"").split(":"); const h=Number(p[0]), m=Number(p[1]);
@@ -137,8 +134,11 @@ export const CAL_SVG = {
 // blocks are dropped because the same appointment already arrived through `meetings` with more inside it.
 export function hueOf(ev){
   const cat = String(ev.category||"").toLowerCase();
-  const key = CATEGORY_HUE[cat] || (HUES[cat] ? cat : null) || ev.kind || "meeting";
-  return HUES[key] || HUES.meeting;
+  const known = CATEGORY_HUE[cat] || (HUES[cat] ? cat : null);
+  // 2026-10-28 — an uncategorised MEETING is coloured by where it came from (his own voice = the accent,
+  // Google = the echo cyan) instead of one purple for every imported row; a category he dictated still wins.
+  if(!known && (ev.kind||"meeting") === "meeting") return ev.source === "google" ? "var(--hb-accent2,#6FD6F5)" : "var(--hb-accent,#AE90FF)";
+  return HUES[known || ev.kind] || HUES.meeting;
 }
 export function eventsOf(data){
   const out = [];

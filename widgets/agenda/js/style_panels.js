@@ -38,7 +38,7 @@ export const CSS_PANELS = `\
     color:var(--hb-ok,#5FD3A2)}
   .hb-agenda .agpacts button.ok:hover{border-color:var(--hb-ok,#5FD3A2)}
   .hb-agenda .agnote{font-size:13px;color:var(--hb-muted-2,#7d8a9c);line-height:1.4}
-  .hb-agenda .agcaldefsel{height:var(--hb-icon-h,28px);max-width:180px;font-size:13px;border-radius:var(--hb-r-s,8px);
+  .hb-agenda .agcaldefsel{height:var(--hb-ctl-h-sm,32px);max-width:180px;font-size:13px;border-radius:var(--hb-r-s,8px);
     border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);padding:0 6px}
 
   /* ── V2-744/V2-746 · THE SUBHEADER ────────────────────────────────────────────────────────────────

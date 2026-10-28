@@ -171,36 +171,40 @@ export function renderGrid(host, dates, all, data, onPick, onDayPick, onSlot, on
 
 // ── MONTH ─────────────────────────────────────────────────────────────────────────────────────────────
 export function renderMonth(host, anchor, all, data, onPick, onDayPick){
-  const today = data.date || ymd(new Date());
-  const a = parseYmd(anchor);
-  const first = new Date(a.getFullYear(), a.getMonth(), 1);
-  const start = startOfWeek(first);
-  const dows = el2("div","agmdows");
-  for(let i=0;i<7;i++) dows.appendChild(el2("div","agmdow",
-    fmtDate(addDays(start,i),{weekday:"short"},"").replace(/\.$/,"")));
-  host.appendChild(dows);
+  const today = data.date || ymd(new Date()), a = parseYmd(anchor);
+  const first = new Date(a.getFullYear(), a.getMonth(), 1), start = startOfWeek(first);
+  const dows = el2("div","agmdows"); for(let i=0;i<7;i++) dows.appendChild(el2("div","agmdow",
+    fmtDate(addDays(start,i),{weekday:"short"},"").replace(/\.$/,""))); host.appendChild(dows);
 
   const grid = el2("div","agmgrid");
   const weeks = Math.ceil((((first.getDay()+6)%7) + new Date(a.getFullYear(), a.getMonth()+1, 0).getDate())/7);
-  grid.style.gridTemplateRows = `repeat(${weeks},minmax(74px,1fr))`;
+  grid.style.gridTemplateRows = `repeat(${weeks},minmax(66px,1fr))`; grid.style.minHeight = (weeks*66)+"px";
   for(let i=0;i<weeks*7;i++){
     const d = addDays(start, i), ds = ymd(d);
-    const cell = el2("div","agmcell" + (d.getMonth()!==a.getMonth()?" out":"") + (ds===today?" today":""));
+    const cell = el2("div","agmcell" + (d.getMonth()!==a.getMonth()?" out":"") + (ds===today?" today":"")
+                                     + (d.getDay()%6===0?" we":""));
     cell.appendChild(el2("div","agmn", String(d.getDate())));
     const evs = eventsOn(all, ds);
-    evs.slice(0,3).forEach(e=>{
-      const row = el2("div","agmev" + (e.status==="pending"?" pending":""));
+    evs.forEach(e=>{
+      const row = el2("div","agmev" + (e.status==="pending"?" pending":"") + (e.allDay?" allday":""));
       row.style.setProperty("--evc", hueOf(e));
       row.appendChild(el2("span","agmdot"));
       if(!e.allDay) row.appendChild(el2("span","agmh", hhmm(e.start)));
       row.appendChild(el2("span","agmt", e.title));
-      row.title = `${timeLabel(e)} · ${e.title}`;
-      row.onclick = ev => { ev.stopPropagation(); onPick(e); };
+      row.title = `${timeLabel(e)} · ${e.title}`; row.onclick = ev => { ev.stopPropagation(); onPick(e); };
       cell.appendChild(row);
     });
-    if(evs.length>3) cell.appendChild(el2("div","agmore", tt("n_more",{n:evs.length-3},"+{n} más")));
-    cell.onclick = ()=>onDayPick(ds);
-    grid.appendChild(cell);
+    cell.appendChild(el2("div","agmore"));
+    cell.onclick = ()=>onDayPick(ds); grid.appendChild(cell);
   }
   host.appendChild(grid);
+  // What a cell SHOWS is what its row can hold, measured — three chips in a tall card, one in a short one —
+  // and the rest is a count, never a chip cut through its glyphs (the operator's rule from V2-693, here).
+  // ~30px go to the day number, ~21px to each row; the last row of a full cell is the count itself.
+  raf(()=>grid.querySelectorAll(".agmcell").forEach(c=>{
+    const rows = c.querySelectorAll(".agmev"), more = c.querySelector(".agmore");
+    const n = Math.max(1, Math.floor((c.clientHeight-30)/21)), hide = rows.length > n ? rows.length-n+1 : 0;
+    rows.forEach((r,i)=>{ r.style.display = i < rows.length-hide ? "" : "none"; });
+    more.style.display = hide ? "" : "none"; more.textContent = hide ? tt("n_more",{n:hide},"+{n} más") : "";
+  }));
 }
