@@ -19,36 +19,25 @@ import asyncio
 
 import pytest
 
-from memory import db as memdb
-from memory import embeddings as mememb
-from nucleo.flash import probe
+from nucleo.cli import turn
 from nucleo.flash import prompt
+from tests.brain import harness as H
 
 
 QUESTION = "¿A qué hora abre mañana el Museo del Prado y cuánto cuesta la entrada general?"
 HALF_QUERY = "horario Museo del Prado"
 
 
-@pytest.fixture(autouse=True)
-def _hash_backend(monkeypatch):
-    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
-    mememb.reset()
-    yield
-    mememb.reset()
+@pytest.fixture
+def fresh_db():
+    """The typed turn's isolation: temp workspace, database, widget store and language."""
+    with H.Isolated("es"):
+        yield
 
 
 @pytest.fixture
-def fresh_db(tmp_path, monkeypatch):
-    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
-    memdb.reset_db()
-    memdb.get_db()
-    yield
-    memdb.reset_db()
-
-
-@pytest.fixture
-def captured(monkeypatch):
-    """Drives a real `run_turn`: first pass calls web_search with HALF the question, second pass is captured."""
+def captured(fresh_db, monkeypatch):
+    """Drives a real typed turn (`nucleo.cli.turn.run_turn`, the voice turn): first pass calls web_search with HALF the question, second pass is captured."""
     seen: dict = {}
     calls = {"n": 0}
 
@@ -66,6 +55,9 @@ def captured(monkeypatch):
             seen["user"] = messages[1]["content"]
             yield "Abre a las 10:00; del precio no he encontrado nada, ¿lo miro a fondo?"
 
+        async def complete(self, *_a, **_kw):
+            return ""
+
     import nucleo.websearch as ws
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _Client)
     monkeypatch.setattr(ws, "search", lambda q, **k: {"source": "test", "ai": False, "results": [], "answer": ""})
@@ -74,8 +66,8 @@ def captured(monkeypatch):
 
 
 def test_the_composing_pass_gets_what_the_operator_actually_asked(fresh_db, captured):
-    res = asyncio.run(probe.run_turn(QUESTION, sid="t-v135-a", ingest=False))
-    probe._SESSIONS.pop("t-v135-a", None)
+    res = asyncio.run(turn.run_turn(QUESTION, sid="t-v135-a", ingest=False))
+    turn.reset("t-v135-a")
     assert res["action"] == "search"
     assert captured["user"] == QUESTION                 # the whole sentence, not the query
     assert "cuánto cuesta" in captured["system"]        # the half the query dropped is still there
@@ -83,14 +75,14 @@ def test_the_composing_pass_gets_what_the_operator_actually_asked(fresh_db, capt
 
 def test_and_it_also_gets_what_was_actually_searched(fresh_db, captured):
     """Both are needed: without the query the reply cannot tell which half the results even cover."""
-    asyncio.run(probe.run_turn(QUESTION, sid="t-v135-b", ingest=False))
-    probe._SESSIONS.pop("t-v135-b", None)
+    asyncio.run(turn.run_turn(QUESTION, sid="t-v135-b", ingest=False))
+    turn.reset("t-v135-b")
     assert HALF_QUERY in captured["system"]
 
 
 def test_the_missing_half_must_be_named_not_dropped(fresh_db, captured):
-    asyncio.run(probe.run_turn(QUESTION, sid="t-v135-c", ingest=False))
-    probe._SESSIONS.pop("t-v135-c", None)
+    asyncio.run(turn.run_turn(QUESTION, sid="t-v135-c", ingest=False))
+    turn.reset("t-v135-c")
     assert "di CUÁL falta" in captured["system"]
     assert "no la dejes caer en silencio" in captured["system"]
 

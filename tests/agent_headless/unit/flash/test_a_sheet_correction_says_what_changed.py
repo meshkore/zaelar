@@ -48,19 +48,6 @@ def test_another_op_or_a_failure_gets_no_correction_line():
     assert correction_ack.line(None) == ""
 
 
-def test_the_probe_says_it_instead_of_done(monkeypatch):
-    monkeypatch.setattr(langs, "current_language", lambda: langs.spec("es"))
-    from nucleo.flash import probe_after
-
-    class _Sess:
-        window, last_action = [], ""
-
-    out = asyncio.run(probe_after.the_words_it_owes(
-        _hw=False, _parts=None, _show_chose=False, action="widget_data", images_req=None, return_extra_exec=_CRIT,
-        sess=_Sess(), spoken="", tags=[], text=HEARD, video_req=None, brief=None))["spoken"]
-    assert out != "Hecho." and "12" in out, out
-
-
 def test_the_real_criteria_op_answers_what_the_line_reads(monkeypatch):
     from nucleo.flash import data_ops
     from widgets.results import data as sheet

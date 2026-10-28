@@ -136,13 +136,3 @@ def test_the_voice_half_says_the_correction_when_nothing_could_be_scheduled(no_j
                            emit=lambda *a, **k: events.append(a))
     assert fix and "reminder" in fix.lower()
     assert any("not scheduled" in str(e[1]) for e in events), events
-
-
-def test_the_text_channel_appends_the_correction(no_jobs):
-    from nucleo.flash import probe_after as PA
-    sess = types.SimpleNamespace(window=[])
-    out = asyncio.run(PA.the_words_it_owes(
-        _hw=False, _parts=None, _show_chose=None, action="chat", images_req=None, return_extra_exec={},
-        sess=sess, spoken="Done — your reminder's all set!", tags=[], text="thanks", video_req=None))
-    assert out["spoken"].startswith("Done — your reminder's all set!")
-    assert len(out["spoken"]) > len("Done — your reminder's all set!")

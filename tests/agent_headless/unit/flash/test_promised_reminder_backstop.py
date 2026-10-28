@@ -20,11 +20,10 @@ import time
 
 import pytest
 
-from memory import db as memdb
-from memory import embeddings as mememb
 from nucleo import scheduler
-from nucleo.flash import probe
+from nucleo.cli import turn
 from nucleo.flash import router_guards as g
+from tests.brain import harness as H
 
 
 ASK = "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles."
@@ -92,30 +91,30 @@ class _PromisesInProse:
     async def stream(self, *_a, **_kw):
         yield REPLY
 
-
-@pytest.fixture(autouse=True)
-def _hash_backend(monkeypatch):
-    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
-    mememb.reset()
-    yield
-    mememb.reset()
+    async def complete(self, *_a, **_kw):
+        return ""
 
 
 @pytest.fixture
-def fresh_db(tmp_path, monkeypatch):
-    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
-    memdb.reset_db()
-    memdb.get_db()
-    yield
-    for job in scheduler.list_jobs(active_only=True):
-        scheduler.cancel(job.get("name") or "")
-    memdb.reset_db()
+def fresh_db():
+    """An isolated workspace, database and widget store (the typed turn's harness), with the REAL scheduler: the
+    harness stubs it, and it is put back by hand INSIDE the isolation so the harness's own restore stays last."""
+    real_create, real_cancel = scheduler.create, scheduler.cancel
+    with H.Isolated("es"):
+        stub_create, stub_cancel = scheduler.create, scheduler.cancel
+        scheduler.create, scheduler.cancel = real_create, real_cancel
+        try:
+            yield
+        finally:
+            for job in scheduler.list_jobs(active_only=True):
+                scheduler.cancel(job.get("name") or "")
+            scheduler.create, scheduler.cancel = stub_create, stub_cancel
 
 
 def test_a_reminder_promised_in_prose_gets_scheduled_anyway(fresh_db, monkeypatch):
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _PromisesInProse)
-    res = asyncio.run(probe.run_turn(ASK, sid="t-v146", ingest=False, execute=True))
-    probe._SESSIONS.pop("t-v146", None)
+    res = asyncio.run(turn.run_turn(ASK, sid="t-v146", ingest=False, execute=True))
+    turn.reset("t-v146")
     assert res["ok"] is True
     assert [j for j in scheduler.list_jobs(active_only=True) if j.get("name") == "aviso"]
 
@@ -126,11 +125,14 @@ class _AsksForTheCron:
         yield ('[[cron.create]]{"schedule":"2026-09-03 09:00","prompt":"renovar el seguro",'
                '"name":"seguro"}[[/cron.create]]')
 
+    async def complete(self, *_a, **_kw):
+        return ""
+
 
 def test_and_it_does_not_duplicate_one_the_model_did_ask_for(fresh_db, monkeypatch):
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _AsksForTheCron)
-    asyncio.run(probe.run_turn(ASK, sid="t-v146b", ingest=False, execute=True))
-    probe._SESSIONS.pop("t-v146b", None)
+    asyncio.run(turn.run_turn(ASK, sid="t-v146b", ingest=False, execute=True))
+    turn.reset("t-v146b")
     names = [j.get("name") for j in scheduler.list_jobs(active_only=True)]
     assert "seguro" in names
     assert "aviso" not in names
@@ -478,23 +480,17 @@ def test_and_a_turn_that_asks_for_nothing_does_not_inherit_an_old_subject(fresh_
         g.commitment_clause("Recuérdame el viernes lo del taller")
 
 
-def test_the_helper_is_wired_into_BOTH_channels():
-    """El fallo que este motor repite: una decisión cableada en un canal y ausente en el otro. `probe.py` y el
-    provider de voz son implementaciones paralelas del MISMO turno."""
+def test_the_helper_is_wired_into_the_voice_turn():
+    """The decision has to be wired into the turn that runs (the voice turn, which the typed channel runs too)."""
     import inspect
 
-    from nucleo.flash import probe as _probe
     from voice.engine.llm.providers import nucleo as _provider
-    # The probe channel is `probe.py` + `probe_scheduling.py` since the 2026-09-02 ratchet split; the guard is
-    # about the CHANNEL carrying the call, not about which file holds the line.
-    from nucleo.flash import probe_scheduling as _probe_sched
-    _probe_src = _vts.getsource(_probe.run_turn) + _vts.getsource(_probe_sched)
     # The voice half calls `reminder_backing.back_and_check` (2026-10-10), which holds the backstop call.
     from nucleo.flash import reminder_backing as _rback
     _voice_src = _vts.getsource(_provider)
     assert "_rback.back_and_check(" in _voice_src and "window=brain._window" in _voice_src
-    for src in (_probe_src, _vts.getsource(_provider) + inspect.getsource(_rback)):
-        assert "dated_reminder_backstop(" in src and "window=" in src
+    src = _vts.getsource(_provider) + inspect.getsource(_rback)
+    assert "dated_reminder_backstop(" in src and "window=" in src
 
 
 # ── V2-194: the agenda entry cannot be written twice either ──────────────────────────────────────────────
@@ -509,7 +505,7 @@ def test_the_helper_is_wired_into_BOTH_channels():
 # turno ANTERIOR. El hermano tiene esta protección desde V2-153, y aquí es peor sin ella: un aviso duplicado se
 # oye dos veces, una cita duplicada se VE, y se queda.
 #
-# El chequeo vive JUNTO A LA ESCRITURA (`probe.py`) y no dentro de `dated_note_backstop`, que es una decisión
+# El chequeo vive JUNTO A LA ESCRITURA (`note_backstop.note_to_file`) y no dentro de `dated_note_backstop`, que es una decisión
 # pura sobre dos cadenas y un reloj — meterle una lectura de estado global hizo que nueve de sus propios tests
 # dependieran del orden en que corrieron los anteriores.
 def _agenda(monkeypatch, meetings):
@@ -556,17 +552,12 @@ def test_and_an_unreadable_agenda_fails_OPEN(monkeypatch):
 
 def test_and_the_write_path_actually_consults_it():
     """El chequeo no sirve de nada si el sitio que escribe no lo llama."""
-    import inspect
-
-    from nucleo.flash import probe, probe_scheduling
-
-    # The PROBE CHANNEL is two modules since the 2026-09-02 ratchet split: `probe.py` and the scheduling
-    # backstops it delegates to (`probe_scheduling.py`). The guard is about the CHANNEL being wired, not
-    # about which file holds the line, so it reads both — otherwise the next extraction turns a wiring
-    # guard into a false alarm, and the fix would be to weaken it.
-    # Since 2026-10-10 both channels delegate the decision to `note_backstop.note_to_file`, which consults it.
     from nucleo.flash import note_backstop
-    src = _vts.getsource(probe.run_turn) + _vts.getsource(probe_scheduling)
+    from voice.engine.llm.providers import nucleo as _provider
+
+    # The turn delegates the decision to `note_backstop.note_to_file`, which consults it. The turn's source is read
+    # whole (provider + the blocks it delegates to), so an extraction never turns this guard into a false alarm.
+    src = _vts.getsource(_provider)
     assert "note_to_file(" in src and "already_in_agenda(" in _vts.getsource(note_backstop)
 
 
@@ -871,18 +862,13 @@ def test_vacio_sigue_vacio(jueves_27):
     assert g.safe_reminder_schedule("", "", ENCARGO) == ""
 
 
-def test_las_DOS_puertas_lo_llaman():
-    """Guarda de cableado sobre la fuente sin comentarios. Este fichero ya documenta que el defecto hermano
-    (V2-214) nació de blindar UNA puerta y dejar la otra cruda; repetirlo sería no haber aprendido nada."""
-    from pathlib import Path
+def test_the_turn_door_calls_it():
+    """Wiring guard over the source without comments: the sibling defect (V2-214) was born from guarding ONE door
+    and leaving the other raw. The turn's door is read whole (provider + the blocks it delegates to)."""
+    from voice.engine.llm.providers import nucleo as _provider
 
-    def _limpio(ruta):
-        return "\n".join(ln for ln in _vts.read(ruta).splitlines()
-                         if not ln.strip().startswith("#"))
-    # Same reason as above: the probe channel is `probe.py` + `probe_scheduling.py` since the split.
-    _probe_src = _limpio("nucleo/flash/probe.py") + _limpio("nucleo/flash/probe_scheduling.py")
-    assert "safe_reminder_schedule(" in _probe_src, "la puerta del canal probe"
-    assert "safe_reminder_schedule(" in _limpio("voice/engine/llm/providers/nucleo.py"), "la puerta del proveedor"
+    clean = "\n".join(ln for ln in _vts.getsource(_provider).splitlines() if not ln.strip().startswith("#"))
+    assert "safe_reminder_schedule(" in clean, "the voice turn's door"
 
 
 # ── Making sure the clock is truly FROZEN (2026-08-28) ─────────────────────────────────────────────────────

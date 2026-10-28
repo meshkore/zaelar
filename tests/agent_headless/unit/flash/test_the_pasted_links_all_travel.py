@@ -1,4 +1,3 @@
-from tests import voice_turn_source as _vts
 """V2-469 · the links the operator PASTED all travel — and the enumeration marks the one playing.
 
 Measured in `build-a-video-playlist-from-links` (23:17): two links pasted in one message, the model called
@@ -16,32 +15,6 @@ _TURN = ("Te paso un par de vídeos: https://www.youtube.com/watch?v=dQw4w9WgXcQ
          "https://youtu.be/9bZkp7q19f0 — móntame una lista con ellos.")
 
 
-def test_a_missing_pasted_link_is_completed_into_the_add():
-    calls = [{"name": "widget_data",
-              "args": {"widget_id": "youtube", "action": "add",
-                       "payload": {"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"}}}]
-    out = WDT.complete_pasted_links(calls, _TURN)
-    url = out[0]["args"]["payload"]["url"]
-    assert "dQw4w9WgXcQ" in url and "9bZkp7q19f0" in url
-
-
-def test_links_already_covered_change_nothing():
-    calls = [{"name": "widget_data",
-              "args": {"widget_id": "youtube", "action": "add",
-                       "payload": {"url": _TURN}}}]
-    out = WDT.complete_pasted_links(calls, _TURN)
-    assert out[0]["args"]["payload"]["url"] == _TURN
-
-
-def test_a_turn_without_links_or_a_non_add_op_is_left_alone():
-    calls = [{"name": "widget_data",
-              "args": {"widget_id": "youtube", "action": "play", "payload": {}}}]
-    assert WDT.complete_pasted_links(calls, _TURN) == calls
-    calls2 = [{"name": "widget_data",
-               "args": {"widget_id": "agenda", "action": "add_meeting", "payload": {"title": "x"}}}]
-    assert WDT.complete_pasted_links(calls2, "sin enlaces aquí") == calls2
-
-
 def test_the_enumeration_marks_the_one_playing(monkeypatch):
     from widgets import refs
     monkeypatch.setattr(refs, "_ref_index", lambda wid: [
@@ -50,12 +23,6 @@ def test_the_enumeration_marks_the_one_playing(monkeypatch):
     parte = {"executed": "widget_data", "widget": "youtube", "act": "play"}
     out = WDT.named_ack(parte, "Hecho.", "¿Y qué está sonando ahora?")
     assert "la que suena" in out and "Rick Astley" in out
-
-
-def test_the_probe_wires_the_completion():
-    from pathlib import Path
-    src = _vts.read(Path("nucleo/flash/probe.py"))
-    assert "complete_pasted_links" in src
 
 
 # ── the failure rides along even when the model spoke (V2-469, round 11 turn 7) ──────────────────────────
@@ -88,9 +55,3 @@ def test_dime_counts_as_asking(monkeypatch):
     parte = {"executed": "widget_data", "widget": "youtube", "act": "play"}
     out = WDT.named_ack(parte, "Hecho.", "Perfecto, pues ponla y dime qué está sonando ahora mismo.")
     assert "Rick" in out and out != "Hecho."
-
-
-def test_the_probe_wires_the_failure_augmentation():
-    from pathlib import Path
-    src = _vts.read(Path("nucleo/flash/probe.py"))
-    assert "ensure_failure_named" in src

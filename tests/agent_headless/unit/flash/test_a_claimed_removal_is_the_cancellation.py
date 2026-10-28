@@ -79,11 +79,10 @@ def test_a_bare_done_long_after_the_appointment_is_not_it():
     assert ac.cancel_call("cancel it", "I've removed it from your agenda.", db, now=now) is not None
 
 
-def test_both_channels_back_the_claim_before_the_model_repair():
+def test_the_voice_turn_backs_the_claim_before_the_model_repair():
     from tests.voice_turn_source import getsource
-    from nucleo.flash import post_stream_words, probe_mirrors
-    for mod in (probe_mirrors, post_stream_words):
-        assert "_agc.or_repair(" in getsource(mod)
+    from nucleo.flash import post_stream_words
+    assert "_agc.or_repair(" in getsource(post_stream_words)
 
 
 def test_the_cancellation_takes_its_notice(agenda, monkeypatch):
