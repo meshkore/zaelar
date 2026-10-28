@@ -273,9 +273,14 @@ def dedupe_meetings(db: dict, payload: dict) -> tuple[dict, list[dict]]:
     return res, stuck
 
 
-def every(payload: dict) -> bool:
-    """`all: true` — the order named EVERY match («quítalas todas», «kill all entries like this»); the words are not read here."""
-    return str(payload.get("all") or "").strip().lower() in ("true", "1", "yes", "y", "si", "sí")
+def _flag(payload: dict, key: str) -> bool:
+    return str(payload.get(key) or "").strip().lower() in ("true", "1", "yes", "y", "si", "sí")
+
+
+def every(payload: dict, hits: list[dict]) -> bool:
+    """EVERY match: `all: true`, or `whole: true` over SEPARATE appointments (no series) — «whole» is the whole of what the
+    title names; the model reached for it in both languages (live 2026-10-28, «quítalas todas» / «kill all entries like this»)."""
+    return _flag(payload, "all") or (_flag(payload, "whole") and not any(isinstance(m.get("repeat"), dict) for m in hits))
 
 
 def cancel_every(db: dict, hits: list[dict], *, plural: bool = False) -> tuple[dict, list[dict]]:
@@ -327,7 +332,7 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
                 if str(m.get("date") or "") >= _data._today()][:8]
         return {"ok": False, "error": "not_found",
                 "detail": "no appointment matches that title" + (f" (upcoming: {'; '.join(soon)})" if soon else "")}, []
-    if every(payload):                                     # the plural: the whole set, no question
+    if every(payload, hits):                               # the plural: the whole set, no question
         return cancel_every(db, hits, plural=True)
     # V2-770 — «the whole series» is the series AND the days that were moved out of it (`edit.detach`): they are
     # the same appointment to him, and counting them as a second one made `whole` answer «ambiguous».
@@ -339,7 +344,8 @@ def cancel_meeting(db: dict, payload: dict) -> tuple[dict, list[dict]]:
         rows = sorted(distinct, key=lambda k: (k[1], k[2]))
         return {"ok": False, "error": "ambiguous",
                 "options": [f"«{t}» {d} {h}".strip() for t, d, h in rows][:8],
-                "detail": "that title matches several different appointments — say which day (or hour)"}, []
+                "detail": ("that title matches several different appointments — call again with `date` (one of "
+                           "them) or `whole: true` (every one of them)")}, []
     # V2-769 — WITH a date, one day of a series is cancelled and the rest of the series stays («este jueves no
     # hay flauta»). Without one — or with `whole` — the series goes entirely, like any appointment.
     from . import recur

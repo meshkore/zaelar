@@ -8,6 +8,9 @@ appointment, wrong for an order said in the plural. The model now says `all: tru
 one trash entry holds the set (`restore_meeting` brings all back), Google is asked row by row and a row it refuses
 STAYS. The two older guards are kept: without `all` the question stands, and an empty title never means «every».
 
+`whole: true` means the same over a set of separate appointments (no series among them) — the word the model already
+knows for «everything this title names» — while a series with `whole` keeps V2-770's path.
+
 Disarm: with `sweep.every` answering False, the first test goes red.
 """
 from __future__ import annotations
@@ -46,6 +49,23 @@ def test_all_true_cancels_every_match_in_google_and_keeps_the_rest(agenda, monke
     assert res.get("ok") is True and res["result"]["removed"] == 5 and res["result"]["days"] == 5
     assert [m["id"] for m in agenda.load_db()["meetings"]] == ["x1"]
     assert sorted(deleted) == [f"c{i}" for i in range(5)] and len(cancelled) == 5
+
+
+def test_whole_true_over_separate_appointments_is_every_one_of_them(agenda, monkeypatch):
+    from widgets.agenda import gcal
+    deleted = []
+    monkeypatch.setattr(gcal, "delete_google", lambda m: deleted.append(m["id"]) or True)
+    monkeypatch.setattr(agenda, "_cancel_reminder", lambda m: None)
+    _seed(agenda, _rows(4))
+    res = agenda.apply_action("cancel_meeting", {"title": "Comedor del niño", "whole": True})
+    assert res.get("ok") is True and res["result"]["removed"] == 4 and len(deleted) == 4
+    assert [m["id"] for m in agenda.load_db()["meetings"]] == ["x1"]
+
+
+def test_the_ambiguity_answer_names_both_fixes(agenda, monkeypatch):
+    _seed(agenda, _rows(2))
+    res = agenda.apply_action("cancel_meeting", {"title": "comedor"})
+    assert res.get("error") == "ambiguous" and "`whole: true`" in res["detail"] and "`date`" in res["detail"]
 
 
 def test_restore_brings_the_whole_set_back_as_one(agenda, monkeypatch):
