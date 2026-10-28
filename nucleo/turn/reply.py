@@ -154,6 +154,22 @@ def taken() -> list[Outcome]:
     return _NOTED.pop(_trace(), [])
 
 
+#: Turns that END on our question (V2-831 T-08), by trace — apart from `_NOTED`, which the mouth pops first.
+_ASKED: dict[str, str] = {}
+
+
+def settle_asked(source: str) -> None:
+    """This turn ends asking HIM («model»: its `[[ask]]` tag · «clarify»: the clarify door) — the `asked` verdict."""
+    _ASKED[_trace()] = str(source or "")
+    if len(_ASKED) > 32: _ASKED.pop(next(iter(_ASKED)))   # noqa: E701 — a bounded record of recent turns
+    V.emit(V.ASKED, text=str(source or ""), source=str(source or ""))
+
+
+def asked() -> bool:
+    """Did this turn settle `asked`? Read, never consumed."""
+    return _trace() in _ASKED
+
+
 def _notice_moved(said: str) -> list[Outcome]:
     """A notice this turn MOVED to ring soon today is `met` at the hour the live job rings, read back from the
     schedule (`notice_readback`) — "" when the words already said that hour."""

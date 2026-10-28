@@ -49,7 +49,8 @@ import re
 
 # `aparte` (V2-657): the model's SANCTIONED silence — «this turn was addressed to somebody else in the
 # room». Self-closing, no argument; the channel marks the turn handled and retracts the window refresh.
-TAG_RE    = re.compile(r"\[\[\s*(show|close|delete|fullscreen|aparte)\s*(?::\s*([a-zA-Z0-9_-]+))?\s*\]\]", re.I)
+# `ask` (V2-831 T-08): the model DECLARES its reply ends asking him; the turn settles `asked` (`reply.settle_asked`).
+TAG_RE    = re.compile(r"\[\[\s*(show|close|delete|fullscreen|aparte|ask)\s*(?::\s*([a-zA-Z0-9_-]+))?\s*\]\]", re.I)
 # [[move:ID:where]] — reposition a widget on the canvas (pure UI, like show/close). where ∈ left|right|center|
 # top|bottom (+ combinations such as top-left) or their Spanish synonyms (izquierda/derecha/centro/arriba/abajo).
 MOVE_RE   = re.compile(r"\[\[\s*move\s*:\s*([a-zA-Z0-9_-]+)\s*:\s*([a-zA-Záéíóúñ -]+?)\s*\]\]", re.I)

@@ -112,25 +112,16 @@ def _not_kept_line() -> str:
         return ""
 
 
-def asks_him(reply: str) -> bool:
-    """The reply ENDS by putting a question to him (one of its last two sentences is a question): its verdict is
-    «asked», not «undone» — the next act is his (live 2026-10-28: «…20 chats with something pending… Which one do you
-    mean?» closed with «I haven't done it»; the agenda's «Which one exactly? I have A, B.» is the same shape)."""
-    import re
-    parts = [p.strip() for p in re.split(r"(?<=[.!?…])\s+", str(reply or "").strip()) if p.strip()]
-    return any(p.rstrip("»\"' ").endswith("?") for p in parts[-2:])
-
-
 def honest_line(reply: str, outcome: dict | None, *, acted: bool, brief=None) -> str:
     """The words owed when the turn owed an act and nothing ran — "" when something ran or nothing was owed.
 
     · the pass declared it cannot  → its own sentence (or the i18n line);
     · the pass's call was swallowed by a guard → the i18n line (a claim over a discarded op is not «done»);
     · the pass read the turn and called nothing → nothing (its judgement stands);
-    · the reply asks HIM → nothing (asked); a worker already running on what he named was resumed from its ROW by
-      the turn's verdict over the pending rows (`resume_turn`), so the turn `acted` (started — V2-831 T-07);
+    · the turn settled `asked` (`[[ask]]`, the clarify door) → nothing; a live worker it named was resumed (`acted`);
     · no pass could run (no card) and the brief says an act was owed (`owed`) → the i18n line."""
-    if acted or words_were_the_act(brief) or asks_him(reply):
+    from nucleo.turn import reply as _reply   # `asked`: its `[[ask]]` or the clarify door (V2-831 T-08), never a «?»
+    if acted or words_were_the_act(brief) or _reply.asked():
         return ""
     kind = str((outcome or {}).get("kind") or "")
     if kind in (CALL, STARTED, JUDGED):
@@ -305,7 +296,6 @@ def landed(call, outcome: dict, *, run, acted: dict, data_done: dict, escalate_r
              extra={"cat": "flash", "widget": call.get("widget_id"), "action": call.get("action")})
     except Exception as _e:  # noqa: BLE001
         _log.debug(f"promise_kept: line 217 failed: {_e!r}")
-        pass
     return None
 
 
