@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import time
 
-from widgets.youtube import library
+from widgets.youtube import library, library_prefs
 
 _search_id = None                 # injected by data.py (V2-632 seam pattern)
 
@@ -67,7 +67,7 @@ def swap_to(db: dict, it: dict) -> None:
     db["paused"] = False
     db["pick_explicit"] = False
     library.record_play(db, it)
-    library.apply_prefs(db, fresh=False)
+    library_prefs.apply_prefs(db, fresh=False)
 
 
 def next_unblocked(db: dict, dead: str) -> "dict | None":

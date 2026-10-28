@@ -11,7 +11,7 @@ import re
 import unicodedata
 import urllib.request
 from .. import store
-from . import account, channels, library     # channels: the followed channels as cards and pages
+from . import account, channels, library, library_prefs     # channels: the followed channels as cards and pages
 from . import sources as _sources        # V2-638: where a playable row comes from (youtube | local | torrent)
 
 WID = "youtube"   # the same constant as data.WID
@@ -282,7 +282,7 @@ def _play_pos(db: dict, i: int, cmd: str, *, watch: bool = True) -> dict:
     if watch:
         from . import sound as _sound
         _sound.wants_sound(db)                           # V2-791: a video he asked to watch is heard
-    library.apply_prefs(db, fresh=False)
+    library_prefs.apply_prefs(db, fresh=False)
     if watch:
         _goto(db, "player")                              # V2-755: he asked to watch it, so show it
     r = _bump(db, cmd)

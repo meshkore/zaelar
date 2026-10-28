@@ -12,7 +12,7 @@ import urllib.request
 
 from .. import store
 from i18n import langs as _langs   # V2-778 F3-30: hints are read back aloud, in the agent's language
-from . import account, channels, library     # channels: the followed channels as cards and pages
+from . import account, channels, library, library_prefs     # channels: the followed channels as cards and pages
 from .helpers import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
     _RESULTS_RE, _SEED, _YT_RE, _bump, _drop_blocked, _extract_id, _goto, _index_list, _is_blocked, _norm,
     _oembed_title, _play_pos, _resolve_item, _results_query, _seed, _tab_alias)

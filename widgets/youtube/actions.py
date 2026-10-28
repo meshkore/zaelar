@@ -81,7 +81,7 @@ def _a_load(action, p, db) -> dict:
     db["paused"] = False
     _d.library.record_play(db, {"videoId": vid, "title": db["title"], "channel": channel, "url": db["url"]})
     _d._sound.wants_sound(db)                           # V2-791: a video he asked to watch is heard
-    _d.library.apply_prefs(db, fresh=not had_video)
+    _d.library_prefs.apply_prefs(db, fresh=not had_video)
     _d._goto(db, "player")                              # V2-755: he asked to watch it, so show it
     notice = _d._blocking.explicit_link_notice(db, explicit, channel, db["title"])
     return {**_d._bump(db, "load"), **notice}
