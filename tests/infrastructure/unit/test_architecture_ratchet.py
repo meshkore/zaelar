@@ -330,7 +330,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
-    "nucleo (top)": 15701,    # refactor2710-07: jev.py became the nucleo/jev package; refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
+    "nucleo (top)": 14672,    # refactor2710-07: jev.py became the nucleo/jev package; refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
     "nucleo/actionmap": 755,
     "nucleo/acts": 902,         # refactor2710-05: the tool catalogue (T-01) + what frontend.py decided about a card (T-05)
     "nucleo/agentes": 793,
@@ -347,7 +347,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/request": 954,     # refactor2710-02: born — request_row (model), errand_kind/title, dedup+continuity (append), stop_decision MOVED in
     "nucleo/susurro": 1386,
     "nucleo/turn": 5054,        # refactor2710-03: `reply.py` + `reply_receipts.py` (the mouth); refactor2710-07: `brief.py` + `verdicts.py` (moved from nucleo/flash); refactor2710-08: `prompt/` (catalogs moved from nucleo/flash, packs from nucleo/context_packs, prompt.py split into builder · operating · live_state · recall; task_recall + task_recall_named → turn/task_recall, one chooser)
-    "nucleo/workers": 6940,            # refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
+    "nucleo/workers": 7966,            # refactor2710-08: the worker briefs (dispatch_prompts + research_prompts) moved in as workers/prompts/; refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
     "nucleo/workflows": 315,
     "observability": 1005,
     "rules": 1211,              # refactor2710-01: +3, the rules.write door
@@ -372,7 +372,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/danger.py",
     "nucleo/dispatch/confirm.py",
     "nucleo/dispatch/prepare.py",
-    "nucleo/dispatch_prompts.py",
     "nucleo/energy_lease.py",
     "nucleo/energy_meter.py",
     "nucleo/errands/__init__.py",
@@ -441,8 +440,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777; refactor2710-08: → 170599). Never for growth in place.
-_TOTAL_MAX = 170599
+#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777; refactor2710-08: → 170596). Never for growth in place.
+_TOTAL_MAX = 170596
 
 
 def test_the_total_only_shrinks():

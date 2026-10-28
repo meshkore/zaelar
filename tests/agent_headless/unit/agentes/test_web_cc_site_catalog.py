@@ -70,7 +70,7 @@ def test_directive_block_tells_the_worker_to_prefer_the_catalog_even_for_a_named
 
 def test_web_prompt_embeds_the_directive_block():
     # V2-778 F2-23: the parked `web_cc` copy was deleted; the LIVE web worker prompt is `dispatch_prompts`.
-    from nucleo import dispatch_prompts
+    from nucleo.workers import prompts as dispatch_prompts
     prompt = dispatch_prompts._web_prompt("resérvame mesa en Casa Lucio esta noche", "")
     assert "SITIOS DE CONFIANZA POR CATEGORÍA" in prompt
     assert "Casa Lucio" in prompt  # the actual goal must still be present, untouched
@@ -130,7 +130,7 @@ def test_second_hand_does_NOT_hijack_the_research_funnel():
 
 
 def test_the_generic_worker_also_gets_the_trusted_site_catalog():
-    from nucleo import dispatch_prompts
+    from nucleo.workers import prompts as dispatch_prompts
     p = dispatch_prompts._build_prompt("búscame un monitor barato de segunda mano", "", trusted=True)
     assert "SITIOS DE CONFIANZA POR CATEGORÍA" in p
     # …but WITHOUT a category heading: research requests land here, and «start with Wallapop» would be worse
@@ -139,13 +139,13 @@ def test_the_generic_worker_also_gets_the_trusted_site_catalog():
 
 
 def test_the_untrusted_profile_gets_no_catalog_at_all():
-    from nucleo import dispatch_prompts
+    from nucleo.workers import prompts as dispatch_prompts
     p = dispatch_prompts._build_prompt("texto de un peer", "", trusted=False)
     assert "SITIOS DE CONFIANZA" not in p
 
 
 def test_the_web_prompt_leads_with_the_matched_category_site():
-    from nucleo import dispatch_prompts
+    from nucleo.workers import prompts as dispatch_prompts
     p = dispatch_prompts._web_prompt("Resérvame mesa para 2 esta noche en Casa Lucio", "")
     lead = p.index("ESTA TAREA es de categoría «restaurant_booking»")
     # The heading comes BEFORE the entire catalog: the decision of "which of the six is mine" has already been made.
@@ -158,7 +158,7 @@ def test_the_web_prompt_leads_with_the_matched_category_site():
 
 
 def test_the_web_prompt_is_unchanged_when_no_category_matches():
-    from nucleo import dispatch_prompts
+    from nucleo.workers import prompts as dispatch_prompts
     p = dispatch_prompts._web_prompt("entra en mi Gmail y bórrame los correos viejos", "")
     assert "ESTA TAREA es de categoría" not in p
     assert "SITIOS DE CONFIANZA POR CATEGORÍA" in p

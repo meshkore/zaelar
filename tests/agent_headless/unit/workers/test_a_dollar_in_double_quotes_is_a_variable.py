@@ -9,7 +9,7 @@ with DeepSeek alike. Measured against the CLI: `"under $400"` is refused, `'unde
 And the trace blamed the wrong command: `agent_report` paints no row, so its rejection fell back to the LAST step
 and the log said «navegador ⚠️ error» on a `nav_cli scroll down` that had succeeded.
 """
-from nucleo import dispatch_prompts as DP
+from nucleo.workers import prompts as DP
 from nucleo.workers.providers.claude import ClaudeCodeSession
 
 

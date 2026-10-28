@@ -25,7 +25,7 @@ import asyncio
 
 import pytest
 
-from nucleo import dispatch_prompts as dp
+from nucleo.workers import prompts as dp
 
 
 def _header():

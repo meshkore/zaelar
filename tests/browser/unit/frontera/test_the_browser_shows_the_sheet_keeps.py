@@ -176,7 +176,7 @@ def test_the_render_cannot_paint_results_or_a_log():
 
 def test_the_web_worker_prompt_names_the_sheet():
     """Counted over the RENDERED text, not the intention: before V2-257 both counts were 0."""
-    from nucleo import dispatch_prompts
+    from nucleo.workers import prompts as dispatch_prompts
     p = dispatch_prompts._web_prompt("busca fontaneros en Madrid centro", "")
     assert "widget_cli data results present" in p, "el worker no tiene forma de saber que la hoja existe"
     assert re.search(r"TARJETA[^.]*monitor", p), "…ni de saber que la tarjeta NO es donde se enseñan los hallazgos"

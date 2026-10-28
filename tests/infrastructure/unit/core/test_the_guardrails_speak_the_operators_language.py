@@ -257,7 +257,7 @@ def test_the_internal_auditor_writes_its_repair_in_the_operators_language():
 def test_every_worker_prompt_carries_the_language_of_the_delivery():
     """The GENERIC worker prompt named the language NOWHERE, while every block in it is Spanish.
     Measured: a worker's delivery came back «¡Hola, Richard! Qué gusto tenerte aquí» in English session."""
-    from nucleo import dispatch_prompts as dp
+    from nucleo.workers import prompts as dp
 
     block_en = _with_language("en", dp.worker_language_block)
     assert "English" in block_en and "A PROPÓSITO" in block_en

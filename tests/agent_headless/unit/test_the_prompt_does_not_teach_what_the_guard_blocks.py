@@ -19,7 +19,7 @@ import json
 import pathlib
 import re
 
-from nucleo import dispatch_prompts as DP
+from nucleo.workers import prompts as DP
 
 
 def _worker_prompt() -> str:
@@ -161,7 +161,7 @@ def test_every_sheet_action_the_recipe_names_is_DECLARED_by_the_widget():
     """An action `apply_action` handles but the manifest does not declare is invisible to the brain (V2-520),
     so teaching one is teaching a dead command."""
     declared = set(json.loads(
-        (pathlib.Path(DP.__file__).resolve().parents[1] / "widgets" / "documento" / "manifest.json")
+        (pathlib.Path(DP.__file__).resolve().parents[3] / "widgets" / "documento" / "manifest.json")
         .read_text(encoding="utf-8"))["actions"])
     named = set(re.findall(r"data documento (\w+)", _worker_prompt()))
     assert named, "the recipe names no action at all"

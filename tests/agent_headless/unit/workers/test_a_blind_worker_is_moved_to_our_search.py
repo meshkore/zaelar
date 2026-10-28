@@ -10,7 +10,7 @@ import asyncio
 
 import pytest
 
-from nucleo import dispatch_prompts as DP
+from nucleo.workers import prompts as DP
 from nucleo.workers.base import WorkerEvent
 from nucleo.workers.session import SessionRecord, WorkerSession
 

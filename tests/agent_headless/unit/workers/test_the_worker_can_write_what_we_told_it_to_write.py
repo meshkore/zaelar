@@ -33,7 +33,7 @@ def test_y_solo_Write():
 def test_el_prompt_y_la_allowlist_dicen_lo_MISMO():
     """The important half: the defect was not that a tool was missing, but that **the one the prompt requests** was missing.
     If the prompt shows another way tomorrow, this needs to be checked again."""
-    from nucleo import dispatch_prompts as DP
+    from nucleo.workers import prompts as DP
     reglas = DP._drawer_rules("/x/.venv/bin/python")
     assert "Write" in reglas, "el prompt dejó de pedir Write y esta allowlist se quedó sin motivo"
 

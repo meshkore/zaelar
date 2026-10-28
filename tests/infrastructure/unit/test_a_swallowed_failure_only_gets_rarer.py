@@ -239,7 +239,9 @@ PER_FILE: dict[str, int] = {
     'nucleo/dispatch/confirm.py': 1,
     'nucleo/dispatch/__init__.py': 3,
     'nucleo/request/append.py': 5,        # dedup (2) + errand_continuity (3), one file (refactor2710-02)
-    'nucleo/dispatch_prompts.py': 5,
+    'nucleo/workers/prompts/build.py': 1,     # refactor2710-08: nucleo/dispatch_prompts.py (5) split
+    'nucleo/workers/prompts/context.py': 2,
+    'nucleo/workers/prompts/surfaces.py': 2,
     'nucleo/dispatch/session.py': 2,
     'nucleo/dispatch/session_steps.py': 9,
     'nucleo/docsheet.py': 4,

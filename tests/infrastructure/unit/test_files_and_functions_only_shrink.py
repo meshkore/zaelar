@@ -44,7 +44,7 @@ FUNCTIONS = {
     'memory/writer/__init__.py::insert_memory': 151,
     'nucleo/actionmap/executor.py::execute': 144,
     'nucleo/dispatch/listener.py::run_listener': 213,
-    'nucleo/dispatch_prompts.py::_web_prompt': 222,
+    'nucleo/workers/prompts/web.py::_web_prompt': 222,   # refactor2710-08: moved from nucleo/dispatch_prompts.py
     'nucleo/dispatch/session.py::_run_session': 203,
     'nucleo/dispatch/session_steps.py::build_what_it_runs_with': 132,
     'nucleo/errands/wake.py::wake': 153,
@@ -73,7 +73,7 @@ FUNCTIONS = {
     'nucleo/loop.py::OrchestratorLoop._supervise_workers': 174,
     'nucleo/memory_agent/ingest_steps.py::file_the_atoms': 141,
     'nucleo/memory_agent/ingest_steps.py::gate_the_utterance': 164,
-    'nucleo/research_prompts.py::to_prompt_block': 136,
+    'nucleo/workers/prompts/research.py::to_prompt_block': 136,   # refactor2710-08: moved from nucleo/research_prompts.py
     'nucleo/susurro/apply.py::apply_corrections': 161,
     'nucleo/worker_api.py::_exec_allow': 293,
     'nucleo/workers/providers/claude_map.py::_map': 145,

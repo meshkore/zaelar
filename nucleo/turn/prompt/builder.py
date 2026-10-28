@@ -15,7 +15,7 @@ from nucleo.turn.prompt.recall import compose_recall
 def _lang_lock() -> str:
     """HARD language lock, read LIVE from the catalog (realigns if the operator changes language in ⚙)."""
     try:
-        from voice.engine.core import langs
+        from i18n import langs
         spec = langs.current_language()
         native, name = spec.native, spec.name
     except Exception:
@@ -54,7 +54,7 @@ def build_cluster_system(directive: str = "") -> str:
     language): ASIDES for the operator use their language; text INSIDE [[cluster.send]] (what the peer receives)
     is in ENGLISH BY DEFAULT (the network's lingua franca), switching only if the peer wrote in another language."""
     try:
-        from voice.engine.core import langs
+        from i18n import langs
         op_lang = langs.current_language().native
     except Exception:
         op_lang = "español"

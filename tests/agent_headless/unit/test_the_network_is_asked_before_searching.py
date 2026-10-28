@@ -17,7 +17,7 @@ import re
 
 import pytest
 
-from nucleo import dispatch_prompts as dp
+from nucleo.workers import prompts as dp
 
 
 HOTEL = "Búscame el mejor hotel de Nueva York para dos noches"

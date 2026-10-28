@@ -4521,6 +4521,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_brief_is_data_and_its_verdicts_are_asymmetric.py']},
         {"id": "2.871", "title": "The `jev read` row is frozen across the brief's move (refactor2710-07, V2-826 §2b): same kind, label, text and extra through the new reading door, one row per (call, question)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_jev_read_event_is_frozen.py']},
+        {"id": "2.891", "title": "The voice turn's prompt never loads a worker's brief: the briefs live in nucleo/workers/prompts/, the dispatcher takes them from there, and importing the voice prompt builder loads none of them (refactor2710-08 T-04)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_voice_prompt_never_reads_a_worker_brief.py']},
         {"id": "2.850", "title": "The mouth says the verdict (refactor2710-03): an acting turn's last words come from what its acts ended in, one i18n key per verdict; `met` names its object, `unmet`/`cannot`/`asked` are always said, a promise is a start",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_mouth_says_the_verdict.py']},
         {"id": "2.828", "title": "His commissioning sentence travels with the request to the ONE errand it opens, and reaches its sheet's row door (was 2.630; refactor2710-02 T-01)",

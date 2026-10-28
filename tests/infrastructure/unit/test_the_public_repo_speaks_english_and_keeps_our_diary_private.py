@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 2224
+TOTAL = 2011   # refactor2710-08: re-measured (was 2224 — the worker briefs and the prompt split lost 213 Castilian lines)
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -103,7 +103,10 @@ PER_FILE: dict[str, int] = {
     'nucleo/dispatch/confirm.py': 4,
     'nucleo/dispatch/listener.py': 1,
     'nucleo/dispatch/prepare.py': 6,
-    'nucleo/dispatch_prompts.py': 110,
+    'nucleo/workers/prompts/build.py': 11,    # refactor2710-08: nucleo/dispatch_prompts.py (110) split, 36 translated
+    'nucleo/workers/prompts/context.py': 10,
+    'nucleo/workers/prompts/drawer.py': 9,
+    'nucleo/workers/prompts/web.py': 44,
     'nucleo/dispatch/session.py': 6,
     'nucleo/dispatch/session_steps.py': 10,
     'nucleo/energy_lease.py': 57,

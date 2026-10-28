@@ -230,7 +230,7 @@ def test_the_bridge_refuses_a_goal_that_is_not_JSON_and_says_the_shape(capsys):
 
 def test_the_worker_is_TOLD_it_can_declare_a_bar():
     """A capability nobody declares is one the model narrates instead of using (V2-540)."""
-    from nucleo import dispatch_prompts
+    from nucleo.workers import prompts as dispatch_prompts
     block = dispatch_prompts._METHOD_BLOCK
     assert "agent_report goal" in block and "done_when" not in block.split("goal")[0][-200:]
     # V2-776 L1: the condition is BORN with the errand (`nucleo/circuit/spec.py`, told as the first injected turn); the

@@ -76,11 +76,9 @@ _MOTOR_REACH: set[tuple[str, str]] = {
     ("memory/state.py", "voice.engine.core"),
     ("nucleo/actionmap/store.py", "voice.engine.core"),
     ("nucleo/agentes/web.py", "voice.engine.core"),
-    ("nucleo/dispatch_prompts.py", "voice.engine.core"),
     ("nucleo/flash/image_turn.py", "voice.engine.core"),
     ("nucleo/flash/listing_turn.py", "voice.engine.core"),
     ("nucleo/flash/memory_cache.py", "voice.engine.core"),
-    ("nucleo/turn/prompt/builder.py", "voice.engine.core"),   # refactor2710-08: the language lock moved with the builder
     ("nucleo/flash/reminder_guards.py", "voice.engine.core"),
     ("nucleo/flash/vault_rules.py", "voice.engine.core"),
     ("nucleo/flash/video_turn.py", "voice.engine.core"),

@@ -273,9 +273,8 @@ def test_the_worker_reaches_it_the_SAME_WAY_it_reaches_every_other_payload(wire,
 def test_the_worker_PROMPT_declares_the_door(wire):
     """A door nobody is told about is a door nobody uses. The prompt that teaches `ask`/`act`/`say`
     teaches this one too, with the shape and with what the statuses mean."""
-    import pathlib as _p
-    src = (_p.Path(__file__).resolve().parents[3] / "nucleo" / "dispatch_prompts.py").read_text(
-        encoding="utf-8")
+    from tests.worker_briefs import rendered
+    src = rendered()
     assert "worker_bridge decide" in src, "the worker is never told the bounded-decision door exists"
     assert "abstained" in src, "…nor what «none of these fits» looks like when it answers"
 
