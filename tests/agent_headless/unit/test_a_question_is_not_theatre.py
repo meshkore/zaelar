@@ -19,7 +19,7 @@ import pytest
 
 from nucleo.dispatch import confirm as dc
 from nucleo.flash import clarifying as clar
-from nucleo.flash import escalate as esc
+from nucleo.acts import errand as esc
 
 
 @pytest.fixture(autouse=True)

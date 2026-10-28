@@ -31,7 +31,7 @@ MONITOR = E.listing_errand({"query": "cheap used monitor"})
 @pytest.fixture
 def parked(monkeypatch):
     out = []
-    monkeypatch.setattr("nucleo.flash.escalate.escalate_to_slowbrain", lambda req, context=None: out.append(req) or 1)
+    monkeypatch.setattr("nucleo.acts.errand.escalate_to_slowbrain", lambda req, context=None: out.append(req) or 1)
     monkeypatch.setattr(dispatch, "pending_summaries", lambda: [{"id": "3", "request": MONITOR, "phase": "",
                                                                   "waiting_on": ""}])
     monkeypatch.setattr(dispatch, "get_record", lambda tid: types.SimpleNamespace(label="", title=""))

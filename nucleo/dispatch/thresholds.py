@@ -19,15 +19,7 @@ import os
 #: Susurro is it creia, re-escalaba, and salian two and three workers haciendo the same work.
 STUCK_SECS = float(os.getenv("WORKER_STUCK_SECS", "180"))
 
-#: How much can pasar a task CON PLAN without complete a only step before of that is diga. Es mas long that
-#: `STUCK_SECS` a purpose: here the task NO esta callada —trabaja, navega, emite— and a step of a operation
-#: web can costar minutos. Lo that no es normal es that a plan of cuatro pasos siga in cero pasado this rato.
-#:
-#: CALIBRADO CON DOS MEDIDAS, no elegido a ojo — and the second caso es the that bajo the number:
-#:   · `restaurant-tonight-madrid` (2026-08-27): plan a the 49 s, first step a the 380 → **331 s** parado.
-#:   · `weekend-plan-barcelona__es` (2026-08-27): plan a the 237 s, first step a the 473,8 → **236,8 s**,
-#:     that with the umbral in 240 no disparo **by 3,2 segundos**. Ocho minutos of errand without a step hecho and
-#:     the operator without enterarse: the mecanismo funcionaba and the number estaba mal.
-#: El liston it puso the operator the 2026-08-27: «a search is does in a minuto, two or three maximo». If
-#: eso es the ENCARGO entero, 150 s for UN step of a plan of seis continues siendo generoso.
+#: How long a task WITH a plan may go without completing one step (longer than `STUCK_SECS`: it is working, not
+#: silent). Calibrated on two runs, 331 s and 236.8 s stuck at the first step; the operator's bar: «a search is
+#: done in a minute, two or three at most», so 150 s for ONE step of a plan stays generous.
 NO_STEP_SECS = float(os.getenv("WORKER_NO_STEP_SECS", "150"))

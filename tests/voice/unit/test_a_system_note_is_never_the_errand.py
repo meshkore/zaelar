@@ -166,20 +166,20 @@ ASKED_FRAGMENT = "A ver, quiero ver cuáles son los precios"
 def test_a_multiline_note_does_not_leak_its_body_through_the_single_door():
     """Stripping only line one is WORSE than not stripping: what is left has lost the `[SISTEMA]` marker that
     would let anyone downstream recognise it, so it reads as something the operator said."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     got = escalate.strip_system_notes(NOTE_MULTILINE + "\n\n" + ASKED_FRAGMENT)
     assert got == ASKED_FRAGMENT, "the note's body became the operator's request — that is «Cita en Valls»"
     assert "Valls" not in got and "·" not in got
 
 
 def test_only_notes_still_yields_nothing_to_do():
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     assert escalate.strip_system_notes(NOTE_MULTILINE) == ""
 
 
 def test_a_turn_with_no_notes_is_untouched():
     """The common case must not change: a plain turn keeps every one of its lines."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     plain = "búscame un hotel en Soria\n\npara el jueves"
     assert escalate.strip_system_notes(plain) == plain
 

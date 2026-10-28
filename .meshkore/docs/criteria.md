@@ -208,7 +208,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   its query is absent from his words; a `play_video` whose query terms he said in this turn runs (any language,
   no verb table), minus the player's declared vocabulary and minus what the player already holds (praise naming
   what plays reloads nothing). A close the canvas route refuses is neither logged as done nor counted as an act. —
-  since 2026-10-24 · nodes 2.771 · `nucleo/flash/canvas_license.names_what_to_play`, `show_target.close_dispatch`.
+  since 2026-10-24 · nodes 2.771 · the card door's `LOAD` clause (`nucleo/acts/card`), `show_target.close_dispatch`.
 - **CRIT-K6 · The canvas that counts is the tab holding the voice session**; a fullscreen card covers everything
   and always has an exit; leaving fullscreen is its own, idempotent order. — since 2026-09-24 · nodes 2.91, 2.78,
   2.79.

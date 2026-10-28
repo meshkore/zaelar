@@ -51,7 +51,7 @@ def test_each_written_pill_says_its_kind(events):
                                      "level": "long", "importance": 0.6})
         await memory_agent.remember({"text": "Vive en Soria.", "kind": "fact", "level": "long", "importance": 0.6})
     _run(go)
-    kinds = [e["kind"] for e in events if e.get("layer") == "write" and e["label"].startswith("píldora escrita")]
+    kinds = [e["pill_kind"] for e in events if e.get("layer") == "write" and e["label"].startswith("píldora escrita")]
     assert kinds == ["request", "fact"], events
 
 

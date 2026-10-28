@@ -218,7 +218,7 @@ def _emit(label: str, g: dict, extra: dict | None = None) -> None:
     try:
         from voice.observer import emit
         emit("brain", label, text=g.get("text", "")[:120], role="system",
-             extra={"goal": g.get("id"), "kind": g.get("kind"), "target": g.get("target"),
+             extra={"goal": g.get("id"), "goal_kind": g.get("kind"), "target": g.get("target"),
                     "status": g.get("status"), **({"trace": g["trace"]} if g.get("trace") else {}),
                     **(extra or {})})
     except Exception:

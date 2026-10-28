@@ -169,7 +169,7 @@ def test_an_escalation_that_declared_its_own_box_is_left_alone():
 # ── the WIRING: through the real bus and the real listener (V2-199) ─────────────────────────────────────
 
 def _drive(monkeypatch, request: str, *, deliveries: list | None = None, consume: bool = False):
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
 
     events: list = []
     reruns: list = []

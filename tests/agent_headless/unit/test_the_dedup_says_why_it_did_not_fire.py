@@ -162,7 +162,7 @@ def test_find_duplicate_still_answers_exactly_what_it_used_to(monkeypatch):
 
 def _drive(monkeypatch, *, live: tuple[str, str] | None, request: str):
     """Publishes a real `escalate.requested` and lets `run_listener` consume it."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
 
     rows: list = []
 
@@ -218,7 +218,7 @@ def test_a_HIT_does_not_emit_a_miss(fresh_db, fake_backend, monkeypatch):
 
 def test_a_crashed_second_half_is_not_recorded_as_separate(fresh_db, fake_backend, monkeypatch):
     """The same confusion one layer in: a judge that BLEW UP used to look like one that answered «separate»."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
 
     rows: list = []
 

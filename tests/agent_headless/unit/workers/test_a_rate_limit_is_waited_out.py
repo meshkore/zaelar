@@ -131,7 +131,7 @@ def _rec(summary, **kw):
 
 
 def test_a_brain_worker_that_died_on_a_rate_limit_is_relaunched_once_after_a_wait(monkeypatch):
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     sent = []
     monkeypatch.setattr(escalate, "escalate_to_slowbrain", lambda req, context=None: sent.append((req, context)) or 7)
     planned = []
@@ -159,7 +159,7 @@ def test_a_brain_worker_is_not_relaunched_for_anything_else(summary, kw):
 
 def test_the_relay_ladder_runs_the_rate_lane_on_the_loop(monkeypatch):
     """Through the real entry point `_finish` calls, with the real scheduler (the loop's `call_later`)."""
-    from nucleo.flash import escalate
+    from nucleo.acts import errand as escalate
     from nucleo.workers.relay import relay_out_of_fuel
     monkeypatch.setattr(rate_retry, "RATE_RETRY_BASE_S", 0.01)
     sent = []

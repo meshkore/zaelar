@@ -39,7 +39,7 @@ def hunts(monkeypatch):
     monkeypatch.setattr(search_listing, "_taken_line", lambda: "")
     monkeypatch.setattr("nucleo.request.append.about_a_live_errand", lambda text, live: "")
     monkeypatch.setattr("nucleo.dispatch.pending_summaries", lambda: [])
-    monkeypatch.setattr("nucleo.flash.escalate.pending", lambda: [])
+    monkeypatch.setattr("nucleo.acts.errand.pending", lambda: [])
     yield calls
     gate.set()
     launches.reset()

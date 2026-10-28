@@ -139,7 +139,7 @@ def test_the_brain_is_told_NOTHING_has_been_touched():
 
 def test_a_yes_relaunches_the_SAME_errand_through_the_SAME_door(monkeypatch):
     sent: list = []
-    from nucleo.flash import escalate as esc
+    from nucleo.acts import errand as esc
     monkeypatch.setattr(esc, "escalate_to_slowbrain",
                         lambda req, context=None: sent.append((req, dict(context or {}))) or 1)
     dispatch.remember_code_change("7", THE_REAL_COMMISSION, _Task(context={"src": "voice"}))
@@ -156,7 +156,7 @@ def test_HIS_OWN_RETRACTION_drops_it(monkeypatch):
 
     Parked instead of launched, the same words are simply the answer to the question."""
     sent: list = []
-    from nucleo.flash import escalate as esc
+    from nucleo.acts import errand as esc
     monkeypatch.setattr(esc, "escalate_to_slowbrain", lambda req, context=None: sent.append(req) or 1)
     from widgets import confirm as _wc
     dispatch.remember_code_change("7", THE_REAL_COMMISSION, _Task())
