@@ -10,7 +10,7 @@ import time
 
 from .. import store
 from . import gcontacts
-from . import model
+from . import channels, model
 
 # A QUESTION about somebody is answered from the RECORD (`lookup.py`, V2-704), not from the digest; re-exported
 # because `read_query` is the seam `nucleo/flash/widget_read` looks for on every widget's `data.py`.
@@ -71,11 +71,11 @@ _group_matches = model.group_matches
 _matches = model.matches
 _platform = model.platform
 _PLATFORMS = model.PLATFORMS
-_channel_row = model.channel_row
-_channels_in = model.channels_in
-_same_channel = model.same_channel
-_owner_of_channel = model.owner_of_channel
-_merge_channel = model.merge_channel
+_channel_row = channels.channel_row
+_channels_in = channels.channels_in
+_same_channel = channels.same_channel
+_owner_of_channel = channels.owner_of_channel
+_merge_channel = channels.merge_channel
 
 
 # How long a pushed view stays worth OBEYING (the agenda's `show_day` contract, V2-540): `n` is a monotonic push
