@@ -195,7 +195,7 @@ def test_the_relay_is_a_different_door_from_the_one_that_failed(monkeypatch):
     the SAME endpoint is the decorative ladder `models.default.json` already warns about."""
     from nucleo.llm import fast_client as fc
     from nucleo.llm import provider_chain as pc
-    from nucleo.flash.model_spec import ModelSpec
+    from nucleo.llm.model_spec import ModelSpec
 
     tiers = [
         {"name": "titular", "base_url": "https://api.deepseek.com", "model": "deepseek-flash",
@@ -218,7 +218,7 @@ def test_the_relay_is_a_different_door_from_the_one_that_failed(monkeypatch):
 def test_there_is_no_relay_when_the_ladder_has_only_the_one_that_failed(monkeypatch):
     from nucleo.llm import fast_client as fc
     from nucleo.llm import provider_chain as pc
-    from nucleo.flash.model_spec import ModelSpec
+    from nucleo.llm.model_spec import ModelSpec
     tier = {"name": "titular", "base_url": "https://api.deepseek.com", "model": "deepseek-flash",
             "provider": "deepseek", "api_key": "k1"}
     monkeypatch.setattr(pc, "chain", lambda role=None: [dict(tier)])
@@ -234,7 +234,7 @@ def test_a_tier_without_a_credential_is_not_a_relay(monkeypatch):
     """«sin credencial no es un escalón, es un espejismo» — relaying to it burns the turn for nothing."""
     from nucleo.llm import fast_client as fc
     from nucleo.llm import provider_chain as pc
-    from nucleo.flash.model_spec import ModelSpec
+    from nucleo.llm.model_spec import ModelSpec
     tiers = [
         {"name": "titular", "base_url": "https://api.deepseek.com", "model": "deepseek-flash",
          "provider": "deepseek", "api_key": "k1"},
@@ -587,7 +587,7 @@ def _fake_client(fail_urls: dict, seen: list):
 def _wire(monkeypatch, *, failing: dict, seen: list):
     from nucleo.llm import fast_client as fc
     from nucleo.llm import provider_chain as pc
-    from nucleo.flash.model_spec import ModelSpec
+    from nucleo.llm.model_spec import ModelSpec
     tiers = [
         {"name": "titular", "base_url": "https://api.deepseek.com", "model": "deepseek-flash",
          "provider": "deepseek", "api_key": "k1"},
@@ -683,7 +683,7 @@ def test_a_stream_that_already_spoke_is_never_re_sent(monkeypatch):
     called exactly ONCE, and the chunk already emitted must have reached the caller."""
     import asyncio
     from nucleo.llm import fast_client as fc
-    from nucleo.flash.model_spec import ModelSpec
+    from nucleo.llm.model_spec import ModelSpec
     from nucleo.llm import provider_chain as pc
     calls: list = []
 

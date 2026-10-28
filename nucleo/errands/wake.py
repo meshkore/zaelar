@@ -104,7 +104,7 @@ async def _ask_model(system: str, dossier: str, *, max_tokens: int = MAX_TOKENS)
     budget leaves room for the JSON even when it does.
     """
     from nucleo.llm.fast_client import FastClient
-    from nucleo.flash.model_spec import spec_from_config
+    from nucleo.llm.model_spec import spec_from_config
     return await asyncio.wait_for(
         FastClient().complete([{"role": "system", "content": system},
                                {"role": "user", "content": dossier}],

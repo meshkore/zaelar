@@ -23,7 +23,7 @@ from .session_notes import _PLACE, SessionNotes  # noqa: F401 — V2-778 F1: the
 from . import stall as _stall
 from .base import WorkerBackend, WorkerSpec
 from nucleo.request import kind as _errand_kind
-from nucleo.circuit.goal import check_and_relay as _harness
+from nucleo.circuit import close as _harness   # the circuit judges the ending, never the worker's word
 from .relay import _say
 from .relay import relay_out_of_fuel as _relay_out_of_fuel
 from .relay import restart_stalled as _restart_stalled

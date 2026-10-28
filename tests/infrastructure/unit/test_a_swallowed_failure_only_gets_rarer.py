@@ -378,7 +378,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/scheduler.py': 6,
     'nucleo/sheets.py': 8,
     'nucleo/sparks.py': 2,
-    'nucleo/circuit/spec.py': 12,
+    'nucleo/circuit/spec.py': 13,   # + the worker's own end state, folded in from goal.py
     'nucleo/surfaces.py': 1,
     'nucleo/susurro/apply.py': 11,
     'nucleo/susurro/catalog.py': 1,
@@ -399,7 +399,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/workers/ended.py': 3,
     'nucleo/workers/findings.py': 4,
     'nucleo/workers/generator_session.py': 4,
-    'nucleo/circuit/goal.py': 1,
     'nucleo/workers/grok_session.py': 4,
     'nucleo/workers/handoff.py': 1,
     'nucleo/workers/progress.py': 2,

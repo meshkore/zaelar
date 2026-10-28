@@ -168,7 +168,7 @@ def test_the_prompt_teaches_the_aside_only_in_wakeword_mode():
 
 # ── the honest provider label (the stale «aimlapi» that reappeared in v2.json) ──────────────────────────
 def test_a_stale_stored_label_loses_to_the_endpoint():
-    from nucleo.flash.model_spec import _provider_label
+    from nucleo.llm.model_spec import _provider_label
     assert _provider_label("aimlapi", "https://api.deepseek.com") == "deepseek"
     assert _provider_label("", "https://api.deepseek.com") == "deepseek"
     assert _provider_label("ollama", None) == "ollama"          # ollama IS routing, not a label

@@ -124,7 +124,7 @@ def _http_client():
 
 # `ModelSpec` moved to model_spec.py (2026-08-17 modularization pass) — re-exported here since many callers
 # import it by name from this module (`from nucleo.llm.fast_client import ModelSpec`, etc.).
-from nucleo.flash.model_spec import (  # noqa: F401 — re-export
+from nucleo.llm.model_spec import (  # noqa: F401 — re-export
     ModelSpec, spec_from_config, available, _FALLBACK_MODEL,
 )
 

@@ -133,10 +133,10 @@ def test_a_met_condition_names_no_gap(agenda):
 def _finished(rec, monkeypatch, escalations):
     """Drive the REAL harness over a record, with the escalation stubbed so nothing is launched."""
     from nucleo.flash import escalate as esc
-    from nucleo.circuit import goal
+    from nucleo import circuit
     monkeypatch.setattr(esc, "escalate_to_slowbrain",
                         lambda req, context=None: escalations.append((req, context or {})) or 1)
-    goal.check_and_relay(rec, relay_cap=2)
+    circuit.close(rec, relay_cap=2)
     return rec
 
 
@@ -212,7 +212,7 @@ def test_the_worker_declares_the_bar_and_it_lands_on_its_record():
     from nucleo.workers.session import SessionRecord
     dispatch._SESSIONS["tz"] = SessionRecord(task_id="tz", goal="x")
     try:
-        from nucleo.circuit.goal import session_goal
+        from nucleo.circuit.spec import session_goal
         session_goal("tz", GONE)
         assert dispatch._SESSIONS["tz"].done_when == GONE
         session_goal("tz", {})                   # an empty re-declaration must not retire the bar

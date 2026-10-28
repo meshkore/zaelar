@@ -10,7 +10,7 @@ import asyncio
 
 from nucleo.llm import loop_clients
 from nucleo.llm.fast_client import FastClient
-from nucleo.flash.model_spec import ModelSpec
+from nucleo.llm.model_spec import ModelSpec
 
 
 def _get_or_build(cache: dict, key: tuple) -> object:

@@ -118,7 +118,7 @@ def test_the_model_egress_refuses_without_a_lease(no_lease):
 
 def _stream_refuses_before_any_client(monkeypatch):
     from nucleo.llm import fast_client, provider_failure
-    from nucleo.flash.model_spec import ModelSpec
+    from nucleo.llm.model_spec import ModelSpec
     built, marked = [], []
     monkeypatch.setattr(fast_client.FastClient, "_client_for", lambda self, spec: built.append(1) or (_ for _ in ()).throw(RuntimeError("x")))
     monkeypatch.setattr(provider_failure, "handle", lambda *a, **k: marked.append(1) or {})

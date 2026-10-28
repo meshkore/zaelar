@@ -6,7 +6,7 @@ Three fragments verified an end state, each with its own owner, clock and cap, n
 request takes (four read-only maps of the brain, 2026-09-29):
 
   · `nucleo/circuit/harness.py` (V2-660): one goal kind, in RAM, 300 s, re-verified by the pulse, never retried;
-  · `nucleo/circuit/goal.py` (V2-707 F2): the worker's own `done_when`, checked once in `_finish`; the retry
+  · `workers/goal.py` (V2-707 F2, now `spec.session_goal`): the worker's own `done_when`, checked once in `_finish`; the retry
     bound was `goal_retried` on a record every relay rebuilds — so the real cap was `relay_gen < 2`, shared
     with the context and provider relays; `None` ended on the worker's `ok` and was spoken as «It is done»;
   · `nucleo/errands/verify.py` (V2-683): one hand-written condition for third-party errands.

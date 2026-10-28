@@ -721,3 +721,34 @@ def parse(text) -> dict | None:
     except Exception:  # noqa: BLE001
         pass
     return got
+
+
+# ── the worker's own end state (V2-707 F2: a task does not end because the worker SAYS it ended) ──────────
+
+def session_goal(tid, done_when: dict) -> None:
+    """HOW SUCCESS IS MEASURED, declared by the worker at the start (`hbnote goal`) — V2-707 F2.
+
+    The operator's own framing: «tiene que saber identificar la tarea que ha propuesto el usuario y
+    determinar cuál es la manera de medir el éxito… si no hemos llegado, es capaz de iterar hasta que lo
+    consiga». The model writes the condition (it is the one that understood the errand); the ENGINE checks
+    it against the product's truth in `_finish`, and that asymmetry is the whole point — a task can no
+    longer end because a worker SAID it ended.
+
+    Only ever SET, never cleared by a later report: a worker that re-declares mid-run may refine its
+    condition, but a `goal` call with nothing in it must not quietly retire the bar it set for itself."""
+    from nucleo import dispatch            # late on purpose: the cycle, and tests rebind `_SESSIONS` — read the LIVE one
+    r = dispatch._SESSIONS.get(str(tid))
+    if r is None or not isinstance(done_when, dict) or not done_when:
+        return
+    r.done_when = dict(done_when)
+    r.last_event_at = time.time()
+    try:
+        from nucleo.circuit import verify as _verify
+        from voice.observer import emit
+        extra = {"id": str(tid), "done_when": r.done_when}
+        if r.trace_id:
+            extra.update(trace=r.trace_id, span=f"worker:{tid}")
+        emit("task", "🎯 objetivo declarado — así se medirá si está hecho",
+             text=_verify.describe(r.done_when), extra=extra)
+    except Exception:
+        pass
