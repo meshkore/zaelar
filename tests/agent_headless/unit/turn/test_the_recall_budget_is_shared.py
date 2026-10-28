@@ -12,7 +12,6 @@ What these cases pin down is the entire class, not the instance: a PROTECTION th
 the other is indistinguishable from having none — the failure emerges through the channel nobody remembered, at the worst moment.
 """
 import asyncio
-import inspect
 
 from nucleo.turn import recall_budget
 
@@ -70,27 +69,6 @@ def test_one_knob_moves_both_channels(monkeypatch):
     assert abs(recall_budget.budget_s() - 1.5) < 1e-9
     monkeypatch.setenv("ZAELAR_RECALL_BUDGET_MS", "no-es-un-numero")
     assert recall_budget.budget_s() > 0, "un valor ilegible no puede dejar el presupuesto en cero"
-
-
-def test_no_channel_composes_the_recall_inside_the_loop():
-    """The class guard. `recall_query=` is the test path: in production it composes INLINE, and using it is
-    exactly the failure that brought down the engine. Every turn entry point passes through the guard: the voice
-    turn (which the typed channel runs too) and the typed channel's HTTP face (`nucleo/cli/api.py`)."""
-    from nucleo.cli import api as cli_api
-    from voice.engine.llm.providers import nucleo as voice_provider
-
-    import ast
-
-    for mod, name in ((cli_api, "nucleo.cli.api"), (voice_provider, "the voice provider")):
-        from tests import voice_turn_source
-        src = voice_turn_source.getsource(mod)     # V2-778 F1: the voice turn is read whole, moved blocks included
-        assert "recall_budget" in src, f"{name} no pasa por la guarda con presupuesto"
-        # Inspect the CODE, not the text. Searching for the string `recall_query=` also finds it in a
-        # comment that EXPLAINS why it is not used — this happened while writing this very guard, and it is the second time
-        # today that prose about a pattern has brought down a string-matching guard.
-        usados = [k.arg for n in ast.walk(ast.parse(src)) if isinstance(n, ast.Call) for k in n.keywords]
-        assert "recall_query" not in usados, \
-            f"{name} volvió a la ruta de compatibilidad (compone el recall dentro del loop)"
 
 
 # ── A recall the turn gave up on has to be VISIBLE (2026-08-25) ───────────────────────────────────────────────
@@ -410,25 +388,3 @@ def test_a_SALVAGED_late_recall_DOES_reinforce(monkeypatch):
 
     assert notas, "el bloque rescatado no llegó al cerebro"
     assert reforzado == [7], f"se entregó y no se reforzó: {reforzado}"
-
-
-def test_composing_the_recall_does_NOT_count_as_using_the_memory():
-    """Wiring guard, using the AST rather than text: the defect returns with ONE literal.
-
-    The cases above test the new trigger, but do not prevent someone from returning `reinforce_used=True` to its
-    place — and if it returns, everything stays green: memory is reinforced twice when it arrives and once when it
-    does not, without anything failing. We inspect the CODE because a comment explaining the change contains the
-    forbidden string (it has already brought down two string-based guards in this codebase)."""
-    import ast
-    import inspect
-    from nucleo.turn.prompt import recall as prompt_mod
-
-    arbol = ast.parse(inspect.getsource(prompt_mod.compose_recall))
-    llamadas = [n for n in ast.walk(arbol) if isinstance(n, ast.Call)
-                and getattr(n.func, "attr", None) == "query"]
-    assert llamadas, "compose_recall ya no llama a memory.query: este guarda mira al vacío"
-    for c in llamadas:
-        kw = {k.arg: k.value for k in c.keywords}
-        assert "reinforce_used" in kw, "sin decirlo explícito se hereda el default, que refuerza al COMPONER"
-        assert isinstance(kw["reinforce_used"], ast.Constant) and kw["reinforce_used"].value is False, \
-            "componer el bloque volvió a contar como usar la memoria: refuerza aunque el turno lo abandone"

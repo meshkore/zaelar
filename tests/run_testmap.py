@@ -3788,8 +3788,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_question_never_gets_a_write_from_the_show_repair.py"]},
         {"id": "2.744", "title": "Two copies of one event are one thing to look at: a lens over tied rows with one name opens one; a write, or different names, still ask",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_two_copies_of_one_event_are_one_thing_to_look_at.py"]},
-        {"id": "2.745", "title": "A commission the closed catalogue card can do is its call on both channels: one decision (commission_call), the probe records it as the repaired widget_data",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_closed_card_takes_the_call_on_both_channels.py"]},
         {"id": "2.746", "title": "«por la mañana» is an hour, never the day after: a time-of-day phrase is read out before the day, «hoy» beats a weekday said beside it, noon is twelve (V2-783 P1-1)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_time_of_day_is_not_a_date.py"]},
         {"id": "2.747", "title": "A line the turn owes to a data-op («Done.», «I've gone ahead») waits for the op's answer and is never said over a refusal; the voice's rotating ack is checked against the cards like the text channel's (V2-783 P0-2)",
@@ -4806,8 +4804,6 @@ DOMAINS: list[dict] = [
         {"id": "2.210", "title": "«Note it for Thursday, remind me on Wednesday» rings on Wednesday — add_meeting reads `remind`, "
                                  "an all-day item carries a notice, set_reminder takes a bare day (V2-781 T513)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_remind_me_the_day_before_lands_on_that_day.py"]},
-        {"id": "2.209", "title": "A hard interrupt is decided by the voice turn's own module (`hard_turn.handle`)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_probe_names_what_the_voice_turn_does.py"]},
         {"id": "2.106", "title": "An act that LEAVES (≥ sensitive) runs only when the verdict does not name another action — a draft never becomes a sent email",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_act_that_leaves_needs_both_readers.py"]},

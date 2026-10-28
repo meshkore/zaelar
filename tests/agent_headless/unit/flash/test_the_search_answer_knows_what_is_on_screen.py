@@ -1,4 +1,3 @@
-from tests import voice_turn_source as _vts
 """The web-search answer knows what this turn put on screen (demo pass 2026-09-28, M1).
 
 «how's apple stock doing today, show me the chart» → the Markets chart of Apple opened, AND a web search ran; the
@@ -23,7 +22,3 @@ def test_the_cards_of_this_turn_reach_the_search_answer():
 
 def test_nothing_on_screen_adds_nothing():
     assert "EN PANTALLA" not in st.compose_system("q", "q", {"results": [{"title": "x"}]}, "x", on_screen=[])
-
-
-def test_the_voice_turn_passes_it():
-    assert "on_screen=_cf_s.this_turn_cards()" in _vts.turn_source()

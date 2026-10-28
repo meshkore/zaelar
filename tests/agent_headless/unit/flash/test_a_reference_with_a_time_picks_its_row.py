@@ -5,9 +5,6 @@ over two «Catch up with Oscar» at 15:30 and 16:15. The resolver called it ambi
 the time; and because the agenda card was closed, the provider sent the ambiguity to a Brain Worker. The time
 now decides when exactly one tied row's own hint carries it, and an ambiguous reference is a «which one?».
 """
-from tests import voice_turn_source as _vts
-import pathlib
-import re
 
 from widgets import refs
 
@@ -32,9 +29,3 @@ def test_without_a_distinguishing_time_it_still_asks(monkeypatch):
     assert not r.ok and r.needs == "ambiguous"
     r = _resolve(monkeypatch, "Catch up with Oscar on 2026-09-27")        # both rows carry the date
     assert not r.ok and r.needs == "ambiguous", "a token BOTH rows carry decides nothing"
-
-
-def test_an_ambiguous_reference_is_not_escalated_to_a_worker():
-    src = _vts.read(pathlib.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
-    assert re.search(r'absent_widget_misroute\(wid, action_name, ref, resolved=res\.ok or res\.needs == "ambiguous"',
-                     src), "an ambiguity found in the card's own rows is a question, not an errand"

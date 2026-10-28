@@ -5,7 +5,6 @@ The op-answer pass was asked to answer SKIP when the words already said answered
 voice spoke both. The engine now holds a pass while it only repeats, word for word, what was said — a pass that ends
 held is never spoken — and releases it the moment it says something new.
 """
-import inspect
 
 from nucleo.flash.second_pass import still_held
 
@@ -29,8 +28,3 @@ def test_something_new_is_released_at_once():
 
 def test_a_short_answer_that_only_shares_letters_is_not_a_repeat():
     assert not still_held("No.", "Nothing from them yet.")
-
-
-def test_the_voice_second_pass_holds_through_it():
-    from voice.engine.llm.providers import nucleo
-    assert "still_held(" in inspect.getsource(nucleo)

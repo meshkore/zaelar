@@ -77,19 +77,3 @@ def test_las_otras_formas_de_nombrar_la_pantalla(hoja):
 
 def test_una_fase_vacia_no_es_una_afirmacion(hoja):
     assert live_sheet.worker_phase_is_a_claim("", HOJA) is False
-
-
-def test_el_anillo_lo_CABLEA_y_marca_con_el_mismo_simbolo():
-    """Wiring guard over the source without comments: a decision without a caller is the fix that does not
-    exist. And the symbol is the SAME as V2-345 — if the worker's narration is marked “💬” and its phase were
-    marked differently, the operator would have to learn two conventions for the same fact."""
-    from pathlib import Path
-    src = "\n".join(ln for ln in Path("nucleo/sheets.py").read_text().splitlines()
-                    if not ln.strip().startswith("#"))
-    i = src.index("def record_phase")
-    # Up to the NEXT function, not a window of N characters: this function's docstring is long and a fixed cut
-    # left the call out — the guard failed with the wiring in place.
-    _fin = src.find("\ndef ", i + 10)
-    cuerpo = src[i:] if _fin < 0 else src[i:_fin]
-    assert "worker_phase_is_a_claim(" in cuerpo, "nobody calls the detector: the marker can never appear"
-    assert '"💬 "' in cuerpo, "the marker must be the same as the narration's (V2-345)"

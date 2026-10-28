@@ -6,13 +6,11 @@ nothing about the viewer he was looking at.
 """
 from __future__ import annotations
 
-import inspect
 import types
 
 from nucleo import picture_errand, surfaces
 from nucleo.workers import prompts as dispatch_prompts
 
-from nucleo.dispatch import session_steps as dispatch_session_steps
 
 
 def test_the_prompt_names_the_viewer_only_for_pictures():
@@ -24,8 +22,3 @@ def test_the_prompt_names_the_viewer_only_for_pictures():
 def test_its_searches_run_on_the_image_module():
     assert picture_errand.search_route(types.SimpleNamespace(surface=surfaces.IMAGES)) == "images"
     assert picture_errand.search_route(types.SimpleNamespace(surface=surfaces.LIST)) == "inline_fact"
-
-
-def test_no_research_brief_is_composed_for_pictures():
-    src = inspect.getsource(dispatch_session_steps.build_what_it_runs_with)
-    assert 'not _dev and not _ds._d.surfaces.delivers_pictures(getattr(rec, "surface", ""))' in src

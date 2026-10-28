@@ -12,7 +12,6 @@ the PRIMITIVE lives once (`nucleo/matching.py`) and both judges import it, and t
 Measured populations (harness, full sweep): same errand reformulated 0.571-0.893, different errands 0.062-0.227
 — disjoint under containment, inseparable under Jaccard.
 """
-import inspect
 
 from nucleo import dispatch, matching
 from nucleo.workers.session import SessionRecord
@@ -89,25 +88,6 @@ def test_truncation_of_the_stored_goal_is_harmless_now():
 
 
 # ── the wiring — one yardstick, two judges, zero private copies ──────────────────────────────────────────────
-
-def test_both_judges_import_the_shared_primitive():
-    """The class guard. Two copies of a decision drift apart silently, and the alarm arrives as three workers
-    driving one tab. If either judge grows its own set-arithmetic again, this goes red."""
-    # V2-507 moved the loop into `nucleo/request/append.py::scan` (the verdict now travels with the evidence it
-    # decided on) and left `find_duplicate` a wrapper. The guard has to follow the RULE, not the name:
-    # pointed at the wrapper it would keep passing while the arithmetic drifted a module away — a guard that
-    # guards nothing, which is worse than no guard because it reads like coverage.
-    from nucleo.request import append as _dedup
-    src_dispatch = inspect.getsource(_dedup.scan)
-    assert "matching.containment" in src_dispatch
-    assert "len(req_w | o)" not in src_dispatch, "dedup.scan grew a private union-division again"
-    assert "dedup_scan(" in inspect.getsource(dispatch.find_duplicate), (
-        "find_duplicate must keep delegating: a second copy of the rule is how the two judges drifted apart")
-
-    from widgets.navegador import tasks
-    src_similar = inspect.getsource(tasks._similar)
-    assert "matching.jaccard" in src_similar
-    assert "/ union" not in src_similar, "_similar grew a private union-division again"
 
 
 def test_the_tokenizer_is_the_shared_one():

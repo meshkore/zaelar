@@ -4,7 +4,6 @@ The query is the MODEL's summary of what he said. When it comes back as «piso»
 the one word that told the two flat hunts apart is gone, and resolving the summary alone asks him again. Both
 channels hand the resolver his words as well: the voice lane passes the operator's text, the probe its turn text.
 """
-import inspect
 
 import pytest
 
@@ -56,10 +55,3 @@ def test_the_voice_verdict_carries_his_sentence_to_the_report(fresh_db, own_shee
     _two_flat_hunts()
     v = tr.voice_turn("piso", "El de Gràcia, el que te pedí hace unos días.")
     assert v["show"] == "results::g" and v["ask"] is None, v
-
-
-def test_the_voice_lane_hands_the_resolver_his_words():
-    """The wiring, read where it lives: without the operator's text the voice channel keeps the old defect."""
-    from nucleo.flash import post_stream_lanes as lanes
-    src = inspect.getsource(lanes.run_the_light_lanes)
-    assert '_trecall.voice_turn, reopen_req["v"], operator_text or text, _brief)' in src

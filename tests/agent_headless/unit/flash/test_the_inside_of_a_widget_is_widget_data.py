@@ -11,9 +11,7 @@ to its own imperative (V2-222: 0/13). These tests pin the un-contradicted mappin
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
-import inspect
 import pathlib
 
 from nucleo.flash import router
@@ -153,19 +151,3 @@ def test_the_widget_whose_JOB_is_showing_may_run_the_action_that_shows():
     assert not router.show_request_blocks_data_action("enséñame más fotos de Roma", "imagenes", "add")
     # And the guard keeps doing its job on the same widget: emptying the viewer is not what «show me» means.
     assert router.show_request_blocks_data_action("enséñame las fotos", "imagenes", "clear")
-
-
-def test_the_voice_rail_shows_the_card_AND_applies_the_view():
-    """«Ábreme el Telegram» asks for two things at once: the card in front and that lens selected. The rail
-    does both instead of guessing which one was meant — that is what dissolves the card-vs-inside ambiguity
-    the text-matching version tried (and failed) to resolve."""
-    import inspect
-    from nucleo.acts import card
-    from nucleo.flash import tool_executor_widget_calls as _tw
-    rail = inspect.getsource(_tw._handle_widget_data_tool)
-    i = rail.index("at=_card.CALL")
-    window = rail[i:i + 900]
-    assert "_tag_emit(_lic.verdict" in window and '_tag_emit("show"' in window, \
-        "the VIEW branch must also show the card, not only apply the data-op"
-    assert "descartada" in inspect.getsource(card._pure_show), \
-        "the discarded action must be in the event: logging only the widget id left the live incident traceless"

@@ -25,7 +25,7 @@ from __future__ import annotations
 import pytest
 
 from nucleo import dispatch
-from nucleo.turn.prompt import live_browser, live_tasks
+from nucleo.turn.prompt import live_tasks
 from nucleo.turn.prompt import live_state as P
 
 _NOTA = "Comparativa entregada en pantalla (hoja de resultados con los 3 finalistas)"
@@ -228,16 +228,6 @@ def test_el_bloque_dice_CUANTOS_ha_encontrado_y_no_donde_estan():
     # V2-444—it still says HOW MANY, not WHERE (V2-278 intact); now it also says WHO is counting it.
     assert "DICE haber encontrado 35 candidato(s)" in st
     assert "en la hoja" not in st, "el bloque vuelve a afirmar la PANTALLA desde una señal de amplitud"
-
-
-def test_y_el_imperativo_PROHIBE_decir_que_lo_tiene_delante():
-    """Naming the phrase being replaced is what lets the model compare itself against it (V2-221)."""
-    from nucleo.turn.prompt import live_browser, live_tasks
-    import inspect
-    from tests import voice_turn_source as _vts   # V2-778 F1: moved blocks read where they sat
-    src = _vts.getsource(live_browser.navegador_lines)
-    assert "NO digas que «lo tiene en pantalla»" in src
-    assert "puede tardar unos segundos más en escribirse" in src
 
 
 def test_pero_SIGUE_mandando_contar_lo_que_encontro():

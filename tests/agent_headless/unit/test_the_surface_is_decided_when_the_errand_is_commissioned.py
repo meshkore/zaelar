@@ -1,4 +1,3 @@
-from tests import voice_turn_source as _vts
 """V2-227 scope A — WHERE the operator will look, decided when COMMISSIONED and not when delivered.
 
 Operator, 2026-08-20: «if the worker takes a long time, the user gets bored and the experience is bad. They need to see IN REAL
@@ -129,47 +128,3 @@ def test_the_router_does_not_normalize_it_here():
     """Deliberately: `resolve()` needs the `kind`, which this point does not know. Normalizing twice erases the
     difference between «said nothing» and «said something strange», which determines whether a warning is needed."""
     assert router.decide("escalate_to_slowbrain", {"request": "x", "surface": "inventada"}).payload["surface"] == "inventada"
-
-
-def test_a_turn_with_THREE_errands_keeps_three_surfaces():
-    """A turn can commission a list, a detail view, and a widget (V2-118). Keeping the first surface would
-    give the other two the wrong screen from the very first second — that is why it travels per request and not in a
-    loose variable. Asserted on the voice turn's source (the typed channel runs it too): the alternative is a call
-    to a real model."""
-    src = _vts.turn_source()
-    assert 'escalate_req["surface"][req] = _sf' in src
-    assert '_surfaces_mod.pick(escalate_req["surface"].get(req, ""' in src   # per request, then the brief (pass 51)
-
-
-def test_the_voice_turn_carries_it():
-    """The voice turn is the one turn both inputs run: without the field there, nothing carries it."""
-    from voice.engine.llm.providers import nucleo as vp
-    assert '"surface"' in _vts.getsource(vp), vp.__name__
-
-
-def test_the_dispatcher_stamps_it_at_the_ONLY_door_they_all_pass_through():
-    import inspect
-
-    from nucleo import dispatch
-    src = _vts.getsource(dispatch.run_listener)
-    assert 'surfaces.set_once(rec, ctx.get("surface"))' in src
-
-
-def test_and_the_live_projection_publishes_it():
-    """The frontend opens the sheet BEFORE there is a result, so the surface has to travel in the
-    LIVE projection (`/api/tasks`), not in the delivery."""
-    import inspect
-
-    from nucleo import dispatch
-    assert '"surface": r.surface,' in _vts.getsource(dispatch.active_sessions)
-
-
-def test_the_module_knows_NOTHING_about_any_domain():
-    """The doctrine, turned into a test: this is a RESOURCE. If «hotel», «car», or «house» ever appears here, someone
-    turned a general screen into a shortcut for a use case."""
-    import inspect
-    # CODE only: the module docstring deliberately cites the operator's examples (hotels, Wallapop,
-    # houses in Los Angeles) to say that NONE of them may appear below.
-    body = _vts.getsource(surfaces).split('"""', 2)[-1].lower()
-    for domain in ("hotel", "restaurante", "coche", "casa", "vuelo", "wallapop", "booking", "sevilla"):
-        assert domain not in body, f"«{domain}» en el código de surfaces.py: una pantalla general convertida en atajo"

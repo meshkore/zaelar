@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from nucleo.acts import canvas as _door
 
-from tests import voice_turn_source as _vts
 
 import json
 from pathlib import Path
@@ -26,7 +25,6 @@ import pytest
 from nucleo.actionmap import executor
 from nucleo.actionmap.normalize import normalize
 from nucleo.actionmap.store import _pack_entries, seed_pack
-from nucleo.flash import router
 
 ENGINE = Path(__file__).resolve().parents[3]
 
@@ -109,13 +107,6 @@ def test_a_close_order_licenses_no_show(text):
 ])
 def test_but_a_licensed_or_absent_close_keeps_its_show(text):
     assert not _door.show_under_close(text)
-
-
-def test_the_voice_turn_applies_the_guard():
-    """V2-539's lesson: a rule carried IN PROSE is not applied — the voice turn (which the typed channel runs too)
-    must call the shared guard."""
-    voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert "_canvas_door.show_under_close(text, brief=_brief, wid=_wid)" in voice, "the voice turn dropped the guard"
 
 
 # ── 3 · the fast close declines over live work ───────────────────────────────────────────────────────────

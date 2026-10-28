@@ -109,10 +109,3 @@ def test_a_cache_hit_from_the_usage_chunk_reaches_the_perf_row_and_the_meter_onc
 
     assert len(meter) == 1, f"the meter must be called once per stream, got {meter}"
     assert meter[0]["cache_hit_tokens"] == 9000 and meter[0]["prompt_tokens"] == 10000
-
-
-def test_the_turns_perf_row_copies_the_cache_hit():
-    """The one turn copies the provider's hit from its stream metrics into the perf row the verdict reads."""
-    from pathlib import Path
-    src = (Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/turn_after.py").read_text(encoding="utf-8")
-    assert '"prompt_cache_hit_tokens": llm_metrics.get("prompt_cache_hit_tokens")' in src

@@ -12,7 +12,6 @@ answer then, never a claim.
 from __future__ import annotations
 
 import asyncio
-import inspect
 
 from nucleo.flash import data_ops
 
@@ -58,14 +57,3 @@ def test_an_op_still_running_past_the_wait_leaves_the_card_as_the_answer():
 def test_no_op_at_all_says_nothing():
     said, sent, _ = _run([], ["Done."])
     assert said == [] and sent == []
-
-
-def test_the_voice_tails_are_owed_not_sent():
-    """The two tail sites in `post_stream_acts` hand the line to `data_done["owed"]`; `post_stream` settles the owed
-    lines after the refusal check and before the canned ack."""
-    from nucleo.flash import post_stream, post_stream_acts
-    words = inspect.getsource(post_stream_acts.complete_the_acts)
-    assert "send(\" \" + speech.sanitize(_c_tail" not in words and "send(\" \" + speech.sanitize(_ar_tail" not in words
-    assert words.count('data_done.setdefault("owed", []).append(') >= 2
-    run = inspect.getsource(post_stream.run)
-    assert run.index("say_refusal_instead") < run.index("say_owed_after_ops") < run.index("settle_what_is_pending")

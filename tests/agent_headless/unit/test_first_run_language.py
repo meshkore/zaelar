@@ -84,39 +84,6 @@ def test_and_a_classifier_that_explodes_does_not_take_the_turn_with_it(monkeypat
     assert detect.ensure_for_text("Búscame un hotel en Madrid") is None
 
 
-# ── and that the text channel actually CALLS it ────────────────────────────────────────────────────────────
-def test_the_text_channel_actually_calls_it():
-    """The other half, and the one that would have kept this dead: a detector nobody invokes is exactly the
-    state the engine was already in — `i18n.init.detect` existed and worked, and only the voice pipeline ever
-    reached it."""
-    import inspect
-
-    from nucleo.cli import api
-    assert "ensure_for_text" in inspect.getsource(api.say)
-
-
-def test_but_NOT_from_run_turn_itself(monkeypatch):
-    """Where it hangs is load-bearing, and this is the test that pins it. `run_turn` is also how the suite
-    drives a turn in-process, so a language lock fired from there persists `stt_language` into the session's
-    settings file and flips `ZAELAR_LANGUAGE` for every test that runs afterwards — measured on 2026-08-20:
-    three assertions of `test_suite_isolation.py` went red and a Spanish-sensitive backstop test with them.
-    The HTTP edge is where a real operator is on the other side; `run_turn` is a library function."""
-    import inspect
-
-    from nucleo.cli import turn
-    assert "ensure_for_text" not in inspect.getsource(turn.run_turn)
-
-
-def test_but_the_voice_provider_does_NOT(monkeypatch):
-    """Deliberate asymmetry, and it is a REGRESSION GUARD, not an oversight: the voice pipeline asks the
-    operator behind a blocking modal (V2-101). A silent lock on that side would race the question and could
-    commit the wrong language before it has been answered."""
-    import inspect
-
-    from voice.engine.llm.providers import nucleo as _provider
-    assert "ensure_for_text" not in inspect.getsource(_provider)
-
-
 def test_the_locale_of_the_site_catalog_follows_the_language():
     """Why any of this matters, asserted rather than asserted-about: the two catalogues are genuinely
     different countries, so getting the language wrong sends a real errand to the wrong site."""

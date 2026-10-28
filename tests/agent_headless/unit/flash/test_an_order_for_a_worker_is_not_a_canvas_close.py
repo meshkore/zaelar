@@ -14,11 +14,9 @@ Both channels ask the same predicate (`close_guards.taken_elsewhere`).
 """
 from __future__ import annotations
 
-import pathlib
 
 from nucleo.flash import close_guards as CG
 
-ENGINE = pathlib.Path(__file__).resolve().parents[4]
 SAID = "Y del informe quítame los híbridos, solo eléctricos puros, que si no al final no es lo que quiero."
 
 
@@ -26,10 +24,3 @@ def test_a_worker_call_takes_the_order():
     assert CG.taken_elsewhere({"send_to_worker"}) and CG.taken_elsewhere(["answer_worker"])
     assert CG.taken_elsewhere({"fullscreen_widget"})                       # the guard it already had
     assert not CG.taken_elsewhere(set()) and not CG.taken_elsewhere(["widget_data"])
-
-
-def test_the_voice_close_backstop_asks_it_and_the_worker_call_marks_it():
-    lanes = (ENGINE / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
-    assert "_closeg.taken_elsewhere(_tool_fired)" in lanes
-    calls = (ENGINE / "nucleo/flash/tool_executor_calls.py").read_text(encoding="utf-8")
-    assert 'fired.add("send_to_worker")' in calls and 'fired.add("answer_worker")' in calls

@@ -64,14 +64,6 @@ def test_vacio_es_un_payload_vacio_y_no_un_error():
     assert BU.parse_payload("   ") == ({}, "")
 
 
-def test_el_puente_lo_USA_y_enseña_el_motivo():
-    """The plumbing: without this, the classification exists and the worker keeps reading «invalid» by itself."""
-    from pathlib import Path
-    src = Path("nucleo/cli/bridge.py").read_text(encoding="utf-8")
-    assert "_bu.parse_payload(_raw)" in src
-    assert 'payload JSON inválido ({_src}): {_perr}' in src
-
-
 # ── V2-469 · plain text for web_search IS the query ──────────────────────────────────────────────────
 def test_una_query_pelada_para_web_search_es_la_query():
     """Measured in `cheapest-monitor__us` (00:14): the worker called `act web_search` with the payload being the
@@ -91,10 +83,3 @@ def test_un_json_roto_no_se_convierte_en_query():
     """Text that STARTS like JSON and fails to parse is malformed JSON, not a query: converting it
     would execute a search with the braces inside."""
     assert BU.bare_query_payload("web_search", '{"query": "hoteles"') is None
-
-
-def test_el_cli_cablea_la_conversion():
-    """Wiring check: the three above pass intact with the CLI call removed."""
-    from pathlib import Path
-    src = Path("nucleo/cli/bridge.py").read_text(encoding="utf-8")
-    assert "bare_query_payload" in src

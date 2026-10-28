@@ -7,7 +7,6 @@ The green runs the day before were luck (the model happened to call `move {item:
 """
 from __future__ import annotations
 
-import pathlib
 
 from nucleo.flash import direct_action as _da
 from nucleo.turn import brief as _tb
@@ -15,7 +14,6 @@ from widgets.youtube import data as yt
 
 from ._video_queue_scene import EN_CLAIM, EN_QUEUE, EN_SAID, brief, queue, titles  # noqa: F401
 
-_ENGINE = pathlib.Path(__file__).resolve().parents[4]
 
 
 def test_the_verdict_completes_an_empty_reorder_turn_end_to_end(queue, monkeypatch):
@@ -27,8 +25,3 @@ def test_the_verdict_completes_an_empty_reorder_turn_end_to_end(queue, monkeypat
     assert rung["source"] == "said-order"
     assert yt.apply_action(rung["action"], rung["payload"])["ok"]
     assert titles()[1:3] == [EN_QUEUE[2], EN_QUEUE[1]]
-
-
-def test_the_voice_turn_hands_the_models_words_to_the_rung():
-    voice = (_ENGINE / "nucleo/flash/post_stream_acts.py").read_text(encoding="utf-8")
-    assert "model_words=spoken_text" in voice

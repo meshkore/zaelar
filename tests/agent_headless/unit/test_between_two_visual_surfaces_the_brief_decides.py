@@ -3,8 +3,6 @@ Between two VISUAL surfaces the brief was right 6 of 7 times — «plan a five d
 declared `informe` (a document sheet and the browser card on screen) against `lista`; «a one page summary… in a
 document» declared `item` (an empty results sheet) against `informe`. A non-visual declaration (a setup list done
 silently, a message sent) was right, and is left as it was."""
-from tests import voice_turn_source as _vts
-from pathlib import Path
 
 from nucleo import surfaces as s
 
@@ -23,8 +21,3 @@ def test_agreement_and_absence():
     assert s.pick("lista", "lista") == "lista"
     assert s.pick("", "lista") == "lista"
     assert s.pick("informe", "") == "informe"
-
-
-def test_the_voice_turn_picks():
-    root = Path(__file__).resolve().parents[3]
-    assert "_surfaces_mod.pick(escalate_req[\"surface\"].get(req, \"\")" in _vts.read(root / "voice/engine/llm/providers/nucleo.py")

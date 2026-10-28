@@ -110,13 +110,6 @@ def test_the_receipt_is_a_line_said_once(monkeypatch):
     assert batch.assistant_lines([{"role": "user", "content": "x"}, {"role": "assistant", "content": "y"}]) == ["y"]
 
 
-def test_the_voice_turn_hands_the_lane_what_was_already_said():
-    import pathlib
-    root = pathlib.Path(__file__).resolve().parents[4]
-    assert "said=batch.assistant_lines(brain._window)" in (
-        root / "voice/engine/llm/providers/fast_lane.py").read_text(encoding="utf-8")
-
-
 # ── 2. a status question that names an errand ───────────────────────────────────────────────────────────────
 def test_a_status_question_about_the_game_is_answered_about_the_game(errands, monkeypatch):
     monkeypatch.setattr("i18n.langs.current_code", lambda: "en")

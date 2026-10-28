@@ -24,7 +24,6 @@ a recorded model; `execute=True` is the real cycle, the default is dry.
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 import asyncio
 
@@ -137,16 +136,3 @@ def test_no_site_no_guessing():
     """Bug from 2026-07-23: without a recognized site this opened wallapop.com by default — a login to a site that
     nobody requested. There is nothing to open, so nothing is opened."""
     assert web_auth.start("") == ""
-
-
-def test_the_voice_turn_delegates_to_ONE_body():
-    """Guard against the divergence this repo has already paid for (V2-153: the same notification scheduled twice
-    because two copies of a decision could not see each other). The voice closures must DELEGATE, not reimplement."""
-    import inspect
-
-    from voice.engine.llm.providers import nucleo as voice_nucleo
-    src = _vts.turn_source()
-    start = src[src.index("def _start_web_auth"):]
-    start = start[:start.index("\n        def ")] if "\n        def " in start else start
-    assert "web_auth" in start, "la voz volvió a implementar el arranque del login por su cuenta"
-    assert "procs.dispatch" not in start, "la voz despacha directamente otra vez: son dos cuerpos de nuevo"

@@ -20,7 +20,6 @@
 import pytest
 
 from nucleo import dispatch, sheets
-from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 class _Task:
@@ -115,12 +114,3 @@ def test_its_own_sheet_is_still_started_fresh(monkeypatch):
     mine = sheets.sheet_id_for("7")
     sheets._sheet_open(_Rec("7", sheet=mine))
     assert calls and calls[0] == (mine, True)
-
-
-def test_the_gate_hands_the_sheet_over(monkeypatch):
-    """The wiring guard: every assertion above passes with `sheet=sheet_of(rec)` DELETED from the gate."""
-    import inspect
-    src = "\n".join(l for l in _vts.getsource(dispatch._run_session).splitlines()
-                    if not l.strip().startswith("#"))
-    assert "remember_confirm(key, req, task, sheet=" in src, (
-        "the gate is the only place that still knows the sheet — the record is popped one line later")

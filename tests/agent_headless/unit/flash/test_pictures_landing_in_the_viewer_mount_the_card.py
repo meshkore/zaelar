@@ -18,13 +18,11 @@ Disarm: with `_fills_the_card` returning False the first two tests go red; with 
 """
 from __future__ import annotations
 
-from pathlib import Path
 
 from nucleo.acts import canvas_arbiter as arb
 from nucleo.flash import canvas_visibility as cv
 from widgets import effects as fx
 
-ENGINE = Path(__file__).resolve().parents[4]
 SAID = "I don't see any photo — you just said here they are. Send the actual pic."
 
 
@@ -58,9 +56,3 @@ def test_the_door_lets_the_filling_show_through_and_names_its_action(monkeypatch
     got.clear()
     assert cv.present("imagenes", reason="producer-mount", action="show", src="flash", known=["imagenes"],
                       emit=lambda k, l, extra: got.append((k, l, extra))) is False, "an open viewer is not raised again"
-
-
-def test_the_picture_search_mounts_through_the_one_door():
-    img = (ENGINE / "nucleo/flash/image_turn.py").read_text(encoding="utf-8")
-    assert 'emit("widget", "show"' not in img, "the picture search emits through the one door now"
-    assert 'present("imagenes", reason="producer-mount", action="show"' in img

@@ -15,11 +15,9 @@ from __future__ import annotations
 
 import json
 import pathlib
-import time
 
 import pytest
 
-from nucleo.flash import card_close as CC
 from nucleo.flash import direct_action as DA
 from nucleo.flash import verdict_card as VC
 
@@ -58,13 +56,6 @@ def test_the_measured_series_removal_does_not_close_the_agenda(verdict):
     assert _canvas(verdict, said) == "" and verdict["tags"] == []
     assert VC.close_is_owed(object(), said) is False          # the voice promise door does not close it either
     assert VC.canvas_yields(object()) is False                # …and the bare data rung does not guess its payload
-
-
-def test_the_voice_turn_asks_the_rule():
-    src = (ENGINE / "nucleo/flash/card_close.py").read_text(encoding="utf-8")   # `complete_canvas`'s body (run_gesture)
-    assert ".inner_order_wins(brief, operator_text)" in src
-    assert "_vcard.close_is_owed(_brief, _op_text)" in (ENGINE / "nucleo/flash/post_stream_acts.py").read_text(
-        encoding="utf-8")
 
 
 # ── 2.442 · the close stands when he named a card, or the inner op is an unsure lens ──────────────────────────

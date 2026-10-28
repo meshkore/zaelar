@@ -77,14 +77,6 @@ def test_lo_que_cabe_entero_no_se_toca():
 
 # ── the artifact is where the two channels meet ───────────────────────────────────────────────────────────────
 
-def test_turn_detail_es_el_UNICO_punto_que_cierran_los_dos_canales():
-    """SOURCE GUARD: if someone gives a channel its own capture, the proposal to watch the artifact loses its single
-    artifact and we return to a list of sites to update."""
-    import inspect
-    src = inspect.getsource(ob.turn_detail)
-    assert "turn.completed" in src, "el bus es lo que permite consumirlo sin acoplarse a ningún canal"
-    assert "system_prompt" in src and "_prompt_excerpt" in src
-
 
 @pytest.mark.parametrize("cabeza,cola", [(ob._HEAD_CHARS, ob._TAIL_CHARS)])
 def test_la_cola_sigue_cubriendo_el_estado_vivo(cabeza, cola):

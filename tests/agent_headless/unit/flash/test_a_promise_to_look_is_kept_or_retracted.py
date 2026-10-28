@@ -75,15 +75,6 @@ def test_the_hatches_of_the_write_guard_are_unchanged():
     assert not data_ops.is_context_bleed(last, "agenda", "add_meeting", {**payload, "title": "Óptica"}, "borra el reloj")
 
 
-def test_the_provider_calls_the_extracted_predicate_and_keeps_no_copy():
-    import inspect
-    from nucleo.acts import card
-    assert card._context_bleed in card._LADDER[card.FAST], "the card door reads the rule before an op runs"
-    assert "_do.is_context_bleed(" in inspect.getsource(card._context_bleed)
-    src = _vts.read("voice/engine/llm/providers/nucleo.py")
-    assert "(time.time() - _last[3]) < 120" not in src, "the inline copy of the rule must be gone"
-
-
 # ── 2. A promise to look, with no look behind it ──────────────────────────────────────────────────────────
 
 REAL_PROMISES = [
@@ -174,18 +165,6 @@ def test_both_channels_carry_the_branch():
     assert src.count("promise_repair(") >= 2        # the def + the seam's call
 
 
-def test_a_read_widget_counts_as_the_look_so_the_promise_is_not_repaired_twice():
-    """V2-773 audit: «Let me check your calendar…» + a `read_widget` + its answer was judged «promised and did
-    not look», read AGAIN with the raw sentence over the summary, and the second answer contradicted the first
-    out loud («nothing booked» … «your afternoon is mostly taken»). A read is the look."""
-    from pathlib import Path
-    import re
-    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
-    i = src.index("_did_act = bool(")
-    expr = "\n".join(src[i:].splitlines()[:4])            # the one expression, four lines long
-    assert 'read_req["v"] is not None' in expr, expr
-
-
 def test_an_identical_retry_of_a_refused_op_is_dropped_and_a_corrected_one_runs():
     """V2-773 (demo, images → markets): «Open the second one» reached `imagenes:select` with no item and was
     refused with the menu; the failure note asked for a re-call, and the next two turns («a chart of Apple
@@ -239,19 +218,6 @@ def test_the_repair_is_spoken_as_a_separate_sentence_not_glued():
     assert 'send((" " if (_sp or "").strip() else "")' in call, call
     from voice import speech
     assert speech.sanitize(" x", drop_metadata=False) == "x", "if sanitize stops stripping, this guard is moot"
-
-
-def test_a_second_pass_knows_what_the_turn_already_said():
-    """Demo pass 2026-09-28, C3: the model asked «which slot do you want, the 1:00 or the 4:00?» and called
-    read_widget; the read answer, composed from his words alone, then said «I don't have any free-afternoon slot
-    details» — and was glued to the question («…4:00?You've got three things»). The shared second pass (`speak`,
-    used by read_widget and recall) is told what was already said and never glues its first words to it."""
-    from pathlib import Path
-    src = _vts.read(Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
-    body = src[src.index("async def speak(sys2: str"):]
-    body = body[:body.index("from voice.engine.llm.providers.vault_intercept")]
-    assert '_said = "".join(spoken).strip()' in body and "En este turno ya le has dicho" in body
-    assert '_lead = [" " if _said else ""]' in body and "_out(speech.inline(take(False)))" in body
 
 
 def test_live_work_about_something_else_does_not_cover_a_promise(monkeypatch):

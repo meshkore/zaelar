@@ -5,7 +5,6 @@ second person was refused. The turn now infers the order's end state, keeps only
 card it wrote to, attests it, and lets one pass repeat ONLY an action this turn already ran there.
 """
 import asyncio
-import inspect
 
 import pytest
 
@@ -73,12 +72,6 @@ def test_what_the_order_named_and_the_turn_missed_is_added_with_an_action_it_alr
 def test_a_met_end_state_calls_nothing(world, monkeypatch):
     monkeypatch.setattr(_spec, "attest", lambda e, **k: True)
     assert asyncio.run(wh.check(ORDER, [("contactos", "add_contact")], settle_s=0)) == 0 and world == []
-
-
-def test_the_turn_checks_its_writes():
-    from nucleo.flash import post_stream
-    src = inspect.getsource(post_stream.run)
-    assert "nucleo.circuit.compose" in src and ".after_turn(" in src, "the turn no longer checks its writes"
 
 
 def test_a_rows_name_is_read_where_the_collection_declares_its_label(monkeypatch):

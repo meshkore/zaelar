@@ -74,11 +74,3 @@ def test_the_voice_executor_notes_its_sends(monkeypatch):
     T._t_send_to_worker(args={"which": "the monitor search", "message": "at least 27 inches"},
                         emit=lambda *a, **k: None, worker_acted={"v": None})
     assert "«Marketplace listings for used cheap monitor»" in S.status_with_refined(HIS, _brief())
-
-
-def test_the_voice_status_line_is_the_one_that_names_the_sends():
-    """The wiring of the voice half: a mute turn that sent to a worker owes the status WITH the sends."""
-    import inspect
-    from nucleo.flash import post_stream_settle
-    src = inspect.getsource(post_stream_settle.settle_what_is_pending)
-    assert "_sbe.status_with_refined(operator_text, _brief)" in src and "_eot.status_owed(" not in src

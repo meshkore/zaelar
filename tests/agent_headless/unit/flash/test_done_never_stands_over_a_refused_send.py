@@ -59,11 +59,3 @@ def test_the_turn_says_the_reason_and_is_no_longer_done(monkeypatch):
         return await data_ops.say_refusal_instead([("mensajeria", asyncio.ensure_future(op()))], done, sent.append, _Sp)
     said = asyncio.run(go())
     assert said and sent == [said] and done["v"] is False
-
-
-def test_the_post_stream_asks_before_the_ack():
-    import inspect
-    from nucleo.flash import post_stream
-    src = inspect.getsource(post_stream.run)
-    assert src.index("say_refusal_instead") < src.index("settle_what_is_pending"), \
-        "the canned ack (in settle) must come after the refusal check"

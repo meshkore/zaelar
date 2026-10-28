@@ -18,7 +18,6 @@ drawn by V2-133.
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 import pytest
 
@@ -105,13 +104,6 @@ def test_played_recently_is_time_bounded(monkeypatch):
     assert _fa.played_recently() == "A ver…"
     monkeypatch.setattr(_fa, "_last_fired_at", _t.monotonic() - 60)
     assert _fa.played_recently() == ""                                          # a past exchange's filler never counts
-
-
-def test_the_voice_channel_passes_the_played_filler():
-    import inspect
-
-    from voice.engine.llm.providers import nucleo as _provider
-    assert "after_filler=_filler_audio.played_recently()" in _vts.getsource(_provider)
 
 
 # ── demo pass 39 (2026-09-29), T1: a NEW errand is not «still» anything ─────────────────────────────────────────

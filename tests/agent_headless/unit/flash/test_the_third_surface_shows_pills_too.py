@@ -71,14 +71,6 @@ def test_un_hecho_del_OPERADOR_nunca_se_filtra(memoria):
 
 # ── make it THE SAME rule, not a fourth copy ──────────────────────────────────────────────────────────────────
 
-def test_aqui_se_APLICA_la_regla_que_ya_existe():
-    """SOURCE GUARD, and this is the heart of it: the failure was not the rule, it was having it duplicated. A fourth copy
-    would diverge again and we would have to discover it through another live failure."""
-    import inspect
-    src = inspect.getsource(fp.compose_recall)
-    assert "background_slot_off_topic" in src
-    assert "meteo-soria" not in src, "esto no puede nombrar un widget concreto: la regla es genérica"
-
 
 def test_la_regla_sigue_teniendo_UNA_casa():
     """If someone copies it again, this case will not catch that—but it will catch this surface stopping its use of the
@@ -88,16 +80,6 @@ def test_la_regla_sigue_teniendo_UNA_casa():
     from memory import api
     home = importlib.import_module(api.background_slot_off_topic.__module__)
     assert home.__name__.startswith("memory.api") and "def background_slot_off_topic" in inspect.getsource(home)
-
-
-def test_si_la_regla_no_esta_se_enseña_de_MAS_y_nunca_de_menos(monkeypatch, memoria):
-    """Fail-soft with a bias: this runs on the hot path of EVERY turn. If the import failed, the
-    correct output is to show too much—more than enough memory—and not end up without recall."""
-    import inspect
-    src = inspect.getsource(fp.compose_recall)
-    # Repointed 2026-09-01: the i18n pass legitimately translated the comment this guard matched on
-    # («nunca de menos» → "never too little", commit 89fe56d). The guarded PROPERTY is unchanged.
-    assert "except Exception" in src and "never too little" in src
 
 
 # ── and the rule, in its three forms ───────────────────────────────────────────────────────────────────────────

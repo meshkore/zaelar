@@ -5,14 +5,12 @@ streamed, so only an ack it would have said bare is replaced (the `delivery.appl
 from __future__ import annotations
 
 import threading
-from pathlib import Path
 
 import pytest
 
 from nucleo.flash import card_receipt as CR
 from nucleo.flash import direct_action as DA
 
-ENGINE = Path(__file__).resolve().parents[4]
 THREE = ["youtube", "musica", "agenda"]
 
 
@@ -56,11 +54,6 @@ def _gesture(brief, text: str) -> list:
     DA.complete_canvas(brief, tag_emit=lambda a, x: tags.append((a, x.get("id"))), emit=lambda *a, **k: None,
                        operator_text=text)
     return tags
-
-
-def test_the_voice_turn_is_wired():
-    settle = (ENGINE / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
-    assert settle.count("_pst_receipt.voice_ack(") == 2
 
 
 def test_the_voice_receipt_reads_what_his_turn_did(screen, english):

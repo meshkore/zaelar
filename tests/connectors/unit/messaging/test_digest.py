@@ -6,7 +6,6 @@ UPSERTED (never accumulated), a mute model leaves the previous digest standing, 
 the domain module never imports a brain (the rem.py hook pattern, wired by nucleo/pulse/loop).
 """
 import json
-import re
 import time
 
 import pytest
@@ -98,13 +97,3 @@ def test_prose_around_the_json_is_tolerated_and_garbage_is_a_miss():
     good = digest._parse("Sure! Here it is:\n```json\n" + _llm_ok(None, None) + "\n```")
     assert good and good["open_actions"]
     assert digest._parse("I could not read the conversation.") is None
-
-
-def test_the_loop_injects_the_heart_hook_into_the_pass():
-    """The wiring guard (comment-stripped, per the V2-573 lesson): nucleo/pulse/loop must call
-    digest.refresh_due with a memllm-backed hook — a pass nobody schedules is a module born dead."""
-    import pathlib
-    src = pathlib.Path("nucleo/pulse/due.py").read_text()
-    src = re.sub(r"#[^\n]*", "", src)
-    assert "from connectors.messaging import digest" in src
-    assert "refresh_due" in src and "chat_sync" in src

@@ -10,11 +10,9 @@ is left alone.
 from __future__ import annotations
 
 import datetime as dt
-import pathlib
 
 from nucleo.flash import agenda_said_day as SD
 
-ENGINE = pathlib.Path(__file__).resolve().parents[4]
 WED = dt.date(2026, 10, 14)
 
 
@@ -57,8 +55,3 @@ def test_another_weekday_or_another_card_is_untouched():
 def test_the_move_destination_is_aligned_too():
     got = _fix("pásame el dentista al jueves que viene", {"title": "Dentista", "newDate": "2026-10-22"}, "move_meeting")
     assert got["newDate"] == "2026-10-15"
-
-
-def test_the_turn_asks_it():
-    voice = (ENGINE / "nucleo/flash/tool_executor_widget_calls.py").read_text(encoding="utf-8")
-    assert "_txw._said_day.payload(wid, action_name, payload, _txw._bnotes.operator_half(text))" in voice

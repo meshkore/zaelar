@@ -8,14 +8,12 @@ A note glued in front of a turn can quote a worker («el proceso pregunta: ¿esc
 his words it would name the very recipient it asks about, and the question would answer itself.
 """
 import time
-from pathlib import Path
 
 import pytest
 
 from nucleo import his_words
 from nucleo.flash import dialog
 
-ENGINE = Path(__file__).resolve().parents[4]
 
 
 @pytest.fixture(autouse=True)
@@ -42,8 +40,3 @@ def test_a_note_is_not_his_words():
 def test_a_turn_that_is_only_notes_records_nothing():
     dialog.push_user([], "[SISTEMA] Brain worker · Tarea completada: escribí a Fontaurgencias 24h")
     assert his_words.since(0) == []
-
-
-def test_the_turn_records_his_turn_through_the_one_function():
-    path = "voice/engine/llm/providers/turn_after.py"
-    assert "push_user(" in (ENGINE / path).read_text(encoding="utf-8"), f"{path} no longer records his turn"

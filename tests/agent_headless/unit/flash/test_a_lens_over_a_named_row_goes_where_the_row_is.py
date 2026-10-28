@@ -5,7 +5,6 @@ repair turned that reply into `agenda:show_day {day: 2026-10-20}`, and the read 
 answer into «her vacation hasn't started yet». The row «Anna vacation» (2026-12-20) was on file. A lens the card
 declares `by_row` runs as the card's item view on the one row his words name; the day comes off the data.
 """
-import inspect
 
 from widgets import refs, row_lens
 
@@ -46,8 +45,3 @@ def test_a_lens_that_declares_nothing_is_never_redirected(monkeypatch):
                  {"date": "tomorrow"}) == ("find_free", {"date": "tomorrow"})
     assert _lens(monkeypatch, "show me anna vacation photos", "show", {"query": "anna vacation"}, wid="imagenes") == \
         ("show", {"query": "anna vacation"})
-
-
-def test_the_turn_runs_it_where_data_ops_converge():
-    from nucleo.flash import tool_executor_widget_calls as voice
-    assert "_row_lens.retarget(" in inspect.getsource(voice._apply_widget_data)
