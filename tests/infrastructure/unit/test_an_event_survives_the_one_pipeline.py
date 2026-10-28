@@ -70,7 +70,8 @@ def test_a_door_reached_is_a_consequence_event_with_its_verdict_and_trace():
     finally:
         trace._ctx.reset(tok)
     got = [e for e in observer._events[n0:] if e.get("kind") == "consequence"]
-    assert [(e["door"], e["blocked"]) for e in got] == [("music", True), ("memory.ingest", False)]
+    assert [(e["label"], e["door"], e["verdict"], e["dry"]) for e in got] == \
+        [("music", "music", "veto", True), ("memory.ingest", "memory.ingest", "pass", True)]
     assert got[0]["arg"] == "jazz"
     assert all(e.get("trace") == "t-consequence" for e in got)
 
