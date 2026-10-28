@@ -666,14 +666,12 @@ async def _deliver(rec: "SessionRecord") -> None:
     # `ok` gate and FAILED tasks wrote mid-sized pills such as «I could not complete the task», creating noise that
     # also competed in recall). Failure already reaches the operator through voice + [SYSTEM] note. Provenance is
     # stamped (`meta.source`) so it can be audited/cleaned by origin.
+    # The pill is a RESULT, so it goes through the one door that writes one: only the circuit's `met` verdict.
     if rec.ok:
         try:
-            from nucleo import memory_agent
-            await memory_agent.remember({
-                "text": f"[tarea {rec.kind}] {rec.goal} → {summary[:600]}",
-                "kind": "result", "level": "mid", "importance": 0.5,
-                "meta": {"source": f"worker:{rec.task_id}"},
-            })
+            from nucleo.memory_agent import writer as _mw
+            await _mw.result(f"[tarea {rec.kind}] {rec.goal} → {summary[:600]}", task_id=rec.task_id,
+                             verdict=str(getattr(rec, "verdict", "") or ""))
         except Exception:
             pass
     try:

@@ -144,8 +144,8 @@ def test_no_task_of_memllm_routes_to_a_banned_provider():
     """`nucleo/memllm.py` is where the per-task routing lives (rem/i18n/turn_complete/directed/paraphrase). The
     i18n task was the LAST one still choosing an Anthropic model, on a measurement whose premise (the broker's
     ignored reasoning switch) the direct endpoint removes."""
-    from nucleo import memllm
-    blob = str(memllm._DEFAULTS) + str(memllm._FAILOVER)
+    from nucleo.memory_agent.processor import llm_routes
+    blob = str(llm_routes._DEFAULTS) + str(llm_routes._FAILOVER)
     for bad in BANNED:
         assert bad not in blob.lower(), f"{bad} sigue en el enrutado por tarea de memllm"
 
@@ -160,7 +160,7 @@ def test_the_browser_loop_defaults_to_the_titular():
 
 # ── OpenAI: yes in the CATALOGUE, no running on its own (operator's norm, 2026-08-21) ──────────────────────────
 #
-# The norm was already written in the tree—the i18n rung of `memllm._FAILOVER` cites it as «the operator's
+# The norm was already written in the tree—the i18n rung of `llm_routes._FAILOVER` cites it as «the operator's
 # standing norm (no OpenAI models)»—but it was applied in one place and not the other four, which is how a norm in
 # prose returns. The operator narrowed it: «by default we do not use them—neither the test config, nor its local
 # instance, nor the cloud—but if a user wants to change it, let them».
@@ -180,10 +180,10 @@ def test_openai_appears_ONLY_as_a_stand_in():
     The half that did NOT change, and is the reason the old norm existed: OpenAI at the head of a task is
     what makes a cheap engine expensive without anybody deciding to. Now it is the rung that costs money
     only when the cheap one is already down, which is the arrangement he asked for."""
-    from nucleo import memllm
+    from nucleo.memory_agent.processor import llm_routes
 
     culpables = []
-    for tarea, escalones in memllm._FAILOVER.items():
+    for tarea, escalones in llm_routes._FAILOVER.items():
         for url, modelo in escalones:
             if _OPENAI_RE.search(str(modelo)):
                 culpables.append(f"{tarea} → {modelo}")

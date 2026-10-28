@@ -34,7 +34,7 @@ _GENESIS = Path(__file__).resolve().parent / "genesis.json"
 RETRIES_DEFAULT = 2                 # «hemos probado dos o tres veces, no somos capaces» — the operator, 2026-09-29
 CHECK_EVERY_S = 5.0                 # an open spec is read at most this often by the pulse
 INLINE_GRACE_S = 20.0               # an inline action's end state is owed within this; past it, unmet is the verdict
-VERDICTS = ("met", "unmet", "retrying", "gave_up", "unverifiable", "undeclared", "skipped")
+VERDICTS = ("met", "undeclared", "unverifiable", "unmet", "retrying", "gave_up", "skipped")  # [:3] = delivered
 
 
 # ── the bound is the operator's ────────────────────────────────────────────────────────────────────────────

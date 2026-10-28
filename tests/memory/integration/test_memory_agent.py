@@ -321,8 +321,8 @@ def test_ingest_utterance_respects_llm_discard(fresh_db, monkeypatch):
     async def fake_process(text, *, state=None):
         return []                                   # it ran and there is nothing to save
 
-    from nucleo import mem_processor
-    monkeypatch.setattr(mem_processor, "process", fake_process)
+    from nucleo.memory_agent.processor import distill
+    monkeypatch.setattr(distill, "process", fake_process)
     # sentence the heuristic WOULD save (mid/fact) — the LLM's verdict takes precedence.
     res = asyncio.run(memory_agent.ingest_utterance("La reunión con el equipo terminó a las cinco."))
     assert res["source"] == "discard-llm"
@@ -344,8 +344,8 @@ def test_ingest_utterance_retries_once_before_heuristic(fresh_db, monkeypatch):
                  "importance": 0.95, "ttl_days": None, "slot": "operator.name",
                  "state_patch": {"operator_name": "Ramón"}}]
 
-    from nucleo import mem_processor
-    monkeypatch.setattr(mem_processor, "process", flaky_process)
+    from nucleo.memory_agent.processor import distill
+    monkeypatch.setattr(distill, "process", flaky_process)
     res = asyncio.run(memory_agent.ingest_utterance("me llamo Ramón"))
     assert calls["n"] == 2
     assert res["source"] == "llm"                    # the retry won; it did NOT fall back to the heuristic
@@ -359,8 +359,8 @@ def test_ingest_utterance_falls_back_after_retry_also_fails(fresh_db, monkeypatc
         calls["n"] += 1
         raise RuntimeError("caído de verdad")
 
-    from nucleo import mem_processor
-    monkeypatch.setattr(mem_processor, "process", always_fails)
+    from nucleo.memory_agent.processor import distill
+    monkeypatch.setattr(distill, "process", always_fails)
     res = asyncio.run(memory_agent.ingest_utterance("Vamos a ver, aquí hay un problema grave."))
     assert calls["n"] == 2                            # tried + retried; both failed
     assert res["source"] in ("heuristic", "heuristic-demoted", "discard")   # falls back to the heuristic, as before
@@ -375,8 +375,8 @@ def test_ingest_utterance_no_retry_when_processor_disabled(fresh_db, monkeypatch
         calls["n"] += 1
         return None
 
-    from nucleo import mem_processor
-    monkeypatch.setattr(mem_processor, "process", counting_process)
+    from nucleo.memory_agent.processor import distill
+    monkeypatch.setattr(distill, "process", counting_process)
     asyncio.run(memory_agent.ingest_utterance("cualquier frase"))
     assert calls["n"] == 1    # ONE call, no retry (`enabled()` is False)
 
@@ -394,8 +394,8 @@ def test_ingest_utterance_uses_llm_atoms_when_processor_on(fresh_db, monkeypatch
              "importance": 0.7, "ttl_days": None, "slot": None, "state_patch": {}},
         ]
 
-    from nucleo import mem_processor
-    monkeypatch.setattr(mem_processor, "process", fake_process)
+    from nucleo.memory_agent.processor import distill
+    monkeypatch.setattr(distill, "process", fake_process)
 
     async def run():
         await memapi.start()

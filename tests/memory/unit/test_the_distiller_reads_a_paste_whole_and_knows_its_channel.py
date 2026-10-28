@@ -19,7 +19,7 @@ from memory import api as memapi
 from memory import db as memdb
 from memory import embeddings as mememb
 from memory import queue as memqueue
-from nucleo import mem_processor as mp
+from nucleo.memory_agent.processor import distill, distill_config, distill_prompt
 from nucleo import memory_agent
 
 _SIGNATURE = "Ana Ruiz · Cerámica Norte · contacto@ceramica.example"
@@ -41,11 +41,11 @@ def _isolated(monkeypatch, tmp_path):
 
 
 def _render(text: str, channel: str, state: dict | None = None) -> str:
-    tok = mp.CHANNEL.set(channel)
+    tok = distill_prompt.CHANNEL.set(channel)
     try:
-        return mp._render(text, state or {})
+        return distill_prompt.render(text, state or {})
     finally:
-        mp.CHANNEL.reset(tok)
+        distill_prompt.CHANNEL.reset(tok)
 
 
 @pytest.mark.parametrize("doc", [_DOC_EN, _DOC_ES], ids=["en", "es"])
@@ -71,14 +71,14 @@ def test_the_distiller_knows_the_assistants_own_name():
 def test_a_claim_about_our_past_exchanges_is_not_stored_as_a_fact():
     """T-04: «I gave you my name yesterday» was stored as «On Oct 25 he gave the assistant his name» — a claim made
     true by being written down. The prompt rule is the only place this lives (the judgement is the model's)."""
-    assert "LO QUE DICE DE VUESTRAS CONVERSACIONES NO es un hecho" in mp._SYSTEM
+    assert "LO QUE DICE DE VUESTRAS CONVERSACIONES NO es un hecho" in distill_prompt._SYSTEM
 
 
 def _ingest(text: str, channel: str | None) -> list[str]:
     seen: list[str] = []
 
     async def _process(_t, state=None):
-        seen.append(mp.CHANNEL.get())
+        seen.append(distill_prompt.CHANNEL.get())
         return [{"text": "Le encanta el pádel.", "dest": "long", "kind": "pref", "importance": 0.7,
                  "ttl_days": None, "slot": None, "change": "none", "concepts": [], "state_patch": {}}]
 
@@ -89,12 +89,12 @@ def _ingest(text: str, channel: str | None) -> list[str]:
         await memqueue.get_queue().join()
         await memapi.stop()
 
-    mp_process, mp_enabled = mp.process, mp.enabled
-    mp.process, mp.enabled = _process, (lambda: True)
+    mp_process, mp_enabled = distill.process, distill_config.enabled
+    distill.process, distill_config.enabled = _process, (lambda: True)
     try:
         asyncio.run(scenario())
     finally:
-        mp.process, mp.enabled = mp_process, mp_enabled
+        distill.process, distill_config.enabled = mp_process, mp_enabled
     return seen
 
 
@@ -105,7 +105,7 @@ def test_the_row_records_the_channel_it_came_by(channel, expected):
     rows = memdb.get_db().query("SELECT json_extract(meta,'$.source') AS s FROM memories "
                                 "WHERE valid=1 AND kind != 'concept' AND text LIKE '%pádel%'")
     assert [r["s"] for r in rows] == [expected], [dict(r) for r in rows]
-    assert mp.CHANNEL.get() == "voice", "the channel leaked past the turn that set it"
+    assert distill_prompt.CHANNEL.get() == "voice", "the channel leaked past the turn that set it"
 
 
 def test_the_typed_mark_is_exact_per_line():

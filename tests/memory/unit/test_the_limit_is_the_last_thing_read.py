@@ -73,7 +73,8 @@ def test_el_hecho_sigue_TAMBIEN_en_su_sitio_de_siempre(_sin_base, monkeypatch):
 def test_no_hay_NINGUNA_palabra_de_dominio_en_el_codigo():
     """What governs is the CLASS of the fact (`meta.critical`), not its content. A list of foods here
     would be adapting to the use case, which is precisely what is forbidden — the agent handles ANY task."""
-    fuente = open(_prompt.__file__, encoding="utf-8").read()
+    from memory._prompt import compose
+    fuente = open(compose.__file__, encoding="utf-8").read()
     bloque = fuente.split("LÍMITES QUE NO PUEDES SALTARTE")[1][:600]
     for palabra in ("gluten", "celíac", "celiac", "alcohol", "pasta", "lactosa", "fruto seco"):
         assert palabra not in bloque.lower(), f"«{palabra}» convierte el guarda en un filtro de dominio"
