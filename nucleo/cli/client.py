@@ -1,9 +1,7 @@
-"""nucleo/flash/probe_cli.py — CLI for the FlashBrain probe channel (V2-098 split).
+"""Terminal client of the typed channel: `python -m nucleo.cli "a line"` (or no argument for a REPL).
 
-Extracted from nucleo/flash/probe.py: this talks to the running server over plain HTTP (`_post`) and has no
-access to, or need for, any of probe.py's in-process state (`run_turn`/`ProbeSession`/`_SESSIONS`) — a clean
-boundary, unlike the HTTP router (`probe_api.py`), which does need that state and stays a thin wrapper around it.
-`python -m nucleo.flash.probe` keeps working: probe.py's own `__main__` block delegates to `main()` here.
+It talks to a running engine over HTTP (`POST /api/flash/say`, `nucleo/cli/api.py`) and holds no state of its own.
+Moved from `nucleo/flash/probe_cli.py` with the text channel's own turn (refactor2710-01).
 """
 from __future__ import annotations
 

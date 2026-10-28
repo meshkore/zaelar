@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import time
 
+from loguru import logger
+
 from nucleo import consequence
 
 _SESSIONS: dict = {}
@@ -120,7 +122,8 @@ def _action(decision: dict, events: list[dict], ledger: list[dict], tags: list[d
 async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, model: str = "",
                    execute: bool = False, lists: bool = True) -> dict:
     """One typed turn through the voice turn. Same signature as the text channel always had; `model` and `lists` are
-    accepted for its callers — the model is the routing's (`config/v2.py`), and a list is the task-list door's call."""
+    accepted for its callers: the model is the routing's (`config/v2.py`), and `lists=False` (a list's own step) keeps
+    the task-list door shut so a step never opens another list."""
     from voice import attention
     from voice import observer
     text = (text or "").strip()
@@ -131,7 +134,10 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     attention.note_typed(text=text)          # a typed line: directed, complete, never ambient
     n0 = len(observer._events)
     t0 = time.time()
-    policy = consequence.recorded() if execute else consequence.dry_turn(ingest=ingest)
+    if model:
+        logger.info(f"cli.turn: model override {model!r} ignored — the voice turn takes its model from the routing")
+    policy = (consequence.recorded(closed=() if lists else ("tasks.intake",)) if execute
+              else consequence.dry_turn(ingest=ingest))
     try:
         with policy as ledger:
             reply = await _drive(brain, text)

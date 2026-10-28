@@ -6,14 +6,10 @@ verdicts Jev would have returned, seeds the screen and the memory the turn needs
 question: given all that, what did you DECIDE? The answer is a line of a small grammar (`DECISIONS`) and the
 judge compares it to the line the case expects. Every case is deterministic or it is not in the bank.
 
-WHICH CHANNEL. The turn runs through `nucleo.flash.probe.run_turn`, the headless channel the use cases and
-the agent-headless corpus already drive: the real prompt, the real fast lanes (action map, presence, small
-talk), the real guards and the real decision seam, with `execute=False` so nothing spawns a worker or moves a
-card for real. The voice provider is a parallel implementation of the same turn (V2-539's standing lesson);
-the bank runs on the channel that can run headless TODAY, and joins the voice adapter the day B2 hands both
-channels to `nucleo/turn/`. Until then a case green here says «the shared seam decided right», and the
-wiring guards (`tests/agent_headless/unit/actionmap/…`) keep the two channels honest about carrying the
-same seam.
+WHICH CHANNEL. The turn runs through `nucleo.cli.turn.run_turn` — the VOICE turn itself, typed and dry
+(refactor2710-01): the real prompt, the real fast lanes, the real guards and the real decision seam, with every
+consequence door closed (`nucleo/consequence.py`) so nothing spawns a worker or moves a card for real. There is no
+second implementation of the turn any more, so a case green here is the microphone's turn deciding right.
 
 ISOLATION. Everything the turn touches is redirected before the first import that would cache a path:
 `ZAELAR_WORKSPACE`, `ZAELAR_DB`, the widget store's data dir, the observer's log dir, the language, and the
@@ -126,7 +122,7 @@ class Outcome:
     case_id: str
     decision: str = ""
     also: list[str] = field(default_factory=list)   # secondary mutations the turn also produced
-    action: str = ""                                # the probe's raw action string
+    action: str = ""                                # the typed channel's action string
     tool_calls: list = field(default_factory=list)
     tags: list = field(default_factory=list)
     reply: str = ""
@@ -184,7 +180,7 @@ def _widget_data_target(tool_calls: list) -> tuple[str, str]:
 
 
 def decision_of(res: dict, tool_calls: list) -> str:
-    """Map the probe's action vocabulary onto the bank's grammar. Unknown actions come back verbatim, so a
+    """Map the typed channel's action vocabulary onto the bank's grammar. Unknown actions come back verbatim, so a
     new mechanism shows up as a red case with its own name rather than as a silent `talk`."""
     a = str(res.get("action") or "")
     if a == "chat":
@@ -354,15 +350,15 @@ class Isolated:
             from nucleo import scheduler
             self._set(scheduler, "create", lambda prompt, stamp, name="": {"ok": True, "id": "bank-job"})
             self._set(scheduler, "cancel", lambda ref: None)
-            from nucleo.flash import fast_client, turn_brief, show_target, probe
+            from nucleo.flash import fast_client, turn_brief
             if self.live:
                 self._go_live()
             else:
                 self._set(fast_client, "FastClient", RecordedModel)
                 self._set(turn_brief, "ask_for_turn", lambda *a, **k: self._handle)
                 self._set(turn_brief, "ask", lambda *a, **k: self._handle)
-                self._set(show_target, "ask_canvas_async", lambda *a, **k: None)
-            probe._SESSIONS.clear()
+            from nucleo.cli import turn as cli_turn
+            cli_turn.reset()
         except Exception:
             self.__exit__(None, None, None)
             raise
@@ -390,8 +386,8 @@ class Isolated:
 
     def __exit__(self, *_exc) -> None:
         try:
-            from nucleo.flash import probe
-            probe._SESSIONS.clear()
+            from nucleo.cli import turn as cli_turn
+            cli_turn.reset()
         except Exception:  # noqa: BLE001
             pass
         for obj, name, old in reversed(self._patched):
@@ -470,43 +466,29 @@ def _a_model_turn(event: dict) -> bool:
     return str(event.get("label") or "").startswith("🧾 turno") and int(event.get("system_chars") or 0) > 0
 
 
-def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False, channel: str = "probe") -> Outcome:
+def run_case(case: dict, *, timeout_s: float = 60.0, live: bool = False) -> Outcome:
     """One case, fully isolated, through the headless turn. Never raises for a product failure: the
     outcome carries it, so a run over the whole bank reports every red instead of stopping at the first."""
     import time as _time
     out = Outcome(case_id=case["id"], live=live)
     with Isolated(case["lang"], live=live) as iso:
         iso.seed(case)
-        from nucleo.flash import probe
         from voice import observer
         n0 = len(observer._events)
         t0 = _time.time()
         sid = f"bank:{case['id']}"
-        # `channel`: "probe" is the text channel's own turn; "pipeline" is the voice turn driven typed and dry
-        # (`nucleo/cli/turn.py`, refactor2710-01) — the bank measures both until the probe is retired.
         from nucleo.cli import turn as cli_turn
-        if channel == "pipeline":
-            run_turn, window = cli_turn.run_turn, None
-            if case.get("history"):
-                brain = cli_turn._brain(sid)
-                window = brain._window
-                brain._seeded = True
-        else:
-            run_turn, window = probe.run_turn, None
-            if case.get("history"):
-                sess = probe._session(sid, execute=False)
-                window = sess.window
-                sess.seeded = True
-        if window is not None:                          # the turns before this one, as the conversation window holds them
-            window[:] = [{"role": t["role"], "content": t["text"]} for t in case["history"]]
+        if case.get("history"):                         # the turns before this one, as the conversation window holds them
+            brain = cli_turn._brain(sid)
+            brain._window[:] = [{"role": t["role"], "content": t["text"]} for t in case["history"]]
+            brain._seeded = True
         try:
             res = asyncio.run(asyncio.wait_for(
-                run_turn(case["phrase"], sid=sid, ingest=False, execute=False), timeout_s))
+                cli_turn.run_turn(case["phrase"], sid=sid, ingest=False, execute=False), timeout_s))
         except Exception as e:  # noqa: BLE001
             out.error = f"{type(e).__name__}: {e}"[:300]
             res = {}
         finally:
-            probe._SESSIONS.pop(sid, None)
             cli_turn.reset(sid)
         out.ms = (_time.time() - t0) * 1000
         out.events = [dict(e) for e in observer._events[n0:]]

@@ -16,7 +16,7 @@ def _case(cid):
 
 
 def test_a_recorded_case_decides_on_the_voice_turn():
-    out = H.run_case(_case("demo-v7-stop-it-and-close-the-video"), channel="pipeline")
+    out = H.run_case(_case("demo-v7-stop-it-and-close-the-video"))
     assert not out.error and out.decision == "close youtube", (out.decision, out.error)
 
 
@@ -42,5 +42,5 @@ def test_the_typed_turn_builds_no_livekit_stream(monkeypatch):
     def _no_stream(*_a, **_k):
         raise AssertionError("the typed channel built a LiveKit stream")
     monkeypatch.setattr(nucleo.NucleoLLMStream, "__init__", _no_stream)
-    out = H.run_case(_case("demo-v7-stop-it-and-close-the-video"), channel="pipeline")
+    out = H.run_case(_case("demo-v7-stop-it-and-close-the-video"))
     assert not out.error and out.decision == "close youtube", (out.decision, out.error)

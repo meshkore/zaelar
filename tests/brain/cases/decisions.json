@@ -3,7 +3,7 @@
   "id": "v2-754-vuelve-al-dashboard-verdict-vs-model",
   "lang": "es",
   "phrase": "Vuelve al dashboard, quiero seguir viendo el catálogo",
-  "source": "decision log V2-754: brief `show_tab` 0.96 ✓, the model `play_item` on a non-existent item ✗ → «¿a cuál te refieres?»",
+  "source": "decision log V2-754: brief `show_tab` 0.96 ✓, the model `play_item` on a non-existent item ✗ → «¿a cuál te refieres?» · green on the voice turn (refactor2710-01)",
   "screen": {
    "open": [
     "youtube"
@@ -32,8 +32,7 @@
   "forbid": [
    "worker",
    "second-card"
-  ],
-  "open": "V2-776 B1: the model's own call wins over a sure verdict on the same card (V2-754 wrote «the verdict completes, never contradicts» — B1 decides the precedence once)"
+  ]
  },
  {
   "id": "v2-755-vuelve-al-inicio-al-catalogo",
@@ -246,7 +245,7 @@
   "id": "v2-567-cierra-los-mensajes-y-ensename-la-agenda",
   "lang": "es",
   "phrase": "cierra los mensajes y enséñame la agenda",
-  "source": "V2-567 / V2-688: a compound turn — the open verb licenses the show AND the close still closes the named card",
+  "source": "V2-567 / V2-688: a compound turn — the open verb licenses the show AND the close still closes the named card · green on the voice turn (refactor2710-01)",
   "screen": {
    "open": [
     "mensajeria"
@@ -269,7 +268,6 @@
   ],
   "forbid": [
    "worker"
-  ],
-  "open": "V2-776 B2: the probe channel reports ONE action and its close backstop overwrites the model's show — a compound turn cannot be judged until both channels share a decision step that can say two things"
+  ]
  }
 ]

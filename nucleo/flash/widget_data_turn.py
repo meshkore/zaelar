@@ -41,30 +41,6 @@ def _primera_clave(widget_id: str, action: str) -> str:
     return ""
 
 
-def plan_dry(tool_calls: list, text: str = "", brief=None) -> None:
-    """A DRY turn reports each data-op as `execute` would run it: the same `verdict_card.retarget`, in place.
-
-    The decision bank and the live bench run with `execute=False` and judge the reported calls; without this they
-    measured the model's raw call and never the engine's own resolution (`ordered_send`, `reply_or_forward`, the
-    verdict's view on the card in front) — a rule could be right and its measure blind to it (2026-10-15)."""
-    try:
-        from voice import brain_notes as _bn
-        from nucleo.flash import verdict_card as _vcard
-        order = _bn.operator_half(text or "")
-        for t in tool_calls or []:
-            if t.get("name") != "widget_data":
-                continue
-            a = t.get("args") or {}
-            pl = a.get("payload") if isinstance(a.get("payload"), dict) else {}
-            wid, act, pl2 = _vcard.retarget(brief, str(a.get("widget_id") or "").strip().lower(),
-                                            str(a.get("action") or "").strip(), pl, order)
-            act, pl2 = __import__("widgets.row_lens", fromlist=["x"]).retarget(wid, act, pl2, order)
-            if (wid, act) != (str(a.get("widget_id") or "").strip().lower(), str(a.get("action") or "").strip()):
-                t["args"] = {**a, "widget_id": wid, "action": act, "payload": pl2}
-    except Exception:  # noqa: BLE001 — a dry report keeps the model's calls
-        pass
-
-
 async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
     """Dispatch the turn's data-ops and return the report, or say which was skipped and WHY.
 
@@ -222,41 +198,6 @@ async def execute(tool_calls: list, text: str = "", brief=None) -> dict:
 
 
 _YT_LINK = None  # compiled lazily below
-
-
-def complete_pasted_links(tool_calls: list, operator_text: str) -> list:
-    """The links the operator PASTED all travel (V2-469, `build-a-video-playlist` 23:17): two links in one
-    message, the model's single `add` carried one — «Hecho» over half the errand, and the user had to
-    correct it. The multi-link add already works (V2-384 bis); what failed was the payload. The links are
-    the operator's own words verbatim, so appending the ones his turn carries invents nothing. Narrow on
-    purpose: only youtube `add`, only links present in THIS turn's text, no-op everywhere else.
-    """
-    global _YT_LINK
-    import re as _re
-    if _YT_LINK is None:
-        _YT_LINK = _re.compile(r"https?://(?:www\.)?(?:youtube\.com/watch\?v=|youtu\.be/)([0-9A-Za-z_-]{11})\S*")
-    text = str(operator_text or "")
-    pasted = [(m.group(0), m.group(1)) for m in _YT_LINK.finditer(text)]
-    if not pasted or not isinstance(tool_calls, list):
-        return tool_calls
-    adds = [t for t in tool_calls
-            if isinstance(t, dict) and t.get("name") == "widget_data"
-            and str(((t.get("args") or {}).get("widget_id") or "")).strip().lower() == "youtube"
-            and str(((t.get("args") or {}).get("action") or "")).strip() == "add"]
-    if not adds:
-        return tool_calls
-    covered = " ".join(
-        str(((t.get("args") or {}).get("payload") or {}).get(k) or "")
-        for t in adds for k in ("url", "urls", "query", "item")) + " ".join(
-        str((t.get("args") or {}).get("item") or "") for t in adds)
-    faltan = [url for url, vid in pasted if vid not in covered]
-    if not faltan:
-        return tool_calls
-    args = adds[0].get("args") or {}
-    pl = dict(args.get("payload") if isinstance(args.get("payload"), dict) else {})
-    pl["url"] = (str(pl.get("url") or "").strip() + " " + " ".join(faltan)).strip()
-    adds[0]["args"] = {**args, "payload": pl}
-    return tool_calls
 
 
 def _selector(pl: dict) -> str:

@@ -48,10 +48,6 @@ def under(step_row_id: str):
     return _PARENT.set(str(step_row_id or ""))
 
 
-def step_parent(_sid: str = "") -> str:
-    return _PARENT.get()
-
-
 def begin(text: str, *, parent: str = "", origin: str = "voz", trace: str = "") -> None:
     """This turn is about these words. No row yet — only an op opens one."""
     t = " ".join(str(text or "").split())

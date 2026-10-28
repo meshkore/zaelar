@@ -210,11 +210,3 @@ def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict
         logger.debug(f"stop_decision: steer not relayed: {e!r}")
         return ""
 
-
-def text_action(brief, *, grammar: bool) -> str:
-    """The text channel's backstop over a live errand, the voice doors' twin: "stop_worker" when he ordered it ended
-    (stop or replace — the grammar only without a sure verdict), "send_to_worker" when a sure `steer` has ONE errand
-    to reach, "" otherwise."""
-    if ordered(brief, grammar=grammar):
-        return "stop_worker"
-    return "send_to_worker" if steers(brief) and steer_target() else ""

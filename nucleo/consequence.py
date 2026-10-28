@@ -118,11 +118,16 @@ def dry_turn(*, ingest: bool = True):
 
 
 @contextmanager
-def recorded():
-    """A live turn whose consequences are recorded (nothing closed): the text channel with `execute=True`."""
+def recorded(*, closed=()):
+    """A live turn whose consequences are recorded: the text channel with `execute=True`. `closed` names the doors
+    that still stay shut (a list's own step must not open another list: `tasks.intake`)."""
+    for name in closed:
+        if name not in DOORS:
+            raise KeyError(f"undeclared consequence door: {name!r}")
     ledger: list = []
-    t = _ledger.set(ledger)
+    t1, t2 = _blocked.set(frozenset(closed)), _ledger.set(ledger)
     try:
         yield ledger
     finally:
-        _ledger.reset(t)
+        _blocked.reset(t1)
+        _ledger.reset(t2)

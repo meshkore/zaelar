@@ -78,14 +78,6 @@ def asleep_line(window=None, lang=None) -> str:
     return again if (said and said[-1] == first) else first
 
 
-def over_an_escalation(spoken: str, window=None) -> str:
-    """An escalation turn while the chain sleeps: whatever the model wrote about starting the errand is false
-    (the dispatcher refuses it), so the turn says the asleep sentence — unless it already names the quota."""
-    if spoken and _QUOTA_WORD_RE.search(spoken):
-        return spoken
-    return asleep_line(window) or spoken
-
-
 def said_recently(now: float | None = None) -> bool:
     return ((now or time.time()) - _SAID["at"]) <= SAID_WINDOW_S
 

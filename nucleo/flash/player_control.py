@@ -159,25 +159,6 @@ def commissioned(brief, args) -> bool:
         return False
 
 
-def probe_music(req: dict, tool_calls: list, *, brief, text: str = "", tags: list | None = None) -> dict:
-    """`probe_route` for the text channel's `play_music` branch, shaped as the locals it binds: always `action`
-    and `music_req` (None when the music is not touched), plus `spoken` only when the reply changes.
-
-    A stop/pause of the music card his words told to CLOSE («cierra la música») is that card's close
-    (`card_close.player_close`): the close tag joins the turn's tags, as the close backstop's would."""
-    from nucleo.flash import card_close as _card_close
-    req = req if isinstance(req, dict) else {}
-    card = _card_close.player_close("play_music", str(req.get("action") or ""), text)
-    if card:
-        if tags is not None:
-            tags.append({"action": "close", "extra": {"id": card, "named": True}})
-        return {"action": f"canvas:close:{card}", "music_req": None, "spoken": ""}
-    if commissioned(brief, req):
-        return {"action": "escalate", "music_req": None}      # the voice turn's twin (`_t_play_music`, V2-794)
-    routed = probe_route("play_music", req, tool_calls, brief=brief, text=text)
-    return {"action": "music", "music_req": req} if not routed else {**routed, "music_req": None}
-
-
 def open_player_owns(card: str, operator_text: str, *, open_ids=None) -> str:
     """The card a late catalogue answer acts on when it named a CLOSED player while ANOTHER player is open.
 

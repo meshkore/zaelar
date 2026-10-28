@@ -19,12 +19,3 @@ from __future__ import annotations
 #: The media tools whose `canvas:show:<card>` action is the execution itself, and the card each one fills.
 TOOL_SHOWS = {"show_images": "imagenes", "play_video": "youtube"}
 
-
-def carries_media_request(action: str, names) -> bool:
-    """Is this `canvas:show:<card>` the one a media tool the model called will fill? Then it is the act, not a
-    canvas gesture, and no repair may demote it."""
-    a = str(action or "")
-    if not a.startswith("canvas:show:"):
-        return False
-    card = a.split(":", 2)[2].split("::", 1)[0].strip().lower()
-    return any(TOOL_SHOWS.get(str(n or "")) == card for n in (names or []))

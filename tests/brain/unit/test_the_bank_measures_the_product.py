@@ -4,8 +4,8 @@ Three disarms, each against a real rung of today's decision, each restored in `f
 
 1. the ACTION MAP off → the phrases a deterministic lane owns fall to the (recorded) model, and the cases
    that forbid a model consultation fail;
-2. the «a close order is never answered with a show» guard off → «Stop it and close the video widget»
-   decides `show youtube` again, the exact v5 demo defect;
+2. the action map AND the close grammar off → «Stop it and close the video widget» decides `show youtube`
+   again, the exact v5 demo defect;
 3. the recorded BRIEF ignored → «Vale, para el vídeo.» with the model calling nothing decides `talk`,
    which is the turn the operator had to repeat.
 
@@ -40,21 +40,19 @@ def test_a_map_phrase_goes_red_when_the_map_is_switched_off():
 
 
 def test_the_close_case_goes_red_only_when_both_of_its_defenders_are_disarmed(monkeypatch):
-    """Measured while building the bank (2026-09-27): disarming `show_contradicts_the_order` ALONE left
-    the V7 case green, because the close BACKSTOP (`looks_like_close` + the named card) closes the video
-    anyway. Two rungs defend one sentence and neither knows about the other — the layered brain V2-776
-    exists to compact, seen on the bank's first day. So this disarm knocks out both, and the first
-    assertion pins the layering itself: the day one defender is retired (B3), it has to be updated to say
-    which one is left, which is the point of retiring guards against the bank."""
-    from nucleo.flash import router
+    """«Stop it and close the video widget» is defended twice on the voice turn (refactor2710-01: the bank runs on
+    it): the stop's remainder reaches the ACTION MAP, which closes the card without the model; with the map off the
+    recorded model's `show_widget youtube` meets the CLOSE GRAMMAR (`close_guards.looks_like_close`, read by
+    `canvas_license`), which keeps the close. Disarming one leaves it green — the layering the compaction exists to
+    remove; the first assertion pins it, so the day one defender is retired this proof says which is left."""
+    from nucleo.flash import canvas_license, close_guards
     case, before = _run("demo-v7-stop-it-and-close-the-video")
     assert before.failures(case) == [], before.as_dict()
-
-    monkeypatch.setattr(router, "show_contradicts_the_order", lambda text: False)
+    monkeypatch.setenv("ZAELAR_ACTIONMAP", "0")
     _, one_down = _run("demo-v7-stop-it-and-close-the-video")
-    assert one_down.failures(case) == [], "the close backstop no longer covers for the guard — B3 moved; update this proof"
-
-    monkeypatch.setattr(router, "looks_like_close", lambda text: False)
+    assert one_down.failures(case) == [], "the close grammar no longer covers for the action map — update this proof"
+    monkeypatch.setattr(close_guards, "looks_like_close", lambda text: False)
+    monkeypatch.setattr(canvas_license, "looks_like_close", lambda text: False)
     _, both_down = _run("demo-v7-stop-it-and-close-the-video")
     why = both_down.failures(case)
     assert why, "both defenders gone and the case stayed green — the bank measured nothing"

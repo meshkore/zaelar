@@ -31,7 +31,7 @@
   "id": "session-3a9a082c-close-the-weekend",
   "lang": "en",
   "phrase": "Close the weekend.",
-  "source": "operator session (anonymised) turn #24: nothing called «the weekend» was open and the engine CLOSED the video; the next turn he said «Not weekend» and the model explained the only card was the video",
+  "source": "operator session (anonymised) turn #24: nothing called «the weekend» was open and the engine CLOSED the video; the next turn he said «Not weekend» and the model explained the only card was the video · green on the voice turn (refactor2710-01)",
   "screen": {
    "open": [
     "youtube"
@@ -45,8 +45,7 @@
   "forbid": [
    "close",
    "worker"
-  ],
-  "open": "V2-776 B1: a short close order naming a card that is NOT open closes the only card that is — the bank reproduces the session verbatim"
+  ]
  },
  {
   "id": "session-3a9a082c-open-my-messages",

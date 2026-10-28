@@ -1,14 +1,15 @@
-"""nucleo/flash/probe_api.py — HTTP surface of the FlashBrain probe channel (V2-098 split).
+"""The typed channel's HTTP face: `POST /api/flash/say` and `/api/flash/reset` over `nucleo.cli.turn`.
 
-Extracted from nucleo/flash/probe.py: a thin FastAPI wrapper around `run_turn`/`_session`/`_SESSIONS`, which stay
-in probe.py (the core the voice provider mirrors). probe.py re-exports `router` so the one mount point
-(`server/__init__.py`: `from nucleo.flash.probe import router as flash_probe_router`) keeps working unchanged.
+A line typed through the API runs the VOICE turn itself (`cli/turn.py`); this module only adds what belongs to the
+HTTP edge — the first-run language lock and the chat wall. Mounted by `server/__init__.py` (refactor2710-01: it was
+`nucleo/flash/probe_api.py`, over the text channel's own turn, which is gone).
 """
 from __future__ import annotations
 
 from fastapi import APIRouter, Body
+from loguru import logger
 
-from nucleo.flash.probe import _session, _SESSIONS, run_turn
+from nucleo.cli.turn import _brain, reset as _reset_session, run_turn
 
 router = APIRouter()
 
@@ -44,8 +45,8 @@ def _wall(role: str, text: str) -> None:
         emit("brain", "💬 chat (canal de texto)", text=text[:4000],
              role="user" if role == "user" else "assistant",
              extra={"cat": "flash", "wall": "you" if role == "user" else "agent"})
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"cli.api: chat wall line not emitted: {e!r}")
 
 
 @router.post("/api/flash/say")
@@ -71,8 +72,8 @@ async def say(text: str = Body(..., embed=True), session: str = Body("default", 
     try:
         from i18n.init import detect as _lang_detect
         _lang_detect.ensure_for_text(text)
-    except Exception:
-        pass
+    except Exception as e:  # noqa: BLE001 — the line still runs; only the first-run guess is skipped
+        logger.debug(f"cli.api: first-run language not locked: {e!r}")
     # TO THE WALL, before anything else: the turn may take seconds and the operator must see the request now.
     # If it were rendered at the end, the screen would be silent while the agent works — exactly when it is watched.
     _wall("user", text)
@@ -88,7 +89,7 @@ async def say(text: str = Body(..., embed=True), session: str = Body("default", 
         from nucleo.flash.prompt import build_flash_system, needs_recall
         from nucleo.turn import recall_budget as _recall
         _rb, _ = await _recall.compose(text if needs_recall(text) else "")
-        sys_txt, _ = build_flash_system(directive=_session(session).directive,
+        sys_txt, _ = build_flash_system(directive=_brain(session)._directive,
                                         recall_block=_rb, turn_text=text)
         res["prompt"] = sys_txt
     return res
@@ -101,5 +102,5 @@ async def reset(session: str = Body("default", embed=True)) -> dict:
     # first turn of the new window. It does not run on the physical voice hot path.
     from nucleo.flash import memory_cache
     await memory_cache.refresh()
-    _SESSIONS.pop(session or "default", None)
+    _reset_session(session or "default")
     return {"ok": True, "session": session or "default"}
