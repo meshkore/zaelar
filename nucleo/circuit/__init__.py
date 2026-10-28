@@ -71,7 +71,7 @@ def tick(now: float | None = None) -> list[dict]:
             out = _spec.attest(e, now=now)
             if out is True:
                 closed.append(e)
-                _settle_row(e, "met")
+                settle(e, verdict="met", now=now)
             elif out is False and not e.get("task_id") and now - float(e.get("born") or now) >= INLINE_GRACE_S:
                 _settle_unmet_inline(e, now)
                 closed.append(e)
@@ -80,14 +80,40 @@ def tick(now: float | None = None) -> list[dict]:
     return closed
 
 
-def _settle_row(e: dict, verdict: str, outcome: str = "") -> None:
-    """The request row this inline spec belongs to (V2-776 M1) ends with the same verdict."""
-    if e.get("row"):
-        try:
-            from nucleo.request import model as _rq
-            _rq.settle(str(e["row"]), verdict, outcome)
-        except Exception:  # noqa: BLE001
-            pass
+def settle(entry: dict | None = None, *, row: str = "", verdict: str, outcome: str = "",
+           now: float | None = None) -> None:
+    """The ONE writer of «done»: a spec entry's status, its request row and ONE `verdict` event (readers only read)."""
+    v = _verdict.of(verdict)
+    if v is None or not v.ending:
+        logger.warning(f"circuit: {verdict!r} is not an ending — nothing is settled with it")
+        return
+    try:
+        if entry is not None:
+            entry["status"], entry["met_at"] = v.name, time.time() if now is None else now
+            if entry.get("task_id"):
+                from nucleo.circuit import spec as _spec
+                _spec.persist(entry["task_id"], entry)
+        uid = str(row or (entry or {}).get("row") or "")
+        if uid:
+            _settle_row(uid, v, outcome)
+        elif entry is not None:
+            _verdict.emit(v, text=outcome, trace=str(entry.get("trace") or ""), source=str(entry.get("source") or ""))
+    except Exception as e:  # noqa: BLE001 — a record that could not be written never breaks the turn
+        logger.warning(f"circuit: could not settle {v.name} — {type(e).__name__}: {e}")
+
+
+def _settle_row(uid: str, v, outcome: str) -> None:
+    from nucleo.circuit import ledger as _ledger      # the row ends with the verdict, and a failed one never improves
+    _ts = _ledger.store()
+    row = _ts.task_get(uid)
+    if row is None:
+        return
+    if _verdict.keeps(row.get("verdict"), v.name):
+        return                                   # a failed op in this request is not undone by a later good one
+    _ts.task_patch(uid, state=v.row_state, verdict=v.name, finished_at=int(time.time()),
+                   outcome=(outcome or str(row.get("outcome") or ""))[:300])
+    _verdict.emit(v, text=outcome or str(row.get("outcome") or ""), trace=str(row.get("trace_id") or ""), uid=uid,
+                  row_kind="inline")
 
 
 def _say_now(e: dict, missing: str) -> bool:
@@ -130,8 +156,7 @@ def _settle_unmet_inline(e: dict, now: float) -> None:
     is told what is missing, so it cannot say «done» over it."""
     from nucleo.circuit import verify as _verify
     missing = "; ".join(_verify.missing(e.get("done_when"), now)) or "el objetivo declarado no se cumple"
-    e["status"], e["met_at"] = "unmet", now
-    _settle_row(e, "unmet", missing)
+    settle(e, verdict="unmet", outcome=missing, now=now)
     try:
         from nucleo.circuit import spec as _spec
         _spec._emit("❌ spec: SIN cumplir tras el plazo — se le dice al modelo", e, missing=missing[:300])
@@ -179,8 +204,6 @@ def _emit(rec, verdict: str, *, missing: str = "", tries: int = 0) -> None:
                     "tries": tries, "missing": missing[:300], "cat": "circuit"})
     except Exception:  # noqa: BLE001
         pass
-    _verdict.emit(_verdict.of(verdict) or _verdict.UNDECLARED, text=missing, trace=str(getattr(rec, "trace_id", "") or ""),
-                  uid=str(getattr(rec, "uid", "") or ""), tries=tries)
 
 
 def verdict_of(rec, now: float | None = None) -> tuple[str, str]:
@@ -276,17 +299,18 @@ def _close(rec, relay_cap: int) -> str:
             # cada iteración»): the relaunch is PARKED on his answer through the confirm-gate's own register, so
             # his «sí» — with whatever he adds — is what launches it, and silence lets it expire.
             if entry is not None:
-                entry["status"], entry["tries_left"] = "unmet", 0
+                entry["tries_left"] = 0
                 if bool(settings().get("ask_on_give_up", True)) and not entry.get("asked"):
                     if _park_retry(rec, missing):
                         entry["asked"] = True
                         rec.result_summary += " " + RETRY_QUESTION
-                _spec.persist(entry["task_id"], entry)
-    elif verdict == "met" and entry is not None and entry.get("status") == "started":
-        entry["status"], entry["met_at"] = "met", time.time()
-        _spec.persist(entry["task_id"], entry)
     rec.verdict = verdict
     _emit(rec, verdict, missing=missing, tries=tries)
+    if entry is not None and (verdict == "unmet" or (verdict == "met" and _verdict.of(entry.get("status")) is _verdict.STARTED)):
+        settle(entry, verdict=verdict, outcome=missing)          # the entry, persisted, and its one verdict event
+    else:
+        _verdict.emit(_verdict.of(verdict) or _verdict.UNDECLARED, text=missing,
+                      trace=str(getattr(rec, "trace_id", "") or ""), uid=str(getattr(rec, "uid", "") or ""), tries=tries)
     return verdict
 
 

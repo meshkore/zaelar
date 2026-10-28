@@ -207,8 +207,8 @@ def _settle_inline_after_restart(uid: str, now: float) -> int:
         from nucleo.circuit import spec as _spec
         e = _spec.of_task(uid)
         if e and _spec.attest(dict(e), now=now) is True:
-            from nucleo.request import model as _rq
-            _rq.settle(uid, "met")
+            from nucleo import circuit as _circuit
+            _circuit.settle(row=uid, verdict="met")
             return 1
     except Exception as ex:  # noqa: BLE001 — an unreadable spec is just an interrupted request
         logger.debug(f"tasks: inline spec of {uid} not readable after restart ({ex})")
@@ -575,6 +575,12 @@ def store():
     (`nucleo/batch`, V2-771). Handed out from here so `memory.tasks_store` keeps one production importer
     (the memory boundary ratchet counts exactly that)."""
     return _ts
+
+
+def recent(*, since: float, limit: int, exclude_kinds: tuple = ()) -> list[dict]:
+    """What he asked lately and how it ended, newest first: the ONE reader a question about an errand is answered from."""
+    return _ts.tasks_where(states=_ts.LIVE_STATES + _ts.DONE_STATES, modes=("now",), visible_only=True, limit=limit,
+                           newest_first=True, exclude_kinds=exclude_kinds, since=since)
 
 
 def search(query: str, limit: int = 5) -> list[dict]:

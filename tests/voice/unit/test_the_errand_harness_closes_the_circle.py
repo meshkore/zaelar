@@ -91,10 +91,9 @@ def test_promises_and_negations_are_not_claims(txt):
 
 # ── the ledger and the verifier ─────────────────────────────────────────────────────────────────────────
 def _fake_view(monkeypatch, views: dict, opened: set | None = None):
-    async def _view(wid):
-        return views.get(wid)
-    monkeypatch.setattr(harness, "_widget_view", _view)
-    monkeypatch.setattr(harness, "_card_is_open", lambda wid: (wid in opened) if opened is not None else None)
+    from nucleo.circuit import verify
+    monkeypatch.setattr(verify, "card_view", lambda wid: views.get(wid))
+    monkeypatch.setattr(verify, "card_on_screen", lambda wid: (wid in opened) if opened is not None else None)
 
 
 def test_a_goal_is_born_once_per_target_and_expires():

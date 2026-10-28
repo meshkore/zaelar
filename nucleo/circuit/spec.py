@@ -359,9 +359,7 @@ def attest(e: dict | None, *, now: float | None = None) -> bool | None:
         out = None
     e["last"] = out
     if out is True:
-        e["status"] = "met"
-        e["met_at"] = time.time() if now is None else now
-        _emit("✅ spec: cumplida", e)
+        _emit("✅ spec: cumplida", e)   # what it READ; whoever acts on it settles (`circuit.settle`)
     elif out is False:
         _emit("❌ spec: sin cumplir todavía", e, missing="; ".join(_verify.missing(e.get("done_when"), now))[:300])
     elif e.get("last_seen") != "unreadable":
