@@ -10,7 +10,8 @@ import pytest
 
 from memory import db as memdb
 from memory import tasks_store as ts
-from nucleo import scheduler, tasks as T
+from nucleo import scheduler
+from nucleo.circuit import ledger as T
 
 
 
@@ -88,7 +89,7 @@ def test_cancelling_a_recurring_job_says_cancelled_not_done(fresh_db):
 def test_the_jobs_that_existed_BEFORE_the_board_are_put_on_it(fresh_db, monkeypatch):
     """The reconcile at startup. Without it a weekly reminder created last month is invisible for a week —
     a “Periódicas” tab that lies by being empty, which is the worst way for this to fail."""
-    import nucleo.tasks as _t
+    import nucleo.circuit.ledger as _t
     monkeypatch.setattr(_t, "scheduled_mirrored", lambda *_a, **_k: None)   # the board did not exist yet
     scheduler.create("mira los conciertos", "every 7d", name="conciertos")
     scheduler.create("llama al dentista", _FUTURE, name="dentista")

@@ -1,4 +1,4 @@
-"""nucleo/tasks.py — the SessionRecord ↔ durable task row seam (V2-728).
+"""nucleo/circuit/ledger.py — the SessionRecord ↔ durable task row seam (V2-728).
 
 One place that knows how a live Brain Worker session becomes a row in `tasks`, because the two vocabularies
 do not match and a translation written twice comes to differ. `memory/tasks_store.py` stores; this decides.
@@ -111,7 +111,7 @@ def opened(rec, ctx: dict | None = None) -> str:
     # V2-776 L1 — the errand's END STATE is born here, where every commission is recorded: opened and persisted
     # when the escalation brought it, asked for once when it did not, and told to the worker either way.
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         _spec.born(rec, ctx)
     except Exception:  # noqa: BLE001
         pass
@@ -172,7 +172,7 @@ def ended_early(rec, *, state: str, outcome: str = "") -> None:
 #: A worker commission's durable id: `<boot_id>-<seq>` (see `task_uid`). Lists, errands and scheduled jobs
 #: have their own namespaced ids and their own owners, so the reconciler never touches them.
 _WORKER_UID = re.compile(r"^([0-9a-f]{6})-\d+$")
-#: An inline request's row (`nucleo/request_row.py`): `<boot_id>-i<seq>`.
+#: An inline request's row (`nucleo/request/model.py`): `<boot_id>-i<seq>`.
 _INLINE_UID = re.compile(r"^([0-9a-f]{6})-i\d+$")
 
 
@@ -213,10 +213,10 @@ def _settle_inline_after_restart(uid: str, now: float) -> int:
     copy on the row — met if the screen shows it now, otherwise closed as interrupted. No voice: whatever this
     was about, the operator is in a different moment now, and a spoken correction would be about nothing."""
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         e = _spec.of_task(uid)
         if e and _spec.attest(dict(e), now=now) is True:
-            from nucleo import request_row as _rq
+            from nucleo.request import model as _rq
             _rq.settle(uid, "met")
             return 1
     except Exception as ex:  # noqa: BLE001 — an unreadable spec is just an interrupted request
@@ -511,15 +511,15 @@ def interrupted(entry: dict) -> None:
     # The row the errand REALLY has: after a restart `task_uid(tid)` names the NEW boot's row, not this one.
     uid = str((entry or {}).get("uid") or "").strip() or task_uid(tid)
     now = int(time.time())
+    said = "interrumpido por un reinicio del motor" + (f" — {entry['why']}" if entry.get("why") else "")   # F6
     if _ts.task_get(uid) is None:
         _ts.task_put({"id": uid, "title": str(entry.get("goal") or ""), "goal": str(entry.get("goal") or ""),
                       "kind": str(entry.get("kind") or "generic"), "mode": "now", "state": "failed",
                       "visible": True, "origin": "voz", "created_at": int(entry.get("started_at") or now),
                       "started_at": int(entry.get("started_at") or 0) or now, "finished_at": now,
-                      "outcome": "interrumpido por un reinicio del motor"})
+                      "outcome": said})
         return
-    _ts.task_patch(uid, state="failed", finished_at=now,
-                   outcome="interrumpido por un reinicio del motor")
+    _ts.task_patch(uid, state="failed", finished_at=now, outcome=said)
 
 
 def board_cleared() -> int:

@@ -1,26 +1,13 @@
-"""nucleo/circuit/ — one loop, one bound, one report (V2-776 L3).
+"""nucleo/circuit/ — what «done» means for a request, owned in one place (V2-776 L3, refactor2710-02).
 
-## What this replaces
+  · `verdict.py` — the one vocabulary a request ends in; `spec.py` — its end state (inline actions and errands);
+  · `verify.py` — the readers of the product's truth; `harness.py` — the card-content goals a reply claims;
+  · `ledger.py` — the durable task rows; `deliverable.py` — an errand opens only its deliverable;
+  · here — the pulse and a worker's ending: re-verify every open spec, JUDGE an ending (never the worker's word),
+    relaunch within the operator's bound (genesis `circuit.retries`), and say the VERDICT.
 
-Three fragments verified an end state, each with its own owner, clock and cap, none of them the path a
-request takes (four read-only maps of the brain, 2026-09-29):
-
-  · `nucleo/harness.py` (V2-660): one goal kind, in RAM, 300 s, re-verified by the pulse, never retried;
-  · `nucleo/workers/goal.py` (V2-707 F2): the worker's own `done_when`, checked once in `_finish`; the retry
-    bound was `goal_retried` on a record every relay rebuilds — so the real cap was `relay_gen < 2`, shared
-    with the context and provider relays; `None` ended on the worker's `ok` and was spoken as «It is done»;
-  · `nucleo/errands/verify.py` (V2-683): one hand-written condition for third-party errands.
-
-## What this is
-
-The pulse re-verifies every open spec (`nucleo/spec.py`'s ledger — inline actions and errands alike); a
-worker's ending is JUDGED here, not by its own word; the retry bound is explicit, its own, and the operator's
-to set (genesis `circuit.retries`, overridable per install); an ending that cannot be read is a verdict of its
-own («unverifiable») that the mouth says as such; and what the operator hears at the end is the VERDICT:
-«done» only over `met`, «what is missing» over `unmet` (`verdict.py` declares each value once).
-
-The V2-660 rule is kept verbatim: `None` (unreadable) is never failure and never opens a retry. The cure for
-unreadable is a readable widget (L2), never a guess.
+`None` (unreadable) is never failure and never opens a retry: the cure for unreadable is a readable widget, not a
+guess. An ending that cannot be read is `unverifiable`, and the mouth says it as such.
 """
 from __future__ import annotations
 
@@ -71,7 +58,7 @@ def retries() -> int:
 def tick(now: float | None = None) -> list[dict]:
     """Re-verify the open specs; a met one closes with its event. Returns what closed now. No voice: an inline
     action's refusal already spoke through `report_failure`, and a worker's ending speaks through `close`."""
-    from nucleo import spec as _spec
+    from nucleo.circuit import spec as _spec
     now = time.time() if now is None else now
     closed: list[dict] = []
     for e in _spec.open_specs(now):
@@ -97,7 +84,7 @@ def _settle_row(e: dict, verdict: str, outcome: str = "") -> None:
     """The request row this inline spec belongs to (V2-776 M1) ends with the same verdict."""
     if e.get("row"):
         try:
-            from nucleo import request_row as _rq
+            from nucleo.request import model as _rq
             _rq.settle(str(e["row"]), verdict, outcome)
         except Exception:  # noqa: BLE001
             pass
@@ -141,12 +128,12 @@ def _settle_unmet_inline(e: dict, now: float) -> None:
     and nobody retried, asked or spoke. The circuit saw the failure and had no consumer. No automatic retry here:
     an inline op may have side effects, and the model that fired it is the one that can correct it. The next reply
     is told what is missing, so it cannot say «done» over it."""
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     missing = "; ".join(_verify.missing(e.get("done_when"), now)) or "el objetivo declarado no se cumple"
     e["status"], e["met_at"] = "unmet", now
     _settle_row(e, "unmet", missing)
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         _spec._emit("❌ spec: SIN cumplir tras el plazo — se le dice al modelo", e, missing=missing[:300])
     except Exception:  # noqa: BLE001
         pass
@@ -168,7 +155,7 @@ def _settle_unmet_inline(e: dict, now: float) -> None:
 # ── the ending of a worker ─────────────────────────────────────────────────────────────────────────────────
 
 def _entry_for(rec):
-    from nucleo import spec as _spec
+    from nucleo.circuit import spec as _spec
     uid = str(getattr(rec, "uid", "") or "")
     for e in _spec.open_specs():
         if uid and e.get("task_id") == uid:
@@ -178,7 +165,7 @@ def _entry_for(rec):
 
 def _emit(rec, verdict: str, *, missing: str = "", tries: int = 0) -> None:
     try:
-        from nucleo import verify as _verify
+        from nucleo.circuit import verify as _verify
         from voice.observer import emit
         label = {"met": "✅ circuito: estado final CUMPLIDO y verificado",
                  "started": "🔁 circuito: sin cumplir → relanzada con lo que falta",
@@ -199,7 +186,7 @@ def _emit(rec, verdict: str, *, missing: str = "", tries: int = 0) -> None:
 def verdict_of(rec, now: float | None = None) -> tuple[str, str]:
     """(verdict, what is missing) for a record, with NO side effects — what a budget kill or a stuck worker
     asks before it closes, so the operator hears the end state and not only the clock."""
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     dw = getattr(rec, "done_when", None) or {}
     if not dw:
         # Demo pass 62, T1: a trip plan's end state is the REPORT — nothing a widget attests — and «unverifiable»
@@ -207,7 +194,7 @@ def verdict_of(rec, now: float | None = None) -> tuple[str, str]:
         # one whose result is its words: undeclared. «Unverifiable» is a DECLARED clause the product cannot read.
         return "undeclared", ""
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         dw = _spec.bind_sheet(dw, getattr(rec, "sheet", ""))
     except Exception:  # noqa: BLE001
         pass
@@ -237,7 +224,7 @@ def close(rec, relay_cap: int) -> str:
 
 
 def _close(rec, relay_cap: int) -> str:
-    from nucleo import spec as _spec
+    from nucleo.circuit import spec as _spec
     if getattr(rec, "status", "") == "cancelled" or getattr(rec, "handoff", ""):
         rec.verdict = "skipped"
         return "skipped"

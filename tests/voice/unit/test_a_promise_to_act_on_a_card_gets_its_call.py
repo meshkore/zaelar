@@ -42,7 +42,7 @@ class _Client:
 
 @pytest.fixture
 def client(monkeypatch):
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     monkeypatch.setattr(fast_client, "FastClient", _Client)
     _Client.calls, _Client.answer = [], []
     return _Client

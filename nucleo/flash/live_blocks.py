@@ -497,7 +497,7 @@ def harness_lines() -> list[str]:
     content is still missing must not be narrated as delivered by the next turn. Zero lines when none, and
     fail-open: a ledger that cannot be read costs the prompt nothing (extracted from `prompt.py`, V2-661)."""
     try:
-        from nucleo import harness
+        from nucleo.circuit import harness
         return list(harness.prompt_lines())
     except Exception:  # noqa: BLE001
         return []
@@ -555,7 +555,7 @@ def done_ops_lines() -> list[str]:
 def _shown_by_requests() -> list[tuple[str, str, float]]:
     """(widget, action, when) of the inline request rows the turn's record block already reports."""
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         out = []
         for r in _tasks.store().tasks_where(states=("done", "failed", "running"), modes=("now",), visible_only=False,
                                             limit=24) or []:

@@ -11,7 +11,7 @@ from nucleo.flash import card_receipt as _pst_receipt   # V2-781: a bare ack nam
 from nucleo.flash import post_stream as _pst
 from nucleo.turn import split_by_errand as _sbe   # the status line names the errand a send reached (2.644)
 from nucleo.flash import blocked_channel_receipt as _pst_bcr   # V2-604: a blocked channel's pasted link is said
-from nucleo.flash import stop_decision as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
+from nucleo.request import stop as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
 from nucleo.turn import reply as _reply   # refactor2710-03: the mouth speaks the verdict
 
 

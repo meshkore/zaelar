@@ -12,7 +12,7 @@ Here each verdict is declared ONCE, with everything a reader needs from it:
   · `rank`      — «a later op never improves a failed row»: a settle with a lower rank does not overwrite;
   · `row_state` — the task row's LIFECYCLE state it leaves (finished or not); what it was worth is the verdict
                   itself, which the row carries beside it;
-  · `line_key`  — the i18n key of the line the mouth says for it ("" while no fixed line exists: the 03 writes them);
+  · `ending_note_key` — the note beside a budget kill (`loop.py`); the mouth's line is `reply_<name>` (the 03);
   · `instruction` — the outcome sentence a composed delivery is built on (to the model, never to him);
   · `label`     — the event every settle emits (`kind="verdict"`), with the turn's trace.
 
@@ -33,7 +33,7 @@ class Verdict:
     delivered: bool
     rank: int | None
     row_state: str
-    line_key: str
+    ending_note_key: str
     instruction: str
     label: str
 

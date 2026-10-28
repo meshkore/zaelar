@@ -27,7 +27,7 @@ import time
 import server.common  # noqa: F401  — loads the credential store into the environment
 
 from nucleo.flash import router
-from nucleo.flash.fast_client import FastClient, spec_from_config
+from nucleo.llm.fast_client import FastClient, spec_from_config
 
 SPEC = spec_from_config()
 SYS = ("Eres Zaelar, el asistente por voz de Alex. Responde breve y natural.\n"

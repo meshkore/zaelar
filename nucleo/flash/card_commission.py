@@ -129,7 +129,7 @@ def named_or_catalogue(brief, operator_text: str, *, wait_s: float = 3.5) -> str
             _ids = brief.get("open_ids") if isinstance(brief, dict) and brief.get("open_ids") else None
             named = _pc.open_player_owns(named, operator_text, open_ids=_ids)
         # A guess on his words alone may not contradict the end state the brief already named (`spec`).
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         _against = _spec.card_contradicts(brief, named) if named else ""
         if _against:
             named = ""

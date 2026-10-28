@@ -195,7 +195,7 @@ async def call_for_promise(operator_text: str, reply: str, widget_id: str, spec=
         except Exception:  # noqa: BLE001 — without the card the pass still runs on his words
             digest = ""
         card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         await FastClient().complete(
             [{"role": "system", "content": _in_his_lang(_SYS + _pk.offer_line(outcome)).format(wid=wid, actions=_actions_block(manifest), card=card)},
              {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»\n"
@@ -318,7 +318,7 @@ async def call_for_repeated_view(operator_text: str, widget_id: str, repeated: s
             digest = ""
         card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         got: list[tuple[str, dict]] = []
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         await FastClient().complete(
             [{"role": "system", "content": _in_his_lang(_sys or _SYS_REPEAT).format(wid=wid, repeated=repeated, verdict=verdict,
                                                                      actions=_actions_block(manifest), card=card)},
@@ -371,7 +371,7 @@ async def call_after_read(operator_text: str, read_widget: str, widget_id: str, 
         digest = str(_wr.read(wid) or "").strip()[:800]
         card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         got: list[tuple[str, dict]] = []
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         await FastClient().complete(
             [{"role": "system", "content": _in_his_lang(_SYS_AFTER_READ).format(wid=wid, read=rid, block=block,
                                                                   actions=_actions_block(manifest), card=card)},
@@ -495,7 +495,7 @@ async def call_after_search(operator_text: str, answer: str, brief, spec=None, *
         card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         said = " ".join(str(answer).split())[:600].replace("{", "(").replace("}", ")")
         got: list[tuple[str, dict]] = []
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         await FastClient().complete(
             [{"role": "system", "content": _in_his_lang(_SYS_AFTER_SEARCH).format(wid=wid, answer=said, actions=_actions_block(manifest),
                                                                     card=card)},
@@ -644,7 +644,7 @@ async def call_or_read_for_commission(operator_text: str, commission: str, widge
             digest = ""
         card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _other_open_cards(wid)
         got: list[tuple[str, dict]] = []
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         _msgs = [{"role": "system", "content": _in_his_lang(_SYS_COMMISSION).format(wid=wid, actions=_actions_block(manifest), card=card)},
                  {"role": "user", "content": f"Operator: «{operator_text.strip()[:400]}»\n"
                                              f"The commission that was going to a worker: «{(commission or '').strip()[:300]}»"
@@ -739,7 +739,7 @@ async def call_for_refusal(operator_text: str, widget_id: str, action: str, payl
         card = (_CARD.format(wid=wid, digest=digest) if digest else "") + _days()
         got: list[tuple[str, dict]] = []
         from nucleo.flash import refusal_line as _rline, repair_grounding as _rg
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         await FastClient().complete(
             [{"role": "system", "content": _SYS_REFUSAL.format(
                 wid=wid, action=action, payload=json.dumps(payload or {}, ensure_ascii=False)[:300],

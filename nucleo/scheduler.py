@@ -373,12 +373,12 @@ def annotate(jid, **fields) -> None:
 
 # ── the operator's BOARD (V2-728) ─────────────────────────────────────────────────────────────────────────
 # A scheduled job is a commission with a clock on it, and it belongs in the same list as every other one.
-# `nucleo/tasks.py` owns the translation; this file owns WHEN. One function rather than a line at each of the
+# `nucleo/circuit/ledger.py` owns the translation; this file owns WHEN. One function rather than a line at each of the
 # four mutation points, for the reason the errand ledger needed the same: a rule every writer has to remember
 # is the rule that ends up missing from one of them.
 def _board(jid) -> None:
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         entry = _journal.get(int(jid))
         if entry:
             _tasks.scheduled_mirrored(entry)

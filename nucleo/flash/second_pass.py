@@ -44,7 +44,7 @@ def still_held(head: str, said: str) -> bool:
 
 async def collect(sys2: str, user_text: str, spec, max_tokens: int = 240) -> str:
     """Stream one (system, user) exchange through the fast client and return the joined text, raw."""
-    from nucleo.flash.fast_client import FastClient
+    from nucleo.llm.fast_client import FastClient
     parts: list[str] = []
     async for delta in FastClient().stream(
             [{"role": "system", "content": sys2}, {"role": "user", "content": user_text}],

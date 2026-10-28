@@ -290,7 +290,7 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
     # sheet open resolved to `results:choose`; the wallpaper was the end state, and choose attests nothing of it.
     # One site for both channels (the provider's `complete`/`take_rung` and the probe's mirror call this).
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         if (_why := _spec.gate_completion(brief, wid, action)):
             from voice.observer import emit as _emit_ev
             _emit_ev("brain", "🎯 el veredicto NO completa: la acción no atestigua el estado final de la frase",

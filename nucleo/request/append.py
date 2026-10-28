@@ -1,5 +1,5 @@
 #
-# dedup.py — «is this a NEW errand, or the one already running?», with the evidence it decided on.
+# nucleo/request/append.py — «is this a NEW errand, or the one already running?», with the evidence it decided on.
 #
 # Carved out of `dispatch.py` (V2-507) when the architecture ratchet went red: the file was 1922 lines
 # against a 1865 cap, and this is a self-contained question — two judges over text, no session lifecycle,
@@ -8,7 +8,10 @@
 # PURE over the live errands it is HANDED: `dispatch` owns `_SESSIONS` and resolves which of them are alive;
 # this module never reaches into it. That is what lets the rule be tested without a pool, a backend or a loop.
 #
+import asyncio
 import re
+
+from loguru import logger
 
 from nucleo import matching
 
@@ -167,3 +170,86 @@ def continues_ended(request: str, kind: str, ended: list[dict]) -> tuple[str, di
     ev = dict(ev)
     ev["from"] = prev
     return sheet, ev
+
+# ── what a NEW escalation continues (V2-566 inheritance + V2-570 linear gate; was `errand_continuity.py`) ──────
+# 1. INHERITANCE: an escalation that continues a just-ended errand — or a listing fast pass's delivery — inherits its
+#    results sheet instead of opening a second box beside it (`continues_ended`, above).
+# 2. THE LINEAR GATE (the operator's doctrine): a search resolves linearly. The FIRST escalation that continues a
+#    just-DELIVERED fast pass re-runs that pass with the escalation's full request into the inherited sheet, and
+#    `listing_turn.run` keeps its own verdict (enough → a pushed note names the rows; not enough → it escalates by
+#    itself, and the consumed refinement mark lets that one through). A wrong redirect costs one ≤10 s pass; a wrong
+#    spawn costs minutes, dollars and a second box. Never for `web`/`code`/`dev`/`memory`. Fail-soft throughout.
+
+#: Kinds the linear gate never redirects: they ACT (on a site, on code, on memory) rather than search, and
+#: turning an action order into another search would be worse than the duplicate it prevents.
+_NO_REDIRECT_KINDS = frozenset({"web", "code", "dev", "memory"})
+
+
+def inherit_and_maybe_rerun(request: str, kind: str, ctx: dict, key: str) -> tuple[dict, bool]:
+    """The continuity decision for one NEW escalation, called by `dispatch.run_listener` after the dedup miss.
+
+    Returns `(ctx, redirected)`. `ctx` may come back with `ctx["sheet"]` set (inheritance); `redirected` True
+    means the linear gate took the errand — the caller closes the flow and does NOT spawn a session, because
+    `_rerun` is already running the refined fast pass into the inherited box.
+    """
+    if str(ctx.get("sheet", "") or ""):
+        return ctx, False               # the escalation already declared its box (e.g. listing auto-escalate)
+    try:
+        from nucleo.workers import ended as _ended
+        pool = list(_ended._ENDED_SESSIONS.values()) + _ended.recent_listing_deliveries()
+        sheet_prev, ev = continues_ended(request, kind, pool)
+        if not sheet_prev:
+            return ctx, False
+        ctx = dict(ctx)
+        ctx["sheet"] = sheet_prev
+        try:
+            from voice.observer import emit
+            emit("task", "sheet_inherited", role="system", text=request[:120],
+                 extra={"id": key, "from": ev.get("from", ""), "sheet": sheet_prev,
+                        "by": ev.get("by") or "", "best": ev.get("best", 0.0),
+                        "reason": "continúa un encargo recién terminado: misma hoja, no una segunda caja"})
+        except Exception:  # noqa: BLE001
+            pass
+        _from = str(ev.get("from") or "")
+        if (_from.startswith("listing:") and kind not in _NO_REDIRECT_KINDS
+                and _ended.consume_listing_refinement(_from)):
+            try:
+                from voice.observer import emit
+                emit("task", "linear_rerun", role="system", text=request[:120],
+                     extra={"id": key, "from": _from, "sheet": sheet_prev,
+                            "reason": "misma caza YA entregada por la pasada rápida: se afina en la misma "
+                                      "caja en vez de abrir un worker en paralelo (doctrina lineal)"})
+            except Exception:  # noqa: BLE001
+                pass
+            asyncio.create_task(_rerun(request, sheet_prev), name=f"linear-rerun-{key}")
+            return ctx, True
+    except Exception as e:  # noqa: BLE001 — continuity must never drop an escalation
+        logger.warning(f"errand_continuity: la decisión de continuidad falló, la escalada sigue ({e!r})")
+    return ctx, False
+
+
+async def _rerun(request: str, sheet: str) -> None:
+    """The gate's refined fast re-run: same hunt, the escalation's FULL request as the query, SAME box.
+
+    The verdict stays with the module (V2-556's principle, extended to cover the model's stray escalation):
+    a delivery is announced by PUSHED note — the route measured 3/3 against the prompt line's 0/13 (V2-222) —
+    and an insufficient pass escalates by itself from inside `run`, carrying this very sheet.
+    """
+    try:
+        from nucleo.flash import listing_turn
+        res = await asyncio.to_thread(listing_turn.run, request, operator_text=request, sheet=sheet)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"errand_continuity: la re-pasada rápida falló ({e!r})")
+        return
+    try:
+        if res.get("delivered"):
+            from voice import brain_notes
+            rows = str(res.get("ctx") or "").strip()
+            n = int(res.get("n") or 0)
+            brain_notes.push(
+                f"[SISTEMA] La búsqueda afinada ya está hecha: {n} anuncios reales en su hoja, en pantalla "
+                "(la misma que ya tenía abierta). NÓMBRALE en este turno los mejores con su precio; si "
+                "alguno no encaja con lo que pidió, dilo — no ofrezcas como resultado lo que no responde a "
+                "su encargo, y no digas que sigues buscando." + (f"\n{rows}" if rows else ""))
+    except Exception:  # noqa: BLE001
+        pass

@@ -141,7 +141,7 @@ def test_esta_CABLEADO_despues_del_dedup_directo():
 def test_las_DOS_mitades_del_dedup_se_distinguen_en_observabilidad():
     """Counting them together hides which of the two fails—and the next measurement is precisely that one."""
     import inspect
-    from nucleo import dedup as _dedup
+    from nucleo.request import append as _dedup
     src = _vts.getsource(dispatch.run_listener)
     assert '"by": _dup_by' in src
     assert '"model"' in src

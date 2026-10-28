@@ -1,11 +1,11 @@
-"""Tests for nucleo/flash/fast_client.py (V2-004 · T60) — per-invocation model, streaming, tool calls, UA spoofing."""
+"""Tests for nucleo/llm/fast_client.py (V2-004 · T60) — per-invocation model, streaming, tool calls, UA spoofing."""
 import asyncio
 from types import SimpleNamespace
 
 import pytest
 
-from nucleo.flash import fast_client as fc
-from nucleo.flash.fast_client import FastClient, ModelSpec
+from nucleo.llm import fast_client as fc
+from nucleo.llm.fast_client import FastClient, ModelSpec
 
 
 # ── fakes that imitate OpenAI's streaming interface ─────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ def test_the_cap_fits_the_most_important_tool_call():
     """The limit must fit a COMPLETE escalation. Measured: 972–1408 JSON characters, plus the phrase that
     zaelar says aloud. And raising it costs no latency — also measured, 3 runs per arm: TTFT 0.99s at
     200 and 0.91s at 1200, with the SAME response — because a limit is a ceiling, not a target."""
-    from nucleo.flash import fast_client as fc
+    from nucleo.llm import fast_client as fc
 
     assert fc._DEFAULT_MAX_TOKENS >= 1000
 
@@ -377,7 +377,7 @@ def test_an_unfinished_stream_is_not_blamed_on_the_models_json(monkeypatch):
 # Same remedy as `tasks.recently_finished()` (V2-150) and `dispatch._EXPIRED_CONFIRM` (V2-190): a fact that
 # lives for only one turn is a fact the conversation loses.
 def test_a_dropped_action_survives_the_turn_that_lost_it():
-    from nucleo.flash import fast_client as fc
+    from nucleo.llm import fast_client as fc
 
     fc.clear_drops()
     fc._drop_tool_call({"finish_reason": "length"}, "escalate_to_slowbrain", '{"request": "busca un moni')
@@ -387,7 +387,7 @@ def test_a_dropped_action_survives_the_turn_that_lost_it():
 
 
 def test_and_reaches_the_live_state_saying_it_did_NOT_happen():
-    from nucleo.flash import fast_client as fc
+    from nucleo.llm import fast_client as fc
     from nucleo.flash import prompt as _p
 
     fc.clear_drops()
@@ -401,7 +401,7 @@ def test_and_reaches_the_live_state_saying_it_did_NOT_happen():
 
 def test_but_it_is_said_ONCE_and_not_forever():
     """A fact repeated in every state stops being a fact and becomes noise — and this one has already been said."""
-    from nucleo.flash import fast_client as fc
+    from nucleo.llm import fast_client as fc
     from nucleo.flash import prompt as _p
 
     fc.clear_drops()
@@ -414,7 +414,7 @@ def test_but_it_is_said_ONCE_and_not_forever():
 def test_and_an_old_drop_is_not_this_conversation():
     import time as _t
 
-    from nucleo.flash import fast_client as fc
+    from nucleo.llm import fast_client as fc
 
     fc.clear_drops()
     fc._drop_tool_call({}, "recall", "{bad")
@@ -425,7 +425,7 @@ def test_and_an_old_drop_is_not_this_conversation():
 
 def test_and_a_turn_with_nothing_dropped_says_nothing():
     """The sensitivity: without this, “report the drop” and “always report” pass alike."""
-    from nucleo.flash import fast_client as fc
+    from nucleo.llm import fast_client as fc
     from nucleo.flash import prompt as _p
 
     fc.clear_drops()

@@ -14,8 +14,8 @@ import asyncio
 import pytest
 
 from memory import db as memdb
-from nucleo import spec
-from nucleo import tasks as T
+from nucleo.circuit import spec
+from nucleo.circuit import ledger as T
 from nucleo.workers.session import SessionRecord
 
 

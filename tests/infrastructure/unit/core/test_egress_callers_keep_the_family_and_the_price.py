@@ -109,7 +109,7 @@ def test_memllm_sends_the_family_and_prices_by_the_provider(mediated, monkeypatc
 
 def test_fast_client_complete_meters_by_the_provider(monkeypatch):
     from nucleo import energy_lease, energy_meter
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     monkeypatch.setattr(energy_lease, "admit", lambda *_a, **_k: None)
     metered = {}
     monkeypatch.setattr(energy_meter, "meter_openai_response", lambda p, *, base_url, model=None: metered.update(

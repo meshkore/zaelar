@@ -134,7 +134,7 @@ def restart_stalled(rec) -> None:
         return
     uid = str(getattr(rec, "uid", "") or "")
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         row = _tasks.get(uid) if uid else None
         if row is None or int(row.get("attempts") or 0) >= STALL_RESTARTS:
             return

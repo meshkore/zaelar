@@ -16,7 +16,8 @@ import threading
 
 import pytest
 
-from nucleo import spec, truth, verify
+from nucleo import truth
+from nucleo.circuit import spec, verify
 
 
 @pytest.fixture(autouse=True)
@@ -133,7 +134,7 @@ def test_a_name_match_reads_the_name_not_the_address_beside_it():
     """Demo pass 118, E3: the model wrote `contact: "Quinn (quinn@example.com)"`, the mail went to Quinn, and the
     spec `sent[name~=Quinn (quinn@example.com)]` never matched the sent row named «Quinn» — so the model was told the
     send had not happened. A containment match takes the name, not the address the model wrote beside it."""
-    from nucleo import spec as _spec
+    from nucleo.circuit import spec as _spec
     tpl = {"widget": "mensajeria", "collection": "sent", "where": {"name~": "{contact}"}}
     for said in ("Quinn (quinn@example.com)", "Quinn <quinn@example.com>", "Quinn"):
         assert _spec._fill(tpl, {"contact": said})["where"]["name~"] == "Quinn", said

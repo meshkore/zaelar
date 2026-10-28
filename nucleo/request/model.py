@@ -1,4 +1,4 @@
-"""nucleo/request_row.py — every request that ACTS is a row of `tasks`, the inline ones included (V2-776 M1).
+"""nucleo/request/model.py — every request that ACTS is a row of `tasks`, the inline ones included (V2-776 M1).
 
 ## Why
 
@@ -58,6 +58,20 @@ def current() -> dict | None:
     return _TURN.get()
 
 
+def heard() -> str:
+    """His words this turn, our system notes left out — what an errand the turn opens carries to its sheet, so the
+    row door judges rows by HIS subject, never by a title the model wrote (find-concert-tickets ES). Never raises."""
+    turn = _TURN.get()
+    if not turn:
+        return ""
+    try:
+        from voice.brain_notes import operator_half
+        words = operator_half(str(turn.get("text") or ""))
+    except Exception:  # noqa: BLE001 — without the splitter the text is taken as it came
+        words = str(turn.get("text") or "")
+    return " ".join(words.split("[SISTEMA]")[0].split())
+
+
 def _surface(widget: str) -> str:
     try:
         from widgets import runtime
@@ -76,7 +90,7 @@ def opened(widget: str, action: str, *, text: str = "") -> str:
         return ""
     if turn.get("uid"):
         return turn["uid"]
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     _ts = _tasks.store()
     from nucleo.runtime_ids import boot_id
     uid = f"{boot_id()}-i{next(_SEQ)}"
@@ -108,7 +122,7 @@ def settle(uid: str, verdict: str, outcome: str = "") -> None:
     if v is None or not v.ending:
         logger.warning(f"request_row: {verdict!r} is not an ending — row {uid} is not settled with it")
         return
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     _ts = _tasks.store()
     row = _ts.task_get(uid)
     if row is None:

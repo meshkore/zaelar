@@ -22,7 +22,7 @@ import time
 
 import pytest
 
-from nucleo.flash import provider_chain as PC
+from nucleo.llm import provider_chain as PC
 from nucleo.workers import providers as WP
 
 _CHAINS = pytest.mark.parametrize("mod", [PC, WP], ids=["cerebros", "workers"])

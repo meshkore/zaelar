@@ -12,7 +12,7 @@ import os
 
 import pytest
 
-from nucleo import harness
+from nucleo.circuit import harness
 from voice import attention
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))

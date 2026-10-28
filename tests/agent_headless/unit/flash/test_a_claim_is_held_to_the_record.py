@@ -17,7 +17,7 @@ import pytest
 
 from nucleo.flash import answer_guards as _ag, card_commission as _cc, second_pass as _sp
 from nucleo.flash import turn_brief as _tb
-from nucleo import spec as _spec
+from nucleo.circuit import spec as _spec
 
 
 def _brief(**verdicts):
@@ -67,7 +67,7 @@ def test_the_retraction_does_not_say_nothing_runs_while_something_does(monkeypat
 
 
 def _live(monkeypatch, rows):
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     monkeypatch.setattr(tasks, "board", lambda scope="live", **k: rows if scope == "live" else [])
 
 

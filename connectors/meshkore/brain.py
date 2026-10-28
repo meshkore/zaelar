@@ -11,7 +11,7 @@
 # Security: the peer has no tools surface (forced in `nucleo.flash.cluster`), the system never touches operator
 # memory/PII, and the bridge appends the security trailer at the end of the turn.
 #
-# RELAY (2026-08-03): the tier is NO LONGER fixed once at boot — `nucleo.flash.provider_chain.pick()` is queried ON
+# RELAY (2026-08-03): the tier is NO LONGER fixed once at boot — `nucleo.llm.provider_chain.pick()` is queried ON
 # EACH turn (cheap: an in-memory cooldown dict, not a network call) and, if the turn fails because of the provider
 # (quota/credential — see `provider_chain.classify_failure`), it relays and RETRIES that same turn once before
 # giving up. Before: a Z.AI 429 killed the turn and the next heartbeat repeated the SAME broken call — no relay, no
@@ -23,7 +23,7 @@ from loguru import logger
 def _spec():
     """`ModelSpec` for the CURRENT chain tier (compat: used by `bridge.py`'s V2-075 evaluator, which only needs SOME
     reasonable spec to judge the conversation — it does not participate in `_brain` relay)."""
-    from nucleo.flash import provider_chain
+    from nucleo.llm import provider_chain
     tier = provider_chain.pick()
     if not tier:
         raise RuntimeError("MeshKore: ningún proveedor de cerebro de cluster con credencial disponible")
@@ -31,9 +31,9 @@ def _spec():
 
 
 def make_brain():
-    """Return the channel brain: the FlashBrain ENGINE (untrusted profile), with automatic provider RELAY. The tier
-    is chosen per turn via `provider_chain.pick()`; the turn is driven by `nucleo.flash.cluster.respond`."""
-    from nucleo.flash import cluster, provider_chain
+    """The channel brain: the FlashBrain ENGINE (untrusted profile), relayed per turn (`provider_chain.pick()`)."""
+    from nucleo.flash import cluster
+    from nucleo.llm import provider_chain
     chain_now = provider_chain.chain()
     logger.info("MeshKore: canal conducido por el FlashBrain (perfil untrusted · sin tools) · cadena: "
                 + (" → ".join(t["name"] for t in chain_now) if chain_now else "(sin credencial configurada)"))

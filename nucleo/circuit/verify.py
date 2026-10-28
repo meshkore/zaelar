@@ -1,4 +1,4 @@
-"""nucleo/verify.py — ONE verifier: did the end state the task promised actually happen? (V2-707 F2)
+"""nucleo/circuit/verify.py — ONE verifier: did the end state the task promised actually happen? (V2-707 F2)
 
 ## What he asked for (2026-09-16)
 
@@ -10,7 +10,7 @@
 
 He is describing a mechanism the engine had three fragments of and no whole:
 
-  · `nucleo/harness.py` (V2-660) verifies exactly ONE class, `widget_content`, for five minutes, in RAM;
+  · `nucleo/circuit/harness.py` (V2-660) verifies exactly ONE class, `widget_content`, for five minutes, in RAM;
   · `nucleo/errands/verify.py` (V2-683) verifies exactly ONE condition, `meeting_exists`, hand-written;
   · the Brain Worker verifies NOTHING — `session._finish` closes on `rec.ok`, which the worker sets itself,
     and `_METHOD_BLOCK` step 5 asks it in prose to «VERIFICA… ITERA», which is a rail on judgement.
@@ -45,7 +45,7 @@ V2-776 L1 added three clause kinds, because the end states the demo asks for wer
     {"canvas": "results", "expect": "visible" | "minimized" | "maximized" | "closed"}
 
 `expect` on a field/desktop clause may also be `present` (non-empty) or `absent` (empty). The readers live in
-`nucleo/truth.py`; a `changed` clause carries its `baseline`, written by `nucleo/spec.py` when the spec is born.
+`nucleo/truth.py`; a `changed` clause carries its `baseline`, written by `nucleo/circuit/spec.py` when the spec is born.
 
 ## The three answers, and why the third is not False
 

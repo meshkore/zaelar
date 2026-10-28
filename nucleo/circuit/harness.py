@@ -1,4 +1,4 @@
-"""nucleo/harness.py — the ERRAND HARNESS: what END STATE a turn implied, verified against the REAL state.
+"""nucleo/circuit/harness.py — the ERRAND HARNESS: what END STATE a turn implied, verified against the REAL state.
 
 V2-660 (operator directive, 2026-09-11): «cuando obtiene permiso para realizar una acción falta terminar
 de cerrar el círculo … un arnés dinámico que comprueba que lo pedido se ha conseguido — el documento
@@ -62,14 +62,14 @@ def claims_done(reply: str) -> bool:
 
 # ── the ledger ──────────────────────────────────────────────────────────────────────────────────────────
 #: V2-776 M4 — the goals are no longer a registry of this module: they are entries of the ONE spec ledger
-#: (`nucleo/spec.py`), marked `source="shown"`. What stays here is what makes them different from an action's
+#: (`nucleo/circuit/spec.py`), marked `source="shown"`. What stays here is what makes them different from an action's
 #: end state — they are verified by this module's readers, they speak only when a reply CLAIMS delivery, and they
 #: expire at `TTL_S` — so `circuit.tick` leaves them alone (`SOURCE`).
 SOURCE = "shown"
 
 
 def _ledger():
-    from nucleo import spec as _spec
+    from nucleo.circuit import spec as _spec
     return _spec
 
 

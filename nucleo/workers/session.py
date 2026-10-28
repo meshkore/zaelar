@@ -22,8 +22,8 @@ from . import progress as _progress
 from .session_notes import _PLACE, SessionNotes  # noqa: F401 — V2-778 F1: the session's notes; _PLACE re-exported
 from . import stall as _stall
 from .base import WorkerBackend, WorkerSpec
-from nucleo import errand_kind as _errand_kind
-from .goal import check_and_relay as _harness
+from nucleo.request import kind as _errand_kind
+from nucleo.circuit import close as _harness   # the circuit judges the ending, never the worker's word
 from .relay import _say
 from .relay import relay_out_of_fuel as _relay_out_of_fuel
 from .relay import restart_stalled as _restart_stalled
@@ -71,12 +71,12 @@ class SessionRecord:
     parent_task_id: str = ""
     depth: int = 0
     trace_id: str = ""            # V2-044: trace of the phrase that originated the session (chains all its events)
+    heard: str = ""               # his commissioning sentence (Request.heard): what the errand's sheet judges rows by
     nav_task: str = ""            # kind=web: associated browser task ID (card) — set by dispatch
-    # V2-259 — the SHEET for this errand (`results::<sheet>`), sealed ONCE by `dispatch._sheet_open`. It is not
-    # `task_id` alone, and that was a real defect: `escalate._seq` starts at 0 in each process, so IDs
-    # REPEAT across restarts and the first errand of a new startup landed in the previous session's
-    # `results--1` sheet — which `begin_task(fresh=True)` opens anew, that is, DELETES. Exactly the «search deletion
-    # error» this initiative exists to remove, reintroduced through the back door.
+    # V2-259 — the SHEET for this errand (`results::<sheet>`), sealed ONCE by `dispatch._sheet_open`. Not `task_id`
+    # alone: `escalate._seq` starts at 0 in each process, so IDs REPEAT across restarts and the first errand of a new
+    # startup landed in the previous session's `results--1` sheet — which `begin_task(fresh=True)` opens anew, that
+    # is, DELETES: the «search deletion error» this initiative exists to remove, back through the back door.
     sheet: str = ""
     # V2-227 — WHERE the operator will see the result, decided when ASSIGNING it and not when delivering it. CLOSED
     # vocabulary (`nucleo/surfaces.py`): list | item | widget | voice | silent. It is sealed ONCE (`set_once`) and
@@ -116,7 +116,7 @@ class SessionRecord:
     # -1 = not reported (a task that is not an investigation, or a worker that did not say).
     considered: int = -1
     kept: int = -1
-    # V2-707 F2 — HOW SUCCESS IS MEASURED, in `nucleo/verify.py`'s grammar; the rule is in `workers/goal.py`.
+    # V2-707 F2 — HOW SUCCESS IS MEASURED, in `nucleo/circuit/verify.py`'s grammar; the rule is in `workers/goal.py`.
     # Empty = nothing declared, and then nothing is claimed: an absent condition is not a failed one.
     done_when: dict = field(default_factory=dict)
     goal_retried: bool = False
@@ -200,7 +200,7 @@ class WorkerSession(SessionNotes):
         rec.backend = self._b.name
         rec.phase = _progress.say("starting", "starting")
         try:    # V2-776 D1 — the durable row says it too, or the store reads «pending» for the whole run
-            from nucleo import tasks as _tasks
+            from nucleo.circuit import ledger as _tasks
             _tasks.started(rec)
         except Exception:  # noqa: BLE001
             pass

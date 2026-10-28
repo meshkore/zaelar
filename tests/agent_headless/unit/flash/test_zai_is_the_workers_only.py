@@ -25,7 +25,7 @@ own: a step gets added «because there is a credential» and nobody notices unti
 """
 from __future__ import annotations
 
-from nucleo.flash import provider_chain as PC
+from nucleo.llm import provider_chain as PC
 from nucleo.workers import providers as WP
 
 

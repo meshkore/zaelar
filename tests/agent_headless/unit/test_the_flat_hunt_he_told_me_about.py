@@ -32,7 +32,8 @@ import bus
 from memory import db as memdb
 from memory import embeddings as mememb
 from memory import tasks_store as ts
-from nucleo import dispatch, tasks
+from nucleo import dispatch
+from nucleo.circuit import ledger as tasks
 from nucleo.flash import task_recall as tr
 from nucleo.workers.base import WorkerBackend, WorkerEvent, WorkerSpec
 from tests.waiting import until

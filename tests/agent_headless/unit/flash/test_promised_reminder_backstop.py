@@ -113,7 +113,7 @@ class _AsksForTheCron:
 
 
 def test_and_it_does_not_duplicate_one_the_model_did_ask_for(fresh_db, monkeypatch):
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _AsksForTheCron)
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _AsksForTheCron)
     asyncio.run(turn.run_turn(ASK, sid="t-v146b", ingest=False, execute=True))
     turn.reset("t-v146b")
     names = [j.get("name") for j in scheduler.list_jobs(active_only=True)]

@@ -39,7 +39,7 @@ def test_an_open_sheet_is_not_named_by_a_verb_or_a_particle(open_sheet, monkeypa
 
 
 def test_the_errand_dedup_no_longer_joins_the_trip_to_the_monitors(closed_sheet):
-    from nucleo import dedup
+    from nucleo.request import append as dedup
     prev, ev = dedup.scan(TRIP, "generic", [("3", "can you find me like three 27 inch 4k monitors, under 400 bucks")])
     assert prev is None and ev["by"] != "widget"
 

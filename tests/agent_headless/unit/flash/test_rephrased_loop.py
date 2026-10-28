@@ -132,7 +132,7 @@ class _PromisesToSearch:
 
 def test_the_promise_to_search_now_actually_starts_something(fresh_db, monkeypatch):
     from nucleo.cli import turn
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _PromisesToSearch)
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _PromisesToSearch)
     monkeypatch.setattr("nucleo.dispatch.has_active", lambda: False)
     monkeypatch.setattr("nucleo.turn.reply.owes_an_act", lambda brief: "escalate")   # the brief owes it (refactor2710-03)
     brain = turn._brain("t-v143")

@@ -29,7 +29,7 @@ def _run(*, first_turn, stalled=False, err_exc=None, err_text=""):
 @pytest.fixture
 def _no_ladder(monkeypatch):
     """The provider verdict is not under test: an outage with a stand-in still available (not dry)."""
-    from nucleo.flash import provider_failure
+    from nucleo.llm import provider_failure
     monkeypatch.setattr(provider_failure, "handle", lambda *a, **k: {"relay": None, "dry": False})
 
 

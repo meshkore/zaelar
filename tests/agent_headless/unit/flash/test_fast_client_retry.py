@@ -10,8 +10,8 @@ import asyncio
 
 import pytest
 
-from nucleo.flash import fast_client as fc
-from nucleo.flash.fast_client import FastClient, ModelSpec, _is_transient
+from nucleo.llm import fast_client as fc
+from nucleo.llm.fast_client import FastClient, ModelSpec, _is_transient
 
 
 class _Msg:
@@ -80,7 +80,7 @@ def test_is_transient_classification():
 
 # ── the 429 BODY travels with the exception (2026-08-03) ────────────────────────────────────────────────────
 # Without this, Z.AI's 429 (`_complete_zai`/`_stream_zai`, which use raw httpx rather than the OpenAI SDK) arrives as
-# httpx's generic message ("429 Too Many Requests", with nothing else), and `nucleo.flash.provider_chain.classify_failure`
+# httpx's generic message ("429 Too Many Requests", with nothing else), and `nucleo.llm.provider_chain.classify_failure`
 # (and its counterpart in `nucleo.workers.providers`) cannot distinguish an exhausted WEEKLY quota from a transient blip —
 # both produce the SAME bare 429. Verified with the operator's real diagnostics on 2026-08-03.
 class _FakeHttpxResp:
@@ -116,7 +116,7 @@ def test_raise_with_body_is_a_coroutine_and_must_be_awaited():
     `resp.json()` on an error body, turning a clear provider failure into a confusing parse error later (and, worse,
     without classifying the quota → without switching providers)."""
     import inspect
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     assert inspect.iscoroutinefunction(fast_client._raise_with_body)
     src = inspect.getsource(fast_client)
     for line in src.splitlines():
