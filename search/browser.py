@@ -59,10 +59,10 @@ def _where() -> tuple[str, str]:
     return hl, gl
 
 # singleton state (lives on the server loop)
-_pw = None            # the async_playwright object
-_ctx = None           # persistent BrowserContext
+_pw = _ctx = None     # the async_playwright object and its persistent BrowserContext
 _loop = None          # the server loop (for the sync→async bridge)
 _start_lock: asyncio.Lock | None = None
+_owner = None         # the event loop `_ctx` and `_start_lock` belong to
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
@@ -81,13 +81,13 @@ def enabled() -> bool:
 async def ensure_started() -> bool:
     """Starts (idempotently) the persistent Chromium context and warms it with google.com. True when ready.
     Fire-and-forget from boot; never raises into the lifespan."""
-    global _pw, _ctx, _start_lock
+    global _pw, _ctx, _start_lock, _owner
     if not enabled():
         return False
+    if _owner is not asyncio.get_running_loop():   # a context and its lock serve only the loop that made them
+        _pw, _ctx, _start_lock, _owner = None, None, asyncio.Lock(), asyncio.get_running_loop()
     if _ctx is not None:
         return True
-    if _start_lock is None:
-        _start_lock = asyncio.Lock()
     async with _start_lock:
         if _ctx is not None:
             return True
