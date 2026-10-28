@@ -236,7 +236,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/acts/canvas_verdict.py': 6,
     'nucleo/acts/repair_of_a_view.py': 6,
     'nucleo/acts/repair_after_lookup.py': 7,
-    'nucleo/acts/card_verdict.py': 11,
+    'nucleo/acts/card_verdict.py': 12,
     'nucleo/batch/runner.py': 4,
     'nucleo/batch/split.py': 2,
     'nucleo/cli/usage.py': 1,

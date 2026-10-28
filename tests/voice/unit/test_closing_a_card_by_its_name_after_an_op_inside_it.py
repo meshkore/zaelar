@@ -117,7 +117,9 @@ def test_the_in_card_guard_lets_the_named_close_through(monkeypatch):
 
 
 def test_the_disarm_the_same_close_without_the_flag_is_dropped_as_an_inside_order(monkeypatch):
+    from nucleo.acts import card_verdict as cv
     monkeypatch.setattr(da, "_says_the_name", lambda *a, **k: False)
+    monkeypatch.setattr(cv, "_canvas_leans_close", lambda _b: False)   # node 2.911 licenses it too; this proves the flag
     crossed, events = _tag_close({"id": "youtube"}, "ok stop the video and close youtube", monkeypatch)
     assert not crossed and ("brain", "🛡️ close ignorado — la orden es una acción DENTRO de la tarjeta") in events, events
 

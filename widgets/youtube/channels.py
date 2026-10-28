@@ -197,6 +197,18 @@ def _resolve(ch: dict) -> bool:
     return True
 
 
+def _unfollowed(db: dict, name: str) -> dict:
+    """The row to open for a channel he does NOT follow — resolved by name on the public channel search, never stored
+    (following stays his explicit act; live 2026-10-28: «show me the channel of SpaceX» → «No sigo ese canal») — or an error row."""
+    if not name:
+        return {"ok": False, "error": "no_channel", "message": "Dime qué canal."}
+    hit = find(name)
+    if not hit.get("id"):
+        return {"ok": False, "error": "not_found", "channel": name, "message": "No encuentro ese canal en YouTube.",
+                "channels": [c.get("name") for c in db.get("channels") or []]}
+    return {"name": hit.get("title") or name, "id": hit["id"], "meta": {k: hit[k] for k in ("handle", "avatar", "subscribers") if hit.get(k)}}
+
+
 def apply(action: str, p: dict, db: dict) -> "dict | None":
     """This module's actions. None when `action` is not one of them (the library.apply contract)."""
     if p.get("hl"):
@@ -232,18 +244,9 @@ def apply(action: str, p: dict, db: dict) -> "dict | None":
         ch = _followed(db, name)
         followed = ch is not None
         if ch is None:
-            # A channel he does not follow still OPENS (live 2026-10-28: «show me the channel of SpaceX» answered
-            # «No sigo ese canal» four turns in a row). Resolved by name on the public search, never stored: following
-            # stays his explicit act (`follow_channel`).
-            if not name:
-                return {"ok": False, "error": "no_channel", "message": "Dime qué canal."}
-            hit = find(name)
-            if not hit.get("id"):
-                return {"ok": False, "error": "not_found", "channel": name,
-                        "channels": [c.get("name") for c in db.get("channels") or []],
-                        "message": "No encuentro ese canal en YouTube."}
-            ch = {"name": hit.get("title") or name, "id": hit["id"],
-                  "meta": {k: hit[k] for k in ("handle", "avatar", "subscribers") if hit.get(k)}}
+            ch = _unfollowed(db, name)
+            if ch.get("error"):
+                return ch
         if not ch.get("id") and not _resolve(ch):
             store.save(WID, db)
             return {"ok": False, "error": "not_found", "channel": ch.get("name"),
