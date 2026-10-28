@@ -115,8 +115,8 @@ def test_the_voice_close_guard_answers_false(monkeypatch):
     """The voice tag route returns False on its context-bleed refusal — the value `close_dispatch` reads."""
     from nucleo.flash import tool_executor_widget as txw, tool_executor_widget_calls as calls
     monkeypatch.setattr(txw._close_cancel, "inside_or_cancelled", lambda *a, **k: False)
-    monkeypatch.setattr(txw._canvas_lic, "close_license", lambda *a, **k: False)
-    monkeypatch.setattr(txw._show_target, "close_has_order", lambda *a, **k: (False, ""))
+    from nucleo.acts import canvas as _door
+    monkeypatch.setattr(_door, "close_ordered", lambda *a, **k: (False, "none"))
     rows, deduped = [], {"v": False}
     out = calls._tag_emit(
         "close", {"id": "youtube"}, _apply_widget_data=None, _brief=None, _is_meta_widget_question=None,
@@ -126,3 +126,26 @@ def test_the_voice_close_guard_answers_false(monkeypatch):
         text="Desde el principio.")
     assert out is False and deduped["v"] is True
     assert not any(a[0] == "widget" for a in rows), "the refused close must not reach the canvas"
+
+
+# The card door's LOAD clause: the same licence, read without a word table (refactor2710-06 T-01).
+def _load(said, *, query="", last_reply=""):
+    from nucleo.acts import card
+    return card.licence({"brief": None, "text": said}, "youtube", "load", at=card.LOAD, query=query,
+                        last_reply=last_reply).verdict
+
+
+def test_the_door_runs_a_load_he_named_and_drops_one_he_did_not(player):
+    from nucleo.acts import card
+    assert _load("Venga, ponnos un vídeo de Madonna.", query="Madonna") == card.RUN
+    assert _load("Put on a few Maradona videos, back to back.", query="Maradona videos") == card.RUN
+    assert _load("Muy bien, señora.", query="Madonna") == card.DROP, "praise names nothing to play"
+    assert _load("Muy bien, señora.") == card.DROP, "no verdict and nothing named: fail-closed"
+
+
+def test_a_yes_to_our_offer_to_play_runs_it(player, monkeypatch):
+    from nucleo.acts import card
+    from nucleo.flash import prior_line
+    monkeypatch.setattr(prior_line, "answers_our_question", lambda brief, prior: True)
+    assert _load("Sí.", last_reply="¿Te pongo un vídeo de Dune en YouTube?") == card.RUN
+    assert _load("Sí.", last_reply="¿Quieres que lo apunte en la agenda?") == card.DROP

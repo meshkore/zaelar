@@ -123,8 +123,8 @@ def is_music_service(site: str = "", text: str = "") -> bool:
 # The CLOSE-order grammar lives in `close_guards.py` (extracted 2026-09-09, V2-631) — re-exported here so
 # every existing call site (`router.looks_like_close(...)`, the two internal callers below) keeps working.
 from .close_guards import (  # noqa: F401
-    _CLOSE_VERB_RE, _DELETE_VERB_RE, _NARRATED_CLOSE_RE, _NO_CLOSE_RE, _NO_OPEN_RE, _OPEN_VERB_RE,
-    looks_like_close, show_contradicts_the_order,
+    _CLOSE_VERB_RE, _DELETE_VERB_RE, _NARRATED_CLOSE_RE, _NO_CLOSE_RE,
+    looks_like_close,
 )
 
 # show_widget execution GUARD (2026-07-17): CREATING a NEW widget is ESCALATED to the generator (code), NOT

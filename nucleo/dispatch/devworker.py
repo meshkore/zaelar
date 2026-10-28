@@ -14,14 +14,9 @@ from __future__ import annotations
 
 import os
 
-# ── DEV WORKER ACOTADO (V2-076) — escalada ORIGINADA in a cluster with permission of code ─────────────────────────
-# Una escalada of a charla agent-agent arrives with trusted=False (never hereda the confianza of the operator) PERO,
-# if the operator concedio `code` al cluster, must poder ESCRIBIR code and SUBIRLO al repo authorized — without touch
-# nothing mas. No usamos the `_tools_for(trusted)` binario: montamos a worker with alcance JUSTO:
-#   · Read/Write/Edit acotados a a DIRECTORIO TEMPORAL (cwd), never the proyecto (aislamiento of escritura).
-#   · git SOLO by the PUENTE `nucleo.cli.git` (never Bash git pelado) and SOLO al repo authorized (ZAELAR_ALLOWED_REPO).
-#   · SIN bridges of memory (ZAELAR_NO_BRIDGE_TOOLS) → a dev of cluster no reads/writes the memory of the operator.
-#   · PYTHONPATH al engine for that the bridge sea importable from the cwd temporary.
+# ── THE BOUNDED DEV WORKER (V2-076): an escalation born in a cluster with `code` permission. It arrives untrusted,
+# so it gets a worker of exactly that reach: Read/Write/Edit in a temp cwd, git only through `nucleo.cli.git` to the
+# authorised repo (ZAELAR_ALLOWED_REPO), no memory bridges (ZAELAR_NO_BRIDGE_TOOLS), and the engine on PYTHONPATH.
 _ENGINE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # nucleo/dispatch/ → engine
 def _git_tools() -> list[str]:
     """Mismo criterion that the bridges of `claude_session._BRIDGE_TOOLS`: TODAS the ways of write the interprete,

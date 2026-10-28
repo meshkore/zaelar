@@ -168,7 +168,7 @@ def fullscreen_widget(args: dict, c) -> None:
     # direction) in `show_target.fullscreen_dispatch` — one decision, both channels.
     if "fullscreen_widget" not in c._tool_fired:
         c._tool_fired.add("fullscreen_widget")
-        _x._tx._show_target.fullscreen_dispatch(args, c.text, c._tag_emit, c.emit, c.deduped)
+        _x._tx._show_target.fullscreen_dispatch(args, c.text, c._tag_emit, c.emit, c.deduped, brief=c._brief)
 
 
 def arrange_canvas(args: dict, c) -> None:
@@ -221,19 +221,39 @@ def connect_cluster(args: dict, c) -> None:
     return _x._t_connect_cluster(args=args, _request_cluster_confirm=c._request_cluster_confirm)
 
 
+def _errand_target_lets(tool: str, c) -> bool:
+    """The brief's `errand_target` over this arm: True runs it; a sure contrary verdict drops it (said on the
+    timeline), an unsure one asks which. No verdict runs it, as today (`acts.errand.target_allows`)."""
+    from nucleo import consent
+    from nucleo.acts import errand as _errand
+    v = _errand.target_allows(c._brief, tool)
+    if v == consent.ASK_WHICH:
+        c.clarify["msg"] = c._say().ask_which_item_bare
+    if v != "run":
+        c.emit("brain", "🎯 el veredicto lee otro destino para sus palabras — no corre", text=tool, role="system",
+               extra={"cat": "flash", "tool": tool, "verdict": v})
+    return v == "run"
+
+
 def cluster_send(args: dict, c) -> None:
+    if not _errand_target_lets("cluster_send", c):
+        return None
     _x = _calls()
     # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
     return _x._t_cluster_send(args=args, _spawn=c._spawn, emit=c.emit)
 
 
 def set_cluster_objective(args: dict, c) -> None:
+    if not _errand_target_lets("set_cluster_objective", c):
+        return None
     _x = _calls()
     # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
     return _x._t_set_cluster_objective(args=args, _say=c._say, _spawn=c._spawn, clarify=c.clarify, emit=c.emit)
 
 
 def send_to_worker(args: dict, c) -> None:
+    if not _errand_target_lets("send_to_worker", c):
+        return None
     _x = _calls()
     # V2-778 F1 — the body lives in `nucleo/flash/tool_executor_calls.py`; this branch passes what it reads.
     return _x._t_send_to_worker(args=args, emit=c.emit, worker_acted=c.worker_acted, fired=c._tool_fired)

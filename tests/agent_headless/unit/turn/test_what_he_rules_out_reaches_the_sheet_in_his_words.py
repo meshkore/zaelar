@@ -15,7 +15,7 @@ import pytest
 
 from nucleo import dispatch
 from nucleo.dispatch import confirm as dc
-from nucleo.flash import escalate
+from nucleo.acts import errand as escalate
 from nucleo.turn import his_spec_to_sheet as S
 from nucleo.workers import ended
 from widgets.results import data as sheet

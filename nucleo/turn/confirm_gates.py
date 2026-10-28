@@ -154,7 +154,7 @@ def _named_parked(words: str) -> str:
 
 def operator_words(text: str) -> str:
     """The turn without the `[SISTEMA]` notes glued in front: our notice's «sin tu OK» is not his vote."""
-    from nucleo.flash import escalate as _esc
+    from nucleo.acts import errand as _esc
     return _esc.strip_system_notes(text) if "[SISTEMA]" in (text or "") else (text or "")
 
 

@@ -15,6 +15,8 @@ and nothing that starts a player (`runtime.produce`). Verdict → declared data 
 """
 from __future__ import annotations
 
+from nucleo.acts import canvas as _door
+
 import threading
 
 import pytest
@@ -49,47 +51,47 @@ ORDERS = ["Vale, pues aquí no suena nada, cierra el resto de aplicaciones.",
 
 @pytest.mark.parametrize("said", ORDERS)
 def test_a_neither_verdict_does_not_veto_a_clear_close_order(said):
-    assert canvas_license.close_license(said, brief=_brief())
-    assert show_target.close_has_order(said, None, brief=_brief())[0] is True
+    assert _door.close_ordered(said, brief=_brief())[0]
+    assert _door.close_ordered(said, brief=_brief(), called=True, handle=None)[0] is True
 
 
 @pytest.mark.parametrize("said", ["Yo no te he dicho en ningún momento que cerraras el widget de vídeo.",
                                   "You did close the document of Bitcoin without me telling you."])
 def test_a_verdict_that_reads_a_complaint_still_vetoes(said):
     """The half that must not move: the denials V2-752 exists for read as complaints, and stay vetoed."""
-    assert not canvas_license.close_license(said, brief=_brief(kind="complaint", kconf=0.9))
+    assert not _door.close_ordered(said, brief=_brief(kind="complaint", kconf=0.9))[0]
 
 
 def test_disarmed_the_bare_neither_vetoes_the_car_order_again(monkeypatch):
     """RED proof: the pre-V2-812 rule (a sure `neither` alone vetoes) refuses the car-session order."""
-    monkeypatch.setattr(canvas_license, "verdict_denies_close",
+    monkeypatch.setattr(_door, "_denies_close",
                         lambda brief: turn_brief.read(brief, turn_brief.CANVAS_KEY, "")[0] == "neither")
-    assert not canvas_license.close_license(ORDERS[0], brief=_brief()), "the disarm did not land"
+    assert not _door.close_ordered(ORDERS[0], brief=_brief())[0], "the disarm did not land"
     monkeypatch.undo()
-    assert canvas_license.close_license(ORDERS[0], brief=_brief())              # green again
+    assert _door.close_ordered(ORDERS[0], brief=_brief())[0]              # green again
 
 
 @pytest.mark.parametrize("said", ["Las dos.", "Both."])
 def test_an_answer_to_our_close_question_carries_its_licence(said):
     instances.note_close_ask(CAR)
     answer = _brief(canvas="neither", cconf=0.61, kind="answer", kconf=0.9)
-    assert canvas_license.close_license(said, brief=answer)
-    assert show_target.close_has_order(said, None, brief=answer) == (True, "answer")
+    assert _door.close_ordered(said, brief=answer)[0]
+    assert _door.close_ordered(said, brief=answer, called=True, handle=None) == (True, "answer")
 
 
 @pytest.mark.parametrize("said", ["Las dos.", "Both."])
 def test_without_our_question_the_same_words_license_nothing(said):
     answer = _brief(canvas="neither", cconf=0.61, kind="answer", kconf=0.9)
-    assert not canvas_license.close_license(said, brief=answer)
-    assert show_target.close_has_order(said, None, brief=answer)[0] is False
+    assert not _door.close_ordered(said, brief=answer)[0]
+    assert _door.close_ordered(said, brief=answer, called=True, handle=None)[0] is False
 
 
 def test_only_a_sure_answer_and_never_a_negated_one_borrows_the_licence():
     instances.note_close_ask(CAR)
-    assert not canvas_license.close_license("Las dos.", brief=_brief(kind="answer", kconf=0.3))
-    assert not canvas_license.close_license("Las dos.", brief=_brief(kind="comment", kconf=0.9))
-    assert not canvas_license.close_license("Las dos.", brief=None)
-    assert not canvas_license.close_license("No cierres ninguna.", brief=_brief(kind="answer", kconf=0.9))
+    assert not _door.close_ordered("Las dos.", brief=_brief(kind="answer", kconf=0.3))[0]
+    assert not _door.close_ordered("Las dos.", brief=_brief(kind="comment", kconf=0.9))[0]
+    assert not _door.close_ordered("Las dos.", brief=None)[0]
+    assert not _door.close_ordered("No cierres ninguna.", brief=_brief(kind="answer", kconf=0.9))[0]
 
 
 def test_a_stale_question_is_not_answered(monkeypatch):
@@ -97,7 +99,7 @@ def test_a_stale_question_is_not_answered(monkeypatch):
     import time as _t
     later = _t.time() + instances.CLOSE_ASK_S + 1
     monkeypatch.setattr(_t, "time", lambda: later)
-    assert not canvas_license.close_license("Las dos.", brief=_brief(kind="answer", kconf=0.9))
+    assert not _door.close_ordered("Las dos.", brief=_brief(kind="answer", kconf=0.9))[0]
 
 
 def test_the_engine_asking_which_one_records_the_question():

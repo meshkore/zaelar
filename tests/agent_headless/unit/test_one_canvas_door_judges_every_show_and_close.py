@@ -132,8 +132,9 @@ def test_disarm_a_bare_write_is_named():
     assert _scan("nucleo/x.py", bare) == ["nucleo/x.py:2 show", "nucleo/x.py:3 <computed label>"]
 
 
-#: refactor2710-04 T-05: the door, the tree and the turn it reads stay one small thing.
-CANVAS_DOOR_MAX = 700
+#: refactor2710-04 T-05: the door, the tree and the turn it reads stay one small thing. 700 → 741 (declared, refactor2710-04b):
+#: the close/show/reopen/size licences moved IN from nucleo/flash (−197 there), and 05b added `canvas_verdict` (114).
+CANVAS_DOOR_MAX = 741
 
 
 def _door_lines(folder) -> int:
