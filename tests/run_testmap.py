@@ -4521,6 +4521,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_tool_catalog_is_a_dict.py']},
         {"id": "2.829", "title": "One vocabulary for how a request ended: each of the eight verdicts declares delivered, rank, row state, line and event; older names read as it; a later op never improves a failed row; a non-ending is never settled; every settle emits with the row's trace (refactor2710-02 T-00)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/test_one_verdict_vocabulary.py']},
+        {"id": "2.884", "title": "An errand asks before it starts by its class (the brief's errand_class, the money vocabulary only without a verdict), through consent.decide_act: money and accounts ask, his yes clears it, his standing never refuses (refactor2710-06 T-03)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_an_errand_asks_first_by_its_class.py"]},
         {"id": "2.883", "title": "Which errand his words are for is the brief's errand_target, read asymmetrically: agreeing runs cluster_send / send_to_worker / set_cluster_objective, a sure contrary verdict drops it, an unsure one asks, no verdict keeps today's route (refactor2710-06 T-03)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_his_words_for_an_errand_are_read_by_the_brief.py"]},
         {"id": "2.882", "title": "A send to someone his words never named is asked, measured on the real data-op gate (refactor2710-06 T-02)",

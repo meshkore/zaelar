@@ -215,6 +215,51 @@ def target_question(_ctx=None) -> dict:
             "criteria": dict(_TARGETS)}
 
 
+CLASS_KEY = "errand_class"
+_CLASSES = (
+    ("none", "the errand only looks, builds or reports: nothing leaves on his behalf and nothing is paid"),
+    ("sends_for_him", "the errand SENDS something in his name to someone (a message, a form, a booking request)"),
+    ("moves_money", "the errand PAYS, buys, subscribes or otherwise moves his money"),
+    ("account_change", "the errand changes, cancels or closes one of his accounts or subscriptions"),
+)
+
+
+def class_question(_ctx=None) -> dict:
+    """The brief's question: what an errand he commissions would do in the world (the consent class it carries)."""
+    return {"instructions": "If the operator commissions an errand, what does it do in the world?",
+            "criteria": dict(_CLASSES)}
+
+
+def class_verdict(brief) -> dict | None:
+    """The brief's `errand_class` as `{choice, confidence}`, carried in the errand's context; None when unread."""
+    from nucleo.turn import verdicts as _v
+    choice, info = _v.read(brief, CLASS_KEY, None, min_confidence=0.0)
+    return {"choice": str(choice), "confidence": float((info or {}).get("confidence") or 0.0)} if choice and info else None
+
+
+def class_of(verdict: dict | None, request: str) -> str:
+    """The errand's consent class: the verdict at the licence; without one, the money vocabulary (`danger`, which only
+    shrinks). Fail-closed: only a SURE «none» clears what the vocabulary flags."""
+    from nucleo import danger
+    from nucleo.turn import verdicts as _v
+    fallback = "moves_money" if danger.is_dangerous(request) else "none"
+    choice, conf = str((verdict or {}).get("choice") or ""), float((verdict or {}).get("confidence") or 0.0)
+    if not choice or conf < _v.LICENCE or (choice == "none" and fallback != "none" and conf < _v.VETO):
+        return fallback
+    return choice
+
+
+def asks_first(cls: str, *, confirmed: bool) -> bool:
+    """THE act-or-ask rule for an errand (`consent.decide_act`): a class that acts in the world asks before it starts,
+    unless his yes is already here; his standing «ask»/«never» rules and the radius apply on top."""
+    if cls == "none":
+        return False
+    from nucleo import consent
+    level = "sensitive" if cls == "sends_for_him" else "critical"      # money and accounts ask by default, as today
+    return consent.asks(consent.decide_act(f"errand.{cls}", channel="errand", level=level, his_yes=confirmed,
+                                           licensed=True))
+
+
 def target_allows(brief, tool: str) -> str:
     """`run` · `veto` · `consent.ASK_WHICH` for `tool`'s call, by the brief's `errand_target`."""
     from nucleo.turn import verdicts as _v

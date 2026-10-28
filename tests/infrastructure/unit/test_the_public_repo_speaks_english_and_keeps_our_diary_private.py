@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 2011   # refactor2710-06: measured after the errand door condensed its moved narrative
+TOTAL = 2006   # refactor2710-06: measured after the dispatch gate comments were condensed
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,

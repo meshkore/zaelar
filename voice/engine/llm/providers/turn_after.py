@@ -290,6 +290,7 @@ async def close_the_turn(*, send, _acc_ms, _amap_ms, _brief, _busy_at_start, _di
                                                                            _p._surfaces_mod.from_brief(_brief)),
                               "done_when": (escalate_req.get("done_when") or {}).get(req),   # V2-776 L1
                               "heard": _heard,     # his sentence, to the ONE errand it commissions (two: neither)
+                              "errand_class": _escalate_mod.class_verdict(_brief),   # the consent class it carries
                               "asked": spoken_text})   # V2-655: si el turno pidió permiso, se APARCA
             emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system", extra={"heard": _heard})
             _promise_kept.say_the_start(escalate_req, spoken_text, send=send, speech=speech)   # a silent start says so (V2-794)
