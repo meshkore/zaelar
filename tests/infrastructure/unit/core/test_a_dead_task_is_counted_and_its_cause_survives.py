@@ -106,10 +106,18 @@ def test_la_ruta_del_payload_es_la_PLANA_que_el_bus_escribe():
 
 # ── R4 · la causa se clasifica UNA vez y viaja ──────────────────────────────────────────────────────────
 
-def test_note_failure_devuelve_la_CAUSA_no_solo_el_relevo():
+def test_note_failure_returns_the_CAUSE_not_only_the_relay(monkeypatch):
+    """Checked at the door (refactor2710-09): the rung that failed comes back with the KIND computed where the text
+    was classified, so the adapter never classifies it a second time."""
     from nucleo.workers import providers as P
-    src = pathlib.Path(P.__file__).read_text(encoding="utf-8")
-    assert '"kind": kind, "provider": t["name"]' in src, "la causa tiene que salir de donde se calcula"
+    rung = {"name": "relay-a", "base_url": "https://relay.example.test", "plan": "test"}
+    picks = iter([rung, None])
+    set_calls = []
+    monkeypatch.setattr(P, "pick", lambda: next(picks))
+    monkeypatch.setattr(P, "_store", type("S", (), {"set": lambda self, n, u: set_calls.append(n)})())
+    out = P.note_failure("API Error: 400 [1210][Invalid API parameter, please check the documentation.]")
+    assert out["kind"] == "broken" and out["provider"] == "relay-a" and out["next"] == "", out
+    assert set_calls == ["relay-a"], "the failing rung is put on cooldown under its own name"
 
 
 def test_el_adaptador_ya_no_reclasifica_el_texto_para_decidir_si_avisa():
