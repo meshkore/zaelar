@@ -28,6 +28,15 @@ def _teaches_the_quoted_form(text: str) -> bool:
     return _QUOTED in text and "busca.json" not in text
 
 
+def test_the_bridge_hint_after_a_bad_act_teaches_the_quoted_search():
+    """The way out a worker is shown when `act` dies on its arguments is the same form the guard lets through:
+    a quoted sentence, no JSON. (Its `@file` detour stays for the JSON payloads of OTHER actions, V2-379.)"""
+    from nucleo.cli import bridge
+    hint = bridge._hint_for("worker_bridge act")
+    assert 'act use_tool "<qué buscas>"' in hint
+    assert '"tool":"web_search"' not in hint, "the search taught as JSON is what the guard refuses"
+
+
 def test_the_briefs_a_worker_reads_teach_the_quoted_form_and_no_file():
     """The text the worker RECEIVES (web brief + generic brief, rendered by the real builders) — another goal."""
     from tests.worker_briefs import rendered

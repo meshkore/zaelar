@@ -165,7 +165,7 @@ def _hint_for(prog: str) -> str:
     if prog.endswith("act"):
         return ('   · `act` lleva DOS cosas: la acción y su payload JSON ENTRE COMILLAS SIMPLES.\n'
                 '   · Para BUSCAR en la web (lo más habitual):\n'
-                '       act use_tool \'{"tool":"web_search","args":{"query":"<qué buscas>"}}\'\n'
+                '       act use_tool "<qué buscas>"\n'
                 '   · El JSON va en UNA sola línea y con comillas simples por fuera: sin ellas el shell lo parte '
                 'y llega a medias.\n'
                 # V2-379 — the fallback when inline JSON DOES NOT PASS. Our own gate rejects an argument
