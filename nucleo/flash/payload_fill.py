@@ -248,7 +248,7 @@ _BEFORE_WORDS = frozenset("before ahead above antes delante encima".split())
 _NOT_A_ROW_NUMBER = frozenset({"un", "uno", "una"})
 
 
-def _row_mentions(words: str, rows: list[dict], base: str = "") -> list[tuple[int, int]]:
+def _row_mentions(words: str, rows: list[dict], base: str = "", brief=None) -> list[tuple[int, int]]:
     """`(offset, row_id)` of every row the words NAME, in the order they are named.
 
     A row is named by a spoken position («the third», «el segundo»), a marked digit («number 3»), or a word of its
@@ -278,11 +278,11 @@ def _row_mentions(words: str, rows: list[dict], base: str = "") -> list[tuple[in
     for off, rid in sorted(out):
         first.setdefault(rid, off)
     from nucleo.turn import brief as _brief
-    gone = _brief.withdrawn_rows(_brief.of_this_turn(), base) if base else set()
+    gone = _brief.withdrawn_rows(brief if brief is not None else _brief.of_this_turn(), base) if base else set()
     return sorted((off, rid) for rid, off in first.items() if str(rows[rid - 1]["id"]) not in gone)
 
 
-def reorder_fill(widget_id: str, action: str, words: str, model_words: str = "") -> dict:
+def reorder_fill(widget_id: str, action: str, words: str, model_words: str = "", brief=None) -> dict:
     """`{item: n, before|after: m}` when the action declares a row to move beside ANOTHER row and the words name
     exactly two rows with the side between them; `{}` otherwise.
 
@@ -300,7 +300,7 @@ def reorder_fill(widget_id: str, action: str, words: str, model_words: str = "")
         if len(rows) < 2:
             return {}
         for text in (words, model_words):
-            named = _row_mentions(text, rows, _base_of(widget_id))
+            named = _row_mentions(text, rows, _base_of(widget_id), brief)
             if len(named) != 2:
                 continue
             (a_off, a_row), (b_off, b_row) = named
@@ -313,12 +313,12 @@ def reorder_fill(widget_id: str, action: str, words: str, model_words: str = "")
         return {}
 
 
-def choice_or_order_fill(widget_id: str, action: str, words: str, model_words: str = "") -> tuple[dict, str]:
+def choice_or_order_fill(widget_id: str, action: str, words: str, model_words: str = "", brief=None) -> tuple[dict, str]:
     """`(payload, source)` for an action no single query key fills: a declared CHOICE he named (`enum-alias`), else
     two rows he put in order (`said-order`); `({}, "")` when neither."""
     if (filled := enum_fill(widget_id, action, words)):
         return filled, "enum-alias"
-    if (filled := reorder_fill(widget_id, action, words, model_words)):
+    if (filled := reorder_fill(widget_id, action, words, model_words, brief)):
         return filled, "said-order"
     from nucleo.flash import move_fill as _mf     # «the one playing, first» / a slot answering the card's question
     if (filled := _mf.move_fill(widget_id, action, words, model_words)):
