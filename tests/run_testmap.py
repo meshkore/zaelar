@@ -4505,6 +4505,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_prompt_events_survive_the_move.py']},
         {"id": "2.891", "title": "The voice turn's prompt never loads a worker's brief: the briefs live in nucleo/workers/prompts/, the dispatcher takes them from there, and importing the voice prompt builder loads none of them (refactor2710-08 T-04)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_voice_prompt_never_reads_a_worker_brief.py']},
+        {"id": "2.908", "title": "A declared WRITE needs an order: a turn the brief surely reads as a question (or a sure «tell me» that is no order) never runs one — the card is shown; an order, a lens, or a verdict naming that very write still runs (refactor2710-99, use case show-my-messages__us)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_sure_question_never_runs_a_write.py']},
         {"id": "2.896", "title": "A turn whose act WAS the words owes no «No lo he hecho»: a sure `wants_words = tell` with no errand is kept by the reply itself; an act to be done, an unsure reading or an errand keeps the receipt (refactor2710-99, use case docs-single-recipe-not-a-list__es)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_words_he_asked_for_carry_no_not_done.py']},
         {"id": "2.894", "title": "A module faked in sys.modules is also what its package hands out (`from pkg import mod`), and both come back — the root conftest's monkeypatch, so a fake never depends on whether an earlier test imported the real one (refactor2710-99)",
