@@ -4551,6 +4551,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_what_the_old_reply_door_said_is_the_mouths.py']},
         {"id": "2.828", "title": "His commissioning sentence travels with the request to the errand it opens (was 2.630, the old channel's `commission_words`) — strict xfail for refactor2710-02",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_his_commissioning_words_travel_with_the_request.py']},
+        {"id": "2.860", "title": "The tool catalogue is a dict: every tool offered has ONE door in `acts.tools.CATALOG` (built from the arm functions, names written once), `router.tools` offers only what has a door, and a call runs through the door its name selects (refactor2710-05 T-01)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_the_tool_catalog_is_a_dict.py']},
         {"id": "2.821", "title": "The decision bank runs on the VOICE turn, typed and dry (`nucleo/cli/turn.py`): a recorded case decides there what the voice turn decides, and every door it meets is closed in the ledger",
             "ch": UNIT, "paths": ['tests/brain/unit/test_the_bank_runs_on_the_voice_turn.py']},
         {"id": "2.823", "title": "The typed channel reports its act and never writes it into the brain: `brain._last_action` stays what the voice turn left («search» after a search), so «open it» resolves the same typed and spoken",
