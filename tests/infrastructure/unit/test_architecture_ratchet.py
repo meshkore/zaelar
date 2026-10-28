@@ -334,14 +334,14 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
     "nucleo (top)": 18817,      # refactor2710-07: jev.py became the nucleo/jev package; refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
     "nucleo/actionmap": 755,
-    "nucleo/acts": 902,         # refactor2710-05: the tool catalogue (T-01) + what frontend.py decided about a card (T-05)
+    "nucleo/acts": 1717,        # refactor2710-05: the catalogue (T-01), the card decisions (T-05), the verdict over a card and the second passes (T-04)
     "nucleo/agentes": 793,
     "nucleo/batch": 884,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
     "nucleo/circuit": 2597,     # refactor2710-02: born — circuit, spec, harness, verify, deliverable_gate, workers/goal, tasks (ledger) MOVED in; `verdict.py`; 02b: flash/write_outcome MOVED in (compose.py)
     "nucleo/context_packs": 568,
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 25301,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts
+    "nucleo/flash": 24469,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts
     "nucleo/input": 739,
     "nucleo/jev": 759,          # refactor2710-07: born — jev.py split into the client, select and decide (dead calls out)        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
@@ -452,7 +452,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; refactor2710-07: → 171196). Never for growth in place.
-_TOTAL_MAX = 170952
+_TOTAL_MAX = 170935
 
 
 def test_the_total_only_shrinks():
