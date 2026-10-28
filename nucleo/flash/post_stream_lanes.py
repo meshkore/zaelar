@@ -141,7 +141,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
     except Exception:  # noqa: BLE001 — a backstop never adds an exception to a turn
         pass
     _close_answer.backstop(_op_text, _brief, emit, acted)     # V2-812 T-05: his answer to OUR «which one?» closes
-    if (not acted.get("closed")) and _pst._canvas_lic.close_license(text, brief=_brief) \
+    if (not acted.get("closed")) and _door.close_ordered(text, brief=_brief)[0] \
             and not _router.looks_like_create_widget(text) \
             and not _pst._card_close.music_keeps_its_turn(music_req, _op_text) and not data_done["v"] \
             and not _pst._closeg.taken_elsewhere(_tool_fired) and not _brief_q.names_elsewhere(_brief) \

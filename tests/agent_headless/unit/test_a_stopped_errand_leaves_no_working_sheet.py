@@ -7,6 +7,8 @@ The trip plan was cancelled while it waited for a slot: the cancel landed at the
 """
 from __future__ import annotations
 
+from nucleo.acts import canvas as _door
+
 import asyncio
 import threading
 from types import SimpleNamespace
@@ -85,9 +87,9 @@ COMPLAINT = "You did close the document of Bitcoin without me telling you, also 
 
 
 def test_a_complaint_about_a_close_licenses_no_close():
-    assert show_target.close_has_order(COMPLAINT, None, brief=_brief("neither")) == (False, "verdict")
+    assert _door.close_ordered(COMPLAINT, brief=_brief("neither"), called=True, handle=None) == (False, "verdict")
 
 
 def test_an_order_to_close_is_still_one():
-    assert show_target.close_has_order("Close the calendar.", None, brief=_brief("close"))[0] is True
-    assert show_target.close_has_order("Close the calendar.", None)[0] is True        # no brief: as before
+    assert _door.close_ordered("Close the calendar.", brief=_brief("close"), called=True, handle=None)[0] is True
+    assert _door.close_ordered("Close the calendar.", called=True, handle=None)[0] is True        # no brief: as before

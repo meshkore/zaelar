@@ -110,20 +110,22 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
     from nucleo.flash import canvas_license as _lic
 
     if op == "close":
-        return (_v(True, "close-grammar") if _lic.close_license(text)
+        from nucleo.acts import canvas as _door
+        return (_v(True, "close-grammar") if _door.close_ordered(text)[0]
                 else _v(False, "close-drag"))
 
     if op == "screen":
-        direction = _lic.fullscreen_license(text)
+        from nucleo.acts import canvas as _door
+        direction = _door.size_ordered(text)
         return (_v(True, "screen-grammar", direction=direction) if direction
                 else _v(False, "screen-drag"))
 
     if op == "show":
         # one decision with the show gate it replaced: a close order that also carries an open verb is compound
-        from nucleo.flash import close_guards as _cg
-        if _cg.show_contradicts_the_order(text):
+        from nucleo.acts import canvas as _door
+        if _door.show_under_close(text):
             return _v(False, "show-against-close-order")
-        if not _lic.reopen_license(wid, text, open_ids=open_ids, recent_ids=recent_ids,
+        if not _door.reopen_ordered(wid, text, open_ids=open_ids, recent_ids=recent_ids,
                                    last_reply=last_reply):
             return _v(False, "reopen-unlicensed")
         if _mentions_widget(wid, text, open_ids, recent_ids):
