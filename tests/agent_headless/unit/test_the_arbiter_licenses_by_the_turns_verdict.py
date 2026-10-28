@@ -32,6 +32,13 @@ def test_a_sure_contrary_verdict_vetoes_and_a_close_order_licenses_no_show():
                       verdict={"canvas": ("close", 0.9)}).rule == "verdict-close-not-show"
 
 
+def test_a_close_order_that_also_opens_is_two_orders():
+    """«close the messages and show me the agenda» closes one card and shows another; a bare close order still
+    licenses no show (the bank's v2-567 case, here in the other language)."""
+    assert arb.decide("show", "agenda", "flash", text="close the messages and show me the agenda").allow
+    assert arb.decide("show", "agenda", "flash", text="cierra la agenda").rule == "show-against-close-order"
+
+
 def test_an_unsure_or_absent_verdict_leaves_the_words_to_decide():
     assert arb.decide("close", "youtube", "flash", text="cierra el widget de youtube").rule == "close-grammar"
     assert arb.decide("close", "youtube", "flash", text=MUTE, verdict={"canvas": ("close", 0.46)}).rule == "close-drag"
