@@ -246,15 +246,6 @@ def _unlift(src: str) -> str:
     return _LIFTED.sub(_back, src)
 
 
-#: `boot.start_the_engine`'s own two halves (spliced into it once it is back in place).
-_BOOT_HALVES = (
-    ("    # V2-778 F1 — the first half of the start (identity", "_boot_halves.identity_bus_memory_and_workers(",
-     ENGINE / "server" / "boot_halves.py", "identity_bus_memory_and_workers"),
-    ("    # V2-778 F1 — the second half of the start (widgets", "_boot_halves.connectors_voice_and_health(",
-     ENGINE / "server" / "boot_halves.py", "connectors_voice_and_health"),
-)
-
-
 #: Files whose function bodies F1 cut into called blocks: read with each block put back where it sat.
 _SPLICED = {
     (ENGINE / "nucleo" / "dispatch_session.py").resolve(): (
@@ -277,10 +268,6 @@ _SPLICED = {
           ENGINE / "nucleo" / "flash" / "live_blocks_nav.py", "read_the_browser_tasks"),
          ("            # V2-778 F1 — saying what the brain may claim about the browser", "_lbn.say_the_browser_state(",
           ENGINE / "nucleo" / "flash" / "live_blocks_nav.py", "say_the_browser_state")], "_lb"),
-    (ENGINE / "server" / "__init__.py").resolve(): (
-        [("    # V2-778 F1 — the engine's start (identity", "_boot.start_the_engine(", ENGINE / "server" / "boot.py",
-          "start_the_engine"), *_BOOT_HALVES], "_srv|_bt"),
-    (ENGINE / "server" / "boot.py").resolve(): (list(_BOOT_HALVES), "_bt"),
 }
 
 

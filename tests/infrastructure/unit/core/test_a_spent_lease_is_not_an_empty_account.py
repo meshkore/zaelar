@@ -276,7 +276,7 @@ def test_boot_asks_for_a_fresh_lease_before_any_stop_decision(_clean, monkeypatc
 
 
 def test_the_server_boots_through_the_fresh_lease_door():
-    src = (ENGINE / "server" / "boot_halves.py").read_text(encoding="utf-8")
+    src = (ENGINE / "server" / "boot" / "surfaces.py").read_text(encoding="utf-8")
     assert "energy_lease.start_at_boot()" in src
     assert 'energy_lease.ensure(reason="boot")' not in src, "boot must not adopt the persisted lease"
 

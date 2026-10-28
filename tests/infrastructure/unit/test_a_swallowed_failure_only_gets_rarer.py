@@ -58,7 +58,7 @@ def _counts() -> dict[str, int]:
 
 #: Measured on 2026-10-16 with the widened predicate (was 1147 `pass`-only on 2026-10-01) — the TOTAL may only
 #: fall, and no file may exceed its own count.
-TOTAL = 1883
+TOTAL = 1820
 PER_FILE: dict[str, int] = {
     'bus/__init__.py': 5,
     'bus/log.py': 7,
@@ -385,19 +385,22 @@ PER_FILE: dict[str, int] = {
     'search/images.py': 2,
     'search/listing.py': 3,
     'search/web.py': 5,
-    'server/__init__.py': 17,
     'server/active.py': 1,
     'server/api_guard.py': 1,
-    'server/boot_halves.py': 3,
-    'server/canvas_api.py': 10,
-    'server/config_api.py': 4,
+    'server/boot/brain.py': 1,
+    'server/boot/nervous_system.py': 1,
+    'server/boot/surfaces.py': 1,
+    'server/canvas_api.py': 9,
+    'server/config_api.py': 2,
+    'server/config_catalog.py': 2,
     'server/daemon_api.py': 3,
     'server/feedback_api.py': 3,
     'server/memory_routes.py': 1,
     'server/operator_gate.py': 1,
     'server/peer_process.py': 2,
+    'server/run_api.py': 1,
     'server/system_audio.py': 1,
-    'server/voice_api.py': 2,
+    'server/voice_api.py': 1,
     'server/voice_status.py': 1,
     'tools/comment_language_audit.py': 1,
     'voice/attention.py': 5,

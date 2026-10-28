@@ -7,7 +7,6 @@ mailbox with the «Colmena» brain (nucleo/) and everything else. Gated by ZAELA
 """
 import mimetypes
 import os
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -47,7 +46,6 @@ from server.memory_routes import router as files_router  # paste/drop uploads �
 from server.memory_viewer_api import router as memory_viewer_router  # V2-808: every store, counted and paged
 from memory.vault_api import router as vault_router    # operator encrypted-secrets vault (V2-060)
 from update.api import router as update_router      # V2-553: the update channel (build number + «reload?»)
-from bus.sse import publish as _sse_publish   # ONLY gate into the observer topic: stamps install+session
 from observability.api import router as obs_router    # flows/sessions/identity (correlation id, 2026-08-09)
 from nucleo.cron_api import router as cron_router  # «Colmena» brain's own proactivity (V2-005/009; ⏰ panel)
 from .wizard_api import router as wizard_router  # first-run wizard: local/cloud profiles + detector (V2-040)
@@ -56,173 +54,13 @@ from .config_api import router as config_router  # full-screen configuration are
 from .i18n_api import router as i18n_router  # multilingual UI: state + preset/generated bundles (V2-089)
 from .feedback_api import router as feedback_router  # send a suggestion to the developers (V2-100)
 from .daemon_api import router as daemon_router  # V2-575 P1: status + folder permissions of the LOCAL DAEMON
-
-
-@asynccontextmanager
-async def _lifespan(app: FastAPI):
-    # More than one listener can share this SAME app (`server/__main__.py` keeps a list of servers) — each
-    # `uvicorn.Server` fires the ASGI lifespan independently, so this body can run more than once per process. Most
-    # pieces are already idempotent (for example the orchestrator loop checks `self._task is not None`), but the
-    # bus→SSE bridges below (memory, heartbeat) had no guard: each entry created a NEW subscription to the same
-    # topic → duplicated events in /events (2026-07-22 testing-marathon finding, confirmed on a clean boot:
-    # "Bridge … mounted" appeared 2×). This flag on `app.state` (which persists between lifespan entries because
-    # it is the SAME app) makes only the FIRST entry mount those bridges; the second skips them without touching
-    # anything else in this body.
-    # V2-778 F1 — the engine's start (identity, bus, memory, loop, workers, widgets, connectors) lives in
-    # `server/boot.py`.
-    _blk = await _boot.start_the_engine(
-        app=app,
-    )
-    if '_bus_log' in _blk:
-        _bus_log = _blk['_bus_log']
-    if '_lk' in _blk:
-        _lk = _blk['_lk']
-    if '_loop_on' in _blk:
-        _loop_on = _blk['_loop_on']
-    if '_mem_sse_sub' in _blk:
-        _mem_sse_sub = _blk['_mem_sse_sub']
-    if '_mem_sse_task' in _blk:
-        _mem_sse_task = _blk['_mem_sse_task']
-    if '_memory_on' in _blk:
-        _memory_on = _blk['_memory_on']
-    if '_pulse_sse_sub' in _blk:
-        _pulse_sse_sub = _blk['_pulse_sse_sub']
-    if '_pulse_sse_task' in _blk:
-        _pulse_sse_task = _blk['_pulse_sse_task']
-    if '_slow_on' in _blk:
-        _slow_on = _blk['_slow_on']
-    if '_susurro_on' in _blk:
-        _susurro_on = _blk['_susurro_on']
-    if 'browser_search' in _blk:
-        browser_search = _blk['browser_search']
-    if 'bus' in _blk:
-        bus = _blk['bus']
-    if 'homeostasis' in _blk:
-        homeostasis = _blk['homeostasis']
-    if 'memapi' in _blk:
-        memapi = _blk['memapi']
-    if 'meshkore' in _blk:
-        meshkore = _blk['meshkore']
-    if 'nucleo_dispatch' in _blk:
-        nucleo_dispatch = _blk['nucleo_dispatch']
-    if 'nucleo_loop' in _blk:
-        nucleo_loop = _blk['nucleo_loop']
-    if 'nucleo_susurro' in _blk:
-        nucleo_susurro = _blk['nucleo_susurro']
-    if 'supervisor' in _blk:
-        supervisor = _blk['supervisor']
-    if 'widget_background' in _blk:
-        widget_background = _blk['widget_background']
-    if 'widget_supervisor' in _blk:
-        widget_supervisor = _blk['widget_supervisor']
-    try:
-        yield
-    finally:
-        try:
-            from widgets import supervisor as widget_supervisor
-            await widget_supervisor.stop()
-        except Exception:
-            pass
-        try:
-            from widgets import background as widget_background
-            await widget_background.stop()
-        except Exception:
-            pass
-        try:
-            from connectors.messaging import supervisor
-            await supervisor.stop()
-        except Exception:
-            pass
-        try:
-            from nucleo import homeostasis
-            await homeostasis.stop()
-        except Exception:
-            pass
-        try:
-            from connectors.whatsapp import service as wa_service
-            await wa_service.stop()
-        except Exception:
-            pass
-        try:
-            from connectors.telegram import service as tg_service
-            await tg_service.stop()
-        except Exception:
-            pass
-        try:
-            from connectors.email import service as em_service
-            await em_service.stop()
-        except Exception:
-            pass
-        try:
-            _lk = getattr(app.state, "lk_server", None)
-            if _lk is not None:
-                await _lk.aclose()
-        except Exception:
-            pass
-        # V2-038 §v3·L: ORDERLY shutdown — KILL Brain Workers (dispatch.stop → stop_all_async, killpg) BEFORE
-        # bringing down the supervisor loop, so subprocesses are not orphaned when the loop dies.
-        try:
-            if _slow_on:
-                from nucleo import dispatch as nucleo_dispatch
-                await nucleo_dispatch.stop()
-        except Exception:
-            pass
-        try:
-            if _loop_on:
-                from nucleo import loop as nucleo_loop
-                await nucleo_loop.stop()
-        except Exception:
-            pass
-        try:
-            if _susurro_on:
-                from nucleo import susurro as nucleo_susurro
-                await nucleo_susurro.stop()
-        except Exception:
-            pass
-        try:
-            from nucleo import browser_search
-            await browser_search.stop()
-        except Exception:
-            pass
-        try:
-            from connectors import meshkore
-            await meshkore.shutdown()
-        except Exception:
-            pass
-        try:
-            if _mem_sse_task is not None:
-                _mem_sse_task.cancel()
-            if _mem_sse_sub is not None:
-                import bus
-                bus.unsubscribe(_mem_sse_sub)
-        except Exception:
-            pass
-        try:
-            if _pulse_sse_task is not None:
-                _pulse_sse_task.cancel()
-            if _pulse_sse_sub is not None:
-                import bus
-                bus.unsubscribe(_pulse_sse_sub)
-        except Exception:
-            pass
-        try:
-            if _memory_on:
-                from memory import api as memapi
-                await memapi.stop(drain=True)
-        except Exception:
-            pass
-        try:
-            if _bus_log is not None:
-                _bus_log.detach()
-                _bus_log.close()
-        except Exception:
-            pass
+from .lifespan import lifespan  # what starts, in which order, and what stops (refactor2710-13 T-03)
 
 
 def create_app() -> FastAPI:
     from config.settings import load_into_env   # apply ⚙-panel overrides to env BEFORE the pipeline reads them
     load_into_env()
-    app = FastAPI(title="zaelar", lifespan=_lifespan)
+    app = FastAPI(title="zaelar", lifespan=lifespan)
 
     # REQUEST ADMISSION (2026-08-13, replaces the fail-OPEN session-routing middleware): when this
     # process shares one public hostname with other processes holding other people's data, a request
@@ -294,6 +132,3 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
-
-# V2-778 F1 — the start half of the lifespan; imported at the end (it reads this module back).
-from server import boot as _boot  # noqa: E402
