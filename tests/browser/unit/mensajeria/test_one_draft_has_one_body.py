@@ -98,7 +98,7 @@ def test_the_turn_door_brings_the_draft_card_through_the_one_canvas_door():
 
 def test_the_harness_checks_the_row_card_not_the_copy():
     """«correct the draft» is attested on the card that holds the row: the redirected op is what the turn records."""
-    from nucleo.flash import write_harness
+    from nucleo.circuit import write_harness
     _hold_email()
     wid, action, _p = text_home.redirect("documento", "show", {"title": "x", "body": ES_CORRECTED})
     assert write_harness.writes_of([(wid, action)]) == [("mensajeria", "save_draft")]
