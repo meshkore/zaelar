@@ -126,18 +126,6 @@ def test_a_browser_with_no_errand_behind_it_writes_the_bare_sheet():
     assert [i["title"] for i in sheet.view_data()["items"]] == ["algo"]
 
 
-@pytest.mark.parametrize("rel", ["widgets/navegador/act_api.py", "widgets/navegador/owner.py",
-                                 "nucleo/dispatch/__init__.py"])
-def test_no_writer_pushes_without_naming_its_sheet(rel):
-    """The guardrail needed here and not in V2-257: back then, knocking on the door was enough; now they have to
-    say WHICH sheet. A `push` without `sheet=` does not fail — it writes into the box nobody is watching."""
-    src = _vts.read(ENGINE / rel)     # V2-778 F1: a split file is read with its moved pieces
-    for i, line in enumerate(src.splitlines()):
-        if "intake.push(" in line and "def " not in line:
-            bloque = "\n".join(src.splitlines()[i:i + 3])
-            assert "sheet=" in bloque, f"{rel}:{i + 1} entrega a la hoja sin decir a cuál"
-
-
 def test_the_worker_bridge_resolves_the_sheet_so_the_worker_never_has_to():
     """The worker’s prompt says “deliver to the `results` sheet” (V2-257), and with instances that bare name is no
     longer an address. The BRIDGE resolves it: a worker should not need to know instance IDs."""

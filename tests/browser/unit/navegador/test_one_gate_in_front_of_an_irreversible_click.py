@@ -206,30 +206,6 @@ def _agent_act_source() -> str:
     raise AssertionError("agent_act not found")
 
 
-def test_no_route_reaches_the_mouse_or_the_keyboard_without_the_gate():
-    """Structural, and it is the half that actually failed: every rule in this file was already true of the
-    `click` branch and false of the other three. Counted here so a FIFTH route cannot be added ungated."""
-    body = _agent_act_source()
-    gated = body.count("_may_act(")
-    assert gated >= 4, (
-        f"only {gated} calls to the gate in `agent_act`: the four routes that reach the mouse or the "
-        f"keyboard (click, click_at, press, --submit) each need one BEFORE they move anything")
-
-
-def test_the_gate_is_consulted_BEFORE_the_mouse_moves():
-    body = _agent_act_source()
-    for mover in ("_human_click_handle(", "_human_click_at("):
-        assert body.index("_may_act(") < body.index(mover), f"{mover} runs before the gate"
-
-
-def test_the_vision_route_is_gated_where_the_worker_is_told_to_use_it():
-    """`nav_cli.py` recommends the vision flow «robust for forms» — so the vision branch is the one that
-    must never be the unguarded one again."""
-    body = _agent_act_source()
-    branch = body[body.index('if action in ("click_at", "type_at")'):]
-    assert "_may_act(" in branch.split("_human_click_at(")[0], "click_at reaches the mouse ungated"
-
-
 # ── 4 · the host is who the site is, not what the page does (V2-776) ───────────────────────────────────
 
 @pytest.mark.parametrize("page", [

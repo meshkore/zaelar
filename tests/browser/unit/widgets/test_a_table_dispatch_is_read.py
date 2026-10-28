@@ -56,3 +56,34 @@ def test_a_table_apply_action_does_not_read_is_not_counted():
     """Only a table `apply_action` actually consults: a module-level dict it never names is not its dispatch."""
     src = _DATA.replace("h = ACTIONS.get(action)", "h = None")
     assert validator._apply_action_names(src) == set()
+
+
+# refactor2710-12 — the table READ OFF the `_a_<action>` names: no list of action words written twice, and the gate
+# still sees exactly what is handled.
+_DERIVED = '''from .actions import _a_play, _shared
+
+
+def _a_stop(action, p):
+    return {"ok": True}
+
+
+_a_pause = _a_rewind = _shared
+ACTIONS = {name[3:]: fn for name, fn in list(globals().items()) if name.startswith("_a_")}
+
+
+def apply_action(action, payload=None):
+    h = ACTIONS.get(action)
+    return h(action, payload or {}) if h else {"ok": False, "error": "unknown_action"}
+'''
+
+
+def test_a_table_read_off_the_handler_names_is_gated_both_ways():
+    assert validator._apply_action_names(_DERIVED) == {"play", "stop", "pause", "rewind"}
+    assert validator._validate_actions_sync(_man("play", "stop", "pause", "rewind"), _DERIVED) is None
+    assert "ghost" in validator._validate_actions_sync(_man("play", "stop", "pause", "rewind", "ghost"), _DERIVED)
+    assert "rewind" in validator._validate_actions_sync(_man("play", "stop", "pause"), _DERIVED)
+
+
+def test_disarm_the_derived_table_fail_opens_without_its_reader(monkeypatch):
+    monkeypatch.setattr(validator, "_bound_names", lambda tree: set())
+    assert validator._validate_actions_sync(_man("play", "ghost"), _DERIVED) is None, "nothing read → fail-open"

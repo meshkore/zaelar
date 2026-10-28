@@ -143,3 +143,21 @@ def iter_folders():
             if os.path.isdir(folder):
                 seen.add(name)
                 yield name, folder
+
+
+def client_files(folder: str) -> list[str]:
+    """A widget's client code, entry first: `widget.js`, then every module of its `js/` folder in name order. Every
+    gate that reads the client code reads THIS list, so a rule cannot be dodged by moving code into `js/`."""
+    entry = os.path.join(folder, "widget.js")
+    js = os.path.join(folder, "js")
+    parts = sorted(os.path.join(js, n) for n in os.listdir(js) if n.endswith(".js")) if os.path.isdir(js) else []
+    return ([entry] if os.path.isfile(entry) else []) + parts
+
+
+def client_source(folder: str) -> str:
+    """The text of `client_files(folder)`, joined — what a static gate scans."""
+    out = []
+    for p in client_files(folder):
+        with open(p, encoding="utf-8") as fh:
+            out.append(fh.read())
+    return "\n".join(out)

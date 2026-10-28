@@ -13,9 +13,9 @@ import asyncio
 import os
 
 import pytest
+from tests.browser import widget_client
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-_WIDGET = os.path.join(ENG, "widgets", "mensajeria", "widget.js")
 
 _PNG = (b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f"
         b"\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND"
@@ -115,9 +115,7 @@ def _run(steps, clicks=None):
                 await route.fulfill(status=200, content_type="image/png", body=_PNG)
             await pg.route("http://zaelar.test/widgets/mensajeria/asset/*", _asset)
             await pg.goto("http://zaelar.test/")
-            src = open(_WIDGET, encoding="utf-8").read()
-            await pg.add_script_tag(
-                content=src.replace("export function render", "window.render = function render"))
+            await widget_client.mount(pg, "mensajeria")
             out = []
             for i, data in enumerate(steps):
                 await pg.evaluate(

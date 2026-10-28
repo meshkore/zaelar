@@ -18,10 +18,8 @@ from . import held as _held
 from . import outbound as _outbound
 from . import sent as _sent
 from . import names as _names   # V2-819: one resolver names every conversation the card shows
-# The READ side lives in views.py since V2-624 (the architecture ratchet's extraction, along the real seam:
-# name resolution, the thread/activity views, peek, the autoresponder previews, and — since V2-626 — the
-# open reference and the effective notify policy). One direction only —
-# views.py lazy-imports this module where it needs the store or the inbox helpers.
+# The READ side lives in views.py (names, thread/activity views, peek, autoresponder previews, the open reference,
+# the effective notify policy). One direction only: views.py lazy-imports this module where it needs the store.
 from .views import (_activity_answer, _activity_chats, _autoresponder_preview, _autoresponder_view,
                     _criteria_for, _find_chat_by_name, _group_chats, _notify_policy_view, _open_ref,
                     _chat_digest_answer, _peek_answer, _search_archive_answer, _thread_meta,
@@ -30,21 +28,17 @@ from .timing import (  # noqa: E402,F401 — V2-778 F1: moved, imported back und
     _COMPOSE_BASE_S, _COMPOSE_LINGER_S, _COMPOSE_MAX_S, _COMPOSE_PER_CHAR_S, _VIEW_TTL_S, _compose_seconds,
     _composing, _email_signature, _fresh_view, _push_view)
 
-WIDGET_ID = "mensajeria"
-_PLATFORMS = ("whatsapp", "telegram", "email")   # email: V2-051
-# Which platforms can actually go BACK and fetch older messages (V2-546). This is a statement about each
-# transport, not a preference: Telegram's MTProto serves arbitrary history from the account itself; IMAP holds
-# the whole mailbox on the server; WhatsApp keeps history on the DEVICE and a linked client can only ask its
-# phone for it, so it is offered and may honestly come back empty. A platform outside this list gets no button
-# at all — offering one that cannot work is worse than not offering it.
+# The store shape (id, platforms, empty/reset state, load, the numbered list) lives in shape.py.
+from .shape import (  # noqa: F401 — re-exported under their names
+    WIDGET_ID, _PLATFORMS, _empty, blank, load_db, _renumber, _key, _visible_items)
+
+# Which platforms can go BACK and fetch older messages (V2-546) — a statement about each transport: MTProto and IMAP
+# serve history from the server; WhatsApp asks its phone and may honestly come back empty. Outside it: no button.
 _HISTORY_PLATFORMS = ("telegram", "email", "whatsapp")
 _HISTORY_LIMIT = 30
 _OPENING_S = 45                     # a chat opened from the list waits this long for its messages
-# V2-624 — which platforms can serve a PLATFORM-WIDE pull («tráete las conversaciones con actividad en las
-# últimas 72 h»). A transport statement, like _HISTORY_PLATFORMS above: Telegram enumerates its own dialogs,
-# IMAP searches the whole mailbox by date; WhatsApp's bridge can only relay what the phone pushes plus
-# per-chat history — there is no «list recent chats» door to ask through, and offering one that cannot work
-# is worse than saying so.
+# Which platforms can serve a PLATFORM-WIDE pull (V2-624), a transport statement: Telegram enumerates its dialogs,
+# IMAP searches by date; WhatsApp's bridge has no «list recent chats» door, so it is refused with the reason.
 _FETCH_PLATFORMS = ("telegram", "email")
 _FETCH_DEFAULT_H = 72.0
 _WINDOW_MAX_H = 24.0 * 90            # criteria and fetches are bounded: 90 days is «the past», not a lens
@@ -60,106 +54,8 @@ _PLAT_ALIASES = {
 }
 
 
-def _empty() -> dict:
-    return {
-        "platforms": {p: {"status": "off", "qr": None} for p in _PLATFORMS},
-        "updated": "",
-        "items": [],
-        "pending_read": [],
-        "pending_reply": [],
-        "pending_send": [],    # V2-683: writing to a PERSON, not answering a conversation
-        "pending_control": [],
-        "pending_history": [],
-        "threads": {},         # V2-546: the CONVERSATIONS (see thread.py). The inbox above is what still wants
-                               # attention; this is what was said, and reading no longer destroys it.
-        "active_chat": None,   # {"platform":..., "chatId":...} | None: open thread in the widget (click or voice)
-    }
-
-
-def blank() -> dict:
-    """Blank state for an operator reset: remove messages and queues, but preserve each platform's connection
-    state. The reset promises not to touch credentials or authentication, and a plain `_empty()` would leave all
-    three platforms at `status:"off"`, making it look like the reset disconnected WhatsApp while the account remains
-    linked. Called by `widgets/reset.py`, which prefers this function so each widget decides what "blank" means."""
-    fresh = _empty()
-    cur = store.load(WIDGET_ID, {})
-    if isinstance(cur.get("platforms"), dict):
-        fresh["platforms"] = cur["platforms"]
-    # V2-624 — the operator's own CONFIGURATION survives a reset the way the connection state does: an
-    # autoresponder set for his vacation and his per-platform view criteria are not «messages and queues»,
-    # and a reset that silently stops answering people in his name is a worse surprise than any stale list.
-    # V2-680 — an unsent DRAFT survives too, for the same reason and a stronger one: it is text the operator
-    # himself wrote and never sent. A reset clears what arrived; it does not throw away his own writing.
-    for k in ("autoresponder", "lens_criteria", "drafts"):
-        if isinstance(cur.get(k), dict) and cur.get(k):
-            fresh[k] = cur[k]
-    return fresh
-
-
-def load_db() -> dict:
-    db = store.load(WIDGET_ID, _empty())
-    if not isinstance(db.get("platforms"), dict):
-        db["platforms"] = {}
-    for p in _PLATFORMS:
-        if not isinstance(db["platforms"].get(p), dict):
-            db["platforms"][p] = {"status": "off", "qr": None}
-    db.setdefault("items", [])
-    db.setdefault("pending_read", [])
-    db.setdefault("pending_reply", [])
-    db.setdefault("pending_send", [])
-    db.setdefault("pending_history", [])
-    db.setdefault("pending_fetch", [])
-    db.setdefault("threads", {})
-    db.setdefault("updated", "")
-    db.setdefault("active_chat", None)
-    db.setdefault("draft", None)
-    db.setdefault("drafts", {})
-    db.setdefault("lens_criteria", {})
-    return db
-
-
-def _renumber(items: list) -> list:
-    for i, it in enumerate(items, 1):
-        it["n"] = i
-    return items
-
-
-def _key(it: dict) -> dict:
-    return {"platform": it.get("platform"), "chatId": it.get("chatId"),
-            "messageId": it.get("messageId"), "senderId": it.get("senderId")}
-
-
-def _visible_items(db: dict) -> list:
-    """Non-muted, renumbered items: the same base list seen by the widget and the brain.
-
-    V2-607 — each item also carries `highlight`: does it meet the criterion for the SUMMARY tab (default: it is
-    addressed to him). Nothing is filtered out here. The per-platform lenses show every unread message, and the
-    unified list uses this flag to put only what he asked for in front of him. Computed at read time, not stored,
-    so changing the policy re-sorts the screen he is already looking at instead of only the mail that arrives next.
-    """
-    from . import policy as _policy
-    muted_channels = db.get("muted_channels", [])
-    muted_keys = {(m.get("platform"), str(m.get("chatId"))) for m in muted_channels}
-    pols: dict = {}
-    out = []
-    for it in db.get("items", []):
-        if (it.get("platform"), str(it.get("chatId"))) in muted_keys:
-            continue
-        plat = it.get("platform") or "?"
-        pol = pols.get(plat)
-        if pol is None:
-            pol = pols[plat] = _policy.policy_for(db, plat)
-        it = dict(it)
-        it["highlight"] = _policy.wants_highlight(pol, it)
-        out.append(it)
-    return _renumber(out)
-
-
-# What this inbox tells the BRAIN: the always-on summary and the answer to a question
-# (`widgets/mensajeria/inbox_read.py`, V2-704). This widget published NEITHER — measured with ten real messages
-# in the store, both seams returned zero characters, so «¿me ha escrito alguien?» reached the model with an
-# empty block and an empty block answers «no». Re-exported here because `refs.prompt_digest` and
-# `nucleo/flash/widget_read` look for them on `data.py`, for every widget, by the same contract.
+# What this inbox tells the BRAIN: the always-on summary and the answer to a question (`inbox_read.py`, V2-704).
+# Re-exported because `refs.prompt_digest` and `nucleo/flash/widget_read` look for them on `data.py`.
 from .inbox_read import prompt_digest, read_query  # noqa: F401,E402 — re-export
 
 
@@ -173,9 +69,7 @@ def view_data(q: str = "") -> dict:
     active_key = (active.get("platform"), str(active.get("chatId"))) if active else None
     pending_here = [it for it in items if (it.get("platform"), str(it.get("chatId"))) == active_key] \
         if active_key else []
-    # V2-546 — an open chat shows the CONVERSATION (what was said, ours included), not only what is still
-    # unread. Before this the two were the same list, so answering every message emptied the thread and the
-    # widget auto-closed it: there was nothing to come back to and no way to continue a conversation.
+    # An open chat shows the CONVERSATION (what was said, ours included), not only what is still unread (V2-546).
     active_items = _thread_view(db, active, pending_here) if active_key else []
     thread_meta = _thread_meta(db, active) if active_key else None
     composing = _composing(db)
@@ -185,9 +79,7 @@ def view_data(q: str = "") -> dict:
     still_opening = bool(active_key and opening.get("key") == f"{active_key[0]}|{active_key[1]}"
                          and time.time() - float(opening.get("at") or 0) < _OPENING_S)
     if active and not active_items and not writing_here and not still_opening:
-        # Only when there is nothing at all — no pending item AND no history. The auto-close existed because
-        # reading used to destroy the messages; keeping it unconditional would now throw the operator out of a
-        # conversation he can still read.
+        # Auto-close only when there is nothing at all — no pending item AND no history: he can still read the rest.
         db["active_chat"] = None
         store.save(WIDGET_ID, db)
         active = None
@@ -206,38 +98,32 @@ def view_data(q: str = "") -> dict:
              "platform": m.get("platform"), "chatId": m.get("chatId")}
             for m in muted_channels
         ],
-        # V2-532 — the per-connector notification policy, so the card (and the brain, via read_widget) can see
-        # HOW each channel is allowed to interrupt. Normalized through the policy module: the store may hold
-        # partial or legacy shapes and the reader must always see the effective values.
+        # How each channel may interrupt (V2-532), normalized through the policy module: the reader always sees
+        # the effective values, whatever partial or legacy shape the store holds.
         "notify_policy": _notify_policy_view(db),
         # V2-543 — the requested VIEW (platform lens / main list), witness-countered + server-expired.
         "view": _fresh_view(db),
-        # V2-546 — where our copy of the open conversation begins, and whether there is any point asking for
-        # more. The widget draws a boundary from this instead of letting the thread look like the whole story.
+        # Where our copy of the open conversation begins and whether more can be asked (V2-546): the boundary the
+        # widget draws so the thread does not look like the whole story.
         "thread_meta": thread_meta,
-        # V2-611 — the review-first reply: text the operator (by voice or by typing) put in the compose box
-        # but has not sent yet. `target` names WHAT it would go to, so a stale draft from a conversation that
-        # is no longer open never gets rendered against the wrong screen.
+        # The review-first reply (V2-611): text in the compose box not sent yet; `target` names what it would go
+        # to, so a stale draft is never rendered against the wrong screen.
         "draft": db.get("draft") or None,
         # V2-776 L2 — what this card SENT (and what is still leaving), the rows `send_to`'s postcondition reads.
         "sent": _sent.rows(db),
         # V2-819 — the card's own sends and their outcome: it clears the box on «sent» and keeps his text otherwise.
         "outbox": _sent.outbox_view(db),
-        # V2-680 — one draft PER CONVERSATION, keyed by `_draft_key`. Before this there was exactly one
-        # draft in the whole widget, so starting a reply to a second conversation silently destroyed the
-        # first. The widget reads its own screen's key out of this map; `draft` above stays the most recent.
+        # One draft PER CONVERSATION, keyed by `_draft_key` (V2-680): a second reply never destroys the first. The
+        # widget reads its own screen's key; `draft` above stays the most recent.
         "drafts": dict(db.get("drafts") or {}),
-        # V2-611 — the operator's OWN signature, read fresh (a local config file, not a secret) so an edit in
-        # the settings screen is visible immediately. [] = none set; the connector appends nothing at all.
+        # His OWN signature (V2-611), read fresh so a settings edit shows at once. [] = none; nothing is appended.
         "email_signature": _email_signature(),
-        # V2-624 — the operator's per-platform lens criteria («actividad en las últimas 72 h») and, for each
-        # platform that HAS one, the conversations matching it. Both empty unless he set something: the classic
-        # lens costs nothing new.
+        # His per-platform lens criteria and, per platform that has one, the matching conversations (V2-624).
+        # Both empty unless he set something.
         "lens_criteria": {p: c for p in _PLATFORMS if (c := _criteria_for(db, p))},
         "activity_chats": [row for p in _PLATFORMS if (c := _criteria_for(db, p))
                            for row in _activity_chats(db, p, c["window_h"])],
-        # V2-624 — the autoresponder state, for the settings panel and read_widget. Only platforms with any
-        # config at all; {} costs nothing.
+        # The autoresponder state, for the settings panel and read_widget (V2-624); only configured platforms.
         "autoresponder": _autoresponder_view(db),
         # A message to a person, being written on screen right now (see `_COMPOSE_*`): the card types it into
         # that conversation's box and presses send at `send_at`, the moment the queued order is released.
@@ -253,77 +139,12 @@ def view_data(q: str = "") -> dict:
     })
 
 
-_BRING_BACK_MAX = 2
+# What an archive search found (brought back, remembered for «open it») lives in found_mail.py.
+from .found_mail import (  # noqa: E402,F401 — re-exported under their names
+    _BRING_BACK_MAX, _bring_back_found_mail, FOUND_TTL_S, _remember_found, last_found)
 
 
-def _bring_back_found_mail(payload: dict) -> int:
-    """A mail the archive found but this card no longer holds is asked back from the mailbox, attachments included.
-
-    Demo pass 2026-09-28 (full28 E1→E3): «did inworld send me something?» found the receipt in the archive; the card
-    holds only the 30 most recent unread, and with newer mail since, the receipt was not among them — «open it» found
-    no chat and «send the invoice to quinn» had nothing to forward. The archive keeps the mailbox UID, so the
-    card's own «load previous» order (the connector's `fetch_older`, one message just below UID+1) brings exactly
-    that mail into its conversation. Never raises; returns how many orders were queued."""
-    try:
-        from . import views as _v
-        db = load_db()
-        held = {str(it.get("chatId")) for it in db.get("items", []) if it.get("platform") == "email"}
-        held |= {str(k).partition("|")[2] for k in (db.get("threads") or {}) if str(k).startswith("email|")}
-        queued, seen = 0, set()
-        for r in _v.archive_rows(payload):
-            if queued >= _BRING_BACK_MAX:
-                break
-            chat, uid = str(r.get("chat_id") or ""), str(r.get("msg_id") or "")
-            if (r.get("platform") != "email" or r.get("direction") != "in" or not chat or not uid.isdigit()
-                    or chat in held or chat in seen):
-                continue
-            seen.add(chat)
-            db.setdefault("pending_history", []).append(
-                {"platform": "email", "chatId": chat, "beforeTs": 0, "beforeId": str(int(uid) + 1), "limit": 1})
-            queued += 1
-        if queued:
-            store.save(WIDGET_ID, db)
-        return queued
-    except Exception:  # noqa: BLE001
-        return 0
-
-
-FOUND_TTL_S = 1800
-
-
-def _remember_found(payload: dict) -> None:
-    """The mail an archive search found, so «open it» has a referent (demo pass 62, E2).
-
-    «did inworld send me something?» found the receipt; its conversation was on the card (a thread with no name,
-    brought back by an earlier «load previous»), but not in the inbox list — and «open it» came back as «nothing to
-    open», then a repair pass opened the ONE chat the list showed: the wrong mail. What the card last found is a
-    fact of the card, like what it last sent. Never raises."""
-    try:
-        from . import views as _v
-        row = next((r for r in _v.archive_rows(payload) if r.get("direction") == "in" and r.get("chat_id")), None)
-        if row is None:
-            return
-        db = load_db()
-        body = str(row.get("body") or "")
-        subject = body[len("[Asunto: "):body.index("]")] if body.startswith("[Asunto: ") and "]" in body else ""
-        db["last_found"] = {"platform": str(row.get("platform") or ""), "chatId": str(row.get("chat_id")),
-                            "name": str(row.get("chat_name") or row.get("sender") or row.get("chat_id")),
-                            "subject": subject[:120], "at": time.time()}
-        store.save(WIDGET_ID, db)
-    except Exception:  # noqa: BLE001
-        pass
-
-
-def last_found(db: dict) -> dict | None:
-    """The fresh `last_found` of this card, or None."""
-    lf = db.get("last_found")
-    if isinstance(lf, dict) and lf.get("chatId") and time.time() - float(lf.get("at") or 0) < FOUND_TTL_S:
-        return lf
-    return None
-
-
-# V2-778 F1-12 — the action handlers live in `actions.py`, imported back under their names (that module
-# reads this one).
+# The action handlers live in `actions/`, imported back under their names (that package reads this module).
 from .actions import (  # noqa: E402,F401
     _a_show_view, _a_fetch_now, _a_set_autoresponder, _a_clear_autoresponder,
     _a_search_archive, _a_peek, _a_reply, _a_draft, _a_send_draft, _a_send_to, _a_forward,
@@ -336,9 +157,8 @@ from .mail_actions import (  # noqa: E402,F401
 from . import mailbox as _mailbox  # noqa: E402
 
 
-# V2-778 F1-12 — one function per action (in `actions.py`), and `apply_action` is the table lookup. Each body
-# is the branch it was, moved verbatim; the contract gate reads the table's keys
-# (`widgets/validator._table_actions`).
+# One function per action and `apply_action` is the table lookup (V2-778); the contract gate reads the table's
+# keys (`widgets/validator._table_actions`).
 
 
 ACTIONS = {
@@ -418,8 +238,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     return view_data()
 
 
-# V2-778 F1 — the answering actions live in `widgets/mensajeria/answers.py`; `data.answer_action` resolves there on
-# first use (a module `__getattr__`: that module reads this one's names, and nothing left here calls it).
+# `data.answer_action` resolves lazily (a module `__getattr__`) to the card's answering door (V2-778): that module
+# reads this one's names, and nothing here calls it.
 def __getattr__(name: str):
     if name == "answer_action":
         from widgets.mensajeria import card_send as _card   # V2-819: the card's Send is vetoed first, then answers
@@ -427,75 +247,7 @@ def __getattr__(name: str):
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
-# ── V2-800 · the consent rule's two hooks (read by `nucleo/flash/frontend.py`, same shape as the agenda's) ─────────
-
-def held_row(action: str, payload: dict | None = None) -> dict | None:
-    """The draft this send would deliver when he has already SEEN it — the row his explicit order confirms."""
-    try:
-        from nucleo import his_words
-        return _held.held_row(str(action or ""), dict(payload or {}), load_db(), his_words.since)
-    except Exception as e:  # noqa: BLE001 — an unreadable hook leaves the friction where it was
-        _held.logger.info(f"held_row unreadable ({e}) — the send keeps its question")
-        return None
-
-
-def consent_scope(action: str, payload: dict | None = None) -> dict:
-    """The CHANNEL refines a send's class (`messaging.send_new@email`), so a rule he gives for one channel («no me
-    pidas confirmación para los correos») governs that channel only; `consent.class_policy` falls back to the bare
-    class when the channel has no rule of its own. A call whose channel cannot be read keeps the declared class."""
-    try:
-        if action not in ("send_draft", "send_to", "reply", "forward"):
-            return {}
-        p = dict(payload or {})
-        plat = ""
-        if action == "send_draft":
-            db = load_db()
-            k = _held.draft_for(db, str(p.get("contact") or "")) if p.get("contact") else None
-            k = str(p["key"]) if str(p.get("key") or "") in (db.get("drafts") or {}) else k
-            d = ((db.get("drafts") or {}).get(k) if k else None) or db.get("draft") or {}
-            plat = str((d.get("target") or {}).get("platform") or "")
-        elif p.get("contact") or p.get("to"):
-            t = _outbound.resolve_target({**p, "text": p.get("text") or "-"})
-            plat = str(t.get("platform") or "") if t.get("ok") else ""
-        return {"class": f"messaging.send_new@{plat}"} if plat else {}
-    except Exception as e:  # noqa: BLE001 — the declared class stands
-        _held.logger.info(f"consent_scope unreadable ({e}) — the declared class stands")
-        return {}
-
-
-def pending_rows() -> list[dict]:
-    """V2-799 — what this card holds for his word, for `nucleo/pending_work.py`: each held draft, and how it resumes
-    (its own `send_draft`, so a «finish those» reaches it through the same confirm gate as a «send it»).
-
-    V2-807 T-10 — and what it IS, whichever cards are open: its body's excerpt and the declared actions that show,
-    rewrite, send or drop it, named by its recipient. This row is the one place a held draft reaches the prompt."""
-    try:
-        return [{"id": d["key"], "title": f"{d['platform'] or 'message'} → {d['to']}: {d['subject'] or d['text'][:60]}",
-                 "state": "draft waiting for his OK", "at": d["at"], "excerpt": d["text"],
-                 "verbs": ["open_draft", "draft", "send_draft", "discard_draft"], "args": {"contact": d["to"]},
-                 "resume": {"action": "send_draft", "payload": {"contact": d["to"]}}}
-                for d in _held.held(load_db()) if d["to"]]
-    except Exception as e:  # noqa: BLE001
-        _held.logger.info(f"pending_rows unreadable ({e})")
-        return []
-
-
-def claim_text(text: str, title: str = "") -> dict | None:
-    """V2-807 T-09 — the hook `widgets/text_home.py` asks: is this text, about to be written on another card, a
-    version of a message held here? Then it belongs on its row (`held.claim`). None when it is not, or unreadable."""
-    try:
-        return _held.claim(load_db(), str(text or ""), str(title or ""))
-    except Exception as e:  # noqa: BLE001 — an unreadable store claims nothing: the text goes where it was sent
-        _held.logger.info(f"claim_text unreadable ({e})")
-        return None
-
-
-def recent_facts() -> list[str]:
-    """V2-807 T-12 — what this card SENT lately and what is still leaving, as the record every turn reads
-    (`nucleo/pending_work.fact_lines`): a claim about what left is read from the body as it left."""
-    try:
-        from . import inbox_read
-        return inbox_read.sent_facts()
-    except Exception as e:  # noqa: BLE001
-        _held.logger.info(f"recent_facts unreadable ({e})")
-        return []
+# ── V2-800 · the consent rule's hooks and the pending-work rows live in consent_hooks.py, re-exported here: ──
+# `nucleo/flash/frontend.py`, `nucleo/pending_work.py` and `widgets/text_home.py` look for them on `data.py`.
+from .consent_hooks import (  # noqa: E402,F401
+    held_row, consent_scope, pending_rows, claim_text, recent_facts)

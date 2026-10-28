@@ -23,9 +23,9 @@ import asyncio
 import os
 
 import pytest
+from tests.browser import widget_client
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-_WIDGET = os.path.join(ENG, "widgets", "agenda", "widget.js")
 
 _TODAY = "2026-09-01"
 _DAYS = [
@@ -93,9 +93,7 @@ def _run(steps):
                 await route.fulfill(status=200, content_type="text/html", body=_HTML)
             await pg.route("http://zaelar.test/", _page)
             await pg.goto("http://zaelar.test/")
-            src = open(_WIDGET, encoding="utf-8").read()
-            await pg.add_script_tag(
-                content=src.replace("export function render", "window.render = function render"))
+            await widget_client.mount(pg, "agenda")
             out = []
             for data in steps:
                 await pg.evaluate(
@@ -215,9 +213,7 @@ def _open_calendars():
                 await route.fulfill(status=200, content_type="text/html", body=_HTML)
             await pg.route("http://zaelar.test/", _page)
             await pg.goto("http://zaelar.test/")
-            src = open(_WIDGET, encoding="utf-8").read()
-            await pg.add_script_tag(
-                content=src.replace("export function render", "window.render = function render"))
+            await widget_client.mount(pg, "agenda")
             await pg.evaluate(
                 "d => window.render(document.getElementById('host'), d, {action: async () => ({})})", _BASE)
             await pg.click(".agcalbtn")
@@ -239,9 +235,7 @@ def test_clicking_a_provider_explains_where_the_appointments_actually_live(playw
                 await route.fulfill(status=200, content_type="text/html", body=_HTML)
             await pg.route("http://zaelar.test/", _page)
             await pg.goto("http://zaelar.test/")
-            src = open(_WIDGET, encoding="utf-8").read()
-            await pg.add_script_tag(
-                content=src.replace("export function render", "window.render = function render"))
+            await widget_client.mount(pg, "agenda")
             await pg.evaluate(
                 "d => window.render(document.getElementById('host'), d, {action: async () => ({})})", _BASE)
             await pg.click(".agcalbtn")

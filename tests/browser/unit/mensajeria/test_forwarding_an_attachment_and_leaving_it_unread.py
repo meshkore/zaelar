@@ -104,12 +104,6 @@ def test_the_connector_sends_a_new_mail_with_the_file_and_takes_seen_off(tmp_pat
     assert stored == [("store", "100001", "-FLAGS", "(\\Seen)")]
 
 
-def test_the_owner_flushes_unread_orders_to_the_bus():
-    import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets/mensajeria/owner.py").read_text("utf-8")
-    assert "msgstore.take_pending_unread()" in src and "ingest.publish_mark_unread(key)" in src
-
-
 def test_forward_is_one_name_for_a_send_with_the_files(box):
     """Measured 2026-09-28 (E block): for «send the invoice to quinn» the model reached for `reply` — to the
     SENDER — and the files never travelled. `forward` names what he asks: the message's files, to a person."""

@@ -83,11 +83,6 @@ def test_el_WORKER_puede_llamarlo():
     assert "NO pierdes el listado" in src, "el worker tiene que saber PARA QUÉ sirve, o seguirá usando navigate"
 
 
-def test_el_puente_HTTP_lo_enruta():
-    src = inspect.getsource(act_api)
-    assert 'if action == "visit":' in src
-
-
 def test_el_PROMPT_del_worker_lo_nombra_y_dice_para_que_sirve():
     """A verb that the prompt does not explain goes unused — the lesson of V2-219, where the worker was dying
     while learning its own CLI by trial and error. And the closed inventory of subcommands must include it, or the

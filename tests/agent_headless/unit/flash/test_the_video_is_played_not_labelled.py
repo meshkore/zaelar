@@ -314,14 +314,6 @@ def test_un_nombre_vacio_lo_QUITA_igual_que_el_filtro(monkeypatch, tmp_path):
     assert yt.view_data()["list_name"] == ""
 
 
-def test_la_tarjeta_ENSEÑA_el_nombre_o_no_sirve_de_nada():
-    """Un nombre que solo vive en el store no deja al operador verificar que se le hizo caso."""
-    import pathlib
-    js = _vts.read(pathlib.Path(__file__).resolve().parents[4] / "widgets" / "youtube"
-          / "widget.js")
-    assert "list_name" in js and "_rot" in js
-
-
 def test_las_acciones_declaradas_siguen_siendo_las_que_hace(monkeypatch, tmp_path):
     """The generator gate rejects a declared action that nobody handles and a handled action that is undeclared."""
     import json

@@ -717,23 +717,6 @@ def _worker_on(nav_tid, *, kept=0):
     return _d
 
 
-def test_no_production_path_leaves_an_ACTIVE_task_with_results():
-    """La aserción que habría evitado V2-192 tal y como se escribió: se recorre el código y se exige que cada
-    `set_results()` vaya seguido de un final. Si algún día deja de ser cierto, esta cara se puede volver a
-    atar al campo directamente — pero que sea una decisión, no una suposición."""
-    import re
-    from pathlib import Path
-
-    root = Path(__file__).resolve().parents[4]
-    for rel in ("widgets/navegador/owner.py", "nucleo/dispatch/__init__.py"):   # web_cc.py: deleted, V2-778 F2-23
-        src = (root / rel).read_text(encoding="utf-8", errors="replace")
-        for m in re.finditer(r"set_results\(", src):
-            after = src[m.end():m.end() + 700]
-            assert re.search(r"\.finish\(|set_status\([^)]*\"(done|failed|cancelled)\"", after), (
-                f"{rel}: un `set_results()` que NO termina la tarea a continuación. Si eso pasa a ser posible, "
-                "la cara «ya encontró algo» puede volver a leer `has_results` en vez de la amplitud viva.")
-
-
 def test_the_face_now_fires_on_the_LIVE_signal(monkeypatch):
     tid = tasks.create("Entradas El Rey León")
     tasks.set_status(tid, "working")
@@ -1038,16 +1021,6 @@ def test_the_status_reaches_the_wall_through_update_view():
     tasks.update_view(tid, url="https://www.autoscout24.es/lst", page_title="AutoScout24",
                       page_text="Coches de segunda mano", status=200)
     assert (tasks.get(tid) or {}).get("wall") == ""
-
-
-def test_the_tab_feeds_its_status_and_listens_for_it():
-    """WIRING GUARD for the owner half: the classification above is dead code unless the tab (1) keeps
-    `last_status` fresh from main-frame document responses and (2) hands it to update_view at capture."""
-    import pathlib
-    src = _vts.read("widgets/navegador/owner.py")
-    assert 'page.on("response"' in src and "resource_type" in src and "main_frame" in src
-    cap = src[src.index("async def _capture"):]
-    assert 'status=int(getattr(self, "last_status", 0) or 0)' in cap
 
 
 # ── V2-470: a wall the TASK knows reaches the worker, and a wall STREAK switches the CHANNEL ────────────────

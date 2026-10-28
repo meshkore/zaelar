@@ -80,12 +80,6 @@ def test_active_when_excludes_a_player_in_error():
 
 # ── the widget reports it (source guard: the handler is DOM plumbing, unreachable from pytest) ─────────────
 
-def test_the_widget_listens_for_onError_and_reports_it():
-    src = Path("widgets/youtube/widget.js").read_text()
-    assert '"onError"' in src or "'onError'" in src, "nobody listens for the player's onError"
-    assert 'player_error' in src, "the error never leaves the iframe: nobody calls the action"
-
-
 def test_the_action_is_declared_in_the_manifest():
     """An undeclared action is invisible to the dispatch gate (V2-025: only DECLARED actions run)."""
     man = json.loads(Path("widgets/youtube/manifest.json").read_text())

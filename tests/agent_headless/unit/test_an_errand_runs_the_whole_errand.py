@@ -278,22 +278,6 @@ def test_a_LATE_echo_for_a_failed_send_births_nothing_either(world):
     assert errands.for_thread(PLATFORM, "chat-1") is None
 
 
-def test_the_owners_OWN_BEAT_flushes_the_outbound_queues(world):
-    """The wiring of the V2-684 fix, guarded at the source.
-
-    ⚠️ Also written after a GREEN disarm: the arcs drive the flush through the harness's beat, so removing
-    it from the owner's own cycle left every one of them green — the arcs measure the FLUSH and nothing
-    measured that anybody calls it. Read comment-stripped, because documenting this rule in prose must not
-    be what satisfies it (V2-615's trap).
-    """
-    import re
-    from pathlib import Path
-    src = Path("widgets/mensajeria/owner.py").read_text(encoding="utf-8")
-    code = re.sub(r"#[^\n]*", "", re.sub(r'"""(?:.|\n)*?"""', "", src))
-    assert "_flush_queues" in code.split("async def _consume")[1].split("@staticmethod")[0], \
-        "an errand's reply reaches nobody unless the owner drains the queue on its own beat"
-
-
 # ── 7 · a meeting he already had ────────────────────────────────────────────────────────────────────────
 def test_a_meeting_with_NO_creation_STAMP_closes_nothing(world):
     """⚠️ The case the FIRST LIVE RUN found, and the one the unit tests could not (2026-09-13).

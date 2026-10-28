@@ -15,7 +15,7 @@ Run it by hand on one widget (or several), headless or with the two windows visi
     ./.venv/bin/python tests/browser/e2e/mobile/two_screens.py youtube agenda
     ./.venv/bin/python tests/browser/e2e/mobile/two_screens.py my-widget --headed
 
-…or through the widget harness (`python -m widgets.harness --two-screens <id>`). Node 4.270 runs it over the whole
+…or through the widget harness (`python -m tests.widget_harness --two-screens <id>`). Node 4.270 runs it over the whole
 catalogue, so a widget added tomorrow is checked without anyone writing a test for it. What a browser cannot
 measure — a real phone, a real microphone, the sound — is the operator's manual pass:
 `.meshkore/docs/ops/zaelar-two-screen-test.md`.

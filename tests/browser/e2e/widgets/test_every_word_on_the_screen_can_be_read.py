@@ -37,6 +37,8 @@ import time
 
 import pytest
 
+from tests.browser import widget_client
+
 ENGINE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
 W, H = 1600, 950
 
@@ -203,13 +205,14 @@ def _route(r):
         return j({"ok": True})
     if path == "/api/run":
         return j({"state": "running", "running": True})
+    if path.startswith("/widgets/agenda/js/"):
+        return r.fulfill(**widget_client.served(r.request.url))
     m = re.match(r"^/widgets/([^/]+)/(data|manifest|widget\.js)$", path)
     if m:
         wid, kind = m.group(1), m.group(2)
         if kind == "widget.js":
             if wid == "agenda":
-                with open(os.path.join(ENGINE, "widgets", "agenda", "widget.js"), encoding="utf-8") as fh:
-                    return r.fulfill(status=200, content_type="application/javascript", body=fh.read())
+                return r.fulfill(**widget_client.served(r.request.url))
             return r.fulfill(status=200, content_type="application/javascript", body=STUB_JS)
         if kind == "manifest":
             return j({"id": wid})

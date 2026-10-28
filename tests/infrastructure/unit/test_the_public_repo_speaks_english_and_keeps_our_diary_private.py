@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 2591
+TOTAL = 2496
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -235,28 +235,18 @@ PER_FILE: dict[str, int] = {
     'voice/proactive.py': 2,
     'voice/trace.py': 18,
     'widgets/agenda/actions.py': 2,
-    'widgets/agenda/data.py': 2,
-    'widgets/agenda/gcal.py': 1,
     'widgets/agenda/index.py': 1,
     'widgets/agenda/tasklists.py': 2,
     'widgets/brief.py': 4,
     'widgets/contactos/actions.py': 3,
     'widgets/contactos/gcontacts.py': 1,
-    'widgets/mensajeria/actions.py': 2,
-    'widgets/mensajeria/data.py': 1,
-    'widgets/mensajeria/owner.py': 2,
     'widgets/mensajeria/thread.py': 1,
-    'widgets/navegador/act_api.py': 79,
     'widgets/navegador/click_gate.py': 2,
     'widgets/navegador/data.py': 1,
-    'widgets/navegador/dom.py': 6,
-    'widgets/navegador/tasks.py': 1,
     'widgets/presentation.py': 4,
-    'widgets/results/data.py': 2,
     'widgets/results/digest.py': 1,
     'widgets/results/sheet_names.py': 3,
     'widgets/server_api.py': 5,
-    'widgets/youtube/account.py': 1,
     'widgets/youtube/actions.py': 1,
 
 }

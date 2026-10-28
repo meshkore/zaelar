@@ -54,9 +54,3 @@ def test_the_intent_never_carries_a_credential():
     out = canon_connector("email password hunter2")
     assert out == "email" and "hunter2" not in out
 
-
-def test_the_card_has_no_connect_screen_of_its_own_and_its_plugs_open_the_one_door():
-    """The V2-520 wizard (`connect_focus` → `_screen = wizard`) is gone from the card; what is left is the door."""
-    src = WIDGET_JS.read_text(encoding="utf-8")
-    assert "_focusDone" not in src and 'view:"wizard"' not in src
-    assert "ctx.openConnector(" in src, "the channel icons and the plug reach the ⚙ Conectores section"

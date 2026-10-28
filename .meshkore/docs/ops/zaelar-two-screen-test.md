@@ -21,9 +21,9 @@ time (V2-792). Every widget declares how it lives across them, in its manifest:
 ## 1 · Automatic: two browsers on one engine
 
 ```sh
-./.venv/bin/python -m widgets.harness                          # contract, golden, render AND screens (declared, consistent)
-./.venv/bin/python -m widgets.harness --two-screens <id>       # a desktop and a phone browser, the widget's policy checked
-./.venv/bin/python -m widgets.harness --two-screens <id> --headed   # …with both windows on screen, to watch it
+./.venv/bin/python -m tests.widget_harness                          # contract, golden, render AND screens (declared, consistent)
+./.venv/bin/python -m tests.widget_harness --two-screens <id>       # a desktop and a phone browser, the widget's policy checked
+./.venv/bin/python -m tests.widget_harness --two-screens <id> --headed   # …with both windows on screen, to watch it
 ```
 
 The two-screen pass (`tests/browser/e2e/mobile/two_screens.py`) opens a 1280-wide desktop page and a 390-wide phone
@@ -40,7 +40,7 @@ What it cannot measure: a real phone, a real microphone, the sound, the widget's
 Print the steps for one widget (or all of them):
 
 ```sh
-./.venv/bin/python -m widgets.harness --manual <id>
+./.venv/bin/python -m tests.widget_harness --manual <id>
 ```
 
 Before you start: the agent ON, the computer open at the desk, the phone open at `/m` (on a hosted
