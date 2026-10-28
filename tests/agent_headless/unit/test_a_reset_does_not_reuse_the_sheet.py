@@ -20,7 +20,7 @@ sequence,” and that was false on the day it was written—`reset_all` had call
 of problem that module exists to prevent was occurring through the path its author thought was for tests.
 """
 from nucleo import runtime_ids as R
-from nucleo.flash import escalate
+from nucleo.acts import errand as escalate
 
 
 def test_rebobinar_el_contador_hace_ROTAR_el_sello():

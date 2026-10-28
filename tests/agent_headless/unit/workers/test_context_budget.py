@@ -367,7 +367,7 @@ def _run_session(monkeypatch, events, *, goal="Busca una guitarra zurda", escala
     # the first version of this file reported a pass while never exercising the failure branch at all.
     def _default_escalate(req, context=None):
         escalations.append((req, context or {}))
-    monkeypatch.setattr("nucleo.flash.escalate.escalate_to_slowbrain",
+    monkeypatch.setattr("nucleo.acts.errand.escalate_to_slowbrain",
                         escalate or _default_escalate, raising=False)
 
     async def _fake_notify(title, text, **kw):

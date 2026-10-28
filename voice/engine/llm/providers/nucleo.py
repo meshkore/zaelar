@@ -7,7 +7,7 @@
 #
 # Difference from `duo`: there is NO Hermes. Startup memory and context come from the application's own central
 # memory (`memory/`, injected into the prompt by `nucleo/flash/prompt.py`). Escalation goes to
-# `nucleo/flash/escalate.py` (STUB in V2-004: records + publishes on the bus; the real SlowBrain arrives in
+# `nucleo/acts/errand.py` (STUB in V2-004: records + publishes on the bus; the real SlowBrain arrives in
 # V2-006/V2-007). Degradation does NOT fall back to Hermes—it speaks a fallback phrase.
 #
 # Enabled with BRAIN=nucleo (opt-in, alongside duo/hermes; zero regression until the V2-009 cutover).

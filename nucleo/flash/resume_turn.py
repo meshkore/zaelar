@@ -83,7 +83,7 @@ def resume(rows, *, operator_text: str, apply_widget_data=None, emit=None) -> li
                 pass                                  # alive: its worker already has it, or waits on his answer
             else:
                 from nucleo import pending_work
-                from nucleo.flash import escalate as _esc
+                from nucleo.acts import errand as _esc
                 _esc.escalate_to_slowbrain(pending_work.errand_brief(row, operator_text), context={
                     "src": "resume", "kind": str(row.get("kind") or "generic"), "task_uid": row["id"],
                     "sheet": str(row.get("sheet") or ""), "surface": str(row.get("surface") or "")})

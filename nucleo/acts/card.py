@@ -1,9 +1,7 @@
 """The card door's licence (refactor2710-05 T-02): may THIS turn's request run this data-op on a card?
 
-Before the door, the vetoes over a `widget_data` call were thirteen `if`s spread over the two functions it crosses
-(`tool_executor_widget_calls`), each with its own emit and its own way out. Now they are ONE ladder, declared once
-(`_LADDER`), read by `licence(request, ...)`; the caller only does what the answer says. The ladder is read at the
-moments the door knows enough to judge:
+The vetoes over a `widget_data` call are ONE ladder, declared once (`_LADDER`), read by `licence(request, ...)` at
+the moments the door knows enough to judge; the caller only does what the answer says:
 
   · `CALL` — the model's call, before anything is resolved: a pure «show me X» runs no invented mutation; a short
     close order closes the card; a `close` data-op needs his close (or the verdict's).
@@ -14,10 +12,10 @@ moments the door knows enough to judge:
     the verdict puts the turn on ANOTHER card.
   · `FAST` — an op about to run with no question: a repeat of the last op his words never order is drag
     (context-bleed); the same refused op re-sent identically is the model re-reading its failure.
+  · `LOAD` — a load that replaces what plays runs only on his order (verdict, named content, correction, our offer).
 
 A clause answers `SHOW` / `CLOSE` / `DROP` (the call does not run) or nothing; `RUN` is the ladder's end. Each answer
-carries the event the `if` emitted, so the timeline reads as it did. The class (V2-825 F4): a reading of the request
-that VETOES the model is one decision with one door. `request` is `{"brief", "text"}`; his half is taken here, once.
+carries its event. `request` is `{"brief", "text"}`; his half is taken here, once.
 """
 from __future__ import annotations
 
@@ -28,7 +26,7 @@ from loguru import logger
 from nucleo.acts.outcome import Outcome
 from nucleo.circuit import verdict as V
 
-CALL, DECLARED, GATE, LEAVES, FAST = "call", "declared", "gate", "leaves", "fast"
+CALL, DECLARED, GATE, LEAVES, FAST, LOAD = "call", "declared", "gate", "leaves", "fast", "load"
 RUN, SHOW, CLOSE, DROP = "run", "show", "close", "drop"
 
 
@@ -59,8 +57,7 @@ def _ex(wid, action, payload) -> dict:  # what a dropped op's event carries
 # ── CALL · DECLARED ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 def _pure_show(r, wid, action, payload, **_k):
-    """2026-07-16 «abre la agenda» added «Reunión con Axa Seguros»: a pure show order runs no invented mutation. The
-    ACTION decides what it may run (V2-545: a `view` runs beside the card); the verdict naming it licenses it (V2-753)."""
+    """A pure show order runs no invented mutation; a `view` runs beside it (V2-545), the verdict licenses (V2-753)."""
     from nucleo.flash import direct_action as _da, router as _router
     from widgets import runtime
     text = str((r or {}).get("text") or "")
@@ -74,8 +71,7 @@ def _pure_show(r, wid, action, payload, **_k):
 
 
 def _short_close(r, wid, action, payload, **_k):
-    """Session 22:40 2026-07-16: «Vale, ciérralo» → `widget_data(youtube, mute)`. A short clear close order closes the
-    card (V2-713 R3 / V2-781)."""
+    """A short clear close order («Vale, ciérralo») closes the card, whatever op the model sent (V2-713 R3 / V2-781)."""
     from nucleo.flash import card_close as _cc
     from widgets import runtime
     if runtime.get(wid) is not None and _cc.data_close(wid, action, str((r or {}).get("text") or ""),
@@ -86,8 +82,7 @@ def _short_close(r, wid, action, payload, **_k):
 
 
 def _unlicensed_close(r, wid, action, payload, *, emit=None, **_k):
-    """V2-635: the `close` data-op EMPTIES the card; with no close of his (or the verdict's) it is drag. The clause
-    logs its own reason (`close_guards.dataop_close_licensed`)."""
+    """V2-635: the `close` data-op EMPTIES the card; with no close of his (or the verdict's) it is drag (logs its own)."""
     if action != "close":
         return None
     from nucleo.flash import close_guards as _cg
@@ -97,8 +92,7 @@ def _unlicensed_close(r, wid, action, payload, *, emit=None, **_k):
 
 
 def question_keeps_unwritten(wid: str, action: str, operator_text: str, brief) -> bool:
-    """A WRITE the model made on a QUESTION (his own «?») while the verdict read, surely, that the turn asks no action
-    on the screen. Never raises; anything unreadable runs the model's call as before (CRIT-K2)."""
+    """A WRITE on his QUESTION («?») while the verdict read, surely, no action on screen. Never raises (CRIT-K2)."""
     try:
         if "?" not in (operator_text or "") and "¿" not in (operator_text or ""):
             return False
@@ -114,8 +108,7 @@ def question_keeps_unwritten(wid: str, action: str, operator_text: str, brief) -
 
 
 def _a_question(r, wid, action, payload, **_k):
-    """Demo pass 93, R2: «When does Anna's vacation start? Show it to me…» — verdict «none» (0.83), and the model WROTE
-    a duplicate. A write is the costly reading of a question: not run; the card is shown."""
+    """A write is the costly reading of a question (demo pass 93 R2): not run; the card is shown."""
     if question_keeps_unwritten(wid, action, _his(r), (r or {}).get("brief")):
         return Licence(SHOW, "a-question", "❓ una pregunta no escribe — el veredicto no pedía acción",
                        f"{wid}:{action}", {"cat": "flash", "id": wid, "action": action}, wid)
@@ -147,8 +140,7 @@ def _a_fragment(r, wid, action, payload, *, last_reply="", **_k):
 # ── LEAVES · FAST ─────────────────────────────────────────────────────────────────────────────────────────────────────
 
 def _leaves_for_another_card(r, wid, action, payload, **_k):
-    """Demo pass 45, 2026-09-29, C2→C5: «ok book it» sent two Telegrams to Rowan he never ordered. An act that leaves
-    and that the verdict puts on ANOTHER card is dropped and not offered; the model is told it did not run."""
+    """An act that leaves while the verdict puts the turn on ANOTHER card is dropped, not offered (demo pass 45)."""
     from nucleo.flash import direct_action as _da
     if not _da.verdict_elsewhere((r or {}).get("brief"), wid):
         return None
@@ -164,9 +156,8 @@ def _leaves_for_another_card(r, wid, action, payload, **_k):
 
 
 def _context_bleed(r, wid, action, payload, *, last_dataop=None, **_k):
-    """Headless V2-038 #1: an IDENTICAL mutation to the last one (<120 s) whose content his turn never mentions is drag
-    (a duplicated dentist appointment). V2-650: unless the turn orders it again; V2-791: a redo runs; a VIEW-op is never
-    drag (`data_ops.is_context_bleed`). Only a mutation that REALLY happened is remembered (V2-707 F0)."""
+    """An IDENTICAL mutation to the last one (<120 s) his turn never mentions is drag, unless he orders it again or
+    redoes it; a VIEW-op never is (`data_ops.is_context_bleed`, V2-038/650/791)."""
     from nucleo.flash import data_ops as _do
     if _do.is_context_bleed(last_dataop, wid, action, payload, _his(r), brief=(r or {}).get("brief")):
         return Licence(DROP, "context-bleed", "🛡️ data-op del turno anterior re-emitida — ignorada (context-bleed)",
@@ -175,8 +166,7 @@ def _context_bleed(r, wid, action, payload, *, last_dataop=None, **_k):
 
 
 def _refused_again(r, wid, action, payload, **_k):
-    """V2-773 — the SAME refused op with the SAME payload is the model re-reading the failure note; a corrected retry
-    carries a different payload and runs."""
+    """V2-773 — the SAME refused op with the SAME payload is the model re-reading the failure; a corrected one runs."""
     from nucleo.flash import data_ops as _do
     if _do.is_identical_retry_of_refused(wid, action, payload):
         return Licence(DROP, "refused-again", "🛡️ reintento idéntico de una op rechazada — ignorado", f"{wid}:{action}",
@@ -184,15 +174,13 @@ def _refused_again(r, wid, action, payload, **_k):
     return None
 
 
-#: How sure a verdict must be to CONTRADICT the model's call (V2-825 F4). Completing it needs only the licence bar; a
-#: veto is the irreversible side, so it needs more. Measured incidents: 0.97 (full52 V5), 0.91 (full19 C2), 0.86 (full51 C2).
+#: How sure a verdict must be to CONTRADICT the model's call (V2-825 F4): a veto is the irreversible side.
 VETO_SURE = 0.85
 
 
 def vetoes(brief, wid: str, model_action: str, verdict_action: str) -> str:
-    """The event a SURE verdict vetoes the model's call on the same card with, or "": a question over a WRITE (full19 C2,
-    the meeting booked over «find me a free slot») and a lens over a state change (full52 V5, `clear_search` erased
-    the results «put on number five» read). Never raises."""
+    """The event a SURE verdict vetoes the model's call on the same card with, or "": a question over a WRITE (full19
+    C2) and a lens over a state change (full52 V5). Never raises."""
     try:
         from nucleo.flash import data_ops as _do, direct_action as _da
         from widgets import effects as _fx
@@ -207,8 +195,20 @@ def vetoes(brief, wid: str, model_action: str, verdict_action: str) -> str:
     return ""
 
 
+def _a_load_he_did_not_order(r, wid, action, payload, *, last_reply="", query="", **_k):
+    """`play_video` runs on his order, read without words (CRIT-K5b); fail-closed: none, dropped and said."""
+    from nucleo.flash import canvas_license as _lic, prior_line as _pl, redo_decision as _redo
+    brief, said = (r or {}).get("brief"), _his(r)
+    if (_lic.verdict_grants(brief, wid) or (query and _lic.names_what_to_play(query, said))
+            or _redo.corrects(brief, wid)
+            or (_pl.answers_our_question(brief, last_reply) and _lic.offer_of_media(last_reply))):
+        return None
+    return Licence(DROP, "load", "🛡️ play_video ignorado — el turno no pide ningún vídeo (context-bleed)",
+                   said[:120], {"cat": "flash", "kind_diag": "video_without_order", "query": str(query)[:80]})
+
+
 #: The ladder, in the order it is read at each moment. Declared once; a new veto is a clause here, never an `if`.
-_LADDER = {CALL: (_pure_show, _short_close, _unlicensed_close), DECLARED: (_a_question,),
+_LADDER = {LOAD: (_a_load_he_did_not_order,), CALL: (_pure_show, _short_close, _unlicensed_close), DECLARED: (_a_question,),
            GATE: (_close_is_the_card, _a_fragment), LEAVES: (_leaves_for_another_card,),
            FAST: (_context_bleed, _refused_again)}
 

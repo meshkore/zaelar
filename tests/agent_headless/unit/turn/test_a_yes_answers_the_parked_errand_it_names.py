@@ -37,7 +37,7 @@ def _brief(**verdicts):
 @pytest.fixture
 def launched(monkeypatch):
     out = []
-    monkeypatch.setattr("nucleo.flash.escalate.escalate_to_slowbrain",
+    monkeypatch.setattr("nucleo.acts.errand.escalate_to_slowbrain",
                         lambda req, context=None: out.append(req) or 1)
     monkeypatch.setattr(dispatch, "pending_summaries", lambda: [])
     now = time.time()

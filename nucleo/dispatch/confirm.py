@@ -37,18 +37,8 @@ _CONFIRM_TTL = 300.0     # 5 min. Longer than the widget gate's 90 s: this quest
                          # arrives mid-conversation and the operator may reasonably think about it.
 
 
-# V2-190 — an expired confirmation is a FACT, and losing it is how a gated task turns into narrated work.
-# Measured on `renew-gym-membership__es` (2026-08-20 01:01): the gate parked the renewal, the operator was
-# asked, five minutes went by inside a normal conversation, `_sweep_confirm` dropped the entry, `confirm_line()`
-# went empty — and from that turn on the state said NOTHING about it. The model fell back on the only thing it
-# still had, its own earlier «empiezo already with the renovacion», and answered «sigo without novedades of the web of
-# Basic-Fit» about a task whose record read `status=done url= shot_rev=0`: it never opened a single page.
-#
-# The TTL itself is NOT the bug and is not raised: a «shall I really pay?» answered «si» forty minutes later is
-# exactly what it protects against. What was wrong is that expiring the GATE also erased the MEMORY of it. So
-# the gate still expires — `resolve_confirm` reads `_PENDING_CONFIRM` and an expired ask can no longer be armed
-# by a late yes — and the fact moves here, where the turn can still say it. Same remedy as
-# `widgets/browser/tasks.recently_finished()` (V2-150): an ending is a fact.
+# V2-190 — an expired confirmation is a FACT (renew-gym-membership: the entry was swept and the turn narrated work
+# that never started). The gate still expires — a late «yes» cannot arm it — but the memory of it moves here.
 _EXPIRED_CONFIRM: dict[str, dict] = {}
 _EXPIRED_MEMORY_S = 900.0     # 15 min: long enough to outlive the conversation that asked
 
@@ -329,7 +319,7 @@ def resolve_confirm(ok: bool, task_id: str = "") -> dict | None:
     if p.get("sheet"):
         ctx["sheet"] = str(p["sheet"])
     try:
-        from nucleo.flash import escalate as _esc
+        from nucleo.acts import errand as _esc
         _esc.escalate_to_slowbrain(request, context=ctx)
     except Exception:
         logger.warning("resolve_confirm: no se pudo re-lanzar la tarea confirmada")

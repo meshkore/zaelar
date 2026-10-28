@@ -29,7 +29,7 @@ class Door(NamedTuple):
 
 #: Every effect that leaves the turn, with the funnel that must ask. One record per door.
 DOORS: dict[str, Door] = {d.name: d for d in (
-    Door("worker.spawn", "nucleo.flash.escalate:escalate_to_slowbrain"),
+    Door("worker.spawn", "nucleo.acts.errand:escalate_to_slowbrain"),
     Door("worker.inject", "nucleo.dispatch.soon:inject_soon"),
     Door("worker.stop", "nucleo.dispatch.soon:cancel_soon"),
     Door("worker.answer", "nucleo.cli.worker_api:answer_active_soon"),
