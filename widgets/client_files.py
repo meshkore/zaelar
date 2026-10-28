@@ -68,20 +68,15 @@ async def widget_js_part(wid: str, name: str, v: str = ""):
 
 
 
-# The app-shell modules a widget may import — today ONE, the shared icon set, so a card draws the shell's own glyphs
-# instead of a copy that drifts. The house gate (`validator_js.py`) reads this same tuple, so what the gate admits
-# and what this server answers can never drift apart. Each is served at its on-disk path (so the same import also
-# resolves under any harness serving the engine tree), as that one exact file: no folder, no sibling, read-only.
+
+# The app-shell modules a widget may import (V2-831 T-12) — the house gate (`validator_js.py`) reads this SAME tuple.
+# Each is served at its on-disk path as that one exact file: read-only, no folder, no sibling.
 SHARED_CLIENT_MODULES = ("/frontend/app/lib/icons.js",)
-_ENGINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def _shared_route(url: str):
-    file = os.path.join(_ENGINE, *url.strip("/").split("/"))
-
-    async def shared_module(v: str = ""):
-        return _js(file, v)
-    return shared_module
+    file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), *url.strip("/").split("/"))
+    return lambda v="": _js(file, v)
 
 
 for _url in SHARED_CLIENT_MODULES:

@@ -5805,8 +5805,7 @@ DOMAINS: list[dict] = [
                                  "one exact file (no folder, no sibling, no traversal), the house gate admits that one "
                                  "import, and musica + contactos paint from it on the product route and both harnesses "
                                  "(V2-831 T-12) — RENDERED",
-            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_widget_draws_the_shells_own_icons.py",
-                                  "tests/browser/unit/widgets/test_a_widget_split_into_js_modules_is_served_and_gated.py"]},
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_a_widget_draws_the_shells_own_icons.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",

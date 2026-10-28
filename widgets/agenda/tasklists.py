@@ -68,13 +68,6 @@ def _to_trash(db: dict, kind: str, rows: list, label: str, list_row: dict | None
     del bin_[:-TRASH_MAX]
 
 
-def trash_head(db: dict) -> dict | None:
-    """The most recent removal, or None. Public so the digest can offer it — a trash nobody is told about
-    is a trash nobody uses."""
-    bin_ = db.get("trash") or []
-    return dict(bin_[-1]) if bin_ else None
-
-
 # ── resolving what he NAMED ────────────────────────────────────────────────────────────────────────────
 
 
