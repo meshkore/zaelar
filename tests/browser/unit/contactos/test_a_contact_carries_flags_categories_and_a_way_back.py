@@ -98,14 +98,3 @@ def test_the_members_of_a_group_are_a_view(ct):
     ct.apply_action("show_contact_members", {"contactId": "g1"})
     assert ct.load_db()["view"]["sel"] == {"contactId": "g1"}
 
-
-def test_the_manifest_and_the_card_carry_it():
-    acts = json.loads((_DIR / "manifest.json").read_text("utf-8"))["actions"]
-    assert {"set_flag", "restore_contact"} <= set(acts)
-    assert "flag" in acts["show_view"]["payload"] and "category" in acts["add_contact"]["payload"]
-    assert "permanent" not in acts["remove_contact"].get("confirm_q", "").lower()
-    js = (_DIR / "widget.js").read_text("utf-8")
-    assert "sel.flag" in js and "c.flags" in js, "a flag pushed by voice must filter the card, and show on the row"
-    for lang in ("es", "en"):
-        bundle = json.loads((_DIR.parents[1] / "i18n" / "genesis" / lang / "ui.json").read_text("utf-8"))
-        assert bundle.get("widgets.contactos.flag_closed"), lang

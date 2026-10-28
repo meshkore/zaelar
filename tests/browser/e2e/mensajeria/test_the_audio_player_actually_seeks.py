@@ -14,9 +14,9 @@ import os
 import wave
 
 import pytest
+from tests.browser import widget_client
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-_WIDGET = os.path.join(ENG, "widgets", "mensajeria", "widget.js")
 
 
 def _one_second_silent_wav() -> bytes:
@@ -83,8 +83,7 @@ def _run():
                 })
             await pg.route("http://zaelar.test/widgets/mensajeria/asset/*", _asset)
             await pg.goto("http://zaelar.test/")
-            src = open(_WIDGET, encoding="utf-8").read()
-            await pg.add_script_tag(content=src.replace("export function render", "window.render = function render"))
+            await widget_client.mount(pg, "mensajeria")
             await pg.evaluate(
                 "d => window.render(document.getElementById('host'), d, "
                 "{action: async () => ({}), top: () => {}})", _DATA)

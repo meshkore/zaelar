@@ -16,9 +16,9 @@ import json
 import os
 
 import pytest
+from tests.browser import widget_client
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-_WIDGET = os.path.join(ENG, "widgets", "results", "widget.js")
 
 _SHEET = {
     "identity": {"user_id": "4cd1b39d-aaaa-bbbb", "session_id": "0ceb114d-cccc"},
@@ -86,9 +86,7 @@ def _paint(data):
             # A REAL origin kept on purpose: the strip no longer fetches anything (T-10), but a real origin is
             # what caught the original about:blank trap and costs nothing to keep.
             await pg.goto("http://zaelar.test/")
-            src = open(_WIDGET, encoding="utf-8").read()
-            await pg.add_script_tag(
-                content=src.replace("export function render", "window.render = function render"))
+            await widget_client.mount(pg, "results")
             await pg.evaluate("d => window.render(document.getElementById('host'), d, {action: () => {}})", data)
             await pg.wait_for_timeout(400)          # the strip fills asynchronously
             m = await pg.evaluate(_MEASURE)

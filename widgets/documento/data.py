@@ -1,29 +1,18 @@
 """A blank sheet the agent fills with ONE thing worth READING (V2-549).
 
-The operator asked for it in those words: «a widget that is like a blank sheet, a generic one, to show other
-things — a PDF, an HTML, a recipe, a report we make — basically the square, and we fill it with the content».
+## The boundary with `results`
 
-## The boundary that earns it a place next to `results`
+`results` answers «find me the options»: a SET you compare. This one answers «give me the recipe»: ONE piece of
+content, already chosen, that you read. A single document in a comparison surface reads as a list of links; a
+comparison in here loses its columns.
 
-`results` answers «find me the options»: a SET of candidates you compare, with cards, sources and criteria.
-This one answers «give me the recipe»: ONE piece of content, already chosen, that you sit down and read. The
-operator drew the line himself — «I asked for a recipe and the system brought a list of recipes, and I only
-ordered one, and I trust its criteria». A single document dropped into a comparison surface reads as a list of
-links (the exact complaint that created the photo viewer, V2-457); a comparison dropped in here loses its
-columns.
+## Three kinds, and no fourth
 
-## Three kinds, and the reason there is no fourth
+`markdown` (plain text is markdown with no marks), `html` (an already-formatted fragment) and `pdf` (a file the
+browser displays). Anything else has a better home: photos → `imagenes`, a live page → `navegador`, a set →
+`results`.
 
-`markdown` (a recipe, a report, notes — plain text is markdown that happens to carry no marks), `html` (a
-fragment somebody already formatted) and `pdf` (a file, local or remote, the browser already knows how to
-display). A fourth kind would need a fourth renderer inside a widget whose whole point is being small, and
-everything one might ask for is already somewhere better: photos are the `imagenes` viewer, a live page being
-driven is `navegador`, a set to compare is `results`. Naming those borders costs one line each here and saves
-this widget from slowly becoming all of them.
-
-Nothing in here reaches the network. `show` is handed content that somebody else already produced — the fast
-turn writing a recipe it knows, or a worker delivering a report through `nucleo.widget_cli` — which is the same
-contract every other viewer in this catalog has: `data.py` is stdlib-only and never fetches.
+Nothing here reaches the network: `show` is handed content somebody else produced; `data.py` is stdlib-only.
 """
 from __future__ import annotations
 
@@ -32,16 +21,15 @@ import re
 import time
 
 from .. import store
+from .blocks import _best_block, _blocks, _clean_phases, _process, _sections  # noqa: F401
 
 WIDGET_ID = "documento"
 DB_VERSION = 1
 
-# One JSON file, rewritten on every save. A report can be long and still be a report; past this it is a corpus,
-# and a corpus belongs in a file, not in a card the operator scrolls.
+# One JSON file, rewritten on every save; past this a report is a corpus, which belongs in a file, not a card.
 MAX_CHARS = 60000
 _KINDS = ("markdown", "html", "pdf")
-# What the operator or a model might call each kind. `text`/`txt`/`plain`/`md` all end up in the markdown
-# renderer because plain text IS markdown with no marks — refusing it would be refusing the commonest case.
+# What the operator or a model might call each kind; plain text goes to the markdown renderer.
 _KIND_ALIASES = {
     "markdown": "markdown", "md": "markdown", "text": "markdown", "txt": "markdown", "plain": "markdown",
     "texto": "markdown", "nota": "markdown", "receta": "markdown", "informe": "markdown", "report": "markdown",
@@ -54,16 +42,10 @@ _ASSET_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 _TAG_RE = re.compile(r"<[^>]+>")
 
 
-#: The process view keeps the same bounds as the results sheet's live view (`widgets/results/live.py`).
-_MAX_PHASES = 40
-_MAX_PHASE_CHARS = 160
-
-
 def _seed() -> dict:
     return {"kind": "markdown", "title": "", "subtitle": "", "body": "", "src": "", "source": "", "updated": 0,
-            # V2-644 — a REPORT errand (surface `informe`) binds this sheet to its task at commission time:
-            # `task` names the live errand, `task_title` its composed name, `process` the persisted history
-            # once the errand closed. While the errand is alive the narrative is DERIVED per read, not stored.
+            # A REPORT errand binds this sheet to its task: `task` the live errand, `task_title` its name, `process`
+            # the history persisted once it closed; while alive the narrative is DERIVED per read (V2-644).
             "task": "", "task_title": "", "process": []}
 
 
@@ -90,9 +72,8 @@ def _asset_names() -> list[str]:
 
 
 def _resolve_src(raw) -> tuple[str, str]:
-    """A `src` the browser can actually open, or ('', reason). Two shapes and no third: an http(s) URL, or the
-    name of a file this widget already holds. A path is deliberately NOT accepted — a widget reads inside its
-    own data directory or nowhere, and quietly accepting `../..` is how that rule stops being a rule."""
+    """A `src` the browser can actually open, or ('', reason): an http(s) URL, or the name of a file this widget
+    already holds. A path is deliberately NOT accepted — a widget reads inside its own data directory or nowhere."""
     s = str(raw or "").strip()
     if not s:
         return "", "hace falta 'src': la URL del PDF, o el nombre del fichero si ya está guardado aquí"
@@ -108,44 +89,6 @@ def _resolve_src(raw) -> tuple[str, str]:
         tengo = ", ".join(have[:8]) if have else "ninguno"
         return "", f"aquí no hay ningún fichero llamado «{name}» (guardados: {tengo})"
     return f"/widgets/{WIDGET_ID}/asset/{name}", ""
-
-
-def _clean_phases(raw) -> list:
-    if not isinstance(raw, (list, tuple)):
-        return []
-    return [str(x)[:_MAX_PHASE_CHARS] for x in raw if str(x or "").strip()][-_MAX_PHASES:]
-
-
-def _process(db: dict):
-    """The PROCESS view of the bound errand — derived from the dispatcher's live record on every read, exactly
-    like the results sheet's Proceso tab (`widgets/results/live.py`): storing it would leave a stale copy on
-    screen. Once the errand is over, the history persisted by `finish_task` is what remains. `None` means this
-    sheet was never an errand's surface — the widget then renders as the plain document it always was.
-
-    Fail-soft on purpose: without a dispatcher (the bare render harness, a test), a bound task shows its
-    stored history and `alive: False`, which is exactly what is true from here.
-
-    Always a dict (never None): the golden pins the SHAPE of view_data, and a key that flips between
-    NoneType and dict would turn the harness red the first time a live engine had a bound errand. A sheet
-    that was never an errand's surface is `{alive: False, phases: []}` — the widget reads that as «no
-    process» and renders the plain document it always did."""
-    tid = str(db.get("task") or "")
-    stored = _clean_phases(db.get("process"))
-    if not tid and not stored:
-        return {"alive": False, "phases": [], "title": ""}
-    live = {}
-    if tid:
-        try:
-            from nucleo import dispatch as _disp
-            live = _disp.task_progress(tid) or {}
-        except Exception:  # noqa: BLE001
-            live = {}
-    if live.get("alive"):
-        plan = _clean_phases(live.get("plan"))           # V2-820: the worker's declared steps, and how many are done
-        return {"alive": True, "phases": _clean_phases(live.get("phases")), "plan": plan,
-                "done": max(0, min(int(live.get("done") or 0), len(plan))),
-                "title": str(db.get("task_title") or "")}
-    return {"alive": False, "phases": stored, "title": str(db.get("task_title") or "")}
 
 
 def view_data(q: str = "") -> dict:
@@ -169,20 +112,10 @@ def view_data(q: str = "") -> dict:
     }
 
 
-def _sections(body: str) -> list:
-    out = []
-    for b in _blocks(body):
-        if b.startswith("#"):
-            level = len(b) - len(b.lstrip("#"))
-            out.append({"n": len(out) + 1, "title": b.lstrip("# ").strip(), "level": level})
-    return out
-
-
 # ── the errand binding (V2-644) — called by `nucleo/docsheet.py`, never by a worker action ──────────────────
 def begin_task(title: str, task_id: str) -> None:
-    """A REPORT errand was commissioned: bind this sheet to it and start blank. Fresh on purpose — the same
-    trade the results sheet makes (`begin_task(fresh=True)`): the operator asked for a NEW report, and the
-    old document staying on screen under a live process view would read as the answer arriving instantly."""
+    """A REPORT errand was commissioned: bind this sheet to it and start blank — the old document under a live
+    process view would read as the answer arriving instantly (as results' `begin_task(fresh=True)`)."""
     db = _seed()
     db.update({"task": str(task_id or ""), "task_title": _text(title, 120)})
     store.save(WIDGET_ID, _stamp(db))
@@ -211,11 +144,8 @@ def finish_task(task_id: str, phases: list) -> None:
 
 def prompt_digest() -> str:
     """What is ON the sheet, so the brain can ANSWER about it instead of re-fetching it (`widgets/refs.py`).
-
-    This is the reason a document widget is worth more than a screenshot: with the recipe up, «how much flour?»
-    is a question about something we already have. Only asked for while the card is OPEN, so a closed sheet
-    costs nothing per turn. A PDF is the honest exception — we hand the browser a file and never read it, so
-    the digest says the title and says plainly that the inside is not ours to quote."""
+    Only asked for while the card is OPEN. A PDF is never read here, so the digest gives its title and says the
+    inside is not ours to quote."""
     db = _load()
     title = str(db.get("title") or "").strip()
     kind = _kind(db.get("kind"))
@@ -225,8 +155,7 @@ def prompt_digest() -> str:
                 f"contenido, dilo — no lo inventes.")
     body = str(db.get("body") or "")
     if not body.strip():
-        # V2-644 — a bound errand still working is a different fact from an empty sheet: the operator is
-        # watching the process view, and «no ves nada» would contradict his own screen.
+        # A bound errand still working is not an empty sheet: the operator is watching its process view (V2-644).
         proc = _process(db)
         if proc and proc.get("alive"):
             last = (proc.get("phases") or [""])[-1]
@@ -240,10 +169,7 @@ def prompt_digest() -> str:
     cut = body[:1400]
     if len(body) > len(cut):
         cut = cut.rsplit("\n", 1)[0] + "\n…"
-        # The WHOLE outline rides with the cut: demo pass 2026-09-28, full11 F2 — «go to the part about the complaints
-        # against the king» over a document that HAS «## The grievances against King George III», and the reply said
-        # «the grievances aren't written up yet», because the digest stopped at the natural-rights section. A cut is
-        # not an absence, and the headings say what lies past it.
+        # The WHOLE outline rides with the cut: a cut is not an absence, and the headings say what lies past it.
         heads = [h.strip("# ").strip() for h in re.findall(r"(?m)^#{1,4} .+$", body)]
         if heads:
             cut += ("\n(Recortado: el documento sigue. TODAS sus secciones, en orden: " + " · ".join(heads[:30]) + ")")
@@ -255,155 +181,16 @@ def _stamp(db: dict) -> dict:
     return db
 
 
-_STOP = {"the", "and", "that", "with", "this", "from", "show", "section", "part", "where", "which", "what", "about",
-         "explaining", "explains", "why", "los", "las", "del", "que", "una", "sobre", "sección", "parte", "donde",
-         "enséñame", "muéstrame", "llévame"}
+from .actions import (  # noqa: E402 — the handlers read the helpers above back through this module
+    _a_append, _a_clear, _a_goto, _a_save_to_library, _a_show)
 
-
-def _blocks(body: str) -> list:
-    """Headings on their own, paragraphs as one block each — the units the card renders."""
-    out, buf = [], []
-    for line in str(body or "").splitlines():
-        t = line.strip()
-        if t.startswith("#"):
-            if buf:
-                out.append(" ".join(buf)); buf = []
-            out.append(t)
-        elif not t:
-            if buf:
-                out.append(" ".join(buf)); buf = []
-        else:
-            buf.append(t)
-    if buf:
-        out.append(" ".join(buf))
-    return out
-
-
-def _best_block(body: str, query: str) -> str:
-    """The block that best matches: an exact phrase wins; else most query words, a heading winning a tie."""
-    q = str(query or "").strip().lower()
-    if not q:
-        return ""
-    blocks = _blocks(body)
-    for b in blocks:
-        if len(q) >= 8 and q in b.lower():
-            return b.lstrip("# ").strip()
-    words = {w.strip(".,;:«»\"'()?¿!¡") for w in q.split()}
-    words = {w for w in words if len(w) >= 4 and w not in _STOP}
-    if not words:
-        return ""
-    best, score = "", 0.0
-    for i, b in enumerate(blocks):
-        low = b.lower()
-        n = sum(1 for w in words if w[:6] in low)          # a stem, so «colonies» finds «Colonies», «grievance» «grievances»
-        sc = n + (0.5 if b.startswith("#") else 0) - i * 1e-4
-        if n and sc > score:
-            best, score = b.lstrip("# ").strip(), sc
-    return best
+# The table is read off the `_a_<action>` names bound here, so no list of action words is written twice.
+ACTIONS = {name[3:]: fn for name, fn in list(globals().items()) if name.startswith("_a_")}
 
 
 def apply_action(action: str, payload: dict = None) -> dict:
     p = payload or {}
-    a = str(action or "").strip().lower()
-    db = _load()
-
-    if a == "show":
-        kind = _kind(p.get("kind"), "")
-        body = str(p.get("body") or p.get("content") or p.get("text") or "")[:MAX_CHARS]
-        src = p.get("src") or p.get("url") or p.get("file")
-        if not kind:                                       # not told → infer from what actually arrived
-            kind = "pdf" if (src and not body) else "markdown"
-        resolved = ""
-        if kind == "pdf":
-            resolved, why = _resolve_src(src)
-            if why:
-                return {"ok": False, "error": why}
-        elif not body.strip():
-            # An empty `show` must NOT blank a sheet the operator is reading (the `imagenes` lesson): they
-            # would be left staring at nothing with no way back, and the honest report is that nothing came.
-            # A `query` or a topic is not a document: this card does not search, its caller writes the text.
-            # The `error` tells the model's correction pass that; `say` is what the operator may hear.
-            return {"ok": False, "say": "widgets.documento.refusal_empty",
-                    "error": "no llegó ningún contenido para la hoja ('body' vacío): esta hoja no busca — "
-                             "escribe TÚ el documento entero en 'body' (markdown) y vuelve a llamar a 'show'"}
-        db.pop("focus", None)
-        if _text(p.get("title"), 120) != db.get("title"):
-            db.pop("saved_rel", None)                      # another document: it gets its own file
-        db.update({"kind": kind, "body": "" if kind == "pdf" else body, "src": resolved,
-                   "title": _text(p.get("title"), 120),
-                   "subtitle": _text(p.get("subtitle") or p.get("summary"), 200),
-                   "source": _text(p.get("source"), 80)})
-        store.save(WIDGET_ID, _stamp(db))
-        return {"ok": True, "kind": kind, "title": db["title"], "chars": len(db["body"])}
-
-    if a == "append":
-        kind = _kind(db.get("kind"))
-        if kind == "pdf":
-            return {"ok": False, "error": "a un PDF no se le puede añadir texto; usa 'show' con el documento entero"}
-        add = str(p.get("body") or p.get("content") or p.get("text") or "")
-        if not add.strip():
-            return {"ok": False, "say": "widgets.documento.refusal_empty", "error": "no llegó nada que añadir ('body' vacío)"}
-        old = str(db.get("body") or "")
-        body = old + ("\n\n" if old else "") + add
-        if len(body) > MAX_CHARS:
-            # Refuse WHOLE rather than truncate. A silent cut lands mid-sentence and reads like a finished
-            # document that simply stops — the caller has no way to know it was cut, and neither has the
-            # operator. Saying it is full is the only honest answer, and it names the way out.
-            return {"ok": False, "say": "widgets.documento.refusal_full", "error": f"la hoja ya está llena ({MAX_CHARS} caracteres): no cabe lo que "
-                                          f"añades. Usa 'show' para reemplazarla por una versión más corta",
-                    "chars": len(old)}
-        db["body"] = body
-        if not db.get("title"):
-            db["title"] = _text(p.get("title"), 120)
-        store.save(WIDGET_ID, _stamp(db))
-        return {"ok": True, "added": len(body) - len(old), "chars": len(body)}
-
-    if a == "goto":
-        # «Show me the section explaining why the colonies wanted independence» over the Declaration on screen
-        # (demo run, 2026-09-26): the reply described the passage and the sheet never moved — no action could.
-        # The best-matching heading or passage becomes the FOCUS; the card scrolls to it and marks it.
-        body = str(db.get("body") or "")
-        if _kind(db.get("kind")) == "pdf" or not body.strip():
-            return {"ok": False, "error": "no hay texto en la hoja al que ir"}
-        hit = _best_block(body, str(p.get("text") or p.get("section") or p.get("query") or p.get("item") or ""))
-        if not hit:
-            heads = [b.lstrip("# ").strip() for b in _blocks(body) if b.startswith("#")][:12]
-            return {"ok": False, "error": "no encuentro ese pasaje — pásame un título o una frase suya",
-                    "headings": heads}
-        # As the reader will SEE it: the card matches this against rendered text, where «**refused**» is
-        # «refused» and a wrapped paragraph is one line (V2-773 audit — a passage with emphasis never matched).
-        plain = " ".join(re.sub(r"[*_`~>#\[\]]+", "", hit).split())
-        db["focus"] = {"text": plain[:160], "at": time.time()}
-        store.save(WIDGET_ID, _stamp(db))
-        return {"ok": True, "found": plain[:200]}
-
-    if a == "clear":
-        store.save(WIDGET_ID, _stamp(_seed()))
-        return {"ok": True, "empty": True}
-
-    if a == "save_to_library":
-        # V2-661 — «guárdalo en mis archivos» with the document ON SCREEN is one data-op, not an errand: the
-        # text is already here. It lands on the library's documents shelf (the `archivos` card's truth), never
-        # in this widget's own data directory, which no file manager shows. A PDF is a file we never held.
-        kind = _kind(db.get("kind"))
-        body = str(db.get("body") or "")
-        if kind == "pdf" or not body.strip():
-            return {"ok": False, "error": ("la hoja enseña un PDF que no tengo guardado: ábrelo desde su URL"
-                                           if kind == "pdf" else "la hoja está vacía: no hay nada que guardar")}
-        from library import index as _lib
-        name = _text(p.get("name") or p.get("filename") or db.get("title"), 160) or "documento"
-        if kind == "html" and not os.path.splitext(name)[1]:
-            name += ".html"
-        # The sheet OWNS its file: saving again updates it (demo pass 2026-09-28 — each save made «(1)», «(2)»…,
-        # and the worker spent minutes renaming and deleting its own duplicates, asking him to authorise it).
-        res = _lib.save_text(name, body, kind="documents", replace=str(db.get("saved_rel") or ""))
-        if not res.get("ok"):
-            return {"ok": False, "error": res.get("error") or "no pude guardar el fichero"}
-        db["saved_rel"] = res.get("rel") or ""
-        store.save(WIDGET_ID, db)
-        ent = res.get("entry") or {}
-        return {"ok": True, "file": {"name": ent.get("name") or name, "rel": res.get("rel") or ""},
-                "path": res.get("path") or "", "where": "documents",
-                "message": f"Guardado en tus archivos, en Documentos: «{ent.get('name') or name}»."}
-
-    return {"ok": False, "error": f"acción desconocida: {action}"}
+    handler = ACTIONS.get(str(action or "").strip().lower())
+    if handler is None:
+        return {"ok": False, "error": f"acción desconocida: {action}"}
+    return handler(action, p)

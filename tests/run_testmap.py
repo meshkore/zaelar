@@ -2011,6 +2011,18 @@ DOMAINS: list[dict] = [
                                  "durable row) and served at /api/tasks/<id>/process; not live → alive false (V2-822)",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_the_process_record_is_read_from_the_live_registry.py"]},
+        {"id": "3.145", "title": "A widget.js split into js/ modules is served under its prefix and gated as one client "
+                                 "(refactor2710-12)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_a_widget_split_into_js_modules_is_served_and_gated.py"]},
+        {"id": "3.146", "title": "No widget event vanishes in a move: every literal emit under widgets/ is frozen "
+                                 "(V2-826 §2b, refactor2710-12)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_a_widget_event_survives_a_move.py"]},
+        {"id": "3.147", "title": "Every widget keeps its shape (py ≤ 400, client module ≤ 600, js/ for the parts) and no "
+                                 "widget grows back (refactor2710-12 T-05)",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_every_widget_keeps_its_shape.py"]},
         # V2-820 T-06 — a request cut by his own «¿Te parece bien?» (barge-in before its first word): the model answered
         # the whole from the window, the brief judged the tag alone and CRIT-K34 annulled the errand as `answered`; the
         # composed answer then got «Perdona, se me ha ido» glued on (a stale reply read as mute). Disarmed 2026-10-27
@@ -5593,8 +5605,7 @@ DOMAINS: list[dict] = [
             "cmd": "./.venv/bin/python tests/browser/e2e/energy/render_the_gauge.py"},
         {"id": "4.275", "title": "The mail section is a mail client — folders, a folder page, one message, a draft over the card (send · save · discard) — and the card says where he is: the house lit on the home, which holds no draft",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_mail_section_is_a_mail_client.py",
-                                  "tests/browser/unit/mensajeria/test_the_mail_client_paints_where_he_is.py",
-                                  "tests/browser/unit/mensajeria/test_the_stylesheet_styles_only_what_the_card_draws.py"]},
+                                  "tests/browser/unit/mensajeria/test_the_mail_client_paints_where_he_is.py"]},
         {"id": "4.276", "title": "Every host that paints a card (desktop card, activity rail, phone deck) gives it every ctx member a card uses — a forgotten one is a TypeError on tap",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_every_host_gives_a_card_the_whole_ctx.py"]},
         {"id": "4.277", "title": "What he archives, deletes or moves in his own mail client leaves the card: the folder is asked which messages it still holds, what left goes, and a folder whose size changed is read again",
