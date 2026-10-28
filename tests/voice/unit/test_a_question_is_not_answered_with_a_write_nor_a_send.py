@@ -46,10 +46,11 @@ def test_a_send_the_verdict_puts_on_another_card_is_asked(verdict):
 
 
 def test_the_voice_wires_both_rules():
-    assert "elif _direct_action.verdict_elsewhere(_brief, wid):" in SRC
-    i = SRC.index("acto que sale fuera sin respaldo del veredicto")
-    seg = SRC[i:i + 900]
-    assert "no se ejecuta" in seg and "_bn_drop.push(" in seg and "mode = _wactions.CONFIRM" not in seg
+    import inspect
+    from nucleo.acts import card
+    assert "elif _card.logged(_card.licence(_req, wid, action_name, payload, at=_card.LEAVES), emit)" in SRC
+    seg = inspect.getsource(card._leaves_for_another_card)
+    assert "_da.verdict_elsewhere(" in seg and "no se ejecuta" in seg and "_bn.push(" in seg and "CONFIRM" not in seg
     j = SRC.index("la pregunta gana a la escritura")
     block = SRC[SRC.rindex("if (_fx_q.carries", 0, j):j]
     assert "_fx_q.OUTPUT_ANSWER" in block and "_fx_q.DATA_WRITE" in block and "instead_of=action_name" in block

@@ -60,9 +60,12 @@ def test_the_dedupe_guard_consults_the_replay_license():
     """V2-717 moved the predicate out of the provider into `data_ops.is_context_bleed` (the file-size
     ratchet, and so a lens could be exempted in one place). The provider must call it, and the predicate
     must still ask the replay license before eating an identical data-op."""
+    import inspect
+    from nucleo.acts import card
     src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    m = re.search(r"_data_ops\.is_context_bleed\(brain\._last_dataop.*?deduped\[\"v\"\] = True", src, re.S)
+    m = re.search(r"at=_card\.FAST, last_dataop=brain\._last_dataop.*?deduped\[\"v\"\] = True", src, re.S)
     assert m, "the dedupe guard block moved — re-anchor this test"
+    assert "_do.is_context_bleed(last_dataop" in inspect.getsource(card._context_bleed)
     pred = (ENGINE / "nucleo/flash/data_ops.py").read_text(encoding="utf-8")
     body = pred[pred.index("def is_context_bleed("):]
     assert "replay_license(wid, action, said)" in body, \

@@ -1,27 +1,8 @@
-"""How many data-ops of widget ejecuta UN turn, and cuales (V2-391).
+"""How many widget data-ops ONE turn runs, and which (V2-391) — one decision shared by both channels.
 
-La regla era «UNA by turn», in the two canales, and su reason esta measured: the model small a veces DUPLICA
-a `add_meeting` (cita doble) or ENUMERA actions ante «muestrame the agenda» (done/drop/snooze…). Las two son
-reales and the two siguen bloqueadas here.
-
-Lo that the regla no contemplaba es that a veces VARIAS son the request. Medido in
-`build-a-video-playlist-from-links` (2026-08-27 13:36): the operator pega DOS enlaces and says «montame a lista
-with ellos»; `add` only admite a video, so that two enlaces son two llamadas — and only entro the first
-(`widget_ops: add: 1`). Despues the `next` is encontro the lista with a only video, the widget devolvio «No there is
-mas videos», and the turn anuncio that sonaba the second igualmente: the titulo it sabia by the URL, no by the
-lista. 1/5 in result by a alucinacion that empieza siendo a cap nuestro.
-
-El criterion new es mas ESTRECHO that the viejo justo donde importa, and mas wide only donde no: is admiten
-varias of the MISMO widget and the MISMA action with payloads DISTINTOS. Un duplicado exacto is colapsa (the cita
-doble) and a action DISTINTA sobre the same widget no entra (the enumeracion). El cap continues puesto by if the
-model is desboca.
-
-Nota of security: here only llegan the FAST — a action irreversible es CONFIRM and continues necesitando the si
-of the operator, so that ampliar esto no amplia it that is can romper without permission.
-
-Vive in su own module and no inside of `router_guards` by the trinquete of file-dios: it that importa es
-that the decision sea UNA and shared by the two canales, no in what file esta. `router_guards` already estaba
-in su cap, and the trinquete pide extraer, no subirlo.
+«ONE per turn» blocked a DUPLICATED `add_meeting` and an ENUMERATION of actions, but two pasted links are two
+`add`s (2026-08-27 13:36). So: same widget + same action + different payloads run; an exact duplicate collapses;
+another action on the same widget is dropped. Only FAST ops reach here (irreversible ones are CONFIRM).
 """
 from __future__ import annotations
 
@@ -35,12 +16,12 @@ from nucleo.flash import refusal_line as _rline
 from nucleo.turn import verdicts as _verdicts
 from nucleo.circuit import compose as _outcome
 
-#: Techo of data-ops by turn. Cinco enlaces pegados of a vez es a request; cincuenta es a model roto.
+#: Data-ops per turn. Five pasted links is a request; fifty is a broken model.
 MAX_DATA_OPS = 5
 
 
 def _ident(args: dict) -> tuple[str, str, str]:
-    """La identidad of a data-op: widget + action + payload, comparable."""
+    """A data-op's identity: widget + action + payload, comparable."""
     a = args if isinstance(args, dict) else {}
     pl = a.get("payload") if isinstance(a.get("payload"), dict) else {}
     return (str(a.get("widget_id") or "").strip().lower(),
@@ -49,7 +30,7 @@ def _ident(args: dict) -> tuple[str, str, str]:
 
 
 def admite_data_op(args: dict, ya: list[dict], brief=None) -> bool:
-    """¿Se ejecuta ESTA data-op, habiendo ejecutado already `already`? Decision shared by the two canales.
+    """Does THIS data-op run, given those already run (`ya`)? One decision shared by both channels.
     `brief`: two actions its verdict heard in his sentence are two orders, not a menu (`verdicts.both_heard`)."""
     wid, accion, payload = _ident(args)
     if not wid or not accion:
@@ -59,10 +40,10 @@ def admite_data_op(args: dict, ya: list[dict], brief=None) -> bool:
     for previa in ya:
         p_wid, p_accion, p_payload = _ident(previa)
         if (wid, accion, payload) == (p_wid, p_accion, p_payload):
-            return False                      # duplicado exacto → la cita doble
+            return False                      # exact duplicate → the double appointment
         if wid == p_wid and accion != p_accion and not _distinct_targets(args, previa) \
                 and not _verdicts.both_heard(brief, wid, accion, p_accion):
-            return False                      # otra acción sobre el mismo widget → la enumeración
+            return False                      # another action on the same widget → the enumeration
     return True
 
 
@@ -73,34 +54,17 @@ def _named(args: dict) -> set[str]:
 
 
 def _distinct_targets(a: dict, b: dict) -> bool:
-    """Two different actions on one card are two ORDERS, not a menu, when each names what it acts on and nothing
-    they name is shared (V2-781: «play the first one, queue the rest» → play_result {1} + add_results {2..6}; the
-    second was dropped and the queue never existed). The enumeration offers alternatives over the SAME row, or
-    over none — that one stays out."""
+    """Two different actions on one card are two ORDERS when each names its object and they share none (V2-781:
+    «play the first one, queue the rest» lost the queue). The enumeration — same row, or none — stays out."""
     na, nb = _named(a), _named(b)
     return bool(na) and bool(nb) and not (na & nb)
 
 
-# ---------------------------------------------------------------------------------------------------
-# V2-603 — A DATA-OP THAT FAILED MUST CORRECT THE CLAIM IT ALREADY MADE.
-#
-# Data-ops are dispatched fire-and-forget (`_spawn` in the brain's provider), which is right: the turn must
-# not wait on a widget's network call. The consequence nobody had closed is that the turn SPEAKS FIRST and the
-# op resolves after — so when it fails, the spoken sentence is already wrong and nothing ever revisits it.
-#
-# Measured on the operator's engine (2026-09-06, session e1acdcca, connecting a YouTube account):
-# `connect_account` returned `{"ok": False, "error": "sin app OAuth registrada para YouTube…"}`. The exact
-# words of the real problem existed, in-process, at 11:19:03. The operator was never told; he was told
-# «La autentificación de Google quedó completada», then «Hecho.», then «Te conecto YouTube ahora mismo».
-#
-# The rails are the ones a finished background worker already uses (`nucleo/acts/errand.py`): speak it
-# through `voice/proactive` AND leave a `[SISTEMA]` note so the NEXT turn also knows. Nothing here invents
-# wording for the failure — the widget's own `error`/`message` is what the operator hears, because the widget
-# is the only layer that knows why it could not act.
-# ---------------------------------------------------------------------------------------------------
+# V2-603 — a FAILED data-op must correct the claim already spoken. Ops are fire-and-forget, so the turn speaks
+# first (2026-09-06, session e1acdcca: `connect_account` failed with the exact reason; he was told «Hecho.»).
+# Same rails as a finished worker (`escalate.py`): voice/proactive + a `[SISTEMA]` note; the widget's own words.
 
-#: Failures already announced (wid:action:error → ts), so a card that retries on a timer cannot turn one
-#: broken connector into a monologue. Same shape as susurro's repair dedup.
+#: Failures already announced (wid:action:error → ts): a card retrying on a timer is not a monologue.
 _RECENT_FAILURES: dict[str, float] = {}
 _FAILURE_COOLDOWN_S = 90.0
 
@@ -118,19 +82,11 @@ def _dedup(key: str, now: float) -> bool:
 
 async def report_failure(wid: str, action: str, res: dict) -> bool:
     """Announce a FAST data-op that came back `ok: False`. Returns True if the operator was told.
-
-    Best-effort by contract: this runs inside the detached task that dispatched the op, so an exception here
-    must not surface anywhere. Silence on a failure is the defect being closed, but a crash while reporting
-    one would be worse than the original."""
+    Best-effort: runs in the op's detached task, so it never raises."""
     import time as _time
 
-    # V2-743 — `error` counts too, and a POOL TIMEOUT does not. Until today this line read only `ok is False`,
-    # so `{"error": "widget 'agenda' timed out after 8s"}` — which carries no `ok` at all — returned here and
-    # the operator was never told anything (measured 2026-09-21, session bcd4aba1: the timeout reached the
-    # timeline and never reached him). `server_api.brain_action` had always read the same result as
-    # `error or ok is False` for its `action_failed` event; the two readers disagreed and the quieter one won.
-    # The timeout is excluded on purpose: the hook keeps running after the wait gives up, so it is not a
-    # verdict — `op_receipt` witnesses those against the widget's own view.
+    # V2-743 — `error` counts too (2026-09-21, bcd4aba1: a timeout result had no `ok` and was never told); a POOL
+    # TIMEOUT does not — the hook keeps running, so `op_receipt` witnesses it instead.
     if not isinstance(res, dict):
         return False
     if _receipt.is_pool_timeout(res) or not _receipt.failed(res):
@@ -138,26 +94,16 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
     detail = str(res.get("message") or res.get("error") or "").strip()
     if not detail:
         return False
-    # V2-652 — the two keys have two AUDIENCES, and only one of them is the operator. `message` is the
-    # widget's speakable sentence (the house convention since V2-463/V2-650b); `error` is diagnostic and
-    # often literally addressed to the MODEL («vuelve a llamar a add_meeting con el título…»). Measured
-    # 2026-09-10 (session 7f77e2cc): that exact retry instruction was spoken aloud and painted into the
-    # chat as zaelar's own words, twice. A bare `error` still corrects the model through the note below —
-    # it is never voiced and never becomes agent speech.
+    # V2-652 — `message` is for the operator, `error` for the MODEL (2026-09-10, 7f77e2cc: a retry instruction was
+    # spoken aloud). A bare `error` reaches only the note below.
     speakable = _rline.speakable(wid, res)          # the widget's `say` (bundle) or its cleaned `message`
     wid = (wid or "").strip().lower()
     action = (action or "").strip()
     if _dedup(f"{wid}:{action}:{detail}", _time.time()):
         return False
 
-    # The note is an INSTRUCTION to correct, not a line to read out: the brain says it in the operator's
-    # language and in its own voice. The raw detail rides along so it cannot be softened into «hubo un
-    # problema» — the operator needs the actionable half («falta el client_id»), which is the whole point.
-    # V2-707 F0 — and it says that the CORRECTED call will run. `contract.guard` refuses a destructive action
-    # whose selector arrived empty and hands back the menu precisely so the next turn can name one; until now
-    # nothing here told the model that re-calling was the expected move, while the anti-drag guard was quietly
-    # eating the re-call. A retry instruction and a retry guard that contradict each other leave the model
-    # with no legal move at all — which is what the timeline of 2026-09-16 shows it concluding.
+    # An instruction to correct, in his language, carrying the raw detail so it cannot be softened. V2-707 F0: it
+    # also says the CORRECTED call will run, or the anti-drag guard and this note leave no legal move (2026-09-16).
     note = (f"[SISTEMA] La acción «{action}» sobre «{wid}» NO se ejecutó. Motivo exacto: {detail}. "
             f"Dilo con naturalidad en tu PRÓXIMA respuesta, en el idioma del operador, y NO digas que está "
             f"hecho. Si el motivo indica que falta un paso suyo, dile cuál es. Si lo que falta es un dato que "
@@ -172,15 +118,11 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
         pass
     if speakable:
         try:
-            # …in the language the agent speaks: a widget's `message` is product copy in whatever language the
-            # widget was written in (demo pass 48, V6: «No hay resultados de búsqueda ahora mismo.» spoken verbatim
-            # into an English session). The same composer a finished errand's line goes through.
+            # …in the agent's language: widget copy is whatever language it was written in (demo pass 48, V6).
             from nucleo.workers import spoken_delivery as _sd
             said = await _sd.line(f"{wid}: {action}", speakable, ok=False)
             if not said:
-                # Demo pass 69, V2: the composer came back empty and «No hay resultados de búsqueda ahora mismo.» was
-                # spoken raw into an English session. Widget copy is written in Spanish, so the raw sentence is only
-                # ever said to a Spanish-speaking agent; otherwise the note above makes the model say it next.
+                # Demo pass 69, V2: composer empty → raw Spanish copy only to a Spanish agent; else the note covers it.
                 try:
                     from i18n import langs as _lg
                     same = str(_lg.current_code() or "es").lower().startswith("es")
@@ -206,13 +148,8 @@ async def report_failure(wid: str, action: str, res: dict) -> bool:
 
 async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, dispatch,
                           said: str = "") -> tuple[dict, dict] | None:
-    """ONE corrected re-call of a FAST data-op the card refused, while the turn is still the operator's.
-
-    `act_repair.call_for_refusal` owns the why and the bounds (same action, same card, a different payload);
-    this is the seam both channels share — the voice path through `dispatch_and_report`, the text channel
-    through `widget_data_turn.execute` — so the rule is not installed in one of two branches. `dispatch` is the
-    channel's own way to run a data-op. Returns `(payload, result)` of the corrected call, `(payload, result, action)`
-    when the card's own redirect ran another action (`refusal_redirect`), or None."""
+    """ONE corrected re-call of a refused FAST data-op (bounds: `act_repair.call_for_refusal`), shared by both
+    channels. Returns `(payload, result)`, `(payload, result, action)` after a card redirect, or None."""
     if not isinstance(res, dict) or _receipt.is_pool_timeout(res) or not _receipt.failed(res):
         return None
     why = str(res.get("message") or res.get("error") or "").strip()
@@ -221,8 +158,7 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
     from nucleo.flash import parked_refusal as _parked      # the half he supplies next turn completes THIS call
     _parked.remember(wid, action, payload, res)
     try:
-        # A refusal that NAMES the alternatives its card offers (`res["redirect"]`) is not a payload to correct but an
-        # action to replace: `refusal_redirect` runs one of those, and the third element tells the caller what ran.
+        # A refusal naming its alternatives (`res["redirect"]`) is an action to replace, not a payload to correct.
         from nucleo.flash import refusal_redirect as _redirect
         if (alt := await _redirect.retry(wid, action, payload, res, text, dispatch)):
             return alt[1], alt[2], alt[0]                   # it settles the parked refusal itself
@@ -247,10 +183,7 @@ async def corrected_retry(wid: str, action: str, payload: dict, res, text: str, 
 
 async def refused_unsaid(tasks, timeout: float = 4.0):
     """`(widget, error)` when EVERY op of this turn was refused with only an internal reason, else None.
-
-    Demo pass 104, C5: `send_to` was refused («no tengo el Telegram de Rowan» — an `error`, so `report_failure`
-    leaves it for the next turn) and the canned ack said «Done.» 10 ms later. An op still running past `timeout`
-    keeps today's path; one refusal the widget SPEAKS (`message`) is already told."""
+    Demo pass 104, C5: `send_to` refused with an `error` and the canned ack said «Done.» 10 ms later."""
     try:
         pend = [t for _w, t in tasks if not t.done()]
         if pend:
@@ -290,13 +223,8 @@ async def say_refusal_instead(tasks, data_done: dict, send, speech) -> str:
 
 
 async def say_owed_after_ops(tasks, data_done: dict, send, speech, timeout: float = 4.0) -> list[str]:
-    """The lines this turn OWES to its data-ops (`data_done["owed"]`: a completion or repair tail — «Done.», «I've
-    gone ahead, as you asked») are said once the ops ANSWERED, and never over a refusal. Returns what was said.
-
-    Audit V2-783 P0-2 (2026-10-16): the voice sent those tails the instant the op was dispatched, so a refused op was
-    followed by «Done.» and corrected afterwards. A refusal is told by `report_failure` (or the next turn's note), so
-    the owed line is simply dropped; an op still running past `timeout` is not claimed either — the card is the
-    answer then. Never raises."""
+    """The lines this turn OWES its data-ops (`data_done["owed"]`) are said once the ops ANSWERED, never over a
+    refusal nor past `timeout`. Audit V2-783 P0-2 (2026-10-16): «Done.» used to follow a refused op. Never raises."""
     owed = [str(line) for line in (data_done.get("owed") or []) if str(line or "").strip()]
     data_done["owed"] = []
     if not owed or not tasks:
@@ -362,9 +290,8 @@ async def _say_it_did_not_run(wid: str, action_name: str, exc: BaseException, *,
 
 
 def one_open_instance(wid: str) -> str:
-    """V2-773 — a data-op on a BASE id lands on its one open instance (a worker's sheet `results::9194df-1` is the
-    only «results» the model can name); several instances keep today's path. One home for both channels (the voice
-    rail and the text channel's executor carried the same seven lines — V2-778 F4-33 paid its growth here)."""
+    """V2-773 — a data-op on a BASE id lands on its one open instance (`results::9194df-1`); several keep today's
+    path. One home for both channels (V2-778 F4-33)."""
     try:
         from server.voice_api import open_instances as _open_inst
         from widgets import instances as _inst_dt
@@ -374,11 +301,8 @@ def one_open_instance(wid: str) -> str:
 
 
 def start_op(wid: str, action_name: str, payload: dict, *, seal, text, said, spawn):
-    """Start a fast data-op detached, or SAY that it could not start (V2-778 F0-4). Returns the task, or None.
-
-    The turn's call site used to wrap this in `except: pass`: when building the call raised, the op never ran,
-    «Done.» stood and nothing was logged. `text` may be a callable so building the operator's half of the turn
-    happens inside this guard too. A None return tells the caller the op is NOT done."""
+    """Start a fast data-op detached, or SAY that it could not start (V2-778 F0-4). Returns the task, or None
+    (= NOT done). Was `except: pass` at the call site, leaving «Done.» standing. `text` may be a callable."""
     try:
         t = text() if callable(text) else text
         return spawn(dispatch_and_report(wid, action_name, payload or {}, seal=seal, text=t, said=said),
@@ -399,37 +323,22 @@ def start_op(wid: str, action_name: str, payload: dict, *, seal, text, said, spa
 
 async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal=None, receipt: bool = False,
                               text: str = "", said=None):
-    """Dispatch a widget data-op AND announce it if it failed (V2-603).
-
-    The dispatch itself stays detached — the turn must never wait on a widget's network call — but the RESULT
-    is no longer discarded. Until now the brain spoke its acknowledgement first and the op resolved after, so a
-    failure arrived into a conversation that had already claimed success and nothing ever went back to it.
-    Measured 2026-09-06 on `youtube:connect_account`: the widget answered with the exact reason it could not
-    act, and the operator was told «Hecho.» three times instead.
-
-    `report_failure` owns the wording, the dedup and the rails; this is only the seam that lets it see the
-    result. Never raises: it runs in a detached task, where an exception would be logged nowhere useful.
-
-    `seal` (V2-707 F0) is called with whether the op actually HAPPENED, and it is the only place that can
-    know: the caller dispatches and returns. The anti-drag guard's memory is written through it, so a
-    mutation the door refused is never remembered as executed — see the note at the call site."""
+    """Dispatch a widget data-op AND announce it if it failed (V2-603). Never raises. `seal` (V2-707 F0) gets
+    whether the op HAPPENED, so a refused mutation is never remembered as executed by the anti-drag guard."""
     import widgets
     from nucleo.flash import outgoing_lang as _olang, worker_note_relay as _relay
     if (_to := _relay.relay(wid, action_name, text)):    # a worker's own note: his words go to it (2026-10-14)
         return {"ok": True, "relayed_to": _to}
     payload = await _olang.in_session_language(wid, action_name, payload or {})   # demo pass 106, E3
-    # V2-743 — the WITNESS is taken BEFORE the op or it witnesses nothing. Only on the `receipt` path (an
-    # irreversible action a human already confirmed): paying an extra widget read on every fast data-op would
-    # buy nothing and slow the common turn.
+    # V2-743 — the witness is read BEFORE the op, and only on the `receipt` (confirmed irreversible) path.
     before = await _receipt.read_signature(wid) if receipt else ""
-    # V2-776 L1 — the action's declared postcondition (`manifest.actions.<a>.done_when`) is an END STATE owed from
-    # this moment: opened BEFORE the op (a `changed` clause's baseline is what the value was), attested after.
+    # V2-776 L1 — the declared postcondition (`done_when`) is opened BEFORE the op, attested after.
     try:
         from nucleo.circuit import spec as _spec
         _spec_entry = _spec.open_for_action(wid, action_name, payload, text=text)
     except Exception:  # noqa: BLE001
         _spec_entry = None
-    # V2-776 M1 — the request this op belongs to is a ROW, opened by its first op (see `nucleo/request/model.py`).
+    # V2-776 M1 — the request is a ROW, opened by its first op (`nucleo/request/model.py`).
     try:
         from nucleo.request import model as _rq
         _row = _rq.opened(wid, action_name, text=text)
@@ -438,12 +347,9 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     if _spec_entry is not None and _row:
         _spec_entry["row"] = _row
         _spec_entry["turn"] = _rq.current()      # his words, for the correction the circuit may have to say
-        # V2-778 F3-26 — the end state is written on the row too: a restart before the pulse's verdict would
-        # otherwise leave a row nobody can judge (`tasks.reconciled` reads it back). Not as `task_id`: that
-        # key is what tells the circuit a worker owns the spec, and an inline one is the circuit's own.
+        # V2-778 F3-26 — persisted so a restart can still judge the row; not as `task_id` (that means a worker owns it).
         _spec.persist(_row, _spec_entry)
-    # V2-769 — this create's sentence COMPLETES an earlier create's: that one came from a piece of it, and its
-    # row goes back out with the call its own widget named. See `circuit/compose.py` for the measured case.
+    # V2-769 — this create's sentence completes an earlier create's piece: revert that row (`circuit/compose.py`).
     if (_prev := _outcome.superseded(wid, action_name, text)):
         await _revert(wid, _prev)
     async def _run(w, a, p):
@@ -452,9 +358,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         res = await _run(wid, action_name, payload)
     except Exception as e:  # noqa: BLE001 — V2-778 F0-4: an op that raised is said, never left behind «Done.»
         return await _say_it_did_not_run(wid, action_name, e, seal=seal, row=_row)
-    # `said` is read AFTER the refusal: by then the turn's reply has usually been spoken, and a correction that
-    # picks a different row from the one the reply just named (demo pass 2026-09-28, S3: «the best deal is the
-    # Samsung» → the retry opened the LG) contradicts us out loud.
+    # `said` is read AFTER the refusal, so the correction follows the reply just spoken (demo pass 2026-09-28, S3).
     _said = ""
     try:
         _said = str(said() if callable(said) else (said or ""))
@@ -468,9 +372,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     if _spec_entry is not None:
         try:
             from nucleo.circuit import spec as _spec
-            # A refused op whose widget brought a SPEAKABLE reason is told by `report_failure`; the circuit settles
-            # it without a second word. One refused with only an internal `error` is NOT told to him (V2-652: that
-            # key is addressed to the model) — demo pass 72, S3: «Done.» over a refused detail, and silence after.
+            # Only a SPEAKABLE refusal is told by `report_failure`; an `error`-only one is not (V2-652; pass 72, S3).
             _spec_entry["reported"] = _refused and bool(str((res or {}).get("message") or "").strip())
             _attested = _spec.attest(_spec_entry)
         except Exception:  # noqa: BLE001
@@ -487,8 +389,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
             elif _spec_entry is not None and _unchanged(_spec_entry):   # a replay, not a failure: the circuit leaves it
                 _circuit.settle(_spec_entry, row=_row, verdict="unverifiable",
                                 outcome="sin cambio visible: la tarjeta ya estaba así")
-            # False: the widget may still be catching up — the circuit's pulse settles it (met, or unmet after
-            # its grace), and the row with it.
+            # False: the widget may still be catching up — the circuit's pulse settles it.
         except Exception:  # noqa: BLE001
             pass
     await _report_ignored(wid, action_name, res)
@@ -498,8 +399,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         except Exception:
             pass
     if receipt:
-        # The receipt OWNS the outcome on this path — success, failure and the unknown a pool timeout leaves
-        # behind — so `report_failure` must not also speak about the same op.
+        # The receipt OWNS the outcome on this path, so `report_failure` must not also speak.
         try:
             await _receipt.settle(wid, action_name, res, before=before)
         except Exception:
@@ -525,15 +425,11 @@ _ACK_KEYS = frozenset({"ok", "queued", "id", "error", "message", "widget", "acti
 
 
 def answer_of(res) -> dict:
-    """What a data-op RETURNED beyond its ack — the matches a `search_archive` found, a `peek`'s messages —
-    or {} when it only acknowledged. Actions that ANSWER put their data in the result (`answer_action`); the
-    voice path dispatches detached, so until now that data reached nobody (demo pass 2026-09-28: «check my
-    email, did inworld send me something?» found the Inworld invoice and the turn said «let me check»)."""
+    """What a data-op RETURNED beyond its ack, or {} (demo pass 2026-09-28: the Inworld invoice was found and the
+    turn said «let me check»)."""
     if not isinstance(res, dict) or _receipt.failed(res):
         return {}
-    # An action that says what it ANSWERS puts it under `result`; the rest of its return is the card's whole
-    # view, and read as the answer it is a different record (demo pass 31, R2: a day view of 20 December answered
-    # from this week's meetings — «nothing about Anna's vacation»).
+    # A declared answer lives under `result`; the rest is the card's whole view (demo pass 31, R2).
     if isinstance(res.get("result"), dict) and res["result"]:
         out = {"result": res["result"]}
     else:
@@ -542,10 +438,8 @@ def answer_of(res) -> dict:
 
 
 def answer_to_speak(answers: list, ops) -> tuple | None:
-    """Which of a turn's op answers the spoken reply is composed from: the first one whose op DECLARES it answers
-    (`effects.OUTPUT_ANSWER`), else the last. `answers` = [(widget_id, answer)] in dispatch order; `ops` = the
-    turn's (widget_id, action) pairs. Demo pass 62, C2: `agenda:find_free` answered the slot, a repair pass then
-    presented it on the results sheet, and the LAST answer — the sheet's view — was the one spoken."""
+    """The op answer the reply is composed from: the first whose op DECLARES `effects.OUTPUT_ANSWER`, else the
+    last. `answers` = [(widget_id, answer)], `ops` = [(widget_id, action)] (demo pass 62, C2)."""
     pairs, ops = list(answers or []), list(ops or [])
     answers = [(w, a) for w, a in pairs if a]
     if not answers:
@@ -623,9 +517,8 @@ def is_view_op(wid: str, action: str) -> bool:
 
 
 def is_step_op(wid: str, action: str) -> bool:
-    """A STEP, by the widget's own declaration (`"repeatable": true`, V2-795): each call is one more step — the
-    next song, one notch of volume — so the same call again is a new order, never a drag. Measured live: «pon la
-    siguiente» twice in fifteen seconds; the second was eaten as context-bleed and the turn said it was not done."""
+    """A STEP, by declaration (`"repeatable": true`, V2-795): the same call again is a new order, never a drag
+    («pon la siguiente» twice in 15 s — the second was eaten as context-bleed)."""
     if not (wid and action):
         return False
     try:
@@ -638,24 +531,16 @@ def is_step_op(wid: str, action: str) -> bool:
     return isinstance(spec, dict) and spec.get("repeatable") is True
 
 
-#: The last op a widget REFUSED (wid, action, payload, ts). V2-773 (demo, images → markets): «Open the second
-#: one» reached `imagenes:select` with no item and was refused with the menu; the failure note asked the model to
-#: re-call with the item, and the NEXT two turns — «Show me a chart of Apple stock», «the last month instead» —
-#: re-emitted the identical empty `select`, refused again, noted again, and the chart's turn spent its tools on
-#: a photo card. A refusal is not remembered as DONE (V2-707), so the anti-drag guard cannot see it; this does:
-#: the same op with the same payload cannot succeed where it just failed, and a corrected retry differs.
+#: The last op a widget REFUSED (V2-773: an identical empty `select` refused twice more). Not remembered as
+#: DONE (V2-707), so the anti-drag guard cannot see it.
 _REFUSED: dict = {"v": None}
 _REFUSED_S = 180.0
 
 
 def repeats_last_view(last, wid: str, action: str, payload: dict | None, *, now: float | None = None,
                       window_s: float = 180.0) -> bool:
-    """Is this call the SAME lens the card already applied on the previous data-op — a view that changes nothing?
-
-    Demo pass 2026-09-28, E2: «open the most important one» with the inbox already filtered by the turn before;
-    the verdict read `mensajeria:open` at 0.97 and the model re-sent the identical `show_view {platform: email}`.
-    V2-754 lets a valid model call run over a disagreeing verdict (its counter-case — `show_tab` against a wrong
-    `restart` at 0.99 — is real), and that is kept: only a lens that REPEATS what is already on the card yields."""
+    """The SAME lens the card already applied — it yields to the verdict despite V2-754 (demo pass 2026-09-28,
+    E2: a repeated `show_view {platform: email}` over a sure `mensajeria:open`)."""
     import time as _t
     try:
         if not last or not is_view_op(wid, action):
@@ -673,17 +558,12 @@ def repeats_last_view(last, wid: str, action: str, payload: dict | None, *, now:
 
 def a_view_where_the_verdict_acts(wid: str, model_action: str, verdict_action: str, words: str) -> bool:
     """The model only LOOKED where the turn asks to DO something else on the same card.
-
-    Demo pass 2026-09-28 (full15 E4): «oh and leave that inworld one as unread» — the verdict read `mensajeria:unread`
-    at 1.00 and the model called `peek {n: 3}`, a lens. V2-754's precedence (a valid model call runs over a
-    disagreeing verdict) protects a model that is RIGHT from a wrong verdict — its counter-case would have restarted a
-    video. A lens changes nothing, so yielding it costs nothing; and when the turn wants an act (`wants_words=act`)
-    and the verdict names one that is not a lens, the lens is the reading that cannot be what he asked."""
+    Demo pass 2026-09-28 (full15 E4): verdict `mensajeria:unread` at 1.00, model `peek`. A lens changes nothing,
+    so yielding it under V2-754 costs nothing when the turn wants an act and the verdict names a non-lens."""
     if not (verdict_action and is_view_op(wid, model_action)):
         return False
     if str(words or "") == "tell":
-        # …and its mirror (pass 119, C2: «find me a free 45 minutes…» → the model's `show_day`, a lens that answers
-        # nothing, under a verdict `find_free`): when he asks for WORDS, the lens that answers is what he asked.
+        # …mirror (pass 119, C2: `show_day` under a verdict `find_free`): asked for WORDS, the answering lens wins.
         try:
             from widgets import effects as _fx
             return (_fx.carries(wid, verdict_action, _fx.OUTPUT_ANSWER)
@@ -694,9 +574,7 @@ def a_view_where_the_verdict_acts(wid: str, model_action: str, verdict_action: s
         return False
     if not is_view_op(wid, verdict_action):
         return True
-    # …and a lens that only ANSWERS in words (`output.answer`) where the turn wants the screen to change and the
-    # verdict names a lens that does not (full26 E2: «open it» → the model searched the archive again and said
-    # «nothing matching», the verdict read `mensajeria:open` at 0.87). Both are lenses; only one is what he asked.
+    # …and a words-only lens (`output.answer`) where the verdict names one that changes the screen (full26 E2).
     try:
         from widgets import effects as _fx
         return (_fx.carries(wid, model_action, _fx.OUTPUT_ANSWER)
@@ -720,10 +598,8 @@ def remember_refusal(wid: str, action: str, payload: dict | None) -> None:
 
 
 def is_identical_retry_of_refused(wid: str, action: str, payload: dict | None, *, now: float | None = None) -> bool:
-    """…and it can only fail again while the card holds what it held. Demo pass 31 (E2→E3): `open {name: Inworld}`
-    was refused 3 s before the mail's history fetch landed on the card; the retry one turn later would have
-    found it, and this guard ate it twice — the forward never went out and E4 said «Done». Once the card's data
-    has changed since the refusal, the same call is a new question."""
+    """…and it can only fail again while the card holds what it held: once its data changed since the refusal,
+    the same call is a new question (demo pass 31, E2→E3: the mail's history landed 3 s after the refusal)."""
     import time as _t
     last = _REFUSED["v"]
     if not last:
@@ -738,19 +614,8 @@ def is_identical_retry_of_refused(wid: str, action: str, payload: dict | None, *
 
 def is_context_bleed(last, wid: str, action: str, payload: dict | None, said: str, *, now: float | None = None,
                      brief=None) -> bool:
-    """The V2-038 anti-drag rule, unchanged for what it was built for: a MUTATION identical to the one that
-    just ran (<120 s), whose content the turn does not even mention, is the model dragging the previous
-    turn's op («borra el reloj» dragged the dentist's `add_meeting` → a duplicate appointment). The hatches —
-    the sentence names the payload's content, or explicitly orders the replay (V2-650) — stay as they were.
-
-    V2-717 — a VIEW-op is never a drag. Session c502d3ff (2026-09-17): `mensajeria:open {}` ran at 55 s; at
-    125 s, 131 s and 171 s the model re-emitted it — «Let me check your Telegram to see what Ivan asked»,
-    «Let me open Telegram…», «Let me actually open Telegram now…» — and this guard ate all three as bleed.
-    The sentence went out; the act did not. Three promises in a row with nothing behind them, until the
-    120 s window simply expired at 197 s and the op went through. It could not be otherwise: the hatch is
-    payload-word overlap and a lens carries an empty payload, so for `open`/`show_view`/`close` the hatch can
-    never open, whatever the operator says. The guard exists to stop a duplicated WRITE; a lens writes
-    nothing and re-opening what is open costs nothing — there is no harm for it to prevent there."""
+    """V2-038 anti-drag: a MUTATION identical to the last (<120 s) whose content the turn does not name is a drag.
+    Hatches: words name the payload, or a replay order (V2-650). V2-717: a lens is never a drag (c502d3ff)."""
     import time as _t
     if not last:
         return False

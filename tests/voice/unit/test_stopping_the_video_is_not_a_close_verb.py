@@ -205,8 +205,10 @@ def test_the_decision_is_attributable(on_screen):
 # ── 4 · THE SEAM — a verdict nobody reads is what V2-750 already paid for ─────────────────────────
 
 def test_the_data_op_guard_actually_asks_the_licence():
-    body = _vts.read(_PROVIDER)
-    i = body.index('if action_name == "close"')
+    import inspect
+    from nucleo.acts import card
+    body = inspect.getsource(card._unlicensed_close)
+    i = body.index('if action != "close"')
     assert "dataop_close_licensed" in body[i:i + 200], (
         "the guard must consult the shared reader, not `looks_like_close` alone")
 
@@ -214,9 +216,11 @@ def test_the_data_op_guard_actually_asks_the_licence():
 def test_the_pure_show_gate_asks_the_verdict_too():
     """The OTHER gate that ate a close in the same session (`gate_shadow · pure-show`, +3073.7), on
     «…y tampoco vuelves al inicio a ver el catálogo» — a sentence with «ver» in it."""
-    body = _vts.read(_PROVIDER)
-    i = body.index("show_request_blocks_data_action(text, wid, action_name, payload)")
-    assert "_direct_action.endorses" in body[i:i + 220]
+    import inspect
+    from nucleo.acts import card
+    body = inspect.getsource(card._pure_show)
+    i = body.index("show_request_blocks_data_action(text, wid, action, payload)")
+    assert "_da.endorses" in body[i:i + 220]
 
 
 def test_endorses_is_an_exact_match_on_card_and_action(on_screen):
