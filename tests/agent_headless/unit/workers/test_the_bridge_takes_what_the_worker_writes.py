@@ -63,9 +63,9 @@ def test_the_whole_command_runs_end_to_end():
 # ── the worker was wrong: the failure says how it is written ─────────────────────────────────────────────────
 def test_act_names_the_search_call_verbatim():
     """The commonest use and the one that was lost: the hint carries a line the worker can copy, not a
-    description of a line."""
+    description of a line. The line is the form the guard lets through (CRIT-S7): a quoted sentence, no JSON."""
     h = worker_bridge._hint_for("worker_bridge act")
-    assert "use_tool" in h and '"tool":"web_search"' in h
+    assert 'act use_tool "<qué buscas>"' in h and '"tool":"web_search"' not in h
 
 
 @pytest.mark.parametrize("sub", ["ask", "say", "wait"])
