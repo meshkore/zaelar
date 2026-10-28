@@ -248,6 +248,21 @@
     0.95
    ]
   },
+  "widgets": {
+   "imagenes": {
+    "items": [
+     {
+      "title": "Fuji at dawn"
+     },
+     {
+      "title": "Fuji from Lake Kawaguchi"
+     },
+     {
+      "title": "Fuji in winter"
+     }
+    ]
+   }
+  },
   "expect": "data-op imagenes:select",
   "forbid": [
    "worker",
@@ -444,6 +459,11 @@
    "say": "Your Tesla insurance renews on March 12, 2027.",
    "tools": []
   },
+  "memory": {
+   "pills": [
+    "The operator's Tesla insurance renews on March 12, 2027."
+   ]
+  },
   "expect": "talk",
   "forbid": [
    "worker",
@@ -468,6 +488,11 @@
       "request": "find out when the Tesla insurance renews"
      }
     }
+   ]
+  },
+  "memory": {
+   "pills": [
+    "The operator's Tesla insurance renews on March 12, 2027."
    ]
   },
   "expect": "talk",
