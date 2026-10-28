@@ -102,3 +102,12 @@ def test_disarm_a_wrong_verdict_changes_the_line(lang):
     right = R.line(R.Outcome("met", object="«X»"))
     for wrong in ("unmet", "cannot", "asked", "started", "skipped"):
         assert R.line(R.Outcome(wrong, object="«X»", reason="no")) != right, wrong
+
+
+def test_the_lines_are_keyed_on_the_one_vocabulary(lang):
+    """Every verdict of `nucleo.circuit.verdict` has its line key; a name no verdict has says nothing."""
+    from nucleo.circuit import verdict as V
+    assert set(V.ALL) == set(VALUES)
+    assert R.line(R.Outcome(V.MET, object="«X»")) == R.line(R.Outcome("met", object="«X»"))
+    assert R.line(R.Outcome("gave_up", reason="x")) == R.line(R.Outcome("unmet", reason="x")), "a stored name reads as one"
+    assert R.line(R.Outcome("done", object="«X»")) == ""

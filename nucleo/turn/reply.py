@@ -24,12 +24,14 @@ from dataclasses import dataclass
 
 from loguru import logger
 
+from nucleo.circuit import verdict as V
+
 #: How long the reply waits for the turn's acts to answer. Past it, an act is still `started` and the model's
 #: words (its promise) stand.
 WAIT_S = 4.0
 
 #: The verdicts whose line is said whatever the model's words were.
-ALWAYS_SAID = ("unmet", "cannot", "asked")
+ALWAYS_SAID = (V.UNMET.name, V.CANNOT.name, V.ASKED.name)
 
 
 @dataclass(frozen=True)
@@ -44,7 +46,9 @@ class Outcome:
 
 
 def _value(verdict) -> str:
-    return str(getattr(verdict, "value", verdict) or "")
+    """The verdict's name in the one vocabulary (`nucleo.circuit.verdict`); "" for a name no verdict has."""
+    v = V.of(getattr(verdict, "name", verdict))
+    return v.name if v else ""
 
 
 def _lang():
@@ -77,10 +81,10 @@ def of_op(card: str, action: str, res) -> Outcome:
     the sentence the card may say; plainly landed → `met` with its object; anything else is still `started`."""
     from nucleo.flash import op_receipt, refusal_line
     if op_receipt.failed(res):
-        return Outcome("unmet", card, action, reason=refusal_line.speakable(card, res).strip(), told=True)
+        return Outcome(V.UNMET.name, card, action, reason=refusal_line.speakable(card, res).strip(), told=True)
     if op_receipt.landed(res):
-        return Outcome("met", card, action, object=object_of(res))
-    return Outcome("started", card, action)
+        return Outcome(V.MET.name, card, action, object=object_of(res))
+    return Outcome(V.STARTED.name, card, action)
 
 
 async def of_ops(tasks, timeout: float = WAIT_S) -> list[Outcome]:
@@ -96,11 +100,11 @@ async def of_ops(tasks, timeout: float = WAIT_S) -> list[Outcome]:
         card, _, action = str(w).partition("::")
         try:
             if not t.done() or t.cancelled():
-                out.append(Outcome("started", card, action))
+                out.append(Outcome(V.STARTED.name, card, action))
                 continue
             out.append(of_op(card, action, t.result()))
         except Exception:  # noqa: BLE001 — a task that raised is an op that did not land
-            out.append(Outcome("unmet", card, action))
+            out.append(Outcome(V.UNMET.name, card, action))
     return out
 
 
@@ -137,7 +141,7 @@ def line(outcome: Outcome) -> str:
     if "{object}" in template and not outcome.object:
         return ""
     if "{reason}" in template and not outcome.reason:
-        if value == "unmet":
+        if value == V.UNMET.name:
             return str(getattr(_lang(), "op_failed", "") or "")
         return ""
     return template.format(object=outcome.object, reason=outcome.reason).strip()
@@ -158,7 +162,7 @@ def owed(outcomes: list[Outcome], said: str) -> list[tuple[Outcome, str]]:
         value = _value(o.verdict)
         if o.told:
             continue
-        if value in ALWAYS_SAID or (value == "met" and o.object and not _already_said(o, said)):
+        if value in ALWAYS_SAID or (value == V.MET.name and o.object and not _already_said(o, said)):
             text = line(o)
             if text and text not in (t for _o, t in lines):
                 lines.append((o, text))
