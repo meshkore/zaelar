@@ -397,10 +397,10 @@ def _a_tests_scheduled_jobs_leave_with_it():
         return
     try:
         added = [r["id"] for r in db.query("SELECT id FROM journal") if before is None or r["id"] not in before]
-        for jid in added:
-            db.execute("DELETE FROM journal WHERE id=?", (jid,))
     except Exception:                       # no journal table: nothing was scheduled
-        pass
+        added = []
+    for jid in added:
+        db.execute("DELETE FROM journal WHERE id=?", (jid,))
 
 
 @_pytest5.fixture(autouse=True)
