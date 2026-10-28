@@ -74,7 +74,7 @@ async def remember(item: dict[str, Any]) -> None:
         try:
             memory.write(
                 text,
-                kind=kind or "result",
+                kind=kind or "fact",
                 level=level,
                 importance=importance,
                 pinned=pinned,
@@ -84,6 +84,7 @@ async def remember(item: dict[str, Any]) -> None:
                 concepts=concepts,
                 supersedes=supersedes,
             )
+            _observe_write(kind or "fact", level, slot, meta)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"memory_agent.remember write falló: {e}")
 
@@ -92,6 +93,17 @@ async def remember(item: dict[str, Any]) -> None:
             memory.set_state(patch)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"memory_agent.remember state_patch falló: {e}")
+
+
+def _observe_write(kind, level, slot, meta) -> None:
+    """One event per pill written, carrying its KIND: the viewer and the Master tell a `request` from a `result`."""
+    try:
+        from voice.observer import emit
+        emit("memory", f"píldora escrita · {kind}", role="system",
+             extra={"layer": "write", "kind": kind, "level": level, "slot": slot or "",
+                    "source": str((meta or {}).get("source") or "")})
+    except Exception as e:  # noqa: BLE001 — observability NEVER breaks the memory
+        logger.debug(f"memory_agent: write event not emitted: {e}")
 
 
 async def remember_external(item: dict, *, source: str = "external") -> dict:

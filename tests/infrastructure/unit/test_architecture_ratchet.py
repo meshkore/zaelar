@@ -342,7 +342,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "config": 2525,
     "connectors": 20313,
     "library": 805,
-    "memory": 8502,                    # refactor2710-11: 9117 → 8502 (splits by concern, orphans out)
+    "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
     "nucleo (top)": 22581,
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
@@ -350,7 +350,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/context_packs": 568,
     "nucleo/errands": 2563,
     "nucleo/flash": 36974,
-    "nucleo/memory_agent": 3061,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3061
+    "nucleo/memory_agent": 3088,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events)
     "nucleo/susurro": 1386,
     "nucleo/turn": 2308,
     "nucleo/workers": 6463,

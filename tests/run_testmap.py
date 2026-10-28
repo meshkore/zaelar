@@ -112,6 +112,8 @@ DOMAINS: list[dict] = [
                 "tests/memory/unit/test_an_order_is_not_its_outcome.py", "tests/memory/unit/test_location_grounding.py",
             # refactor2710-11 T-01: a request is never stored as a result; a result only on a `met` verdict.
             "tests/memory/integration/test_a_request_is_never_stored_as_a_result.py",
+            # …and the memory's events carry the pill kind, the result door's verdict and the recall's ms by phase.
+            "tests/memory/integration/test_the_memory_events_carry_kind_verdict_and_phase.py",
             "tests/memory/unit/test_critical_health.py",
             # V2-499 (2026-08-29): the critical line matched the CATEGORY (“celiac”) rather than what the person says
             # they CANNOT do (“cannot eat gluten”)—authorized by the operator, accepting the false positives

@@ -31,9 +31,24 @@ async def result(text: str, *, task_id: str, verdict: str, level: str = "mid",
     Returns True when the pill was queued. Any other verdict writes nothing: a failed or interrupted errand's
     outcome is a fact of the task store, read from there, never from memory."""
     text = (text or "").strip()
-    if not text or str(verdict or "").strip().lower() != "met":
+    v = str(verdict or "").strip().lower()
+    why = "" if text and v == "met" else ("empty text" if not text else f"verdict is {v or 'missing'}, not met")
+    _observe(task_id, v, why)
+    if why:
         return False
     from nucleo.memory_agent.external import remember
     stamp = {**(meta or {}), "source": f"worker:{task_id}", "verdict": "met"}
     await remember({"text": text, "kind": RESULT, "level": level, "importance": importance, "meta": stamp})
     return True
+
+
+def _observe(task_id: str, verdict: str, why: str) -> None:
+    """The door's decision is an event: accepted, or refused and why."""
+    try:
+        from voice.observer import emit
+        emit("memory", "resultado rechazado" if why else "resultado aceptado", role="system", text=why,
+             extra={"layer": "write", "kind": RESULT, "task_id": task_id, "verdict": verdict,
+                    "accepted": not why, "reason": why})
+    except Exception as e:  # noqa: BLE001 — observability NEVER breaks the memory
+        from loguru import logger
+        logger.debug(f"memory_agent.writer: result-door event not emitted: {e}")

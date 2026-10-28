@@ -2,6 +2,7 @@
 
 ⚠️ `search` calls `vec_search` / `fts_search` / `vec_search_paraphrases` through THIS module's globals: a test
 that wants to intercept a channel patches `memory.retriever.recall`, not the package."""
+import logging
 import time
 
 from .. import db as _db
@@ -79,12 +80,15 @@ def search(
         lane = LANE_OWN
     if lexical_only:
         rerank = False
+    t0 = time.perf_counter()
     qvec = None if lexical_only else _emb.embed(prompt)
+    ms = {"embed_ms": _ms_since(t0), "lexical_ms": 0.0, "vector_ms": 0.0, "rerank_ms": 0.0}
     lanes = (LANE_OWN, LANE_MESSAGES) if lane == LANE_ALL else (lane,)
     out: list[dict] = []
     for ln in lanes:
         out += _search_lane(prompt, qvec, ln, k=k, limit=limit, expand=expand, rerank=rerank,
-                            lexical_only=lexical_only)
+                            lexical_only=lexical_only, ms=ms)
+    _observe_timing(ms, total_ms=_ms_since(t0), lane=lane, lexical_only=lexical_only, hits=len(out))
     if reinforce and out:
         try:
             import bus  # lazy: keeps memory from coupling to the bus at import time
@@ -94,8 +98,23 @@ def search(
     return out
 
 
+def _ms_since(t0: float) -> float:
+    return round((time.perf_counter() - t0) * 1000, 1)
+
+
+def _observe_timing(ms: dict, **extra) -> None:
+    """The recall's cost BY PHASE as one event, so the viewer and the Master show where a slow recall went."""
+    try:
+        from voice.observer import emit
+        emit("memory", "recall medido", role="system",
+             text=" · ".join(f"{k[:-3]} {v:.0f} ms" for k, v in ms.items()) + f" · total {extra['total_ms']:.0f} ms",
+             extra={"layer": "recall", **ms, **extra})
+    except Exception as e:  # noqa: BLE001 — observability NEVER breaks the recall
+        logging.getLogger("zaelar.memory.retriever").debug("recall timing event not emitted: %s", e)
+
+
 def _search_lane(prompt: str, qvec, lane: str, *, k: int, limit: int, expand: bool, rerank: bool,
-                 lexical_only: bool) -> list[dict]:
+                 lexical_only: bool, ms: dict | None = None) -> list[dict]:
     """One lane of `search()`: channels → RRF → score → rerank → graph, all restricted to `lane`."""
     db = _db.get_db()
     from ..clock import now as _clock_now
@@ -107,9 +126,14 @@ def _search_lane(prompt: str, qvec, lane: str, *, k: int, limit: int, expand: bo
     # the read, so the symptom is only «recall got worse». Fail-open: `space_ok()` is True without a verdict.
     from .. import reembed as _reembed
     space_ok = (not lexical_only) and _reembed.space_ok() and not getattr(_emb, "last_degraded", False)
+    ms = ms if ms is not None else {}
+    t0 = time.perf_counter()
     vec = vec_search(qvec, k=k, lane=lane) if space_ok else []
-    kw = fts_search(prompt, k=k, lane=lane)             # lexical: always, it does not depend on any space
     para = vec_search_paraphrases(qvec, k=k, lane=lane) if space_ok else []  # V2-031 T2: third channel
+    ms["vector_ms"] = ms.get("vector_ms", 0.0) + _ms_since(t0)
+    t0 = time.perf_counter()
+    kw = fts_search(prompt, k=k, lane=lane)             # lexical: always, it does not depend on any space
+    ms["lexical_ms"] = ms.get("lexical_ms", 0.0) + _ms_since(t0)
     if not space_ok and not lexical_only:
         _warn_wrong_space()
 
@@ -154,6 +178,7 @@ def _search_lane(prompt: str, qvec, lane: str, *, k: int, limit: int, expand: bo
 
     # RE-RANKING (V2-030): at scale the local embedding orders «fuzzily» (the answer is in the top-10, not the
     # top-1/3). The reranker reorders the top reading query+memory together. FAIL-OPEN: any problem keeps the order.
+    t0 = time.perf_counter()
     if rerank and len(results) > 1:
         try:
             from .. import rerank as _rr
@@ -161,6 +186,7 @@ def _search_lane(prompt: str, qvec, lane: str, *, k: int, limit: int, expand: bo
                 results = _rr.rerank(prompt, results)
         except Exception:
             pass  # the reranker NEVER breaks the recall
+    ms["rerank_ms"] = ms.get("rerank_ms", 0.0) + _ms_since(t0)
 
     results = results[:limit]
 
