@@ -2,7 +2,7 @@
 
 A worker acts minutes after the turn and only carries the brief the model wrote («Buscar y CONTACTAR…» for a
 turn that only asked to find, best-plumber-same-day ES). `nucleo/his_words` keeps what HE said, fed by
-`dialog.push_user` — the one function the voice provider and the text probe both call for his turn.
+`dialog.push_user` — the one function the voice turn (which the typed channel also runs) calls for his turn.
 
 A note glued in front of a turn can quote a worker («el proceso pregunta: ¿escribo a Fontanero X?»); taken as
 his words it would name the very recipient it asks about, and the question would answer itself.
@@ -44,6 +44,6 @@ def test_a_turn_that_is_only_notes_records_nothing():
     assert his_words.since(0) == []
 
 
-@pytest.mark.parametrize("path", ["nucleo/flash/probe.py", "voice/engine/llm/providers/turn_after.py"])
-def test_both_channels_record_his_turn_through_the_one_function(path):
+def test_the_turn_records_his_turn_through_the_one_function():
+    path = "voice/engine/llm/providers/turn_after.py"
     assert "push_user(" in (ENGINE / path).read_text(encoding="utf-8"), f"{path} no longer records his turn"
