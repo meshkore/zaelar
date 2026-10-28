@@ -11,7 +11,7 @@ from nucleo import dispatch as _d
 
 
 async def _compose_brief(request: str, context: str, trusted: bool, resume: dict | None = None) -> dict | None:
-    """PRE-VUELO of a research: convierte the request cruda in a BRIEF dirigido (nucleo/research.py).
+    """PRE-VUELO of a research: convierte the request cruda in a BRIEF dirigido (nucleo/workers/brief.py).
 
     Por what esta AQUÍ and no in the turn of voice: dirigir bien a search —separar criterios duros of blandos,
     add it that a experto sabe that hara missing, fijar cuan wide there is that buscar and with what baremo juzgar— es a

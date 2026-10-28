@@ -101,7 +101,7 @@ dispatch_prompts._web_prompt()   step 0 — before the browser, ask the network
                      nucleo/mesh_cli.py ──> nucleo/mesh_agents.py ──> Oracle ──> the agent
 ```
 
-`hbmesh` is allowlisted for workers in `nucleo/workers/claude_session.py::_BRIDGES`, alongside `hbmem`,
+`hbmesh` is allowlisted for workers in `nucleo/workers/providers/claude.py::_BRIDGES`, alongside `hbmem`,
 `hbnote`, `hbweb` and `hbwidget`. It is a **worker** capability: a voice turn answers in under a second, and
 discovery plus contact is two network hops, so the FlashBrain hands the errand to a worker.
 

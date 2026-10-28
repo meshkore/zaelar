@@ -223,7 +223,7 @@ async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _
         send(speech.sanitize(spoken_text, drop_metadata=False))
     elif not spoken_text and worker_acted["v"] and (spoken_text := _sbe.status_with_refined(operator_text, _brief)):
         send(speech.sanitize(spoken_text, drop_metadata=False))   # a status question owes the phases (three-tasks)
-    if spoken_text and (_oq := __import__("nucleo.dispatch_confirm", fromlist=["x"]).owed_question(spoken_text)):
+    if spoken_text and (_oq := __import__("nucleo.dispatch.confirm", fromlist=["x"]).owed_question(spoken_text)):
         send(speech.sanitize(_oq, drop_metadata=False)); spoken_text = f"{spoken_text} {_oq}"  # noqa: E702 — never said
     _out = locals()
     return {k: _out[k] for k in ('spoken_text', ) if k in _out}

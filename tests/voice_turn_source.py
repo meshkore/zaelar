@@ -122,10 +122,11 @@ _PROVIDER_CALLS = (
 
 #: Other files F1 split, and the modules their code moved to. A guard that reads the old file reads them all,
 #: concatenated: the moved code stays contiguous, so an «X before Y» assertion inside it keeps its meaning.
-DISPATCH = ENGINE / "nucleo" / "dispatch.py"
-_SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch_listener.py", ENGINE / "nucleo" / "dispatch_session.py",
-                              ENGINE / "nucleo" / "dispatch_prepare.py"],
-          (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / "session_notes.py"],
+DISPATCH = ENGINE / "nucleo" / "dispatch" / "__init__.py"
+_SPLIT = {DISPATCH.resolve(): [ENGINE / "nucleo" / "dispatch" / f"{x}.py"
+                              for x in ("listener", "session", "prepare", "model", "registry", "dedup_flow", "control")],
+          (ENGINE / "nucleo" / "workers" / "session.py").resolve(): [ENGINE / "nucleo" / "workers" / f"session_{x}.py"
+                                                                  for x in ("notes", "record", "events", "finish")],
           (ENGINE / "server" / "voice_api.py").resolve(): [ENGINE / "server" / "canvas_api.py", ENGINE / "server" / "run_api.py"],
           (ENGINE / "voice" / "attention.py").resolve(): [ENGINE / "voice" / "interrupt_grammar.py"],
           POST_STREAM.resolve(): [ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py" for x in ("words", "lanes", "settle")],
@@ -186,8 +187,9 @@ def _module_function(src: str, fname: str) -> str:
 
 
 #: Moved bodies that read their old module's names through an alias; a guard reads them as they were written.
-_ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
+_ALIASED = {(ENGINE / "nucleo" / "dispatch" / "session.py").resolve(): "_d",
             (ENGINE / "server" / "voice_status.py").resolve(): "_va",
+            **{(ENGINE / "nucleo" / "workers" / f"session_{x}.py").resolve(): "_s" for x in ("record", "events", "finish")},
             (ENGINE / "nucleo" / "memory_agent" / "ingest_steps.py").resolve(): "_ing",
             (ENGINE / "nucleo" / "flash" / "live_blocks_nav.py").resolve(): "_lb",
             (ENGINE / "nucleo" / "flash" / "tool_executor_calls.py").resolve(): "_tx",
@@ -196,7 +198,8 @@ _ALIASED = {(ENGINE / "nucleo" / "dispatch_session.py").resolve(): "_d",
             **{(ENGINE / "nucleo" / "flash" / f"probe_{x}.py").resolve(): "_probe" for x in ("after", "decide", "mirrors", "before")},
             **{(ENGINE / "nucleo" / "flash" / f"post_stream_{x}.py").resolve(): "_pst" for x in ("words", "lanes", "settle")},
             (ENGINE / "voice" / "engine" / "llm" / "providers" / "pending_confirm.py").resolve(): "_p",
-            (ENGINE / "nucleo" / "dispatch_prepare.py").resolve(): "_d",
+            **{(ENGINE / "nucleo" / "dispatch" / f"{x}.py").resolve(): "_d"
+               for x in ("prepare", "model", "registry", "dedup_flow", "control")},
             (ENGINE / "widgets" / "navegador" / "owner_login.py").resolve(): "_o",
             (ENGINE / "widgets" / "navegador" / "owner_actions.py").resolve(): "_o",
             (ENGINE / "widgets" / "navegador" / "owner_page.py").resolve(): "_o"}
@@ -248,11 +251,11 @@ def _unlift(src: str) -> str:
 
 #: Files whose function bodies F1 cut into called blocks: read with each block put back where it sat.
 _SPLICED = {
-    (ENGINE / "nucleo" / "dispatch_session.py").resolve(): (
+    (ENGINE / "nucleo" / "dispatch" / "session.py").resolve(): (
         [("        # V2-778 F1 — building what the session runs with", "_dss.build_what_it_runs_with(",
-          ENGINE / "nucleo" / "dispatch_session_steps.py", "build_what_it_runs_with"),
+          ENGINE / "nucleo" / "dispatch" / "session_steps.py", "build_what_it_runs_with"),
          ("        # V2-778 F1 — running the session to its delivery", "_dss.run_it_to_its_delivery(",
-          ENGINE / "nucleo" / "dispatch_session_steps.py", "run_it_to_its_delivery")], "_ds|_d"),
+          ENGINE / "nucleo" / "dispatch" / "session_steps.py", "run_it_to_its_delivery")], "_ds|_d"),
     (ENGINE / "server" / "voice_api.py").resolve(): (
         [("    # V2-778 F1 — the brain, the voice and its providers in the status", "_vstatus.brain_and_voice(",
           ENGINE / "server" / "voice_status.py", "brain_and_voice"),
@@ -323,11 +326,11 @@ def getsource(obj) -> str:
         return src[i:min(ends)] if ends else src[i:]
     mod = getattr(obj, "__module__", "") or ""
     if mod == "nucleo.dispatch" and qual == "run_listener":          # the facade's delegate (V2-778 F1-11)
-        from nucleo import dispatch_listener
+        from nucleo.dispatch import listener as dispatch_listener
         return inspect.getsource(dispatch_listener.run_listener)
     if mod == "nucleo.dispatch" and qual == "_run_session":          # the facade's delegate (V2-778 F1)
-        from nucleo import dispatch_session      # read as it was written there: without the `_d.` the move added
-        src = _spliced(ENGINE / "nucleo" / "dispatch_session.py", inspect.getsource(dispatch_session._run_session))
+        from nucleo.dispatch import session as dispatch_session  # read as it was written there: without the `_d.` the move added
+        src = _spliced(ENGINE / "nucleo" / "dispatch" / "session.py", inspect.getsource(dispatch_session._run_session))
         return re.sub(r"\b_d\.", "", src)
     src = inspect.getsource(obj)
     try:                                      # a moved body reads its old module through an alias: read as written

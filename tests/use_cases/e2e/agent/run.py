@@ -1614,7 +1614,7 @@ def bridge_allowlist_refusal() -> str:
     reads — never a copy of the rule, which would be a second place to drift.
     """
     try:
-        from nucleo.workers import claude_session as _cs
+        from nucleo.workers.providers import claude as _cs
         py = _cs.bridge_python()
         if py in _cs._INTERPRETERS:
             return ""

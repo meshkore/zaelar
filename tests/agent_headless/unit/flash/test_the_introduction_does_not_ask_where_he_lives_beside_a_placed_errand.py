@@ -19,7 +19,7 @@ PORTLAND = {"id": "2", "request": "Find me a restaurant for an anniversary in Po
 @pytest.fixture
 def stranger(monkeypatch):
     monkeypatch.setattr(I, "_known", lambda: {})
-    import nucleo.dispatch_confirm as dc
+    import nucleo.dispatch.confirm as dc
     monkeypatch.setattr(dc, "_PENDING_CONFIRM", {})
     return monkeypatch
 

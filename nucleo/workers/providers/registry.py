@@ -1,4 +1,4 @@
-"""nucleo/workers/registry.py — AGNOSTIC factory for worker backends (V2-038).
+"""nucleo/workers/providers/registry.py — AGNOSTIC factory for worker backends (V2-038).
 
 `get_backend(spec)` chooses the engine from CONFIG (by task type, mixable), without dispatch/FlashBrain knowing
 the specific CLI. It is the only place that knows which class to instantiate → changing the engine = changing config;
@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 
-from .base import WorkerBackend, WorkerSpec
+from ..base import WorkerBackend, WorkerSpec
 
 _BACKENDS = {"claude_code", "codex", "grok_build"}
 
@@ -53,7 +53,7 @@ def get_backend(spec: "WorkerSpec") -> "WorkerBackend":
     """Returns a NEW backend instance for `spec` (one per session). Fail-safe to claude_code."""
     # widget task → unified generator (killable + validated), unless there is an explicit backend override.
     if not (os.getenv("WORKER_BACKEND") or "").strip() and _is_widget_task(spec):
-        from .generator_session import GeneratorBackend
+        from .generator import GeneratorBackend
         return GeneratorBackend()
     prov = _provider_for(spec.kind or "generic")
     if prov == "codex":
@@ -70,16 +70,16 @@ def get_backend(spec: "WorkerSpec") -> "WorkerBackend":
                 "worker[%s]: kind=%s deny_tools=%s → claude_code (Codex no puede acotar sus tools)",
                 spec.task_id or "?", spec.kind, spec.deny_tools)
         else:
-            from .codex_session import CodexSession
+            from .codex import CodexSession
             return CodexSession()
     if prov == "grok_build":
         # Grok Build does NOT need the redirect above: it accepts our `Bash(...)` rules and ENFORCES them (tested), so
         # it can uphold the single-writer invariant just like Claude Code — including a task with
         # `deny_tools`, which starts without any tool.
-        from .grok_session import GrokSession
+        from .grok import GrokSession
         return GrokSession()
     # default + fail-safe
-    from .claude_session import ClaudeCodeSession
+    from .claude import ClaudeCodeSession
     return ClaudeCodeSession()
 
 

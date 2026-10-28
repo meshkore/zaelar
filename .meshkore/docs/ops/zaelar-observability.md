@@ -242,7 +242,7 @@ And two frame rows: at **birth**, `worker · <backend>` with **model** (chip) + 
 drives it; at the **end**, `fin` with input/output **tokens** (size chip) + **USD cost**. Everything is grouped
 under `span=worker:<id>` in the Traces view (⛓) and persisted in the jsonl files. The coarse phase (`rec.phase`) is
 kept for the FlashBrain's «PROCESOS DE FONDO» prompt, but does not duplicate the row. Source:
-`nucleo/workers/claude_session.py` (`_tool_step`) + `nucleo/workers/session.py` (`_emit_step`/`_PLACE`) +
+`nucleo/workers/providers/claude.py` (`_tool_step`) + `nucleo/workers/session.py` (`_emit_step`/`_PLACE`) +
 `widgets/navegador/act_api.py` (`_emit_nav`).
 
 ## Event types (`kind`) — what to watch

@@ -64,12 +64,20 @@ def test_el_comando_va_acotado(monkeypatch):
     assert 0 < len(v["extra"]["cmd"]) <= 220
 
 
-def test_la_sesion_GUARDA_el_comando_al_casar_el_paso_con_su_resultado():
-    """The plumbing: if `claude_session` does not put it in the step's metadata, nothing ever gets here."""
-    from pathlib import Path
-    src = Path("nucleo/workers/claude_session.py").read_text(encoding="utf-8")
-    assert '"cmd": str((tin or {}).get("command") or "")[:220]' in src, "el paso no guarda su comando"
-    assert 'cmd=meta.get("cmd", "")' in src, "el resultado no recupera el comando de su paso"
+def test_the_session_KEEPS_the_command_when_it_pairs_the_step_with_its_result():
+    """The plumbing, read through the stream reader itself: a `tool_use` carries its command, the `tool_result`
+    that answers it by id brings the command back — or nothing ever gets to the row."""
+    from nucleo.workers.providers.claude import ClaudeCodeSession
+    s = ClaudeCodeSession()
+    s._task_id = "1"
+    cmd = "python -m nucleo.nav_cli extract $(cat q.txt)"
+    use = {"type": "assistant", "message": {"content": [
+        {"type": "tool_use", "id": "tu-1", "name": "Bash", "input": {"command": cmd}}]}}
+    res = {"type": "user", "message": {"content": [
+        {"type": "tool_result", "tool_use_id": "tu-1", "is_error": True, "content": "Contains simple_expansion"}]}}
+    events = [*s._map(use), *s._map(res)]
+    results = [e for e in events if e.type == "step_result"]
+    assert results and results[0].data.get("cmd") == cmd, [(e.type, e.data) for e in events]
 
 
 def test_y_la_ANOMALIA_del_informe_lo_enseña():

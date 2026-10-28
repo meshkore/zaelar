@@ -11,7 +11,9 @@ import asyncio
 import threading
 from types import SimpleNamespace
 
-from nucleo import dispatch, dispatch_session, surfaces
+from nucleo import dispatch, surfaces
+
+from nucleo.dispatch import session as dispatch_session
 from nucleo.flash import show_target, turn_brief as _tb
 
 SHEET = sorted(surfaces.SHEET)[0]

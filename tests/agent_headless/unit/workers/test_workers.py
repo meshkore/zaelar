@@ -26,7 +26,7 @@ def test_backend_selection_agnostic(monkeypatch):
     of the machine where it runs. It passed only while the operator had `claude_code` there, and as soon as they tried
     Codex it started failing a test that is not about their choice but about the code's DEFAULT. Same class as the
     `store.DATA_DIR` leak from 2026-08-12: a test cannot depend on the operator's real state."""
-    monkeypatch.setattr("nucleo.workers.registry._provider_for", lambda kind: "claude_code")
+    monkeypatch.setattr("nucleo.workers.providers.registry._provider_for", lambda kind: "claude_code")
     assert get_backend(WorkerSpec(kind="web", task_id="1")).name == "claude_code"
     assert get_backend(WorkerSpec(kind="code", task_id="1",
                                   env={"ZAELAR_TASK_REQUEST": "hazme un widget del clima"})).name == "widget_generator"
@@ -65,7 +65,7 @@ def test_ask_answer_cycle():
 
 
 # ── V2-048: RICH observability of worker steps (where + what specifically) ────────────────────────────────────
-from nucleo.workers.claude_session import _tool_step  # noqa: E402
+from nucleo.workers.providers.claude import _tool_step  # noqa: E402
 from nucleo.workers.session import _PLACE             # noqa: E402
 
 
@@ -134,7 +134,7 @@ def test_claude_session_pause_resume_real_process():
     import signal
     import time
 
-    from nucleo.workers.claude_session import ClaudeCodeSession
+    from nucleo.workers.providers.claude import ClaudeCodeSession
 
     async def _run():
         s = ClaudeCodeSession()
@@ -207,44 +207,57 @@ def test_the_deny_message_lists_the_real_action_vocabulary():
 # INTERFACE reason (not to display two contradictory `end` rows, 2026-07-14 demo) and that swept away an
 # unrelated BILLING concern: a worker killed due to budget had spent REAL tokens and was billed ZERO.
 # Measured: 704 s, 256 steps, 39 captures, ~$0.20 in xAI tokens → €0 billed.
-def test_the_energy_report_is_not_gated_by_the_ui_concern():
-    """The two concerns are SEPARATE in the code: the chip remains under the cancellation guard, billing does not."""
-    import pathlib
-    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "session.py"
-    code = src.read_text(encoding="utf-8")
-    cobro = code.index("report_worker_usage")
-    guard = code.index('if rec.status != "cancelled":\n            # V2-048')
-    assert cobro < guard, "el cobro tiene que estar FUERA (y antes) del guard que solo gobierna la fila del panel"
+def test_the_energy_report_is_not_gated_by_the_ui_concern(monkeypatch):
+    """The two concerns are SEPARATE: a CANCELLED session paints no second end row, and its tokens are billed."""
+    from nucleo import energy_meter
+    from tests.agent_headless.unit.workers import session_door as door
+    billed = []
+    monkeypatch.setattr(energy_meter, "report_worker_usage", lambda **kw: billed.append(kw))
+    s = door.session(monkeypatch, status="cancelled", ok=False)
+    s._usage = {"input_tokens": 1200, "output_tokens": 80}
+    door.finish(monkeypatch, s)
+    assert billed and billed[0]["prompt_tokens"] == 1200, "a cancelled worker still consumed real tokens"
+    assert not [c for c in s.chips if c[0] == "end"], "the cancellation already painted its end row"
 
 
-def test_partial_usage_survives_a_worker_that_never_says_goodbye():
+def test_partial_usage_survives_a_worker_that_never_says_goodbye(monkeypatch):
     """The final `result`'s `usage` does not exist if we kill the process, so it accumulates message by message. The
-    `result` takes precedence when it arrives (the CLI already provides the sum); the partial is the MINIMUM reported when it does not."""
-    import pathlib
-    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "session.py"
-    code = src.read_text(encoding="utf-8")
-    assert 'elif ev.type == "usage":' in code
-    assert "self._usage or self._usage_partial or {}" in code, "el final gana; el parcial es el respaldo"
+    `result` takes precedence when it arrives (the CLI already provides the sum); the partial is the MINIMUM reported
+    when it does not. Read from what the session bills."""
+    from nucleo import energy_meter
+    from tests.agent_headless.unit.workers import session_door as door
+    billed = []
+    monkeypatch.setattr(energy_meter, "report_worker_usage", lambda **kw: billed.append(kw))
+    killed = door.session(monkeypatch, status="running", ok=False)
+    door.event(killed, "usage", usage={"input_tokens": 500, "output_tokens": 20})
+    door.event(killed, "usage", usage={"input_tokens": 700, "output_tokens": 30})
+    door.finish(monkeypatch, killed)
+    assert billed[-1]["prompt_tokens"] == 1200 and billed[-1]["completion_tokens"] == 50, billed
+    summed = door.session(monkeypatch, status="running", ok=True, result_summary="x")
+    door.event(summed, "usage", usage={"input_tokens": 500, "output_tokens": 20})
+    summed._usage = {"input_tokens": 61969, "output_tokens": 127}
+    door.finish(monkeypatch, summed)
+    assert billed[-1]["prompt_tokens"] == 61969, "the final sum wins over the partial"
 
 
 def test_the_stream_emits_usage_per_message_not_only_at_the_end():
     """Verified by polling the CLI: each `assistant` message carries its `usage`, and the `result`'s is the SUM
     (61.969+127 = 62.096). Without emitting it per message, killing a worker would still be free."""
-    import pathlib
-    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "claude_session.py"
-    code = src.read_text(encoding="utf-8")
-    assert 'self._ev("usage"' in code
+    from nucleo.workers.providers.claude import ClaudeCodeSession
+    from nucleo.workers.providers.grok import GrokSession
+    s = ClaudeCodeSession()
+    msg = {"type": "assistant", "message": {"usage": {"input_tokens": 61969, "output_tokens": 127}, "content": []}}
+    usage = [e for e in s._map(msg) if e.type == "usage"]
+    assert usage and usage[0].data["usage"]["input_tokens"] == 61969
     # …and Grok inherits it, which is where the hole was found (it does not reimplement `_map`)
-    grok = (pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "grok_session.py"
-            ).read_text(encoding="utf-8")
-    assert "def _map" not in grok
+    assert GrokSession._map is ClaudeCodeSession._map
 
 
 # ── a newly created widget must APPEAR on screen (2026-08-18) ──────────────────────────────────────────────────
 def _drive_generator(monkeypatch, *, req, gen_result, action=None):
     """Runs `GeneratorBackend._drive()` with the REAL generator replaced (without launching `claude`) and returns
     the observability `emit()` calls it produced, plus the WorkerEvents it queued."""
-    from nucleo.workers.generator_session import GeneratorBackend
+    from nucleo.workers.providers.generator import GeneratorBackend
     from widgets import generator as _gen
 
     seen: list[tuple] = []
