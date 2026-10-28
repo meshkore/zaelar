@@ -49,8 +49,9 @@ def _tags(events: list[dict]) -> list[dict]:
 
 
 def _decision(events: list[dict]) -> dict:
+    """The turn's decision record (`observer.turn_detail`), found by its fields, never by its label's wording."""
     for e in reversed(events):
-        if str(e.get("label") or "").startswith("🧾 turno"):
+        if e.get("module") == "flash" and e.get("func") == "turn":
             return dict(e.get("decision") or {})
     return {}
 
@@ -63,11 +64,12 @@ def _action(decision: dict, events: list[dict], ledger: list[dict], tags: list[d
     if decision.get("escalated") or "worker.spawn" in doors:
         return "escalate"
     names = [c.get("name") for c in calls]
-    data = [e for e in events if e.get("kind") == "widget" and str(e.get("label") or "").startswith("data:")]
+    # A card's data-op is the widget event that carries the op and its gate mode (`emit("widget", "data:<op>", …)`).
+    data = [e for e in events if e.get("kind") == "widget" and e.get("action") and e.get("mode")]
     # The model ASKED for a card's data-op: that is the act. A data-op the turn made on its own to fill a card it
     # opened (`play_video` loads the player it shows) is part of the show, which is what he saw.
     if data and "widget_data" in names:
-        return f"widget_data:{data[0].get('id') or ''}:{data[0].get('action') or data[0]['label'][5:]}"
+        return f"widget_data:{data[0].get('id') or ''}:{data[0]['action']}"
     if "music" in doors:
         return "music"
     # Several canvas steps in one turn name the one he asked for: a full screen is shown first, «close the messages
@@ -81,7 +83,7 @@ def _action(decision: dict, events: list[dict], ledger: list[dict], tags: list[d
             return "canvas:unfullscreen"
         return f"canvas:{kind}:{wid}" if wid else f"canvas:{kind}"
     if data:
-        return f"widget_data:{data[0].get('id') or ''}:{data[0].get('action') or data[0]['label'][5:]}"
+        return f"widget_data:{data[0].get('id') or ''}:{data[0]['action']}"
     if decision.get("searched") or "web_search" in names:
         return "search"
     if "search_listings" in names:
