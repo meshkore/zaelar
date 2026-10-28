@@ -37,7 +37,7 @@ DOMAINS: list[dict] = [
         {"id": "1.1", "title": "BD y primitivas de estado, y un ENCARGO no se presenta como hecho de la persona",
             "ch": UNIT, "paths": [
             "tests/memory/unit/test_db.py", "tests/memory/unit/test_journal.py",
-            "tests/memory/unit/test_graph.py", "tests/memory/unit/test_state.py",
+            "tests/memory/unit/test_state.py",
             "tests/memory/unit/test_compose_state.py", "tests/memory/unit/test_bitemporal.py",
             # V2-498 (2026-08-29): tastes are ACTIVE state (the operator's rule) and were not reaching the
             # passive block—they were written correctly and LOST their ranking. A dedicated line, outside the cap, like critical items.
@@ -61,6 +61,8 @@ DOMAINS: list[dict] = [
             # guarded is not the call: it is that the dim is the one requested, that the credential is named
             # by the table, and that a provider outage defers the vector instead of changing the space.
             "tests/memory/unit/test_the_space_comes_from_the_cloud.py",
+            # refactor2710-11 T-03: the query embedding reuses one connection, so the recall closes in budget.
+            "tests/memory/unit/test_the_query_embedding_reuses_its_connection.py",
             "tests/memory/integration/test_rerank.py", "tests/memory/unit/test_graph_ppr.py",
             "tests/memory/unit/test_rerank_abs.py",
             "tests/memory/unit/test_rerank_local_load_budget.py",
@@ -108,6 +110,10 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_secrets.py", "tests/memory/unit/test_pill_slot.py",
             "tests/memory/unit/test_slots_audit.py",
                 "tests/memory/unit/test_an_order_is_not_its_outcome.py", "tests/memory/unit/test_location_grounding.py",
+            # refactor2710-11 T-01: a request is never stored as a result; a result only on a `met` verdict.
+            "tests/memory/integration/test_a_request_is_never_stored_as_a_result.py",
+            # …and the memory's events carry the pill kind, the result door's verdict and the recall's ms by phase.
+            "tests/memory/integration/test_the_memory_events_carry_kind_verdict_and_phase.py",
             "tests/memory/unit/test_critical_health.py",
             # V2-499 (2026-08-29): the critical line matched the CATEGORY (“celiac”) rather than what the person says
             # they CANNOT do (“cannot eat gluten”)—authorized by the operator, accepting the false positives
@@ -5991,6 +5997,10 @@ DOMAINS: list[dict] = [
         {"id": "5.67", "title": "An observability event survives a refactor: the (kind, label) pairs connectors/ and "
                                 "server/ emit may move between files, never vanish (V2-826 §2b, refactor2710-13)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_an_event_survives_a_move.py"]},
+        {"id": "5.68", "title": "A memory event survives a refactor: the (kind, label) pairs, kinds and memory.updated ops "
+                                "memory/ and nucleo/memory_agent/ emit may move between files, never vanish (V2-826 §2b, "
+                                "refactor2710-11)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_a_memory_event_survives_a_move.py"]},
         {"id": "5.4", "title": "Architect", "ch": UNIT, "paths": ["tests/connectors/unit/architect/test_architect.py"]},
         {"id": "5.5", "title": "WhatsApp: normalización y allowlist", "ch": UNIT, "paths": [
             "tests/connectors/unit/whatsapp/test_allowlist_contract.py",

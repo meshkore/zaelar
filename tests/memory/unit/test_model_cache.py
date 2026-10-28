@@ -83,7 +83,7 @@ def test_los_DOS_consumidores_pasan_el_cache_y_ninguno_se_queda_con_el_default(m
 
     raiz = pathlib.Path(__file__).resolve().parents[3]
     for fichero, ctor in (("memory/rerank_local.py", "TextCrossEncoder"),
-                          ("memory/embeddings.py", "TextEmbedding")):
+                          ("memory/embeddings/local.py", "TextEmbedding")):
         src = (raiz / fichero).read_text(encoding="utf-8")
         # Use the AST and do NOT search the text: the first version of this test searched for
         # `"TextCrossEncoder("` with `.index()` and found the module DOCSTRING, which names the constructor to

@@ -21,11 +21,11 @@ from __future__ import annotations
 import datetime
 
 from memory import clock as memclock
-from nucleo import mem_processor as MP
+from nucleo.memory_agent.processor import distill_prompt
 
 
 def test_the_prompt_carries_an_absolute_time_anchor():
-    rendered = MP._render("dejé de fumar hace tres días", {})
+    rendered = distill_prompt.render("dejé de fumar hace tres días", {})
     assert "FECHA Y HORA ACTUAL:" in rendered
     year = datetime.datetime.fromtimestamp(memclock.now()).strftime("%Y")
     assert year in rendered, "sin fecha en el prompt, una relativa no se puede resolver — solo copiar"
@@ -37,7 +37,7 @@ def test_the_anchor_follows_THE_MEMORYS_CLOCK_not_the_wall_clock():
     March, which is a corpus that silently stops testing aging."""
     past = int(datetime.datetime(2019, 3, 14, 9, 30).timestamp())
     with memclock.travel(past):
-        rendered = MP._render("me mudé ayer", {})
+        rendered = distill_prompt.render("me mudé ayer", {})
     assert "2019" in rendered and "March" in rendered or "marzo" in rendered.lower() or "2019" in rendered
     assert "2019" in rendered, f"el ancla ignoró el reloj de la memoria: {rendered!r}"
 
@@ -46,16 +46,16 @@ def test_the_rule_that_makes_the_anchor_useful_is_still_there():
     """A ratchet on the instruction, not on prose taste: the anchor alone does nothing if the model is not told to
     USE it, and a later prompt edit that drops the rule would leave a date in the prompt and relative dates in the
     pills — the exact state this fixed, with no test failing."""
-    assert "FECHAS RELATIVAS" in MP._SYSTEM
-    assert "ABSOLUTAS" in MP._SYSTEM
+    assert "FECHAS RELATIVAS" in distill_prompt._SYSTEM
+    assert "ABSOLUTAS" in distill_prompt._SYSTEM
 
 
 def test_the_anchor_never_fails_a_write():
     """Writing is the operator's data arriving. An anchor that cannot be computed must degrade to an approximate
     now, never raise — the same fail-open posture as every other piece of this write path."""
-    import nucleo.mem_processor as _MP
+    from nucleo.memory_agent.processor import distill_prompt
 
-    orig = _MP._now_stamp
+    orig = distill_prompt._now_stamp
 
     def _boom():
         raise RuntimeError("clock unavailable")
@@ -66,9 +66,9 @@ def test_the_anchor_never_fails_a_write():
         import memory.api as _api
         orig_now, _api.now = _api.now, _boom
         try:
-            stamp = _MP._now_stamp()
+            stamp = distill_prompt._now_stamp()
         finally:
             _api.now = orig_now
         assert stamp and any(ch.isdigit() for ch in stamp), "debe caer a un ahora aproximado, no a vacío"
     finally:
-        _MP._now_stamp = orig
+        distill_prompt._now_stamp = orig

@@ -105,8 +105,8 @@ def extract_code(raw: str | None) -> str | None:
 def _by_llm(text: str) -> str | None:
     """Constrained classify: return the ISO-639-1 code of the text, nothing else. Fail-open → None."""
     try:
-        from nucleo import memllm
-        raw = memllm.chat_sync(
+        from nucleo.memory_agent.processor import llm
+        raw = llm.chat_sync(
             "i18n",
             "Identify the language of the user's text. Reply with ONLY its ISO 639-1 two-letter code "
             "(lowercase, e.g. 'en', 'es', 'fr', 'de', 'pt'). No other text.",
@@ -275,7 +275,7 @@ async def lock(code: str, *, onboarding: bool = False) -> dict:
         logger.warning(f"i18n.detect: settings.update failed: {e}")
     _should_cache = False                           # stop detecting
     # THE MEMORY'S CANONICAL LANGUAGE. Locking used to move the voice, the STT and the UI and leave the memory
-    # behind: `state.language` is what `mem_processor._render` reads to decide the language every pill is written
+    # behind: `state.language` is what `distill_prompt.render` reads to decide the language every pill is written
     # in, and nothing here ever wrote it. So a French operator got French speech, French STT and a French UI —
     # while their memory was distilled, forever, into whatever the default happened to be. The memory is
     # deliberately MONOLINGUAL in the operator's language (2026-07-10); that only holds if detection moves it too.

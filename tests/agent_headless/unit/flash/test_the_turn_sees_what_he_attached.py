@@ -86,13 +86,14 @@ def _jpeg(w, h) -> bytes:
 
 
 def test_the_image_travels_to_a_model_that_receives_it(monkeypatch, tmp_path):
-    from nucleo import energy_meter, memllm
+    from nucleo import energy_meter
+    from nucleo.memory_agent.processor import llm
     # The titular is read from the declared table, so a measured change of reader does not break this test; what
     # it pins is that the image travels to THAT model, downscaled, as an image part, and is metered there.
     titular = att._image_rungs()[0]
     monkeypatch.setenv(titular["key_env"], "placeholder-key")
     sent, metered = [], []
-    monkeypatch.setattr(memllm, "_post_json", lambda url, payload, **kw: sent.append((url, payload)) or
+    monkeypatch.setattr(llm, "_post_json", lambda url, payload, **kw: sent.append((url, payload)) or
                         {"choices": [{"message": {"content": "A blue square."}}], "usage": {"prompt_tokens": 1}})
     monkeypatch.setattr(energy_meter, "meter_openai_response", lambda out, **kw: metered.append(kw))
     p = tmp_path / "big.jpg"

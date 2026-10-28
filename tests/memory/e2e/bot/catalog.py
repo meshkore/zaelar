@@ -83,7 +83,7 @@ def _execution_path(case: dict[str, Any]) -> list[str]:
         "save": ["nucleo.memory_agent.ingest_utterance", "memory.queue", "memory.writer", "SQLite + embeddings",
                  "state / recent_short / semantic query probes"],
         "extract": ["turno natural del operador", "nucleo.memory_agent.ingest_utterance",
-                    "nucleo.mem_processor (CORAZÓN LLM)", "gates deterministas de precisión/secretos/corrección",
+                    "nucleo.memory_agent.processor (CORAZÓN LLM)", "gates deterministas de precisión/secretos/corrección",
                     "píldoras canónicas + slots + state + concepts", "memory.queue/writer/SQLite",
                     "assertions multi-hecho + evidencia completa"],
         "query": ["nucleo.flash.memory_cache._compose", "nucleo.flash.prompt.needs_recall",

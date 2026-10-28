@@ -8,7 +8,6 @@ Since the meter skips what it believes egress records, several of those calls we
 from __future__ import annotations
 
 import asyncio
-import io
 import json
 from pathlib import Path
 
@@ -85,12 +84,11 @@ def test_embeddings_go_through_egress(mediated, monkeypatch):
     monkeypatch.setattr(embeddings, "_cloud_embed", embeddings._GENUINE_CLOUD_EMBED)
     seen = {}
 
-    def urlopen(req, timeout=None):
-        seen["url"], seen["auth"] = req.full_url, req.headers.get("Authorization")
-        return io.BytesIO(json.dumps({"data": [{"index": 0, "embedding": [0.1] * 8}], "usage": {"prompt_tokens": 3}})
-                          .encode())
+    def post(url, body, headers, timeout):
+        seen["url"], seen["auth"] = url, headers.get("Authorization")
+        return {"data": [{"index": 0, "embedding": [0.1] * 8}], "usage": {"prompt_tokens": 3}}
 
-    monkeypatch.setattr(embeddings.urllib.request, "urlopen", urlopen)
+    monkeypatch.setattr(embeddings, "_post_json", post)
     monkeypatch.setattr(embeddings, "_cloud_base_url", lambda: "https://api.openai.com/v1")
     embeddings._cloud_embed(["hola"])
     assert seen == {"url": f"{GW}/p/openai/embeddings", "auth": f"Bearer {TOKEN}"}

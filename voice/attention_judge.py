@@ -50,7 +50,7 @@ async def default_directed_judge(text: str, context: str) -> dict | None:
     without asking (`licence()`). The renamed assistant's name goes into the frame, because a judge that does
     not know «Johnny» is the agent reads «Johnny, ¿cuál es…» as two people talking."""
     try:
-        from nucleo import memllm
+        from nucleo.memory_agent.processor import llm
         from voice import attention as _a
         name = _a.assistant_name().strip()
         who = f"Zaelar (se llama «{name}»)" if name and _a._norm(name) not in _a._DEFAULT_WAKEWORDS else "Zaelar"
@@ -58,7 +58,7 @@ async def default_directed_judge(text: str, context: str) -> dict | None:
         user = (f"{who} acaba de decir: «{context}»\n\nEl micrófono ha oído: «{text}»" if context
                 else f"El micrófono ha oído: «{text}»")
         raw = await asyncio.to_thread(
-            memllm.chat_sync, "directed", _DIRECTED_SYSTEM, user,
+            llm.chat_sync, "directed", _DIRECTED_SYSTEM, user,
             max_tokens=30, temperature=0.0, timeout=4.0,
         )
         return _parse_judgement(raw)

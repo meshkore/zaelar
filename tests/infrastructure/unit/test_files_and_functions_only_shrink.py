@@ -32,13 +32,11 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 # dad7f3bd) and stayed red through 114 commits — a ratchet nobody runs holds nothing. Re-measured at HEAD and
 # frozen there: every entry is today's size, down-only from here. The debt it names is unchanged and still owed.
 FILES = {
-    'memory/api.py': 891,
     'nucleo/dispatch.py': 919,
     'nucleo/energy_meter.py': 812,
     'nucleo/flash/fast_client.py': 866,
     'nucleo/flash/prompt.py': 816,
     'nucleo/jev.py': 824,
-    'nucleo/mem_processor.py': 831,
     'voice/engine/llm/providers/nucleo.py': 997,
     'widgets/navegador/owner.py': 883,
     'widgets/navegador/tasks.py': 828,
@@ -47,8 +45,7 @@ FILES = {
 FUNCTIONS = {
     'config/settings.py::update': 146,
     'i18n/init/detect.py::lock': 132,
-    'memory/_prompt.py::compose_state': 258,
-    'memory/writer.py::insert_memory': 177,
+    'memory/writer/__init__.py::insert_memory': 151,
     'nucleo/actionmap/executor.py::execute': 144,
     'nucleo/dispatch_listener.py::run_listener': 213,
     'nucleo/dispatch_prompts.py::_web_prompt': 222,
@@ -79,7 +76,6 @@ FUNCTIONS = {
     'nucleo/flash/tool_executor_widget_calls.py::_tag_emit': 186,
     'nucleo/flash/widget_data_turn.py::execute': 154,
     'nucleo/loop.py::OrchestratorLoop._supervise_workers': 174,
-    'nucleo/mem_processor.py::process': 205,
     'nucleo/memory_agent/ingest_steps.py::file_the_atoms': 141,
     'nucleo/memory_agent/ingest_steps.py::gate_the_utterance': 164,
     'nucleo/research_prompts.py::to_prompt_block': 136,

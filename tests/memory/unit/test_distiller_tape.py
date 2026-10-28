@@ -19,7 +19,7 @@ import asyncio
 
 import pytest
 
-from nucleo import mem_processor
+from nucleo.memory_agent.processor import distill, distill_config
 from tests.memory.e2e.bot import distiller_tape as tape
 
 
@@ -31,14 +31,14 @@ def test_record_delegates_and_preserves_all_three_return_shapes(tmp_path, monkey
     async def _fake(text, *, state=None):
         return guion[text]
 
-    monkeypatch.setattr(mem_processor, "process", _fake)
+    monkeypatch.setattr(distill, "process", _fake)
     fixture = tmp_path / "t.jsonl"
 
     async def _run():
         out = []
         with tape.record(fixture):
             for k in ("con datos", "trivial", "caido"):
-                out.append(await mem_processor.process(k))
+                out.append(await distill.process(k))
         return out
 
     devuelto = asyncio.run(_run())
@@ -58,21 +58,21 @@ def test_replay_needs_no_network_and_reproduces_the_recorded_decisions(tmp_path,
         llamadas["n"] += 1
         return [{"text": f"destilado de {text}"}]
 
-    monkeypatch.setattr(mem_processor, "process", _fake)
+    monkeypatch.setattr(distill, "process", _fake)
     fixture = tmp_path / "t.jsonl"
 
     async def _grabar():
         with tape.record(fixture):
             for k in ("uno", "dos"):
-                await mem_processor.process(k)
+                await distill.process(k)
 
     asyncio.run(_grabar())
     assert llamadas["n"] == 2
 
     async def _replicar():
         with tape.replay(fixture) as t:
-            a = await mem_processor.process("uno")
-            b = await mem_processor.process("dos")
+            a = await distill.process("uno")
+            b = await distill.process("dos")
             return a, b, t.stats()
 
     a, b, st = asyncio.run(_replicar())
@@ -90,42 +90,42 @@ def test_sequential_tape_reproduces_the_retry_after_a_none(tmp_path, monkeypatch
     async def _fake(text, *, state=None):
         return secuencia.pop(0)
 
-    monkeypatch.setattr(mem_processor, "process", _fake)
+    monkeypatch.setattr(distill, "process", _fake)
     fixture = tmp_path / "t.jsonl"
 
     async def _grabar():
         with tape.record(fixture):
-            primero = await mem_processor.process("mi perra se llama Nala")
-            segundo = await mem_processor.process("mi perra se llama Nala")   # the V2-103 retry
+            primero = await distill.process("mi perra se llama Nala")
+            segundo = await distill.process("mi perra se llama Nala")   # the V2-103 retry
             return primero, segundo
 
     assert asyncio.run(_grabar()) == (None, [{"text": "Se llama Nala."}])
 
     async def _replicar():
         with tape.replay(fixture):
-            return (await mem_processor.process("mi perra se llama Nala"),
-                    await mem_processor.process("mi perra se llama Nala"))
+            return (await distill.process("mi perra se llama Nala"),
+                    await distill.process("mi perra se llama Nala"))
 
     assert asyncio.run(_replicar()) == (None, [{"text": "Se llama Nala."}]), \
         "la cinta debe devolver None y LUEGO las píldoras, igual que al grabar"
 
 
 def test_replay_forces_enabled_so_the_retry_path_stays_reachable(tmp_path):
-    """`memory_agent` retries only if `mem_processor.enabled()`. During replay there is no key or endpoint, so
+    """`memory_agent` retries only if `distill_config.enabled()`. During replay there is no key or endpoint, so
     without forcing it, the recorded retry would be unreachable and the write path would diverge."""
     fixture = tmp_path / "t.jsonl"
     fixture.write_text('{"i":0,"text":"x","atoms":null}\n', encoding="utf-8")
 
-    antes = mem_processor.enabled
+    antes = distill_config.enabled
 
     async def _run():
         with tape.replay(fixture):
-            return mem_processor.enabled()
+            return distill_config.enabled()
 
     assert asyncio.run(_run()) is True
     # It is also restored on EXIT: a forced `enabled()` that remained stuck on the process would make the rest
     # of the suite (and a subsequent real run in the same process) believe the CORE is alive when it is not.
-    assert mem_processor.enabled is antes, "replay() debe devolver enabled() a su implementación original"
+    assert distill_config.enabled is antes, "replay() debe devolver enabled() a su implementación original"
 
 
 def test_a_missing_phrase_is_counted_and_degrades_instead_of_lying(tmp_path):
@@ -134,7 +134,7 @@ def test_a_missing_phrase_is_counted_and_degrades_instead_of_lying(tmp_path):
 
     async def _run():
         with tape.replay(fixture) as t:
-            fuera = await mem_processor.process("frase que no estaba en el corpus")
+            fuera = await distill.process("frase que no estaba en el corpus")
             return fuera, t.stats()
 
     fuera, st = asyncio.run(_run())
@@ -148,7 +148,7 @@ def test_strict_mode_refuses_to_measure_with_an_incomplete_fixture(tmp_path):
 
     async def _run():
         with tape.replay(fixture, strict=True):
-            await mem_processor.process("ausente")
+            await distill.process("ausente")
 
     with pytest.raises(AssertionError, match="incomplete fixture coverage"):
         asyncio.run(_run())
@@ -163,7 +163,7 @@ def test_out_of_order_lookup_finds_the_phrase_and_flags_it(tmp_path):
 
     async def _run():
         with tape.replay(fixture) as t:
-            got = await mem_processor.process("b")      # skips "a"
+            got = await distill.process("b")      # skips "a"
             return got, t.stats()
 
     got, st = asyncio.run(_run())

@@ -148,15 +148,15 @@ def test_the_judge_never_runs_before_anything_could_have_happened(running, monke
 def test_the_judge_reads_a_one_word_answer():
     """Its prompt asks for one word; anything else must not be read as «yes» — a chatty model saying
     «No, they have only exchanged greetings» begins with an N and must stay a no."""
-    import nucleo.memllm as memllm
+    from nucleo.memory_agent.processor import llm
     for raw, expected in (("yes", True), ("Yes.", True), ("sí", True),
                           ("no", False), ("No, they have only exchanged greetings", False), ("", False)):
-        orig = memllm.chat_sync
-        memllm.chat_sync = lambda *a, **k: raw
+        orig = llm.chat_sync
+        llm.chat_sync = lambda *a, **k: raw
         try:
             assert introduction._judge_sync("PERSON: hi") is expected, f"{raw!r}"
         finally:
-            memllm.chat_sync = orig
+            llm.chat_sync = orig
 
 
 # ── the registry's own rules ────────────────────────────────────────────────────────────────────────────

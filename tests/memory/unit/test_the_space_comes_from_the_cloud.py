@@ -11,7 +11,6 @@ What is pinned here is not "it calls OpenAI". It is what makes that dependency S
 one we asked for, that the credential is named by the table, and above all that a provider outage never
 changes the space of an already-indexed database.
 """
-import json
 
 import pytest
 
@@ -54,31 +53,19 @@ def test_a_model_that_does_NOT_accept_dimensions_is_not_asked_for_them(monkeypat
 
 
 def test_the_outgoing_body_carries_the_model_and_the_dims(monkeypatch):
-    """Measures the request actually built (with `urlopen` patched, no network): this is where we check that
-    what was decided above really reaches the provider."""
+    """Measures the request actually built (with the pooled POST door patched, no network): this is where we
+    check that what was decided above really reaches the provider."""
     seen = {}
 
-    class _Resp:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
-
-        def read(self):
-            return json.dumps({"data": [{"index": 0, "embedding": [0.1] * 768}]}).encode()
-
-    def _urlopen(req, timeout=None):
-        seen["url"] = req.full_url
-        seen["body"] = json.loads(req.data.decode())
-        seen["auth"] = req.headers.get("Authorization")
-        return _Resp()
+    def _post(url, body, headers, timeout):
+        seen["url"], seen["body"], seen["auth"] = url, body, headers.get("Authorization")
+        return {"data": [{"index": 0, "embedding": [0.1] * 768}]}
 
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "openai",
                                                   "embed_model": "text-embedding-3-small",
                                                   "embed_base_url": "https://example.test/v1",
                                                   "embed_api_key": "test-key"})
-    monkeypatch.setattr(emb.urllib.request, "urlopen", _urlopen)
+    monkeypatch.setattr(emb, "_post_json", _post)
     emb.reset()
     out = emb._REAL_CLOUD_EMBED(["hello"])
 
@@ -161,22 +148,12 @@ def test_the_cloud_call_is_METERED_into_energy(monkeypatch):
     embeddings are now the busiest paid call in the engine: one on every insert and one on every query."""
     billed = []
 
-    class _Resp:
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return False
-
-        def read(self):
-            return json.dumps({"data": [{"index": 0, "embedding": [0.1] * 768}],
-                               "usage": {"prompt_tokens": 12, "total_tokens": 12}}).encode()
-
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "openai",
                                                   "embed_model": "text-embedding-3-small",
                                                   "embed_base_url": "https://api.openai.com/v1",
                                                   "embed_api_key": "test-key"})
-    monkeypatch.setattr(emb.urllib.request, "urlopen", lambda req, timeout=None: _Resp())
+    monkeypatch.setattr(emb, "_post_json", lambda url, body, headers, timeout: {
+        "data": [{"index": 0, "embedding": [0.1] * 768}], "usage": {"prompt_tokens": 12, "total_tokens": 12}})
 
     from nucleo import energy_meter
     monkeypatch.setattr(energy_meter, "meter_openai_response",
