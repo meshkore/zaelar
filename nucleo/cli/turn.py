@@ -132,8 +132,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     calls = [dict(c) for c in (getattr(brain, "_turn_calls", None) or [])]
     tags = _tags(events)
     decision = _decision(events)
-    brain._last_action = _action(decision, events, ledger, tags, calls)
-    return {"ok": True, "reply": reply, "action": brain._last_action, "tool_calls": calls, "tags": tags,
+    # The act is REPORTED, never written back into the brain: `brain._last_action` is the voice turn's own state
+    # (it writes «search»/«listings» and reads them to resolve a deictic show), and this channel's vocabulary there
+    # would make the next turn resolve differently from the microphone.
+    action = _action(decision, events, ledger, tags, calls)
+    return {"ok": True, "reply": reply, "action": action, "tool_calls": calls, "tags": tags,
             "consequences": ledger, "decision": decision, "channel": "pipeline",
             "timings": {"total_ms": round((time.time() - t0) * 1000, 1)},
             "trace": next((e.get("trace") for e in reversed(events) if e.get("trace")), "")}
