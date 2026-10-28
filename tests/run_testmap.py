@@ -5713,6 +5713,9 @@ DOMAINS: list[dict] = [
                                  "name goes, an unlisted card closes, a listed one opens beside, and the drift is a "
                                  "widget/reconcile event (V2-825 F5, refactor2710-04 T-04) — RENDERED",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_screen_adopts_the_engines_cards_on_reconnect.py"]},
+        {"id": "4.319", "title": "The client JavaScript only shrinks: no widgets/ or frontend/ .js file is born over 400 "
+                                 "lines, the 12 listed never grow, and the client total only goes down (refactor2710-99 #106)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_client_js_only_shrinks.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",
