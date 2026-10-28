@@ -28,6 +28,9 @@ _STATE_RENDERED = {"assistant_name", "operator_name", "language", "treatment", "
 _RAIL_STATUS = {"searching": "buscando", "playing": "sonando", "paused": "en pausa",
                 "sin_resolver": "SIN RESOLVER"}
 
+#: Pills about an ERRAND, not about him: what he asked for (`request`) and what an errand delivered (`result`).
+_ERRAND_KINDS = frozenset({"request", "result"})
+
 
 def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
     """Compone el ESTADO COMPARTIDO que ven AMBOS cerebros (FlashBrain y SlowBrain): pequeño, ordenado, en el
@@ -182,12 +185,9 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
     # And this is not a lab artefact — on the operator's own live memory **3 of the 5 slots were errands**
     # (a flight to London, a plumber that ran out of quota, a worker test), crowding out the actual person.
     #
-    # The class is ALREADY in the data and was being thrown away: `mem_processor` is explicit that a task the
-    # operator delegates is `kind="result"` («jamás a goal.current ni al state.objetivo»), and `salient_long`
-    # returns `kind` — `compose_state` just never looked at it. So no word list and no new field: the
-    # distinction that exists gets rendered instead of flattened. Errands stay VISIBLE and stay readable as
-    # pending — suppressing them would trade this failure for the opposite one, an agent that forgets what it
-    # was asked — but they are no longer presented as things to take for granted about the person.
+    # The class is ALREADY in the data: the distiller writes a delegated task as `kind="request"`, the circuit
+    # writes what an errand delivered as `kind="result"`, and `salient_long` returns `kind`. Errands stay VISIBLE
+    # (hiding them makes an agent forget what it was asked) but are not presented as things known about him.
     salient: list[str] = []
     errands: list[str] = []
     try:
@@ -195,7 +195,7 @@ def compose_state(*, mission_fallback: str = "") -> tuple[str, str, dict]:
             t = (m.get("text") or "").strip().replace("\n", " ")
             if not t:
                 continue
-            (errands if m.get("kind") == "result" else salient).append(f"· {t[:140]}")
+            (errands if m.get("kind") in _ERRAND_KINDS else salient).append(f"· {t[:140]}")
     except Exception:
         pass
     stats["salient_count"] = len(salient)

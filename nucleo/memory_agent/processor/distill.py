@@ -15,6 +15,8 @@ One pill (`process()` returns `list[dict]`)::
     {"text": str,  "dest": "state"|"short"|"long",  "kind": str,  "importance": 0..1,  "ttl_days": float|None,
      "slot": str|None,  "value": str|None,  "change": "none"|"update"|"correction",  "concepts": [str ≤3],
      "state_patch": dict (only for dest=state),  "supersedes": [int] (V2-565, ids offered as recent)}
+
+`kind` follows the pill grammar in `nucleo.memory_agent.writer`: the processor never produces a `result`.
 """
 from __future__ import annotations
 
@@ -25,11 +27,11 @@ import time
 
 from loguru import logger
 
+from nucleo.memory_agent import writer as _writer
 from nucleo.memory_agent.processor import distill_config as cfg
 from nucleo.memory_agent.processor import distill_health as health
 from nucleo.memory_agent.processor import distill_prompt as prompt
 
-_LOCAL_HOSTS = ("11434", "localhost", "127.0.0.1")
 
 
 class _PermanentError(RuntimeError):
@@ -41,6 +43,10 @@ _sem = asyncio.Semaphore(_CONCURRENCY)
 _QUEUE_MAX = max(0, int(os.getenv("MEM_PROCESSOR_QUEUE_MAX", "2")))
 _QUEUE_WAIT = float(os.getenv("MEM_PROCESSOR_QUEUE_WAIT", "15"))   # s max wait for the slot
 _waiters = 0
+
+
+def _is_local(url: str) -> bool:
+    return any(h in url for h in ("11434", "localhost", "127.0.0.1"))
 
 
 def _perf(msg: str, **kw) -> None:
@@ -65,7 +71,7 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
         return None
     payload = {"model": cfg.model(), "temperature": 0, "messages": prompt.messages(t, state)}
     rungs = cfg.rung_chain()
-    local = any(h in rungs[0][0] for h in _LOCAL_HOSTS)
+    local = _is_local(rungs[0][0])
     t0 = time.time()
     try:
         from voice.observer import mark_busy as _mb   # contention mark while a LOCAL heart holds the GPU
@@ -103,7 +109,7 @@ async def _through_rungs(rungs: list[tuple[str, str]], payload: dict) -> tuple[l
         payload["model"] = rung_model        # the model name travels WITH its endpoint (the broker prefixes it)
         # A LOCAL rung gets ONE attempt and its own timeout: retrying a big local model would stall the write for
         # minutes, and the cloud rung right behind it is the better second try.
-        is_local = any(h in rung_url for h in _LOCAL_HOSTS)
+        is_local = _is_local(rung_url)
         tries = 1 if is_local else cfg.RETRIES + 1
         timeout_s = cfg.LOCAL_TIMEOUT if is_local else cfg.TIMEOUT
         for attempt in range(tries):
@@ -229,7 +235,7 @@ def _pill(a: dict) -> dict | None:
     return {
         "text": text[:400],
         "dest": dest,
-        "kind": (a.get("kind") or "fact").strip().lower(),
+        "kind": _writer.distilled_kind(a.get("kind")),
         "importance": max(0.0, min(1.0, imp)),
         "ttl_days": ttl,
         "slot": (a.get("slot") or None) or None,

@@ -38,7 +38,7 @@ Por CADA píldora decides:
   ★ UNA ORDEN NO ES SU RESULTADO. Cuando el operador ORDENA al asistente crear, mover, cambiar, cancelar, enviar
   o reservar algo («agéndalo como X», «muévelo media hora», «escríbele a Oscar»), TÚ NO SABES si se hizo: lo
   registra la agenda o el conector que lo ejecuta, no tú. NUNCA lo escribas como un hecho o un evento ya
-  ocurrido («tiene una cita X», «la reunión se movió 30 minutos»). Escríbelo como kind="result" con la forma
+  ocurrido («tiene una cita X», «la reunión se movió 30 minutos»). Escríbelo como kind="request" con la forma
   «Pidió al asistente que …» (con la fecha absoluta), o descártalo si es una operación de pantalla sin
   compromiso duradero (poner música, abrir o cerrar algo, enseñar una gráfica o unas fotos). Lo que la orden
   REVELA de él sigue valiendo y se infiere aparte («pon algo de Madonna» → le gusta Madonna). Distinto es cuando
@@ -68,7 +68,7 @@ Por CADA píldora decides:
   Estas píldoras inferidas sirven para que, en el futuro, ante "me apetecería un viaje", el asistente SEPA que le
   gusta el buceo y que quería un viaje de mar — para tenerlo en cuenta y PREGUNTAR, sin encasillarse. Escribe el
   interés/intención en 3ª persona y canónico ("Le interesa el buceo." / "Quiere hacer un viaje de buceo.").
-- kind: "profile" (identidad) | "pref" (preferencia/deseo) | "fact" (hecho) | "event" (algo que pasó) | "result".
+- kind: "profile" (identidad) | "pref" (preferencia/deseo) | "fact" (hecho) | "event" (algo que pasó) | "request" (algo que te PIDIÓ hacer: no sabes si se hizo).
 - importance: 0.0-1.0. Súbela si es RELEVANTE A LA SITUACIÓN del operador según el ESTADO (si estudia Derecho, algo
   de Derecho importa más; si su proyecto es zaelar, algo de zaelar importa más). Identidad→0.9. Charla efímera→0.2.
 - ttl_days: null si no caduca (identidad, hechos duraderos); un número pequeño (p.ej. 1-7) para lo efímero.
@@ -78,7 +78,7 @@ Por CADA píldora decides:
   {SLOT_CATALOG}.
   ⚠️ goal.current = el objetivo VITAL/profesional del OPERADOR (lo que ÉL quiere lograr: "lanzar mi empresa",
   "cerrar la ronda"). NUNCA una TAREA que te delega a TI ("ayúdame a escribir un podcast", "búscame vuelos") →
-  eso es una tarea/encargo, va a dest=long kind=result, jamás a goal.current ni al state.objetivo.
+  eso es una tarea/encargo, va a dest=long kind=request, jamás a goal.current ni al state.objetivo.
   ⚠️ MUY IMPORTANTE: un `slot` INVALIDA todo lo anterior con ese mismo slot. NO lo uses para hechos ADITIVOS de los
   que puede haber VARIOS a la vez: ALERGIAS (se puede ser alérgico a varias cosas), idiomas, aficiones/gustos,
   personas del entorno, eventos, mensajes, transacciones, habilidades → slot=null SIEMPRE. Ejemplo del error a
