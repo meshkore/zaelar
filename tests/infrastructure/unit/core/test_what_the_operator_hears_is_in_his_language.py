@@ -156,14 +156,12 @@ def test_the_denial_guard_reads_the_answer_alone():
     assert not ag.a_reply_denies_the_world("No he podido comprobarlo ahora mismo.")
 
 
-def test_BOTH_channels_compose_through_the_same_home():
-    """WIRING GUARD (V2-555 shape): the voice seam and the probe seam were a parallel implementation since
-    V2-135, and the missing half was missing in BOTH. One home is what makes that impossible again."""
+def test_the_turn_composes_through_the_one_home():
+    """WIRING GUARD (V2-555 shape): the voice seam and the old text channel's seam were a parallel implementation
+    since V2-135, and the missing half was missing in BOTH. One home is what makes that impossible again."""
     voice = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    probe = _vts.read(ENGINE / "nucleo/flash/probe.py")
-    for src, who in ((voice, "voice"), (probe, "probe")):
-        assert "search_turn" in src, f"{who} must compose through flash/search_turn"
-        assert "compose_system(" in src and "denial_repair(" in src, f"{who} misses half the seam"
+    assert "search_turn" in voice, "voice must compose through flash/search_turn"
+    assert "compose_system(" in voice and "denial_repair(" in voice, "voice misses half the seam"
 
 
 # ── 4 · an update re-translates, and a blocking fault reaches the screen ────────────────────────────────
