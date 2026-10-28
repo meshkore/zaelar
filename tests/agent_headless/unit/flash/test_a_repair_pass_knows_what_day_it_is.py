@@ -21,7 +21,7 @@ def test_the_days_line_maps_named_days_to_dates():
 
 def test_the_refusal_pass_hands_it_to_the_model(monkeypatch):
     seen = {}
-    from nucleo.flash import fast_client as FC
+    from nucleo.llm import fast_client as FC
 
     async def _complete(self, msgs, **kw):
         seen["sys"] = msgs[0]["content"]

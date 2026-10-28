@@ -87,7 +87,7 @@ async def line(goal: str, summary: str, *, ok: bool = True, verdict: str = "", t
         import asyncio
 
         from nucleo.errand_title import _spec_for_naming
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         spec = _spec_for_naming()
         if spec is not None:
             out = await asyncio.wait_for(

@@ -1,6 +1,6 @@
 """nucleo/provider_health.py — shared cooldown/circuit-breaker mechanics for provider chains (V2-098).
 
-`nucleo/flash/provider_chain.py` (model tiers for the FlashBrain/cluster brain) and `nucleo/workers/providers.py`
+`nucleo/llm/provider_chain.py` (model tiers for the FlashBrain/cluster brain) and `nucleo/workers/providers.py`
 (Anthropic-compatible endpoints for the Claude Code CLI) independently reinvented the identical cooldown
 bookkeeping — load/save to `memory.kv_*`, per-name expiry, env-var token lookup — down to matching variable
 names (`_cooldown`/`_load`/`_save`/`_token_for`/`_available`). They deliberately do NOT share cooldown STATE

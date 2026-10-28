@@ -98,7 +98,7 @@ _EXENTOS: dict[str, str] = {
         "cataloga proveedores/modelos para la UI; nunca invoca un modelo.",
     "nucleo/workers/providers.py":
         "resuelve la cadena de endpoints; quien EJECUTA y mide es workers/session.py.",
-    "nucleo/flash/provider_chain.py":
+    "nucleo/llm/provider_chain.py":
         "hermano del anterior: elige escalón, no llama.",
     "connectors/registry.py":
         "inventario de conectores; sin tráfico.",

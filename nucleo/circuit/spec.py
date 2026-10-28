@@ -683,7 +683,7 @@ async def infer(goal: str, *, timeout: float = _INFER_TIMEOUT_S) -> dict | None:
         import asyncio
 
         from nucleo import errand_title as _et
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         spec = _et._spec_for_naming()
         if spec is None:
             return None

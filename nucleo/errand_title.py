@@ -112,7 +112,7 @@ def _spec_for_naming():
     reasoning chain's only reachable rung answered nothing in 20 s while the voice tier composed every title in
     ~1.5 s. It is also the right shape for the job — naming is one line, not deliberation, so a non-reasoning
     model is what this wants; the reasoning chain stays as the fallback for a machine wired the other way."""
-    from nucleo.flash import provider_chain as _pc
+    from nucleo.llm import provider_chain as _pc
     try:
         tier = _pc.pick(_pc.ROLE_VOICE)
         if tier:
@@ -181,7 +181,7 @@ async def compose(goal: str, *, timeout: float = _TIMEOUT_S) -> str:
     try:
         import asyncio
 
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         spec = _spec_for_naming()
         if spec is None:
             return ""

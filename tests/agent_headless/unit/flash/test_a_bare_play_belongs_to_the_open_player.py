@@ -99,7 +99,7 @@ def test_the_repair_pass_drops_the_invented_list(monkeypatch):
     import asyncio
 
     from nucleo.flash import act_repair as ar
-    from nucleo.flash import fast_client as fc
+    from nucleo.llm import fast_client as fc
     from nucleo.flash import widget_read as wr
 
     monkeypatch.setattr(wr, "read", lambda wid: "Todavía no hay ninguna lista guardada.")

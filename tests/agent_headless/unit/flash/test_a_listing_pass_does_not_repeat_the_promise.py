@@ -22,7 +22,7 @@ class _Client:
 
 
 def _rig(monkeypatch, delivered):
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     monkeypatch.setattr(fast_client, "FastClient", _Client)
     monkeypatch.setattr(lt, "run", lambda *a, **k: {"delivered": delivered, "n": 3 if delivered else 0,
                                                     "escalated": 0 if delivered else 1, "ctx": "", "sheet": "s"})

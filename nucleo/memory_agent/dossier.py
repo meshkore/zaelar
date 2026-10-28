@@ -64,7 +64,7 @@ async def _llm_expand_query(prompt: str) -> str:
     """CHEAP LLM router: asks the fast model for 3-6 keywords to EXPAND the memory search. Model
     PER INVOCATION (`config/v2` spec). Best-effort: without a model/credential or on any failure → ''."""
     try:
-        from nucleo.flash.fast_client import FastClient, spec_from_config
+        from nucleo.llm.fast_client import FastClient, spec_from_config
         spec = spec_from_config()
         if not spec.resolved_api_key():        # without a usable credential → fall back to the heuristic
             return ""

@@ -11,7 +11,8 @@ import asyncio
 
 
 def _system_prompt(monkeypatch, lang: str) -> str:
-    from nucleo.flash import act_repair, fast_client
+    from nucleo.flash import act_repair
+    from nucleo.llm import fast_client
     from i18n import langs
     monkeypatch.setattr(langs, "current_language", lambda: langs.spec(lang))
     seen = []

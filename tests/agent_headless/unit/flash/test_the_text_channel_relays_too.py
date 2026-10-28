@@ -19,7 +19,7 @@ channel (`channel='probe'`). On 2026-08-18 (V2-118…121, `22f3674`) the symptom
 tags were captured but not executed, so a scheduled notification was UNREACHABLE through that route— and on
 2026-08-15 the relay on a hard failure was added to voice but not here.
 
-That is why the fix is not just the retry: the DECISION moves to `nucleo/flash/provider_failure.py`, in one place,
+That is why the fix is not just the retry: the DECISION moves to `nucleo/llm/provider_failure.py`, in one place,
 and both channels use it. Two copies of a decision diverge silently, and the warning arrives when someone measures
 something that goes wrong for a reason other than the one being measured.
 """
@@ -29,8 +29,8 @@ import pathlib
 
 import pytest
 
-from nucleo.flash import provider_chain as pc
-from nucleo.flash import provider_failure as pf
+from nucleo.llm import provider_chain as pc
+from nucleo.llm import provider_failure as pf
 
 UNO = {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "model": "glm", "env": ["Z_AI_API_KEY"]}
 DOS = {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1", "model": "", "env": ["AIMLAPI_KEY"]}

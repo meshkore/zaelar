@@ -216,10 +216,10 @@ def _spec():
     model = str(cfg.get("model") or "").strip()
     base = str(cfg.get("base_url") or "").strip()
     if model and base:
-        from nucleo.flash.fast_client import ModelSpec
+        from nucleo.llm.fast_client import ModelSpec
         # Pinned by the operator: NOT a chain pick, so a failure here must not put a chain tier on cooldown.
         return ModelSpec(model=model, base_url=base, api_key=str(cfg.get("api_key") or "")), None
-    from nucleo.flash import provider_chain
+    from nucleo.llm import provider_chain
     tier = provider_chain.pick()
     return (provider_chain.spec_for(tier) if tier else None), tier
 
@@ -253,7 +253,7 @@ def _note_provider_failure(exc: Exception, tier):
     if tier is None:
         return None
     try:
-        from nucleo.flash import provider_chain
+        from nucleo.llm import provider_chain
         nxt = provider_chain.note_failure(str(exc), tier=tier)
         return nxt if (nxt or {}).get("base_url") and nxt.get("name") != tier.get("name") else None
     except Exception:  # noqa: BLE001
@@ -343,7 +343,7 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
     if not req or not enabled():
         return None
     try:
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         spec, tier = _spec()
         if spec is None:
             logger.warning("research: sin proveedor disponible para el compositor — el worker sale SIN brief")
@@ -388,7 +388,7 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
             if _relay is None:
                 raise
             logger.warning(f"research: el compositor releva a {_relay.get('name')} tras «{str(e)[:80]}»")
-            from nucleo.flash import provider_chain as _pc_retry
+            from nucleo.llm import provider_chain as _pc_retry
             _spec_relay = _pc_retry.spec_for(_relay)
             try:
                 out = await _pedir(_spec_relay)

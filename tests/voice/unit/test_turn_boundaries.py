@@ -325,7 +325,7 @@ def test_the_stream_stamps_its_heartbeat_on_every_chunk():
     `stream()` is a thin wrapper (V2-092 addendum, 2026-08-15: counts in-flight turns for deferred shutdown
     of ⏻) that delegates to `_stream_inner()`—the real streaming logic remains there unchanged."""
     import inspect
-    from nucleo.flash.fast_client import FastClient
+    from nucleo.llm.fast_client import FastClient
     src = inspect.getsource(FastClient._stream_inner)
     body = src[src.index("async for chunk in stream:"):]
     head = body[:body.index("text = getattr(delta")]
@@ -408,11 +408,11 @@ def test_the_stall_path_says_stalled_not_dead():
     stall = stall[stall.index("except asyncio.TimeoutError:"):]
     assert "stalled = True" in stall[:700]
     # V2-252: the classification (stall vs outage) is shared with the TEXT channel in
-    # `nucleo/flash/provider_failure.py`, because writing it twice caused it to diverge three times. This checks that
+    # `nucleo/llm/provider_failure.py`, because writing it twice caused it to diverge three times. This checks that
     # this turn PASSES it the fact—`stalled=`—and that the shared module translates it to «slow», not «down».
     assert "stalled=bool(stalled)" in src
     import inspect as _i
 
-    from nucleo.flash import provider_failure as _pf
+    from nucleo.llm import provider_failure as _pf
     assert 'health_state.record("llm", "slow"' in _i.getsource(_pf.handle)
     assert "Un turno se atascó y lo corté" in src

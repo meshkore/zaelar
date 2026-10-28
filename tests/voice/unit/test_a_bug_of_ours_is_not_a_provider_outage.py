@@ -146,12 +146,12 @@ class _WithStatus(Exception):
 def test_only_our_own_programming_errors_count_as_an_engine_fault(exc, mine):
     """A provider failure arrives with an HTTP status; a bug of ours is a bare Python error. The status guard
     matters: an SDK may wrap a real 402 in a TypeError, and a 402 must never be excused as «our bug»."""
-    from nucleo.flash import provider_failure as pf
+    from nucleo.llm import provider_failure as pf
     assert pf.is_engine_fault(exc) is mine, f"{type(exc).__name__ if exc else 'None'} misclassified"
 
 
 def test_a_typeerror_carrying_an_http_status_is_still_the_providers():
-    from nucleo.flash import provider_failure as pf
+    from nucleo.llm import provider_failure as pf
     e = TypeError("upstream said no")
     e.status_code = 503
     assert pf.is_engine_fault(e) is False
@@ -159,7 +159,7 @@ def test_a_typeerror_carrying_an_http_status_is_still_the_providers():
 
 def test_the_engine_fault_line_names_the_defect():
     """«flash layer error» answered none of «tengo que saber qué pasa… identificarlo»."""
-    from nucleo.flash import provider_failure as pf
+    from nucleo.llm import provider_failure as pf
     line = pf.engine_fault_line(UnboundLocalError("cannot access local variable '_cvis'"))
     assert "UnboundLocalError" in line and "_cvis" in line, line
 
@@ -193,8 +193,8 @@ def test_the_degraded_alert_carries_the_real_error():
 def test_the_relay_is_a_different_door_from_the_one_that_failed(monkeypatch):
     """«hay más posibilidades de que se caiga IML que que se caiga el proveedor original» — and a stand-in at
     the SAME endpoint is the decorative ladder `models.default.json` already warns about."""
-    from nucleo.flash import fast_client as fc
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import fast_client as fc
+    from nucleo.llm import provider_chain as pc
     from nucleo.flash.model_spec import ModelSpec
 
     tiers = [
@@ -216,8 +216,8 @@ def test_the_relay_is_a_different_door_from_the_one_that_failed(monkeypatch):
 
 
 def test_there_is_no_relay_when_the_ladder_has_only_the_one_that_failed(monkeypatch):
-    from nucleo.flash import fast_client as fc
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import fast_client as fc
+    from nucleo.llm import provider_chain as pc
     from nucleo.flash.model_spec import ModelSpec
     tier = {"name": "titular", "base_url": "https://api.deepseek.com", "model": "deepseek-flash",
             "provider": "deepseek", "api_key": "k1"}
@@ -232,8 +232,8 @@ def test_there_is_no_relay_when_the_ladder_has_only_the_one_that_failed(monkeypa
 
 def test_a_tier_without_a_credential_is_not_a_relay(monkeypatch):
     """«sin credencial no es un escalón, es un espejismo» — relaying to it burns the turn for nothing."""
-    from nucleo.flash import fast_client as fc
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import fast_client as fc
+    from nucleo.llm import provider_chain as pc
     from nucleo.flash.model_spec import ModelSpec
     tiers = [
         {"name": "titular", "base_url": "https://api.deepseek.com", "model": "deepseek-flash",
@@ -256,7 +256,7 @@ def _connect_loop_source() -> str:
     """The STREAMING connect loop only. `complete()` has a retry loop with the same opening comment, and
     anchoring on the first occurrence swallowed half the class — which is how a disarm of this very block came
     back green (the slice still contained an untouched `_extra_body_for` from somewhere else entirely)."""
-    src = _vts.read(ENGINE / "nucleo/flash/fast_client.py")
+    src = _vts.read(ENGINE / "nucleo/llm/fast_client.py")
     i = src.index("# V2-758 — AND THE FAILOVER LIVES HERE FOR THE SAME REASON.")
     return src[i:src.index("calls: dict[int, dict] = {}", i)]
 
@@ -280,7 +280,7 @@ def test_the_relay_rebuilds_the_body_for_its_own_provider():
 
 def test_the_stream_never_relays_once_it_has_spoken():
     """A retry after a yielded chunk duplicates speech. The relay lives ONLY in the connect loop."""
-    src = _vts.read(ENGINE / "nucleo/flash/fast_client.py")
+    src = _vts.read(ENGINE / "nucleo/llm/fast_client.py")
     after = src[src.index("calls: dict[int, dict] = {}"):]
     assert "relay_spec_for" not in after, \
         "a relay was wired into the streaming half: a mid-stream retry repeats what the operator already heard"
@@ -300,7 +300,7 @@ def test_a_relayed_turn_is_not_marked_against_the_titular_twice():
 # ── D · THE PANEL SAYS WHO IS ANSWERING ──────────────────────────────────────────────────────────────────────
 def _rows(monkeypatch, *, chain, serving, mem_status, mem_err=None, eng_err=None):
     """One `/api/status` render with the ladder and the memory heart stubbed."""
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
     from nucleo.memory_agent.processor import distill_config, distill_health
     from voice import health_state
     from server import voice_api
@@ -585,8 +585,8 @@ def _fake_client(fail_urls: dict, seen: list):
 
 
 def _wire(monkeypatch, *, failing: dict, seen: list):
-    from nucleo.flash import fast_client as fc
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import fast_client as fc
+    from nucleo.llm import provider_chain as pc
     from nucleo.flash.model_spec import ModelSpec
     tiers = [
         {"name": "titular", "base_url": "https://api.deepseek.com", "model": "deepseek-flash",
@@ -610,7 +610,7 @@ def test_the_request_that_failed_is_re_sent_to_the_other_model(monkeypatch):
     """His sentence, run: «para eso tenemos un failover, para que ESA MISMA REQUEST que ha fallado se vuelva a
     enviar al otro modelo». Before this the turn was simply lost and he had to repeat himself."""
     import asyncio
-    from nucleo.flash import fast_client as fc
+    from nucleo.llm import fast_client as fc
     seen: list = []
     spec = _wire(monkeypatch, failing={"https://api.deepseek.com": "Insufficient Balance"}, seen=seen)
     monkeypatch.setattr(fc, "_extra_body_for", lambda sp: ({"thinking": {"type": "disabled"}}
@@ -634,7 +634,7 @@ def test_the_relayed_call_carries_the_new_providers_body_not_the_titulars(monkey
     """`thinking:disabled` is DeepSeek's and a 400 at OpenAI — a stand-in called with the titular's body
     fails for a reason that has nothing to do with why the titular failed."""
     import asyncio
-    from nucleo.flash import fast_client as fc
+    from nucleo.llm import fast_client as fc
     seen: list = []
     spec = _wire(monkeypatch, failing={"https://api.deepseek.com": "Insufficient Balance"}, seen=seen)
     monkeypatch.setattr(fc, "_extra_body_for", lambda sp: ({"thinking": {"type": "disabled"}}
@@ -654,7 +654,7 @@ def test_the_relayed_call_carries_the_new_providers_body_not_the_titulars(monkey
 def test_when_both_rungs_fail_the_turn_raises_once_not_forever(monkeypatch):
     """One hop. Without `_relayed` the ladder could ping-pong inside a single turn."""
     import asyncio
-    from nucleo.flash import fast_client as fc
+    from nucleo.llm import fast_client as fc
     seen: list = []
     spec = _wire(monkeypatch, failing={"https://api.deepseek.com": "Insufficient Balance",
                                        "https://api.openai.com/v1": "Insufficient Balance"}, seen=seen)
@@ -682,9 +682,9 @@ def test_a_stream_that_already_spoke_is_never_re_sent(monkeypatch):
     from the streaming half. The stream connects fine and then dies mid-iteration: `create` must have been
     called exactly ONCE, and the chunk already emitted must have reached the caller."""
     import asyncio
-    from nucleo.flash import fast_client as fc
+    from nucleo.llm import fast_client as fc
     from nucleo.flash.model_spec import ModelSpec
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
     calls: list = []
 
     class _Exploding:
@@ -735,7 +735,7 @@ def test_a_stream_that_already_spoke_is_never_re_sent(monkeypatch):
 def test_with_both_rungs_down_the_box_is_RED_and_promises_nobody(monkeypatch):
     """«si fallaran los dos, entonces sí que habría que marcarlo en rojo». And it must not still say «relevo
     listo» about a tier that is equally down — that is the panel telling him he is covered when he is not."""
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
     from voice import health_state
     monkeypatch.setattr(pc, "tier_available", lambda t: False)
     rows = _rows(monkeypatch, chain=_CH, serving=None, mem_status=_MEM_OK,

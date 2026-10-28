@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import asyncio
 
-from nucleo.flash import loop_clients
-from nucleo.flash.fast_client import FastClient
+from nucleo.llm import loop_clients
+from nucleo.llm.fast_client import FastClient
 from nucleo.flash.model_spec import ModelSpec
 
 

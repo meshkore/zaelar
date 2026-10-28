@@ -69,7 +69,7 @@ class _ClienteFalso:
 @pytest.fixture
 def _compositor(monkeypatch):
     _ClienteFalso.llamadas = []
-    import nucleo.flash.fast_client as fc
+    import nucleo.llm.fast_client as fc
     monkeypatch.setattr(fc, "FastClient", _ClienteFalso)
     monkeypatch.setattr(research, "enabled", lambda: True)
     monkeypatch.setattr(research, "_spec", lambda: (object(), "deepseek-directo"))
