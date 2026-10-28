@@ -465,7 +465,7 @@ DOMAINS: list[dict] = [
             # V2-115 left this written down as its own primary open task: every link was tested in
             # isolation and the chain was not, which is what let a created widget be opened by nobody.
             "tests/agent_headless/unit/workers/test_widget_creation_chain.py",
-            "tests/agent_headless/unit/agentes/test_agentes.py", "tests/agent_headless/unit/agentes/test_work_agents.py",
+            "tests/agent_headless/unit/agentes/test_agentes.py",
             # las 3 decisiones que hundieron la sesión del 2026-08-02 (llenar≠programar · confirm-gate sobre una
             # investigación · la frase del operador perdida al pisarse los turnos del STT)
             "tests/agent_headless/unit/test_search_report_flow.py",
