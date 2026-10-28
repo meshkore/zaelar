@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import context_packs
-from nucleo.context_packs import introduction
+from nucleo.turn.prompt import packs as context_packs
+from nucleo.turn.prompt.packs import introduction
 
 ENGINE = Path(__file__).resolve().parents[4]
 
@@ -294,7 +294,7 @@ def test_the_prompt_carries_the_packs_after_the_operators_own_directive():
 def test_the_phase_is_watched_from_the_bus_and_not_from_the_voice_provider():
     """The Susurro/actionmap pattern: zero coupling with the provider, and it covers BOTH channels for free
     because `observer.turn_detail` is where a voice turn and a probe turn both close."""
-    src = _code(ENGINE / "nucleo/context_packs/introduction.py")
+    src = _code(ENGINE / "nucleo/turn/prompt/packs/introduction.py")
     assert re.search(r'bus\s*\.\s*subscribe\s*\(\s*"turn\.completed"\s*\)', src)
     boot = _code(ENGINE / "server/boot/brain.py")   # the brain phase of the boot (refactor2710-13)
     assert "_intro_pack . start ( )" in boot, "nothing starts the phase watcher at boot"
@@ -321,7 +321,7 @@ def test_closing_persists_through_the_REAL_settings_store():
     branch for `intro_done` and dropped it with «sin cambios»; every test above replaces `update` with a dict, so
     none of them could see it. This one writes through the real store (the conftest sandboxes the file)."""
     from config import settings
-    from nucleo.context_packs import introduction as intro
+    from nucleo.turn.prompt.packs import introduction as intro
     existed = Path(settings.SETTINGS_FILE).exists()
     try:
         settings.update({"intro_done": None})

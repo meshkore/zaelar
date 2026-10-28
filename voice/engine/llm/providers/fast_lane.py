@@ -161,7 +161,7 @@ async def small_talk(brain, text: str, emit, *, first_turn: bool, window_max: in
     # al inicio», and it belongs HERE rather than inside the pack: the pack writes prompt, and a lane that
     # never reaches a model would not read it.
     try:
-        from nucleo import context_packs
+        from nucleo.turn.prompt import packs as context_packs
         if context_packs.active_ids():
             return False
     except Exception:  # noqa: BLE001

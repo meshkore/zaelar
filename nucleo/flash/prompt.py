@@ -35,7 +35,7 @@ from nucleo.flash.recall_heuristics import (  # noqa: F401 — re-export
 # V2-276 — the stall threshold, human-readable site name, and "already found something" signal moved with
 # the block that uses them (`live_blocks.py`). They are re-exported because tests import them by name from
 # here: the extraction is a move, not an interface change.
-from nucleo import context_packs as _packs
+from nucleo.turn.prompt import packs as _packs
 from voice import screens as _screens
 from files import attachments as _attachments
 from nucleo.flash import live_blocks as _live_blocks

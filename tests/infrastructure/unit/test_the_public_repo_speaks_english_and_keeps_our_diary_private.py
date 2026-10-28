@@ -93,7 +93,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/batch/runner.py': 1,
     'nucleo/bridge_usage.py': 2,
     'nucleo/consent.py': 1,
-    'nucleo/context_packs/introduction.py': 5,
+    'nucleo/turn/prompt/packs/introduction.py': 5,
     'nucleo/danger.py': 1,
     'nucleo/dev_worker_guard.py': 1,
     'nucleo/dispatch/__init__.py': 3,
