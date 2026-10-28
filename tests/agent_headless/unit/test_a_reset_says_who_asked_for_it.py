@@ -21,7 +21,7 @@ import inspect
 
 import pytest
 
-from server import voice_api
+from server import reset_api as voice_api   # the reset routes live in reset_api (refactor2710-13 T-03)
 
 
 class _Req:

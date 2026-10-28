@@ -5991,6 +5991,14 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/connectors/unit/music/test_play_modes_queue_and_catalogue.py"]},
         {"id": "5.65", "title": "Music plays where he listens: a start goes to a device of the account on the screen that asked, else that screen's page; it is read back from the player (device named, silence said, a refused device never swapped for the first listed) and the same words again are not re-sent (V2-812 T-01)",
             "ch": UNIT, "paths": ["tests/connectors/unit/music/test_the_music_plays_where_he_listens.py"]},
+        {"id": "5.66", "title": "Every connector family declares how far back it can see through one door — mail (the "
+                                "INBOX's oldest INTERNALDATE, read-only), cloud files (the root's date), messaging (the "
+                                "archive's oldest row); an undeclared family says so, a dead resource is a fact, not a "
+                                "crash (refactor2710-13 T-02)",
+            "ch": UNIT, "paths": ["tests/connectors/unit/test_every_connector_family_declares_its_reach.py"]},
+        {"id": "5.67", "title": "An observability event survives a refactor: the (kind, label) pairs connectors/ and "
+                                "server/ emit may move between files, never vanish (V2-826 §2b, refactor2710-13)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_an_event_survives_a_move.py"]},
         {"id": "5.4", "title": "Architect", "ch": UNIT, "paths": ["tests/connectors/unit/architect/test_architect.py"]},
         {"id": "5.5", "title": "WhatsApp: normalización y allowlist", "ch": UNIT, "paths": [
             "tests/connectors/unit/whatsapp/test_allowlist_contract.py",

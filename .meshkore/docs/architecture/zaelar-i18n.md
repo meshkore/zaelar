@@ -60,7 +60,7 @@ i18n/genesis/<code>/                      the languages the repo SHIPS: en (= th
 which packs still have work; empty = nothing to show) → priority strings for the veil → `i18n.init.prepare(code)`
 walks every pack in `PACKS` order (progress per pack) → SSE `ready` → the frontend `applyLang(code)`. The UI does
 NOT switch at `detected` any more: it switches once every pack exists, so it is never a half-translated mix. A ⚙
-switch takes the same path (every pack), only without the veil. The boot top-up (`server/boot_halves.py`) runs
+switch takes the same path (every pack), only without the veil. The boot top-up (`server/boot/surfaces.py`) runs
 `prepare(active_code())` after an upgrade: only strings whose English changed are re-translated.
 
 ## INITIALIZATION vs EXECUTION (the organizing principle)

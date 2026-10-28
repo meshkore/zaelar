@@ -492,7 +492,7 @@ def test_the_music_provider_asks_in_the_operators_language():
     from connectors.music import youtube_audio as ya
     assert _with_language("en", ya._accept_language).startswith("en-US")
     assert _with_language("es", ya._accept_language).startswith("es-ES")
-    src = open("connectors/music/youtube_audio.py", encoding="utf-8").read()
+    src = open("connectors/music/youtube_resolve.py", encoding="utf-8").read()   # the provider request lives here
     assert '"Accept-Language": "es-ES' not in src, "a hardcoded provider locale is back"
 
 

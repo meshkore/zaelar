@@ -162,7 +162,7 @@ internal comment. A completed file must therefore be reviewed, not blindly mass-
 - `connectors/whatsapp/bridge_proc.py` — translated comments/docstrings; preserved runtime Spanish errors/logs.
 - `connectors/whatsapp/client.py` — translated comments/docstrings; behavior unchanged.
 - `connectors/whatsapp/config.py` — translated comments; behavior unchanged.
-- `connectors/whatsapp/run.py` — translated comments; preserved standalone Spanish CLI text.
+- `connectors/whatsapp/run.py` — translated comments; preserved standalone Spanish CLI text (file since deleted with the Phase-1 standalone runner, refactor2710-13).
 - `connectors/whatsapp/service.py` — translated comments/docstrings; preserved WhatsApp runtime Spanish logs/messages.
 - `memory/__init__.py` — translated module documentation; behavior unchanged.
 - `memory/concepts.py` — translated comments/docstrings; preserved Spanish concept taxonomy regexes.

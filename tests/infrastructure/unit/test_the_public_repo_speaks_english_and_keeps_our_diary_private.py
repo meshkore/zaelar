@@ -64,7 +64,7 @@ PER_FILE: dict[str, int] = {
     'conftest.py': 1,
     'connectors/calendar/google_calendar.py': 1,
     'connectors/contacts/google_people.py': 2,
-    'connectors/meshkore/bridge.py': 1,
+    'connectors/meshkore/bridge/__init__.py': 1,
     'connectors/meshkore/capsule.py': 1,
     'connectors/music/base.py': 1,
     'connectors/registry.py': 1,

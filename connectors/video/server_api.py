@@ -3,61 +3,15 @@
 Prefix checked free before choosing it (`grep -rn '"/api/video' server/ connectors/` → nothing): two routers
 answering one prefix is a collision FastAPI resolves by mount order, silently (V2-557's T10).
 
-Same flow as `/api/cloudfiles/*` and `/api/photos/*` (the product invariant: everything configured from the
-interface, never by editing files):
-
-  1. `POST /api/video/connect {provider, client_id[, client_secret][, tier]}` — stores the app credentials in
-     the credential store and returns the consent URL. The frontend opens it in a window.
-  2. `GET /api/video/callback?code&state` — the provider redirects back HERE; the code is exchanged and a
-     self-closing page is shown.
-  3. `GET /api/video/status` — providers, whether each has an app registered and whether it is connected.
-     REDACTED: a token never leaves this process.
-  4. `POST /api/video/disconnect {provider}` — forgets the tokens.
-
-Loopback, like the rest of the local API.
+The four routes (status · connect · callback · disconnect) are the shared account flow,
+`connectors/oauth_routes.py`; what is this door's own is the card refresh after a connection.
 """
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import APIRouter
 
+from connectors.oauth_routes import Door, register
 from connectors.video import oauth, providers, service
-from connectors.oauth_callback import text as _ocb_text
 
 router = APIRouter()
-
-
-@router.get("/api/video/status")
-async def status():
-    st = service.status()
-    st["catalog"] = providers.public_list()
-    return JSONResponse(st)
-
-
-@router.post("/api/video/connect")
-async def connect(request: Request, payload: dict | None = None):
-    """Save the OAuth app credentials (if sent) and start the PKCE consent. Returns {ok, url, tier}."""
-    payload = payload or {}
-    pid = str(payload.get("provider") or "").strip().lower()
-    p = providers.get(pid)
-    if not p:
-        return JSONResponse({"ok": False, "error": f"proveedor desconocido: {pid or '(vacío)'}"}, status_code=400)
-    cid = str(payload.get("client_id") or "").strip()
-    secret = str(payload.get("client_secret") or "").strip()
-    if cid or secret:
-        try:
-            from config import credentials
-            if cid:
-                credentials.set_key(f"VIDEO_{p.id.upper()}_CLIENT_ID", cid)
-            if secret:
-                credentials.set_key(f"VIDEO_{p.id.upper()}_CLIENT_SECRET", secret)
-        except Exception as e:  # noqa: BLE001
-            return JSONResponse({"ok": False, "error": f"credential_store:{e}"[:120]}, status_code=500)
-    res = oauth.authorize_url(p.id, str(payload.get("tier") or ""), origin=_origin(request))
-    return JSONResponse(res, status_code=200 if res.get("ok") else 400)
-
-
-def _origin(request: Request) -> str:
-    from connectors import oauth_base
-    return oauth_base.request_origin(request)
 
 
 def _refresh_card(provider_id: str) -> None:
@@ -78,46 +32,8 @@ def _refresh_card(provider_id: str) -> None:
         pass
 
 
-@router.get("/api/video/callback")
-async def callback(code: str = "", state: str = "", error: str = ""):
-    if error:
-        return HTMLResponse(_page(False, _ocb_text("oauth.err.provider", "the provider returned an error: {error}",
-                                                        error=error)))
-    res = oauth.exchange_code(code, state)
-    # V2-700 — the CARD has to notice. See connectors/oauth_callback.announce().
-    if res.get("ok"):
-        from connectors import oauth_callback as _ocb
-        _ocb.announce("video")
-    ok = bool(res.get("ok"))
-    if ok:
-        _refresh_card(str(res.get("provider") or ""))
-    label = providers.get(res.get("provider") or "")
-    return HTMLResponse(
-        _page(ok, "" if ok else str(res.get("error") or _ocb_text("oauth.err.incomplete",
-                                                              "the connection could not be completed")),
-              label.label if label else ""),
-        status_code=200 if ok else 400)
-
-
-@router.post("/api/video/disconnect")
-async def disconnect(payload: dict | None = None):
-    pid = str((payload or {}).get("provider") or "").strip().lower()
-    if not providers.get(pid):
-        return JSONResponse({"ok": False, "error": "proveedor desconocido"}, status_code=400)
-    _r = oauth.forget(pid)
-    # V2-700 — unlinking is a state change too: the card must stop saying «conectado».
-    from connectors import oauth_callback as _ocb
-    _ocb.announce("video")
-    return JSONResponse(_r)
-
-
-def _page(ok: bool, detail: str, label: str = '') -> str:
-    """The shared callback page (V2-700) — it is what tells the CARD the connection landed.
-
-    Hand-rolled here until V2-700, in five near-identical copies that all had the same defect: they
-    told the operator it had worked and told the widget nothing, so the card went on offering
-    «Conectar». See `connectors/oauth_callback.py`."""
-    from connectors import oauth_callback
-    return oauth_callback.page(ok, detail, family='video',
-                               label=label or _ocb_text("oauth.video.account", "your video account"),
-                               done='')
+DOOR = Door(prefix="/api/video", family="video", oauth=oauth, providers=providers,
+            status=lambda: service.status(), label="your video account", label_key="oauth.video.account",
+            on_connected=_refresh_card)
+status, connect, callback, disconnect = register(router, DOOR)
+_page = DOOR.page

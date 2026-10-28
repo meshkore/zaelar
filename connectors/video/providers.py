@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from connectors.scope_tiers import Tiered
+
 
 @dataclass(frozen=True)
 class ScopeTier:
@@ -26,7 +28,7 @@ class ScopeTier:
 
 
 @dataclass(frozen=True)
-class VideoProvider:
+class VideoProvider(Tiered):
     id: str
     label: str
     authorize_url: str
@@ -45,16 +47,6 @@ class VideoProvider:
     #: can ship in a public repo. The operator's OWN client_id, when the credential store holds one, always
     #: WINS over this — a self-hoster who wants their own quota and their own consent screen keeps it.
     builtin_client_id: str = ""
-
-    def tier(self, tier_id: str = "") -> ScopeTier:
-        wanted = (tier_id or "").strip() or self.default_tier
-        for t in self.tiers:
-            if t.id == wanted:
-                return t
-        for t in self.tiers:
-            if t.id == self.default_tier:
-                return t
-        return self.tiers[0]
 
 
 _YOUTUBE_TIERS = (
