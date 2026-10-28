@@ -585,10 +585,6 @@ DOMAINS: list[dict] = [
             # only ever got `event="end"` and held 0 rows for every account, ever.
             "tests/agent_headless/unit/test_session_is_announced.py",
             "tests/agent_headless/unit/test_confirm_gate_task.py",
-            # V2-509 — the gate reads the ORDER, not the words. The TEXT it judges is written by the BRAIN,
-            # so "...available for purchase" — written by our brief composer, not by the operator — fired the
-            # confirmation over an errand that only asked to LOOK. Mirror form of V2-128.
-            "tests/agent_headless/unit/test_the_gate_reads_the_order_not_the_words.py",
             # V2-508 — el gate aparca el encargo y TIRA su registro, pero su hoja ya está en pantalla:
             # el «sí» relanzaba sin ella y abría una caja SEGUNDA al lado de la primera, que se quedaba
             # vacía para siempre. Un confirmado es una CONTINUACIÓN, como el relevo de proveedor.
@@ -3819,7 +3815,7 @@ DOMAINS: list[dict] = [
         {"id": "2.201", "title": "A data-op that did not run is said, and «Done.» never stands over it",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},
-        {"id": "2.200", "title": "A negation subtracts only the act it governs, and only inside its own clause",
+        {"id": "2.200", "title": "The irreversible-act gate reads the ORDER, not the words (V2-509): one table of phrases — a negation subtracts only the act it governs, a money word a preposition governs is the topic, a link or price request, a modal buy inside a search, a row of his own list and a complaint are not charges",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_the_gate_reads_the_order_not_the_words.py"]},
         {"id": "2.181", "title": "A request for a link or a price is not a charge: a negated act and a first-person "
@@ -4059,9 +4055,6 @@ DOMAINS: list[dict] = [
         {"id": "2.304", "title": "The speaker goes back to who it was taken from — «close the video and keep the music "
                                  "going» left the music paused by exclusivity (V2-781)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_speaker_goes_back_to_who_it_was_taken_from.py"]},
-        {"id": "2.310", "title": "A money word a preposition governs is the topic, never the order — «coste de recarga» in a "
-                                 "report errand was parked as «Esto mueve dinero» (three-tasks-at-once)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_gate_reads_the_order_not_the_words.py"]},
         {"id": "2.311", "title": "A sentence that adds or insists is not an answer to a parked errand's yes/no — «Y el juego no "
                                  "te olvides… no dos» dropped the parked report (three-tasks-at-once)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sentence_that_adds_is_not_an_answer.py"]},
