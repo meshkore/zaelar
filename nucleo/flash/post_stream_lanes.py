@@ -244,6 +244,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             _apply_widget_data(_after["widget_id"], _after["action"], _after["payload"])
             acted["widget"] = True
             data_done["v"] = True
+            read_req["op"] = _after          # the read's turn now owes what THIS op answers (`data_ops.answer_owed`)
             emit("brain", "🔁 leyó para una orden — la llamada, con lo leído", role="system",
                  text=f"{_rw} → {_after['widget_id']}:{_after['action']}",
                  extra={"cat": "flash", "widget": _after["widget_id"], "action": _after["action"]})

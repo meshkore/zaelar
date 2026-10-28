@@ -280,7 +280,7 @@ async def complete_the_acts(*, _apply_widget_data, _brief, _data_ops_hechas, _ha
                                               window=list(brain._window), emit=emit, present=_pst._cvis.present,
                                               apply_widget_data=_apply_widget_data, acted=acted, done=data_done)
     _op_answer = None
-    if read_req["v"] is None and escalate_req["v"] is None and _turn_op_tasks:
+    if _pst._data_ops.answer_owed(read_req, escalate_req) and _turn_op_tasks:
         from nucleo.turn import brief as _tbw
         _wk, _wi = _tbw.read(_brief, _tbw.WORDS_KEY, "")
         _rk, _ri = _tbw.read(_brief, _tbw.REQUEST_KEY, "")
