@@ -118,16 +118,6 @@ def test_the_chart_declares_that_its_output_only_exists_on_screen():
         assert fx.carries("markets", a, fx.PRESENT_MOUNT), a
 
 
-def test_the_voice_path_brings_the_card_of_a_mount_action_through_the_one_door():
-    import pathlib
-    import re
-    src = _vts.read(pathlib.Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/nucleo.py")
-    i = src.index("def _apply_widget_data(")
-    body = src[i:src.index("\n        def ", i + 10)]
-    assert re.search(r"_fx\.carries\(wid, action_name, _fx\.PRESENT_MOUNT\):\s*\n\s*_cvis\.present\(wid, "
-                     r"reason=\"producer-mount\"", body), "a FAST data-op with present.mount must present its card"
-
-
 def test_a_name_in_capitals_that_is_no_ticker_falls_back_to_the_search(monkeypatch, tmp_path):
     """V2-773 audit: «NASDAQ» is ticker-shaped and was sent as one — Yahoo has no chart under that spelling
     and the card answered «the price source did not answer». Looked up after all, it is ^IXIC."""

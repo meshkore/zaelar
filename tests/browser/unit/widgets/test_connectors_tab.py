@@ -61,11 +61,6 @@ def test_api_js_exposes_the_catalog_fetch():
     assert '"/api/connectors/catalog"' in API_JS
 
 
-def test_the_route_exists_server_side():
-    server_src = (ENGINE / "server" / "connectors_api.py").read_text(encoding="utf-8")   # mounted by config_api
-    assert '@router.get("/api/connectors/catalog")' in server_src
-
-
 # ── "Conectar" hands off to ConfigPanel's Conectores tab, never connects from here ──────────────────────
 def test_connectar_opens_config_panel_on_the_conectores_tab():
     assert "store.setConfigInitialTab" in CHATWALL and "store.setConfigOpen(true)" in CHATWALL

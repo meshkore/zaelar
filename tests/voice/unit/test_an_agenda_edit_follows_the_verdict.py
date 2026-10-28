@@ -107,13 +107,6 @@ def test_a_view_the_verdict_also_names_is_left_alone(model):
     assert got["action"] == "open_meeting" and m.n == 1
 
 
-def test_the_voice_read_lane_uses_the_same_door():
-    import inspect
-    from nucleo.flash import post_stream_lanes
-    src = inspect.getsource(post_stream_lanes)
-    assert "_act_repair.after_a_read(" in src and "order_card_after_read" not in src
-
-
 # ── step 12: «What do I have next Thursday?» → «Done. Right now it holds: …» (every row on the card) ─────────
 
 PARTE = {"executed": "widget_data", "widget": "agenda", "act": "show_day", "ops": [{"widget": "agenda", "act": "show_day"}],

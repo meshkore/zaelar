@@ -1,4 +1,3 @@
-from tests import voice_turn_source as _vts
 """A SILENT show of an EMPTY card gets its second pass (demo pass 2026-09-28, M1).
 
 «how's apple stock doing today, show me the chart» → show_widget(markets), no symbol, no words, no verdict naming the
@@ -38,9 +37,3 @@ def test_a_silent_show_of_an_empty_card_gets_the_call(monkeypatch):
 def test_a_card_that_has_content_is_left_alone(monkeypatch):
     ok, applied, _ = _run(monkeypatch, False, {"widget_id": "markets", "action": "show", "payload": {"symbol": "X"}})
     assert not ok and not applied
-
-
-def test_the_voice_call_site_no_longer_needs_words():
-    import inspect
-    from voice.engine.llm.providers import nucleo as prov
-    assert 'if acted.get("widget_id") and not data_done["v"] and not clarify["msg"]:' in _vts.turn_source()

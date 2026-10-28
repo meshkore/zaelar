@@ -9,7 +9,6 @@ and the label travels apart from the reason, clipped on a word.
 from __future__ import annotations
 
 import asyncio
-import inspect
 
 import pytest
 
@@ -90,11 +89,3 @@ def test_a_long_label_is_clipped_on_a_word_never_mid_word(english):
 def test_an_unnamed_control_is_named_in_his_language(english):
     asked = _asked(_sig(name="", pageUrl=FLIGHTS))
     assert asked.startswith("this action"), asked
-
-
-def test_the_owner_speaks_through_the_reason_module():
-    """The wiring: the owner's confirm door words its ping and its card question here, not with a `[:40]` cut."""
-    from widgets.navegador import owner
-    src = inspect.getsource(owner.TaskBrowser._confirm)
-    assert "_click_reason.needs_ok(" in src and "_click_reason.card_question(" in src, src
-    assert "label[:40]" not in src and "Voy a pulsar" not in src

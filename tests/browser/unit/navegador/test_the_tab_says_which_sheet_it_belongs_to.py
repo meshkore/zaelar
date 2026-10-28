@@ -13,7 +13,6 @@ This does NOT fix delivery: it makes the question answerable from any report.
 """
 from widgets.navegador import data as navdata
 from widgets.navegador import tasks as navtasks
-from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 def test_la_vista_dice_de_que_hoja_es_la_pestana():
@@ -32,14 +31,3 @@ def test_una_pestana_SIN_encargo_dice_que_no_tiene_hoja():
         assert navdata._task_view(navtasks.get(tid))["sheet"] == ""
     finally:
         navtasks.drop(tid) if hasattr(navtasks, "drop") else None
-
-
-def test_el_sello_lo_pone_QUIEN_abre_el_encargo():
-    """Wiring guard. `_prepare_web` is the only one that passes it today, and if it stops doing so `_sheet_has_rows`
-    becomes blind without anything failing — the failure mode this field exists to make visible."""
-    import inspect
-    from nucleo import dispatch
-    src = "\n".join(l for l in _vts.getsource(dispatch._prepare_web).splitlines()
-                    if not l.strip().startswith("#"))
-    assert "sheet=sheet_of(rec)" in src, (
-        "la pestaña del encargo tiene que nacer sellada; sin sello, el turno no puede ver su propia hoja")

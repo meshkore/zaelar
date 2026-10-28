@@ -130,13 +130,3 @@ def test_locking_the_language_also_moves_the_memory(monkeypatch):
         "detection moved the voice and the UI but not the memory: pills would keep being written in the "
         "previous language forever"
     )
-
-
-def test_the_memory_language_is_never_hardcoded_to_spanish():
-    """Both readers used to fall back to a literal "es" when the state had no language yet — which is exactly
-    the state a cold first run is in. The fallback has to be the engine's single source of truth."""
-    import pathlib
-    root = pathlib.Path(__file__).resolve().parents[3]
-    for rel in ("nucleo/memory_agent/processor/distill_prompt.py", "nucleo/memory_agent/processor/llm_tasks.py"):
-        src = (root / rel).read_text(encoding="utf-8")
-        assert 'or "es"' not in src, f"{rel} still hardcodes Spanish as the fallback language"

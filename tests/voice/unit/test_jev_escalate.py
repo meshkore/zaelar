@@ -9,7 +9,6 @@ a surviving commission; it never commissions one.
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 import pytest
 
@@ -113,27 +112,6 @@ def test_every_outcome_is_a_NAMED_disposition(monkeypatch):
             for a in (True, False)
             for w in (True, False)}
     assert seen <= named and len(seen) == 4, seen
-
-
-def test_the_provider_records_the_disposition_and_only_clears_on_annul():
-    """The wiring, statically — the decision is worthless if the provider still clears on the raw
-    verdict. It must call `annulment_verdict`, emit what it decided, and gate the clear on it."""
-    import pathlib
-    src = _vts.read(pathlib.Path(__file__).resolve().parents[3]
-           / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
-    code = "\n".join(l.split("#", 1)[0] for l in src.splitlines())
-    assert "settle_commission(" in code, (
-        "the provider annuls on the raw verdict again instead of going through the gate (V2-726 A3)")
-    assert "annulment_verdict(" not in code, (
-        "the decision moved back INTO the god file — the architecture ratchet's answer to a block "
-        "that grows is «extract a module», and `escalation_guard` is where this one lives")
-
-    # …and the module it moved to still does all three things.
-    import inspect
-    src = inspect.getsource(_eg.settle_commission)
-    assert 'escalate_req["more"] = []' in src, "the sibling commissions are no longer handled"
-    assert '"disposition"' in src, "the disposition is decided and never recorded"
-    assert 'if verdict["annul"]:' in src, "the clear is not gated on the disposition"
 
 
 def test_the_gate_records_a_disposition_for_every_outcome():

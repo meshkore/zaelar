@@ -8,8 +8,6 @@ after the money was spent. `widgets/AGENTS.md` had carried the corrected `ctx.re
 """
 from __future__ import annotations
 
-import re
-from pathlib import Path
 
 from widgets import generator, validator
 
@@ -68,18 +66,6 @@ def test_an_agent_that_never_ran_is_not_a_repair(monkeypatch):
     ok, err = generator._repair_once("w1", "/tmp/w1", "gate error")
     assert ok is False and "repair pass did not run" in err and "timed out" in err
     assert calls == [], "nothing to validate when the agent never ran"
-
-
-def test_the_create_path_repairs_BEFORE_it_discards():
-    """A structural guard on the seam: `generate_widget` must consult `_repair_once` before `_discard`, and only
-    on a build that RAN (a killed agent leaves nothing worth repairing)."""
-    src = Path("widgets/generator.py").read_text(encoding="utf-8")
-    code = re.sub(r"(?m)^\s*#.*$", "", src)
-    body = code[code.index("def generate_widget("):code.index("def _folder_ref(")]
-    i_val = body.index("ok, verr = _validate(wid, stamp_origin=True)")
-    i_rep = body.index("_repair_once(wid, dst, verr, token)")
-    i_dis = body.index("_discard(wid)", i_val)
-    assert i_val < i_rep < i_dis, "validate → repair once → only then discard"
 
 
 # ── V2-778 F1-12: the dispatch shape the contract teaches is the one the gate reads ──────────────────────

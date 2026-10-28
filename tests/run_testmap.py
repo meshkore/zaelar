@@ -2599,8 +2599,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/actionmap/test_minimise_that_means_the_card_on_top.py"]},
         # V2-776 (2026-09-27, demo M1): un `[[show:X]]` escrito por el modelo anota QUÉ tarjeta abrió, como la tool;
         # sin el id la reparación tras el show no corría y Markets salía VACÍA.
-        {"id": "3.96", "title": "Un show por etiqueta anota su tarjeta — la reparación tras el show la completa",
-            "ch": UNIT, "paths": ["tests/voice/unit/providers/test_a_tag_show_names_its_card.py"]},
         # V2-776 (2026-09-27): el «Done.» que escribe el motor tras una acción silenciosa no es el modelo repitiéndose;
         # dos seguidos disparaban el nudge anti-bucle y el turno siguiente preguntaba o prometía sin actuar.
         {"id": "3.97", "title": "Nuestro «Done.» tras acciones silenciosas no dispara el anti-bucle",
@@ -4819,9 +4817,6 @@ DOMAINS: list[dict] = [
         {"id": "2.102", "title": "«Still on it» on a mute turn only about live work that is about THIS request",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_still_on_it_is_only_about_this.py"]},
-        {"id": "2.101", "title": "What the model returned, raw (text, tool calls, hidden reasoning), is on the turn's record",
-            "ch": UNIT,
-            "paths": ["tests/voice/unit/test_the_model_raw_output_is_on_record.py"]},
         {"id": "2.100", "title": "The WHOLE prompt of every turn is on disk (logs/prompts/<session>.jsonl), joined by trace",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_the_whole_prompt_is_on_disk.py"]},

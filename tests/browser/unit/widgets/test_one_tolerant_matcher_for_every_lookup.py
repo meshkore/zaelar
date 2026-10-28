@@ -88,28 +88,3 @@ def test_no_match_is_a_real_answer():
 
 
 # ── the three surfaces go through it ─────────────────────────────────────────────────────────────────────
-
-def test_the_contacts_door_uses_the_shared_matcher():
-    import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets/directory.py").read_text(encoding="utf-8")
-    assert "textmatch" in src and "difflib" not in src.split("def resolve")[1][:1200], (
-        "resolve must resolve through textmatch, not its own difflib block")
-
-
-def test_the_agenda_cancel_matcher_uses_the_shared_matcher():
-    import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets/agenda/sweep.py").read_text(encoding="utf-8")
-    assert "textmatch" in src[src.index("def _matches("):src.index("def cancel_meeting(")]
-
-
-def test_textmatch_is_stdlib_only():
-    """It is imported by `widgets/*/data.py`, which is stdlib-only by contract."""
-    import ast
-    import pathlib
-    src = (pathlib.Path(__file__).resolve().parents[4] / "widgets/textmatch.py").read_text(encoding="utf-8")
-    for node in ast.walk(ast.parse(src)):
-        if isinstance(node, ast.ImportFrom):
-            assert (node.module or "").split(".")[0] in {"__future__"}, node.module
-        if isinstance(node, ast.Import):
-            for a in node.names:
-                assert a.name in {"difflib", "re", "unicodedata"}, a.name

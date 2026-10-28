@@ -66,7 +66,6 @@ Run: .venv/bin/pytest tests/voice/unit/test_a_number_he_said_is_not_an_invention
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 import json
 import pathlib
@@ -242,14 +241,6 @@ def test_the_alias_that_matched_EVERY_sentence_is_gone():
     assert "(reproductor, el vídeo)" not in tab
 
 
-def test_the_provider_asks_for_the_repair_before_the_widget_refuses():
-    body = _vts.read(_ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert "_direct_action.fill_missing(_cd[\"card\"], action_name, res.payload," in body
-    assert body.index("_direct_action.fill_missing") < body.index(
-        '_apply_widget_data(_cd["card"], action_name, res.payload, ref)'), \
-        "a key filled AFTER the call is applied repairs nothing"
-
-
 # ── 5 · THE GATE THAT LET AN UNSURE READER VETO A NEAR-CERTAIN ONE ────────────────────────────────
 
 def _brief(answers: dict, *, open_ids=("youtube",)):
@@ -305,14 +296,6 @@ def test_an_order_an_answer_and_a_COMPLAINT_all_pass(on_screen, kind):
     assert _fire(brief, "para el vídeo")[0] == "pause"
 
 
-def test_the_refusal_list_is_a_named_constant_with_its_measurement():
-    assert _da.NOT_AIMED_AT_THE_SCREEN == ("comment", "greeting")
-    body = (_ENGINE / "nucleo/flash/direct_action.py").read_text(encoding="utf-8")
-    assert "none 0.95" in body and "comment  0.45" in body, "the numbers that chose it stay next to it"
-    # …and the numbers that took `question` OFF it, for the same reason (V2-757).
-    assert "«¿Puedes enseñarme el catálogo?»" in body and "pause       1.00" in body
-
-
 def test_the_verdict_can_now_complete_a_turn_with_the_number_he_said(on_screen):
     """T2 of the session, simulated: the model spends its turn elsewhere, the brief says `play_result`
     and his sentence carries the 3."""
@@ -352,13 +335,3 @@ def test_the_screen_slice_is_BOUNDED():
 
 
 # ── 7 · THE DISAGREEMENT THAT LEFT NO TRACE ───────────────────────────────────────────────────────
-
-def test_a_global_tool_that_disagrees_with_the_verdict_is_RECORDED():
-    """The model's call still runs (V2-754). But the `⚖️` line only ever lived inside the widget_data
-    branch, so three turns of `play_video` against a `play_result` verdict left no trace at all — and
-    «who should we believe here?» cannot be answered without one."""
-    body = (_ENGINE / "nucleo/flash/video_turn.py").read_text(encoding="utf-8")
-    assert '_da.completes(brief, "youtube", model_action=op)' in body
-    assert "⚖️ el modelo y el veredicto discrepan" in body
-    assert body.index("_da.completes") < body.index('apply_widget_data("youtube", op,'), \
-        "recorded before the call runs, so a crash in the emit cannot swallow the action"

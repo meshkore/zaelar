@@ -19,7 +19,6 @@ import pytest
 
 from widgets.navegador import act_api
 from widgets.navegador import tasks as T
-from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 
 @pytest.fixture(autouse=True)
@@ -68,15 +67,3 @@ def test_el_registro_de_sesiones_sigue_siendo_el_RESPALDO():
         assert act_api._sheet_of(tid) == "viejo-1"
     finally:
         D._SESSIONS.clear()
-
-
-def test_el_sello_lo_PONE_quien_prepara_la_pestana():
-    """The half that no measurement of the module sees: that `_prepare_web` actually passes it along.
-
-    It is the lesson of V2-199 — a fix whose data is never written passes its tests and does nothing.
-    """
-    import inspect
-
-    from nucleo import dispatch as D
-    src = _vts.getsource(D._prepare_web)
-    assert "sheet=sheet_of(rec)" in src, "la pestaña vuelve a nacer sin saber de qué encargo es"

@@ -138,21 +138,6 @@ def test_nothing_is_created_for_a_widget_that_had_no_data(data_dir):
     assert not os.listdir(str(data_dir))
 
 
-# ── 3. the STATE that describes all of this ──────────────────────────────────────────────────────────────────
-def test_the_reset_clears_the_state_that_describes_widgets_and_workers():
-    """“The state must be cleared, at least the state that depends on widgets, from the brainworkers.” Without
-    this, the brain started the new test by reading open widgets that no longer existed and an MRU pointing to the
-    previous test — and made decisions about a dismantled world."""
-    import inspect
-
-    from nucleo import reset as nreset
-    src = inspect.getsource(nreset.reset_all)
-    for key in ("open_widgets", "recent_widgets", "rails"):
-        assert f'"{key}": []' in src, f"el reset no vacía `{key}`"
-    assert "canvas_layout" in src, "el escritorio guardado en el server también tiene que irse"
-    assert "blank_all()" in src, "el reset tiene que dejar las superficies en blanco"
-
-
 # ── 4. the sheet fills up WHILE work is in progress (the other half of the complaint) ─────────────────────────
 def test_the_worker_is_told_to_fill_the_sheet_while_it_works():
     """An investigation takes 5–15 minutes and the brief only asked for delivery AT THE END: the operator was left

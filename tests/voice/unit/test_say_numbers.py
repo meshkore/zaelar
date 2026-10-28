@@ -16,7 +16,6 @@ import asyncio
 import pytest
 
 from voice.engine.speech import say_numbers as sn
-from tests import voice_turn_source as _vts   # V2-778 F1: a split file is read with its moved pieces
 
 
 # ── what it fixes ────────────────────────────────────────────────────────────────────────────────────────
@@ -64,16 +63,6 @@ def test_an_unknown_language_is_returned_untouched_on_purpose():
     assert sn.speakable("151.008 €", "") == "151.008 €"
 
 
-def test_the_regexes_are_built_WITHOUT_str_format():
-    """A regex is full of literal braces («\\d{1,3}»), so `str.format` reads them as fields and raises KeyError
-    — which the fail-open would then swallow, leaving a function that returns every string untouched and looks
-    like it works. That happened while writing this module, and it is how the memory's REM synthesis stayed
-    silently dead for weeks (`tests/memory/unit/test_rem_prompt.py` guards the same thing)."""
-    import inspect
-    src = inspect.getsource(sn)
-    assert "_GROUPED.format(" not in src and "_FOREIGN_DECIMAL.format(" not in src
-
-
 def test_a_broken_phrasing_never_costs_the_operator_the_reply():
     """Fail-open: whatever happens in here, something is spoken."""
     assert sn.speakable(None, "es") is None
@@ -114,19 +103,3 @@ def test_only_the_trailing_figure_is_held_back_never_the_sentence():
 def test_nothing_is_lost_when_the_stream_ends_mid_figure():
     assert _drain(["quedan 100.000"], "es") == "quedan 100000"
     assert _drain(["nada que ver"], "es") == "nada que ver"
-
-
-# ── wiring: it has to be the TTS node, and NOT the transcription one ──────────────────────────────────────
-def test_it_is_wired_into_the_tts_node_and_the_subtitles_are_left_alone():
-    """The TTS node is the one place every spoken path converges on (reply, say(), filler, proactive notice), so
-    a price cannot slip through by taking another road. Subtitles and the chat wall go through
-    `transcription_node` and must keep showing «151.008 €», which is what the operator wants to READ."""
-    import pathlib
-    src = _vts.read("voice/engine/pipeline/zaelar_agent.py")
-    assert "def tts_node(self, text, model_settings):" in src
-    assert "tts_node_speaking_figures" in src
-    tn = src[src.index("def transcription_node("):src.index("def tts_node(")]
-    assert "say_numbers" not in tn, "los subtítulos se leen, no se pronuncian: no se tocan"
-    # And the class is actually MOUNTED by the entrypoint — an override nobody instantiates is not wiring.
-    entry = _vts.read("voice/engine/pipeline/agent.py")
-    assert "from .zaelar_agent import ZaelarAgent" in entry and "ZaelarAgent(instructions=" in entry

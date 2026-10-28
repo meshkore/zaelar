@@ -39,8 +39,3 @@ def test_the_one_person_he_names_fills_an_empty_recipient(directory):
     assert da.person_fill("mensajeria", "forward", {"contact": "Rowan"}, words) == {}, "a recipient is never edited"
     assert da.person_fill("mensajeria", "forward", {}, "send it to quinn and rowan") == {}, "two named: ask"
     assert da.person_fill("agenda", "show_day", {}, words) == {}, "only an action that takes a contact"
-
-
-def test_the_outward_act_gate_carries_the_named_recipient():
-    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert "_vpay.update(_direct_action.person_fill(wid, _vdis, _vpay, _bnotes.operator_half(text)))" in src

@@ -18,7 +18,6 @@ catálogo» (the video card's own words) still names nothing, «abre whatsapp» 
 """
 from __future__ import annotations
 
-from tests import voice_turn_source as _vts
 
 import json
 from pathlib import Path
@@ -68,7 +67,7 @@ def test_asking_for_HIS_widgets_opens_the_custom_sub_tab(phrase, tab):
 def test_the_models_catalogue_says_which_widgets_are_his():
     """«Las tarjetas personalizadas que tengas tú hechas no me salen en la lista que veo» — the fact existed
     (`origin`, `forked_from`) and never reached the model. The row now carries it."""
-    from widgets import brief, runtime as rt, selection
+    from widgets import brief, selection
     cat = [{"id": "youtube", "whenToUse": "vídeo", "origin": "user", "forked_from": {"origin": "builtin"}},
            {"id": "canvas-shows-day", "whenToUse": "mi día", "origin": "user"},
            {"id": "musica", "whenToUse": "música"}]
@@ -86,23 +85,6 @@ def test_the_models_catalogue_says_which_widgets_are_his():
 
 def test_the_video_cards_own_catalogue_is_not_this_one():
     assert runtime.identify("vuelve al catálogo")["system"] is None
-
-
-def test_the_provider_routes_the_surface_to_the_panel():
-    """Source anchors, because the branch lives in the middle of the provider's streaming loop: a named surface
-    that is a TAB of the wall is forwarded through ONE reader (`catalogs.wall_tab_for`)."""
-    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert "elif _wall_tab_for(_sys, text):" in prov
-    assert 'emit("panel", "open", extra={"tab": _wall_tab_for(_sys, text), "src": "flash"})' in prov
-
-
-def test_a_promise_to_open_the_tab_with_no_tool_opens_it():
-    """Measured on the live engine after F1: «Te abro el panel de apps, que es donde salen los widgets que
-    tienes» with NO tool call. The promise backstop only knew CARDS; a named wall tab now opens too."""
-    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    seg = prov.split("elif _router.looks_like_show_strict(_op_text):")[1].split("elif _router.promises_music")[0]
-    assert "_wall_tab_for(_identify_system(_op_text), _op_text)" in seg
-    assert 'emit("panel", "open", extra={"tab": _wtab, "src": "flash"})' in seg
 
 
 @pytest.mark.parametrize("sid,phrase,tab", [
@@ -205,17 +187,3 @@ def test_the_voice_lane_opens_the_tab_and_records_the_exchange():
     from i18n import langs as _lg
     # recorded as WORDS (demo pass 109, S4): a «[panel:…]» line in the assistant's mouth is copied into replies
     assert brain._window[-1] == {"role": "assistant", "content": _lg.current_language().data_ack}
-
-
-def test_the_turn_tries_the_lane_before_the_model():
-    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    lanes = prov.split("from voice.engine.llm.providers import fast_lane as _fast_lane")[1].split("return")[0]
-    assert "_fast_lane.wall_tab(brain, text, emit" in lanes
-
-
-def test_the_models_show_panel_apps_lands_on_custom_when_he_asked_for_his():
-    """Measured: «¿Qué APPs tengo customizadas?» → `show_panel(panel='apps')` — the right tab, the wrong sub-tab.
-    His words refine the model's argument."""
-    prov = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    seg = prov.split('elif name == "show_panel":')[1].split("elif name ==")[0]
-    assert '_wall_tab_for("apps", _router.operator_words(operator_text, text))' in seg

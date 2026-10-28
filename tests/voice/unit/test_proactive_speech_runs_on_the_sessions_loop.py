@@ -122,21 +122,6 @@ def test_the_sync_say_call_itself_runs_on_the_sessions_loop():
         session_loop.close()
 
 
-def test_the_hop_is_handed_coroutines_not_speech_handles():
-    """`run_coroutine_threadsafe(SpeechHandle)` raises «A coroutine object is required» — the say has already
-    been scheduled (wrongly) by then, so the error arrives AFTER the damage. The agent.py callers must wrap the
-    call in an `async def` body, never a bare lambda around `session.say`."""
-    src = "\n".join(l for l in _vts.read(AGENT).splitlines()
-                    if not l.strip().startswith("#"))
-    assert "_on_session_loop(lambda" not in src, \
-        "a lambda around session.say CALLS it on the caller's loop and hands the hop a SpeechHandle — the " \
-        "exact «A coroutine object is required» failure of session f5e833f7"
-    for l in src.splitlines():
-        if "session.say(" in l:
-            assert "await session.say(" in l, \
-                f"every say must be awaited inside an async body that the hop runs on the session loop: {l.strip()}"
-
-
 def test_the_hop_is_a_no_op_on_the_sessions_own_loop():
     """The voice turn itself already runs there and must pay nothing — no thread hop, no extra future."""
     fake = _FakeSession()

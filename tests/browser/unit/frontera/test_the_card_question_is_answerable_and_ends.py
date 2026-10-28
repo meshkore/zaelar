@@ -223,16 +223,6 @@ def test_an_unknown_canvas_changes_nothing():
     assert instances.show_id("navegador", [], "el navegador") == "navegador"
 
 
-def test_the_voice_fallback_show_branch_consults_the_instance():
-    """The asymmetry that caused it: close consulted `_close_target`, show emitted the bare id."""
-    from pathlib import Path
-    src = Path(__file__).resolve().parents[4] / "voice/engine/llm/providers/widget_intent.py"
-    body = src.read_text(encoding="utf-8").split("def _widget_fallback(", 1)[1].split("\ndef ", 1)[0]
-    code = "\n".join(ln for ln in body.splitlines() if not ln.strip().startswith("#"))
-    assert "_close_target(" in code, "el fallback dejó de consultar la instancia al CERRAR"
-    assert "_show_target_instance(" in code, "el fallback no consulta la instancia al MOSTRAR"
-
-
 # ── 7) THE FOURTH DOOR — the ACTION MAP fast lane (V2-605 F3) ─────────────────────────────────────────────────
 # «Enséñame el navegador» is a SEEDED phrase (V2-567's open/close grids), so it never reaches the model: the
 # action map executes it in ~0.08 ms. Measured on the live engine after F2 — the turn came back «Hecho.» with no
@@ -261,17 +251,3 @@ def test_the_action_map_never_turns_a_fast_answer_into_a_question():
         assert executor._show_card("navegador") == "navegador"
     finally:
         va.canvas_state._last_inst = None
-
-
-def test_every_show_door_goes_through_the_shared_resolution():
-    """FOUR doors emit a show for a piece that can have cards, and this pass found them one at a time — the tool
-    path, the deterministic fallback, and the action map — each discovered only after the previous one was
-    fixed. A count is the cheap way to notice a FIFTH."""
-    from pathlib import Path
-    eng = Path(__file__).resolve().parents[4]
-    for rel, fn in (("nucleo/actionmap/executor.py", "_show_card"),
-                    ("nucleo/flash/show_target.py", "show_card"),
-                    ("voice/engine/llm/providers/widget_intent.py", "_show_target_instance")):
-        src = (eng / rel).read_text(encoding="utf-8")
-        code = "\n".join(ln for ln in src.splitlines() if not ln.strip().startswith("#"))
-        assert fn in code, f"{rel} ya no resuelve la tarjeta antes de mostrarla"

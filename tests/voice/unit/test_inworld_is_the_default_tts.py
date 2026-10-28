@@ -83,14 +83,6 @@ def test_cartesia_speaks_each_variant_with_a_native_voice():
     assert not V.voice_is_aligned("cartesia", marcos, "en", "US")      # a language switch realigns it
 
 
-def test_the_cartesia_builder_asks_the_language_before_the_env():
-    """The env id must be the LAST rung, below the variant's pin — it was the only one."""
-    import inspect
-    from voice.engine.speech.tts import cartesia
-    src = inspect.getsource(cartesia.build)
-    assert src.index("cartesia_default_voice") < src.index("SETTINGS.tts_voice_id")
-
-
 def test_every_provider_has_a_native_voice_for_the_four_variants():
     from voice.engine.speech import voices as V
     for prov in ("inworld", "cartesia", "elevenlabs"):

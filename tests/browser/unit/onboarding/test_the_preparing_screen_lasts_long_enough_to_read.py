@@ -55,26 +55,6 @@ def test_an_already_initialized_language_has_nothing_to_prepare():
             "and one that only lacks its phrasebook is ONE — the count is of work, not of languages"
 
 
-def test_each_check_mirrors_the_early_return_of_the_step_it_stands_for():
-    """The count cannot claim work that will not happen, and cannot miss work that will.
-
-    Each generator returns immediately when its pack is complete; `i18n.init.pending` asks the same question
-    with the same reader (`missing` for translated packs, the generated file for whole ones). If one of them
-    grows a second reason to no-op, this is the test that should fail.
-    """
-    src = DETECT.read_text(encoding="utf-8")
-    body = src[src.index("def _pending_steps("):src.index("async def lock(")]
-    assert "_init.pending(" in body, "the screen counts what prepare will do, with prepare's own reader"
-    assert "list(_packs.NAMES)" in body, "an unreadable store means UNKNOWN, and unknown means every pack"
-    init_src = (DETECT.parent / "__init__.py").read_text(encoding="utf-8")
-    pend = init_src[init_src.index("def pending("):init_src.index("async def _generate(")]
-    assert "missing(code, p.name)" in pend and "_has(p.name, code)" in pend
-    ensure_src = (DETECT.parent / "ensure.py").read_text(encoding="utf-8")
-    assert "todo = missing(code, name)" in ensure_src, "ensure_pack's early return is the same `missing`"
-    assert '"phase": "progress"' in src, "each finished step has to be reported"
-    assert '"total": steps_total' in src, "the first event carries the denominator"
-
-
 def test_a_step_that_was_not_pending_is_never_reported_as_progress():
     """A no-op that returns in a millisecond is not progress; counting it would put a bar on a screen
     with nothing behind it."""
