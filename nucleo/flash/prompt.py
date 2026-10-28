@@ -225,6 +225,12 @@ def _open_widget_ids() -> set[str]:
         return set()
 
 
+def screen_line() -> str:
+    """The screen, read ONCE per turn from the canvas's report (`state.open_widgets`); empty says so (2026-09-19)."""
+    ids = [str(w).strip() for w in (__import__("memory.api", fromlist=["x"]).state().get("open_widgets") or [])]
+    return "En pantalla: " + (", ".join([i for i in ids if i][:12]) or "nada (pantalla VACÍA)") + "."
+
+
 def _recent_widget_ids() -> list[str]:
     """IDs of RECENTLY USED widgets (MRU `state.recent_widgets`, V2-078), in recency order. Second narrowing
     layer for selecting/resolving the target widget (open > recent > catalog). µs read, no retriever."""
@@ -462,7 +468,7 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "(abre/cierra/muestra/pon/quita/amplía). Ante la duda, no hagas nada de canvas y sigue la conversación.\n"
         "\"Cierra el resto / los demás / todo menos X\" NO es [[close]] (que cierra TODO, incluido lo que usáis): "
         "cierra los OTROS uno a uno con [[close:ID]] y CONSERVA el widget que el operador quiere mantener.\n"
-        "La línea «Widgets ABIERTOS ahora en su pantalla» de tu ESTADO ES lo que el operador tiene DELANTE: es tu "
+        "La línea «En pantalla» de AHORA MISMO ES lo que el operador tiene DELANTE: es tu "
         "fuente de verdad, cítala con seguridad. Si te pregunta por un widget que NO abriste tú este turno (p. ej. "
         "quedó de antes), NO lo niegues ni digas que \"no ves la pantalla\": di que no lo abriste tú y ofrece "
         "cerrarlo. Responde SIEMPRE a lo que se te pregunta AHORA, no al tema del turno anterior.\n"
@@ -527,11 +533,10 @@ def live_state() -> str:
                  "NO es el límite de tu agenda: una fecha explícita («el 8 de septiembre») se apunta tal "
                  "cual, a cualquier distancia, y sin año es del año en curso (o del siguiente si ya pasó) "
                  "— no pidas confirmación de ninguna de las dos cosas.")
+    lines.append(screen_line())
     # V2-348 — TAREAS DE FONDO live in `live_blocks.py` (V2-276 precedent); V2-799 — what is pending or stopped.
     lines.extend(_live_blocks.pending_task_lines() + _live_blocks.pending_work_lines())
     lines.extend(_live_blocks.recent_lines() + _live_blocks.earlier_lines())   # the record: lately, then the days before
-    # V2-276 — el bloque del NAVEGADOR vive en `live_blocks.py` desde el 2026-08-24 (trinquete de
-    # arquitectura). Mismo texto, mismas caras, mismo fail-open: solo se mudó de fichero.
     lines.extend(_live_blocks.navegador_lines())
     lines.extend(_live_blocks.harness_lines())   # V2-660: an open harness goal is a FACT with its rule
     lines.extend(_live_blocks.done_ops_lines())  # V2-707 F6: and so is a mutation that already RAN
@@ -548,13 +553,8 @@ def live_state() -> str:
                          "ciudad ni la nombres; si hace falta para lo que te pide, pregúntasela.")
     except Exception:
         _mstate = {}
-    # WAKE WORD MODE is a fact the model must HOLD, not guess (2026-09-09, session 8a07e8d9): asked by voice to
-    # activate it, the model — with the assistant name AND the operator's name right there in the state block —
-    # invented that it knew neither («¿con qué palabra quieres que me active?», «cuál es tu nombre, que ahora
-    # mismo no lo tengo») and never called the tool. Nothing in the prompt said the mode EXISTS, what its wake
-    # word is, or which tool toggles it. One line closes all three. Lives here (not the stable prefix) because
-    # the current mode is runtime config; it only changes when the mode does, and this layer is last anyway.
-    # `_mstate` is the location block's read above — shared on purpose (the lazy-import ratchet is at 30/30).
+    # WAKE WORD MODE is a fact the model must HOLD, not guess (2026-09-09, session 8a07e8d9: it invented it knew
+    # neither name and never called the tool). Runtime config, so it lives here and not in the stable prefix.
     # Runtime-mode lines riding the set_style_directive tool (wake-word mode + V2-633 silent-orders):
     # composed in `nucleo/flash/style_directive.py`, the module that also HANDLES that tool (extracted
     # paying the ratchet — the teaching and the handler stay in one place).
