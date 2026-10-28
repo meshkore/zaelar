@@ -27,6 +27,7 @@ import json
 import pytest
 
 from nucleo import jev
+from nucleo.jev import decision as jev_decide
 
 
 @pytest.fixture
@@ -147,13 +148,13 @@ def test_background_callers_share_a_limited_number_of_slots(wire):
     """A worker sweeping a hundred rows must not be able to starve anything else. The voice brief
     does not take these slots at all — it is one call per turn on a deadline, and making it wait
     behind a background sweep is the one way this module could make a turn SLOWER."""
-    assert jev._BG_LIMIT >= 1
-    for _ in range(jev._BG_LIMIT):
-        assert jev._bg_sem.acquire(timeout=0.1)
+    assert jev_decide._BG_LIMIT >= 1
+    for _ in range(jev_decide._BG_LIMIT):
+        assert jev_decide._bg_sem.acquire(timeout=0.1)
     d = jev.decide("which flat?", "x", CANDS, deadline_s=0.2)
     assert d["status"] == jev.EXPIRED, "a background caller jumped the queue"
-    for _ in range(jev._BG_LIMIT):
-        jev._bg_sem.release()
+    for _ in range(jev_decide._BG_LIMIT):
+        jev_decide._bg_sem.release()
     assert jev.decide("which flat?", "x", CANDS)["status"] in (jev.SELECTED, jev.ABSTAINED)
 
 
@@ -161,16 +162,16 @@ def test_the_turn_brief_does_not_go_through_the_background_gate(wire):
     """The brief keeps its own door (`ask_many`), fired at turn start and read by peek. Proof that
     A1 did not quietly put the hot path behind a semaphore: with every slot taken, it still flies."""
     from nucleo.flash import turn_brief as tb
-    for _ in range(jev._BG_LIMIT):
-        assert jev._bg_sem.acquire(timeout=0.1)
+    for _ in range(jev_decide._BG_LIMIT):
+        assert jev_decide._bg_sem.acquire(timeout=0.1)
     try:
         h = tb.ask("dale al play", open_ids=[])
         if h and h.get("event"):
             h["event"].wait(2.0)
         assert jev.peek(h), "the voice brief was made to queue behind background decisions"
     finally:
-        for _ in range(jev._BG_LIMIT):
-            jev._bg_sem.release()
+        for _ in range(jev_decide._BG_LIMIT):
+            jev_decide._bg_sem.release()
 
 
 # ── the worker door ──────────────────────────────────────────────────────────────────────────────

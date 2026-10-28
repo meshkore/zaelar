@@ -124,6 +124,7 @@
  "reply_which_message": "¿A qué mensaje respondo y qué le digo?",
  "objective_which_peer": "¿Con qué agente y de qué cluster es ese objetivo?",
  "stop_which_worker": "Tengo varias tareas en marcha distintas — ¿cuál paro exactamente?",
+ "stop_doubt": "¿Quieres que pare la tarea que está en marcha, entonces?",
  "still_on_it": "Sigo con ello.",
  "say_again": "Perdona, ¿me lo repites?",
  "kickoff_prompt": "Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes quién soy; si no, preséntate en una línea y pregúntame el nombre. Luego para.",

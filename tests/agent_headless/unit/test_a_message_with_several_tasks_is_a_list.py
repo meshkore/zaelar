@@ -248,10 +248,10 @@ def test_a_list_that_cannot_be_split_is_still_run_as_one_step(monkeypatch):
 # ── wiring: the list goes FIRST in the turn ─────────────────────────────────────────────────────────
 def test_the_voice_turn_asks_about_a_list_before_any_other_lane():
     voice = _vts.read(ROOT / "voice/engine/llm/providers/nucleo.py")
-    i_list, i_rename, i_clamp = (voice.index("_fast_lane.task_list("), voice.index("_fast_lane.rename("),
-                                 voice.index("attention.clamp_input("))
+    i_list, i_presence, i_clamp = (voice.index("_fast_lane.task_list("), voice.index("_fast_lane.presence("),
+                                   voice.index("attention.clamp_input("))
     i_handled = voice.index("_fast_lane.handled(")
-    assert i_list < i_handled < i_rename < i_clamp
+    assert i_list < i_handled < i_presence < i_clamp
     assert "lists=False" in (ROOT / "nucleo/batch/runner.py").read_text()
 
 

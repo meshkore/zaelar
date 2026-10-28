@@ -1,6 +1,6 @@
 {
  "_comment": "Genesis seed pack (English) for the action map (V2-539). Same rules as es.json: unambiguous whole-utterance commands only; variants are separate entries; anything that could mean more than the mapped action stays out and goes to the model. · V2-682 — the possessive and the courtesy form were the whole hole. Measured on the operator's own English session (2026-09-12): «open the agenda» matched and «can you open MY agenda, please» did not, so a widget SHOW fell through to the model and from there to a Brain Worker that died on a provider 400. Spanish had the identical hole («abre mi agenda», «abreme la agenda»), which is why the fix lands in BOTH packs: this was never an English defect. Courtesy and modal forms are ENTRIES here, never something the matcher is allowed to understand (normalize.py doctrine). · V2-761 — the widget catalogue («Apps») joins as a panel tab; the operator calls it apps or widgets indifferently, so both words are entries. · V2-764 — the `torrent` widget merged into `archivos` (section Torrents): its names open that section. · v15 (demo pass 2026-09-28, V3) — «make it fullscreen» over the video had no entry, the model said «going fullscreen now» and called nothing: a pronoun fullscreen targets the card in front (`*`).",
- "version": 15,
+ "version": 16,
  "grids": [
   {
    "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
@@ -303,6 +303,93 @@
     "payload": {
      "tab": "$"
     }
+   }
+  },
+  {
+   "_comment": "V2-640 / refactor2710-07 — a presence KNOCK («are you there?») is answered without a model by the presence lane. These rows replaced the regex that read it; the lane strips the assistant's name and the phrasebook's vocatives, then looks the rest up here. `do: presence` is spoken by its lane, never executed by the map.",
+   "verbs": [
+    "oye",
+    "hola",
+    "hey",
+    "eh"
+   ],
+   "objects": {
+    "are you there": "",
+    "are you still there": "",
+    "are you listening": "",
+    "are you awake": "",
+    "are you alive": "",
+    "are you okay": "",
+    "are you with me": "",
+    "can you hear me": "",
+    "still there": "",
+    "you still there": "",
+    "anybody there": "",
+    "you there": "",
+    "you around": "",
+    "you awake": "",
+    "you with me": "",
+    "you still around": "",
+    "you still awake": "",
+    "you still with me": "",
+    "u there": "",
+    "u around": "",
+    "u awake": "",
+    "u with me": "",
+    "u still there": "",
+    "u still around": "",
+    "u still awake": "",
+    "u still with me": "",
+    "so you there": "",
+    "so you around": "",
+    "so you awake": "",
+    "so you with me": "",
+    "so you still there": "",
+    "so you still around": "",
+    "so you still awake": "",
+    "so you still with me": "",
+    "so u there": "",
+    "so u around": "",
+    "so u awake": "",
+    "so u with me": "",
+    "so u still there": "",
+    "so u still around": "",
+    "so u still awake": "",
+    "so u still with me": "",
+    "hey you there": "",
+    "hey you around": "",
+    "hey you awake": "",
+    "hey you with me": "",
+    "hey you still there": "",
+    "hey you still around": "",
+    "hey you still awake": "",
+    "hey you still with me": "",
+    "hey u there": "",
+    "hey u around": "",
+    "hey u awake": "",
+    "hey u with me": "",
+    "hey u still there": "",
+    "hey u still around": "",
+    "hey u still awake": "",
+    "hey u still with me": ""
+   },
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "_comment": "V2-665 / refactor2710-07 — what may sit around a bare call by NAME («oye Johnny, por favor») without making it a request: the presence lane answers it as a summons only when the assistant's name was in the utterance.",
+   "verbs": [
+    "hey",
+    "eh",
+    "hello",
+    "sorry"
+   ],
+   "objects": {
+    "please": ""
+   },
+   "action": {
+    "do": "address"
    }
   }
  ],
@@ -1346,6 +1433,384 @@
    "action": {
     "do": "fullscreen",
     "widget": "*"
+   }
+  },
+  {
+   "phrase": "hey",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "eh",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "hello",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "sorry",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "please",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "are you there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "are you still there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "are you listening",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "are you awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "are you alive",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "are you okay",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "are you with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "can you hear me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "still there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "you still there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "anybody there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "you there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "you around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "you awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "you with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "you still around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "you still awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "you still with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "u there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "u around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "u awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "u with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "u still there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "u still around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "u still awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "u still with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so you there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so you around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so you awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so you with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so you still there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so you still around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so you still awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so you still with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so u there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so u around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so u awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so u with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so u still there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so u still around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so u still awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "so u still with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey you there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey you around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey you awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey you with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey you still there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey you still around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey you still awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey you still with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey u there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey u around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey u awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey u with me",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey u still there",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey u still around",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey u still awake",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hey u still with me",
+   "action": {
+    "do": "presence"
    }
   }
  ]

@@ -419,8 +419,6 @@ class NucleoLLMStream(llm.LLMStream):
                                          t_entry=_t_entry, window_max=_WINDOW_MAX)
                     or await _fast_lane.presence(brain, text, emit, first_turn=first_turn,
                                                  window_max=_WINDOW_MAX)
-                    or await _fast_lane.rename(brain, text, emit, first_turn=first_turn,
-                                               window_max=_WINDOW_MAX)
                     or await _fast_lane.wall_tab(brain, text, emit, first_turn=first_turn,
                                                  window_max=_WINDOW_MAX)
                     or await _fast_lane.small_talk(brain, text, emit, first_turn=first_turn,

@@ -5,9 +5,8 @@ A matched entry executes through the SAME dispatch seams the FlashBrain's own ou
 closed and idempotent/reversible by construction: show, close, close-all, panel open/close, move,
 fullscreen, and FAST-classified widget data-ops. Anything destructive, content-carrying or credential-
 adjacent is not representable here, no matter what a row in the table says: `validate()` refuses it at
-load time, loudly (the "a module can be born dead" lesson — a bad seed must alert, not vanish).
-
-Named multi-step WORKFLOWS are deliberately NOT an action kind (V2-539 §7, future scope).
+load time, loudly (the "a module can be born dead" lesson — a bad seed must alert, not vanish). Named multi-step
+WORKFLOWS are deliberately NOT an action kind (V2-539 §7, future scope).
 """
 from __future__ import annotations
 
@@ -29,6 +28,7 @@ _ALLOWED: dict[str, tuple[str, ...]] = {
     "unfullscreen": (),          # V2-773: the card at full screen, one step down («exit fullscreen»)
     "arrange": (),               # V2-588: snap the whole canvas to the aligned grid — no target, no data
     "widget_data": ("widget", "action"),   # FAST-classified declared ops only, checked at execute
+    "presence": (), "address": (),   # refactor2710-07: spoken by `fast_lane.presence`; `execute` returns False
 }
 
 # V2-728 — `tareas` (the merged tab) and `programadas` (its one-shot sub-tab) join the vocabulary;

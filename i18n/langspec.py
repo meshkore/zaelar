@@ -271,6 +271,8 @@ class LangSpec:
     reply_which_message: str = ""
     objective_which_peer: str = ""
     stop_which_worker: str = ""
+    #: refactor2710-07 — the model stopped the errand and the brief, unsure, read otherwise: asked, never refused silently.
+    stop_doubt: str = ""
     #: The mute backstop's LAST resort — what he hears when even the backstop that composes «never mute»
     #: raised. Found by the same ratchet pass, in the same file, in an English session.
     still_on_it: str = ""

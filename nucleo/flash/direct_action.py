@@ -241,10 +241,10 @@ def names_an_order(brief, *, sure: float = 0.0) -> bool:
         # and «Show me only today's emails» promised or denied with no call and no repair ever looked.
         if not from_brief(brief)[1] and not _bd.named_card(brief):
             return False
-        # A SURE «tell me» over an UNSURE action is no order (`words_only`): «did you actually skip it? what's
+        # A SURE «tell me» over an UNSURE action is no order (`verdicts.tell_vetoes_unsure_action`): «did you actually skip it? what's
         # playing now» ran a second `youtube:next` and reported a false «no more videos» (2026-10-11).
-        from nucleo.flash import words_only as _wo
-        if _wo.tell_vetoes_unsure_action(brief):
+        from nucleo.turn import verdicts as _verdicts
+        if _verdicts.tell_vetoes_unsure_action(brief):
             return False
         named_sure = False
         if sure and from_brief(brief)[1]:
@@ -336,7 +336,7 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
         if no_payload(wid, action):
             return {"widget": wid, "action": action, "payload": {}, "key": "",
                     "source": "no-payload", "label": f"{wid}:{action} ← el veredicto de pantalla (sin payload)"}
-        filled, src = choice_or_order_fill(wid, action, words, model_words)   # an alias he said, or «X before Y»
+        filled, src = choice_or_order_fill(wid, action, words, model_words, brief)   # an alias he said, or «X before Y»
         if not filled and (filled := named_row(wid, action, words)):
             src = "named-row"
         if filled:

@@ -35,7 +35,7 @@ FILES = {
     'nucleo/energy/meter.py': 812,
     'nucleo/llm/fast_client.py': 866,
     'nucleo/flash/prompt.py': 816,
-    'nucleo/jev.py': 824,
+    'nucleo/jev/__init__.py': 590,
     'voice/engine/llm/providers/nucleo.py': 997,
 }
 
