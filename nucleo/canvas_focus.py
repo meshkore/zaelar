@@ -23,6 +23,9 @@ _state = {"current": [], "previous": [], "fs": "", "acts": [], "failed": [], "pr
           "t_cur": 0.0, "t_prev": 0.0}
 #: How long after his order an unprompted report still counts as crossing that exchange (`crossed_by`).
 CROSSING_S = 30.0
+#: An unnamed order («close the widget») means the card his previous turn acted on only while that turn is
+#: this recent; after it, the screen is a set of cards again and the order asks (operator, 2026-10-28).
+RECENT_S = 60.0
 
 
 def _src_rank(src: str) -> int:
@@ -98,6 +101,16 @@ def last_turn_card(open_ids: list[str]) -> str:
         if len(same_base) == 1:
             return same_base[0]
     return ""
+
+
+def last_turn_card_recent(open_ids: list[str], within_s: float = RECENT_S) -> str:
+    """`last_turn_card`, but only while his previous turn is at most `within_s` old — the one reading of an UNNAMED
+    order over several open cards («Stop the music» … «Close the widget.», live 2026-10-28 T74-T75). "" after that."""
+    with _lock:
+        t_prev = _state["t_prev"]
+    if not t_prev or time.monotonic() - t_prev > within_s:
+        return ""
+    return last_turn_card(open_ids)
 
 
 def last_turn_held(open_ids) -> str:

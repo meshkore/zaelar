@@ -66,7 +66,9 @@ def test_the_disarm_a_guard_deaf_to_the_name_drops_the_second_close(monkeypatch)
     """`_says_the_name` off: the verdict's `mensajeria:close` reads as an order INSIDE the card, and the close of the
     Messages card he named is dropped — only the calendar closes, as in full18 C6."""
     from nucleo.flash import direct_action as da
+    from nucleo.acts import card_verdict as cv
     monkeypatch.setattr(da, "_says_the_name", lambda *a, **k: False)
+    monkeypatch.setattr(cv, "_canvas_leans_close", lambda _b: False)   # node 2.911 licenses it too; this proves the name
     assert not da._says_the_name("close the calendar and the messages", "mensajeria"), "the mutation landed"
     out = _voice_turn("close the calendar and the messages")
     assert out.all_decisions == ["close agenda"], out.all_decisions

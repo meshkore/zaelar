@@ -208,11 +208,13 @@ def test_a_section_and_a_playlist_open_and_the_crumbs_go_back(yt):
     assert data.view_data()["channel_page"] == {}
 
 
-def test_a_bad_section_or_no_open_channel_is_said_not_swallowed(yt):
+def test_a_bad_section_or_no_open_channel_is_said_not_swallowed(yt, monkeypatch):
     assert data.apply_action("refresh_channel", {})["error"] == "no_channel_open"
     data.apply_action("open_channel", {"channel": "prueba"})
     assert data.apply_action("channel_tab", {"tab": "comunidad"})["error"] == "bad_tab"
-    assert data.apply_action("open_channel", {"channel": "nadie"})["error"] == "not_followed"
+    # a channel he does not follow is looked up by name (node 2.913); one the search cannot resolve is said so
+    monkeypatch.setattr(channels, "find", lambda name: {})
+    assert data.apply_action("open_channel", {"channel": "nadie"})["error"] == "not_found"
 
 
 def test_youtube_not_answering_keeps_what_was_cached(yt, monkeypatch):

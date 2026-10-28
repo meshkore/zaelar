@@ -22,7 +22,8 @@ TOOLS: list[dict] = [
             # (hoy Spotify). Frontera clara: es ESCUCHAR música, NO un dato del mundo (web_search) NI un vídeo.
             "description": (
                 "Reproduce o controla MÚSICA o un PODCAST (solo AUDIO) con la cuenta de música conectada del operador. `query` = "
-                "qué poner (artista/canción/género), vacío = reanudar; acepta pistas vagas. "
+                "qué poner (artista/canción/género); acepta pistas vagas. Si pide música SIN decir qué, elige tú: lo que "
+                "le gusta si lo sabes, si no algo variado — y di qué pones; vacío = reanudar o lo último que sonó. "
                 "`action`: play (def) | queue | pause | resume | next | previous | volume_up "
                 "| volume_down | stop. Varias seguidas: la 1ª con play y CADA siguiente con queue (encadena "
                 "solo). Comentar o quejarse de lo que suena no es otra reproducción; querer algo DISTINTO "

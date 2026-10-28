@@ -170,7 +170,11 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
             _cw = None
         # sin nombre resuelto: solo el caso corto genérico ("ciérralo") con un único widget abierto.
         if not _cw and not _vc:
-            _cw = _pst._closeg.the_only_card(text, _openw, brief=_brief)
+            _cw = (_pst._closeg.the_only_card(text, _openw, brief=_brief)
+                   or _pst._closeg.the_card_he_means(text, _openw, brief=_brief))
+            if not _cw and (_q := _pst._closeg.which_card_question(text, _openw, brief=_brief, say=_say)):
+                clarify["msg"] = _q           # an unnamed close over several cards, none recent: it asks, never claims
+                emit("brain", "❓ cerrar: varias tarjetas abiertas, ninguna reciente", text=", ".join(_openw), role="system")
         if _cw := _pst._closeg.unless_a_row(_cw, text, _idc):   # V2-781: «quita el tercero» is a row
             _t = _close_target(_cw, text)
             if _t["ask"]:                           # V2-259 F3

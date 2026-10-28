@@ -134,6 +134,56 @@ def the_only_card(text: str, open_widgets, *, brief=None):
     return ow[0]
 
 
+def _sure_unnamed_close(text: str, open_widgets, *, brief) -> bool:
+    """A short close that names no card here, over a brief SURE of a canvas close (the same licence `the_only_card`
+    asks), with more than one card open."""
+    if not is_short_order(text) or len(list(open_widgets or [])) < 2 or brief is None:
+        return False
+    try:
+        from nucleo.turn import brief as _tb
+        if _tb.names_elsewhere(brief):
+            return False
+        verb, info = _tb.read(brief, _tb.CANVAS_KEY, "", min_confidence=0.9)
+        return info is not None and str(verb or "") == "close"
+    except Exception as e:  # noqa: BLE001 — a classifier may never break a turn
+        _logger.debug(f"close_guards: canvas verdict unreadable: {e}")
+        return False
+
+
+def the_card_he_means(text: str, open_widgets, *, brief=None) -> str:
+    """Several cards open and an unnamed, sure close: the card his previous turn acted on, while that turn is recent
+    (`canvas_focus.RECENT_S`) — «Stop the music.» … «Close the widget.» is the music, with a document still being
+    written beside it (live 2026-10-28 T74-T75: nothing closed, and the reply claimed it had). "" otherwise: the
+    caller then ASKS (`which_card_question`), never guesses and never claims."""
+    if not _sure_unnamed_close(text, open_widgets, brief=brief):
+        return ""
+    try:
+        from nucleo import canvas_focus
+        return canvas_focus.last_turn_card_recent([str(w) for w in open_widgets])
+    except Exception as e:  # noqa: BLE001
+        _logger.debug(f"close_guards: recent card unreadable: {e}")
+        return ""
+
+
+def which_card_question(text: str, open_widgets, *, brief=None, say=None) -> str:
+    """The question an unnamed, sure close asks when no recent card answers it — the open cards by their titles — or ""."""
+    if not _sure_unnamed_close(text, open_widgets, brief=brief) or say is None:
+        return ""
+    try:
+        from widgets import instances as _inst, registry as _reg
+        by_id = {str(e.get("id")): str(e.get("name") or e.get("id")) for e in _reg.registry()}
+        names = []
+        for w in open_widgets:
+            base = _inst.base_of(str(w))
+            t = by_id.get(base) or base
+            if t not in names:
+                names.append(t)
+        return str(say().ask_which_item).format(cands=", ".join(names))
+    except Exception as e:  # noqa: BLE001
+        _logger.debug(f"close_guards: which-card question not built: {e}")
+        return ""
+
+
 def dataop_close_licensed(text: str, widget_id: str, *, brief=None, emit=None) -> bool:
     """May the model's `widget_data(<card>, "close")` run, when the close GRAMMAR saw no close verb?
 
