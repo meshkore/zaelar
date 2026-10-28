@@ -144,8 +144,21 @@ _AND_SPLIT_RE = re.compile(r"[.;!?\n]|\sy\s|\sand\s|\spero\s|\sbut\s", re.I)
 
 def _closes_the_whole_canvas(n: str) -> bool:
     """True when SOME CLAUSE of the turn orders the whole canvas closed — verb and quantifier together."""
+    return any(True for _ in _closing_clauses(n))
+
+
+def close_scope(text: str) -> str:
+    """«all» when a closing clause QUANTIFIES the canvas («close all», «ciérralo todo», «close all the widgets») —
+    the total is explicit, nothing is to be spared; "" for a close that only names the cards or restricts them
+    («cierra los widgets», «close everything you don't need»). V2-831 T-02: the reading `hard_interrupt` already
+    made, returned instead of dropped, so the bulk close does not treat «close all» as a vague close."""
+    return "all" if any(_quantifies_the_canvas(c) for c in _closing_clauses(_norm(text))) else ""
+
+
+def _closing_clauses(n: str):
+    """The clauses of `n` that order the whole canvas closed, in order (none for a fullscreen subject)."""
     if _FULLSCREEN_RE.search(n):
-        return False                       # a screen-state subject is never a close-all (V2-600)
+        return                             # a screen-state subject is never a close-all (V2-600)
     for clause in _AND_SPLIT_RE.split(n):
         c = (clause or "").strip()
         if not c or not _CLOSE_VERB_RE.search(c):
@@ -158,8 +171,7 @@ def _closes_the_whole_canvas(n: str) -> bool:
                 continue                   # «do not close the widgets», or narrating one already done
         except Exception:  # noqa: BLE001
             pass                           # unreadable guard: the clause already carries verb + quantifier
-        return True
-    return False
+        yield c
 
 
 def hard_interrupt(text: str) -> str | None:

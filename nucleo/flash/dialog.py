@@ -164,6 +164,41 @@ def record_silent_action(window: list[dict], ack: str) -> None:
         window.append({"role": "assistant", "content": ack.strip()})
 
 
+def record_turn_without_model(window: list[dict], said: str, reply: str, *, cap: int = 0) -> None:
+    """A turn that ACTED with no model still happened in the conversation — write his line and our answer (V2-831 T-02).
+
+    Measured 2026-10-28, typed: «close all» → the hard interrupt closed three cards and spoke «I've closed Messages,
+    Results and Browser. Still on screen: Document.» → «i said all». The next turn's window held neither line, so the
+    model read «all» as «tell me all» about the previous errand, and nothing could repair a close that, as far as the
+    conversation knew, never happened. «The chat column is the conversation» (criteria §1): a door that answers
+    without the model writes the same two lines a model turn writes, here, at one door.
+
+    `reply` is what we said (the receipt); without one the turn still closed its order, so the engine's own short ack
+    (`data_ack`, as `record_silent_action`) stands in. `cap` trims the window like the turn that owns it. The pair
+    also enters the short conversational buffer, so a window seeded after a reconnect sees it too."""
+    t = (said or "").strip()
+    if not t:
+        return
+    push_user(window, t)
+    r = sanitize_reply((reply or "").strip()) if (reply or "").strip() else ""
+    if not r:
+        try:
+            from i18n import langs as _lg
+            r = str(_lg.current_language().data_ack or "").strip()
+        except Exception:  # noqa: BLE001
+            r = ""
+    if r:
+        window.append({"role": "assistant", "content": r})
+    if cap > 0:
+        del window[:-cap]
+    try:
+        from memory import api as _memory
+        _memory.write(f"Operador: {t[:200]} · zaelar: {r[:200]}", kind="conv", level="short", importance=0.2,
+                      ttl_days=2.0, meta={"source": "conv", "u": t[:400], "a": r[:400]})
+    except Exception:  # noqa: BLE001 — the window is the record that matters; the buffer is best-effort
+        pass
+
+
 # ── 2) PODA DE HISTORIAL ─────────────────────────────────────────────────────────────────────────────────
 def prune_window(window: list[dict]) -> list[dict]:
     """Colapsa respuestas del asistente casi idénticas para no reforzar el patrón. Conserva el orden y **los
