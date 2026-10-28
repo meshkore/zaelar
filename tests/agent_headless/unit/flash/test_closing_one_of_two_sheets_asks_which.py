@@ -70,7 +70,15 @@ def test_a_minimize_never_asks():
     assert CW.probe_action({"widget_id": "results", "mode": "minimize"}, "results", "minimiza los resultados")[1] == ""
 
 
-def test_the_tool_path_reads_the_question():
-    """The wiring: the turn's tool executor passes through the asking door."""
-    from nucleo.flash import tool_executor_calls
-    assert "clarify=clarify" in inspect.getsource(tool_executor_calls._on_tool_call).split('name == "close_widget"', 1)[1][:400]
+def test_the_tool_path_reads_the_question(monkeypatch):
+    """The wiring, through the tool's own door: `close_widget` hands the turn's asking door to the close."""
+    from types import SimpleNamespace
+    from nucleo.acts import tools
+    from nucleo.flash import show_target
+    seen = {}
+    monkeypatch.setattr(show_target, "close_dispatch", lambda *a, **kw: seen.update(kw) or False)
+    asking = object()
+    turn = SimpleNamespace(_tag_emit=None, emit=lambda *a, **k: None, text="cierra la hoja", _closed_by_tool=set(),
+                           clarify=asking, _tool_fired=set(), acted={})
+    tools.CATALOG["close_widget"]({"widget_id": "results"}, turn)
+    assert seen.get("clarify") is asking, seen

@@ -68,6 +68,7 @@ class Decision:
     """What the router decided for a turn."""
     kind: str                              # 'chat' | 'style' | 'escalate'
     payload: dict[str, Any] = field(default_factory=dict)
+from nucleo.acts.tools import CATALOG   # refactor2710-05: the doors the schemas below are offered for
 from nucleo.flash.router_catalog import TOOLS   # V2-556: el catálogo (dato puro) vive aparte
 
 
@@ -145,14 +146,13 @@ def tools(context: dict | None = None) -> list[dict]:
     SCALING NOTE (V2-085): this catalog is **O(1)** — 22 fixed tools, ~29.7 KB complete / ~22.5 KB with typical
     gating. It does not grow with the widget catalog, so it is NOT the scalability bottleneck (that is the catalog,
     see `widgets/selection.py`); it is fixed cost and noise per turn, which is why it is pruned by state."""
+    # refactor2710-05: only a tool with a DOOR in `acts.tools.CATALOG` is offered — a schema nobody runs is not a tool.
     ctx = context or {}
-    if not context:
-        return TOOLS
     out = []
     for t in TOOLS:
         name = t.get("function", {}).get("name", "")
         gate = _SITUATIONAL.get(name)
-        if gate is None or gate(ctx):
+        if name in CATALOG and (not context or gate is None or gate(ctx)):
             out.append(t)
     return out
 

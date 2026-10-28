@@ -38,27 +38,22 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         _txw.logger.warning(f"unknown_tag_dropped: {(extra.get('text') or '')[:120]!r}")
         return
     if action == "aparte":
-        # V2-657 — sanctioned silence: an in-window turn addressed to somebody else in the room.
-        # Handled (no mute backstop, no hollow repair); resolved after the stream.
+        # V2-657 — sanctioned silence: a turn addressed to someone else in the room; resolved after the stream.
         aside["v"] = True
         return
     if action == "widget.data":
-        # Camino de RESERVA (V2-026): el tag inline sigue soportado, pero el camino PRINCIPAL de las
-        # data-ops es la tool `widget_data` (function-calling, fiable). Ambos convergen en _apply_widget_data.
+        # Fallback path (V2-026): the inline tag; the MAIN path is the `widget_data` tool — both converge.
         data = extra.get("data") or {}
         _apply_widget_data(str(extra.get("id") or ""), str(data.get("action") or ""),
                            data.get("payload") or {})
         return
     if action == "delete":
-        # BORRAR es cosa del FlashBrain (rápido, determinista) PERO con confirmación (V2-017). Si el
-        # modelo emitió el tag en vez de la tool, lo tratamos igual: abre la confirmación (overlay Sí/No
-        # en la tarjeta), nunca borra directo.
+        # DELETE is the Flash's, but confirmed (V2-017): the tag opens the Yes/No overlay, never deletes.
         _request_delete_confirm(extra.get("id") or "", text)
         acted["widget"] = True
         return
     if action in ("create", "modify", "push"):
-        # Boundary duro: crear/modificar/entregar datos a un widget → SlowBrain (escribe código), nunca el
-        # Flash. Borrar NO entra aquí (es determinista y lo hace el Flash tras confirmar, arriba).
+        # Hard boundary: create/modify/push data → SlowBrain (writes code); delete is handled above.
         _txw.logger.warning(f"nucleo(flash) intentó [[{action}]] — bloqueado, escalando")
         if escalate_req["v"] is None:
             escalate_req["v"] = text
@@ -85,8 +80,7 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
             pass
         return
     if action in ("cron.create", "cron.cancel"):
-        # Proactividad PROPIA (V2-005): re-cableado al scheduler del loop orquestador (NO al cron de
-        # Hermes, que muere en V2-009). Persistido en memory.journal; lo dispara nucleo/loop.py.
+        # Own proactivity (V2-005): the loop's scheduler (not Hermes's cron), kept in memory.journal.
         if action == "cron.create":
             cron_seen["v"] = True          # V2-146: el backstop de abajo no duplica lo que ya se pidió
         try:
@@ -105,14 +99,9 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         except Exception as e:  # noqa: BLE001
             _txw.logger.warning(f"nucleo cron {action} failed: {e}")
         return
-    # show / close / move → acción de canvas.
-    # GUARD close sin orden (V2-635, espejo del GUARD 2 de stop_worker): «Johnny eres tonto» acabó en
-    # un [[close]] que NADIE pidió (34386d8f). Gramática (looks_like_close ya excluye negaciones y
-    # narraciones): sin verbo de cerrar EN el turno del operador, el close del modelo es arrastre.
-    # `named` = `closes_the_named_card` already told the op inside the card from the card named to close
-    # (full18 V7: this guard dropped exactly that close, and the video card stayed over everything).
-    # …and neither is any close of a card his words CALL by its name (full18 C6: «close the calendar and the
-    # messages» — the verdict read `mensajeria:close`, the chat inside, and this guard kept the card open).
+    # show / close / move → canvas action. GUARD close without order (V2-635, like stop_worker's GUARD 2):
+    # «Johnny eres tonto» ended in an unasked [[close]] (34386d8f). Exempt: `named` (full18 V7) and a card
+    # his words call by name (full18 C6: «close the calendar and the messages»).
     if (action == "close" and not (extra or {}).get("named")
             and not _txw._direct_action._says_the_name(_txw._bnotes.operator_half(text), str((extra or {}).get("id") or ""))
             and _txw._close_cancel.inside_or_cancelled(_brief, _txw._bnotes.operator_half(text), extra, lambda c: _apply_widget_data(c["widget_id"], c["action"], c["payload"]))):
@@ -122,9 +111,7 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         deduped["v"] = True
         return False                  # V2-787: a refused close says so to its caller (`close_dispatch`)
     if action == "close" and not _txw._canvas_lic.close_license(text, brief=_brief):
-        # ...unless the shared reader licenses it: Jev independently reads a close order with
-        # confidence (T-jev-show-close) — two readers agreeing forgives a grammar miss. A "neither"
-        # or unsure verdict keeps the discard below, bit-for-bit.
+        # …unless Jev confidently reads a close order (T-jev-show-close): two readers agreeing forgive a miss.
         _has_order, _order_src = _txw._show_target.close_has_order(text, canvas_h, brief=_brief)
         if not _has_order:
             emit("brain", "🛡️ close ignorado — el operador no ha pedido cerrar nada (context-bleed)",
@@ -137,8 +124,7 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         contextual = _txw._show_target.named_or_guess(extra, lambda: _show_guard_target(text, brain._window, brain._last_action))  # V2-807 T-06
         if contextual:
             extra = {**(extra or {}), "id": contextual}
-        # V2-776 — the CARD, as the tool path resolves it: `[[show:results]]` with the monitor sheet open
-        # put the bare, empty base beside it (verification 2026-09-27, «Compare them visually»).
+        # V2-776 — the CARD as the tool path resolves it (verification 2026-09-27, «Compare them visually»).
         _tid = str((extra or {}).get("id") or "").strip()
         if _tid and "::" not in _tid:
             try:
@@ -147,33 +133,25 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
                     extra = {**(extra or {}), "id": _r_tag["id"]}
             except Exception:  # noqa: BLE001
                 pass
-    # GUARD anti-clutter (2026-07-12): el modelo tiende a emitir [[show:navegador]] al pedir una búsqueda,
-    # abriendo el navegador VACÍO ("Nuevo navegador") ADEMÁS de la tarjeta de la tarea → dos/tres cajas de
-    # navegador en pantalla. La búsqueda se ve en SU tarjeta (navegador::tN, la abre la tarea sola); el
-    # navegador "a pelo" no es una superficie que el operador pida. Lo ignoramos (no rompe: la tarjeta manda).
+    # GUARD anti-clutter (2026-07-12): [[show:navegador]] on a search opened an EMPTY browser beside the
+    # task card; the search shows in ITS card (navegador::tN), so the bare one is ignored.
     if action == "show" and str(extra.get("id") or "").strip().lower() == "navegador":
         emit("brain", "🚫 [[show:navegador]] ignorado (la tarjeta de la tarea es la superficie)", role="system")
         return
-    # El modelo a veces emite [[show:X]] cuando el operador solo PREGUNTA por un widget ("¿por qué abriste
-    # proyectos?") → abría un widget espurio en mitad de otra conversación (bug 2026-07-12). Una pregunta
-    # META sobre una acción pasada NO es una orden de mostrar → ignora el show del modelo.
-    # V2-776 — HIS words only (V2-678): the composed turn carries our `[SISTEMA]` notes, and a note about a
-    # closed errand read as a meta question and dropped «Show me the monitors» (verification 2026-09-27).
+    # A META question on a past action («¿por qué abriste proyectos?») is no show order (bug 2026-07-12).
+    # V2-776: HIS words only (V2-678) — our `[SISTEMA]` notes dropped «Show me the monitors».
     if action == "show" and _is_meta_widget_question(_norm_nfkd(_txw._bnotes.operator_half(text))):
         emit("brain", "🚫 show ignorado (pregunta META sobre un widget, no una orden)",
              text=str(extra.get("id") or ""), role="system")
         return
-    # DEDUP de show por id en el MISMO turno (test post-P1/P2: el modelo emitía [[show:X]] dos veces →
-    # doble evento). desktop.show ya es idempotente (reusa la tarjeta), pero no floodeamos el bus/SSE.
+    # DEDUP show by id within the turn: desktop.show is idempotent, but the bus is not flooded.
     if action == "show":
         _sid = str(extra.get("id") or "").strip().lower()
         if _sid and _sid in _shown_ids:
             return
         _shown_ids.add(_sid)
         extra["reason"] = "turn-order"       # V2-723: the guards above ARE the turn's license
-        # V2-770 — showing a card that is ALREADY open, on a turn whose verdict names an action INSIDE it
-        # («ábreme la ficha del dentista» → `agenda:open_meeting`), is not the act: the turn stays open to
-        # the verdict's completion and the promise repair below.
+        # V2-770 — a show of an ALREADY open card whose verdict names an action INSIDE it is not the act.
         if _txw._direct_action.order_is_inside(_brief, _sid):
             emit("brain", "🪟 show de una tarjeta ya abierta — la orden es una acción DENTRO",
                  text=_sid, role="system", extra={"cat": "flash", "kind_diag": "show_inside_card"})
@@ -182,17 +160,13 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
             return
     acted["widget"] = True
     if action == "show" and extra.get("id"):
-        # V2-776 — WHICH card, as the tool path records it: without the id the after-show repair never ran
-        # for a tag show, and «Show me a chart of Apple stock today» left the Markets card EMPTY (demo v7).
+        # V2-776 — WHICH card: without it a tag show skipped the after-show repair (empty Markets, demo v7).
         acted["widget_id"] = acted.get("widget_id") or str(extra.get("id"))
     if action == "close":
         acted["closed"] = True                   # el backstop de cierre corto no re-cierra (ver post-stream)
         _txw._canvas_lic.note_operator_close(str(extra.get("id") or ""))   # V2-650b: reopen needs his words
     extra["src"] = "flash"                       # V2-039: procedencia — esta orden viene del FlashBrain
-    # REGISTRO DE ÓRDENES DE CANVAS (2026-08-09, petición del operador): el evento se lleva la FRASE que
-    # lo provocó. Cuando se abre el widget EQUIVOCADO, la pregunta siempre es «¿de qué texto salió esto?»
-    # — y hasta ahora había que reconstruirla saltando al evento `transcript` anterior o abriendo la vista
-    # de trazas. Con el texto pegado al propio evento, la fila ya dice orden + objetivo + origen.
+    # Canvas order log (2026-08-09, operator's request): the event carries the SENTENCE behind it.
     emit("widget", action, text=(text or "").strip()[:160], extra=extra)
 
 
@@ -203,16 +177,14 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
     from widgets import actions as _wactions, text_home as _text_home
     wid, action_name, payload = _text_home.redirect(_txw._data_ops.one_open_instance((wid or "").strip().lower()), (action_name or "").strip(), payload, emit=emit, present=_txw._cvis.present)   # V2-773 one open instance · V2-807 T-09 a held message's text goes to its row
     action_name = (action_name or "").strip()
-    # E5 (demo passes 36/42, 2026-09-29): «close my mail» → the model called the card's own `close` VIEW
-    # action (back to the chat list) over a SURE close verdict, and the card stayed. The card's close, once.
+    # E5 (demo passes 36/42): «close my mail» ran the card's `close` VIEW over a sure close verdict.
     if _txw._direct_action.close_op_is_the_card(_brief, action_name):
         _tag_emit("close", {"id": _txw._show_target.close_target(wid)})
         acted["widget"] = True
         emit("brain", "🔁 data-op «close» sobre un cierre seguro — cierra la tarjeta", text=wid, role="system",
              extra={"cat": "flash", "widget": wid, "action": "close"})
         return
-    # V2-757 — THE TAIL OF A SENTENCE IS NOT AN ORDER; here because the tool and the tag converge here.
-    # The why and the measurement: `direct_action.a_fragment_moves_nothing`.
+    # V2-757 — a sentence's tail is not an order (why: `direct_action.a_fragment_moves_nothing`).
     if (_frag_why := _txw._direct_action.a_fragment_moves_nothing(
             _txw._bnotes.operator_half(text), brief=_brief,
             last_reply=_prior_line.of(brain))):
@@ -223,24 +195,19 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
         return
     action_name, payload = _txw._row_lens.retarget(wid, action_name, _txw._said_day.payload(wid, action_name, payload, _txw._bnotes.operator_half(text)), _txw._bnotes.operator_half(text))   # the day he said; the row he named, on ITS day (pass 140)
     mode = _message_door.release(_frontend.action_mode_now(wid, action_name, payload), wid, action_name, payload, _brief)   # V2-712 · V2-800
-    # TWO READERS DISAGREE ON AN ACT THAT LEAVES (demo pass 2026-09-28, full12 E3): «draft a short reply
-    # saying i'll send the meet link…» — the verdict read `mensajeria:draft` at 1.00, the model called
-    # `reply`, V2-712 ran it without a question (clear order, resolved target) and a real email went to a
-    # third party. V2-754 lets a valid model call beat a disagreeing verdict because a wrong verdict costs
-    # a reversible view; for an act of level ≥ sensitive the costs are reversed, so the verdict's action
-    # runs instead — and if it cannot, he is asked. Agreement, or no verdict at all, changes nothing.
+    # TWO READERS DISAGREE ON AN ACT THAT LEAVES (demo pass 2026-09-28, full12 E3): verdict draft 1.00,
+    # model `reply`, and a real email went out. V2-754 lets the model win since a wrong verdict costs a
+    # view; at level ≥ sensitive that reverses: the verdict's action runs, or he is asked.
     if mode == _wactions.FAST and _frontend.at_least_sensitive(wid, action_name):
         _vdis = _txw._direct_action.completes(_brief, wid, model_action=action_name) or _txw._message.forward_instead(wid, action_name, payload, _txw._bnotes.operator_half(text))
         if _vdis:
             emit("brain", "🛑 acto que sale fuera y el veredicto dice otra cosa — corre el veredicto",
                  text=f"{wid}: modelo={action_name} · veredicto={_vdis}", role="system",
                  extra={"cat": "flash", "id": wid, "model": action_name, "verdict": _vdis})
-            # the model already wrote the content: it travels to the verdict's action, filtered to what
-            # that action declares (a reply's `text` is a draft's `text`)
+            # The model's content travels to the verdict's action, filtered to its declared keys.
             _vkeys = set(_txw._direct_action._payload_spec(wid, _vdis))
             _vpay = _txw._message.forward_of(wid, action_name, payload, _txw._bnotes.operator_half(text)) or {k: v for k, v in (payload or {}).items() if k in _vkeys and str(v or "").strip()}
-            # …and the recipient his sentence names, which the model's call for the OTHER action did not
-            # carry (full18 E3: `reply` has no recipient; the verdict's `forward` needs one)
+            # …plus the recipient his sentence names (full18 E3: `reply` has none; `forward` needs one).
             _vpay.update(_txw._direct_action.person_fill(wid, _vdis, _vpay, _txw._bnotes.operator_half(text)))
             if _vpay:
                 acted["widget"] = True
@@ -254,11 +221,9 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
                 return
             mode = _wactions.CONFIRM
         elif _txw._direct_action.verdict_elsewhere(_brief, wid):
-            # …and an act that leaves which the verdict does not back at all — it surely names an action on
-            # ANOTHER card (full19 C2: «find me a free 45 minutes… to talk with rowan» → agenda:find_free,
-            # and the model also wrote to Rowan). DROPPED, and the model told: asked instead, the pending
-            # question was what «ok book it» answered one turn later — two Telegrams to Rowan he never
-            # ordered (demo pass 45, 2026-09-29, C2→C5). An act he did not ask for is not offered either.
+            # …and an act that leaves the verdict does not back (it names ANOTHER card, full19 C2) is DROPPED and
+            # not offered: asked instead, «ok book it» sent two Telegrams to Rowan he never ordered (demo pass
+            # 45, 2026-09-29, C2→C5).
             emit("brain", "🛑 acto que sale fuera sin respaldo del veredicto — no se ejecuta",
                  text=f"{wid}:{action_name} · veredicto en otra tarjeta", role="system",
                  extra={"cat": "flash", "id": wid, "model": action_name})
@@ -280,40 +245,27 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
         qué modo (fast/confirm/escalate) y con la FRASE que la originó, para poder atar una acción
         equivocada con el texto exacto que la produjo. La fila del store se queda como está (es el efecto,
         no la orden)."""
-        # V2-678 — HIS words, not the composed turn: this row is the audit trail that ties a wrong
-        # action to the sentence that produced it, and with the notes glued on it named ours.
+        # V2-678 — HIS words, not the composed turn: with our notes glued on, the row named ours.
         emit("widget", f"data:{action_name}", text=_txw._bnotes.operator_half(text).strip()[:160],
              extra={"id": wid, "action": action_name, "mode": m, "src": "flash", "item": ref,
                     "payload": payload if isinstance(payload, dict) else {}})   # V2-653: the order's content
 
     mode = _txw._message.asked_if_leaving(mode, _brief, wid, action_name, emit=emit, payload=payload, said=_txw._bnotes.operator_half(text))
     if mode == _wactions.FAST:
-        # GUARD anti context-bleed (round headless V2-038 #1): el modelo a veces RE-emite la data-op del
-        # turno ANTERIOR junto a la acción de ESTE ("borra el reloj" arrastró el add_meeting del dentista
-        # → cita DUPLICADA). Una mutación IDÉNTICA a la recién ejecutada (<120s), cuyo contenido el turno
-        # actual NI MENCIONA, es arrastre → se ignora. Determinista: "apunta otra vez lo del dentista" SÍ
-        # menciona el contenido → pasa.
-        # V2-650: unless the turn ITSELF orders the production again — «reproduce la lista» /
-        # «dale al play» share zero words with {"playlist": "true-blue"}, so payload overlap
-        # alone ate three explicit replays of a playback that had failed in silence.
-        # V2-707 F0 — and it only guards a mutation that REALLY HAPPENED: the seal is stamped from the
-        # RESULT (see `_seal` below), never before dispatching. Until F0 a refused op was remembered as
-        # executed and its corrected retry was eaten here — deterministically, because an empty payload
-        # joins no values and `_word_overlap` is then 0 against any sentence, so the hatch never opens.
-        # The incident, turn by turn: `test_a_refused_action_is_not_remembered_as_done.py`.
-        # V2-717: the predicate lives in `data_ops.is_context_bleed` — and a VIEW-op is never a drag.
+        # GUARD anti context-bleed (headless V2-038 #1): an IDENTICAL mutation to the last one (<120s) whose
+        # content his turn never mentions is drag (a duplicated dentist appointment). V2-650: unless the turn
+        # orders it again. V2-707 F0: only a mutation that REALLY happened is sealed (`_seal`, from the result):
+        # `test_a_refused_action_is_not_remembered_as_done.py`. V2-717: `data_ops.is_context_bleed`; a VIEW-op
+        # is never drag.
         if _txw._data_ops.is_context_bleed(brain._last_dataop, wid, action_name, payload, _txw._bnotes.operator_half(text), brief=_brief):  # V2-791: a redo runs
             emit("brain", "🛡️ data-op del turno anterior re-emitida — ignorada (context-bleed)",
-                 # …and it SAYS what it threw away. The sibling guards in `_handle_widget_data_tool`
-                 # carry the discarded payload; this one carried only «agenda:cancel_meeting», so the
-                 # live incident could not be diagnosed from the timeline at all.
+                 # …and it SAYS what it threw away, or the incident cannot be read from the timeline.
                  text=f"{wid}:{action_name}", role="system",
                  extra={"id": wid, "action": action_name, "payload": payload or {}})
             deduped["v"] = True
             return
-        # V2-773 — the SAME op the widget just refused, with the SAME payload, is the model re-reading the
-        # failure note, not a corrected call: it cannot succeed where it just failed, and it dragged a photo
-        # `select` through two chart turns. A corrected retry carries a different payload and runs.
+        # V2-773 — the SAME refused op with the SAME payload is the model re-reading the failure note;
+        # a corrected retry carries a different payload and runs.
         if _txw._data_ops.is_identical_retry_of_refused(wid, action_name, payload):
             emit("brain", "🛡️ reintento idéntico de una op rechazada — ignorado", text=f"{wid}:{action_name}",
                  role="system", extra={"id": wid, "action": action_name, "payload": payload or {}})
@@ -337,8 +289,7 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
             else:
                 _txw._data_ops.remember_refusal(_w, _a, _p)
 
-        # V2-778 F0-4 — an op that could not start is NOT done: `start_op` says so, and the turn forgets
-        # it, so «Done.» never stands over an op that never ran.
+        # V2-778 F0-4 — an op that could not start is NOT done: the turn forgets it, so «Done.» never lies.
         _op_task = _txw._data_ops.start_op(
             wid, action_name, payload or {}, seal=_seal, text=lambda: _txw._bnotes.operator_half(text),
             said=lambda: getattr(brain, "_last_spoken", ""), spawn=_spawn)
@@ -349,19 +300,14 @@ def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *
             if (wid, action_name) in _ops_left:
                 _ops_left.remove((wid, action_name))
             data_done["v"] = bool(_ops_left)
-        # An action whose output only exists ON SCREEN (`present.mount`, declared or derived) brings its
-        # card, through the one door. «Show me a chart of Apple stock» ran markets:show and the card never
-        # opened — «Apple's chart is on screen» over an empty canvas (demo run, 2026-09-26). The door
-        # refuses an open card, so this never raises one he is reading.
+        # An action whose output only exists ON SCREEN (`present.mount`) brings its card via the one door
+        # («Show me a chart of Apple stock» over an empty canvas, 2026-09-26); an open card is refused.
         try:
             from widgets import effects as _fx
             if _fx.carries(wid, action_name, _fx.PRESENT_MOUNT):
                 _txw._cvis.present(wid, reason="producer-mount", action=action_name, src="flash", emit=emit)
-            # A LENS on a closed card brings the card (V2-773 final pass, C2): «Show me that time in my
-            # calendar» ran `agenda:show_day` — a view-op, writes nothing — over a canvas with no agenda
-            # on it, and the day changed on a card nobody could see. The model chose to change what
-            # THIS card displays, on his order: that is a turn-order for the card. A write is not this
-            # (it may run behind the screen on purpose); a lens nobody can see is a silent nothing.
+            # A LENS on a closed card brings the card (V2-773 final pass, C2: `agenda:show_day` changed a day
+            # nobody could see). A write is not this: it may run behind the screen on purpose.
             elif (_fx.carries(wid, action_name, _fx.DATA_READ) and not _txw._cvis.is_open(wid)
                   and not _txw._canvas_lic.closing_turn(_brief, wid)):   # V2-773 E5: a close never brings the card
                 _txw._cvis.present(wid, reason="turn-order", action=action_name, src="flash", emit=emit)
@@ -411,14 +357,9 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
     # GUARD (2026-07-16): un "abre/muéstrame el widget X" PURO (sin verbo de cambio) NUNCA debe ejecutar un
     # data-op — el modelo cuela una acción inventada ('unhide') o incluso ALUCINA un add_meeting ("abre la agenda" → añadía "Reunión con Axa Seguros"). Se redirige a MOSTRAR la tarjeta (misma ruta que [[show]]).
     from nucleo.flash import router as _router
-    # V2-545 — what a pure show order may run is decided by the ACTION, not by the words. The widget
-    # declares which of its actions are display-only (`"view": true`); one of those IS the right answer
-    # to «ábreme el Telegram» (show_view) or «abre el mensaje de Francisco» (open), so it runs — and the
-    # card is shown too, which is the other half of what was asked and removes the card-vs-inside
-    # guess. Anything else on a pure show is the invented mutation this guard exists for.
-    # The discarded action goes in the event: the previous version logged only the widget id, so three
-    # live turns of «ábreme el Telegram» → «Aquí lo tienes» over an unmoved card left no trace of WHAT
-    # had been thrown away, and the model was suspected before the guard was.
+    # V2-545 — what a pure show order may run is decided by the ACTION: a display-only action
+    # (`"view": true`) runs and the card is shown; anything else is the invented mutation. The discarded
+    # action is logged (three «ábreme el Telegram» turns left no trace of what was dropped).
     if _router.is_pure_show_request(text) and runtime.get(wid) is not None:
         # …salvo que el veredicto nombre esta acción: lo elegido del manifiesto no es inventado (V2-753).
         if _router.show_request_blocks_data_action(text, wid, action_name, payload) \
@@ -432,12 +373,8 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
              text=f"{wid}:{action_name}", role="system",
              extra={"id": wid, "action": action_name, "payload": payload or {}})
         _tag_emit("show", {"id": wid})
-    # GUARD cerrar≠data-op (sesión 22:40 2026-07-16, espejo del guard cerrar≠borrar): «Vale, ciérralo» →
-    # el modelo ejecutó `widget_data(youtube, mute)` (una data-op DECLARADA) en vez de emitir [[close]] →
-    # el vídeo quedó MUTEADO, no cerrado, y el operador tuvo que corregir. Una orden CORTA que es
-    # claramente CERRAR (verbo de cerrar, sin verbo de borrar, ≤5 palabras — sin más sustancia que el
-    # pronombre/el widget) se redirige DETERMINISTA a la tag de canvas. Una frase larga con "cierra"
-    # dentro ("cierra la sesión de spotify del widget") NO entra aquí (pasa a su data-op normal).
+    # GUARD close≠data-op (session 22:40 2026-07-16): «Vale, ciérralo» → widget_data(youtube, mute). A
+    # SHORT clear close order (≤5 words, no delete verb) goes to the canvas tag; a long sentence does not.
     if runtime.get(wid) is not None and _txw._card_close.data_close(wid, action_name, text, brief=_brief):   # V2-713 R3 / V2-781
         emit("brain", "🙈 orden corta de CERRAR → close (no data-op)", text=f"{wid} (era {action_name})",
              role="system")
@@ -449,14 +386,9 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
         deduped["v"] = True
         return
     if _frontend.action_mode(wid, action_name) is None:   # acción no declarada → canvas, reparación Jev o escala
-        # GUARD frontera CANVAS vs DATOS (diag sesiones-largas 2026-07-15): a profundidad, el modelo a
-        # veces cuela el SHOW/CLOSE como pseudo data-op (`widget_data(clock, action="show")` ante
-        # "muéstrame un reloj"). Antes se curaba por el DESVÍO no-declarada→escalate→show-guard (frágil y
-        # caro); ahora se mapea DIRECTO a la tag de canvas — misma ruta que [[show]]/[[close]] (dedup,
-        # guards anti-clutter/meta, ack "nunca mudo"). Solo si el widget existe de verdad.
-        # La DECISIÓN vive en `frontend.resolve_undeclared_action` (compartida con el espejo del probe):
-        # verbo de canvas → tag; si no, Jev elige entre las acciones DECLARADAS y la llamada sigue su
-        # flujo normal (modos FAST/CONFIRM/ESCALATE intactos); sin veredicto → escala como hoy.
+        # GUARD canvas vs data (diag 2026-07-15): `widget_data(clock, action="show")` maps DIRECT to the
+        # canvas tag. Decided in `frontend.resolve_undeclared_action` (shared with the probe): canvas verb →
+        # tag; else Jev picks among DECLARED actions; no verdict → escalate.
         _kind, _val = _frontend.resolve_undeclared_action(
             wid, action_name, text, brief=_brief, blocking_ok=False)
         if _kind == "canvas":
@@ -474,21 +406,16 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
                 escalate_req["v"] = text
             return
     if a_question_the_verdict_keeps_unwritten(wid, action_name, _txw._bnotes.operator_half(text), _brief):
-        # Demo pass 93, R2: «When does Anna's vacation start? Show it to me on the calendar.» — screen_action
-        # «none» (0.83), a question, and the model WROTE a second «Anna vacation» over the one the INIT made. A
-        # write is the costly reading of a question: it is not run, and the card he asked to see is shown.
+        # Demo pass 93, R2: «When does Anna's vacation start? Show it to me…» — verdict «none» (0.83), and the
+        # model WROTE a duplicate. A write is the costly reading of a question: not run; the card is shown.
         emit("brain", "❓ una pregunta no escribe — el veredicto no pedía acción", role="system",
              text=f"{wid}:{action_name}", extra={"cat": "flash", "id": wid, "action": action_name})
         acted["widget"] = True
         _tag_emit("show", {"id": wid})
         return
     res = refs.resolve(wid, action_name, ref, payload, order=_txw._bnotes.operator_half(text))
-    # El mis-ruteo por PRONOMBRE SUELTO (o una referencia que no resuelve) sobre un widget que ni
-    # está en pantalla ni se nombra: el incidente, la trampa de las acciones de CREAR y la razón de
-    # escalar el turno CRUDO están en `frontend.absent_widget_misroute` — la MISMA función que usa
-    # el probe, donde vivía copiada y hubo que arreglarla dos veces por separado.
-    # An AMBIGUOUS reference found this card's own rows — it is a «which one?», never a worker's job
-    # (demo run: «Move it 30 minutes later» over two same-named meetings started a Brain Worker).
+    # A bare-pronoun misroute on a widget neither shown nor named: `frontend.absent_widget_misroute`
+    # (shared with the probe). An AMBIGUOUS ref on this card's rows is a «which one?», not a worker's job.
     if _frontend.absent_widget_misroute(wid, action_name, ref, resolved=res.ok or res.needs == "ambiguous",
                                         named_widget=_identify(text), payload=payload):
         emit("brain", "🧭 data-op en widget ausente/no-nombrado (pronombre/ítem sin anclar) → escala con contexto",
@@ -499,8 +426,7 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
         return
     if not res.ok:
         acted["widget"] = True                      # lo ATENDIMOS (preguntando) — no caer a escalate/fallback
-        # V2-754 — antes de preguntar «¿cuál?»: si el veredicto nombra OTRA acción de esta tarjeta, la duda
-        # era la acción, no el ítem (`play_item` sobre «volver al catálogo» con `show_tab` a 0,96 en el brief).
+        # V2-754 — before «which one?»: a verdict naming ANOTHER action here means the doubt was the action.
         if _txw._direct_action.complete(_brief, operator_text=_txw._bnotes.operator_half(text), emit=emit,
                                    present=_txw._cvis.present, apply_widget_data=_apply_widget_data,
                                    widget_id=wid, instead_of=action_name, require_order=False):
@@ -511,8 +437,7 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
         emit("brain", "❓ referencia de item sin resolver", role="system",
              text=f"{wid}:{action_name}:{ref or '∅'}", extra={"needs": res.needs, "cands": res.candidates[:4]})
         return
-    # V2-740 — ¿de QUIÉN era la orden, con dos tarjetas que saben hacer lo mismo? El porqué y la
-    # forma del plan, en `frontend.card_decision`; el probe toma la misma por la misma función.
+    # V2-740 — WHOSE order, with two cards able to do it: `frontend.card_decision` (shared with the probe).
     _cd = _frontend.card_decision(wid, action_name, brief=_brief, ask_phrase=_say().ask_which_item,
                                   payload=payload, operator_text=_txw._bnotes.operator_half(text))
     if _cd["label"]:
@@ -536,12 +461,9 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
                  extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
             acted["widget"] = True
             return
-        # A QUESTION the verdict is sure of, over a WRITE the model made on the same card (full19 C2: «find me
-        # a free 45 minutes…» → verdict find_free 0.91, model add_meeting): the write is the costly mistake
-        # — it lands in his calendar — so the answer runs instead. `output.answer` is declared, never guessed.
-        # full52 V5: «go back to the list of videos» → verdict youtube:show_tab 0.97, model clear_search (which
-        # ERASES the results band), and «put on number five» then had no list. A LENS the verdict is sure
-        # of changes nothing; a model call that changes the card's state, over it, is the costly reading.
+        # A sure QUESTION verdict over a model WRITE on the same card (full19 C2) — the answer runs. full52 V5:
+        # a sure LENS (show_tab 0.97) over a state change (clear_search erased the results) — the lens runs.
+        # `output.answer` is declared, never guessed.
         if (_txw._data_ops.is_view_op(_cd["card"], _dis) and not _txw._data_ops.is_view_op(_cd["card"], action_name)
                 and _txw._direct_action._action_sure(_brief, floor=0.9)
                 and _txw._direct_action.complete(_brief, operator_text=_txw._bnotes.operator_half(text), emit=emit,
@@ -557,9 +479,8 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
         if (_fx_q.carries(_cd["card"], _dis, _fx_q.OUTPUT_ANSWER)
                 and _fx_q.carries(_cd["card"], action_name, _fx_q.DATA_WRITE)
                 and _txw._direct_action._action_sure(_brief)):
-            # full51 C2: when the verdict cannot be completed alone (`find_free` needs the length and the afternoon only
-            # a model reads), the WRITE still ran — «Call with Rowan» booked at 15:45 over the 15:00 meeting, nobody
-            # having asked to book. The write never runs; the verdict's call is asked after the turn (repair pass).
+            # full51 C2: when the verdict cannot complete alone, the WRITE still booked over the 15:00 meeting.
+            # The write never runs; the verdict's call is asked after the turn (repair pass).
             if not _txw._direct_action.complete(_brief, operator_text=_txw._bnotes.operator_half(text), emit=emit,
                                            present=_txw._cvis.present, apply_widget_data=_apply_widget_data,
                                            widget_id=_cd["card"], instead_of=action_name,
@@ -570,17 +491,15 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
                  extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
             acted["widget"] = True
             return
-        # …and a REPEATED view with a verdict that needs a written payload (full20 E3: `open` again, verdict
-        # `forward`): the view runs, and one repair pass after the turn asks for the verdict's call.
+        # …a REPEATED view with a verdict needing a written payload (full20 E3): it runs, then one repair pass.
         if (_txw._data_ops.repeats_last_view(brain._last_dataop, _cd["card"], action_name, res.payload)   # full37 E2:
                 or _txw._data_ops.a_view_where_the_verdict_acts(_cd["card"], action_name, _dis, _vw_words)):  # a lens
             _repeat_repair["v"] = (_cd["card"], action_name, _dis)
         emit("brain", "⚖️ el modelo y el veredicto discrepan — corre el modelo", role="system",
              text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
              extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
-    # V2-756 — y lo que el modelo dejó VACÍO se rellena con sus palabras antes de que el widget lo
-    # rechace: «Pausa el vídeo. Vuelve al catálogo.» llamó a `show_tab` sin `tab` y volvió
-    # `unknown_tab`. Solo AÑADE una clave ausente, y solo por un alias declarado o un número dicho.
+    # V2-756 — what the model left EMPTY is filled from his words (`show_tab` without `tab`): it only adds
+    # a missing key, by a declared alias or a spoken number.
     if (_fill := _txw._direct_action.fill_missing(_cd["card"], action_name, res.payload,
                                              _txw._bnotes.operator_half(text))):
         res.payload.update(_fill)
