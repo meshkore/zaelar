@@ -13,7 +13,6 @@ import re
 from urllib.parse import urlsplit
 
 from loguru import logger
-from openai import AsyncOpenAI
 
 # The model name TRAVELS WITH ITS ENDPOINT: the broker prefixes it (`deepseek/deepseek-v4-pro`), the native API does
 # not — changing one without the other is a 400 on every step. Vision on this default is NOT verified: if a run
@@ -100,34 +99,6 @@ def _api_key() -> str:
 
 def available() -> bool:
     return bool(_api_key())
-
-
-_client: AsyncOpenAI | None = None
-
-
-def _c() -> AsyncOpenAI:
-    global _client
-    # Asked on EVERY step, not only when the client is built: the client is cached for the life of the process,
-    # so the egress gate in `llm_egress.route` below would otherwise see the first call and none of the rest.
-    from nucleo import energy_lease, llm_egress
-    if not llm_egress.is_local_endpoint(_base_url()):
-        energy_lease.admit("llm")
-    if _client is None:
-        key = _api_key()
-        if not key:
-            raise RuntimeError("no NAVEGADOR_AGENT_API_KEY/AIMLAPI_KEY para el automatizador del navegador")
-        # EGRESS (T304): the system's most frequent caller (one per navigation step) goes through mediated keys.
-        from nucleo import llm_egress
-        base, key, extra = llm_egress.route(_base_url(), key)
-        if not key:
-            raise RuntimeError("sin credencial para el automatizador del navegador")
-        headers = dict(extra)
-        # Browser UA is for Cloudflare in front of AIMLAPI. With mediated egress, the far end talks to AIMLAPI, so
-        # it is unnecessary here.
-        if not extra and "aimlapi" in base.lower():
-            headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-        _client = AsyncOpenAI(api_key=key, base_url=base, default_headers=headers or None)
-    return _client
 
 
 # Action vocabulary the model can emit through function-calling: reliable and language-agnostic, like duo
@@ -222,8 +193,8 @@ _VISION_TOOLS = [
         "parameters": {"type": "object", "properties": {"why": {"type": "string"}}, "required": ["why"]}}},
 ]
 
-# The loop lives in `run.py`, one model call in `step.py`; both read this module's names through it.
+# The loop lives in `run.py`, one model call (its client, lease and meter) in `step.py`; both read this module's names through it.
 from widgets.navegador.agent.run import (  # noqa: E402,F401 — re-export
-    run_task, _reread_the_goal, _ask_the_model, _meter)
+    run_task, _reread_the_goal, _ask_the_model)
 from widgets.navegador.agent.step import (  # noqa: E402,F401 — re-export
-    _next_action, summarize_results, describe)
+    _c, _meter, _next_action, summarize_results, describe)

@@ -5,8 +5,51 @@ self-description. Names are read through the package (`_f.<name>`).
 import json
 
 from loguru import logger
+from openai import AsyncOpenAI
 
 from widgets.navegador import agent as _f
+
+_client: AsyncOpenAI | None = None
+
+
+def _c() -> AsyncOpenAI:
+    global _client
+    # Asked on EVERY step, not only when the client is built: the client is cached for the life of the process,
+    # so the egress gate in `llm_egress.route` below would otherwise see the first call and none of the rest.
+    from nucleo import energy_lease, llm_egress
+    if not llm_egress.is_local_endpoint(_f._base_url()):
+        energy_lease.admit("llm")
+    if _client is None:
+        key = _f._api_key()
+        if not key:
+            raise RuntimeError("no NAVEGADOR_AGENT_API_KEY/AIMLAPI_KEY para el automatizador del navegador")
+        # EGRESS (T304): the system's most frequent caller (one per navigation step) goes through mediated keys.
+        from nucleo import llm_egress
+        base, key, extra = llm_egress.route(_f._base_url(), key)
+        if not key:
+            raise RuntimeError("sin credencial para el automatizador del navegador")
+        headers = dict(extra)
+        # Browser UA is for Cloudflare in front of AIMLAPI. With mediated egress, the far end talks to AIMLAPI, so
+        # it is unnecessary here.
+        if not extra and "aimlapi" in base.lower():
+            headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        _client = AsyncOpenAI(api_key=key, base_url=base, default_headers=headers or None)
+    return _client
+
+
+def _meter(resp, model: str) -> None:
+    """Report to Energy the cost of one call in this loop — the system's most frequent caller (one per navigation
+    step). Best-effort: metering must never bring down a running task."""
+    try:
+        from nucleo import energy_meter as _energy
+        u = getattr(resp, "usage", None)
+        _energy.report_llm_usage(
+            base_url=_f._base_url(), model=model,
+            prompt_tokens=getattr(u, "prompt_tokens", None),
+            completion_tokens=getattr(u, "completion_tokens", None),
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"navegador agent: metering failed (non-fatal): {e}")
 
 
 async def _next_action(messages: list[dict], tools: list[dict], strong: bool = False) -> tuple[str | None, dict]:

@@ -149,18 +149,3 @@ async def _ask_the_model(owner, messages: list[dict], state: dict, goal: str, vi
             f"ELEMENTOS INTERACTIVOS:\n{state['elements'] or '(ninguno visible)'}")
     messages.append({"role": "user", "content": user})
     return await _f._next_action(messages, _f._TOOLS, strong=strong)
-
-
-def _meter(resp, model: str) -> None:
-    """Report to Energy the cost of one call in this loop — the system's most frequent caller (one per navigation
-    step). Best-effort: metering must never bring down a running task."""
-    try:
-        from nucleo import energy_meter as _energy
-        u = getattr(resp, "usage", None)
-        _energy.report_llm_usage(
-            base_url=_f._base_url(), model=model,
-            prompt_tokens=getattr(u, "prompt_tokens", None),
-            completion_tokens=getattr(u, "completion_tokens", None),
-        )
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"navegador agent: metering failed (non-fatal): {e}")
