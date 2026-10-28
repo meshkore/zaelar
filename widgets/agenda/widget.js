@@ -9,7 +9,7 @@
 // people are coming. The card FILLS its frame and the grid scrolls inside it, so nothing is ever clipped.
 
 import { CSS } from "./js/style.js";
-import { I18N, tt, fmtDate, raf, ymd, parseYmd, addDays, startOfWeek, mins, fmtCount, el2, svgEl, ICO_CAL,
+import { I18N, tt, fmtDate, raf, ymd, parseYmd, addDays, startOfWeek, mins, fmtCount, el2, svgEl,
   ICO_PREV, ICO_NEXT, ICO_PLUG, eventsOf, eventsOn, HOUR_PX, hourRange } from "./js/shared.js";
 import { renderGrid, renderMonth } from "./js/calendar.js";
 import { renderList, renderTasks } from "./js/list.js";
@@ -123,10 +123,11 @@ export function render(el, data, ctx){
     return;                       // the calendar's toolbar, views and overlays belong to the other half
   }
 
-  // ── toolbar ────────────────────────────────────────────────────────────────────────────────────────
+  // ── toolbar — ONE row: ‹ Hoy › · the range · the four views (2026-10-28, the operator: four stacked
+  // bands of chrome before the grid). The brand disc went with it: the window's own mark already says
+  // «calendar», and the header standard draws no second one. The sources and the plug live in the band
+  // above, in the slot V2-746 left for exactly this.
   const bar = el2("div","agbar");
-  const brand = el2("div","agbrand"); brand.appendChild(svgEl(ICO_CAL)); bar.appendChild(brand);
-
   let rangeTxt = "", dates = [];
   if(S.view === "week"){
     const s = startOfWeek(anchor);
@@ -143,8 +144,6 @@ export function render(el, data, ctx){
   } else {
     rangeTxt = tt("upcoming", null, "Próximamente");
   }
-  bar.appendChild(el2("div","agrange", rangeTxt));
-
   const nav = el2("div","agnav");
   const step = (n) => {
     const a = parseYmd(S.anchor);
@@ -161,32 +160,35 @@ export function render(el, data, ctx){
   if(S.view !== "list"){ nav.appendChild(prev); }
   nav.appendChild(now);
   if(S.view !== "list"){ nav.appendChild(next); }
-  bar.appendChild(nav);
-  el.appendChild(bar);
+  bar.appendChild(nav); bar.appendChild(el2("div","agrange", rangeTxt));
 
-  // ── view band ──────────────────────────────────────────────────────────────────────────────────────
-  const views = el2("div","agviews");
-  views.setAttribute("role","tablist");   // a strip that scrolls sideways — the phone never wraps it
-  [["day", tt("day", null, "Día")], ["week", tt("week", null, "Semana")],
-   ["month", tt("month", null, "Mes")], ["list", tt("list", null, "Lista")]].forEach(([id,label])=>{
+  // ── the views: four tabs, and the SAME four as a <select> for a narrow card (the stylesheet shows one
+  // or the other by the card's width, so a 400px card keeps every view reachable without a scroll strip)
+  const views = el2("div","agviews"); views.setAttribute("role","tablist");
+  const VIEWS = [["day", tt("day", null, "Día")], ["week", tt("week", null, "Semana")],
+                 ["month", tt("month", null, "Mes")], ["list", tt("list", null, "Lista")]];
+  VIEWS.forEach(([id,label])=>{
     const t = el2("button","agtab" + (S.view===id ? " on" : ""), label);
     t.dataset.view = id;
     t.onclick = ()=>{ S.view = id; S.sel = null; render(el, data, ctx); };
     views.appendChild(t);
   });
+  const vsel = document.createElement("select"); vsel.className = "agviewsel"; vsel.title = tt("view", null, "Vista");
+  VIEWS.forEach(([id,label])=>{ const o = document.createElement("option"); o.value = id; o.textContent = label;
+    o.selected = S.view === id; vsel.appendChild(o); });
+  vsel.onchange = ()=>{ S.view = vsel.value; S.sel = null; render(el, data, ctx); }; views.appendChild(vsel); bar.appendChild(views); el.appendChild(bar);
   const right = el2("div","agviewsright");
   const defCal = renderDefaultCalendar(data, ctx);
   if(defCal) right.appendChild(defCal);
   right.appendChild(renderProviderIcons(data.calendars || [], ctx));
   // V2-699's plug, kept: it is the card's door to ITS connector, which lives in ⚙ Conectores (2026-10-04).
+  // An ICON, as the header standard says — the word travels in aria-label and the tooltip.
   const calBtn = el2("button","agcalbtn");
-  calBtn.appendChild(svgEl(ICO_PLUG));
-  calBtn.appendChild(el2("span",null, tt("connectors", null, "Conectores")));
+  calBtn.appendChild(svgEl(ICO_PLUG)); calBtn.setAttribute("aria-label", tt("connectors", null, "Conectores"));
   calBtn.title = tt("calendars_hint", null, "Qué calendarios están conectados");
   calBtn.onclick = ()=>ctx.openConnector("google");
   right.appendChild(calBtn);
-  views.appendChild(right);
-  el.appendChild(views);
+  sub.appendChild(right);
 
   // ── proposals ──────────────────────────────────────────────────────────────────────────────────────
   // V2-697 — appointments somebody ELSE asked for. Above the calendar and visually apart from it, because

@@ -8,20 +8,18 @@ const CSS_CALENDAR = `
      (.hb-scroll wraps the widget root) exactly as the video widget does since V2-636. */
   .hb-scroll:has(> .hb-agenda){overflow:hidden}
   .hb-agenda{font-family:var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
-    color:var(--hb-ink,#0d1622);width:100%;height:100%;box-sizing:border-box;
+    color:var(--hb-ink,#0d1622);width:100%;height:100%;box-sizing:border-box;container-type:inline-size;
     display:flex;flex-direction:column;gap:0;position:relative;min-height:0}
 
-  /* ── TOOLBAR: brand · range title · ‹ Hoy › — one line, like every calendar ─────────────────────── */
-  /* 2026-10-28 — the operator, after refactor2710: «mejor definidas las secciones». The range row and the
-     view row are ONE toolbar strip on surface-2 (the hb-toolbar language: the band that separates a
-     surface's CHROME from its CONTENT), so «Calendar/Tasks band · toolbar · grid» are three rungs of the
-     ladder instead of three rows of text on the same ground. V2-690's rule holds: no second full-weight
-     line — the strip's edge is the subtle hairline, and the range keeps its 14/600 under the window title. */
-  .hb-agenda .agbar{display:flex;align-items:center;gap:var(--sp-2,8px);padding:var(--sp-2,8px) var(--sp-3,12px);
-    flex:0 0 auto;min-width:0;background:var(--hb-bg-soft,#272D35);border-bottom:0;
-    border:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));border-radius:var(--hb-r-m,10px) var(--hb-r-m,10px) 0 0}
-  .hb-agenda .agbrand{width:26px;height:26px;border-radius:8px;background:var(--hb-accent,#3D6FE0);color:var(--canvas,#101216);
-    display:flex;align-items:center;justify-content:center;flex:0 0 auto}  .hb-agenda .agbrand svg{width:15px;height:15px;display:block}
+  /* ── TOOLBAR: ‹ Hoy › · the range · the four views — ONE row (2026-10-28) ─────────────────────────
+     The operator, with the card on screen: four stacked bands of chrome before the grid. Two now: the
+     Calendar/Tasks band (with the sources and the plug in its right-hand slot, per the widget header
+     standard) and this strip on surface-2 — the hb-toolbar language, the band that separates a surface's
+     CHROME from its CONTENT. V2-690's rules hold: no second full-weight line, no brand disc beside the
+     window's own mark, the range at 14/600 one step under the window title. */
+  .hb-agenda .agbar{display:flex;align-items:center;gap:var(--sp-2,8px);padding:var(--sp-1,4px) var(--sp-2,8px);
+    flex:0 0 auto;min-width:0;background:var(--hb-bg-soft,#272D35);margin-bottom:var(--sp-3,12px);
+    border:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));border-radius:var(--hb-r-m,10px)}
   /* the range is the CONTENT's header, so it sits one step under the window title rather than over it —
      a 15/700 range beside a 14/600 window name inverted the hierarchy it was supposed to express. */
   .hb-agenda .agrange{font-size:14px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;
@@ -36,11 +34,14 @@ const CSS_CALENDAR = `
     font-weight:600;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
   .hb-agenda .agnav button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}  .hb-agenda .agnav svg{width:13px;height:13px;display:block}
 
-  /* ── VIEW BAND: a defined strip, active view an INVERTED chip (the V2-636 language) ─────────────── */
-  .hb-agenda .agviews{display:flex;align-items:center;gap:var(--sp-1,4px);flex-wrap:nowrap;overflow-x:auto;
-    background:var(--hb-bg-soft,#272D35);border:1px solid var(--hb-line-subtle,rgba(255,255,255,.09));border-top:0;
-    border-radius:0 0 var(--hb-r-m,10px) var(--hb-r-m,10px);padding:0 var(--sp-2,8px) var(--sp-2,8px) var(--sp-1,4px);
-    margin-bottom:var(--sp-3,12px);flex:0 0 auto;scrollbar-width:none}  .hb-agenda .agviews::-webkit-scrollbar{display:none}
+  /* ── THE VIEWS: the right half of the toolbar row; under 640px of card the four tabs fold into ONE
+     <select> with the same four labels (a container query on the widget root — the card's width, not the
+     window's, is what decides) and the default-calendar picker steps aside for the plug. ─────────────── */
+  .hb-agenda .agviews{display:flex;align-items:center;gap:var(--sp-1,4px);flex:0 0 auto;margin-left:auto;min-width:0}
+  .hb-agenda .agviewsel{display:none;height:var(--hb-ctl-h-sm,32px);font-size:13px;border-radius:var(--hb-r-s,8px);
+    border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-ink,#0d1622);padding:0 6px}
+  @container (max-width:640px){ .hb-agenda .agtab{display:none} .hb-agenda .agviewsel{display:block}
+    .hb-agenda .agcaldefsel{display:none} }
   .hb-agenda .agtab{border:0;background:none;color:var(--hb-muted,#5b6b82);border-radius:999px;
     padding:var(--sp-2,8px) var(--sp-3,12px);font-size:13px;font-weight:600;cursor:pointer;line-height:1.2;
     white-space:nowrap;flex:0 0 auto;font-family:var(--sans,system-ui)}
@@ -59,7 +60,7 @@ const CSS_CALENDAR = `
   /* Platform icons + Conectores button, ONE right-aligned cluster — mirroring the messaging widget's own
      header pattern (icons for every provider, a door into the connectors screen), per the operator's V2-679
      follow-up: «he dicho que hay un icono, un botón para conectores y luego a la izquierda los tres iconos». */
-  .hb-agenda .agviewsright{margin-left:auto;display:flex;align-items:center;gap:10px;flex:0 0 auto}
+  .hb-agenda .agviewsright{margin-left:auto;display:flex;align-items:center;gap:var(--sp-2,8px);flex:0 0 auto;min-width:0}
   .hb-agenda .agconnicons{display:flex;align-items:center;gap:4px}
   .hb-agenda .agconnicon{width:var(--hb-icon-h,28px);height:var(--hb-icon-h,28px);border-radius:var(--hb-r-s,8px);
     border:0;background:none;cursor:pointer;
@@ -67,11 +68,10 @@ const CSS_CALENDAR = `
   .hb-agenda .agconnicon svg{width:15px;height:15px;display:block}
   .hb-agenda .agconnicon:hover:not(:disabled){opacity:1;background:var(--hb-bg-soft,#f4f7fb)}
   .hb-agenda .agconnicon.on{opacity:1}  .hb-agenda .agconnicon.off{opacity:.4;cursor:default}
-  .hb-agenda .agcalbtn{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
-    color:var(--hb-muted,#5b6b82);border-radius:var(--hb-r-s,8px);height:var(--hb-ctl-h-sm,32px);
-    padding:0 var(--sp-3,12px);font-size:13px;font-weight:600;
-    cursor:pointer;display:flex;align-items:center;gap:7px;flex:0 0 auto}
-  .hb-agenda .agcalbtn:hover,.hb-agenda .agcalbtn.on{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}  .hb-agenda .agcalbtn svg{width:14px;height:14px;display:block}
+  .hb-agenda .agcalbtn{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-muted,#5b6b82);
+    border-radius:var(--hb-r-s,8px);width:var(--hb-ctl-h-sm,32px);height:var(--hb-ctl-h-sm,32px);padding:0;
+    cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+  .hb-agenda .agcalbtn:hover,.hb-agenda .agcalbtn.on{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}  .hb-agenda .agcalbtn svg{width:16px;height:16px;display:block}
 
   .hb-agenda .agbody{flex:1 1 auto;min-height:0;overflow:auto;position:relative}
 

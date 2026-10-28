@@ -57,15 +57,14 @@ export const CSS_PANELS = `\
      would put small accent text on a lighter step, which is where the tertiary ink already loses a point.
      A design change is not allowed to spend the contrast that audit bought. */
   .hb-agenda .agsub{display:flex;align-items:center;gap:var(--sp-3,12px);flex:0 0 auto;min-width:0;
-    margin:0 0 var(--sp-3,12px);padding:0 0 var(--sp-2,8px);
+    margin:0 0 var(--sp-2,8px);padding:0 0 var(--sp-2,8px);
     border-bottom:1px solid var(--hb-line,rgba(255,255,255,.14))}
   .hb-agenda .agsec{display:flex;gap:2px;flex:0 0 auto;padding:3px;
     border-radius:999px;background:var(--hb-bg-soft,#171B21);
     border:1px solid var(--hb-line-subtle,rgba(255,255,255,.06))}
   .hb-agenda .agsecb{border:0;background:none;color:var(--hb-muted,#5b6b82);border-radius:999px;
     padding:6px var(--sp-4,16px);font:600 13px/1.2 var(--sans,system-ui);cursor:pointer;white-space:nowrap}
-  .hb-agenda .agsecb:hover{color:var(--hb-ink,#0d1622)}
-  .hb-agenda .agsecb.on{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#fff)}
+  .hb-agenda .agsecb:hover{color:var(--hb-ink,#0d1622)}  .hb-agenda .agsecb.on{background:var(--hb-accent,#3D6FE0);color:var(--canvas,#fff)}
   /* The slot. "margin-left:auto" and not a spacer element, so an empty slot costs no node at all. */
   .hb-agenda .agsub-meta{margin-left:auto;flex:0 1 auto;min-width:0;display:flex;align-items:center;
     gap:var(--sp-2,8px);font:600 12px/1 var(--sans,system-ui);color:var(--hb-muted,#BAC2CE);
