@@ -10,19 +10,15 @@ from __future__ import annotations
 import re
 
 
-# ── Heurística de clasificación (es/en) ─────────────────────────────────────────────────────────────────────
-# Datos de PERFIL del operador → tabla `state`. Los TRIGGERS son case-insensitive vía `(?i:...)`, pero los
-# grupos de captura siguen la case del texto (evita el bug clásico: con `re.I` global, `[A-Z]` también matchea
-# minúsculas y "soy feliz" acabaría en `operator_name`). Se descartan triggers demasiado ambiguos ("soy",
-# "estoy en", "I'm") — devolverían perfiles-basura. Corte en " y "/" and " para no engullir la frase siguiente.
+# ── Classification heuristic (es/en) ────────────────────────────────────────────────────────────────────────
+# PROFILE data → the `state` table. Triggers are case-insensitive via `(?i:...)` while captures keep the text's
+# case (a global `re.I` makes `[A-Z]` match lower case: «soy feliz» would become `operator_name`). Too-ambiguous
+# triggers («soy», «estoy en», «I'm») are left out; captures stop at « y »/« and ».
 _PROFILE_NAME_RE = re.compile(
     r"(?:(?i:me\s+llamo|mi\s+nombre\s+es|my\s+name\s+is))\s+"
     r"([A-ZÁÉÍÓÚÑa-záéíóúñ][\wÁÉÍÓÚÑáéíóúñ'’\-]{1,30}(?:\s+[A-ZÁÉÍÓÚÑa-záéíóúñ][\wÁÉÍÓÚÑáéíóúñ'’\-]{1,30}){0,2})",
 )
-# MUDANZA (V2-038 #2, ampliada en el retest 2026-07-14): las variantes REALES del habla — "me he mudado a",
-# "me acabo de mudar a", "acabo de mudarme a", "me mudé a", "me he trasladado a", "nos trasladamos a",
-# "me estoy mudando a", "I (just) moved to"… El fraseo que faltara dejaba la ciudad VIEJA en el state (el gate
-# anti-garble mandaba el cambio legítimo a cuarentena) y el tiempo respondía con ella.
+# MOVE (V2-038 #2): the real spoken variants; a missing one left the OLD city in the state.
 _MOVE_VERBS = (
     r"me\s+(?:he\s+)?mud(?:o|[eé]|ado)\s+a|nos\s+(?:hemos\s+)?mud(?:amos|ado)\s+a|"
     r"(?:me|nos)\s+acab(?:o|amos)\s+de\s+mudar(?:me|nos)?\s+a|acab(?:o|amos)\s+de\s+mudar(?:me|nos)\s+a|"
@@ -33,26 +29,20 @@ _MOVE_VERBS = (
 )
 _PROFILE_LOC_RE = re.compile(
     r"(?:(?i:vivo\s+en|resido\s+en|mi\s+ciudad\s+es|i\s+live\s+in|" + _MOVE_VERBS + r")"
-    # "ahora estoy en X" SOLO con ciudad Capitalizada y NO artículo/lugar común (si no, "ahora estoy en el
-    # trabajo/casa" — o su versión EN MAYÚSCULAS del STT — pisaría location).
+    # «ahora estoy en X» ONLY with a Capitalised city, never an article or a common place (STT all-caps too).
     r"|(?i:ahora\s+estoy\s+en)(?=\s+[A-ZÁÉÍÓÚÑ])(?!\s+(?i:el|la|los|las|un|una|mi|tu|su|casa|clase|trabajo|"
     r"coche|cama|medio)\b))\s+"
     r"([A-ZÁÉÍÓÚÑa-záéíóúñ][\w\sÁÉÍÓÚÑáéíóúñ'’\-]{1,40}?)(?=[.,;\n]|\s+y\s+|\s+and\s+|$)",
 )
-# La MISMA mudanza, como señal de "corrección" (V2-033 P0b): una declaración explícita de cambio de vida NO es un
-# garble del STT → debe poder SOBRESCRIBIR la identidad establecida (location), no ir a cuarentena. El slot
-# operator.location hace el supersede exacto de la píldora vieja ("el más reciente MANDA"). "ahora vivo en" /
-# "ya vivo en" también son cambio declarado (el "vivo en" a secas de un perfil vacío no necesita la señal).
+# The SAME move as a «correction» signal (V2-033 P0b): a declared change of life is not STT garble, so it may
+# OVERWRITE the established location (the slot supersedes the old pill). «ahora/ya vivo en» count too.
 _RELOCATION_RE = re.compile(
     r"\b(?i:" + _MOVE_VERBS + r"|(?:ahora|ya)\s+vivo\s+en|ahora\s+estoy\s+viviendo\s+en)\b|"
-    # "ahora estoy en X" SOLO con Capital y NO artículo/lugar común (la (?i:) va scopeada al verbo para que el
-    # lookahead de Capital sea sensible; el de stopwords vuelve a ser insensible por el all-caps del STT):
+    # (?i:) scoped to the verb so the Capital lookahead stays case-sensitive; the stopword one is not (STT caps):
     r"\b(?i:ahora\s+estoy\s+en)\s+(?=[A-ZÁÉÍÓÚÑ])"
     r"(?!(?i:el|la|los|las|un|una|mi|tu|su|casa|clase|trabajo|coche|cama|medio)\b)")
-# Preámbulo de INYECCIÓN de prompt (2ª auditoría 2026-07-14, hallazgo del corpus v2 con 7b): frases que intentan
-# ANULAR el contexto/identidad establecidos. Una corrección o mudanza LEGÍTIMA nunca las usa → sirven para que un
-# slot de IDENTIDAD no pueda sobrescribirse por la señal `change` que el modelo capaz fabrica al obedecer la
-# inyección. es/en (los dos idiomas objetivo del sistema).
+# Prompt-INJECTION preamble: phrases that try to ANNUL the established context. A legitimate correction never
+# uses them, so with one present an IDENTITY slot cannot be overwritten by the self-declared `change` signal.
 _INJECTION_RE = re.compile(
     r"\b(?:ignora|olvida|haz\s+caso\s+omiso\s+de)\s+(?:todo\s+)?lo\s+anterior"
     r"|\bignore\s+(?:the\s+)?(?:all\s+)?(?:previous|above|prior|earlier)"
@@ -67,10 +57,8 @@ def _looks_like_injection(t: str) -> bool:
 
 # A turn that CHANGES an identity fact is a turn where the operator talks about HIMSELF. First-person markers in
 # the languages this product speaks; deliberately NOT a full grammar — the point is a cheap anchor, not parsing.
-#: Los clíticos ELIDIDOS van FUERA del `\b…\b` de abajo: en «m'acabo de traslladar» el apóstrofo ya es la
-#: frontera, y un `\b` delante de `m'` no casa. Es una CATEGORÍA de las lenguas románicas (ca/fr/it), no un caso
-#: suelto — lo descubrió `test_llm_change_signal_updates_state_and_supersedes`, que es justo el contrato
-#: multilingüe que este arreglo no puede romper.
+#: ELIDED clitics live OUTSIDE the `\b…\b` below: in «m'acabo de traslladar» the apostrophe is the boundary.
+#: A category of the Romance languages (ca/fr/it), pinned by `test_llm_change_signal_updates_state_and_supersedes`.
 _SELF_REF_ELIDED_RE = re.compile(r"(?:^|[\s(¿¡\"'])[mjt]['’]", re.I)
 
 _SELF_REF_RE = re.compile(
@@ -88,17 +76,9 @@ _SELF_REF_RE = re.compile(
 def _talks_about_the_operator(t: str) -> bool:
     """Does this utterance predicate something of the OPERATOR, or does it merely NAME a value?
 
-    The discriminator behind P0b's self-declared-`change` gate (2026-08-21). Measured on the operator's own
-    machine: Deepgram mangled «Calatayud» into `cal a` / `Kalatayut` / `valch`, zaelar kept asking, and the
-    operator clarified — «que se llama Calatayut,, ciudad de Calatayut». The distiller read that fragment of an
-    ERRAND about routes as a fact about where he lives, self-declared `change=update`, and that self-declaration
-    alone switched OFF the guard whose own docstring names «típico garble del STT». `state.location` went from
-    Soria to Calatayud and stayed there.
-
-    The utterance that legitimately moves an identity ALWAYS speaks in the first person — «me he mudado a X»,
-    «ara visc a Girona», «I live in X» — while a clarification of a third-party entity does not. That is the
-    difference the deterministic detectors were missing, and it holds across languages, which the Spanish-only
-    `_RELOCATION_RE` does not.
+    The discriminator behind P0b's self-declared-`change` gate (2026-08-21): a spelled-out clarification of a place
+    in an ERRAND («que se llama Calatayut, ciudad de Calatayut») moved `state.location`. An utterance that
+    legitimately moves an identity ALWAYS speaks in the first person, in any language; a clarification does not.
     """
     t = t or ""
     return bool(_SELF_REF_RE.search(t) or _SELF_REF_ELIDED_RE.search(t))
@@ -123,8 +103,7 @@ _PROFILE_CAR_RE = re.compile(
     re.I,
 )
 
-# Objetivo/proyecto ACTUAL del operador → ESTADO (la "pila": qué persigue/en qué anda ahora). Lo pidió el
-# operador explícitamente (V2-013): el nombre, el objetivo y el proyecto de trabajo son de lo más importante.
+# The operator's CURRENT goal/project → STATE (his «stack»; asked for explicitly in V2-013).
 _PROFILE_GOAL_RE = re.compile(
     r"(?:(?i:mi\s+objetivo(?:\s+actual)?\s+es|mi\s+meta\s+es|my\s+goal\s+is|my\s+objective\s+is))\s+"
     r"(.{3,90}?)(?=[.;\n]|$)",
@@ -135,11 +114,8 @@ _PROFILE_PROJECT_RE = re.compile(
     r"(.{3,90}?)(?=[.;\n]|$)",
 )
 
-# Deseos/preferencias durables → `long` (no pinned; puede evolucionar). Auditoría 2026-07-19 (H3) + refinado
-# 2026-07-20: el "quiero" con CLÍTICO de objeto delante ("y LA quiero escuchar, no se oyen") es acción de sesión,
-# no preferencia — quedaba como pref de LARGO plazo. El quiero/necesito pelado cuenta solo seguido de INFINITIVO
-# ("quiero comprarme una moto", "quiero aprender japonés") o de sintagma nominal ("necesito unas vacaciones");
-# los verbos inequívocamente durables (prefiero/me gustaría/mi objetivo es/planeo) siguen bastando solos.
+# Durable wishes/preferences → `long`. A bare «quiero/necesito» counts only before an INFINITIVE or a noun phrase;
+# with an object clitic in front («y LA quiero escuchar») it is a session action, not a preference.
 _DESIRE_RE = re.compile(
     r"\b(me\s+gustar[íi]a|me\s+encantar[íi]a|prefiero|preferir[íi]a|mi\s+objetivo\s+es|planeo|"
     r"i(?:'d|\s+would)\s+like|i\s+prefer|my\s+goal\s+is|i\s+plan\s+to)\b"
@@ -149,54 +125,37 @@ _DESIRE_RE = re.compile(
     re.I,
 )
 
-# Trivia efímera (saludos, sí/no, comandos cortos) → no guardar. Anti-ruido.
-# Un turno hecho SOLO de interjecciones/asentimientos (aunque sean varios, repetidos o separados por comas:
-# "ajá, vale vale", "sí sí claro") = relleno conversacional → DESCARTE. El `+$` exige que TODA la frase sea
-# relleno, así "bueno, me mudo a Madrid" NO cae (tiene contenido). Antes solo casaba UNA interjección → "Ajá,
-# vale vale" se colaba al LLM y este lo guardaba por error.
+# Ephemeral trivia (greetings, yes/no, short commands) → not stored. A turn made ONLY of fillers, however many,
+# is a discard; the `+$` demands the WHOLE sentence be filler, so «bueno, me mudo a Madrid» still passes.
 _TRIVIA_SKIP_RE = re.compile(
     r"^\s*(?:(?:aj[aá]|aj[aá]m|vale|s[íi]|no|ya|ya\s+est[aá]|claro|eso|exacto|correcto|entendido|"
     r"genial|perfecto|estupendo|guay|okey|oki|dale|listo|"
-    # muletillas/asentimientos sueltos del habla real (ruido conversacional): ah/eh/em/mmm/hmm/bueno/venga/…
+    # loose fillers of real speech (conversational noise)
     r"ah|eh|em|mmm+|hmm+|nada|bueno|venga|hombre|uf|vaya|anda|"
     r"hola|hey|qu[eé]\s+tal|buenas|adi[oó]s|gracias|de\s+nada|ok|okay|"
     r"hi|hello|bye|thanks|thank\s+you|yeah|yep|nope|nah|uh|um|mm+|ah\s+ok(?:ay)?)[\s,!¡¿?.…]*)+$",
     re.I,
 )
 
-# OLVIDO A PETICIÓN (dim N): "olvida lo del regalo", "bórrate mi contraseña vieja". Imperativo AL INICIO (evita
-# falsos positivos a mitad de frase) y EXCLUYE "no (te) olvides X" — que es un RECORDATORIO, no un olvido. Captura
-# el objeto a olvidar (LIKE sobre él). Necesidad humana: un asistente debe poder DESAPRENDER cuando se lo piden.
+# FORGET ON REQUEST (dim N): imperative AT THE START, excluding «no (te) olvides X» (a reminder). Captures the
+# object to forget (LIKE over it): an assistant must be able to UNLEARN when asked.
 _FORGET_RE = re.compile(
-    # muletillas de arranque del habla real (oye/mira/pues/eh/bueno/vale/perdona/por favor), 0-3 antes del verbo
+    # real speech's opening fillers, 0-3 before the verb
     r"^\s*(?:(?:oye|mira|pues|eh|bueno|vale|perdona|por\s+favor)[,\s]+){0,3}"
-    # verbo de olvido + enclítico opcional ("bórrame/bórralo/olvídame/bórramelo" — habla natural, muy común)
+    # forget verb + optional enclitic («bórrame/bórralo/olvídame/bórramelo»)
     r"(?:olv[ií]da(?:te|me|lo|la)?|b[oó]rra(?:te|me|lo|la|melo|mela)?|elimina|descarta)\b"
-    # "eso,?\s+"/"lo,?\s+" SUELTO (sin "de" detrás) — maratón 2026-07-22: "olvida ESO, no tengo ninguna alergia"
-    # es tan habitual como "olvida ESO DE la alergia"; sin este conector el pronombre entraba como parte del
-    # objeto y arrastraba toda la frase siguiente.
+    # a LOOSE «eso,»/«lo,» (no «de» after it): without it the pronoun dragged the next sentence into the object
     r"\s+(?:lo\s+de\s+|lo\s+del\s+|eso\s+de\s+|eso[,]?\s+|lo[,]?\s+|de\s+|del\s+|que\s+te\s+dije\s+de\s+|que\s+)?"
-    # {1,80} no {2,80}: "olvida el 9" (una hora/cantidad de un solo dígito) es un objeto válido y corto.
+    # {1,80}: «olvida el 9» (a one-digit hour or amount) is a valid object
     r"(?:mi\s+|el\s+|la\s+|los\s+|las\s+|un\s+|una\s+)?(.{1,80}?)"
-    # descarta coletillas del habla real ("... que era sorpresa", "... porque ya no vale", "... ya no hace falta",
-    # "... al final no [me apunto]", "... mejor no") — la DECISIÓN/justificación NO es parte del objeto a olvidar;
-    # si se colara, sus tokens ("final"…) entrarían como EXIGIDOS por el AND-match del writer (memory.forget) y el
-    # olvido no casaría NADA (bot v2 #65, 2026-07-17: "olvida lo de las clases de cerámica de los jueves, al final
-    # no" → obj arrastraba "final" → 0 recuerdos invalidados).
-    # Maratón de testing 2026-07-22: MISMO fallo con la coletilla del OLVIDO DURO en sí ("...para siempre, no
-    # quiero que lo sepas nunca más") — "no quiero (que)…"/"nunca más"/"no vuelvas a…" no estaban en la lista,
-    # así que el objeto arrastraba toda la frase de énfasis y el forget() real no encontraba nada que invalidar
-    # (el FlashBrain decía "vale, lo olvido" de todos modos — acuse sin acción, mismo patrón que otros bugs
-    # de esta maratón). El olvido DURO es precisamente el caso que MÁS necesita casar de verdad.
+    # drops real speech's tails (the DECISION or its reason, the HARD forget's emphasis): their tokens would be
+    # REQUIRED by forget()'s AND-match and the forget would match NOTHING (measured twice in 2026-07)
     r"(?:,?\s+(?:que\s+.*|porque\s+.*|ya\s+no\s+.*|al\s+final\b.*|mejor\s+(?:no|que\s+no)\b.*|"
     r"no\s+quiero\s+.*|nunca\s+m[aá]s.*|no\s+vuelvas?\s+a\s+.*))?[\s.,!¡¿?]*$",
     re.I,
 )
 
-# VERBO DE OLVIDO AL FINAL (maratón 2026-07-22): "en realidad no me gusta el fútbol, OLVÍDALO" — orden de
-# palabras completamente distinto a `_FORGET_RE` (que exige el verbo AL PRINCIPIO): aquí la persona primero dice
-# la retractación y remata con el verbo como coletilla. Sin este patrón el turno entero pasaba de largo (0 match)
-# y el FlashBrain decía "vale, sin problema" sin ejecutar NINGÚN olvido real — la orden se perdía por completo.
+# FORGET VERB AT THE END: «en realidad no me gusta el fútbol, OLVÍDALO» — the retraction first, the verb as a tag.
 _FORGET_TRAILING_RE = re.compile(
     r"^\s*(?:(?:pues|vale|mira|oye|bueno|en\s+realidad)[,\s]+){0,2}"
     r"(.{1,100}?)"
@@ -205,25 +164,19 @@ _FORGET_TRAILING_RE = re.compile(
     re.I,
 )
 
-# RESTATEMENT NEGADO tras un conector suelto (maratón 2026-07-22): "olvida eso, NO TENGO ninguna alergia" — el
-# operador no dice el nombre del dato, RENIEGA de él con una frase completa. Sin esto el objeto extraído arrastra
-# "no tengo ninguna" como tokens EXIGIDOS por el AND-match de memory.forget(), que nunca aparecen en el texto
-# canónico guardado ("La alergia del operador es a los frutos secos.") → 0 recuerdos invalidados. Se aplica DESPUÉS
-# de extraer `obj`: si empieza por una negación de posesión/estado, se recorta a lo que queda (el núcleo real).
+# NEGATED RESTATEMENT after a loose connector («olvida eso, NO TENGO ninguna alergia»): applied AFTER extracting
+# `obj`, it trims a leading negation of possession, or its tokens would be REQUIRED by forget()'s AND-match.
 _NEGATION_PREFIX_RE = re.compile(
     r"^no\s+(?:tengo|hay|tiene|soy|es|est[aá]|estoy|queda|había|hab[ií]a)\s+(?:ning[uú]n[oa]?\s+|nada\s+de\s+)?",
     re.I,
 )
 
-# OLVIDO DURO (dim N/privacidad): el operador quiere BORRAR de verdad, sin dejar rastro ("bórralo del todo", "para
-# siempre", "sin dejar rastro"). Distingue el olvido SOFT (oculta, recuperable, conserva histórico) del HARD
-# (elimina; derecho al olvido para datos sensibles: una contraseña vieja, un dato médico que no quiere guardado).
+# HARD FORGET (privacy): delete for real, no trace — against the SOFT forget that hides and keeps history.
 _FORGET_HARD_RE = re.compile(
     r"\b(del\s+todo|para\s+siempre|permanentemente|definitivamente|por\s+completo|sin\s+dejar\s+(?:ni\s+)?rastro|"
     r"que\s+no\s+quede\s+(?:ni\s+)?rastro)\b", re.I)
 
-# DES-OLVIDO / RECUPERAR (dim N): "recupera lo del regalo", "vuelve a acordarte de X", "acuérdate otra vez de X".
-# Contraparte de _FORGET_RE: el operador se retracta de un olvido. Imperativo al inicio + captura el objeto.
+# UNFORGET (dim N): the counterpart of _FORGET_RE — he retracts a forget. Imperative at the start + object.
 _UNFORGET_RE = re.compile(
     r"^\s*(?:(?:oye|mira|pues|eh|bueno|vale|perdona|espera|no|por\s+favor)[,\s]+){0,3}"
     r"(?:recup[eé]ra(?:me|te)?|restaura|vuelve\s+a\s+(?:acordarte|recordar)|acu[eé]rdate\s+otra\s+vez)\b"
@@ -233,9 +186,8 @@ _UNFORGET_RE = re.compile(
     re.I,
 )
 
-# ABSTENCIÓN write-side (dim E): PREGUNTAS que el operador le hace a zaelar y que NO son hechos suyos → descartar.
-# CONSERVADOR: solo patrones INEQUÍVOCOS de petición al asistente (el tiempo de una ciudad, una recomendación); NO
-# toca preguntas que traen un dato ("¿sabes que me mudé a Madrid?") porque esas no casan estos patrones concretos.
+# Write-side ABSTENTION (dim E): only UNAMBIGUOUS requests to the assistant (a city's weather, a recommendation);
+# a question that carries a fact («¿sabes que me mudé a Madrid?») does not match.
 _ASSISTANT_QUERY_RE = re.compile(
     r"¿?\s*(?:oye\s+)?(?:zaelar[,\s]+)?"
     r"(?:qu[eé]\s+tiempo\s+(?:va\s+a\s+hacer|har[aá]|hace)\b|"
@@ -243,34 +195,24 @@ _ASSISTANT_QUERY_RE = re.compile(
     re.I,
 )
 
-# CORRECCIÓN explícita (dim M): "no se llama Toby SINO Nala", "no es X sino Y", "no quiero café sino té". Un humano
-# corrige y DESAPRENDE el dato viejo. Captura el valor ERRÓNEO (la palabra antes de "sino") → se olvida (forget),
-# y el turno sigue su curso normal para GUARDAR el valor nuevo. Conservador: solo el patrón "... X sino Y".
-# El valor erróneo puede empezar por DÍGITO (un PIN, un código, un número): "no es 4471 sino 8890" → captura 4471.
+# Explicit CORRECTION (dim M): «no es X sino Y» — the WRONG value (before «sino», a digit allowed) is forgotten
+# and the turn goes on to store the new one.
 _CORRECTION_RE = re.compile(
     r"\bno\s+[^.,;]*?\b([\wÁÉÍÓÚÑáéíóúñ][\wÁÉÍÓÚÑáéíóúñ'’\-]{2,})\s+sino\b", re.I)
-# "ya no trabajo en Telefónica, ahora en Amazon" → olvida el nombre PROPIO negado (Telefónica). Sin re.I para que
-# `[A-Z]` sea de verdad mayúscula (nombre propio) y no engulla verbos en minúscula.
+# «ya no trabajo en Telefónica, ahora en Amazon» → forget the negated PROPER name. No re.I: `[A-Z]` stays upper.
 _CORRECTION_YANO_RE = re.compile(
     r"[Yy]a\s+[Nn]o\s+[^.,;]*?\b([A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ'’\-]{2,})")
 
-# Maratón de testing 2026-07-22: "salgo a las 17, NO a las 18" — el valor CORRECTO va primero y el ERRÓNEO
-# detrás de una coma + "no", sin la palabra "sino" (que exige `_CORRECTION_RE`). Es tan común en el habla como
-# el patrón con "sino" y sin esto el valor viejo (18) sobrevivía intacto tras una corrección hablada y confirmada
-# — el mismo patrón de fondo (regex demasiado estrecha) que los otros bugs de olvido de esta sesión.
+# «salgo a las 17, NO a las 18» — the right value first, the wrong one after «, no», with no «sino».
 _CORRECTION_TRAILING_NO_RE = re.compile(
-    # {1,40} no {2,40}: un dígito SUELTO ("...son 2, no 3") es un valor válido y corto — el mínimo de 2
-    # lo dejaba fuera de la captura (bug real 2026-07-22, encontrado tras el fix de longitud en forget()).
+    # {1,40}: a LOOSE digit («...son 2, no 3») is a valid value
     r",\s*no\s+(?:a\s+las\s+|el\s+|la\s+|los\s+|las\s+|un\s+|una\s+)?(.{1,40}?)[\s.,!¡¿?]*$", re.I)
 
-# RUTINAS / HÁBITOS recurrentes (dim O) → memorables SIEMPRE (definen la vida de la persona). El LLM heart a veces
-# descarta un hábito por "trivial" ("cada noche leo un rato"); un humano SÍ recuerda las costumbres de otro. Backstop
-# determinista, como el de compromisos: si hay marca fuerte de RECURRENCIA, se guarda aunque el LLM lo tire.
+# ROUTINES / HABITS (dim O) are always memorable: a strong RECURRENCE mark keeps them even if the LLM drops them.
 _ROUTINE_RE = re.compile(
     r"\b(cada\s+(?:d[ií]a|noche|ma[ñn]ana|tarde|semana|mes|finde|lunes|martes|mi[eé]rcoles|jueves|viernes|"
     r"s[aá]bado|domingo)|todos\s+los\b|todas\s+las\b|suelo\b|solemos\b|acostumbro|siempre\s+que|"
-    # UBICACIÓN HABITUAL de un objeto ("el mando lo dejo SIEMPRE en la guantera", "las llaves las guardo siempre
-    # en…"): dónde se guarda algo es memoria útil ("¿dónde dejé las llaves?"). Verbo de guardar + "siempre".
+    # USUAL PLACE of an object («las llaves las guardo siempre en…»): «¿dónde dejé las llaves?» needs it
     r"(?:dejo|guardo|pongo|meto|dejamos|guardamos)\s+siempre|siempre\s+(?:lo|la|los|las)\s+(?:dejo|guardo|pongo|meto)|"
     r"antes\s+de\s+(?:dormir|acostarme)|al\s+levantarme|every\s+(?:day|night|morning|week|monday))\b",
     re.I,
@@ -330,10 +272,8 @@ _COMMITMENT_RE = re.compile(
     r"tengo\s+que|tengo\s+cita|tengo\s+reuni[oó]n|qued[eé]\s+con|recu[eé]rdame|no\s+(?:te\s+)?olvid|"
     r"hay\s+que\s+entregar|entregar\s+.*\bpara\b|para\s+el\s+(?:lunes|martes|mi[eé]rcoles|jueves|viernes|"
     r"s[aá]bado|domingo)|ask(?:ed)?\s+me\s+to|remind\s+me|i\s+have\s+to|due\s+(?:on|by)|"
-    # TAREA que el operador ENCARGA al asistente (personal-agent): "búscame vuelos", "escríbeme un libro",
-    # "prepárame un widget", "resérvame mesa", "apúntame en la agenda"… Un asistente DEBE recordar lo que le
-    # mandan hacer (para "¿qué te pedí?") — NO depende del LLM heart. OJO: los comandos triviales de canvas
-    # (abre/muestra/cierra) los filtra _COMMAND_RE ANTES y no llegan aquí. Verbo+dativo -me o "puedes/quiero que".
+    # A TASK he GIVES the assistant («búscame vuelos», «resérvame mesa»): an assistant must remember what it was
+    # asked («¿qué te pedí?») without the LLM. Canvas commands are filtered by _COMMAND_RE before this.
     r"b[uú]sca(?:me)?|encu[eé]ntra(?:me)?|escr[ií]be(?:me)?|red[aá]cta(?:me)?|prep[aá]ra(?:me)?|"
     r"reserv[aá](?:me)?|ap[uú]nta(?:me)?|organ[ií]za(?:me)?|planif[ií]ca(?:me)?|c[oó]mpra(?:me)?|"
     r"cons[ií]gue(?:me)?|res[uú]me(?:me)?|m[aá]nda(?:me)?|a[ñn][aá]de(?:me)?|"
@@ -349,9 +289,8 @@ _COMMITMENT_RE = re.compile(
 # (hard_interrupt), no la memoria. Aquí solo dejamos verbos de comando de canvas inequívocos.
 _COMMAND_RE = re.compile(
     r"\b(cierra|abre|muestra|esc[oó]ndete|oculta|"
-    # media/reproducción (auditoría 2026-07-19 H2: "pon música"/"apaga el video" acababan como HECHOS durables por
-    # el fail-open). \b tras "pon" NO casa "pongas" (lección del widget-fallback espurio). "sube/baja" SOLO con
-    # volumen/brillo — a secas aparecen en hechos memorables ("la gasolina sube").
+    # media/playback (2026-07-19 H2: «pon música» became a durable FACT). \b after «pon» never matches «pongas»;
+    # «sube/baja» only with volume/brightness («la gasolina sube» is a memorable fact).
     r"pon(?:me)?|reproduce|reprod[uú]ce(?:me)?|pausa|reanuda|apaga|enciende|silencia|"
     r"(?:sube|baja)\s+(?:el\s+|la\s+)?(?:volumen|brillo|m[uú]sica)|"
     r"close|open|show|hide|mute|play|pause)\b",

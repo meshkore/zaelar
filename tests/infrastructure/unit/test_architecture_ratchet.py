@@ -342,7 +342,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "config": 2525,
     "connectors": 20313,
     "library": 805,
-    "memory": 9117,
+    "memory": 8502,                    # refactor2710-11: 9117 → 8502 (splits by concern, orphans out)
     "nucleo (top)": 22581,
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
@@ -350,7 +350,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/context_packs": 568,
     "nucleo/errands": 2563,
     "nucleo/flash": 36974,
-    "nucleo/memory_agent": 3123,       # refactor2710-11 T-02: mem_processor + memllm moved in (−1520 from top)
+    "nucleo/memory_agent": 3061,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3061
     "nucleo/susurro": 1386,
     "nucleo/turn": 2308,
     "nucleo/workers": 6463,
@@ -429,7 +429,6 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/jev.py",
     "nucleo/loop.py",
     "nucleo/memory_agent/gates.py",
-    "nucleo/memory_agent/lang_marks.py",
     "nucleo/mesh_agents.py",
     "nucleo/nav_cli.py",
     "nucleo/notices.py",

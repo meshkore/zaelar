@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 3420
+TOTAL = 2940
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -166,7 +166,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/memory_agent/gates.py': 2,
     'nucleo/memory_agent/ingest.py': 3,
     'nucleo/memory_agent/ingest_steps.py': 33,
-    'nucleo/memory_agent/lang_marks.py': 108,
+    'nucleo/memory_agent/lang_marks.py': 26,
     'nucleo/mesh_agents.py': 1,
     'nucleo/mesh_cli.py': 5,
     'nucleo/protected_core.py': 20,
