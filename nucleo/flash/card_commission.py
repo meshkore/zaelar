@@ -408,8 +408,9 @@ async def before_worker(escalate_req: dict, read_req: dict, *, brief, operator_t
                  text=f"{got['widget_id']} ← {got['question'][:100]}", role="system",
                  extra={"cat": "flash", "widget": got["widget_id"], "question": got["question"][:200]})
             return "read"
-    except Exception:  # noqa: BLE001
-        pass
+    except Exception as e:  # noqa: BLE001 — a model call that broke is SAID on the trace, never «no commission»
+        emit("brain", "⚠️ commission call failed — the errand stays as it was", role="system",
+             text=f"{type(e).__name__}: {e}"[:160], extra={"cat": "flash", "is_error": True})
     return ""
 
 
