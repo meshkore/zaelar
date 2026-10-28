@@ -43,13 +43,13 @@ def fresh_db(tmp_path, monkeypatch):
 
 def _atom_processor(monkeypatch, atom: dict):
     """Replaces the heart so the LLM-atom path runs with a known answer — the seam the mechanism hangs from."""
-    from nucleo import mem_processor as mp
+    from nucleo.memory_agent.processor import distill, distill_config, distill_prompt
 
     async def _process(_t, state=None):
         return [dict(atom)]
 
-    monkeypatch.setattr(mp, "process", _process)
-    monkeypatch.setattr(mp, "enabled", lambda: True)
+    monkeypatch.setattr(distill, "process", _process)
+    monkeypatch.setattr(distill_config, "enabled", lambda: True)
 
 
 def _ingest(*utterances):
@@ -134,10 +134,10 @@ def test_the_survivor_of_a_dedup_still_inherits_the_correction(fresh_db):
 
 def test_the_offer_reaches_the_rendered_prompt(fresh_db):
     # Asserted on `_render`'s OUTPUT, not on the helper: a helper nobody calls passes its own test (V2-199).
-    from nucleo import mem_processor as mp
-    assert "GUARDADO HACE POCO" not in mp._render("hola", None), "an empty memory must cost zero prompt tokens"
+    from nucleo.memory_agent.processor import distill, distill_config, distill_prompt
+    assert "GUARDADO HACE POCO" not in distill_prompt.render("hola", None), "an empty memory must cost zero prompt tokens"
     mid = _garbled_pill()
-    rendered = mp._render("Que no, he dicho El Fogón.", None)
+    rendered = distill_prompt.render("Que no, he dicho El Fogón.", None)
     assert f"[{mid}]" in rendered and "Elfo On" in rendered and "GUARDADO HACE POCO" in rendered
 
 

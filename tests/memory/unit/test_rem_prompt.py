@@ -16,12 +16,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 
-from nucleo import memllm  # noqa: E402
+from nucleo.memory_agent.processor import llm, llm_tasks  # noqa: E402
 
 
 def test_prompt_rem_se_compone_sin_reventar():
     """Composition MUST NOT raise, and the language must actually be substituted."""
-    system = memllm._REM_SYSTEM.replace("{lang}", "castellano")
+    system = llm_tasks._REM_SYSTEM.replace("{lang}", "castellano")
     assert "castellano" in system
     assert "{lang}" not in system
     # the contract's JSON example remains intact (it anchors the model's output format)
@@ -36,12 +36,12 @@ def test_format_sobre_el_prompt_esta_prohibido():
     """
     import pytest
     with pytest.raises(KeyError):
-        memllm._REM_SYSTEM.format(lang="castellano")
+        llm_tasks._REM_SYSTEM.format(lang="castellano")
 
 
 def test_synthesize_no_llama_al_modelo_sin_grupos():
     """Cheap contract: with no groups, there is neither a call nor an exception."""
-    assert memllm.synthesize_concept_groups([]) == []
+    assert llm_tasks.synthesize_concept_groups([]) == []
 
 
 def test_synthesize_compone_el_prompt_de_verdad(monkeypatch):
@@ -53,8 +53,8 @@ def test_synthesize_compone_el_prompt_de_verdad(monkeypatch):
         visto["task"], visto["system"], visto["user"] = task, system, user
         return '[{"concept": "salud", "insight": "Cuida su salud con rutina de gimnasio."}]'
 
-    monkeypatch.setattr(memllm, "chat_sync", _fake_chat_sync)
-    out = memllm.synthesize_concept_groups(
+    monkeypatch.setattr(llm, "chat_sync", _fake_chat_sync)
+    out = llm_tasks.synthesize_concept_groups(
         [{"concept": "salud", "pills": ["Va al gimnasio los lunes.", "Dejó el café en enero."]}]
     )
     assert visto["task"] == "rem"

@@ -5,7 +5,7 @@ by calling the REAL distiller hundreds of times: hours and API money per hypothe
 be tried, only confirmed once in a while. The 2026-08-18 audit named this the real iteration bottleneck — ahead
 of any architectural reorganization.
 
-**The idea.** `nucleo/mem_processor.process()` is a narrow, well-defined seam: a sentence goes in, pills come
+**The idea.** `nucleo/distill.process()` is a narrow, well-defined seam: a sentence goes in, pills come
 out. Record ONCE what the LLM decided and replay it indefinitely. The fixture freezes **the model's decision**,
 not what memory did with it — so a `--replay` run exercises MEMORY (writer, supersede, retriever, graph, REM)
 and not the distiller. That is exactly the boundary we want to be able to change fast.
@@ -115,41 +115,41 @@ class _Tape:
 
 @contextlib.contextmanager
 def record(path: str | pathlib.Path):
-    """Wraps `mem_processor.process` to record every REAL call. Behavior is unchanged: it delegates to the
+    """Wraps `distill.process` to record every REAL call. Behavior is unchanged: it delegates to the
     original and stores what came back, so the recorded run is also a valid run."""
-    from nucleo import mem_processor
+    from nucleo.memory_agent.processor import distill, distill_config
 
     t = _Tape(path)
-    original = mem_processor.process
+    original = distill.process
 
     async def _recording(text: str, *, state: dict | None = None):
         atoms = await original(text, state=state)
         t.append(text, atoms)
         return atoms
 
-    mem_processor.process = _recording          # type: ignore[assignment]
+    distill.process = _recording          # type: ignore[assignment]
     try:
         yield t
     finally:
-        mem_processor.process = original        # type: ignore[assignment]
+        distill.process = original        # type: ignore[assignment]
         n = t.flush()
         print(f"⏺  distiller tape recorded: {n} calls → {t.path}")
 
 
 @contextlib.contextmanager
 def replay(path: str | pathlib.Path, *, strict: bool = False):
-    """Swaps `mem_processor.process` for the tape: zero network, zero cost, deterministic.
+    """Swaps `distill.process` for the tape: zero network, zero cost, deterministic.
 
     It also forces `enabled()` to True — the caller consults it to decide whether to retry after a `None`
     (`memory_agent.py:1096`), and without this a recorded `None` entry would not reproduce the retry that DID
     happen while recording. `strict=True` raises on a sentence missing from the tape instead of degrading to the
     heuristic; useful for a test that demands full fixture coverage."""
-    from nucleo import mem_processor
+    from nucleo.memory_agent.processor import distill, distill_config
 
     t = _Tape(path)
     n = t.load()
-    original = mem_processor.process
-    original_enabled = mem_processor.enabled
+    original = distill.process
+    original_enabled = distill_config.enabled
 
     async def _replaying(text: str, *, state: dict | None = None):
         found, atoms = t.next_for(text)
@@ -159,11 +159,11 @@ def replay(path: str | pathlib.Path, *, strict: bool = False):
             return None                          # caller falls back to the heuristic, as with the core down
         return atoms
 
-    mem_processor.process = _replaying          # type: ignore[assignment]
-    mem_processor.enabled = lambda: True        # type: ignore[assignment]
+    distill.process = _replaying          # type: ignore[assignment]
+    distill_config.enabled = lambda: True        # type: ignore[assignment]
     print(f"▶  replaying distiller tape: {n} calls from {t.path} (no network)")
     try:
         yield t
     finally:
-        mem_processor.process = original        # type: ignore[assignment]
-        mem_processor.enabled = original_enabled  # type: ignore[assignment]
+        distill.process = original        # type: ignore[assignment]
+        distill_config.enabled = original_enabled  # type: ignore[assignment]

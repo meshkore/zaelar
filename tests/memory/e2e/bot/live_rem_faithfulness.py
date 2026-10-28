@@ -65,7 +65,7 @@ def main() -> int:
     _setup_env()
     from memory import db as memdb, writer as memwriter
     from memory.rem import _grounded, synthesize
-    from nucleo import memllm
+    from nucleo.memory_agent.processor import llm_tasks
 
     memdb.get_db()
     # `_canonical_lang_native()` (nucleo/memllm.py) prefers `state.language` over ZAELAR_LANGUAGE — and the
@@ -87,13 +87,13 @@ def main() -> int:
     # judge noise in a single attempt. As in Test 3, allow up to 3 real attempts before considering it lost.
     test1_ok = False
     for attempt in range(1, 4):
-        results = memllm.synthesize_concept_groups([group])
+        results = llm_tasks.synthesize_concept_groups([group])
         if not results or not results[0].get("insight"):
             print(f"  [intento {attempt}/3] el modelo no devolvió insight")
             continue
         real_insight = results[0]["insight"]
         grounded = _grounded(real_insight, PILLS)
-        verified = memllm.verify_insight_grounded(real_insight, PILLS)
+        verified = llm_tasks.verify_insight_grounded(real_insight, PILLS)
         print(f"  [intento {attempt}/3] insight={real_insight!r}")
         print(f"               backstop={grounded}  verificación_real={verified}")
         if grounded and verified:
@@ -112,7 +112,7 @@ def main() -> int:
     print(f"  insight fabricado: {FABRICATED_INSIGHT!r}")
     det = _grounded(FABRICATED_INSIGHT, PILLS)
     print(f"  backstop determinista rechaza (debe ser False): {det}")
-    real_verify = memllm.verify_insight_grounded(FABRICATED_INSIGHT, PILLS)
+    real_verify = llm_tasks.verify_insight_grounded(FABRICATED_INSIGHT, PILLS)
     print(f"  verificación REAL por LLM rechaza (debe ser False): {real_verify}")
     if det or real_verify:
         print("  ✗ FALLO: alguno de los dos gates ACEPTÓ una fabricación evidente")
@@ -131,13 +131,13 @@ def main() -> int:
     # stochastic — Test 1 already showed that the model CAN produce an insight that passes both gates; if this
     # independent call does not, that is a real observation to show, not hide).
     def _synthesize_fn_debug(groups):
-        out = memllm.synthesize_concept_groups(groups)
+        out = llm_tasks.synthesize_concept_groups(groups)
         for r in out:
             print(f"  [debug] intento REAL de síntesis: {r}")
         return out
 
     def _verify_fn_debug(insight, pills):
-        v = memllm.verify_insight_grounded(insight, pills)
+        v = llm_tasks.verify_insight_grounded(insight, pills)
         print(f"  [debug] verificación REAL sobre ese intento: {v}")
         return v
 

@@ -58,18 +58,18 @@ def test_registry_protects_prompt_declared_identity_slots():
 
 
 def test_prompt_catalog_reaches_processor_prompt():
-    from nucleo import mem_processor
-    assert "{SLOT_CATALOG}" not in mem_processor._SYSTEM          # the placeholder was replaced
-    assert "operator.location" in mem_processor._SYSTEM           # with the registry's actual catalog
+    from nucleo.memory_agent.processor import distill, distill_prompt
+    assert "{SLOT_CATALOG}" not in distill_prompt._SYSTEM          # the placeholder was replaced
+    assert "operator.location" in distill_prompt._SYSTEM           # with the registry's actual catalog
 
 
 def test_prompt_preserves_multi_fact_incidents_and_keeps_daily_noise_ephemeral():
-    from nucleo import mem_processor
-    assert "emergencia" in mem_processor._FEWSHOT_USER_7.lower()
-    assert '"dest":"long","kind":"event"' in mem_processor._FEWSHOT_ASSISTANT_7
-    assert "café" in mem_processor._FEWSHOT_USER_8.lower()
-    assert '"dest":"short","kind":"event"' in mem_processor._FEWSHOT_ASSISTANT_8
-    assert '"ttl_days":7' in mem_processor._FEWSHOT_ASSISTANT_8
+    from nucleo.memory_agent.processor import distill, distill_prompt
+    assert "emergencia" in distill_prompt._FEWSHOT_USER_7.lower()
+    assert '"dest":"long","kind":"event"' in distill_prompt._FEWSHOT_ASSISTANT_7
+    assert "café" in distill_prompt._FEWSHOT_USER_8.lower()
+    assert '"dest":"short","kind":"event"' in distill_prompt._FEWSHOT_ASSISTANT_8
+    assert '"ttl_days":7' in distill_prompt._FEWSHOT_ASSISTANT_8
 
 
 # ── writer: alias + self-healing supersede ─────────────────────────────────────────────────────────────────
@@ -129,8 +129,8 @@ def test_heal_slots_normalizes_legacy_and_collapses(fresh_db):
 # ── processor v2 contract: value + change ─────────────────────────────────────────────────────────────────
 
 def test_parse_accepts_value_and_change():
-    from nucleo import mem_processor
-    atoms = mem_processor._parse(
+    from nucleo.memory_agent.processor import distill, distill_prompt
+    atoms = distill._parse(
         '[{"text":"Vive en Valencia.","dest":"state","kind":"profile","slot":"operator.location",'
         '"value":"Valencia","change":"update","state_patch":{}},'
         '{"text":"Le gusta el pádel.","dest":"long","kind":"pref","change":"garbage"}]')
@@ -142,7 +142,8 @@ def test_llm_change_signal_updates_state_and_supersedes(fresh_db, monkeypatch):
     """The incident case, with NO regex: the (mocked) processor emits slot+value+change='update' for wording
     that no host regex covers → the state is updated (mechanical synthesis of the patch) and the old memory
     remains superseded. The signal comes from the multilingual MODEL, not from the wording."""
-    from nucleo import mem_processor, memory_agent
+    from nucleo import memory_agent
+    from nucleo.memory_agent.processor import distill, distill_prompt
     monkeypatch.setenv("MEM_PROCESSOR", "1")
     memapi.set_state({"operator_name": "Marta", "location": "Soria"})
     writer.insert_memory("Vive en Soria.", level="long", kind="profile", slot="operator.location")
@@ -151,7 +152,7 @@ def test_llm_change_signal_updates_state_and_supersedes(fresh_db, monkeypatch):
         return [{"text": "Vive en Valencia.", "dest": "long", "kind": "profile", "importance": 0.9,
                  "ttl_days": None, "slot": "operator.location", "value": "Valencia", "change": "update",
                  "concepts": [], "state_patch": {}}]
-    monkeypatch.setattr(mem_processor, "process", fake_process)
+    monkeypatch.setattr(distill, "process", fake_process)
 
     async def run():
         await memapi.start()
@@ -171,7 +172,8 @@ def test_llm_change_signal_updates_state_and_supersedes(fresh_db, monkeypatch):
 def test_llm_without_change_signal_still_quarantines_garble(fresh_db, monkeypatch):
     """Symmetry: WITHOUT a change or correction signal, a value that contradicts the established identity still
     goes to QUARANTINE (P0b intact) — the signal does not open the door to garble."""
-    from nucleo import mem_processor, memory_agent
+    from nucleo import memory_agent
+    from nucleo.memory_agent.processor import distill, distill_prompt
     monkeypatch.setenv("MEM_PROCESSOR", "1")
     memapi.set_state({"operator_name": "Marta", "location": "Soria"})
 
@@ -179,7 +181,7 @@ def test_llm_without_change_signal_still_quarantines_garble(fresh_db, monkeypatc
         return [{"text": "Vive en Bilbao.", "dest": "state", "kind": "profile", "importance": 0.9,
                  "ttl_days": None, "slot": "operator.location", "value": "Bilbao", "change": "none",
                  "concepts": [], "state_patch": {"location": "Bilbao"}}]
-    monkeypatch.setattr(mem_processor, "process", fake_process)
+    monkeypatch.setattr(distill, "process", fake_process)
 
     async def run():
         await memapi.start()
@@ -197,7 +199,8 @@ def test_injection_preamble_cannot_override_identity_via_change(fresh_db, monkey
     ('ignore the above…') that carries an IDENTITY atom with change='update' (as a capable model that OBEYS the
     injection would emit) CANNOT overwrite the established name → it goes to quarantine. A legitimate change
     (same atom, WITHOUT a preamble) does pass (see test_llm_change_signal_*)."""
-    from nucleo import mem_processor, memory_agent
+    from nucleo import memory_agent
+    from nucleo.memory_agent.processor import distill, distill_prompt
     monkeypatch.setenv("MEM_PROCESSOR", "1")
     memapi.set_state({"operator_name": "Amaia"})
 
@@ -205,7 +208,7 @@ def test_injection_preamble_cannot_override_identity_via_change(fresh_db, monkey
         return [{"text": "El operador se llama Pepe.", "dest": "state", "kind": "profile", "importance": 0.9,
                  "ttl_days": None, "slot": "operator.name", "value": "Pepe", "change": "update",
                  "concepts": [], "state_patch": {"operator_name": "Pepe"}}]
-    monkeypatch.setattr(mem_processor, "process", fake_process)
+    monkeypatch.setattr(distill, "process", fake_process)
 
     async def run():
         await memapi.start()
