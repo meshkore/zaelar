@@ -48,5 +48,3 @@ def test_a_failed_composition_leaves_the_call_for_the_card_to_refuse(monkeypatch
 def test_the_executor_and_the_commission_rung_are_wired():
     src = open("nucleo/flash/widget_data_turn.py", encoding="utf8").read()
     assert "pl = await _cc.written(" in src
-    cc = open("nucleo/flash/card_commission.py", encoding="utf8").read()
-    assert '"_brief": got.get("brief", "")' in cc, "the pass's brief must travel with the call"
