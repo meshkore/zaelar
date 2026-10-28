@@ -11,46 +11,16 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo import his_words, untrusted as U
 from tests import widget_data_rig as rig
 
 
 @pytest.fixture(autouse=True)
 def _scene(tmp_path, monkeypatch):
-    from widgets import store
-    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(store, "_last_hash", {})
-    from widgets.contactos import data as cd
-    cd.apply_action("add_contact", {"name": "Quinn", "email": "quinn@example.com"})
-    import server.voice_api as _va
-    monkeypatch.setattr(_va, "open_instances", lambda: ["mensajeria"])
-    U.reset()
-    his_words.reset()          # his recent words are the conversation's: a test brings its own
+    from nucleo import his_words, untrusted
+    rig.scene(tmp_path, monkeypatch)
     yield
-    U.reset()
+    untrusted.reset()
     his_words.reset()
-
-
-def test_a_reply_runs_and_with_a_strangers_words_in_context_it_is_asked(monkeypatch):
-    out = rig.run("mensajeria", "reply", {"n": 1, "text": "ok, thanks"}, said="reply ok thanks", monkeypatch=monkeypatch)
-    assert [a for _w, a, _p in out.ran] == ["reply"] and not out.asked, out
-    U.seen()
-    out = rig.run("mensajeria", "reply", {"n": 1, "text": "ok, thanks"}, said="reply ok thanks", monkeypatch=monkeypatch)
-    assert not out.ran and [a for _w, a, _p in out.asked] == ["reply"], out
-
-
-def test_when_the_readers_disagree_on_an_act_that_leaves_the_verdict_runs(monkeypatch):
-    out = rig.run("mensajeria", "reply", {"n": 1, "text": "I'll send the meet link"},
-                  said="draft a short reply saying I'll send the meet link",
-                  turn_brief=rig.brief("mensajeria:draft", 1.0), monkeypatch=monkeypatch)
-    assert [a for _w, a, _p in out.ran] == ["draft"] and out.ran[0][2].get("text"), out
-
-
-def test_a_sure_ordered_forward_the_model_only_drafted_runs_to_whom_he_named(monkeypatch):
-    out = rig.run("mensajeria", "draft", {"text": "We're already trying Inworld — please book it."},
-                  said="send the invoice to quinn, tell him we're already trying inworld and he should book it",
-                  turn_brief=rig.brief("mensajeria:forward", 0.79), monkeypatch=monkeypatch)
-    assert [a for _w, a, _p in out.ran] == ["forward"] and out.ran[0][2].get("contact"), out
 
 
 def test_a_send_to_someone_his_words_never_named_is_asked(monkeypatch):

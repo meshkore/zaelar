@@ -12,6 +12,8 @@ import threading
 
 import pytest
 
+from tests import widget_data_rig as rig
+
 from nucleo.acts import message_repair as ordered_send
 
 SAID = "send the invoice to quinn, tell him we're already trying inworld and he should book it"
@@ -64,3 +66,19 @@ def test_a_dry_turn_reports_the_call_as_it_would_run():
     out = H.run_case(case)
     assert not out.error, out.error
     assert out.decision == "data-op mensajeria:forward", (out.decision, out.tool_calls, out.reply)
+
+
+@pytest.fixture()
+def gate_scene(tmp_path, monkeypatch):
+    from nucleo import his_words, untrusted
+    rig.scene(tmp_path, monkeypatch)
+    yield
+    untrusted.reset()
+    his_words.reset()
+
+
+def test_a_sure_ordered_forward_the_model_only_drafted_runs_to_whom_he_named(gate_scene, monkeypatch):
+    out = rig.run("mensajeria", "draft", {"text": "We're already trying Inworld — please book it."},
+                  said="send the invoice to quinn, tell him we're already trying inworld and he should book it",
+                  turn_brief=rig.brief("mensajeria:forward", 0.79), monkeypatch=monkeypatch)
+    assert [a for _w, a, _p in out.ran] == ["forward"] and out.ran[0][2].get("contact"), out

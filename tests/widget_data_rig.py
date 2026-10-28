@@ -54,3 +54,18 @@ def run(card: str, action: str, payload: dict | None = None, *, said: str = "", 
             text=said)
     apply(card, action, dict(payload or {}))
     return out
+
+
+def scene(tmp_path, monkeypatch):
+    """The messaging scene the send tests share: an isolated store, Quinn in the directory, the mail card open, and no
+    stranger's words nor his recent ones carried in from another test (both are process state)."""
+    from nucleo import his_words, untrusted
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(store, "_last_hash", {})
+    from widgets.contactos import data as cd
+    cd.apply_action("add_contact", {"name": "Quinn", "email": "quinn@example.com"})
+    import server.voice_api as _va
+    monkeypatch.setattr(_va, "open_instances", lambda: ["mensajeria"])
+    untrusted.reset()
+    his_words.reset()

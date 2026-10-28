@@ -6,8 +6,11 @@
 valid model call beat a disagreeing verdict because a wrong verdict costs a reversible view; for an act that leaves
 (consent level ≥ sensitive) the costs are reversed. When the two readers disagree, the verdict's action runs with the
 model's content, or he is asked; agreement, or no verdict, changes nothing (C5's Telegram to Rowan still goes)."""
-from tests import voice_turn_source as _vts
 from pathlib import Path
+
+import pytest
+
+from tests import voice_turn_source as _vts, widget_data_rig as rig
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -17,3 +20,19 @@ def test_a_reply_is_an_act_that_leaves_and_a_draft_is_not():
     assert f.at_least_sensitive("mensajeria", "reply")
     assert f.at_least_sensitive("mensajeria", "send_draft")
     assert not f.at_least_sensitive("mensajeria", "draft")
+
+
+@pytest.fixture()
+def gate_scene(tmp_path, monkeypatch):
+    from nucleo import his_words, untrusted
+    rig.scene(tmp_path, monkeypatch)
+    yield
+    untrusted.reset()
+    his_words.reset()
+
+
+def test_when_the_readers_disagree_on_an_act_that_leaves_the_verdict_runs(gate_scene, monkeypatch):
+    out = rig.run("mensajeria", "reply", {"n": 1, "text": "I'll send the meet link"},
+                  said="draft a short reply saying I'll send the meet link",
+                  turn_brief=rig.brief("mensajeria:draft", 1.0), monkeypatch=monkeypatch)
+    assert [a for _w, a, _p in out.ran] == ["draft"] and out.ran[0][2].get("text"), out
