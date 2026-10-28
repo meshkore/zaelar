@@ -311,14 +311,16 @@ below is the first kind, or it names the mechanism that replaced the second.
   brain repeats the QUESTION, not the work. An audit that comes back after the conversation moved (a turn of
   his, a widget op) may record a finding but never acts or speaks. — since 2026-09-29 · nodes 2.182, 2.180 ·
   `nucleo/dispatch_confirm.py`, `nucleo/susurro/engine.py`.
-- **CRIT-E9 · Every request that acts is ONE row, and it ends in a verdict of four values**: `met` (its end state
-  was attested), `unmet` (attested false after its grace — corrected out loud when he ordered it), `unverifiable`
-  (nothing readable could say) or `undeclared` (the action declares no end
-  state). A later op never improves a failed row; a worker's verdict comes from `circuit.close`, a list step's from
-  its ops; the prompt's recent state reads these rows, facts only. An inline row carries its spec, and a live one
-  left by a previous boot is judged once from it (`met`) or closed as interrupted, silently. — since
-  2026-09-30 · nodes 2.194, 2.196, 2.198, 3.105, 3.106, 3.113 · `nucleo/request_row.py`, `nucleo/circuit.py`,
-  `nucleo/spec.py`, `nucleo/tasks.py`.
+- **CRIT-E9 · Every request that acts is ONE row, and it ends in a verdict of the one vocabulary**
+  (`nucleo/circuit/verdict.py`): its endings are `met` (its end state was attested), `unmet` (attested false after
+  its grace, or no tries left — corrected out loud when he ordered it), `unverifiable` (nothing readable could say),
+  `undeclared` (the action declares no end state) and `cannot` (nothing could act). Each value declares once whether
+  it delivered, its rank, the row state it leaves and its event; a non-ending (`started`, `asked`, `skipped`) never
+  settles a row, and every settle emits with the row's trace. A later op never improves a failed row; a worker's
+  verdict comes from `circuit.close`, a list step's from its ops; the prompt's recent state reads these rows, facts
+  only. An inline row carries its spec, and a live one left by a previous boot is judged once from it (`met`) or
+  closed as interrupted, silently. — since 2026-10-28 · nodes 2.194, 2.196, 2.198, 2.829, 3.105, 3.106, 3.113 ·
+  `nucleo/circuit/verdict.py`, `nucleo/request_row.py`, `nucleo/circuit/`, `nucleo/spec.py`, `nucleo/tasks.py`.
 - **CRIT-E15 · A collection put together for him is an errand, and it ends in the card that holds it.** The
   escalate question reads «put together several items chosen to fit what he describes» as background work and ONE
   named item into a list as inline (measured live, 22/22); a card that holds such collections declares the op that
