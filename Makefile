@@ -148,9 +148,9 @@ sim:
 smoke:
 	$(PY) -m tests.agent_headless.harness.run skeptic 3
 
-# Per-widget harness: contract gate + golden view_data() shape + ES-module parse (widgets/harness.py).
+# Per-widget harness: contract gate + golden view_data() shape + ES-module parse (tests/widget_harness.py).
 test-widgets:
-	$(PY) -m widgets.harness
+	$(PY) -m tests.widget_harness
 
 # Import/health check: builds the FastAPI app + the assistant prompt without doing real I/O.
 test:

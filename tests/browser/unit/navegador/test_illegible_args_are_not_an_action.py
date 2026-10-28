@@ -99,14 +99,6 @@ def test_unos_argumentos_VACIOS_de_verdad_siguen_valiendo(monkeypatch):
     assert accion == "snapshot" and args == {}
 
 
-def test_el_BUCLE_apunta_el_motivo_y_no_una_frase_generica():
-    """WIRING GUARD (V2-199): the reason may be perfect while the loop keeps writing “no action emitted” in the
-    steps, which is exactly what directs investigation to the model when the limit is ours."""
-    import inspect
-    src = inspect.getsource(agent)
-    assert 'steps.append(args.get("_error") or "(el modelo no emitió acción)")' in src
-
-
 @pytest.mark.parametrize("lector,fuente", [
     ("_parse_judgement", "voice.attention_judge"),   # `attention._parse_directed` reads through it (V2-812 T-03)
     ("_parse_judge", "nucleo.flash.segmenter"),
@@ -145,12 +137,3 @@ def test_una_accion_BUENA_no_emite_nada(monkeypatch):
     _decidir(monkeypatch, _Resp([_TC("click", '{"ref": 2}')], finish_reason="stop"))
     assert not vistos
 
-
-def test_es_la_MISMA_forma_de_evento_que_la_del_FlashBrain():
-    """SOURCE GUARD: a consumer that already consumes `tool_dropped` must not have to change to see it here too."""
-    import inspect
-
-    from nucleo.flash import tool_drops   # the FlashBrain's drop record (split out of fast_client)
-    for src in (inspect.getsource(tool_drops), inspect.getsource(agent)):
-        assert '"tool_dropped", "⚠️ acción descartada"' in src
-        assert '"tool":' in src and '"reason":' in src

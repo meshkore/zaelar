@@ -4,7 +4,7 @@
 # Extracted from widgets/generator.py: that file mixed job orchestration (spawn the headless Claude Code agent,
 # lock/journal it) with this — a static analyzer that has no shared mutable state with the orchestration half and
 # is cohesive on its own ("does this widget's code obey the contract?"). generator.py imports `_validate` and the
-# other names it calls directly, so existing callers (widgets/harness.py, widgets/server_api.py, and every test
+# other names it calls directly, so existing callers (tests/widget_harness.py, widgets/server_api.py, and every test
 # that does `from widgets import generator; generator._validate(...)`) keep working unchanged.
 #
 import json
@@ -49,7 +49,8 @@ _JS_BANNED = [
     ("dynamic import()", re.compile(r"\bimport\s*\(")),
     ("eval()", re.compile(r"\beval\s*\(")),
     ("new Function()", re.compile(r"\bnew\s+Function\b")),
-    ("external import", re.compile(r'\bimport\b[^\n;]*\bfrom\b\s*["\']')),   # self-contained: no module deps
+    # self-contained: no module deps — only the widget's own `js/` modules (`./js/x.js`, or `./x.js` between them)
+    ("external import", re.compile(r'\bimport\b[^\n;]*\bfrom\b\s*["\'](?!\./(?:js/)?[\w-]+\.js["\'])')),
 ]
 # widget.js: HTML sinks are only dangerous with INTERPOLATION (a static string is fine). Flag assignment/call
 # whose RHS on the same line carries a template `${…}` or a `+` string concat.
@@ -325,17 +326,38 @@ def _table_actions(fn, tree) -> set[str]:
     V2-778 F1-12 turns the widgets' if-chains into this table, and without reading it the gate would have
     fail-opened on every converted widget — the contract check switched off without a sound. Only a dict
     literal whose every key is a string, and only when `apply_action` names `ACTIONS`: anything else is not
-    a dispatch this gate knows, and stays not counted."""
+    a dispatch this gate knows, and stays not counted.
+
+    The table may also be READ OFF the module's `_a_<action>` names (`ACTIONS = {n[3:]: f for n, f in
+    globals().items() if n.startswith("_a_")}`, refactor2710-12): then the handled actions are those names, bound
+    at module level by a `def`, an assignment or an import."""
     import ast
     if not any(isinstance(n, ast.Name) and n.id == "ACTIONS" for n in ast.walk(fn)):
         return set()
     for node in getattr(tree, "body", []):
-        if (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id == "ACTIONS" and isinstance(node.value, ast.Dict)
-                and node.value.keys and all(isinstance(k, ast.Constant) and isinstance(k.value, str)
-                                            for k in node.value.keys)):
+        if not (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+                and node.targets[0].id == "ACTIONS"):
+            continue
+        if (isinstance(node.value, ast.Dict) and node.value.keys
+                and all(isinstance(k, ast.Constant) and isinstance(k.value, str) for k in node.value.keys)):
             return {k.value for k in node.value.keys}
+        if isinstance(node.value, ast.DictComp):
+            return {name[3:] for name in _bound_names(tree) if name.startswith("_a_")}
     return set()
+
+
+def _bound_names(tree) -> set[str]:
+    """Every name bound at module level: `def`, assignment targets (chained ones too) and imports."""
+    import ast
+    out = set()
+    for node in tree.body:
+        if isinstance(node, ast.FunctionDef):
+            out.add(node.name)
+        elif isinstance(node, ast.Assign):
+            out |= {t.id for t in node.targets if isinstance(t, ast.Name)}
+        elif isinstance(node, ast.ImportFrom):
+            out |= {a.asname or a.name for a in node.names}
+    return out
 
 
 def _apply_action_names(src: str, wdir: str = "") -> set[str] | None:
@@ -561,7 +583,7 @@ def _validate(wid: str, *, stamp_origin: bool = False) -> tuple[bool, str]:
     js_src = open(js_p, encoding="utf-8").read() if os.path.isfile(js_p) else ""
     if not js_src or "export function render" not in js_src:
         return False, "widget.js missing or has no `export function render`"
-    js_bad = _scan_widget_js(js_src)                        # static house-rules gate (SEC-3): no XSS/network/dynamic code
+    js_bad = _scan_widget_js(paths.client_source(d))                        # static house-rules gate (SEC-3): no XSS/network/dynamic code
     if js_bad:
         return False, js_bad
     dp = os.path.join(d, "data.py")

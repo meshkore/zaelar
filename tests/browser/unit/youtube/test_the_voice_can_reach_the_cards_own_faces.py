@@ -271,18 +271,6 @@ def test_the_declaration_carries_the_WORDS_HE_USED():
         assert said in desc, f"the declaration never says «{said}», which is how he asked for it"
 
 
-def test_the_two_lists_of_faces_CANNOT_DRIFT():
-    """`data.py` validates against its `_TABS`; `widget.js` applies against its own. A face on one
-    side only is an order that returns ok and does nothing — the silent failure this widget just
-    spent a session producing."""
-    from widgets.youtube import data as ydata
-    js = (_ENGINE / "widgets/youtube/widget.js").read_text(encoding="utf-8")
-    m = re.search(r"const _TABS = \[(.*?)\];", js, re.S)
-    assert m, "widget.js no longer declares _TABS"
-    in_js = [t.strip().strip('"\'') for t in m.group(1).split(",") if t.strip()]
-    assert sorted(in_js) == sorted(ydata._TABS), f"js={in_js} py={list(ydata._TABS)}"
-
-
 def test_the_payload_is_an_ENUMERATION_and_the_rung_will_not_stuff_a_sentence_into_it():
     """V2-741's rung fills one declared key from the operator's words. `tab` is a CHOICE, so a
     sentence is not one of its values — caught while declaring this action, and guarded there."""

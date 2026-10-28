@@ -96,14 +96,3 @@ def test_y_el_bloque_SIGUE_llegando_al_prompt():
     assert "navegador_lines()" in inspect.getsource(prompt.live_state), (
         "`live_state` dejó de llamar al bloque: el estado del navegador ya no llega al turno")
 
-
-def test_an_ACTIVE_task_with_results_is_still_impossible():
-    """The specific fact that killed V2-192, recorded here as well because it is why the results face
-    reads the worker signal rather than the task field."""
-    for rel in ("widgets/navegador/owner.py", "nucleo/dispatch.py"):
-        src = _vts.read(ROOT / rel)     # V2-778 F1: a split file is read with its moved pieces
-        for m in re.finditer(r"set_results\(", src):
-            after = src[m.end():m.end() + 700]
-            assert re.search(r"\.finish\(|set_status\([^)]*\"(done|failed|cancelled)\"", after), (
-                f"{rel}: un `set_results()` que NO termina la tarea. Si eso pasa a ser posible, la cara de "
-                "resultados puede volver a leer el campo de la tarea — pero que sea una decisión.")

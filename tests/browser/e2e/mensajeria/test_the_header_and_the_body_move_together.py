@@ -13,9 +13,9 @@ import os
 import time
 
 import pytest
+from tests.browser import widget_client
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-_WIDGET = os.path.join(ENG, "widgets", "mensajeria", "widget.js")
 
 _HTML = """<!doctype html><html><head><meta charset="utf-8"></head><body><div id="host"></div></body></html>"""
 
@@ -95,8 +95,7 @@ def _run():
                 await route.fulfill(status=200, content_type="text/html", body=_HTML)
             await pg.route("http://zaelar.test/", _page)
             await pg.goto("http://zaelar.test/")
-            src = open(_WIDGET, encoding="utf-8").read()
-            await pg.add_script_tag(content=src.replace("export function render", "window.render = function render"))
+            await widget_client.mount(pg, "mensajeria")
 
             out = {}
             await _mount(pg, _ON_WIZARD)

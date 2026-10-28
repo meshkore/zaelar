@@ -13,9 +13,11 @@ from loguru import logger
 
 from . import runtime
 from .about import router as _about_router
+from .client_files import router as _client_router
 
 router = APIRouter()
 router.include_router(_about_router)   # V2-823 — GET /widgets/{wid}/about, the apps window's page
+router.include_router(_client_router)  # widget.js and its js/ modules
 from widgets import paths as _paths
 
 HERE = _paths.BUILTIN_ROOT
@@ -225,18 +227,6 @@ async def remove_alias(wid: str, alias: str):
         return JSONResponse(res)
     code = 404 if "no existe" in str(res.get("error")) else 400
     return JSONResponse(res, status_code=code)
-
-
-@router.get("/widgets/{wid}/widget.js")
-async def widget_js(wid: str):
-    """Serve the widget's client render module (lazy-loaded by the canvas host). `no-cache` forces revalidation
-    on every load (same fix as server/__init__.py's StaticFiles for frontend/) — without it, the browser's ES
-    module + HTTP cache can keep serving an OLD widget.js (stale styles/behavior) after an edit, indefinitely,
-    since desktop.js's dynamic import() has no cache-busting query param on the initial load."""
-    p = os.path.join(_paths.dir_for(_safe(wid)) or _paths.new_dir(_safe(wid)), "widget.js")
-    if not os.path.isfile(p):
-        return JSONResponse({"error": "no widget.js"}, status_code=404)
-    return FileResponse(p, media_type="text/javascript", headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/widgets/{wid}/asset/{name}")

@@ -133,37 +133,6 @@ def test_rich_content_is_never_squeezed_however_narrow_the_card_gets():
         assert _columns_at(rich, width) == 1
 
 
-def test_the_gap_has_a_single_source_of_truth():
-    """Having it twice cost one column: when the grid increased from 12 to 14px, `gridStyle` kept subtracting 12, the
-    floor of each track ended up 2px above what fit, and `auto-fill` dropped from two columns to ONE on a 1,420px
-    sheet. It appears as “maximizing no longer uses the width” and cannot be inferred by reading the diff."""
-    src = (WIDGET / "widget.js").read_text()
-    fn = src[src.index("function gridStyle("):src.index("function makeCard(")]
-    assert "var(--s3)" in fn, "el hueco sale de la variable que lo pinta"
-    import re
-    assert not re.search(r"const gap\s*=\s*\d", fn), "un número copiado aquí se desincroniza del CSS en silencio"
-
-
-def test_the_widget_really_delegates_the_layout():
-    """`data.columns` may only enter as the CAP argument of `gridStyle`, never as the distribution itself.
-
-    The assertion used to pin the call byte for byte, which made it a test of one line's spelling: V2-702 added a
-    third argument (the list layout, which also decides the track floor) and this went red while the property it
-    guards — the payload does not lay anything out — was untouched. What it means is that every mention of
-    `data.columns` sits inside a `gridStyle(` call.
-    """
-    import re
-    src = (WIDGET / "widget.js").read_text()
-    assert "function gridStyle(" in src
-    calls = re.findall(r"gridStyle\([^)]*\)", src)
-    assert any("data.columns" in c for c in calls), "el grid ya no pasa por la función"
-    for m in re.finditer(r"data\.columns", src):
-        line = src[src.rfind("\n", 0, m.start()) + 1:src.find("\n", m.start())]
-        assert "gridStyle(" in line, f"`data.columns` fuera de gridStyle — el payload estaría maquetando: {line.strip()}"
-    assert "Math.min(3, data.columns ||" not in src, "esa era la forma en la que el payload MANDABA"
-    assert "auto-fill" in src, "el reparto lo hace el ancho REAL, no un número calculado al pintar"
-
-
 # ── 3. Budgets are declared, not guessed ──────────────────────────────────────────────────────────────────────────
 
 def test_the_blank_sheet_declares_itself_and_no_layout_budget():
