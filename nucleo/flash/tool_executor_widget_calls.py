@@ -370,57 +370,35 @@ def _handle_widget_data_tool(args: dict, *, _apply_widget_data, _brief, _fronten
     if _txw._vcard.takes_the_view(_brief, _cd["card"], action_name, operator_text=_txw._bnotes.operator_half(text), emit=emit, present=_txw._cvis.present, apply_widget_data=_apply_widget_data):
         acted["widget"] = True; return       # pass 114 I3: a sure verdict view on the card in front (`verdict_card`)
     # V2-754 — a VALID model call runs over a disagreeing verdict (a 0.99 would have RESTARTED the video); logged.
+    # refactor2710-05 T-04: who wins is ONE asymmetric rule (`card.vetoes`), not a branch per incident.
     if (_dis := _txw._direct_action.completes(_brief, _cd["card"], model_action=action_name)):
         from nucleo.flash import turn_brief as _tb_vw
         _vw_words = str(_tb_vw.read(_brief, _tb_vw.WORDS_KEY, "")[0] or "")
-        if ((_txw._data_ops.repeats_last_view(brain._last_dataop, _cd["card"], action_name, res.payload)
-             or _txw._data_ops.a_view_where_the_verdict_acts(_cd["card"], action_name, _dis, _vw_words))
-                and _txw._direct_action.complete(_brief, operator_text=_txw._bnotes.operator_half(text), emit=emit,
-                                            present=_txw._cvis.present, apply_widget_data=_apply_widget_data,
-                                            widget_id=_cd["card"], instead_of=action_name,
-                                            require_order=False)):
+        _dis_x = {"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis}
+        _dis_t = f"{_cd['card']}: modelo={action_name} · veredicto={_dis}"
+        _looked = (_txw._data_ops.repeats_last_view(brain._last_dataop, _cd["card"], action_name, res.payload)   # full37 E2:
+                   or _txw._data_ops.a_view_where_the_verdict_acts(_cd["card"], action_name, _dis, _vw_words))  # a lens
+
+        def _verdict_runs() -> bool:
+            return _txw._direct_action.complete(_brief, operator_text=_txw._bnotes.operator_half(text), emit=emit,
+                                                present=_txw._cvis.present, apply_widget_data=_apply_widget_data,
+                                                widget_id=_cd["card"], instead_of=action_name, require_order=False)
+
+        if _looked and _verdict_runs():
             emit("brain", "⚖️ el modelo solo miró (o repitió la vista) — completa el veredicto", role="system",
-                 text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
-                 extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
+                 text=_dis_t, extra=_dis_x)
             acted["widget"] = True
             return
-        # A sure QUESTION verdict over a model WRITE on the same card (full19 C2) — the answer runs. full52 V5:
-        # a sure LENS (show_tab 0.97) over a state change (clear_search erased the results) — the lens runs.
-        # `output.answer` is declared, never guessed.
-        if (_txw._data_ops.is_view_op(_cd["card"], _dis) and not _txw._data_ops.is_view_op(_cd["card"], action_name)
-                and _txw._direct_action._action_sure(_brief, floor=0.9)
-                and _txw._direct_action.complete(_brief, operator_text=_txw._bnotes.operator_half(text), emit=emit,
-                                            present=_txw._cvis.present, apply_widget_data=_apply_widget_data,
-                                            widget_id=_cd["card"], instead_of=action_name,
-                                            require_order=False)):
-            emit("brain", "👁 la vista segura gana a un cambio de estado — corre el veredicto", role="system",
-                 text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
-                 extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
-            acted["widget"] = True
-            return
-        from widgets import effects as _fx_q
-        if (_fx_q.carries(_cd["card"], _dis, _fx_q.OUTPUT_ANSWER)
-                and _fx_q.carries(_cd["card"], action_name, _fx_q.DATA_WRITE)
-                and _txw._direct_action._action_sure(_brief)):
-            # full51 C2: when the verdict cannot complete alone, the WRITE still booked over the 15:00 meeting.
-            # The write never runs; the verdict's call is asked after the turn (repair pass).
-            if not _txw._direct_action.complete(_brief, operator_text=_txw._bnotes.operator_half(text), emit=emit,
-                                           present=_txw._cvis.present, apply_widget_data=_apply_widget_data,
-                                           widget_id=_cd["card"], instead_of=action_name,
-                                           require_order=False):
+        if (_veto := _card.vetoes(_brief, _cd["card"], action_name, _dis)):
+            # The contradicted call never runs; a verdict that cannot complete alone is asked after the turn.
+            if not _verdict_runs():
                 _repeat_repair["v"] = (_cd["card"], action_name, _dis)
-            emit("brain", "❓ la pregunta gana a la escritura — corre el veredicto", role="system",
-                 text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
-                 extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
+            emit("brain", _veto, role="system", text=_dis_t, extra=_dis_x)
             acted["widget"] = True
             return
-        # …a REPEATED view with a verdict needing a written payload (full20 E3): it runs, then one repair pass.
-        if (_txw._data_ops.repeats_last_view(brain._last_dataop, _cd["card"], action_name, res.payload)   # full37 E2:
-                or _txw._data_ops.a_view_where_the_verdict_acts(_cd["card"], action_name, _dis, _vw_words)):  # a lens
+        if _looked:      # a repeated view with a verdict needing a written payload (full20 E3): one repair pass
             _repeat_repair["v"] = (_cd["card"], action_name, _dis)
-        emit("brain", "⚖️ el modelo y el veredicto discrepan — corre el modelo", role="system",
-             text=f"{_cd['card']}: modelo={action_name} · veredicto={_dis}",
-             extra={"cat": "flash", "id": _cd["card"], "model": action_name, "verdict": _dis})
+        emit("brain", "⚖️ el modelo y el veredicto discrepan — corre el modelo", role="system", text=_dis_t, extra=_dis_x)
     # V2-756 — what the model left EMPTY is filled from his words (`show_tab` without `tab`): it only adds
     # a missing key, by a declared alias or a spoken number.
     if (_fill := _txw._direct_action.fill_missing(_cd["card"], action_name, res.payload,

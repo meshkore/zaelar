@@ -334,7 +334,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
     "nucleo (top)": 15626,      # refactor2710-07: jev.py became the nucleo/jev package; refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
     "nucleo/actionmap": 755,
-    "nucleo/acts": 3163,        # refactor2710-05: the catalogue (T-01), the card decisions (T-05), the verdict over a card and the second passes (T-04), the licence (T-02)
+    "nucleo/acts": 3186,        # refactor2710-05: the catalogue (T-01), the card decisions (T-05), the verdict over a card and the second passes (T-04), the licence (T-02), the licence (T-02)
     "nucleo/agentes": 793,
     "nucleo/batch": 884,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
     "nucleo/circuit": 2597,     # refactor2710-02: born — circuit, spec, harness, verify, deliverable_gate, workers/goal, tasks (ledger) MOVED in; `verdict.py`; 02b: flash/write_outcome MOVED in (compose.py)
@@ -342,7 +342,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "nucleo/dispatch": 2448,   # refactor2710-09 T-01: moved from top and split; target 1 200
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 21849,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts
+    "nucleo/flash": 21729,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts
     "nucleo/input": 739,
     "nucleo/jev": 759,          # refactor2710-07: born — jev.py split into the client, select and decide (dead calls out)        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED

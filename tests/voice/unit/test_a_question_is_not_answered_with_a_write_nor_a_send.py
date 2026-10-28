@@ -51,9 +51,9 @@ def test_the_voice_wires_both_rules():
     assert "elif _card.logged(_card.licence(_req, wid, action_name, payload, at=_card.LEAVES), emit)" in SRC
     seg = inspect.getsource(card._leaves_for_another_card)
     assert "_da.verdict_elsewhere(" in seg and "no se ejecuta" in seg and "_bn.push(" in seg and "CONFIRM" not in seg
-    j = SRC.index("la pregunta gana a la escritura")
-    block = SRC[SRC.rindex("if (_fx_q.carries", 0, j):j]
-    assert "_fx_q.OUTPUT_ANSWER" in block and "_fx_q.DATA_WRITE" in block and "instead_of=action_name" in block
+    veto = inspect.getsource(card.vetoes)
+    assert "_fx.OUTPUT_ANSWER" in veto and "_fx.DATA_WRITE" in veto and "la pregunta gana a la escritura" in veto
+    assert "instead_of=action_name" in SRC[SRC.index("def _verdict_runs()"):]
 
 
 def test_when_the_verdict_cannot_complete_alone_the_write_still_does_not_run():
@@ -61,9 +61,8 @@ def test_when_the_verdict_cannot_complete_alone_the_write_still_does_not_run():
     (15:45, over the 15:00 meeting), the verdict read find_free at 0.86, and `complete` could not build find_free on
     its own — so the write ran. Now the write never runs: the verdict's call is asked of the model after the turn,
     and the branch returns either way."""
-    j = SRC.index("la pregunta gana a la escritura")
-    block = SRC[SRC.rindex("if (_fx_q.carries", 0, j):j + 400]
-    assert "and _direct_action._action_sure(_brief)):" in block, "complete() is part of the condition again"
+    j = SRC.index("if (_veto := _card.vetoes(")
+    block = SRC[j:SRC.index("return", j) + 6]
+    assert "if not _verdict_runs():" in block, "complete() is tried first"
     assert '_repeat_repair["v"] = (_cd["card"], action_name, _dis)' in block
-    k = block.index("la pregunta gana a la escritura")
-    assert "return" in block[k:k + 400]
+    assert block.rstrip().endswith("return"), "the branch returns either way: the write never runs"
