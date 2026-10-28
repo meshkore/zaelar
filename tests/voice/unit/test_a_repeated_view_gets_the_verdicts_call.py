@@ -2,7 +2,6 @@
 book it» over the open Inworld invoice — the model's only call was `open` (what was already on screen), the verdict
 read `mensajeria:forward`. A forward needs a note only a model can write, so the verdict could not complete it and
 the turn did nothing. One repair pass asks for the verdict's call."""
-from tests import voice_turn_source as _vts
 import asyncio
 import pathlib
 
@@ -56,17 +55,67 @@ def test_any_other_call_is_not_taken(model):
     assert _run() is None
 
 
-def test_the_voice_schedules_it_for_a_repeated_view_or_a_lens_over_an_act():
+def _voice_turn(phrase: str, open_ids, brief: dict, tools: list):
+    """One turn through the voice turn itself (the bank harness: the real `run_turn`, a recorded model, the recorded
+    brief, every consequence door dry). The second passes are spied on by the `repairs` fixture."""
+    from tests.brain import harness as H
+    case = {"id": "repair-pass", "lang": "en", "phrase": phrase, "source": "node 2.121",
+            "screen": {"open": list(open_ids)}, "model": {"say": "", "tools": tools}, "expect": "talk", "brief": brief}
+    try:
+        out = H.run_case(case)
+    finally:
+        from nucleo import canvas_closes, canvas_focus, done_ops
+        from nucleo.flash import bulk_close, canvas_license
+        canvas_focus._reset()
+        done_ops.reset()
+        bulk_close.reset()
+        canvas_closes._reset_for_tests()
+        canvas_license._RECENT_CLOSES.clear()
+    assert not out.error, out.error
+    return out
+
+
+@pytest.fixture
+def repairs(monkeypatch):
+    """The second passes the turn asks for, recorded (each answers nothing, as the bank's model does)."""
+    seen = {"repeated": [], "after_read": [], "after_lookup": []}
+
+    async def repeated(operator_text, widget_id, repeated_action, verdict, *a, **k):
+        seen["repeated"].append((widget_id, repeated_action, verdict))
+
+    async def after_read(operator_text, read_widget, widget_id, *a, **k):
+        seen["after_read"].append((read_widget, widget_id))
+    real_after = act_repair.after_a_read
+
+    async def after_lookup(brief, operator_text, read_widget, *a, **k):
+        seen["after_lookup"].append(read_widget)
+        return await real_after(brief, operator_text, read_widget, *a, **k)
+    monkeypatch.setattr(act_repair, "call_for_repeated_view", repeated)
+    monkeypatch.setattr(act_repair, "call_after_read", after_read)
+    monkeypatch.setattr(act_repair, "after_a_read", after_lookup)
+    return seen
+
+
+#: full37 E2 / full26 E2: «open it» → the model searched the archive again, the verdict read `mensajeria:open`.
+_LENS = ("open it", ["mensajeria"],
+         {"screen_action": ["mensajeria:open", 0.87], "wants_words": ["act", 0.9], "request_type": ["order", 0.9]},
+         [{"name": "widget_data", "args": {"widget_id": "mensajeria", "action": "search_archive",
+                                           "payload": {"query": "inworld"}}}])
+
+
+def test_the_voice_schedules_it_for_a_repeated_view_or_a_lens_over_an_act(repairs):
     """…and for a lens the verdict overrules but cannot complete alone (full37 E2: «open it» → the model searched
     the archive, the verdict read `mensajeria:open` 0.85, and `open` needs the name only a model can write)."""
-    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    head = src[src.index("_looked = ("):src.index("def _verdict_runs()")]
-    assert "repeats_last_view(brain._last_dataop, _cd[\"card\"], action_name, res.payload)" in head
-    assert "or _data_ops.a_view_where_the_verdict_acts(_cd[\"card\"], action_name, _dis, _vw_words)" in head
-    tail = src[src.index("if _looked:      # a repeated view"):]
-    assert tail.index('_repeat_repair["v"] = (_cd["card"], action_name, _dis)') < 200
-    assert "_repeat_repair[\"v\"] = (_cd[\"card\"], action_name, _dis)" in src
-    assert "call_for_repeated_view(_op_text, _rv_card, _rv_seen, _rv_act" in src
+    _voice_turn(*_LENS)
+    assert repairs["repeated"] == [("mensajeria", "search_archive", "open")], repairs
+
+
+def test_the_disarm_a_lens_that_never_yields_schedules_no_pass(repairs, monkeypatch):
+    from nucleo.flash import data_ops
+    monkeypatch.setattr(data_ops, "a_view_where_the_verdict_acts", lambda *a, **k: False)
+    assert not data_ops.a_view_where_the_verdict_acts("mensajeria", "search_archive", "open", "act"), "landed"
+    _voice_turn(*_LENS)
+    assert repairs["repeated"] == [], "the lens's verdict is never asked for — the turn ends on the model's search"
 
 
 def test_a_read_for_an_order_on_another_card_carries_the_order_out(model, monkeypatch):
@@ -89,23 +138,41 @@ def test_the_order_card_is_the_other_card_his_words_name(monkeypatch):
     assert da.order_card_after_read({"x": 1}, "what time is it tomorrow in my calendar", "agenda") == ""
 
 
-def test_the_voice_read_path_uses_it():
-    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    # V2-781 T518: one door for both channels — `after_a_read` runs `order_card_after_read` → `call_after_read`
-    assert "_act_repair.after_a_read(_brief, _op_text, _rw" in src
-    import inspect
-    from nucleo.flash import act_repair
-    door = inspect.getsource(act_repair.after_a_read)
-    assert "order_card_after_read(brief, operator_text, read_widget)" in door and "call_after_read(" in door
+#: full20 C5, the time on the agenda and the order on the messages — read by an ORDER brief.
+_ORDER_ELSEWHERE = "send rowan a telegram with the new time"
+_ORDER = {"request_type": ["order", 0.95]}
 
 
-def test_an_order_on_a_card_the_turn_never_touched_is_carried_out():
+def test_the_voice_read_path_uses_it(repairs):
+    """V2-781 T518: one door for both channels — the voice read lane hands the read to `after_a_read`, which carries
+    the order out on the card his words name (`order_card_after_read` → `call_after_read`)."""
+    _voice_turn(_ORDER_ELSEWHERE, ["agenda", "mensajeria"], _ORDER,
+                [{"name": "read_widget", "args": {"widget_id": "agenda"}}])
+    assert repairs["after_lookup"] == ["agenda"], repairs
+    assert repairs["after_read"] == [("agenda", "mensajeria")], repairs
+
+
+def test_an_order_on_a_card_the_turn_never_touched_is_carried_out(repairs):
     """full23 C5: «send rowan a telegram with the new time» re-wrote the meeting on the agenda and the reply said «he's
     getting the update now» — nothing was sent. The order's card, untouched by the turn's ops, gets its call."""
-    src = _vts.read(ENGINE / "voice/engine/llm/providers/nucleo.py")
-    assert "_missed = _direct_action.order_card_after_read(_brief, _op_text, next(iter(_ops_cards)))" in src
-    assert "if _missed and _missed not in _ops_cards:" in src
-    assert "call_after_read(_op_text, next(iter(_ops_cards)), _missed" in src
+    _voice_turn(_ORDER_ELSEWHERE, ["agenda", "mensajeria"], _ORDER,
+                [{"name": "widget_data", "args": {"widget_id": "agenda", "action": "show_day",
+                                                  "payload": {"date": "tomorrow"}}}])
+    assert repairs["after_read"] == [("agenda", "mensajeria")], repairs
+
+
+def test_the_disarm_no_order_card_after_a_read_carries_nothing_out(repairs, monkeypatch):
+    """`order_card_after_read` answering "" (the reader of his words off): neither the read lane nor the op lane
+    reaches the second pass — the order on the messages is dropped, as in full20/full23 C5."""
+    from nucleo.flash import direct_action as da
+    monkeypatch.setattr(da, "order_card_after_read", lambda *a, **k: "")
+    assert da.order_card_after_read({}, _ORDER_ELSEWHERE, "agenda") == "", "landed"
+    _voice_turn(_ORDER_ELSEWHERE, ["agenda", "mensajeria"], _ORDER,
+                [{"name": "read_widget", "args": {"widget_id": "agenda"}}])
+    _voice_turn(_ORDER_ELSEWHERE, ["agenda", "mensajeria"], _ORDER,
+                [{"name": "widget_data", "args": {"widget_id": "agenda", "action": "show_day",
+                                                  "payload": {"date": "tomorrow"}}}])
+    assert repairs["after_read"] == [], repairs
 
 
 def test_an_answering_lens_yields_to_a_verdict_that_changes_the_screen():

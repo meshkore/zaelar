@@ -26,8 +26,6 @@ from __future__ import annotations
 
 from nucleo.acts import canvas as _door
 
-from tests import voice_turn_source as _vts
-
 import threading
 
 from nucleo.flash import canvas_license, router_guards, turn_brief
@@ -93,16 +91,51 @@ def test_a_show_verdict_does_not_forbid_either():
     assert _door.close_ordered("cierra la agenda y abre el vídeo", brief=_brief("show"))[0]
 
 
-def test_the_provider_backstop_reads_the_licence_and_not_the_table():
-    """The seam. The backstop lives in the voice provider and used to call `looks_like_close` directly, so
-    the repair above would have been invisible to the path that actually closed his card."""
-    import pathlib
-    src = pathlib.Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py"
-    body = _vts.read(src)
-    i = body.index('if (not acted.get("closed"))')
-    guard = body[i:i + 400]
-    assert "close_ordered" in guard and "brief=" in guard, (
-        "the close backstop must go through the licence, with the turn's brief — otherwise the verdict is "
-        "read in a module the closing path never calls")
-    assert "_router.looks_like_close(text)" not in guard, (
-        "…and not straight through the verb table, which is what closed his card three times")
+def _voice_turn(phrase: str, brief: dict | None):
+    """His sentence through the voice turn itself (the bank harness: the real `run_turn`, a recorded model that only
+    apologises, the recorded brief, every consequence door dry). What the close backstop did is read from the turn."""
+    from tests.brain import harness as H
+    case = {"id": "denial-of-a-close", "lang": "es", "phrase": phrase, "source": "node 2.71",
+            "screen": {"open": ["youtube"]}, "model": {"say": "Perdona.", "tools": []}, "expect": "talk"}
+    if brief:
+        case["brief"] = brief
+    try:
+        out = H.run_case(case)
+    finally:
+        from nucleo import canvas_closes, canvas_focus, done_ops
+        from nucleo.flash import bulk_close, canvas_license
+        canvas_focus._reset()
+        done_ops.reset()
+        bulk_close.reset()
+        canvas_closes._reset_for_tests()
+        canvas_license._RECENT_CLOSES.clear()
+    assert not out.error, out.error
+    backstop = [e for e in out.events if str(e.get("label") or "").startswith("🙈 close por backstop")]
+    return out, backstop
+
+
+#: The verdicts of the measured turns: the screen question answered `neither`, the turn read as a complaint.
+_DENIED = {"canvas": ["neither", 0.95], "request_type": ["complaint", 0.9]}
+
+
+def test_the_voice_turns_close_backstop_does_not_close_on_a_denial():
+    """The seam, driven: the backstop in the voice turn used to call `looks_like_close` directly, so the licence
+    above would have been invisible to the path that actually closed his card. Another of his denials here."""
+    out, backstop = _voice_turn(DENIALS[1], _DENIED)
+    assert backstop == [] and not any(d.startswith("close") for d in out.all_decisions), (
+        f"his card closed on a denial the turn's verdict had read as not a close: {out.all_decisions}")
+
+
+def test_the_voice_turns_close_backstop_still_closes_without_a_verdict():
+    """The half that must not move: with no brief at all, the same sentence takes today's path (the grammar)."""
+    out, backstop = _voice_turn(DENIALS[0], None)
+    assert backstop and "close youtube" in out.all_decisions, out.all_decisions
+
+
+def test_the_disarm_a_licence_that_ignores_the_verdict_closes_on_the_denial(monkeypatch):
+    """The licence's negation clause switched off (`_denies_close` never true): the backstop fires on the denial.
+    If this stayed quiet, the test above would be green for a reason other than the licence."""
+    monkeypatch.setattr(_door, "_denies_close", lambda brief: False)
+    assert _door.close_ordered(DENIALS[1], brief=_brief("neither"))[0], "the mutation landed at the door"
+    _out, backstop = _voice_turn(DENIALS[1], _DENIED)
+    assert backstop, "with the verdict unread the backstop closes on his denial — the incident"

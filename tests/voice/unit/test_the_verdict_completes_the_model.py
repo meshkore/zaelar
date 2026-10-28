@@ -248,27 +248,91 @@ def test_the_parser_does_not_mistake_a_free_text_hint_for_an_enumeration():
 
 
 # ── 5 · THE WIRING — a rule in a module nobody calls is V2-750's catalog_widget ───────────────────
+# Driven through the voice turn itself (the bank harness: the real `run_turn`, a recorded model, the recorded brief,
+# every consequence door dry) and read on what the turn DID.
+
+def _voice_turn(phrase: str, open_ids, brief: dict, *, tools=(), say: str = "", lang: str = "es"):
+    from tests.brain import harness as H
+    case = {"id": "verdict-completes", "lang": lang, "phrase": phrase, "source": "node 2.73",
+            "screen": {"open": list(open_ids)}, "model": {"say": say, "tools": list(tools)}, "expect": "talk",
+            "brief": brief}
+    try:
+        out = H.run_case(case)
+    finally:
+        from nucleo import canvas_closes, canvas_focus, done_ops
+        from nucleo.flash import bulk_close, canvas_license
+        canvas_focus._reset()
+        done_ops.reset()
+        bulk_close.reset()
+        canvas_closes._reset_for_tests()
+        canvas_license._RECENT_CLOSES.clear()
+    assert not out.error, out.error
+    return out
+
+
+def _ran(out, action: str) -> list[dict]:
+    """The payloads the turn ran `action` with (its `data:<action>` order events)."""
+    return [e.get("payload") for e in out.events if e.get("label") == f"data:{action}"]
+
+
+_T2_CALL = [{"name": "widget_data", "args": {"widget_id": "youtube", "action": "play_item",
+                                             "item": "volver al inicio / catálogo"}}]
+_T2_BRIEF = {"screen_action": ["youtube:show_tab", 0.96], "request_type": ["order", 0.8]}
+_T3_BRIEF = {"screen_action": ["youtube:show_tab", 0.88], "request_type": ["answer", 0.7]}
+
 
 def test_the_provider_completes_an_UNRESOLVED_call_before_asking_which_item():
-    body = _vts.read(_PROVIDER)
-    i = body.index("if not res.ok:")
-    seg = body[i:i + 1200]
-    assert "_direct_action.complete(" in seg and 'instead_of=action_name' in seg
-    assert seg.index("_direct_action.complete(") < seg.index("ask_which_item"), "the verdict goes BEFORE the question"
+    out = _voice_turn(T2, ["youtube"], _T2_BRIEF, tools=_T2_CALL)
+    assert out.decision == "data-op youtube:show_tab" and _ran(out, "show_tab") == [{"tab": "inicio"}], out.decision
 
 
-def test_the_provider_completes_an_EMPTY_turn_and_logs_a_disagreement():
-    body = _vts.read(_PROVIDER)
-    i = body.index("_no_tool = (")
-    assert "_direct_action.complete(" in body[i:i + 900], "the empty-turn site"
-    # V2-756 — anchored on ORDER, not on a byte distance: the repair of a key the model left empty
-    # (`fill_missing`) now sits between the two, and a window measured in characters made a correct
-    # wiring look broken.
-    j = body.index('_apply_widget_data(_cd["card"], action_name, res.payload, ref)')
-    k = body.index("_direct_action.completes(")
-    assert k < j, "the disagreement is logged where the model's call runs"
-    assert body.index("_direct_action.fill_missing(", k, j) > k, (
-        "and the empty key is repaired before the call is applied, not after (V2-756)")
+def test_the_provider_completes_an_EMPTY_turn():
+    out = _voice_turn(T3, ["youtube"], _T3_BRIEF, say="Vale.")
+    assert out.decision == "data-op youtube:show_tab", out.decision
+
+
+def test_the_disarm_a_verdict_that_never_completes_leaves_both_turns_as_they_failed(monkeypatch):
+    """`complete` switched off: T2 ends in «which one?» (the doubt was the ACTION), T3 in words over nothing."""
+    monkeypatch.setattr(_da, "complete", lambda *a, **k: "")
+    assert _da.complete(None) == "", "the mutation landed"
+    assert _voice_turn(T2, ["youtube"], _T2_BRIEF, tools=_T2_CALL).decision == "ask"
+    assert _voice_turn(T3, ["youtube"], _T3_BRIEF, say="Vale.").decision == "talk"
+
+
+_T4_CALL = [{"name": "widget_data", "args": {"widget_id": "youtube", "action": "show_tab", "payload": {"tab": "inicio"}}}]
+_T4_BRIEF = {"screen_action": ["youtube:restart", 0.99], "request_type": ["order", 0.9]}
+
+
+def test_a_valid_model_call_runs_over_a_disagreeing_verdict_and_the_disagreement_is_logged():
+    """T4 through the turn: the model's `show_tab` runs, the 0.99 `restart` does not, and ⚖️ says they disagreed."""
+    out = _voice_turn(T4, ["youtube"], _T4_BRIEF, tools=_T4_CALL)
+    assert out.decision == "data-op youtube:show_tab" and not _ran(out, "restart"), out.decision
+    assert any(str(e.get("label") or "").startswith("⚖️ el modelo y el veredicto discrepan") for e in out.events)
+
+
+def test_the_disarm_a_verdict_that_always_vetoes_throws_the_valid_call_away(monkeypatch):
+    """The one asymmetric rule (`card.vetoes`) switched to «always veto»: the model's valid call does not run."""
+    from nucleo.acts import card
+    monkeypatch.setattr(card, "vetoes", lambda *a, **k: "veto")
+    assert card.vetoes(None, "youtube", "show_tab", "restart") == "veto", "the mutation landed"
+    out = _voice_turn(T4, ["youtube"], _T4_BRIEF, tools=_T4_CALL)
+    assert out.decision != "data-op youtube:show_tab", out.decision
+
+
+#: V2-756 — the model called `show_tab` and left `tab` empty; «dashboard» is a declared alias of `inicio`.
+_FILL = ("Vuelve al dashboard.", [{"name": "widget_data", "args": {"widget_id": "youtube", "action": "show_tab"}}])
+
+
+def test_the_empty_key_is_filled_from_his_words_before_the_call_runs():
+    out = _voice_turn(_FILL[0], ["youtube"], _T4_BRIEF, tools=_FILL[1])
+    assert _ran(out, "show_tab") == [{"tab": "inicio"}], _ran(out, "show_tab")
+
+
+def test_the_disarm_no_fill_runs_the_call_with_the_key_empty(monkeypatch):
+    monkeypatch.setattr(_da, "fill_missing", lambda *a, **k: {})
+    assert _da.fill_missing("youtube", "show_tab", {}, "Vuelve al dashboard.") == {}, "the mutation landed"
+    out = _voice_turn(_FILL[0], ["youtube"], _T4_BRIEF, tools=_FILL[1])
+    assert _ran(out, "show_tab") == [{}], _ran(out, "show_tab")
 
 
 # ── demo pass 2026-09-28 — a SURE canvas gesture completes with that gesture, never with a data action ──────
@@ -306,14 +370,38 @@ def test_an_unsure_gesture_does_nothing(on_screen):
     assert _canvas(b) == ("", [])
 
 
-def test_the_promise_repair_closes_instead_of_writing_when_the_order_is_a_close():
-    """S4: «ok close the results» → «Closing it now.» and no call; the promise repair ran `results:clear`."""
-    import inspect
-    from voice.engine.llm.providers import nucleo as prov
-    src = _vts.getsource(prov)
-    i = src.index("_act_repair.call_for_promise_or_order(")
-    # …a sure close the inner order does not outrank (agenda-everyday-edits 2026-10-11, node 2.441)
-    assert '_vcard.close_is_owed(_brief, _op_text)' in src[i - 900:i]
+_S4 = ("ok close the results", ["results"],
+       {"screen_action": ["results:clear", 0.9], "canvas": ["close", 1.0], "request_type": ["order", 1.0]})
+
+
+@pytest.fixture
+def promise_pass(monkeypatch):
+    """The promise repair's pass answers with the write S4 measured (`results:clear`), and the canvas completion is
+    held off so the turn reaches the promise door — the second line behind it."""
+    calls = []
+
+    async def repair(*a, **k):
+        calls.append(a)
+        return {"widget_id": "results", "action": "clear", "payload": {}}
+    from nucleo.flash import act_repair
+    monkeypatch.setattr(act_repair, "call_for_promise_or_order", repair)
+    monkeypatch.setattr(_da, "complete_canvas", lambda *a, **k: "")
+    return calls
+
+
+def test_the_promise_repair_closes_instead_of_writing_when_the_order_is_a_close(promise_pass):
+    """S4: «ok close the results» → «Closing it now.» and no call; the promise repair ran `results:clear`. A sure
+    close the inner order does not outrank (node 2.441) closes the CARD and never asks for the write."""
+    out = _voice_turn(*_S4, say="Closing it now.", lang="en")
+    assert out.decision == "close results" and not _ran(out, "clear") and promise_pass == [], out.all_decisions
+
+
+def test_the_disarm_a_close_never_owed_empties_the_sheet(promise_pass, monkeypatch):
+    from nucleo.flash import verdict_card as vc
+    monkeypatch.setattr(vc, "close_is_owed", lambda *a, **k: False)
+    assert not vc.close_is_owed(None), "the mutation landed"
+    out = _voice_turn(*_S4, say="Closing it now.", lang="en")
+    assert out.decision == "data-op results:clear" and promise_pass, out.all_decisions
 
 
 def test_the_canvas_verdict_knows_the_size_gestures():
@@ -339,11 +427,24 @@ def test_V7_the_close_backstop_takes_the_verdicts_card_even_when_it_is_already_c
     word backstop closed the worker's browser card. The verdict (youtube:close 0.97) names the card, open or not."""
     b = _brief({_tb.TARGET_KEY: ("youtube:close", 0.97), _tb.CANVAS_KEY: ("close", 0.98)}, open_ids=("navegador",))
     assert _da.verdict_card(b) == "youtube"
-    import inspect
-    from voice.engine.llm.providers import nucleo as prov
-    src = _vts.getsource(prov)
-    # …unless his words call ANOTHER open card by its name (V2-781: «Close the music» over `youtube:close`)
-    assert '_direct_action.verdict_card(_brief), _op_text, _openw) if _direct_action.sure_canvas(_brief) == "close"' in src
+
+
+#: V2-781: «Close the music» over `youtube:close` (0.54) — his words call ANOTHER open card by its name.
+_MUSIC = ("ok stop the trailer, and close the music for me now", ["youtube", "musica"],
+          {"screen_action": ["youtube:close", 0.54], "canvas": ["close", 0.98], "request_type": ["order", 1.0]})
+
+
+def test_V7_the_verdicts_card_yields_to_the_card_he_names():
+    out = _voice_turn(*_MUSIC, say="Done.", lang="en")
+    assert out.all_decisions == ["close musica"], out.all_decisions
+
+
+def test_the_disarm_a_verdict_card_that_never_yields_closes_the_video_too(monkeypatch):
+    from nucleo.flash import card_close
+    monkeypatch.setattr(card_close, "verdict_unless_named", lambda v, *a, **k: v)
+    assert card_close.verdict_unless_named("youtube", "close the music", ["youtube", "musica"]) == "youtube", "landed"
+    out = _voice_turn(*_MUSIC, say="Done.", lang="en")
+    assert "close youtube" in out.all_decisions, out.all_decisions
 
 
 def test_F2_a_self_matching_reference_is_filled_with_his_words(on_screen):
@@ -400,6 +501,23 @@ def test_I1_a_turn_that_called_any_tool_is_not_an_empty_turn():
     for req in ("images_req", "listing_req", "recall_req", "read_req", "reopen_req", "reveal_req",
                 "search_req", "escalate_req", "music_req"):
         assert req in expr, f"{req} does not count as a tool the model called"
+
+
+_I1 = ("show me a red ferari f40", ["youtube"],
+       {"screen_action": ["youtube:search", 0.95], "request_type": ["order", 0.95]})
+
+
+def test_I1_driven_an_image_turn_gets_no_youtube_search_beside_it():
+    """The behaviour the line above guards: the pictures, and no verdict completion on the video card."""
+    out = _voice_turn(*_I1, tools=[{"name": "show_images", "args": {"query": "red ferrari f40"}}], lang="en")
+    assert out.decision == "show imagenes" and not _ran(out, "search"), out.all_decisions
+
+
+def test_I1_control_the_same_turn_with_nothing_called_is_completed_by_the_search():
+    """The control (not a mutation — `_no_tool` is a local of the turn): with no tool, the verdict DOES complete,
+    so the test above is green because the image counted, not because the verdict was silent."""
+    out = _voice_turn(*_I1, say="Here you go.", lang="en")
+    assert out.decision == "data-op youtube:search", out.all_decisions
 
 
 def test_M4_an_unsure_action_verdict_does_not_swallow_a_sure_close(on_screen, monkeypatch):

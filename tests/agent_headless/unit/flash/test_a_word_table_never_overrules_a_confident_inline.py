@@ -54,14 +54,6 @@ def test_a_confident_inline_refuses_the_word_table_and_anything_else_keeps_it():
     assert EG.word_tables(router, None, "thanks, that's all") == ""               # no match: the lookback may try
 
 
-def test_the_voice_lane_asks_the_same_door_before_any_word_table():
-    from nucleo.flash import post_stream_lanes as lanes
-    src = inspect.getsource(lanes.run_the_light_lanes)
-    assert '(_wt := _eg.word_tables(_router, _brief, _op_text, emit=emit)) == ""' in src   # the lookback too
-    assert 'elif (_wt == "go" or _win_goal' in src
-    assert src.index("_eg.word_tables(") < src.index('elif (_wt == "go"')
-
-
 def _voice_lane(monkeypatch, brief) -> tuple[dict, list]:
     """The voice lane itself, run with the turn's state stubbed; the root conftest isolates every store."""
     from nucleo.flash import post_stream as P, post_stream_lanes as L, router
@@ -86,6 +78,38 @@ def _voice_lane(monkeypatch, brief) -> tuple[dict, list]:
 def test_the_voice_lane_does_not_escalate_a_question_the_verdict_kept_inline(monkeypatch):
     req, _events = _voice_lane(monkeypatch, _brief("handle_inline", 1.0))
     assert req["v"] is None, req
+
+
+def _owed(escalate: str, conf: float) -> dict:
+    """The same turn read as a sure ORDER: an act is owed (refactor2710-03), so the lane reaches the word tables."""
+    b = _brief(escalate, conf)
+    b["result"][tb.REQUEST_KEY] = {"choice": "order", "confidence": 0.95}
+    return b
+
+
+def test_the_voice_lane_asks_the_same_door_before_any_word_table(monkeypatch):
+    """The lane's escalation follows the door's answer, not the word table's: every call goes through
+    `escalation_guard.word_tables` with the turn's brief and his words, and «refused» keeps the worker unborn."""
+    asked = []
+    real = EG.word_tables
+
+    def spy(router, brief, text, **kw):
+        asked.append((brief, text))
+        return real(router, brief, text, **kw)
+    monkeypatch.setattr(EG, "word_tables", spy)
+    b = _owed("handle_inline", 1.0)
+    req, _ = _voice_lane(monkeypatch, b)
+    assert req["v"] is None and asked and asked[0] == (b, SAID), asked
+
+
+def test_the_disarm_a_door_that_always_says_go_lets_the_word_table_escalate(monkeypatch):
+    """The door switched to «go» whatever the verdict says: the same confident `handle_inline` turn now spends a
+    worker on «hotel» — the live run's failure. The lane obeys the door, so the door is what carries CRIT-K1."""
+    monkeypatch.setattr(EG, "word_tables", lambda router, brief, text, **kw: "go")
+    from nucleo.flash import router
+    assert EG.word_tables(router, _owed("handle_inline", 1.0), SAID) == "go", "the mutation landed"
+    req, _ = _voice_lane(monkeypatch, _owed("handle_inline", 1.0))
+    assert req["v"] == SAID, req
 
 
 def test_an_unsure_verdict_invents_no_worker_from_our_words(monkeypatch):
