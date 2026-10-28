@@ -96,7 +96,7 @@ def escalation_text(operator_text: str, turn_text: str) -> str:
     return ""
 
 
-def is_a_fragment(operator_text: str, *, brief=None, last_reply: str = "", errand: str = "") -> bool:
+def is_a_fragment(operator_text: str, *, brief=None, last_reply: str = "") -> bool:
     """`router_guards.too_thin_to_commission`, minus the one shape the brief already tells us about.
 
     THE DEFECT (live session 092569ab, 2026-09-21, the very first turn). The engine offered to deal
@@ -114,6 +114,10 @@ def is_a_fragment(operator_text: str, *, brief=None, last_reply: str = "", erran
     was a question to answer — the same pairing `canvas_license.offer_of_media` documents, and for
     the same reason: a «yes» is an answer only where there was a question. Without a brief this is
     `too_thin_to_commission` verbatim, which is today's path.
+
+    A go-ahead to an offer with no question mark («…I can dig into that if you want» → «do it») is not read here
+    from the words: the offered work is a pending ROW, and `resume_turn.before_fragment_guard` resolves the turn
+    against those rows (a verdict over their labels and our line) before this guard runs (V2-831 T-07).
     """
     from . import router_guards as _rg
     if not _rg.too_thin_to_commission(operator_text):
@@ -121,8 +125,6 @@ def is_a_fragment(operator_text: str, *, brief=None, last_reply: str = "", erran
     from nucleo.flash import prior_line as _prior
     if _prior.answers_our_question(brief, last_reply):
         return False                      # he is answering us: the errand is ours, not his to repeat
-    if errand and _prior.restates_our_offer(last_reply, errand):
-        return False                      # the errand is OUR offer, released by his short go-ahead (2026-10-28)
     return True
 
 
@@ -142,7 +144,7 @@ def drop_if_fragment(escalate_req: dict, *, operator_text: str, brief=None,
         # V2-820 T-06 — the turn's words as the verdict read them: a «vale» after his own cut request is not the
         # whole of what the model was answering, and the commission came from the cut words.
         if not escalate_req.get("v") or not is_a_fragment(_tb.judged_text(brief, operator_text), brief=brief,
-                                                          last_reply=last_reply, errand=str(escalate_req.get("v") or "")):
+                                                          last_reply=last_reply):
             return False
         if emit:
             emit("brain", "🧭 escalada anulada — el turno es un fragmento, no un encargo",
