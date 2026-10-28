@@ -4521,6 +4521,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_unsure_end_state_never_refuses_a_sure_action.py"]},
         {"id": "2.901", "title": "Pictures on a full viewer: under a SURE select, the model's ambiguous reference yields to the row his words name (no «which one?»), and the same search asked again over the viewer that holds it adds instead of replacing (refactor2710-99)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_full_viewer_takes_more_and_a_sure_select.py"]},
+        {"id": "2.904", "title": "A series with one day moved off it is ONE reference: ending, cutting or removing it is never «which one?», the index names each title once, and a change of the RULE lands on the series row, not on the moved day (refactor2710-99, agenda-everyday-edits)",
+            "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_series_with_a_moved_day_is_one_reference.py"]},
         {"id": "2.897", "title": "A «yes» to OUR offer to stop the errand is the order, in any language: the model's stop_worker runs instead of asking again, the backstop stops a turn whose model called nothing, a «no» or a question of his takes nothing, and with no offer of ours an unsure verdict stops nothing (refactor2710-99)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_yes_to_our_offer_to_stop_is_the_order.py"]},
         {"id": "2.893", "title": "An errand shows only its deliverable: every show that comes from an errand (worker or the sheet its search fills) is licensed at the canvas door by the Request's surface — document → documento, list → results, told → nothing — and a step is a `step` event, never a card (refactor2710-15, Master feedback 30e302f2)",
