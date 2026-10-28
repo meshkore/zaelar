@@ -1,4 +1,4 @@
-"""A row with no NAME is not a result: the sheet's door folds it into the named row before it, or drops it (V2-831 T-01).
+"""A row with no NAME is not a result: the sheet's door folds it into the named row before it, or drops it (V2-831 T-01, node 4.322).
 
 2026-10-28, the operator's screenshot of a streaming errand: six of the thirteen rows were titled with the price text
 a scraper lifted from the offer page («6,69 € /mes - Ahorra un 25%<br>», raw markup included, the price repeated in

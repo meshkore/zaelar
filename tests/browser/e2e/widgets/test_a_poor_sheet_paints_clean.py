@@ -1,4 +1,4 @@
-"""V2-831 T-01 — a results sheet with poor data still paints clean: photo layouts only when MOST rows have a photo,
+"""V2-831 T-01 (node 4.324) — a results sheet with poor data still paints clean: photo layouts only when MOST rows have a photo,
 and the item templates `offer` · `video` · `link`. RENDERED, because both are questions about rectangles.
 
 2026-10-28, the operator's screenshot: one wide logo among thirteen rows flipped the whole list to photo plates and

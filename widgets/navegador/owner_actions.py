@@ -69,7 +69,7 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
         try:
             from widgets.results import intake as _intake
             from .act_api import _sheet_of as _sheet_for
-            _intake.push(results.get("items") or [], sheet=_sheet_for(task_id),
+            _intake.push(results.get("items") or [], sheet=_sheet_for(task_id), errand=str(task_id),
                          source_url=str((tasks.get(task_id) or {}).get("url") or ""))
         except Exception:  # noqa: BLE001
             pass

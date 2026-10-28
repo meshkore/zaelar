@@ -1,5 +1,5 @@
 """The SHARED results sheet belongs to one errand at a time: a browser push that names its errand but no sheet takes
-the shared sheet over instead of appending onto another errand's rows (V2-831 T-01).
+the shared sheet over instead of appending onto another errand's rows (V2-831 T-01, node 4.323).
 
 2026-10-28: a streaming-offer errand's browser findings were pushed with no sheet and appended under six school-
 canteen rows an earlier web search had left on the shared sheet. `intake.push(errand=…)` is the seam; the producers
