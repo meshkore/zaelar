@@ -47,7 +47,8 @@ def _snapshot_escalations() -> list[dict]:
 def _snapshot_widget_jobs() -> list[dict]:
     try:
         from widgets import generator
-        jobs = generator._jobs_read()   # read-only peek at the in-flight generation journal
+        from widgets import generator_folders as _generator_folders_m
+        jobs = _generator_folders_m._jobs_read()   # read-only peek at the in-flight generation journal
         return [{"widget": wid, "kind": (j or {}).get("kind")} for wid, j in (jobs or {}).items()]
     except Exception:
         return []

@@ -730,6 +730,7 @@ async def resume_interrupted_generations() -> None:
       • modify → do NOT re-run blindly: the edit may be half-applied and its rollback backup died with the old
         process. Report it so the brain/operator can re-ask."""
     from . import generator
+    from widgets import generator_folders as _generator_folders_m
     from .generator import generate_widget
 
     # ⏻ PARADO = NO SE RELANZA NADA (V2-655). Esta es la SEGUNDA puerta que gastaba dinero en el arranque
@@ -742,12 +743,12 @@ async def resume_interrupted_generations() -> None:
         logger.info("widgets: el agente está PARADO (⏻) — las generaciones interrumpidas siguen en el diario")
         return
 
-    for job in generator.take_pending_jobs():
+    for job in _generator_folders_m.take_pending_jobs():
         wid = str(job.get("id") or "")
         payload = job.get("payload") or {}
         if job.get("kind") == "create" and wid and payload.get("spec"):
             ok, _err = (await asyncio.get_event_loop().run_in_executor(None, generator._validate, wid)) \
-                if generator.exists(wid) else (False, "not built")
+                if _generator_folders_m.exists(wid) else (False, "not built")
             if ok:
                 await _report_to_brain("create", {"ok": True, "id": wid})
                 continue
@@ -759,7 +760,7 @@ async def resume_interrupted_generations() -> None:
                                        speak=False)
             except Exception:
                 pass
-            generator._discard(wid)                     # half-written folder → rebuild from clean
+            _generator_folders_m._discard(wid)                     # half-written folder → rebuild from clean
             res = await _run_generator("create", wid,
                                        lambda s=payload["spec"], w=wid, t=payload.get("title", ""):
                                        generate_widget(s, w, t))

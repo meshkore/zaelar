@@ -76,7 +76,7 @@ def test_the_create_path_repairs_BEFORE_it_discards():
     on a build that RAN (a killed agent leaves nothing worth repairing)."""
     src = Path("widgets/generator.py").read_text(encoding="utf-8")
     code = re.sub(r"(?m)^\s*#.*$", "", src)
-    body = code[code.index("def generate_widget("):code.index("def _folder_ref(")]
+    body = code[code.index("def generate_widget("):code.index("_REPAIR_PROMPT = ")]
     i_val = body.index("ok, verr = _validate(wid, stamp_origin=True)")
     i_rep = body.index("_repair_once(wid, dst, verr, token)")
     i_dis = body.index("_discard(wid)", i_val)

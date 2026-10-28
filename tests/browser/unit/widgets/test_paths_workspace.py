@@ -157,10 +157,11 @@ def test_a_half_built_folder_still_stays_out_of_the_catalog(workspace):
 
 
 def test_a_rollback_can_never_delete_engine_source(workspace):
-    """`generator._discard` removes a freshly-created folder that failed to validate. It must aim at the
+    """`_generator_folders_m._discard` removes a freshly-created folder that failed to validate. It must aim at the
     generated root, not at whatever `dir_for` resolves — otherwise a failed build of an id that shadows a
     built-in would delete the shipped widget."""
     from widgets import generator
+    from widgets import generator_folders as _generator_folders_m
     (workspace / "widgets").mkdir(parents=True, exist_ok=True)
-    generator._discard("agenda")
+    _generator_folders_m._discard("agenda")
     assert os.path.isdir(os.path.join(paths.BUILTIN_ROOT, "agenda"))
