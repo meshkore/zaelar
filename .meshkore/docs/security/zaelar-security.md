@@ -53,7 +53,7 @@ data — it could try to make zaelar run commands, read/write files, or use tool
   explicitly grants a cluster permission.** `connectors/meshkore/perms.py` + `store.py` hold a **per-cluster
   permission profile**, deny-all by default (`workers`/`code`/`repo`/`execute`/`deploy`, all off) — a
   zero-permission cluster is byte-identical to the tool-less path above. If the operator grants `code` at
-  connect-time, the cluster turn can reach `escalate_to_slowbrain` → a **dev-worker `kind`** (`nucleo/dispatch.py`)
+  connect-time, the cluster turn can reach `escalate_to_slowbrain` → a **dev-worker `kind`** (`nucleo/dispatch/`)
   scoped to a disposable cwd + `Bash` ONLY to `nucleo/git_cli.py` (a bridge that clones/commits/pushes
   **exclusively** to the operator-authorized repo, re-verifying the real git `origin` on every commit and push, not
   just at `clone`). A granted `code` permission is STILL not enough by itself: a **guard of objective-ownership**

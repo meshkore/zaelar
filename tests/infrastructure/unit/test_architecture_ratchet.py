@@ -154,7 +154,7 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     # ENDING as a fact (V2-198/199/222/224/238: the two state enums, `_ENDED_SESSIONS` and its four
     # operations) was a cohesive concern all along → extracted to `nucleo/workers/ended.py`, dispatch
     # 1892→1770. Aliases keep the historical names alive, as `resume.py` did.
-    "nucleo/dispatch.py": (1587, 39),   # 2026-10-01 V2-778 F1-11: run_listener → dispatch_listener.py (1790 → 1587)
+    "nucleo/dispatch/__init__.py": (1587, 39),   # 2026-10-01 V2-778 F1-11: run_listener → dispatch_listener.py (1790 → 1587)
     # owner.py 1580→1706 · lazy 43→44: 3884cb8 (banner sweep per NAVIGATION, look 11,2 s→0,42 s), f25e2a3
     # (`visit` — read a card in its own tab), a1cb398 (consent per DOMAIN, submit 25 s→3,84 s). Three measured
     # perf/feature fixes from the same tuning day. owner.py remains F6's split candidate (by resource).
@@ -345,11 +345,12 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20288,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow
     "library": 805,
     "memory": 9117,
-    "nucleo (top)": 24101,
+    "nucleo (top)": 21602,             # refactor2710-09 T-01: the eight dispatch* files left for nucleo/dispatch/
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 903,
     "nucleo/context_packs": 568,
+    "nucleo/dispatch": 2499,           # refactor2710-09 T-01: moved from top as is; target 1 200
     "nucleo/errands": 2563,
     "nucleo/flash": 36974,
     "nucleo/memory_agent": 1949,
@@ -378,9 +379,9 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/circuit.py",
     "nucleo/consent.py",
     "nucleo/danger.py",
-    "nucleo/dispatch.py",
-    "nucleo/dispatch_confirm.py",
-    "nucleo/dispatch_prepare.py",
+    "nucleo/dispatch/__init__.py",
+    "nucleo/dispatch/confirm.py",
+    "nucleo/dispatch/prepare.py",
     "nucleo/dispatch_prompts.py",
     "nucleo/energy_lease.py",
     "nucleo/energy_meter.py",

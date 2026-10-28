@@ -320,7 +320,7 @@ def test_the_voice_relays_the_NAME_and_not_the_raw_brief():
 def test_the_live_projection_carries_the_name_BESIDE_the_brief_never_instead():
     """`goal` still carries the operator's own words — dedup compares them and the master audits them. `title`
     is what a human reads or hears."""
-    body = _vts.read(ENGINE / "nucleo/dispatch.py")
+    body = _vts.read(ENGINE / "nucleo/dispatch/__init__.py")
     assert '"goal": r.goal[:120]' in body, "the brief must not be replaced by the name"
     assert '"title": _sheets.title_of(r)' in body
 
@@ -328,7 +328,7 @@ def test_the_live_projection_carries_the_name_BESIDE_the_brief_never_instead():
 def test_naming_is_fire_and_forget_so_nothing_upstream_waits_for_it():
     # Comments stripped: commenting the call out left this guard green on the first disarm — a substring
     # scan cannot tell a live call from its own citation.
-    lines = _vts.read(ENGINE / "nucleo/dispatch.py").splitlines()
+    lines = _vts.read(ENGINE / "nucleo/dispatch/__init__.py").splitlines()
     # …and the `def _name_errand(rec)` line matches the same substring, so the CALL is what gets counted.
     body = [ln.split("#", 1)[0] for ln in lines if not ln.lstrip().startswith("def ")]
     assert any("_name_errand(rec)" in ln for ln in body), \

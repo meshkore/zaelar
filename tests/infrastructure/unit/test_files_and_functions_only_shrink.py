@@ -33,7 +33,7 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 # frozen there: every entry is today's size, down-only from here. The debt it names is unchanged and still owed.
 FILES = {
     'memory/api.py': 891,
-    'nucleo/dispatch.py': 919,
+    'nucleo/dispatch/__init__.py': 919,
     'nucleo/energy_meter.py': 812,
     'nucleo/flash/fast_client.py': 866,
     'nucleo/flash/prompt.py': 816,
@@ -50,10 +50,10 @@ FUNCTIONS = {
     'memory/_prompt.py::compose_state': 258,
     'memory/writer.py::insert_memory': 177,
     'nucleo/actionmap/executor.py::execute': 144,
-    'nucleo/dispatch_listener.py::run_listener': 213,
+    'nucleo/dispatch/listener.py::run_listener': 213,
     'nucleo/dispatch_prompts.py::_web_prompt': 222,
-    'nucleo/dispatch_session.py::_run_session': 203,
-    'nucleo/dispatch_session_steps.py::build_what_it_runs_with': 132,
+    'nucleo/dispatch/session.py::_run_session': 203,
+    'nucleo/dispatch/session_steps.py::build_what_it_runs_with': 132,
     'nucleo/errands/wake.py::wake': 153,
     'nucleo/flash/accumulator.py::Accumulator._offer': 129,   # 2026-10-22: `offer` → wrapper + `_offer`
     'nucleo/flash/fast_client.py::FastClient._stream_inner': 267,

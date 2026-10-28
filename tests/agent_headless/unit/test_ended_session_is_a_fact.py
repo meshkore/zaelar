@@ -173,7 +173,7 @@ def test_and_nobody_enumerates_them_by_hand_anymore():
     V2-566 moved the DECLARATION to `nucleo/workers/ended.py`, so both files are read: a guard that keeps
     reading only the file the declaration LEFT would stay green over a hand-enumeration written in its new
     home, which is where one would now be written."""
-    sources = [ROOT / "nucleo" / "dispatch.py", ROOT / "nucleo" / "workers" / "ended.py"]
+    sources = [*sorted((ROOT / "nucleo" / "dispatch").glob("*.py")), ROOT / "nucleo" / "workers" / "ended.py"]
     declared = False
     for path in sources:
         src = path.read_text(encoding="utf-8")

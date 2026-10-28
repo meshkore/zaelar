@@ -60,7 +60,7 @@ def test_a_failed_jail_write_starts_the_worker_with_zero_tools():
     """dispatch.py's dev branch: on a settings-write failure the spec is built with tools=[] and
     deny_tools=True — never the old warn-and-run-unjailed. Comment-stripped source, anchored on the
     conditional that builds the spec."""
-    src = _stripped("nucleo/dispatch.py")
+    src = _stripped("nucleo/dispatch/__init__.py")
     i = src.index('_dev_settings_path, _dev_jail_ok = "", False')   # the ratchet folded the two assignments (2026-09-06)
     spec_zone = src[i:i + 900]
     assert '(_dev["tools"] if _dev_jail_ok else [])' in spec_zone

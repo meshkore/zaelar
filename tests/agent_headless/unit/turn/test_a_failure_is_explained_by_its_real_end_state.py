@@ -16,7 +16,7 @@ import time
 
 import pytest
 
-from nucleo import dispatch_confirm as dc
+from nucleo.dispatch import confirm as dc
 
 GAME = "Build a playable platform game widget, Super Mario style, with coins"
 

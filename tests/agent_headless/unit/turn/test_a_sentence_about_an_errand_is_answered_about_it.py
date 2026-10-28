@@ -24,7 +24,7 @@ import types
 import pytest
 
 from nucleo import batch, dispatch
-from nucleo import dispatch_confirm as dc
+from nucleo.dispatch import confirm as dc
 from nucleo.turn import confirm_gates as gates
 from nucleo.turn import errands_of_a_turn as E
 from nucleo.turn import named_errand

@@ -192,7 +192,7 @@ def words_for(operator_text: str, spoken: str) -> str:
 def parked_question_for(requests: list[str]) -> str:
     """The question of an errand still PARKED on him that one of this turn's requests IS ("" if none) — the request
     will fold into it instead of starting, so the reply owes the question, not «va en marcha»."""
-    from nucleo import dispatch_confirm as _dc
+    from nucleo.dispatch import confirm as _dc
     for p in list((_dc._PENDING_CONFIRM or {}).values()):
         if any(r and same_errand(r, str(p.get("request") or "")) for r in requests or []):
             return str(p.get("question") or "")

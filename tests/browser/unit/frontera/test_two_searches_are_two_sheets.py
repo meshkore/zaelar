@@ -127,7 +127,7 @@ def test_a_browser_with_no_errand_behind_it_writes_the_bare_sheet():
 
 
 @pytest.mark.parametrize("rel", ["widgets/navegador/act_api.py", "widgets/navegador/owner.py",
-                                 "nucleo/dispatch.py"])
+                                 "nucleo/dispatch/__init__.py"])
 def test_no_writer_pushes_without_naming_its_sheet(rel):
     """The guardrail needed here and not in V2-257: back then, knocking on the door was enough; now they have to
     say WHICH sheet. A `push` without `sheet=` does not fail — it writes into the box nobody is watching."""

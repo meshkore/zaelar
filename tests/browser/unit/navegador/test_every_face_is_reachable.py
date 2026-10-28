@@ -100,7 +100,7 @@ def test_y_el_bloque_SIGUE_llegando_al_prompt():
 def test_an_ACTIVE_task_with_results_is_still_impossible():
     """The specific fact that killed V2-192, recorded here as well because it is why the results face
     reads the worker signal rather than the task field."""
-    for rel in ("widgets/navegador/owner.py", "nucleo/dispatch.py"):
+    for rel in ("widgets/navegador/owner.py", "nucleo/dispatch/__init__.py"):
         src = _vts.read(ROOT / rel)     # V2-778 F1: a split file is read with its moved pieces
         for m in re.finditer(r"set_results\(", src):
             after = src[m.end():m.end() + 700]

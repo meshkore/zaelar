@@ -1,4 +1,4 @@
-"""nucleo/dispatch_devworker.py — the confined DEV WORKER parameter/prompt builders for cluster-originated
+"""nucleo/dispatch/devworker.py — the confined DEV WORKER parameter/prompt builders for cluster-originated
 escalations with code permission (split out of dispatch.py, 2026-08-17 modularization pass). Low coupling: no
 session/pool state touched, only 3 internal call sites in dispatch.py (all module-qualified or by-name
 imports, both preserved via re-export here).
@@ -22,7 +22,7 @@ import os
 #   · git SOLO by the PUENTE `nucleo.git_cli` (never Bash git pelado) and SOLO al repo authorized (ZAELAR_ALLOWED_REPO).
 #   · SIN bridges of memory (ZAELAR_NO_BRIDGE_TOOLS) → a dev of cluster no reads/writes the memory of the operator.
 #   · PYTHONPATH al engine for that the bridge sea importable from the cwd temporary.
-_ENGINE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_ENGINE_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))   # nucleo/dispatch/ → engine
 def _git_tools() -> list[str]:
     """Mismo criterion that the bridges of `claude_session._BRIDGE_TOOLS`: TODAS the ways of write the interprete,
     for that the dev worker no is quede pidiendo a aprobacion that in headless nadie va a dar."""

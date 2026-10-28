@@ -316,7 +316,7 @@ def _true_to_the_gate(spoken, action: str, extra, sess):
         q = (extra or {}).get("still_parked") if isinstance(extra, dict) else ""
         if q and "?" not in spoken:
             spoken = f"{spoken} {q}"
-        from nucleo import dispatch_confirm as _dc     # a parked errand's question nobody said yet (2026-10-15)
+        from nucleo.dispatch import confirm as _dc     # a parked errand's question nobody said yet (2026-10-15)
         if (owed := _dc.owed_question(spoken)):
             return f"{spoken} {owed}"
     except Exception as e:  # noqa: BLE001 — the reply as the model wrote it

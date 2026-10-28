@@ -125,7 +125,7 @@ rings, from widest to narrowest:
      (`capsule.compose()`) prepended to EVERY turn of that relationship — it is "what a human would have in mind when
      resuming a conversation with a specific person". It survives a server restart (both live in `zaelar.db`).
 3. **Per-TASK state** (a Brain Worker session in progress) — `nucleo/workers/session.py::SessionRecord`, in the
-   **RAM registry** `nucleo/dispatch.py::_SESSIONS` (source of truth). It carries `goal`/`kind`/`phase`/`status`,
+   **RAM registry** `nucleo/dispatch/::_SESSIONS` (source of truth). It carries `goal`/`kind`/`phase`/`status`,
    the queue of pending injections, and rich observability (`plan`/`done`/`pct`/`steps`). It is DELIBERATELY
    ephemeral — it does not live in `zaelar.db`, it dies with the session or the process — for three reasons: (a) it
    is literally a running process, not a fact to remember; (b) it only matters while it runs (nobody asks "what
@@ -695,7 +695,7 @@ or touch the database directly.
 - **Is it LIVE UI CONTEXT (what the operator has in front of them)?** → `memory.set_state({...})` (shallow patch).
   Two owners write it: the **frontend** reports the open widgets (`POST /api/canvas/state` from
   `desktop._persist()` → `set_state({open_widgets})`) and the **SlowBrain dispatcher** the tasks in progress
-  (`nucleo/dispatch.py` → `set_state({activity})`). It is ALWAYS in the prompt and visible in the map. It is not
+  (`nucleo/dispatch/` → `set_state({activity})`). It is ALWAYS in the prompt and visible in the map. It is not
   memory that learns: it is the reflection of the "now".
 - **Are you a CONNECTOR dumping incoming data from an external SOURCE (messaging, cluster, another agent)?** → use
   **`memory.ingest_message(source, entity, text, *, trust, durable, group, directed)`** — the UNIFIED TYPED path

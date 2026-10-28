@@ -26,7 +26,7 @@ resolved along TWO axes:
   **UNTRUSTED** profile: tools switched OFF in code, an IDENTITY-SAFE system prompt (never exposes the operator's
   name/PII/catalog), and memory that IS WRITTEN but NEVER READ into the passive prompt.
 - **DEPTH** (reflex/reason/act): the FlashBrain resolves the turn on the spot (reflex); if real reasoning with
-  tools is needed, it escalates to a **Brain Worker** (`nucleo/dispatch.py`) — the same mechanism the operator
+  tools is needed, it escalates to a **Brain Worker** (`nucleo/dispatch/`) — the same mechanism the operator
   uses to ask for code or research, with its scope bounded to the profile of whoever triggered it.
 
 This means **there is no separate "cluster brain"** — nothing that reasons about cluster chatter with its own
@@ -189,7 +189,7 @@ code collaboration ("help me port this algorithm") actually executable, without 
    `objective` of THAT relationship (`set_cluster_objective`, `perms.gate_dev_by_objective`). Without an objective,
    escalation to a dev-worker stays INERT even with the permission granted — so a peer cannot, merely by holding a
    granted permission, decide ON ITS OWN what gets worked on.
-3. **The dev-worker itself** (`nucleo/dispatch.py`, `kind="dev"`) — a Brain Worker session (same substrate as any
+3. **The dev-worker itself** (`nucleo/dispatch/`, `kind="dev"`) — a Brain Worker session (same substrate as any
    other, see `zaelar-modules.md`/the Brain Workers page) but with the NARROWEST scope in the system:
    - A TEMPORARY, dedicated working directory, deleted when done.
    - `Bash` **only** to the `nucleo/git_cli.py` bridge — never an open Bash. That bridge clones/commits/pushes

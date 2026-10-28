@@ -18,8 +18,8 @@ import types
 import pytest
 
 from nucleo import dispatch
-from nucleo import dispatch_confirm as dc
-from nucleo import dispatch_listener as L
+from nucleo.dispatch import confirm as dc
+from nucleo.dispatch import listener as L
 from nucleo.flash import delivery, escalate, live_blocks
 from nucleo.turn import named_errand
 

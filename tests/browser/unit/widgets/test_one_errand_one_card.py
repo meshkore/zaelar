@@ -172,7 +172,7 @@ def test_a_fresh_errand_still_opens_its_own_fresh_sheet():
 def test_the_listener_hands_the_durable_row_to_the_record():
     """Wiring: the record is born with the `task_uid` the rehydration carries, BEFORE the sheet is opened."""
     import inspect
-    from nucleo import dispatch_listener
+    from nucleo.dispatch import listener as dispatch_listener
     src = inspect.getsource(dispatch_listener.run_listener)
     born = src.index("rec = _d.SessionRecord(")
     assert 'uid=str(ctx.get("task_uid"' in src[born:born + 1500]

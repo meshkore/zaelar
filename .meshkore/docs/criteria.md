@@ -82,7 +82,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   (`licensed`, step 0; `his_yes` and `allow` do not clear it) and the one worker door
   (`dispatch_confirm.unlicensed_gate`, an `offered` question in his language; his yes licenses the line). A wake
   word, a typed line or a judge that failed license nothing new and keep today's path. — since 2026-10-26 ·
-  nodes 8.26 · `voice/attention.py`, `nucleo/consent.py`, `nucleo/dispatch_confirm.py`.
+  nodes 8.26 · `voice/attention.py`, `nucleo/consent.py`, `nucleo/dispatch/confirm.py`.
 - **CRIT-V16 · The STT boosts a place only where one is expected.** Keyterms bias every word of a session, so the
   national list of mis-heard towns is never sent on its own; only his own places (memory, behind
   `ZAELAR_STT_BOOST_FROM_MEMORY`, off by default) are boosted, spelled by that list. Re-measure
@@ -303,7 +303,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   yes/no as well as the live ones; a repeat folds into the parked one, the yes carries what he added, and the
   brain repeats the QUESTION, not the work. An audit that comes back after the conversation moved (a turn of
   his, a widget op) may record a finding but never acts or speaks. — since 2026-09-29 · nodes 2.182, 2.180 ·
-  `nucleo/dispatch_confirm.py`, `nucleo/susurro/engine.py`.
+  `nucleo/dispatch/confirm.py`, `nucleo/susurro/engine.py`.
 - **CRIT-E9 · Every request that acts is ONE row, and it ends in a verdict of four values**: `met` (its end state
   was attested), `unmet` (attested false after its grace — corrected out loud when he ordered it), `unverifiable`
   (nothing readable could say) or `undeclared` (the action declares no end
@@ -370,7 +370,7 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-E10 · A worker that may write writes only inside its own workdir.** Every trusted worker with `Write` gets
   the writes-only jail (a PreToolUse hook: Write/Edit outside the workdir denied, reads free); the dev-worker keeps
   its full jail; a jail that cannot be armed takes the writing tools away, never the jail. — since 2026-10-01 ·
-  nodes 3.112, 2.5 · `nucleo/dev_worker_guard.py`, `nucleo/dispatch_session.py`.
+  nodes 3.112, 2.5 · `nucleo/dev_worker_guard.py`, `nucleo/dispatch/session.py`.
 - **CRIT-E14 · A worker reaches its own engine behind session admission.** Where every request must carry a
   session, a loopback call to one of the worker doors (`operator_gate.WORKER_DOORS`) is served without one — each
   door verifies the worker itself; off the machine, or to any other route, the session is still required

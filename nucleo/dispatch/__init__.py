@@ -182,7 +182,7 @@ def _tools_for(kind: str, trusted: bool, may_write: bool = False) -> list[str] |
 # ── DEV WORKER ACOTADO (V2-076) ── moved to dispatch_devworker.py (2026-08-17 modularization pass) — no
 # session/pool state touched, re-exported here since callers use both module-qualified access
 # (dispatch._dev_worker_params(...)) and direct-name imports (`from nucleo.dispatch import _DEV_TOOLS`).
-from nucleo.dispatch_devworker import (  # noqa: F401 — re-export
+from nucleo.dispatch.devworker import (  # noqa: F401 — re-export
     _git_tools, _DEV_TOOLS, _dev_worker_params, _dev_prompt,
 )
 
@@ -296,7 +296,7 @@ def sheets_have_live_work(card_ids) -> bool:
 
 
 # V2-354 — the RELOJES viven in `dispatch_thresholds` (trinquete); is re-exportan: `dispatch` es the contrato.
-from nucleo.dispatch_thresholds import NO_STEP_SECS, STUCK_SECS  # noqa: F401,E402
+from nucleo.dispatch.thresholds import NO_STEP_SECS, STUCK_SECS  # noqa: F401,E402
 
 
 # ── An ENDING is a FACT (V2-198/199/222/224/238) — extracted to `nucleo/workers/ended.py` (ratchet,
@@ -765,7 +765,7 @@ def _task_row(how: str, rec, **kw) -> None:
 
 
 async def _run_session(task: 'Task'):
-    """V2-778 F1 — the body lives in `nucleo/dispatch_session.py`; this delegate keeps the name (and its patches)."""
+    """V2-778 F1 — the body lives in `nucleo/dispatch/session.py`; this delegate keeps the name (and its patches)."""
     return await _dispatch_session._run_session(task)
 
 
@@ -779,10 +779,10 @@ def rec_token(rec: "SessionRecord") -> str:
 
 
 # ── CONFIRMACIÓN PENDIENTE of a task irreversible (V2-126) ─────────────────────────────────────────────
-# Moved to `nucleo/dispatch_confirm.py` (F3, 2026-08-23) — the cleanest seam in this file: own registry, own TTL,
+# Moved to `nucleo/dispatch/confirm.py` (F3, 2026-08-23) — the cleanest seam in this file: own registry, own TTL,
 # and zero reads of `_SESSIONS`. Re-exported so `dispatch.confirm_line()`, `dispatch.resolve_confirm(...)` and the
 # tests that mutate `dispatch._PENDING_CONFIRM` keep working unchanged.
-from nucleo.dispatch_confirm import (  # noqa: E402,F401
+from nucleo.dispatch.confirm import (  # noqa: E402,F401
     _CONFIRM_TTL,
     _EXPIRED_CONFIRM,
     _EXPIRED_MEMORY_S,
@@ -902,18 +902,18 @@ def running() -> bool:
     return _listener_task is not None and not _listener_task.done()
 
 
-# V2-778 F1-11 — the escalation listener lives in `nucleo/dispatch_listener.py`; this name delegates to it, so
+# V2-778 F1-11 — the escalation listener lives in `nucleo/dispatch/listener.py`; this name delegates to it, so
 # `dispatch.start()`, every caller and every test keep calling `dispatch.run_listener`. A module import (not a
 # `from … import`) keeps the two-way reference safe whichever module is imported first.
-from nucleo import dispatch_listener as _listener  # noqa: E402
+from nucleo.dispatch import listener as _listener  # noqa: E402
 
 
 def run_listener(*args, **kwargs):
     return _listener.run_listener(*args, **kwargs)
-from nucleo import dispatch_session as _dispatch_session  # noqa: E402 — V2-778 F1, reads this module back
+from nucleo.dispatch import session as _dispatch_session  # noqa: E402 — V2-778 F1, reads this module back
 
 
 # V2-778 F1 — moved to `dispatch_prepare.py`, imported back under their names (that module reads this one).
-from .dispatch_prepare import (  # noqa: E402,F401
+from .prepare import (  # noqa: E402,F401
     _compose_brief, _TITLE_BG_TASKS, _name_errand, _BRIEF_BG_TASKS, _attach_brief_followup, _FORCE_NEW_RE,
     _COEXIST_RE, _prepare_web, _finalize_web, _compose_context)

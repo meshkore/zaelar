@@ -1,4 +1,4 @@
-"""nucleo/dispatch_confirm.py — the pending-confirmation gate for an IRREVERSIBLE task (V2-126).
+"""nucleo/dispatch/confirm.py — the pending-confirmation gate for an IRREVERSIBLE task (V2-126).
 
 Split out of `dispatch.py` in F3 of the 2026-08-23 architecture audit. It was already the cleanest seam in that
 file — its own registry, its own TTL, its own vocabulary, and (measured before moving anything) **zero reads of

@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nucleo import dispatch_confirm as DC
+from nucleo.dispatch import confirm as DC
 
 GAME = "Build a small playable platform game widget, Super Mario style, with jumping"
 

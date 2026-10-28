@@ -46,7 +46,7 @@ FlashBrain (nucleo/flash/) ── answers NOW («got it, starting the search») 
       │  escalate_to_slowbrain(request)
       ▼
 ASYNC PRE-FLIGHT  ← here, and only here, there is time to THINK
-  nucleo/dispatch.py::_compose_brief
+  nucleo/dispatch/::_compose_brief
       │  · is it a research task? (the model decides, not a verb table)
       │  · was there a previous round with this goal? → expand() instead of recomposing
       ▼
@@ -167,7 +167,7 @@ otherwise call the real model from tests that have nothing to do with research.
 ## 10. References
 
 - `nucleo/research.py` — the director (compose/parse/expand/to_prompt_block/rounds).
-- `nucleo/dispatch.py::_compose_brief`, `_build_prompt`, `_web_prompt`, `session_considered`.
+- `nucleo/dispatch/::_compose_brief`, `_build_prompt`, `_web_prompt`, `session_considered`.
 - `widgets/results/{data,widget}.js|py` + `manifest.json` — composite schema, `facts`/`images`, `detail`/`list`.
 - `widgets/refs.py::prompt_digest` + `widgets/brief.py` — the generic «what is on screen» hook.
 - `config/v2.py §research` — model and kill switch.

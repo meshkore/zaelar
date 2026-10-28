@@ -13,7 +13,7 @@ import time
 from typing import TYPE_CHECKING
 
 from nucleo import dispatch as _d
-from nucleo import dispatch_confirm as _dconf
+from nucleo.dispatch import confirm as _dconf
 
 if TYPE_CHECKING:
     from nucleo.dispatch import Task
@@ -153,7 +153,7 @@ async def _run_session(task: "Task") -> None:
             _d._task_row("ended_early", rec, state="cancelled")
             return
         ctx = await _d._compose_context(req, kind)
-        # V2-778 F1 — building what the session runs with lives in `nucleo/dispatch_session_steps.py`.
+        # V2-778 F1 — building what the session runs with lives in `nucleo/dispatch/session_steps.py`.
         _blk = await _dss.build_what_it_runs_with(
             ctx=ctx,
             key=key,
@@ -205,7 +205,7 @@ async def _run_session(task: "Task") -> None:
                        "instrucción nueva en un momento. NO la esperes parado: haz ya los primeros pasos (PASO 0, "
                        "abrir el sitio, la primera búsqueda) y aplícala en cuanto llegue.")
             _d._attach_brief_followup(_brief_bg, key=key, rec=rec, req=req, kind0=kind)
-        # V2-778 F1 — running the session to its delivery lives in `nucleo/dispatch_session_steps.py`.
+        # V2-778 F1 — running the session to its delivery lives in `nucleo/dispatch/session_steps.py`.
         _blk = await _dss.run_it_to_its_delivery(
             _dev=_dev,
             _dev_settings_path=_dev_settings_path,
@@ -224,7 +224,7 @@ async def _run_session(task: "Task") -> None:
         )
 
 
-from nucleo import dispatch_session_steps as _dss  # noqa: E402 — V2-778 F1, reads this module back
+from nucleo.dispatch import session_steps as _dss  # noqa: E402 — V2-778 F1, reads this module back
 
 
 @contextlib.asynccontextmanager

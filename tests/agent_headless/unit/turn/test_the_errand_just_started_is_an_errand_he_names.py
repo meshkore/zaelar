@@ -19,7 +19,7 @@ import types
 import pytest
 
 from nucleo import dispatch
-from nucleo import dispatch_confirm as dc
+from nucleo.dispatch import confirm as dc
 from nucleo.flash import delivery, escalate, live_blocks
 from nucleo.turn import errand_pool, errands_of_a_turn as E, named_errand
 from nucleo.workers import ended

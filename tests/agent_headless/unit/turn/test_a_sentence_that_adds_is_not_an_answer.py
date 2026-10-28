@@ -20,7 +20,7 @@ import threading
 
 import pytest
 
-from nucleo import dispatch_confirm as dc
+from nucleo.dispatch import confirm as dc
 from nucleo.turn import confirm_gates as gates
 from widgets import confirm as wconfirm
 

@@ -1,12 +1,12 @@
 # One Brain Worker session, in two steps: building what it runs with (env, the web sheet, the dev jail or the
 # writes-only jail, the spec, the brief) and running it to its delivery (V2-778 F1, 2026-10-01).
 #
-# Moved out of `nucleo/dispatch_session.py::_run_session` (387 lines) with no behaviour change. Every name the
+# Moved out of `nucleo/dispatch/session.py::_run_session` (387 lines) with no behaviour change. Every name the
 # steps read from `dispatch_session` is read through it (`_ds.<name>`) — and it reads the dispatcher through `_d`
 # — so a patch on `nucleo.dispatch` still governs them.
 from __future__ import annotations
 
-from nucleo import dispatch_session as _ds
+from nucleo.dispatch import session as _ds
 
 
 async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) -> dict:
