@@ -7514,6 +7514,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/search/unit/test_a_subject_is_any_name_he_offered.py"]},
         {"id": "12.13", "title": "The sheet's subject is what the errand's brief DECLARED, kept where his own words name it — lowercase «rosalía» has its subject, a stray capital is none (V2-783 P0-1)",
             "ch": UNIT, "paths": ["tests/search/unit/test_the_subject_is_what_the_brief_declared.py"]},
+        {"id": "12.14", "title": "The search browser's context and its start lock serve only the event loop that made them: a turn in another loop starts its own instead of awaiting a loop that is gone (demo-b1 timed out at 60 s on two of three typed turns)",
+            "ch": UNIT, "paths": ["tests/search/unit/test_a_browser_context_serves_only_its_loop.py"]},
     ]},
 ]
 
