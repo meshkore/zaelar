@@ -3500,7 +3500,7 @@ DOMAINS: list[dict] = [
                 "tests/voice/unit/test_an_explicit_replay_of_a_play_order_is_an_order.py"]},
         # V2-650b (2026-09-10, sid 3d394…): «cierra el widget de YouTube» cerró bien — y ocho segundos después la
         # charla de la sala hizo al modelo re-emitir su show DESCARTADO y la tarjeta se reabrió sola: V2-635 dio
-        # licencia a close/video/fullscreen y el SHOW no tenía. reopen_license: solo protege un widget cerrado por
+        # licencia a close/video/fullscreen y el SHOW no tenía. canvas.reopen_ordered: solo protege un widget cerrado por
         # orden en los últimos 2 min, y se reabre con verbo de petición o nombrándolo — nunca por charla. En el
         # mismo minuto, «la lista de Trublo» (STT de True Blue) murió con «playlistnotfound» leído en crudo: el
         # finder gana resolución difusa de ganador único y la negativa NOMBRA las listas que existen (V2-463).
