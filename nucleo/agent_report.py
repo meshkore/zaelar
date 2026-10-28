@@ -14,7 +14,7 @@ responder "¿cómo va?"), la UI (progreso) y el debug.
 
 DECLARA TU OBJETIVO AL EMPEZAR (`goal`). Es CÓMO SE MIDE que el encargo está hecho, leído contra la verdad
 del propio producto cuando termines: si no se cumple, se te relanza UNA vez diciéndote qué falta, en vez de
-entregar al operador algo a medias. Cerrado en OPERADORES, abierto en CONTENIDO — mira `nucleo/verify.py`.
+entregar al operador algo a medias. Cerrado en OPERADORES, abierto en CONTENIDO — mira `nucleo/circuit/verify.py`.
 
 El id de la sesión sale del entorno `ZAELAR_TASK_ID` (lo inyecta el dispatcher al lanzar el agente) → el agente no
 tiene que conocerlo. Habla por HTTP con el server vivo (ZAELAR_BASE, def localhost:43917). Fail-soft.

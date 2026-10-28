@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from i18n import langs
-from nucleo import spec
+from nucleo.circuit import spec
 from nucleo.flash import done_backing
 from widgets.documento import data as documento
 

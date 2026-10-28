@@ -98,7 +98,7 @@ def _live_sheets() -> set:
     """Sheets belonging to a commission that is still running. Fail-soft: an unreadable table prunes as
     before rather than refusing to prune at all — the old behaviour, not a new failure mode."""
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         out = set()
         for r in _tasks.board("live", show_all=True):
             sh = str(r.get("sheet") or "")

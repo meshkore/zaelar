@@ -82,7 +82,7 @@ _ZALO_PERSONA = (
 
 async def _zalo_reply(spec, history: list[dict]) -> str:
     """Generates zalo's next message from the conversation (history = [{who,text}])."""
-    from nucleo.flash.fast_client import FastClient
+    from nucleo.llm.fast_client import FastClient
     convo = "\n".join(f"{'zaelar' if h['who']=='zaelar' else 'tú (zalo)'}: {h['text']}" for h in history[-8:])
     messages = [
         {"role": "system", "content": _ZALO_PERSONA},
@@ -105,7 +105,7 @@ async def _run(n_turns: int) -> int:
     from connectors.meshkore import capsule
     from connectors.meshkore.bridge import ClusterBridge
     from connectors.meshkore.brain import _spec, make_brain
-    from nucleo.flash.fast_client import ModelSpec
+    from nucleo.llm.fast_client import ModelSpec
 
     # the operator sets the objective (we seed it here for the simulation); greeted=False → we will see greeting→work
     capsule.patch("meshcore", "zalo", greeted=False, objective="diseñar un algoritmo de trading en cripto (HMM de "

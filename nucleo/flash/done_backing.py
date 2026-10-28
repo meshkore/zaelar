@@ -25,7 +25,7 @@ def _fold(text: str) -> str:
 
 def unmet(cards: set[str] | None = None) -> dict | None:
     """The first end state still owed on `cards` (any card when None) that the product reads as NOT met now."""
-    from nucleo import spec, verify
+    from nucleo.circuit import spec, verify
     for e in spec.open_specs():
         card = str(e.get("target") or "").split(":", 1)[0]
         if card in ("", "desktop", "canvas") or (cards is not None and card not in cards):

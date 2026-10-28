@@ -80,7 +80,7 @@ def test_un_turno_de_video_CARGA_el_widget_de_verdad(monkeypatch, tmp_path):
 
     import widgets.server_api as _sa
     monkeypatch.setattr(_sa, "brain_action", _brain_action)
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _ClienteQuePideVideo)
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _ClienteQuePideVideo)
     try:
         res = asyncio.run(turn.run_turn("Pon el vídeo del tráiler de la última de Dune.",
                                         sid="test-video-turn", ingest=False, execute=True))
@@ -124,7 +124,7 @@ def test_a_mute_video_turn_names_what_it_loaded(monkeypatch, tmp_path):
 
     import widgets.server_api as _sa
     monkeypatch.setattr(_sa, "brain_action", _brain_action)
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _ClienteMudoQuePideVideo)
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _ClienteMudoQuePideVideo)
     try:
         res = asyncio.run(turn.run_turn("Pon el tráiler de Dune.", sid="test-video-mudo", ingest=False, execute=True))
     finally:

@@ -11,7 +11,7 @@ import pytest
 
 from memory import db as memdb
 from memory import tasks_store as ts
-from nucleo import request_row as rq
+from nucleo.request import model as rq
 from nucleo.flash import task_block as tb
 
 

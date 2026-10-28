@@ -54,7 +54,7 @@ def snapshot() -> dict:
 def _titular() -> dict | None:
     """The voice titular as the chain sees it — same source the turn uses, never a second copy."""
     try:
-        from nucleo.flash import provider_chain as pc
+        from nucleo.llm import provider_chain as pc
         ch = pc.chain(pc.ROLE_VOICE)
         return ch[0] if ch else None
     except Exception:  # noqa: BLE001
@@ -74,7 +74,7 @@ def ailing() -> bool:
     if not t:
         return False
     try:
-        from nucleo.flash import provider_chain as pc
+        from nucleo.llm import provider_chain as pc
         return not pc.tier_available(t)
     except Exception:  # noqa: BLE001
         return False
@@ -115,7 +115,7 @@ def _recovered(tier: dict) -> None:
     """The titular answered. Lift what the failure left behind, and SAY so — a recovery nobody can see is
     the same invisible state this whole module exists to end."""
     try:
-        from nucleo.flash import provider_chain as pc
+        from nucleo.llm import provider_chain as pc
         pc.clear(tier.get("name") or "")
     except Exception:  # noqa: BLE001
         pass

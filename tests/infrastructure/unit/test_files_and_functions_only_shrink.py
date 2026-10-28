@@ -34,7 +34,7 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 FILES = {
     'nucleo/dispatch.py': 919,
     'nucleo/energy_meter.py': 812,
-    'nucleo/flash/fast_client.py': 866,
+    'nucleo/llm/fast_client.py': 866,
     'nucleo/flash/prompt.py': 816,
     'nucleo/jev.py': 824,
     'voice/engine/llm/providers/nucleo.py': 997,
@@ -51,7 +51,7 @@ FUNCTIONS = {
     'nucleo/dispatch_session_steps.py::build_what_it_runs_with': 132,
     'nucleo/errands/wake.py::wake': 153,
     'nucleo/input/stt.py::Accumulator._offer': 129,   # 2026-10-22: `offer` → wrapper + `_offer`
-    'nucleo/flash/fast_client.py::FastClient._stream_inner': 267,
+    'nucleo/llm/fast_client.py::FastClient._stream_inner': 267,
     'nucleo/flash/listing_turn.py::run': 121,
     'nucleo/flash/live_blocks.py::navegador_lines': 147,
     'nucleo/flash/live_blocks_nav.py::read_the_browser_tasks': 133,

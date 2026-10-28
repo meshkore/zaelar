@@ -17,7 +17,7 @@ import pytest
 
 from nucleo.flash import answer_guards as _ag, card_commission as _cc, reply_promise as _rp, second_pass as _sp
 from nucleo.flash import turn_brief as _tb
-from nucleo import spec as _spec
+from nucleo.circuit import spec as _spec
 
 
 def _brief(**verdicts):
@@ -91,7 +91,7 @@ CLEARED = "Nothing left running — I've cleared it, so that list should be empt
 
 
 def _live(monkeypatch, rows):
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     monkeypatch.setattr(tasks, "board", lambda scope="live", **k: rows if scope == "live" else [])
 
 

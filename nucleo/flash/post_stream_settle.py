@@ -13,7 +13,7 @@ from nucleo.turn import split_by_errand as _sbe   # the status line names the er
 from nucleo.flash import unchecked_provenance as _pst_up   # 2026-10-14: no claimed check of a video's provenance
 from nucleo.flash import row_claims as _pst_rc   # 2026-10-14: a claim about a row that no source carries is corrected aloud
 from nucleo.flash import blocked_channel_receipt as _pst_bcr   # V2-604: a blocked channel's pasted link is said
-from nucleo.flash import stop_decision as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
+from nucleo.request import stop as _stop_decision   # V2-807 T-14: a stop order is the turn's verdict
 
 
 async def settle_what_is_pending(*, _ans, _ask_waiting, _auth_pending, _brief, _dialog, _filler_audio, _langs, _prev_pending, _r, _resolve_confirm, _router, _shown_ids, acted, aside, brain, clarify, confirm_state, data_done, emit, escalate_req, had_pending_confirm, llm_metrics, music_req, operator_text, search_req, send, speech, spoken_text, style_fired, text, worker_acted) -> dict:

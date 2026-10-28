@@ -42,7 +42,7 @@ LIVE = True
 async def _translate(text: str, lang_name: str) -> str:
     if not LIVE:
         return ""
-    from nucleo.flash.fast_client import FastClient
+    from nucleo.llm.fast_client import FastClient
     out = await FastClient().complete(
         [{"role": "system", "content": f"Translate the message into {lang_name}. Keep names, numbers, times and the "
                                        f"tone. Answer with the translated message only."},

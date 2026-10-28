@@ -31,7 +31,7 @@ class _Model:
 
 @pytest.fixture
 def model(monkeypatch):
-    import nucleo.flash.fast_client as fc
+    import nucleo.llm.fast_client as fc
     holder = {}
 
     def use(later):

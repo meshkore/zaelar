@@ -1,32 +1,12 @@
-"""nucleo/errand_title.py — what an errand is CALLED, which is not the same string as what it was ASKED.
+"""nucleo/request/title.py — what an errand is CALLED, which is not the same string as what it was ASKED.
 
-Measured on the operator's own engine (2026-08-31, session `7cab1afd`). Two results sheets side by side, one
-per errand, and the titles the operator read on them were:
+An errand's GOAL is the operator's own words on purpose (fidelity is what lets the worker do the right thing), so a
+goal read as a name gave him a sheet called «Me parece bien. Oye, una cosita, estabas…» — a slice of the
+conversation, read out loud too when the worker asked something (2026-08-31). The NAME is its own field, in order:
 
-    «Sanidad con Sanitas en Soria»
-    «Me parece bien. Oye, una cosita, estabas buscándome un médico. ¿Eres…»
-
-The second is not a name, it is a slice of the conversation — and it is a slice that ends before the errand is
-even mentioned. The same string was ALSO what the voice read out when the worker needed something
-(«Oye, el proceso "Me parece bien. Oye, una cosita, estabas" pregunta: …»), so the defect was audible as well
-as visible. It made the disambiguation question unanswerable too: with two sheets open, «¿cuál cierro, "Sanidad
-con Sanitas en Soria" o "Me parece bien. Oye, una cosita, estabas…"?» names one errand and one pleasantry.
-
-WHY the goal reads like that, and why fixing the goal would be the wrong fix: an errand's GOAL is the
-operator's own words on purpose. When the promise backstop escalates (`nucleo/flash/router_guards`), the brief
-handed to the worker is the raw turn, because fidelity is what lets the worker do the right thing — the
-operator said «invéntate el apellido si te lo piden» and that has to survive verbatim. So the goal stays a
-BRIEF, and the NAME becomes its own field.
-
-TWO answers, in this order, because the first one has to exist before the second can arrive:
-
-  · `provisional()` — instant and deterministic. The goal, trimmed at a WORD boundary. It is what today's code
-    already did (`goal[:40]`, `_clip`) minus the mid-word cut, so it is never worse than the status quo and it
-    needs no provider. Every sheet opens with this.
-  · `compose()` — one small model call, off the voice clock and off the worker's critical path, that NAMES the
-    errand. The escalation is already asynchronous, the sheet is already on screen, and nothing waits for this:
-    if it fails, times out, or answers something unusable, the provisional title stays. Naming a request is
-    understanding it — a table of verbs would produce «Me parece» for this exact sentence.
+  · `provisional()` — instant and deterministic: the goal trimmed at a WORD boundary. Every sheet opens with it.
+  · `compose()` — one small model call off the voice clock and the worker's path that NAMES the errand; if it
+    fails or answers something unusable, the provisional title stays. Naming a request is understanding it.
 """
 from __future__ import annotations
 
@@ -112,7 +92,7 @@ def _spec_for_naming():
     reasoning chain's only reachable rung answered nothing in 20 s while the voice tier composed every title in
     ~1.5 s. It is also the right shape for the job — naming is one line, not deliberation, so a non-reasoning
     model is what this wants; the reasoning chain stays as the fallback for a machine wired the other way."""
-    from nucleo.flash import provider_chain as _pc
+    from nucleo.llm import provider_chain as _pc
     try:
         tier = _pc.pick(_pc.ROLE_VOICE)
         if tier:
@@ -181,7 +161,7 @@ async def compose(goal: str, *, timeout: float = _TIMEOUT_S) -> str:
     try:
         import asyncio
 
-        from nucleo.flash.fast_client import FastClient
+        from nucleo.llm.fast_client import FastClient
         spec = _spec_for_naming()
         if spec is None:
             return ""

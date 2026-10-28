@@ -93,7 +93,7 @@ TOOLS: list[dict] = [
                 "done_when": {
                     "type": "object",
                     # V2-776 L1 — the END STATE the engine CHECKS when the errand ends; born with the request, never
-                    # left to the worker. Grammar of `nucleo/verify.py`; the targets are the widgets' own `done_when`.
+                    # left to the worker. Grammar of `nucleo/circuit/verify.py`; the targets are the widgets' own `done_when`.
                     "description": (
                         "Qué será VERDAD al acabar (el motor lo COMPRUEBA): {\"all\":[…]} con "
                         "{\"widget\":W,\"collection\":C,\"where\":{\"title~\":\"x\"}} · "

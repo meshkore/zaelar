@@ -81,7 +81,7 @@ def _lazy_imports(p: Path) -> int:
 # extracted, and the boundary had long been clear: the CLASSIFICATION of the errand (`_classify_kind` + its five
 # regexes + the label) is a PURE function over the request TEXT—it does not inspect the session record, touch the
 # pool, or write.
-#   nucleo/dispatch.py         1879 → 1762  what KIND of errand this is                → nucleo/errand_kind.py
+#   nucleo/dispatch.py         1879 → 1762  what KIND of errand this is                → nucleo/request/kind.py
 #
 # All three were boundaries that were ALREADY drawn—the browser block had its own `try`, the sheet section its
 # banner since V2-227, and the two text functions are pure over the record—and in two of the three there was also
@@ -332,20 +332,23 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
-    "nucleo (top)": 22757,      # refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
+    "nucleo (top)": 19642,      # refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
     "nucleo/actionmap": 755,
     "nucleo/acts": 265,         # refactor2710-05 T-01: born — the tool catalogue as a dict (target tools+card ≤ 900)
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
+    "nucleo/circuit": 2491,     # refactor2710-02: born — circuit, spec, harness, verify, deliverable_gate, workers/goal, tasks (ledger), flash/write_harness MOVED in; `verdict.py`
     "nucleo/context_packs": 568,
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 31218,
+    "nucleo/flash": 28840,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/, aliased at its old path; refactor2710-05 T-01: arms → nucleo/acts
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
+    "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
+    "nucleo/request": 985,     # refactor2710-02: born — request_row (model), errand_kind/title, dedup+continuity (append), stop_decision MOVED in
     "nucleo/susurro": 1386,
     "nucleo/turn": 2169,
-    "nucleo/workers": 6455,
+    "nucleo/workers": 6386,
     "nucleo/workflows": 315,
     "observability": 1005,
     "rules": 1211,              # refactor2710-01: +3, the rules.write door
@@ -365,7 +368,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/actionmap/executor.py",
     "nucleo/batch/runner.py",
     "nucleo/canvas_arbiter.py",
-    "nucleo/circuit.py",
+    "nucleo/circuit/__init__.py",   # MOVED from nucleo/circuit.py (refactor2710-02 T-00)
     "nucleo/consent.py",
     "nucleo/danger.py",
     "nucleo/dispatch.py",
@@ -388,7 +391,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/dialog.py",
     "nucleo/flash/direct_action.py",
     "nucleo/flash/escalation_guard.py",
-    "nucleo/flash/fast_client.py",
+    "nucleo/llm/fast_client.py",
     "nucleo/flash/frontend.py",
     "nucleo/flash/listing_turn.py",
     "nucleo/flash/live_blocks.py",
@@ -396,7 +399,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/post_stream_lanes.py",
     "nucleo/flash/post_stream_words.py",
     "nucleo/flash/prompt.py",
-    "nucleo/flash/provider_chain.py",
+    "nucleo/llm/provider_chain.py",
     "nucleo/flash/reminder_guards.py",
     "nucleo/flash/router.py",
     "nucleo/flash/router_catalog.py",
@@ -423,12 +426,11 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/runstate.py",
     "nucleo/scheduler.py",
     "nucleo/sheets.py",
-    "nucleo/spec.py",
+    "nucleo/circuit/spec.py",
     "nucleo/susurro/apply.py",
     "nucleo/susurro/engine.py",
-    "nucleo/tasks.py",
+    "nucleo/circuit/ledger.py",
     "nucleo/turn/promise_kept.py",
-    "nucleo/verify.py",
     "nucleo/worker_api.py",
     "nucleo/workers/claude_session.py",
     "nucleo/workers/codex_session.py",
@@ -450,8 +452,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12). Never for growth in place.
-_TOTAL_MAX = 172780
+#: 178503 → 173251 by the 01; 172840 after the 02; → 172847 with -01 and -12; → 172773 with -05 T-01). Never for growth in place.
+_TOTAL_MAX = 172773
 
 
 def test_the_total_only_shrinks():

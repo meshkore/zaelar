@@ -413,7 +413,7 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
     # and only hushes the voice, never stops tasks (operator's rule). …unless his turn ANSWERS our question
     # (demo 2026-10-22: «Want me to stop it?» → «Yes, please» was refused). V2-807 T-14 — a sure verdict
     # decides (`stop_decision`); the word table and the answer check are the fallback.
-    from nucleo.flash import stop_decision as _stop_decision
+    from nucleo.request import stop as _stop_decision
     if not _stop_decision.ordered(brief, grammar=bool(_says_stop(text)
                                                      or _prior_line.answers_our_question(brief, prior))):
         emit("brain", "🛡️ stop_worker ignorado — el operador no ha pedido parar nada (context-bleed)",

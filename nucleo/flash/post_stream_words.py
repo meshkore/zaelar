@@ -12,7 +12,7 @@ from nucleo.flash import card_commission as _cardc_ws
 from nucleo.flash import note_backstop as _nb    # the dated-note backstop's one decision, both channels
 from nucleo.flash import post_stream as _pst
 from nucleo.flash import second_pass as _second_pass   # a question the state answers, composed (2026-10-21)
-from nucleo.flash import stop_decision as _stop_decision   # V2-820: a correction of the running errand reaches it
+from nucleo.request import stop as _stop_decision   # V2-820: a correction of the running errand reaches it
 from nucleo.flash import reminder_backing as _rback   # promise → job, claim → checked (both halves)
 from nucleo.flash import verdict_card as _vcard     # a sure close that an inner order outranks is not owed
 from nucleo.turn import split_by_errand as _sbe   # a sentence about several errands goes part by part (2.643)

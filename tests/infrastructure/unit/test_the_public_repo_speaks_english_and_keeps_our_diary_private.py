@@ -57,7 +57,7 @@ def _counts() -> dict[str, int]:
 
 
 #: Measured on 2026-10-01. Translating a file lowers its number; delete its line when it reaches zero.
-TOTAL = 2333
+TOTAL = 2329
 PER_FILE: dict[str, int] = {
     'config/settings.py': 2,
     'config/v2.py': 4,
@@ -105,7 +105,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/dispatch_session_steps.py': 13,
     'nucleo/energy_lease.py': 57,
     'nucleo/energy_meter.py': 60,
-    'nucleo/errand_kind.py': 9,
+    'nucleo/request/kind.py': 9,
     'nucleo/errands/party.py': 4,
     'nucleo/errands/verify.py': 1,
     'nucleo/errands/wake.py': 2,
@@ -121,19 +121,19 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/direct_action.py': 1,
     'nucleo/flash/errand_sheet.py': 10,
     'nucleo/flash/escalate.py': 16,
-    'nucleo/flash/fast_client.py': 55,
+    'nucleo/llm/fast_client.py': 55,
     'nucleo/flash/frontend.py': 3,
     'nucleo/flash/hard_turn.py': 1,
     'nucleo/flash/listing_turn.py': 1,
     'nucleo/flash/live_blocks.py': 84,
     'nucleo/flash/live_blocks_nav.py': 104,
-    'nucleo/flash/model_spec.py': 7,
+    'nucleo/llm/model_spec.py': 7,
     'nucleo/flash/post_stream.py': 2,
     'nucleo/flash/post_stream_lanes.py': 89,
     'nucleo/flash/post_stream_settle.py': 59,
     'nucleo/flash/post_stream_words.py': 29,
     'nucleo/flash/presence.py': 1,
-    'nucleo/flash/prewarm.py': 11,
+    'nucleo/llm/prewarm.py': 11,
     'nucleo/flash/probe.py': 45,
     'nucleo/flash/probe_after.py': 91,
     'nucleo/flash/probe_before.py': 38,
@@ -141,7 +141,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/probe_mirrors.py': 47,
     'nucleo/flash/probe_scheduling.py': 37,
     'nucleo/flash/prompt.py': 119,
-    'nucleo/flash/provider_chain.py': 43,
+    'nucleo/llm/provider_chain.py': 43,
     'nucleo/flash/recall_heuristics.py': 30,
     'nucleo/flash/reminder_guards.py': 7,
     'nucleo/flash/router.py': 2,
@@ -185,7 +185,6 @@ PER_FILE: dict[str, int] = {
     'nucleo/workers/claude_session.py': 91,
     'nucleo/workers/codex_session.py': 43,
     'nucleo/workers/generator_session.py': 18,
-    'nucleo/workers/goal.py': 2,
     'nucleo/workers/grok_session.py': 62,
     'nucleo/workers/handoff.py': 2,
     'nucleo/workers/providers.py': 87,

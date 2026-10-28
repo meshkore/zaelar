@@ -109,7 +109,7 @@ def test_the_fast_layer_defaults_to_the_titular_ON_ITS_OWN_ENDPOINT():
     native API does not, so a default that carries one without the other buys a 400 on every call — which is
     exactly how the workers' DeepSeek rung shipped broken, invisible because a relay rung only runs once the
     titular is already down."""
-    from nucleo.flash import model_spec as M
+    from nucleo.llm import model_spec as M
     # V2-750 — read the TABLE instead of pinning a name here. This literal has had to be edited on every
     # promotion, and an assertion that gets edited to stay green stops being read (the note this file
     # already makes about pinning full lists). What the test is FOR is the endpoint/prefix pairing.
@@ -132,7 +132,7 @@ def test_the_emergency_fallback_is_the_SAME_brain_as_the_config():
     What IS a PRODUCT defect—and what the docstring above is meant to catch—is for the code's emergency fallback
     not to match the titular that the product declares by default."""
     import config.v2 as v2
-    from nucleo.flash import model_spec as M
+    from nucleo.llm import model_spec as M
     shipped = str((v2._DEFAULTS.get("fast") or {}).get("model") or "")
     if not shipped:
         pytest.skip("el default enviado no nombra modelo: el fallback ES la respuesta")

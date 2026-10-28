@@ -15,7 +15,7 @@ async def compose_the_prompt(*, brain, emit, operator_text, self, text) -> dict:
     from nucleo.flash import dialog as _dialog
     from nucleo.flash import escalate as _escalate_mod
     from nucleo.flash import frontend as _frontend
-    from nucleo.flash.fast_client import FastClient, spec_from_config
+    from nucleo.llm.fast_client import FastClient, spec_from_config
     from nucleo.flash.prompt import build_flash_system
     from nucleo.flash import router as _router
 
@@ -27,7 +27,7 @@ async def compose_the_prompt(*, brain, emit, operator_text, self, text) -> dict:
     # problema resolviendo la cadena y se usa la config, como siempre.
     spec = spec_from_config()
     try:
-        from nucleo.flash import provider_chain as _pchain0
+        from nucleo.llm import provider_chain as _pchain0
         _tier = _pchain0.pick(_pchain0.ROLE_VOICE)
         if _tier and _tier.get("name") not in ("", "titular"):
             spec = _pchain0.spec_for(_tier)

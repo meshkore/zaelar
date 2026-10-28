@@ -1,26 +1,13 @@
-"""nucleo/circuit.py — one loop, one bound, one report (V2-776 L3).
+"""nucleo/circuit/ — what «done» means for a request, owned in one place (V2-776 L3, refactor2710-02).
 
-## What this replaces
+  · `verdict.py` — the one vocabulary a request ends in; `spec.py` — its end state (inline actions and errands);
+  · `verify.py` — the readers of the product's truth; `harness.py` — the card-content goals a reply claims;
+  · `ledger.py` — the durable task rows; `deliverable.py` — an errand opens only its deliverable;
+  · here — the pulse and a worker's ending: re-verify every open spec, JUDGE an ending (never the worker's word),
+    relaunch within the operator's bound (genesis `circuit.retries`), and say the VERDICT.
 
-Three fragments verified an end state, each with its own owner, clock and cap, none of them the path a
-request takes (four read-only maps of the brain, 2026-09-29):
-
-  · `nucleo/harness.py` (V2-660): one goal kind, in RAM, 300 s, re-verified by the pulse, never retried;
-  · `nucleo/workers/goal.py` (V2-707 F2): the worker's own `done_when`, checked once in `_finish`; the retry
-    bound was `goal_retried` on a record every relay rebuilds — so the real cap was `relay_gen < 2`, shared
-    with the context and provider relays; `None` ended on the worker's `ok` and was spoken as «It is done»;
-  · `nucleo/errands/verify.py` (V2-683): one hand-written condition for third-party errands.
-
-## What this is
-
-The pulse re-verifies every open spec (`nucleo/spec.py`'s ledger — inline actions and errands alike); a
-worker's ending is JUDGED here, not by its own word; the retry bound is explicit, its own, and the operator's
-to set (genesis `circuit.retries`, overridable per install); an ending that cannot be read is a verdict of its
-own («unverifiable») that the mouth says as such; and what the operator hears at the end is the VERDICT:
-«done» only over `met`, «what is missing» over `gave_up`.
-
-The V2-660 rule is kept verbatim: `None` (unreadable) is never failure and never opens a retry. The cure for
-unreadable is a readable widget (L2), never a guess.
+`None` (unreadable) is never failure and never opens a retry: the cure for unreadable is a readable widget, not a
+guess. An ending that cannot be read is `unverifiable`, and the mouth says it as such.
 """
 from __future__ import annotations
 
@@ -30,11 +17,12 @@ from pathlib import Path
 
 from loguru import logger
 
-_GENESIS = Path(__file__).resolve().parent / "genesis.json"
+from nucleo.circuit import verdict as _verdict
+
+_GENESIS = Path(__file__).resolve().parents[1] / "genesis.json"
 RETRIES_DEFAULT = 2                 # «hemos probado dos o tres veces, no somos capaces» — the operator, 2026-09-29
 CHECK_EVERY_S = 5.0                 # an open spec is read at most this often by the pulse
 INLINE_GRACE_S = 20.0               # an inline action's end state is owed within this; past it, unmet is the verdict
-VERDICTS = ("met", "undeclared", "unverifiable", "unmet", "retrying", "gave_up", "skipped")  # [:3] = delivered
 
 
 # ── the bound is the operator's ────────────────────────────────────────────────────────────────────────────
@@ -70,7 +58,7 @@ def retries() -> int:
 def tick(now: float | None = None) -> list[dict]:
     """Re-verify the open specs; a met one closes with its event. Returns what closed now. No voice: an inline
     action's refusal already spoke through `report_failure`, and a worker's ending speaks through `close`."""
-    from nucleo import spec as _spec
+    from nucleo.circuit import spec as _spec
     now = time.time() if now is None else now
     closed: list[dict] = []
     for e in _spec.open_specs(now):
@@ -96,7 +84,7 @@ def _settle_row(e: dict, verdict: str, outcome: str = "") -> None:
     """The request row this inline spec belongs to (V2-776 M1) ends with the same verdict."""
     if e.get("row"):
         try:
-            from nucleo import request_row as _rq
+            from nucleo.request import model as _rq
             _rq.settle(str(e["row"]), verdict, outcome)
         except Exception:  # noqa: BLE001
             pass
@@ -140,12 +128,12 @@ def _settle_unmet_inline(e: dict, now: float) -> None:
     and nobody retried, asked or spoke. The circuit saw the failure and had no consumer. No automatic retry here:
     an inline op may have side effects, and the model that fired it is the one that can correct it. The next reply
     is told what is missing, so it cannot say «done» over it."""
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     missing = "; ".join(_verify.missing(e.get("done_when"), now)) or "el objetivo declarado no se cumple"
     e["status"], e["met_at"] = "unmet", now
     _settle_row(e, "unmet", missing)
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         _spec._emit("❌ spec: SIN cumplir tras el plazo — se le dice al modelo", e, missing=missing[:300])
     except Exception:  # noqa: BLE001
         pass
@@ -167,7 +155,7 @@ def _settle_unmet_inline(e: dict, now: float) -> None:
 # ── the ending of a worker ─────────────────────────────────────────────────────────────────────────────────
 
 def _entry_for(rec):
-    from nucleo import spec as _spec
+    from nucleo.circuit import spec as _spec
     uid = str(getattr(rec, "uid", "") or "")
     for e in _spec.open_specs():
         if uid and e.get("task_id") == uid:
@@ -177,25 +165,28 @@ def _entry_for(rec):
 
 def _emit(rec, verdict: str, *, missing: str = "", tries: int = 0) -> None:
     try:
-        from nucleo import verify as _verify
+        from nucleo.circuit import verify as _verify
         from voice.observer import emit
-        emit("task", {"met": "✅ circuito: estado final CUMPLIDO y verificado",
-                      "retrying": "🔁 circuito: sin cumplir → relanzada con lo que falta",
-                      "gave_up": "❌ circuito: sin cumplir y sin más intentos — se dice lo que falta",
-                      "unverifiable": "🫥 circuito: no verificable — se entrega como NO comprobado",
-                      "undeclared": "🤷 circuito: sin condición declarada — no se afirma nada",
-                      "skipped": "⏭ circuito: no se juzga (cancelada o relevada)"}.get(verdict, verdict),
+        label = {"met": "✅ circuito: estado final CUMPLIDO y verificado",
+                 "started": "🔁 circuito: sin cumplir → relanzada con lo que falta",
+                 "unmet": "❌ circuito: sin cumplir y sin más intentos — se dice lo que falta",
+                 "unverifiable": "🫥 circuito: no verificable — se entrega como NO comprobado",
+                 "undeclared": "🤷 circuito: sin condición declarada — no se afirma nada",
+                 "skipped": "⏭ circuito: no se juzga (cancelada o relevada)"}.get(verdict, verdict)
+        emit("task", label,
              text=_verify.describe(getattr(rec, "done_when", None)) or str(getattr(rec, "goal", "") or "")[:120],
              extra={"id": getattr(rec, "task_id", ""), "uid": getattr(rec, "uid", ""), "verdict": verdict,
                     "tries": tries, "missing": missing[:300], "cat": "circuit"})
     except Exception:  # noqa: BLE001
         pass
+    _verdict.emit(_verdict.of(verdict) or _verdict.UNDECLARED, text=missing, trace=str(getattr(rec, "trace_id", "") or ""),
+                  uid=str(getattr(rec, "uid", "") or ""), tries=tries)
 
 
 def verdict_of(rec, now: float | None = None) -> tuple[str, str]:
     """(verdict, what is missing) for a record, with NO side effects — what a budget kill or a stuck worker
     asks before it closes, so the operator hears the end state and not only the clock."""
-    from nucleo import verify as _verify
+    from nucleo.circuit import verify as _verify
     dw = getattr(rec, "done_when", None) or {}
     if not dw:
         # Demo pass 62, T1: a trip plan's end state is the REPORT — nothing a widget attests — and «unverifiable»
@@ -203,7 +194,7 @@ def verdict_of(rec, now: float | None = None) -> tuple[str, str]:
         # one whose result is its words: undeclared. «Unverifiable» is a DECLARED clause the product cannot read.
         return "undeclared", ""
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         dw = _spec.bind_sheet(dw, getattr(rec, "sheet", ""))
     except Exception:  # noqa: BLE001
         pass
@@ -233,7 +224,7 @@ def close(rec, relay_cap: int) -> str:
 
 
 def _close(rec, relay_cap: int) -> str:
-    from nucleo import spec as _spec
+    from nucleo.circuit import spec as _spec
     if getattr(rec, "status", "") == "cancelled" or getattr(rec, "handoff", ""):
         rec.verdict = "skipped"
         return "skipped"
@@ -265,7 +256,7 @@ def _close(rec, relay_cap: int) -> str:
                 rec.result_summary = ""            # no delivery: the relay takes it over, without noise
                 rec.ok = False
                 rec.handoff = f"objetivo sin cumplir → retomada ({missing[:80]})"
-                verdict = "retrying"
+                verdict = "started"                # a relaunch is a new start (tries ≥ 1)
                 if entry is not None:
                     entry["tries"] = tries + 1
                     _spec.persist(entry["task_id"], entry)
@@ -273,25 +264,25 @@ def _close(rec, relay_cap: int) -> str:
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"worker[{rec.task_id}]: no pude relanzar por objetivo: {e}")
                 rec.ok = False
-                verdict = "gave_up"
+                verdict = "unmet"
         else:
             # No budget left: the operator hears the TRUTH — an errand nobody could finish is never delivered
             # as a finished one, and what it DID achieve is not thrown away.
             rec.ok = False
             rec.result_summary = (f"No he podido dejarlo terminado. Queda: {missing}."
                                   + (f" {rec.result_summary.strip()}" if rec.result_summary.strip() else ""))
-            verdict = "gave_up"
+            verdict = "unmet"                      # no tries left: what was «gave_up» (tries_left = 0)
             # …and ONE question, once (the operator, 2026-09-29: «acabar de definir mejor la request… después de
             # cada iteración»): the relaunch is PARKED on his answer through the confirm-gate's own register, so
             # his «sí» — with whatever he adds — is what launches it, and silence lets it expire.
             if entry is not None:
-                entry["status"] = "gave_up"
+                entry["status"], entry["tries_left"] = "unmet", 0
                 if bool(settings().get("ask_on_give_up", True)) and not entry.get("asked"):
                     if _park_retry(rec, missing):
                         entry["asked"] = True
                         rec.result_summary += " " + RETRY_QUESTION
                 _spec.persist(entry["task_id"], entry)
-    elif verdict == "met" and entry is not None and entry.get("status") == "open":
+    elif verdict == "met" and entry is not None and entry.get("status") == "started":
         entry["status"], entry["met_at"] = "met", time.time()
         _spec.persist(entry["task_id"], entry)
     rec.verdict = verdict
@@ -327,21 +318,11 @@ def ending_note(rec, now: float | None = None) -> tuple[str, str]:
 
 # ── the mouth ──────────────────────────────────────────────────────────────────────────────────────────────
 
-OUTCOMES = {
-    "met": "It is done, and you checked the result yourself.",
-    "undeclared": "It is done.",
-    "unverifiable": "The work was done, but you could NOT check the result yourself — say so plainly: done, "
-                    "unverified. Never say it is done as a fact.",
-    "gave_up": "It could not be completed. Say what is missing; do not dress it up.",
-    "unmet": "It could not be completed. Say what is missing.",
-}
-
-
 def outcome_line(verdict: str, ok: bool) -> str:
     """The outcome sentence the spoken delivery is built on — the verdict's, never the worker's `ok`."""
-    v = str(verdict or "")
-    if v in OUTCOMES:
-        return OUTCOMES[v]
+    v = _verdict.of(verdict)
+    if v is not None and v.instruction:
+        return v.instruction
     return "It is done." if ok else "It could not be completed."
 
 
@@ -356,3 +337,49 @@ def voice_rules_line() -> str:
         return "The person's standing rules for how you speak, which you obey: " + " · ".join(str(r)[:160] for r in rs[:6])
     except Exception:  # noqa: BLE001
         return ""
+
+# ── an errand opens only its DELIVERABLE on his screen (V2-822; was `deliverable_gate.py`) ──────────────────────
+# A worker's `show_widget` was a free door to any card: when the errand's surface names its card (the results sheet
+# for a list, the document for a report, the viewer for pictures), a show of any OTHER card is refused, with the way
+# through — read it without opening it, deliver into the deliverable. An errand that delivers no card opens nothing;
+# one that builds or fills a card of his opens that card. Reading, writing and closing are never refused.
+
+def refused(rec, action: str, payload: dict) -> str:
+    """Why this `show_widget` is refused ("" = let it through)."""
+    if action != "show_widget" or not isinstance(payload, dict):
+        return ""
+    from nucleo import surfaces
+    surface = str(getattr(rec, "surface", "") or "")
+    own = surfaces.deliverable_card(surface)
+    wid = str(payload.get("id") or payload.get("widget_id") or "").split("::", 1)[0].strip().lower()
+    if not wid:
+        return ""
+    if surfaces.delivers_no_card(surface) and wid not in _end_state_cards(rec):
+        _refusal_event(rec, wid, "")
+        return (f"this errand delivers no card — its result is told (or simply done), so it opens nothing on his "
+                f"screen and «{wid}» stays closed. Read it with read_widget (nothing opens) and report your result.")
+    if not own or wid == own:
+        return ""
+    _refusal_event(rec, wid, own)
+    return (f"this errand's deliverable is the «{own}» card, and it is the only card the errand opens on his screen — "
+            f"«{wid}» stays closed. Read it with read_widget (nothing opens) and deliver your result into «{own}».")
+
+
+def _end_state_cards(rec) -> set:
+    """The cards the errand's own END STATE names (`done_when` clauses): when what he asked for is a state of a card
+    (the player playing, a row on his list), that card IS the deliverable even if the result is also told."""
+    try:
+        from nucleo.circuit import verify
+        _mode, clauses = verify._clauses(getattr(rec, "done_when", None) or {})
+        return {str(c.get("widget") or "").split("::", 1)[0].strip().lower() for c in clauses if c.get("widget")}
+    except Exception:  # noqa: BLE001 — an unreadable end state names no card
+        return set()
+
+
+def _refusal_event(rec, wid: str, own: str) -> None:
+    try:
+        from voice.observer import emit
+        emit("widget", "🚫 a card that is not the deliverable stays closed", role="system",
+             extra={"id": wid, "deliverable": own, "task": str(getattr(rec, "task_id", "") or "")})
+    except Exception as e:  # noqa: BLE001 — an event that cannot be emitted never blocks the bridge
+        __import__("logging").getLogger(__name__).debug("deliverable gate emit failed: %s", e)

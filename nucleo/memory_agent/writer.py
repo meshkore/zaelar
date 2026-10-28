@@ -9,7 +9,7 @@ So the grammar is enforced where a pill is born, not at the reader:
   - the distiller's kinds are `profile · pref · fact · event · intent · request` (`request` = something he ASKED
     the assistant to do). A `result` the model returns is stored as a `request` (`distilled_kind`).
   - `result(...)` is the door for the circuit's verdict: it writes when the worker DELIVERED
-    (`circuit.VERDICTS[:3]`), stamping the verdict so a reader tells «checked» from «delivered, unverified»; a
+    (the verdicts that declare `delivered`), stamping the verdict so a reader tells «checked» from «delivered, unverified»; a
     failed or parked errand writes nothing.
 """
 from __future__ import annotations
@@ -29,9 +29,9 @@ async def result(text: str, *, task_id: str, verdict: str, level: str = "mid",
     """Write an errand's OUTCOME as a `result` pill (`meta.verdict` = the verdict) when the worker delivered; True
     when queued. Any other verdict writes nothing: that outcome is a fact of the task store, never of memory."""
     text = (text or "").strip()
-    from nucleo.circuit import VERDICTS    # its first three say the worker DELIVERED; only `met` was checked
-    v = str(verdict or "").strip().lower()
-    why = ("" if text and v in VERDICTS[:3]
+    from nucleo.circuit import verdict as _verdict   # each verdict declares whether the worker DELIVERED
+    v = getattr(_v := _verdict.of(str(verdict or "").strip().lower()), "name", str(verdict or "").strip().lower())
+    why = ("" if text and _v is not None and _v.delivered
            else "empty text" if not text else f"verdict is {v or 'missing'}, nothing delivered")
     _observe(task_id, v, why)
     if why:

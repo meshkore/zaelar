@@ -1,4 +1,4 @@
-"""nucleo/errand_kind.py — QUÉ CLASE DE ENCARGO es esto, and how is calls mientras corre.
+"""nucleo/request/kind.py — QUÉ CLASE DE ENCARGO es esto, and how is calls mientras corre.
 
 Extraido of `nucleo/dispatch.py` the 2026-08-24 because the trinquete of arquitectura pidio a module in vez of a
 cap mas alto, and the corte estaba dado: todo it of here es a funcion PURA sobre the TEXTO of the request — no

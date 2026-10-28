@@ -149,15 +149,15 @@ def _jev_never_reaches_the_network_and_starts_closed():
 
 @pytest.fixture(autouse=True)
 def _the_spec_ledger_starts_empty():
-    """V2-776 L1 keeps the open end states in one in-process ledger (`nucleo.spec._OPEN`); a test that dispatched a
+    """V2-776 L1 keeps the open end states in one in-process ledger (`nucleo.circuit.spec._OPEN`); a test that dispatched a
     data-op left its spec open, and every later brief asked an `end_state` question it never expected — measured
     2026-09-30, a wide voice run went red in files that pass alone."""
     import sys
-    mod = sys.modules.get("nucleo.spec")
+    mod = sys.modules.get("nucleo.circuit.spec")
     if mod is not None:
         mod.reset()
     yield
-    mod = sys.modules.get("nucleo.spec")
+    mod = sys.modules.get("nucleo.circuit.spec")
     if mod is not None:
         mod.reset()
 

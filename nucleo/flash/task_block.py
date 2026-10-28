@@ -12,6 +12,7 @@ oferta de parar, que se hace UNA vez (V2-454).
 """
 from __future__ import annotations
 
+from nucleo.circuit import verdict as _verdict
 from nucleo.flash.errand_sheet import rows_of_sheet
 
 def _short_note(note: str, limit: int = 110) -> str:
@@ -242,8 +243,7 @@ RECENT_MAX = 6
 RECENT_MAX_CHARS = 700
 _STATE_WORD = {"running": "EN MARCHA", "pending": "EN COLA", "waiting": "ESPERA TU RESPUESTA",
                "done": "HECHA", "failed": "FALLÓ", "cancelled": "CANCELADA"}
-_VERDICT_WORD = {"met": "comprobado en pantalla", "unverifiable": "sin comprobar", "gave_up": "sin terminar",
-                 "unmet": "no se cumplió"}
+_VERDICT_WORD = {"met": "comprobado en pantalla", "unverifiable": "sin comprobar", "unmet": "no se cumplió"}
 
 
 def _ago(secs: float) -> str:
@@ -271,7 +271,7 @@ def recent_lines(now: float | None = None) -> list[str]:
     import time as _t
     now = float(now if now is not None else _t.time())
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         rows = _tasks.store().tasks_where(states=("pending", "running", "waiting", "done", "failed", "cancelled"),
                                           modes=("now",), visible_only=True, limit=RECENT_MAX * 4,
                                           newest_first=True, since=now - RECENT_WINDOW_S)
@@ -281,7 +281,7 @@ def recent_lines(now: float | None = None) -> list[str]:
     live: dict = {}
     try:
         from nucleo import dispatch as _disp
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         live = {str(x.get("uid") or ""): x for x in _disp.active_sessions() if x.get("uid")}
         said |= {u for u, x in live.items() if str(x.get("status") or "") in ("queued", "running")}
         said |= {_tasks.task_uid(e.get("id")) for e in _disp.recently_ended_sessions(now=now)}
@@ -297,7 +297,7 @@ def recent_lines(now: float | None = None) -> list[str]:
         name = _short_note(str(r.get("title") or r.get("goal") or "una petición"), 70)
         st = str(r.get("state") or "")
         bit = f"«{name}» · {_STATE_WORD.get(st, st)}"
-        if (v := _VERDICT_WORD.get(str(r.get("verdict") or ""))):
+        if (v := _VERDICT_WORD.get(getattr(_verdict.of(r.get("verdict")), "name", ""))):   # older rows: «gave_up»
             bit += f" ({v})"
         when = float(r.get("finished_at") or r.get("started_at") or r.get("created_at") or now)
         bit += f" · {_ago(now - when)}"
@@ -347,7 +347,7 @@ def earlier_lines(now: float | None = None) -> list[str]:
     import time as _t
     now = float(now if now is not None else _t.time())
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         st = _tasks.store()
         rows = st.tasks_where(states=("pending", "running", "waiting", "done", "failed", "cancelled"),
                               modes=("now",), visible_only=True, limit=EARLIER_MAX * 4, newest_first=True,

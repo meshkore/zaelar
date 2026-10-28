@@ -1,7 +1,7 @@
 """nucleo/provider_keys.py — single source of truth for "given a base_url, which env var holds its API key?" (V2-098).
 
 Before this module, the same substring→env-var mapping was reimplemented independently in
-`nucleo/flash/fast_client.py`, `nucleo/mem_processor.py`, `nucleo/susurro/client.py` and `nucleo/memllm.py` — and
+`nucleo/llm/fast_client.py`, `nucleo/mem_processor.py`, `nucleo/susurro/client.py` and `nucleo/memllm.py` — and
 had already drifted: `susurro/client.py` and `memllm.py` only knew 4 endpoints (openai/xai/groq/aimlapi), missing
 gemini/mistral/z.ai/deepseek/moonshot entirely. Pointing either at one of the missing endpoints resolves the key
 to `""`/`"local"` and fails auth SILENTLY (fail-open masks it) instead of erroring loudly. One list, everyone reads

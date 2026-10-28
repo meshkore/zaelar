@@ -1,21 +1,12 @@
-"""nucleo/tasks.py — the SessionRecord ↔ durable task row seam (V2-728).
+"""nucleo/circuit/ledger.py — the SessionRecord ↔ durable task row seam (V2-728).
 
-One place that knows how a live Brain Worker session becomes a row in `tasks`, because the two vocabularies
-do not match and a translation written twice comes to differ. `memory/tasks_store.py` stores; this decides.
-
-THREE THINGS LIVE HERE AND NOTHING ELSE:
-
-  1. **The durable id.** `escalate._seq` returns to 0 in every process, so a `task_id` does not identify a
-     commission beyond the engine's lifetime — the defect `nucleo/runtime_ids.py` was written for, and the one
-     that made a fresh errand land on the previous session's sheet and delete it (V2-259). Composed with
-     `boot_id()`, exactly as `sheets.sheet_id_for` composes the sheet id, and for the same reason.
-  2. **The state vocabulary.** A worker says `queued|running|done|error|cancelled|relevada`; a task says
-     `pending|running|waiting|done|failed|cancelled`. They are not the same list and the differences carry
-     meaning: `relevada` is NOT an ending (a relay continues the same commission), and `waiting` is not a
-     state the worker has at all — it is `waiting_on` being set.
-  3. **The admission gate.** Which escalations are the OPERATOR's commissions, and which are the engine
-     talking to itself. Deterministic, by origin and kind — never a model call: a list whose contents depend
-     on a classifier is a list the operator cannot predict, and this one has to be boring.
+`memory/tasks_store.py` stores; this decides, in one place, three things and nothing else:
+  1. **The durable id** — `task_id` restarts at 0 in every process, so the row's id is composed with `boot_id()`,
+     as `sheets.sheet_id_for` composes the sheet's (V2-259).
+  2. **The state vocabulary** — a worker's `queued|running|done|error|cancelled|relevada` read as a task's
+     `pending|running|waiting|done|failed|cancelled` (`relevada` is NOT an ending; `waiting` is `waiting_on`).
+  3. **The admission gate** — which escalations are the operator's commissions: deterministic, by origin and kind,
+     never a model call.
 """
 from __future__ import annotations
 
@@ -111,7 +102,7 @@ def opened(rec, ctx: dict | None = None) -> str:
     # V2-776 L1 — the errand's END STATE is born here, where every commission is recorded: opened and persisted
     # when the escalation brought it, asked for once when it did not, and told to the worker either way.
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         _spec.born(rec, ctx)
     except Exception:  # noqa: BLE001
         pass
@@ -172,7 +163,7 @@ def ended_early(rec, *, state: str, outcome: str = "") -> None:
 #: A worker commission's durable id: `<boot_id>-<seq>` (see `task_uid`). Lists, errands and scheduled jobs
 #: have their own namespaced ids and their own owners, so the reconciler never touches them.
 _WORKER_UID = re.compile(r"^([0-9a-f]{6})-\d+$")
-#: An inline request's row (`nucleo/request_row.py`): `<boot_id>-i<seq>`.
+#: An inline request's row (`nucleo/request/model.py`): `<boot_id>-i<seq>`.
 _INLINE_UID = re.compile(r"^([0-9a-f]{6})-i\d+$")
 
 
@@ -213,10 +204,10 @@ def _settle_inline_after_restart(uid: str, now: float) -> int:
     copy on the row — met if the screen shows it now, otherwise closed as interrupted. No voice: whatever this
     was about, the operator is in a different moment now, and a spoken correction would be about nothing."""
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         e = _spec.of_task(uid)
         if e and _spec.attest(dict(e), now=now) is True:
-            from nucleo import request_row as _rq
+            from nucleo.request import model as _rq
             _rq.settle(uid, "met")
             return 1
     except Exception as ex:  # noqa: BLE001 — an unreadable spec is just an interrupted request
@@ -260,28 +251,24 @@ def closed(rec, *, outcome: str = "") -> None:
     _ts.task_patch(uid, state=state, finished_at=int(time.time()), outcome=said,
                    error_class=str(getattr(rec, "error_class", "") or "") if state == "failed" else "",
                    # V2-776 M3 — the circuit's verdict (`circuit.close` set it on the record), never the worker's word
-                   verdict=str(getattr(rec, "verdict", "") or ""))
+                   verdict=_ending_verdict(rec))
     kept_result(rec)
     remembered(rec, state=state, outcome=said)
+
+
+def _ending_verdict(rec) -> str:
+    """Only an ENDING reaches the row's verdict (a relaunch is a new start, not how this one ended)."""
+    from nucleo.circuit import verdict as _verdict
+    v = _verdict.of(getattr(rec, "verdict", ""))
+    return v.name if v is not None and v.ending else ""
 
 
 def kept_result(rec) -> None:
     """Copy this errand's sheet into `task_artifacts`, so the RESULT outlives the sheet.
 
-    Operator, 2026-09-20: *«si hemos pedido unos resultados para encontrar piso… todo eso tiene que quedar
-    vinculado»*. It did not. `widgets/results/sheet_names.py` keeps at most EIGHT instantiated sheets and
-    prunes the rest by file mtime, so the ninth search silently deleted the report of the first — a report
-    the sheet's own header comment says exists precisely so «the operator does not lose a report he already
-    paid for». One cap contradicted the other.
-
-    The sheet stays where it is and stays the thing on screen; this is the copy the task owns. `sheet_of(rec)`
-    and `task_uid` compose the same string by construction (see `task_uid`), so the two are the same object
-    seen from either side and no id has to be threaded through the widget layer.
-
-    THE DISCARDED ONES ARE HERE TOO, and getting them here was a change to what the WORKER REPORTS, not to
-    where anything is stored: until V2-728 a rejection survived only as a count (`hbnote considered N --kept
-    M`, V2-059), so «los 50 que descartó» existed nowhere to be copied. The sheet now has a `rejected` list
-    of argued rows (`widgets/results/data.py`, action `rejected`) and they travel with the rest.
+    The results sheets are capped (`widgets/results/sheet_names.py` prunes past eight), so the ninth search deleted the
+    first one's report. The sheet stays the thing on screen; this is the copy the task owns, under the same id
+    (`sheet_of(rec)` and `task_uid` compose the same string). The rejected rows travel with the rest (V2-728).
     """
     uid = str(getattr(rec, "uid", "") or "")
     sheet = str(getattr(rec, "sheet", "") or "")
@@ -315,28 +302,11 @@ def kept_result(rec) -> None:
 def remembered(rec, *, state: str = "done", outcome: str = "") -> None:
     """Write the closed commission into CENTRAL MEMORY as one pill: `[task:<uid>] <title> — <outcome>`.
 
-    WHY A SECOND RECORD AT ALL, when `tasks` already holds the row. The two answer different questions and
-    only one of them is asked mid-sentence. `task_search` is a lexical index: it answers «which task do these
-    WORDS name», which is what `task_recall` needs once the operator has already said he means a task. Recall
-    answers «what do I know that bears on what he just said», and it runs on every turn without being asked.
-    Before this the tasks were invisible to it, so «¿encontraste algo de pisos?» —a question that never uses
-    the word *tarea*— retrieved the conversation about flats and not the errand that went and found five.
-
-    The pill is a NORMAL pill and that is the point: it goes through `memory.write` like everything else, so
-    the writer embeds it, indexes it and —because `concepts` is left empty— derives its graph edges with the
-    same deterministic `derive_concepts` backstop every other durable pill gets. «Que todo eso quede
-    vinculado» is that edge set, not a bespoke join table: a task about flats hangs off the same concept hub
-    as everything else the operator knows about flats, and `expand()` reaches it from either side.
-
-    SUPERSEDE, not append. A commission can close more than once (a relay hands the baton back, a re-dispatch
-    reopens it). `task_trace_ids` hands over the earlier chapters so only the newest stays valid — the
-    lesson of V2-577, where a widget's birth announcement outlived its own tombstone and the next worker
-    believed the wrong one.
-
-    `meta.task_id` is what makes the pill actionable rather than merely readable: whoever recall hands it to
-    can reopen the report itself (`widgets/results/rehydrate.sheet_from_task`). It is also the only durable
-    join between the two records, and it is a field rather than an `edges` row for the honest reason that an
-    edge joins two MEMORY ids and a task is not one.
+    `task_search` answers «which task do these WORDS name»; recall answers «what bears on what he just said», on every
+    turn — and before this the tasks were invisible to it («¿encontraste algo de pisos?» found the talk, not the
+    errand). A NORMAL pill through `memory.write`, so its concept edges join it to everything else about the subject.
+    SUPERSEDE, not append: `task_trace_ids` retires the earlier chapters of a commission that closed more than once.
+    `meta.task_id` makes it actionable (`widgets/results/rehydrate.sheet_from_task` reopens the report).
     """
     uid = str(getattr(rec, "uid", "") or "")
     if not uid:
@@ -504,15 +474,15 @@ def interrupted(entry: dict) -> None:
     # The row the errand REALLY has: after a restart `task_uid(tid)` names the NEW boot's row, not this one.
     uid = str((entry or {}).get("uid") or "").strip() or task_uid(tid)
     now = int(time.time())
+    said = "interrumpido por un reinicio del motor" + (f" — {entry['why']}" if entry.get("why") else "")   # F6
     if _ts.task_get(uid) is None:
         _ts.task_put({"id": uid, "title": str(entry.get("goal") or ""), "goal": str(entry.get("goal") or ""),
                       "kind": str(entry.get("kind") or "generic"), "mode": "now", "state": "failed",
                       "visible": True, "origin": "voz", "created_at": int(entry.get("started_at") or now),
                       "started_at": int(entry.get("started_at") or 0) or now, "finished_at": now,
-                      "outcome": "interrumpido por un reinicio del motor"})
+                      "outcome": said})
         return
-    _ts.task_patch(uid, state="failed", finished_at=now,
-                   outcome="interrumpido por un reinicio del motor")
+    _ts.task_patch(uid, state="failed", finished_at=now, outcome=said)
 
 
 def board_cleared() -> int:
@@ -593,11 +563,6 @@ def scheduled_mirrored(entry: dict) -> None:
         "due_at": int(nxt) if isinstance(nxt, (int, float)) and not closed else 0,
         "finished_at": int(entry.get("updated") or 0) if closed else 0,
     })
-
-
-def scheduled_forgotten(job_id) -> None:
-    """A job deleted outright (not fired, not cancelled) leaves no row behind."""
-    _ts.task_forget(scheduled_uid(job_id))
 
 
 # ── thin reads, so `memory.tasks_store` keeps ONE importer ───────────────────────────────────────────────

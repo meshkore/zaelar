@@ -30,7 +30,7 @@ def _sandbox(tmp_path, monkeypatch):
     monkeypatch.setattr(wstore, "_last_hash", {})
     resume_turn.reset()
     pending_work.forget_cache()
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     ts = tasks.store()
     ts.tasks_clear(states=ts.LIVE_STATES + ts.DONE_STATES, modes=("now",))
     yield
@@ -40,7 +40,7 @@ def _sandbox(tmp_path, monkeypatch):
 
 
 def _errand(uid="b00t01-1", state="done", goal=GOAL, outcome="La que mejor encaja: Garoa — ¿te la reservo?"):
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     now = int(time.time())
     tasks.store().task_put({"id": uid, "title": "Reservar mesa en Soria", "goal": goal, "kind": "web", "mode": "now",
                             "state": state, "visible": True, "origin": "voz", "created_at": now - 600,
@@ -216,7 +216,7 @@ def test_the_tool_resumes_the_rows_the_model_named_and_drops_invented_ids(monkey
 
 
 def test_an_errand_the_energy_lease_stopped_is_resumable_days_later():
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     now = int(time.time())
     tasks.store().task_put({"id": "b00t01-7", "title": "Playlist de fiesta", "goal": "Haz una playlist de fiesta",
                             "kind": "code", "mode": "now", "state": "failed", "visible": True, "origin": "voz",
@@ -233,7 +233,7 @@ def test_an_errand_the_energy_lease_stopped_is_resumable_days_later():
 def test_a_confirmed_send_owes_its_end_state_and_a_send_that_did_not_happen_is_unmet():
     """A «yes» that leads to nothing must be impossible: the confirmed path (`dispatch_and_report(receipt=True)`)
     opens the action's declared end state, and `send_draft` now declares one — a sent row for that recipient."""
-    from nucleo import spec
+    from nucleo.circuit import spec
     from widgets.mensajeria import data
     _held_email()
     e = spec.open_for_action("mensajeria", "send_draft", {"contact": "hospitality@example.com"}, text="sí")

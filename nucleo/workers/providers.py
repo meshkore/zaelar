@@ -354,7 +354,7 @@ def is_context_overflow(text: str) -> bool:
 # de medir porque el cerebro se quedó sin proveedor.
 #
 # Predicado APARTE y no un valor nuevo de `classify_failure` a propósito: esa función la comparte
-# `nucleo/flash/provider_chain.py`, que ramifica sobre sus tres valores y devolvería None (ni cooldown ni relevo)
+# `nucleo/llm/provider_chain.py`, que ramifica sobre sus tres valores y devolvería None (ni cooldown ni relevo)
 # ante uno desconocido. Misma razón por la que `is_context_overflow` vive aparte, escrita ahí arriba.
 _DEPLETED_RE = re.compile(
     r"insufficient (?:balance|credit|funds)|out of credit|no credit|balance is insufficient|"
@@ -390,7 +390,7 @@ def is_depleted(text: str) -> bool:
 # be disabled») and closed it for ITS caller with a local predicate; this closes it for the class.
 #
 # A SEPARATE predicate, not a fourth value of `classify_failure`, for the reason written above `is_depleted`:
-# that function is shared with `nucleo/flash/provider_chain.py`, which branches on its three values and would
+# that function is shared with `nucleo/llm/provider_chain.py`, which branches on its three values and would
 # return None for an unknown one — silently no-oping in the very module that has to relay.
 #
 # The failure directions are deliberately asymmetric. Marking a HEALTHY tier broken costs one relay to the
@@ -583,7 +583,7 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
     if kind == "broken":
         until = time.time() + _BROKEN_COOLDOWN_S     # V2-682 — see `is_broken_request`
     elif kind == "exhausted":
-        # Mismo suelo que en el hermano `nucleo/flash/provider_chain.py` (2026-08-09): una fecha de reset ya
+        # Mismo suelo que en el hermano `nucleo/llm/provider_chain.py` (2026-08-09): una fecha de reset ya
         # VENCIDA en el texto del error dejaba el escalón disponible en el acto → relevo a sí mismo → bucle.
         # V2-243: si es SALDO y no cuota, no hay nada que esperar — reintentar cada media hora es quemar un
         # worker por ronda contra una cuenta vacía.

@@ -44,7 +44,7 @@ def still_held(head: str, said: str) -> bool:
 
 async def collect(sys2: str, user_text: str, spec, max_tokens: int = 240) -> str:
     """Stream one (system, user) exchange through the fast client and return the joined text, raw."""
-    from nucleo.flash.fast_client import FastClient
+    from nucleo.llm.fast_client import FastClient
     parts: list[str] = []
     async for delta in FastClient().stream(
             [{"role": "system", "content": sys2}, {"role": "user", "content": user_text}],
@@ -263,7 +263,7 @@ def still_running_truth(spoken: str, *, did_act: bool, spec=None) -> str:
         from nucleo.flash import reply_promise as _rp
         if did_act or not _rp.claims_quiet(spoken):
             return ""
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         titles = [str(r.get("title") or r.get("goal") or "").strip()[:80] for r in _tasks.board("live")]
         titles = [t for t in titles if t][:3]
         tpl = _lang_text(spec, "still_running_truth")

@@ -1,25 +1,9 @@
-"""nucleo/verify.py — ONE verifier: did the end state the task promised actually happen? (V2-707 F2)
+"""nucleo/circuit/verify.py — ONE verifier: did the end state the task promised actually happen? (V2-707 F2)
 
-## What he asked for (2026-09-16)
-
-> «Asegúrate también de que encajas el arnés… que debe manejar, me imagino, el Brainworker, también tiene
-> que estar ahí. Es decir, tiene que saber identificar la tarea que ha propuesto el usuario y determinar
-> cuál es la manera de medir el éxito. Y así, después de todo el proceso, podemos ver si hemos llegado a ese
-> punto. Si no hemos llegado, entiendo que es capaz de iterar hasta que lo consiga. Y si hiciéramos ese
-> bucle, probablemente muchas tareas no quedarían huérfanas o a medias.»
-
-He is describing a mechanism the engine had three fragments of and no whole:
-
-  · `nucleo/harness.py` (V2-660) verifies exactly ONE class, `widget_content`, for five minutes, in RAM;
-  · `nucleo/errands/verify.py` (V2-683) verifies exactly ONE condition, `meeting_exists`, hand-written;
-  · the Brain Worker verifies NOTHING — `session._finish` closes on `rec.ok`, which the worker sets itself,
-    and `_METHOD_BLOCK` step 5 asks it in prose to «VERIFICA… ITERA», which is a rail on judgement.
-
-So: one grammar, one checker, three callers. **The model writes the condition; the engine checks it against
-the product's own truth.** Closed in OPERATORS (what can be asked), open in CONTENT (what is asked about) —
-the same split as the Brain Worker doctrine's resources/reasoning, and the same one `widgets/rows.py` draws
-one layer down. It is not a coincidence that they share it: both answer «which rows match», so this reuses
-that selector rather than growing a second one that can disagree with it.
+A task does not end because its worker SAYS it ended: **the model writes the condition; the engine checks it
+against the product's own truth.** One grammar, one checker, every caller (the circuit's pulse and endings, the
+harness, third-party errands). Closed in OPERATORS, open in CONTENT; `where` reuses `widgets/rows.py`'s selector
+rather than growing a second one that could disagree with it.
 
 ## The grammar
 
@@ -45,7 +29,7 @@ V2-776 L1 added three clause kinds, because the end states the demo asks for wer
     {"canvas": "results", "expect": "visible" | "minimized" | "maximized" | "closed"}
 
 `expect` on a field/desktop clause may also be `present` (non-empty) or `absent` (empty). The readers live in
-`nucleo/truth.py`; a `changed` clause carries its `baseline`, written by `nucleo/spec.py` when the spec is born.
+`nucleo/truth.py`; a `changed` clause carries its `baseline`, written by `nucleo/circuit/spec.py` when the spec is born.
 
 ## The three answers, and why the third is not False
 

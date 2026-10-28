@@ -46,7 +46,7 @@ CANNOT_TOOL = {
 }
 
 #: The pass's outcomes, as `outcome["kind"]` records them.
-CALL, CANNOT, JUDGED, SWALLOWED, STARTED = "call", "cannot", "judged", "swallowed", "started"
+CALL, JUDGED, SWALLOWED, CANNOT, STARTED = "call", "judged", "swallowed", "cannot", "started"   # last two: verdicts
 
 
 def _base(wid) -> str:
@@ -163,7 +163,7 @@ def owed(reply: str, *, open_ids=None) -> bool:
       left that state on screen;
     · a promise (verdict, or the tables when the verdict is absent) → owed; a claim alone → owed unless it holds."""
     try:
-        from nucleo import harness as _harness
+        from nucleo.circuit import harness as _harness
         from nucleo.flash import reply_promise as _rp
         from nucleo.flash import router_guards as _rg
         from nucleo.flash import committed_reply as _pb

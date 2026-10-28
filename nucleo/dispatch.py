@@ -24,7 +24,7 @@ import time
 import unicodedata
 from dataclasses import dataclass, field
 
-from nucleo import dedup as _dedup
+from nucleo.request import append as _dedup
 from nucleo import matching
 from typing import Any
 
@@ -50,10 +50,10 @@ from nucleo.dispatch_prompts import _build_prompt, _web_prompt  # noqa: F401
 # the banner of cookies of aquopolis.es, clicando by coordenadas and pidiendo analisis of imagen, for sacar a
 # precio that `web_search` + `fetch` habian dado in segundos in the corrida anterior. Decir where lives a dato no es
 # pedir that is abra a browser.
-# V2-289 — the CLASIFICACIÓN of the errand (what clase es, how is rotula) lives in `nucleo/errand_kind.py`: son
+# V2-289 — the CLASIFICACIÓN of the errand (what clase es, how is rotula) lives in `nucleo/request/kind.py`: son
 # funciones puras sobre the texto of the request, without record ni pool detras. Se re-exportan with sus names
 # privados because son the contrato that already usan the tests of higiene of escalada.
-from nucleo.errand_kind import (  # noqa: E402,F401 — re-export
+from nucleo.request.kind import (  # noqa: E402,F401 — re-export
     _ARCHITECT_RE, _DATA_NOT_CODE_RE, _MODIFY_CODE_RE, _WEB_RE,
     classify_kind as _classify_kind, default_label as _default_label)
 
@@ -234,7 +234,7 @@ def active_sessions(now: float | None = None) -> list[dict]:
     legitima) and `/api/tasks` alimenta the chips of the tab «Procesos» of the operator, that pinta each fila como
     «in curso» — or sea that a task acabada could verse trabajando. Es the desalineacion PROCESOS↔FLUJOS that
     reporto the operator: the tablero of flujos decia «ningun flujo activo» and Procesos seguia diciendo «creando a
-    widget… in curso». Lo TERMINADO is read from the `tasks` table (`nucleo/tasks.py::board`), that es su site."""
+    widget… in curso». Lo TERMINADO is read from the `tasks` table (`nucleo/circuit/ledger.py::board`), that es su site."""
     # `now` is injectable so `sync_state`'s change check can freeze the clock.
     now = time.time() if now is None else now
     out = []
@@ -304,7 +304,7 @@ from nucleo.dispatch_thresholds import NO_STEP_SECS, STUCK_SECS  # noqa: F401,E4
 # `dispatch._ENDED_SESSIONS` in place keeps mutating the real dict, and the source guards measure the real
 # functions wherever they live.
 from nucleo.workers import ended as _ended
-from nucleo import errand_continuity as _continuity
+from nucleo.request import append as _continuity
 
 LIVE_SESSION_STATES = _ended.LIVE_SESSION_STATES
 ENDED_SESSION_STATES = _ended.ENDED_SESSION_STATES
@@ -507,7 +507,7 @@ def has_live_trace(trace_id: str) -> bool:
 
 
 def find_duplicate(request: str, kind: str) -> str | None:
-    """tid of a session VIVA that already atiende ESTA request ('' → None). La REGLA lives in `nucleo/dedup.py`;
+    """tid of a session VIVA that already atiende ESTA request ('' → None). La REGLA lives in `nucleo/request/append.py`;
     here only is resuelve QUIÉN esta live, that es it only that this module sabe."""
     return dedup_scan(request, kind)[0]
 
@@ -736,7 +736,7 @@ def _task_row(how: str, rec, **kw) -> None:
     `_run_session` used to skip `tasks.closed()` (only the `finally` below reaches it), so the row stayed
     `pending` forever. Best-effort: a store that failed must not change how the errand ended."""
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         getattr(_tasks, how)(rec, **kw)
     except Exception:  # noqa: BLE001
         logger.debug(f"dispatch: task row {how} failed", exc_info=True)

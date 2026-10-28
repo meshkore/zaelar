@@ -20,7 +20,7 @@ def test_a_card_that_holds_prose_declares_where_the_text_goes():
 
 
 def test_the_commission_pass_may_choose_to_write_it(monkeypatch):
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     offered: list = []
 
     async def _complete(self, msgs, *, on_tool_call=None, tools=None, **k):
@@ -35,7 +35,7 @@ def test_the_commission_pass_may_choose_to_write_it(monkeypatch):
 
 
 def test_a_card_that_holds_no_prose_is_never_offered_the_tool(monkeypatch):
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     offered: list = []
 
     async def _complete(self, msgs, *, on_tool_call=None, tools=None, **k):

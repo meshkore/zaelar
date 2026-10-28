@@ -63,7 +63,7 @@ def prewarm(proc: JobProcess) -> None:
         _warm.append((SETTINGS.local_llm_url, SETTINGS.local_llm_model))
     if SETTINGS.llm_provider == "nucleo":
         try:
-            from nucleo.flash.fast_client import spec_from_config
+            from nucleo.llm.fast_client import spec_from_config
             spec = spec_from_config()
             if (spec.provider or "").lower() == "ollama" and spec.model:
                 _warm.append((spec.resolved_base_url(), spec.model))

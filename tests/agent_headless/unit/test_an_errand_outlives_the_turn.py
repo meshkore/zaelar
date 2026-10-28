@@ -216,7 +216,7 @@ def test_an_open_errand_gets_a_row_in_PROCESOS(er):
     instead of two stitched together. What the clock derives —«esperando respuesta · quedan 2 h»— still
     cannot be a stored column, so it stays computed, and `live_phases()` is what is left of that function.
     """
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     a = _one(er)
     rows = _tasks.board("live")
     assert len(rows) == 1
@@ -228,7 +228,7 @@ def test_an_open_errand_gets_a_row_in_PROCESOS(er):
 
 def test_a_closed_errand_leaves_the_live_board_and_lands_in_the_finished_one(er):
     """…and it LANDS somewhere. Before this it simply vanished from the board with no record of the ending."""
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     a = _one(er)
     er.close(a["id"], why="mesa para 4 el sábado")
     assert _tasks.board("live") == []

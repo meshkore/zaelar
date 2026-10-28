@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import pytest
 
-from nucleo.flash import provider_chain as pc
+from nucleo.llm import provider_chain as pc
 
 
 T1 = {"name": "titular", "base_url": "https://t/v1", "api_key": "k1", "model": "m-titular", "plan": "titular"}
@@ -144,7 +144,7 @@ def test_sin_credencial_del_suplente_NO_hay_relevo(monkeypatch):
     castiga al que sí eligió un suplente."""
     monkeypatch.undo()                                           # el fixture stubea `chain`; aquí se prueba la de verdad
     monkeypatch.setattr(pc, "_token_for", lambda t: "")          # ninguna clave resuelve
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     monkeypatch.setattr(fast_client, "spec_from_config",
                         lambda: fast_client.ModelSpec(model="m", base_url="https://x/v1", api_key="k"))
     nombres = [t["name"] for t in pc.chain(pc.ROLE_VOICE)]
@@ -155,7 +155,7 @@ def test_con_la_credencial_puesta_el_suplente_SÍ_está(monkeypatch):
     """El caso que el gate viejo rompía: el operador eligió un suplente y puso su clave."""
     monkeypatch.undo()
     monkeypatch.setattr(pc, "_token_for", lambda t: "k")
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     monkeypatch.setattr(fast_client, "spec_from_config",
                         lambda: fast_client.ModelSpec(model="m", base_url="https://x/v1", api_key="k"))
     nombres = [t["name"] for t in pc.chain(pc.ROLE_VOICE)]
@@ -175,7 +175,7 @@ def test_la_cadena_es_titular_mas_UN_suplente_de_OTRO_proveedor(monkeypatch):
     una segunda puerta a la misma avería. Lo que se fija ahora es la propiedad que sí sigue siendo válida:
     **titular + UN suplente, y el suplente es de OTRA casa**."""
     monkeypatch.setattr(pc, "_token_for", lambda t: "k")
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     monkeypatch.setattr(fast_client, "spec_from_config",
                         lambda: fast_client.ModelSpec(model="m", base_url="https://api.deepseek.com", api_key="k"))
     cadena = pc._voice_chain()
@@ -206,7 +206,7 @@ def test_el_suplente_no_vive_en_la_misma_casa_que_el_titular(monkeypatch):
     monkeypatch.undo()
     monkeypatch.setattr(pc, "_token_for", lambda t: "k")
     from urllib.parse import urlparse
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     monkeypatch.setattr(fast_client, "spec_from_config",
                         lambda: fast_client.ModelSpec(model="m", base_url="https://api.deepseek.com", api_key="k"))
     cadena = pc._voice_chain()
