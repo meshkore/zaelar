@@ -24,7 +24,6 @@ _ROOTS = ("nucleo", "voice", "server", "widgets", "memory")
 
 # The two measured in V2-726 §3.2. Shape: "<module path>::<enclosing function>".
 KNOWN_BLOCKING = {
-    "nucleo/flash/escalation_guard.py::judge_escalation",
     "nucleo/acts/card_repair.py::repair_action",
 }
 
