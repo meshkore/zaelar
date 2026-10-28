@@ -375,15 +375,6 @@ def a_promise_left_hanging(operator_text: str, reply: str, *, acted: bool, anyth
     a = _fold(reply or "").strip()
     if acted or not a or "?" in a:
         return False
-    # The reply's own verdict, when SURE, decides (CRIT-K2): a held act («tell me the number and I'll open it»),
-    # a report or music is no look left in the air — the table below only ever proposed (2026-10-22, Marisa).
-    try:
-        from nucleo.flash import reply_promise as _rp
-        if _rp.verdict(reply) not in (None, "act"):
-            return False
-    except Exception as e:  # noqa: BLE001 — unreadable verdict: the table decides, as before
-        from loguru import logger as _log
-        _log.debug(f"a_promise_left_hanging: reply verdict unreadable: {e}")
     if not _PROMISE_TO_LOOK_RE.search(a):
         return False
     if anything_running:

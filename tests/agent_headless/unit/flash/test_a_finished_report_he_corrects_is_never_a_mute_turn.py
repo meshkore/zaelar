@@ -13,7 +13,6 @@ Driven through the typed channel (`nucleo.cli.turn.run_turn`), which runs the vo
 """
 import asyncio
 
-import pytest
 
 from tests.brain import harness as H
 
@@ -55,7 +54,6 @@ def test_nothing_to_show_under_a_worker_verdict_escalates_his_words():
     assert res["action"] == "escalate", res
 
 
-@pytest.mark.xfail(reason="refactor2710-03: the mouth speaks the verdict", strict=True)
 def test_nothing_to_show_without_that_verdict_still_asks_or_says_so():
     """Nothing like it and no worker verdict: the reply has to ask which one — a verdict the mouth says (the 03)."""
     res = _turn({"escalate_or_inline": ("handle_inline", 1.0), "request_type": ("order", 1.0)})

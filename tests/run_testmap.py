@@ -3840,9 +3840,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/susurro/test_a_late_audit_does_not_act.py"]},
         # Demo passes 33-54 (2026-09-29) — the audit's fixes, one node each.
-        {"id": "2.179", "title": "The promise detector speaks English — twenty replies measured on the demo",
-            "ch": UNIT,
-            "paths": ["tests/voice/unit/test_an_english_promise_is_a_promise.py"]},
         {"id": "2.178", "title": "hbmesh names its two forms when a worker misuses it",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_the_mesh_cli_names_its_forms_when_misused.py"]},
@@ -3882,9 +3879,6 @@ DOMAINS: list[dict] = [
         {"id": "2.167", "title": "A verdict's action brings up the live card, never a bare phantom",
             "ch": UNIT,
             "paths": ["tests/voice/unit/test_a_verdict_action_lands_on_the_live_card.py"]},
-        {"id": "2.166", "title": "An English promise of playback is kept by the music backstop, with the title its words carry",
-            "ch": UNIT,
-            "paths": ["tests/voice/unit/test_an_english_promise_to_play_is_kept.py"]},
         {"id": "2.165", "title": "A card brought back from minimized re-tiles the desk if it lands on another",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_a_card_brought_back_retiles_the_desk.py"]},
@@ -4101,9 +4095,6 @@ DOMAINS: list[dict] = [
         # V2-809 — disarmed 2026-10-26 (live-block wiring, image as a content part, PDF page cap, pixel cap, detach) → each red.
         {"id": "2.814", "title": "The turn sees what he just attached to the chat as STATE — name, kind, size and the reading made at upload, within one budget, nothing without one — the image read by a model that receives it, the readers bounded (V2-809)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_turn_sees_what_he_attached.py"]},
-        {"id": "2.207", "title": "Whether the reply PROMISED an act or music is read by a verdict in any language; the "
-                                 "phrase tables decide only when the verdict cannot (V2-778 F2-16)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_promise_is_read_in_any_language.py"]},
         {"id": "2.208", "title": "A mutation the request record already shows is not listed twice; a click no row shows, and "
                                  "the destructive / off-screen rules, still are (V2-778 F2-19)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_done_op_is_said_once.py"]},
@@ -4285,9 +4276,6 @@ DOMAINS: list[dict] = [
         {"id": "2.259", "title": "The delivery backstop reads the errand's own sheet, not only a browser task's — "
                                  "priced DSLRs sat 151 s behind four «Will do.» with rows: 0 (V2-781 T528)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_the_delivery_backstop_reads_the_errands_sheet_too.py"]},
-        {"id": "2.258", "title": "«Dime a qué dentista vas y te la apunto…» is an offer, not a note — the backstop filed "
-                                 "an all-day «con su aviso» (V2-781 pair 5)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_an_offer_to_note_it_is_not_a_note.py"]},
         {"id": "2.257", "title": "A repair pass knows what day it is — «el martes que viene» on a Saturday was corrected "
                                  "to the 20th, the 13th stayed with its notice (V2-781 pair 7)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_repair_pass_knows_what_day_it_is.py"]},
@@ -4304,17 +4292,9 @@ DOMAINS: list[dict] = [
                                  "gave — the premiere's prompt was his own question cut at «cuándo se estrena» "
                                  "(V2-781 pair 3); ES + EN, both channels (one backstop)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_notice_after_a_lookup_carries_the_fact.py"]},
-        {"id": "2.400", "title": "The dated-note backstop never writes back an appointment he cancelled or moved since — «Nos "
-                                 "vemos» resurrected the cancelled car service with its notice (agenda-appointment-lifecycle "
-                                 "ES, 2026-10-10); one decision for both channels",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_cancelled_appointment_stays_cancelled.py"]},
         {"id": "2.401", "title": "An appointment's title says what, never when — «… a las diez de la» outlived the move to "
                                  "17:00; the hour it carried becomes the start, numbers in a name stay (2026-10-10)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_a_title_says_what_not_when.py"]},
-        {"id": "2.402", "title": "«I've removed it from your agenda» with no call cancels the appointment in focus (and its "
-                                 "notice); a list row, a notice, a flight, a question or a refusal never (agenda-appointment-"
-                                 "lifecycle EN, 2026-10-10); both channels",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_claimed_removal_is_the_cancellation.py"]},
         {"id": "2.440", "title": "A sure inner op outranks a sure close — «ya la puedes cerrar» (canvas=close 1.00, close_meeting 1.00) closed the whole agenda and the detail stayed open (agenda-everyday-edits ES, 2026-10-11); both channels. Also: An inner WRITE is never read as a close — «quita el piano entero, toda la serie» (cancel_meeting 0.71) closed the agenda under «Hecho.»; the close yields and the repair builds the write, both channels · The close stands when he NAMED a card or the inner op is an unsure lens (R4 / M4 shapes kept) · A claimed removal of a series he named by ONE word cancels it whole when he said «toda la serie» / «the whole series»; without the scope the series keeps its question; one word, two titles → nothing · update_meeting names `newTitle` as the NEW title and `title` as the current one (the first rename call carried only the old title, 2026-10-11)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_close_verdict_yields_to_the_order_inside_the_card.py"]},
         {"id": "2.445", "title": "A rename never gives an appointment ANOTHER appointment's name — «move next Tuesday's piano to "
@@ -4499,16 +4479,6 @@ DOMAINS: list[dict] = [
         # row claims (2026-10-14): a reply names a candidate or states a row's attribute only from a source
         {"id": "2.685", "title": "A row whose title the card clips keeps the whole title in `full_title` — «…Only 6 Months Used» was dropped from the sheet and the next turn retracted a true claim (search-buy-sofa US)",
             "ch": UNIT, "paths": ['tests/browser/unit/results/test_a_clipped_title_keeps_its_whole_text.py']},
-        {"id": "2.686", "title": "An attribute stated about a row he or it named (by title word or by PRICE — «the 699 one») that no source carries (new, available, kg, energy class…) is said as «not verified»; his question is no source (search-buy-phone US, washing-machine ES)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_an_attribute_no_source_carries_is_said_unverified.py']},
-        {"id": "2.687", "title": "A claim a source carries stands — every row of every recorded sheet quoted or priced, the sofa's «six months used», the TV/ski rows the judge filed «in no source» (on the sheet at that turn), facts that say yes (false-positive golden)",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_carried_claim_stands_on_every_recorded_sheet.py']},
-        {"id": "2.688", "title": "A «sí … sin verificar» in one sentence never stands: «no lo tengo verificado» (with what, when a row is named); a quoted «sin confirmar» or a plain «not verified» stays",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_yes_that_says_unverified_never_stands.py']},
-        {"id": "2.689", "title": "A sentence naming a candidate («title — price», or a name before a price) that no sheet row, pushed note, in-turn search or errand step carries is cut; his own figure, a plan, or a turn outside a shortlist names none",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_candidate_in_no_source_is_cut.py']},
-        {"id": "2.690", "title": "On voice an unbacked row claim is corrected after the streamed words («Correction: …»), once; a clean turn sends nothing; the settle chain calls it",
-            "ch": UNIT, "paths": ['tests/voice/unit/test_a_spoken_row_claim_is_corrected_after.py']},
         {"id": "2.593", "title": "A search-band row he names by title or channel PLAYS — «play the Palm Centre one» twice answered «Solo hay 6 resultados» and nothing played (find-videos-on-a-topic-no-ai-slop EN); words on two rows are refused, never guessed",
             "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_a_band_row_he_names_plays.py']},
         {"id": "2.594", "title": "The band rows he NAMES reach the queue by name («el de Iván, el de José Manuel y el de Jaén»), and an `add` of a row on screen adds that row without a fresh search; one unknown name adds nothing",
@@ -4519,8 +4489,6 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_refusal_that_names_its_alternative_runs_it.py']},
         {"id": "2.597", "title": "With the search band on screen the video digest still shows the QUEUE, numbered by its own order, or says it is empty — «just the Palm Centre one, drop the rest» was numbered by the band and kept the emoji video",
             "ch": UNIT, "paths": ['tests/browser/unit/youtube/test_the_queue_is_shown_beside_the_band.py']},
-        {"id": "2.598", "title": "A reply never claims it checked whether a video is AI-made («filtrando los que huelen a generado», «no synthetic voice» with zero navigations): the claim is dropped and the honest caveat said, on both channels",
-            "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_reply_never_claims_an_ai_check.py']},
         {"id": "2.599", "title": "A queue edit (add_results / remove / clear_list) owes what the queue HOLDS now, read from the card, naming three rows or fewer — «Done.» over a queue still holding the video he dropped",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/flash/test_a_queue_edit_says_what_the_queue_holds.py']},
         {"id": "2.616", "title": "A picture-less `imagenes:show` that names the set on screen is answered by that set; another subject, no subject or an empty viewer is still refused and never blanks it — «No he podido» twice over the six Amalfi photos he asked for (show-real-photo-of-a-new-car ES)",
@@ -4549,6 +4517,8 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_an_event_survives_the_one_pipeline.py']},
         {"id": "2.827", "title": "What the old text channel's reply door said after the model's words is the mouth's: rows a waiting reply owes and the cut of an amount no source carries are strict xfails for refactor2710-03; the line for an errand that just died already holds on the one turn",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_what_the_old_reply_door_said_is_the_mouths.py']},
+        {"id": "2.850", "title": "The mouth says the verdict (refactor2710-03): an acting turn's last words come from what its acts ended in, one i18n key per verdict; `met` names its object, `unmet`/`cannot`/`asked` are always said, a promise is a start",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_mouth_says_the_verdict.py']},
         {"id": "2.828", "title": "His commissioning sentence travels with the request to the ONE errand it opens, and reaches its sheet's row door (was 2.630; refactor2710-02 T-01)",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_his_commissioning_words_travel_with_the_request.py']},
         {"id": "2.860", "title": "The tool catalogue is a dict: every tool offered has ONE door in `acts.tools.CATALOG` (built from the arm functions, names written once), `router.tools` offers only what has a door, and a call runs through the door its name selects (refactor2710-05 T-01)",
@@ -4697,9 +4667,6 @@ DOMAINS: list[dict] = [
                                  "30th, 2026» (find-a-future-release-and-remind-me EN, 2026-10-11); the reply says the date "
                                  "passed; the job carries the verified fact; the model's own tag too; ES + EN",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_keeps_the_year_the_conversation_said.py"]},
-        {"id": "2.251", "title": "«set a reminder on the premiere day» rings on the ONE date the last reply named — «I'll set "
-                                 "a heads-up for that day» scheduled nothing (V2-781 pair 3); both channels",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_reminder_asked_for_the_day_just_named_is_set.py"]},
         {"id": "2.250", "title": "An all-day item he writes rings at 09:00 that day (operator, 2026-10-10) — «set a reminder "
                                  "for that day» wrote Dexter's premiere with no notice (V2-781 pair 3)",
             "ch": UNIT, "paths": ["tests/browser/unit/agenda/test_an_all_day_item_rings_at_nine_that_day.py"]},
