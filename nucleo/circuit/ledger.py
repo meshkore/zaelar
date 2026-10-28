@@ -577,6 +577,12 @@ def store():
     return _ts
 
 
+def recent(*, since: float, limit: int, exclude_kinds: tuple = ()) -> list[dict]:
+    """What he asked lately and how it ended, newest first: the ONE reader a question about an errand is answered from."""
+    return _ts.tasks_where(states=_ts.LIVE_STATES + _ts.DONE_STATES, modes=("now",), visible_only=True, limit=limit,
+                           newest_first=True, exclude_kinds=exclude_kinds, since=since)
+
+
 def search(query: str, limit: int = 5) -> list[dict]:
     """Finished commissions this phrase could be about, newest first. Lexical only — never a model."""
     return _ts.task_search(query, limit=limit)

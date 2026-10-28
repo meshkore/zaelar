@@ -4,7 +4,7 @@ The question about an errand is answered from the durable ledger, never from the
 state reads the row — what it was, its state, its verdict and what came of it — so the reply can say it failed and
 why instead of «sigo con ello». The row is the only source here on purpose: drop it and nothing is there to read.
 
-Disarm: drop the row (the second test) → the line is gone.
+Disarm: drop the row (the second test) → the line is gone; empty `ledger.recent` (the third) → nothing reads around it.
 """
 from __future__ import annotations
 
@@ -47,4 +47,13 @@ def test_the_failed_errand_is_named_with_its_failure(ledger_db):
 
 def test_without_its_row_there_is_nothing_to_answer_from(ledger_db):
     from nucleo.flash import task_block
+    assert "Hotel en Sevilla" not in " ".join(task_block.recent_lines())
+
+
+def test_the_task_block_reads_the_rows_through_the_one_reader(ledger_db, monkeypatch):
+    """`ledger.recent` is the one reader: with it empty, the row in the store is not named — nothing reads around it."""
+    from nucleo.circuit import ledger
+    from nucleo.flash import task_block
+    _failed_row(ledger_db)
+    monkeypatch.setattr(ledger, "recent", lambda **_kw: [])
     assert "Hotel en Sevilla" not in " ".join(task_block.recent_lines())
