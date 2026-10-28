@@ -1936,6 +1936,18 @@ DOMAINS: list[dict] = [
                                  "nothing closes everything, and the turn says what closed and what stayed "
                                  "(V2-812 T-04)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_close_all_never_closes_nothing_in_silence.py"]},
+        # V2-831 T-02 — «close all» spared the card in use (the V2-807 T-08 spare) and he said it twice more. An explicit
+        # total — the grammar's own reading that the quantifier governs the canvas (`close_scope`) — reaches the bulk
+        # close as `scope="all"` and spares nothing; a close with no total still spares. es/en. Disarmed → red.
+        {"id": "3.148", "title": "«Close all» closes all: an explicit total spares no card, a close with no total still "
+                                 "spares the one in use (V2-831 T-02)", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_an_explicit_close_all_spares_nothing.py"]},
+        # V2-831 T-02 — the hard close answered without the model and left no trace in the dialog window, so «i said
+        # all» was read as a question about the previous errand. Its line and receipt now enter the window and
+        # `_last_reply`, like a model turn's. Disarmed → red.
+        {"id": "3.149", "title": "A turn answered without the model stays in the conversation: the hard close writes "
+                                 "his line and its receipt into the dialog window (V2-831 T-02)", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_close_without_the_model_stays_in_the_conversation.py"]},
         # V2-812 T-05 — «cierra el resto de aplicaciones» was vetoed by `canvas=neither` (0.87) beside `request_type=order`;
         # «Las dos.» answering our «¿cuál cierro?» was refused and resumed the music. `neither` vetoes only with a sure
         # non-order reading; an answer to our pending close question licenses the close and no player start. es/en.
