@@ -115,8 +115,8 @@ def test_the_voice_close_guard_answers_false(monkeypatch):
     """The voice tag route returns False on its context-bleed refusal — the value `close_dispatch` reads."""
     from nucleo.flash import tool_executor_widget as txw, tool_executor_widget_calls as calls
     monkeypatch.setattr(txw._close_cancel, "inside_or_cancelled", lambda *a, **k: False)
-    monkeypatch.setattr(txw._canvas_lic, "close_license", lambda *a, **k: False)
-    monkeypatch.setattr(txw._show_target, "close_has_order", lambda *a, **k: (False, ""))
+    from nucleo.acts import canvas as _door
+    monkeypatch.setattr(_door, "close_ordered", lambda *a, **k: (False, "none"))
     rows, deduped = [], {"v": False}
     out = calls._tag_emit(
         "close", {"id": "youtube"}, _apply_widget_data=None, _brief=None, _is_meta_widget_question=None,

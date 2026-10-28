@@ -24,6 +24,8 @@ Run: .venv/bin/pytest tests/voice/unit/test_a_denial_of_a_close_is_not_a_close_o
 """
 from __future__ import annotations
 
+from nucleo.acts import canvas as _door
+
 from tests import voice_turn_source as _vts
 
 import threading
@@ -63,24 +65,24 @@ def test_the_verb_table_still_reads_these_as_close_orders():
 def test_a_denial_of_a_close_does_not_license_one():
     """The verdict said `neither` on both of the measured turns. Now somebody reads it."""
     for text in DENIALS:
-        assert not canvas_license.close_license(text, brief=_brief("neither")), (
+        assert not _door.close_ordered(text, brief=_brief("neither"))[0], (
             f"the turn's own canvas verdict said this is not a close, and it closed his card anyway: {text!r}")
 
 
 def test_a_real_close_order_still_closes():
     """The cheap direction is a card that stays open one turn too long; the expensive one is an engine
     that has gone deaf to «ciérralo». This is the half that must not move."""
-    assert canvas_license.close_license("cierra el widget de vídeo", brief=_brief("close"))
-    assert canvas_license.close_license("ciérralo todo", brief=_brief("close"))
+    assert _door.close_ordered("cierra el widget de vídeo", brief=_brief("close"))[0]
+    assert _door.close_ordered("ciérralo todo", brief=_brief("close"))[0]
 
 
 def test_an_absent_or_unsure_verdict_leaves_todays_behaviour_untouched():
     """This one NEWLY FORBIDS, unlike `verdict_grants`, so its failure mode has to be the safe one: a
     brief that never lands, or lands unsure, can never make the engine ignore a close."""
     text = "cierra el widget de vídeo"
-    assert canvas_license.close_license(text, brief=None), "no brief at all → today's path"
-    assert canvas_license.close_license(text, brief=_brief(None)), "brief with no canvas key → today's path"
-    assert canvas_license.close_license(text, brief=_brief("neither", conf=0.2)), (
+    assert _door.close_ordered(text, brief=None)[0], "no brief at all → today's path"
+    assert _door.close_ordered(text, brief=_brief(None))[0], "brief with no canvas key → today's path"
+    assert _door.close_ordered(text, brief=_brief("neither", conf=0.2))[0], (
         "an unsure verdict is a shrug, and a shrug may not forbid")
 
 
@@ -88,7 +90,7 @@ def test_a_show_verdict_does_not_forbid_either():
     """Only a clear `neither` refuses. `show` is a different disagreement and it is not this gate's to
     settle — narrowing to the one answer that means «this turn is not about closing» keeps it from
     becoming a second opinion about everything."""
-    assert canvas_license.close_license("cierra la agenda y abre el vídeo", brief=_brief("show"))
+    assert _door.close_ordered("cierra la agenda y abre el vídeo", brief=_brief("show"))[0]
 
 
 def test_the_provider_backstop_reads_the_licence_and_not_the_table():
@@ -99,7 +101,7 @@ def test_the_provider_backstop_reads_the_licence_and_not_the_table():
     body = _vts.read(src)
     i = body.index('if (not acted.get("closed"))')
     guard = body[i:i + 400]
-    assert "close_license" in guard and "brief=" in guard, (
+    assert "close_ordered" in guard and "brief=" in guard, (
         "the close backstop must go through the licence, with the turn's brief — otherwise the verdict is "
         "read in a module the closing path never calls")
     assert "_router.looks_like_close(text)" not in guard, (

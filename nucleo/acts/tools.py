@@ -168,7 +168,7 @@ def fullscreen_widget(args: dict, c) -> None:
     # direction) in `show_target.fullscreen_dispatch` — one decision, both channels.
     if "fullscreen_widget" not in c._tool_fired:
         c._tool_fired.add("fullscreen_widget")
-        _x._tx._show_target.fullscreen_dispatch(args, c.text, c._tag_emit, c.emit, c.deduped)
+        _x._tx._show_target.fullscreen_dispatch(args, c.text, c._tag_emit, c.emit, c.deduped, brief=c._brief)
 
 
 def arrange_canvas(args: dict, c) -> None:

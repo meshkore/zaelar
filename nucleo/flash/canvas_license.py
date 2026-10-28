@@ -20,7 +20,6 @@ from loguru import logger as _log
 import re as _re
 import time as _time
 
-from .close_guards import looks_like_close
 from .text_norm import _norm_txt
 from .verb_forms import alternation as _en
 
@@ -143,28 +142,6 @@ def _producing_vocabulary() -> tuple[str, ...]:
     except Exception:  # noqa: BLE001
         return ()
     return tuple(out)
-
-
-def bare_affirmative(text: str) -> bool:
-    """A SHORT yes and nothing else — the shape that can only mean «do the thing you just proposed»."""
-    n = _NEG_MEDIA_RE.sub(" ", _norm_txt(_his_words(text)))
-    return len(n.split()) <= 4 and bool(_AFFIRM_RE.search(n))
-
-
-def offer_about(wid: str, last_reply: str) -> bool:
-    """Was OUR still-pending question a proposal about THIS widget? (V2-724)
-
-    The sibling of `offer_of_media` for the other effect a “yes” can authorize: putting a card back. Same
-    correction behind both — an affirmative answers ONE proposal, so the proposal has to be the one whose
-    effect is about to be spent — and the same declared source, the certainty resolver every show uses."""
-    w = str(wid or "").split("::", 1)[0].strip().lower()
-    if not w or not answered_an_offer(last_reply):
-        return False
-    try:
-        from widgets import runtime
-        return str((runtime.identify(str(last_reply)) or {}).get("match") or "").split("::", 1)[0] == w
-    except Exception:  # noqa: BLE001
-        return False
 
 
 def offer_of_media(last_reply: str) -> bool:
@@ -312,75 +289,6 @@ def video_license(text: str, last_reply: str = "", *, brief=None, query: str = "
     return _redo.corrects(brief, "youtube")
 
 
-def close_license(text: str, *, brief=None) -> bool:
-    """True when the turn ORDERS a close — `close_guards.looks_like_close` (negations and narrated closes
-    already excluded there), UNLESS the turn's own canvas verdict says it is not a close at all.
-
-    THE DEFECT (live session fce3eff3, 2026-09-22). The grammar closed his video card THREE times, twice
-    of them on sentences where he was COMPLAINING about the first close:
-
-        +255.1 s  «quita este vídeo y vamos otra vez al No me estás oyendo.»   → closed  (garbled text —
-                  the accumulator glued two unrelated fragments; repaired in `accumulator.py`)
-        +284.4 s  «He dicho que vuelvas al inicio del widget de vídeo, Yo no te he dicho en ningún
-                   momento que CERRARAS el widget de vídeo.»                   → closed AGAIN
-        +288.2 s  «Yo no te he dicho en ningún momento que CERRARAS el widget de vídeo.»  → and AGAIN
-
-    The verb table matched «quita» and «cerraras» and never asked whether the sentence ORDERS a close or
-    DENIES one. On both of the last two the turn's own `canvas` verdict said `neither` — the question had
-    been asked and answered, and nobody read it. This is CLAUDE.md's «UNA TABLA DE VERBOS NO ES UN
-    ENRUTADOR» with a third door: the grammar PROPOSES, the verdict decides.
-
-    ⚠️ THIS ONE NEWLY FORBIDS, which is the direction `verdict_grants` deliberately does not take, so it
-    carries its own justification rather than that one's. What it forbids is a CLOSE — the mutation whose
-    wrong direction he has now paid for three times in one conversation, and whose cheap direction is a
-    card that stays open one turn too long. And it forbids only on a CONFIDENT verdict: absent, unsure or
-    anything but a clear `neither` leaves today's behaviour untouched, so a brief that never lands can
-    never make the engine deaf to «ciérralo».
-    """
-    if not looks_like_close(_his_words(text)):
-        # V2-812 T-05 — his ANSWER to our own «which one should I close?» carries that question's licence: «Las
-        # dos.» has no close verb, and refusing it as context-bleed refused the close he had already ordered.
-        # «no cierres ninguna» answers it too — and forbids; a negated or narrated close never borrows the licence.
-        from nucleo.flash import close_answer as _ca, close_guards as _cg
-        return _ca.answers(brief) and not _cg.is_negated_or_narrated(_his_words(text))
-    if brief is not None and verdict_denies_close(brief):
-        return False
-    return True
-
-
-def verdict_denies_close(brief) -> bool:
-    """Does the turn's brief READ A NEGATION of the close the grammar saw? (V2-812 T-05)
-
-    `canvas=neither` alone is not that reading. In the car session «Vale, pues aquí no suena nada, cierra el resto de
-    aplicaciones.» read `canvas=neither` (0.87) beside `request_type=order` — the verdict missed the canvas half of an
-    order and vetoed a clear close. The denials this veto exists for (fce3eff3: «yo no te he dicho que cerraras el
-    widget de vídeo»; 2026-10-22: «you did close the document without me telling you») read as something said ABOUT
-    us or the conversation, never as an order. So the veto needs both: a sure `neither` AND a sure reading of the turn
-    as anything but an order or an answer. An unsure or absent `request_type` is no reading of a negation, and the
-    clear close stands."""
-    try:
-        from nucleo.flash import show_target as _st, turn_brief as _tb
-        verb, _info = _tb.read(brief, _tb.CANVAS_KEY, "")
-        if not (str(verb or "") == "neither" and "neither" in _st.CANVAS_VERBS):
-            return False
-        kind, kinfo = _tb.read(brief, _tb.REQUEST_KEY, "")
-        return bool(kinfo and kinfo.get("used")) and str(kind or "") not in ("order", "answer")
-    except Exception:  # noqa: BLE001
-        return False
-
-
-def fullscreen_license(text: str) -> str:
-    """'' (no screen-size words at all: a fullscreen_widget call is drag — the measured «pausa el vídeo» →
-    fullscreen), 'minimize' (the turn asks to go smaller / leave full screen), or 'fullscreen' (the turn
-    asks for full screen / bigger — the toggle)."""
-    n = _norm_txt(_his_words(text))
-    if _EXIT_FS_RE.search(n) or _SHRINK_RE.search(n):
-        return "minimize"
-    if _GROW_RE.search(n):
-        return "fullscreen"
-    return ""
-
-
 def replay_license(wid: str, action: str, text: str) -> bool:
     """True when a data-op IDENTICAL to the one just executed is a fresh ORDER, not drag. The dedupe
     guard (V2-038) measures the turn's words against the payload only, so «reproduce la lista» and
@@ -443,56 +351,3 @@ def note_operator_close(wid: str) -> None:
             _RECENT_CLOSES[w] = _time.time()
     except Exception:
         pass
-
-
-def reopen_license(wid: str, text: str, open_ids=None, recent_ids=None, last_reply: str = "") -> bool:
-    """False only when the model shows a widget the operator JUST ordered closed and the turn's words
-    ask for nothing of the kind. Measured live 2026-09-10 (sid 3d394…): «Johnny, cierra el widget de
-    YouTube» closed it, and eight seconds later room chatter («Avisando de… cuidado, que aquí está
-    pasando algo») made the model re-emit its previously DISCARDED show_widget — the card reopened over
-    nobody's order. Same doctrine as the close/video/fullscreen licenses: what appears on the operator's
-    screen needs the operator's words in the turn that fires it. A widget not recently closed is
-    untouched by this gate; a recently closed one reopens on a conjugated media/show request
-    (`video_license`) or when the operator's OWN words resolve to that widget through the certainty
-    resolver every show already uses — never on chatter."""
-    w = str(wid or "").strip().lower()
-    ts = _RECENT_CLOSES.get(w)
-    if not ts or (_time.time() - ts) > _REOPEN_WINDOW_S:
-        return True
-    if video_license(text, last_reply):
-        return True
-    # …and an affirmative answering a proposal about THIS card reopens it: that proposal's own effect is
-    # the presentation, which media's grammar has no reason to recognise (V2-724).
-    if bare_affirmative(text) and offer_about(w, last_reply):
-        return True
-    try:
-        from widgets import runtime
-        m = runtime.identify(text, open_ids=list(open_ids or []), recent_ids=list(recent_ids or [])) or {}
-        return m.get("match") == w
-    except Exception:
-        # An unreadable resolver over a just-closed widget: staying closed is the cheap wrong — the
-        # operator can reopen with a word; a card resurrected over chatter is the measured bug.
-        return False
-
-
-def closing_turn(brief, wid: str) -> bool:
-    """True when the turn's own verdict says the order CLOSES and `wid` is the card it closes — so a show of
-    that card is the contradiction the text guard (`close_guards.show_contradicts_the_order`) was written
-    for and could not see (V2-773, 2026-09-27, demo V7): «Stop it and close the video widget» — the verdict
-    read `canvas=close` (1.00) and `screen_action=youtube:close` (0.97), the player closed, the model still
-    called `show_widget(youtube)` and the card came straight back. A close that names ANOTHER card leaves
-    this show alone («close the video and show me the calendar»); a close naming nobody closes what is in
-    front, and nothing is shown over it. Never raises: no brief, no veto."""
-    try:
-        from nucleo.flash import turn_brief as _tb
-        w = str(wid or "").strip().lower()
-        canvas, info = _tb.read(brief, _tb.CANVAS_KEY, "neither")
-        if str(canvas or "") != "close" or not (isinstance(info, dict) and info.get("used")):
-            return False
-        target, tinfo = _tb.read(brief, _tb.TARGET_KEY, "")
-        t = str(target or "").strip().lower()
-        if t and t != "none" and isinstance(tinfo, dict) and tinfo.get("used"):
-            return t.split(":", 1)[0] == w
-        return True
-    except Exception:  # noqa: BLE001
-        return False

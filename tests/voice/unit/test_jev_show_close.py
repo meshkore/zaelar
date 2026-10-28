@@ -9,6 +9,8 @@ here (that stays with `resolve_show` / close guards); a "neither" never vetoes t
 """
 from __future__ import annotations
 
+from nucleo.acts import canvas as _door
+
 import threading
 
 import pytest
@@ -141,25 +143,25 @@ def _sure_close_handle(confidence=0.9) -> dict:
 
 
 def test_grammar_close_needs_no_jev():
-    assert st.close_has_order("cierra el widget de música") == (True, "grammar")
+    assert _door.close_ordered("cierra el widget de música", called=True) == (True, "grammar")
 
 
 def test_a_confident_jev_close_licenses_a_grammar_miss():
     """The behavior this wiring adds: the model said [[close]], the grammar sees no close verb,
     Jev independently reads a close order → let it through. Removing the license turns this red."""
-    assert st.close_has_order("please put that away", _sure_close_handle()) == (True, "jev")
+    assert _door.close_ordered("please put that away", called=True, handle=_sure_close_handle()) == (True, "jev")
 
 
 def test_an_unsure_jev_keeps_the_discard():
     h = _ready_handle({"choice": "close", "confidence": 0.2, "probs": {}, "latency_ms": 50})
-    assert st.close_has_order("please put that away", h) == (False, "none")
-    assert st.close_has_order("please put that away", None) == (False, "none")
+    assert _door.close_ordered("please put that away", called=True, handle=h) == (False, "none")
+    assert _door.close_ordered("please put that away", called=True, handle=None) == (False, "none")
 
 
 def test_a_negated_close_vetoes_even_a_confident_jev():
     """The load-bearing veto (V2-678 shape): «do not close» + a Jev false-positive must still
     discard. Removing the veto turns this red."""
-    assert st.close_has_order("Do not close the widgets.", _sure_close_handle()) == (False, "none")
+    assert _door.close_ordered("Do not close the widgets.", called=True, handle=_sure_close_handle()) == (False, "none")
 
 
 # ── show_from_verb: the license half (verb WITHOUT a target executes nothing) ──────────
