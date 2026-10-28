@@ -168,13 +168,14 @@ def _the_alert_lights_start_dark():
     left `worker_tools` amber, and the next test that reads the alerts panel found an error it never caused —
     measured 2026-10-28, `test_provider_failover` red after `test_a_source_outcome_outlives_the_errand`, green alone."""
     import sys
-    mod = sys.modules.get("voice.health_state")
-    if mod is not None:
-        mod._errors.clear()
+
+    def _dark():
+        lights = getattr(sys.modules.get("voice.health_state"), "_errors", None)
+        if isinstance(lights, dict):          # a test may have put a double in its place; leave that one alone
+            lights.clear()
+    _dark()
     yield
-    mod = sys.modules.get("voice.health_state")
-    if mod is not None:
-        mod._errors.clear()
+    _dark()
 
 
 @pytest.fixture(autouse=True)
