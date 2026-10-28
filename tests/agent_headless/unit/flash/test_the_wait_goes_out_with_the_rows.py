@@ -11,7 +11,6 @@ model's temperature.
 import pytest
 
 from nucleo.flash import delivery as RG
-from tests import voice_turn_source as _vts   # V2-778 F1: the turn is read whole
 
 
 @pytest.fixture(autouse=True)
@@ -87,23 +86,6 @@ def test_the_category_noun_never_kills_freshness():
     out = RG.sheet_delivery_backstop("Sigo con ello, te aviso.", rows, said,
                                      errand="busca una guitarra acústica española")
     assert "95 €" in out, "las palabras del encargo no son identidad de una fila"
-
-
-def test_the_probe_actually_wires_it():
-    """Wiring guard (source WITHOUT comments): the decision without a caller is the fix that does not exist —
-    two guards in this suite already passed in green with the call deleted because the comment named it."""
-    from pathlib import Path
-    # V2-340: the wiring moved to `delivery.apply_to_reply`, so the guard checks BOTH places — that
-    # the probe calls it, and that the call still carries the errand. Checking only the probe would pass with the
-    # function empty; checking only the function, with the probe not calling it.
-    probe = "\n".join(ln for ln in _vts.read("nucleo/flash/probe.py").splitlines()
-                      if not ln.strip().startswith("#"))
-    assert "delivery.apply_to_reply(spoken" in probe or "_delivery.apply_to_reply(spoken" in probe
-    deliv = "\n".join(ln for ln in Path("nucleo/flash/delivery.py").read_text().splitlines()
-                       if not ln.strip().startswith("#"))
-    assert "sheet_delivery_backstop(spoken" in deliv
-    assert "any_live_task_rows(12)" in deliv     # V2-781 T521: read past the top three
-    assert "errand=encargo" in deliv, "without the errand, the domain category kills the freshness of every row"
 
 
 def test_junk_rows_from_an_unfiltered_feed_are_never_announced():

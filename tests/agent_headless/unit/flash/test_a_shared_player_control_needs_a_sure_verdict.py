@@ -11,7 +11,6 @@ vídeo») decides before any verdict, sure or not.
 """
 from __future__ import annotations
 
-import asyncio
 import threading
 
 import pytest
@@ -67,22 +66,6 @@ def test_with_only_the_music_open_nothing_is_asked(monkeypatch):
     p = PC.plan("play_music", "volume_down", "", brief=_brief("musica:volume_down", 0.54, open_ids=["musica", "agenda"]),
                 operator_text="turn the volume down a bit")
     assert p["route"] == "keep", p
-
-
-class _Sess:
-    window: list = []
-    last_action = ""
-
-
-def test_the_text_channel_says_the_question_instead_of_turning_the_music_down():
-    from nucleo.flash import probe_decide as PD
-    from nucleo.flash import router_guards as RG
-    calls = [{"name": "play_music", "args": {"action": "volume_down"}}]
-    blk = asyncio.run(PD.name_the_action(_hard=None, _router=RG, _tbrief=_brief("musica:volume_down", 0.54),
-                                         _vault_gate=None, ingest=None, names=["play_music"], sess=_Sess(), tags=[],
-                                         text="Thanks. Turn the volume down a bit.", tool_calls=calls))
-    assert blk["action"] == "clarify" and not blk.get("music_req"), blk
-    assert "youtube" in blk["spoken"].lower() and "music" in blk["spoken"].lower(), blk
 
 
 def test_the_voice_asks_too():

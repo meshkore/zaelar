@@ -60,12 +60,6 @@ def test_a_reply_with_content_of_its_own_is_left_alone():
     assert done_backing.backed(_lang().data_ack, "chat", {}) == _lang().data_ack
 
 
-def test_the_probe_reply_goes_through_it():
-    import inspect
-    from nucleo.flash import probe_after
-    assert "_dback.backed(" in inspect.getsource(probe_after.the_words_it_owes)
-
-
 def test_every_rotating_ack_of_the_voice_is_a_bare_done():
     """The voice picks its ack among `data_acks` so two ops in a row are not said alike (V2-038); every variant is
     the same bare claim and is checked the same way (audit V2-783 P0-2)."""

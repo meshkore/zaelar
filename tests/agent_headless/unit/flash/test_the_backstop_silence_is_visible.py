@@ -19,7 +19,6 @@ present and the emit broken.
 from unittest import mock
 
 from nucleo.flash import delivery as D
-from tests import voice_turn_source as _vts   # V2-778 F1: the turn is read whole
 
 
 def _capturar(monkeypatch, spoken, filas, encargo="busca un coche de segunda mano", dicho=""):
@@ -73,11 +72,3 @@ def test_no_puede_TUMBAR_el_turno(monkeypatch):
         raise RuntimeError("registro caído")
     with mock.patch("nucleo.flash.live_blocks.any_live_task_rows", side_effect=_boom):
         assert D.apply_to_reply("Sigo con ello, te aviso.", []) == "Sigo con ello, te aviso."
-
-
-def test_el_PROBE_lo_llama():
-    """Half the wiring: the function can be perfect and have no caller (V2-199)."""
-    from pathlib import Path
-    src = "\n".join(ln for ln in _vts.read("nucleo/flash/probe.py").splitlines()
-                    if not ln.strip().startswith("#"))
-    assert "apply_to_reply(spoken" in src

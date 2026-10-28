@@ -59,20 +59,8 @@ def test_empty_stays_empty():
     assert g.safe_reminder_prompt("   ") == ""
 
 
-def test_BOTH_channels_go_through_it():
+def test_the_turn_goes_through_it():
     """The backstop already composed the safe form and the model's own tag did not — that asymmetry IS the bug, so
-    the guard has to hold on both doors into the scheduler. Asserted on the source because the alternative is a
-    live model call."""
-    import inspect
-
-    from nucleo.flash import probe, probe_scheduling
-    from voice.engine.llm.providers import nucleo as vp
-
-    # The PROBE CHANNEL is two modules since the 2026-09-02 ratchet split: `probe.py` and the scheduling
-    # backstops it delegates to (`probe_scheduling.py`). The guard is about the CHANNEL being wired, not
-    # about which file holds the line, so it reads both — otherwise the next extraction turns a wiring
-    # guard into a false alarm, and the fix would be to weaken it.
-    doors = {"probe": _vts.getsource(probe) + inspect.getsource(probe_scheduling),
-             "voice provider": _vts.turn_source()}
-    for name, src in doors.items():
-        assert "safe_reminder_prompt(" in src, name
+    the guard has to hold on the turn's door into the scheduler. Asserted on the source because the alternative is
+    a live model call."""
+    assert "safe_reminder_prompt(" in _vts.turn_source()

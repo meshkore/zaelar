@@ -77,7 +77,6 @@ def test_a_replace_ends_the_errand_like_a_stop(text, old_goal, one_errand):
     assert sd.repair(_brief("replace"), text, escalating=True, grammar=lambda: False, acted=acted) == ["7"], \
         "a turn that also escalated still stops the errand it replaces"
     assert acted["stopped"] == ["Crear una app que lea mis mensajes enviados"], "the goal is read before the cancel"
-    assert sd.text_action(_brief("replace"), grammar=False) == "stop_worker", "the text channel ends it too"
 
 
 @pytest.mark.parametrize("text,old_goal", REPLACE_BANK)
@@ -116,11 +115,10 @@ def test_the_goal_is_read_before_the_cancel_purges_it(one_errand):
     assert sd.goals_of("todo") == ["Crear una app que lea mis mensajes enviados"]
 
 
-def test_the_doors_carry_the_replace_on_both_channels():
+def test_the_doors_carry_the_replace():
     """Wiring: the voice tool gate and backstop record what they stopped, the settle step composes the replacement,
-    `turn_after` lets it through beside the stop (and never as a refinement of the dying errand), and the text
-    channel launches it from its stop branch."""
-    from nucleo.flash import post_stream_settle, probe_after, tool_executor_calls
+    and `turn_after` lets it through beside the stop (and never as a refinement of the dying errand)."""
+    from nucleo.flash import post_stream_settle, tool_executor_calls
     from voice.engine.llm.providers import turn_after
     assert 'worker_acted["stopped"] = _stop_decision.goals_of(_w)' in inspect.getsource(
         tool_executor_calls._t_stop_worker)
@@ -129,8 +127,6 @@ def test_the_doors_carry_the_replace_on_both_channels():
     assert "_replacing = _stop_decision.start_beside_the_stop(_brief, escalate_req, _op_text, worker_acted" in after
     assert '(not worker_acted["v"] or _replacing)' in after
     assert "if not _replacing and _p._similar_pending(req, _prev_pending)" in after
-    assert "_stop_and_replace(" in inspect.getsource(probe_after.execute_what_was_decided)
-    assert "_stop_decision.start_beside_the_stop(brief, rep" in inspect.getsource(probe_after._stop_and_replace)
 
 
 # ── steer: his correction reaches the errand ────────────────────────────────────────────────────────────────
@@ -141,7 +137,6 @@ def test_a_steer_reaches_the_one_running_errand(text, one_errand):
     assert one_errand["injected"] == [("7", " ".join(text.split()))]
     assert acted["v"] == "inject", "the turn now counts as acted: no repair pass turns the promise into a card op"
     assert esc == {"v": None, "more": []}, "the model's escalation of his correction is the relay's, not a new errand"
-    assert sd.text_action(_brief("steer"), grammar=False) == "send_to_worker"
 
 
 @pytest.mark.parametrize("choice", ["keep", "stop", "replace", None])
@@ -167,13 +162,12 @@ def test_a_steer_with_several_errands_or_one_waiting_on_him_is_left_to_today(one
     assert one_errand["injected"] == []
 
 
-def test_the_steer_runs_before_the_promise_pass_and_on_the_text_channel():
-    from nucleo.flash import post_stream_words, probe_mirrors
+def test_the_steer_runs_before_the_promise_pass():
+    from nucleo.flash import post_stream_words
     words = inspect.getsource(post_stream_words.hold_the_model_to_its_words)
     assert "_stop_decision.steer(_brief" in words
     assert words.index("_stop_decision.steer(_brief") < words.index("call_for_promise_or_order"), \
         "a relay that ran after the repair pass would come too late: the card op already ran"
-    assert "_stop_decision.text_action(_tbrief" in inspect.getsource(probe_mirrors.mirror_the_voice_backstops)
 
 
 def test_the_question_offers_the_four_answers():

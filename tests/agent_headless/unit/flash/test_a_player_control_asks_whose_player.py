@@ -6,7 +6,7 @@ the music card both open and playing, «turn the volume down a bit» / «bájale
 widgets declare the same control actions, so the name of the tool decides nothing.
 
 The decision for this already existed (`frontend.which_card`, V2-740) and every `widget_data` call consults it —
-`play_music` never did. These drive the REAL decision with the REAL brief shape, on both channels:
+`play_music` never did. These drive the REAL decision with the REAL brief shape, on the turn's tool executor:
   · the verdict names THIS action on the other card → the order moves there, through that card's own rail;
   · the verdict names the model's own card, or the other player is not open → nothing changes;
   · no verdict → the operator is asked which one (`consent.ASK_WHICH`'s sentence, with both names).
@@ -14,14 +14,11 @@ A play WITH a query asks for content and is never a control.
 """
 from __future__ import annotations
 
-import asyncio
 import threading
 
 import pytest
 
 from nucleo.flash import player_control as PC
-from nucleo.flash import probe_decide as PD
-from nucleo.flash import router_guards as RG
 
 BOTH = ["youtube", "musica"]
 
@@ -70,42 +67,6 @@ def test_a_play_with_a_query_is_not_a_control():
     assert PC.plan("play_music", "volume_down", "", brief=_brief("musica:volume_down"))["route"] == "keep"
 
 
-# ── the text channel (the one the use cases drive) ─────────────────────────────────────────────────────────
-
-class _Sess:
-    window: list = []
-    last_action = ""
-
-
-def _probe(calls, brief):
-    return asyncio.run(PD.name_the_action(_hard=None, _router=RG, _tbrief=brief, _vault_gate=None, ingest=None,
-                                          names=[c["name"] for c in calls], sess=_Sess(), tags=[],
-                                          text="turn the volume down a bit", tool_calls=calls))
-
-
-def test_the_probe_runs_the_moved_control_on_the_video_card():
-    calls = [{"name": "play_music", "args": {"action": "volume_down"}}]
-    blk = _probe(calls, _brief("youtube:volume_down"))
-    assert blk["action"] == "widget_data", blk
-    wd = [c["args"] for c in calls if c["name"] == "widget_data"]
-    assert wd and wd[0]["widget_id"] == "youtube" and wd[0]["action"] == "volume_down", calls
-    assert not blk.get("music_req"), "the music was going to be turned down as well"
-
-
-def test_the_probe_asks_and_says_the_question_instead_of_the_models_claim():
-    calls = [{"name": "play_music", "args": {"action": "volume_down"}}]
-    blk = _probe(calls, None)
-    assert blk["action"] == "clarify", blk
-    assert "youtube" in blk.get("spoken", "").lower() and "music" in blk.get("spoken", "").lower(), blk
-    assert not blk.get("music_req"), "asking and acting at once"
-
-
-def test_the_probe_keeps_an_unambiguous_music_control():
-    calls = [{"name": "play_music", "args": {"action": "volume_down"}}]
-    blk = _probe(calls, _brief("musica:volume_down"))
-    assert blk["action"] == "music" and blk["music_req"]["action"] == "volume_down", blk
-
-
 # ── the voice channel ──────────────────────────────────────────────────────────────────────────────────────
 
 def _voice(args, brief, music_req=None):
@@ -137,8 +98,7 @@ def test_the_voice_keeps_a_control_that_follows_a_play_of_the_same_turn():
     assert not applied and not clarify["msg"] and mr.get("followup", {}).get("action") == "volume_up", mr
 
 
-def test_both_channels_call_the_one_helper():
+def test_the_turn_calls_the_one_helper():
     import pathlib
     root = pathlib.Path(__file__).resolve().parents[4]
-    for rel in ("nucleo/flash/probe_decide.py", "nucleo/flash/tool_executor_calls.py"):  # the one helper, both
-        assert "_player_control." in (root / rel).read_text(encoding="utf-8"), rel
+    assert "_player_control." in (root / "nucleo/flash/tool_executor_calls.py").read_text(encoding="utf-8")

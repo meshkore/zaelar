@@ -10,7 +10,7 @@ the catalog: content you WATCH or LISTEN to is channelled through its dedicated 
 included; the sheet is for INFORMATION, even when an informational result happens to contain videos.
 
 The V2-380/383 lesson governs the shape: the play/list decision is normalized in ONE place (`video_turn`) and
-both channels (voice provider and probe) consume it, because anything decided per-channel diverges per-channel.
+every caller consumes it, because anything decided per-channel diverges per-channel.
 """
 import asyncio
 import json
@@ -127,29 +127,12 @@ def test_the_voice_channel_reaches_the_search_dataop():
         "the decided op must reach the widget data rail"
 
 
-# ── the WHOLE probe turn, where V2-383's family of defects lived (per-link guards stayed green there) ───────
-
-class _ClientThatSearchesVideos:
-    """Stub: the model asks to SEARCH videos, as in the operator's live session."""
-
-    async def stream(self, *_a, on_tool_call=None, **_kw):
-        if on_tool_call is not None:
-            res = on_tool_call("play_video", {"query": "vídeos de recetas de paella", "action": "search"})
-            if asyncio.iscoroutine(res):
-                await res
-        yield "Te los busco."
-
-
-def test_a_probe_search_turn_reaches_the_widgets_search_dataop(monkeypatch, tmp_path):
+# ── the WHOLE turn, where V2-383's family of defects lived (per-link guards stayed green there) ─────────────
+def test_a_typed_search_turn_reaches_the_widgets_search_dataop(monkeypatch):
     """From the model's call to the widget's `search`, nothing dropped in between — the exact link that
-    swallowing `action` on the probe side would silently break (every search would quietly become a load)."""
-    from memory import db as memdb
-    from memory import embeddings as mememb
-    from nucleo.flash import probe
-
-    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
-    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
-    mememb.reset(); memdb.reset_db(); memdb.get_db()
+    swallowing `action` would silently break (every search would quietly become a load). The whole voice turn,
+    typed and executed."""
+    from tests.brain import harness as H
 
     seen = {}
 
@@ -159,15 +142,17 @@ def test_a_probe_search_turn_reaches_the_widgets_search_dataop(monkeypatch, tmp_
 
     import widgets.server_api as _sa
     monkeypatch.setattr(_sa, "brain_action", _brain_action)
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _ClientThatSearchesVideos)
-    try:
-        res = asyncio.run(probe.run_turn("Búscame vídeos de recetas de paella.",
-                                         sid="test-video-search-turn", ingest=False, execute=True))
-    finally:
-        probe._SESSIONS.pop("test-video-search-turn", None)
-        memdb.reset_db(); mememb.reset()
+    with H.Isolated("es"):
+        from nucleo.cli import turn
+        H.RecordedModel.load({"say": "Te los busco.", "tools": [
+            {"name": "play_video", "args": {"query": "vídeos de recetas de paella", "action": "search"}}]})
+        try:
+            res = asyncio.run(turn.run_turn("Búscame vídeos de recetas de paella.",
+                                            sid="test-video-search-turn", ingest=False, execute=True))
+        finally:
+            turn.reset("test-video-search-turn")
 
-    assert res["ok"] is True
+    assert res["ok"] is True, res
     assert seen == {"wid": "youtube", "action": "search", "payload": {"query": "vídeos de recetas de paella"}}, \
         "the search must reach the player's list; landing anywhere else is the defect the operator saw"
 

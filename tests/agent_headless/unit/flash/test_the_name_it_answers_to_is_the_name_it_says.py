@@ -94,46 +94,7 @@ def test_the_rename_is_written_where_the_gate_reads_it(monkeypatch):
     assert wrote == {"assistant_name": "Johnny"}
 
 
-# ── 3 · the probe channel does the same thing (V2-252: a lane in one channel only is a lane that rots) ─
-class _Sess:
-    window: list = []
-
-
-def test_the_probe_mirror_renames_and_writes(monkeypatch):
-    from nucleo.flash import probe_actionmap as pa
-    seen = {}
-    import memory.api as mem
-    monkeypatch.setattr(mem, "set_state", lambda fields: seen.update(fields))
-    from voice import attention
-    monkeypatch.setattr(attention, "_state", dict(attention._state), raising=False)
-    try:
-        got = pa.try_rename("llámate Colmena", _Sess(), trace_id="T1", spec=type("S", (), {"data_ack": "Hecho."})(),
-                            execute=True)
-        assert got and got["action"] == "rename_assistant"
-        assert seen == {"assistant_name": "Colmena"}
-        assert attention.has_wakeword("Colmena, abre la agenda")
-    finally:
-        attention.set_assistant_name("")
-
-
-def test_a_dry_run_changes_nothing(monkeypatch):
-    from nucleo.flash import probe_actionmap as pa
-    seen = {}
-    import memory.api as mem
-    monkeypatch.setattr(mem, "set_state", lambda fields: seen.update(fields))
-    got = pa.try_rename("llámate Colmena", _Sess(), trace_id="T1",
-                        spec=type("S", (), {"data_ack": "Hecho."})(), execute=False)
-    assert got and got["action"] == "rename_assistant"
-    assert seen == {}, "a dry run reports the decision and writes nothing"
-
-
-def test_an_ordinary_turn_falls_through_to_the_model():
-    from nucleo.flash import probe_actionmap as pa
-    assert pa.try_rename("show me the agenda", _Sess(), trace_id="T1",
-                         spec=type("S", (), {"data_ack": "Hecho."})(), execute=True) is None
-
-
-# ── 4 · the wiring, read in BOTH channels (V2-555: a guard on one file goes green when the other rots) ─
+# ── 3 · the wiring, read in the voice turn (the typed channel runs it too) ─────────────────────────────
 def _stripped(p: Path) -> str:
     from tests import voice_turn_source     # V2-778 F1: the voice turn is read whole, moved blocks included
     return "\n".join(line.split("#", 1)[0] for line in voice_turn_source.read(p).splitlines())
@@ -142,8 +103,3 @@ def _stripped(p: Path) -> str:
 def test_the_voice_channel_runs_the_lane():
     src = _stripped(ROOT / "voice" / "engine" / "llm" / "providers" / "nucleo.py")
     assert "_fast_lane.rename(brain, text, emit" in src
-
-
-def test_the_probe_channel_runs_the_lane():
-    src = _stripped(ROOT / "nucleo" / "flash" / "probe_actionmap.py")
-    assert "try_rename(text, sess" in src
