@@ -94,33 +94,7 @@ _AGENDA_ORDERS = {
     "restore": "restáuralo, me he equivocado",
 }
 
-# The other half, and the reason the fix is a SUBTRACTION and not a loosened pattern: a false negative here
-# costs money. Every one of these must keep stopping — the last three are the ones the new drop could
-# plausibly have eaten, and they are the reason it clips at a bare «y» and why «compra» is only excused
-# after «de».
-_STILL_STOPS = [
-    "Paga la factura de la luz",
-    "Compra el monitor Dell S2722QC",
-    "cómprame el monitor",
-    "¿puedes pagarla antes del día 5?",
-    "Renueva mi cuota del gimnasio de este mes",
-    "cancela mi suscripción a Netflix",
-    "borra la cuenta",
-    "borra mi cuenta de Spotify",
-    "transfiere 500 euros a la cuenta de Iván",
-    "pon la lista de la compra y paga la factura de la luz",
-    "añade una tarea y paga la factura",
-    "confirma la compra",
-    "finalizar compra",
-]
-
-
 # ── the two turns he actually said ───────────────────────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("turn", _HIS_TURNS)
-def test_his_own_turn_is_not_an_irreversible_order(turn):
-    assert danger.is_dangerous(turn) is False, turn
-
 
 @pytest.mark.parametrize("turn", _HIS_TURNS)
 def test_his_own_turn_does_not_move_money(turn):
@@ -165,11 +139,8 @@ def test_the_corpus_covers_every_action_the_card_declares():
 
 
 # ── nothing that costs money was loosened ────────────────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("order", _STILL_STOPS)
-def test_an_order_that_spends_still_stops(order):
-    assert danger.is_dangerous(order) is True, order
-
+# The orders that spend and must keep stopping (and his two turns, read by is_dangerous) are rows of the
+# is_dangerous table in test_the_gate_reads_the_order_not_the_words.py.
 
 def test_the_drop_stops_at_a_bare_conjunction():
     """«pon la lista de la compra Y paga la factura» is one sentence with two orders in it. The agenda drop

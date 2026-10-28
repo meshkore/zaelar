@@ -3821,7 +3821,7 @@ DOMAINS: list[dict] = [
             "paths": ["tests/voice/unit/test_an_op_that_did_not_run_is_said.py"]},
         {"id": "2.200", "title": "A negation subtracts only the act it governs, and only inside its own clause",
             "ch": UNIT,
-            "paths": ["tests/agent_headless/unit/test_a_negation_governs_only_its_own_act.py"]},
+            "paths": ["tests/agent_headless/unit/test_the_gate_reads_the_order_not_the_words.py"]},
         {"id": "2.181", "title": "A request for a link or a price is not a charge: a negated act and a first-person "
                                  "wish beside a lookup order are subtracted before the money verbs are read",
             "ch": UNIT,
@@ -4061,7 +4061,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_speaker_goes_back_to_who_it_was_taken_from.py"]},
         {"id": "2.310", "title": "A money word a preposition governs is the topic, never the order — «coste de recarga» in a "
                                  "report errand was parked as «Esto mueve dinero» (three-tasks-at-once)",
-            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_money_word_a_preposition_governs_is_a_topic.py"]},
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_the_gate_reads_the_order_not_the_words.py"]},
         {"id": "2.311", "title": "A sentence that adds or insists is not an answer to a parked errand's yes/no — «Y el juego no "
                                  "te olvides… no dos» dropped the parked report (three-tasks-at-once)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_a_sentence_that_adds_is_not_an_answer.py"]},

@@ -55,26 +55,8 @@ def test_the_measured_complaints_are_not_orders(text):
     assert danger.about_a_past_act(text) is True, "and the timeline must be able to say WHY"
 
 
-# ── 2 · the class, not just those four sentences ────────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("text", [
-    "Why did you buy that? I never asked you to.",
-    "You did buy it without my permission.",
-    "Are you stupid? You just did delete my account.",
-    "I never told you to pay that",
-    "why did you publish it",
-    "Did you pay the bill?",                       # a QUESTION about the past is not an order either
-    "You already deleted them",
-    "You've paid it already",
-    "Me has borrado la cuenta sin permiso",
-    "por qué has pagado eso",
-    "no te he dicho que pagues nada",
-    "acabas de borrar mi cuenta",
-    "nunca te he dicho que compres nada",
-])
-def test_a_past_act_is_discussed_not_ordered(text):
-    assert danger.is_dangerous(text) is False, text
-
+# ── 2 · the class, not just those four sentences: its phrase cases are in the is_dangerous table of
+#      test_the_gate_reads_the_order_not_the_words.py (`test_a_past_act_is_discussed_not_ordered[n]`).
 
 # ── 3 · what must NOT move: a real order still stops ────────────────────────────────────────────────────
 
@@ -96,19 +78,8 @@ def test_an_order_is_still_an_order(text):
     assert danger.about_a_past_act(text) is False
 
 
-@pytest.mark.parametrize("text", [
-    # The complaint is a PAST-ACT clause in each of these, so the boundary is what saves the second half.
-    "You did delete my account, now delete my Spotify account too",
-    "Why did you delete my account? Now delete my Spotify account too",
-    "You've already deleted it, now delete my account as well",
-    "Me has borrado la cuenta sin permiso, borra la cuenta de Spotify también",
-    "por qué has borrado eso, borra mi cuenta de Spotify",
-])
-def test_a_complaint_that_ENDS_IN_AN_ORDER_keeps_the_order(text):
-    """The clause stops at the next `. ! ? ; ,` for exactly this. Swallowing the second half would be a
-    worse defect than the one being fixed — and an invisible one, because the turn would simply do
-    nothing."""
-    assert danger.is_dangerous(text) is True, text
+# A complaint that ENDS IN AN ORDER keeps the order — those rows are in the same table
+# (`test_a_complaint_that_ENDS_IN_AN_ORDER_keeps_the_order[n]`).
 
 
 def test_the_money_and_commitment_readers_agree_with_the_gate():
