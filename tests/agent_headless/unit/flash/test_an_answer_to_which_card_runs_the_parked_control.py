@@ -15,7 +15,7 @@ import time
 import pytest
 
 from nucleo.flash import direct_action as DA
-from nucleo.flash import named_target as NT
+from nucleo.acts import named_target as NT
 
 BOTH = ["youtube", "musica"]
 

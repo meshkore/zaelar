@@ -62,7 +62,7 @@ def _named_player(operator_text: str, open_ids, action: str = "") -> str:
     if not (operator_text or "").strip():
         return ""
     try:
-        from nucleo.flash import named_target as _nt
+        from nucleo.acts import named_target as _nt
         players = set(CARD_OF_TOOL.values())
         named = _nt.target(operator_text, [w for w in (open_ids or []) if str(w).split("::", 1)[0].strip().lower()
                                            in players], action)
