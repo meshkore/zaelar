@@ -1,7 +1,6 @@
 """Sanctioned writes from OUTSIDE the voice turn: widgets, workers, connectors.
 
-Split out VERBATIM (audit 2026-08-23). `remember_external` never touches `state` nor identity slots
-(V2-033 promise, incident 2026-07-14).
+Split out VERBATIM (audit 2026-08-23). `remember_external` never touches `state` nor identity slots (V2-033).
 """
 from __future__ import annotations
 
@@ -11,6 +10,7 @@ from loguru import logger
 
 from nucleo.memory_agent.dossier import _derive_concepts  # noqa: F401
 from nucleo.memory_agent.classify import classify
+from nucleo.memory_agent import writer as _writer
 from nucleo.memory_agent.gates import (  # noqa: F401
     _memslots,    _IDENTITY_SLOTS, _atom_value_invalid, _precision_reject_atom)
 
@@ -109,22 +109,22 @@ def _observe_write(kind, level, slot, meta) -> None:
 async def remember_external(item: dict, *, source: str = "external") -> dict:
     """Write arriving from OUTSIDE the process (Brain Workers via `hbmem` → `POST /api/memory/remember`).
 
-    Audit 2026-07-14: the endpoint routed to `remember(auto=True)`, which classifies the text and could derive
-    a `state_patch` → a worker (or any local process) OVERWROTE the operator's identity in `state` without
-    passing through the V2-033 quarantine — something the same text spoken by VOICE would not do. Policy for this path:
+    Audit 2026-07-14: `remember(auto=True)` could derive a `state_patch`, so a worker OVERWROTE his identity in
+    `state` past the V2-033 quarantine — what the same words spoken by VOICE would not do. Policy for this path:
       - **NEVER touches `state`** (a worker does not speak for the operator; `auto=False`, without state_patch).
       - **Precision gate** (P0a): a reified question/request is not persisted.
       - **Banned IDENTITY slots**: `--slot operator.name` and its family are DEGRADED to a standalone fact (the identity
         lineage is written only by the operator's turn); work slots (`goal.moto`, `weather:x`, namespaced) pass normally
         — exact superseding remains theirs.
-      - **Stamped provenance** (`meta.source="worker:<id>"`): auditable and cleanable by origin.
-    Returns a summary dict for the endpoint (ok/reason)."""
+      - **Stamped provenance** (`meta.source="worker:<id>"`); the KIND is the pill grammar's, a `result` only ever
+        the circuit's verdict (`writer.result`, V2-825 F1). Returns `{ok, reason}` for the endpoint."""
     if not isinstance(item, dict):
         return {"ok": False, "reason": "bad-item"}
     text = (item.get("text") or "").strip()
     if not text:
         return {"ok": False, "reason": "empty"}
-    if _precision_reject_atom({"text": text, "kind": item.get("kind") or "result"}, raw=text):
+    kind = _writer.distilled_kind(item.get("kind"))     # the grammar's, never `result`: that is the circuit's door
+    if _precision_reject_atom({"text": text, "kind": kind}, raw=text):
         return {"ok": False, "reason": "precision"}
     slot = _memslots.canonical(item.get("slot"))
     identity_dropped = False
@@ -134,7 +134,7 @@ async def remember_external(item: dict, *, source: str = "external") -> dict:
     meta.setdefault("source", source)
     await remember({
         "text": text,
-        "kind": item.get("kind") or "result",
+        "kind": kind,
         "level": item.get("level") or "mid",
         "importance": item.get("importance"),
         "ttl_days": item.get("ttl_days"),

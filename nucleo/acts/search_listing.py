@@ -95,7 +95,7 @@ def _late_fast_pass(task) -> None:
               text=f"delivered={bool(res.get('delivered'))} n={res.get('n', 0)} sheet={res.get('sheet', '')}",
               extra={"cat": "flash", **{k: res.get(k) for k in ("delivered", "n", "sheet")}})
     except _aio.CancelledError:
-        return                                  # the loop went down first; the thread's sheet write is unaffected
+        _note("the loop went down before the late pass reported; its sheet write is unaffected")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"acts.search_listing: the late fast pass failed ({e!r})")
 

@@ -32,17 +32,17 @@ def test_plain_chat_is_not_intercepted():
 
 def test_first_turn_never_intercepted(monkeypatch):
     # even a security-config phrase must NOT short-circuit the kickoff turn.
-    from nucleo.flash import vault_rules
-    monkeypatch.setattr(vault_rules, "detect", lambda text: ("secrets_voice", False))
+    from nucleo.acts import memory as vault_rules
+    monkeypatch.setattr(vault_rules, "rule_of", lambda text: ("secrets_voice", False))
     handled, sent, events, _out = _run("no me digas los secretos por voz", first_turn=True)
     assert handled is False
     assert not sent and not events
 
 
 def test_security_config_command_is_applied_and_spoken(monkeypatch):
-    from nucleo.flash import vault_rules
-    monkeypatch.setattr(vault_rules, "detect", lambda text: ("secrets_voice", False))
-    monkeypatch.setattr(vault_rules, "apply", lambda cmd: "Vale, no te los diré por voz.")
+    from nucleo.acts import memory as vault_rules
+    monkeypatch.setattr(vault_rules, "rule_of", lambda text: ("secrets_voice", False))
+    monkeypatch.setattr(vault_rules, "apply_rule", lambda cmd: "Vale, no te los diré por voz.")
     handled, sent, events, _out = _run("no me digas los secretos por voz")
     assert handled is True
     assert sent == ["Vale, no te los diré por voz."]
@@ -108,12 +108,12 @@ def test_spoken_secret_with_vault_is_stored_and_confirmed(monkeypatch):
 
 
 def test_a_broken_vault_rules_module_fails_open_to_no_intercept(monkeypatch):
-    from nucleo.flash import vault_rules
+    from nucleo.acts import memory as vault_rules
 
     def _boom(text):
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(vault_rules, "detect", _boom)
+    monkeypatch.setattr(vault_rules, "rule_of", _boom)
     handled, sent, events, _out = _run("cualquier cosa")
     assert handled is False
     assert not sent and not events

@@ -60,14 +60,14 @@ async def inspect(text: str, *, enabled: bool = True, store: bool = True) -> Vau
 
     # 1) SECURITY-CONFIG COMMAND — a hard user rule, applied deterministically and short-circuiting the turn.
     try:
-        from nucleo.flash import vault_rules
-        cfg = vault_rules.detect(text)
+        from nucleo.acts import memory as _memory
+        cfg = _memory.rule_of(text)
     except Exception:
         cfg = None
     if cfg is not None:
         line = ""
         try:
-            line = vault_rules.apply(cfg) if store else "(config no aplicada: ingest=false)"
+            line = _memory.apply_rule(cfg) if store else "(config no aplicada: ingest=false)"
         except Exception as e:  # noqa: BLE001
             _LOG.warning(f"aplicar regla de seguridad falló: {e}")
         return VaultVerdict(kind="config", consumed=True, text="", line=line, config=cfg)
@@ -100,8 +100,8 @@ async def inspect(text: str, *, enabled: bool = True, store: bool = True) -> Vau
     # recite it to pay something, and swallowing the turn loses the half that matters (and never reaches the
     # confirm-gate that lives further down, which is the one that would have stopped the payment).
     try:
-        from nucleo.flash import vault_carrier
-        whole = vault_carrier.secret_is_the_whole_turn(text, found)
+        from nucleo.acts import memory as _memory
+        whole = _memory.secret_is_the_whole_turn(text, found)
     except Exception:
         whole = True                                     # fail CLOSED: never let a value continue by accident
     redacted, _ = msecrets.redact(text)
@@ -144,8 +144,8 @@ async def reveal(label: str) -> RevealOutcome:
     """Resolves a request for a stored secret. Never raises: any failure results in `status="error"`,
     which both channels already treat as «I can't find it» — a broken reveal cannot bring down the turn."""
     try:
-        from nucleo.flash import vault_flow
-        rv = await asyncio.to_thread(vault_flow.reveal, str(label or ""))
+        from nucleo.acts import memory as _memory
+        rv = await asyncio.to_thread(_memory.reveal, str(label or ""))
     except Exception as e:  # noqa: BLE001
         _LOG.warning(f"reveal_secret falló (el turno sigue): {e}")
         rv = {"status": "error"}
