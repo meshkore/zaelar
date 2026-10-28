@@ -513,6 +513,9 @@
  {
   "id": "live-c5-telegram-the-new-time",
   "lang": "en",
+  "connectors": [
+   "telegram"
+  ],
   "phrase": "send rowan a telegram with the new time",
   "source": "demo run-p124..p131 (2026-10-14): the steps that held some passes and not others",
   "screen": {
@@ -557,6 +560,13 @@
    ]
   },
   "widgets": {
+   "mensajeria": {
+    "platforms": {
+     "telegram": {
+      "status": "connected"
+     }
+    }
+   },
    "contactos": {
     "contacts": [
      {
