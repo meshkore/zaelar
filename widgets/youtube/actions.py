@@ -1,9 +1,6 @@
-"""What each video-player action does, one function per action; `data.ACTIONS` maps the names to them (V2-778 F1-12,
-2026-10-01).
-
-Moved out of `widgets/youtube/data.py`'s `apply_action` if-chain with no behaviour change: each body is the branch
-it was, and every module-level name of `data` it reads is read through it (`_d.<name>`), so a patch on `data`
-still governs every call.
+"""What each video-player action does (load, add, search, results, tabs); `data.ACTIONS` maps the names to them
+(V2-778). Every name of `data` is read through it (`_d.<name>`), so a patch on `data` still governs every call.
+Queue editing lives in `list_actions.py`, playback in `player_actions.py`.
 """
 from __future__ import annotations
 
@@ -81,7 +78,7 @@ def _a_load(action, p, db) -> dict:
     db["paused"] = False
     _d.library.record_play(db, {"videoId": vid, "title": db["title"], "channel": channel, "url": db["url"]})
     _d._sound.wants_sound(db)                           # V2-791: a video he asked to watch is heard
-    _d.library_prefs.apply_prefs(db, fresh=not had_video)
+    _d.library.apply_prefs(db, fresh=not had_video)
     _d._goto(db, "player")                              # V2-755: he asked to watch it, so show it
     notice = _d._blocking.explicit_link_notice(db, explicit, channel, db["title"])
     return {**_d._bump(db, "load"), **notice}
@@ -289,14 +286,8 @@ def _a_add_results(action, p, db) -> dict:
 
 
 def _a_show_tab(action, p, db) -> dict:
-    # V2-742 — THE CARD HAD FIVE FACES AND THE VOICE COULD REACH NONE OF THEM.
-    #
-    # Measured live (session 891f2091, 2026-09-21). He said «vuelve al catálogo» four times, in
-    # four different wordings. The model picked the nearest-sounding declared action each time:
-    # `clear_search` twice — whose own desc is «quita la banda de resultados del inicio», i.e.
-    # it DESTROYS the list he was asking to go back to — then `show_history`, then nothing at
-    # all while the reply said «Te llevo al inicio de la lista». It never routed badly: there
-    # was no action that meant what he said, and the closest one did the opposite.
+    # V2-742 — THE CARD HAD FIVE FACES AND THE VOICE COULD REACH NONE OF THEM: with no action meaning «back
+    # to the catalog», the model picked the nearest one, `clear_search`, which DESTROYS that list.
     #
     # `selectTab` has been the card's one navigation surface since V2-632 and nothing outside
     # the card could call it. So this declares what already exists rather than building a
@@ -325,134 +316,6 @@ def _a_clear_search(action, p, db) -> dict:
     return {"ok": True}
 
 
-def _a_remove(action, p, db) -> dict:
-    lst = db.get("list") or []
-    # V2-756 — «Bórrame los tres últimos de la cola» removed ONE (live session 74be8e9a). The reply
-    # even said «quito el 4, el 5 y el 6», because the model had understood perfectly; there was no
-    # declared way to say it, and one action per turn is the rule. He spent seventy seconds and three
-    # complaints getting three rows deleted, ending on «Eso es absurdo, no estás entendiendo la
-    # tarea.» And the paid verdict, with nothing better to reach for, answered `clear_list` at 0.56 —
-    # the action that empties the WHOLE queue (V2-742's pattern: the nearest declared action does
-    # something worse). `add_results` has taken «1,3» since V2-632; its mirror just never did.
-    many = _d._index_list(p.get("items"), len(lst))
-    if many:
-        gone, pos = [], int(db.get("pos", -1))
-        for i in sorted(many, reverse=True):          # highest first: an earlier pop shifts the rest
-            gone.append((lst.pop(i) or {}).get("title"))
-            if i <= pos:
-                pos -= 1
-        db["pos"] = pos
-        _d.store.save(_d.WID, db)
-        return {"ok": True, "removed": [t for t in gone if t][::-1], "count": len(lst)}
-    idx = _d._resolve_item(lst, p.get("item"))
-    if idx is None:
-        return {"ok": False, "error": "item_not_found", "item": p.get("item"),
-                "message": "No encuentro ese vídeo en la lista."}
-    removed = lst.pop(idx)
-    pos = int(db.get("pos", -1))
-    # Keep `pos` meaning "last played": removing an earlier item shifts everything one left, and removing
-    # the CURRENT one leaves pos pointing at the slot BEFORE the next item — so `ended`/`next` (pos+1)
-    # play exactly the item that followed the removed one. Playback itself is untouched (like YouTube).
-    if idx <= pos:
-        db["pos"] = pos - 1
-    _d.store.save(_d.WID, db)
-    return {"ok": True, "removed": removed.get("title"), "count": len(lst)}
-
-
-def _a_move(action, p, db) -> dict:
-    from . import move_refs as _mv          # which video, which slot, and which half a refusal names (2026-10-11)
-    lst = db.get("list") or []
-    if not str(p.get("item") if p.get("item") is not None else "").strip():
-        return _mv.refusal("missing_item")
-    idx = _mv.resolve_item(lst, p.get("item"), db)
-    if idx is None:
-        return {"ok": False, "error": "item_not_found", "item": p.get("item"),
-                "message": "No encuentro ese vídeo en la lista."}
-    # «put X before Y» names the OTHER video, not a slot (video-queue use case, 2026-10-11): the anchor is resolved
-    # like `item`, and the slot is computed after X leaves the list — the model had to do that arithmetic before.
-    side = "before" if str(p.get("before") or "").strip() else ("after" if str(p.get("after") or "").strip() else "")
-    if side:
-        anchor = _mv.resolve_item(lst, p.get(side), db)
-        if anchor is None:
-            return {"ok": False, "error": "item_not_found", "item": p.get(side),
-                    "message": "No encuentro ese vídeo en la lista."}
-        if anchor == idx:
-            return {"ok": False, "error": "same_item", "message": "Es el mismo vídeo: dime cuál va delante de cuál."}
-        to = (anchor - 1 if anchor > idx else anchor) + (1 if side == "after" else 0)
-    else:
-        to, given = _mv.destination(p, len(lst))        # `to` or `position`; a number, an ordinal or an end
-        if to is None:
-            return _mv.refusal("bad_position" if given else "missing_position")
-    if to == idx:            # nothing would change: refused, so the repair reads his sentence instead of «Done.»
-        return _mv.refusal("already_there", item=lst[idx].get("title"), position=idx + 1)
-    cur = lst[int(db.get("pos", -1))] if 0 <= int(db.get("pos", -1)) < len(lst) else None
-    it = lst.pop(idx)
-    lst.insert(to, it)
-    if cur is not None:                              # pos follows the ITEM that was playing, not the slot
-        db["pos"] = lst.index(cur)
-    _d.store.save(_d.WID, db)
-    return {"ok": True, "moved": it.get("title"), "position": to + 1, "order": [str(x.get("title") or "") for x in lst]}
-
-
-def _a_sort_list(action, p, db) -> dict:
-    by = str(p.get("by") or "title").strip().lower()
-    if by not in ("title", "added"):
-        return {"ok": False, "error": "bad_sort", "message": "Puedo ordenar por 'title' o por 'added'."}
-    lst = db.get("list") or []
-    cur = lst[int(db.get("pos", -1))] if 0 <= int(db.get("pos", -1)) < len(lst) else None
-    if by == "title":
-        lst.sort(key=lambda it: _d._norm(it.get("title")))
-    else:
-        lst.sort(key=lambda it: (int(it.get("added_at") or 0), int(it.get("added_seq") or 0)))
-    if cur is not None:
-        db["pos"] = lst.index(cur)
-    _d.store.save(_d.WID, db)
-    return {"ok": True, "by": by, "count": len(lst)}
-
-
-def _a_filter_list(action, p, db) -> dict:
-    # Display-only: the widget shows the rows matching the text; the list itself never changes.
-    db["list_filter"] = str(p.get("q") or p.get("query") or "").strip()
-    _d.store.save(_d.WID, db)
-    return {"ok": True, "filter": db["list_filter"]}
-
-
-def _a_name_list(action, p, db) -> dict:
-    # Naming is not renaming ANOTHER list: this player has exactly ONE queue, so the name is a field of
-    # the card, not an entity. Empty clears it back to the generic title — the same «empty = remove» that
-    # `filter_list` already uses, so two list actions do not disagree about what an empty payload means.
-    nombre = str(p.get("name") or p.get("title") or p.get("item") or "").strip()[:80]
-    db["list_name"] = nombre
-    _d.store.save(_d.WID, db)
-    return {"ok": True, "name": nombre, "count": len(db.get("list") or [])}
-
-
-def _a_clear_list(action, p, db) -> dict:
-    # Empties the LIST only: whatever is playing keeps playing (voice «empty the list» must not cut the
-    # video — close is the action that stops playback).
-    if not db.get("list") and db.get("search_results"):
-        return _rr.nothing_queued()                  # «Hecho» over an empty queue hid the add he asked for
-    db["list"] = []
-    db["pos"] = -1
-    _d.store.save(_d.WID, db)
-    return {"ok": True, "count": 0}
-
-
-def _a_play_item(action, p, db) -> dict:
-    lst = db.get("list") or []
-    ref = next((p.get(k) for k in ("item", "n", "query") if p.get(k) is not None), None)
-    if not lst and db.get("search_results"):
-        return _a_play_result(action, {"item": ref}, db)   # «play the second one» over Home's band (V2-781)
-    idx = _d._resolve_item(lst, ref)
-    if idx is None and not str(ref or "").strip().isdigit() \
-            and _rr.resolve(db.get("search_results") or [], ref) is not None:
-        return _a_play_result(action, {"item": ref}, db)   # a band row he named, the queue holding others
-    if idx is None:
-        return {"ok": False, "error": "item_not_found", "item": p.get("item"),
-                "message": "No encuentro ese vídeo en la lista."}
-    return _d._play_pos(db, idx, "play_item")
-
-
 def _a_next(action, p, db) -> dict:
     from . import playability as _plays          # 2026-10-11: «nothing after it» is not «it can't play here»
     if (_refused := _plays.next_refusal(db)):
@@ -462,132 +325,3 @@ def _a_next(action, p, db) -> dict:
     if not lst or nxt >= len(lst):
         return {"ok": False, "error": "end_of_list", "message": "No hay más vídeos en la lista."}
     return _d._play_pos(db, nxt, "next")
-
-
-def _a_previous(action, p, db) -> dict:
-    lst = db.get("list") or []
-    pos = int(db.get("pos", -1))
-    if lst and 0 < pos <= len(lst):
-        return _d._play_pos(db, pos - 1, "previous")
-    if db.get("videoId"):                           # at the start (or off-list): back = restart, like YouTube
-        db["paused"] = False
-        return _d._bump(db, "restart")
-    return {"ok": False, "error": "no_video", "message": "No hay nada sonando."}
-
-
-def _a_ended(action, p, db) -> dict:
-    # Fired by the widget when the video reaches the end (onStateChange=0): one after another, by itself.
-    lst = db.get("list") or []
-    nxt = int(db.get("pos", -1)) + 1
-    if 0 <= nxt < len(lst):
-        # V2-755: automatic, so it does NOT move his view — see `_goto`.
-        return _d._play_pos(db, nxt, "next", watch=False)
-    db["paused"] = True                             # end of the list: stop honestly, do not loop
-    return _d._bump(db, "ended")
-
-
-def _a_play(action, p, db) -> dict:
-    if not db.get("videoId"):
-        # Empty player + a list waiting: "play" means start the list (add never autoplays, so this is the
-        # voice path that actually launches a freshly built queue).
-        lst = db.get("list") or []
-        if lst:
-            nxt = int(db.get("pos", -1)) + 1
-            return _d._play_pos(db, nxt if 0 <= nxt < len(lst) else 0, "play_item")
-        return {"ok": False, "error": "no_video", "message": "No hay ningún vídeo cargado ni lista."}
-    db["paused"] = False
-    return _d._bump(db, "play")
-
-
-def _a_player_error(action, p, db) -> dict:
-    # V2-401 — widget.js reports onError (untrusted, crosses postMessage). V2-634 — a FATAL code is
-    # ACTED on: blocklist + swap of our own pick, or the honest message for a pasted link — the whole
-    # behavior lives in `availability.on_player_error`, beside the blocklist it maintains.
-    code = str(p.get("code") or "unknown")[:40]
-    dead = str(p.get("videoId") or db.get("videoId") or "")[:20]
-    verdict = _d._avail.on_player_error(db, code, dead)
-    if verdict == "stale":
-        _d.store.save(_d.WID, db)
-        return {"ok": True, "cmd": "player_error", "stale": True}
-    if verdict is None:
-        db["player_error"] = code
-    out = _d._bump(db, "player_error")
-    tell = _d._avail.tell_for(db) if verdict == "handled" else ""
-    if tell and isinstance(out, dict):
-        out["tell"] = tell          # said only if an agent order is being contradicted (`widgets/late_report.py`)
-    return out
-
-
-def _a_pause(action, p, db) -> dict:
-    db["paused"] = True
-    return _d._bump(db, "pause")
-
-
-def _a_mute(action, p, db) -> dict:
-    db["muted"] = True
-    _d._sound.kept_mute(db, True)                  # V2-791: his mute survives the next video
-    return _d._bump(db, "mute")
-
-
-def _a_unmute(action, p, db) -> dict:
-    # V2-791 — this is what was ORDERED; whether the browser let the player obey is the player's own report
-    # (`player_audio` → `audio_blocked`), never assumed from here.
-    db["muted"] = False
-    _d._sound.kept_mute(db, False)
-    return _d._bump(db, "unmute")
-
-
-def _a_captions_on(action, p, db) -> dict:
-    # V2-590 — «quita los subtítulos» was narrated as impossible («solo puedes quitarlos desde los
-    # controles», measured live): the capability had no declared action, and an undeclared capability
-    # is one the model narrates (V2-540). The widget toggles the IFrame API captions module.
-    db["captions"] = True
-    return _d._bump(db, "captions_on")
-
-
-def _a_captions_off(action, p, db) -> dict:
-    db["captions"] = False
-    return _d._bump(db, "captions_off")
-
-
-def _a_volume_up(action, p, db) -> dict:
-    db["volume"] = min(100, int(db.get("volume") or 70) + 15)
-    db["muted"] = False
-    _d._sound.kept_mute(db, False)
-    return _d._bump(db, "volume_up")
-
-
-def _a_volume_down(action, p, db) -> dict:
-    db["volume"] = max(0, int(db.get("volume") or 70) - 15)
-    return _d._bump(db, "volume_down")
-
-
-def _a_set_volume(action, p, db) -> dict:
-    try:
-        lvl = int(p.get("level"))
-    except (TypeError, ValueError):
-        return {"ok": False, "error": "bad_level", "message": "Dime un nivel entre 0 y 100."}
-    db["volume"] = max(0, min(100, lvl))
-    db["muted"] = db["volume"] == 0
-    _d._sound.kept_mute(db, db["muted"])
-    return _d._bump(db, "set_volume")
-
-
-def _a_restart(action, p, db) -> dict:
-    db["paused"] = False
-    return _d._bump(db, "restart")
-
-
-def _a_close(action, p, db) -> dict:
-    # Empty the video → widget.js detects videoId="" and REBUILDS the card without <iframe>: the video REALLY
-    # stops playing in the browser (not just data deletion), and the card moves to empty state.
-    db["videoId"] = ""
-    db["title"] = ""
-    db["url"] = ""
-    db["channel"] = ""
-    db["published"] = ""
-    db["latest"] = False
-    db["paused"] = True
-    db["muted"] = True
-    db["pos"] = -1                                  # V2-366: close closes the VIDEO; the list survives
-    return _d._bump(db, "close")

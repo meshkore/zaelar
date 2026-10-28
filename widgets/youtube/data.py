@@ -12,7 +12,7 @@ import urllib.request
 
 from .. import store
 from i18n import langs as _langs   # V2-778 F3-30: hints are read back aloud, in the agent's language
-from . import account, channels, library, library_prefs     # channels: the followed channels as cards and pages
+from . import account, channels, library     # channels: the followed channels as cards and pages
 from .helpers import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
     _RESULTS_RE, _SEED, _YT_RE, _bump, _drop_blocked, _extract_id, _goto, _index_list, _is_blocked, _norm,
     _oembed_title, _play_pos, _resolve_item, _results_query, _seed, _tab_alias)
@@ -285,10 +285,12 @@ def ref_index() -> list:
 # V2-778 F1-12 — the action handlers live in `actions.py`, imported back under their names (that module
 # reads this one).
 from .actions import (  # noqa: E402,F401
-    _a_torrent, _a_load, _a_add, _a_search, _a_play_result, _a_add_results, _a_show_tab, _a_clear_search,
-    _a_remove, _a_move, _a_sort_list, _a_filter_list, _a_name_list,
-    _a_clear_list, _a_play_item, _a_next, _a_previous, _a_ended, _a_play, _a_player_error, _a_pause, _a_mute,
-    _a_unmute, _a_captions_on, _a_captions_off, _a_volume_up, _a_volume_down, _a_set_volume, _a_restart, _a_close)
+    _a_torrent, _a_load, _a_add, _a_search, _a_play_result, _a_add_results, _a_show_tab, _a_clear_search, _a_next)
+from .list_actions import (  # noqa: E402,F401
+    _a_remove, _a_move, _a_sort_list, _a_filter_list, _a_name_list, _a_clear_list)
+from .player_actions import (  # noqa: E402,F401
+    _a_play_item, _a_previous, _a_ended, _a_play, _a_player_error, _a_pause, _a_mute, _a_unmute,
+    _a_captions_on, _a_captions_off, _a_volume_up, _a_volume_down, _a_set_volume, _a_restart, _a_close)
 from . import playability as _plays  # noqa: E402 — which rows the player refused
 from .queue_search import _a_queue_search  # noqa: E402 — V2-781: «a few videos, back to back»
 from . import blocking as _blocking  # noqa: E402 — which channel «este canal» is, and the block itself

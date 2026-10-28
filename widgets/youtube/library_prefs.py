@@ -95,22 +95,3 @@ def _apply_pref(action: str, p: dict, db: dict) -> dict:
     store.save(WID, db)
     return {"ok": True, "stored_as": "rule", "key": key, "value": val,
             "how": _ENFORCEABLE[key], "prefs": dict(db["prefs"])}
-
-
-def apply_prefs(db: dict, fresh: bool) -> None:
-    """Put the operator's standing preferences on the video that is about to start.
-
-    `captions` is re-asserted on EVERY video, which is what a preference about content means and what the
-    player already does with the flag (V2-590). `volume` is only applied when playback is starting from
-    nothing (`fresh`): re-imposing it on every item would fight the operator — he turns it down for one
-    video and the next one shouts again — and a preference that undoes his last explicit order is not a
-    preference, it is a bug with a settings screen."""
-    prefs = db.get("prefs") or {}
-    if "captions" in prefs:
-        db["captions"] = bool(prefs["captions"])
-    if fresh and "volume" in prefs:
-        try:
-            db["volume"] = max(0, min(100, int(prefs["volume"])))
-            db["muted"] = db["volume"] == 0
-        except (TypeError, ValueError):
-            pass

@@ -2,10 +2,8 @@
 # youtube/library — the widget's OWN library: followed channels, watch history, preferences and saved lists.
 #
 # Operator's standing rule (2026-09-06): "our core, our engine, our memory, our widget are the ones who have
-# control". None of this depends on a connector. The account connector, when its door can finally open,
-# only EXTENDS what lives here — it never becomes the source of truth, and nothing here degrades
-# when it is absent, because nothing here ever asks it anything.
-# Preference ops live in `library_prefs.py`.
+# control". None of this depends on a connector: the account connector only EXTENDS what lives here, and
+# nothing here degrades when it is absent. Preference ops live in `library_prefs.py`.
 #
 import time
 
@@ -331,3 +329,22 @@ def apply(action: str, p: dict, db: dict) -> "dict | None":
         return out
 
     return None
+
+
+def apply_prefs(db: dict, fresh: bool) -> None:
+    """Put the operator's standing preferences on the video that is about to start.
+
+    `captions` is re-asserted on EVERY video, which is what a preference about content means and what the
+    player already does with the flag (V2-590). `volume` is only applied when playback is starting from
+    nothing (`fresh`): re-imposing it on every item would fight the operator — he turns it down for one
+    video and the next one shouts again — and a preference that undoes his last explicit order is not a
+    preference, it is a bug with a settings screen."""
+    prefs = db.get("prefs") or {}
+    if "captions" in prefs:
+        db["captions"] = bool(prefs["captions"])
+    if fresh and "volume" in prefs:
+        try:
+            db["volume"] = max(0, min(100, int(prefs["volume"])))
+            db["muted"] = db["volume"] == 0
+        except (TypeError, ValueError):
+            pass
