@@ -1,6 +1,6 @@
 """nucleo/truth.py — the product's own truth, read for a verifier (V2-776 L1).
 
-`nucleo/verify.py` could read ONE kind of truth: a widget's declared collections, through `widgets/rows`.
+`nucleo/circuit/verify.py` could read ONE kind of truth: a widget's declared collections, through `widgets/rows`.
 Measured 2026-09-29 (four read-only maps of the brain): that reaches 3 of ~18 widgets, and the end states
 the demo asks for live elsewhere — the desktop wallpaper is `config.settings.wallpaper()` and belongs to no
 card; whether a card is ON SCREEN is the canvas report in `memory.state()`; «which video is playing», «which

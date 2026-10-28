@@ -8,7 +8,7 @@ losing date, time, party size and area — and the worker refused it.
 
 What is pending is not in the words, it is in the STATE, and the state already has rows:
 
-  · the task board (`nucleo/tasks.py`): errands running, waiting or pending, and errands that ended recently (a
+  · the task board (`nucleo/circuit/ledger.py`): errands running, waiting or pending, and errands that ended recently (a
     delivery that waits for his choice is a finished row with its sheet — the row carries the brief, the name, the
     sheet and the outcome);
   · rows a widget holds for his word, declared by the widget itself: `pending_rows() -> [{id, title, state,
@@ -44,7 +44,7 @@ _HOOK = "pending_rows"
 
 
 def _task_rows(now: float) -> list[dict]:
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     ts = _tasks.store()
     live = ts.tasks_where(states=ts.LIVE_STATES, modes=("now",), visible_only=True, limit=MAX_ROWS,
                           exclude_kinds=("inline",))

@@ -24,7 +24,7 @@ import pytest
 
 from memory import db as memdb
 from memory import tasks_store as ts
-from nucleo import tasks
+from nucleo.circuit import ledger as tasks
 
 
 class Rec:

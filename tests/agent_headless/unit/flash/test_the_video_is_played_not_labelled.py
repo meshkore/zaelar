@@ -80,7 +80,7 @@ def test_un_turno_de_video_CARGA_el_widget_de_verdad(monkeypatch, tmp_path):
 
     import widgets.server_api as _sa
     monkeypatch.setattr(_sa, "brain_action", _brain_action)
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _ClienteQuePideVideo)
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _ClienteQuePideVideo)
     try:
         res = asyncio.run(turn.run_turn("Pon el vídeo del tráiler de la última de Dune.",
                                         sid="test-video-turn", ingest=False, execute=True))
@@ -106,7 +106,6 @@ class _ClienteMudoQuePideVideo(_ClienteQuePideVideo):
 
 
 
-@pytest.mark.xfail(reason="refactor2710-03: the mouth speaks the verdict", strict=True)
 def test_a_mute_video_turn_names_what_it_loaded(monkeypatch, tmp_path):
     """The model calls `play_video` and says nothing: the reply has to name what loaded. The old text channel patched
     it after the fact (V2-383); the voice turn's words stream before the player answers, so this is the mouth saying
@@ -124,7 +123,7 @@ def test_a_mute_video_turn_names_what_it_loaded(monkeypatch, tmp_path):
 
     import widgets.server_api as _sa
     monkeypatch.setattr(_sa, "brain_action", _brain_action)
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _ClienteMudoQuePideVideo)
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _ClienteMudoQuePideVideo)
     try:
         res = asyncio.run(turn.run_turn("Pon el tráiler de Dune.", sid="test-video-mudo", ingest=False, execute=True))
     finally:

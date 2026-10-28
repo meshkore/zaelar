@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 def test_the_stream_keeps_what_the_model_returned():
-    src = (ROOT / "nucleo/flash/fast_client.py").read_text("utf-8")
+    src = (ROOT / "nucleo/llm/fast_client.py").read_text("utf-8")
     loop = src[src.index("async for chunk in stream:"):]
     loop = loop[:loop.index("def describe(")]
     assert 'm["raw_text"]' in loop and 'm["reasoning_chars"]' in loop and 'm["raw_tool_calls"]' in loop

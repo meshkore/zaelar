@@ -345,7 +345,7 @@ async def _say_it_did_not_run(wid: str, action_name: str, exc: BaseException, *,
         pass
     if row:
         try:
-            from nucleo import request_row as _rq
+            from nucleo.request import model as _rq
             _rq.settle(row, "unmet", res["error"])
         except Exception:  # noqa: BLE001
             pass
@@ -425,13 +425,13 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     # V2-776 L1 — the action's declared postcondition (`manifest.actions.<a>.done_when`) is an END STATE owed from
     # this moment: opened BEFORE the op (a `changed` clause's baseline is what the value was), attested after.
     try:
-        from nucleo import spec as _spec
+        from nucleo.circuit import spec as _spec
         _spec_entry = _spec.open_for_action(wid, action_name, payload, text=text)
     except Exception:  # noqa: BLE001
         _spec_entry = None
-    # V2-776 M1 — the request this op belongs to is a ROW, opened by its first op (see `nucleo/request_row.py`).
+    # V2-776 M1 — the request this op belongs to is a ROW, opened by its first op (see `nucleo/request/model.py`).
     try:
-        from nucleo import request_row as _rq
+        from nucleo.request import model as _rq
         _row = _rq.opened(wid, action_name, text=text)
     except Exception:  # noqa: BLE001
         _row = ""
@@ -467,7 +467,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
     _attested = None
     if _spec_entry is not None:
         try:
-            from nucleo import spec as _spec
+            from nucleo.circuit import spec as _spec
             # A refused op whose widget brought a SPEAKABLE reason is told by `report_failure`; the circuit settles
             # it without a second word. One refused with only an internal `error` is NOT told to him (V2-652: that
             # key is addressed to the model) — demo pass 72, S3: «Done.» over a refused detail, and silence after.
@@ -477,7 +477,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
             pass
     if _row:
         try:
-            from nucleo import request_row as _rq
+            from nucleo.request import model as _rq
             if _refused:
                 _rq.settle(_row, "unmet", str(res.get("message") or res.get("error") or "")[:200])
             elif _spec_entry is None:
@@ -514,7 +514,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
 
 def _unchanged(e: dict) -> bool:
     try:
-        from nucleo import verify as _verify
+        from nucleo.circuit import verify as _verify
         return _verify.only_unchanged(e.get("done_when"))
     except Exception:  # noqa: BLE001
         return False
@@ -538,19 +538,7 @@ def answer_of(res) -> dict:
         out = {"result": res["result"]}
     else:
         out = {k: v for k, v in res.items() if k not in _ACK_KEYS and v not in (None, "", [], {})}
-    if out:                                  # what a card answered is a SOURCE for the words (`claim_backing`, p125 M3)
-        _LAST_ANSWER.update(at=time.time(), text=_json.dumps(out, ensure_ascii=False, default=str)[:20000])
     return out
-
-
-#: The last answer a card returned — a source for the reply built on it (demo pass 125, M3: «The NASDAQ Composite is
-#: at 26,676.49» was corrected as an unbacked candidate; «Composite» came from the markets card's own data).
-_LAST_ANSWER: dict = {"at": 0.0, "text": ""}
-ANSWER_BACKING_S = 120.0
-
-
-def answer_backing(now: float | None = None) -> str:
-    return _LAST_ANSWER["text"] if ((now or time.time()) - _LAST_ANSWER["at"]) <= ANSWER_BACKING_S else ""
 
 
 def answer_to_speak(answers: list, ops) -> tuple | None:

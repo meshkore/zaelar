@@ -4,7 +4,7 @@
 said it came from the channel he had blocked a minute earlier. The card's own `explicit_link_notice` wrote its
 banner and handed the model a `message`; the model did not say it, and `add` (the ES round's «ponme este») wrote
 nothing at all. This module is the FACT the receipt reads: the action that let a blocked channel's link through
-stamps it on the card's store, and `take` hands it — once — to `nucleo.flash.blocked_channel_receipt`, which says it
+stamps it on the card's store, and `take` hands it — once — to `nucleo.turn.reply_receipts`, which says it
 in the reply in his language on both channels.
 """
 from __future__ import annotations

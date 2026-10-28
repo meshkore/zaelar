@@ -43,7 +43,7 @@ def brief(monkeypatch):
 
 @pytest.fixture
 def model(monkeypatch):
-    import nucleo.flash.fast_client as fc
+    import nucleo.llm.fast_client as fc
     from nucleo.flash import widget_read
     monkeypatch.setattr(widget_read, "read", lambda wid, *a, **k: "")
     holder = {}

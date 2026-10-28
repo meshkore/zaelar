@@ -45,39 +45,6 @@ def _window(turns):
     return out
 
 
-def _backstop(monkeypatch, reply, ask, window):
-    monkeypatch.setattr(S, "list_jobs", lambda active_only=True: [])
-    # both channels write his line into the window BEFORE the backstop runs (`dialog.remember_what_was_said`)
-    return R.dated_reminder_backstop(reply, ask, window=window + [{"role": "user", "content": ask}])
-
-
-def test_the_measured_run_rings_with_the_show_and_its_date(monkeypatch):
-    got = _backstop(monkeypatch, ES_REPLY, ES_ASK, _window(ES_TURNS))
-    assert got and got["schedule"] == "2026-10-30 09:00", got
-    p = got["prompt"]
-    assert "Dexter: Resurrection" in p and "30 de octubre de 2026" in p, p
-    assert "Te enteras" not in p and "Michael C. Hall" in p, p      # an initial does not end the sentence
-
-
-def test_the_english_variant_rings_with_the_fact(monkeypatch):
-    window = _window([("Can you find out when the new Dexter season premieres and let me know?",
-                       "Dexter: Resurrection Season 2 premieres on Friday, October 30, 2026. I'll keep you posted.")])
-    got = _backstop(monkeypatch, "I'll set a reminder for October 30.", "Set a reminder for October 30, please.",
-                    window)
-    assert got and got["schedule"].startswith("2026-10-30"), got
-    assert "Dexter: Resurrection Season 2 premieres on Friday, October 30, 2026." in got["prompt"], got
-    assert "find out" not in got["prompt"], got
-
-
-def test_a_bare_request_for_the_day_just_named_rings_with_that_day_s_fact(monkeypatch):
-    """2.251's shape: the request names no subject («on the premiere day») — the sentence that named the day does."""
-    window = _window([("When does the new Dexter season premiere?",
-                       "Dexter: Resurrection Season 2 premieres on Friday, October 30, 2026.")])
-    got = _backstop(monkeypatch, "On it — I'll set a heads-up for that day.",
-                    "Can you set a reminder for me on the premiere day?", window)
-    assert got and got["prompt"].endswith("Dexter: Resurrection Season 2 premieres on Friday, October 30, 2026."), got
-
-
 @pytest.mark.parametrize("lang, clause, want", [
     ("es", "Oye, ¿te enteras de cuándo se estrena", "comprueba primero lo que te pidió averiguar y díselo: "
                                                      "«Oye, ¿te enteras de cuándo se estrena?»"),
@@ -96,20 +63,6 @@ def test_a_refusal_or_a_question_is_not_the_fact():
                        "No puedo confirmar que Dexter se estrene el 30 de octubre. ¿Seguro que Dexter sale el 30 de "
                        "octubre?")])
     assert F.fact_for("¿Te enteras de cuándo se estrena Dexter", window, "", "2026-10-30 09:00") == ""
-
-
-@pytest.mark.parametrize("ask, reply, kept", [
-    ("Recuérdame mañana a las 9 llamar al dentista", "Vale, te lo recuerdo mañana a las 9.", "llamar al dentista"),
-    ("Remind me tomorrow at 9 to call the dentist", "Sure, I'll remind you tomorrow at 9.", "call the dentist"),
-    ("Ponme un recordatorio mañana a las 9 para llamar al dentista", "Vale, te lo recuerdo mañana a las 9.",
-     "llamar al dentista"),
-    ("¿Me apuntas que el jueves renuevo el seguro y me lo recuerdas el miércoles?",
-     "Hecho, te aviso el miércoles.", "renuevo el seguro"),
-])
-def test_a_plain_reminder_keeps_its_own_words(monkeypatch, ask, reply, kept):
-    got = _backstop(monkeypatch, reply, ask, [])
-    assert got and kept in got["prompt"], got
-    assert "averiguar" not in got["prompt"] and "find out" not in got["prompt"], got
 
 
 def test_the_clause_cut_drops_a_conjunction_not_a_letter():

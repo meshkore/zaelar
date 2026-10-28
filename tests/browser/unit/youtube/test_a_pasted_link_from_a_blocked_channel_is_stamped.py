@@ -2,7 +2,7 @@
 
 `video-blocked-channel-respected` (2026-10-14, ES+EN 3/5): the explicit order wins over the standing filter (V2-604),
 but `add` — the ES round's «ponme este» — wrote no notice at all, and nothing the reply could read said the link came
-from the channel he had just blocked. Both doors now stamp `blocked_order` for `nucleo.flash.blocked_channel_receipt`
+from the channel he had just blocked. Both doors now stamp `blocked_order` for `nucleo.turn.reply_receipts`
 and return the notice; a link from an unblocked channel, or a NAME search, stamps nothing.
 
 Disarm: make `blocked_order.stamp` a no-op → the stamp assertions go red; drop the `explicit_link_notice` call from

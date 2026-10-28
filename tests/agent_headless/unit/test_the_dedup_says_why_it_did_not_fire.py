@@ -253,7 +253,7 @@ def test_two_errands_that_name_no_widget_do_not_share_the_open_card(monkeypatch)
     three 27 inch 4k monitors…» both resolved `results` BY CONTEXT, the trip «continued» the monitor search at 1.0
     by widget, inherited its sheet and wrote the trip over the monitors. The dedup key is a widget the request
     NAMES."""
-    from nucleo import dedup
+    from nucleo.request import append as dedup
     from widgets import runtime
     monkeypatch.setattr(runtime, "identify", lambda q, **k: {"match": "results", "by_context": True})
     trip = "johnny, plan a five day trip somewhere warm for anna and me, from LAX, december 21 to 25, under 2000"

@@ -30,7 +30,7 @@ def _sandbox(tmp_path, monkeypatch):
     monkeypatch.setattr(wstore, "_last_hash", {})
     resume_turn.reset()
     pending_work.forget_cache()
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     ts = tasks.store()
     ts.tasks_clear(states=ts.LIVE_STATES + ts.DONE_STATES, modes=("now",))
     yield
@@ -40,7 +40,7 @@ def _sandbox(tmp_path, monkeypatch):
 
 
 def _errand(uid="b00t01-1", state="done", goal=GOAL, outcome="La que mejor encaja: Garoa — ¿te la reservo?"):
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     now = int(time.time())
     tasks.store().task_put({"id": uid, "title": "Reservar mesa en Soria", "goal": goal, "kind": "web", "mode": "now",
                             "state": state, "visible": True, "origin": "voz", "created_at": now - 600,
@@ -128,7 +128,7 @@ def test_a_live_errand_is_not_started_twice(monkeypatch):
 
 
 def test_both_doors_ask_the_rows_before_annulling_or_gluing():
-    words = (ROOT / "nucleo/flash/post_stream_words.py").read_text(encoding="utf-8")
+    words = (ROOT / "nucleo/flash/post_stream_acts.py").read_text(encoding="utf-8")
     assert words.index("_resume_turn.before_fragment_guard(") < words.index("_pst._eguard.drop_if_fragment(")
     lanes = (ROOT / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
     i = lanes.index("_no_tool = await _pst._resume_turn.before_backstops(")
@@ -141,16 +141,16 @@ def test_a_resumed_turn_leaves_no_backstop_to_rebuild_a_brief(monkeypatch):
     calls = []
     _verdict(monkeypatch, {"task"}, calls)
     _escalations(monkeypatch)
-    from nucleo.flash import router
-    monkeypatch.setattr(router, "promises_action", lambda t: True)
+    from nucleo.turn import reply
+    monkeypatch.setattr(reply, "owes_an_act", lambda b: "order" if b == "ORDER" else "")
     esc, acted = {"v": None, "more": []}, {}
     no_tool = asyncio.run(resume_turn.before_backstops(True, esc, spoken_text="Retomo lo del restaurante.",
-                                                      operator_text="termina esas tareas", brief=None, last_reply="",
+                                                      operator_text="termina esas tareas", brief="ORDER", last_reply="",
                                                       apply_widget_data=None, emit=None, acted=acted))
     assert no_tool is False and esc["resumed"] == ["b00t01-1"]
     assert asyncio.run(resume_turn.before_backstops(True, {"v": None, "more": []}, spoken_text="", operator_text="x",
                                                     brief=None, last_reply="", apply_widget_data=None, emit=None,
-                                                    acted={})) is True, "no promise, nothing to complete"
+                                                    acted={})) is True, "no act owed by the brief, nothing to complete"
 
 
 # ── the card's title is the errand's NAME, never a summariser's or a worker's sentence ──────────────────
@@ -209,7 +209,7 @@ def test_the_tool_resumes_the_rows_the_model_named_and_drops_invented_ids(monkey
 
 
 def test_an_errand_the_energy_lease_stopped_is_resumable_days_later():
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     now = int(time.time())
     tasks.store().task_put({"id": "b00t01-7", "title": "Playlist de fiesta", "goal": "Haz una playlist de fiesta",
                             "kind": "code", "mode": "now", "state": "failed", "visible": True, "origin": "voz",
@@ -226,7 +226,7 @@ def test_an_errand_the_energy_lease_stopped_is_resumable_days_later():
 def test_a_confirmed_send_owes_its_end_state_and_a_send_that_did_not_happen_is_unmet():
     """A «yes» that leads to nothing must be impossible: the confirmed path (`dispatch_and_report(receipt=True)`)
     opens the action's declared end state, and `send_draft` now declares one — a sent row for that recipient."""
-    from nucleo import spec
+    from nucleo.circuit import spec
     from widgets.mensajeria import data
     _held_email()
     e = spec.open_for_action("mensajeria", "send_draft", {"contact": "hospitality@example.com"}, text="sí")

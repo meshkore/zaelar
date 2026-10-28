@@ -281,12 +281,12 @@ def worker_providers() -> list[dict]:
 
 
 def cluster_providers() -> list[dict]:
-    """Provider tiers for the CLUSTER BRAIN (`nucleo.flash.provider_chain`, 2026-08-03), same format as
+    """Provider tiers for the CLUSTER BRAIN (`nucleo.llm.provider_chain`, 2026-08-03), same format as
     `worker_providers()`. This exact piece was missing: a Z.AI 429 in the cluster turn (heartbeat insisting on
     replying to a peer) did not appear anywhere in the panel — the operator only saw it in the raw log ("cluster
     brain turn failed: 429"), looping every time the heartbeat retried."""
     try:
-        from nucleo.flash import provider_chain as pc
+        from nucleo.llm import provider_chain as pc
         tiers = pc.status()
     except Exception:
         return []

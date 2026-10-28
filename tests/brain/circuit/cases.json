@@ -20,7 +20,7 @@
    {"model": {"say": "Looking for it now.", "tools": [{"name": "escalate_to_slowbrain", "args": {"request": "Find the wallpaper Cosmic Eye in the Sky by Tyler Young and set it as the desktop wallpaper"}}]}, "world": {"desktop.wallpaper": {"url": "", "title": ""}}},
    {"world": {"desktop.wallpaper": {"url": "", "title": ""}}},
    {"world": {"desktop.wallpaper": {"url": "", "title": ""}}}],
-  "expect": {"end": "gave_up", "false_done": 0, "tries_max": 2, "says_missing": true}},
+  "expect": {"end": "unmet", "false_done": 0, "tries_max": 2, "says_missing": true}},
  {"id": "circuit-f2-words-contradict-a-met-act", "lang": "en",
   "phrase": "go to the part about proof of work",
   "source": "demo run-full60 F2 (2026-09-29): the verdict completed documento:goto and the document moved; the words said «scrolling within it isn't something I can do»",

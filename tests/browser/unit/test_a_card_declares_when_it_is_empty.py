@@ -42,7 +42,8 @@ def test_the_harness_reads_the_error_value_not_the_key(monkeypatch):
     """`harness.verify` returned None for any view carrying an `error` key, even `""`."""
     import asyncio
 
-    from nucleo import harness, truth
+    from nucleo import truth
+    from nucleo.circuit import harness
     monkeypatch.setattr(truth, "widget_view", lambda wid: {"empty": False, "error": ""})
     monkeypatch.setattr(truth, "canvas_state", lambda wid: "visible")
     g = {"kind": harness.KIND_WIDGET_CONTENT, "target": "markets", "text": "x", "checks": 0}

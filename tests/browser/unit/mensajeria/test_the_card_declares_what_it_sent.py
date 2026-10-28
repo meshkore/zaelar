@@ -45,7 +45,7 @@ def test_the_collection_is_declared_read_only_and_reads_from_the_view(md):
 
 
 def test_the_send_to_postcondition_is_met_by_the_message_that_left(md):
-    from nucleo import spec, verify
+    from nucleo.circuit import spec, verify
     dw = spec.render("mensajeria", "send_to", {"contact": "Rowan", "text": "catch-up tomorrow is now at 4:30 PM"})
     assert verify.check(dw) is True
     # Demo pass 68, C5: the clause carried the model's whole draft (`body~`) and the message that left was worded by
@@ -58,7 +58,7 @@ def test_a_send_to_an_address_is_met_by_the_row_that_keeps_that_address():
     """Demo pass 137, E3: `forward {contact: "quinn@…"}` went out and the sent row said `name: "Quinn"`, `chatId:
     "quinn@…"`. The clause read only `name`, the send was judged unmet and the operator heard «I couldn't finish
     that». The template now reads `name|chatId~`; the row grammar's `a|b` is any of those fields."""
-    from nucleo import spec
+    from nucleo.circuit import spec
     from widgets import rows
     row = {"name": "Quinn", "chatId": "quinn@example.com", "platform": "email"}
     for action in ("forward", "send_to"):

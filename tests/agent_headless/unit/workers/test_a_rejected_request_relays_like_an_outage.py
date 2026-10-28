@@ -137,7 +137,7 @@ def test_the_local_licence_is_never_put_on_cooldown_for_this(monkeypatch):
 
 # ── the voice/cluster chain reads the SAME predicate (V2-252: two chains, one decision) ──────────────
 def test_the_voice_chain_relays_on_a_rejected_request_too(monkeypatch):
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
     fresh = pc.CooldownStore(pc._KV)
     fresh._loaded = True
     monkeypatch.setattr(fresh, "_save", lambda: None)

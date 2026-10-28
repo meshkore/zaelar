@@ -15,7 +15,7 @@ AGAIN = "Show the classic carbonara recipe with guanciale, eggs and pecorino on 
 
 
 def test_the_scene_is_one_errand_and_the_parked_one_was_a_build():
-    from nucleo import errand_kind
+    from nucleo.request import kind as errand_kind
     assert eot.same_errand(AGAIN, PARKED)
     assert errand_kind.code_change(PARKED) == "create" and errand_kind.code_change(AGAIN) == ""
 

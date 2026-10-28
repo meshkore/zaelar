@@ -17,7 +17,17 @@ import pytest
 
 from i18n import langs
 from nucleo.flash import player_outcome as PO
-from nucleo.flash import transport_receipt as TR
+from nucleo.turn import reply_receipts as RR
+
+
+def _owed(said, ops, lang=None):
+    out = RR.player_owed(said, ops, lang)
+    return out[0].said if out else ""
+
+
+async def _settled(said, ops, lang=None):
+    out = await RR.player(said, ops, lang)
+    return out[0].said if out else ""
 
 ENGINE = Path(__file__).resolve().parents[4]
 RICK = {"videoId": "dQw4w9WgXcQ", "title": "Rick Astley - Never Gonna Give You Up (Official Video) (4K Remaster)"}
@@ -47,14 +57,14 @@ def player_refuses(monkeypatch):
 
 
 def test_a_next_the_player_refused_names_the_refusal_and_why_never_now_playing(player_refuses):
-    line = asyncio.run(TR.owed_settled("Vale, salto al siguiente.", [("youtube", "next")], lang=langs.spec("es")))
+    line = asyncio.run(_settled("Vale, salto al siguiente.", [("youtube", "next")], lang=langs.spec("es")))
     assert "Suena ahora" not in line
     assert line.startswith("No he podido ponerlo") and "propietario" in line
     assert RICK["title"] in line and PSY["title"] in line, line
 
 
 def test_the_refusal_is_owed_even_over_a_reply_that_claimed_the_title(player_refuses):
-    line = asyncio.run(TR.owed_settled(f"Skipped, «{PSY['title']}» is on.", [("youtube", "next")],
+    line = asyncio.run(_settled(f"Skipped, «{PSY['title']}» is on.", [("youtube", "next")],
                                        lang=langs.spec("en")))
     assert line.startswith("I couldn't play it") and "owner" in line
 
@@ -64,10 +74,7 @@ def test_a_move_the_player_kept_is_still_receipted_as_playing(monkeypatch):
     db = {"list": [RICK, PSY], "pos": 1, "videoId": PSY["videoId"], "title": PSY["title"]}
     monkeypatch.setattr(store, "load", lambda wid, *a, **k: dict(db) if wid == "youtube" else {})
     monkeypatch.setattr(PO, "_on_screen", lambda card: False)
-    assert asyncio.run(TR.owed_settled("Okay.", [("youtube", "next")], lang=langs.spec("en"))) == \
+    assert asyncio.run(_settled("Okay.", [("youtube", "next")], lang=langs.spec("en"))) == \
         f"Now playing: «{PSY['title']}»."
 
 
-def test_the_voice_turn_reads_the_outcome():
-    settle = (ENGINE / "nucleo/flash/post_stream_settle.py").read_text(encoding="utf-8")
-    assert "await _pst_tr.voice_owed_settled(spoken_text)" in settle

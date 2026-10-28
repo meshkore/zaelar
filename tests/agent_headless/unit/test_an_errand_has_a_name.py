@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import errand_title as et
+from nucleo.request import title as et
 
 ENGINE = Path(__file__).resolve().parents[3]
 
@@ -108,7 +108,7 @@ def test_compose_NEVER_raises_and_empty_means_keep_the_provisional(monkeypatch):
         def complete(self, *a, **k):
             raise RuntimeError("provider down")
 
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _Boom)
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", _Boom)
     assert _run(et.compose("Pedir cita de traumatología")) == ""
 
 
@@ -126,11 +126,11 @@ def test_compose_reads_the_model_and_a_dash_means_no_errand_inside(monkeypatch):
 
     monkeypatch.setattr("nucleo.research._spec", lambda: (object(), None))
 
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda: _Fake("Cita de traumatología en PAMA"))
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda: _Fake("Cita de traumatología en PAMA"))
     assert _run(et.compose("Oye, una cosita… pídeme cita")) == "Cita de traumatología en PAMA"
     assert "Oye, una cosita" in seen["msgs"][-1]["content"], "the model must see the operator's own words"
 
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda: _Fake("-"))
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda: _Fake("-"))
     assert _run(et.compose("mmm")) == "", "no errand inside → keep the provisional, do not invent one"
 
 
@@ -143,11 +143,11 @@ def test_no_provider_available_is_not_an_error(monkeypatch):
     cita» — which it duly did, so the assertion failed with the goal itself. Order-dependent inside the full
     map (2026-09-01) and green when run alone, which is the signature of a leak rather than a logic break.
     Both rungs are stubbed here, so the case under test is the one the name claims."""
-    from nucleo.flash import provider_chain as _pc
+    from nucleo.llm import provider_chain as _pc
     monkeypatch.setenv("ZAELAR_TITLE_MODEL", "on")
     monkeypatch.setattr(_pc, "pick", lambda *a, **k: None)
     monkeypatch.setattr("nucleo.research._spec", lambda: (None, None))
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient",
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient",
                         lambda: pytest.fail("no provider available must never reach a client"))
     assert _run(et.compose("Pedir cita")) == ""
     assert et._spec_for_naming() is None, "with both rungs empty there is no spec to name with"
@@ -187,7 +187,7 @@ def test_a_composed_title_that_names_nothing_keeps_the_provisional(monkeypatch):
             return "No encargo"
 
     monkeypatch.setattr(et, "_spec_for_naming", lambda: object())
-    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda: _Fake())
+    monkeypatch.setattr("nucleo.llm.fast_client.FastClient", lambda: _Fake())
     assert _run(et.compose("mmm, no sé, déjalo")) == ""
 
 
@@ -195,7 +195,7 @@ def test_the_namer_asks_the_VOICE_tier_first(monkeypatch):
     """Measured 2026-08-31: the reasoning chain's only reachable rung answered nothing in 20 s while the voice
     tier composed every title in ~1.5 s. It is also the right SHAPE — naming is one line, not deliberation, so
     a non-reasoning model is what this wants. The reasoning chain stays as the fallback."""
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
 
     sentinel = object()
     monkeypatch.setattr(pc, "pick", lambda role=None: "voice-tier" if role == pc.ROLE_VOICE else None)
@@ -204,7 +204,7 @@ def test_the_namer_asks_the_VOICE_tier_first(monkeypatch):
 
 
 def test_and_falls_back_to_the_reasoning_chain_when_no_voice_tier_is_up(monkeypatch):
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
 
     other = object()
     monkeypatch.setattr(pc, "pick", lambda role=None: None)

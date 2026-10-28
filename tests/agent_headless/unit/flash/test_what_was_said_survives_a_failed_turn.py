@@ -55,7 +55,7 @@ class _Turns:
         self.sid = "test-what-was-said"
 
     def model(self, client) -> None:
-        from nucleo.flash import fast_client
+        from nucleo.llm import fast_client
         self._iso._set(fast_client, "FastClient", client)
 
     def run(self, text: str) -> dict:
@@ -158,7 +158,7 @@ def test_a_turn_that_was_ONLY_a_secret_never_puts_the_secret_in_the_window(turns
 
 def test_a_provider_failure_in_the_typed_turn_marks_the_cooldown(turns, monkeypatch):
     seen: list[tuple] = []
-    from nucleo.flash import provider_chain as pc
+    from nucleo.llm import provider_chain as pc
     monkeypatch.setattr(pc, "note_failure", lambda text, *a, **kw: seen.append((text, kw.get("role"))))
 
     turns.run("Resérvame mesa en Casa Lucio.")

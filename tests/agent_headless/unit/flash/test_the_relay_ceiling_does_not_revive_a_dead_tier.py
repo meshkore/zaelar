@@ -25,7 +25,7 @@ import time
 import pytest
 
 from nucleo import provider_health as ph
-from nucleo.flash import provider_chain as pc
+from nucleo.llm import provider_chain as pc
 
 
 @pytest.fixture(autouse=True)

@@ -135,7 +135,7 @@ def channel_of(db: dict, vid: str) -> str:
 def explicit_link_notice(db: dict, explicit: bool, channel: str, title: str, queued: bool = False) -> dict:
     """A link he PASTED from a channel he blocked plays (or is queued) — an explicit order outranks a standing filter
     (V2-604) — and says so: the card in its banner when it plays, and the turn's reply through the stamp
-    `blocked_order` leaves for `nucleo.flash.blocked_channel_receipt`. Returns the notice ({} when nothing to say)."""
+    `blocked_order` leaves for `nucleo.turn.reply_receipts`. Returns the notice ({} when nothing to say)."""
     if not (explicit and channel and _d._is_blocked(channel, db.get("blocked_channels") or [])):
         return {}
     _bo.stamp(db, channel, title, queued)

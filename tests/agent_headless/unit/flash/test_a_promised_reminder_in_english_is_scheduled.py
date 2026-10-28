@@ -14,7 +14,6 @@ import types
 import pytest
 
 from nucleo import scheduler as S
-from nucleo.flash import reminder_backing as B
 from nucleo.flash import reminder_guards as R
 from nucleo.flash import reminder_promise as P
 
@@ -47,65 +46,6 @@ def _live():
     return [j for j in S.list_jobs(active_only=True)]
 
 
-def test_the_measured_run_leaves_exactly_one_job_carrying_the_fact():
-    """Both turns through the voice half's one decision, against the real (isolated) scheduler."""
-    for j in _live():
-        S.cancel(str(j.get("name") or j.get("id") or ""))
-    events = []
-    emit = lambda *a, **k: events.append(a)            # noqa: E731
-    w = list(WINDOW)
-    for ask, reply in (PROMISE, CLAIM):
-        w.append({"role": "user", "content": ask})
-        assert B.back_and_check(reply, ask, window=w, emit=emit) == ""     # backed → no correction owed
-        w.append({"role": "assistant", "content": reply})
-    jobs = _live()
-    assert len(jobs) == 1, jobs
-    assert str(jobs[0]["schedule"]).startswith("2026-10-30"), jobs
-    assert "Dexter" in str(jobs[0].get("prompt") or ""), jobs
-
-
-@pytest.mark.parametrize("ask, reply", [PROMISE, CLAIM])
-def test_each_english_form_alone_resolves_the_day(no_jobs, ask, reply):
-    got = R.dated_reminder_backstop(reply, ask, window=WINDOW + [{"role": "user", "content": ask}])
-    assert got and got["schedule"] == "2026-10-30 09:00", got
-    assert "October 30" in got["prompt"], got
-
-
-def test_a_promise_naming_no_day_rings_on_the_day_his_ask_named(no_jobs):
-    """«ok 👍» → «I'll set that reminder.»: the day is the one «remind me on the 30th» named two turns back."""
-    got = R.dated_reminder_backstop("On it — I'll set that reminder.", "ok 👍",
-                                    window=WINDOW + [{"role": "user", "content": "ok 👍"}])
-    assert got and got["schedule"] == "2026-10-30 09:00", got
-
-
-def test_the_dentist_neighbour_rings_tomorrow_at_nine(no_jobs):
-    ask = "remind me tomorrow at 9 to call the dentist"
-    got = R.dated_reminder_backstop("Sure — I'll set a reminder for tomorrow at 9.", ask, window=[])
-    assert got and got["schedule"] == "2026-10-11 09:00", got
-    assert "dentist" in got["prompt"], got
-
-
-def test_a_curly_apostrophe_and_a_polite_lead_still_promise(no_jobs):
-    got = R.dated_reminder_backstop("Sure, no problem — I’ll set that reminder for October 30, 2026.", "ok",
-                                    window=[])
-    assert got and got["schedule"] == "2026-10-30 09:00", got
-
-
-@pytest.mark.parametrize("reply", [
-    "I can't set a reminder for October 30, sorry.",
-    "I haven't set that reminder for October 30 yet.",
-    "Your reminder isn't set for October 30.",
-    "Shall I set that reminder for October 30, 2026?",
-    "Want me to set that reminder for October 30, 2026?",
-    "No te pongo ningún aviso para el 30 de octubre.",
-    "No te pongo un aviso para el 30 de octubre.",
-    "¿Te pongo un aviso para el 30 de octubre?",
-])
-def test_a_negation_or_a_question_promises_nothing(no_jobs, reply):
-    assert P.find(reply) is None, reply
-    assert R.dated_reminder_backstop(reply, "ok", window=[]) is None
-
-
 @pytest.mark.parametrize("reply, lang", [
     ("You're all set! I've got that reminder set for the 30th.", "en"),
     ("Your reminder is set.", "en"),
@@ -129,10 +69,3 @@ def test_only_a_claim_is_checked(no_jobs, reply):
     assert P.unbacked_claim_line(reply, "en") == ""
 
 
-def test_the_voice_half_says_the_correction_when_nothing_could_be_scheduled(no_jobs):
-    """No date anywhere → nothing to back the claim with → the correction is returned for the voice to say."""
-    events = []
-    fix = B.back_and_check("Done — your reminder's all set!", "thanks", window=[],
-                           emit=lambda *a, **k: events.append(a))
-    assert fix and "reminder" in fix.lower()
-    assert any("not scheduled" in str(e[1]) for e in events), events

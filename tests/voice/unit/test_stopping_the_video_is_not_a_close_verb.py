@@ -255,9 +255,12 @@ def test_a_confident_handle_inline_annuls_the_forced_escalation(on_screen):
 
 
 @pytest.mark.parametrize("answers,why", [
-    (None, "no brief — a channel that fires none keeps today's path"),
-    ({_tb.ESCALATE_KEY: ("handle_inline", 0.3)}, "an unsure verdict is not a verdict"),
-    ({_tb.ESCALATE_KEY: ("escalate", 0.99)}, "and a real errand still escalates"),
+    (None, "no brief — nothing says an act was owed, our words invent no worker (refactor2710-03)"),
+    ({_tb.ESCALATE_KEY: ("handle_inline", 0.3)}, "an unsure verdict is not a verdict: nothing is invented"),
 ])
-def test_everything_that_is_not_a_confident_inline_keeps_todays_path(on_screen, answers, why):
-    assert _backstop(_brief(answers) if answers else None), why
+def test_without_a_sure_verdict_the_promise_spends_nothing(on_screen, answers, why):
+    assert _backstop(_brief(answers) if answers else None) == [], why
+
+
+def test_a_real_errand_still_escalates(on_screen):
+    assert _backstop(_brief({_tb.ESCALATE_KEY: ("escalate", 0.99)})), "a sure escalation over nothing fired is a worker"

@@ -23,7 +23,8 @@ import pytest
 import bus
 from memory import db as memdb
 from memory import embeddings as mememb
-from nucleo import dispatch, errand_continuity
+from nucleo import dispatch
+from nucleo.request import append as errand_continuity
 from nucleo.workers import ended
 from nucleo.workers.base import WorkerBackend, WorkerEvent, WorkerSpec
 

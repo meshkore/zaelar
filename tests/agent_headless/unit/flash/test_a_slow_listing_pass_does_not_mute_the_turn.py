@@ -47,7 +47,7 @@ def test_a_fast_search_keeps_the_composed_face(monkeypatch):
 
         async def stream(self, messages, spec=None, max_tokens=None):
             yield "Three on the sheet."
-    from nucleo.flash import fast_client
+    from nucleo.llm import fast_client
     monkeypatch.setattr(fast_client, "FastClient", _Client)
     res, said = asyncio.run(lt.voice_turn({"query": "q"}, "find me monitors"))
     assert not res.get("pending") and said == "Three on the sheet."

@@ -37,7 +37,7 @@ def hunts(monkeypatch):
     monkeypatch.setattr(listing_turn, "run", fake_run)
     monkeypatch.setattr(listing_turn, "FAST_PASS_BUDGET_S", 0.3)
     monkeypatch.setattr(listing_turn, "_taken_line", lambda: "")
-    monkeypatch.setattr("nucleo.dedup.about_a_live_errand", lambda text, live: "")
+    monkeypatch.setattr("nucleo.request.append.about_a_live_errand", lambda text, live: "")
     monkeypatch.setattr("nucleo.dispatch.pending_summaries", lambda: [])
     monkeypatch.setattr("nucleo.flash.escalate.pending", lambda: [])
     yield calls
@@ -81,7 +81,7 @@ def test_a_word_about_the_weather_in_between_does_not_hide_the_hunt(hunts, monke
     """The candidates are every open flow, not the last trace; a refinement with few shared words goes to the
     model judge, the same one the dispatcher uses."""
     launches.opened(FRAGMENT, "S1")
-    monkeypatch.setattr("nucleo.dedup.about_a_live_errand",
+    monkeypatch.setattr("nucleo.request.append.about_a_live_errand",
                         lambda text, live: next(i for i, g in live if "monitors" in g))
     flow = asyncio.run(flow_of.flow_of("Actually make them cheaper, under 350"))
     assert flow and flow["sheet"] == "S1"

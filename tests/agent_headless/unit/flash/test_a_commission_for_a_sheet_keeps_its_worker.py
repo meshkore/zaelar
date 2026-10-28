@@ -77,8 +77,8 @@ def test_without_a_sure_route_to_a_worker_it_repairs_as_before(repair_calls):
 
 def test_the_turn_hands_the_brief_to_the_rung():
     """One turn, typed or spoken (refactor2710-01): its escalation calls the rung with the turn's brief."""
-    from nucleo.flash import post_stream_words
-    src = inspect.getsource(post_stream_words)
+    from nucleo.flash import post_stream_acts
+    src = inspect.getsource(post_stream_acts)
     i = src.index("call_for_promise_or_order(operator_text")
     assert "brief=" in src[i:i + 400], "the rung is called without the turn's brief"
 

@@ -210,7 +210,7 @@ def session_events(session_id: str, *, limit: int = 4000) -> list[dict] | None:
 
 
 def live_tasks() -> list[dict]:
-    """The engine's LIVE commissions (`GET /api/tasks?scope=live` → `nucleo/tasks.py::board`, the durable
+    """The engine's LIVE commissions (`GET /api/tasks?scope=live` → `nucleo/circuit/ledger.py::board`, the durable
     rows with the RAM detail merged on top). Each entry carries `id`/`kind`/`goal`/`phase`/`state`.
 
     This is the only honest way to prove CONCURRENCY for a multi-flow scenario: the durable event stream can

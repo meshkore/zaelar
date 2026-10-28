@@ -154,7 +154,7 @@ def test_the_built_list_plays_first_song_now_and_queues_the_rest(monkeypatch):
 
 
 def test_the_card_declares_the_op_and_the_end_state_it_leaves():
-    from nucleo import spec, verify
+    from nucleo.circuit import spec, verify
     from widgets import rows, runtime
     act = (runtime.get("musica") or {}).get("actions", {}).get("add_tracks") or {}
     from nucleo.flash import turn_brief
@@ -166,7 +166,7 @@ def test_the_card_declares_the_op_and_the_end_state_it_leaves():
 
 
 def test_the_end_state_holds_once_the_list_exists(monkeypatch):
-    from nucleo import spec, verify
+    from nucleo.circuit import spec, verify
     _providers(monkeypatch, _Fake("youtube", "yt"))
     md.apply_action("add_tracks", {"playlist": "Cumple", "tracks": SCENARIO[0]})
     assert verify.check(spec.render("musica", "add_tracks", {"playlist": "Cumple"})) is True
