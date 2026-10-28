@@ -128,3 +128,10 @@ def decide(site: str, text: str) -> tuple[str, str]:
     if _g.looks_like_web_task(text):
         return KIND_TASK, site
     return KIND_LOGIN, site or _g.login_site(text)
+
+
+def fallback_site(text: str) -> str:
+    """The site a login BACKSTOP may open (the model said it would connect and called nothing): the same decision as
+    the tool, so Spotify, the messaging accounts and a login inside a task never open a browser from it ("" then)."""
+    kind, site = decide("", text)
+    return site if kind == KIND_LOGIN else ""
