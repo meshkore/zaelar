@@ -1,30 +1,13 @@
 """Is THIS turn an order to stop the errand running now? One enumerated question in the turn's brief (V2-807 T-14).
 
-Two places decide a stop. The tool gate (`tool_executor_calls._t_stop_worker`, GUARD 2) refuses a `stop_worker` the
-model chose when the operator did not order it in this turn — its real purpose is context bleed: a complaint two
-turns back, dragged forward by the model, must not kill a live errand (2026-08-14). And the settle backstop
-(`post_stream_settle`) stops the errand when he ordered it and the model called nothing.
-
-Both read a WORD TABLE to know whether he ordered it, and a word table reads one phrasing. A clear stop in a word
-order the table did not list («para inmediatamente esa tarea que está en marcha») was refused twice while the errand
-ran on, and widening the table again (V2-585 already did once) would only add the next phrasing. The question is a
-judgement about the turn, so it is asked as one: here, inside the brief the turn already pays for (N questions cost
-one round trip), and only while an errand is live — with none, the answer is known.
-
-The verdict DECIDES when it is sure (CRIT-K1): a sure «stop» licenses the model's call and repairs a turn that made
-none; a sure «keep» refuses a call that is drag. With no sure verdict (brief off, in flight, unsure, or asked before
-an errand existed) the grammar keeps today's path, bit for bit — it is handed IN by the caller, never re-read here.
-
-V2-820 — two more answers, because «stop» and «keep» could not hold the two corrections a running errand gets most:
-
-  · REPLACE («no hay que crear una app, hay que crear un documento»): he drops the errand AND names the work that
-    takes its place. That is ONE act. Read as a stop it killed the app build and started nothing — he had to ask
-    again three minutes later; read as «keep» it would have let the app build run. A sure `replace` stops the
-    errand like a stop, and the turn's errand STARTS beside it with the stopped errand's goal carried
-    (`replacement`), whether or not the model escalated.
-  · STEER («no mires WhatsApp, mira el correo»): he changes what the running errand must do or where it must look.
-    The errand goes on, with his words. A sure `steer` relays them to it when the model did not (`steer`), so the
-    promise «le digo al proceso que se limite a tu correo» is kept by the relay and never by a card op.
+The tool gate (`tool_executor_calls._t_stop_worker`) refuses a `stop_worker` he did not order this turn (a complaint
+dragged forward must not kill a live errand); the settle backstop stops the errand when he ordered it and the model
+called nothing. Whether he ordered it is a judgement, so it is asked in the brief the turn already pays for, only
+while an errand is live — never a word table. A sure verdict DECIDES (CRIT-K1); with none, the caller's grammar keeps
+today's path. V2-820 adds two answers:
+  · REPLACE — he drops the errand AND names the work that takes its place: one act; it stops like a stop and the
+    turn's errand starts beside it with the stopped one's goal carried (`replacement`).
+  · STEER — he changes what the running errand must do or where it looks: it goes on, with his words relayed.
 """
 from __future__ import annotations
 
