@@ -18,13 +18,6 @@ def _ctx_ids() -> tuple[list, list]:
         return [], []
 
 
-def _identify_named_ctx(rt, query: str) -> str | None:
-    """`rt.identify_named(query, open_ids, recent_ids)` with state context — the widget the phrase NAMES, never
-    the one that merely happens to be open (V2-666). Mirror of `widget_intent._identify_named`."""
-    _o, _r = _ctx_ids()
-    return rt.identify_named(query, open_ids=_o, recent_ids=_r)
-
-
 def _identify_ctx(rt, query: str) -> str | None:
     """`rt.identify(query, open_ids, recent_ids)['match']` with state context — the resolver with the same
     open>recent>catalogue narrowing used by voice. `rt` is the `widgets.runtime` module already imported by the caller."""
@@ -62,54 +55,6 @@ def _vetoed_show(text: str) -> bool:
     except Exception:
         pass
     return False
-
-
-def _show_target(text: str, context: list[dict] | None = None, last_action: str = "") -> str | None:
-    """Same criterion as `providers/nucleo.py::_show_guard_target` (PARALLEL implementation — keep in sync): a
-    SHOW verb + NO create + `runtime.identify` resolves an existing widget → the real turn converts it to show."""
-    import re
-    n = _norm_ascii(text)
-    if re.search(_NEGATED_SHOW_RE, n):
-        return None
-    if re.search(_CREATE_RE, n):
-        return None
-    if not re.search(_SHOW_VERB_RE, n):
-        return None
-    try:
-        from widgets import runtime
-        # V2-666 — a sentence that NAMES its widget is never deictic (mirror of `widget_intent._show_guard_target`,
-        # same measured turn: «Mírame, ábreme la agenda inmediatamente» → the SEARCH card, because the article
-        # «la» made the sentence «muéstramelo»-shaped and the noun he said was discarded). The name wins first.
-        named = _identify_named_ctx(runtime, text)
-        if named:
-            return named
-        # A deictic show request ("muéstramelo") gets its noun from the recent dialogue. Resolve the most recent
-        # topical utterance against the same real widget catalogue instead of forcing the model to repeat a noun.
-        # This is generic: weather, agenda, messages, music… are all resolved by runtime.identify, not a keyword map.
-        from . import router as _router
-        tail = (text or "").strip().lower().strip("¿?¡!.,;:")
-        deictic = (bool(re.search(r"\b(?:muestr|ensen|abre|saca)\w*(?:lo|la|los|las)\b", n))
-                    or any(_router.looks_like_bare_ref(token) for token in tail.split() if token))
-        if deictic:
-            for message in reversed(context or []):
-                if message.get("role") != "user":
-                    continue
-                prior = str(message.get("content") or "").strip()
-                if prior:
-                    match = _identify_ctx(runtime, prior)
-                    if match:
-                        return match
-                    break  # the grammatical antecedent is the immediately preceding user topic, never older history
-            # The preceding route is stronger than fuzzy words: a LIGHT search is rendered in the built-in
-            # `search` (Búsqueda / Tiempo) surface. This is action→surface continuity, not a topic keyword table.
-            if last_action == "search" and runtime.get("search") is not None:
-                return "search"
-        # V2-666 — no name, no antecedent: a SHOW never lands on a card «by context» (`identify`'s data-op
-        # nuance would hand back the only open card — a blind open, measured as «ponme un gráfico del Bitcoin» →
-        # youtube on the voice channel).
-        return None
-    except Exception:
-        return None
 
 
 # Extraído de `probe.py` en la pasada del trinquete (2026-09-02). Vive aquí porque es donde un lector ya lo
@@ -218,29 +163,6 @@ def resolve_show(wid_arg: str, text: str, window, last_action, guard_target) -> 
     return res, open_ids, recent_ids
 
 
-def show_instance(rid: str, text: str = "", last_spoken: str = "") -> tuple[str, str, str]:
-    """WHICH CARD of `rid` a «enséñamelo» means → `(id_to_show, question, chosen_label)`.
-
-    The SAME decision the voice channel takes in `providers/widget_intent._show_target_instance`, single-sourced
-    in `widgets/instances.resolve_show`; what lived here was the plumbing around it, written twice. V2-605 gave
-    that decision a third input (`last_spoken`, so the same question is never asked twice) and a third output
-    (which card we had to choose when the operator had already been asked and still did not pick) — a shape
-    change is exactly when two hand-copied call sites drift, and this channel is the one that historically gets
-    left behind (V2-176, V2-252, V2-539).
-
-    Fail-soft to «show the base, as always»: an unreadable canvas must not invent an ambiguity mid-turn.
-    """
-    try:
-        from server.voice_api import open_instances
-        from widgets import instances as _inst
-        out = _inst.resolve_show(rid, open_instances(), text, last_spoken)
-    except Exception:  # noqa: BLE001
-        return rid, "", ""
-    if out.get("ask"):
-        return "", str(out["ask"]), ""
-    return str(out.get("id") or rid), "", str(out.get("chose") or "")
-
-
 def show_card(rid: str, text: str = "") -> str:
     """The CARD id a backstop should show — narrows a base to its live instance, never asks (V2-605 F2).
 
@@ -330,6 +252,9 @@ def close_target(widget_id: str) -> str:
             if focus:
                 return focus
         return wid
+    from nucleo.turn import brief as _brief
+    if _brief.names_elsewhere(_brief.of_this_turn()):   # refactor2710-07: he named something that is not a card here
+        return ""
     return canvas_focus.last_turn_card(ids) or (ids[0] if len(ids) == 1 else "")
 
 
@@ -342,6 +267,9 @@ def close_dispatch(args: dict, tag_emit, emit, text: str = "", done=None, clarif
     C6). `done` is the turn's set of cards already closed — each card once, never a second close of the same."""
     rid = close_target(str(args.get("widget_id") or ""))
     if not rid:
+        return ""
+    if (_b := __import__("nucleo.turn.brief", fromlist=["x"])).names_elsewhere(_b.of_this_turn(), against_a_call=True):
+        emit("brain", "🚫 close vetoed: he named no card on screen", text=rid, role="system")
         return ""
     # Several cards of the piece open and no word to tell them apart: the close ASKS which (node 2.645). `rid` is
     # returned so the turn counts the call as handled — its answer is the question in `clarify`, never a close.

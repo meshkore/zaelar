@@ -36,7 +36,6 @@ import json
 import pytest
 
 from memory import slots
-from nucleo.flash import identity_actions as ia
 
 
 # ── 1 · the slot the guard could never let through ────────────────────────────────────────────────────
@@ -91,28 +90,6 @@ def test_declaring_it_did_not_cost_the_turn_anything():
 
 
 # ── 3 · the words he actually used ────────────────────────────────────────────────────────────────────
-
-@pytest.mark.parametrize("said", [
-    "quiero que te cambies el nombre a Johnny",          # ← verbatim, session 981dd54c
-    "cámbiate el nombre a Johnny",
-    "cambia tu nombre a Johnny",
-    "El asistente debe llamarse Johnny",
-    "llámate Johnny",
-    "your name is Johnny",
-    "call yourself Johnny",
-])
-def test_every_way_he_has_asked_for_it_resolves_to_a_rename(said):
-    assert ia.resolve(said) == ("rename", "Johnny"), said
-
-
-@pytest.mark.parametrize("said", [
-    "no me cambies el tono",
-    "cambia el nombre de la lista a la compra",           # a LIST, not the assistant
-    "ponme música",
-])
-def test_and_nothing_else_does(said):
-    got = ia.resolve(said)
-    assert got is None or got[0] != "rename", (said, got)
 
 
 # ── the end of the chain: the name it answers to ──────────────────────────────────────────────────────

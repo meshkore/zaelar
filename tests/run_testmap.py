@@ -1574,7 +1574,10 @@ DOMAINS: list[dict] = [
         {"id": "3.25", "title": "El árbitro del canvas: procedencia + licencia deciden toda mutación — "
                                 "conformidad con los incidentes medidos, y la sombra que solo mide",
             "ch": UNIT, "paths": [
-                "tests/agent_headless/unit/test_the_canvas_arbiter_judges_every_mutation.py"]},
+                "tests/agent_headless/unit/test_the_canvas_arbiter_judges_every_mutation.py",
+                "tests/agent_headless/unit/test_the_arbiter_licenses_by_the_turns_verdict.py",
+                "tests/agent_headless/unit/test_one_canvas_door_judges_every_show_and_close.py",
+                "tests/agent_headless/unit/test_a_canvas_event_survives_the_fold.py"]},
         # V2-721 (2026-09-17, session c553a1e0, with a guest watching): «ha habido como un baile de abrir y
         # cerrar widgets sin mi permiso». The music card re-opened on every `pause`, `volume_up` and `stop`,
         # because the connector's result says `surface: "widget"` — a fact about where the AUDIO is, read by
@@ -4506,6 +4509,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_an_event_survives_the_one_pipeline.py']},
         {"id": "2.827", "title": "What the old text channel's reply door said after the model's words is the mouth's: rows a waiting reply owes and the cut of an amount no source carries are strict xfails for refactor2710-03; the line for an errand that just died already holds on the one turn",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_what_the_old_reply_door_said_is_the_mouths.py']},
+        {"id": "2.870", "title": "The brief's questions are data (refactor2710-07): one table of rows {key, asked_when, question}; a verdict licenses at 0.5, vetoes what the model called only at 0.85, and asks between — «Para todo» at keep 0.65 is asked, never refused silently",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_brief_is_data_and_its_verdicts_are_asymmetric.py']},
+        {"id": "2.871", "title": "The `jev read` row is frozen across the brief's move (refactor2710-07, V2-826 §2b): same kind, label, text and extra through the new reading door, one row per (call, question)",
+            "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_jev_read_event_is_frozen.py']},
         {"id": "2.850", "title": "The mouth says the verdict (refactor2710-03): an acting turn's last words come from what its acts ended in, one i18n key per verdict; `met` names its object, `unmet`/`cannot`/`asked` are always said, a promise is a start",
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_the_mouth_says_the_verdict.py']},
         {"id": "2.828", "title": "His commissioning sentence travels with the request to the ONE errand it opens, and reaches its sheet's row door (was 2.630; refactor2710-02 T-01)",
@@ -5677,6 +5684,10 @@ DOMAINS: list[dict] = [
                                  "module), «Open» puts the app on the deck through hb:open-card and closes the menu; "
                                  "every control ≥ 44px — RENDERED at 375px (V2-823)",
             "ch": UNIT, "paths": ["tests/browser/unit/mobile/test_the_menu_holds_the_apps_launcher.py"]},
+        {"id": "4.318", "title": "After a reconnect the screen adopts the engine's list of cards: an orphan it cannot "
+                                 "name goes, an unlisted card closes, a listed one opens beside, and the drift is a "
+                                 "widget/reconcile event (V2-825 F5, refactor2710-04 T-04) — RENDERED",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_screen_adopts_the_engines_cards_on_reconnect.py"]},
         {"id": "4.252", "title": "The chat list paints, filters by kind and name, loads more and opens a chat (RENDERED)",
             "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_the_chat_list_paints_filters_and_loads_more.py"]},
         {"id": "4.250", "title": "The feedback button is never hidden under another layer",

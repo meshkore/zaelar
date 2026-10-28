@@ -79,7 +79,7 @@ def test_the_whole_brief_is_one_call(wire):
     from nucleo.flash import capability_gap as _gap  # V2-807 T-16: does the order ask for something no card declares
     assert asked == {tb.CANVAS_KEY, tb.REQUEST_KEY, tb.ESCALATE_KEY, tb.TARGET_KEY,
                      _bd.BUILD_KEY, _sf.SURFACE_KEY, tb.WORDS_KEY, _spec.END_KEY, _search_route.SEARCH_KEY,
-                     _gap.KEY}, asked
+                     _gap.KEY, tb.NAMES_KEY, "identity_change"}, asked
 
 
 def test_the_canvas_verb_travels_in_the_brief_and_reads_the_same(wire):

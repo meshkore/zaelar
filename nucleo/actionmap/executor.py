@@ -5,9 +5,8 @@ A matched entry executes through the SAME dispatch seams the FlashBrain's own ou
 closed and idempotent/reversible by construction: show, close, close-all, panel open/close, move,
 fullscreen, and FAST-classified widget data-ops. Anything destructive, content-carrying or credential-
 adjacent is not representable here, no matter what a row in the table says: `validate()` refuses it at
-load time, loudly (the "a module can be born dead" lesson — a bad seed must alert, not vanish).
-
-Named multi-step WORKFLOWS are deliberately NOT an action kind (V2-539 §7, future scope).
+load time, loudly (the "a module can be born dead" lesson — a bad seed must alert, not vanish). Named multi-step
+WORKFLOWS are deliberately NOT an action kind (V2-539 §7, future scope).
 """
 from __future__ import annotations
 
@@ -29,6 +28,7 @@ _ALLOWED: dict[str, tuple[str, ...]] = {
     "unfullscreen": (),          # V2-773: the card at full screen, one step down («exit fullscreen»)
     "arrange": (),               # V2-588: snap the whole canvas to the aligned grid — no target, no data
     "widget_data": ("widget", "action"),   # FAST-classified declared ops only, checked at execute
+    "presence": (), "address": (),   # refactor2710-07: spoken by `fast_lane.presence`; `execute` returns False
 }
 
 # V2-728 — `tareas` (the merged tab) and `programadas` (its one-shot sub-tab) join the vocabulary;
@@ -192,6 +192,12 @@ def describe(action: dict) -> str:
     return f"canvas:{do}:{action.get('widget')}"
 
 
+def _canvas(emit, said: str, op: str, wid: str = "", **fields) -> bool:
+    """An action-map canvas op, through the one canvas door (refactor2710-04)."""
+    from nucleo.acts import canvas
+    return canvas.apply(op, wid, src="actionmap", text=said, emit=emit, origin="actionmap", **fields)
+
+
 def execute(action: dict, emit, phrase: str = "") -> bool:
     """Run one allowlisted action through the shared emit funnel. True = executed; False = could not
     (unresolved target, undeclared data-op…) — the caller MUST then fall through to the model, so a
@@ -210,7 +216,7 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         return True
     if do == "arrange":
         # V2-588: same emit as POST /api/canvas/arrange and the arrange_canvas tool — one rail, three doors.
-        emit("widget", "arrange", text=said, extra=dict(src))
+        _canvas(emit, said, "arrange")
         return True
     if do == "show_panel":
         _cx = str(action.get("connector") or "").strip() if action["tab"] == "conectores" else ""
@@ -229,7 +235,7 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         if not ids:
             return False                     # nothing known open: let the model answer
         for cid in ids:
-            emit("widget", "minimize", text=said, extra={"id": cid, **src})
+            _canvas(emit, said, "minimize", cid)
         return True
     if do == "unfullscreen":
         # V2-773 (demo, V4): «Exit fullscreen» over the player at full screen — the model called nothing and the
@@ -248,7 +254,7 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
                 maxw = ""
         if not maxw:
             return False
-        emit("widget", "minimize", text=said, extra={"id": maxw, **src})
+        _canvas(emit, said, "minimize", maxw)
         return True
     # V2-773 — «minimise THAT while you work» (demo A2): the seed cannot name a widget, the order names what is
     # in front. `*` resolves to the card at full screen, else the ONLY open card; two cards and no full screen
@@ -257,7 +263,7 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
     if not wid:
         return False
     if do == "show_widget":
-        emit("widget", "show", text=said, extra={"id": _show_card(wid), **src})
+        _canvas(emit, said, "show", _show_card(wid))
         return True
     if do == "close_widget":
         # A deterministic close must never be the thing that kills LIVE work (V2-567). Closing the browser
@@ -289,7 +295,7 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
             except Exception:  # noqa: BLE001 — fail-CLOSED, as `_widget_has_live_work`
                 return False
         for cid in ids:
-            emit("widget", "close", text=said, extra={"id": cid, **src})
+            _canvas(emit, said, "close", cid)
             try:
                 # V2-650b: a fast-lane close is by definition operator-ordered (a seeded phrase) — record it
                 # so a model-emitted show of the same widget needs his words again.
@@ -299,17 +305,17 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
                 pass
         return True
     if do == "move":
-        emit("widget", "move", text=said, extra={"id": wid, "where": action["where"], **src})
+        _canvas(emit, said, "move", wid, where=action["where"])
         return True
     if do == "fullscreen":
-        emit("widget", "fullscreen", text=said, extra={"id": wid, **src})
+        _canvas(emit, said, "fullscreen", wid)
         return True
     if do == "minimize":
         # V2-635 — «minimiza el vídeo» had NO deterministic route: the model chose the fullscreen TOGGLE,
         # which on a non-maximized card does the exact OPPOSITE (measured 2026-09-09, session 34386d8f).
         # The frontend decides the one honest step down (desktop.shrink): exit fullscreen if engaged, else
         # restore a maximized card, else minimize to the rail chip.
-        emit("widget", "minimize", text=said, extra={"id": _show_card(wid), **src})
+        _canvas(emit, said, "minimize", _show_card(wid))
         return True
     if do == "widget_data":
         # Only ops the widget DECLARES as FAST run without the model; everything else falls through.
@@ -329,7 +335,7 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
             # lens to a card nobody can see would be the mirror of the bug this replaces (a card shown with
             # the lens ignored).
             if action_is_view(wid, action["action"]):
-                emit("widget", "show", text=said, extra={"id": _show_card(wid), **src})
+                _canvas(emit, said, "show", _show_card(wid))
             loop.create_task(_sapi.brain_action(wid, action["action"], dict(action.get("payload") or {})))
             return True
         except Exception as e:  # noqa: BLE001

@@ -180,6 +180,7 @@ async def run(*, FastClient, _apply_widget_data, _ask_waiting, _auth_pending, _b
     )
     if 'spoken_text' in _blk:
         spoken_text = _blk['spoken_text']
+    await __import__("nucleo.flash.style_directive", fromlist=["x"]).settle(brain, _brief, emit)   # refactor2710-07
     return {"spoken_text": spoken_text, "_op_text": _op_text}
 
 

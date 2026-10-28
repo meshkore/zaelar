@@ -95,8 +95,8 @@ def _write_sheet(sid: str, title: str, items: list, res: dict, *, inherited: boo
                                                         else ("note_searching_deep", "Searching in depth…")))
             sheet_mod.apply_action("present", payload)
         sheet_mod.prune_sheets()
-        from voice.observer import emit as _emit
-        _emit("widget", "show", extra={"id": sheet_mod.instance_id(sid), "src": "listing_turn"})
+        from nucleo.acts import canvas
+        canvas.apply("show", sheet_mod.instance_id(sid), src=f"sheet:{sid}")   # the sheet this pass just filled
     except Exception as e:  # noqa: BLE001 — rows that cannot reach the sheet must not kill the turn
         logger.warning(f"acts.search_sheet: the sheet refused the delivery ({e!r})")
 

@@ -84,11 +84,3 @@ def test_action_mode_failclosed_on_error(monkeypatch):
     assert frontend.action_mode("agenda", "done") is None
     assert not frontend.is_safe_action("agenda", "done")
 
-
-def test_deictic_show_uses_recent_conversation(monkeypatch):
-    from nucleo.flash import show_target
-
-    monkeypatch.setattr(show_target, "_identify_ctx",
-                        lambda _runtime, text: "meteo-soria" if "tiempo" in text.lower() else None)
-    context = [{"role": "user", "content": "¿Qué tiempo hará mañana aquí?"}]
-    assert show_target._show_target("Vale, pues muéstramelo.", context) == "meteo-soria"

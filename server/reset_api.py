@@ -54,7 +54,8 @@ def _live_reset() -> tuple[dict, dict]:
         summary = {"frozen": 0, "killed": {}, "error": True}
     S.reset_session_state()
     ses = rotate_session("reset")
-    emit("widget", "close", extra={})
+    from nucleo.acts import canvas
+    canvas.apply("close", src="system:reset", emit=emit)        # a reset empties the canvas
     return summary, ses
 
 

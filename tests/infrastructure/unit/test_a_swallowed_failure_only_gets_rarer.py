@@ -58,7 +58,7 @@ def _counts() -> dict[str, int]:
 
 #: Measured on 2026-10-16 with the widened predicate (was 1147 `pass`-only on 2026-10-01) — the TOTAL may only
 #: fall, and no file may exceed its own count.
-TOTAL = 1708   # refactor2710-06: measured with main merged (the act doors, the wait lines, the reminder rails)
+TOTAL = 1701   # refactor2710-06: measured with 04 and main merged
 PER_FILE: dict[str, int] = {
     'bus/__init__.py': 5,
     'bus/log.py': 7,
@@ -224,7 +224,8 @@ PER_FILE: dict[str, int] = {
     'nucleo/batch/runner.py': 4,
     'nucleo/batch/split.py': 2,
     'nucleo/bridge_usage.py': 1,
-    'nucleo/canvas_arbiter.py': 7,
+    'nucleo/acts/canvas_arbiter.py': 5,
+    'nucleo/acts/canvas_turn.py': 2,
     'nucleo/canvas_focus.py': 1,
     'nucleo/circuit/__init__.py': 9,
     'nucleo/consent.py': 1,
@@ -331,7 +332,9 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/tool_executor_calls.py': 3,
     'nucleo/flash/tool_executor_widget_calls.py': 8,
     'nucleo/flash/tool_selection.py': 2,
-    'nucleo/flash/turn_brief.py': 3,
+    'nucleo/turn/brief.py': 1,
+    'nucleo/turn/brief_screen.py': 1,
+    'nucleo/turn/verdicts.py': 1,
     'nucleo/flash/turn_perf.py': 1,
     'nucleo/flash/two_orders.py': 1,
     'nucleo/flash/verdict_card.py': 2,
@@ -339,13 +342,12 @@ PER_FILE: dict[str, int] = {
     'nucleo/flash/wall_lane.py': 1,
     'nucleo/flash/web_auth.py': 2,
     'nucleo/flash/widget_read.py': 10,
-    'nucleo/flash/words_only.py': 1,
     'nucleo/circuit/compose.py': 1,
     'nucleo/git_cli.py': 1,
     'nucleo/circuit/harness.py': 2,
     'nucleo/his_words.py': 1,
     'nucleo/homeostasis.py': 13,
-    'nucleo/jev.py': 5,
+    'nucleo/jev/__init__.py': 5,
     'nucleo/library_router.py': 2,
     'nucleo/loop.py': 20,
     'nucleo/memory_agent/dossier.py': 3,

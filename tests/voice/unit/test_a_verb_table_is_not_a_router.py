@@ -201,11 +201,11 @@ def test_the_grammar_is_handed_IN_so_the_two_never_disagree():
 def test_the_question_is_asked_on_every_turn():
     """A verdict nobody asks for is a verdict nobody can read — which is how `catalog_widget` came to
     answer 1.00 into a void. It rides the brief that already flies, so it costs no round trip."""
-    import inspect
-    src = inspect.getsource(_tb.build)
-    assert "BUILD_KEY" in src, "build_or_use is not in the turn brief"
-    assert "if " not in src.split("BUILD_KEY")[0].split("qs: dict")[-1], (
-        "the question is conditional — it has to ride every brief")
+    from nucleo.flash import build_decision as _bd
+    from nucleo.turn import brief
+    assert _bd.BUILD_KEY in brief.keys(), "build_or_use is not in the turn brief"
+    row = next(r for r in brief.QUESTIONS if r[0] == ("nucleo.flash.build_decision", "BUILD_KEY"))
+    assert row[1] is None, "the question is conditional — it has to ride every brief"
 
 
 def test_the_card_is_certain_even_when_the_action_is_not(monkeypatch):

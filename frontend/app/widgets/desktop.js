@@ -1278,6 +1278,12 @@ export class Desktop {
 
   _unwatchSize(card){ try{ if(card && card._ro){ card._ro.disconnect(); card._ro=null; } }catch(_){} }
 
+  /* After a reconnect the screen adopts the engine's list of cards (V2-825 F5): `core/reconcile.js`. */
+  async reconcile(){
+    const { reconcileScreen } = await import("../core/reconcile.js?v=1");
+    return reconcileScreen(this, { registry: this.wins, selector: ".hb-win[data-wid]", device: await _device() });
+  }
+
   close(id, {by="code"}={}){
     this._noteBy(id, by);
     if(this._actId===id){ clearTimeout(this._actTimer); if(this.activity)this.activity.innerHTML=""; this._actId=null; return; }
