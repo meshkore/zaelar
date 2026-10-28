@@ -264,7 +264,7 @@ async def run_the_light_lanes(*, FastClient, _apply_widget_data, _brief, _buf_ad
         _re = await _pst.asyncio.to_thread(_pst._trecall.voice_turn, reopen_req["v"], operator_text or text, _brief)
         acted["widget"], escalate_req["v"] = (False, operator_text or text) if _re.get("escalate") else (True, None)
         if _re["show"]:
-            _tag_emit("show", {"id": _re["show"]})
+            _tag_emit("show", {"id": _re["show"], "src": f"recall:{_re['show']}"})   # the reopened errand's sheet
         elif _re["ask"]:
             clarify["msg"] = _say().ask_which_item.format(cands=_re["ask"])
         emit("brain", _re["label"], role="system", text=_re["text"], extra=_re["extra"])

@@ -1582,7 +1582,8 @@ DOMAINS: list[dict] = [
                                 "conformidad con los incidentes medidos, y la sombra que solo mide",
             "ch": UNIT, "paths": [
                 "tests/agent_headless/unit/test_the_canvas_arbiter_judges_every_mutation.py",
-                "tests/agent_headless/unit/test_the_arbiter_licenses_by_the_turns_verdict.py"]},
+                "tests/agent_headless/unit/test_the_arbiter_licenses_by_the_turns_verdict.py",
+                "tests/agent_headless/unit/test_one_canvas_door_judges_every_show_and_close.py"]},
         # V2-721 (2026-09-17, session c553a1e0, with a guest watching): «ha habido como un baile de abrir y
         # cerrar widgets sin mi permiso». The music card re-opened on every `pause`, `volume_up` and `stop`,
         # because the connector's result says `surface: "widget"` — a fact about where the AUDIO is, read by

@@ -181,23 +181,30 @@ def _tag_emit(action: str, extra: dict, *, _apply_widget_data, _brief, _is_meta_
         if _txw._direct_action.order_is_inside(_brief, _sid):
             emit("brain", "🪟 show de una tarjeta ya abierta — la orden es una acción DENTRO",
                  text=_sid, role="system", extra={"cat": "flash", "kind_diag": "show_inside_card"})
-            extra["src"] = "flash"
-            emit("widget", action, extra=extra)
+            _cross_the_door(action, extra, text=text, brief=_brief, emit=emit)
             return
+    # V2-039: the order comes from the FlashBrain; the event carries the phrase that caused it (2026-08-09).
+    if not _cross_the_door(action, extra, text=text, brief=_brief, emit=emit, log_text=(text or "").strip()[:160]):
+        deduped["v"] = True
+        return False                  # the canvas door vetoed it: what was not done is not recorded as done
     acted["widget"] = True
     if action == "show" and extra.get("id"):
         # V2-776 — WHICH card, as the tool path records it: without the id the after-show repair never ran
         # for a tag show, and «Show me a chart of Apple stock today» left the Markets card EMPTY (demo v7).
         acted["widget_id"] = acted.get("widget_id") or str(extra.get("id"))
     if action == "close":
-        acted["closed"] = True                   # el backstop de cierre corto no re-cierra (ver post-stream)
+        acted["closed"] = True                   # the short-close backstop does not close it again (post-stream)
         _txw._canvas_lic.note_operator_close(str(extra.get("id") or ""))   # V2-650b: reopen needs his words
-    extra["src"] = "flash"                       # V2-039: procedencia — esta orden viene del FlashBrain
-    # REGISTRO DE ÓRDENES DE CANVAS (2026-08-09, petición del operador): el evento se lleva la FRASE que
-    # lo provocó. Cuando se abre el widget EQUIVOCADO, la pregunta siempre es «¿de qué texto salió esto?»
-    # — y hasta ahora había que reconstruirla saltando al evento `transcript` anterior o abriendo la vista
-    # de trazas. Con el texto pegado al propio evento, la fila ya dice orden + objetivo + origen.
-    emit("widget", action, text=(text or "").strip()[:160], extra=extra)
+
+
+def _cross_the_door(action: str, extra: dict, *, text: str, brief, emit, log_text: str = "") -> bool:
+    """A canvas tag of the FlashBrain's turn, through the one canvas door (`nucleo.acts.canvas.apply`)."""
+    from nucleo import canvas_arbiter
+    from nucleo.acts import canvas
+    fields = {k: v for k, v in (extra or {}).items() if k not in ("id", "src")}
+    src = str((extra or {}).get("src") or "") if str((extra or {}).get("src") or "").startswith("recall:") else "flash"
+    return canvas.apply(action, str((extra or {}).get("id") or ""), src=src, text=log_text, emit=emit,
+                        request=canvas_arbiter.request_of(brief, _txw._bnotes.operator_half(text)), **fields)
 
 
 def _apply_widget_data(wid: str, action_name: str, payload: dict, ref: str='', *, _apply_widget_data, _brief, _frontend, _request_data_confirm, _spawn, _tag_emit, _turn_op_tasks, acted, brain, data_done, deduped, emit, escalate_req, text) -> None:

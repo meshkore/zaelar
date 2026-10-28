@@ -91,8 +91,9 @@ def _decide(op, wid, src, *, action, payload, text, turn_credit, model_acted,
             return _v(True, "engine-echo")
     if base_src in _SRC_SYSTEM:
         return _v(True, "lifecycle")
-    if base_src == "wall":
-        return _v(True, "task-owned", tid=(src.split(":", 1) + [""])[1], via="wall")   # a task's own card
+    if base_src in ("wall", "recall"):
+        # a task's own card: its wall raising it, or the sheet of the errand this turn reopened
+        return _v(True, "task-owned", tid=(src.split(":", 1) + [""])[1], via=base_src)
     if base_src.startswith("worker"):
         # F0: a worker mutation is admitted with its task on record; F1 adds the ownership check
         # (does this corr_id own the surface it touches) against the dispatcher's registry.
