@@ -104,7 +104,7 @@ PER_FILE: dict[str, int] = {
     'nucleo/dispatch_session_steps.py': 13,
     'nucleo/energy_lease.py': 57,
     'nucleo/energy_meter.py': 60,
-    'nucleo/errand_kind.py': 9,
+    'nucleo/request/kind.py': 9,
     'nucleo/errands/party.py': 4,
     'nucleo/errands/verify.py': 1,
     'nucleo/errands/wake.py': 2,

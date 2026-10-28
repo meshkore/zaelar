@@ -40,7 +40,8 @@ import pathlib
 
 import pytest
 
-from nucleo import danger, errand_kind
+from nucleo import danger
+from nucleo.request import kind as errand_kind
 from nucleo.flash import router_guards
 
 ENGINE = pathlib.Path(__file__).resolve().parents[3]

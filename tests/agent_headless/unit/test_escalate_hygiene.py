@@ -111,11 +111,11 @@ def test_and_that_is_what_stops_the_report_from_swallowing_it(monkeypatch):
     `find_duplicate` receives."""
     from nucleo import dispatch
     measured = {_OPENING: "results", _GOAL_INFORME: "results"}
-    # Repointed 2026-09-01: V2-507 moved the same-widget rule to `nucleo/dedup.py`, which resolves the
+    # Repointed 2026-09-01: V2-507 moved the same-widget rule to `nucleo/request/append.py`, which resolves the
     # destination through ITS OWN `target_widget` — the mock on `dispatch._target_widget` was left stranded
     # and this test silently went back to reading the REAL catalog (V2-158's exact trap: it turned red the
     # day the live runtime data resolved `results` for BOTH texts). The mock aims at the seam the scan calls.
-    from nucleo import dedup as _dedup
+    from nucleo.request import append as _dedup
     monkeypatch.setattr(_dedup, "target_widget", lambda t: measured.get(t, ""))
     monkeypatch.setattr(dispatch, "_SESSIONS", {"informe": _Live(_GOAL_INFORME)})
     assert dispatch.find_duplicate(_OPENING, "code") == "informe"              # what ran before
@@ -138,7 +138,7 @@ def test_and_a_turn_that_asks_for_no_widget_yields_nothing():
 # only data source is the messaging widget's own store/archive.
 
 def test_reading_the_operators_messages_is_not_a_web_errand():
-    from nucleo.errand_kind import classify_kind
+    from nucleo.request.kind import classify_kind
     req = ("El operador Ricar (Soria) necesita conocer sobre un grupo de WhatsApp/Telegram en el que se "
            "habla del viaje a \"La Mella\": cuánto hay que pagar ahora como aporte, y a qué email hay que "
            "enviar el comprobante. Revisa las conversaciones/grupos de mensajería relativos a ese viaje y "
@@ -148,7 +148,7 @@ def test_reading_the_operators_messages_is_not_a_web_errand():
 
 
 def test_the_counterweight_money_on_a_website_keeps_its_browser():
-    from nucleo.errand_kind import classify_kind
+    from nucleo.request.kind import classify_kind
     assert classify_kind("paga la factura de la luz en la web de Endesa") == "web"
     assert classify_kind("paga la factura de Endesa y avísame por WhatsApp") == "web", \
         "a messaging NOUN without a read verb must not steal the browser from a payment"

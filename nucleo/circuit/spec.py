@@ -399,7 +399,7 @@ def open_for_action(wid: str, action: str, payload: dict | None, *, text: str = 
 
 def persist(task_id: str, e: dict) -> None:
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         _ts = _tasks.store()   # nucleo/tasks is memory.tasks_store's one importer
         _ts.artifact_put(task_id, ARTIFACT_SLOT, {
             "done_when": e.get("done_when"), "target": e.get("target"), "source": e.get("source"),
@@ -411,7 +411,7 @@ def persist(task_id: str, e: dict) -> None:
 
 def of_task(task_id: str) -> dict | None:
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         _ts = _tasks.store()   # nucleo/tasks is memory.tasks_store's one importer
         got = _ts.artifact_get(task_id, ARTIFACT_SLOT)
         return got if isinstance(got, dict) else None
@@ -682,7 +682,7 @@ async def infer(goal: str, *, timeout: float = _INFER_TIMEOUT_S) -> dict | None:
     try:
         import asyncio
 
-        from nucleo import errand_title as _et
+        from nucleo.request import title as _et
         from nucleo.llm.fast_client import FastClient
         spec = _et._spec_for_naming()
         if spec is None:

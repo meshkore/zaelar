@@ -11,7 +11,7 @@ from memory import tasks_store as ts
 from nucleo import circuit
 from nucleo.circuit import spec
 from nucleo.request import model as rq
-from nucleo import tasks as T
+from nucleo.circuit import ledger as T
 from nucleo.batch import runner
 
 GONE = {"widget": "agenda", "collection": "meetings", "where": {"title~": "Nope"}}

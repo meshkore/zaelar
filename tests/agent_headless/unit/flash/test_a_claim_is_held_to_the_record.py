@@ -91,7 +91,7 @@ CLEARED = "Nothing left running — I've cleared it, so that list should be empt
 
 
 def _live(monkeypatch, rows):
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     monkeypatch.setattr(tasks, "board", lambda scope="live", **k: rows if scope == "live" else [])
 
 

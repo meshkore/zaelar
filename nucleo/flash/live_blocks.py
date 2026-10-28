@@ -555,7 +555,7 @@ def done_ops_lines() -> list[str]:
 def _shown_by_requests() -> list[tuple[str, str, float]]:
     """(widget, action, when) of the inline request rows the turn's record block already reports."""
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         out = []
         for r in _tasks.store().tasks_where(states=("done", "failed", "running"), modes=("now",), visible_only=False,
                                             limit=24) or []:

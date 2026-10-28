@@ -219,7 +219,7 @@ def at_boot(*, now: float | None = None, schedule: bool = True, delay: float | N
     # lo ve en «Tareas · Hechas» en vez de encontrarse un hueco donde había una tarea. V2-728: la fila es la de
     # `tasks`, no el blob del ledger, así que sobrevive al siguiente reinicio igual que a este.
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         for ent in plan["buried"] + plan["resume"]:
             _tasks.interrupted({"id": ent["id"], "uid": ent.get("uid", ""), "kind": ent.get("kind", ""),
                                 "goal": ent.get("goal", ""), "why": ent.get("why", ""),

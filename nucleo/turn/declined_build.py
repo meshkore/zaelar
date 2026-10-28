@@ -15,5 +15,5 @@ from __future__ import annotations
 
 def still_wanted(request: str, resolved: str) -> bool:
     """True when `request` is `resolved` asked again without the widget build he just declined."""
-    from nucleo import errand_kind
+    from nucleo.request import kind as errand_kind
     return bool(errand_kind.code_change(resolved or "")) and not errand_kind.code_change(request or "")

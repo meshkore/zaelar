@@ -160,7 +160,7 @@ def test_the_trace_is_consumed_once(fresh_db):
 
 def test_a_clean_boot_is_a_silent_no_op(fresh_db):
     """The normal case —nothing was in flight— costs neither an event nor a row on the board."""
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     out = R.at_boot(schedule=False)
     assert out == {"found": 0, "resume": [], "buried": []}
     assert tasks.board("done") == []
@@ -171,7 +171,7 @@ def test_interrupted_work_shows_up_in_the_operators_process_list(fresh_db):
 
     V2-728: the row is a `tasks` row, not a `sys_kv` ledger entry — so unlike before it also survives the
     NEXT restart, which is precisely the failure this whole path was written for."""
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     R.remember([_live()])
     R.at_boot(schedule=False)
     hist = tasks.board("done")
@@ -382,7 +382,7 @@ def test_the_interrupted_row_is_the_errands_own_not_a_new_boots(fresh_db):
     done?» kept waiting on it), a duplicate «interrupted», and the resumed worker's. `task_uid(id)` recomputed
     after a restart names the NEW boot's row — the errand's real row is the uid it was recorded under."""
     from memory import tasks_store as ts
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     ts.task_put({"id": "oldboot-1", "title": "five free days", "goal": VELEROS, "kind": "web", "mode": "now",
                  "state": "pending", "visible": True, "origin": "voz", "created_at": 1, "started_at": 1})
     R.remember([_live(uid="oldboot-1")])
@@ -420,7 +420,7 @@ def test_every_entry_says_why_and_the_row_carries_it(monkeypatch):
     now = time.time()
     plan = R.classify([_live(), _live(id="2", paused=True)], at=now - 60, now=now)
     assert all(e.get("why") for e in plan["resume"] + plan["buried"]), plan
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     rows: dict = {}
     monkeypatch.setattr(tasks._ts, "task_get", lambda uid: rows.get(uid))
     monkeypatch.setattr(tasks._ts, "task_put", lambda row: rows.__setitem__(row["id"], row))

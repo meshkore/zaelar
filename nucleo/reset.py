@@ -180,7 +180,7 @@ def reset_all() -> dict:
     # V2-728: the board is the `tasks` table. Standing commitments (crons, «la semana que viene…») are NOT
     # touched — a reset of the work in progress never meant forgetting what he asked us to remember.
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         killed["ledger"] = _tasks.board_cleared()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"reset_all: clear task board falló: {e}")

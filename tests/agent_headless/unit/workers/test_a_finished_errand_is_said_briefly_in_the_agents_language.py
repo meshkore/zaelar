@@ -35,7 +35,7 @@ def world(monkeypatch):
             return "Your monitors are ready — the Dell S2725QS at $299.99 is the best pick."
     import nucleo.llm.fast_client as fc
     monkeypatch.setattr(fc, "FastClient", _Client)
-    import nucleo.errand_title as et
+    import nucleo.request.title as et
     monkeypatch.setattr(et, "_spec_for_naming", lambda: object())
     import i18n.langs as langs
     monkeypatch.setattr(langs, "current_language", lambda: types.SimpleNamespace(name="English", native="English"))

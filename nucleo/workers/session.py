@@ -22,7 +22,7 @@ from . import progress as _progress
 from .session_notes import _PLACE, SessionNotes  # noqa: F401 — V2-778 F1: the session's notes; _PLACE re-exported
 from . import stall as _stall
 from .base import WorkerBackend, WorkerSpec
-from nucleo import errand_kind as _errand_kind
+from nucleo.request import kind as _errand_kind
 from nucleo.circuit.goal import check_and_relay as _harness
 from .relay import _say
 from .relay import relay_out_of_fuel as _relay_out_of_fuel
@@ -200,7 +200,7 @@ class WorkerSession(SessionNotes):
         rec.backend = self._b.name
         rec.phase = _progress.say("starting", "starting")
         try:    # V2-776 D1 — the durable row says it too, or the store reads «pending» for the whole run
-            from nucleo import tasks as _tasks
+            from nucleo.circuit import ledger as _tasks
             _tasks.started(rec)
         except Exception:  # noqa: BLE001
             pass

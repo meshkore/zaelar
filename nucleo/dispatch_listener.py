@@ -163,7 +163,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             except Exception:
                 pass
             # V2-566/V2-570 — A FOLLOW-UP IS NOT A NEW ERRAND, and a follow-up of a DELIVERED listing fast
-            # pass does not spawn a parallel worker. Both decisions live in `nucleo/errand_continuity.py`
+            # pass does not spawn a parallel worker. Both decisions live in `nucleo/request/append.py`
             # (extracted: dispatch sat one line under its ratchet ceiling): the escalation may come back with
             # an inherited sheet, or redirected entirely to a refined fast re-run in the same box — in which
             # case there is no session to open and the module already owns the errand's next step.
@@ -224,7 +224,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # the one point every door into the dispatcher passes through, for the same reason the surface is
             # sealed here. Best-effort and off the hot path: a store that failed must not lose the worker.
             try:
-                from nucleo import tasks as _tasks
+                from nucleo.circuit import ledger as _tasks
                 _tasks.opened(rec, ctx)
             except Exception:  # noqa: BLE001
                 logger.debug("dispatch: no pude registrar la tarea durable", exc_info=True)

@@ -12,7 +12,7 @@ from voice.engine.llm.providers import nucleo as _p, turn_errands as _turn_erran
 from nucleo.turn import promise_kept as _promise_kept   # a promise ends ran, repaired or said undone (V2-790)
 from voice.engine.llm.providers import promise_backstop as _promise_backstop   # promise → escalation (V2-049)
 from nucleo.turn import split_by_errand as _sbe   # one sentence about several errands: each one said (2.643)
-from nucleo.flash import stop_decision as _stop_decision   # V2-820: a replace stops X and starts Y in one act
+from nucleo.request import stop as _stop_decision   # V2-820: a replace stops X and starts Y in one act
 from nucleo.request import model as _request   # his words travel with the ONE errand his sentence commissions
 
 

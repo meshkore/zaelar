@@ -26,7 +26,7 @@ def _clean(monkeypatch):
 
 
 def _rows(monkeypatch, rows):
-    from nucleo import tasks as T
+    from nucleo.circuit import ledger as T
     store = T.store()
     monkeypatch.setattr(store, "tasks_where", lambda **k: rows, raising=False)
 

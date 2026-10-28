@@ -90,7 +90,7 @@ def opened(widget: str, action: str, *, text: str = "") -> str:
         return ""
     if turn.get("uid"):
         return turn["uid"]
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     _ts = _tasks.store()
     from nucleo.runtime_ids import boot_id
     uid = f"{boot_id()}-i{next(_SEQ)}"
@@ -122,7 +122,7 @@ def settle(uid: str, verdict: str, outcome: str = "") -> None:
     if v is None or not v.ending:
         logger.warning(f"request_row: {verdict!r} is not an ending — row {uid} is not settled with it")
         return
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     _ts = _tasks.store()
     row = _ts.task_get(uid)
     if row is None:

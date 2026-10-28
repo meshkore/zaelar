@@ -15,7 +15,7 @@ import time
 import bus
 from memory import tasks_store as ts
 from nucleo import dispatch
-from nucleo import tasks as T
+from nucleo.circuit import ledger as T
 from tests.agent_headless.unit.test_a_commission_leaves_a_durable_row import (  # noqa: F401 — fixtures
     _commission, _hash_backend, _no_sessions_left_behind, fresh_db)
 from tests.waiting import until

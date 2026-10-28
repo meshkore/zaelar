@@ -56,7 +56,7 @@ def _emit(label: str, **extra) -> None:
 
 
 def _store():
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     return tasks.store()
 
 
@@ -330,10 +330,10 @@ def _worker_state(tid: str) -> str:
     The DURABLE row speaks first once it is closed. A relay (`nucleo/workers/relay.py`) continues the same
     commission under a NEW worker id and inherits the row, so the first worker's RAM record stays `relevada`
     for good — measured on the errands case: the row said `failed` at 20:30 and the list, reading the RAM
-    record, would have waited its whole 45 minutes. The RAM record answers while the row is still open (the
-    row does not track `running`)."""
+    record, would have waited its whole 45 minutes. The RAM record answers while the row is still open."""
     try:
-        from nucleo import dispatch, tasks as _tasks
+        from nucleo import dispatch
+        from nucleo.circuit import ledger as _tasks
         row = _store().task_get(_tasks.task_uid(tid)) or {}
         st = str(row.get("state") or "")
         if st in ("done", "failed", "cancelled"):

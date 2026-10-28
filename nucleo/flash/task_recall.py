@@ -24,7 +24,7 @@ right one, and he would read it before noticing.
 """
 from __future__ import annotations
 
-from nucleo import tasks as _tasks
+from nucleo.circuit import ledger as _tasks
 
 #: How many candidates the index may hand to the chooser. Five is the chosen number and it
 #: is also the point past which ASKING stops being usable: a question listing eight reports is not a question.

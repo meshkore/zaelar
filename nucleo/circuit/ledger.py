@@ -1,4 +1,4 @@
-"""nucleo/tasks.py — the SessionRecord ↔ durable task row seam (V2-728).
+"""nucleo/circuit/ledger.py — the SessionRecord ↔ durable task row seam (V2-728).
 
 One place that knows how a live Brain Worker session becomes a row in `tasks`, because the two vocabularies
 do not match and a translation written twice comes to differ. `memory/tasks_store.py` stores; this decides.

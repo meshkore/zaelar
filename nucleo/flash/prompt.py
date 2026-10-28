@@ -619,7 +619,7 @@ def live_state() -> str:
     # (la lección de V2-453: el hecho sin la orden no cambia nada). Medido en la sesión 9dcff6f5 (catamaranes):
     # el modelo tenía las filas entregadas delante y escaló la MISMA caza a un worker — la única instrucción
     # junto a ellas cubría «si te pide el enlace». Esta línea nombra la regla lineal del operador; el cinturón
-    # determinista vive en `nucleo/errand_continuity.py` para cuando el modelo la desobedece igualmente.
+    # determinista vive en `nucleo/request/append.py` para cuando el modelo la desobedece igualmente.
     try:
         import time as _t_ls
         from nucleo.workers import ended as _end_ls

@@ -23,7 +23,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nucleo.flash import stop_decision as sd
+from nucleo.request import stop as sd
 
 #: «not X, do Y» in several languages — the stopped errand is the app build, the new one the document.
 REPLACE_BANK = [

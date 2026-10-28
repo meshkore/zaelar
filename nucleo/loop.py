@@ -25,7 +25,7 @@ import time
 
 from loguru import logger
 
-from . import errand_title as _errand_title
+from nucleo.request import title as _errand_title
 from . import scheduler as _scheduler
 from . import sparks as _sparks
 
@@ -259,7 +259,7 @@ class OrchestratorLoop:
         if now - self._last_reconcile >= self._reconcile_every_s:
             self._last_reconcile = now
             try:
-                from nucleo import tasks as _tasks
+                from nucleo.circuit import ledger as _tasks
                 n = _tasks.reconciled(dispatch.unclosed_uids(), now=now)
                 if n:
                     _emit("task.reconciled", {"n": n})
@@ -362,7 +362,7 @@ class OrchestratorLoop:
                 except Exception:
                     pass
                 try:    # V2-776 D1 — the same beat makes the worker's state durable (pulse, FlashBrain, observability)
-                    from nucleo import tasks as _tasks
+                    from nucleo.circuit import ledger as _tasks
                     _tasks.status_written(s, now=now)
                 except Exception:  # noqa: BLE001
                     pass
@@ -669,7 +669,7 @@ class OrchestratorLoop:
             # sleep sweep, not a memory task — memory used to reach it by importing `nucleo.workers`, and so
             # stopped being autonomous. Same pattern and same caller as the `rem.run(...)` hooks below.
             # V2-728: the target is the `tasks` table, not the retired `sys_kv` worker ledger.
-            from nucleo import tasks as _tasks
+            from nucleo.circuit import ledger as _tasks
             rep = await asyncio.to_thread(                       # synchronous sqlite → outside the hot path
                 lambda: memory.consolidate(prune_workers_fn=_tasks.pruned))
             _emit("loop.consolidated", {k: rep.get(k) for k in ("deduped", "evicted", "promoted")})

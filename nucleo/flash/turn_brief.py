@@ -354,7 +354,7 @@ def build(operator_text: str, *, open_ids=None, running_goals=None, has_workers:
     # V2-807 T-14 — is THIS turn an order to stop the errand running now? Only while one runs: with none the answer
     # is known. Read by the stop tool gate and the stop backstop (`stop_decision`) instead of a word table.
     if has_workers:
-        from nucleo.flash import stop_decision as _stop
+        from nucleo.request import stop as _stop
         qs[_stop.KEY] = _stop.question(last_reply)
     # V2-807 T-16 — does he ask one of OUR cards for a capability none of them declares? Read only at the errand
     # portal, where a «missing» refuses the worker (`capability_gap`); free inside the brief.

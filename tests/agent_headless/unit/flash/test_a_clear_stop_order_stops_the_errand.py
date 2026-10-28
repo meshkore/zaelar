@@ -17,7 +17,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from nucleo.flash import stop_decision as sd
+from nucleo.request import stop as sd
 from nucleo.flash import tool_executor_calls as _calls
 from nucleo.flash import turn_brief as _tb
 

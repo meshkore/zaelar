@@ -271,7 +271,7 @@ def recent_lines(now: float | None = None) -> list[str]:
     import time as _t
     now = float(now if now is not None else _t.time())
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         rows = _tasks.store().tasks_where(states=("pending", "running", "waiting", "done", "failed", "cancelled"),
                                           modes=("now",), visible_only=True, limit=RECENT_MAX * 4,
                                           newest_first=True, since=now - RECENT_WINDOW_S)
@@ -281,7 +281,7 @@ def recent_lines(now: float | None = None) -> list[str]:
     live: dict = {}
     try:
         from nucleo import dispatch as _disp
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         live = {str(x.get("uid") or ""): x for x in _disp.active_sessions() if x.get("uid")}
         said |= {u for u, x in live.items() if str(x.get("status") or "") in ("queued", "running")}
         said |= {_tasks.task_uid(e.get("id")) for e in _disp.recently_ended_sessions(now=now)}
@@ -347,7 +347,7 @@ def earlier_lines(now: float | None = None) -> list[str]:
     import time as _t
     now = float(now if now is not None else _t.time())
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         st = _tasks.store()
         rows = st.tasks_where(states=("pending", "running", "waiting", "done", "failed", "cancelled"),
                               modes=("now",), visible_only=True, limit=EARLIER_MAX * 4, newest_first=True,

@@ -4,7 +4,7 @@
 that ran days ago, whose results sheet is already gone (the premise of `flat-hunt-recall-the-report`). A fresh
 sandbox holds no errand, so without this a round measured «says it has nothing», not recall.
 
-What is written is exactly what `nucleo/tasks.py` leaves behind when a commission closes — the durable row and
+What is written is exactly what `nucleo/circuit/ledger.py` leaves behind when a commission closes — the durable row and
 its `task_artifacts` (`result`, `criteria`, `considered`) — and nothing else: no sheet on disk, so a reply that
 shows the report HAD to rebuild it from the task. It is written AFTER the between-cases `hard_reset`, because
 that reset clears the board (`nucleo/reset.py::reset_all` → `tasks.board_cleared`).

@@ -1,4 +1,4 @@
-"""nucleo/errand_title.py — what an errand is CALLED, which is not the same string as what it was ASKED.
+"""nucleo/request/title.py — what an errand is CALLED, which is not the same string as what it was ASKED.
 
 Measured on the operator's own engine (2026-08-31, session `7cab1afd`). Two results sheets side by side, one
 per errand, and the titles the operator read on them were:

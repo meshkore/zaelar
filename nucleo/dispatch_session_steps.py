@@ -198,7 +198,7 @@ async def run_it_to_its_delivery(*, _dev, _dev_settings_path, _wd, brief, escala
         # row in `tasks`, with no cap, no hand-rolled reset fence and its RESULT hanging off it.
         # Best-effort and off the hot path, as it always was.
         try:
-            from nucleo import tasks as _tasks
+            from nucleo.circuit import ledger as _tasks
             _tasks.closed(rec)
         except Exception:  # noqa: BLE001
             pass

@@ -81,7 +81,7 @@ def _lazy_imports(p: Path) -> int:
 # extracted, and the boundary had long been clear: the CLASSIFICATION of the errand (`_classify_kind` + its five
 # regexes + the label) is a PURE function over the request TEXT—it does not inspect the session record, touch the
 # pool, or write.
-#   nucleo/dispatch.py         1879 → 1762  what KIND of errand this is                → nucleo/errand_kind.py
+#   nucleo/dispatch.py         1879 → 1762  what KIND of errand this is                → nucleo/request/kind.py
 #
 # All three were boundaries that were ALREADY drawn—the browser block had its own `try`, the sheet section its
 # banner since V2-227, and the two text functions are pure over the record—and in two of the three there was also
@@ -332,19 +332,19 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
-    "nucleo (top)": 20971,      # refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
+    "nucleo (top)": 19642,      # refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
-    "nucleo/circuit": 1853,     # refactor2710-02: born — circuit, spec, harness, verify, deliverable_gate, workers/goal MOVED in; `verdict.py`
+    "nucleo/circuit": 2491,     # refactor2710-02: born — circuit, spec, harness, verify, deliverable_gate, workers/goal, tasks (ledger) MOVED in; `verdict.py`
     "nucleo/context_packs": 568,
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 29694,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/, aliased at its old path
+    "nucleo/flash": 29488,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/, aliased at its old path
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/llm": 1907,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
-    "nucleo/request": 144,      # refactor2710-02: born — request_row.py MOVED in as `model.py`; `heard()`, his words for the errand
+    "nucleo/request": 1022,     # refactor2710-02: born — request_row (model), errand_kind/title, dedup+continuity (append), stop_decision MOVED in
     "nucleo/susurro": 1386,
     "nucleo/turn": 2169,
     "nucleo/workers": 6386,
@@ -428,7 +428,7 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/circuit/spec.py",
     "nucleo/susurro/apply.py",
     "nucleo/susurro/engine.py",
-    "nucleo/tasks.py",
+    "nucleo/circuit/ledger.py",
     "nucleo/turn/promise_kept.py",
     "nucleo/circuit/verify.py",
     "nucleo/worker_api.py",

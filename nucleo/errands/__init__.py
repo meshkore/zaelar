@@ -171,7 +171,7 @@ def _save(row: dict) -> None:
     """
     _memory().errand_put(row)
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         _tasks.errand_mirrored(row)
     except Exception:  # noqa: BLE001
         logger.debug("errands: no pude reflejar el encargo en el tablero de tareas", exc_info=True)
@@ -443,7 +443,7 @@ def live_phases(now: float | None = None) -> dict:
     when read, exactly like a worker's `phase` is.
     """
     now = time.time() if now is None else now
-    from nucleo import tasks as _tasks
+    from nucleo.circuit import ledger as _tasks
     out = {}
     for r in live(now):
         left = max(0, int(r.get("deadline") or 0) - int(now))

@@ -13,7 +13,7 @@ import pytest
 from memory import db as memdb
 from nucleo import circuit
 from nucleo.circuit import spec
-from nucleo import tasks as T
+from nucleo.circuit import ledger as T
 
 GONE = {"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": "Cryptonite"}, "expect": "absent"}]}
 THERE = {"all": [{"widget": "agenda", "collection": "meetings", "where": {"title~": "Cryptonite"}}]}

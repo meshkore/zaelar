@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import errand_title as et
+from nucleo.request import title as et
 
 ENGINE = Path(__file__).resolve().parents[3]
 

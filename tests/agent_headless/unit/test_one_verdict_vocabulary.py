@@ -55,7 +55,7 @@ def rows(monkeypatch):
         def task_patch(self, uid, **f):
             store[uid].update(f)
 
-    from nucleo import tasks
+    from nucleo.circuit import ledger as tasks
     monkeypatch.setattr(tasks, "store", lambda: _TS())
     return store
 

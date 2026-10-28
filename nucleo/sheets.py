@@ -321,7 +321,7 @@ def title_of(rec) -> str:
     be missing from one of them.
     """
     try:
-        from nucleo import errand_title as _et
+        from nucleo.request import title as _et
         t = str(getattr(rec, "title", "") or "").strip()
         return t or _et.provisional((getattr(rec, "goal", "") or "").strip())
     except Exception:  # noqa: BLE001
@@ -347,7 +347,7 @@ def row_sheet(uid, mine: str = "") -> str:
     if not uid or uid == mine:
         return ""
     try:
-        from nucleo import tasks as _tasks
+        from nucleo.circuit import ledger as _tasks
         return str((_tasks.get(uid) or {}).get("sheet") or "") or uid
     except Exception:  # noqa: BLE001 — an unreadable store still names the row's own sheet
         return uid
