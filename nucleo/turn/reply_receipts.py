@@ -8,8 +8,7 @@ own state, never from our reply's words:
   · a pasted link from a channel he BLOCKED, let through because he asked, is `met` with the card's stamp (V2-604);
   · a bare acknowledgement over a card whose declared end state still reads unmet is not said as «done» (2026-10-14).
 
-Each returns `reply.Outcome`s whose `said` is the card's own sentence (the house convention: the card that acted knows
-what it did). Never raises.
+Each returns `reply.Outcome`s whose `said` is the card's own sentence (the card that acted knows what it did).
 """
 from __future__ import annotations
 
@@ -20,7 +19,6 @@ import unicodedata
 
 from loguru import logger
 
-#: Player controls and the receipt each one owes.
 MOVES = frozenset({"next", "previous", "play", "play_item", "play_result", "resume"})
 PAUSES = frozenset({"pause"})
 ADDS = frozenset({"add", "add_results"})
@@ -42,8 +40,7 @@ def _outcome(verdict: str, card: str, action: str, said: str):
 
 
 def _lang():
-    from i18n import langs
-    return langs.current_language()
+    return __import__("i18n.langs", fromlist=["x"]).current_language()
 
 
 def _norm(s: str) -> str:
@@ -170,7 +167,10 @@ async def blocked_channel() -> list:
             return []
         lang = _lang()
         tpl = lang.receipt_blocked_channel_queued if stamp.get("queued") else lang.receipt_blocked_channel_played
-        return [_outcome("met", "youtube", "blocked_channel", str(tpl).format(channel=str(stamp["channel"])[:80]))]
+        line = str(tpl).format(channel=str(stamp["channel"])[:80])
+        __import__("voice.observer", fromlist=["x"]).emit("brain", "⛔ enlace de un canal bloqueado: dicho en la respuesta", text=line[:160], role="system",
+             extra={"cat": "flash", "id": "youtube", "channel": stamp.get("channel"), "queued": stamp.get("queued")})
+        return [_outcome("met", "youtube", "blocked_channel", line)]
     except Exception as e:  # noqa: BLE001
         logger.debug(f"reply_receipts: blocked channel skipped — {type(e).__name__}: {e}")
         return []
