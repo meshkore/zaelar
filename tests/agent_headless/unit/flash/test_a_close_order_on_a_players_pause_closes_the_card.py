@@ -33,7 +33,7 @@ def screen(monkeypatch):
     monkeypatch.setattr(_va, "open_instances", lambda: list(THREE))
     monkeypatch.setattr(_memapi, "state", lambda *a, **k: {"open_widgets": list(THREE)})
     monkeypatch.setattr(_memapi, "kv_get", lambda k, *a, **kw: None)
-    from nucleo.acts import named_target as NT
+    from nucleo.flash import named_target as NT
     NT._PARKED.clear()
 
 

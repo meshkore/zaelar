@@ -2,7 +2,7 @@
 
 `post_stream_lanes` (and the old text channel's mirror) completed a close the model did not make with
 `runtime.identify` over the WHOLE sentence: «close the video, I'll check the calendar later» matched `agenda`
-outright. `close_target.identify` (ex `close_identify`) reads `naming.without_kept` and drops a kept match; the backstop calls it.
+outright. `close_identify.identify` reads `naming.without_kept` and drops a kept match; the backstop calls it.
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo.acts import close_target as close_identify
+from nucleo.flash import close_identify
 
 ENGINE = Path(__file__).resolve().parents[4]
 THREE = ["agenda", "musica", "youtube"]
@@ -35,4 +35,4 @@ def test_a_plain_close_still_reaches_its_card():
 
 def test_the_backstop_reads_the_shared_reader():
     src = (ENGINE / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
-    assert "close_target" in src and ".identify(text, _o" in src
+    assert "close_identify" in src and ".identify(text, _o" in src

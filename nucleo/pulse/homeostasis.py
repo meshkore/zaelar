@@ -1,29 +1,14 @@
 #
-# homeostasis.py — el LATIDO AUTÓNOMO del sistema (V2-070 «anti-degeneración»).
-#
-# QUÉ es: la capa que mantiene la MÁQUINA sana, como el sistema autónomo de un cuerpo (latido, respiración, curar
-# una herida) — NO se piensa, se ejecuta. Es el tercer nivel, HERMANO del cerebro, nunca parte de él:
-#
-#     Mente        → FlashBrain (nucleo/flash)   : conduce y decide (operador + agentes). PIENSA (modelo).
-#     Conciencia   → Susurro   (nucleo/susurro)  : "¿lo hago bien?" audita la CONVERSACIÓN. PIENSA (modelo).
-#     Autónomo     → homeostasis (ESTE módulo)   : "¿mi CUERPO sigue sano?" mantiene la máquina. NO piensa. Cero modelo.
-#
-# POR QUÉ vive AQUÍ y no en el cerebro: meter reintentos/reciclados/rotación dentro del FlashBrain lo ensuciaría con
-# lógica que NO es inteligencia. Igual que el latido no es una decisión consciente, esto corre solo, determinista, al
-# lado — mismo patrón `start()`/`stop()` que los otros supervisores del lifespan (messaging/widgets).
-#
-# BINARIO (regla del operador): cada recurso tiene DOS estados, sano/degradado → curar. No 200 estados. Vigila:
-#   1) MOTOR LiveKit  — el fallo del 2026-07-25: tras ~7h el worker embebido entró en bucle `wait_pc_connection
-#      timed out` → el chat/voz dejó de responder. Detecta la degradación (por el LOG del SDK, señal IN-PROCESS) y,
-#      si es SEGURO (voz apagada + canal inactivo), RECICLA el worker embebido; si no es seguro, avisa al operador.
-#   2) LOGS           — timeline-latest.jsonl / meshkore.jsonl crecen sin límite → rota por rename (ambos abren "a"
-#      por escritura, el siguiente append recrea el fichero → seguro) y poda archivos viejos.
-#   3) CÁPSULAS       — el estado de relación por peer (sys_kv `capsule:*`) crece con cada agente muerto → evicta las
-#      concluidas y viejas, y acota el total.
-#
-# INVARIANTES: NUNCA toca el FlashBrain ni la memoria del operador. Determinista, sin LLM. Fail-open DURO (un fallo
-# del propio mantenimiento jamás tumba la voz/chat). Observabilidad TOTAL (evento `homeostasis` en el timeline).
-# Kill-switch de 1ª clase (`ZAELAR_HOMEOSTASIS=0`). Reciclar solo cuando es seguro; si no, avisar, no romper.
+# homeostasis.py — the system's AUTONOMOUS HEARTBEAT (V2-070). It keeps the MACHINE healthy and never thinks: no
+# model, a sibling of the brain (FlashBrain drives, Susurro audits the conversation, this keeps the body alive),
+# with the same start()/stop() pattern as the other lifespan supervisors. Each resource is binary, healthy or
+# degraded → heal:
+#   1) LiveKit ENGINE — degradation is read from the SDK log (in-process); recycle the embedded worker when SAFE
+#      (voice off + channel idle), otherwise tell the operator.
+#   2) LOGS — rotate by rename (writers append with "a", so the next write recreates the file) and prune old ones.
+#   3) CAPSULES — evict concluded, old per-peer state (sys_kv `capsule:*`) and bound the total.
+# Never touches the FlashBrain or the operator's memory; fail-open; every action emits `homeostasis`;
+# kill-switch `ZAELAR_HOMEOSTASIS=0`.
 #
 from __future__ import annotations
 
@@ -34,41 +19,32 @@ import time
 
 log = logging.getLogger(__name__)
 
-# ── config (infra, no UI — env-overridable para power-user/tests) ───────────────────────────────────────────────
-_PERIOD_S = float(os.getenv("HOMEOSTASIS_PERIOD_S", "60"))       # cada cuánto late el chequeo
+# ── config (infra, not UI — env-overridable for power users/tests) ──────────────────────────────────────────────
+_PERIOD_S = float(os.getenv("HOMEOSTASIS_PERIOD_S", "60"))       # heartbeat period
+# The thresholds the pure decisions default to live with them (no import cycle in either order):
+from nucleo.pulse.homeostasis_policy import (  # noqa: E402
+    _CAP_MAX, _CAP_TTL_S, _IDLE_S, _LK_THRESHOLD, _LK_WINDOW_S, _LOG_CAP_BYTES)
 
-_LK_WINDOW_S = float(os.getenv("HOMEOSTASIS_LK_WINDOW_S", "180"))    # ventana para contar degradación del motor
-_LK_THRESHOLD = int(os.getenv("HOMEOSTASIS_LK_THRESHOLD", "3"))      # nº de marcas en la ventana = degradado
-_IDLE_S = float(os.getenv("HOMEOSTASIS_IDLE_S", "120"))             # canal inactivo si no hay timeline en N s
-_RECYCLE_COOLDOWN_S = float(os.getenv("HOMEOSTASIS_RECYCLE_COOLDOWN_S", "600"))  # no reciclar más de 1×/10min
+_RECYCLE_COOLDOWN_S = float(os.getenv("HOMEOSTASIS_RECYCLE_COOLDOWN_S", "600"))  # at most one recycle per 10 min
 
-_LOG_CAP_BYTES = int(os.getenv("HOMEOSTASIS_LOG_CAP_BYTES", str(64 * 1024 * 1024)))  # 64 MB
-_LOG_KEEP = int(os.getenv("HOMEOSTASIS_LOG_KEEP", "3"))             # nº de archivos rotados a conservar
+_LOG_KEEP = int(os.getenv("HOMEOSTASIS_LOG_KEEP", "3"))             # rotated files to keep
 
-_CAP_MAX = int(os.getenv("HOMEOSTASIS_CAPSULE_MAX", "200"))         # tope de cápsulas vivas
-_CAP_TTL_S = float(os.getenv("HOMEOSTASIS_CAPSULE_TTL_S", str(30 * 24 * 3600)))  # concluida+vieja → evict (30d)
 
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 _LOG_DIR = os.getenv("ZAELAR_LOG_DIR") or os.path.join(_REPO_ROOT, ".meshkore", "logs")
 _ROTATABLE = ("timeline-latest.jsonl", "meshkore.jsonl")
 
-# marcas de degradación del motor LiveKit (timestamps), pobladas por el watcher de logging IN-PROCESS
+# LiveKit degradation marks (timestamps), filled by the in-process logging watcher
 _marks: list[float] = []
 _last_recycle: float = 0.0
-_alerted: set[str] = set()      # dedup de avisos al operador (una vez por incidente)
+_alerted: set[str] = set()      # operator alerts already given (once per incident)
 _recycle_requested: str = ""    # explicit recycle request (reason) — see request_recycle()
 
 
 def request_recycle(reason: str) -> None:
-    """An explicit request to recycle the embedded LiveKit worker on the next heartbeat (V2-655 follow-up,
-    2026-09-10). Born from a measured incident: an unrecoverable LLM error made the AgentSession CLOSE while
-    the room, the mic and the whole server stayed up — the operator talked to a grey orb for two minutes and
-    nothing anywhere tried to bring the session back. The degraded-marks detector cannot see that shape (no
-    WebRTC log marker fires), so the piece that KNOWS the session died asks for the recycle by name.
-
-    Only the repeat-protection cooldown gates it (a first death recycles on the next beat; a crash LOOP does
-    not turn into a recycle loop). `safe_to_recycle` is deliberately not consulted: the requester is a session
-    that no longer exists, so there is no live conversation to cut."""
+    """Ask for the embedded LiveKit worker to be recycled on the next beat (V2-655). For a session that CLOSED
+    while room and server stayed up — no log marker fires, so the piece that knows it died asks by name. Only the
+    cooldown gates it; `safe_to_recycle` is skipped on purpose: a dead session has no conversation to cut."""
     global _recycle_requested
     _recycle_requested = (reason or "").strip() or "unspecified"
     log.warning("homeostasis: recycle requested — %s", _recycle_requested)
@@ -78,25 +54,18 @@ def enabled() -> bool:
     return os.getenv("ZAELAR_HOMEOSTASIS", "1").lower() not in ("0", "false", "off", "no")
 
 
-# ── DETECCIÓN del motor LiveKit — señal IN-PROCESS por el logging del SDK ───────────────────────────────────────
+# ── LiveKit engine DETECTION — in-process signal from the SDK logging ────────────────────────────────────────────
 _MARKERS = (
     "wait_pc_connection timed out",
     "entrypoint did not exit",
-    # AÑADIDO 2026-08-12, con un incidente de 3 HORAS detrás: el 2026-08-10 el SDK avisó dos veces de esto a las
-    # 15:54/15:57, el último job se aceptó a las 15:58:02 y el worker de voz **no volvió a atender nada**; el proceso
-    # ignoró incluso un SIGTERM. La homeostasis existía precisamente para curar eso y no lo reconocía, así que se
-    # quedó tres horas muerto delante del operador. Es el aviso que el SDK da cuando el ejecutor del job no contesta
-    # a su ping de salud — con `job_executor_type=THREAD`, un hilo bloqueado (una inferencia de VAD lenta, una
-    # llamada síncrona) lo dispara de forma TRANSITORIA, así que no se cura por una marca suelta: entra en el mismo
-    # contador de ventana+umbral que las otras señales y en el mismo gate de «solo si no corto a nadie».
+    # The job executor missed its health ping (a voice worker once went dead for hours after it). A blocked
+    # thread can fire it transiently, so it counts in the same window+threshold and the same safety gate.
     "job executor is unresponsive",
 )
 
 
-
 class _LKWatcher(logging.Handler):
-    """Escucha el logger `livekit` (y sus hijos, por propagación): cada vez que el SDK loguea una señal de motor
-    degradado, estampa la marca. Coste ínfimo (substring sobre el mensaje ya formateado). No emite nada."""
+    """Listens to the `livekit` logger (and children): stamps a mark on each degraded-engine message. Emits nothing."""
 
     def emit(self, record: logging.LogRecord) -> None:  # noqa: D401
         try:
@@ -105,7 +74,7 @@ class _LKWatcher(logging.Handler):
             return
         if any(m in msg for m in _MARKERS):
             _marks.append(time.time())
-            if len(_marks) > 256:          # acota memoria (sonda, no historial)
+            if len(_marks) > 256:          # bound memory (a probe, not a history)
                 del _marks[:128]
 
 
@@ -113,47 +82,7 @@ _watcher = _LKWatcher()
 _watcher.setLevel(logging.WARNING)
 
 
-# ── funciones PURAS (testeables sin server, sin IO) ─────────────────────────────────────────────────────────────
-def livekit_degraded(marks: list[float], now: float, *, window_s: float = _LK_WINDOW_S,
-                     threshold: int = _LK_THRESHOLD) -> bool:
-    """El motor está degradado si acumuló >= `threshold` señales de bucle WebRTC en la última ventana."""
-    recent = [t for t in marks if now - t <= window_s]
-    return len(recent) >= threshold
-
-
-def safe_to_recycle(voice_on: bool, last_activity_ts: float, now: float, *, idle_s: float = _IDLE_S) -> bool:
-    """Reciclar el motor solo si NO hay voz viva y el canal lleva `idle_s` sin actividad — así un reinicio del
-    worker nunca corta una conversación en curso (regla del operador). Con voz/canal activos: avisar, no tocar."""
-    if voice_on:
-        return False
-    return (now - last_activity_ts) >= idle_s
-
-
-def capsules_to_evict(items: list[tuple[str, dict]], now: float, *, max_count: int = _CAP_MAX,
-                      ttl_s: float = _CAP_TTL_S) -> list[str]:
-    """Qué cápsulas (clave, cap) evictar: (a) las CONCLUIDAS (fase cierre) y viejas (updated < now-ttl); (b) si tras
-    eso siguen sobrando sobre el tope, las MÁS VIEJAS por `updated` hasta cuadrar. Determinista, sin abrir la BD."""
-    stale = set()
-    for key, cap in items:
-        phase = (cap.get("phase") or "").lower()
-        updated = float(cap.get("updated") or 0)
-        if phase == "cierre" and (now - updated) >= ttl_s:
-            stale.add(key)
-    survivors = [(k, c) for k, c in items if k not in stale]
-    over = len(survivors) - max_count
-    if over > 0:
-        survivors.sort(key=lambda kc: float(kc[1].get("updated") or 0))   # más viejas primero
-        stale.update(k for k, _ in survivors[:over])
-    # preserva el orden de entrada para una salida estable
-    return [k for k, _ in items if k in stale]
-
-
-def logs_to_rotate(sizes: list[tuple[str, int]], *, cap_bytes: int = _LOG_CAP_BYTES) -> list[str]:
-    """Qué logs rotar: los que superan el tope de tamaño."""
-    return [path for path, size in sizes if size > cap_bytes]
-
-
-# ── heals (IO; fail-open cada uno) ──────────────────────────────────────────────────────────────────────────────
+# ── heals (IO; each fail-open) ─────────────────────────────────────────────────────────────────────────────────
 def _emit(label: str, text: str = "", extra: dict | None = None) -> None:
     try:
         from voice import observer
@@ -163,14 +92,9 @@ def _emit(label: str, text: str = "", extra: dict | None = None) -> None:
 
 
 async def _alert(key: str, title: str, text: str) -> None:
-    """Tell the operator ONCE per incident, ON SCREEN ONLY (chat + panel, no toasts). Dedup by `key`.
-
-    V2-768 — never spoken. Measured 2026-09-25 (session c20ffd8e): in wake-word mode, with the operator on the
-    phone to somebody else, this alert was said aloud, opened the reply window every spoken delivery opens,
-    and his next sentence — to the other person — ran as an order; the conversation chained for a minute and a
-    half. A health notice nobody asked for is not a delivery he is owed: it must not take the floor, and it
-    must not become a note the brain slips into his next answer either (`proactive.notify(speak=False)` does
-    that). Only the UI half of `notify` is kept."""
+    """Tell the operator ONCE per incident (dedup by `key`), ON SCREEN ONLY. V2-768 — never spoken: a spoken
+    alert opened the reply window and his next sentence to someone else ran as an order. Nor a note for the brain
+    (`proactive.notify(speak=False)`); only the UI half of `notify` is kept."""
     if key in _alerted:
         return
     _alerted.add(key)
@@ -183,7 +107,7 @@ async def _alert(key: str, title: str, text: str) -> None:
 
 
 def _recent_activity_ts() -> float:
-    """Última señal de actividad del canal: mtime del timeline (voz/chat/cluster escriben ahí). 0 si no hay."""
+    """Last channel activity: the timeline's mtime (voice/chat/cluster write there). 0 if none."""
     try:
         return os.path.getmtime(os.path.join(_LOG_DIR, "timeline-latest.jsonl"))
     except OSError:
@@ -217,8 +141,7 @@ async def _consume_recycle_request(app, now: float) -> bool:
 
 
 async def _recycle_livekit(app) -> bool:
-    """Recrea el worker LiveKit EMBEBIDO (aclose + make_server + nueva task) SIN reiniciar el proceso — clava el
-    fallo del 2026-07-25 sin cortar el server. Devuelve True si recicló."""
+    """Recreate the EMBEDDED LiveKit worker (aclose + make_server + new task) without restarting the process."""
     global _last_recycle
     try:
         old = getattr(app.state, "lk_server", None)
@@ -233,7 +156,7 @@ async def _recycle_livekit(app) -> bool:
         devmode = os.getenv("ZAELAR_ENV", "dev").lower() != "prod"
         app.state.lk_task = asyncio.create_task(new.run(devmode=devmode))
         _last_recycle = time.time()
-        _marks.clear()                       # borrón y cuenta nueva: la ventana de degradación se reinicia
+        _marks.clear()                       # the degradation window starts over
         _emit("recycle", "motor LiveKit reciclado (worker embebido re-registrado)")
         log.info("homeostasis: motor LiveKit reciclado")
         return True
@@ -243,15 +166,13 @@ async def _recycle_livekit(app) -> bool:
 
 
 def _rotate_log(path: str, *, keep: int = _LOG_KEEP) -> None:
-    """Rota un log por rename (seguro: el writer abre en 'a' por escritura → el siguiente append recrea el fichero)
-    y poda los archivos rotados más viejos, conservando `keep`."""
+    """Rotate by rename (the next append recreates the file) and keep the newest `keep` rotated copies."""
     try:
         if not os.path.exists(path):
             return
         stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
         os.rename(path, f"{path}.{stamp}")
         _emit("rotate", f"{os.path.basename(path)} rotado ({stamp})")
-        # poda: conserva los `keep` más recientes de los rotados de ESTE fichero
         base = os.path.basename(path)
         d = os.path.dirname(path)
         rotated = sorted(
@@ -267,24 +188,24 @@ def _rotate_log(path: str, *, keep: int = _LOG_KEEP) -> None:
         log.warning("homeostasis: rotación de %s falló: %s", path, e)
 
 
-# ── el LATIDO ───────────────────────────────────────────────────────────────────────────────────────────────────
+# ── the HEARTBEAT ───────────────────────────────────────────────────────────────────────────────────────────────
 async def _tick(app) -> None:
-    """Un latido: los tres chequeos, cada uno aislado (un fallo no frena a los otros)."""
+    """One beat: the three checks, each isolated."""
     now = time.time()
 
-    # 1) MOTOR LiveKit
+    # 1) LiveKit ENGINE
     try:
         if getattr(app, "state", None) is not None and getattr(app.state, "lk_server", None) is not None:
             # 1a) EXPLICIT request (a dead voice session, see request_recycle)
             await _consume_recycle_request(app, now)
             if livekit_degraded(_marks, now):
                 if now - _last_recycle < _RECYCLE_COOLDOWN_S:
-                    pass  # ya se recicló hace poco; deja respirar (evita un bucle de reciclado)
+                    pass  # recycled recently: no recycle loop
                 elif safe_to_recycle(_voice_on(), _recent_activity_ts(), now):
                     _emit("degraded", "motor LiveKit degradado (bucle WebRTC) — reciclando en frío")
                     ok = await _recycle_livekit(app)
                     if ok:
-                        _alerted.discard("lk_degraded")  # rearmar el aviso para un futuro incidente distinto
+                        _alerted.discard("lk_degraded")  # re-arm the alert for a later incident
                 else:
                     await _alert("lk_degraded", "Motor de voz degradado",
                                  "El motor LiveKit se está atascando pero hay actividad en curso; no lo reinicio "
@@ -306,7 +227,7 @@ async def _tick(app) -> None:
     except Exception as e:  # noqa: BLE001
         log.warning("homeostasis: chequeo de logs falló: %s", e)
 
-    # 3) CÁPSULAS
+    # 3) CAPSULES
     try:
         from memory import api as memory
         keys = memory.kv_keys("capsule:")
@@ -321,7 +242,7 @@ async def _tick(app) -> None:
 
 
 async def _loop(app) -> None:
-    # un primer latido tras un respiro (deja que el arranque asiente), luego periódico
+    # first beat after boot settles, then periodic
     try:
         await asyncio.sleep(min(_PERIOD_S, 30))
     except asyncio.CancelledError:
@@ -343,14 +264,14 @@ _task: asyncio.Task | None = None
 
 
 def start(app=None) -> None:
-    """Arranca el latido (idempotente). Se llama en el lifespan del server, hermano de los otros supervisores."""
+    """Start the heartbeat (idempotent); called from the server lifespan."""
     global _task
     if not enabled():
         log.info("homeostasis: apagado por ZAELAR_HOMEOSTASIS")
         return
     if _task and not _task.done():
         return
-    logging.getLogger("livekit").addHandler(_watcher)   # sonda IN-PROCESS del motor
+    logging.getLogger("livekit").addHandler(_watcher)   # in-process engine probe
     _task = asyncio.create_task(_loop(app))
     _emit("start", "latido autónomo en marcha")
     log.info("homeostasis: latido autónomo iniciado")
@@ -369,3 +290,7 @@ async def stop() -> None:
         except (asyncio.CancelledError, Exception):
             pass
         _task = None
+
+
+from nucleo.pulse.homeostasis_policy import (  # noqa: E402,F401 — moved by concern (refactor2710-10b)
+    capsules_to_evict, livekit_degraded, logs_to_rotate, safe_to_recycle)

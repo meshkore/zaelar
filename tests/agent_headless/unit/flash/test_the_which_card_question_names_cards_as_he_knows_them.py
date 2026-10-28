@@ -25,7 +25,7 @@ def _brief(open_ids=BOTH) -> dict:
 def _screen(monkeypatch):
     from memory import api as _memapi
     monkeypatch.setattr(_memapi, "state", lambda *a, **k: {"open_widgets": list(BOTH)})
-    from nucleo.acts import named_target as NT
+    from nucleo.flash import named_target as NT
     NT._PARKED.clear()
 
 

@@ -60,6 +60,14 @@ def _counts() -> dict[str, int]:
 #: fall, and no file may exceed its own count.
 TOTAL = 1699   # refactor2710-06: measured with 04 and main merged
 PER_FILE: dict[str, int] = {
+    'nucleo/pulse/scheduler_when.py': 3,
+    'nucleo/pulse/scheduler_notices.py': 1,
+    'nucleo/pulse/scheduler_cron.py': 1,
+    'nucleo/flash/wall_lane.py': 1,
+    'nucleo/energy/meter_report.py': 3,
+    'nucleo/energy/lease_renewal.py': 2,
+    'nucleo/cli/worker_api_exec.py': 4,
+    'nucleo/cli/worker_api_asks.py': 4,
     'bus/__init__.py': 5,
     'bus/log.py': 7,
     'bus/sse.py': 1,

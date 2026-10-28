@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo.acts import named_target as NT
+from nucleo.flash import named_target as NT
 
 ENGINE = Path(__file__).resolve().parents[4]
 THREE = ["youtube", "musica", "agenda"]

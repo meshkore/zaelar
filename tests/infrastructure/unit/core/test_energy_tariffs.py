@@ -134,8 +134,9 @@ def test_the_lease_carries_the_tariffs(monkeypatch):
     """The coupling that holds everything together: the rates arrive piggybacked on the lease, the only
     periodic call the engine already makes. If someone stops reading them there, the central prices stop
     arriving and nobody notices — the engine keeps metering with stale ones."""
-    import nucleo.energy.lease as lease
-    src = Path(lease.__file__).read_text(encoding="utf-8")
+    from nucleo.energy import lease, lease_renewal      # the lease request moved there (refactor2710-10b)
+    assert lease_renewal.ensure is lease.ensure
+    src = Path(lease_renewal.__file__).read_text(encoding="utf-8")
     assert "energy_tariffs.update(" in src, (
         "energy_lease ya no adopta las tarifas de la respuesta del arriendo — el canal central está roto"
     )

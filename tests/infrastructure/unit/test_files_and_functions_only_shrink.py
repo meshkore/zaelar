@@ -74,7 +74,7 @@ FUNCTIONS = {
     'nucleo/memory_agent/ingest_steps.py::gate_the_utterance': 164,
     'nucleo/workers/prompts/research.py::to_prompt_block': 136,   # refactor2710-08: moved from nucleo/research_prompts.py
     'nucleo/susurro/apply.py::apply_corrections': 161,
-    'nucleo/cli/worker_api.py::_exec_allow': 293,
+    'nucleo/cli/worker_api_exec.py::_exec_allow': 293,
     'nucleo/workers/providers/claude_map.py::_map': 145,
     'nucleo/workers/providers/claude_start.py::start': 145,
     'server/voice_status.py::brain_and_voice': 140,
@@ -103,7 +103,7 @@ BRANCHES = {
     'nucleo/flash/probe.py::run_turn': 124,
     'nucleo/flash/probe_decide.py::name_the_action': 106,
     'nucleo/flash/probe_mirrors.py::mirror_the_voice_backstops': 106,
-    'nucleo/cli/worker_api.py::_exec_allow': 106,
+    'nucleo/cli/worker_api_exec.py::_exec_allow': 106,
     'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 108,
     'widgets/agenda/tasklists.py::apply': 115,
     'widgets/youtube/library.py::apply': 101,
