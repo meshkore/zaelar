@@ -78,8 +78,8 @@ def _parse(raw: str) -> dict:
 
 
 def _translate_batch_sync(code: str, batch: dict[str, str], register: str = "ui") -> dict[str, str]:
-    from nucleo import memllm
-    raw = memllm.chat_sync("i18n", _system(code, register), json.dumps(batch, ensure_ascii=False),
+    from nucleo.memory_agent.processor import llm
+    raw = llm.chat_sync("i18n", _system(code, register), json.dumps(batch, ensure_ascii=False),
                            max_tokens=4000, temperature=0.2, timeout=90.0)
     out = _parse(raw or "")
     return {k: out[k] for k in batch if k in out and isinstance(out[k], str) and out[k].strip()}

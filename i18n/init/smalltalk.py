@@ -123,9 +123,9 @@ def _parse(raw: str) -> dict:
 
 def _generate_sync(code: str) -> dict:
     from i18n.init.generate import language_name
-    from nucleo import memllm
+    from nucleo.memory_agent.processor import llm
 
-    raw = memllm.chat_sync("i18n", _system(language_name(code)),
+    raw = llm.chat_sync("i18n", _system(language_name(code)),
                            json.dumps(_SEED, ensure_ascii=False),
                            max_tokens=2500, temperature=0.3, timeout=90.0)
     return _parse(raw or "")

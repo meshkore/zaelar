@@ -219,7 +219,8 @@ def _read_image(path: Path) -> tuple[str, str]:
     buf = io.BytesIO()
     im.save(buf, "JPEG", quality=85)
     url_img = "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode()
-    from nucleo import energy_meter, llm_egress, memllm
+    from nucleo import energy_meter, llm_egress
+    from nucleo.memory_agent.processor import llm
     from nucleo.provider_keys import key_for_endpoint
     why = "no image-reading model is configured"
     for rung in _image_rungs():
@@ -234,7 +235,7 @@ def _read_image(path: Path) -> tuple[str, str]:
                        {"type": "image_url", "image_url": {"url": url_img}}]}]}
         try:
             r_url, r_key, extra = llm_egress.route(base, key)
-            out = memllm._post_json(r_url.rstrip("/") + "/chat/completions", payload,
+            out = llm._post_json(r_url.rstrip("/") + "/chat/completions", payload,
                                     headers={"Authorization": f"Bearer {r_key}", "Content-Type": "application/json",
                                              **(extra or {})}, timeout=float(limits()["process_timeout_s"]))
             energy_meter.meter_openai_response(out, base_url=base, model=model)

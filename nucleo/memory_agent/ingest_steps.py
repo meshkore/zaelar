@@ -149,17 +149,17 @@ async def gate_the_utterance(*, plan, role, text) -> dict:
     #    `None` = model unavailable → fall back to the heuristic; `[]` = the LLM ran and decided to DISCARD (respect it,
     #    do not re-inflate with the heuristic); list = pills to save.
     try:
-        from nucleo import mem_processor
+        from nucleo.memory_agent.processor import distill, distill_config
         from memory import api as memory
         st = memory.state()
     except Exception:
         st = {}
-        mem_processor = None  # type: ignore
+        distill = None  # type: ignore
 
     atoms: list[dict] | None = None
-    if mem_processor is not None:
+    if distill is not None:
         try:
-            atoms = await mem_processor.process(_answer_frame.framed(t), state=st)
+            atoms = await distill.process(_answer_frame.framed(t), state=st)
         except Exception as e:  # noqa: BLE001
             _ing.logger.debug(f"memory_agent: LLM processor failed ({e}); falling back to heuristic")
             atoms = None
@@ -168,10 +168,10 @@ async def gate_the_utterance(*, plan, role, text) -> dict:
         # latencia percibida de voz) protege contra el blip transitorio que esta noche produjo 2 fragmentos
         # voice latency) protects against the transient blip that produced 2 raw fragments via the heuristic in a real session.
         # If it remains disabled (`enabled()` is still False) or the second attempt also fails, fall back to the heuristic exactly as before.
-        if atoms is None and mem_processor.enabled():
+        if atoms is None and distill_config.enabled():
             await _ing.asyncio.sleep(0.4)
             try:
-                atoms = await mem_processor.process(_answer_frame.framed(t), state=st)
+                atoms = await distill.process(_answer_frame.framed(t), state=st)
             except Exception as e:  # noqa: BLE001
                 _ing.logger.debug(f"memory_agent: LLM processor retry also failed ({e}); falling back to heuristic")
                 atoms = None

@@ -19,7 +19,7 @@ def _pkg():
 
 from loguru import logger
 
-from nucleo import mem_processor as _mp
+from nucleo.memory_agent.processor import distill_prompt as _prompt
 from nucleo.memory_agent.classify import classify
 from nucleo.memory_agent.dossier import _state_lines  # noqa: F401
 from nucleo.memory_agent.gates import (  # noqa: F401
@@ -70,11 +70,11 @@ async def ingest_utterance(text: str, *, role: str = "operator", channel: str = 
 
 async def _ingest_home(text: str, *, role: str = "operator", channel: str = "voice") -> dict:
     async with _INGEST_LOCK:
-        _tok = _mp.CHANNEL.set("typed" if channel == "typed" else "voice")   # read by the distiller and the writer
+        _tok = _prompt.CHANNEL.set("typed" if channel == "typed" else "voice")   # read by the distiller and the writer
         try:
             result = await _ingest_utterance_locked(text, role=role)
         finally:
-            _mp.CHANNEL.reset(_tok)
+            _prompt.CHANNEL.reset(_tok)
         # Ingestion itself already runs off the voice/chat hot path. Publish the completed state into the
         # FlashBrain cache here, so the next utterance sees a correction/move immediately instead of one turn late.
         try:
@@ -171,7 +171,7 @@ def _sanitize_state_patch(patch: dict | None) -> dict:
 
 def _channel() -> str:
     """The channel of the turn being ingested (`ingest_utterance(channel=…)`): the row's `meta.source`."""
-    return _mp.CHANNEL.get()
+    return _prompt.CHANNEL.get()
 
 
 def _correction_whitelist() -> set[int]:

@@ -46,8 +46,8 @@ def _log(msg: str) -> None:
 
 
 def _chat(system: str, user: str) -> str | None:
-    from nucleo import memllm
-    return memllm.chat_sync("rule_shape", system, user, max_tokens=900, temperature=0.0, timeout=20.0)
+    from nucleo.memory_agent.processor import llm
+    return llm.chat_sync("rule_shape", system, user, max_tokens=900, temperature=0.0, timeout=20.0)
 
 
 def _levels() -> tuple:

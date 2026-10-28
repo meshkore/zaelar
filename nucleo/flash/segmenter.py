@@ -325,9 +325,9 @@ async def judge(text: str) -> tuple[str, str]:
     if not text:
         return "incomplete", ""
     try:
-        from nucleo import memllm
+        from nucleo.memory_agent.processor import llm
         raw = await asyncio.to_thread(
-            memllm.chat_sync, "turn_complete", _JUDGE_SYSTEM, text,
+            llm.chat_sync, "turn_complete", _JUDGE_SYSTEM, text,
             max_tokens=120, temperature=0.0, timeout=6.0,
         )
         return _parse_judge(raw)
