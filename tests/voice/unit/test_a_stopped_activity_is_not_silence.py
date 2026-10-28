@@ -1,16 +1,16 @@
 """A stop that names the ACTIVITY to stop is an order about it, not a silence order (bank case msg-en-mail-hide).
 
-«Stop showing me the Social tab in my mail» was read as a hard interrupt: the turn ended before the model and the
-mail order it carried was lost (the old text channel only named the stop after the model, so it never showed).
-The stop verb followed, in its own clause, by a gerund or «de» + infinitive with a complement names a thing —
-the same structure as a determiner after it (`_STOP_OBJECT_RE`). A bare «stop talking», «para de hablar», «silencio,
-por favor» stays silence. Disarm: make `interrupt_grammar._stops_an_activity` return False → the first test is red.
+«Stop showing me the Social tab in my mail» is read as a hard interrupt: the turn ends before the model and the mail
+order it carried is lost. Telling the two apart by the sentence's shape (a gerund, «de» + infinitive, a token count)
+is a rule on his words (CRIT-W10); it is decided by a verdict (`stop_errand` / `end_state` in Jev's brief), which the
+03 brings. Until then the first test is an expected failure, strict.
 """
 import pytest
 
 from voice.interrupt_grammar import hard_interrupt
 
 
+@pytest.mark.xfail(reason="needs a verdict, refactor2710-03", strict=True)
 @pytest.mark.parametrize("line", ["Stop showing me the Social tab in my mail",
                                   "Para de mostrarme los correos de la oficina"])
 def test_a_stop_that_names_its_activity_runs_the_turn(line):

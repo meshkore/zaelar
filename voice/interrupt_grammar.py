@@ -162,21 +162,6 @@ def _closes_the_whole_canvas(n: str) -> bool:
     return False
 
 
-def _stops_an_activity(n: str, hard) -> bool:
-    """«Stop showing me the Social tab in my mail», «para de mostrarme los correos»: the stop verb is followed, in its
-    own clause, by the ACTIVITY to stop (a gerund, or «de» + infinitive) and a complement. That names a thing, like
-    a determiner does (`_STOP_OBJECT_RE`); a bare «stop talking», «para de hablar» stays silence. Bank case
-    msg-en-mail-hide: swallowed as a silence order, the mail order it carried was lost."""
-    tail = _REST_SPLIT_RE.split(n[hard.end():], maxsplit=1)[0].split()
-    if not tail:
-        return False
-    if tail[0].endswith("ing"):
-        return len(tail) >= 3
-    if hard.group(0).endswith(" de"):            # the pattern already took «para de»: the infinitive comes first
-        return len(tail) >= 3
-    return tail[0] == "de" and len(tail) >= 4
-
-
 def hard_interrupt(text: str) -> str | None:
     """Detects a hard STOP that is ALWAYS executed immediately (bypasses the attention gate):
       - 'close'  → close ALL widgets ("close the widgets / close everything").
@@ -188,10 +173,7 @@ def hard_interrupt(text: str) -> str | None:
     if _closes_the_whole_canvas(n):
         return "close"
     has_object = bool(_STOP_OBJECT_RE.search(n))
-    hard = _STOP_HARD_RE.search(n)
-    if hard and _stops_an_activity(n, hard):
-        has_object = True
-    if hard and not has_object:
+    if _STOP_HARD_RE.search(n) and not has_object:
         return "stop"
     if _STOP_SOFT_RE.search(n) and not has_object and len(n.split()) <= 4:
         return "stop"
