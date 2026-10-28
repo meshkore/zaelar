@@ -39,7 +39,6 @@ def three(monkeypatch):
     monkeypatch.setattr(dc, "_PENDING_CONFIRM", {"7": {
         "request": GAME, "kind": "code", "trusted": True, "context": {}, "sheet": "", "ts": time.time(),
         "question": "Si no te he entendido mal, me pides que te CONSTRUYA una tarjeta nueva. ¿La hago?"}})
-    monkeypatch.setattr(delivery, "_speaks_en", lambda: False)
     _rows(monkeypatch, ROWS)
 
 

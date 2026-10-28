@@ -34,7 +34,6 @@ def _window(*his):
 @pytest.fixture
 def vinyl(monkeypatch):
     monkeypatch.setattr(live_blocks, "any_live_task_rows", lambda n=3: (COMMISSION, ROWS[:n]))
-    monkeypatch.setattr(delivery, "_speaks_en", lambda: True)
     return monkeypatch
 
 
