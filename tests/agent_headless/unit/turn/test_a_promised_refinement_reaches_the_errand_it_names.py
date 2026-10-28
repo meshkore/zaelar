@@ -54,19 +54,19 @@ def test_a_parked_errand_is_left_to_the_gate(injected, monkeypatch):
     assert E.promised_refinement(HIS, PROMISE) == ""
 
 
-def test_the_text_channel_sends_it(injected, monkeypatch):
-    from nucleo.flash import probe, probe_after, probe_companions
-
-    async def _noop(*a, **k):
-        return None
-    monkeypatch.setattr(probe._probe_scheduling, "run_scheduling_backstops", _noop)
-    monkeypatch.setattr(probe_companions, "run", _noop)
-    out = asyncio.run(probe_after.execute_what_was_decided(
-        _kind=None, _r=None, _res=None, _tbrief=None, _trace_id="t", _window_goal="", action="chat", execute=True,
-        images_req=None, music_req=None, operator_text=HIS, sess=types.SimpleNamespace(window=[]), spoken=PROMISE,
-        tags=[], text=HIS, tool_calls=[], video_req=None))
+def test_the_typed_channel_sends_it(injected):
+    """Through the typed channel, which runs the voice turn: the model promises and calls nothing."""
+    from tests.brain import harness as H
+    case = {"id": "refine", "lang": "es", "phrase": HIS, "source": "test", "screen": {"open": []}, "expect": "talk",
+            "model": {"say": PROMISE}}
+    with H.Isolated("es") as iso:
+        iso.seed(case)
+        from nucleo.cli import turn
+        try:
+            asyncio.run(turn.run_turn(HIS, sid="refine", ingest=False, execute=True))
+        finally:
+            turn.reset("refine")
     assert injected == [("9", HIS)], injected
-    assert out["return_extra_exec"]["executed"] == "inject"
 
 
 def test_the_voice_channel_sends_it(injected):

@@ -8,13 +8,12 @@ híbridos» as a fresh OFFER. Being newer, that offer became «the» pending con
 against it, the game stayed parked, expired, and was later told as «nunca llegaste a confirmarlo».
 
 Three mechanisms, each on its own consequence:
-  · the text channel passes the reply as `asked` (parity with `turn_after.py`'s `spoken_text`);
+  · the turn passes the reply as `asked` (`turn_after.py`'s `spoken_text`);
   · the portal strips [SISTEMA] notes from `asked` — our notice is nobody's question;
   · a permission question that re-asks an errand ALREADY parked offers that errand, not the turn's other one.
 """
 from __future__ import annotations
 
-import inspect
 import time
 
 import pytest
@@ -22,7 +21,6 @@ import pytest
 from nucleo import dispatch
 from nucleo import dispatch_confirm as dc
 from nucleo.flash import escalate as esc
-from nucleo.flash import probe_after
 
 GAME = "Crear un NUEVO widget de juego de plataformas tipo Super Mario (saltar, moverse, enemigos)"
 NOTE = ("[SISTEMA] Aviso para el operador (zaelar): Si no te he entendido mal, me pides que te CONSTRUYA una tarjeta "
@@ -61,9 +59,3 @@ def test_an_offer_of_this_very_errand_is_still_parked(bus):
     tid = esc.escalate_to_slowbrain("buscar vuelos a Roma",
                                     context={"src": "probe", "asked": "¿Quieres que te busque vuelos a Roma?"})
     assert tid == 0 and bus == ["escalate.offered"]
-
-
-def test_the_text_channel_passes_its_reply_not_his_turn():
-    src = inspect.getsource(probe_after.execute_what_was_decided)
-    call = src[src.index("_launch("):].split("\n", 1)[0]
-    assert "text=spoken" in call, call
