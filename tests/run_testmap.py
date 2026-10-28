@@ -4509,7 +4509,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ['tests/agent_headless/unit/turn/test_words_he_asked_for_carry_no_not_done.py']},
         {"id": "2.894", "title": "A module faked in sys.modules is also what its package hands out (`from pkg import mod`), and both come back — the root conftest's monkeypatch, so a fake never depends on whether an earlier test imported the real one (refactor2710-99)",
             "ch": UNIT, "paths": ['tests/infrastructure/unit/test_a_faked_module_is_what_its_package_hands_out.py']},
-        {"id": "2.906", "title": "`unread` is a WRITE in his real app and says what it is not; «do I have new messages?» is one of `show_view`'s own examples in both languages — descriptors under the cut, measured against the neighbour (refactor2710-99, CRIT-K7)",
+        {"id": "2.907", "title": "`unread` is a WRITE in his real app and says what it is not; «do I have new messages?» is one of `show_view`'s own examples in both languages — descriptors under the cut, measured against the neighbour (refactor2710-99, CRIT-K7)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_unread_is_a_write_and_new_messages_is_the_view.py"]},
         {"id": "2.897", "title": "A «yes» to OUR offer to stop the errand is the order, in any language: the model's stop_worker runs instead of asking again, the backstop stops a turn whose model called nothing, a «no» or a question of his takes nothing, and with no offer of ours an unsure verdict stops nothing (refactor2710-99)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_a_yes_to_our_offer_to_stop_is_the_order.py"]},
