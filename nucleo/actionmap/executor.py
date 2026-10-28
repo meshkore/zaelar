@@ -241,17 +241,11 @@ def execute(action: dict, emit, phrase: str = "") -> bool:
         # V2-773 (demo, V4): «Exit fullscreen» over the player at full screen — the model called nothing and the
         # promise repair can only make data-ops; the canvas step is a tag. The target is the card the canvas
         # itself reports at full screen (`state.maximized_widget`), never a guess; none → the model answers.
-        try:
-            from memory import api as _memapi
-            maxw = str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()
+        try:                               # …or the full screen his own order set and nothing undid (V4) — ONE
+            from nucleo.flash import show_target as _st_fs   # reader for every door (`show_target.at_full_screen`)
+            maxw = _st_fs.at_full_screen()
         except Exception:  # noqa: BLE001
             maxw = ""
-        if not maxw:
-            try:                           # …or the full screen his own order set and nothing undid (V4)
-                from nucleo import canvas_focus
-                maxw = canvas_focus.ordered_fullscreen()
-            except Exception:  # noqa: BLE001
-                maxw = ""
         if not maxw:
             return False
         _canvas(emit, said, "minimize", maxw)

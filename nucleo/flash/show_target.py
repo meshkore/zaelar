@@ -215,14 +215,35 @@ def fullscreen_target(widget_id: str, text: str = "") -> str:
     # INTO full screen — the exact opposite of the order, on the operator's own most common canvas. An
     # empty argument means «the one that is at full screen» and nothing else; when there is none, the
     # honest result is nothing, and the caller asks.
+    maxw = at_full_screen()
     try:
-        from memory import api as _memapi
-        maxw = str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()
-        if maxw and rt.get(maxw) is not None:
+        if maxw and rt.get(maxw.split("::", 1)[0]) is not None:
             return maxw
     except Exception:
         pass
     return ""
+
+
+def at_full_screen() -> str:
+    """The card at full screen NOW, or "": what the canvas reports (`state.maximized_widget`), else the full screen his
+    own order set and nothing has undone (`canvas_focus.ordered_fullscreen`, for the seconds before the report lands).
+
+    ONE reader (demo sandbox 2026-10-28, V4 «ok that's enough, go back to normal size»): the model's call and the
+    action map read the fact, the verdict completion (`card_close.run_gesture`) did not — `canvas=exit_fullscreen`
+    at 1.00, no card named, two cards open, and the gesture fell to the focus fallback and found nothing. A gesture
+    whose target the SCREEN STATE determines resolves from that state, never from focus or a count of open cards."""
+    try:
+        from memory import api as _memapi
+        maxw = str(((_memapi.state() or {}).get("maximized_widget") or "")).strip()
+        if maxw:
+            return maxw
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from nucleo import canvas_focus as _cf
+        return str(_cf.ordered_fullscreen() or "").strip()
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def close_target(widget_id: str) -> str:

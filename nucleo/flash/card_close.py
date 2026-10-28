@@ -270,6 +270,10 @@ def run_gesture(brief, *, tag_emit, emit, operator_text: str = "") -> str:
             # are open get the gesture; named cards that are not open mean there is nothing to do.
             open_now = _da._open_now()
             targets = [t for t in (_st.close_target(n) for n in named) if t in open_now]
+        elif verb == "exit_fullscreen":
+            # the SCREEN says which card is at full screen; focus and «the only one open» say nothing about it
+            # (demo sandbox 2026-10-28, V4: two cards open, the verdict sure, and the gesture found no target)
+            targets = [t for t in [_st.at_full_screen()] if t]
         else:
             targets = [position_or_focus(words, _st.close_target(""))]   # «the top one»
         targets = _cg.keep_cards(targets, words, rows_too=verb == "close" and not named)   # V2-781
