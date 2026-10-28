@@ -30,7 +30,8 @@ async def _serve(route):
 
 async def mount(pg, widget_id: str, origin: str = "http://zaelar.test") -> None:
     """Load `/widgets/<id>/widget.js` as a module in `pg` and expose its `render` as `window.render`."""
-    await pg.route(f"{origin}/widgets/{widget_id}/**", _serve)
+    for tail in ("widget.js*", "js/**"):            # only the client: the test's own routes (assets…) stay its own
+        await pg.route(f"{origin}/widgets/{widget_id}/{tail}", _serve)
     await pg.evaluate("async id => { window.render = (await import(`/widgets/${id}/widget.js`)).render; }",
                       widget_id)
 

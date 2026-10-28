@@ -13,9 +13,9 @@ import asyncio
 import os
 
 import pytest
+from tests.browser import widget_client
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-_WIDGET = os.path.join(ENG, "widgets", "mensajeria", "widget.js")
 
 _HTML = """<!doctype html><html><head><meta charset="utf-8"><style>
 body{margin:0;background:#0a1017}#host{width:520px}
@@ -93,9 +93,7 @@ def _run(data):
                 await route.fulfill(status=200, content_type="text/html", body=_HTML)
             await pg.route("http://zaelar.test/", _page)
             await pg.goto("http://zaelar.test/")
-            src = open(_WIDGET, encoding="utf-8").read()
-            await pg.add_script_tag(
-                content=src.replace("export function render", "window.render = function render"))
+            await widget_client.mount(pg, "mensajeria")
             await pg.evaluate(
                 "d => window.render(document.getElementById('host'), d, "
                 "{action: async () => ({})})", data)
