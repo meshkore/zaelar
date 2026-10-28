@@ -521,10 +521,9 @@ TOOLS: list[dict] = [
         "function": {
             "name": "set_style_directive",
             "description": (
-                "Sus REGLAS permanentes: cómo responder, qué hacer sin preguntar o preguntando antes, la regla de una "
-                "tarjeta; QUITAR o LISTAR reglas. Su frase tal cual en `directive`. TU NOMBRE también: si te pide "
-                "llamarte de otra forma, PUEDES (`name`). Una orden puntual o un filtro de tarjeta (youtube "
-                "block_channel) NO lo es."
+                "Sus REGLAS permanentes: cómo responder, qué hacer sin preguntar o preguntando antes, la regla de "
+                "una tarjeta; QUITAR o LISTAR reglas. TU NOMBRE también: si te pide llamarte de otra forma, PUEDES "
+                "(`name`). Una orden puntual o un filtro de tarjeta (youtube block_channel) NO lo es."
             ),
             "parameters": {
                 "type": "object",

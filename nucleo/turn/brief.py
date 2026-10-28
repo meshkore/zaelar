@@ -6,13 +6,10 @@ question only while an errand runs, a redo only when there is something to redo)
 `{instructions, criteria}` from what is DECLARED (manifest actions of what is open, the request-type list…), never free
 text. A question is finished when it is READ (`nucleo/turn/verdicts.py`): nothing here executes anything.
 
-Why one call: Jev's cost is the round trip, not the questions (one question ~800 ms, a hundred ~1 041 ms, measured
-2026-09-20). Why post-model questions only: the prompt is built 3 ms after admission and a verdict lands at ~785 ms, so
-only what is decided AFTER the model can read a brief fired at admission (the cover filler is the one exception: it is
-chosen after the brief lands). It is fired at the ADMITTED sentence — after echo suppression and the accumulator — so the
-verdicts judge the same words the model reads. Nobody waits: a brief in flight, failed, disabled or unsure reads as the
-caller's own fallback. And a verdict about a card is re-validated when consumed (`owner_still_open`): the brief
-enumerates what was open at fire time; two seconds later a card may have closed.
+One call because Jev's cost is the round trip (one question ~800 ms, a hundred ~1 041 ms, 2026-09-20); post-model
+questions only, because a verdict lands ~785 ms after admission. Fired at the ADMITTED sentence, so it judges the words
+the model reads. Nobody waits: in flight, failed or unsure reads as the caller's fallback, and a verdict about a card is
+re-validated when consumed (`owner_still_open`).
 """
 from __future__ import annotations
 
@@ -21,7 +18,8 @@ from nucleo.turn.brief_turn import (  # noqa: F401 — re-export: which turn a b
     PREFIRED_TTL_S, judged_text, of_this_turn, owner_still_open, remember_for_the_turn, stamp, verdict_before_the_turn)
 from nucleo.turn.brief_screen import (  # noqa: F401 — re-export: the screen questions and their caps
     CATALOG_INSTRUCTIONS, MAX_CATALOG_CANDIDATES, MAX_DESC_CHARS, MAX_OPEN_CARDS, NAMES_KEY, TARGET_INSTRUCTIONS,
-    _base_of, _card_label, _possible_now, catalog_question, names_elsewhere, names_question, target_question)
+    ITEM_REF_KEY, _base_of, _card_label, _possible_now, catalog_question, item_ref_question, names_elsewhere,
+    names_question, target_question, withdrawn_rows)
 
 ESCALATE_KEY = "escalate_or_inline"
 CANVAS_KEY = "canvas"
@@ -133,6 +131,7 @@ QUESTIONS = (
     (TARGET_KEY, lambda c: bool(c.get("open_ids")), lambda c: target_question(c.get("open_ids"))),
     (CATALOG_KEY, lambda c: not target_question(c.get("open_ids")), lambda _c: catalog_question()),
     (NAMES_KEY, lambda c: bool(c.get("open_ids")), lambda c: names_question(c.get("open_ids"))),
+    (ITEM_REF_KEY, lambda c: bool(c.get("open_ids")), lambda c: item_ref_question(c.get("open_ids"))),
     (("nucleo.turn.identity", "KEY"), None, lambda c: __import__("nucleo.turn.identity", fromlist=["x"]).question(c)),
 )
 

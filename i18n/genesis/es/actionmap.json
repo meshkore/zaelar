@@ -1,6 +1,6 @@
 {
  "_comment": "Genesis seed pack (Spanish) for the action map (V2-539). Every entry is an UNAMBIGUOUS, whole-utterance command mapped to one allowlisted direct action. Phrases are normalized on import (accents/punctuation don't matter here). Courtesy/word-order variants are separate entries ON PURPOSE — the matcher is not allowed to understand. When a phrase could plausibly mean something richer than the mapped action, it does NOT belong in this pack: the model handles it. · V2-682 — the possessive and the courtesy form were the whole hole. Measured on the operator's own English session (2026-09-12): «open the agenda» matched and «can you open MY agenda, please» did not, so a widget SHOW fell through to the model and from there to a Brain Worker that died on a provider 400. Spanish had the identical hole («abre mi agenda», «abreme la agenda»), which is why the fix lands in BOTH packs: this was never an English defect. Courtesy and modal forms are ENTRIES here, never something the matcher is allowed to understand (normalize.py doctrine). · V2-761 — the widget catalogue («Apps») joins as a panel tab; the operator calls it apps or widgets indifferently, so both words are entries. · V2-764 — the `torrent` widget merged into `archivos` (section Torrents): its names open that section. · v15 (demo pass 2026-09-28, V3) — «make it fullscreen» over the video had no entry, the model said «going fullscreen now» and called nothing: a pronoun fullscreen targets the card in front (`*`).",
- "version": 15,
+ "version": 16,
  "grids": [
   {
    "_comment": "VERB x OBJECT grid for mensajeria's LENSES (V2-545). «Abreme el Telegram» is not «show the card»: WhatsApp/Telegram/correo are VIEWS OF a card, and the model reads them as card names because they are also the widget's aliases - measured live, three turns of «Aqui lo tienes» over an unmoved card. Expanded into ordinary exact-match entries at import; a view op also brings the card up (executor), so one order gets both halves. `$` is filled with the value.",
@@ -338,6 +338,91 @@
     "payload": {
      "tab": "$"
     }
+   }
+  },
+  {
+   "_comment": "V2-640 / refactor2710-07 — a presence KNOCK («are you there?») is answered without a model by the presence lane. These rows replaced the regex that read it; the lane strips the assistant's name and the phrasebook's vocatives, then looks the rest up here. `do: presence` is spoken by its lane, never executed by the map.",
+   "verbs": [
+    "oye",
+    "hola",
+    "hey",
+    "eh"
+   ],
+   "objects": {
+    "sigues ahi": "",
+    "sigues ahi o no": "",
+    "sigues ahi o que": "",
+    "sigues por ahi": "",
+    "sigues por ahi o no": "",
+    "sigues por ahi o que": "",
+    "sigues conmigo": "",
+    "sigues conmigo o no": "",
+    "sigues conmigo o que": "",
+    "estas ahi": "",
+    "estas ahi o no": "",
+    "estas ahi o que": "",
+    "estas por ahi": "",
+    "estas por ahi o no": "",
+    "estas por ahi o que": "",
+    "estas conmigo": "",
+    "estas conmigo o no": "",
+    "estas conmigo o que": "",
+    "me oyes": "",
+    "me oyes o no": "",
+    "me oyes bien": "",
+    "me oyes bien o no": "",
+    "me escuchas": "",
+    "me escuchas o no": "",
+    "me escuchas bien": "",
+    "me escuchas bien o no": "",
+    "me recibes": "",
+    "me recibes o no": "",
+    "me recibes bien": "",
+    "me recibes bien o no": "",
+    "hay alguien": "",
+    "hay alguien ahi": "",
+    "estas disponible": "",
+    "estas disponible o no": "",
+    "estas operativo": "",
+    "estas operativo o no": "",
+    "estas conectado": "",
+    "estas conectado o no": "",
+    "estas despierto": "",
+    "estas despierto o no": "",
+    "estas vivo": "",
+    "estas vivo o no": "",
+    "sigues disponible": "",
+    "sigues disponible o no": "",
+    "sigues operativo": "",
+    "sigues operativo o no": "",
+    "sigues conectado": "",
+    "sigues conectado o no": "",
+    "sigues despierto": "",
+    "sigues despierto o no": "",
+    "sigues vivo": "",
+    "sigues vivo o no": "",
+    "estas": ""
+   },
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "_comment": "V2-665 / refactor2710-07 — what may sit around a bare call by NAME («oye Johnny, por favor») without making it a request: the presence lane answers it as a summons only when the assistant's name was in the utterance.",
+   "verbs": [
+    "oye",
+    "hey",
+    "eh",
+    "hola",
+    "perdona",
+    "oiga"
+   ],
+   "objects": {
+    "por favor": "",
+    "porfa": ""
+   },
+   "action": {
+    "do": "address"
    }
   }
  ],
@@ -1449,6 +1534,372 @@
    "action": {
     "do": "fullscreen",
     "widget": "*"
+   }
+  },
+  {
+   "phrase": "oye",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "hey",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "eh",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "hola",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "perdona",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "oiga",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "por favor",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "porfa",
+   "action": {
+    "do": "address"
+   }
+  },
+  {
+   "phrase": "sigues ahi",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues ahi o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues ahi o que",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues por ahi",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues por ahi o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues por ahi o que",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues conmigo",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues conmigo o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues conmigo o que",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas ahi",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas ahi o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas ahi o que",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas por ahi",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas por ahi o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas por ahi o que",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas conmigo",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas conmigo o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas conmigo o que",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me oyes",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me oyes o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me oyes bien",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me oyes bien o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me escuchas",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me escuchas o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me escuchas bien",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me escuchas bien o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me recibes",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me recibes o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me recibes bien",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "me recibes bien o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hay alguien",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "hay alguien ahi",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas disponible",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas disponible o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas operativo",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas operativo o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas conectado",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas conectado o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas despierto",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas despierto o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas vivo",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas vivo o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues disponible",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues disponible o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues operativo",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues operativo o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues conectado",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues conectado o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues despierto",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues despierto o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues vivo",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "sigues vivo o no",
+   "action": {
+    "do": "presence"
+   }
+  },
+  {
+   "phrase": "estas",
+   "action": {
+    "do": "presence"
    }
   }
  ]

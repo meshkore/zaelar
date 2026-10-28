@@ -45,8 +45,14 @@ def test_the_answered_intent_is_the_one_that_ASKS(es):
     assert smalltalk.classify("Hola.", es) == "greeting"
 
 
-def test_a_knock_with_an_address_in_the_middle_is_still_a_knock(en):
+def test_a_knock_with_an_address_in_the_middle_is_still_a_knock(en, monkeypatch, tmp_path):
     """«Hey, mate. You there?» — the word standing between this sentence and the presence lane was «mate»."""
+    from memory import db as memdb
+    from nucleo.actionmap import store
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
+    memdb.reset_db()
+    monkeypatch.setattr(store, "active_lang", lambda: "en")
+    store.invalidate()
     voc = tuple(en.get("vocatives") or ())
     assert presence.is_presence_check("Hey, mate. You there?", "", voc)
     assert presence.is_presence_check("You there?", "", voc)

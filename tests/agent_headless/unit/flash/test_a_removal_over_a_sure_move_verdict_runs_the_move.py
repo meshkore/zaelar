@@ -20,7 +20,9 @@ from ._video_queue_scene import brief, queue, titles  # noqa: F401 — `queue` i
 
 def test_the_move_runs_and_nothing_is_removed(queue):
     queue(QUEUE)
-    wid, act, pl = VC.retarget(brief({"screen_action": ("youtube:move", 1.0)}), "youtube", "remove", {"item": "4"}, SAID)
+    took_back = {"item_ref": ("youtube#5", 0.9)}                # «el último… no, el penúltimo»: the brief says which
+    wid, act, pl = VC.retarget(brief({"screen_action": ("youtube:move", 1.0), **took_back}), "youtube", "remove",
+                               {"item": "4"}, SAID)
     assert (wid, act) == ("youtube", "move"), (wid, act, pl)
     assert yt.apply_action(act, pl)["ok"]
     assert titles() == MOVED                       # five rows still: the penultimate sits right behind «skills»

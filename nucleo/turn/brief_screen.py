@@ -156,15 +156,52 @@ def names_question(open_ids) -> dict | None:
     if not ids:
         return None
     labels = ", ".join(_card_label(w) for w in ids[:MAX_OPEN_CARDS])
-    return {"instructions": f"The cards on screen are: {labels}. Does the operator's sentence name or point at one of "
-                            "them, name something that is NOT one of them, or name nothing?",
-            "criteria": {"on_screen": "he names or points at one of the cards on screen («close it», «the video»)",
-                         NAMES_ELSEWHERE: "he names something that is not one of the cards on screen",
-                         "nothing": "his sentence names nothing"}}
+    return {"instructions": f"The cards on screen are: {labels}. What does the operator's sentence name as the thing to "
+                            "act on?",
+            "criteria": {"on_screen": "one of the cards on screen — by its name, by what it shows, or by a pronoun "
+                                      "pointing at it («close it», «quita eso», «the video»)",
+                         NAMES_ELSEWHERE: "a thing that is NOT one of those cards: a period of time, a plan, a task, an "
+                                          "event, a message, a person, another app",
+                         "nothing": "no object at all, or everything on screen at once"}}
 
 
-def names_elsewhere(handle) -> bool:
-    """The brief, at its licence, says what he named is NOT a card on screen: an unnamed close takes nothing."""
+def names_elsewhere(handle, *, against_a_call: bool = False) -> bool:
+    """He named something NOT on screen: an unnamed close takes nothing (licence); a close the model named, only at the veto."""
     from nucleo.turn import verdicts
+    if against_a_call:
+        return verdicts.against_the_model(handle, NAMES_KEY, lambda c: c != NAMES_ELSEWHERE) == verdicts.VETOED
     choice, info = verdicts.read(handle, NAMES_KEY, "")
     return bool(info and info.get("used")) and choice == NAMES_ELSEWHERE
+
+
+ITEM_REF_KEY = "item_ref"
+#: Rows enumerated per brief: a queue on screen is a handful; past that no self-correction is read.
+MAX_ITEM_ROWS = 12
+
+
+def item_ref_question(open_ids) -> dict | None:
+    """Which listed row, if any, did he name and then TAKE BACK («el último… no, el penúltimo»)? Asked over the rows
+    that EXIST, never read off correction words. None with fewer than two rows on screen."""
+    from widgets import refs as _refs
+    rows = []
+    for wid in [str(w).strip() for w in (open_ids or []) if str(w or "").strip()][:MAX_OPEN_CARDS]:
+        base = _base_of(wid)
+        rows += [(base, i, r) for i, r in enumerate(_refs._ref_index(base), 1)]
+    rows = rows[:MAX_ITEM_ROWS]
+    if len(rows) < 2:
+        return None
+    criteria = {f"{b}#{r['id']}": f"row {i} of {_card_label(b)} («{str(r['label'])[:60]}») — he named it and then "
+                                  "corrected himself, naming another row instead" for b, i, r in rows}
+    criteria["none"] = "he takes back no row: every row he names is meant, or he names none"
+    return {"instructions": "Rows listed on screen, numbered from the top. In one breath the operator may name a row and "
+                            "then correct himself («the last… no, the second to last»). Which row did he TAKE BACK?",
+            "criteria": criteria}
+
+
+def withdrawn_rows(handle, base: str) -> set[str]:
+    """Ids of the rows of `base` the brief, at its licence, says he named and took back."""
+    from nucleo.turn import verdicts
+    choice, info = verdicts.read(handle, ITEM_REF_KEY, "")
+    if info and info.get("used") and str(choice).startswith(f"{base}#"):
+        return {str(choice).split("#", 1)[1]}
+    return set()

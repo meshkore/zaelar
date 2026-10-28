@@ -183,7 +183,7 @@ def resolve(commission: str, *, brief=None, swallowed=None, operator_text: str =
         if no_payload(wid, action):
             return {"widget": wid, "action": action, "payload": {}, "key": "",
                     "source": "no-payload", "label": f"{wid}:{action} ← el veredicto de pantalla (sin payload)"}
-        filled, src = choice_or_order_fill(wid, action, words, model_words)   # an alias he said, or «X before Y»
+        filled, src = choice_or_order_fill(wid, action, words, model_words, brief)   # an alias he said, or «X before Y»
         if not filled and (filled := named_row(wid, action, words)):
             src = "named-row"
         if filled:

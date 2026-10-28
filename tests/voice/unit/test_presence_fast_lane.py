@@ -4,7 +4,10 @@ Born from the 19:27 live session (sid 1674ee35): the presence check went to a 3-
 thinking filler («Déjame ver…»), and the operator spent the rest of the session asking what we wanted to
 see. The lane answers the knock instantly and without a model — but only a WHOLE utterance that is nothing
 but the knock: anything with content falls through untouched, because a canned phrase over a real request
-erases it (the V2-605 lesson).
+erases it (the V2-605 lesson). Since refactor2710-07 what a knock IS is a `presence` row of the active language's
+action map, not a regex.
+
+Disarm: make `is_presence_check` compare against another row kind and the knock tests go red.
 """
 from __future__ import annotations
 
@@ -17,20 +20,39 @@ import pytest
 from voice.engine.llm.providers import fast_lane as fl
 
 
-def test_a_presence_knock_is_recognized_in_both_languages():
+@pytest.fixture
+def rows(monkeypatch, tmp_path):
+    """The knock and the bare call are action-map ROWS of the active language (refactor2710-07): a fresh map, in `es`."""
+    from memory import db as memdb
+    from nucleo.actionmap import store
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
+    memdb.reset_db()
+
+    def _use(code):
+        monkeypatch.setattr(store, "active_lang", lambda: code)
+        store.invalidate()
+    _use("es")
+    yield _use
+    store.invalidate()
+    memdb.reset_db()
+
+
+def test_a_presence_knock_is_recognized_in_both_languages(rows):
     for utt in ("¿Sigues ahí?", "¿Estás ahí?", "¿Me oyes?", "¿me escuchas bien?", "¿Hay alguien ahí?",
-                "¿Estás disponible?", "¿estás operativo o no?", "sigues ahí o qué",
-                "are you there?", "Are you still there?", "can you hear me?", "still there?"):
+                "¿Estás disponible?", "¿estás operativo o no?", "sigues ahí o qué"):
+        assert fl.is_presence_check(utt), f"{utt!r} must be a presence knock"
+    rows("en")
+    for utt in ("are you there?", "Are you still there?", "can you hear me?", "still there?"):
         assert fl.is_presence_check(utt), f"{utt!r} must be a presence knock"
 
 
-def test_a_leading_vocative_does_not_hide_the_knock():
+def test_a_leading_vocative_does_not_hide_the_knock(rows):
     """V2-635's lesson applied here: «Johnny, ¿sigues ahí?» is the same knock."""
     assert fl.is_presence_check("Johnny, ¿sigues ahí?", assistant_name="Johnny")
     assert fl.is_presence_check("Oye, ¿me oyes?")
 
 
-def test_content_is_never_swallowed_by_the_lane():
+def test_content_is_never_swallowed_by_the_lane(rows):
     """Any utterance that carries a REQUEST must reach the model — a knock with cargo is not a knock."""
     for utt in ("¿Sigues ahí? Búscame un hotel", "¿Me oyes? cierra los mensajes",
                 "¿Estás ahí para reservar la cena?", "¿Me puedes poner una imagen de fondo?",
@@ -38,7 +60,7 @@ def test_content_is_never_swallowed_by_the_lane():
         assert not fl.is_presence_check(utt, assistant_name="Johnny"), f"{utt!r} must fall through"
 
 
-def test_a_bare_call_by_name_is_a_summons_not_a_knock():
+def test_a_bare_call_by_name_is_a_summons_not_a_knock(rows):
     assert not fl.is_presence_check("Johnny.", assistant_name="Johnny")
 
 
@@ -62,7 +84,7 @@ def _run_presence(monkeypatch, text, busy=False, speaker_available=True):
     return handled, spoken, events, brain
 
 
-def test_the_knock_is_answered_instantly_and_lands_in_the_window(monkeypatch):
+def test_the_knock_is_answered_instantly_and_lands_in_the_window(monkeypatch, rows):
     handled, spoken, events, brain = _run_presence(monkeypatch, "¿Sigues ahí?")
     assert handled and len(spoken) == 1 and spoken[0], "one spoken answer, no model"
     # The canned-line lesson (V2-605): a phrase of ours that skips the history erases its own story.
@@ -74,7 +96,7 @@ def test_the_knock_is_answered_instantly_and_lands_in_the_window(monkeypatch):
         "observability must say no model resolved this turn"
 
 
-def test_a_busy_agent_says_it_is_still_on_the_task(monkeypatch):
+def test_a_busy_agent_says_it_is_still_on_the_task(monkeypatch, rows):
     """Mid-task, «¿sigues ahí?» really asks about the TASK — the busy pool answers that."""
     from voice.engine.core import langs
     handled, spoken, _, _ = _run_presence(monkeypatch, "¿Sigues ahí?", busy=True)
@@ -82,7 +104,7 @@ def test_a_busy_agent_says_it_is_still_on_the_task(monkeypatch):
     assert handled and spoken[0] in langs.spec().presence_busy
 
 
-def test_no_mouth_means_the_model_answers(monkeypatch):
+def test_no_mouth_means_the_model_answers(monkeypatch, rows):
     """The chat channel has no speaker() — the lane must step aside, never eat the turn silently."""
     handled, spoken, _, brain = _run_presence(monkeypatch, "¿Sigues ahí?", speaker_available=False)
     assert not handled and not spoken and not brain._window

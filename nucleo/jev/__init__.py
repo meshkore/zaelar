@@ -68,7 +68,7 @@ def new_call_id() -> str:
 
 
 def _engine_root() -> Path:
-    return Path(__file__).resolve().parents[1]
+    return Path(__file__).resolve().parents[2]      # nucleo/jev/__init__.py → the engine root
 
 
 _KEY_CACHE: dict = {"env": None, "value": ""}

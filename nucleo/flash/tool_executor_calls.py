@@ -407,9 +407,10 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
              text=f"{which or 'todo'}", role="system",
              extra={"cat": "flash", "kind_diag": "stop_after_answer"})
         return
-    # ── GUARD 2: killing needs his order in THIS turn — a stop the model drags from an earlier turn is context bleed
-    # (2026-08-14). Read asymmetrically (refactor2710-07, `stop.model_stop`): a sure verdict decides, an unsure one that
-    # disagrees is asked, and only with no verdict at all do his words (or his yes to our own offer) stand in.
+    # ── GUARD 2: stopping needs HIS order in THIS turn — a stop the model drags from an earlier turn is context bleed
+    # (2026-08-14); «para» alone only hushes the voice. Read asymmetrically (refactor2710-07, `stop.model_stop`): a sure
+    # verdict decides, an unsure one that disagrees is asked, and only with no verdict do his words (or his yes to our
+    # own offer, demo 2026-10-22) stand in.
     from nucleo.request import stop as _stop_decision
     _may = _stop_decision.model_stop(brief, grammar=bool(_says_stop(text)
                                                          or _prior_line.answers_our_question(brief, prior)))

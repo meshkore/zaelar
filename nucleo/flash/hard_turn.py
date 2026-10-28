@@ -92,9 +92,8 @@ async def say_receipt(emit, brain=None) -> str:
 
 
 async def names_an_act_on_screen(text: str, emit) -> bool:
-    """A stop that NAMES an activity on a card («Stop showing me the Social tab in my mail») is an order about that
-    card, not a silence order: decided by the brief's `screen_action` verdict at its licence (refactor2710-07), never by
-    the sentence's shape (CRIT-W10). The barge-in already silenced the voice, so the wait costs nothing heard."""
+    """A stop that NAMES an activity on a card («Stop showing me the Social tab») is an order about that card: the
+    brief's `screen_action` verdict decides it, never the sentence's shape (CRIT-W10)."""
     try:
         from nucleo.turn import brief
         choice, info = await brief.verdict_before_the_turn(text, brief.TARGET_KEY)
@@ -104,8 +103,7 @@ async def names_an_act_on_screen(text: str, emit) -> bool:
              role="system", extra={"cat": "flash", "reason": "stop_names_an_act", "verdict": choice})
         return True
     except Exception as e:  # noqa: BLE001 — an unreadable verdict keeps the stop as a stop
-        emit("brain", "⚠️ stop: the early verdict was not read", text=f"{type(e).__name__}: {e}"[:160], role="system",
-             extra={"cat": "flash", "reason": "stop_verdict_failed"})
+        emit("brain", "⚠️ stop: the early verdict was not read", text=f"{type(e).__name__}: {e}"[:160], role="system")
         return False
 
 
