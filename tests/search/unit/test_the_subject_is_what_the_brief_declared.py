@@ -9,7 +9,7 @@ where his own words name them, so the brief cannot add a subject he never said. 
 """
 from __future__ import annotations
 
-from nucleo import research
+from nucleo.workers import brief as research
 from search import category
 from widgets.results import category_gate
 from widgets.results import data as sheet_mod

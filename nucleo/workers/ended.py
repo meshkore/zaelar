@@ -17,24 +17,16 @@ from __future__ import annotations
 
 import time
 
-# V2-198 — the states of a worker SESSION, enumerated ONCE. There were FOUR filters writing
-# `("queued", "running")` by hand and none for the other side: a session that finishes, is cancelled or fails
-# used to vanish from the registry without leaving ANY fact in the live state. It is the same hole V2-150
-# closed for browser tasks and V2-196/197 for their states… one level up, and worse: a browser task only
-# exists with `kind=web`, while **every** escalation opens a worker session. Cases resolved by search
-# (`cheapest-monitor`) or by memory (`remember-and-remind-deadline`) have no browser task at all, so for them
-# the V2-150 fix never applied.
+# V2-198 — worker SESSION states, enumerated ONCE (four hand-written filters before). Finished/cancelled/failed
+# sessions vanished with no fact left — V2-150's hole one level up, hitting every escalation, not just `kind=web`.
 LIVE_SESSION_STATES = frozenset({"queued", "running"})
 # V2-238 — «relevada» is an ending of its own: the session is gone, but the ERRAND is not. It used to live as
 # `error`, and with that the engine announced to the operator a death that had not happened while the relay
 # worked.
 ENDED_SESSION_STATES = frozenset({"done", "error", "cancelled", "relevada"})
 JUST_ENDED_S = 300.0     # five minutes: how long the conversation lasts in which the operator still asks
-# three-tasks-at-once (ES, 2026-10-11 11:34): the report finished at 11:36, and at 11:42 — 333 s later — the block
-# listed the monitor and the game as finished and not the report; asked «¿el informe en qué punto está?», the turn
-# answered «del informe no me consta ningún dato todavía» with the report open on his screen. Three errands at once
-# outlive five minutes. A DELIVERED errand stays a fact for the conversation; a death or a stop keeps the short
-# window its notice machinery was measured with (V2-221/224). The prompt does not grow: the block's cap stands.
+# three-tasks-at-once (ES, 2026-10-11 11:34): 333 s after delivery the turn said it had no data on the report
+# yet. A DELIVERED errand stays a fact; a death/stop keeps the short window (V2-221/224). The block cap stands.
 DELIVERED_KEPT_S = 900.0
 
 
@@ -99,11 +91,8 @@ def _remember_ended(rec, resuming: bool = False) -> None:
             _ENDED_SESSIONS.pop(k, None)
     except Exception:  # noqa: BLE001
         pass
-    # V2-222 — and if it truly DIED, it gets PUSHED. Measured by the harness on `hotel-under-15-days` with the
-    # counter over both routes: what is pushed as a system note gets said in the next turn 3 out of 3 times
-    # (3 s for the worker's question, 7 s for the wall); what is only RENDERED as a prompt state line, 0 out of
-    # 13 — and with V2-221's imperative wording in front all thirteen times. The state line stays (it is the
-    # context of the next five minutes); the order travels by the route that actually arrives.
+    # V2-222 — a real DEATH is PUSHED: harness on `hotel-under-15-days`, a system note is said next turn 3/3, a
+    # prompt state line 0/13. The state line stays as context; the order goes by the route that arrives.
     try:
         if (str(rec.status or "") != "cancelled" and not bool(rec.ok)
                 and not str(getattr(rec, "handoff", "") or "")       # V2-238: a relayed errand has not died
@@ -161,14 +150,9 @@ def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[di
 
 
 # ── V2-570 — A FAST-PASS DELIVERY IS A FACT TOO ────────────────────────────────────────────────────────────
-# Measured on the operator's own session (9dcff6f5, 2026-09-03): the listing fast pass (V2-556) delivered 20
-# rows into a sheet, and seven seconds later the model escalated the SAME hunt — `dedup_miss` said `live: 0`
-# («nothing live to compare against»), because a fast pass is not a session, and `continues_ended` only saw
-# worker sessions. Result: a second sheet beside the first and a Brain Worker re-searching what was already
-# answered — the exact «two parallel processes for one errand» the operator forbids. So a delivery gets its
-# own snapshot store, SIBLING of `_ENDED_SESSIONS` on purpose: that dict feeds the prompt's ended-errands
-# block and the death-notice machinery (V2-221/224), and a synthetic row there would announce «FALLÓ/TERMINÓ»
-# about something that never was a session.
+# Session 9dcff6f5 (2026-09-03): a fast pass (V2-556) delivered 20 rows, and 7 s later the SAME hunt escalated
+# (`dedup_miss` `live: 0`) — two processes for one errand. Own store, SIBLING of `_ENDED_SESSIONS` on purpose:
+# a synthetic row there would announce «FALLÓ/TERMINÓ» for something that never was a session.
 
 _LISTING_DELIVERIES: dict[str, dict] = {}
 

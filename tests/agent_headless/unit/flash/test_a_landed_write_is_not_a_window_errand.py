@@ -13,7 +13,7 @@ import pytest
 
 from nucleo.flash import router_guards as RG
 from nucleo.flash import served_writes as SW
-from nucleo.flash import write_outcome as WO
+from nucleo.circuit import compose as WO
 
 ASKED = ("Apúntame dos cosas: dentista el 24 de octubre a las nueve y media, y cena con Laura dos días después a "
          "las nueve de la noche.")

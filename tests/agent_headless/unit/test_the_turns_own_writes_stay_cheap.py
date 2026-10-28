@@ -17,6 +17,8 @@ measures the operation.
 """
 from __future__ import annotations
 
+from nucleo import circuit
+
 import time
 
 BUDGET_MS = 3.0
@@ -46,7 +48,7 @@ def test_the_request_rows_writes_fit_the_budget(tmp_path, monkeypatch):
             t = time.perf_counter()
             uid = rq.opened("youtube", "load", text="x")
             S.persist(uid, {"done_when": {"a": 1}, "status": "open"})
-            rq.settle(uid, "met")
+            circuit.settle(row=uid, verdict="met")
             tb.recent_lines()
             turn.append((time.perf_counter() - t) * 1000)
         assert _median(turn) <= BUDGET_MS, f"a turn's own writes take {_median(turn):.2f} ms (median; budget {BUDGET_MS})"

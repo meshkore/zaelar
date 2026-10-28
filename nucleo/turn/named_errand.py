@@ -38,7 +38,7 @@ def known(*, with_finished: bool = False) -> list[dict]:
     except Exception as e:  # noqa: BLE001 — a reader never breaks a turn
         logger.debug(f"named_errand: live errands unreadable — {type(e).__name__}: {e}")
     try:
-        from nucleo import dispatch_confirm as _dc     # the gate's own store (`pending_confirm` reads this one)
+        from nucleo.dispatch import confirm as _dc     # the gate's own store (`pending_confirm` reads this one)
         for tid, p in list((getattr(_dc, "_PENDING_CONFIRM", None) or {}).items()):
             refs = " ".join(str(r) for r in (p.get("refinements") or []))
             out.append({"id": str(tid), "label": "", "request": str(p.get("request") or "").strip(),

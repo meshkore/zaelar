@@ -48,7 +48,7 @@ _SERVER = textwrap.dedent("""
     from fastapi import FastAPI
     from fastapi.responses import PlainTextResponse
     from server import api_guard, operator_gate
-    from nucleo.workers import spawned
+    from nucleo.workers.providers import spawned
 
     port, client = int(sys.argv[1]), sys.argv[2]
     app = FastAPI()

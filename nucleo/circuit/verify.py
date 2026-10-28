@@ -1,9 +1,7 @@
 """nucleo/circuit/verify.py — ONE verifier: did the end state the task promised actually happen? (V2-707 F2)
 
-A task does not end because its worker SAYS it ended: **the model writes the condition; the engine checks it
-against the product's own truth.** One grammar, one checker, every caller (the circuit's pulse and endings, the
-harness, third-party errands). Closed in OPERATORS, open in CONTENT; `where` reuses `widgets/rows.py`'s selector
-rather than growing a second one that could disagree with it.
+**The model writes the condition; the engine checks it against the product's own truth** — one grammar, one checker,
+every caller. Closed in OPERATORS, open in CONTENT.
 
 ## The grammar
 
@@ -15,11 +13,9 @@ rather than growing a second one that could disagree with it.
               "expect": "present" | "absent",          # default: present
               "count": 3 | {"min": 1, "max": 5}}       # optional, exact or bounded
 
-`where` is `widgets/rows.py`'s expression, unchanged: `field` equals, `field~` contains, `field>=` `<=` `>`
-`<`, `field!` not-equal, a list value meaning «any of these», clauses AND'd, case and accents folded.
+`where` is `widgets/rows.py`'s expression (`field`, `field~`, `>=` `<=` `>` `<`, `field!`, a list = any; folded).
 
-V2-776 L1 added three clause kinds, because the end states the demo asks for were not rows of a collection
-(measured 2026-09-29: the row grammar reached 3 of ~18 widgets):
+V2-776 L1 — clause kinds beyond rows (the row grammar alone reached 3 of ~18 widgets):
 
     {"widget": "results", "field": "layout", "is": "compare"}          a scalar of the widget's view_data
     {"widget": "documento", "field": "focus", "has": "proof of work"}  …contains (folded)
@@ -28,14 +24,12 @@ V2-776 L1 added three clause kinds, because the end states the demo asks for wer
     {"desktop": "wallpaper", "has": "orion"} / {"desktop": "wallpaper", "expect": "changed"}
     {"canvas": "results", "expect": "visible" | "minimized" | "maximized" | "closed"}
 
-`expect` on a field/desktop clause may also be `present` (non-empty) or `absent` (empty). The readers live in
-`nucleo/truth.py`; a `changed` clause carries its `baseline`, written by `nucleo/circuit/spec.py` when the spec is born.
+`expect` on a field/desktop clause may also be `present`/`absent`; `changed` carries the `baseline` `spec.py` wrote.
 
 ## The three answers, and why the third is not False
 
-`True` met · `False` not met · **`None` = could not be read**, and None is never treated as failure. That is
-the V2-660 rule, kept verbatim: a wrong «you did not deliver» over something that WAS delivered is worse
-than staying quiet, and an unreadable widget must not turn a finished errand into a retry loop.
+`True` met · `False` not met · **`None` = could not be read**, never treated as failure (V2-660): a wrong «you did
+not deliver» over a delivered card is worse than silence, and unreadable must not start a retry loop.
 """
 from __future__ import annotations
 
@@ -128,6 +122,26 @@ def _scalar(clause: dict) -> bool | None:
     if expect not in SCALAR_EXPECTS:
         return None
     return (not _truth.is_empty(cur)) if expect == "present" else _truth.is_empty(cur)
+
+
+def _read(what: str, wid: str):
+    try:
+        from nucleo import truth as _truth
+        return getattr(_truth, what)(wid)
+    except Exception as e:  # noqa: BLE001 — unreadable is None, never a failure
+        logger.debug(f"verify: {what} of {wid} unreadable: {e}")
+        return None
+
+
+def card_view(wid: str) -> dict | None:
+    """A card's view as the product declares it (`truth.widget_view`); None when unreadable (an `error` VALUE)."""
+    return _read("widget_view", wid)
+
+
+def card_on_screen(wid: str) -> bool | None:
+    """On screen = open minus minimized (a docked sheet is not in front of him); None when the canvas is unreadable."""
+    state = _read("canvas_state", wid)
+    return None if state is None else state in ("visible", "maximized")
 
 
 def _canvas(clause: dict) -> bool | None:

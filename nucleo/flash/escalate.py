@@ -157,7 +157,7 @@ def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
             return 0
         if _clar.asks_permission(asked) and not _reasks_a_parked_errand(asked, req):
             try:
-                from nucleo import dispatch_confirm as _dc
+                from nucleo.dispatch import confirm as _dc
                 _dc.remember_offer(req, context=ctx0, question=asked.strip()[:200])
             except Exception:  # noqa: BLE001
                 logger.warning("escalate: no pude aparcar el ofrecimiento; NO lo lanzo por las bravas")

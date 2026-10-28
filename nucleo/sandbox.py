@@ -112,7 +112,7 @@ async def arun(code: str, **kwargs) -> dict:
 
 # ── rlimits for the INTERACTIVE dev-worker subprocess (audit 2026-07-26) ─────────────────────────────────────────
 # `_rlimits()` above is tuned for `run()` (a single-turn script, with short wall/CPU limits): an interactive dev-worker
-# (nucleo/workers/claude_session.py, a session that may legitimately last minutes) must NOT inherit that short CPU/wall
+# (nucleo/workers/providers/claude.py, a session that may legitimately last minutes) must NOT inherit that short CPU/wall
 # limit — its lifecycle is already governed by dispatch.py (its own timeouts/cancellation), not an rlimit. What DOES make
 # sense to limit without a time limit: memory, number of processes, and file size — defense in depth against
 # a runaway/fork bomb, without risking killing a real task halfway through.

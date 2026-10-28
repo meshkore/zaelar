@@ -85,7 +85,7 @@ def test_a_list_step_whose_op_was_unmet_is_a_failed_step(monkeypatch):
     async def turn(text, **kw):
         rq.begin(text)
         uid = rq.opened("agenda", "add_meeting")
-        rq.settle(uid, "unmet", "the calendar refused the date")
+        circuit.settle(row=uid, verdict="unmet", outcome="the calendar refused the date")
         return {"ok": True, "reply": ["Done."], "executed": "widget_data"}
 
     async def ingest(text):

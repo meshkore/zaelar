@@ -32,7 +32,6 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 # dad7f3bd) and stayed red through 114 commits — a ratchet nobody runs holds nothing. Re-measured at HEAD and
 # frozen there: every entry is today's size, down-only from here. The debt it names is unchanged and still owed.
 FILES = {
-    'nucleo/dispatch.py': 919,
     'nucleo/energy_meter.py': 812,
     'nucleo/llm/fast_client.py': 866,
     'nucleo/flash/prompt.py': 816,
@@ -45,10 +44,10 @@ FUNCTIONS = {
     'i18n/init/detect.py::lock': 132,
     'memory/writer/__init__.py::insert_memory': 151,
     'nucleo/actionmap/executor.py::execute': 144,
-    'nucleo/dispatch_listener.py::run_listener': 213,
+    'nucleo/dispatch/listener.py::run_listener': 213,
     'nucleo/dispatch_prompts.py::_web_prompt': 222,
-    'nucleo/dispatch_session.py::_run_session': 203,
-    'nucleo/dispatch_session_steps.py::build_what_it_runs_with': 132,
+    'nucleo/dispatch/session.py::_run_session': 203,
+    'nucleo/dispatch/session_steps.py::build_what_it_runs_with': 132,
     'nucleo/errands/wake.py::wake': 153,
     'nucleo/input/stt.py::Accumulator._offer': 129,   # 2026-10-22: `offer` → wrapper + `_offer`
     'nucleo/llm/fast_client.py::FastClient._stream_inner': 267,
@@ -77,8 +76,8 @@ FUNCTIONS = {
     'nucleo/research_prompts.py::to_prompt_block': 136,
     'nucleo/susurro/apply.py::apply_corrections': 161,
     'nucleo/worker_api.py::_exec_allow': 293,
-    'nucleo/workers/claude_session.py::ClaudeCodeSession._map': 145,
-    'nucleo/workers/claude_session.py::ClaudeCodeSession.start': 145,
+    'nucleo/workers/providers/claude_map.py::_map': 145,
+    'nucleo/workers/providers/claude_start.py::start': 145,
     'server/voice_status.py::brain_and_voice': 140,
     'server/voice_status.py::the_rest_and_the_light': 192,
     'voice/engine/llm/providers/nucleo.py::NucleoLLMStream._run_inner': 705,

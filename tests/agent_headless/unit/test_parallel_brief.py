@@ -17,7 +17,7 @@ import asyncio
 import pytest
 
 from nucleo import dispatch as D
-from nucleo import research
+from nucleo.workers import brief as research
 from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 

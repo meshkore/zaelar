@@ -35,10 +35,8 @@ def relay_out_of_fuel(rec, relay_cap: int) -> None:
     # A TRANSIENT rate limit is neither out of fuel nor a death: one delayed relaunch, same ladder.
     from .rate_retry import relaunch_after_rate
     relaunch_after_rate(rec, relay_cap)
-    # COMPACT AND CONTINUE (incident 2026-08-18). The context blew up, which is neither a task failure nor a
-    # provider failure, so neither of the two existing paths fits: there is nothing to relay to (the next tier
-    # would blow up identically) and nothing to report (the operator asked for a guitar, not for an API error).
-    # It is relaunched ONCE carrying what was learned, so the fresh worker does not start from zero.
+    # COMPACT AND CONTINUE (incident 2026-08-18): a blown context is neither a task nor a provider failure, so
+    # it is relaunched ONCE carrying what was learned.
     if (rec.context_full and not rec.context_retried and not rec.provider_down
             and rec.status != "cancelled" and rec.relay_gen < relay_cap):
         rec.context_retried = True
@@ -92,20 +90,15 @@ def relay_out_of_fuel(rec, relay_cap: int) -> None:
                 rec.ok = False
                 rec.result_summary = _say().worker_relay_failed
         else:
-            # V2-238 — THE THREE PATHS THAT ARE NOT A HANDOFF CLOSE `ok`. The three branches above write a
-            # `result_summary` that ANNOUNCES a failure, and none touched `ok`, which starts as True. If the
-            # backend had not already closed it, that sentence was delivered as «Task completed: I ran out of quota…»
-            # —the exact defect targeted by V2-092/V2-236: an ending that says the opposite of what happened.
+            # V2-238 — the three non-handoff paths CLOSE `ok`: their failure summary was delivered as «Task
+            # completed: I ran out of quota…» (the V2-092/V2-236 defect).
             rec.ok = False
             from .quota_wait import parked_summary   # 2026-10-11: the reset hour is known → resume then, and say so
             rec.result_summary = parked_summary(rec.goal, {"kind": rec.kind, "sheet": getattr(rec, "sheet", ""),
                                                            "surface": getattr(rec, "surface", ""),
                                                            "task_uid": getattr(rec, "uid", "")}, _say().worker_no_relay)
-    # THE CHAIN STOPPED: it must be said, and the TRUTH must be told. Without this, a capped ending retained the
-    # provider's raw error in `result_summary`, and `operator_safe_summary` translated it as «I ran out of context…
-    # I'LL RESUME it with what I had» —a retry promise that will no longer happen. A reassuring sentence that
-    # lies is worse than the raw error: the operator waits for something nobody is doing, the V2-185 defect at
-    # another gate.
+    # THE CHAIN STOPPED, and the TRUTH is told: the raw error became «I'LL RESUME it with what I had», a promise
+    # nobody keeps (the V2-185 defect at another gate).
     if (rec.relay_gen >= relay_cap and not rec.handoff and rec.status != "cancelled"
             and (rec.context_full or rec.provider_down)):
         rec.ok = False

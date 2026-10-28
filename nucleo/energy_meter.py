@@ -702,7 +702,7 @@ def report_worker_usage(
     report_llm_usage — a worker call IS an LLM call, just reached via the Claude Code CLI subprocess
     instead of an HTTP client. Deliberately does NOT use the CLI's own `total_cost_usd`: that figure is
     computed by the CLI against OFFICIAL Anthropic pricing, which is meaningless once the call was
-    relayed to another provider (Z.AI/Moonshot, see nucleo/workers/providers.py) — pricing
+    relayed to another provider (Z.AI/Moonshot, see nucleo/workers/providers/) — pricing
     by the per-model table keeps worker Energy consistent with every other metered call."""
     if not enabled():
         return

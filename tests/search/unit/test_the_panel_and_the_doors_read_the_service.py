@@ -1,7 +1,7 @@
 """The status panel's search line, the turn's fact door, and the brief's asked fields (V2-782 T2.2 / T5.3 / T4.3)."""
 from __future__ import annotations
 
-from nucleo import research
+from nucleo.workers import brief as research
 from search import api as _api
 
 

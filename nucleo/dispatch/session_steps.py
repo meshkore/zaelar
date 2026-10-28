@@ -1,25 +1,19 @@
 # One Brain Worker session, in two steps: building what it runs with (env, the web sheet, the dev jail or the
 # writes-only jail, the spec, the brief) and running it to its delivery (V2-778 F1, 2026-10-01).
 #
-# Moved out of `nucleo/dispatch_session.py::_run_session` (387 lines) with no behaviour change. Every name the
+# Moved out of `nucleo/dispatch/session.py::_run_session` (387 lines) with no behaviour change. Every name the
 # steps read from `dispatch_session` is read through it (`_ds.<name>`) — and it reads the dispatcher through `_d`
 # — so a patch on `nucleo.dispatch` still governs them.
 from __future__ import annotations
 
-from nucleo import dispatch_session as _ds
+from nucleo.dispatch import session as _ds
 
 
 async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) -> dict:
     env = {"ZAELAR_TASK_REQUEST": req,       # req crudo → registry (elige generador) + backend
-           # V2-152: a worker must talk to the engine that SPAWNED it, and until now nothing told it which
-           # one that was. All six bridges (`nav_cli`, `mem_cli`, `worker_bridge`, `agent_report`,
-           # `widget_cli`, plus `hbsay`) resolve `ZAELAR_BASE` with a hardcoded `localhost:43917` default,
-           # and NOBODY set that variable — so an engine on any other port spawned workers that drove a
-           # DIFFERENT engine's browser, memory and task cards. Measured on `book-hotel-night-known__es`:
-           # the sandbox's own task record stayed empty (`url=""`, `shot_rev=0`) and not one of the owner's
-           # browser events reached its timeline, while the worker was really navigating Booking.com — on
-           # the operator's live engine. The brain then told the operator, truthfully about ITS record and
-           # falsely about the world, that nothing had been opened, and he stopped a task that was working.
+           # V2-152: a worker must talk to the engine that SPAWNED it. The six bridges default `ZAELAR_BASE` to
+           # `localhost:43917` and nobody set it, so `book-hotel-night-known__es` drove the operator's LIVE
+           # engine while its own record stayed empty — and the brain truthfully said nothing had been opened.
            "ZAELAR_BASE": _ds._d._own_base_url()}
     nav_tid = ""
     resume = task.context.get("resume") or {}     # V2-049: {nav_task, native_sid, count} si REANUDA una gestión
@@ -54,14 +48,9 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
                           env=env, cwd=_wd,
                           extra_args=(["--settings", _dev_settings_path] if _dev_settings_path else []))
     else:
-        # OWN CWD (incident 2026-08-18): until today this spec carried no `cwd`, so the backend fell back to
-        # the ENGINE ROOT and the headless agent loaded `engine/CLAUDE.md` (76k tokens) plus the parent
-        # CLAUDE.md on EVERY request. Measured on the worker that died: 122,833 input tokens BEFORE doing any
-        # work, ~62k of headroom, and the provider rejected the call 14 steps later. Measured again head-to-head
-        # afterwards: 167,242 tokens in the repo root vs 25,352 in a scratch dir (-84.8%). See
-        # `workers/workdir.py` for the three faults one directory per task fixes (context, `informe.json`
-        # collision, private CLAUDE.md). `read_dirs` declares the browser's capture directory (it arrives by absolute
-        # path outside the cwd, V2-049); measured that the CLI already allows it, so this is defence in depth.
+        # OWN CWD (incident 2026-08-18): without `cwd` the worker loaded `engine/CLAUDE.md` (76k tokens) per call —
+        # 122,833 input tokens before any work, rejected 14 steps later; repo root 167,242 vs scratch dir 25,352
+        # (-84.8%). See `workers/workdir.py`. `read_dirs` adds the capture dir (V2-049; defence in depth).
         _may_write = _ds._d.protected_core.writes_are_confined(kind, req)   # V2-655: el ENCARGO, no el kind
         _wd = None
         if not (_may_write and _ds._d.workdir.needs_repo(kind)):
@@ -83,13 +72,9 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
     _brief_bg: _ds._d.asyncio.Task | None = None
     if not _dev and not _ds._d.surfaces.delivers_pictures(getattr(rec, "surface", "")):   # pictures skip the research brief
         try:
-            # V2-301 — the composer is a REASONING call (15-30 s) and it ran IN SERIES before the spawn:
-            # measured across the guitar rounds (2026-08-24), the worker sat «in cola» 20-32 s doing
-            # nothing while the composer thought, and then spent its OWN first ~20 s on preamble (mesh
-            # PASO 0 + memory reads) — two stretches that overlap perfectly. A short head start keeps the
-            # instant paths fully-directed (a resumed/round-2 brief returns without any LLM); past it the
-            # worker spawns NOW and the brief arrives as an injected turn, through the same channel every
-            # refinement already uses. Fail-open unchanged: a composer that dies just means no injection.
+            # V2-301 — the composer (15-30 s reasoning call) ran IN SERIES: the worker sat queued 20-32 s
+            # (guitar rounds, 2026-08-24). A short head start keeps instant briefs; past it the worker spawns
+            # NOW and the brief arrives as an injected turn. Fail-open unchanged.
             _brief_bg = _ds._d.asyncio.ensure_future(_ds._d._compose_brief(req, ctx, trusted, resume))
             _head = float(_ds._d.os.environ.get("ZAELAR_BRIEF_HEAD_START_S", "2.0") or 2.0)
             if _head <= 0:      # kill-switch: serial, exactly as before
@@ -102,12 +87,8 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
                 except _ds._d.asyncio.TimeoutError:
                     brief = None            # still thinking → spawn now, inject when ready
         except _ds._d.research.ComposerUnavailable:
-            # El compositor no pudo contestar. El fail-open (start without dirigir) es correcto, but NO can
-            # arrastrar consigo the mitad of the budget: that esto sea a research no depende of that the
-            # compositor este live. Se promociona the kind IGUAL — cuesta DIRECCIÓN, no TIEMPO. Medido in the
-            # banco of the 2026-08-13: the compositor tardo >30 s, the task is quedo in `generic` (600 s) and the
-            # worker murio a the 704 s with the browser a medias, the same «agoto su time» that the promocion
-            # of abajo exists for close.
+            # The composer failed: fail-open (start undirected) is right, but the kind is still promoted — it
+            # costs DIRECTION, not TIME. Bench 2026-08-13: composer >30 s → `generic` (600 s) → died at 704 s.
             brief = None
             _brief_bg = None    # falló DENTRO del head start: ya está manejado aquí, nada que inyectar luego
             if kind == "generic":
@@ -122,16 +103,10 @@ async def build_what_it_runs_with(*, ctx, key, kind, rec, req, task, trusted) ->
             if not _ds._d.surfaces.not_a_sheet(getattr(rec, "surface", "")):   # V2-644: no results sheet to seed
                 await _ds._d._seed_research_criteria(brief, rec)
             rec.phase = "preparando la investigación"
-            # EL BRIEF ES LA PRUEBA of that esto es a INVESTIGACIÓN, and with ella is cobra the budget that le
-            # corresponde. `loop._kind_budget_default` already reservaba 1200s for `research`… but NADIE asignaba
-            # never ese kind: `_classify_kind` only returns web/code/generic, so that toda research that no
-            # nombrara Wallapop/Amazon caia in `generic` = 600s. Y ese medio budget CONTRADICE the own
-            # brief, that exige reunir ≥40 candidatos and ENTRAR in the ficha of each finalista: 10 minutos no dan
-            # for eso, so that the worker moria conminado a «entrega already» with the sheet a medias — es it that le paso
-            # al operator the 2026-08-12 two veces («agoto su time»). Only is promociona `generic`: `web`
-            # (1200s, and with su reanudacion by `native_sid`) and `code` conservan su path intacta. Y the `spec` of the
-            # worker YA esta construido with the kind viejo a purpose — here only cambia it that MIDE the
-            # supervisor and it that LEE the operator in the tarjeta («Investigando…», no «Pensando…»).
+            # THE BRIEF PROVES IT IS RESEARCH, and earns its budget: `loop._kind_budget_default` reserved 1200 s
+            # for `research` but `_classify_kind` never assigned it, so research fell in `generic` (600 s) and
+            # died «out of time» (twice on 2026-08-12). Only `generic` is promoted; `web`/`code` keep their path.
+            # The `spec` keeps the old kind on purpose: only the supervisor's budget and the card label change.
             if kind == "generic":
                 rec.kind = "research"
                 rec.label = _ds._d._default_label("research", req)
@@ -181,31 +156,22 @@ async def run_it_to_its_delivery(*, _dev, _dev_settings_path, _wd, brief, escala
         except Exception:
             pass
         _waiting_user = (rec.waiting_on == "user") or bool(rec.ask)
-        # V2-222 — ¿va a CONTINUAR sola? Se calcula here, ANTES of anotar the final, because a session that is
-        # resumes sola no ha terminado and anotarla como terminada es it that partia the prompt in two.
-        # V2-238 — DOS ESCALADAS PARA UNA MUERTE. `_finish` already relanza the errand when releva of proveedor
-        # or compacta the contexto (`escalate_to_slowbrain`), and leaves `ok=False` a purpose for that no haya two
-        # entregas. Pero `_resumable` reads exactamente ese `ok=False` and disparaba ADEMÁS the auto-resume of
-        # V2-049: two workers sobre the same errand, and —until V2-237— the two reanudando the MISMA session of the
-        # CLI, that es como morian a the 400 ms. El testigo already esta pasado: here no is pasa another vez.
+        # V2-222 — will it CONTINUE on its own? Computed BEFORE recording the end (a resuming session hasn't ended).
+        # V2-238 — TWO ESCALATIONS FOR ONE DEATH: `_finish` already relaunched (`ok=False` on purpose) and
+        # `_resumable` fired V2-049's auto-resume too — two workers on one errand, same CLI session, dead at 400 ms.
         _handoff = str(getattr(rec, "handoff", "") or "")
         _will_resume = bool(_resumable and not _waiting_user
                             and (_prev_count + 1) < _ds._d._RESUME_CAP and not _handoff)
         # …but the ENCARGO continua in the two ways, so that it that mira «¿esto is ha acabado?» mira esto.
         _continues = bool(_will_resume or _handoff)
-        # V2-079 → V2-728: the DURABLE trace of the execution that is ending (the live record is popped
-        # right here and used to simply disappear). It was a 50-entry JSON blob in `sys_kv`; it is now a
-        # row in `tasks`, with no cap, no hand-rolled reset fence and its RESULT hanging off it.
-        # Best-effort and off the hot path, as it always was.
+        # V2-079 → V2-728: the DURABLE trace of the ending execution, now a `tasks` row (was a 50-entry
+        # `sys_kv` blob) with its RESULT attached. Best-effort, off the hot path.
         try:
             from nucleo.circuit import ledger as _tasks
             _tasks.closed(rec)
         except Exception:  # noqa: BLE001
             pass
-        # EXPLICIT flow-close signal (observability, V2-090): without this a flow only ever looks "closed" by
-        # the ABSENCE of new events — an inference from silence, never a fact. The task row above already
-        # records this worker session's own end; this event is for the FLOW (`corr_id`) that spawned it, so the
-        # observability board can mark the column closed for real instead of guessing from recency.
+        # EXPLICIT flow-close signal (V2-090): a closed flow is a FACT for `corr_id`, not inferred from silence.
         if getattr(rec, "trace_id", ""):
             try:
                 from voice import trace as _trace2
@@ -237,10 +203,8 @@ async def run_it_to_its_delivery(*, _dev, _dev_settings_path, _wd, brief, escala
         except Exception:
             pass
         _ds._d.sync_state()
-        # V2-049 AUTO-RESUME: operation web incompleta, SIN question pending, bajo the cap → CONTINÚA sola (the
-        # FlashBrain no cesa the task ni waits a empujon of the operator). Con question pending NO: waits the
-        # response (that, al arrive como turn, resumes by the same via). Con `ask` the purge of arriba already the
-        # quito, by eso leimos _waiting_user ANTES.
+        # V2-049 AUTO-RESUME: incomplete web op, NO pending question, under the cap → it CONTINUES on its own. With
+        # a pending question it waits for the answer; `_waiting_user` was read BEFORE the purge above.
         if _will_resume:
             _ds._d._schedule_auto_resume(req)
     _out = locals()

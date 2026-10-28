@@ -69,7 +69,7 @@ def test_a_measure_between_the_count_and_the_thing_is_not_the_count(phrase, n):
 
 
 def test_the_brief_takes_the_count_over_a_model_that_kept_the_default():
-    from nucleo import research
+    from nucleo.workers import brief as research
     raw = ('{"research": true, "goal": "monitors", "breadth": {"min_candidates": 40}, '
            '"deliverable": {"widget": "results", "n_final": 10}}')
     b = research.parse(raw, request="can you find me like three 27 inch 4k monitors, under 400 bucks or so?")

@@ -234,7 +234,7 @@ def test_the_first_turn_is_spoken_in_his_language():
     assert "kickoff_prompt" in src and "Es el primer turno" not in src
 
 
-def test_a_worker_that_dies_says_so_in_his_language():
+def test_a_worker_that_dies_says_so_in_his_language(monkeypatch):
     """Seven of these were heard that evening. They were five Spanish literals in `workers/session.py` and
     one more in `workers/stall.py`."""
     from i18n import langs as L
@@ -243,8 +243,12 @@ def test_a_worker_that_dies_says_so_in_his_language():
                   "worker_stalled"):
         en, es = getattr(L.LANGUAGES["en"], field), getattr(L.LANGUAGES["es"], field)
         assert en and es and en != es, field
-    src = (ENGINE / "nucleo/workers/session.py").read_text(encoding="utf-8")
-    assert "_say().worker_" in src, "the endings must read the table"
+    # …and an ending is READ from the table, in his language: a worker stopped by our gate says so in English.
+    from tests.agent_headless.unit.workers import session_door as door
+    s = door.session(monkeypatch, ok=False, perm_denied="curl https://x.test", result_summary="", status="running")
+    order = _in("en", lambda: door.finish(monkeypatch, s))
+    said = dict(order).get("deliver", "")
+    assert said == L.LANGUAGES["en"].worker_command_denied.format(cmd="curl https://x.test"), said
 
 
 def test_the_stalled_ending_is_formatted_from_the_table():
