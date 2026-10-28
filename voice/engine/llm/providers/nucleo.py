@@ -125,7 +125,6 @@ def _extends(prev: str, cur: str) -> bool:
 from voice.engine.llm.providers import acc_notices as _accn
 from voice.engine.llm.providers import attention_turn as _attention_turn
 from nucleo.flash import harness_turn as _ht   # V2-661: what a turn OWES (shared with the probe)
-from nucleo.flash import reminder_guards as _rg   # its canned lines: holding, mute backstop, follow-up
 from nucleo.input import stt as _acc_mod   # V2-776 D0: a turn that died unanswered is un-consumed
 from nucleo import surfaces as _surfaces_mod   # demo A1 2026-09-28: an errand nobody labelled takes the brief's surface
 

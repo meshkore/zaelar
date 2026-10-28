@@ -449,9 +449,8 @@ from nucleo.flash.answer_guards import (  # noqa: F401 — re-export, not a loca
 # file's own docstring describes for the split that created it.
 from .reminder_guards import (  # noqa: F401 — re-export, not a local use
     _AGENT_IMPERATIVE_RE, _FIRST_PERSON_DUTY_RE, _NOTE_ASK_RE, _PROMPT_S,
-    _REMIND_ASK_RE, _REMIND_DET, _REMIND_NOUN, _REMIND_VERB_RE, _asked_reminder_moment, _longest_pending_min,
+    _REMIND_ASK_RE, _REMIND_DET, _REMIND_NOUN, _REMIND_VERB_RE, _asked_reminder_moment,
     _reminder_prompt, already_in_agenda, commitment_clause, commitment_from_window,
-    holding_line,
     promises_a_dated_reminder, reminder_before, safe_reminder_prompt, safe_reminder_schedule, strip_note_lead,
 )
 
