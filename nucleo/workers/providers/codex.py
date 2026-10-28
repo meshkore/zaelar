@@ -1,4 +1,4 @@
-"""nucleo/workers/codex_session.py — backend `CodexSession` (Codex CLI headless en JSONL). V2-038.
+"""nucleo/workers/providers/codex.py — backend `CodexSession` (Codex CLI headless en JSONL). V2-038.
 
 Adaptador REAL (2026-08-12; hasta hoy era un stub que emitía «no implementado» y cerraba — con el proveedor puesto
 a `codex` en la config, el operador se quedaba SIN workers y el síntoma era una tarea que moría al instante).
@@ -41,10 +41,10 @@ import signal
 
 from loguru import logger
 
-from .base import WorkerBackend, WorkerEvent, WorkerSpec
+from ..base import WorkerBackend, WorkerEvent, WorkerSpec
 from . import spawned as _spawned  # a worker's session id marks every request it sends
 
-_ZAELAR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ZAELAR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))   # providers/ → engine
 _STREAM_LIMIT = int(os.getenv("WORKER_STREAM_LIMIT", str(16 * 1024 * 1024)))
 
 # Modo de sandbox. `workspace-write` es el mínimo con el que un turno headless llega a ejecutar algo (ver nota 1);

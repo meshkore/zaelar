@@ -443,10 +443,10 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/turn/promise_kept.py",
     "nucleo/verify.py",
     "nucleo/worker_api.py",
-    "nucleo/workers/claude_session.py",
-    "nucleo/workers/codex_session.py",
-    "nucleo/workers/grok_session.py",
-    "nucleo/workers/providers.py",
+    "nucleo/workers/providers/claude.py",
+    "nucleo/workers/providers/codex.py",
+    "nucleo/workers/providers/grok.py",
+    "nucleo/workers/providers/__init__.py",
     "nucleo/workers/session.py",
 })
 

@@ -26,7 +26,7 @@ def test_backend_selection_agnostic(monkeypatch):
     of the machine where it runs. It passed only while the operator had `claude_code` there, and as soon as they tried
     Codex it started failing a test that is not about their choice but about the code's DEFAULT. Same class as the
     `store.DATA_DIR` leak from 2026-08-12: a test cannot depend on the operator's real state."""
-    monkeypatch.setattr("nucleo.workers.registry._provider_for", lambda kind: "claude_code")
+    monkeypatch.setattr("nucleo.workers.providers.registry._provider_for", lambda kind: "claude_code")
     assert get_backend(WorkerSpec(kind="web", task_id="1")).name == "claude_code"
     assert get_backend(WorkerSpec(kind="code", task_id="1",
                                   env={"ZAELAR_TASK_REQUEST": "hazme un widget del clima"})).name == "widget_generator"
@@ -65,7 +65,7 @@ def test_ask_answer_cycle():
 
 
 # ── V2-048: RICH observability of worker steps (where + what specifically) ────────────────────────────────────
-from nucleo.workers.claude_session import _tool_step  # noqa: E402
+from nucleo.workers.providers.claude import _tool_step  # noqa: E402
 from nucleo.workers.session import _PLACE             # noqa: E402
 
 
@@ -134,7 +134,7 @@ def test_claude_session_pause_resume_real_process():
     import signal
     import time
 
-    from nucleo.workers.claude_session import ClaudeCodeSession
+    from nucleo.workers.providers.claude import ClaudeCodeSession
 
     async def _run():
         s = ClaudeCodeSession()
@@ -231,11 +231,11 @@ def test_the_stream_emits_usage_per_message_not_only_at_the_end():
     """Verified by polling the CLI: each `assistant` message carries its `usage`, and the `result`'s is the SUM
     (61.969+127 = 62.096). Without emitting it per message, killing a worker would still be free."""
     import pathlib
-    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "claude_session.py"
+    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "providers" / "claude.py"
     code = src.read_text(encoding="utf-8")
     assert 'self._ev("usage"' in code
     # …and Grok inherits it, which is where the hole was found (it does not reimplement `_map`)
-    grok = (pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "grok_session.py"
+    grok = (pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "providers" / "grok.py"
             ).read_text(encoding="utf-8")
     assert "def _map" not in grok
 
@@ -244,7 +244,7 @@ def test_the_stream_emits_usage_per_message_not_only_at_the_end():
 def _drive_generator(monkeypatch, *, req, gen_result, action=None):
     """Runs `GeneratorBackend._drive()` with the REAL generator replaced (without launching `claude`) and returns
     the observability `emit()` calls it produced, plus the WorkerEvents it queued."""
-    from nucleo.workers.generator_session import GeneratorBackend
+    from nucleo.workers.providers.generator import GeneratorBackend
     from widgets import generator as _gen
 
     seen: list[tuple] = []

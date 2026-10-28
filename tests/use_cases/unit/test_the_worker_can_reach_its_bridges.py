@@ -11,7 +11,7 @@ spawned a worker shows 18-27 denials.
 """
 from __future__ import annotations
 
-from nucleo.workers import claude_session as cs
+from nucleo.workers.providers import claude as cs
 from tests.use_cases.e2e.agent import run as R
 
 

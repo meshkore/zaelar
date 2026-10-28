@@ -203,7 +203,7 @@ def spawn_engine(*, workspace: Path, port: int, log_path: Path | None = None,
     # The operator's engine starts with the host Claude Code session's routing stripped (`make start` under
     # `env -u ANTHROPIC_…`); a sandbox launched FROM such a session must too, or its children authenticate with the
     # host's token and a round measures that instead of the product (V2-781 T532: «401 … ****2wAA is invalid»).
-    from nucleo.workers.claude_session import _without_host_routing
+    from nucleo.workers.providers.claude import _without_host_routing
     env = _without_host_routing(os.environ.copy())
     env.update({
         "PORT": str(port), "HOST": "127.0.0.1",

@@ -1,4 +1,4 @@
-"""nucleo/workers/claude_session.py — backend `ClaudeCodeSession` (Claude Code headless en STREAMING). V2-038.
+"""nucleo/workers/providers/claude.py — backend `ClaudeCodeSession` (Claude Code headless en STREAMING). V2-038.
 
 Sesión VIVA de Claude Code sobre el transporte stream-json (`claude --print --input-format stream-json
 --output-format stream-json`): el proceso NO muere tras el primer turno — se le inyectan turnos por stdin y emite
@@ -27,13 +27,13 @@ import sys
 
 from loguru import logger
 
-from .base import WorkerBackend, WorkerEvent, WorkerSpec
+from ..base import WorkerBackend, WorkerEvent, WorkerSpec
 from . import spawned as _spawned  # a worker's session id marks every request it sends
-from .tool_steps import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
+from ..tool_steps import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
     _QUOTED_RE, _URL_RE, _bash_step, _cmd_head, _nav_target, _quoted, _short_path, _tool_phase, _tool_step,
     _url_in)
 
-_ZAELAR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+_ZAELAR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))   # providers/ → engine
 # `Write` está aquí porque NUESTRO PROPIO PROMPT lo exige: el payload de los puentes va por `@fichero` desde
 # V2-379 —«escríbelo con Write a un fichero de tu directorio»— y sin la tool en la allowlist el CLI pide una
 # aprobación que en headless nadie va a dar. Medido el 2026-08-28 en `find-best-hotel-city__us`: «Claude
@@ -246,7 +246,7 @@ class ClaudeCodeSession(WorkerBackend):
         # ANTHROPIC_AUTH_TOKEN → NO consume tokens de la licencia Claude Teams. OFF por defecto (base_url vacío).
         # spec.env (del dispatch) manda si ya lo trae. Helper ÚNICO `v2.external_worker_env()` (comparte con el
         # generador de widgets — así NINGÚN spawn de `claude` se queda sin enrutar). Fail-open.
-        # 2026-08-02: ya no es UN proveedor sino una CADENA (`workers/providers.py`) — se elige el primer escalón
+        # 2026-08-02: ya no es UN proveedor sino una CADENA (`workers/providers/`) — se elige el primer escalón
         # SANO en cada spawn, así el worker siguiente a una cuota agotada arranca solo en el de relevo.
         _unrouted = False
         if "ANTHROPIC_BASE_URL" not in env:

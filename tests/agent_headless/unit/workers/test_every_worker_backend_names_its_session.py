@@ -2,7 +2,7 @@
 
 The operator gate recognises an ORPHANED worker process — `( curl … & )`, reparented to launchd/init, its
 ancestry no longer naming the engine — only by its session id, and only if that session was remembered in
-`nucleo/workers/spawned.py`. A backend that spawns around it is a worker whose orphans pass as his terminal, and
+`nucleo/workers/providers/spawned.py`. A backend that spawns around it is a worker whose orphans pass as his terminal, and
 nothing else would fail. So: every backend spawns its CLI through `spawned.spawn(..., start_new_session=True)`
 and never through a bare `create_subprocess_exec`; `spawn` remembers the pid, and refuses a spawn without a
 session of its own rather than leave it unmarked.
@@ -17,11 +17,11 @@ from pathlib import Path
 
 import pytest
 
-from nucleo.workers import spawned
+from nucleo.workers.providers import spawned
 
 ENGINE = Path(__file__).resolve().parents[4]
-BACKENDS = ["nucleo/workers/claude_session.py", "nucleo/workers/codex_session.py",
-            "nucleo/workers/grok_session.py"]
+BACKENDS = ["nucleo/workers/providers/claude.py", "nucleo/workers/providers/codex.py",
+            "nucleo/workers/providers/grok.py"]
 
 
 def _calls(tree, name):

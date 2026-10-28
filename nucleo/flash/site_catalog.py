@@ -9,7 +9,7 @@ site works instead of using a flow it already knows.
 
 Consulted from **`nucleo/dispatch_prompts.py::_web_prompt()`** — the actual live prompt-builder for a web/
 navegador task, called from `nucleo/dispatch.py` and fed uniformly to whichever Brain Worker backend is
-configured (`claude_code`/`codex`/`grok_build` — `nucleo/workers/registry.py::get_backend`), so this catalog
+configured (`claude_code`/`codex`/`grok_build` — `nucleo/workers/providers/registry.py::get_backend`), so this catalog
 applies the same way regardless of backend or deployment. `nucleo/agentes/web_cc.py::_web_prompt()` also
 carries it, for consistency, but that module is PARKED (superseded by V2-038's interactive worker sessions;
 see CLAUDE.md's Brain Workers decision) and not on the live path today.

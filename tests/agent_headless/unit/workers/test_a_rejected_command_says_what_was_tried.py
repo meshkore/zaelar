@@ -67,7 +67,7 @@ def test_el_comando_va_acotado(monkeypatch):
 def test_la_sesion_GUARDA_el_comando_al_casar_el_paso_con_su_resultado():
     """The plumbing: if `claude_session` does not put it in the step's metadata, nothing ever gets here."""
     from pathlib import Path
-    src = Path("nucleo/workers/claude_session.py").read_text(encoding="utf-8")
+    src = Path("nucleo/workers/providers/claude.py").read_text(encoding="utf-8")
     assert '"cmd": str((tin or {}).get("command") or "")[:220]' in src, "el paso no guarda su comando"
     assert 'cmd=meta.get("cmd", "")' in src, "el resultado no recupera el comando de su paso"
 

@@ -358,7 +358,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   and refused for a worker (engine ancestry, a remembered worker session, worker env), the engine itself or a
   socket nobody here owns. The CSRF/rebinding rules of CRIT-E11 also cover mutations outside `/api/`. — since
   2026-10-14 · nodes 2.620, 2.621, 2.622, 2.623, 2.624 · `server/operator_gate.py`, `server/peer_process.py`,
-  `server/ui_session.py`, `nucleo/workers/spawned.py`.
+  `server/ui_session.py`, `nucleo/workers/providers/spawned.py`.
 - **CRIT-E12 · What a stranger wrote is data, and it cannot send on its own.** Every body of a mail, a chat or an
   agent's answer reaches the model fenced (⟦ ⟧, unforgeable); with such text in the context, an act that leaves runs
   without a question only when the verdict surely names that send — both channels. — since 2026-10-02 · nodes 2.205 ·

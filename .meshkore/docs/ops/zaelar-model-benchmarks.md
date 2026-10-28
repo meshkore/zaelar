@@ -830,7 +830,7 @@ sea la tarea; escala con cuántas vueltas dé. Un worker que se desorienta es ca
 ### 14.3 Los escalones de razonamiento (endpoint + modelo)
 
 - **Z.AI / GLM coding plan** (`api.z.ai/api/anthropic`) — quota-based rather than per token. Su cuota es SEMANAL y cuando se agota todo el escalón muere de golpe: es justo para eso que
-  existe la cadena de relevo de `workers/providers.py`. Ojo, tiene DOS cuotas independientes (los prompts del
+  existe la cadena de relevo de `workers/providers/`. Ojo, tiene DOS cuotas independientes (los prompts del
   modelo y sus tools MCP internas) y solo la primera la ve la cadena.
 - **DeepSeek** (`api.deepseek.com/anthropic`) — pago por token, el más barato (~$0,14/$0,28 por Mtok en v4-flash).
   ⚠️ Su gateway **NO mapea alias de Claude** (creerlo dejó el escalón roto: 400 en cada petición). O sea
@@ -873,7 +873,7 @@ nada**, porque el operador la usaría para reservar.
 `webReader`— devolvían el error. El worker lo leyó, lo dijo («no hay problema: ataco directamente las webs con
 WebFetch») y siguió a mano: 403 de DirectFerries, 403 de Baleària, Booking sirviendo la búsqueda por JS, 404 de dos
 agregadores, y sacó el dato de Ferryhopper y TripAdvisor. **Dato: son DOS cuotas independientes** —la de
-los prompts del modelo y la de sus tools MCP— y la cadena de relevo de `workers/providers.py` solo ve la primera. Un
+los prompts del modelo y la de sus tools MCP— y la cadena de relevo de `workers/providers/` solo ve la primera. Un
 candidato que solo funcione con la búsqueda buena no vale; este siguió con la mala.
 
 ⚠️ **`WebFetch` es la pata que hizo el trabajo, y Grok Build NO la tiene** (catálogo sondeado entero: solo

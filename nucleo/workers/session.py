@@ -617,7 +617,7 @@ class WorkerSession(SessionNotes):
             return
         self._search_relayed = True
         try:
-            from nucleo.workers.claude_session import bridge_python
+            from nucleo.workers.providers.claude import bridge_python
             py = bridge_python() or "python"
         except Exception:  # noqa: BLE001
             py = "python"

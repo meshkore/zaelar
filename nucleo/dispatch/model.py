@@ -29,7 +29,7 @@ def _model_for(kind: str) -> str:
     # model of the escalon of relevo (empty) → Codex caia a su own `config.toml` (`gpt-5.6-sol`, that the API no
     # sirve) and the worker moria in 2,8 s with a 400. El `gpt-5.5` that the operator habia elegido no llegaba never.
     try:
-        from nucleo.workers import registry as _reg
+        from nucleo.workers.providers import registry as _reg
         if _reg._provider_for(kind) != "claude_code":
             return _configured()
     except Exception:

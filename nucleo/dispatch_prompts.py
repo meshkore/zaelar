@@ -448,7 +448,7 @@ def _with_interpreter(prompt: str) -> str:
     if "python -m nucleo." not in prompt:
         return prompt
     try:
-        from nucleo.workers.claude_session import bridge_python
+        from nucleo.workers.providers.claude import bridge_python
         py = bridge_python()
     except Exception:
         return prompt
@@ -592,7 +592,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
 
     Por DEFECTO hay visión, que es lo de siempre: un «no ve» equivocado deja ciego a un worker que veía."""
     try:
-        from nucleo.workers.claude_session import bridge_python
+        from nucleo.workers.providers.claude import bridge_python
         py = bridge_python()          # absoluto y permitido; `.venv/bin/python` relativo pedía aprobación
     except Exception:
         py = ".venv/bin/python"

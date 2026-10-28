@@ -304,7 +304,7 @@ other mutation his screen makes (messaging, cluster send, contacts, agenda, sett
 |---|---|
 | His page holding the UI cookie (`zaelar_ui`: per boot, memory only, HttpOnly, SameSite=Strict) | admitted, fast path |
 | A process on this machine the engine did not spawn (his browser before the cookie, his terminal, the test harness) | admitted, and minted the cookie |
-| A worker — the engine is its ancestor, it lives in a session a worker opened (`nucleo/workers/spawned.py`, catches orphans), or it carries `ZAELAR_WORKER`/`ZAELAR_TASK_*` | refused (403 `worker_is_not_the_operator`) |
+| A worker — the engine is its ancestor, it lives in a session a worker opened (`nucleo/workers/providers/spawned.py`, catches orphans), or it carries `ZAELAR_WORKER`/`ZAELAR_TASK_*` | refused (403 `worker_is_not_the_operator`) |
 | The engine itself, or a socket no local process owns | refused; a remote caller with `ZAELAR_API_TOKEN` is admitted |
 
 Every mutating route is an operator route unless it is a named worker door (`/api/worker/*`, `/api/agent/report`,

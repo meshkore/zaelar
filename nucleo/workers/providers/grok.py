@@ -1,4 +1,4 @@
-"""nucleo/workers/grok_session.py — backend `GrokSession` (Grok Build headless). V2-038, 2026-08-13.
+"""nucleo/workers/providers/grok.py — backend `GrokSession` (Grok Build headless). V2-038, 2026-08-13.
 
 **Grok Build es el backend más cercano a Claude Code que tenemos**, y por eso HEREDA de `ClaudeCodeSession` en vez
 de reimplementar la traducción. Verificado sondeando el CLI real (`grok` 1.0.3):
@@ -45,9 +45,9 @@ import tempfile
 
 from loguru import logger
 
-from .base import WorkerSpec
+from ..base import WorkerSpec
 from . import spawned as _spawned  # a worker's session id marks every request it sends
-from .claude_session import _BRIDGE_TOOLS, ClaudeCodeSession, _STREAM_LIMIT, _ZAELAR
+from .claude import _BRIDGE_TOOLS, ClaudeCodeSession, _STREAM_LIMIT, _ZAELAR
 
 # Tools NATIVAS de Grok que un worker confiable puede usar, en su propio vocabulario. `run_terminal_command` es su
 # Bash y va SIEMPRE acotado por las reglas `Bash(...)` de abajo (nunca abierto), igual que en Claude Code.

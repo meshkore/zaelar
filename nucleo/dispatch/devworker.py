@@ -27,7 +27,7 @@ def _git_tools() -> list[str]:
     """Mismo criterion that the bridges of `claude_session._BRIDGE_TOOLS`: TODAS the ways of write the interprete,
     for that the dev worker no is quede pidiendo a aprobacion that in headless nadie va a dar."""
     try:
-        from nucleo.workers.claude_session import _INTERPRETERS
+        from nucleo.workers.providers.claude import _INTERPRETERS
         return [f"Bash({py} -m nucleo.git_cli:*)" for py in _INTERPRETERS]
     except Exception:
         return ["Bash(python -m nucleo.git_cli:*)", "Bash(.venv/bin/python -m nucleo.git_cli:*)"]

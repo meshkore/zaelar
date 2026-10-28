@@ -1,4 +1,4 @@
-"""nucleo/workers/providers.py — CADENA de proveedores del Brain Worker, con relevo automático (2026-08-02).
+"""nucleo/workers/providers/ — CADENA de proveedores del Brain Worker, con relevo automático (2026-08-02).
 
 **Quién conduce siempre es Claude Code** (el CLI `claude`); lo que cambia por debajo es a QUÉ endpoint
 Anthropic-compatible apunta (`ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`). Eso ya existía para UN proveedor

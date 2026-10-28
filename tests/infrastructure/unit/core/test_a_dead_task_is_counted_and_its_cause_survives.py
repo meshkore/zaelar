@@ -115,7 +115,7 @@ def test_note_failure_devuelve_la_CAUSA_no_solo_el_relevo():
 def test_el_adaptador_ya_no_reclasifica_el_texto_para_decidir_si_avisa():
     """El agujero exacto: `broken` lo reconoce `is_broken_request` y NO `classify_failure`, así que la
     condición `if nxt is not None or classify_failure(...)` dejaba mudo un broken sin relevo."""
-    src = (ENGINE / "nucleo" / "workers" / "claude_session.py").read_text(encoding="utf-8")
+    src = (ENGINE / "nucleo" / "workers" / "providers" / "claude.py").read_text(encoding="utf-8")
     body = src[src.index("is_context_overflow"):src.index('yield self._ev("result"')]
     codigo = "\n".join(l for l in body.splitlines() if not l.strip().startswith("#"))
     assert "classify_failure" not in codigo, "sigue reconstruyendo una clasificación que ya venía hecha"

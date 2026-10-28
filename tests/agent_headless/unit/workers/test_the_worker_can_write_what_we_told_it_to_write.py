@@ -16,7 +16,7 @@ an instruction: it is a trap for the model AND for whoever reads the transcript.
 """
 from __future__ import annotations
 
-from nucleo.workers import claude_session as CS
+from nucleo.workers.providers import claude as CS
 
 
 def test_el_worker_PUEDE_escribir():

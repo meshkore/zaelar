@@ -135,7 +135,7 @@ def test_the_PARKED_fourth_copy_stays_parked():
     again be a path that finds things and does not deliver them. If this case turns red, the answer is NOT to delete
     it: put `web_cc` in PATHS and give it its door."""
     vivos = []
-    for rel in ("nucleo/dispatch/__init__.py", "nucleo/workers/registry.py", "nucleo/agentes/worker.py",
+    for rel in ("nucleo/dispatch/__init__.py", "nucleo/workers/providers/registry.py", "nucleo/agentes/worker.py",
                 "nucleo/workers/session.py"):
         f = ENGINE / rel
         if f.exists() and "web_cc" in re.sub(r"#.*", "", f.read_text(encoding="utf-8", errors="replace")):

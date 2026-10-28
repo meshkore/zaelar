@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirna
     os.path.dirname(os.path.abspath(__file__)))))))
 
 from nucleo.workers import providers, workdir             # noqa: E402
-from nucleo.workers.claude_session import _ctx_size       # noqa: E402
+from nucleo.workers.providers.claude import _ctx_size       # noqa: E402
 from nucleo.workers.session import (                      # noqa: E402
     SessionRecord, context_handoff, operator_safe_summary,
 )
@@ -239,7 +239,7 @@ def _map_all(objs: list[dict], *, spec_model: str = "claude-opus-4-8[1m]") -> li
     """Feeds stream-json lines through the REAL `_map` of the real backend (no subprocess) and returns its
     WorkerEvents. Exercising production's own translator is the point: a test that reimplements the mapping can pass
     while production does something else."""
-    from nucleo.workers.claude_session import ClaudeCodeSession
+    from nucleo.workers.providers.claude import ClaudeCodeSession
     s = ClaudeCodeSession()
     s._task_id = "1"
     s._model = spec_model

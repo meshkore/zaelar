@@ -11,7 +11,7 @@
 import re
 from pathlib import Path
 
-from nucleo.workers.claude_session import _DEV_ENV_KEEP, _dev_env_allowlist
+from nucleo.workers.providers.claude import _DEV_ENV_KEEP, _dev_env_allowlist
 from tests import voice_turn_source as _vts   # V2-778 F1: a moved body is read where it lives now
 
 ENGINE = Path(__file__).resolve().parents[4]
@@ -50,7 +50,7 @@ def test_the_allowlist_names_no_wildcard_secret_holder():
 def test_the_spawn_actually_filters_for_dev(monkeypatch):
     """Wiring, not just the pure function (V2-199): the filter must sit in the spawn path, keyed on the DEV
     kind — comment-stripped source, anchored on the call itself."""
-    src = _stripped("nucleo/workers/claude_session.py")
+    src = _stripped("nucleo/workers/providers/claude.py")
     i = src.index('if spec.kind == "dev":\n            env = _dev_env_allowlist(env)')
     # …and it runs AFTER the tier credential landed in env, or the worker would start with no endpoint at all.
     assert "env_for_worker" in src[:i], "the filter must run after the tier credential is resolved"

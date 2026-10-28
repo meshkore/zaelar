@@ -115,7 +115,7 @@ A periodic tick (`TICK_SECS`) does two independent things:
 
 The tier is resolved **per turn**, not once at server startup, so that a provider running out of quota does not
 turn every cluster turn into the same failing call. `nucleo/flash/provider_chain.py` (sibling of
-`nucleo/workers/providers.py`, same design — an ordered chain of steps, cooldowns, `classify_failure` reused) does
+`nucleo/workers/providers/`, same design — an ordered chain of steps, cooldowns, `classify_failure` reused) does
 it:
 
 1. `connectors/meshkore/brain.py::_brain()` calls `provider_chain.pick()` on every turn (cheap: an in-memory dict of
@@ -140,7 +140,7 @@ directly) capture the error response BODY (`_raise_with_body`) before raising �
 httpx's generic message ("429 Too Many Requests", nothing more) and `classify_failure` could not tell "weekly
 quota exhausted, resets Thursday" from a transient rate limit: both would be the same bare 429.
 
-See also `nucleo/workers/providers.py` (the SAME problem, for the brain workers' `claude` CLI instead of the
+See also `nucleo/workers/providers/` (the SAME problem, for the brain workers' `claude` CLI instead of the
 channel's model) — sibling modules, deliberately separate (a step there is an `ANTHROPIC_BASE_URL` endpoint for a
 CLI; here it is a `FastClient` `ModelSpec`) rather than forcing both cases through a common abstraction.
 

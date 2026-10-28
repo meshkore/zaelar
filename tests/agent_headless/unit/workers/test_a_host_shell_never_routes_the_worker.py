@@ -5,7 +5,7 @@ exports `ANTHROPIC_BASE_URL=https://api.anthropic.com`. The spawn read that as �
 skipped the chain, asked Anthropic for `glm-5.3`, and every errand died in two seconds with «There's an issue
 with the selected model» — the operator's monitor search, three relays, zero work.
 """
-from nucleo.workers import claude_session as cs
+from nucleo.workers.providers import claude as cs
 
 HOST = {"PATH": "/usr/bin", "HOME": "/h", "ANTHROPIC_BASE_URL": "https://api.anthropic.com",
         "ANTHROPIC_AUTH_TOKEN": "host-token", "CLAUDECODE": "1", "CLAUDE_CODE_SESSION_ID": "x",

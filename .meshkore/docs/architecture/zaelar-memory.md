@@ -138,7 +138,7 @@ rings, from widest to narrowest:
    produced remains. A special sub-piece (`dispatch._WEB_RESUME`, also RAM) keeps the minimum needed to RESUME an
    incomplete web task (tab id + Claude Code `native_session_id`) — it does not survive a server restart either,
    only the worker itself dying halfway. The **Claude Code CLI** itself keeps, outside our memory, its native
-   session history on disk (`--resume`) — a FOURTH, external level that `nucleo/workers/claude_session.py` uses for
+   session history on disk (`--resume`) — a FOURTH, external level that `nucleo/workers/providers/claude.py` uses for
    REASONING continuity without our memory having to store it.
 
 **Why three rings and not one flattened one:** each answers a different question and has a different life cycle —
