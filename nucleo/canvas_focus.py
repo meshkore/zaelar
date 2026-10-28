@@ -37,18 +37,29 @@ def _src_rank(src: str) -> int:
     return 0
 
 
+def begin_turn() -> None:
+    """His next turn begins: what the turn so far touched becomes «the previous turn». ONE boundary for both channels.
+
+    The voice marks it with its final transcript (`note`); the typed channel (`nucleo/cli/turn.run_turn` — the
+    probe, the decision bank, the lab, a sandbox) emits no transcript on purpose (the frontend's voice fast path
+    reads that event), so until 2026-10-28 its window never rotated and «put that away» / «close it» found no card
+    his previous turn acted on — every unnamed gesture fell to «the only one open» (demo sandbox, A2, V4). A turn
+    that begins with nothing touched keeps the previous window as it is."""
+    with _lock:
+        if _state["current"]:
+            _state["previous"] = _state["current"]
+            _state["prev_failed"] = list(_state["failed"])
+        _state["current"] = []
+        _state["t_prev"], _state["t_cur"] = _state["t_cur"], time.monotonic()
+        _state["acts"] = []
+        _state["failed"] = []
+
+
 def note(kind: str, label: str, role: str = "", extra: dict | None = None) -> None:
     """One event from the funnel. Cheap and never raises: this runs on every event the engine emits."""
     try:
         if kind == "transcript" and role == "user":
-            with _lock:
-                if _state["current"]:
-                    _state["previous"] = _state["current"]
-                    _state["prev_failed"] = list(_state["failed"])
-                _state["current"] = []
-                _state["t_prev"], _state["t_cur"] = _state["t_cur"], time.monotonic()
-                _state["acts"] = []
-                _state["failed"] = []
+            begin_turn()
             return
         if kind != "widget":
             return
