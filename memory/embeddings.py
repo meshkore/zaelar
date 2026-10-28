@@ -342,6 +342,34 @@ def _note_failure(e: BaseException) -> None:
     logger.debug("cloud embeddings failed: %s", _LAST_ERROR["v"])
 
 
+# ONE keep-alive connection for every cloud embed (refactor2710-11 T-03). The query of every turn's recall is
+# embedded here, and a fresh connection per call paid DNS+TCP+TLS on each one: measured on loopback-free real
+# traffic, 1.4 s cold and 210-600 ms warm per call against 160-250 ms on a reused connection — the difference
+# between closing the 0.8 s recall budget and every turn falling back to the lexical half. `keepalive_expiry`
+# outlives the gap between two spoken turns; a connection the server closed meanwhile is discarded, not reused.
+_HTTP = None        # httpx.Client (thread-safe) | False = httpx unavailable → urllib, one connection per call
+_KEEPALIVE_S = float(os.getenv("ZAELAR_EMBED_KEEPALIVE_S", "120"))
+
+
+def _post_json(url: str, body: dict, headers: dict, timeout: float) -> dict:
+    """POST JSON over the pooled connection and decode the reply. Raises on any HTTP or transport error."""
+    global _HTTP
+    if _HTTP is None:
+        try:
+            import httpx
+            _HTTP = httpx.Client(limits=httpx.Limits(keepalive_expiry=_KEEPALIVE_S))
+        except Exception:  # noqa: BLE001 — no httpx: the stdlib path below, exactly as before
+            _HTTP = False
+    if _HTTP is not False:
+        r = _HTTP.post(url, content=json.dumps(body).encode("utf-8"), headers=headers, timeout=timeout)
+        if r.status_code >= 400:                  # the provider's reason travels to `last_error()`
+            raise RuntimeError(f"HTTP {r.status_code}: {r.text[:300]}")
+        return r.json()
+    req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8"))
+
+
 def _cloud_embed(texts: list[str], *, timeout: float | None = None) -> list[list[float]] | None:
     """POST `{base_url}/embeddings`. Returns None on ANY failure — and returning None is a decision, not an
     omission: the caller turns it into `last_degraded`, the writer defers the vector and the database's space
@@ -362,15 +390,10 @@ def _cloud_embed(texts: list[str], *, timeout: float | None = None) -> list[list
     # with its own credential; self-host gets its URL and key back untouched.
     from nucleo import llm_egress
     url, key = llm_egress.route_url(_cloud_base_url().rstrip("/") + "/embeddings", key)
-    req = urllib.request.Request(
-        url,
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json", "Authorization": f"Bearer {key}",
-                 "User-Agent": llm_egress.USER_AGENT},
-    )
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}",
+               "User-Agent": llm_egress.USER_AGENT}
     try:
-        with urllib.request.urlopen(req, timeout=timeout or float(os.getenv("ZAELAR_EMBED_TIMEOUT_S", "20"))) as r:
-            data = json.loads(r.read().decode("utf-8"))
+        data = _post_json(url, body, headers, timeout or float(os.getenv("ZAELAR_EMBED_TIMEOUT_S", "20")))
         rows = sorted(data["data"], key=lambda it: it.get("index", 0))
         out = [list(map(float, it["embedding"])) for it in rows]
         if len(out) != len(texts):

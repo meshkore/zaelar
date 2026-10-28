@@ -61,6 +61,8 @@ DOMAINS: list[dict] = [
             # guarded is not the call: it is that the dim is the one requested, that the credential is named
             # by the table, and that a provider outage defers the vector instead of changing the space.
             "tests/memory/unit/test_the_space_comes_from_the_cloud.py",
+            # refactor2710-11 T-03: the query embedding reuses one connection, so the recall closes in budget.
+            "tests/memory/unit/test_the_query_embedding_reuses_its_connection.py",
             "tests/memory/integration/test_rerank.py", "tests/memory/unit/test_graph_ppr.py",
             "tests/memory/unit/test_rerank_abs.py",
             "tests/memory/unit/test_rerank_local_load_budget.py",
