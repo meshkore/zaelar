@@ -327,3 +327,10 @@ def test_a_long_cloud_trail_collapses_and_the_ellipsis_expands_it(playwright_ava
 def test_the_connect_screens_close_button_is_reachable_without_scrolling(playwright_available):
     m = _run([{**_BASE, "panel": "connect"}])[0]
     assert m["cx_close_visible"] is True, "landing here must never trap the operator with no way back"
+
+
+def test_the_torrent_door_is_drawn_only_when_the_client_is_there(playwright_available):
+    """CRIT-R6 on the card (node 5.61): a hosted account has no torrent client, so the 🧲 chip is not drawn."""
+    off, on = _run([{**_BASE, "torrents": {"available": False}}, {**_BASE, "torrents": {"available": True}}])
+    assert "🧲" not in [c["t"] for c in off["pchips"]], "the torrent door is offered with no client behind it"
+    assert "🧲" in [c["t"] for c in on["pchips"]], "the harness measures the wrong chips (disarm: it must appear)"
