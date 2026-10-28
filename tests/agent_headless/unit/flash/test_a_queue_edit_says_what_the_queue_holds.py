@@ -11,7 +11,17 @@ from __future__ import annotations
 import pytest
 
 from i18n import langs
-from nucleo.flash import transport_receipt as TR
+from nucleo.turn import reply_receipts as RR
+
+
+def _owed(said, ops, lang=None):
+    out = RR.player_owed(said, ops, lang)
+    return out[0].said if out else ""
+
+
+async def _settled(said, ops, lang=None):
+    out = await RR.player(said, ops, lang)
+    return out[0].said if out else ""
 
 A, B, C = ({"title": t} for t in ("How to Prune an Olive Tree", "Tutorial how to prune", "Podar los olivos"))
 
@@ -26,18 +36,18 @@ def queue(monkeypatch):
 
 def test_a_removal_names_what_is_left(queue):
     queue["list"] = [A, B]
-    assert TR.owed("Done.", [("youtube", "remove")], lang=langs.spec("en")) == \
+    assert _owed("Done.", [("youtube", "remove")], lang=langs.spec("en")) == \
         "The queue now has 2: «How to Prune an Olive Tree» and «Tutorial how to prune»."
 
 
 def test_an_emptied_queue_says_so(queue):
-    assert TR.owed("Hecho.", [("youtube", "clear_list")], lang=langs.spec("es")) == "La cola se ha quedado vacía."
+    assert _owed("Hecho.", [("youtube", "clear_list")], lang=langs.spec("es")) == "La cola se ha quedado vacía."
 
 
 def test_three_added_rows_are_named_and_many_are_counted(queue):
     queue["list"] = [A, B, C]
-    assert TR.owed("Hecho.", [("youtube", "add_results")], lang=langs.spec("es")) == \
+    assert _owed("Hecho.", [("youtube", "add_results")], lang=langs.spec("es")) == \
         "La cola tiene ahora 3: «How to Prune an Olive Tree», «Tutorial how to prune» y «Podar los olivos»."
     queue["list"] = [A, B, C, A]
-    assert TR.owed("Hecho.", [("youtube", "add_results")], lang=langs.spec("es")) == "La cola tiene ahora 4."
-    assert TR.owed("Hecho, ya hay 4.", [("youtube", "add_results")], lang=langs.spec("es")) == ""
+    assert _owed("Hecho.", [("youtube", "add_results")], lang=langs.spec("es")) == "La cola tiene ahora 4."
+    assert _owed("Hecho, ya hay 4.", [("youtube", "add_results")], lang=langs.spec("es")) == ""

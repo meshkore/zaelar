@@ -29,7 +29,6 @@ def test_the_voice_turn_says_it_right_after_the_second_pass():
     assert "_act_repair.after_the_repair(spoken_text" in src[i:i + 900]
 
 
-
 def test_a_repaired_look_is_not_acknowledged_as_done(monkeypatch):
     """Demo pass 42 (2026-09-29), C2: «…want me to put it on your calendar as a call with Rowan at 4?» — the repair
     ran `find_free`, a LOOK, and the ack made it «…at 4?Done.». A look changes nothing there is to acknowledge."""
@@ -64,34 +63,3 @@ def test_words_that_already_carry_the_act_get_nothing(monkeypatch):
                                        "unread").strip() == "Done."
 
 
-def test_words_that_hold_the_act_for_a_go_ahead_ask_even_without_a_question_mark(monkeypatch):
-    """Demo pass 124 (2026-10-14), C5: «One thing, Richard — I don't write messages on my own. Say the word and I'll
-    send Rowan the note on Telegram…» — the repair sent the Telegram, and the last thing heard asked for a go-ahead.
-    No «?», so the shape read nothing. The reply verdict says it waits (`ask_first`); a plain promise still gets nothing."""
-    from nucleo.flash import reply_promise as rp
-    monkeypatch.setenv("ZAELAR_LANGUAGE", "en")
-    rp.reset()
-    held = "One thing, Richard — I don't write messages on my own. Say the word and I'll send Rowan the note."
-    promised = "Sure — sending Rowan a Telegram now with the 4:30 time."
-    rp._remember(rp._key(held), "ask_first")
-    rp._remember(rp._key(promised), "act")
-    try:
-        assert rp.promises_action(held), "a held act is still the act the repair carries out"
-        assert act_repair.after_the_repair(held, True, "mensajeria", "send_to").strip() == \
-            "I've gone ahead and done it, as you asked."
-        assert act_repair.after_the_repair(promised, True, "mensajeria", "send_to") == ""
-    finally:
-        rp.reset()
-
-
-def test_an_unsure_held_act_stays_a_plain_promise(monkeypatch):
-    """Demo pass 126 (2026-10-14), U3: «Paused — just say the word when you want it back on» read ask_first at 0.69,
-    and the completed pause got «I've gone ahead and done it, as you asked.» after it. A held act adds a line, so only
-    a sure one counts; below the bar it is the promise it always was."""
-    from nucleo import jev
-    from nucleo.flash import reply_promise as rp
-    rp.reset()
-    for conf, want in ((0.69, "act"), (0.92, "ask_first")):
-        monkeypatch.setattr(jev, "read", lambda h, k, d, conf=conf: ("ask_first", {"confidence": conf, "used": True}))
-        assert rp._settle(f"k{conf}", object()) == want
-    rp.reset()

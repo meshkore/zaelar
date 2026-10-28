@@ -30,5 +30,5 @@ def test_the_verdict_completes_an_empty_reorder_turn_end_to_end(queue, monkeypat
 
 
 def test_the_voice_turn_hands_the_models_words_to_the_rung():
-    voice = (_ENGINE / "nucleo/flash/post_stream_words.py").read_text(encoding="utf-8")
+    voice = (_ENGINE / "nucleo/flash/post_stream_acts.py").read_text(encoding="utf-8")
     assert "model_words=spoken_text" in voice

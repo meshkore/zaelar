@@ -79,12 +79,12 @@ def test_no_named_card_no_model_call(client):
 
 
 def test_the_turn_asks_for_the_call_before_the_promise_backstop_spends_a_worker():
-    # V2-778 F1 moved the voice chain out of the provider: the repair lives in `post_stream_words`, the worker
+    # V2-778 F1 moved the voice chain out of the provider: the repair lives in `post_stream_acts`, the worker
     # backstop in `post_stream_lanes`, and `post_stream.run` calls the first before the second.
     run = _vts.read(ENGINE / "nucleo/flash/post_stream.py")
-    assert run.index("_ps_words.hold_the_model_to_its_words(") < run.index("_ps_lanes.run_the_light_lanes("), \
+    assert run.index("_ps_acts.complete_the_acts(") < run.index("_ps_lanes.run_the_light_lanes("), \
         "the worker backstop runs before the repair — the promise becomes minutes of worker"
-    words = _vts.read(ENGINE / "nucleo/flash/post_stream_words.py")
+    words = _vts.read(ENGINE / "nucleo/flash/post_stream_acts.py")
     assert "_act_repair.call_for_promise_or_order(_op_text," in words   # full41 E3
     assert "_cardc_ar.named_or_catalogue(_brief, _op_text)" in words, "the card must come from the turn's own verdict"
     lanes = _vts.read(ENGINE / "nucleo/flash/post_stream_lanes.py")

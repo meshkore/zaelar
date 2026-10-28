@@ -34,13 +34,9 @@ from widgets import confirm as _wconfirm
 async def run(*, FastClient, _apply_widget_data, _ask_waiting, _auth_pending, _brief, _cover_work, _data_ops_hechas, _dialog, _filler_audio, _has_workers, _prev_pending, _prompt_mod, _repeat_repair, _resolve_confirm, _router, _shown_ids, _tag_emit, _tool_fired, _turn_op_tasks, acted, aside, attention, brain, canvas_h, clarify, confirm_state, cron_seen, data_done, emit, escalate_req, had_pending_confirm, images_req, listing_req, llm_metrics, music_req, operator_text, read_req, recall_req, reopen_req, reveal_req, search_req, send, speak, spec, speech, spoken, style_fired, take, text, worker_acted,
               _say, _close_target, _identify, _identify_system, _show_guard_target, _show_target_instance, with_also_named, _buf_reset, _buf_add) -> dict:
     """The post-stream chain of ONE turn. Returns `{"spoken_text", "_op_text"}`."""
-    # V2-778 F2-16 — did the reply promise something? Asked ONCE, off the loop, now that the words are final; every
-    # promise reader below finds the verdict cached (the phrase tables answer only if it cannot).
-    from nucleo.flash import reply_promise as _reply_promise
-    await _reply_promise.prefetch("".join(spoken).strip(), operator_text)
     # V2-778 F1 — holding the model to its words (pure show, ghost worker, third rung, promises) lives in
-    # `nucleo/flash/post_stream_words.py`.
-    _blk = await _ps_words.hold_the_model_to_its_words(
+    # `nucleo/flash/post_stream_acts.py`.
+    _blk = await _ps_acts.complete_the_acts(
         _apply_widget_data=_apply_widget_data,
         _brief=_brief,
         _data_ops_hechas=_data_ops_hechas,
@@ -85,8 +81,6 @@ async def run(*, FastClient, _apply_widget_data, _ask_waiting, _auth_pending, _b
         _op_text = _blk['_op_text']
     if 'spoken_text' in _blk:
         spoken_text = _blk['spoken_text']
-    # U2 (demo passes 34-51, 2026-09-29): «Sure — putting on Like a Prayer now» and no call — an ENGLISH promise
-    # of playback, read here with the same gate the branch below applies (music card open, or a music word).
     # V2-778 F1 — the light lanes the model chose (playback, closes, secret, recall, read, search, music) live in
     # `nucleo/flash/post_stream_lanes.py`.
     _blk = await _ps_lanes.run_the_light_lanes(
@@ -163,6 +157,7 @@ async def run(*, FastClient, _apply_widget_data, _ask_waiting, _auth_pending, _b
         _resolve_confirm=_resolve_confirm,
         _router=_router,
         _shown_ids=_shown_ids,
+        _turn_op_tasks=_turn_op_tasks,
         acted=acted,
         aside=aside,
         brain=brain,
@@ -191,4 +186,4 @@ async def run(*, FastClient, _apply_widget_data, _ask_waiting, _auth_pending, _b
 # V2-778 F1 — the chain's three moved blocks; module imports at the end (they read this module back).
 from nucleo.flash import post_stream_lanes as _ps_lanes  # noqa: E402
 from nucleo.flash import post_stream_settle as _ps_settle  # noqa: E402
-from nucleo.flash import post_stream_words as _ps_words  # noqa: E402
+from nucleo.flash import post_stream_acts as _ps_acts  # noqa: E402

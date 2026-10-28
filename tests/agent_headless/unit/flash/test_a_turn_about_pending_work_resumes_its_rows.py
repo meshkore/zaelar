@@ -128,7 +128,7 @@ def test_a_live_errand_is_not_started_twice(monkeypatch):
 
 
 def test_both_doors_ask_the_rows_before_annulling_or_gluing():
-    words = (ROOT / "nucleo/flash/post_stream_words.py").read_text(encoding="utf-8")
+    words = (ROOT / "nucleo/flash/post_stream_acts.py").read_text(encoding="utf-8")
     assert words.index("_resume_turn.before_fragment_guard(") < words.index("_pst._eguard.drop_if_fragment(")
     lanes = (ROOT / "nucleo/flash/post_stream_lanes.py").read_text(encoding="utf-8")
     i = lanes.index("_no_tool = await _pst._resume_turn.before_backstops(")
@@ -141,16 +141,16 @@ def test_a_resumed_turn_leaves_no_backstop_to_rebuild_a_brief(monkeypatch):
     calls = []
     _verdict(monkeypatch, {"task"}, calls)
     _escalations(monkeypatch)
-    from nucleo.flash import router
-    monkeypatch.setattr(router, "promises_action", lambda t: True)
+    from nucleo.turn import reply
+    monkeypatch.setattr(reply, "owes_an_act", lambda b: "order" if b == "ORDER" else "")
     esc, acted = {"v": None, "more": []}, {}
     no_tool = asyncio.run(resume_turn.before_backstops(True, esc, spoken_text="Retomo lo del restaurante.",
-                                                      operator_text="termina esas tareas", brief=None, last_reply="",
+                                                      operator_text="termina esas tareas", brief="ORDER", last_reply="",
                                                       apply_widget_data=None, emit=None, acted=acted))
     assert no_tool is False and esc["resumed"] == ["b00t01-1"]
     assert asyncio.run(resume_turn.before_backstops(True, {"v": None, "more": []}, spoken_text="", operator_text="x",
                                                     brief=None, last_reply="", apply_widget_data=None, emit=None,
-                                                    acted={})) is True, "no promise, nothing to complete"
+                                                    acted={})) is True, "no act owed by the brief, nothing to complete"
 
 
 # ── the card's title is the errand's NAME, never a summariser's or a worker's sentence ──────────────────

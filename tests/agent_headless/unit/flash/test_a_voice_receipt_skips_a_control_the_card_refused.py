@@ -13,7 +13,17 @@ import asyncio
 import pytest
 
 from nucleo import canvas_focus as CF
-from nucleo.flash import transport_receipt as TR
+from nucleo.turn import reply_receipts as RR
+
+
+def _owed(said, ops, lang=None):
+    out = RR.player_owed(said, ops, lang)
+    return out[0].said if out else ""
+
+
+async def _settled(said, ops, lang=None):
+    out = await RR.player(said, ops, lang)
+    return out[0].said if out else ""
 
 
 @pytest.fixture(autouse=True)
@@ -47,4 +57,4 @@ def test_the_voice_receipt_owes_nothing_for_a_refused_move(monkeypatch):
     monkeypatch.setattr(store, "load", lambda wid, *a, **k: {"list": [{"title": "X"}], "pos": 0, "title": "X"})
     _turn(("data:next", {"id": "youtube", "src": "probe"}),
           ("action_failed", {"id": "youtube", "action": "next"}))
-    assert asyncio.run(TR.voice_owed_settled("Vale.")) == ""
+    assert asyncio.run(_settled("Vale.", None)) == ""

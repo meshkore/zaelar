@@ -64,7 +64,7 @@ def test_the_answer_pass_runs_only_for_that_disposition(monkeypatch):
 
 def test_the_turn_wires_it():
     """One turn, typed or spoken (refactor2710-01): it settles and never composes the answer."""
-    voice = open("nucleo/flash/post_stream_words.py", encoding="utf8").read()
+    voice = open("nucleo/flash/post_stream_acts.py", encoding="utf8").read()
     assert "answered_from_state(_settled" in voice, "the turn settles and never composes the answer"
 
 

@@ -53,7 +53,7 @@ def test_every_shape_names_a_line_both_languages_carry():
 
 
 def test_the_wall_keeps_the_space_before_the_tail():
-    src = open("nucleo/flash/post_stream_words.py", encoding="utf-8").read()
+    src = open("nucleo/flash/post_stream_acts.py", encoding="utf-8").read()
     assert 'send(speech.sanitize(_c_tail, drop_metadata=False))' not in src \
         and 'send(speech.sanitize(_ar_tail, drop_metadata=False))' not in src, \
         "sanitize strips the tail's leading space: «side by side?I've gone ahead» on the wall"

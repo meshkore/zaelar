@@ -43,7 +43,6 @@ def _no_repair(monkeypatch):
 def test_the_premise_the_word_table_does_match():
     from nucleo.flash import router
     assert router.looks_like_escalate_task(SAID), "the variant must reach the word table, or this file tests nothing"
-    assert router.promises_action(REPLY)
 
 
 def test_a_confident_inline_refuses_the_word_table_and_anything_else_keeps_it():
@@ -85,11 +84,13 @@ def _voice_lane(monkeypatch, brief) -> tuple[dict, list]:
 
 
 def test_the_voice_lane_does_not_escalate_a_question_the_verdict_kept_inline(monkeypatch):
-    req, events = _voice_lane(monkeypatch, _brief("handle_inline", 1.0))
+    req, _events = _voice_lane(monkeypatch, _brief("handle_inline", 1.0))
     assert req["v"] is None, req
-    assert any("ANULADA por el veredicto" in str(e[1]) for e in events), events
 
 
-def test_the_voice_lane_still_escalates_when_the_verdict_is_unsure(monkeypatch):
+def test_an_unsure_verdict_invents_no_worker_from_our_words(monkeypatch):
+    """refactor2710-03: an act is owed only when the brief says so; an unsure question leaves the model's turn."""
     req, _ = _voice_lane(monkeypatch, _brief("handle_inline", 0.3))
-    assert req["v"] == SAID
+    assert req["v"] is None, req
+    req, _ = _voice_lane(monkeypatch, {**_brief("escalate", 0.95)})
+    assert req["v"] == SAID, "a sure escalation over nothing fired still gets its worker"
