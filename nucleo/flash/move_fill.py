@@ -95,7 +95,7 @@ def move_fill(widget_id: str, action: str, words: str, model_words: str = "") ->
         rest = "".join(masked)
         item = _playing_row(rows) if _PLAYING.search(rest) else ""
         if not item:
-            named = _pf._row_mentions(rest, rows)
+            named = _pf._row_mentions(rest, rows, base)
             item = str(rows[named[0][1] - 1]["id"]) if len(named) == 1 else ""
         if item and to is not None:
             return {field: item, "to": to}

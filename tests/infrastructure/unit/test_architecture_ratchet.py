@@ -332,23 +332,24 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
-    "nucleo (top)": 16526,      # refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
+    "nucleo (top)": 15701,    # refactor2710-07: jev.py became the nucleo/jev package; refactor2710-02: circuit, request_row, spec, harness, verify, deliverable_gate moved to their packages; refactor2710-11: processor moved to memory_agent; refactor2710-01: `consequence.py` (the door registry, each door an event), `dispatch_soon.py` (moved)
     "nucleo/actionmap": 755,
     "nucleo/acts": 902,         # refactor2710-05: the tool catalogue (T-01) + what frontend.py decided about a card (T-05)
     "nucleo/agentes": 793,
-    "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
+    "nucleo/batch": 884,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
     "nucleo/circuit": 2597,     # refactor2710-02: born (moves + verdict.py); 02b: the row half of request.model.settle MOVED in as circuit.settle, flash/write_outcome MOVED in (compose.py)
     "nucleo/context_packs": 568,
     "nucleo/dispatch": 2448,   # refactor2710-09 T-01: moved from top and split; target 1 200
     "nucleo/errands": 2548,
     "nucleo/cli": 333,          # refactor2710-01: born — the typed adapter onto the voice turn
-    "nucleo/flash": 26114,      # refactor2710-02: the model client MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts
+    "nucleo/flash": 25204,      # refactor2710-02: the model client MOVED to nucleo/llm/; refactor2710-03: the word gates over our own reply went; refactor2710-05: the arms and the card decisions → nucleo/acts
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
+    "nucleo/jev": 759,          # refactor2710-07: born — jev.py split into the client, select and decide (dead calls out)
     "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
     "nucleo/memory_agent": 3090,       # refactor2710-11: 1949 + processor moved in from top (1520), 3123 → 3088 (write events); refactor2710-01: +2, the memory.ingest door
     "nucleo/request": 954,     # refactor2710-02: born — request_row (model), errand_kind/title, dedup+continuity (append), stop_decision MOVED in
     "nucleo/susurro": 1386,
-    "nucleo/turn": 2607,        # refactor2710-03: `reply.py` + `reply_receipts.py`, the mouth that speaks the verdict (paid by nucleo/flash)
+    "nucleo/turn": 3351,        # refactor2710-03: `reply.py` + `reply_receipts.py` (the mouth); refactor2710-07: `brief.py` + `verdicts.py` (moved from nucleo/flash)
     "nucleo/workers": 6940,            # refactor2710-09: + research (590) as workers/brief*, providers and session split; target 4 500
     "nucleo/workflows": 315,
     "observability": 1005,
@@ -356,7 +357,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "search": 5474,
     "server": 5736,        # refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10092,             # refactor2710-01: +3, `typed_turn.py` (the typed front door) and the lent speaker
-    "voice/engine/llm": 3892,   # refactor2710-01: +64, a failed turn keeps his words; the vault is a door
+    "voice/engine/llm": 3847,   # refactor2710-01: +64, a failed turn keeps his words; the vault is a door
     "widgets": 38262,           # refactor2710-01 +42 (payload_digest, sheet.rebuild); refactor2710-12 split and condensed
 }
 
@@ -411,11 +412,10 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/flash/tool_executor_calls.py",
     "nucleo/flash/tool_executor_widget_calls.py",
     "nucleo/flash/tool_selection.py",
-    "nucleo/flash/turn_brief.py",
     "nucleo/flash/widget_read.py",
     "nucleo/homeostasis.py",
     "nucleo/input/stt.py",   # the phrase accumulator, MOVED from nucleo/flash/accumulator.py (refactor2710-01)
-    "nucleo/jev.py",
+    "nucleo/jev/__init__.py",
     "nucleo/loop.py",
     "nucleo/memory_agent/gates.py",
     "nucleo/mesh_agents.py",
@@ -445,8 +445,8 @@ def _package_totals() -> dict[str, int]:
 
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
-#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151). Never for growth in place.
-_TOTAL_MAX = 171075
+#: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; -02 and -03: → 171441; the rest of -02: → 171300; -02b: → 171265; -09: → 171151; refactor2710-07: → 170777). Never for growth in place.
+_TOTAL_MAX = 170777
 
 
 def test_the_total_only_shrinks():

@@ -248,20 +248,20 @@ _BEFORE_WORDS = frozenset("before ahead above antes delante encima".split())
 _NOT_A_ROW_NUMBER = frozenset({"un", "uno", "una"})
 
 
-def _row_mentions(words: str, rows: list[dict]) -> list[tuple[int, int]]:
+def _row_mentions(words: str, rows: list[dict], base: str = "", brief=None) -> list[tuple[int, int]]:
     """`(offset, row_id)` of every row the words NAME, in the order they are named.
 
     A row is named by a spoken position («the third», «el segundo»), a marked digit («number 3»), or a word of its
     title that no OTHER row carries («the skills one» over one title with «Skills»). A word every row shares
-    («Maradona» over a queue of Maradona videos) names nothing."""
+    («Maradona» over a queue of Maradona videos) names nothing. A row he named and TOOK BACK («the last… no, the second
+    to last») is not one of them: the turn's brief says which (`brief_screen.item_ref_question`), never a word table."""
     import re as _re
     from widgets import refs as _refs
-    from nucleo.flash import said_positions as _sp       # «el penúltimo», and «el último… no, el penúltimo»
     norm = _refs.from_the_end(_refs._norm(words or ""))
     toks = [(m.start(), m.group(0)) for m in _re.finditer(r"[a-z0-9ñ]+", norm)]
     n = len(rows)
     nums = _refs.number_words()
-    out = _sp.from_end_mentions(toks, n)
+    out = [(off, i + 1) for off, t in toks if (i := _refs.from_end_index(t, n)) is not None]    # «el penúltimo»
     for off, t in toks:
         if t in nums and t not in _NOT_A_ROW_NUMBER and 1 <= nums[t] <= n:
             out.append((off, nums[t]))
@@ -277,10 +277,12 @@ def _row_mentions(words: str, rows: list[dict]) -> list[tuple[int, int]]:
     first: dict[int, int] = {}
     for off, rid in sorted(out):
         first.setdefault(rid, off)
-    return _sp.drop_retracted(sorted((off, rid) for rid, off in first.items()), norm)
+    from nucleo.turn import brief as _brief
+    gone = _brief.withdrawn_rows(brief if brief is not None else _brief.of_this_turn(), base) if base else set()
+    return sorted((off, rid) for rid, off in first.items() if str(rows[rid - 1]["id"]) not in gone)
 
 
-def reorder_fill(widget_id: str, action: str, words: str, model_words: str = "") -> dict:
+def reorder_fill(widget_id: str, action: str, words: str, model_words: str = "", brief=None) -> dict:
     """`{item: n, before|after: m}` when the action declares a row to move beside ANOTHER row and the words name
     exactly two rows with the side between them; `{}` otherwise.
 
@@ -298,7 +300,7 @@ def reorder_fill(widget_id: str, action: str, words: str, model_words: str = "")
         if len(rows) < 2:
             return {}
         for text in (words, model_words):
-            named = _row_mentions(text, rows)
+            named = _row_mentions(text, rows, _base_of(widget_id), brief)
             if len(named) != 2:
                 continue
             (a_off, a_row), (b_off, b_row) = named
@@ -311,12 +313,12 @@ def reorder_fill(widget_id: str, action: str, words: str, model_words: str = "")
         return {}
 
 
-def choice_or_order_fill(widget_id: str, action: str, words: str, model_words: str = "") -> tuple[dict, str]:
+def choice_or_order_fill(widget_id: str, action: str, words: str, model_words: str = "", brief=None) -> tuple[dict, str]:
     """`(payload, source)` for an action no single query key fills: a declared CHOICE he named (`enum-alias`), else
     two rows he put in order (`said-order`); `({}, "")` when neither."""
     if (filled := enum_fill(widget_id, action, words)):
         return filled, "enum-alias"
-    if (filled := reorder_fill(widget_id, action, words, model_words)):
+    if (filled := reorder_fill(widget_id, action, words, model_words, brief)):
         return filled, "said-order"
     from nucleo.flash import move_fill as _mf     # «the one playing, first» / a slot answering the card's question
     if (filled := _mf.move_fill(widget_id, action, words, model_words)):

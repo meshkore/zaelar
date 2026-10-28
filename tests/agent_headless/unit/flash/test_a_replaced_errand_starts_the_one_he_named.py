@@ -72,7 +72,7 @@ def _stopped(goal):
 
 @pytest.mark.parametrize("text,old_goal", REPLACE_BANK)
 def test_a_replace_ends_the_errand_like_a_stop(text, old_goal, one_errand):
-    assert sd.ordered(_brief("replace"), grammar=False), "the tool gate lets the model's stop run"
+    assert sd.model_stop(_brief("replace"), grammar=False) == "run", "the tool gate lets the model's stop run"
     acted: dict = {}
     assert sd.repair(_brief("replace"), text, escalating=True, grammar=lambda: False, acted=acted) == ["7"], \
         "a turn that also escalated still stops the errand it replaces"

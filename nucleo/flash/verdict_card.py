@@ -150,4 +150,5 @@ def inner_order_wins(brief, operator_text: str = "") -> str:
 def close_is_owed(brief, operator_text: str = "") -> bool:
     """The voice promise door's «it promised to CLOSE»: a sure close verdict the inner order does not outrank."""
     from nucleo.flash import direct_action as _da
-    return _da.sure_canvas(brief) == "close" and not inner_order_wins(brief, operator_text)
+    return _da.sure_canvas(brief) == "close" and not inner_order_wins(brief, operator_text) \
+        and not __import__("nucleo.turn.brief", fromlist=["x"]).names_elsewhere(brief, against_a_call=True)

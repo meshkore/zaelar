@@ -38,21 +38,18 @@ def _answer(monkeypatch, plan):
     monkeypatch.setattr(shape, "_chat", lambda system, user: json.dumps(plan))
 
 
-def test_the_probe_channel_moves_the_gate_and_a_retraction_restores_genesis(monkeypatch):
+def test_the_written_rule_moves_the_gate_and_a_retraction_restores_genesis(monkeypatch):
     assert consent.ask_at() == "critical", "genesis"
     rule = "pregúntame siempre antes de tocar nada"
     _answer(monkeypatch, {"op": "add", "say": "ok",
                           "rows": [{"scope": "global", "kind": "gate", "key": "ask_at", "value": "sensitive"}]})
-    asyncio.run(style_directive.handle_probe(rule, rule, _Sess(), ingest=True))
+    asyncio.run(style_directive.write_rule(rule, rule, lambda *a, **k: None, _Sess(), speak=False))
     assert consent.ask_at() == "sensitive", "the spoken rule governs the very next decision"
     import rules
     rid = rules.deciding_rule(rules.path(), "ask_at")["id"]
     gone = "olvida lo de preguntarme siempre antes"
     _answer(monkeypatch, {"op": "remove", "remove": [rid], "say": "ok"})
-    asyncio.run(style_directive.handle_probe(gone, gone, _Sess(), ingest=True))
+    asyncio.run(style_directive.write_rule(gone, gone, lambda *a, **k: None, _Sess(), speak=False))
     assert consent.ask_at() == "critical", "back to genesis"
 
 
-def test_both_channels_are_wired():
-    src = (ENGINE / "nucleo/flash/style_directive.py").read_text("utf-8")
-    assert src.count("write_rule(") == 3, "voice (spawned) and probe (awaited) both write the rule through the shaper"

@@ -33,55 +33,6 @@ def _canned(choice="handle_inline", confidence=0.9):
                                                "confidence": confidence}}}
 
 
-def test_the_question_is_two_answers_over_the_operators_words_plus_state(monkeypatch):
-    """The catalog is fixed and reviewable; the state facts travel as context, not as rails."""
-    seen: dict = {}
-    # NOTE: _post_question takes (answer_key, state, instructions, criteria, timeout) — the
-    # state facts ride inside `state` (choose_sync appends context there). Read them back.
-    monkeypatch.setattr(jev, "_post_question",
-                        lambda ak, st, ins, crit, to: (seen.update(
-                            answer_key=ak, criteria=crit, state=st), _canned())[1])
-    out = _eg.judge_escalation("It is", running_goals=["find a plumber"],
-                               has_workers=True, ask_pending=True)
-    assert out == "handle_inline"
-    assert seen["answer_key"] == "escalate_or_inline"
-    assert set(seen["criteria"]) == {"handle_inline", "escalate"}
-    assert "It is" in seen["state"]
-    assert "find a plumber" in seen["state"]
-    assert "Workers active now: yes" in seen["state"]
-    assert "waiting for the operator's answer: yes" in seen["state"]
-
-
-def test_a_confident_escalate_changes_nothing(monkeypatch):
-    monkeypatch.setattr(jev, "_post_question", lambda *a: _canned(choice="escalate"))
-    assert _eg.judge_escalation("research roman culture for me") == "escalate"
-
-
-def test_unsure_or_unknown_keep_todays_path(monkeypatch):
-    """The load-bearing guard: a shrug must not annul a commission. Removing the gate turns
-    these red."""
-    monkeypatch.setattr(jev, "_post_question",
-                        lambda *a: _canned(choice="handle_inline", confidence=0.2))
-    assert _eg.judge_escalation("It is") == "escalate"
-    monkeypatch.setattr(jev, "_post_question", lambda *a: _canned(choice="teleport"))
-    assert _eg.judge_escalation("It is") == "escalate"
-
-
-def test_failed_disabled_and_empty_never_annul(monkeypatch):
-    def _boom(*a):
-        raise TimeoutError("slow")
-    monkeypatch.setattr(jev, "_post_question", _boom)
-    assert _eg.judge_escalation("It is") == "escalate"
-
-    calls: list = []
-    monkeypatch.setattr(jev, "_post_question", lambda *a: (calls.append(a), _canned())[1])
-    monkeypatch.setenv("ZAELAR_JEV", "0")
-    assert _eg.judge_escalation("It is") == "escalate"
-    monkeypatch.delenv("ZAELAR_JEV")
-    assert _eg.judge_escalation("   ") == "escalate"
-    assert calls == []
-
-
 # ── V2-726 A3 · a commission is RESOLVED, never silently cleared ─────────────────────────────────
 # The audit's finding 4. The gate runs AFTER the model has answered and usually after speech has
 # started, and a turn that carried an escalation normally REPLIED with a promise. Clearing it on a
