@@ -1,4 +1,4 @@
-"""The status panel's search line, the fact door of both channels, and the brief's asked fields (V2-782 T2.2 / T5.3 / T4.3)."""
+"""The status panel's search line, the turn's fact door, and the brief's asked fields (V2-782 T2.2 / T5.3 / T4.3)."""
 from __future__ import annotations
 
 from nucleo import research
@@ -41,10 +41,10 @@ def test_the_server_mounts_the_line_and_primes_once():
     assert "_search_api.prime_cache" in (root / "server" / "boot_halves.py").read_text(encoding="utf-8")
 
 
-def test_both_fact_doors_call_the_service():
+def test_the_fact_door_calls_the_service():
     from pathlib import Path
     root = Path(__file__).resolve().parents[3]
-    for f in ("nucleo/flash/post_stream_lanes.py", "nucleo/flash/probe_after.py"):
+    for f in ("nucleo/flash/post_stream_lanes.py",):
         src = (root / f).read_text(encoding="utf-8")
         assert "_sr.fact_search" in src, f
         assert "to_thread(_ws.search" not in src, f"{f} still calls the chain beside the service"
