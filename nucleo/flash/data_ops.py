@@ -33,7 +33,7 @@ import time
 from nucleo.flash import op_receipt as _receipt
 from nucleo.flash import refusal_line as _rline
 from nucleo.flash import two_orders as _two
-from nucleo.flash import write_outcome as _outcome
+from nucleo.circuit import compose as _outcome
 
 #: Techo of data-ops by turn. Cinco enlaces pegados of a vez es a request; cincuenta es a model roto.
 MAX_DATA_OPS = 5
@@ -443,7 +443,7 @@ async def dispatch_and_report(wid: str, action_name: str, payload: dict, *, seal
         # key is what tells the circuit a worker owns the spec, and an inline one is the circuit's own.
         _spec.persist(_row, _spec_entry)
     # V2-769 — this create's sentence COMPLETES an earlier create's: that one came from a piece of it, and its
-    # row goes back out with the call its own widget named. See `write_outcome.py` for the measured case.
+    # row goes back out with the call its own widget named. See `circuit/compose.py` for the measured case.
     if (_prev := _outcome.superseded(wid, action_name, text)):
         await _revert(wid, _prev)
     async def _run(w, a, p):

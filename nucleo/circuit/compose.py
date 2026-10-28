@@ -1,23 +1,22 @@
-"""nucleo/circuit/write_harness.py — an inline WRITE is checked against the end state his words name, and completed once.
+"""nucleo/circuit/compose.py — an inline WRITE, both halves: what it must leave, and what it REALLY left (refactor2710-02b).
 
-Demo pass 144 (2026-10-19), INIT step «Save Quinn and Rowan in my contacts: Quinn's Telegram is @…, and Rowan's
-email is …». The model made ONE `add_contact` (Quinn) and the step said «Done.»; p142 and p143 had made two. Rowan
-was never saved, and every send to him later in the run was refused «Rowan isn't in your contacts». A per-call `done_when` cannot
-see this: it attests the calls that were made, never the one that was not. The errand path has the loop (goal →
-spec → check → retry, V2-776 L1); a turn that wrote on a card in-line had no goal at all.
+WHAT IT MUST LEAVE (was `write_harness`, demo pass 144): «save Quinn and Rowan in my contacts» made ONE `add_contact`
+and said «Done.»; a per-call `done_when` attests the calls made, never the one that was not. So, off the hot path
+after the turn's ops ran: `spec.infer` writes the end state of his words; only rows that must be PRESENT on the card
+the turn wrote to are kept; `spec.attest` checks (met or unreadable ends it); ONE pass may repeat an action this turn
+already ran on that card (never one that leaves), and the spec is attested again (`after_turn`, `check`).
 
-Now it has the same loop, off the hot path, after the turn's ops ran:
-  1. GOAL — `spec.infer` writes the end state of his words (one small call, the errand namer's size);
-  2. HARNESS — only rows that must be PRESENT on the very card the turn wrote to are kept (an inferred clause about
-     another card, a field or an absence is not this turn's to repair);
-  3. CHECK — `spec.attest`; met or unreadable ends it;
-  4. ITERATE once — one pass is handed what is missing and may only repeat an action THIS turn already ran on that
-     card, never one that leaves (consent ≥ sensitive). Then the spec is attested again, on the timeline.
-Both channels call `after_turn`. The model writes the content; the engine owns the bound and the check.
+WHAT IT LEFT (was `write_outcome`, V2-769): a widget may say which keys it IGNORED (`add_meeting` with an unknown
+`recurrence` wrote one Tuesday and answered success) — turned into a note the model must act on, never read out raw
+(`ignored_note`); and a create whose sentence CONTAINS an earlier create's sentence on the same card within
+`WINDOW_S` completes it — the earlier piece is taken back out with the `revert` its widget named (`superseded`).
 """
 from __future__ import annotations
 
 import asyncio
+import re
+import time
+import unicodedata
 
 from loguru import logger
 
@@ -136,3 +135,86 @@ async def _missing_calls(order: str, card: str, allowed: list, missing: list, *,
         if name == "widget_data" and _base(args.get("widget_id")) == card and action in allowed:
             out.append((action, args.get("payload") if isinstance(args.get("payload"), dict) else {}))
     return out
+
+
+# ── what the write REALLY left (was `write_outcome.py`) ──────────────────────────────────────────────────────────
+
+
+#: How long a create stays «the piece that may still be completed». The measured gap was 13 s; a sentence
+#: split by the turn layer is completed within one or two turns, never minutes later.
+WINDOW_S = 45.0
+
+_last: dict = {}
+
+
+def _fold(text: str) -> str:
+    s = unicodedata.normalize("NFKD", str(text or "").lower())
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    return " ".join(re.findall(r"\w+", s))
+
+
+def is_create(action: str) -> bool:
+    return str(action or "").startswith("add_")
+
+
+def remember(wid: str, action: str, text: str, res, *, now: float | None = None) -> None:
+    """After a create LANDED: keep what could take it back out, and the sentence it came from."""
+    from nucleo.flash import served_writes as _served
+    _served.note(wid, action, text, res, now=now)    # any landed WRITE: its sentence is not a worker's errand
+    if not (is_create(action) and isinstance(res, dict) and isinstance(res.get("revert"), dict)):
+        return
+    _last[wid] = {"action": action, "text": _fold(text), "revert": res["revert"],
+                  "at": time.time() if now is None else now}
+
+
+def superseded(wid: str, action: str, text: str, *, now: float | None = None) -> dict | None:
+    """The earlier create on this card that THIS create's sentence completes, or None."""
+    prev = _last.get(wid)
+    if not prev or not is_create(action):
+        return None
+    now = time.time() if now is None else now
+    cur = _fold(text)
+    if now - float(prev["at"]) > WINDOW_S or not prev["text"] or cur == prev["text"]:
+        return None
+    if f" {prev['text']} " not in f" {cur} " or len(cur.split()) < len(prev["text"].split()) + 2:
+        return None
+    return prev
+
+
+def forget(wid: str) -> None:
+    _last.pop(wid, None)
+
+
+def reset() -> None:
+    _last.clear()
+    from nucleo.flash import served_writes as _served
+    _served.reset()
+
+
+def declared_fields(wid: str, action: str) -> list[str]:
+    """The payload keys the widget's manifest declares for this action — what the model should have used.
+    The model sees action NAMES only (`widgets/brief.py`), so a correction that does not name them invites the
+    same guess again."""
+    try:
+        from widgets import runtime
+        for w in runtime.catalog():
+            if str(w.get("id")) == wid:
+                spec = (w.get("actions") or {}).get(action) or {}
+                return [str(k) for k in (spec.get("payload") or {})]
+    except Exception:  # noqa: BLE001
+        pass
+    return []
+
+
+def ignored_note(wid: str, action: str, res) -> str:
+    """The correction for a write that landed WITHOUT some of what it was told, or "" when nothing was lost."""
+    if not isinstance(res, dict) or res.get("ok") is False:
+        return ""
+    lost = [str(k) for k in (res.get("ignored") or []) if str(k).strip()]
+    if not lost:
+        return ""
+    return (f"[SISTEMA] «{action}» sobre «{wid}» SÍ se guardó, pero SIN estos datos, que la tarjeta no sabe "
+            f"guardar: {', '.join(lost[:8])}. Si le dijiste que quedaba con eso, corrígelo en tu PRÓXIMA "
+            f"respuesta — lo que está guardado es lo que dice la tarjeta, no lo que mandaste."
+            + (f" Sus campos son: {', '.join(fields)}; si hay que rehacerlo, usa ESOS."
+               if (fields := declared_fields(wid, action)) else ""))
