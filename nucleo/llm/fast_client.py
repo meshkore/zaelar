@@ -242,7 +242,7 @@ class FastClient:
         # and credential, not the spec: the spec still says WHICH model is wanted, but no longer says
         # which key pays for it. Without mediated egress this returns exactly what it did before, so the
         # self-host path does not change by a single byte.
-        from nucleo import llm_egress
+        from nucleo.energy import egress as llm_egress
         raw_base = spec.resolved_base_url()
         base, key, extra = llm_egress.route(raw_base, spec.resolved_api_key())
         if not key:
@@ -296,7 +296,7 @@ class FastClient:
         cluster turn (non-streaming because of the reasoner) reuses the FlashBrain catalog."""
         spec = spec or spec_from_config()
         if not spec.is_local():                 # the lease gate, as in `stream()` — Z.AI direct never routes
-            from nucleo import energy_lease
+            from nucleo.energy import lease as energy_lease
             energy_lease.admit("llm")
         if spec._is_zai():
             return await self._complete_zai(messages, spec, max_tokens, tools=tools, on_tool_call=on_tool_call,
@@ -337,7 +337,7 @@ class FastClient:
                                f"reintento {_attempt}/{_CONNECT_RETRIES}")
                 await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
         # Metered like `stream()`, by the provider's URL (never the egress one, which has no rate row).
-        from nucleo import energy_meter
+        from nucleo.energy import meter as energy_meter
         energy_meter.meter_openai_response(resp, base_url=spec.resolved_base_url(), model=spec.model)
         try:
             msg = resp.choices[0].message
@@ -407,7 +407,7 @@ class FastClient:
                 await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
         data = resp.json()
         # Anthropic wire format names its counters differently; same meter, same provider URL.
-        from nucleo import energy_meter
+        from nucleo.energy import meter as energy_meter
         usage = data.get("usage") or {}
         energy_meter.report_llm_usage(base_url=spec.resolved_base_url(), model=spec.model,
                                       prompt_tokens=usage.get("input_tokens"),
@@ -515,7 +515,7 @@ class FastClient:
         addenda): the ⏻ never cuts a request mid-call, and the wait is this counter reaching zero, not a timer.
         And it asks the energy lease FIRST: a refused call raises `OutOfEnergy` here, before the relay loop
         inside could mistake it for a provider outage and mark a healthy tier."""
-        from nucleo import energy_lease, runstate
+        import nucleo.runstate as runstate, nucleo.energy.lease as energy_lease
 
         if not (spec or spec_from_config()).is_local():
             energy_lease.admit("llm")
@@ -757,11 +757,11 @@ class FastClient:
             except Exception:
                 pass
             # ENERGY METERING — no-op unless ZAELAR_USER_ID is set (see
-            # nucleo/energy_meter.py). Uses REAL provider usage when available, falls back to the
+            # nucleo/energy/meter.py). Uses REAL provider usage when available, falls back to the
             # char-based estimate already computed above (m["*_tokens_est"]) otherwise — some real
             # signal beats none for a cost meter, even if provider usage never arrived this call.
             try:
-                from nucleo import energy_meter as _energy
+                from nucleo.energy import meter as _energy
                 _energy.report_llm_usage(
                     base_url=spec.resolved_base_url(),
                     model=spec.model,

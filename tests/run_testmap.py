@@ -5897,7 +5897,7 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/connectors/unit/messaging/test_brief_connector_state.py"]},
         # 2026-08-31: el triaje llevaba horas fallando contra DeepSeek con `triaje falló: 'choices'`, y el
         # operador se fue a mirar su SALDO. No era saldo: `triage_key()` tenía su propia copia del mapa
-        # endpoint→clave (la QUINTA; el docstring de `nucleo/provider_keys.py` nombra las cuatro que ya habían
+        # endpoint→clave (la QUINTA; el docstring de `nucleo/energy/keys.py` nombra las cuatro que ya habían
         # divergido) y no conocía DeepSeek, así que mandaba la cadena literal `local` como token → 401. Dos
         # reglas: una sola lista la lee todo el mundo, y un 401/402/400 piden acciones DISTINTAS del operador,
         # así que no pueden leerse igual.

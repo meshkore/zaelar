@@ -3,7 +3,7 @@ import asyncio
 import httpx
 import pytest
 
-from nucleo import energy_meter
+from nucleo.energy import meter as energy_meter
 
 
 def test_disabled_by_default(monkeypatch):
@@ -270,7 +270,7 @@ async def test_post_usage_cloud_account_noop_without_control_plane_url(monkeypat
 @pytest.mark.anyio
 async def test_post_usage_cloud_account_requests_close_when_balance_depleted(monkeypatch):
     """2026-08-09: the /usage response's `balance` used to be discarded — now a depleted balance
-    (<=0) must request the session close via nucleo.account_limits, following the operator's
+    (<=0) must request the session close via nucleo.energy.limits, following the operator's
     "when it is spent, it is over" rule."""
     monkeypatch.setenv("ZAELAR_USER_ID", "did:key:z6MkExample")
     monkeypatch.setenv("CONTROL_PLANE_URL", "https://control-plane.example.com")
@@ -293,7 +293,7 @@ async def test_post_usage_cloud_account_requests_close_when_balance_depleted(mon
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _FakeClient())
 
-    from nucleo import account_limits
+    from nucleo.energy import limits as account_limits
 
     closed = []
     account_limits.register_closer(lambda reason: closed.append(reason))
@@ -329,7 +329,7 @@ async def test_post_usage_cloud_account_does_not_close_with_energy_left(monkeypa
 
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _FakeClient())
 
-    from nucleo import account_limits
+    from nucleo.energy import limits as account_limits
 
     closed = []
     account_limits.register_closer(lambda reason: closed.append(reason))
@@ -540,7 +540,7 @@ def test_el_estimado_no_se_beneficia_del_descuento_de_cache():
     """With tokens ESTIMATED from chars, there is no way to know which part was cached, so applying the discount would lower the
     bill using an invented datum. This is checked in the reporter, which is where the `estimated` flag is set."""
     seen = []
-    import nucleo.energy_meter as em
+    import nucleo.energy.meter as em
     orig = em.llm_cost_to_energy
     try:
         em.llm_cost_to_energy = lambda **kw: (seen.append(kw), 1.0)[1]

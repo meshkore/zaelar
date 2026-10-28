@@ -64,7 +64,7 @@ class _Stream:
 @pytest.fixture
 def meter(monkeypatch):
     calls: list[dict] = []
-    import nucleo.energy_meter as em
+    import nucleo.energy.meter as em
     monkeypatch.setattr(em, "report_llm_usage", lambda **kw: calls.append(kw))
     return calls
 

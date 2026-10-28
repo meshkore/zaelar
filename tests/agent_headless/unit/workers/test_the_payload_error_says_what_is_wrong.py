@@ -18,7 +18,7 @@ would end up executing what the worker did not say — which is worse than rejec
 """
 from __future__ import annotations
 
-from nucleo import bridge_usage as BU
+from nucleo.cli import usage as BU
 
 _VALLA = "```json\n{\"accion\": \"buscar\", \"q\": \"hoteles\"}\n```"
 

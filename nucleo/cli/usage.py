@@ -1,4 +1,4 @@
-"""nucleo/bridge_usage.py — a bridge's argument error says what to DO, not just what the shape is.
+"""nucleo/cli/usage.py — a bridge's argument error says what to DO, not just what the shape is.
 
 V2-212 taught this on `cli.nav type_at`: argparse prints the FORM (`usage: … x y text`) and the parser's own
 complaint (`invalid int value: 'Hotel Palacio…'`), and neither tells a headless worker how to get out. It burns

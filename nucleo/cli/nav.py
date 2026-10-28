@@ -26,7 +26,7 @@ import os
 import sys
 import urllib.request
 
-from nucleo import bridge_usage
+from nucleo.cli import usage as bridge_usage
 
 _BASE = os.getenv("ZAELAR_BASE", "http://localhost:43917").rstrip("/")
 

@@ -378,7 +378,7 @@ def _run_session(monkeypatch, events, *, goal="Busca una guitarra zurda", escala
     async def _fake_remember(p):
         return None
     monkeypatch.setattr("nucleo.memory_agent.remember", _fake_remember, raising=False)
-    monkeypatch.setattr("nucleo.energy_meter.report_worker_usage", lambda **kw: None, raising=False)
+    monkeypatch.setattr("nucleo.energy.meter.report_worker_usage", lambda **kw: None, raising=False)
 
     rec = SessionRecord(task_id="1", goal=goal)
     b = _FakeBackend(events)

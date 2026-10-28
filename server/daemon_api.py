@@ -76,7 +76,7 @@ def _daemon_config() -> dict:
 
 def _is_cloud() -> bool:
     try:
-        from nucleo import cloud_account
+        from nucleo.energy import account as cloud_account
         return bool(cloud_account.is_cloud_account())
     except Exception:       # noqa: BLE001
         return False

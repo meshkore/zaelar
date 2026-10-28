@@ -1,4 +1,4 @@
-"""nucleo/cloud_account.py — "does this process run with an account identity" accessor. A single
+"""nucleo/energy/account.py — "does this process run with an account identity" accessor. A single
 truthy env check behind one accessor, so every gate that needs to distinguish "a hosted account
 instance" from "self-host" (energy metering, centralized observability, provider control) reads the
 SAME function instead of each re-parsing ZAELAR_USER_ID on its own.

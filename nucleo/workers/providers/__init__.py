@@ -221,7 +221,7 @@ def env_for_worker() -> dict:
     # hours) that is ~3 minutes before the worker gives up and the chain can relay (measured 2026-09-28, the demo's
     # monitor search). Three retries still ride out a blip; a dead tier is handed on in seconds.
     # EGRESS: a mediated deployment hands the worker egress's address and its own credential, never a provider key.
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     base, tok = llm_egress.route_url(t["base_url"], tok)
     out = {"ANTHROPIC_BASE_URL": base, "ANTHROPIC_AUTH_TOKEN": tok, "CLAUDE_CODE_MAX_RETRIES": "3"}
     out.update(vision_env(t))

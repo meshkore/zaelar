@@ -48,7 +48,7 @@ def model() -> str:
 
 def endpoint_key(base_url: str) -> str:
     # The credential follows the URL, never the other way round — one resolver for the engine (V2-098).
-    from nucleo.provider_keys import key_for_endpoint
+    from nucleo.energy.keys import key_for_endpoint
     return key_for_endpoint(base_url, default="local")
 
 

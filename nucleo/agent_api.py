@@ -2,7 +2,7 @@
 
 Claude Code workers are SUBPROCESSES: they do not share the server's in-process bus or state. This endpoint is
 the HTTP bridge they report their PROGRESS (phase, plan, advance) and data through to the FlashBrain and the
-UI while they work — the same pattern as the memory bridge (`nucleo/mem_cli`). It is called by the
+UI while they work — the same pattern as the memory bridge (`nucleo/cli/mem`). It is called by the
 `nucleo/cli/report.py` CLI (`hbnote`). Loopback/local: the same trust model as the rest of the local API.
 
 ⚠️ Its comments and every docstring were lost on 2026-08-31 (`87874bd7`, the comment-translation batch) and

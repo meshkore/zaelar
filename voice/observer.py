@@ -219,7 +219,7 @@ def prompt_capture_on() -> bool:
     raw = (os.getenv("ZAELAR_LOG_PROMPTS") or "").strip().lower()
     if raw:
         return raw not in ("0", "false", "no", "off")
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     return not cloud_account.is_cloud_account()
 
 

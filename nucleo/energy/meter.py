@@ -1,11 +1,10 @@
-#
 # ENERGY METERING — real usage → real cost → "Energy" units.
 #
 # Converts ACTUAL provider usage (LLM tokens, TTS characters, STT audio-seconds, Brain Worker tokens,
 # transport participant-seconds) into a cost estimate, then into Energy units, and reports it
 # fire-and-forget to a usage ledger endpoint (see _post_usage_cloud_account).
 #
-# SCOPE: only active when `ZAELAR_USER_ID` is set (nucleo/cloud_account.py). A self-host install
+# SCOPE: only active when `ZAELAR_USER_ID` is set (nucleo/energy/account.py). A self-host install
 # doesn't set it → enabled() False → zero cost, zero network calls.
 #
 # Rates are resolved per MODEL first (a single broker base_url can serve dozens of differently-priced
@@ -29,7 +28,7 @@ import time
 import httpx
 from loguru import logger
 
-from nucleo import energy_tariffs
+from nucleo.energy import tariffs as energy_tariffs
 
 # $ per 1M tokens, (input, output), matched by substring against `base_url`. Covers providers that
 # serve a single (or effectively single-priced) model directly — NOT brokers like AIMLAPI, which
@@ -134,7 +133,7 @@ def enabled() -> bool:
     """Energy metering is active only when ZAELAR_USER_ID is set. Routes
     through the single-purpose accessor so neither this module nor its callers need to know the
     shape of the gate."""
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     return cloud_account.is_cloud_account()
 
 
@@ -320,7 +319,7 @@ def llm_cost_to_energy(
     return retail_eur / EUR_PER_ENERGY_UNIT
 
 
-# VOICE RATES live in `nucleo/energy_tariffs.py`, resolved PER PROVIDER from a tariff table that can be
+# VOICE RATES live in `nucleo/energy/tariffs.py`, resolved PER PROVIDER from a tariff table that can be
 # delivered with the usage lease. A flat constant here could not follow the provider actually running.
 
 
@@ -402,9 +401,9 @@ async def _post_usage_cloud_account(energy: float, kind: str, meta: dict | None 
     only — never content. Missing CONTROL_PLANE_URL or a user id → no-op, never raises.
 
     The response carries the account's new `balance`; a depleted balance
-    (nucleo/account_limits.should_close) requests the session close, fire-and-forget — a failed close
+    (nucleo/energy/limits.should_close) requests the session close, fire-and-forget — a failed close
     request never breaks the turn that triggered it."""
-    from nucleo import account_limits, cloud_account
+    from nucleo.energy import limits as account_limits, account as cloud_account
 
     control_plane_url = (os.getenv("CONTROL_PLANE_URL") or "").strip()
     user_id = cloud_account.my_user_id()
@@ -414,7 +413,7 @@ async def _post_usage_cloud_account(energy: float, kind: str, meta: dict | None 
     # en el ledger con los tokens que VIO ÉL — mejor dato que esta estimación. Reportarla otra vez
     # desde aquí cobraría dos veces el mismo turno. El descuento del arriendo local NO pasa por aquí
     # (va en `_fire_and_forget`, antes), así que el techo de seguridad sigue funcionando igual.
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     # Paid search joined on 2026-10-23, when its three indexes started going out through egress too. Voice (`tts`,
     # `stt`, `transport`) is still metered here: it does not go through egress. The decision model joined on
     # 2026-10-24, when its trips started going out through egress (billed there per trip).
@@ -531,7 +530,7 @@ def snapshot() -> dict:
         # The account's balance when the lease was granted, minus what THIS Machine has spent of that lease since:
         # the gauge goes down live, with no network, exactly as the lease itself does.
         try:
-            from nucleo import energy_lease
+            from nucleo.energy import lease as energy_lease
             b = max(0.0, float(b) - float(energy_lease._state.get("spent") or 0.0))
         except Exception as e:  # noqa: BLE001
             logger.debug(f"energy_meter: lease spend unreadable: {e!r}")
@@ -555,7 +554,7 @@ def _fire_and_forget(energy: float, kind: str, meta: dict | None = None) -> None
     # `create_task` a propósito — si no hay loop y el POST se descarta, el gasto ya ocurrió igual y el
     # contador tiene que saberlo. Un contador que solo cuenta cuando la red va bien no es un techo.
     try:
-        from nucleo import energy_lease
+        from nucleo.energy import lease as energy_lease
         energy_lease.note_spend(energy)
     except Exception:  # noqa: BLE001
         pass
@@ -593,7 +592,7 @@ def _observe_charge(energy: float, kind: str, meta: dict | None) -> None:
                  "raw_usd": round(e * EUR_PER_ENERGY_UNIT / MARGIN_MULTIPLIER, 8), "margin": MARGIN_MULTIPLIER}
         upstream = False
         if kind in ("llm", "worker", "search"):
-            from nucleo import llm_egress
+            from nucleo.energy import egress as llm_egress
             upstream = llm_egress.bills_upstream()
         extra["billed_by"] = "egress" if upstream else "engine"
         for k, v in (meta or {}).items():

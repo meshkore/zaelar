@@ -6,7 +6,7 @@ processes share ONE public hostname and each one holds a different person's data
 process the edge happened to pick answered the request" is not a routing detail, it is the wrong
 process answering.
 
-So on a process that takes part in session routing (`nucleo.account_routing.is_account_routing_machine`)
+So on a process that takes part in session routing (`nucleo.energy.routing.is_account_routing_machine`)
 a request is served only after this process has ESTABLISHED that the request's session belongs to it.
 Everything else is refused. In particular:
 
@@ -107,7 +107,7 @@ def decide(
     `outcome`/`target` are what the resolver said (`account_routing.RESOLVED` / `NO_SESSION` /
     `UNAVAILABLE`); they are only consulted once a cookie is present, so the common refusal costs no
     network at all."""
-    from nucleo import account_routing as ar
+    from nucleo.energy import routing as ar
 
     if is_public_path(path):
         # Same build as the shell that asked for it: hand it over when the session lives elsewhere. Any
@@ -175,7 +175,7 @@ def install(app) -> None:
 
     @app.middleware("http")
     async def _ingress(request, call_next):
-        from nucleo import account_routing as ar
+        from nucleo.energy import routing as ar
 
         if not ar.is_account_routing_machine():
             return await call_next(request)

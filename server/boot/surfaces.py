@@ -105,7 +105,7 @@ def prewarm_and_seams(app, active_brain) -> None:
     if active_brain() != "nucleo":
         return
     try:
-        from nucleo import browser_search, energy_meter
+        import nucleo.browser_search as browser_search, nucleo.energy.meter as energy_meter
         from nucleo.llm import prewarm as flash_prewarm
         _running_loop = asyncio.get_running_loop()
         browser_search.set_loop(_running_loop)
@@ -158,7 +158,7 @@ def guardians(app, first_lifespan_entry: bool) -> None:
     # not buy any safety. A FRESH lease, always (V2-801): the one the previous process persisted is not the answer,
     # and no stop decision is taken until this request is answered.
     try:
-        from nucleo import energy_lease
+        from nucleo.energy import lease as energy_lease
         if energy_lease.enabled():
             app.state.energy_lease_task = energy_lease.start_at_boot()
     except Exception as e:

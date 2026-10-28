@@ -395,14 +395,14 @@ def _sin_lista_explicita(monkeypatch):
     (2026-08-21)."""
     from config import v2
 
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: False, raising=False)
     monkeypatch.setattr(v2, "get", lambda k: {}, raising=False)
 
 
 def test_en_self_host_la_cadena_de_voz_es_SOLO_el_titular(monkeypatch):
     """The rule exactly as written; without it, the rest of this block means nothing."""
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: False, raising=False)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
     assert all(t["name"] != "xai-fast" for t in pc._voice_chain())
@@ -441,7 +441,7 @@ def test_si_el_operador_YA_puso_su_lista_no_hay_nada_callado(monkeypatch):
     """With explicit `fast.providers`, the operator is in charge: telling them we silenced something would be a lie."""
     from config import v2
 
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: False, raising=False)
     monkeypatch.setattr(v2, "get", lambda k: {"providers": [{"name": "x"}]} if k == "fast" else {}, raising=False)
     monkeypatch.setenv("DEEPSEEK_API_KEY", "k")

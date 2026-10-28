@@ -1,4 +1,3 @@
-#
 # ACCOUNT SESSION ROUTING — for a multi-instance deployment where many per-user instances sit behind
 # ONE public hostname and the edge proxy may hand a request to any of them. Whichever instance picks
 # up a request first tells the proxy "replay this on instance X" via the `fly-replay` response header.
@@ -43,7 +42,7 @@ def is_account_routing_machine() -> bool:
     (ZAELAR_USER_ID set) OR the always-on base "router" (ZAELAR_ACCOUNT_ROUTER=1). Without the
     router flag, a request that lands on the base Machine (which has no account identity of its
     own) would just serve its OWN generic content instead of ever attempting a fly-replay."""
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
 
     if cloud_account.is_cloud_account():
         return True

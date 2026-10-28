@@ -1,4 +1,3 @@
-#
 # ACCOUNT LIMITS — when ZAELAR_USER_ID is set there is NO turn/TTL cap: the only thing that ends a
 # session here is running OUT of Energy — a hard, uniform cutoff. Self-host never calls this
 # (is_cloud_account() is False there) — same no-op-by-construction idiom as everywhere else.

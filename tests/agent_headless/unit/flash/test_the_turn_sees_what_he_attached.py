@@ -86,7 +86,7 @@ def _jpeg(w, h) -> bytes:
 
 
 def test_the_image_travels_to_a_model_that_receives_it(monkeypatch, tmp_path):
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     from nucleo.memory_agent.processor import llm
     # The titular is read from the declared table, so a measured change of reader does not break this test; what
     # it pins is that the image travels to THAT model, downscaled, as an image part, and is metered there.

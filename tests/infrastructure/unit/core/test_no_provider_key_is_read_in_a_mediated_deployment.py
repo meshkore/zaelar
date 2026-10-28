@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-from nucleo import llm_egress
+from nucleo.energy import egress as llm_egress
 
 GW = "https://egress.example"
 TOKEN = "tok-of-this-account"
@@ -67,7 +67,7 @@ def test_the_stand_in_replaces_every_carried_key(mediated):
     assert {"OPENAI_API_KEY", "DEEPSEEK_API_KEY", "Z_AI_API_KEY", "GEMINI_API_KEY", "DEEPGRAM_API_KEY",
             "ELEVENLABS_API_KEY", "INWORLD_API_KEY"} <= set(names), names
     assert all(os.environ[n] == TOKEN for n in names)
-    from nucleo.provider_keys import key_for_endpoint
+    from nucleo.energy.keys import key_for_endpoint
     assert key_for_endpoint("https://api.deepseek.com") == TOKEN, "the model chains still see a usable rung"
 
 
@@ -165,7 +165,7 @@ def test_the_brain_worker_gets_egress_and_never_a_provider_key(mediated, monkeyp
 
 def test_a_search_egress_records_is_not_billed_again_here(mediated, monkeypatch):
     import httpx
-    from nucleo import cloud_account, energy_meter
+    from nucleo.energy import account as cloud_account, meter as energy_meter
     posted = []
 
     class Client:
@@ -264,7 +264,7 @@ def test_the_voice_worker_registers_through_egress(mediated, monkeypatch):
 
 def test_a_mediated_voice_session_does_not_record_to_the_provider(mediated, monkeypatch):
     """Recording uploads are signed with the LiveKit key a mediated instance does not hold: each would be a 401."""
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     from voice.engine.pipeline import agent
     assert agent._session_start_opts() == {"record": False}
     monkeypatch.setattr(llm_egress, "mediated", lambda: False)

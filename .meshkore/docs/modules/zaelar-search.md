@@ -69,7 +69,7 @@ every test that patches through them keeps working. New code imports `search.*`.
 | brightdata_serp / brightdata_unlocker | serp / unlocker | `BRIGHTDATA_API_TOKEN` (+ `BRIGHTDATA_SERP_ZONE`, `BRIGHTDATA_UNLOCKER_ZONE`) | yes | listing discovery and fetch through bot walls |
 | images | images | — | no | Google → Yandex → Bing in our Chromium |
 
-Every paid provider has a rate in `search/providers/__init__.py::USD_PER_REQUEST` (beside its declaration; `nucleo/energy_meter`
+Every paid provider has a rate in `search/providers/__init__.py::USD_PER_REQUEST` (beside its declaration; `nucleo/energy/meter`
 reads it and adds the catch-all row; the metering coverage gate fails otherwise) and meters only what ANSWERED. Timeouts: `WEBSEARCH_TIMEOUT` (12 s; Gemini +6), `LISTING_SEARCH_TIMEOUT`,
 `BROWSER_SEARCH_TIMEOUT`.
 
@@ -89,7 +89,7 @@ reads it and adds the catch-all row; the metering coverage gate fails otherwise)
   recorded beside the current path, so it can be validated against real sessions before it takes over.
 - The sheet's `present` / `append` (`widgets/results/actions.py`) apply `candidacy.split` to every batch and return
   `not_candidates`, `criteria_unshown` and a `note_for_worker`; the prompt digest says the criterion no row shows.
-- A network agent's rows (`nucleo/mesh_cli._to_the_sheet`) travel as `Candidate(origin="mesh")`, keep rating, phone
+- A network agent's rows (`nucleo/cli/mesh._to_the_sheet`) travel as `Candidate(origin="mesh")`, keep rating, phone
   and location, and are capped at 8 per batch.
 - The research brief respects the size the operator said (`research.parse(raw, request)` → `criteria.breadth`).
 - The listing ladder's free discovery asks `web.search(mode="results")`, so Z.ai (keyed) discovers pages instead of a

@@ -59,7 +59,7 @@ def test_foursquare_rows_carry_phone_rating_and_open_now():
 
 
 def test_every_paid_provider_has_an_energy_rate_and_a_host_the_coverage_gate_sees():
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     for p in PROVIDERS.values():
         if p.paid:
             assert p.name in energy_meter._SEARCH_USD_PER_REQUEST, f"{p.name}: no rate — the catch-all would bill it"

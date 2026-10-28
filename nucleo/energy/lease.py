@@ -1,4 +1,3 @@
-#
 # ENERGY LEASE — a local spending ceiling the instance enforces on itself.
 #
 # When a usage lease endpoint is configured (CONTROL_PLANE_URL + ZAELAR_USER_ID), it grants a LEASE: an
@@ -33,7 +32,7 @@ import time
 import httpx
 from loguru import logger
 
-from nucleo import energy_tariffs
+from nucleo.energy import tariffs as energy_tariffs
 
 # Quién nos paró. Sirve para no pisar una parada del operador al renovar (the lease only restarts a stop it caused itself).
 STOP_SRC = "energy_lease"
@@ -68,7 +67,7 @@ _RECOVER_DELAYS = tuple(float(x) for x in os.getenv("ENERGY_LEASE_RECOVER_DELAYS
 
 
 def enabled() -> bool:
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     return cloud_account.is_cloud_account()
 
 
@@ -251,7 +250,7 @@ def _gauge_from_lease(data: dict) -> None:
     except (TypeError, ValueError) as e:
         logger.debug(f"energy_lease: unreadable balance in the lease answer: {e!r}")
         return
-    from nucleo import energy_meter as _em
+    from nucleo.energy import meter as _em
     _em._load_once()
     _st = _em._state
     cap = _st.get("capacity")
@@ -289,7 +288,7 @@ def _tell_gauge() -> None:
         return
     _gauge_told["at"] = now
     try:
-        from nucleo import energy_meter
+        from nucleo.energy import meter as energy_meter
         from voice.observer import emit
         snap = energy_meter.snapshot()
         if snap.get("known"):
@@ -370,7 +369,7 @@ def _server_loop():
     `asyncio.to_thread` has no running loop: dropping the renewal there let a long background job spend a lease
     to zero with the renewal never asked, and the fuse stopped an account with 200 Energy left."""
     try:
-        from nucleo import energy_meter
+        from nucleo.energy import meter as energy_meter
         return energy_meter._loop
     except Exception:  # noqa: BLE001
         return None
@@ -416,7 +415,7 @@ def _blow_fuse(*, verdict: bool = False) -> None:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"energy_lease: no se pudo parar por arriendo agotado: {e}")
     try:
-        from nucleo import account_limits
+        from nucleo.energy import limits as account_limits
         account_limits.request_close(cause)
     except Exception:  # noqa: BLE001
         pass
@@ -488,7 +487,7 @@ def _gauge_knows() -> bool:
     """Does the Energy gauge know the balance? Only a lease ANSWER tells it, so a Machine that boots on a lease it
     persisted would show an unlit gauge until the next renewal — up to half an hour. Not knowing is a reason to ask."""
     try:
-        from nucleo import energy_meter
+        from nucleo.energy import meter as energy_meter
         return bool(energy_meter.snapshot().get("known"))
     except Exception as e:  # noqa: BLE001 — unreadable means «ask», the safe side for a display
         logger.debug(f"energy_lease: gauge state unreadable: {e!r}")
@@ -496,7 +495,7 @@ def _gauge_knows() -> bool:
 
 
 async def _request(reason: str) -> bool:
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
 
     url = (os.getenv("CONTROL_PLANE_URL") or "").strip()
     if not url:
@@ -561,7 +560,7 @@ async def _request(reason: str) -> bool:
                 f"user={cloud_account.my_user_id()}")
     _maybe_resume()
     try:
-        from nucleo import account_limits
+        from nucleo.energy import limits as account_limits
         account_limits.clear_exhausted()            # a lease is the end of "out of energy", whatever caused it
     except Exception as e:  # noqa: BLE001
         logger.debug(f"energy_lease: could not clear the out-of-energy state: {e!r}")

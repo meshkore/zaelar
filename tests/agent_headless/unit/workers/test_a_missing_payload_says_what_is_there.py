@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import os
 
-from nucleo import bridge_usage as BU
+from nucleo.cli import usage as BU
 
 
 def test_dice_los_json_que_SI_hay(tmp_path, monkeypatch):

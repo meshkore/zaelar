@@ -187,7 +187,7 @@ def blocks_new_work(*, who: str = "") -> bool:
             return True
         # Opening a worker is the most expensive thing the engine starts, so it asks the energy lease too:
         # without a usable lease a cloud machine opens nothing new (always admits without a cloud account).
-        from nucleo import energy_lease
+        from nucleo.energy import lease as energy_lease
         return not energy_lease.check("worker")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"runstate: interruptor ILEGIBLE ({e!r}) — {who or 'quien pregunta'} no abre trabajo nuevo")

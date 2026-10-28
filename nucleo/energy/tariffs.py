@@ -1,4 +1,3 @@
-#
 # ENERGY TARIFFS — the prices Energy is computed from, delivered remotely and cached locally.
 #
 # WHY THIS MODULE EXISTS. Rates compiled into the engine can only change with a release, and running
@@ -11,7 +10,7 @@
 # a network call to answer a price. The energy lease exists precisely so an instance spends
 # against a LOCAL counter with zero network in the steady state; if pricing needed a round trip, every
 # metered call would put one back on the hot path. Hence: the tariff table arrives PIGGYBACKED on the
-# lease response the engine already fetches periodically (`nucleo/energy_lease.py`), is cached in
+# lease response the engine already fetches periodically (`nucleo/energy/lease.py`), is cached in
 # `sys_kv`, and lookups are pure dictionary reads against that cache.
 #
 # THE THREE LAYERS, most-authoritative first:

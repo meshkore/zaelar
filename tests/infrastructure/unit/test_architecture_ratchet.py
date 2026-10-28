@@ -332,15 +332,16 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "connectors": 20298,   # refactor2710-13: eight splits paid by folding five copies of the OAuth flow; refactor2710-01: +10, the consequence doors (music, messaging, mesh)
     "library": 805,
     "memory": 8532,                    # refactor2710-11: 9117 → 8532 (splits by concern, orphans out; recall timing event)
-    "nucleo (top)": 14093,      # refactor2710-10: the worker CLIs → nucleo/cli/; 09: dispatch* → nucleo/dispatch/, research → workers/brief
+    "nucleo (top)": 11656,      # refactor2710-10: the worker CLIs → nucleo/cli/, energy/accounting → nucleo/energy/; 09: dispatch* → nucleo/dispatch/, research → workers/brief
     "nucleo/actionmap": 755,
     "nucleo/agentes": 793,
     "nucleo/batch": 905,        # refactor2710-01: +2, its step runs the typed turn (cli/turn)
     "nucleo/circuit": 2597,     # refactor2710-02: born (moves + verdict.py); 02b: the row half of request.model.settle MOVED in as circuit.settle, flash/write_outcome MOVED in (compose.py)
     "nucleo/context_packs": 568,
     "nucleo/dispatch": 2443,   # refactor2710-09 T-01: moved from top and split; target 1 200
+    "nucleo/energy": 2269,       # refactor2710-10: born — meter, lease, tariffs, limits, routing, account, egress, keys MOVED from the top
     "nucleo/errands": 2548,
-    "nucleo/cli": 2763,         # refactor2710-10: the worker CLIs MOVED in (nav, mesh, widget, mem, git, report, bridge, worker_api/policy, sandbox); 01: born
+    "nucleo/cli": 2927,         # refactor2710-10: the worker CLIs MOVED in (nav, mesh, widget, mem, git, report, bridge, worker_api/policy, sandbox, usage); 01: born
     "nucleo/flash": 29062,      # refactor2710-02: the model client (7 files) MOVED to nucleo/llm/, aliased at its old path
     "nucleo/input": 739,        # refactor2710-01: born — the STT accumulator and the typed order, MOVED from nucleo/flash
     "nucleo/llm": 2077,         # refactor2710-02: born — fast_client, provider_chain and the rest of the model client, MOVED
@@ -374,8 +375,8 @@ _NUCLEO_GRANDFATHERED: frozenset[str] = frozenset({
     "nucleo/dispatch/confirm.py",
     "nucleo/dispatch/prepare.py",
     "nucleo/dispatch_prompts.py",
-    "nucleo/energy_lease.py",
-    "nucleo/energy_meter.py",
+    "nucleo/energy/lease.py",
+    "nucleo/energy/meter.py",
     "nucleo/errands/__init__.py",
     "nucleo/errands/book.py",
     "nucleo/errands/wake.py",
@@ -446,7 +447,7 @@ def _package_totals() -> dict[str, int]:
 #: The sum of every package. A package ceiling is set to what was measured only in the PR that MOVES code between
 #: packages or introduces a declared mechanism, with the cause beside it — and with this total lower (refactor2710-01:
 #: 178503 → 173251, with refactor2710-11 and -13 merged; → 172847 with -01 and -12; → 172727 with -09; → 172686 with -02/-02b merged in). Never for growth in place.
-_TOTAL_MAX = 172683
+_TOTAL_MAX = 172679
 
 
 def test_the_total_only_shrinks():

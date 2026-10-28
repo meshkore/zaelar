@@ -1,4 +1,4 @@
-from nucleo import account_limits
+from nucleo.energy import limits as account_limits
 
 
 def test_should_close_only_on_a_confirmed_depleted_balance():

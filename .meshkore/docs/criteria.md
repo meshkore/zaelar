@@ -466,7 +466,7 @@ below is the first kind, or it names the mechanism that replaced the second.
 - **CRIT-R8 · Paid work asks the usage lease BEFORE it starts.** If a usage lease is configured and exhausted, a
   paid call is refused (`OutOfEnergy`, never a provider failure: no relay, no light), the fuse stops the agent, and
   the UI shows the exhausted state with a link to `ZAELAR_ACCOUNT_URL` when set; with no lease configured, every
-  call is admitted. A boot probe never pays. — since 2026-10-22 · nodes 8.21, 4.247 · `nucleo/energy_lease.py::check`.
+  call is admitted. A boot probe never pays. — since 2026-10-22 · nodes 8.21, 4.247 · `nucleo/energy/lease.py::check`.
 - **CRIT-R9 · A device that cannot capture or play is red on the orb, and said.** Each of the microphone and the
   speaker has ONE derived health (`store.micHealth()` / `store.spkHealth()`); a problem (no permission, dead or
   source-muted track, capture error, playback blocked or paused, remote track ended, output lost, the agent
@@ -479,7 +479,7 @@ below is the first kind, or it names the mechanism that replaced the second.
   said no) is the only one told as an empty account with a top-up; `lease_unrenewed` says the agent could not
   confirm its Energy. The cause persists across a restart, boot asks for a fresh lease before any stop decision,
   and the notice never says «empty» next to a battery showing Energy. — since 2026-10-26 · nodes 8.25, 4.247 ·
-  `nucleo/energy_lease.py::_renew_or_blow`, `frontend/app/core/account-link.js::noticeKind`.
+  `nucleo/energy/lease.py::_renew_or_blow`, `frontend/app/core/account-link.js::noticeKind`.
 
 ## 7 · Working here
 

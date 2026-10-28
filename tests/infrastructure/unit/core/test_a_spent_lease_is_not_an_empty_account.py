@@ -34,7 +34,8 @@ import httpx
 import pytest
 from tests.waiting import until
 
-from nucleo import account_limits, energy_lease, runstate
+from nucleo import runstate
+from nucleo.energy import limits as account_limits, lease as energy_lease
 
 ENGINE = Path(__file__).resolve().parents[4]
 
@@ -92,7 +93,7 @@ def _clean(monkeypatch):
     monkeypatch.setattr(energy_lease, "_RECOVER_DELAYS", (0.0, 0.0, 0.0))
     monkeypatch.setattr(energy_lease, "enabled", lambda: True)
     monkeypatch.setenv("CONTROL_PLANE_URL", "https://lease.example.test")
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     monkeypatch.setattr(cloud_account, "my_user_id", lambda: "u-test")
     stops = []
 

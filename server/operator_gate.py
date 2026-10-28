@@ -74,7 +74,7 @@ def decide(*, path: str, method: str, cloud: bool, in_process: bool, holds_ui: b
 
 def _cloud() -> bool:
     try:
-        from nucleo import account_routing as _ar
+        from nucleo.energy import routing as _ar
         return bool(_ar.is_account_routing_machine())
     except Exception:  # noqa: BLE001 — unknown deployment: the stricter, self-hosted rule
         return False

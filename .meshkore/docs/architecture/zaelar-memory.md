@@ -563,7 +563,7 @@ The model table follows a few rules (stated at the top of `config/models.default
 - **A broker (AIMLAPI) is failover only** — second or third rung at most, never the titular of any service.
 - **Everything must be able to run in a container.** Ollama is a local server and does not exist there, which is
   why the default embeddings go through a cloud provider; Ollama remains a panel option for self-hosters.
-- **The credential is resolved PER ENDPOINT** (`nucleo/provider_keys.py`): the key follows the URL, never the
+- **The credential is resolved PER ENDPOINT** (`nucleo/energy/keys.py`): the key follows the URL, never the
   other way round, so changing a model never requires touching keys.
 
 To see the endpoints the memory tasks resolve to right now (defaults plus whatever the UI changed):
@@ -647,7 +647,7 @@ latency). A rate limit disguises itself as poor quality.
 ### Usage: both tasks REPORT consumption
 
 The HEART (`mem_processor`) and the memory router (`memllm`, which serves REM and i18n) capture the `usage` block
-of the response and report it to `nucleo/energy_meter` when metering is enabled (fire-and-forget, fail-open). The
+of the response and report it to `nucleo/energy/meter` when metering is enabled (fire-and-forget, fail-open). The
 rate of the titular model and of its stand-ins are all declared, so a failover is metered at its own rate rather
 than a generic one.
 
@@ -928,7 +928,7 @@ lives in `nucleo/memory_agent.py` + `nucleo/memory_agent/processor/distill.py`:
   fixed corpus on **four separate axes** (write-completeness · precision/no-pollution · layer+slot · $/1k turns with
   real tokens) — see §Memory models for the reasoning and the `gpt-4o-mini` veto. Writing is off the hot path, so a
   slower model costs the turn nothing. The **local OPTION** (qwen via Ollama) remains available by pointing
-  `base_url` at Ollama, for battery/privacy. It reports usage to `nucleo/energy_meter` when metering is enabled
+  `base_url` at Ollama, for battery/privacy. It reports usage to `nucleo/energy/meter` when metering is enabled
   (`energy_meter.report_llm_usage`). Env `MEM_PROCESSOR_MODEL/URL/KEY` = power-user fallback; model per invocation.
   The **credential is resolved PER ENDPOINT** (`mem_processor._key` → `_endpoint_key`, same pattern as
   `fast_client.resolved_api_key` — the key follows the URL, never the other way round), so a stale key can never be

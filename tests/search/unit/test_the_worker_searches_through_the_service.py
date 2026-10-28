@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import asyncio
 
-from nucleo import bridge_usage, dispatch_prompts
+from nucleo import dispatch_prompts
+from nucleo.cli import usage as bridge_usage
 from nucleo.workers import session as _session
 
 

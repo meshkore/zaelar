@@ -1,4 +1,4 @@
-"""nucleo/provider_keys.py — single source of truth for "given a base_url, which env var holds its API key?" (V2-098).
+"""nucleo/energy/keys.py — single source of truth for "given a base_url, which env var holds its API key?" (V2-098).
 
 Before this module, the same substring→env-var mapping was reimplemented independently in
 `nucleo/llm/fast_client.py`, `nucleo/mem_processor.py`, `nucleo/susurro/client.py` and `nucleo/memllm.py` — and

@@ -210,7 +210,7 @@ def test_the_deny_message_lists_the_real_action_vocabulary():
 # Measured: 704 s, 256 steps, 39 captures, ~$0.20 in xAI tokens → €0 billed.
 def test_the_energy_report_is_not_gated_by_the_ui_concern(monkeypatch):
     """The two concerns are SEPARATE: a CANCELLED session paints no second end row, and its tokens are billed."""
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     from tests.agent_headless.unit.workers import session_door as door
     billed = []
     monkeypatch.setattr(energy_meter, "report_worker_usage", lambda **kw: billed.append(kw))
@@ -225,7 +225,7 @@ def test_partial_usage_survives_a_worker_that_never_says_goodbye(monkeypatch):
     """The final `result`'s `usage` does not exist if we kill the process, so it accumulates message by message. The
     `result` takes precedence when it arrives (the CLI already provides the sum); the partial is the MINIMUM reported
     when it does not. Read from what the session bills."""
-    from nucleo import energy_meter
+    from nucleo.energy import meter as energy_meter
     from tests.agent_headless.unit.workers import session_door as door
     billed = []
     monkeypatch.setattr(energy_meter, "report_worker_usage", lambda **kw: billed.append(kw))

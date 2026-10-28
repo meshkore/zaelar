@@ -619,7 +619,7 @@ The brain (`nucleo/`) is zaelar's own, but its MODELS are pluggable behind a thi
 is woven through voice/widgets/frontend:
 - **FlashBrain model** = the fast voice-turn model, chosen **per invocation** from `config/v2.py` `fast` section
   (`FAST_PROVIDER`/`FAST_MODEL`/`FAST_BASE_URL`/`FAST_API_KEY`): a local Ollama model or a cloud model. The api-key is
-  resolved **by endpoint** in `nucleo/provider_keys.py` (aimlapi→`AIMLAPI_KEY`, x.ai→`XAI_API_KEY`,
+  resolved **by endpoint** in `nucleo/energy/keys.py` (aimlapi→`AIMLAPI_KEY`, x.ai→`XAI_API_KEY`,
   groq.com→`GROQ_API_KEY`, gemini→`GEMINI_API_KEY`, deepseek.com→`DEEPSEEK_API_KEY`, …), so switching provider only
   needs the matching key in the credential store — that single resolver is shared by every LLM-calling module in
   `nucleo/`, not reimplemented per caller. **The default is a non-reasoning DeepSeek V4 model on DeepSeek's direct

@@ -20,7 +20,7 @@ import sys
 import time
 import urllib.request
 
-from nucleo import bridge_usage
+from nucleo.cli import usage as bridge_usage
 
 _BASE = os.getenv("ZAELAR_BASE", "http://localhost:43917").rstrip("/")
 # Wait window for ONE `ask`/`wait` cycle — kept short to return BEFORE the Bash tool timeout (§v3·I).
@@ -103,7 +103,7 @@ def _cmd_act(action: str, payload_json: str) -> int:
     # V2-379 — the payload may be inline, via `@file`, or via `-`. Inline does NOT ALWAYS FIT: our own
     # permission gate rejects an argument containing braces and quotes, and without an alternative the worker
     # cannot request a search. See `bridge_usage.read_payload` for the measured trace.
-    from nucleo import bridge_usage as _bu
+    from nucleo.cli import usage as _bu
     _raw, _src, _err = _bu.read_payload(payload_json)
     if _err:
         print(f"no puedo leer el payload de {payload_json[1:]}: {_err}", file=sys.stderr)

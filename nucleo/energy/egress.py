@@ -1,4 +1,3 @@
-#
 # MODEL EGRESS — where an LLM call actually goes and with which credential.
 #
 # ONE CODEBASE, TWO DEPLOYMENTS. A self-hosted deployment talks to providers directly using
@@ -74,7 +73,7 @@ def post_json(url: str, key: str, body: bytes, timeout_s: float) -> dict:
 
 def mediated() -> bool:
     """Does this deployment send calls through mediated egress?"""
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     return cloud_account.is_cloud_account() and bool((os.getenv(_URL_ENV) or "").strip())
 
 
@@ -103,7 +102,7 @@ def route(base_url: str, api_key: str) -> tuple[str, str, dict]:
     """
     if is_local_endpoint(base_url):
         return base_url, api_key, {}
-    from nucleo import energy_lease
+    from nucleo.energy import lease as energy_lease
     energy_lease.admit("llm")
     if not mediated():
         return base_url, api_key, {}
@@ -185,7 +184,7 @@ _UPSTREAMS: tuple[tuple[str, str], ...] = (
 #: The provider keys this process's own egress credential STANDS IN FOR (see `stand_in_for_provider_keys`): the
 #: key of every endpoint (`provider_keys`) whose host is one egress carries. Only those: a key whose calls egress
 #: cannot route is left alone, because standing in for it would break the feature, not protect the key.
-from nucleo.provider_keys import _ENDPOINTS as _KEYS_BY_ENDPOINT  # noqa: E402
+from nucleo.energy.keys import _ENDPOINTS as _KEYS_BY_ENDPOINT  # noqa: E402
 
 _STANDS_IN_FOR: tuple[str, ...] = tuple(dict.fromkeys(
     env for needle, env in _KEYS_BY_ENDPOINT if any(needle in base for _name, base in _UPSTREAMS)))

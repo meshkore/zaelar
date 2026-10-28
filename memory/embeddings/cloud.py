@@ -105,7 +105,7 @@ def _cloud_embed(texts: list[str], *, timeout: float | None = None) -> list[list
     if not key:
         return None
     # No energy lease → no paid request; None is the same deferred-vector path as a 429.
-    from nucleo import energy_lease
+    from nucleo.energy import lease as energy_lease
     if not energy_lease.check("embed"):
         return None
     body: dict = {"model": e._cloud_model(), "input": list(texts)}
@@ -113,7 +113,7 @@ def _cloud_embed(texts: list[str], *, timeout: float | None = None) -> list[list
     if dims:
         body["dimensions"] = dims
     # EGRESS: a mediated deployment sends this through egress with its own credential; self-host is untouched.
-    from nucleo import llm_egress
+    from nucleo.energy import egress as llm_egress
     url, key = llm_egress.route_url(e._cloud_base_url().rstrip("/") + "/embeddings", key)
     headers = {"Content-Type": "application/json", "Authorization": f"Bearer {key}",
                "User-Agent": llm_egress.USER_AGENT}
@@ -127,7 +127,7 @@ def _cloud_embed(texts: list[str], *, timeout: float | None = None) -> list[list
         # every query, and a register-a-callback design leaks unmetered usage for whoever forgets to register.
         # Metering never takes down the metered (V2-097), hence the swallow.
         try:
-            from nucleo.energy_meter import meter_openai_response
+            from nucleo.energy.meter import meter_openai_response
             meter_openai_response(data, base_url=e._cloud_base_url(), model=e._cloud_model())
         except Exception:  # noqa: BLE001
             pass

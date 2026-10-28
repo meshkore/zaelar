@@ -11,7 +11,7 @@ import asyncio
 
 import pytest
 
-from nucleo import energy_lease, energy_meter
+from nucleo.energy import lease as energy_lease, meter as energy_meter
 
 
 @pytest.fixture(autouse=True)

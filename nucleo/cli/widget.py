@@ -122,7 +122,7 @@ def _read_payload(raw: str, list_key: str = ""):
                     # MECHANISM SHARED with `cli.bridge` (same reason as `read_payload`): two bridges that
                     # answer the same question differently diverge again, and that divergence is exactly what
                     # led to V2-379.
-                    from nucleo import bridge_usage as _bu
+                    from nucleo.cli import usage as _bu
                     _hay = _bu.what_is_here()
                     if _hay:
                         print(f"   · {_hay}")

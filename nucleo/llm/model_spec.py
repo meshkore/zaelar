@@ -42,12 +42,12 @@ class ModelSpec:
             return "ollama"        # Ollama acepta cualquier no-vacío
         # Cloud without an explicit key → credential FROM THE ENVIRONMENT (power-user fallback). The KEY is a credential,
         # not model selection, so reading it from env does NOT violate "model per invocation". Inherited contract:
-        # Explicit FAST_API_KEY wins; otherwise resolve BY ENDPOINT (single resolver, `nucleo/provider_keys.py`).
+        # Explicit FAST_API_KEY wins; otherwise resolve BY ENDPOINT (single resolver, `nucleo/energy/keys.py`).
         import os
         fast = os.getenv("FAST_API_KEY")
         if fast:
             return fast
-        from nucleo.provider_keys import key_for_endpoint
+        from nucleo.energy.keys import key_for_endpoint
         return key_for_endpoint(self.resolved_base_url())
 
     def _is_aimlapi(self) -> bool:

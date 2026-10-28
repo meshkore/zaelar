@@ -246,7 +246,7 @@ it, and the machine it runs on is the boundary. That assumption stops holding in
 processes behind ONE hostname, each holding a different person's data**. There, "whichever process the edge
 happened to pick answered" is not a routing detail; it is the wrong process answering.
 
-`nucleo/account_routing.is_account_routing_machine()` says whether this process is in that shape (two env reads,
+`nucleo/energy/routing.is_account_routing_machine()` says whether this process is in that shape (two env reads,
 default false). When it is, `server/ingress.py` admits a request only after this process has ESTABLISHED that the
 request's session belongs to it. Every other case refuses:
 

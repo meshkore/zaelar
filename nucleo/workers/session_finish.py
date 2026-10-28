@@ -48,7 +48,7 @@ async def _finish(self) -> None:
     # left 29% of the bill out (211k cached vs 74k input). The meter prices it at its own rate.
     cached = u.get("cache_read_input_tokens")
     if pt or ct or cached:
-        from nucleo import energy_meter as _energy
+        from nucleo.energy import meter as _energy
         # THE MODEL THAT ACTUALLY RAN (incident 2026-08-18): `claude-opus-4-8[1m]` was `glm-4.7`, billed at Opus
         # prices since tariffs look up BY NAME. The alias prices only when the provider never said.
         _energy.report_worker_usage(

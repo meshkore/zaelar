@@ -52,7 +52,7 @@ def _mark_the_worker_env(env: dict, task_id: str) -> None:
     env["ZAELAR_WORKER"] = "1"
     env["ZAELAR_TASK_ID"] = task_id
     try:
-        from nucleo import llm_egress as _egress
+        from nucleo.energy import egress as _egress
         for _k, _v in _egress.task_header_env(env.get("ANTHROPIC_BASE_URL", ""), task_id).items():
             env.setdefault(_k, _v)
     except Exception as e:  # noqa: BLE001

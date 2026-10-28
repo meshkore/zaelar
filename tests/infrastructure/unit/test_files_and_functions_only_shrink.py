@@ -32,7 +32,7 @@ FILE_MAX, FUNC_MAX, BRANCH_MAX = 800, 120, 100
 # dad7f3bd) and stayed red through 114 commits — a ratchet nobody runs holds nothing. Re-measured at HEAD and
 # frozen there: every entry is today's size, down-only from here. The debt it names is unchanged and still owed.
 FILES = {
-    'nucleo/energy_meter.py': 812,
+    'nucleo/energy/meter.py': 812,
     'nucleo/llm/fast_client.py': 866,
     'nucleo/flash/prompt.py': 816,
     'nucleo/jev.py': 824,

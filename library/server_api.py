@@ -39,7 +39,7 @@ async def set_rules(payload: dict | None = None):
 # dialog on, and offering the question would be offering a choice that cannot be honoured.
 
 def _folder_step_allowed() -> bool:
-    from nucleo import cloud_account
+    from nucleo.energy import account as cloud_account
     return not cloud_account.is_cloud_account()
 
 

@@ -5,7 +5,7 @@ used, and that an incomplete deployment fails instead of slipping through the ba
 """
 import pytest
 
-from nucleo import llm_egress
+from nucleo.energy import egress as llm_egress
 
 
 @pytest.fixture(autouse=True)

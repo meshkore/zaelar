@@ -42,7 +42,7 @@ Every topic is ALSO persisted in `zaelar.db·events` by `bus/log.py` (when `ZAEL
 | `memory.updated` | `memory/queue`, `api._emit`, prompt(query) | SSE bridge (coalesced), `memory_cache` (sink) | `{op, ids}` |
 | `escalate.requested` / `escalate.done` | `nucleo/flash/escalate` | `nucleo/dispatch` (sole consumer) | `{id, request, context{trace}}` |
 | `worker.spawned/phase/result/say/done/error/cancelled` | `nucleo/workers/session` | log/UI | per session |
-| `worker.ask` / `worker.say` | `nucleo/worker_api` | log/loop | `{id, question, corr_id}` |
+| `worker.ask` / `worker.say` | `nucleo/cli/worker_api` | log/loop | `{id, question, corr_id}` |
 | `worker.stuck` / `worker.budget_nudge` / `worker.budget_kill` | `nucleo/loop` (supervisor) | log, **Susurro (friction)** | `{id, age_s}` |
 | `loop.tick` / `loop.scheduled_fired` / `loop.spark` / `loop.consolidated` | `nucleo/loop` | pulse SSE / log | |
 | `connector.msg` / `connector.status` / `msg.mark_read` / `msg.reply` | `connectors/messaging/ingest` | owner of `mensajeria`, consumers | |
