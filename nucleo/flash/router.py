@@ -275,10 +275,6 @@ def classify(tool_calls: list[tuple[str, dict]] | None) -> Decision:
     return best
 
 
-def is_escalation(name: str) -> bool:
-    return (name or "").strip() == "escalate_to_slowbrain"
-
-
 
 
 # ── deterministic backstop guards (moved to router_guards.py, 2026-08-17 modularization pass) ─────────────────
