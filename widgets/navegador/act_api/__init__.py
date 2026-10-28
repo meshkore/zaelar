@@ -93,27 +93,10 @@ _TPL_MIN_ROWS = 3
 # refactor2710-12 — the bridge's code lives in its concern modules (`entry` holds the route, registered on `router`
 # above); they read every name of this module through the package.
 from widgets.navegador.act_api.guards import (  # noqa: E402,F401 — re-export
-    _with_wall,
-    _query_of,
-    _with_url_change,
-    _with_stall,
-)
+    _with_wall, _query_of, _with_url_change, _with_stall)
 from widgets.navegador.act_api.pick import (  # noqa: E402,F401 — re-export
-    by_identity,
-    _boilerplate_suffix,
-    _boilerplate_prefix,
-    by_amount,
-    dedupe_by_url,
-)
+    by_identity, _boilerplate_suffix, _boilerplate_prefix, by_amount, dedupe_by_url)
 from widgets.navegador.act_api.handover import (  # noqa: E402,F401 — re-export
-    _sheet_of,
-    _hand_over,
-    _note_body,
-    _sheet_already_named,
-)
+    _sheet_of, _hand_over, _note_body, _sheet_already_named)
 from widgets.navegador.act_api.entry import (  # noqa: E402,F401 — re-export
-    _say_phase,
-    _phase_for_action,
-    _act_extract,
-    navegador_act,
-)
+    _say_phase, _phase_for_action, _act_extract, navegador_act)

@@ -28,17 +28,8 @@ _INTERACTIVE = ("a, button, input, textarea, select, [role=button], [role=link],
                 "[role=checkbox], [role=radio], [role=tab], [role=menuitem], [role=combobox], [role=option]")
 
 from widgets.navegador.dom.extract_js import (  # noqa: E402,F401 — re-export
-    _JS_EXTRACT,
-)
+    _JS_EXTRACT)
 from widgets.navegador.dom.describe import (  # noqa: E402,F401 — re-export
-    _describe_el,
-    _JS_DESCRIBE,
-    _bulk_metas,
-    _snapshot_lines,
-)
+    _describe_el, _JS_DESCRIBE, _bulk_metas, _snapshot_lines)
 from widgets.navegador.dom.human import (  # noqa: E402,F401 — re-export
-    _human_move,
-    _human_click_handle,
-    _human_type_handle,
-    _human_click_at,
-)
+    _human_move, _human_click_handle, _human_type_handle, _human_click_at)

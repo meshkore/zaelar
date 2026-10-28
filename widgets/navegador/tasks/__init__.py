@@ -172,47 +172,14 @@ TALLY_KEYS = ("pages", "rows", "repeated", "unnamed", "hollow", "kept", "offered
 # refactor2710-12 — the registry's code lives in its concern modules; the STATE above stays here, and they read it
 # (and every other name of this module) through the package.
 from widgets.navegador.tasks.store import (  # noqa: E402,F401 — re-export
-    create,
-    ensure,
-    get,
-    all_ids,
-    active_ids,
-    waiting_id,
-    login_waiting_id,
-    add_event,
-    tally,
-    is_cancelled,
-    cancel,
-    finish,
-)
+    create, ensure, get, all_ids, active_ids, waiting_id, login_waiting_id, add_event, tally, is_cancelled,
+    cancel, finish)
 from widgets.navegador.tasks.fields import (  # noqa: E402,F401 — re-export
-    set_phase,
-    set_login_wait,
-    _raise_for_him,
-    milestone,
-    set_status,
-    set_goal,
-    set_sheet,
-    set_title,
-    set_goal_summary,
-    set_results,
-)
+    set_phase, set_login_wait, _raise_for_him, milestone, set_status, set_goal, set_sheet, set_title,
+    set_goal_summary, set_results)
 from widgets.navegador.tasks.continuation import (  # noqa: E402,F401 — re-export
-    _words,
-    _similar,
-    similar_active,
-    find_continuation,
-)
+    _words, _similar, similar_active, find_continuation)
 from widgets.navegador.tasks.progress import (  # noqa: E402,F401 — re-export
-    active_summaries,
-    active_progress,
-    recently_finished,
-)
+    active_summaries, active_progress, recently_finished)
 from widgets.navegador.tasks.announce import (  # noqa: E402,F401 — re-export
-    _announce_wall,
-    update_view,
-    ask,
-    answer,
-    answer_from_turn,
-    take_answer,
-)
+    _announce_wall, update_view, ask, answer, answer_from_turn, take_answer)

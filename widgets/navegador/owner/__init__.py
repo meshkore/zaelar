@@ -233,23 +233,12 @@ from widgets.navegador.owner_page import (  # noqa: E402,F401
 # refactor2710-12 — the owner's own code lives in its concern modules; the STATE above stays here, and they read it
 # (and every other name of this module) through the package, like the three siblings above.
 from widgets.navegador.owner.lifecycle import (  # noqa: E402,F401 — re-export
-    start,
-    stop,
-    _close_browser,
-    _headless,
-)
+    start, stop, _close_browser, _headless)
 from widgets.navegador.owner.handle import (  # noqa: E402,F401 — re-export
-    _host_of,
-    _dismiss_overlays,
-    handle,
-    _stale_ref_reason,
-)
+    _host_of, _dismiss_overlays, handle, _stale_ref_reason)
 from widgets.navegador.owner.browser_steps import (  # noqa: E402,F401 — re-export
-    _StepsMixin,
-)
+    _StepsMixin)
 from widgets.navegador.owner.browser_page import (  # noqa: E402,F401 — re-export
-    _PageMixin,
-)
+    _PageMixin)
 from widgets.navegador.owner.browser import (  # noqa: E402,F401 — re-export
-    TaskBrowser,
-)
+    TaskBrowser)

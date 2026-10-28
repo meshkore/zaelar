@@ -244,13 +244,6 @@ _VISION_TOOLS = [
 
 # refactor2710-12 — the loop lives in `run.py`, one model call in `step.py`; both read this module's names through it.
 from widgets.navegador.agent.run import (  # noqa: E402,F401 — re-export
-    run_task,
-    _reread_the_goal,
-    _ask_the_model,
-    _meter,
-)
+    run_task, _reread_the_goal, _ask_the_model, _meter)
 from widgets.navegador.agent.step import (  # noqa: E402,F401 — re-export
-    _next_action,
-    summarize_results,
-    describe,
-)
+    _next_action, summarize_results, describe)
