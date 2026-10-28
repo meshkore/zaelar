@@ -377,6 +377,33 @@ def _the_rules_table_starts_empty():
 # absent (the defaults), which is what it found. Only the database the test started on is restored — a test that
 # re-points `ZAELAR_DB` owns its own file. Same family as the notice ledger and the rules table above.
 @_pytest5.fixture(autouse=True)
+def _a_tests_scheduled_jobs_leave_with_it():
+    """THE JOURNAL — every scheduled job and reminder (`nucleo.scheduler`, backed by `memory.journal`) — comes out of
+    each test as it went in (2026-10-28). It is a table of the session's single test database: four «Reunión NN»
+    reminders a test scheduled were still pending later, and `test_notice_ledger`'s loop fired them beside its own
+    ITV reminder — red only in a folder run, green alone. Rows a test added are deleted after it; rows it found stay.
+    Only the database the test started on is touched; a test that re-points `ZAELAR_DB` owns its own file."""
+    mdb = _sys5.modules.get("memory.db")
+    db = getattr(mdb, "_DB", None) if mdb is not None else None
+    path = getattr(db, "path", None)
+    try:
+        before = {r["id"] for r in db.query("SELECT id FROM journal")} if db is not None else None
+    except Exception:                       # the table may not exist yet in a database a test is creating
+        before = None
+    yield
+    mdb = _sys5.modules.get("memory.db")
+    db = getattr(mdb, "_DB", None) if mdb is not None else None
+    if db is None or (path is not None and getattr(db, "path", None) != path):
+        return
+    try:
+        added = [r["id"] for r in db.query("SELECT id FROM journal") if before is None or r["id"] not in before]
+        for jid in added:
+            db.execute("DELETE FROM journal WHERE id=?", (jid,))
+    except Exception:                       # no journal table: nothing was scheduled
+        pass
+
+
+@_pytest5.fixture(autouse=True)
 def _the_memory_state_row_is_given_back():
     mdb = _sys5.modules.get("memory.db")
     db = getattr(mdb, "_DB", None) if mdb is not None else None
