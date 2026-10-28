@@ -71,3 +71,23 @@ nodes:
     desc: "Workflows: memoria, cambios, modelos, testing, observabilidad."
     load: skeleton
     src: docs/ops/zaelar-ops.md
+  - id: criteria
+    title: "Criterios vigentes"
+    desc: "Lo que el motor obedece HOY: una línea por criterio con su nodo de test (§3.5 criteria/)."
+    load: pinned
+    src: docs/criteria.md
+  - id: decisions
+    title: "Decisiones (bitácora local)"
+    desc: "La razón de cada criterio; gitignored, ausente en un clon (§3.5 decisions/)."
+    load: on-demand
+    src: docs/decisions.md
+  - id: testing
+    title: "Cómo se prueba"
+    desc: "Mapa de tests por nodo, desarmes, gate local; nada corre en GitHub."
+    load: on-demand
+    src: docs/ops/zaelar-testing.md
+  - id: team
+    title: "Equipo"
+    desc: "Perfiles de agente del motor (dev-main, testers…); el orquestador vive en el workspace privado."
+    load: skeleton
+    src: team/

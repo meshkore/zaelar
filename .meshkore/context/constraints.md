@@ -7,6 +7,8 @@ status: stable
 # Constraints — hard rules
 
 **Always**:
+- Any user, any request, any language: a change bounds a CONSEQUENCE, never a judgement; the class is fixed, never
+  the case; what depends on the speaker lives in data (`context/principles.md` — read before any engine change).
 - Brain is zaelar's OWN (`nucleo/`, default `BRAIN=nucleo`); model routing lives ONLY in `config/v2.py` (`fast` + `code_agent` sections); `config/settings.py` handles STT/TTS/voice/language and nothing else.
 - Layers stay independent: widgets never touch the voice core; the widget circuit is self-contained.
 - ONE agent is open on SEVERAL screens at once (the operator's computer and phone, one conversation). Every widget —
