@@ -266,7 +266,7 @@ def _t_set_style_directive(*, args, _spawn, brain, emit, style_fired, text):
     if directive:
         style_fired["v"] = True
         from nucleo.flash import style_directive as _styled
-        if _styled.handle(directive, text, brain, emit, _spawn): return
+        if _styled.handle(directive, text, brain, emit, _spawn, name=(args.get("name") or "").strip()): return
 
 
 def _t_authenticate_web(*, args, _start_web_auth, emit, escalate_req, text):
@@ -407,19 +407,21 @@ def _t_stop_worker(*, args, _norm_nfkd, _say, _says_stop, clarify, emit, text, w
              text=f"{which or 'todo'}", role="system",
              extra={"cat": "flash", "kind_diag": "stop_after_answer"})
         return
-    # ── GUARD 2: stopping needs HIS order ──
-    # Like the data-op context-bleed guard, for the irreversible: no stop order in his turn = drag (that
-    # stop came from a complaint two turns earlier, cancelled by barge-in). «para» alone is a preposition
-    # and only hushes the voice, never stops tasks (operator's rule). …unless his turn ANSWERS our question
-    # (demo 2026-10-22: «Want me to stop it?» → «Yes, please» was refused). V2-807 T-14 — a sure verdict
-    # decides (`stop_decision`); the word table and the answer check are the fallback.
+    # ── GUARD 2: killing needs his order in THIS turn — a stop the model drags from an earlier turn is context bleed
+    # (2026-08-14). Read asymmetrically (refactor2710-07, `stop.model_stop`): a sure verdict decides, an unsure one that
+    # disagrees is asked, and only with no verdict at all do his words (or his yes to our own offer) stand in.
     from nucleo.request import stop as _stop_decision
-    if not _stop_decision.ordered(brief, grammar=bool(_says_stop(text)
-                                                     or _prior_line.answers_our_question(brief, prior))):
+    _may = _stop_decision.model_stop(brief, grammar=bool(_says_stop(text)
+                                                         or _prior_line.answers_our_question(brief, prior)))
+    if _may == "veto":
         emit("brain", "🛡️ stop_worker ignorado — el operador no ha pedido parar nada (context-bleed)",
              text=(text or "")[:120], role="system",
              extra={"cat": "flash", "kind_diag": "stop_without_order", "which": which or "todo"})
         return
+    if _may != "run":     # refactor2710-07: an unsure verdict against the model's stop is asked, never refused silently
+        clarify["msg"], worker_acted["v"] = _say().stop_doubt, "stop"
+        return emit("brain", "❓ stop_worker en duda — se pregunta", text=(text or "")[:120], role="system",
+                    extra={"cat": "flash", "kind_diag": "stop_asked", "which": which or "todo"})
     try:
         from nucleo import dispatch as _d
         # GUARD stop-ALL (session 23:15 2026-07-16, T49): «si solo es una tarea» → stop_worker(todo) killed

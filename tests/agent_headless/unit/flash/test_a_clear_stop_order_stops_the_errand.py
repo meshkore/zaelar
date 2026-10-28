@@ -121,5 +121,5 @@ def test_both_doors_read_the_verdict():
     """The wiring: the tool gate and the settle backstop ask `stop_decision`."""
     import inspect
     from nucleo.flash import post_stream_settle
-    assert "_stop_decision.ordered(brief" in inspect.getsource(_calls._t_stop_worker)
+    assert "_stop_decision.model_stop(brief" in inspect.getsource(_calls._t_stop_worker)
     assert "_stop_decision.repair(" in inspect.getsource(post_stream_settle.settle_what_is_pending)

@@ -83,7 +83,7 @@ def test_the_declared_blocking_debt_only_goes_down():
 
 # The voice provider's coroutine, and the functions that would freeze it if it named them.
 _PROVIDER = _ENGINE / "voice" / "engine" / "llm" / "providers" / "nucleo.py"
-BLOCKING_NAMES = ("judge_escalation", "repair_action", "choose_sync", "classify_sync")
+BLOCKING_NAMES = ("repair_action", "choose_sync")
 
 
 def test_the_voice_provider_names_no_blocking_jev_call():

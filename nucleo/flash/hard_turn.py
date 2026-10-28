@@ -91,6 +91,24 @@ async def say_receipt(emit, brain=None) -> str:
         return ""
 
 
+async def names_an_act_on_screen(text: str, emit) -> bool:
+    """A stop that NAMES an activity on a card («Stop showing me the Social tab in my mail») is an order about that
+    card, not a silence order: decided by the brief's `screen_action` verdict at its licence (refactor2710-07), never by
+    the sentence's shape (CRIT-W10). The barge-in already silenced the voice, so the wait costs nothing heard."""
+    try:
+        from nucleo.turn import brief
+        choice, info = await brief.verdict_before_the_turn(text, brief.TARGET_KEY)
+        if not (info and info.get("used") and choice and choice != "none"):
+            return False
+        emit("brain", "✋ el stop nombra una acción de una tarjeta — sigue el turno", text=f"{choice} ← {text[:120]}",
+             role="system", extra={"cat": "flash", "reason": "stop_names_an_act", "verdict": choice})
+        return True
+    except Exception as e:  # noqa: BLE001 — an unreadable verdict keeps the stop as a stop
+        emit("brain", "⚠️ stop: the early verdict was not read", text=f"{type(e).__name__}: {e}"[:160], role="system",
+             extra={"cat": "flash", "reason": "stop_verdict_failed"})
+        return False
+
+
 async def handle(text: str, hard: str, emit, brain=None) -> str | None:
     """Resolve a hard interrupt. Returns the text the turn should go on with, or None to end the turn.
 
@@ -144,6 +162,8 @@ async def handle(text: str, hard: str, emit, brain=None) -> str | None:
     #     Session 6d19df41 is the stop twin: «No. So no. Stop it. Okay. Show me the WhatsApp messages.» ended here and
     #     the WhatsApp order died in silence. A bare stop still ends the turn; anything else ordered keeps it.
     rest = remainder(text, hard)
+    if not rest and hard == "stop" and await names_an_act_on_screen(text, emit):
+        return text                            # «Stop showing me the Social tab»: an order about a card, by verdict
     if not rest:
         return None                            # 'stop' → the barge-in already cut the TTS; we do not reply
 

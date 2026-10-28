@@ -41,7 +41,7 @@ ESCALATE_CHOICE = {
 def judge_escalation_from_brief(brief) -> str:
     """The escalate verdict READ from the turn's brief — no socket, no thread, no wait (V2-726 F2).
 
-    `judge_escalation` below does the same job with its own blocking call, and that call sits inside
+    The blocking re-ask it replaced (`judge_escalation`, deleted in refactor2710-07) sat inside
     the voice provider's `async def`: up to 900 ms of frozen event loop, on the loop STT, TTS and
     barge-in share, and measured the gate that times out most often (28% of its calls). The brief is
     fired when the turn starts and read here after the model has answered, which is 2-4 s later.
@@ -71,44 +71,6 @@ def word_tables(router, brief, *texts, emit=None) -> str:
         emit("brain", "🚫 promesa→escalada ANULADA por el veredicto (handle_inline)", text=str(texts[0])[:120],
              role="system", extra={"cat": "flash", "kind_diag": "promise_inline", "by": "word_table"})
     return "refused"
-
-
-def judge_escalation(operator_text: str, *, running_goals: list | None = None,
-                     has_workers: bool = False, ask_pending: bool = False,
-                     timeout_s: float | None = None) -> str:
-    """Jev second opinion on a would-be worker commission (T-jev-escalate): "handle_inline"
-    annuls it the way the provider annulment does, anything else keeps today's path.
-
-    The verdict is read over the operator's words plus STATE FACTS — which goals are already
-    in flight, whether workers run, whether one is waiting for the operator — the same class
-    of input the situational gates already use, never a new word list. Returns "escalate" on
-    every non-verdict: unsure, slow, failed, disabled, or an empty turn. Fires ONLY where a
-    commission survived the grammar guards, never per turn.
-
-    ⚠️ BLOCKING, and therefore no longer for the voice path (V2-726 F2): the voice provider reads
-    `judge_escalation_from_brief` instead. This stays for the probe/text channel and for tests,
-    which have no brief to read and no event loop to freeze."""
-    from nucleo import jev as _jev
-    words = (operator_text or "").strip()
-    if not words or not _jev.enabled():
-        return "escalate"
-    goals = [g for g in (running_goals or []) if str(g or "").strip()]
-    context = ("Goals already in flight: "
-               + ("; ".join(str(g)[:120] for g in goals[:3]) if goals else "none")
-               + f"\nWorkers active now: {'yes' if has_workers else 'no'}"
-               + f"\nA worker is waiting for the operator's answer: {'yes' if ask_pending else 'no'}")
-    verdict = _jev.choose_sync(
-        "escalate_or_inline", words, instructions=ESCALATE_INSTRUCTIONS,
-        criteria=ESCALATE_CHOICE, context=context,
-        timeout_s=timeout_s, question_id="escalate-gate")
-    if not verdict:
-        return "escalate"
-    choice = str(verdict.get("choice") or "")
-    if choice != "handle_inline":
-        return "escalate"
-    if float(verdict.get("confidence") or 0.0) < _jev.MIN_CONFIDENCE:
-        return "escalate"
-    return "handle_inline"
 
 
 def escalation_text(operator_text: str, turn_text: str) -> str:

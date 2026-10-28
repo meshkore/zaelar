@@ -241,10 +241,10 @@ def names_an_order(brief, *, sure: float = 0.0) -> bool:
         # and «Show me only today's emails» promised or denied with no call and no repair ever looked.
         if not from_brief(brief)[1] and not _bd.named_card(brief):
             return False
-        # A SURE «tell me» over an UNSURE action is no order (`words_only`): «did you actually skip it? what's
+        # A SURE «tell me» over an UNSURE action is no order (`verdicts.tell_vetoes_unsure_action`): «did you actually skip it? what's
         # playing now» ran a second `youtube:next` and reported a false «no more videos» (2026-10-11).
-        from nucleo.flash import words_only as _wo
-        if _wo.tell_vetoes_unsure_action(brief):
+        from nucleo.turn import verdicts as _verdicts
+        if _verdicts.tell_vetoes_unsure_action(brief):
             return False
         named_sure = False
         if sure and from_brief(brief)[1]:

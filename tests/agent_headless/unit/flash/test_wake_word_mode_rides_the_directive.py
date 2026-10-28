@@ -12,7 +12,9 @@ Measured live (sessions 76bd0bb5 and 8a07e8d9, 2026-09-09), the two failures thi
    lo tengo)?». Nothing in the prompt said the mode EXISTS, that the wake word IS the assistant's name, or
    which tool toggles it. `live_state()` carries that line now.
 
-The mode's product name is «Modo Wake Word» (operator decision 2026-09-09); «wakeworld» is the STT's own
+Since refactor2710-07 WHETHER a directive toggles the mode is the brief's `identity_change` verdict
+(`nucleo/turn/identity`, tested in `test_the_name_it_answers_to_is_the_name_it_says`), never word classes over the
+paraphrase. The mode's product name is «Modo Wake Word» (operator decision 2026-09-09); «wakeworld» is the STT's own
 garble of it, transcribed verbatim in session 8a07e8d9.
 """
 from __future__ import annotations
@@ -21,36 +23,7 @@ from tests import voice_turn_source as _vts
 
 import re
 
-from nucleo.flash import identity_actions
 
-
-# ── 1 · the detector reads the model's real paraphrases ─────────────────────────────────────────────────────
-
-def test_the_measured_respond_paraphrase_activates_the_mode():
-    d = ("Solo responder cuando el operador diga el nombre del asistente (Johnny); "
-         "el resto del tiempo permanecer en silencio")
-    assert identity_actions.resolve(d) == ("attention", "smart")
-
-
-def test_the_mode_is_addressable_by_its_product_name_and_its_stt_garble():
-    for d in ("activa el modo wake word", "Activa el modo wakeworld",
-              "activar el modo de activación por palabra clave"):
-        assert identity_actions.resolve(d) == ("attention", "smart"), d
-
-
-def test_deactivation_by_name_and_by_phrase():
-    for d in ("desactiva el modo wake word", "quita el wake word", "vuelve a escucharme siempre",
-              "responde siempre, aunque no diga tu nombre"):
-        assert identity_actions.resolve(d) == ("attention", "always"), d
-
-
-def test_an_unrelated_directive_stays_a_plain_style_rule():
-    for d in ("Sé más directo en las respuestas", "En Gmail muestra solo el asunto de los mensajes"):
-        assert identity_actions.resolve(d) is None, d
-
-
-def test_a_rename_still_wins_over_the_attention_classes():
-    assert identity_actions.resolve("El asistente debe llamarse Johnny") == ("rename", "Johnny")
 
 
 # ── 2 · the prompt HOLDS the fact: mode name, wake word = assistant name, tool, current state ───────────────
@@ -79,18 +52,9 @@ def test_the_prompt_says_when_the_mode_is_off(monkeypatch):
     assert "MODO WAKE WORD" in block and "desactivado" in block and "ACTIVADO" not in block
 
 
-# ── 3 · wiring guard: the turn rides identity_actions ─────────────────────────────────────────────────────
 
 def _stripped_source(path: str) -> str:
     src = _vts.read(path)
     return re.sub(r"(?m)#.*$", "", src)
 
 
-def test_the_voice_turn_calls_identity_actions():
-    # V2-633 moved the whole set_style_directive path into nucleo/flash/style_directive.py — the guard follows the
-    # turn (V2-555): its entry must delegate there, and the shared module must still ride identity_actions.
-    from voice.engine.llm.providers import nucleo as _provider
-    voice = re.sub(r"(?m)#.*$", "", _vts.getsource(_provider))
-    shared = _stripped_source("nucleo/flash/style_directive.py")
-    assert "style_directive" in voice and "_styled.handle(" in voice
-    assert "identity_actions" in shared and ".handle_voice(" in shared

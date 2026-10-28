@@ -23,6 +23,14 @@ def _clean(monkeypatch):
     fa._reset_for_tests()
 
 
+def _classify(text: str):
+    """The request-type question over the transport, the way the brief asks it (the standalone wrapper went with
+    refactor2710-07: the turn's brief carries this question)."""
+    v = jev.choose_sync("request_type", text, instructions=jev._RT_INSTRUCTIONS, criteria=jev.REQUEST_TYPES,
+                        question_id="request-type")
+    return None if v is None else {"type": v["choice"], "kind": jev.KIND_MAP.get(v["choice"], ""), **v}
+
+
 def _ready_handle(result: dict | None) -> dict:
     ev = threading.Event()
     ev.set()
@@ -74,8 +82,8 @@ def test_a_verdict_still_flying_keeps_the_regex_class():
 def test_no_key_means_no_thread_and_no_verdict(monkeypatch):
     monkeypatch.setattr(jev, "_read_key", lambda: "")
     assert jev.enabled() is False
-    assert jev.request_async("open the music") is None
-    assert jev.classify_sync("open the music") is None
+    assert jev.ask_async("open the music", run=lambda: {"choice": "order"}) is None
+    assert _classify("open the music") is None
 
 
 def test_an_explicit_switch_disables_even_with_a_key(monkeypatch):
@@ -99,7 +107,7 @@ def test_a_call_parses_and_logs_verdict_with_milliseconds(monkeypatch):
     monkeypatch.setattr("voice.observer.emit",
                         lambda kind, label, text="", role="", extra=None: seen.append(
                             (kind, label, text, extra)))
-    out = jev.classify_sync("close the widgets")
+    out = _classify("close the widgets")
     assert out["type"] == "order" and out["kind"] == "action"
     assert out["latency_ms"] >= 0
     assert len(seen) == 1
@@ -118,7 +126,7 @@ def test_a_failed_call_returns_none_and_logs_the_error(monkeypatch):
     seen: list = []
     monkeypatch.setattr("voice.observer.emit",
                         lambda kind, label, text="", role="", extra=None: seen.append(extra))
-    assert jev.classify_sync("hello?") is None
+    assert _classify("hello?") is None
     assert seen and seen[0]["error"].startswith("TimeoutError")
 
 
@@ -126,7 +134,7 @@ def test_an_unknown_choice_is_not_a_verdict(monkeypatch):
     monkeypatch.setattr(jev, "_post", lambda state, timeout: _canned(choice="teleport"))
     monkeypatch.setattr(jev, "_read_key", lambda: "k")
     monkeypatch.setattr("voice.observer.emit", lambda *a, **k: None)
-    out = jev.classify_sync("hello?")
+    out = _classify("hello?")
     assert out["type"] == "" and out["kind"] == ""
     kind, _ = jev.resolve_kind(_ready_handle(out), "neutral")
     assert kind == "neutral"
@@ -163,10 +171,10 @@ def test_the_filler_opens_NO_socket_of_its_own(monkeypatch):
     """V2-726 A2, and the reason this question moved: `arm` used to call `jev.request_async` about a
     second after the brief was fired — same turn, same words, a second round trip for a verdict read
     at the same deadline. Two trips per turn was the measured cost; this is the test that keeps it
-    at one. A `request_async` that fires here again turns this red."""
+    at one. Any Jev call that fires here again turns this red."""
     fired: list = []
-    monkeypatch.setattr("nucleo.jev.request_async",
-                        lambda *a, **k: fired.append(a) or None)
+    monkeypatch.setattr("nucleo.jev.ask_async", lambda *a, **k: fired.append(a) or None)
+    monkeypatch.setattr("nucleo.jev.choose_sync", lambda *a, **k: fired.append(a) or None)
     fa.arm(_Brain(), "is it done?", brief=_ready_brief("order"))
     assert fired == [], "the filler asked Jev on its own instead of reading the turn's brief"
     _, kind, _ = fa._consume_arm()
