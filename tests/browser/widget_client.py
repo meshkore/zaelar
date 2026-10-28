@@ -10,22 +10,31 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 from widgets import client_files
 
 _ENGINE = Path(__file__).resolve().parents[2]
 
-_app = FastAPI()
-_app.include_router(client_files.router)
-_served = TestClient(_app)
+
+
+def served(url: str) -> dict:
+    """What the product's client route answers for `url` (`?v=` kept), as `route.fulfill` kwargs. Built from the
+    route module's own pieces, not through an HTTP client: a sync Playwright handler must not start an event loop."""
+    from urllib.parse import parse_qs, urlsplit
+    u = urlsplit(url)
+    parts = u.path.strip("/").split("/")                  # widgets/<id>/widget.js  ·  widgets/<id>/js/<name>
+    v = "".join(c for c in (parse_qs(u.query).get("v") or [""])[0] if c.isalnum())[:32]
+    rel = ["widget.js"] if parts[2:] == ["widget.js"] else ["js", client_files._safe(parts[-1])]
+    p = Path(client_files._folder(parts[1]), *rel)
+    if len(parts) < 3 or not p.is_file() or not p.name.endswith(".js"):
+        return {"status": 404, "body": b"", "headers": {"content-type": "text/plain"}}
+    src = p.read_text(encoding="utf-8")
+    return {"status": 200, "body": (client_files._versioned(src, v) if v else src).encode(),
+            "headers": {"content-type": "text/javascript"}}
 
 
 async def _serve(route):
-    path = "/" + route.request.url.split("://", 1)[-1].split("/", 1)[-1].split("?", 1)[0]
-    r = _served.get(path)
-    await route.fulfill(status=r.status_code, body=r.content,
-                        headers={"content-type": r.headers.get("content-type", "text/plain")})
+    await route.fulfill(**served(route.request.url))
 
 
 async def mount(pg, widget_id: str, origin: str = "http://zaelar.test") -> None:
