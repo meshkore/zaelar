@@ -50,12 +50,6 @@ _VOICE_SRC = ("voice/engine/llm/providers/nucleo.py", "voice/engine/llm/provider
               "voice/engine/llm/providers/turn_admit.py", "voice/engine/llm/providers/turn_failure.py",
               "voice/engine/llm/providers/turn_fragment.py")   # V2-778 F1-10: they left the provider
 NUCLEO = ENGINE / "voice/engine/llm/providers/nucleo.py"
-#: The TEXT channel, likewise two files since the V2-605 extraction: the turn in `probe.py` and the shared
-#: show-instance body in `show_target.py`.
-_PROBE_SRC = ("nucleo/flash/probe.py", "nucleo/flash/show_target.py", "nucleo/flash/probe_decide.py",
-              "nucleo/flash/probe_after.py", "nucleo/flash/probe_mirrors.py",
-              "nucleo/flash/probe_before.py")
-
 
 class _Voice:
     """Reads as one source: `.read_text()` concatenates the channel's files."""
@@ -207,10 +201,10 @@ def test_a_named_instance_passes_through_untouched():
     assert out["id"] == "results::t7" and not out["ask"]
 
 
-def test_the_show_decision_is_wired_in_BOTH_channels():
-    """The decision lives ONCE (`instances.resolve_show`) and both channels call it — the kind of bug that
-    survives by diverging between voice and probe (V2-252, three times). It is checked against the source WITHOUT comments:
-    two guards in this suite already passed with the call deleted because the comment named it."""
+def test_the_show_decision_is_wired_in_the_voice_turn():
+    """The voice turn (which the typed channel runs too) asks for the instance when it shows. It is checked against
+    the source WITHOUT comments: two guards in this suite already passed with the call deleted because the comment
+    named it."""
     def _code(p):
         lines = Path(p).read_text(encoding="utf-8", errors="replace").splitlines()
         return "\n".join(ln for ln in lines if not ln.strip().startswith("#"))
@@ -218,13 +212,6 @@ def test_the_show_decision_is_wired_in_BOTH_channels():
     voz = "\n".join(_code(rel) for rel in _VOICE_SRC)   # el canal son DOS ficheros desde la pasada del trinquete
     assert voz.count("def _show_target_instance(") == 1
     assert "_show_target_instance(_rid" in voz, "la voz no consulta la instancia al mostrar"
-    # El canal de TEXTO también son DOS ficheros desde el trinquete de V2-605: `probe.py` decide y
-    # `show_target.show_instance` es el cuerpo compartido. Se lee EL CANAL, no un fichero — un guarda clavado a
-    # una ruta deja de guardar en cuanto el código se extrae, y esa es la lección que V2-555 ya pagó (aquí se
-    # puso ROJO, que es la forma buena de enterarse).
-    probe = "\n".join(_code(rel) for rel in _PROBE_SRC)
-    assert "_show_instance(" in probe, "el probe no consulta la instancia al mostrar"
-    assert "resolve_show(" in probe, "el probe no llega a la decisión compartida"
 
 
 # ── 5) «los dos» ANSWERS the question instead of restarting it (V2-530) ───────────────────────────────────────
