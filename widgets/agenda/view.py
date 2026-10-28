@@ -1,7 +1,7 @@
 #
 # Agenda widget — the pieces `view_data()` assembles beyond the plan: the day horizon, the pushed view's
-# freshness and the pending proposals. Moved out of `data.py` (refactor2710-12 T-03), which re-exports them.
-# `_today`, `_now`, `_lang` and `_VIEW_TTL_S` are read back through `data`, where tests patch them.
+# freshness and the pending proposals; `data.py` re-exports them. `_today`, `_now`, `_lang` and `_VIEW_TTL_S`
+# are read back through `data`, where tests patch them.
 #
 from . import planner
 
@@ -26,15 +26,9 @@ def _horizon(db: dict, span: int = 7) -> list[dict]:
     return out
 
 
-# How long a pushed view stays worth OBEYING (V2-540). It is not the mounted widget that needs this — that one
-# keeps whatever is on screen and only moves when the token changes — it is a widget mounting FRESH.
-#
-# The flow that matters happens in seconds: `show_day` writes, then `show_widget` opens the card, and its first
-# fetch has to arrive already pointing at tomorrow (opening the widget can never select a day by itself, which
-# is the whole defect). But a push kept forever would mean that reopening the agenda NEXT WEEK lands on a
-# «tomorrow» that is now the past — a stale answer wearing the face of a deliberate one. Expiring it server-side
-# is the one place with a trustworthy clock, and it costs the open widget nothing: when `view` goes away the
-# token merely stops moving, so nothing snaps back and the operator's own tab survives.
+# How long a pushed view stays worth OBEYING for a widget mounting FRESH (V2-540): `show_day` then `show_widget`
+# happen in seconds, but a push kept forever would land a reopen next week on a past «tomorrow». Expired here,
+# the one trustworthy clock; an open widget just sees its token stop moving, so nothing snaps back.
 _VIEW_TTL_S = 600
 
 

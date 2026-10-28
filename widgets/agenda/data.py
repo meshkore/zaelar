@@ -14,8 +14,7 @@ from .details import _apply_details, _norm_attendees, _norm_status  # noqa: F401
 from . import edit, planner, recur, tasklists
 
 
-# `_strip_accents` travelled with the spoken-date resolver it serves (V2-744); re-exported under its
-# historical name because `_title_key` below and half this widget's tests reach it here.
+# `_strip_accents` lives with the spoken-date resolver (V2-744); re-exported because tests reach it here.
 from .when import _strip_accents  # noqa: E402
 from .twins import (  # noqa: E402,F401 — V2-778 F1: moved, imported back under their names
     _ARTICLES, _is_same_meeting, _settle_rule, _title_key, _titles_overlap)
@@ -36,8 +35,7 @@ DB_VERSION = 2
 
 def _migrate(db: dict, from_v: int) -> dict:
     # v0 → v1: pre-versioning files are already the current shape; just adopt the version field.
-    # v1 → v2 (V2-744): tasks live in NUMBERED LISTS. Every task without a `listId` joins «General», and
-    # the list itself is created if it is not there — see `tasklists.migrate` for why it also runs on read.
+    # v1 → v2 (V2-744): tasks live in NUMBERED LISTS; a task without a `listId` joins «General» (`tasklists.migrate`).
     return tasklists.migrate(db)
 
 
@@ -59,7 +57,7 @@ def _now() -> str:
     return time.strftime("%H:%M")
 
 
-# The text views (refactor2710-12 T-03): the spoken line, the coach context, today's block.
+# The text views: the spoken line, the coach context, today's block.
 from .digest import _spoken, coach_context, today_line  # noqa: E402,F401 — re-export
 
 
@@ -74,13 +72,12 @@ def compute_plan(db: dict | None = None) -> dict:
     return planner.plan_day(db or load_db(), date=_today(), now=_now(), lang=_lang())
 
 
-# The pieces view_data() assembles (refactor2710-12 T-03): horizon, pushed-view freshness, proposals.
+# The pieces view_data() assembles: horizon, pushed-view freshness, proposals.
 from .view import _VIEW_TTL_S, _fresh_view, _horizon, _proposals  # noqa: E402,F401 — re-export
 
 
 def calendars() -> list[dict]:
-    """Connection state of each calendar provider, for the header strip. Body in `gcal.py` (architecture
-    ratchet extraction) — kept re-exported here since tests and `view_data()` call `data.calendars()`."""
+    """Connection state of each calendar provider, for the header strip (body in `gcal.py`)."""
     return gcal.calendars()
 
 
@@ -107,19 +104,16 @@ def view_data(q: str = "") -> dict:
         "googleCalendars": (db.get("google") or {}).get("calendars", []),
         "defaultCalendarId": (db.get("google") or {}).get("defaultCalendarId", ""),
 
-        # V2-697 — appointments somebody ELSE asked for, waiting for the operator's yes. They are NOT in
-        # `meetings`: nothing here is on his calendar yet, and painting one as an appointment would be the
-        # claim this whole path exists to avoid making.
+        # Appointments somebody ELSE asked for, awaiting the operator's yes — NOT in `meetings`: none is on
+        # his calendar yet (V2-697).
         "proposals": _proposals(),
 
-        # V2-728 — work the SYSTEM will do at a given moment: «la semana que viene haz esto», «mírame esto
-        # cada lunes». Operator, 2026-09-20: *«se puede ver perfectamente en la agenda, aunque es una tarea
-        # no para nosotros, sino para el sistema»*. They are NOT meetings and never become one — nobody is
-        # meeting anybody — so they travel in their own key and the render gives them their own mark.
+        # Work the SYSTEM will do at a given moment («every Monday check this»). NOT meetings and never become
+        # one: their own key and their own mark (V2-728).
         "systemTasks": _system_tasks(),
 
-        # V2-744 — the TAREAS section: the operator's own lists, numbered as the screen numbers them.
-        # Everything at once because a widget cannot fetch, so switching list is client-side.
+        # The TAREAS section: the operator's lists, numbered as the screen numbers them; all at once because a
+        # widget cannot fetch (V2-744).
         "tasks": tasklists.view(db),
 
         "warnings": plan.get("warnings", []),
@@ -141,28 +135,21 @@ from .query import read_query  # noqa: F401,E402 — re-export
 from .system_tasks import system_tasks as _system_tasks  # noqa: F401,E402 — re-export
 
 
-# Relative spoken date/time normalization — extracted to `when.py` (V2-744, the 900-line ceiling).
-# Re-exported under the historical private names: `invite.py`, `sweep.py` and this module's own tests
-# reach them as `data._resolve_date` / `data._resolve_time`, and a rename would be a change nobody asked for.
+# Relative spoken date/time normalization lives in `when.py` (V2-744); re-exported because `invite.py`,
+# `sweep.py` and the tests reach `data._resolve_date` / `data._resolve_time`.
 from .when import _m2, _resolve_date, _resolve_time, _WEEKDAYS  # noqa: F401,E402 — re-export
 
 
-# V2-643 — WHAT an appointment is made of, beyond a title and an hour. The operator's spec for a real
-# calendar: «si son reuniones, si están confirmadas por la contraparte, si no; si es una cita con más
-# personas, cuántas». So a meeting carries `attendees` (names), `status` (confirmed|pending), `location`
-# and `category`, and the widget paints hue from the category and INTENSITY from the status — a pending
-# invitation is outlined, a confirmed one is solid, exactly the convention every calendar already uses.
+# A meeting carries `attendees`, `status` (confirmed|pending), `location` and `category`; the widget paints hue
+# from the category and INTENSITY from the status — pending outlined, confirmed solid (V2-643). The spoken status
+# is parsed in `details.py` on WORD BOUNDARIES with PENDING first, so a negated confirmation stays pending.
 _STATUS = ("confirmed", "pending")
-# WORD BOUNDARIES, not substrings, and PENDING is tested first — «sigue pendiente» read as confirmed
-# because «si» lives inside «sigue» (caught by this module's own test before it shipped). A negated
-# confirmation («sin confirmar», «no me lo ha confirmado») is pending, so it has to win the race.
 def consent_scope(action: str, payload: dict | None = None) -> dict:
     """Which consent CLASS a call belongs to, when the manifest alone cannot say (V2-718).
 
-    Read by `nucleo/flash/frontend._policy_key` before anything runs. The agenda has two calls whose
-    friction depends on the CALL and not on the verb, and both were named by the operator: inviting
-    somebody who is already in the meeting is free, inviting a third party is his to grant; moving an hour
-    nobody else has committed to is free, moving one somebody else already agreed is his to grant.
+    Read by `nucleo/flash/frontend._policy_key` before anything runs. Two calls depend on the CALL, not the verb:
+    inviting someone already in the meeting is free, a third party is his to grant; moving an hour nobody else
+    committed to is free, one somebody already agreed is his to grant.
     """
     try:
         from . import invite as _invite
@@ -180,8 +167,7 @@ def radius(action: str, payload: dict | None = None) -> int | None:
         return None
 
 
-# V2-778 F1-12 — the action handlers live in `actions.py`, imported back under their names (that module
-# reads this one).
+# The action handlers live in `actions.py` (which reads this module) (V2-778 F1-12).
 from .actions import (  # noqa: E402,F401
     _a_drop_project, _a_add_meeting, _a_dedupe_meetings, _a_cancel_meeting, _a_set_reminder, _a_clear_range,
     _a_clear_all, _a_move_meeting, _a_open_meeting, _a_update_meeting, _a_invite, _a_rsvp_meeting, _a_proposal,
@@ -189,10 +175,8 @@ from .actions import (  # noqa: E402,F401
 from . import reminders  # noqa: E402  (the asked notice, V2-781 T513)
 
 
-# V2-778 F1-12 — one function per action (in `actions.py`), and `apply_action` is the table lookup. Each body
-# is the branch it was, moved verbatim; a branch that used to fall through to the shared ending returns
-# `_Continue(_extra)` instead, and the ending runs here as before. The contract gate reads the table's
-# keys (`widgets/validator._table_actions`).
+# `apply_action` is a table lookup; a handler that ends in the shared epilogue returns `_Continue(_extra)`. The
+# contract gate reads the table's keys (`widgets/validator._table_actions`).
 class _Continue:
     """An action that ends in the shared epilogue, carrying its `_extra`."""
     __slots__ = ("value",)
@@ -229,22 +213,18 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     if action == "move_meeting" and (payload or {}).get("day") and not payload.get("newDate"):
         payload = {**payload, "newDate": payload["day"]}   # in a move, a bare `day` is where it goes
         payload.pop("day")
-    # A move is a write too: the model names its fields the way it names a meeting's (demo pass 2026-09-28, C4:
-    # «move it half an hour later» → {date, start: 13:30, end: 14:15} refused as «no destination», and the next
-    # turn re-sent the move instead of the Telegram he asked for).
+    # A move is a write too: the model names its fields the way it names a meeting's ({date, start, end}).
     payload = recur.normalize(payload) if action in ("add_meeting", "update_meeting", "move_meeting") \
         else (payload or {})
     if action in ("move_meeting", "update_meeting", "cancel_meeting", "open_meeting"):
         payload = edit.day_out_of_title(payload)       # «Piano del martes 2026-10-13» names that day (V2-781)
     if action == "add_task" and payload.get("date") and any(payload.get(k) not in (None, "", False, True)
                                                              for k in reminders.ASK_KEYS):
-        # V2-781 T515 — a dated task that asks for a NOTICE («estreno de Dexter, el 30, avísame») is an agenda
-        # item: only an item carries a notice that is cancelled with it. Measured live: add_task {date, remind}
-        # wrote a task, dropped the notice, and the reply promised it.
+        # A dated task that asks for a NOTICE is an agenda item: only an item carries a notice that is cancelled
+        # with it (V2-781 T515).
         return apply_action("add_meeting", payload)
     if action == "update_meeting" and any(str(payload.get(k) or "").strip() for k in edit.TIME_KEYS):
-        # V2-770 — WHEN inside an edit («que dure hasta las cinco») is a reschedule: the door that owns the
-        # notice takes it, then whatever else the edit said lands below. It was dropped here before.
+        # WHEN inside an edit is a reschedule: the door that owns the notice takes it, the rest lands below (V2-770).
         _moved = apply_action("move_meeting", payload)
         payload = {k: v for k, v in payload.items() if k not in edit.TIME_KEYS}
         if _moved.get("ok") is False or not (set(payload) - {"title", "date", "whole"}):
@@ -252,9 +232,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     db = load_db()
     _extra: dict = {}
 
-    # V2-744 — every TASK verb, and the numbered lists they now live in, belong to `tasklists.py`. ONE
-    # branch instead of five: «hecha» on a shopping item and «hecha» on a project task are the same verb,
-    # and splitting them across two files is how the two halves drift apart.
+    # Every TASK verb belongs to `tasklists.py`, in ONE branch: «done» on a shopping item and on a project task is
+    # the same verb (V2-744).
     if action in tasklists.ACTIONS:
         res = tasklists.apply(action, payload, db)
         if not res.get("ok"):
@@ -278,14 +257,12 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
 
 
 def tick(ctx) -> None:
-    """Background sync with Google Calendar (`widgets/background.py`'s scheduler contract needs this name in
-    THIS file — the body lives in `gcal.py` to pay the architecture ratchet by extraction)."""
+    """Background sync with Google Calendar (the scheduler contract needs this name in THIS file; body in `gcal.py`)."""
     from .reminders import roll_series
     roll_series(load_db, lambda db: store.save(WIDGET_ID, db))   # V2-769 — a series' notice moves on
     gcal.tick(ctx)
 
 
 def on_calendar_connected() -> None:
-    """Called by `connectors/calendar/server_api.py` right after OAuth consent completes. Body in `gcal.py`
-    (same reason as `tick` above); kept re-exported here because that caller imports `widgets.agenda.data`."""
+    """Called by `connectors/calendar/server_api.py` right after OAuth consent completes (body in `gcal.py`)."""
     gcal.on_calendar_connected()

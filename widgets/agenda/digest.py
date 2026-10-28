@@ -1,22 +1,15 @@
 #
 # Agenda widget — the text views of the card that are not the contract: the line the operator HEARS
-# (`_spoken`), the coach context and today's block for the turn prompt. Moved out of `data.py`
-# (refactor2710-12 T-03); `data.py` re-exports every name here. State (`load_db`, `_today`, `view_data`) is
-# read back through `data` so a test that patches it there still reaches these functions.
+# (`_spoken`), the coach context and today's block for the turn prompt; `data.py` re-exports them. State
+# (`load_db`, `_today`, `view_data`) is read through `data` so a test that patches it there reaches these.
 #
 from . import recur
 
 
 def _spoken(field: str) -> str:
-    """A line the operator HEARS, read from the language table instead of written here (V2-689).
-
-    His rule, and V2-676's receipt: every text the operator can hear or read lives in ONE place that gets
-    translated when the agent is initialised in a language. A hardcoded Spanish refusal is a defect for
-    every operator who is not speaking Spanish — and an `_en` ternary is the same defect for the third
-    language, which is why this reads the TABLE and never a two-way branch.
-
-    Fail-safe: an unreadable table falls back to the field's own default, which is the Castilian text that
-    used to be inline. A refusal the operator cannot hear is worse than one in the wrong language."""
+    """A line the operator HEARS, read from the language table, never a two-way `_en` branch (V2-689).
+    Fail-safe: an unreadable table falls back to the field's default — a refusal in the wrong language beats
+    one he cannot hear."""
     try:
         from i18n import langs as _langs
         return str(getattr(_langs.spec(), field, "") or "")
@@ -50,17 +43,9 @@ def coach_context() -> str:
 
 
 def today_line(limit: int = 8) -> str:
-    """TODAY's meetings as ONE compact block for the turn prompt, whether or not the card is open (V2-668b).
-
-    Measured live (2026-09-11, 11:33, the very re-run of the Hacienda incident): with the agenda CLOSED, the
-    STATE carried a memory pill the processor had distilled from the conversation — «cita con la agencia
-    tributaria… a las 11:00» — while this widget held 11:30, and the model answered the pill without calling
-    `read_widget`, which it had been offered. A widget-owned fact asserted by a recollection outranks the widget
-    for a model, because the recollection is IN the prompt and the widget is a tool call away. So the one
-    calendar everybody asks about every day rides in the state, and the block says who wins when they disagree.
-    Only when there IS something today or tomorrow (an empty pair costs nothing); the header names the precedence.
-    Demo pass 110, Z1: «what's on my plate tomorrow» was answered with TODAY's rows — the only day the block carried
-    — so tomorrow rides too, and every day is named by its DATE rather than left for the model to place."""
+    """TODAY's and TOMORROW's meetings as ONE compact block for the turn prompt, open card or not (V2-668b).
+    A memory pill in the prompt outranks a widget a tool call away, so the calendar rides in the state and the
+    header says the widget WINS a disagreement. Each day is named by its DATE; nothing on either day → ""."""
     try:
         import datetime as _dt
         db = _d.load_db()
