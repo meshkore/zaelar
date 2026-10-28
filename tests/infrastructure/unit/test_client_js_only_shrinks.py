@@ -21,7 +21,7 @@ JS_LINE = 400
 JS_CEILINGS = {
     "frontend/app/widgets/desktop.js": 1987,
     "frontend/app/core/store.js": 1128,
-    "frontend/app/services/session-lk.js": 1094,
+    "frontend/app/services/session-lk.js": 1092,
     "frontend/app/components/ChatWall.js": 1066,
     "frontend/mobile/app/shell/Deck.js": 903,
     "frontend/app/components/ConfigPanel.js": 862,

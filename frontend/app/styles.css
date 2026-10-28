@@ -736,6 +736,9 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .orbic.on{color:var(--hb-accent);opacity:1;filter:drop-shadow(0 0 4px currentColor)}
 .orbic.on svg{stroke-width:2.3}
 .orbic.off{color:var(--hb-muted-2);opacity:.5}
+/* V2-831 T-18 — WAITING FOR THE WAKE WORD: grey like off (nothing is transcribed), but at full strength and with
+   no slash, so «armed, not listening» never reads as «closed». */
+.orbic.wait{color:var(--hb-muted-2);opacity:1}
 /* V2-648 — the slash over a stopped microphone. Full-strength within its (dimmed) icon: it is the one stroke
    that must survive the dimming, because it is what says «nothing is listening». */
 .orbic .mic-slash{opacity:1;stroke-width:2.2}

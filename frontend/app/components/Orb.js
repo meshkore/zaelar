@@ -111,17 +111,17 @@ export function Orb() {
   // clicking it is how you bring everything back. Visual only: each control keeps its real state underneath and
   // reflects it again the moment power returns. (Reactive: reads powerOff() inside the class effect → repaints on
   // toggle, same as every other icon here.)
-  // 2026-08-10: the condition was `!store.powerOff()` — the persisted INTENT. It did not cover the case that really
-  // caused damage: `powerOff=false` with the session DOWN painted the mic and speaker blue over a dead agent.
-  // Now it depends on `agentLive()` (store.js), which is reality: if the agent is not alive, NO icon can
-  // read as on, regardless of its own signal. Visually, each control keeps its state underneath and shows it again
-  // as soon as the agent is alive.
+  // 2026-08-10: it reads `agentLive()` (reality), not `powerOff()` (the persisted intent, which painted the mic and
+  // speaker lit over a DOWN session): if the agent is not alive, no icon reads as on, whatever its own signal.
   const lidClass = (on) => "orbic" + (on && store.agentLive() ? " on" : " off");
   // V2-792 §9 (operator, 2026-10-25): GREY = off or closed, LILAC = on or open. The two DEVICE controls (mic,
   // speaker) are lilac only while really live on THIS screen — `lidClass` above, since a stopped agent or a voice
   // held elsewhere hears and says nothing here. A SECTION (the chat) or a SETTING (captions, wake word) shows its
   // own open/on state whatever the agent is doing: the chat is open or it is not.
   const secClass = (on) => "orbic" + (on ? " on" : " off");
+  // V2-831 T-18: GREY `wait` (full strength, no slash) while the parked tap sends nothing to the STT; else lidClass.
+  const waiting = () => !!(session.tapParked && session.tapParked());
+  const devClass = (on) => (on && store.agentLive() && waiting() ? "orbic wait" : lidClass(on));
   // The ⏻ means POWER and nothing else: grey only when the agent is stopped. «Voice on another screen» is not
   // stopped (that face is what made the operator stop everything, 2026-10-25); it is shown on the orb.
   const pwrState = () => (store.agentState() === "remote" ? "live" : store.agentState());
@@ -159,7 +159,7 @@ export function Orb() {
         // because there is no level: the meter can move only when the system is actually listening.
         "data-ctl": "mic",
         // V2-788: red when the DEVICE has a problem (store.micHealth — a deliberate mute is not one).
-        class: () => lidClass(!store.micMuted()) + (store.agentLive() && !store.micMuted() ? " vu" : "")
+        class: () => devClass(!store.micMuted()) + (store.agentLive() && !store.micMuted() && !waiting() ? " vu" : "")
                      + (store.micHealth().ok ? "" : " problem"),
         style: { "--vu": () => (store.agentLive() && !store.micMuted() ? String(Math.min(1, store.micLevel() * 6)) : "0") },
         title: () => (!store.micHealth().ok ? t(problemTitleKey("mic", store.micHealth().reason))
@@ -172,7 +172,7 @@ export function Orb() {
         },
       }, () => raw(store.micMuted() ? MIC_OFF : MIC_ICON)),
       h("button", { "data-ctl": "spk",
-        class: () => lidClass(!store.botMuted()) + (store.spkHealth().ok ? "" : " problem"),
+        class: () => devClass(!store.botMuted()) + (store.spkHealth().ok ? "" : " problem"),
         title: () => !store.spkHealth().ok ? t(problemTitleKey("spk", store.spkHealth().reason))
                    : store.botMuted() ? t("orb.speaker_muted") : t("orb.speaker_unmuted"),
         // V2-788: a red speaker is a click to RECOVER playback (inside the gesture), not to mute it — muting a

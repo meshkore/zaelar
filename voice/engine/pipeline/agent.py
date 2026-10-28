@@ -405,9 +405,9 @@ async def entrypoint(ctx: JobContext) -> None:
 
     if _cloud_account.is_cloud_account():
         _account_limits.register_closer(_close_account_session)
-
     # CHAT TEXT, as a spoken turn: data topic "zaelar-text" (the holder) and `POST /api/chat` (any screen, V2-792).
     _typed_from_screen = _agent_events.open_typed_door(_emit=_emit, _on_session_loop=_on_session_loop, session=session)
+    _agent_events.open_mic_door(session=session, _emit=_emit)   # V2-831 T-18: before start — no closed state feeds STT
     import json as _json
 
     @ctx.room.on("data_received")
