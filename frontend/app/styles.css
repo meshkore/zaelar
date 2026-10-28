@@ -1269,7 +1269,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
    A widget.js may use these instead of hand-rolling the same card/header/chip CSS every time — same
    --hb-* tokens, so a widget can go from "structure only" to fully themed with almost no CSS of its
    own. Fully optional: a widget can still write 100% custom CSS if the layout doesn't fit this shape. */
-.hbk-card{background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:14px;padding:14px 16px}
+.hbk-card{background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:14px;padding:14px 16px}
 .hbk-hd{display:flex;align-items:baseline;gap:10px;margin:0 0 10px}
 .hbk-hd b{font-size:0.9375rem;font-weight:600;color:var(--hb-ink)}
 .hbk-sub{font-size:0.75rem;color:var(--hb-muted-2)}
