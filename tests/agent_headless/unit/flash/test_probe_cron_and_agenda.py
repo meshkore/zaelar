@@ -28,7 +28,7 @@ class _CronTagClient:
 
     async def stream(self, *_a, **_kw):
         yield "Apuntado. Te aviso el miércoles por la mañana."
-        yield ('[[cron.create]]{"schedule":"2026-09-02 09:00","prompt":"renovar el seguro del coche mañana",'
+        yield ('[[cron.create]]{"schedule":"2099-09-02 09:00","prompt":"renovar el seguro del coche mañana",'
                '"name":"seguro-coche"}[[/cron.create]]')
 
     async def complete(self, *_a, **_kw):
@@ -46,7 +46,7 @@ class _CronPlusToolClient:
             if asyncio.iscoroutine(res):
                 await res
         yield "Hecho: lo tienes en la agenda del jueves y te aviso el miércoles."
-        yield ('[[cron.create]]{"schedule":"2026-09-02 09:00","prompt":"renovar el seguro del coche mañana",'
+        yield ('[[cron.create]]{"schedule":"2099-09-02 09:00","prompt":"renovar el seguro del coche mañana",'
                '"name":"seguro-coche"}[[/cron.create]]')
 
     async def complete(self, *_a, **_kw):
