@@ -1,11 +1,9 @@
-"""Is THIS turn an order to stop the errand running now? One enumerated question in the turn's brief (V2-807 T-14).
-
-Whether he ordered a stop is a judgement, asked in the brief only while an errand is live — never a word table; a
-sure verdict DECIDES (CRIT-K1), and with none the caller's grammar keeps today's path. REPLACE (V2-820) stops it and
-starts the work he named with its goal carried; STEER relays his correction; STOP_ALL (refactor2710-06) stops every
-running errand, and only when sure.
-"""
+"""Is THIS turn an order to stop the errand running now? One enumerated question in the brief, asked only while an
+errand is live (V2-807 T-14): a sure verdict DECIDES (CRIT-K1), with none the caller's grammar keeps today's path.
+REPLACE stops it and starts what he named (V2-820); STEER relays his correction; STOP_ALL only when sure."""
 from __future__ import annotations
+
+import time
 
 from loguru import logger
 
@@ -38,8 +36,7 @@ def ends(v) -> bool:
 
 
 def all_ordered(brief) -> bool:
-    """A SURE «stop every task» (≥ `verdicts.VETO`): killing several distinct errands is irreversible, so anything
-    less stops only the one his words name, or asks which (fail-closed)."""
+    """A SURE «stop every task» (≥ `verdicts.VETO`): killing several errands is irreversible; less asks (fail-closed)."""
     from nucleo.turn import verdicts
     choice, info = verdicts.read(brief, KEY, None, min_confidence=verdicts.VETO)
     return bool(info) and choice == STOP_ALL
@@ -65,29 +62,47 @@ def verdict(brief) -> str | None:
     return choice if info is not None and choice in CHOICES else None
 
 
+#: When we offered to stop (the gate's `ask_which`): the next turn may take it (refactor2710-99).
+_OFFER, OFFER_TTL_S = {"at": 0.0}, 300.0
+
+
+def offer_taken(brief, *, the_model_stops: bool = False) -> bool:
+    """His turn TAKES our open offer: the brief reads it as his answer (not a question, comment or complaint) and the
+    model's `stop_worker` or the verdict's DIRECTION points at stopping — our question is the licence, not the bar."""
+    if not _OFFER["at"] or time.time() - _OFFER["at"] > OFFER_TTL_S:
+        return False
+    try:
+        from nucleo.turn import brief as _tb, verdicts
+        kind, _i = _tb.read(brief, _tb.REQUEST_KEY, "")
+        choice, info = verdicts.read(brief, KEY, None, min_confidence=0.0)
+        return (bool(kind) and str(kind) not in ("question", "comment", "complaint")
+                and (the_model_stops or (info is not None and ends(choice))))
+    except Exception as e:  # noqa: BLE001 — a classifier may never break a turn
+        logger.debug(f"stop_decision: offer unreadable: {e!r}")
+        return False
+
+
 def model_stop(brief, *, grammar: bool) -> str:
-    """The MODEL called `stop_worker`: `run` · `veto` · `ask_which` (`nucleo/turn/verdicts`); no verdict → `grammar`."""
+    """The MODEL called `stop_worker`: `run` · `veto` · `ask_which` (an ask is our offer); no verdict → `grammar`."""
     from nucleo.turn import verdicts
-    if (out := verdicts.against_the_model(brief, KEY, ends)) != verdicts.RUN:
+    out = verdicts.against_the_model(brief, KEY, ends)
+    if out != verdicts.VETOED and offer_taken(brief, the_model_stops=True):
+        out, _OFFER["at"] = verdicts.RUN, 0.0
+    elif out != verdicts.RUN:
+        _OFFER["at"] = time.time() if out != verdicts.VETOED else _OFFER["at"]
+    if out != verdicts.RUN:
         return out
     return verdicts.RUN if (verdict(brief) is not None or grammar) else verdicts.VETOED
 
 
 def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = None) -> list:
-    """Stop the running errand for a turn that ordered it and whose model did not call `stop_worker`.
-
-    A SURE stop verdict repairs the turn whatever the model did instead — an escalation it started still starts
-    («para eso y búscame otra cosa» is both). With no sure verdict, today's path: only a turn that started no
-    escalation, read by the grammar (`grammar`, a callable so a sure verdict never pays for it). Returns the ids
-    of the tasks it cancelled ([] when it stopped nothing). The caller only calls this when the model did not stop.
-    """
-    v = verdict(brief)
-    if v is None and escalating:
-        return []
+    """Stop the errand for a turn whose model did not call `stop_worker`: a sure verdict (an escalation it started
+    still starts), a taken offer, or — with neither and no escalation — the grammar. Returns the cancelled ids."""
+    v, taken = verdict(brief), offer_taken(brief)
+    _OFFER["at"] = 0.0                              # an offer is answered by the turn after it, taken or not
     from nucleo import dispatch as _dispatch
-    if not _dispatch.has_active():
-        return []
-    if not (ends(v) if v is not None else bool(grammar())):
+    if (v is None and escalating and not taken) or not _dispatch.has_active() \
+            or not (taken or (ends(v) if v is not None else bool(grammar()))):
         return []
     if acted is not None and v == "replace":
         acted["stopped"] = goals_of(text)           # V2-820: read before the cancel purges the record
@@ -95,7 +110,6 @@ def repair(brief, text: str, *, escalating: bool, grammar, acted: dict | None = 
 
 
 # ── V2-820 · a replace is ONE act: stop X and start Y, with X's goal carried ─────────────────────────────────
-
 def replaces(brief) -> bool:
     """A SURE `replace`: the turn's errand starts beside the stop. Unsure or absent → today's path."""
     return verdict(brief) == REPLACE
@@ -105,37 +119,27 @@ def goals_of(which: str) -> list[str]:
     """The goals of the errands a stop on `which` is about to end — read BEFORE the cancel purges them. Never raises."""
     try:
         from nucleo import dispatch as _dispatch
-        out = []
-        for tid in _dispatch.resolve_sessions(which) or []:
-            rec = _dispatch.get_record(tid)
-            goal = " ".join(str(getattr(rec, "goal", "") or "").split())
-            if goal and goal not in out:
-                out.append(goal)
-        return out
+        goals = [" ".join(str(getattr(_dispatch.get_record(t), "goal", "") or "").split())
+                 for t in _dispatch.resolve_sessions(which) or []]
+        return list(dict.fromkeys(g for g in goals if g))
     except Exception as e:  # noqa: BLE001
         logger.debug(f"stop_decision: goals of the stopped errand unreadable: {e!r}")
         return []
 
 
 def replacement(text: str, goals) -> str:
-    """The request of the errand that takes the stopped one's place: HIS words, and the stopped errand's goal beside
-    them, so what he had already said there (which messages, how many, how long) is not lost with the cancel. His
-    words of this turn rule where the two differ. "" when there is nothing to start."""
+    """The request of the errand that takes the stopped one's place: HIS words (they rule), the stopped goal beside."""
     words = " ".join(str(text or "").split())
-    if not words:
-        return ""
     carried = [" ".join(str(g or "").split())[:400] for g in (goals or ()) if str(g or "").strip()]
-    if not carried:
+    if not words or not carried:
         return words
     return (f"{words}\n\n(It replaces the errand he has just stopped — «{' / '.join(carried)}». What he asked there "
             "still holds unless this message changes it; what this message says wins.)")
 
 
 def start_beside_the_stop(brief, escalate_req: dict, text: str, worker_acted: dict, emit=None) -> bool:
-    """A sure `replace` stopped the errand this turn (the model's `stop_worker` or the backstop): make sure the turn
-    carries the errand that takes its place. The model's own escalation, if it made one, keeps its words and gains the
-    carried goal; otherwise his words are the request. True when the turn now carries a replacement — `turn_after` then
-    lets it through beside the stop, never as a refinement of the errand being cancelled. Never raises."""
+    """A sure `replace` stopped the errand this turn: the turn carries the errand in its place (the model's escalation
+    gains the carried goal, else his words). True when it does — `turn_after` lets it beside the stop. Never raises."""
     try:
         if (worker_acted or {}).get("v") != "stop" or not replaces(brief):
             return False
@@ -154,15 +158,13 @@ def start_beside_the_stop(brief, escalate_req: dict, text: str, worker_acted: di
 
 
 # ── V2-820 · a correction of the running errand reaches the errand ──────────────────────────────────────────
-
 def steers(brief) -> bool:
     """A SURE `steer`: his words change what the running errand must do."""
     return verdict(brief) == STEER
 
 
 def steer_target() -> str:
-    """The ONE live errand a steer is relayed to — "" when none or several are running (a relay to the wrong worker
-    is worse than today's path, which leaves it to the model)."""
+    """The ONE live errand a steer is relayed to — "" when none or several are running."""
     try:
         from nucleo import dispatch as _dispatch
         live = _dispatch.resolve_sessions("")
@@ -173,14 +175,11 @@ def steer_target() -> str:
 
 
 def steer(brief, text: str, *, worker_acted: dict, emit=None, escalate_req: dict | None = None) -> str:
-    """Relay his correction to the running errand when the turn's verdict is a sure `steer` and the model did not
-    address a worker itself. Returns the errand it reached ("" = nothing relayed). Runs BEFORE any repair pass, so a
-    promise to tell the process is kept by this relay and never turned into an op on a card. Never raises."""
+    """Relay his correction to the running errand on a sure `steer` the model did not address; the errand reached or
+    "". Runs BEFORE any repair pass, so a promise to tell the process is kept here. Never raises."""
     try:
         words = " ".join(str(text or "").split())
-        if not words or worker_acted.get("v") or not steers(brief):
-            return ""
-        target = steer_target()
+        target = steer_target() if (words and not worker_acted.get("v") and steers(brief)) else ""
         if not target:
             return ""
         from nucleo import dispatch as _dispatch
