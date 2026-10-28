@@ -360,7 +360,7 @@ _PACKAGE_CEILINGS: dict[str, int] = {
     "server": 5736,        # refactor2710-13: lifespan in one file, routers ≤ 300, three dead routes gone
     "voice": 10089,
     "voice/engine/llm": 3836,
-    "widgets": 38223,
+    "widgets": 38220,
 }
 
 #: A new file under `nucleo/` is born small. 300 lines, not the tree-wide 900 above: the refactor splits the brain
