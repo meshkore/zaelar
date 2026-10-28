@@ -24,7 +24,8 @@ from nucleo import workspace as _workspace
 # keep working unchanged against `generator._validate`/`generator._validate_background`/etc.
 from .validator import (_validate, _validate_actions_sync, _validate_background,  # noqa: F401
                          _apply_action_names, _defines_function, _keyword_collisions,
-                         _scan_data_py, _scan_widget_js)
+                         _scan_data_py)
+from .validator_js import _scan_widget_js  # noqa: F401
 
 from widgets import paths
 
