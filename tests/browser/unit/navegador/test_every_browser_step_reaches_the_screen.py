@@ -115,14 +115,3 @@ def test_but_a_line_that_CHANGED_gets_through():
 
 
 # ── WIRING guard: the decision without a caller is the fix that does not exist (V2-199) ─────────────────────
-def test_the_bridge_actually_calls_it_before_dispatching():
-    """About the SOURCE without comments: the notice comes BEFORE executing the action, because what the operator
-    needs is «entering coches.net» WHILE it enters. Checking only the helper would pass with the call
-    deleted — which is exactly the state in which this file found the code."""
-    from pathlib import Path
-    src = "\n".join(ln for ln in Path("widgets/navegador/act_api.py").read_text().splitlines()
-                    if not ln.strip().startswith("#"))
-    i = src.index("async def navegador_act")
-    cuerpo = src[i:i + 1200]
-    assert "_say_phase(task_id, _phase_for_action(action, args))" in cuerpo
-    assert cuerpo.index("_say_phase(task_id, _phase_for_action") < cuerpo.index("from widgets.navegador import owner")

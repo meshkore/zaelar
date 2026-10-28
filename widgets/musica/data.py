@@ -21,7 +21,6 @@ import time
 import unicodedata
 
 from .. import store
-from i18n import langs as _langs   # V2-778 F3-30: hints are read back aloud, in the agent's language
 from . import local_audio as _local   # V2-638: a track that is a FILE in the agent's own library
 
 WID = "musica"
@@ -32,15 +31,6 @@ _SEED = {"connected": False, "provider": "spotify", "can_connect": False, "own_c
 _RECENT_CAP = 30
 _TOP_CAP = 8
 
-# Cover-art ENRICHMENT (V2-629): a track with no art yet (typed into a list, imported, or a legacy row from
-# before the connector started giving out YouTube thumbnails for free) gets looked up ONCE against the iTunes
-# Search API — free, no key, no auth — and the result is cached forever by (artist, title) so the SAME song
-# never pays a second network round trip, on this machine or the next request. `_ART_MISS_COOLDOWN_S` bounds
-# only the NEGATIVE case (nothing found): a transient API hiccup or a temporarily-misspelled title should not
-# become a permanent "no art" verdict, but a song that genuinely is not in iTunes' catalog should not be
-# re-queried on every render either.
-_ART_MISS_COOLDOWN_S = 14 * 24 * 3600
-_ART_CACHE_CAP = 600
 
 _log = logging.getLogger("zaelar.widgets.musica")
 
@@ -74,94 +64,6 @@ def _load_db() -> dict:
     return db
 
 
-def _spotify_status() -> dict:
-    try:
-        from connectors.spotify import auth
-        return auth.status()
-    except Exception as _e:
-        _log.debug("_spotify_status: degraded, carrying on without it: %s", _e)
-        return {}
-
-
-#: The last Spotify reading and when it was taken (V2-812): the brain's digest rides every turn while the card is
-#: open, and a network read per turn is a price; a reading this fresh is the same fact.
-_NP_FRESH_S = 5.0
-_np_last: dict = {"at": 0.0, "np": None, "src": None}
-
-
-def _now_playing() -> "dict | None":
-    """What is playing NOW on the provider making the sound. Fail-open: never breaks the card."""
-    np = _read_now_playing()
-    _np_last.update(at=time.time(), np=np)
-    return np
-
-
-def _fresh_now_playing(db: dict, fresh_s: float) -> "dict | None":
-    """A reading at most `fresh_s` old, of the SAME start: a new start (another provider, another device) is never
-    answered with the reading of the old one."""
-    src = db.get("source")
-    if fresh_s and time.time() - _np_last["at"] < fresh_s and _np_last.get("src") == src:
-        return _np_last["np"]
-    np = _now_playing()
-    _np_last["src"] = src
-    return np
-
-
-def _read_now_playing() -> "dict | None":
-    try:
-        from connectors import music
-        np = music.now_playing()
-        if not np:
-            return None
-        t = np.track
-        # V2-717 — where the song IS, so the card can draw a progress bar for a device that is not here.
-        # `progress_ms` is a photograph taken at THIS read (the card advances it with its own clock) and
-        # `duration_ms` is what makes it meaningful; either at 0 means «this provider does not say», and the
-        # card then draws no bar at all rather than one pinned at zero.
-        return {"playing": bool(np.playing), "device": np.device or "", "volume": np.volume, "provider": np.provider,
-                "title": (t.title if t else ""), "artist": (t.artist if t else ""),
-                "album": (t.album if t else ""), "art": (t.art if t else ""),
-                "progress_ms": int(getattr(np, "progress_ms", 0) or 0),
-                "duration_ms": int(t.duration_ms if t else 0),
-                "shuffle": bool(getattr(np, "shuffle", False)), "repeat": str(getattr(np, "repeat", "off") or "off")}
-    except Exception as _e:
-        _log.debug("_read_now_playing: degraded, carrying on without it: %s", _e)
-        return None
-
-
-def _live_fields(db: dict, fresh_s: float = 0.0) -> dict:
-    """Live state recomputed on each read: Spotify connection + card display mode + now_playing. `fresh_s` > 0 lets
-    a reading that young stand in for a new one (the digest's per-turn read, V2-812)."""
-    st = _spotify_status()
-    connected = bool(st.get("logged_in"))
-    yt = dict(db.get("yt") or {})
-    # mode = what the bar shows: spotify (remote device), youtube (hidden audio), or idle.
-    loc = _local.display(db)
-    # V2-638 — a file we hold is the third thing the bar can be showing. It wins over the connector
-    # modes because it is the one playing IN the page: `local_audio.play` clears the yt block, so the
-    # two can never be set at once and the order here only decides what an inconsistent db shows.
-    # V2-812 — the bar shows the player that MAKES the sound: a song started in this page's player while a Spotify
-    # account is connected (no Spotify device on the screen that asked) is the page player's, and the Spotify reading
-    # of a device elsewhere is not what he hears.
-    in_page = (db.get("source") or {}).get("provider") == "youtube" and yt.get("videoId")
-    mode = "local" if loc else ("youtube" if in_page else ("spotify" if connected else
-                                                           ("youtube" if yt.get("videoId") else "idle")))
-    return {
-        **_SEED,
-        "connected": connected,
-        "can_connect": bool(st.get("can_connect")),
-        "own_client_id_set": bool(st.get("own_client_id_set")),
-        "default_available": bool(st.get("default_available")),
-        "redirect_uri": st.get("redirect_uri", ""),
-        "now_playing": (None if mode != "spotify" else
-                        _fresh_now_playing(db, fresh_s) if fresh_s else _now_playing()),
-        "yt": _yt_display(yt),
-        "local": loc,
-        "mode": mode,
-        "empty": mode == "idle",                             # V2-776 L2 — nothing playing, nothing to attest
-    }
-
-
 def _derive_top(db: dict) -> list:
     """Top tracks are derived from playback counters (counts), descending by count."""
     counts = db.get("counts") or {}
@@ -191,10 +93,8 @@ def _fav_ref(db: dict) -> dict:
 
 def view_data(q: str = "") -> dict:
     d = _compose(_load_db())
-    # `art_cache` (V2-629) is server bookkeeping — up to 600 tiny entries the card never reads — so it
-    # rides along in `_compose`'s return ONLY because `_persist` reuses that same function to write the
-    # disk file back whole (see its docstring): stripping it THERE would delete the cache on the next
-    # save. Stripped here instead, where it only shrinks what actually crosses the wire.
+    # `art_cache` is server bookkeeping the card never reads. Stripped HERE, not in `_compose`: `_persist` writes
+    # `_compose`'s return back whole, so stripping there would delete the cache on the next save (V2-629).
     d.pop("art_cache", None)
     return d
 
@@ -210,69 +110,6 @@ def _persist(db: dict) -> None:
 
 def _save_view() -> None:
     _persist(_load_db())
-
-
-# Track / list model.
-def _track_query(t: dict) -> str:
-    q = (t.get("query") or "").strip()
-    if q:
-        return q
-    parts = [t.get("title") or "", t.get("artist") or ""]
-    return " ".join(p for p in parts if p).strip() or (t.get("title") or "")
-
-
-_ARTIST_TITLE_SEP = re.compile(r"\s+[-–—:]\s+")   # "Artist - Title" / "Artist – Title" / "Artist: Title"
-
-
-def _split_artist_title(text: str) -> "tuple[str, str]":
-    """Best-effort split of a combined search string into (artist, title), on an EXPLICIT delimiter only.
-    Plain concatenation ('Madonna Papa Don't Preach', no separator) is left untouched — there is no music
-    metadata source here to guess the boundary from, and a wrong guess would be worse than none."""
-    parts = _ARTIST_TITLE_SEP.split(text, maxsplit=1)
-    if len(parts) == 2 and parts[0].strip() and parts[1].strip():
-        return parts[0].strip(), parts[1].strip()
-    return "", text.strip()
-
-
-# YouTube upload titles carry boilerplate no album ever had ("(Official Video)", "[Lyric Video]"…). Stripped
-# for DISPLAY ONLY — the STORED title never changes, so this stays reversible and the no-restart guard
-# (V2-047 F5, which compares queries against the stored `yt.query`) is untouched. Only a KNOWN, closed set of
-# upload tags is removed, applied repeatedly because an upload sometimes stacks two ("Song (Official Video)
-# (4K)") — never a guess, the same discipline `_split_artist_title` follows: recognize, don't invent.
-_YT_TAG_RE = re.compile(
-    r"\s*[\(\[]\s*(?:official\s*(?:music\s*)?(?:video|audio|lyric\s*video)?|lyrics?(?:\s*video)?|"
-    r"audio\s*(?:only)?|visualizer|hq|hd|4k|remaster(?:ed)?(?:\s*\d{2,4})?)\s*[\)\]]\s*$",
-    re.IGNORECASE,
-)
-
-
-def _clean_yt_title(title: str) -> str:
-    t = str(title or "").strip()
-    seen = set()
-    while t and t not in seen:
-        seen.add(t)
-        stripped = _YT_TAG_RE.sub("", t).strip(" -–—")
-        if not stripped:                      # never strip a title down to nothing
-            break
-        t = stripped
-    return t or str(title or "").strip()
-
-
-def _yt_display(yt: dict) -> dict:
-    """The `yt` block reshaped for what the card SHOWS: upload boilerplate stripped from the raw video title,
-    and an artist split off an explicit 'Artist - Title' delimiter when the connector could not name one
-    separately (YouTube never does — Spotify already gives artist/title apart). Never mutates the stored
-    block: all the OTHER fields (`videoId`/`cmd_seq`/`paused`/`volume`/`queue`) pass through byte-identical,
-    which is what `widget.js::syncYtPlayer`'s equality checks depend on."""
-    if not yt or not yt.get("videoId"):
-        return yt or {}
-    out = dict(yt)
-    title = _clean_yt_title(yt.get("title"))
-    artist, stripped = _split_artist_title(title)
-    out["title"] = stripped if artist else title
-    if artist:
-        out["artist"] = artist
-    return out
 
 
 def _fav_playlist_match(db: dict, track: "dict | None") -> bool:
@@ -293,107 +130,8 @@ def _fav_playlist_match(db: dict, track: "dict | None") -> bool:
     return False
 
 
-def _track_from_payload(p: dict) -> "dict | None":
-    """Build a track from flexible payload: {track:{...}} or {query|title[,artist,album]}."""
-    src = p.get("track")
-    if isinstance(src, dict):
-        title = (src.get("title") or p.get("query") or "").strip()
-        return {"title": title, "artist": (src.get("artist") or "").strip(),
-                "album": (src.get("album") or "").strip(), "art": src.get("art") or "",
-                "query": (src.get("query") or title).strip(), "uri": src.get("uri") or "",
-                "videoId": src.get("videoId") or ""}
-    q = (p.get("query") or (src if isinstance(src, str) else "") or p.get("title") or "").strip()
-    if not q:
-        return None
-    title = (p.get("title") or q).strip()
-    artist = (p.get("artist") or "").strip()
-    if not artist and not p.get("title"):          # a bare `query` — try the explicit-delimiter split
-        guessed_artist, guessed_title = _split_artist_title(q)
-        if guessed_artist:
-            artist, title = guessed_artist, guessed_title
-    return {"title": title, "artist": artist,
-            "album": (p.get("album") or "").strip(), "art": "", "query": q, "uri": "", "videoId": ""}
-
-
-def _current_track_from_live(live: dict) -> "dict | None":
-    """Currently playing song (Spotify or YouTube-audio), so it can be saved into a favorites list. Takes
-    the already-composed LIVE state (`_live_fields`'s return) so a caller who has it — `_compose`, on
-    every render — need not pay for `_spotify_status()` a second time."""
-    np = live.get("now_playing")
-    if np and np.get("title"):
-        return {"title": np.get("title") or "", "artist": np.get("artist") or "",
-                "album": np.get("album") or "", "art": np.get("art") or "", "query": np.get("title") or ""}
-    yt = live.get("yt") or {}          # already DISPLAY-shaped (V2-629): clean title, split artist, free art
-    if yt.get("videoId"):
-        return {"title": yt.get("title") or "Música", "artist": yt.get("artist") or "", "album": "",
-                "art": yt.get("art") or "", "query": yt.get("title") or "", "videoId": yt.get("videoId")}
-    return None
-
-
 def _current_track(db: dict) -> "dict | None":
     return _current_track_from_live(_live_fields(db))
-
-
-def _find_playlist(db: dict, ref) -> "dict | None":
-    """Resolves a reference (exact ID or natural-language name) to the actual list. Never invents one."""
-    ref = str(ref or "")
-    pls = db.get("playlists") or []
-    for pl in pls:                                    # exact ID
-        if pl.get("id") == ref:
-            return pl
-    nref = _norm(ref)
-    if not nref:
-        return None
-    for pl in pls:                                    # exact name
-        if _norm(pl.get("name")) == nref:
-            return pl
-    for pl in pls:                                    # contains / contained in
-        nn = _norm(pl.get("name"))
-        if nn and (nref in nn or nn in nref):
-            return pl
-    return None
-
-
-def _closest_playlist(db: dict, ref) -> "dict | None":
-    """Last-resort resolution for a SPOKEN reference the exact/containment finder missed: the STT
-    garbles a name it has never seen («Trublo» for «True Blue», measured live 2026-09-10 — the play
-    failed with a raw code while the operator was naming his only list). Normalized, space-stripped
-    similarity; only a CLEAR, UNIQUE winner resolves (≥0.6 with the runner-up under 0.5). Anything
-    murkier stays a refusal that names what exists — never a guess between two plausible lists."""
-    from difflib import SequenceMatcher
-    nref = _norm(str(ref or "")).replace(" ", "")
-    if not nref:
-        return None
-    scored = []
-    for pl in (db.get("playlists") or []):
-        nn = _norm(pl.get("name") or "").replace(" ", "")
-        if nn:
-            scored.append((SequenceMatcher(None, nref, nn).ratio(), pl))
-    scored.sort(key=lambda t: -t[0])
-    if scored and scored[0][0] >= 0.6 and (len(scored) == 1 or scored[1][0] < 0.5):
-        return scored[0][1]
-    return None
-
-
-def _resolve_track_index(tracks: list, item) -> "int | None":
-    """item = 1-based index ('2') or text matching a track title/query in the list."""
-    if item is None:
-        return None
-    s = str(item).strip()
-    if s.isdigit():
-        i = int(s) - 1
-        return i if 0 <= i < len(tracks) else None
-    nitem = _norm(s)
-    if not nitem:
-        return None
-    for i, t in enumerate(tracks):                    # exact match
-        if nitem == _norm(t.get("title")) or nitem == _norm(t.get("query")):
-            return i
-    for i, t in enumerate(tracks):                    # contains
-        hay = _norm(" ".join([t.get("title") or "", t.get("artist") or "", t.get("query") or ""]))
-        if nitem in hay:
-            return i
-    return None
 
 
 def _push_recent(db: dict, t: dict) -> None:
@@ -419,10 +157,8 @@ def _push_recent(db: dict, t: dict) -> None:
 def _play_track(track: dict, db: "dict | None" = None) -> "dict":
     """Plays ONE track. A `local:` uri is a file WE hold and plays in the page (V2-638); everything else goes
     through the connector seam (Spotify if there is an account, otherwise YouTube-audio). Fail-safe.
-
-    The local branch needs the db because that is where the player state lives, so callers that have one pass
-    it; a caller without one keeps the old behaviour and a local track simply falls through to the connector,
-    which refuses it honestly rather than pretending."""
+    The local branch needs the db (the player state lives there); without one a local track falls through to the
+    connector, which refuses it."""
     if db is not None and _local.is_local(track):
         return _local.play(db, track)
     from connectors import music
@@ -442,97 +178,10 @@ def _uri_now(track: dict) -> str:
         return track.get("uri") or ""
 
 
-def _track_from_resolved(query: str, track) -> dict:
-    """What actually gets remembered in Recent/Top when the card plays a bare query: the RESOLVED provider
-    `Track` (real title, artist, album and — since V2-629 — free cover art) when the connector found one,
-    the operator's own words otherwise. Before this, `_push_recent` stored exactly the spoken/typed query
-    forever, so Home kept showing the raw search string even after the connector had already resolved a
-    clean title and free YouTube-thumbnail art for it."""
-    title = getattr(track, "title", "") if track is not None else ""
-    if not title:
-        return {"title": query, "query": query}
-    clean = _clean_yt_title(title)
-    artist = (getattr(track, "artist", "") or "").strip()
-    if not artist:                            # YouTube never splits artist/title; Spotify already does
-        guessed_artist, guessed_title = _split_artist_title(clean)
-        if guessed_artist:
-            artist, clean = guessed_artist, guessed_title
-    return {"title": clean, "artist": artist, "album": (getattr(track, "album", "") or "").strip(),
-            "art": getattr(track, "art", "") or "", "query": query,
-            "uri": getattr(track, "uri", "") or "", "videoId": getattr(track, "id", "") or ""}
-
-
-# ── Cover-art ENRICHMENT for tracks the connector never resolved (V2-629) ────────────────────────────────
-# A track typed straight into a list (`add_to_playlist {title, artist}`, no `query`), or a legacy row from
-# before the connector started giving out YouTube thumbnails, has no art and never will on its own. This is
-# the SLOW, cached path the widget asks for lazily, on demand, once per song — never on the play critical
-# path (`_track_from_resolved` above already covers the fast, zero-cost case for anything actually played
-# through YouTube-audio).
-def _art_cache_key(title: str, artist: str) -> str:
-    return _norm((title or "") + "|" + (artist or ""))
-
-
-def _itunes_lookup(title: str, artist: str) -> "tuple[str, str]":
-    """(art_url, album) from the iTunes Search API — free, no key, no auth. Best-effort, fail-open: a network
-    hiccup or a song iTunes does not carry must never break the widget, it just stays without art. The one
-    iTunes client lives in the connector (`connectors/music/itunes.py`, V2-795), shared with search/browse."""
-    from connectors.music import itunes
-    return itunes.cover(title, artist)
-
-
-def _backfill_art(db: dict, key: str, art: str, album: str) -> None:
-    """One enrichment lights up the song wherever it ALREADY appears — Home's Recent/Top and any list it was
-    saved into — not only the single row that happened to ask first."""
-    def matches(t: dict) -> bool:
-        return _art_cache_key(t.get("title") or t.get("query") or "", t.get("artist") or "") == key
-
-    for t in db.get("recent") or []:
-        if matches(t) and not t.get("art"):
-            t["art"] = art
-            if album and not t.get("album"):
-                t["album"] = album
-    for c in (db.get("counts") or {}).values():
-        if matches(c) and not c.get("art"):
-            c["art"] = art
-            if album and not c.get("album"):
-                c["album"] = album
-    for pl in db.get("playlists") or []:
-        for t in pl.get("tracks") or []:
-            if matches(t) and not t.get("art"):
-                t["art"] = art
-                if album and not t.get("album"):
-                    t["album"] = album
-
-
-def _enrich_art(db: dict, title: str, artist: str) -> "tuple[str, str]":
-    """Cached iTunes lookup: a HIT is cached forever (an album's art does not change); a MISS is cached only
-    for `_ART_MISS_COOLDOWN_S` — a transient API hiccup, or a title that reads oddly, should not become a
-    permanent "no art" verdict, but a song genuinely absent from iTunes' catalog should not be re-queried on
-    every render either."""
-    key = _art_cache_key(title, artist)
-    if not key or key == "|":
-        return "", ""
-    cache = db.setdefault("art_cache", {})
-    hit = cache.get(key)
-    now = time.time()
-    if hit and (hit.get("art") or now - float(hit.get("at") or 0) < _ART_MISS_COOLDOWN_S):
-        return hit.get("art") or "", hit.get("album") or ""
-    art, album = _itunes_lookup(title, artist)
-    cache[key] = {"art": art, "album": album, "at": now}
-    if len(cache) > _ART_CACHE_CAP:               # evict the OLDEST misses first — a real hit is never dropped
-        stale = sorted(cache.items(), key=lambda kv: (bool(kv[1].get("art")), kv[1].get("at") or 0))
-        for k, _v in stale[:len(cache) - _ART_CACHE_CAP]:
-            cache.pop(k, None)
-    if art:
-        _backfill_art(db, key, art, album)
-    return art, album
-
-
 def _find_or_create_playlist(db: dict, name: str) -> "tuple[dict, bool]":
     """Resolve a spoken list name to the real playlist, CREATING it when it does not exist (V2-384).
-    Measured live: «save it in a list called Curro» answered «Done.» with nothing behind —
-    the model gets ONE call, and demanding create_playlist + add_to_playlist as two is how that call
-    resolves to nothing. Returns (playlist, created)."""
+    The model gets ONE call: demanding create_playlist + add_to_playlist as two leaves nothing behind.
+    Returns (playlist, created)."""
     pl = _find_playlist(db, name)
     if pl is not None:
         return pl, False
@@ -546,73 +195,21 @@ def _find_or_create_playlist(db: dict, name: str) -> "tuple[dict, bool]":
     return pl, True
 
 
-# ref_index (V2-026): playlists are voice-referenceable by name.
-def ref_index() -> list:
-    try:
-        db = _load_db()
-    except Exception as _e:
-        _log.debug("ref_index: degraded, carrying on without it: %s", _e)
-        return []
-    out = []
-    for pl in db.get("playlists") or []:
-        n = len(pl.get("tracks") or [])
-        out.append({"id": pl.get("id"), "label": pl.get("name") or pl.get("id"),
-                    "field": "playlist",
-                    "hint": _langs.words("hints.song_one" if n == 1 else "hints.song_many", default="{n}").format(n=n)})
-    return out
+# The live reading, the track/list model, the cover art and the brain's readers live in their own modules; every
+# name is re-exported here, where the siblings, the runtime and the tests look for it.
+from .now_playing import (  # noqa: E402,F401
+    _NP_FRESH_S, _current_track_from_live, _fresh_now_playing, _live_fields, _now_playing, _np_last,
+    _read_now_playing, _spotify_status)
+from .tracks import (  # noqa: E402,F401
+    _ARTIST_TITLE_SEP, _YT_TAG_RE, _clean_yt_title, _closest_playlist, _find_playlist, _resolve_track_index,
+    _split_artist_title, _track_from_payload, _track_from_resolved, _track_query, _yt_display)
+from .art import (  # noqa: E402,F401
+    _ART_CACHE_CAP, _ART_MISS_COOLDOWN_S, _art_cache_key, _backfill_art, _enrich_art, _itunes_lookup)
+from .digest import (  # noqa: E402,F401
+    _screen_word, prompt_digest, ref_index)
 
 
-def prompt_digest() -> str:
-    """What the OPEN card shows, for the brain (V2-812): the song, WHICH player makes the sound and where, playing or
-    paused, the volume, and whether the browser keeps it silent. Asked «is it muted?» over a card showing a song, the
-    brain only had the list index — no lists, so «the card is EMPTY» — and answered that it had no data. Empty
-    string when nothing plays: the lists line (`refs.items_line`) is then the whole truth."""
-    try:
-        db = _load_db()
-        live = _live_fields(db, fresh_s=_NP_FRESH_S)
-    except Exception as _e:  # noqa: BLE001
-        _log.debug("prompt_digest: degraded, carrying on without it: %s", _e)
-        return ""
-    from . import player as _player
-    from . import sound as _sound
-    mode = live.get("mode")
-    np = live.get("now_playing") or {}
-    cur = (np if np.get("title") else None) if mode == "spotify" else (
-        (live.get("local") or None) if mode == "local" else _current_track_from_live(live))
-    if mode == "idle" or not cur:
-        return ""
-    if mode == "spotify":
-        where = f"Spotify, on the device «{np.get('device') or '?'}» (not this page)"
-        playing = bool(np.get("playing"))
-    else:
-        blk = (live.get("yt") or {}) if mode == "youtube" else (live.get("local") or {})
-        screen = _screen_word((db.get("source") or {}).get("screen", ""))
-        where = "the page player of this card" + (f", on his {screen}" if screen else "")
-        playing = not blk.get("paused")
-    vol = _player.volume(live, db)
-    level = "?" if vol.get("level") is None else f"{vol['level']}%"
-    lines = [f"MUSIC CARD — NOW: «{cur.get('title') or '?'}"
-             + (f" — {cur.get('artist')}" if cur.get("artist") else "") + f"» · source: {where} · "
-             + ("playing" if playing else "paused") + f" · volume {level}" + (" (MUTED)" if vol.get("muted") else "")]
-    if (snd := _sound.digest_line(live)):
-        lines.append(snd)
-    n = len((_player.queue_view(live, db) or {}).get("items") or [])
-    if n:
-        lines.append(f"queue: {n} after this one")
-    return "\n".join(lines)
-
-
-def _screen_word(dev: str) -> str:
-    try:
-        from voice import screens
-        return screens.surface(dev) if dev else ""
-    except Exception as _e:  # noqa: BLE001
-        _log.debug("_screen_word: degraded, carrying on without it: %s", _e)
-        return ""
-
-
-# V2-778 F1-12 — the action handlers live in `actions.py`, imported back under their names (that module
-# reads this one).
+# The action handlers live in `actions.py` (which reads this module) (V2-778 F1-12).
 from .actions import (  # noqa: E402,F401
     _a_refresh, _a_enrich_art, _a_create_playlist, _a_add_to_playlist,
     _a_remove_from_playlist, _a_favorite_current, _a_play_playlist, _a_open_view, _a_back, _a_play_local, _a_seek,
@@ -624,9 +221,7 @@ from .player import (  # noqa: E402
 from .sound import player_audio as _a_player_audio  # noqa: E402 — V2-812: what the page player really lets be heard
 
 
-# V2-778 F1-12 — one function per action (in `actions.py`), and `apply_action` is the table lookup. Each body
-# is the branch it was, moved verbatim; the contract gate reads the table's keys
-# (`widgets/validator._table_actions`).
+# `apply_action` is a table lookup; the contract gate reads the table's keys (`widgets/validator._table_actions`).
 
 
 ACTIONS = {

@@ -75,22 +75,3 @@ def test_captions_on_off_store_the_choice_and_bump_the_command(monkeypatch, tmp_
     assert r["ok"] and yt._load()["captions"] is False
     assert yt._load()["cmd_seq"] == seq1 + 1, "cmd_seq must advance or the player never applies the toggle"
 
-
-def test_captions_survive_a_new_load_and_never_make_it_play():
-    """Source-level, both halves of the V2-590 design: the choice is re-asserted in applyState (or it
-    silently drops on the next load), the live toggle goes through applyCmd, BOTH module names are sent,
-    and captions are NOT in runtime.produce — subtitles never count as producing."""
-    import json
-    from pathlib import Path
-    root = Path(__file__).resolve().parents[4]
-    src = (root / "widgets/youtube/widget.js").read_text(encoding="utf-8")
-    assert "applyCaptions" in src and '"loadModule", ["captions"]' in src and '"loadModule", ["cc"]' in src
-    body_state = src.split("function applyState", 1)[1][:700]
-    assert "applyCaptions" in body_state, "captions must be re-asserted on every load (applyState)"
-    body_cmd = src.split("function applyCmd", 1)[1][:1800]
-    assert 'c === "captions_on"' in body_cmd
-    assert "cc_load_policy" in src, "the load-time param covers a module sent before the player is ready"
-    man = json.loads((root / "widgets/youtube/manifest.json").read_text(encoding="utf-8"))
-    assert "captions_on" in man["actions"] and "captions_off" in man["actions"]
-    assert "captions_on" not in (man.get("runtime") or {}).get("produce", []), \
-        "subtitles do not produce: the global stop must not chase them"

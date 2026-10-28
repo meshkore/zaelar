@@ -34,9 +34,9 @@ import struct
 import zlib
 
 import pytest
+from tests.browser import widget_client
 
 ENG = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "..", ".."))
-_WIDGET = os.path.join(ENG, "widgets", "results", "widget.js")
 
 
 def _png(w: int, h: int) -> str:
@@ -174,9 +174,7 @@ def _paint(sheet, *, width=1140, click_detail=False):
                                route.fulfill(status=200, content_type="text/html", body=_HTML)))
             await pg.goto("http://zaelar.test/")
             await pg.evaluate("w => document.getElementById('host').style.width = w + 'px'", width)
-            src = open(_WIDGET, encoding="utf-8").read()
-            await pg.add_script_tag(
-                content=src.replace("export function render", "window.render = function render"))
+            await widget_client.mount(pg, "results")
             await pg.expose_function("_send", lambda n, p: (sent.append((n, p)), {"ok": True})[1])
             await pg.evaluate("""d => window.render(document.getElementById('host'), d, {
                 action: async (n, p) => await window._send(n, p), top: () => {}, scroll: () => {}})""", sheet)

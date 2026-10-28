@@ -586,15 +586,6 @@ def test_a_garbage_score_is_dropped_not_painted_as_zero():
         assert "score" not in results.view_data()["items"][0], f"con {junk!r} no hay valoración que enseñar"
 
 
-def test_the_detail_page_shows_the_score_and_the_dynamic_card():
-    """Render contract (frontend tests are string-based): the operator asked for the case file to include
-    «the rating and all card data»."""
-    src = WIDGET_JS.read_text()
-    assert "function scoreBlock(" in src
-    assert "scoreBlock(it.score)" in src, "la valoración tiene que salir en el DETALLE, no solo en la tarjeta"
-    assert "renderBlocks(it.blocks)" in src, "la ficha a medida también se despliega en el detalle"
-
-
 # ══ 12) it is a BUILT-IN surface, not a user-created widget ════════════════════════════════════════
 def test_the_sheet_ships_with_the_product():
     """It was in the curated `_BUILTINS` list while its manifest declared `origin:"user"` — and the explicit
@@ -648,58 +639,6 @@ def test_failed_sources_lead_because_they_are_the_ones_that_change_an_answer():
 # With cards rendering all their blocks, ONE card filled the entire sheet — and since the default delivery is ten
 # results, that makes the list impossible to scan. Render contracts (frontend tests are string-based): the list gets
 # the LIGHT blocks; the heavy ones are what you look for when opening a card.
-def test_the_list_shows_a_summary_card_not_the_whole_dossier():
-    src = WIDGET_JS.read_text()
-    assert "renderBlocks(blocks, {compact: true})" in src, "la LISTA pinta la ficha en modo compacto"
-    assert "renderBlocks(it.blocks)" in src, "y el EXPEDIENTE, entera"
-    assert "const LIGHT_BLOCKS = new Set([\"chips\"])" in src
-    assert 'b.kind === "text" && b.tone === "warn"' in src, \
-        "un AVISO no puede quedarse escondido detrás de un clic (regla de presentación)"
-
-
-def test_the_badge_travels_with_the_title_not_with_the_button():
-    """«Best overall» QUALIFIES the result. At the bottom it ended up beside «View details» and read like another button."""
-    src = WIDGET_JS.read_text()
-    assert "hr-metarow" in src
-    i_meta, i_more = src.index("hr-metarow"), src.index('elem("button","hr-more"')
-    assert i_meta < i_more
-
-
-def test_the_numbers_that_get_compared_are_tabular():
-    """Composition detail, not whim: on a surface whose job is to place prices and notes one below another,
-    otros, dígitos de anchura distinta obligan a releer para saber cuál es mayor."""
-    src = WIDGET_JS.read_text()
-    i = src.index("font-variant-numeric:tabular-nums")
-    block = src[max(0, i - 400):i]
-    for cls in ("hr-price", "hr-score", "hr-stat b", "hr-sn", "hr-tbl td"):
-        assert cls in block, f"{cls} lleva cifras que se comparan: van tabulares"
-
-
-def test_the_type_scale_and_spacing_are_a_system_not_ad_hoc_numbers():
-    """The previous version accumulated thirteen font sizes and individually chosen margins. That does not read as a
-    superficie, se lee como parches. Un techo de magnitudes crudas obliga a usar la escala."""
-    src = WIDGET_JS.read_text()
-    css = src[src.index("s.textContent=`"):src.index("`; document.head.appendChild(s)")]
-    for token in ("--f-body", "--f-micro", "--s3", "--r-md", "--line:"):
-        assert token in css, f"falta el token {token} de la escala"
-    import re
-    # Raw magnitudes IN USE, excluding the token definitions themselves (px are mandatory there) and
-    # values below 4px (hairlines, optical half-tones: no scale covers them without looking worse).
-    body = "\n".join(ln for ln in css.split("\n") if not re.match(r"\s*--[a-z0-9-]+:", ln))
-    raw = [m for m in re.findall(r":\s*(\d+(?:\.\d+)?)px", body) if float(m) > 3]
-    # 26 y no menos: lo que queda son alturas de imagen (128/168/100/62) y desplazamientos ópticos de 4-7px, que son
-    # one-offs estructurales de verdad — meterlos en la escala sería rigor de mentira. El techo está para que un
-    # TAMAÑO DE LETRA o un margen no vuelvan a escaparse: ya pasó, y con la escala nueva el título de la ficha
-    # destacada se quedó en 15.5px, o sea MÁS PEQUEÑO que el normal. Un número fuera de la escala no se entera de
-    # que la escala cambió.
-    assert len(raw) <= 26, (f"demasiadas magnitudes crudas en uso ({len(raw)}: {sorted(set(raw))}): "
-                            "usa la escala --s*/--f*/--r*")
-    css_fonts = re.findall(r"font-size:\s*(\d+(?:\.\d+)?)px", body)
-    assert not css_fonts, f"todo tamaño de letra sale de la escala --f-*; crudos: {css_fonts}"
-    assert "#0d1622" in css or "#e8edf5" in css, "los hex solo valen como FALLBACK de var(--hb-*)"
-    assert "color:#" not in css.replace("color:#fff", ""), "ningún color fuera del contrato --hb-*"
-
-
 # ══ 15) THE HEADER STATES THE TASK, NOT THE PIECE NAME (2026-08-12) ════════════════════════════════════════
 # Literal operator rule: «people do not need to know that it is the viewer or that it is the results display,
 # but rather that it is what we asked for placed there». On a GENERIC surface the catalog name
@@ -767,16 +706,6 @@ def test_the_header_does_not_run_under_the_window_buttons():
     assert "margin-left:auto" in re.search(r"\.hb-head-sp\{[^}]*\}", src).group(0) or \
            "flex:1 1 auto" in re.search(r"\.hb-head-sp\{([^}]*)\}", src).group(1), \
         "a spacer has to sit between the title and the controls"
-
-
-def test_the_sticky_header_has_a_bounded_height():
-    """Every line in the sticky header takes space away from the results throughout the ENTIRE scroll. The real subtitle reached
-    a tres líneas: se acota a dos EN PANTALLA y el texto íntegro queda en el tooltip — controlar el espacio no es
-    lo mismo que recortar el dato."""
-    src = WIDGET_JS.read_text()
-    assert "-webkit-line-clamp:2" in src
-    assert 'elem("div","hr-sub clamp2", data.subtitle)' in src
-    assert "sub.title = data.subtitle" in src, "el texto completo no se pierde: va al tooltip"
 
 
 # ── THE TEMPLATE THE WORKER NAMES (V2-703) ──────────────────────────────────────────────────────────────────

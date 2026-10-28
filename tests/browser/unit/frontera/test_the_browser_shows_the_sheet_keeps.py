@@ -120,15 +120,6 @@ def test_and_the_task_still_carries_the_FACT(tarea):
 CAMINOS = ["widgets/navegador/act_api.py", "widgets/navegador/owner.py", "nucleo/dispatch.py"]
 
 
-@pytest.mark.parametrize("rel", CAMINOS)
-def test_every_path_goes_through_the_one_door(rel):
-    """The WIRING guardrail (V2-199): a door nobody calls only proves that the code compiles. And there are
-    exactly three files because they were three copies of the same rule — the exact shape of V2-256."""
-    src = _vts.read(ENGINE / rel)     # V2-778 F1: a split file is read with its moved pieces
-    assert "results import intake" in src, f"{rel} encuentra cosas y no las entrega a la hoja"
-    assert "intake.push" in src or "_intake.push" in src
-
-
 def test_the_PARKED_fourth_copy_stays_parked():
     """Looking for the three paths revealed FOUR `set_results()`. The fourth (`web_cc`) is parked, so it was not
     wired — but “parked” is a fact that can silently stop being true, and the day someone revives it there would

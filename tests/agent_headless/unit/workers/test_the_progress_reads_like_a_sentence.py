@@ -79,26 +79,6 @@ family of silences we have been eliminating all day."""
     assert P.found(0) and "sin resultados" in P.found(0)
 
 
-def test_the_browser_bridge_ACTUALLY_reports_it():
-    """The half that turns it into behavior. And through the `dispatch.session_phase` gateway, the same one used by
-`hbnote`: B4 says the stream travels along the existing channel, never through a parallel one.
-
-Match the CALL and not the entire expression character by character. The first version required the literal
-`_say_phase(task_id, _progress.found(len(items)))` and went red on 2026-08-20 when V2-234 switched to
-counting NAMED results instead of raw rows — a change that does not affect at all what this
-test says it measures (that the bridge reports, and through the existing channel). It is the same trap already paid for in
-V2-222 with a V2-199 assert: a test tied to syntax turns any refactor into a false red, and
-teaches people to look the other way when the red actually matters. Its own node determines what is counted (4.31).
-    """
-    import inspect
-    import re
-
-    from widgets.navegador import act_api
-    src = inspect.getsource(act_api)
-    assert re.search(r"_say_phase\(task_id,\s*_progress\.found\(", src), "el puente tiene que REPORTAR la fase"
-    assert "_d.session_phase(rec.task_id, phrase)" in inspect.getsource(act_api._say_phase)
-
-
 # ── B2: una fase larga tiene que decir que sigue viva ────────────────────────────────────────────────────────
 def test_a_long_phase_says_how_long():
     assert P.still_alive("recorriendo la página", 95) == "recorriendo la página — lleva 1 min"

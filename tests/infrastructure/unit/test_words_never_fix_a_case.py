@@ -27,7 +27,7 @@ ENGINE = Path(__file__).resolve().parents[3]
 
 #: Measured 2026-10-19 at 295ff4ec (366 files). Lower these when you remove; never raise them.
 MAX_REGEXES = 510   # refactor2710-03: the word gates over our own reply went (was 532); refactor2710-01: the old text channel went (was 543); V2-806: the spoken-rule parsers went
-MAX_WORD_TABLES = 464  # refactor2710-03: the claim vocabulary went (was 470); refactor2710-01: the old text channel's reply door went; refactor2710-11: a guessed dimension row went (was 476)
+MAX_WORD_TABLES = 463  # refactor2710-03: the claim vocabulary went; refactor2710-12: two dispatch tables read off their handler names; refactor2710-01: the old text channel's reply door went; refactor2710-11: a guessed dimension row went (was 476)
 
 
 def _strings(v) -> int:

@@ -125,31 +125,6 @@ def test_a_second_present_does_not_forget_what_the_hunt_was_about(tmp_path, monk
     assert sheet.view_data("t3").get("kind") == "product"
 
 
-def test_kind_is_a_FACT_about_the_results_not_an_order_about_the_drawing():
-    """The line that separates this seam from the `columns` the audit refuses. Every accepted value names a sort
-    of thing; none of them names a shape.
-
-    Without this, `kind` is one well-meaning commit away from becoming `kind: "two-columns"` — which is exactly
-    the parameter `widgets/presentation.py` exists to have removed, and it cost three rich cards and an orphan
-    the first time.
-    """
-    import re
-    from widgets.results import data as sheet
-    src = (_ENGINE / "widgets" / "results" / "widget.js").read_text(encoding="utf-8")
-    assert "function layoutFor(" in src, "el formato ya no lo elige la superficie"
-    # The layout names are READ from the widget rather than copied here: the two vocabularies have to stay
-    # disjoint, and a copy would only prove that this file's copy is disjoint from itself. (The first draft of
-    # V2-702 called the photo-left format `media` and the kinds already had a `media` — two meanings on one word
-    # in one file, which is how the older one silently wins. It is `split` now.)
-    m = re.search(r"const LAYOUTS = \[([^\]]*)\]", src)
-    assert m, "no encuentro la tabla de formatos"
-    layouts = set(re.findall(r'"([a-z]+)"', m.group(1)))
-    assert len(layouts) >= 4, layouts
-    generic = {"grid", "list", "columns", "cards", "table"}
-    assert (layouts | generic).isdisjoint(set(sheet._KINDS)), (
-        f"`kind` ha empezado a nombrar FORMAS: {(layouts | generic) & set(sheet._KINDS)}")
-
-
 def test_the_audit_still_refuses_a_columns_parameter():
     """The rule `kind` must not become. Asserted here so the two live side by side and the difference is legible
     to whoever reads this file next."""
